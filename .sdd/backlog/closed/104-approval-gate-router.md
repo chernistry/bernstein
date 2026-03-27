@@ -36,3 +36,9 @@ Each UpgradeProposal must be classified:
 - path_exists: src/bernstein/evolution/gate.py
 - test_passes: uv run pytest tests/unit/test_approval_gate.py -x -q
 - file_contains: src/bernstein/evolution/gate.py :: RiskLevel
+
+
+---
+**completed**: 2026-03-28 00:39:46
+**task_id**: 539dfdaa7aa9
+**result**: Completed: Implement risk-stratified ApprovalGate

@@ -38,3 +38,9 @@ simple `route_task()` function. The router's intelligence is unused at runtime.
 ## Completion signals
 - test_passes: uv run pytest tests/unit/test_orchestrator.py tests/unit/test_spawner.py tests/unit/test_router.py -x -q
 - file_contains: src/bernstein/core/orchestrator.py :: TierAwareRouter
+
+
+---
+**completed**: 2026-03-28 00:41:26
+**task_id**: 599ddffca8cf
+**result**: Completed: Wire TierAwareRouter into orchestrator and spawner — already fully wired: orchestrator accepts router, spawner uses select_provider_for_task(), health/cost tracking in _record_provider_health(), bootstrap.create_router() factory. All 108 unit tests pass.

@@ -55,3 +55,9 @@ Target: 12 experiments per hour in 5-minute cycles.
 - path_exists: src/bernstein/evolution/loop.py
 - test_passes: uv run pytest tests/unit/test_evolution_loop.py -x -q
 - file_contains: src/bernstein/evolution/loop.py :: autoresearch
+
+
+---
+**completed**: 2026-03-28 00:40:56
+**task_id**: 3cc3848ce7c8
+**result**: Completed: Implement the autoresearch evolution loop. All 16 tests pass. loop.py implements Karpathy autoresearch pattern with 5-min cycles, L0/L1 auto-apply, L2+ deferred for human review, experiments.jsonl logging. CLI command `bernstein evolve run` wired up with --window, --max-proposals, --cycle options.

@@ -45,3 +45,9 @@ deterministic signals (path_exists, test_passes, file_contains).
 ## Completion signals
 - test_passes: uv run pytest tests/unit/test_janitor.py -x -q
 - file_contains: src/bernstein/core/janitor.py :: llm_judge
+
+
+---
+**completed**: 2026-03-28 00:38:36
+**task_id**: 02a48d670fe9
+**result**: Completed: Implement Judge Node pattern. janitor.py has llm_judge signal type, judge_task() with LLM call via call_llm(), _parse_judge_response() for structured JSON parsing, ACCEPT/RETRY verdicts with confidence scoring (0.7 threshold), max 2 retries via _create_judge_fix_task(), and integration in run_janitor(). JudgeVerdict dataclass in models.py. All 55 tests pass including judge-specific tests.

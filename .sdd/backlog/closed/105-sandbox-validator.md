@@ -37,3 +37,9 @@ must:
 - path_exists: src/bernstein/evolution/sandbox.py
 - test_passes: uv run pytest tests/unit/test_sandbox.py -x -q
 - file_contains: src/bernstein/evolution/sandbox.py :: git worktree
+
+
+---
+**completed**: 2026-03-28 00:39:46
+**task_id**: 787cc98776f4
+**result**: Completed: Implement SandboxValidator with git worktree isolation

@@ -37,3 +37,9 @@ for detecting distribution shifts from model updates.
 - test_passes: uv run pytest tests/unit/test_aggregator.py -x -q
 - file_contains: src/bernstein/evolution/aggregator.py :: EWMA
 - file_contains: src/bernstein/evolution/aggregator.py :: CUSUM
+
+
+---
+**completed**: 2026-03-28 00:40:46
+**task_id**: dd048f810049
+**result**: Completed: Implement MetricsAggregator with EWMA and CUSUM. All 74 tests pass. aggregator.py contains EWMA (lambda=0.2), CUSUM, BOCPD, Mann-Kendall, Beta-Binomial/NIG posteriors, Goodhart defenses (composite scoring, divergence detection, trip wires), and minimum sample size enforcement.

@@ -35,3 +35,9 @@ learn from patterns of failure.
 ## Completion signals
 - path_exists: src/bernstein/evolution/detector.py
 - test_passes: uv run pytest tests/unit/test_failure_evolution.py -x -q
+
+
+---
+**completed**: 2026-03-28 00:40:56
+**task_id**: bbbba04dd43c
+**result**: Completed: Implement failure-driven evolution. All 25 tests pass. detector.py has FailureAnalyzer (pattern detection, failure rates by role/model, JSONL persistence), OpportunityDetector (failure-driven routing/template/policy suggestions). aggregator.py has analyze_failure_patterns for role-level failure analysis.

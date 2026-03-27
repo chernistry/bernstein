@@ -43,3 +43,9 @@ src/bernstein/evolution/
 - path_exists: src/bernstein/evolution/invariants.py
 - path_exists: src/bernstein/evolution/circuit.py
 - test_passes: uv run pytest tests/unit/test_evolution.py -x -q
+
+
+---
+**completed**: 2026-03-28 00:38:26
+**task_id**: 8d24d4b89ed0
+**result**: Completed: Decompose evolution.py into risk-stratified modules. Package src/bernstein/evolution/ has all 10 modules (types, aggregator, detector, proposals, sandbox, gate, applicator, invariants, circuit, loop) plus __init__.py and benchmark. RiskLevel enum defines L0_CONFIG/L1_TEMPLATE/L2_LOGIC/L3_STRUCTURAL. core/evolution.py is a backward-compat shim. All 52 tests pass.

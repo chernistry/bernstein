@@ -461,6 +461,9 @@ class TaskStore:
     ) -> list[Task]:
         """Return all tasks, optionally filtered by status and/or cell_id.
 
+        When status='open', tasks whose dependencies are not all done are
+        excluded (they are not yet available for agents to pick up).
+
         Args:
             status: If provided, only tasks with this status are returned.
             cell_id: If provided, only tasks in this cell are returned.
@@ -478,6 +481,12 @@ class TaskStore:
             tasks = list(self._tasks.values())
         if cell_id is not None:
             tasks = [t for t in tasks if t.cell_id == cell_id]
+        if status == "open":
+            done_ids = {t.id for t in self._by_status[TaskStatus.DONE].values()}
+            tasks = [
+                t for t in tasks
+                if all(dep in done_ids for dep in t.depends_on)
+            ]
         return tasks
 
     def get_task(self, task_id: str) -> Task | None:

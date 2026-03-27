@@ -1084,6 +1084,15 @@ def benchmark_run(tier: str, benchmarks_dir: str, save: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
+# cost
+# ---------------------------------------------------------------------------
+
+from bernstein.cli.cost import cost_cmd  # noqa: E402
+
+cli.add_command(cost_cmd, "cost")
+
+
+# ---------------------------------------------------------------------------
 # Backward-compatible aliases (old names still work)
 # ---------------------------------------------------------------------------
 

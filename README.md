@@ -5,7 +5,7 @@
 ### Agent orchestration for code that writes itself
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-1210+-2ea44f)]()
+[![Tests](https://img.shields.io/badge/tests-1214+-2ea44f)]()
 [![License](https://img.shields.io/badge/license-PolyForm_NC-f89820)](LICENSE)
 
 </div>
@@ -18,7 +18,7 @@ bernstein
 
 Bernstein is a multi-agent orchestrator. You define a goal or a backlog of tasks. It assigns them to AI coding agents, verifies the output, and adapts its own configuration between runs. The scheduler is deterministic Python — no LLM tokens wasted on coordination.
 
-Works with **Claude Code**, **Codex CLI**, **Gemini CLI**, **Qwen**, and any CLI agent that takes a prompt and writes code. Agents are short-lived: spawn, do the work, exit. No context drift, no sleeping processes.
+Works with **Claude Code**, **Codex CLI**, **Gemini CLI**, and **Qwen**. Agents are short-lived: spawn, do the work, exit. No context drift, no sleeping processes.
 
 ## Quick start
 
@@ -27,7 +27,13 @@ git clone https://github.com/chernistry/bernstein && cd bernstein
 uv venv && uv pip install -e .
 ```
 
-Option A — drop a seed file:
+Option A — inline goal:
+
+```bash
+bernstein -g "Add JWT authentication with refresh tokens and tests"
+```
+
+Option B — seed file:
 
 ```yaml
 # bernstein.yaml
@@ -46,15 +52,40 @@ bernstein --evolve \
 bernstein stop                 # graceful shutdown
 ```
 
-Option B — put `.md` task files in `.sdd/backlog/open/` with YAML frontmatter. Bernstein loads them automatically on start.
+Option C — put `.md` task files in `.sdd/backlog/open/` with YAML frontmatter. Bernstein loads them automatically on start.
 
 ## Commands
 
 ```
-bernstein             Start from seed file or backlog
+bernstein             Start from seed file, inline goal, or backlog
 bernstein stop        Gracefully stop all agents and the task server
-bernstein evolve      Manage self-evolution proposals
+bernstein live        Live dashboard: agents, tasks, and stats (Ctrl+C to exit)
+bernstein status      Task summary, active agents, and cost estimate
+bernstein compose     Add a task to the running server
+bernstein add-task    Alias for compose
+bernstein sync        Sync .sdd/backlog/open/*.md files with the task server
+bernstein notes       Tail server or spawner logs
+bernstein parts       List tasks with optional status/role filters
+bernstein list-tasks  Alias for parts
+bernstein rest        Alias for stop
 bernstein benchmark   Run the tiered golden benchmark suite
+bernstein evolve      Manage self-evolution proposals
+```
+
+### `bernstein evolve` subcommands
+
+```
+bernstein evolve review           List proposals pending human review
+bernstein evolve approve <id>     Approve a specific proposal
+bernstein evolve run              Run the autoresearch evolution loop
+```
+
+### `bernstein benchmark` subcommands
+
+```
+bernstein benchmark run                  Run all benchmark tiers
+bernstein benchmark run --tier smoke     Smoke tier only
+bernstein benchmark run --tier stretch   Stretch tier only
 ```
 
 ## Architecture
@@ -70,6 +101,39 @@ bernstein
 ```
 
 Agents are spawned fresh per task batch (1-3 tasks), work in the same repo, then exit. File ownership prevents concurrent edits to the same file. The orchestrator polls every 10s, spawns when capacity allows (max 6 agents default), and reaps stale processes.
+
+## Adapters
+
+| Adapter | CLI | Notes |
+|---------|-----|-------|
+| Claude Code | `claude` | Default. Full tool-use, file editing, tests. |
+| Codex CLI | `codex` | OpenAI Codex — lightweight, fast. |
+| Gemini CLI | `gemini` | Google Gemini models. |
+| Qwen | `qwen` | Local-friendly, Alibaba Qwen models. |
+
+Set `cli: <adapter>` in `bernstein.yaml`, or pass `--cli <adapter>` on the command line.
+
+## Roles
+
+Bernstein routes tasks to specialist agents based on the `role` field. The following roles are available:
+
+| Role | Purpose |
+|------|---------|
+| `manager` | Plans work, decomposes goals, coordinates other roles |
+| `backend` | Server-side code, APIs, data models |
+| `frontend` | UI, components, browser-side logic |
+| `qa` | Tests, coverage, regression prevention |
+| `security` | Vulnerability analysis, hardening, auth |
+| `devops` | CI/CD, deployment, infrastructure |
+| `architect` | System design, ADRs, structural decisions |
+| `docs` | Documentation, READMEs, changelogs |
+| `ml-engineer` | Models, training pipelines, inference |
+| `prompt-engineer` | Prompt design, LLM integration |
+| `reviewer` | Code review, quality gates |
+| `retrieval` | RAG, embeddings, vector search |
+| `vp` | High-level strategy, cross-team decisions |
+
+Tasks default to `backend` if no role is specified.
 
 ## Task server API
 
@@ -96,7 +160,20 @@ This is the integration layer. Other agents, CI pipelines, Slack bots, or custom
 
 ## Self-evolution
 
-After each run, Bernstein analyzes metrics and proposes configuration changes. Changes are risk-stratified:
+After each run, Bernstein analyzes metrics and proposes configuration changes. The pipeline:
+
+```
+metrics → analysis → proposal → sandbox → gate → apply
+```
+
+1. **Metrics** — aggregate task completion rates, failure patterns, cost per role
+2. **Analysis** — detect regressions, bottlenecks, and improvement opportunities
+3. **Proposal** — generate a concrete change (prompt tweak, routing rule, batch size)
+4. **Sandbox** — run the proposed change against a test suite in isolation
+5. **Gate** — risk-stratified acceptance check; reject on test regression
+6. **Apply** — write the change to config/templates if it passes
+
+Changes are risk-stratified:
 
 | Risk | Scope | Method |
 |------|-------|--------|
@@ -107,12 +184,21 @@ After each run, Bernstein analyzes metrics and proposes configuration changes. C
 
 `InvariantsGuard` SHA-locks critical files on boot. `CircuitBreaker` halts evolution on test regression.
 
+Continuous evolution mode:
+
+```bash
+bernstein --evolve                        # evolve indefinitely
+bernstein --evolve --max-cycles 10        # stop after 10 cycles
+bernstein --evolve --budget 5.00          # stop after $5 spent
+bernstein evolve run --window 2h          # dedicated evolution session
+```
+
 ## Project structure
 
 ```
 src/bernstein/
 ├── adapters/      # CLI agent adapters (claude, codex, gemini, qwen)
-├── cli/           # CLI entry point
+├── cli/           # CLI entry points
 ├── core/          # orchestrator, server, spawner, janitor, evolution
 ├── evolution/     # metrics aggregation, proposal generation, safety gates
 └── templates/     # role system prompts

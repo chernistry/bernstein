@@ -810,3 +810,41 @@ async def test_get_task_unknown(client: AsyncClient) -> None:
     """GET /tasks/{id} returns 404 for nonexistent task."""
     resp = await client.get("/tasks/no-such-task")
     assert resp.status_code == 404
+
+
+# -- dependency filtering ---------------------------------------------------
+
+@pytest.mark.anyio
+async def test_dependency_blocks_open_listing(client: AsyncClient) -> None:
+    """Task B with depends_on=[A.id] is hidden from GET /tasks?status=open until A is done."""
+    # Create task A
+    resp_a = await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Task A"})
+    assert resp_a.status_code == 201
+    task_a_id = resp_a.json()["id"]
+
+    # Create task B that depends on A
+    resp_b = await client.post("/tasks", json={
+        **TASK_PAYLOAD,
+        "title": "Task B",
+        "depends_on": [task_a_id],
+    })
+    assert resp_b.status_code == 201
+    task_b_id = resp_b.json()["id"]
+
+    # B should NOT appear in open tasks while A is not done
+    resp = await client.get("/tasks", params={"status": "open"})
+    open_ids = {t["id"] for t in resp.json()}
+    assert task_a_id in open_ids
+    assert task_b_id not in open_ids
+
+    # Mark A as done
+    complete_resp = await client.post(
+        f"/tasks/{task_a_id}/complete",
+        json={"result_summary": "done"},
+    )
+    assert complete_resp.status_code == 200
+
+    # B should now appear in open tasks
+    resp2 = await client.get("/tasks", params={"status": "open"})
+    open_ids2 = {t["id"] for t in resp2.json()}
+    assert task_b_id in open_ids2

@@ -5,6 +5,7 @@ import json
 import os
 import signal
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -78,6 +79,7 @@ class ClaudeCodeAdapter(CLIAdapter):
 
     # Track Popen objects for reliable is_alive() via poll()
     _procs: dict[int, subprocess.Popen[bytes]] = {}
+    _wrapper_pids: dict[int, int] = {}  # claude_pid → wrapper_pid
 
     def spawn(
         self,
@@ -105,6 +107,8 @@ class ClaudeCodeAdapter(CLIAdapter):
             "--effort", claude_effort,
             "--dangerously-skip-permissions",
             "--max-turns", str(max_turns),
+            "--output-format", "stream-json",
+            "--verbose",
         ]
 
         # Pass MCP server config if provided
@@ -113,18 +117,64 @@ class ClaudeCodeAdapter(CLIAdapter):
 
         cmd.extend(["-p", prompt])
 
+        # Wrapper: reads stream-json from stdin, writes human-readable log to stdout.
+        # Flushes after every line so the dashboard sees updates in real-time.
+        wrapper_script = (
+            "import sys, json\n"
+            "seen_text = set()\n"
+            "for raw in sys.stdin:\n"
+            "    raw = raw.strip()\n"
+            "    if not raw:\n"
+            "        continue\n"
+            "    try:\n"
+            "        msg = json.loads(raw)\n"
+            "    except json.JSONDecodeError:\n"
+            "        continue\n"
+            "    t = msg.get('type', '')\n"
+            "    if t == 'assistant':\n"
+            "        for block in msg.get('message', {}).get('content', []):\n"
+            "            if block.get('type') == 'text':\n"
+            "                txt = block['text']\n"
+            "                if txt not in seen_text:\n"
+            "                    seen_text.add(txt)\n"
+            "                    print(txt, flush=True)\n"
+            "            elif block.get('type') == 'tool_use':\n"
+            "                name = block.get('name', '?')\n"
+            "                inp = str(block.get('input', ''))[:150]\n"
+            "                print(f'[{name}] {inp}', flush=True)\n"
+            "    elif t == 'result':\n"
+            "        txt = msg.get('result', '')\n"
+            "        if txt:\n"
+            "            print(txt, flush=True)\n"
+        )
+
         log_file = log_path.open("w")  # noqa: SIM115
-        proc = subprocess.Popen(
+        # Pipe: claude --stream-json | python wrapper > log_file
+        claude_proc = subprocess.Popen(
             cmd,
             cwd=workdir,
-            stdout=log_file,
-            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
+        proc = subprocess.Popen(
+            [sys.executable, "-c", wrapper_script],
+            stdin=claude_proc.stdout,
+            stdout=log_file,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            cwd=workdir,
+        )
+        # Allow claude_proc to receive SIGPIPE if wrapper dies
+        if claude_proc.stdout:
+            claude_proc.stdout.close()
         log_file.close()
+        # Track the claude process (not the wrapper) for is_alive/kill
+        self._procs[claude_proc.pid] = claude_proc
+        # Also track wrapper so we can kill both
+        self._wrapper_pids[claude_proc.pid] = proc.pid
 
-        self._procs[proc.pid] = proc
-        return SpawnResult(pid=proc.pid, log_path=log_path, proc=proc)
+        return SpawnResult(pid=claude_proc.pid, log_path=log_path, proc=claude_proc)
 
     def is_alive(self, pid: int) -> bool:
         # Use poll() to detect zombies — os.kill(pid, 0) can't
@@ -143,7 +193,13 @@ class ClaudeCodeAdapter(CLIAdapter):
             os.killpg(os.getpgid(pid), signal.SIGTERM)
         except OSError:
             pass
-        # Clean up proc reference
+        # Also kill the wrapper process
+        wrapper_pid = self._wrapper_pids.pop(pid, None)
+        if wrapper_pid:
+            try:
+                os.kill(wrapper_pid, signal.SIGTERM)
+            except OSError:
+                pass
         self._procs.pop(pid, None)
 
     def name(self) -> str:

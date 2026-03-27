@@ -34,10 +34,14 @@ from bernstein.evolution.applicator import (
 )
 from bernstein.evolution.circuit import CircuitBreaker
 from bernstein.evolution.detector import (
+    FailureAnalyzer,
+    FailurePattern,
+    FailureRecord,
     ImprovementOpportunity,
     OpportunityDetector,
     UpgradeCategory,
 )
+from bernstein.evolution.loop import EvolutionLoop, ExperimentResult
 from bernstein.evolution.gate import ApprovalGate
 from bernstein.evolution.invariants import (
     check_proposal_targets,
@@ -85,6 +89,9 @@ __all__ = [
     "UpgradeCategory",
     "ImprovementOpportunity",
     "OpportunityDetector",
+    "FailurePattern",
+    "FailureRecord",
+    "FailureAnalyzer",
     # proposals
     "AnalysisTrigger",
     "UpgradeStatus",
@@ -105,6 +112,9 @@ __all__ = [
     "check_proposal_targets",
     # circuit
     "CircuitBreaker",
+    # loop
+    "EvolutionLoop",
+    "ExperimentResult",
     # coordinator
     "EvolutionCoordinator",
     "get_default_coordinator",

@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
+
+logger = logging.getLogger(__name__)
 
 from bernstein.evolution.aggregator import MetricsCollector
 
@@ -222,9 +225,11 @@ class OpportunityDetector:
         self,
         collector: MetricsCollector,
         failure_analyzer: FailureAnalyzer | None = None,
+        analysis_dir: Path | None = None,
     ) -> None:
         self.collector = collector
         self.failure_analyzer = failure_analyzer
+        self._analysis_dir = analysis_dir
 
     def identify_opportunities(self) -> list[ImprovementOpportunity]:
         """Identify improvement opportunities from recent metrics."""
@@ -265,7 +270,24 @@ class OpportunityDetector:
         # Check for failure-driven opportunities
         opportunities.extend(self.identify_failure_opportunities())
 
+        if self._analysis_dir is not None:
+            self._write_opportunities(opportunities)
+
         return opportunities
+
+    def _write_opportunities(self, opportunities: list[ImprovementOpportunity]) -> None:
+        """Write detected opportunities to .sdd/analysis/opportunities.json."""
+        try:
+            self._analysis_dir.mkdir(parents=True, exist_ok=True)  # type: ignore[union-attr]
+            opportunities_path = self._analysis_dir / "opportunities.json"  # type: ignore[operator]
+            data = {
+                "generated_at": time.time(),
+                "count": len(opportunities),
+                "opportunities": [asdict(o) for o in opportunities],
+            }
+            opportunities_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except OSError:
+            logger.exception("Failed to write opportunities to %s", self._analysis_dir)
 
     def identify_failure_opportunities(self) -> list[ImprovementOpportunity]:
         """Identify improvement opportunities from recurring failure patterns.

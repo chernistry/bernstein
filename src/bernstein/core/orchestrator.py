@@ -232,8 +232,22 @@ class Orchestrator:
 
         result.open_tasks = len(open_tasks)
 
+        # 1b. Fetch done tasks (used both for depends_on filtering and janitor)
+        try:
+            done_tasks = _fetch_tasks(self._client, base, "done")
+        except httpx.HTTPError as exc:
+            logger.error("Failed to fetch done tasks: %s", exc)
+            result.errors.append(f"fetch_done: {exc}")
+            done_tasks = []
+
+        done_ids = {t.id for t in done_tasks}
+        ready_tasks = [
+            t for t in open_tasks
+            if all(dep in done_ids for dep in t.depends_on)
+        ]
+
         # 2. Group into batches
-        batches = group_by_role(open_tasks, self._config.max_tasks_per_agent)
+        batches = group_by_role(ready_tasks, self._config.max_tasks_per_agent)
 
         # 3. Count alive agents, spawn if capacity
         self._refresh_agent_states()
@@ -299,52 +313,47 @@ class Orchestrator:
                 collector.record_error("agent_spawn_failed", "default", role=batch[0].role if batch else None)
 
         # 4. Check done tasks, run janitor, record evolution metrics
-        try:
-            done_tasks = _fetch_tasks(self._client, base, "done")
-            for task in done_tasks:
-                # Skip tasks we already processed
-                if task.id in self._processed_done_tasks:
-                    continue
-                self._processed_done_tasks.add(task.id)
+        for task in done_tasks:
+            # Skip tasks we already processed
+            if task.id in self._processed_done_tasks:
+                continue
+            self._processed_done_tasks.add(task.id)
 
-                janitor_passed = True
-                if task.completion_signals:
-                    passed, failed_signals = verify_task(task, self._workdir)
-                    janitor_passed = passed
-                    if passed:
-                        result.verified.append(task.id)
-                    else:
-                        result.verification_failures.append(
-                            (task.id, failed_signals)
-                        )
+            janitor_passed = True
+            if task.completion_signals:
+                passed, failed_signals = verify_task(task, self._workdir)
+                janitor_passed = passed
+                if passed:
+                    result.verified.append(task.id)
+                else:
+                    result.verification_failures.append(
+                        (task.id, failed_signals)
+                    )
 
-                # Record provider health feedback for done tasks
-                session = self._find_session_for_task(task.id)
-                if session is not None:
-                    self._record_provider_health(session, success=janitor_passed)
+            # Record provider health feedback for done tasks
+            session = self._find_session_for_task(task.id)
+            if session is not None:
+                self._record_provider_health(session, success=janitor_passed)
 
-                # Sync backlog: move matching .md file from open/ to closed/
-                self._sync_backlog_file(task)
+            # Sync backlog: move matching .md file from open/ to closed/
+            self._sync_backlog_file(task)
 
-                # Record task completion in evolution coordinator with real data
-                if self._evolution is not None:
-                    model = session.model_config.model if session else None
-                    provider = session.provider if session else None
-                    duration = time.time() - session.spawn_ts if session and session.spawn_ts > 0 else 0.0
-                    try:
-                        self._evolution.record_task_completion(
-                            task=task,
-                            duration_seconds=round(duration, 2),
-                            cost_usd=0.0,
-                            janitor_passed=janitor_passed,
-                            model=model,
-                            provider=provider,
-                        )
-                    except Exception as exc:
-                        logger.warning("Evolution record_task_completion failed: %s", exc)
-        except httpx.HTTPError as exc:
-            logger.error("Failed to fetch done tasks: %s", exc)
-            result.errors.append(f"fetch_done: {exc}")
+            # Record task completion in evolution coordinator with real data
+            if self._evolution is not None:
+                model = session.model_config.model if session else None
+                provider = session.provider if session else None
+                duration = time.time() - session.spawn_ts if session and session.spawn_ts > 0 else 0.0
+                try:
+                    self._evolution.record_task_completion(
+                        task=task,
+                        duration_seconds=round(duration, 2),
+                        cost_usd=0.0,
+                        janitor_passed=janitor_passed,
+                        model=model,
+                        provider=provider,
+                    )
+                except Exception as exc:
+                    logger.warning("Evolution record_task_completion failed: %s", exc)
 
         # 5. Reap stale agents
         self._reap_stale(result)

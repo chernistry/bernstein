@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Protocol
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -577,8 +580,13 @@ class MetricsAggregator:
     - Trip wire monitoring for gaming detection
     """
 
-    def __init__(self, collector: MetricsCollector) -> None:
+    def __init__(
+        self,
+        collector: MetricsCollector,
+        analysis_dir: Path | None = None,
+    ) -> None:
         self.collector = collector
+        self._analysis_dir = analysis_dir
         self._ewma_states: dict[str, EWMAState] = {}
         self._cusum_states: dict[str, CUSUMState] = {}
         self._beta_posteriors: dict[str, BetaBinomialPosterior] = {}
@@ -999,7 +1007,32 @@ class MetricsAggregator:
                 "retry_rate_inv": 1.0,
             })
 
+        if self._analysis_dir is not None:
+            self._write_analysis_outputs(result)
+
         return result
+
+    def _write_analysis_outputs(self, result: dict[str, Any]) -> None:
+        """Write trends and anomalies to .sdd/analysis/."""
+        try:
+            self._analysis_dir.mkdir(parents=True, exist_ok=True)  # type: ignore[union-attr]
+
+            trends_path = self._analysis_dir / "trends.json"  # type: ignore[operator]
+            trends_data = {
+                "generated_at": time.time(),
+                "period_days": 7,
+                "trends": [asdict(t) for t in result.get("trends", [])],
+            }
+            trends_path.write_text(json.dumps(trends_data, indent=2), encoding="utf-8")
+
+            anomalies_path = self._analysis_dir / "anomalies.json"  # type: ignore[operator]
+            anomalies_data = {
+                "generated_at": time.time(),
+                "anomalies": [asdict(a) for a in result.get("anomalies", [])],
+            }
+            anomalies_path.write_text(json.dumps(anomalies_data, indent=2), encoding="utf-8")
+        except OSError:
+            logger.exception("Failed to write analysis outputs to %s", self._analysis_dir)
 
     # -------------------------------------------------------------------
     # Sample-size checks

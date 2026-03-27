@@ -131,9 +131,11 @@ class EvolutionLoop:
         self._window_seconds = window_seconds
 
         # --- Component wiring ---
+        self._analysis_dir = state_dir / "analysis"
+        self._analysis_dir.mkdir(parents=True, exist_ok=True)
         self._collector = FileMetricsCollector(state_dir)
-        self._aggregator = MetricsAggregator(self._collector)
-        self._detector = OpportunityDetector(self._collector)
+        self._aggregator = MetricsAggregator(self._collector, analysis_dir=self._analysis_dir)
+        self._detector = OpportunityDetector(self._collector, analysis_dir=self._analysis_dir)
         self._proposal_generator = ProposalGenerator()
         self._sandbox = SandboxValidator(self._repo_root)
         self._evolution_dir = state_dir / "evolution"

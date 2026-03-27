@@ -97,6 +97,7 @@ class RoleCounts(BaseModel):
     claimed: int
     done: int
     failed: int
+    cost_usd: float = 0.0
 
 
 class StatusResponse(BaseModel):
@@ -108,6 +109,7 @@ class StatusResponse(BaseModel):
     done: int
     failed: int
     per_role: list[RoleCounts]
+    total_cost_usd: float = 0.0
 
 
 class HeartbeatRequest(BaseModel):
@@ -158,16 +160,30 @@ class BulletinMessageResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+DEFAULT_ARCHIVE_PATH = Path(".sdd/archive/tasks.jsonl")
+
+
 class TaskStore:
     """Thread-safe in-memory task store with JSONL persistence.
 
     All mutations go through this class so the JSONL log stays consistent.
     """
 
-    def __init__(self, jsonl_path: Path) -> None:
+    def __init__(
+        self,
+        jsonl_path: Path,
+        archive_path: Path = DEFAULT_ARCHIVE_PATH,
+        metrics_jsonl_path: Path | None = None,
+    ) -> None:
         self._tasks: dict[str, Task] = {}
         self._agents: dict[str, AgentSession] = {}
         self._jsonl_path: Path = jsonl_path
+        self._archive_path: Path = archive_path
+        self._metrics_jsonl_path: Path = (
+            metrics_jsonl_path
+            if metrics_jsonl_path is not None
+            else jsonl_path.parent.parent / "metrics" / "tasks.jsonl"
+        )
         self._lock: asyncio.Lock = asyncio.Lock()
         self._dirty: bool = False
         self._start_ts: float = time.time()
@@ -226,6 +242,24 @@ class TaskStore:
         line = json.dumps(record, default=str) + "\n"
         # Blocking write is fine — file is local, lines are small.
         with self._jsonl_path.open("a") as f:
+            f.write(line)
+
+    async def _append_archive(self, task: Task, completed_at: float) -> None:
+        """Append a completed/failed task record to the archive JSONL."""
+        self._archive_path.parent.mkdir(parents=True, exist_ok=True)
+        record: dict[str, Any] = {
+            "task_id": task.id,
+            "title": task.title,
+            "role": task.role,
+            "status": task.status.value,
+            "created_at": task.created_at,
+            "completed_at": completed_at,
+            "duration_seconds": round(completed_at - task.created_at, 3),
+            "result_summary": task.result_summary,
+            "cost_usd": None,
+        }
+        line = json.dumps(record, default=str) + "\n"
+        with self._archive_path.open("a") as f:
             f.write(line)
 
     def _task_to_record(self, task: Task) -> dict[str, Any]:
@@ -346,7 +380,9 @@ class TaskStore:
                 raise KeyError(task_id)
             task.status = TaskStatus.DONE
             task.result_summary = result_summary
+            completed_at = time.time()
             await self._append_jsonl(self._task_to_record(task))
+            await self._append_archive(task, completed_at)
             return task
 
     async def fail(self, task_id: str, reason: str) -> Task:
@@ -368,7 +404,9 @@ class TaskStore:
                 raise KeyError(task_id)
             task.status = TaskStatus.FAILED
             task.result_summary = reason
+            completed_at = time.time()
             await self._append_jsonl(self._task_to_record(task))
+            await self._append_archive(task, completed_at)
             return task
 
     def list_tasks(
@@ -441,6 +479,25 @@ class TaskStore:
 
     # -- status summary -----------------------------------------------------
 
+    def _read_cost_by_role(self) -> dict[str, float]:
+        """Read metrics JSONL and return cost_usd summed per role."""
+        cost_by_role: dict[str, float] = {}
+        if not self._metrics_jsonl_path.exists():
+            return cost_by_role
+        for raw_line in self._metrics_jsonl_path.read_text().splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                record: dict[str, Any] = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            role = record.get("role", "")
+            cost = record.get("cost_usd")
+            if role and isinstance(cost, (int, float)):
+                cost_by_role[role] = cost_by_role.get(role, 0.0) + float(cost)
+        return cost_by_role
+
     def status_summary(self) -> StatusResponse:
         """Build a dashboard summary of task counts."""
         tasks = list(self._tasks.values())
@@ -464,7 +521,12 @@ class TaskStore:
             elif t.status == TaskStatus.FAILED:
                 bucket["failed"] += 1
 
-        per_role = [RoleCounts(role=r, **counts) for r, counts in sorted(roles.items())]
+        cost_by_role = self._read_cost_by_role()
+        total_cost_usd = sum(cost_by_role.values())
+        per_role = [
+            RoleCounts(role=r, cost_usd=cost_by_role.get(r, 0.0), **counts)
+            for r, counts in sorted(roles.items())
+        ]
 
         return StatusResponse(
             total=total,
@@ -473,7 +535,33 @@ class TaskStore:
             done=_count(TaskStatus.DONE),
             failed=_count(TaskStatus.FAILED),
             per_role=per_role,
+            total_cost_usd=total_cost_usd,
         )
+
+    def read_archive(self, limit: int = 50) -> list[dict[str, Any]]:
+        """Return the last *limit* records from the archive JSONL.
+
+        Args:
+            limit: Maximum number of records to return (default 50).
+
+        Returns:
+            List of archive record dicts, oldest-first up to *limit*.
+        """
+        if not self._archive_path.exists():
+            return []
+        lines = [
+            line.strip()
+            for line in self._archive_path.read_text().splitlines()
+            if line.strip()
+        ]
+        tail = lines[-limit:] if limit > 0 else lines
+        records: list[dict[str, Any]] = []
+        for line in tail:
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+        return records
 
     @property
     def agent_count(self) -> int:
@@ -550,17 +638,22 @@ async def _reaper_loop(store: TaskStore, interval_s: float = 30.0) -> None:
 DEFAULT_JSONL_PATH = Path(".sdd/runtime/tasks.jsonl")
 
 
-def create_app(jsonl_path: Path = DEFAULT_JSONL_PATH) -> FastAPI:
+def create_app(
+    jsonl_path: Path = DEFAULT_JSONL_PATH,
+    metrics_jsonl_path: Path | None = None,
+) -> FastAPI:
     """Build and return the FastAPI application.
 
     Args:
         jsonl_path: Where to persist the JSONL task log.
+        metrics_jsonl_path: Path to the metrics JSONL for cost reporting.
+            Defaults to <jsonl_path.parent.parent>/metrics/tasks.jsonl.
 
     Returns:
         Configured FastAPI app with all routes registered.
     """
 
-    store = TaskStore(jsonl_path)
+    store = TaskStore(jsonl_path, metrics_jsonl_path=metrics_jsonl_path)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
@@ -626,6 +719,11 @@ def create_app(jsonl_path: Path = DEFAULT_JSONL_PATH) -> FastAPI:
     ) -> list[TaskResponse]:
         """List all tasks, optionally filtered by status and/or cell_id."""
         return [_task_to_response(t) for t in store.list_tasks(status, cell_id)]
+
+    @application.get("/tasks/archive", response_model=list[dict[str, Any]])
+    async def get_archive(limit: int = 50) -> list[dict[str, Any]]:
+        """Return the last N archived (done/failed) task records."""
+        return store.read_archive(limit=limit)
 
     @application.get("/tasks/{task_id}", response_model=TaskResponse)
     async def get_task(task_id: str) -> TaskResponse:

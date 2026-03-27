@@ -536,7 +536,7 @@ def route_task(task: Task) -> ModelConfig:
         return ModelConfig(model="opus", effort="max")
 
     if task.role in ("architect", "security"):
-        return ModelConfig(model="opus", effort="max")
+        return ModelConfig(model="opus", effort="high")
 
     if task.priority == 1 or task.scope == Scope.LARGE:
         return ModelConfig(model="sonnet", effort="max")

@@ -168,6 +168,7 @@ class Task:
     # Manager-specified routing hints (override auto-routing when set)
     model: str | None = None               # "opus", "sonnet", "haiku"
     effort: str | None = None              # "max", "high", "medium", "low"
+    created_at: float = field(default_factory=time.time)
 
 
 @dataclass(frozen=True)

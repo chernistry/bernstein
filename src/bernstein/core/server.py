@@ -50,6 +50,8 @@ class TaskCreate(BaseModel):
     cell_id: str | None = None
     task_type: str = "standard"
     upgrade_details: dict[str, Any] | None = None
+    model: str | None = None       # Manager hint: "opus", "sonnet", "haiku"
+    effort: str | None = None      # Manager hint: "max", "high", "medium", "low"
 
 
 class TaskResponse(BaseModel):
@@ -71,6 +73,8 @@ class TaskResponse(BaseModel):
     cell_id: str | None
     task_type: str
     upgrade_details: dict[str, Any] | None
+    model: str | None
+    effort: str | None
 
 
 class TaskCompleteRequest(BaseModel):
@@ -272,6 +276,8 @@ class TaskStore:
             cell_id=req.cell_id,
             task_type=TaskType(req.task_type),
             upgrade_details=_parse_upgrade_dict(req.upgrade_details),
+            model=req.model,
+            effort=req.effort,
         )
         async with self._lock:
             self._tasks[task.id] = task
@@ -520,6 +526,8 @@ def _task_to_response(task: Task) -> TaskResponse:
         cell_id=task.cell_id,
         task_type=task.task_type.value,
         upgrade_details=asdict(task.upgrade_details) if task.upgrade_details else None,
+        model=task.model,
+        effort=task.effort,
     )
 
 

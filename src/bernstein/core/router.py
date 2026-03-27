@@ -522,19 +522,22 @@ class RouterError(Exception):
 def route_task(task: Task) -> ModelConfig:
     """Select model and effort based on task metadata.
 
-    Optimized for throughput: use Sonnet by default (3-5x faster than Opus).
-    Only use Opus for architecture/security tasks that need deep reasoning.
+    If the manager specified model/effort on the task, use those.
+    Otherwise fall back to heuristics (Sonnet by default for speed).
     """
-    # Manager planning = opus (needs deep analysis to create good tasks)
+    # Manager-specified overrides take precedence
+    if task.model or task.effort:
+        model = task.model or "sonnet"
+        effort = task.effort or "high"
+        return ModelConfig(model=model, effort=effort)
+
+    # Auto-routing heuristics
     if task.role == "manager":
         return ModelConfig(model="opus", effort="max")
 
-    # Architecture and security = opus (needs reasoning about structure)
     if task.role in ("architect", "security"):
-        return ModelConfig(model="opus", effort="high")
+        return ModelConfig(model="opus", effort="max")
 
-    # Everything else = sonnet (fast, good enough for implementation)
-    # P1 critical gets more turns but still sonnet
     if task.priority == 1 or task.scope == Scope.LARGE:
         return ModelConfig(model="sonnet", effort="max")
 

@@ -165,6 +165,9 @@ class Task:
     assigned_agent: str | None = None
     result_summary: str | None = None
     cell_id: str | None = None             # Which cell this task belongs to
+    # Manager-specified routing hints (override auto-routing when set)
+    model: str | None = None               # "opus", "sonnet", "haiku"
+    effort: str | None = None              # "max", "high", "medium", "low"
 
 
 @dataclass(frozen=True)

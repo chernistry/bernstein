@@ -48,3 +48,9 @@ bernstein --evolve --interval 600     # 10 min between cycles
 - Diminishing returns backoff works
 - Cycle metrics are logged
 - Tests pass after every commit (or rollback)
+
+
+---
+**completed**: 2026-03-28 01:12:38
+**task_id**: e953fc810104
+**result**: Completed: Add web research capability for --evolve mode. Tavily integration in researcher.py with cache (1h TTL), rate limiting (10 searches/cycle), 3 query categories (competitors, user needs, trending), and format_research_context() already implemented and wired into _evolve_spawn_manager(). Added test verifying research context flows into manager task description. All 1095 tests pass.

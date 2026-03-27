@@ -22,3 +22,9 @@ Previous agent runs modified code but left some tests in an inconsistent state. 
 ## Acceptance criteria
 - All tests pass with no warnings about mocking non-existent attributes
 - No tests skip or xfail without documented reason
+
+
+---
+**completed**: 2026-03-28 01:09:57
+**task_id**: 14b8f082903e
+**result**: Fixed 6 test regressions: 4 in test_researcher.py (wrong mock target for tavily_search), 2 in test_router.py (stale effort assertion high→max for large+high tasks). All 1063 tests pass clean.

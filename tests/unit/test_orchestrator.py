@@ -1315,3 +1315,320 @@ class TestBacklogSync:
         })
         orch = _build_orchestrator(tmp_path, transport)
         orch.tick()  # Should not raise
+
+
+# --- Feature 5: Evolve Mode (idle detection + re-planning) ---
+
+
+def _write_evolve_config(
+    tmp_path: Path,
+    *,
+    enabled: bool = True,
+    max_cycles: int = 0,
+    budget_usd: float = 0.0,
+    interval_s: int = 0,
+    cycle_count: int = 0,
+    last_cycle_ts: float = 0.0,
+    consecutive_empty: int = 0,
+    spent_usd: float = 0.0,
+) -> Path:
+    """Write an evolve.json config for testing."""
+    runtime = tmp_path / ".sdd" / "runtime"
+    runtime.mkdir(parents=True, exist_ok=True)
+    config = {
+        "enabled": enabled,
+        "max_cycles": max_cycles,
+        "budget_usd": budget_usd,
+        "interval_s": interval_s,
+        "_cycle_count": cycle_count,
+        "_last_cycle_ts": last_cycle_ts,
+        "_consecutive_empty": consecutive_empty,
+        "_spent_usd": spent_usd,
+    }
+    path = runtime / "evolve.json"
+    path.write_text(json.dumps(config))
+    return path
+
+
+def _evolve_handler(
+    *,
+    open_tasks: list[dict[str, object]] | None = None,
+    claimed_tasks: list[dict[str, object]] | None = None,
+    done_tasks: list[dict[str, object]] | None = None,
+    manager_task_created: list[dict[str, object]] | None = None,
+) -> httpx.MockTransport:
+    """Build a transport that tracks manager task creation for evolve tests."""
+    _open = open_tasks or []
+    _claimed = claimed_tasks or []
+    _done = done_tasks or []
+    created = manager_task_created if manager_task_created is not None else []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = request.url
+        key = f"{request.method} {url.path}"
+        if url.query:
+            key += f"?{url.query.decode()}"
+        if key == "GET /tasks?status=open":
+            return httpx.Response(200, json=_open)
+        if key == "GET /tasks?status=claimed":
+            return httpx.Response(200, json=_claimed)
+        if key == "GET /tasks?status=done":
+            return httpx.Response(200, json=_done)
+        if key == "GET /tasks?status=failed":
+            return httpx.Response(200, json=[])
+        if key == "POST /tasks":
+            body = json.loads(request.content)
+            created.append(body)
+            return httpx.Response(200, json={"id": "T-evolve-mgr"})
+        return httpx.Response(200, json={})
+
+    return httpx.MockTransport(handler)
+
+
+class TestEvolveIdleDetection:
+    """Tests for _check_evolve: idle detection and re-planning trigger."""
+
+    def test_no_evolve_config_is_noop(self, tmp_path: Path) -> None:
+        """No evolve.json => evolve check silently does nothing."""
+        transport = _mock_transport({
+            "GET /tasks?status=open": httpx.Response(200, json=[]),
+            "GET /tasks?status=done": httpx.Response(200, json=[]),
+        })
+        orch = _build_orchestrator(tmp_path, transport)
+        result = orch.tick()
+        assert result.errors == []
+
+    def test_evolve_disabled_is_noop(self, tmp_path: Path) -> None:
+        """evolve.json with enabled=false does nothing."""
+        _write_evolve_config(tmp_path, enabled=False)
+        transport = _mock_transport({
+            "GET /tasks?status=open": httpx.Response(200, json=[]),
+            "GET /tasks?status=done": httpx.Response(200, json=[]),
+        })
+        orch = _build_orchestrator(tmp_path, transport)
+        result = orch.tick()
+        assert result.errors == []
+
+    def test_evolve_triggers_when_idle(self, tmp_path: Path) -> None:
+        """When idle (no open/claimed tasks, no agents), creates a manager task."""
+        _write_evolve_config(tmp_path, interval_s=0)
+        created: list[dict[str, object]] = []
+        transport = _evolve_handler(manager_task_created=created)
+        config = OrchestratorConfig(
+            server_url="http://testserver",
+            evolution_enabled=False,  # disable EvolutionCoordinator to isolate _check_evolve
+        )
+        orch = _build_orchestrator(tmp_path, transport, config=config)
+
+        # Patch out test/commit steps to avoid subprocess calls
+        orch._evolve_run_tests = lambda: {"passed": 5, "failed": 0, "summary": "5 passed"}  # type: ignore[assignment]
+        orch._evolve_auto_commit = lambda: False  # type: ignore[assignment]
+
+        orch.tick()
+
+        assert len(created) == 1
+        assert "manager" == created[0]["role"]
+        assert "Evolve cycle" in str(created[0]["title"])
+
+    def test_evolve_does_not_trigger_when_tasks_open(self, tmp_path: Path) -> None:
+        """Evolve does NOT trigger when there are still open tasks."""
+        _write_evolve_config(tmp_path, interval_s=0)
+        task = _make_task(id="T-open")
+        created: list[dict[str, object]] = []
+        transport = _evolve_handler(
+            open_tasks=[_task_as_dict(task)],
+            manager_task_created=created,
+        )
+        config = OrchestratorConfig(
+            server_url="http://testserver",
+            evolution_enabled=False,
+        )
+        orch = _build_orchestrator(tmp_path, transport, config=config)
+        orch.tick()
+
+        assert len(created) == 0
+
+    def test_evolve_does_not_trigger_when_agents_alive(self, tmp_path: Path) -> None:
+        """Evolve does NOT trigger when agents are still running."""
+        _write_evolve_config(tmp_path, interval_s=0)
+        created: list[dict[str, object]] = []
+        transport = _evolve_handler(manager_task_created=created)
+        adapter = _mock_adapter()
+        adapter.is_alive.return_value = True
+        config = OrchestratorConfig(
+            server_url="http://testserver",
+            evolution_enabled=False,
+        )
+        orch = _build_orchestrator(tmp_path, transport, adapter=adapter, config=config)
+
+        # Inject an alive agent
+        session = AgentSession(
+            id="backend-busy", role="backend", pid=42,
+            task_ids=["T-x"], status="working",
+        )
+        orch._agents["backend-busy"] = session
+
+        orch.tick()
+
+        assert len(created) == 0
+
+    def test_evolve_stops_at_max_cycles(self, tmp_path: Path) -> None:
+        """Evolve does NOT trigger after max_cycles is reached."""
+        _write_evolve_config(tmp_path, max_cycles=3, cycle_count=3, interval_s=0)
+        created: list[dict[str, object]] = []
+        transport = _evolve_handler(manager_task_created=created)
+        config = OrchestratorConfig(
+            server_url="http://testserver",
+            evolution_enabled=False,
+        )
+        orch = _build_orchestrator(tmp_path, transport, config=config)
+        orch.tick()
+
+        assert len(created) == 0
+
+    def test_evolve_stops_at_budget(self, tmp_path: Path) -> None:
+        """Evolve does NOT trigger after budget_usd is exhausted."""
+        _write_evolve_config(
+            tmp_path, budget_usd=10.0, spent_usd=10.0, interval_s=0,
+        )
+        created: list[dict[str, object]] = []
+        transport = _evolve_handler(manager_task_created=created)
+        config = OrchestratorConfig(
+            server_url="http://testserver",
+            evolution_enabled=False,
+        )
+        orch = _build_orchestrator(tmp_path, transport, config=config)
+        orch.tick()
+
+        assert len(created) == 0
+
+    def test_evolve_respects_interval(self, tmp_path: Path) -> None:
+        """Evolve does NOT trigger before the interval elapses."""
+        _write_evolve_config(
+            tmp_path,
+            interval_s=9999,
+            last_cycle_ts=time.time(),  # just ran
+        )
+        created: list[dict[str, object]] = []
+        transport = _evolve_handler(manager_task_created=created)
+        config = OrchestratorConfig(
+            server_url="http://testserver",
+            evolution_enabled=False,
+        )
+        orch = _build_orchestrator(tmp_path, transport, config=config)
+        orch.tick()
+
+        assert len(created) == 0
+
+    def test_evolve_logs_cycle_to_jsonl(self, tmp_path: Path) -> None:
+        """Each evolve cycle is logged to evolve_cycles.jsonl."""
+        _write_evolve_config(tmp_path, interval_s=0)
+        transport = _evolve_handler()
+        config = OrchestratorConfig(
+            server_url="http://testserver",
+            evolution_enabled=False,
+        )
+        orch = _build_orchestrator(tmp_path, transport, config=config)
+        orch._evolve_run_tests = lambda: {"passed": 0, "failed": 0, "summary": ""}  # type: ignore[assignment]
+        orch._evolve_auto_commit = lambda: False  # type: ignore[assignment]
+
+        orch.tick()
+
+        log_path = tmp_path / ".sdd" / "metrics" / "evolve_cycles.jsonl"
+        assert log_path.exists()
+        entry = json.loads(log_path.read_text().strip())
+        assert entry["cycle"] == 1
+        assert "focus_area" in entry
+        assert "timestamp" in entry
+
+    def test_evolve_rotates_focus_areas(self, tmp_path: Path) -> None:
+        """Successive cycles rotate through different focus areas."""
+        created: list[dict[str, object]] = []
+        transport = _evolve_handler(manager_task_created=created)
+        config = OrchestratorConfig(
+            server_url="http://testserver",
+            evolution_enabled=False,
+        )
+        orch = _build_orchestrator(tmp_path, transport, config=config)
+        orch._evolve_run_tests = lambda: {"passed": 0, "failed": 0, "summary": ""}  # type: ignore[assignment]
+        orch._evolve_auto_commit = lambda: False  # type: ignore[assignment]
+
+        titles: list[str] = []
+        for i in range(3):
+            _write_evolve_config(tmp_path, interval_s=0, cycle_count=i)
+            created.clear()
+            orch.tick()
+            if created:
+                titles.append(str(created[0]["title"]))
+
+        # Each cycle should have a different focus
+        assert len(titles) == 3
+        assert titles[0] != titles[1]
+
+    def test_evolve_updates_cycle_count(self, tmp_path: Path) -> None:
+        """After a cycle, _cycle_count is incremented in evolve.json."""
+        evolve_path = _write_evolve_config(tmp_path, interval_s=0)
+        transport = _evolve_handler()
+        config = OrchestratorConfig(
+            server_url="http://testserver",
+            evolution_enabled=False,
+        )
+        orch = _build_orchestrator(tmp_path, transport, config=config)
+        orch._evolve_run_tests = lambda: {"passed": 0, "failed": 0, "summary": ""}  # type: ignore[assignment]
+        orch._evolve_auto_commit = lambda: False  # type: ignore[assignment]
+
+        orch.tick()
+
+        updated = json.loads(evolve_path.read_text())
+        assert updated["_cycle_count"] == 1
+        assert updated["_last_cycle_ts"] > 0
+
+    def test_evolve_diminishing_returns_backoff(self, tmp_path: Path) -> None:
+        """After 3+ consecutive empty cycles, interval increases via backoff."""
+        # 3 consecutive empty cycles with interval_s=100 => effective interval = 100 * 2 = 200
+        _write_evolve_config(
+            tmp_path,
+            interval_s=100,
+            consecutive_empty=3,
+            last_cycle_ts=time.time() - 150,  # 150s ago (< 200s effective interval)
+        )
+        created: list[dict[str, object]] = []
+        transport = _evolve_handler(manager_task_created=created)
+        config = OrchestratorConfig(
+            server_url="http://testserver",
+            evolution_enabled=False,
+        )
+        orch = _build_orchestrator(tmp_path, transport, config=config)
+        orch.tick()
+
+        # Should NOT trigger: 150s < 200s (100 * 2^1)
+        assert len(created) == 0
+
+    def test_evolve_includes_research_context(self, tmp_path: Path) -> None:
+        """When Tavily research succeeds, the manager task gets market context."""
+        from unittest.mock import patch
+
+        from bernstein.core.researcher import ResearchReport, ResearchResult
+
+        _write_evolve_config(tmp_path, interval_s=0)
+        created: list[dict[str, object]] = []
+        transport = _evolve_handler(manager_task_created=created)
+        config = OrchestratorConfig(
+            server_url="http://testserver",
+            evolution_enabled=False,
+        )
+        orch = _build_orchestrator(tmp_path, transport, config=config)
+        orch._evolve_run_tests = lambda: {"passed": 0, "failed": 0, "summary": ""}  # type: ignore[assignment]
+        orch._evolve_auto_commit = lambda: False  # type: ignore[assignment]
+
+        fake_report = ResearchReport(
+            competitors=[ResearchResult(query="q", content="CompetitorX data", timestamp=1.0)],
+            searches_performed=1,
+        )
+        with patch("bernstein.core.researcher.run_research_sync", return_value=fake_report):
+            orch.tick()
+
+        assert len(created) == 1
+        desc = str(created[0]["description"])
+        assert "CompetitorX data" in desc
+        assert "Market Research" in desc

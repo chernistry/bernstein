@@ -26,3 +26,9 @@ The Textual dashboard needs polish to feel truly modern:
 - Agent cards show task titles
 - 's' key triggers bernstein stop
 - Log panel streams recent agent output
+
+
+---
+**completed**: 2026-03-28 01:08:57
+**task_id**: 16d53e91973e
+**result**: Completed: Improve Textual dashboard UX

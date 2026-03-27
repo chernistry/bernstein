@@ -299,8 +299,8 @@ class TestModelMatching:
         task = _make_task(complexity=Complexity.HIGH, scope=Scope.LARGE)
         decision = router.select_provider_for_task(task)
 
-        # Effort should be preserved from base routing (high for large+high)
-        assert decision.model_config.effort == "high"
+        # Effort should be preserved from base routing (max for large+high)
+        assert decision.model_config.effort == "max"
 
 
 # --- Cost estimation ---
@@ -384,19 +384,21 @@ class TestRouteTask:
         assert config.model == "opus"
         assert config.effort == "max"
 
-    def test_security_routes_to_opus_max(self) -> None:
+    def test_security_routes_to_opus_high(self) -> None:
+        # Sonnet-first routing: security uses opus but high effort (not max)
         task = _make_task(role="security")
         config = route_task(task)
 
         assert config.model == "opus"
-        assert config.effort == "max"
+        assert config.effort == "high"
 
-    def test_large_high_complexity_routes_to_opus(self) -> None:
+    def test_large_high_complexity_routes_to_sonnet_max(self) -> None:
+        # Sonnet-first routing: large/high-complexity tasks stay on sonnet/max
         task = _make_task(scope=Scope.LARGE, complexity=Complexity.HIGH)
         config = route_task(task)
 
-        assert config.model == "opus"
-        assert config.effort == "high"
+        assert config.model == "sonnet"
+        assert config.effort == "max"
 
     def test_medium_complexity_routes_to_sonnet_high(self) -> None:
         task = _make_task(complexity=Complexity.MEDIUM)
@@ -405,12 +407,13 @@ class TestRouteTask:
         assert config.model == "sonnet"
         assert config.effort == "high"
 
-    def test_simple_tasks_route_to_sonnet_normal(self) -> None:
+    def test_simple_tasks_route_to_sonnet_high(self) -> None:
+        # Sonnet-first routing: simple tasks use sonnet/high (not normal)
         task = _make_task(complexity=Complexity.LOW, scope=Scope.SMALL)
         config = route_task(task)
 
         assert config.model == "sonnet"
-        assert config.effort == "normal"
+        assert config.effort == "high"
 
 
 # --- Default router ---

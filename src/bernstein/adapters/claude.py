@@ -93,13 +93,16 @@ class ClaudeCodeAdapter(CLIAdapter):
 
         model_id = _MODEL_MAP.get(model_config.model, model_config.model)
 
-        # Map effort to max-turns: more effort = more turns allowed
+        # Map effort to max-turns and Claude --effort flag
         effort = getattr(model_config, "effort", "high")
-        max_turns = {"max": 100, "high": 50, "normal": 25}.get(effort, 50)
+        max_turns = {"max": 100, "high": 50, "medium": 30, "normal": 25, "low": 15}.get(effort, 50)
+        # Claude Code effort levels: low, medium, high, max
+        claude_effort = {"max": "max", "high": "high", "medium": "medium", "normal": "medium", "low": "low"}.get(effort, "high")
 
         cmd = [
             "claude",
             "--model", model_id,
+            "--effort", claude_effort,
             "--dangerously-skip-permissions",
             "--max-turns", str(max_turns),
         ]

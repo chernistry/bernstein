@@ -185,16 +185,26 @@ class StatsPanel(Static):
             t.append(f"  ✗{self.failed}", style="bold red")
         t.append(f"  🤖 {self.agents_alive}", style="bold cyan")
 
-        # Progress bar
-        bar_w = 25
+        # Progress bar with gradient
+        bar_w = 30
         filled = int(pct / 100 * bar_w)
         t.append("  [", style="dim")
-        t.append("━" * filled, style="bold green")
+        # Gradient: red → yellow → green based on fill position
+        for i in range(filled):
+            ratio = i / max(bar_w - 1, 1)
+            if ratio < 0.4:
+                seg_style = "bold red"
+            elif ratio < 0.7:
+                seg_style = "bold yellow"
+            else:
+                seg_style = "bold green"
+            t.append("━", style=seg_style)
         if filled < bar_w:
-            t.append("╺", style="yellow")
+            t.append("╺", style="yellow" if filled > 0 else "dim")
             t.append("─" * (bar_w - filled - 1), style="dim")
         t.append("]", style="dim")
-        t.append(f" {pct}%", style="bold green" if pct == 100 else "bold")
+        pct_style = "bold bright_green" if pct == 100 else ("bold green" if pct >= 50 else "bold yellow")
+        t.append(f" {pct}%", style=pct_style)
 
         return t
 
@@ -240,11 +250,10 @@ class BernsteinApp(App):
         border: round $secondary;
         border-title-color: $secondary;
         padding: 0 1;
-        display: none;
     }
 
-    #activity-panel.visible {
-        display: block;
+    #activity-panel.hidden {
+        display: none;
     }
 
     #stats-bar {
@@ -293,7 +302,7 @@ class BernsteinApp(App):
         self._start_ts = time.time()
         self._completion_history: deque[float] = deque(maxlen=60)
         self._evolve_enabled = False
-        self._logs_visible = False
+        self._logs_visible = True
         self._last_log_lines: list[str] = []
 
     def compose(self) -> ComposeResult:
@@ -335,8 +344,7 @@ class BernsteinApp(App):
         self._update_agents()
         self._update_tasks()
         self._update_stats()
-        if self._logs_visible:
-            self._update_activity_log()
+        self._update_activity_log()
 
     def _update_agents(self) -> None:
         panel = self.query_one("#agents-panel")
@@ -435,10 +443,9 @@ class BernsteinApp(App):
         panel = self.query_one("#activity-panel")
         self._logs_visible = not self._logs_visible
         if self._logs_visible:
-            panel.add_class("visible")
-            self._update_activity_log()
+            panel.remove_class("hidden")
         else:
-            panel.remove_class("visible")
+            panel.add_class("hidden")
 
     def action_stop_bernstein(self) -> None:
         """Stop all bernstein processes and exit dashboard."""

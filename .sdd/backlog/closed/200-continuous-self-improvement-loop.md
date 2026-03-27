@@ -34,3 +34,9 @@ When all backlog tickets are done, Bernstein stops. It should have a `--evolve` 
 - Stops when max_cycles or max_cost reached
 - Each cycle is logged
 - Tests cover the idle detection and re-planning trigger
+
+
+---
+**completed**: 2026-03-28 01:12:38
+**task_id**: 91321ddc2096
+**result**: Completed: Continuous self-improvement loop (--evolve mode). All features already implemented: CLI flags (--evolve, --max-cycles, --budget, --interval), idle detection, cycle limits, budget caps, diminishing returns backoff, focus rotation, test verification, auto-commit, manager spawning, JSONL logging. Added 12 tests covering idle detection, re-planning triggers, cycle limits, budget caps, interval enforcement, backoff, and focus rotation.

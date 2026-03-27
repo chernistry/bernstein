@@ -522,24 +522,35 @@ class Orchestrator:
         """Spawn a manager agent to analyze the codebase and create new tasks."""
         base = self._config.server_url
 
-        # Create a manager task that will analyze and create new tasks
         task_body = {
             "title": "Evolve: analyze codebase and plan next improvements",
             "description": (
-                "You are in evolve mode. Analyze the codebase, run tests, "
-                "check coverage, review architecture, and create new improvement "
-                "tasks via the task server API.\n\n"
-                "Focus on:\n"
-                "1. Code that could be cleaner or more robust\n"
-                "2. Missing or weak test coverage\n"
-                "3. Performance improvements\n"
-                "4. Features that would make the project more useful\n"
-                "5. Documentation gaps\n\n"
-                "Create 3-5 focused tasks. Each task should be completable "
-                "by a single agent in under 30 minutes.\n\n"
-                "Task server API:\n"
-                f"  POST {base}/tasks with JSON: "
-                '{"title": "...", "description": "...", "role": "backend", "priority": 2}'
+                "You are in EVOLVE mode. Your job: find HIGH-IMPACT improvements "
+                "and create tasks for other agents to implement.\n\n"
+                "## Rules (from self-evolving systems research)\n"
+                "- NEVER create tasks that are cosmetic, trivial, or busy-work\n"
+                "- Each task must have a measurable outcome (test passes, "
+                "benchmark improves, bug is fixed)\n"
+                "- Prefer config/prompt changes over code changes (cheaper, safer)\n"
+                "- If tests already pass at 100%, focus on functionality, not more tests\n"
+                "- If architecture is clean, focus on features users actually need\n"
+                "- Create 3-5 tasks MAX. Quality over quantity.\n\n"
+                "## Prioritization\n"
+                "1. Bugs and broken functionality (P1)\n"
+                "2. Missing features that block real usage (P1)\n"
+                "3. Performance and reliability (P2)\n"
+                "4. Code quality and test gaps (P2)\n"
+                "5. Documentation (P3 — only if truly missing)\n\n"
+                "## Process\n"
+                "1. Run `uv run pytest tests/ -q` to see current test state\n"
+                "2. Read key files to understand architecture\n"
+                "3. Identify 3-5 high-impact improvements\n"
+                "4. Create tasks via HTTP:\n"
+                f"   curl -X POST {base}/tasks -H 'Content-Type: application/json' "
+                "-d '{\"title\": \"...\", \"description\": \"...\", "
+                "\"role\": \"backend\", \"priority\": 2}'\n"
+                "5. Then exit.\n\n"
+                "IMPORTANT: Do NOT implement changes yourself. Only create tasks."
             ),
             "role": "manager",
             "priority": 1,

@@ -500,14 +500,30 @@ def status() -> None:
         f"[red]{failed} failed[/red]"
     )
 
-    cost_usd: float | None = data.get("cost_usd")
-    if cost_usd is not None:
-        console.print(f"[bold]Est. cost:[/bold] ${cost_usd:.4f}")
-
     elapsed_s: int | None = data.get("elapsed_seconds")
     if elapsed_s is not None:
         minutes, secs = divmod(elapsed_s, 60)
         console.print(f"[bold]Elapsed:[/bold] {minutes}m {secs}s")
+
+    # ---- Cost section ----
+    total_cost_usd: float = data.get("total_cost_usd", 0.0)
+    per_role: list[dict[str, Any]] = data.get("per_role", [])
+    roles_with_cost = [r for r in per_role if r.get("cost_usd", 0.0) > 0.0]
+    if total_cost_usd > 0.0 or roles_with_cost:
+        console.print(f"\n[bold]Total spend:[/bold] [green]${total_cost_usd:.4f}[/green]")
+        if roles_with_cost:
+            cost_table = Table(title="Cost by Role", show_lines=False, header_style="bold cyan")
+            cost_table.add_column("Role", min_width=12)
+            cost_table.add_column("Tasks", justify="right")
+            cost_table.add_column("Cost", justify="right")
+            for r in sorted(roles_with_cost, key=lambda x: x.get("cost_usd", 0.0), reverse=True):
+                role_tasks = r.get("done", 0) + r.get("failed", 0) + r.get("claimed", 0) + r.get("open", 0)
+                cost_table.add_row(
+                    r.get("role", "—"),
+                    str(role_tasks),
+                    f"${r.get('cost_usd', 0.0):.4f}",
+                )
+            console.print(cost_table)
 
 
 # ---------------------------------------------------------------------------

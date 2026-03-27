@@ -29,35 +29,13 @@ from bernstein.core.evolution import (
     UpgradeStatus,
 )
 from bernstein.core.models import (
-    Complexity,
     RiskAssessment,
     RollbackPlan,
-    Scope,
-    Task,
     TaskStatus,
 )
 
 
 # --- Helpers ---
-
-
-def _make_task(
-    *,
-    id: str = "T-001",
-    role: str = "backend",
-    title: str = "Implement feature",
-    description: str = "Write the code.",
-    scope: Scope = Scope.MEDIUM,
-    complexity: Complexity = Complexity.MEDIUM,
-) -> Task:
-    return Task(
-        id=id,
-        title=title,
-        description=description,
-        role=role,
-        scope=scope,
-        complexity=complexity,
-    )
 
 
 def _seed_task_metrics(collector: FileMetricsCollector, count: int = 20) -> None:
@@ -87,7 +65,7 @@ def _seed_task_metrics(collector: FileMetricsCollector, count: int = 20) -> None
 class TestEvolutionEndToEnd:
     """Full cycle: task completion → metrics → analysis → proposal → execute."""
 
-    def test_full_evolution_cycle(self, tmp_path: Path) -> None:
+    def test_full_evolution_cycle(self, tmp_path: Path, make_task) -> None:
         """Complete loop from task completion through upgrade application."""
         state_dir = tmp_path / ".sdd"
         state_dir.mkdir()
@@ -101,7 +79,7 @@ class TestEvolutionEndToEnd:
         )
 
         # Step 1: Record task completions (simulating orchestrator callback)
-        task = _make_task()
+        task = make_task()
         coordinator.record_task_completion(
             task=task,
             duration_seconds=45.0,
@@ -144,7 +122,7 @@ class TestEvolutionEndToEnd:
         assert applied[0].status == UpgradeStatus.APPLIED
         assert applied[0].applied_at is not None
 
-    def test_record_task_completion_persists_to_file(self, tmp_path: Path) -> None:
+    def test_record_task_completion_persists_to_file(self, tmp_path: Path, make_task) -> None:
         """Verify task metrics are persisted to JSONL files."""
         state_dir = tmp_path / ".sdd"
         state_dir.mkdir()
@@ -152,7 +130,7 @@ class TestEvolutionEndToEnd:
         collector = FileMetricsCollector(state_dir)
         coordinator = EvolutionCoordinator(state_dir=state_dir, collector=collector)
 
-        task = _make_task(id="T-persist")
+        task = make_task(id="T-persist")
         coordinator.record_task_completion(
             task=task,
             duration_seconds=10.0,

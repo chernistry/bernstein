@@ -381,3 +381,198 @@ def test_stale_agent_detection(tmp_path: Path) -> None:
     count = store.mark_stale_dead()
     assert count == 1
     assert store._agents["old-agent"].status == "dead"
+
+
+# -- GET /tasks/archive -------------------------------------------------------
+
+@pytest.mark.anyio
+async def test_complete_task_writes_archive(client: AsyncClient, tmp_path: Path) -> None:
+    """Completing a task appends a record to .sdd/archive/tasks.jsonl."""
+    app_obj = client._transport.app  # type: ignore[attr-defined]
+    store = app_obj.state.store
+    archive_path = tmp_path / "archive" / "tasks.jsonl"
+    store._archive_path = archive_path
+
+    create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
+    task_id = create_resp.json()["id"]
+
+    await client.post(
+        f"/tasks/{task_id}/complete",
+        json={"result_summary": "All done"},
+    )
+
+    assert archive_path.exists(), "archive file should be created on completion"
+    lines = [l for l in archive_path.read_text().splitlines() if l.strip()]
+    assert len(lines) == 1
+    record = json.loads(lines[0])
+    assert record["task_id"] == task_id
+    assert record["status"] == "done"
+    assert record["result_summary"] == "All done"
+    assert record["role"] == "backend"
+    assert "completed_at" in record
+    assert "duration_seconds" in record
+
+
+@pytest.mark.anyio
+async def test_fail_task_writes_archive(client: AsyncClient, tmp_path: Path) -> None:
+    """Failing a task appends a record to the archive."""
+    app_obj = client._transport.app  # type: ignore[attr-defined]
+    store = app_obj.state.store
+    archive_path = tmp_path / "archive" / "tasks.jsonl"
+    store._archive_path = archive_path
+
+    create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
+    task_id = create_resp.json()["id"]
+
+    await client.post(f"/tasks/{task_id}/fail", json={"reason": "Timed out"})
+
+    lines = [l for l in archive_path.read_text().splitlines() if l.strip()]
+    assert len(lines) == 1
+    record = json.loads(lines[0])
+    assert record["status"] == "failed"
+    assert record["result_summary"] == "Timed out"
+
+
+@pytest.mark.anyio
+async def test_archive_endpoint_returns_records(client: AsyncClient, tmp_path: Path) -> None:
+    """GET /tasks/archive returns completed and failed task records."""
+    app_obj = client._transport.app  # type: ignore[attr-defined]
+    store = app_obj.state.store
+    archive_path = tmp_path / "archive" / "tasks.jsonl"
+    store._archive_path = archive_path
+
+    r1 = await client.post("/tasks", json=TASK_PAYLOAD)
+    r2 = await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Task 2"})
+    await client.post(f"/tasks/{r1.json()['id']}/complete", json={"result_summary": "ok"})
+    await client.post(f"/tasks/{r2.json()['id']}/fail", json={"reason": "bad"})
+
+    resp = await client.get("/tasks/archive")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 2
+    statuses = {r["status"] for r in data}
+    assert statuses == {"done", "failed"}
+
+
+@pytest.mark.anyio
+async def test_archive_endpoint_limit(client: AsyncClient, tmp_path: Path) -> None:
+    """GET /tasks/archive?limit=1 returns only the last 1 record."""
+    app_obj = client._transport.app  # type: ignore[attr-defined]
+    store = app_obj.state.store
+    archive_path = tmp_path / "archive" / "tasks.jsonl"
+    store._archive_path = archive_path
+
+    for i in range(3):
+        r = await client.post("/tasks", json={**TASK_PAYLOAD, "title": f"T{i}"})
+        await client.post(f"/tasks/{r.json()['id']}/complete", json={"result_summary": "ok"})
+
+    resp = await client.get("/tasks/archive", params={"limit": 1})
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+
+
+@pytest.mark.anyio
+async def test_archive_endpoint_empty(client: AsyncClient, tmp_path: Path) -> None:
+    """GET /tasks/archive returns empty list when no tasks have been archived."""
+    app_obj = client._transport.app  # type: ignore[attr-defined]
+    store = app_obj.state.store
+    archive_path = tmp_path / "archive" / "tasks.jsonl"
+    store._archive_path = archive_path
+
+    resp = await client.get("/tasks/archive")
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+# -- GET /status cost fields ------------------------------------------------
+
+
+@pytest.fixture()
+def metrics_jsonl_path(tmp_path: Path) -> Path:
+    """Return a temporary metrics JSONL path."""
+    return tmp_path / "metrics" / "tasks.jsonl"
+
+
+@pytest.fixture()
+def app_with_metrics(jsonl_path: Path, metrics_jsonl_path: Path):
+    """App wired to a specific metrics JSONL path."""
+    return create_app(jsonl_path=jsonl_path, metrics_jsonl_path=metrics_jsonl_path)
+
+
+@pytest.fixture()
+async def client_with_metrics(app_with_metrics) -> AsyncClient:
+    """Async HTTP client wired to the metrics-aware test app."""
+    transport = ASGITransport(app=app_with_metrics)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        yield c
+
+
+@pytest.mark.anyio
+async def test_status_cost_zero_when_no_metrics(client_with_metrics: AsyncClient) -> None:
+    """GET /status returns total_cost_usd=0.0 when no metrics file exists."""
+    resp = await client_with_metrics.get("/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "total_cost_usd" in data
+    assert data["total_cost_usd"] == 0.0
+
+
+@pytest.mark.anyio
+async def test_status_returns_total_cost_from_metrics(
+    client_with_metrics: AsyncClient, metrics_jsonl_path: Path
+) -> None:
+    """GET /status sums cost_usd from metrics JSONL and returns total."""
+    metrics_jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+    records = [
+        {"task_id": "abc", "role": "backend", "cost_usd": 0.50},
+        {"task_id": "def", "role": "qa", "cost_usd": 0.25},
+        {"task_id": "ghi", "role": "backend", "cost_usd": 0.10},
+    ]
+    metrics_jsonl_path.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+
+    resp = await client_with_metrics.get("/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert abs(data["total_cost_usd"] - 0.85) < 1e-9
+
+
+@pytest.mark.anyio
+async def test_status_cost_per_role_breakdown(
+    client_with_metrics: AsyncClient, metrics_jsonl_path: Path
+) -> None:
+    """GET /status returns per-role cost breakdown in per_role list."""
+    metrics_jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+    records = [
+        {"task_id": "abc", "role": "backend", "cost_usd": 0.40},
+        {"task_id": "def", "role": "qa", "cost_usd": 0.30},
+        {"task_id": "ghi", "role": "backend", "cost_usd": 0.20},
+    ]
+    metrics_jsonl_path.write_text("\n".join(json.dumps(r) for r in records) + "\n")
+    # Also create tasks so per_role is populated
+    await client_with_metrics.post("/tasks", json={**TASK_PAYLOAD, "role": "backend"})
+    await client_with_metrics.post("/tasks", json={**TASK_PAYLOAD, "role": "qa"})
+
+    resp = await client_with_metrics.get("/status")
+    data = resp.json()
+    roles_by_name = {r["role"]: r for r in data["per_role"]}
+    assert "cost_usd" in roles_by_name["backend"]
+    assert abs(roles_by_name["backend"]["cost_usd"] - 0.60) < 1e-9
+    assert abs(roles_by_name["qa"]["cost_usd"] - 0.30) < 1e-9
+
+
+@pytest.mark.anyio
+async def test_status_cost_skips_malformed_metrics_lines(
+    client_with_metrics: AsyncClient, metrics_jsonl_path: Path
+) -> None:
+    """GET /status silently skips malformed lines in metrics JSONL."""
+    metrics_jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+    metrics_jsonl_path.write_text(
+        '{"task_id": "a", "role": "backend", "cost_usd": 1.0}\n'
+        "not-json-at-all\n"
+        '{"task_id": "b", "role": "backend"}\n'  # no cost_usd key
+    )
+
+    resp = await client_with_metrics.get("/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert abs(data["total_cost_usd"] - 1.0) < 1e-9

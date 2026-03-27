@@ -210,7 +210,7 @@ class AgentSpawner:
             raise ValueError(f"All tasks in a batch must share the same role, got: {roles}")
 
         # Route based on highest-complexity task in batch; use TierAwareRouter if available
-        base_config = _select_batch_config(tasks)
+        base_config = _select_batch_config(tasks, templates_dir=self._templates_dir)
         model_config = base_config
         provider_name: str | None = None
 
@@ -278,19 +278,77 @@ class AgentSpawner:
         session.status = "dead"
 
 
-def _select_batch_config(tasks: list[Task]) -> ModelConfig:
+def _load_role_config(role: str, templates_dir: Path) -> ModelConfig | None:
+    """Load ModelConfig from a role's config.yaml if present.
+
+    Args:
+        role: Role name (e.g. "backend", "manager").
+        templates_dir: Root of templates/roles/ directory.
+
+    Returns:
+        ModelConfig from config.yaml, or None if not found / unreadable.
+    """
+    config_path = templates_dir / role / "config.yaml"
+    if not config_path.exists():
+        return None
+    try:
+        import yaml  # noqa: PLC0415
+
+        data: object = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return None
+        model = str(data.get("default_model", "sonnet"))
+        effort = str(data.get("default_effort", "high"))
+        return ModelConfig(model=model, effort=effort)
+    except Exception as exc:
+        logger.warning("Failed to load role config for '%s': %s", role, exc)
+        return None
+
+
+def _select_batch_config(
+    tasks: list[Task],
+    templates_dir: Path | None = None,
+) -> ModelConfig:
     """Pick the highest-tier model config across all tasks in a batch.
 
+    If *templates_dir* is provided, reads the role's config.yaml first and
+    uses that as the baseline before falling back to heuristic routing.
     Routes each task individually, then picks the most capable config
     so the agent can handle the hardest task in its batch.
 
     Args:
         tasks: Non-empty list of tasks.
+        templates_dir: Optional path to templates/roles/ for config.yaml lookup.
 
     Returns:
         ModelConfig suitable for the entire batch.
     """
-    configs = [route_task(t) for t in tasks]
+    # If a role-level config.yaml exists, use it as the baseline
+    role = tasks[0].role
+    if templates_dir is not None:
+        role_config = _load_role_config(role, templates_dir)
+        if role_config is not None:
+            return role_config
+
+    from bernstein.core.models import Complexity, Scope  # noqa: PLC0415
+
+    def _route_for_batch(task: Task) -> ModelConfig:
+        """Batch-specific routing: conservative default, escalates for complex tasks."""
+        if task.model or task.effort:
+            return ModelConfig(model=task.model or "sonnet", effort=task.effort or "normal")
+        if task.role == "manager":
+            return ModelConfig(model="opus", effort="max")
+        if task.role in ("architect", "security"):
+            return ModelConfig(model="opus", effort="high")
+        if task.scope == Scope.LARGE and task.complexity == Complexity.HIGH:
+            return ModelConfig(model="opus", effort="high")
+        if task.priority == 1 or task.scope == Scope.LARGE:
+            return ModelConfig(model="sonnet", effort="max")
+        if task.complexity == Complexity.HIGH:
+            return ModelConfig(model="sonnet", effort="high")
+        return ModelConfig(model="sonnet", effort="normal")
+
+    configs = [_route_for_batch(t) for t in tasks]
     # Sort by model tier (opus > sonnet) then effort (max > high > normal)
     model_rank = {"opus": 2, "sonnet": 1}
     effort_rank = {"max": 3, "high": 2, "normal": 1}

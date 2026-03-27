@@ -329,6 +329,49 @@ class TestOrchestratorTick:
         assert result.open_tasks == 0
         assert len(result.spawned) == 0
 
+    def test_depends_on_blocks_scheduling_until_dep_done(self, tmp_path: Path) -> None:
+        """Task B with depends_on=[A.id] is not scheduled until A is in status 'done'."""
+        task_a = _make_task(id="T-A", role="backend")
+        task_b = _make_task(id="T-B", role="backend")
+        task_b.depends_on = ["T-A"]
+
+        # Tick 1: A is open, B depends on A — only A should be scheduled
+        transport = _mock_transport({
+            "GET /tasks?status=open": httpx.Response(
+                200, json=[_task_as_dict(task_a), _task_as_dict(task_b)]
+            ),
+            "GET /tasks?status=done": httpx.Response(200, json=[]),
+        })
+        orch = _build_orchestrator(tmp_path, transport)
+
+        result = orch.tick()
+
+        # Only task_a's batch spawned; task_b blocked by unmet dependency
+        spawned_task_ids: list[str] = []
+        for session in orch.active_agents.values():
+            spawned_task_ids.extend(session.task_ids)
+        assert "T-A" in spawned_task_ids
+        assert "T-B" not in spawned_task_ids
+
+    def test_depends_on_unblocked_when_dep_done(self, tmp_path: Path) -> None:
+        """Task B with depends_on=[A.id] is scheduled once A appears in 'done'."""
+        task_b = _make_task(id="T-B", role="backend")
+        task_b.depends_on = ["T-A"]
+        task_a_done = _make_task(id="T-A", role="backend", status="done")
+
+        transport = _mock_transport({
+            "GET /tasks?status=open": httpx.Response(200, json=[_task_as_dict(task_b)]),
+            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(task_a_done)]),
+        })
+        orch = _build_orchestrator(tmp_path, transport)
+
+        result = orch.tick()
+
+        spawned_task_ids: list[str] = []
+        for session in orch.active_agents.values():
+            spawned_task_ids.extend(session.task_ids)
+        assert "T-B" in spawned_task_ids
+
     def test_handles_server_error_on_open_fetch(self, tmp_path: Path) -> None:
         transport = _mock_transport({
             "GET /tasks?status=open": httpx.Response(500, text="Internal error"),

@@ -4,14 +4,12 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from bernstein.adapters.base import CLIAdapter, SpawnResult
 from bernstein.adapters.claude import ClaudeCodeAdapter, load_mcp_config, _resolve_env_vars
-from bernstein.core.models import ModelConfig, Task, Scope, Complexity
+from bernstein.core.models import ModelConfig
 from bernstein.core.seed import SeedConfig, parse_seed
 from bernstein.core.spawner import AgentSpawner
 
@@ -200,49 +198,28 @@ mcp_servers:
 # ---------------------------------------------------------------------------
 
 
-def _make_task(**kwargs: Any) -> Task:
-    defaults: dict[str, Any] = {
-        "id": "T-001",
-        "title": "Test task",
-        "description": "Do the thing.",
-        "role": "backend",
-        "scope": Scope.MEDIUM,
-        "complexity": Complexity.MEDIUM,
-    }
-    defaults.update(kwargs)
-    return Task(**defaults)
-
-
-def _mock_adapter(pid: int = 42) -> CLIAdapter:
-    adapter = MagicMock(spec=CLIAdapter)
-    adapter.spawn.return_value = SpawnResult(pid=pid, log_path=Path("/tmp/test.log"))
-    adapter.is_alive.return_value = True
-    adapter.name.return_value = "MockCLI"
-    return adapter
-
-
 class TestSpawnerMcpPassthrough:
     """Tests that MCP config flows from spawner to adapter."""
 
-    def test_passes_mcp_config_to_adapter(self, tmp_path: Path) -> None:
-        adapter = _mock_adapter()
+    def test_passes_mcp_config_to_adapter(self, tmp_path: Path, make_task, mock_adapter_factory) -> None:
+        adapter = mock_adapter_factory()
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
         mcp_config = {"mcpServers": {"tavily": {"command": "npx"}}}
 
         spawner = AgentSpawner(adapter, templates_dir, tmp_path, mcp_config=mcp_config)
-        spawner.spawn_for_tasks([_make_task()])
+        spawner.spawn_for_tasks([make_task()])
 
         call_kwargs = adapter.spawn.call_args.kwargs
         assert call_kwargs["mcp_config"] == mcp_config
 
-    def test_passes_none_when_no_mcp_config(self, tmp_path: Path) -> None:
-        adapter = _mock_adapter()
+    def test_passes_none_when_no_mcp_config(self, tmp_path: Path, make_task, mock_adapter_factory) -> None:
+        adapter = mock_adapter_factory()
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
 
         spawner = AgentSpawner(adapter, templates_dir, tmp_path, mcp_config=None)
-        spawner.spawn_for_tasks([_make_task()])
+        spawner.spawn_for_tasks([make_task()])
 
         call_kwargs = adapter.spawn.call_args.kwargs
         assert call_kwargs["mcp_config"] is None

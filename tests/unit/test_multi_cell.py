@@ -10,10 +10,8 @@ from bernstein.core.bulletin import BulletinBoard, BulletinMessage
 from bernstein.core.models import (
     AgentSession,
     Cell,
-    Complexity,
     ModelConfig,
     OrchestratorConfig,
-    Scope,
     Task,
     TaskStatus,
     TaskType,
@@ -29,24 +27,6 @@ from bernstein.core.spawner import AgentSpawner
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _make_task(
-    *,
-    id: str = "t-001",
-    title: str = "Task",
-    status: TaskStatus = TaskStatus.OPEN,
-    role: str = "backend",
-) -> Task:
-    return Task(
-        id=id,
-        title=title,
-        description="desc",
-        role=role,
-        scope=Scope.SMALL,
-        complexity=Complexity.LOW,
-        status=status,
-    )
-
 
 def _make_session(*, id: str, status: str = "working") -> AgentSession:
     return AgentSession(
@@ -92,13 +72,13 @@ class TestCellStatus:
         assert status.done_tasks == 0
         assert status.failed_tasks == 0
 
-    def test_counts_task_statuses(self) -> None:
+    def test_counts_task_statuses(self, make_task) -> None:
         tasks = [
-            _make_task(id="t1", status=TaskStatus.OPEN),
-            _make_task(id="t2", status=TaskStatus.OPEN),
-            _make_task(id="t3", status=TaskStatus.DONE),
-            _make_task(id="t4", status=TaskStatus.FAILED),
-            _make_task(id="t5", status=TaskStatus.BLOCKED),
+            make_task(id="t1", status=TaskStatus.OPEN),
+            make_task(id="t2", status=TaskStatus.OPEN),
+            make_task(id="t3", status=TaskStatus.DONE),
+            make_task(id="t4", status=TaskStatus.FAILED),
+            make_task(id="t5", status=TaskStatus.BLOCKED),
         ]
         cell = _make_cell(tasks=tasks)
         status = cell_status(cell)

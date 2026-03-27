@@ -520,25 +520,28 @@ class RouterError(Exception):
 
 # Legacy compatibility function - uses default routing rules
 def route_task(task: Task) -> ModelConfig:
-    """Select model and effort based on task metadata."""
-    # Manager and security always get max effort
-    if task.role in ("manager", "security"):
+    """Select model and effort based on task metadata.
+
+    Optimized for throughput: use Sonnet by default (3-5x faster than Opus).
+    Only use Opus for architecture/security tasks that need deep reasoning.
+    """
+    # Manager planning = opus (needs deep analysis to create good tasks)
+    if task.role == "manager":
         return ModelConfig(model="opus", effort="max")
 
-    # P1 critical or large+high = opus max (100 turns)
-    if task.priority == 1 or (task.scope == Scope.LARGE and task.complexity == Complexity.HIGH):
-        return ModelConfig(model="opus", effort="max")
-
-    # Large or high complexity = opus high (50 turns)
-    if task.scope == Scope.LARGE or task.complexity == Complexity.HIGH:
+    # Architecture and security = opus (needs reasoning about structure)
+    if task.role in ("architect", "security"):
         return ModelConfig(model="opus", effort="high")
 
-    # Medium = sonnet high (50 turns)
-    if task.complexity == Complexity.MEDIUM:
+    # Everything else = sonnet (fast, good enough for implementation)
+    # P1 critical gets more turns but still sonnet
+    if task.priority == 1 or task.scope == Scope.LARGE:
+        return ModelConfig(model="sonnet", effort="max")
+
+    if task.complexity == Complexity.HIGH:
         return ModelConfig(model="sonnet", effort="high")
 
-    # Simple = sonnet normal (25 turns)
-    return ModelConfig(model="sonnet", effort="normal")
+    return ModelConfig(model="sonnet", effort="high")
 
 
 def load_providers_from_yaml(path: Path, router: TierAwareRouter) -> None:

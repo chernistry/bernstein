@@ -395,11 +395,33 @@ class Orchestrator:
                     )
                     break
             time.sleep(self._config.poll_interval_s)
+
+            # Check if a restart was requested (own source code changed)
+            restart_flag = self._workdir / ".sdd" / "runtime" / "restart_requested"
+            if restart_flag.exists():
+                restart_flag.unlink(missing_ok=True)
+                logger.info("Restarting orchestrator (own code updated)")
+                self._restart()
+                return  # _restart calls os.execv, but just in case
+
         logger.info("Orchestrator stopped")
 
     def stop(self) -> None:
         """Signal the run loop to exit after the current tick."""
         self._running = False
+
+    def _restart(self) -> None:
+        """Replace the current process with a fresh orchestrator.
+
+        Uses os.execv to re-exec with the same arguments, picking up
+        any code changes made by agents to src/bernstein/.
+        """
+        import os
+        import sys
+
+        logger.info("Exec'ing fresh orchestrator process")
+        # Re-exec the same command that started us
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
     # -- Evolve mode ---------------------------------------------------------
 
@@ -611,6 +633,14 @@ class Orchestrator:
                 capture_output=True, cwd=self._workdir, timeout=30,
             )
             logger.info("Evolve: auto-committed and pushed changes")
+
+            # Check if own source code changed — if so, signal restart
+            changed = status.stdout.strip()
+            if "src/bernstein/" in changed:
+                logger.info("Evolve: own source code changed, signaling restart")
+                restart_flag = self._workdir / ".sdd" / "runtime" / "restart_requested"
+                restart_flag.write_text(str(time.time()))
+
             return True
 
         except (subprocess.TimeoutExpired, OSError) as exc:

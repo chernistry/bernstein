@@ -23,6 +23,7 @@ from textual.widgets import (
     DataTable,
     Footer,
     Header,
+    Input,
     RichLog,
     Sparkline,
     Static,
@@ -288,6 +289,11 @@ class BernsteinApp(App):
         height: 1fr;
         scrollbar-size: 1 1;
     }
+
+    #chat-input {
+        dock: bottom;
+        margin: 0 0 1 0;
+    }
     """
 
     BINDINGS = [
@@ -319,6 +325,7 @@ class BernsteinApp(App):
                 yield RichLog(id="activity-log", wrap=True, markup=True)
         with Horizontal(id="spark-row"):
             yield Sparkline([], summary_function=max, id="spark")
+        yield Input(placeholder="Type a task and press Enter (sent as P1 priority)...", id="chat-input")
         yield StatsPanel(id="stats-bar")
         yield Footer()
 
@@ -469,6 +476,35 @@ class BernsteinApp(App):
                 except OSError:
                     pass
         self.exit(message="Bernstein stopped.")
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Send user message as a P1 task to the server."""
+        text = event.value.strip()
+        if not text:
+            return
+        event.input.value = ""
+
+        try:
+            resp = httpx.post(
+                f"{SERVER_URL}/tasks",
+                json={
+                    "title": text,
+                    "description": f"User request (P1): {text}",
+                    "role": "backend",
+                    "priority": 1,
+                    "model": "sonnet",
+                    "effort": "high",
+                },
+                timeout=5.0,
+            )
+            if resp.status_code == 201:
+                self.notify(f"Task created: {text[:50]}", severity="information")
+            else:
+                self.notify(f"Failed: {resp.status_code}", severity="error")
+        except Exception as exc:
+            self.notify(f"Error: {exc}", severity="error")
+
+        self._poll()
 
 
 def run_dashboard() -> None:

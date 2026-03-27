@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path  # noqa: TC003 — used at runtime in parse_seed
-from typing import Literal
+from typing import Any, Literal
 
 import yaml
 
@@ -33,6 +33,7 @@ class SeedConfig:
         constraints: Project constraints passed to the manager (e.g. "Python only").
         context_files: Additional file paths to include in manager context.
         agent_catalog: Optional path to an Agency agent catalog directory.
+        mcp_servers: MCP server definitions to pass to spawned agents.
     """
 
     goal: str
@@ -44,6 +45,7 @@ class SeedConfig:
     constraints: tuple[str, ...] = ()
     context_files: tuple[str, ...] = ()
     agent_catalog: str | None = None
+    mcp_servers: dict[str, dict[str, Any]] | None = None
 
 
 _BUDGET_RE = re.compile(r"^\$(\d+(?:\.\d+)?)$")
@@ -181,6 +183,10 @@ def parse_seed(path: Path) -> SeedConfig:
     if agent_catalog_raw is not None and not isinstance(agent_catalog_raw, str):
         raise SeedError(f"agent_catalog must be a string path, got: {type(agent_catalog_raw).__name__}")
 
+    mcp_servers_raw = data.get("mcp_servers")
+    if mcp_servers_raw is not None and not isinstance(mcp_servers_raw, dict):
+        raise SeedError(f"mcp_servers must be a mapping, got: {type(mcp_servers_raw).__name__}")
+
     return SeedConfig(
         goal=goal,
         budget_usd=budget_usd,
@@ -191,6 +197,7 @@ def parse_seed(path: Path) -> SeedConfig:
         constraints=constraints,
         context_files=context_files,
         agent_catalog=agent_catalog_raw,
+        mcp_servers=mcp_servers_raw,
     )
 
 

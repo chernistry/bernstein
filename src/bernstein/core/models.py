@@ -233,11 +233,11 @@ class OrchestratorConfig:
         evolution_enabled: Whether the self-evolution feedback loop is active.
         evolution_tick_interval: Run evolution analysis every N ticks (~5 min at 10s poll).
     """
-    max_agents: int = 6
+    max_agents: int = 4
     poll_interval_s: int = 10
     heartbeat_timeout_s: int = 900  # effectively disabled — agents can't heartbeat
-    max_agent_runtime_s: int = 600  # 10 min wall-clock kill for hung agents
-    max_tasks_per_agent: int = 3
+    max_agent_runtime_s: int = 900  # 15 min wall-clock kill for hung agents
+    max_tasks_per_agent: int = 2  # keep batches small for quality
     server_url: str = "http://localhost:8052"
     evolution_enabled: bool = True
     evolution_tick_interval: int = 30

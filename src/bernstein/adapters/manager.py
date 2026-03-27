@@ -5,7 +5,7 @@ import os
 import signal
 import subprocess
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -25,6 +25,7 @@ class ManagerAdapter(CLIAdapter):
         workdir: Path,
         model_config: ModelConfig,
         session_id: str,
+        mcp_config: dict[str, Any] | None = None,
     ) -> SpawnResult:
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)

@@ -5,7 +5,7 @@ import contextlib
 import os
 import signal
 import subprocess
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from bernstein.adapters.base import CLIAdapter, SpawnResult
 from bernstein.core.llm import LLMSettings
@@ -32,6 +32,7 @@ class QwenAdapter(CLIAdapter):
         workdir: Path,
         model_config: ModelConfig,
         session_id: str,
+        mcp_config: dict[str, Any] | None = None,
     ) -> SpawnResult:
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,10 +1,12 @@
 """Claude Code CLI adapter."""
 from __future__ import annotations
 
+import json
 import os
 import signal
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from bernstein.adapters.base import CLIAdapter, SpawnResult
 from bernstein.core.models import ApiTier, ApiTierInfo, ModelConfig, ProviderType, RateLimit
@@ -15,6 +17,60 @@ _MODEL_MAP: dict[str, str] = {
     "sonnet": "claude-sonnet-4-6",
     "haiku": "claude-haiku-4-5-20251001",
 }
+
+
+def load_mcp_config(
+    project_servers: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Build merged MCP config from user global config and project-level overrides.
+
+    Reads ~/.claude/mcp.json (user's global MCP servers), then merges in any
+    project-level mcp_servers from bernstein.yaml. Project config wins on conflicts.
+
+    Args:
+        project_servers: MCP server definitions from bernstein.yaml mcp_servers field.
+
+    Returns:
+        Merged MCP config dict ready for --mcp-config, or None if no servers found.
+    """
+    merged: dict[str, Any] = {}
+
+    # 1. Read user global config (~/.claude/mcp.json)
+    global_path = Path.home() / ".claude" / "mcp.json"
+    if global_path.exists():
+        try:
+            global_cfg = json.loads(global_path.read_text(encoding="utf-8"))
+            if isinstance(global_cfg, dict):
+                # mcp.json has {"mcpServers": {...}} structure
+                servers = global_cfg.get("mcpServers", global_cfg)
+                if isinstance(servers, dict):
+                    merged.update(servers)
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    # 2. Merge project-level config (overrides global)
+    if project_servers:
+        # Expand env vars in server config values
+        for name, server_def in project_servers.items():
+            resolved = _resolve_env_vars(server_def)
+            merged[name] = resolved
+
+    if not merged:
+        return None
+
+    return {"mcpServers": merged}
+
+
+def _resolve_env_vars(obj: Any) -> Any:
+    """Recursively resolve ${VAR} references in config values."""
+    if isinstance(obj, str) and obj.startswith("${") and obj.endswith("}"):
+        var_name = obj[2:-1]
+        return os.environ.get(var_name, obj)
+    if isinstance(obj, dict):
+        return {k: _resolve_env_vars(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_resolve_env_vars(item) for item in obj]
+    return obj
 
 
 class ClaudeCodeAdapter(CLIAdapter):
@@ -30,6 +86,7 @@ class ClaudeCodeAdapter(CLIAdapter):
         workdir: Path,
         model_config: ModelConfig,
         session_id: str,
+        mcp_config: dict[str, Any] | None = None,
     ) -> SpawnResult:
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -45,8 +102,13 @@ class ClaudeCodeAdapter(CLIAdapter):
             "--model", model_id,
             "--dangerously-skip-permissions",
             "--max-turns", str(max_turns),
-            "-p", prompt,
         ]
+
+        # Pass MCP server config if provided
+        if mcp_config:
+            cmd.extend(["--mcp-config", json.dumps(mcp_config)])
+
+        cmd.extend(["-p", prompt])
 
         log_file = log_path.open("w")  # noqa: SIM115
         proc = subprocess.Popen(

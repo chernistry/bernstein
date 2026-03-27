@@ -403,14 +403,20 @@ class Orchestrator:
 
     # -- Evolve mode ---------------------------------------------------------
 
+    # Priority rotation for evolve mode — each cycle emphasizes a different area
+    _EVOLVE_FOCUS_AREAS = [
+        "new_features",
+        "test_coverage",
+        "code_quality",
+        "performance",
+        "documentation",
+    ]
+
     def _check_evolve(self, result: TickResult) -> None:
         """If evolve mode is on and all tasks are done, trigger a new cycle.
 
-        Steps:
-        1. Check if evolve.json exists (written by CLI --evolve flag)
-        2. If all tasks done and no agents alive → idle
-        3. Auto-commit any changes from the last cycle
-        4. Spawn a manager agent to plan new improvement tasks
+        Full cycle: analyze → verify → commit → plan → execute.
+        Tracks budget, detects diminishing returns with backoff, rotates priorities.
         """
         evolve_path = self._workdir / ".sdd" / "runtime" / "evolve.json"
         if not evolve_path.exists():
@@ -443,30 +449,121 @@ class Orchestrator:
             logger.info("Evolve: max cycles (%d) reached, stopping", max_cycles)
             return
 
-        # Check cooldown (don't re-trigger immediately)
-        last_cycle_ts = evolve_cfg.get("_last_cycle_ts", 0)
-        interval = evolve_cfg.get("interval_s", 300)
-        if time.time() - last_cycle_ts < interval:
+        # Check budget cap
+        budget_usd = evolve_cfg.get("budget_usd", 0)
+        spent_usd = evolve_cfg.get("_spent_usd", 0.0)
+        if budget_usd > 0 and spent_usd >= budget_usd:
+            logger.info("Evolve: budget cap ($%.2f) reached, stopping", budget_usd)
             return
 
-        logger.info("Evolve: all tasks done, triggering cycle %d", cycle_count + 1)
+        # Diminishing returns backoff: if N consecutive cycles produced zero
+        # successful changes, increase the interval exponentially (max 8x)
+        consecutive_empty = evolve_cfg.get("_consecutive_empty", 0)
+        backoff_factor = min(2 ** consecutive_empty, 8) if consecutive_empty >= 3 else 1
 
-        # Step 1: Auto-commit any changes
-        self._evolve_auto_commit()
+        last_cycle_ts = evolve_cfg.get("_last_cycle_ts", 0)
+        base_interval = evolve_cfg.get("interval_s", 300)
+        effective_interval = base_interval * backoff_factor
+        if time.time() - last_cycle_ts < effective_interval:
+            return
 
-        # Step 2: Spawn a manager to plan new tasks
-        self._evolve_spawn_manager()
+        cycle_number = cycle_count + 1
+        cycle_start = time.time()
+        logger.info(
+            "Evolve: triggering cycle %d (backoff=%dx, interval=%ds)",
+            cycle_number, backoff_factor, effective_interval,
+        )
 
-        # Update cycle count
-        evolve_cfg["_cycle_count"] = cycle_count + 1
-        evolve_cfg["_last_cycle_ts"] = time.time()
+        # Step 1: ANALYZE — count results from last cycle
+        tasks_completed = 0
+        tasks_failed = 0
+        try:
+            done_tasks = _fetch_tasks(self._client, base, "done")
+            failed_tasks = _fetch_tasks(self._client, base, "failed")
+            tasks_completed = len(done_tasks)
+            tasks_failed = len(failed_tasks)
+        except httpx.HTTPError:
+            pass
+
+        # Step 2: VERIFY — run tests to get current state
+        test_info = self._evolve_run_tests()
+
+        # Step 3: COMMIT — auto-commit if tests pass
+        committed = self._evolve_auto_commit()
+
+        # Step 4: PLAN — spawn manager with priority rotation
+        focus = self._EVOLVE_FOCUS_AREAS[cycle_count % len(self._EVOLVE_FOCUS_AREAS)]
+        self._evolve_spawn_manager(
+            cycle_number=cycle_number,
+            focus_area=focus,
+            test_summary=test_info.get("summary", ""),
+        )
+
+        # Track diminishing returns
+        produced_changes = committed or tasks_completed > 0
+        if produced_changes:
+            evolve_cfg["_consecutive_empty"] = 0
+        else:
+            evolve_cfg["_consecutive_empty"] = consecutive_empty + 1
+
+        # Update state
+        now = time.time()
+        evolve_cfg["_cycle_count"] = cycle_number
+        evolve_cfg["_last_cycle_ts"] = now
         try:
             evolve_path.write_text(json.dumps(evolve_cfg))
         except OSError:
             pass
 
-    def _evolve_auto_commit(self) -> None:
-        """Auto-commit and push any uncommitted changes from the last cycle."""
+        # Log cycle metrics
+        self._log_evolve_cycle(cycle_number, now, {
+            "focus_area": focus,
+            "tasks_completed": tasks_completed,
+            "tasks_failed": tasks_failed,
+            "tests_passed": test_info.get("passed", 0),
+            "tests_failed": test_info.get("failed", 0),
+            "commits_made": 1 if committed else 0,
+            "backoff_factor": backoff_factor,
+            "consecutive_empty": evolve_cfg.get("_consecutive_empty", 0),
+            "duration_s": round(now - cycle_start, 2),
+        })
+
+    def _evolve_run_tests(self) -> dict[str, Any]:
+        """Run test suite and return parsed results.
+
+        Returns:
+            Dict with 'passed', 'failed', 'summary' keys.
+        """
+        import subprocess
+
+        info: dict[str, Any] = {"passed": 0, "failed": 0, "summary": ""}
+        try:
+            result = subprocess.run(
+                ["uv", "run", "pytest", "tests/", "-q", "--tb=line"],
+                capture_output=True, text=True, cwd=self._workdir, timeout=300,
+            )
+            output = result.stdout + result.stderr
+            info["summary"] = output.strip().splitlines()[-1] if output.strip() else ""
+
+            # Parse "N passed, M failed" from pytest output
+            match = re.search(r"(\d+) passed", output)
+            if match:
+                info["passed"] = int(match.group(1))
+            match = re.search(r"(\d+) failed", output)
+            if match:
+                info["failed"] = int(match.group(1))
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            logger.warning("Evolve: test run failed: %s", exc)
+            info["summary"] = f"test run error: {exc}"
+
+        return info
+
+    def _evolve_auto_commit(self) -> bool:
+        """Auto-commit and push any uncommitted changes from the last cycle.
+
+        Returns:
+            True if a commit was made, False otherwise.
+        """
         import subprocess
 
         try:
@@ -476,7 +573,7 @@ class Orchestrator:
                 capture_output=True, text=True, cwd=self._workdir, timeout=10,
             )
             if not status.stdout.strip():
-                return  # Nothing to commit
+                return False  # Nothing to commit
 
             # Stage all changes (except .sdd/runtime/)
             subprocess.run(
@@ -500,7 +597,7 @@ class Orchestrator:
                     ["git", "checkout", "--", "."],
                     cwd=self._workdir, timeout=10,
                 )
-                return
+                return False
 
             # Commit
             subprocess.run(
@@ -514,44 +611,90 @@ class Orchestrator:
                 capture_output=True, cwd=self._workdir, timeout=30,
             )
             logger.info("Evolve: auto-committed and pushed changes")
+            return True
 
         except (subprocess.TimeoutExpired, OSError) as exc:
             logger.warning("Evolve: auto-commit failed: %s", exc)
+            return False
 
-    def _evolve_spawn_manager(self) -> None:
-        """Spawn a manager agent to analyze the codebase and create new tasks."""
+    def _evolve_spawn_manager(
+        self,
+        cycle_number: int = 0,
+        focus_area: str = "new_features",
+        test_summary: str = "",
+    ) -> None:
+        """Spawn a manager agent to analyze the codebase and create new tasks.
+
+        When Tavily API is available, runs web research first and includes
+        market context in the manager task description.
+
+        Args:
+            cycle_number: Current evolve cycle number.
+            focus_area: Priority rotation focus for this cycle.
+            test_summary: Latest test run summary line.
+        """
         base = self._config.server_url
 
+        # Run web research if Tavily is available
+        research_context = ""
+        try:
+            from bernstein.core.researcher import format_research_context, run_research_sync
+
+            report = run_research_sync(self._workdir)
+            research_context = format_research_context(report)
+            if research_context:
+                logger.info("Evolve: research produced %d bytes of context", len(research_context))
+        except Exception as exc:
+            logger.debug("Evolve: research unavailable: %s", exc)
+
+        focus_instructions = {
+            "new_features": "Focus on missing features that block real usage.",
+            "test_coverage": "Focus on test gaps and missing edge-case coverage.",
+            "code_quality": "Focus on code smells, type safety, and refactoring.",
+            "performance": "Focus on performance bottlenecks and efficiency.",
+            "documentation": "Focus on missing docs that block contributors.",
+        }
+        focus_text = focus_instructions.get(focus_area, "Focus on high-impact improvements.")
+
+        description = (
+            f"You are in EVOLVE mode (cycle {cycle_number}). "
+            "Your job: find HIGH-IMPACT improvements "
+            "and create tasks for other agents to implement.\n\n"
+            f"## This cycle's focus: {focus_area.replace('_', ' ')}\n"
+            f"{focus_text}\n\n"
+            + (f"## Current test state\n```\n{test_summary}\n```\n\n" if test_summary else "")
+            + "## Rules (from self-evolving systems research)\n"
+            "- NEVER create tasks that are cosmetic, trivial, or busy-work\n"
+            "- Each task must have a measurable outcome (test passes, "
+            "benchmark improves, bug is fixed)\n"
+            "- Prefer config/prompt changes over code changes (cheaper, safer)\n"
+            "- If tests already pass at 100%, focus on functionality, not more tests\n"
+            "- If architecture is clean, focus on features users actually need\n"
+            "- Create 3-5 tasks MAX. Quality over quantity.\n\n"
+            "## Prioritization\n"
+            "1. Bugs and broken functionality (P1)\n"
+            "2. Missing features that block real usage (P1)\n"
+            "3. Performance and reliability (P2)\n"
+            "4. Code quality and test gaps (P2)\n"
+            "5. Documentation (P3 — only if truly missing)\n\n"
+            "## Process\n"
+            "1. Run `uv run pytest tests/ -q` to see current test state\n"
+            "2. Read key files to understand architecture\n"
+            "3. Identify 3-5 high-impact improvements\n"
+            "4. Create tasks via HTTP:\n"
+            f"   curl -X POST {base}/tasks -H 'Content-Type: application/json' "
+            "-d '{\"title\": \"...\", \"description\": \"...\", "
+            "\"role\": \"backend\", \"priority\": 2}'\n"
+            "5. Then exit.\n\n"
+            "IMPORTANT: Do NOT implement changes yourself. Only create tasks."
+        )
+
+        if research_context:
+            description += research_context
+
         task_body = {
-            "title": "Evolve: analyze codebase and plan next improvements",
-            "description": (
-                "You are in EVOLVE mode. Your job: find HIGH-IMPACT improvements "
-                "and create tasks for other agents to implement.\n\n"
-                "## Rules (from self-evolving systems research)\n"
-                "- NEVER create tasks that are cosmetic, trivial, or busy-work\n"
-                "- Each task must have a measurable outcome (test passes, "
-                "benchmark improves, bug is fixed)\n"
-                "- Prefer config/prompt changes over code changes (cheaper, safer)\n"
-                "- If tests already pass at 100%, focus on functionality, not more tests\n"
-                "- If architecture is clean, focus on features users actually need\n"
-                "- Create 3-5 tasks MAX. Quality over quantity.\n\n"
-                "## Prioritization\n"
-                "1. Bugs and broken functionality (P1)\n"
-                "2. Missing features that block real usage (P1)\n"
-                "3. Performance and reliability (P2)\n"
-                "4. Code quality and test gaps (P2)\n"
-                "5. Documentation (P3 — only if truly missing)\n\n"
-                "## Process\n"
-                "1. Run `uv run pytest tests/ -q` to see current test state\n"
-                "2. Read key files to understand architecture\n"
-                "3. Identify 3-5 high-impact improvements\n"
-                "4. Create tasks via HTTP:\n"
-                f"   curl -X POST {base}/tasks -H 'Content-Type: application/json' "
-                "-d '{\"title\": \"...\", \"description\": \"...\", "
-                "\"role\": \"backend\", \"priority\": 2}'\n"
-                "5. Then exit.\n\n"
-                "IMPORTANT: Do NOT implement changes yourself. Only create tasks."
-            ),
+            "title": f"Evolve cycle {cycle_number}: {focus_area.replace('_', ' ')}",
+            "description": description,
             "role": "manager",
             "priority": 1,
             "scope": "medium",
@@ -562,9 +705,39 @@ class Orchestrator:
             resp = self._client.post(f"{base}/tasks", json=task_body)
             resp.raise_for_status()
             task_id = resp.json().get("id", "?")
-            logger.info("Evolve: created manager task %s", task_id)
+            logger.info("Evolve: created manager task %s (focus=%s)", task_id, focus_area)
         except httpx.HTTPError as exc:
             logger.error("Evolve: failed to create manager task: %s", exc)
+
+    def _log_evolve_cycle(
+        self,
+        cycle_number: int,
+        timestamp: float,
+        metrics: dict[str, Any] | None = None,
+    ) -> None:
+        """Append an entry to the evolve_cycles.jsonl log.
+
+        Args:
+            cycle_number: The 1-based cycle number.
+            timestamp: Unix timestamp of this cycle.
+            metrics: Additional cycle metrics to include.
+        """
+        metrics_dir = self._workdir / ".sdd" / "metrics"
+        metrics_dir.mkdir(parents=True, exist_ok=True)
+        log_path = metrics_dir / "evolve_cycles.jsonl"
+        entry: dict[str, Any] = {
+            "cycle": cycle_number,
+            "timestamp": timestamp,
+            "iso_time": datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat(),
+            "tick": self._tick_count,
+        }
+        if metrics:
+            entry.update(metrics)
+        try:
+            with log_path.open("a") as f:
+                f.write(json.dumps(entry) + "\n")
+        except OSError as exc:
+            logger.warning("Evolve: failed to write cycle log: %s", exc)
 
     # -- Evolution integration -----------------------------------------------
 
@@ -1139,6 +1312,7 @@ if __name__ == "__main__":
         # Try to load adapter from seed if available
         adapter_name = args.adapter
         seed_path = workdir / "bernstein.yaml"
+        seed: SeedConfig | None = None
         if seed_path.exists():
             try:
                 seed = parse_seed(seed_path)
@@ -1159,11 +1333,40 @@ if __name__ == "__main__":
             load_providers_from_yaml(providers_yaml, router)
             logger.info("Loaded TierAwareRouter from %s", providers_yaml)
 
+        # Load MCP config from user global + project seed
+        mcp_config = None
+        if adapter_name == "claude":
+            from bernstein.adapters.claude import load_mcp_config
+            project_mcp = None
+            if seed_path.exists():
+                try:
+                    seed_cfg = parse_seed(seed_path)
+                    project_mcp = seed_cfg.mcp_servers
+                except Exception:
+                    pass
+            mcp_config = load_mcp_config(project_servers=project_mcp)
+            if mcp_config:
+                logger.info("Loaded MCP config with %d server(s)", len(mcp_config.get("mcpServers", {})))
+
+        # Load agency catalog from seed config
+        from bernstein.core.agency_loader import load_agency_catalog
+
+        agency_catalog = None
+        if seed and seed.agent_catalog:
+            catalog_path = Path(seed.agent_catalog)
+            if not catalog_path.is_absolute():
+                catalog_path = workdir / catalog_path
+            agency_catalog = load_agency_catalog(catalog_path)
+            if agency_catalog:
+                logger.info("Loaded %d agency agents from %s", len(agency_catalog), catalog_path)
+
         spawner = AgentSpawner(
             adapter=adapter_inst,
             templates_dir=workdir / "templates",
             workdir=workdir,
             router=router,
+            mcp_config=mcp_config,
+            agency_catalog=agency_catalog,
         )
         config = OrchestratorConfig(server_url=f"http://127.0.0.1:{args.port}", max_agents=6)
 

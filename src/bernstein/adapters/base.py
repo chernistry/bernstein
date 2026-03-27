@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from bernstein.core.models import ApiTierInfo, ModelConfig
 
@@ -30,6 +31,7 @@ class CLIAdapter(ABC):
         workdir: Path,
         model_config: ModelConfig,
         session_id: str,
+        mcp_config: dict[str, Any] | None = None,
     ) -> SpawnResult:
         """Launch an agent process with the given prompt."""
         ...

@@ -520,24 +520,24 @@ class RouterError(Exception):
 
 # Legacy compatibility function - uses default routing rules
 def route_task(task: Task) -> ModelConfig:
-    """Select model and effort based on task metadata (legacy compatibility)."""
-    # Manager always gets Opus max
-    if task.role == "manager":
+    """Select model and effort based on task metadata."""
+    # Manager and security always get max effort
+    if task.role in ("manager", "security"):
         return ModelConfig(model="opus", effort="max")
 
-    # Security review needs deep reasoning
-    if task.role == "security":
+    # P1 critical or large+high = opus max (100 turns)
+    if task.priority == 1 or (task.scope == Scope.LARGE and task.complexity == Complexity.HIGH):
         return ModelConfig(model="opus", effort="max")
 
-    # Large + high complexity = Opus
-    if task.scope == Scope.LARGE and task.complexity == Complexity.HIGH:
+    # Large or high complexity = opus high (50 turns)
+    if task.scope == Scope.LARGE or task.complexity == Complexity.HIGH:
         return ModelConfig(model="opus", effort="high")
 
-    # Medium complexity = Sonnet high
+    # Medium = sonnet high (50 turns)
     if task.complexity == Complexity.MEDIUM:
         return ModelConfig(model="sonnet", effort="high")
 
-    # Simple tasks = Sonnet normal
+    # Simple = sonnet normal (25 turns)
     return ModelConfig(model="sonnet", effort="normal")
 
 

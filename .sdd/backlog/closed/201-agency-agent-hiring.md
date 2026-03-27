@@ -55,3 +55,9 @@ agency:
 - Manager agent sees available specialists when planning
 - Falls back to generic roles when no specialist matches
 - Tests cover loader, matching, and fallback
+
+
+---
+**completed**: 2026-03-28 00:57:44
+**task_id**: 09de3ae346d5
+**result**: Completed: Fix test regressions from previous agent runs. Root cause: pytest was not installed in the uv virtual environment, so tests ran under system Python 3.11 which lacked the bernstein package. Fixed by running: uv add --dev pytest pytest-asyncio. All 1050 tests now pass with no warnings.

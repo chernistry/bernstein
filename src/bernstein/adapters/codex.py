@@ -5,6 +5,7 @@ import os
 import signal
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from bernstein.adapters.base import CLIAdapter, SpawnResult
 from bernstein.core.models import ApiTier, ApiTierInfo, ModelConfig, ProviderType, RateLimit
@@ -20,6 +21,7 @@ class CodexAdapter(CLIAdapter):
         workdir: Path,
         model_config: ModelConfig,
         session_id: str,
+        mcp_config: dict[str, Any] | None = None,
     ) -> SpawnResult:
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)

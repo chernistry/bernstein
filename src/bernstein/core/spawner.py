@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from bernstein.adapters.base import CLIAdapter
@@ -77,6 +77,20 @@ def _render_prompt(
             d.name for d in sorted(templates_dir.iterdir()) if d.is_dir()
         )
 
+    # Specialist agents from agency catalog
+    specialist_block = ""
+    if agency_catalog and role == "manager":
+        specialists: list[str] = []
+        for agent in sorted(agency_catalog.values(), key=lambda a: a.role):
+            specialists.append(f"- **{agent.name}** ({agent.role}): {agent.description}")
+        if specialists:
+            specialist_block = (
+                "\n\n## Available specialist agents (from Agency catalog)\n"
+                "When creating tasks, prefer assigning to a specialist role if one matches.\n"
+                "Fall back to generic roles (backend, qa, etc.) if no specialist fits.\n\n"
+                + "\n".join(specialists)
+            )
+
     # Build template context for renderer
     context = {
         "GOAL": tasks[0].title,
@@ -84,6 +98,7 @@ def _render_prompt(
         "PROJECT_STATE": project_context,
         "AVAILABLE_ROLES": available_roles,
         "INSTRUCTIONS": instructions,
+        "SPECIALISTS": specialist_block,
     }
 
     # Try renderer first, fall back to string concat on failure
@@ -94,7 +109,10 @@ def _render_prompt(
         role_prompt = _render_fallback(role, templates_dir, agency_catalog)
 
     # Assemble final prompt
-    sections = [role_prompt, f"\n## Assigned tasks\n{task_block}"]
+    sections = [role_prompt]
+    if specialist_block:
+        sections.append(specialist_block)
+    sections.append(f"\n## Assigned tasks\n{task_block}")
     if project_context:
         sections.append(f"\n## Project context\n{project_context}\n")
     sections.append(f"\n## Instructions\n{instructions}\n")
@@ -159,6 +177,7 @@ class AgentSpawner:
         agent_registry: AgentRegistry | None = None,
         agency_catalog: dict[str, AgencyAgent] | None = None,
         router: TierAwareRouter | None = None,
+        mcp_config: dict[str, Any] | None = None,
     ) -> None:
         self._adapter = adapter
         self._templates_dir = templates_dir
@@ -169,6 +188,7 @@ class AgentSpawner:
         )
         self._agency_catalog = agency_catalog
         self._router = router
+        self._mcp_config = mcp_config
 
     def spawn_for_tasks(self, tasks: list[Task]) -> AgentSession:
         """Route, render prompt, and spawn an agent for a task batch.
@@ -227,6 +247,7 @@ class AgentSpawner:
             workdir=self._workdir,
             model_config=model_config,
             session_id=session_id,
+            mcp_config=self._mcp_config,
         )
         session.pid = result.pid
         session.status = "working"

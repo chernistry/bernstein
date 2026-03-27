@@ -1,0 +1,67 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*
+
+# IDE / AI tooling
+.DS_Store
+.idea/
+.vscode/
+.claude/
+*.swp
+
+# Bernstein runtime state (regenerated on each run)
+.sdd/runtime/
+.sdd/metrics/
+.sdd/upgrades/
+.sdd/invariants.lock
+.sdd/sandboxes/
+.sdd/backlog/done/
+.sdd/backlog/PLAN.md
+.sdd/config.json
+.sdd/config.yaml
+.sdd/config/
+.sdd/agents/definitions/
+.sdd/evolution/
+.sdd/researches/
+
+# Proprietary: agent role prompts, design specs, development plans
+templates/roles/
+docs/specs/
+docs/plans/
+
+# Cache
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Coverage
+.coverage
+
+# Failed/ephemeral research artifacts
+.sdd/research/auto/*.json
+
+# Git worktrees
+.worktrees/
+
+# Other
+node_modules/
+*.pid
+*.log
+.sdd/index/codebase.db
+
+# Commercial / proprietary — local only
+.sdd/marketing/
+docs/social/
+docs/content-calendar.md
+.sdd/index/codebase.db
+.sdd/caching/

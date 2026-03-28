@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 # TypedDicts shared across orchestrator sub-modules
 # ---------------------------------------------------------------------------
 
+
 class _RuffLocation(TypedDict, total=False):
     row: int
     column: int
@@ -59,6 +60,7 @@ class CompletionData(TypedDict):
 # ---------------------------------------------------------------------------
 # Task server interaction helpers
 # ---------------------------------------------------------------------------
+
 
 def _task_from_dict(raw: dict[str, Any]) -> Task:  # type: ignore[reportUnusedFunction]
     """Deserialise a server JSON response into a domain Task (delegates to Task.from_dict)."""
@@ -184,6 +186,7 @@ def group_by_role(tasks: list[Task], max_per_batch: int) -> list[list[Task]]:
 # Backlog parsing
 # ---------------------------------------------------------------------------
 
+
 def parse_backlog_file(filename: str, content: str) -> dict[str, Any]:
     """Parse a backlog markdown file into a task creation payload.
 
@@ -251,9 +254,9 @@ def parse_backlog_file(filename: str, content: str) -> dict[str, Any]:
 # Cost tracking helpers
 # ---------------------------------------------------------------------------
 
-# Cache for _compute_total_spent: maps absolute metrics_dir path ->
+# Cache for compute_total_spent: maps absolute metrics_dir path ->
 # (cached_total, {file_path_str: (mtime_ns, file_total)}).
-_total_spent_cache: dict[str, tuple[float, dict[str, tuple[int, float]]]] = {}
+total_spent_cache: dict[str, tuple[float, dict[str, tuple[int, float]]]] = {}
 
 
 def _parse_file_total(jsonl_file: Path) -> float:
@@ -280,7 +283,7 @@ def _parse_file_total(jsonl_file: Path) -> float:
     return file_total
 
 
-def _compute_total_spent(workdir: Path) -> float:  # type: ignore[reportUnusedFunction]
+def compute_total_spent(workdir: Path) -> float:
     """Sum cost_efficiency metric values recorded for individual tasks.
 
     Reads all cost_efficiency_*.jsonl files in .sdd/metrics/ and returns the
@@ -299,7 +302,7 @@ def _compute_total_spent(workdir: Path) -> float:  # type: ignore[reportUnusedFu
     """
     metrics_dir = workdir / ".sdd" / "metrics"
     cache_key = str(metrics_dir)
-    cached_total, cached_file_data = _total_spent_cache.get(cache_key, (0.0, {}))
+    cached_total, cached_file_data = total_spent_cache.get(cache_key, (0.0, {}))
 
     try:
         current_files = list(metrics_dir.glob("cost_efficiency_*.jsonl"))
@@ -336,5 +339,5 @@ def _compute_total_spent(workdir: Path) -> float:  # type: ignore[reportUnusedFu
         total += new_file_total - old_file_total
         new_file_data[path_str] = (mtime_ns, new_file_total)
 
-    _total_spent_cache[cache_key] = (total, new_file_data)
+    total_spent_cache[cache_key] = (total, new_file_data)
     return total

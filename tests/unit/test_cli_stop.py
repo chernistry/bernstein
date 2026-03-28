@@ -11,12 +11,12 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from bernstein.cli.main import (
-    _kill_pid_hard,
-    _recover_orphaned_claims,
-    _return_claimed_to_open,
-    _save_session_on_stop,
-    _write_shutdown_signals,
     cli,
+    kill_pid_hard,
+    recover_orphaned_claims,
+    return_claimed_to_open,
+    save_session_on_stop,
+    write_shutdown_signals,
 )
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# _write_shutdown_signals
+# write_shutdown_signals
 # ---------------------------------------------------------------------------
 
 
@@ -37,7 +37,7 @@ class TestWriteShutdownSignals:
         agents = {"agents": [{"id": "agent-1"}, {"id": "agent-2"}]}
         (runtime / "agents.json").write_text(json.dumps(agents))
 
-        result = _write_shutdown_signals(reason="test stop")
+        result = write_shutdown_signals(reason="test stop")
 
         assert sorted(result) == ["agent-1", "agent-2"]
         for aid in ("agent-1", "agent-2"):
@@ -49,7 +49,7 @@ class TestWriteShutdownSignals:
     def test_returns_empty_when_no_agents_json(self, tmp_path: Path) -> None:
         """Returns empty list when agents.json does not exist."""
         os.chdir(tmp_path)
-        result = _write_shutdown_signals()
+        result = write_shutdown_signals()
         assert result == []
 
     def test_skips_agents_without_id(self, tmp_path: Path) -> None:
@@ -60,7 +60,7 @@ class TestWriteShutdownSignals:
         agents = {"agents": [{"id": ""}, {"id": "good-agent"}]}
         (runtime / "agents.json").write_text(json.dumps(agents))
 
-        result = _write_shutdown_signals()
+        result = write_shutdown_signals()
         assert result == ["good-agent"]
 
     def test_handles_malformed_json(self, tmp_path: Path) -> None:
@@ -70,12 +70,12 @@ class TestWriteShutdownSignals:
         runtime.mkdir(parents=True)
         (runtime / "agents.json").write_text("{bad json")
 
-        result = _write_shutdown_signals()
+        result = write_shutdown_signals()
         assert result == []
 
 
 # ---------------------------------------------------------------------------
-# _return_claimed_to_open
+# return_claimed_to_open
 # ---------------------------------------------------------------------------
 
 
@@ -90,7 +90,7 @@ class TestReturnClaimedToOpen:
         (claimed / "100-some-task.md").write_text("# Task")
         (claimed / "101-other-task.md").write_text("# Task 2")
 
-        count = _return_claimed_to_open()
+        count = return_claimed_to_open()
 
         assert count == 2
         assert (open_dir / "100-some-task.md").exists()
@@ -110,7 +110,7 @@ class TestReturnClaimedToOpen:
         (claimed / "100-task.md").write_text("# claimed")
         (closed / "100-task.md").write_text("# done")
 
-        count = _return_claimed_to_open()
+        count = return_claimed_to_open()
 
         assert count == 0
         assert not (claimed / "100-task.md").exists()  # deleted
@@ -129,7 +129,7 @@ class TestReturnClaimedToOpen:
         (claimed / "200-build-api.md").write_text("# claimed")
         (done / "200-build-api.md").write_text("# completed")
 
-        count = _return_claimed_to_open()
+        count = return_claimed_to_open()
 
         assert count == 0
         assert not (claimed / "200-build-api.md").exists()
@@ -137,7 +137,7 @@ class TestReturnClaimedToOpen:
     def test_returns_zero_when_no_claimed_dir(self, tmp_path: Path) -> None:
         """Returns 0 when claimed/ directory doesn't exist."""
         os.chdir(tmp_path)
-        count = _return_claimed_to_open()
+        count = return_claimed_to_open()
         assert count == 0
 
     def test_creates_open_dir_if_missing(self, tmp_path: Path) -> None:
@@ -147,14 +147,14 @@ class TestReturnClaimedToOpen:
         claimed.mkdir(parents=True)
         (claimed / "300-new-task.md").write_text("# Task")
 
-        count = _return_claimed_to_open()
+        count = return_claimed_to_open()
 
         assert count == 1
         assert (tmp_path / ".sdd" / "backlog" / "open" / "300-new-task.md").exists()
 
 
 # ---------------------------------------------------------------------------
-# _save_session_on_stop
+# save_session_on_stop
 # ---------------------------------------------------------------------------
 
 
@@ -167,7 +167,7 @@ class TestSaveSessionOnStop:
         (sdd / "backlog" / "open" / "1-task.md").write_text("# T")
         (sdd / "backlog" / "claimed" / "2-task.md").write_text("# T2")
 
-        _save_session_on_stop(tmp_path)
+        save_session_on_stop(tmp_path)
 
         state_file = sdd / "runtime" / "session_state.json"
         assert state_file.exists()
@@ -178,7 +178,7 @@ class TestSaveSessionOnStop:
 
     def test_handles_missing_backlog_dirs(self, tmp_path: Path) -> None:
         """Works even when backlog directories don't exist."""
-        _save_session_on_stop(tmp_path)
+        save_session_on_stop(tmp_path)
 
         state_file = tmp_path / ".sdd" / "runtime" / "session_state.json"
         assert state_file.exists()
@@ -188,25 +188,25 @@ class TestSaveSessionOnStop:
 
 
 # ---------------------------------------------------------------------------
-# _recover_orphaned_claims
+# recover_orphaned_claims
 # ---------------------------------------------------------------------------
 
 
 class TestRecoverOrphanedClaims:
-    def test_delegates_to_return_claimed_to_open(self, tmp_path: Path) -> None:
-        """_recover_orphaned_claims just calls _return_claimed_to_open."""
+    def test_delegates_toreturn_claimed_to_open(self, tmp_path: Path) -> None:
+        """recover_orphaned_claims just calls return_claimed_to_open."""
         os.chdir(tmp_path)
         claimed = tmp_path / ".sdd" / "backlog" / "claimed"
         claimed.mkdir(parents=True)
         (claimed / "400-orphan.md").write_text("# Orphaned")
 
-        count = _recover_orphaned_claims()
+        count = recover_orphaned_claims()
         assert count == 1
         assert (tmp_path / ".sdd" / "backlog" / "open" / "400-orphan.md").exists()
 
 
 # ---------------------------------------------------------------------------
-# _kill_pid_hard
+# kill_pid_hard
 # ---------------------------------------------------------------------------
 
 
@@ -217,11 +217,11 @@ class TestKillPidHard:
         pid_file.write_text("12345")
 
         with (
-            patch("bernstein.cli.helpers._is_alive", return_value=True),
+            patch("bernstein.cli.helpers.is_alive", return_value=True),
             patch("os.getpgid", return_value=12345),
             patch("os.killpg") as mock_killpg,
         ):
-            _kill_pid_hard(str(pid_file), "test")
+            kill_pid_hard(str(pid_file), "test")
 
         mock_killpg.assert_called_once_with(12345, signal.SIGKILL)
         assert not pid_file.exists()
@@ -232,11 +232,11 @@ class TestKillPidHard:
         pid_file.write_text("99999")
 
         with (
-            patch("bernstein.cli.helpers._is_alive", return_value=True),
+            patch("bernstein.cli.helpers.is_alive", return_value=True),
             patch("os.getpgid", side_effect=OSError("no pgid")),
             patch("os.kill") as mock_kill,
         ):
-            _kill_pid_hard(str(pid_file), "test")
+            kill_pid_hard(str(pid_file), "test")
 
         mock_kill.assert_called_once_with(99999, signal.SIGKILL)
 
@@ -245,8 +245,8 @@ class TestKillPidHard:
         pid_file = tmp_path / "test.pid"
         pid_file.write_text("11111")
 
-        with patch("bernstein.cli.helpers._is_alive", return_value=False):
-            _kill_pid_hard(str(pid_file), "test")
+        with patch("bernstein.cli.helpers.is_alive", return_value=False):
+            kill_pid_hard(str(pid_file), "test")
 
         assert not pid_file.exists()
 
@@ -260,7 +260,7 @@ class TestStopCommand:
     def test_soft_stop_is_default(self) -> None:
         """Default stop (no flags) calls _soft_stop."""
         runner = CliRunner()
-        with patch("bernstein.cli.stop_cmd._soft_stop") as mock_soft:
+        with patch("bernstein.cli.stop_cmd.soft_stop") as mock_soft:
             result = runner.invoke(cli, ["stop"])
             mock_soft.assert_called_once_with(30)
             assert result.exit_code == 0
@@ -268,7 +268,7 @@ class TestStopCommand:
     def test_hard_stop_with_force_flag(self) -> None:
         """--force flag triggers _hard_stop."""
         runner = CliRunner()
-        with patch("bernstein.cli.stop_cmd._hard_stop") as mock_hard:
+        with patch("bernstein.cli.stop_cmd.hard_stop") as mock_hard:
             result = runner.invoke(cli, ["stop", "--force"])
             mock_hard.assert_called_once()
             assert result.exit_code == 0
@@ -276,7 +276,7 @@ class TestStopCommand:
     def test_hard_stop_with_hard_flag(self) -> None:
         """--hard flag (alias) triggers _hard_stop."""
         runner = CliRunner()
-        with patch("bernstein.cli.stop_cmd._hard_stop") as mock_hard:
+        with patch("bernstein.cli.stop_cmd.hard_stop") as mock_hard:
             result = runner.invoke(cli, ["stop", "--hard"])
             mock_hard.assert_called_once()
             assert result.exit_code == 0
@@ -284,7 +284,7 @@ class TestStopCommand:
     def test_custom_timeout(self) -> None:
         """--timeout value is forwarded to _soft_stop."""
         runner = CliRunner()
-        with patch("bernstein.cli.stop_cmd._soft_stop") as mock_soft:
+        with patch("bernstein.cli.stop_cmd.soft_stop") as mock_soft:
             result = runner.invoke(cli, ["stop", "--timeout", "60"])
             mock_soft.assert_called_once_with(60)
             assert result.exit_code == 0

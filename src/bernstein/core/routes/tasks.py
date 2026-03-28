@@ -39,10 +39,10 @@ from bernstein.core.server import (
     TaskProgressRequest,
     TaskResponse,
     TaskStore,
-    _a2a_task_to_response,
-    _node_to_response,
-    _read_log_tail,
-    _task_to_response,
+    a2a_task_to_response,
+    node_to_response,
+    read_log_tail,
+    task_to_response,
 )
 
 if TYPE_CHECKING:
@@ -91,7 +91,7 @@ async def create_task(body: TaskCreate, request: Request) -> TaskResponse:
     sse_bus = _get_sse_bus(request)
     task = await store.create(body)
     sse_bus.publish("task_update", json.dumps({"id": task.id, "status": task.status.value}))
-    return _task_to_response(task)
+    return task_to_response(task)
 
 
 @router.get("/tasks/next/{role}", response_model=TaskResponse)
@@ -101,7 +101,7 @@ async def next_task(role: str, request: Request) -> TaskResponse:
     task = await store.claim_next(role)
     if task is None:
         raise HTTPException(status_code=404, detail=f"No open tasks for role '{role}'")
-    return _task_to_response(task)
+    return task_to_response(task)
 
 
 @router.post("/tasks/claim-batch", response_model=BatchClaimResponse)
@@ -128,7 +128,7 @@ async def claim_task(task_id: str, request: Request, expected_version: int | Non
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
     sse_bus.publish("task_update", json.dumps({"id": task.id, "status": "claimed"}))
-    return _task_to_response(task)
+    return task_to_response(task)
 
 
 @router.post("/tasks/{task_id}/complete", response_model=TaskResponse)
@@ -141,7 +141,7 @@ async def complete_task(task_id: str, body: TaskCompleteRequest, request: Reques
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
     sse_bus.publish("task_update", json.dumps({"id": task.id, "status": "done"}))
-    return _task_to_response(task)
+    return task_to_response(task)
 
 
 @router.post("/tasks/{task_id}/fail", response_model=TaskResponse)
@@ -154,7 +154,7 @@ async def fail_task(task_id: str, body: TaskFailRequest, request: Request) -> Ta
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
     sse_bus.publish("task_update", json.dumps({"id": task.id, "status": "failed"}))
-    return _task_to_response(task)
+    return task_to_response(task)
 
 
 @router.post("/tasks/{task_id}/cancel", response_model=TaskResponse)
@@ -167,7 +167,7 @@ async def cancel_task(task_id: str, body: TaskCancelRequest, request: Request) -
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
-    return _task_to_response(task)
+    return task_to_response(task)
 
 
 @router.post("/tasks/{task_id}/block", response_model=TaskResponse)
@@ -180,7 +180,7 @@ async def block_task(task_id: str, body: TaskBlockRequest, request: Request) -> 
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
     sse_bus.publish("task_update", json.dumps({"id": task.id, "status": "blocked"}))
-    return _task_to_response(task)
+    return task_to_response(task)
 
 
 @router.post("/tasks/{task_id}/progress", response_model=TaskResponse)
@@ -196,7 +196,7 @@ async def progress_task(task_id: str, body: TaskProgressRequest, request: Reques
         "task_progress",
         json.dumps({"id": task.id, "message": body.message, "percent": body.percent}),
     )
-    return _task_to_response(task)
+    return task_to_response(task)
 
 
 @router.get("/tasks", response_model=list[TaskResponse])
@@ -207,7 +207,7 @@ async def list_tasks(
 ) -> list[TaskResponse]:
     """List all tasks, optionally filtered by status and/or cell_id."""
     store = _get_store(request)
-    return [_task_to_response(t) for t in store.list_tasks(status, cell_id)]
+    return [task_to_response(t) for t in store.list_tasks(status, cell_id)]
 
 
 @router.get("/tasks/archive", response_model=list[ArchiveRecord])
@@ -224,7 +224,7 @@ async def get_task(task_id: str, request: Request) -> TaskResponse:
     task = store.get_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
-    return _task_to_response(task)
+    return task_to_response(task)
 
 
 # ---------------------------------------------------------------------------
@@ -256,7 +256,7 @@ async def agent_logs(session_id: str, request: Request, tail_bytes: int = 0) -> 
         raise HTTPException(status_code=404, detail=f"No log file for session '{session_id}'")
     size = log_path.stat().st_size
     offset = max(0, size - tail_bytes) if tail_bytes > 0 else 0
-    content = _read_log_tail(log_path, offset)
+    content = read_log_tail(log_path, offset)
     return JSONResponse(
         content={
             "session_id": session_id,
@@ -315,7 +315,7 @@ async def agent_stream(session_id: str, request: Request) -> StreamingResponse:
 
             size = log_path.stat().st_size
             if size > offset:
-                chunk = _read_log_tail(log_path, offset)
+                chunk = read_log_tail(log_path, offset)
                 offset = size
                 idle_ticks = 0
                 for line in chunk.splitlines():
@@ -419,7 +419,7 @@ async def a2a_send_task(body: A2ATaskSendRequest, request: Request) -> A2ATaskRe
         )
     )
     a2a_handler.link_bernstein_task(a2a_task.id, bernstein_task.id)
-    return _a2a_task_to_response(a2a_task)
+    return a2a_task_to_response(a2a_task)
 
 
 @router.get("/a2a/tasks/{a2a_task_id}", response_model=A2ATaskResponse)
@@ -435,7 +435,7 @@ async def a2a_get_task(a2a_task_id: str, request: Request) -> A2ATaskResponse:
         bt = store.get_task(a2a_task.bernstein_task_id)
         if bt is not None:
             a2a_handler.sync_status(a2a_task.id, bt.status.value)
-    return _a2a_task_to_response(a2a_task)
+    return a2a_task_to_response(a2a_task)
 
 
 @router.post(
@@ -487,7 +487,7 @@ async def register_node(body: NodeRegisterRequest, request: Request) -> NodeResp
         cell_ids=body.cell_ids,
     )
     registered = node_registry.register(node)
-    return _node_to_response(registered)
+    return node_to_response(registered)
 
 
 @router.post("/cluster/nodes/{node_id}/heartbeat", response_model=NodeResponse)
@@ -506,7 +506,7 @@ async def node_heartbeat(node_id: str, body: NodeHeartbeatRequest, request: Requ
     node = node_registry.heartbeat(node_id, capacity)
     if node is None:
         raise HTTPException(status_code=404, detail=f"Node '{node_id}' not registered")
-    return _node_to_response(node)
+    return node_to_response(node)
 
 
 @router.delete("/cluster/nodes/{node_id}", status_code=204)
@@ -527,7 +527,7 @@ async def list_nodes(request: Request, status: str | None = None) -> list[NodeRe
             node_status = NodeStatus(status)
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid node status: {status}") from None
-    return [_node_to_response(n) for n in node_registry.list_nodes(node_status)]
+    return [node_to_response(n) for n in node_registry.list_nodes(node_status)]
 
 
 @router.get("/cluster/status", response_model=ClusterStatusResponse)

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main, master]
   pull_request:
 
 jobs:
@@ -49,7 +49,7 @@ jobs:
     needs: [lint, test]
     if: >
       failure() &&
-      github.ref == 'refs/heads/master' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
       github.event_name == 'push'
     permissions:
       issues: write
@@ -60,7 +60,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          TITLE="[ci-fix] CI failing on master — run ${{ github.run_id }}"
+          TITLE="[ci-fix] CI failing on ${{ github.ref_name }} — run ${{ github.run_id }}"
           BODY="## CI failure detected
 
           **Commit:** \`${{ github.sha }}\`

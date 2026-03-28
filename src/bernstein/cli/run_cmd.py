@@ -12,10 +12,10 @@ import httpx
 
 from bernstein.cli.helpers import (
     SDD_DIRS,
-    _find_seed_file,
-    _is_alive,
-    _print_banner,
     console,
+    find_seed_file,
+    is_alive,
+    print_banner,
 )
 
 # ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ def _generate_default_yaml(project_type: str) -> str:
 )
 def init(target_dir: str) -> None:
     """Init workspace -- create .sdd/ structure."""
-    _print_banner()
+    print_banner()
     root = Path(target_dir).resolve()
     console.print(f"Initialising Bernstein workspace in [bold]{root}[/bold]")
 
@@ -216,7 +216,7 @@ def run(goal: str | None, seed_file: str | None, port: int, cells: int, remote: 
       bernstein conduct --cells 3           # 3 parallel cells (multi-cell mode)
       bernstein conduct --remote            # bind to 0.0.0.0 for cluster access
     """
-    _print_banner()
+    print_banner()
 
     # Set process title so orchestrator is visible in Activity Monitor / ps
     try:
@@ -244,7 +244,7 @@ def run(goal: str | None, seed_file: str | None, port: int, cells: int, remote: 
     if seed_file is not None:
         path = Path(seed_file)
     else:
-        found = _find_seed_file()
+        found = find_seed_file()
         if found is not None:
             path = found
         else:
@@ -288,7 +288,7 @@ def run(goal: str | None, seed_file: str | None, port: int, cells: int, remote: 
 )
 def start(goal: str | None, seed_file: str, port: int) -> None:
     """Start server and spawn manager (legacy, use 'conduct')."""
-    _print_banner()
+    print_banner()
 
     try:
         import setproctitle
@@ -338,7 +338,7 @@ _ADAPTER_COMMANDS: dict[str, str] = {
     "qwen": "qwen",
 }
 
-_DEMO_TASKS: list[dict[str, str]] = [
+DEMO_TASKS: list[dict[str, str]] = [
     {
         "filename": "1-health-check.md",
         "content": (
@@ -378,7 +378,7 @@ _DEMO_TASKS: list[dict[str, str]] = [
 ]
 
 
-def _detect_available_adapter() -> str | None:
+def detect_available_adapter() -> str | None:
     """Return the name of the first available CLI adapter found in PATH.
 
     Returns:
@@ -392,7 +392,7 @@ def _detect_available_adapter() -> str | None:
     return None
 
 
-def _setup_demo_project(project_dir: Path, adapter: str) -> None:
+def setup_demo_project(project_dir: Path, adapter: str) -> None:
     """Copy demo template files and seed three backlog tasks.
 
     Args:
@@ -450,7 +450,7 @@ def _setup_demo_project(project_dir: Path, adapter: str) -> None:
 
     # Seed the three backlog tasks
     backlog_open = project_dir / ".sdd" / "backlog" / "open"
-    for task in _DEMO_TASKS:
+    for task in DEMO_TASKS:
         (backlog_open / task["filename"]).write_text(task["content"])
 
 
@@ -473,7 +473,7 @@ def _stop_demo_processes(project_dir: Path) -> None:
             pid = int(pid_file.read_text().strip())
         except (ValueError, OSError):
             continue
-        if _is_alive(pid):
+        if is_alive(pid):
             try:
                 import signal as _signal
 
@@ -564,10 +564,10 @@ def demo(dry_run: bool, adapter: str | None, timeout: int) -> None:
     """
     import tempfile
 
-    _print_banner()
+    print_banner()
 
     # Resolve adapter
-    detected = adapter or _detect_available_adapter()
+    detected = adapter or detect_available_adapter()
     if detected is None:
         console.print(
             "[red]No supported CLI agent found in PATH.[/red]\n\n"
@@ -595,7 +595,7 @@ def demo(dry_run: bool, adapter: str | None, timeout: int) -> None:
         plan_table.add_column("Detail")
         plan_table.add_row("1", "Create project", "Temp dir with Flask hello-world (5 files)")
         plan_table.add_row("2", "Seed backlog", "3 tasks in .sdd/backlog/open/")
-        for i, t in enumerate(_DEMO_TASKS, start=3):
+        for i, t in enumerate(DEMO_TASKS, start=3):
             # Parse task inline to get title/role
             parts = t["content"].split("\n")
             title = parts[0].lstrip("# ").strip()
@@ -604,7 +604,7 @@ def demo(dry_run: bool, adapter: str | None, timeout: int) -> None:
                 "backend",
             )
             plan_table.add_row(str(i), f"Run {role} agent", title)
-        plan_table.add_row(str(len(_DEMO_TASKS) + 3), "Print summary", "tasks done, cost, files changed")
+        plan_table.add_row(str(len(DEMO_TASKS) + 3), "Print summary", "tasks done, cost, files changed")
         console.print(plan_table)
         console.print("\n[dim]No agents were spawned. Run [bold]bernstein demo[/bold] to execute.[/dim]")
         return
@@ -613,7 +613,7 @@ def demo(dry_run: bool, adapter: str | None, timeout: int) -> None:
     project_dir = Path(tempfile.mkdtemp(prefix="bernstein-demo-"))
     console.print(f"\n[dim]Creating demo project in {project_dir}…[/dim]")
 
-    _setup_demo_project(project_dir, detected)
+    setup_demo_project(project_dir, detected)
     console.print("[green]✓[/green] Flask starter project created (5 files)")
     console.print("[green]✓[/green] 3 tasks seeded: health check, tests, error handling")
 

@@ -98,20 +98,16 @@ class TestSourceChangeDetection:
     def test_detects_newer_source_file(self, tmp_path: Path) -> None:
         orch = self._make_orchestrator(tmp_path)
 
-        # Set source_mtime to the past
-        orch._source_mtime = time.time() - 100  # type: ignore[union-attr]
-
-        # Create a source file that will be "newer" than the mtime
-        src_dir = Path("src/bernstein/core")
-        src_dir.mkdir(parents=True, exist_ok=True)
-        src_file = src_dir / "orchestrator.py"
-
-        if src_file.exists():
-            # The real source file exists; its mtime should be newer than our past timestamp
-            assert orch._check_source_changed() is True  # type: ignore[union-attr]
-        else:
-            # In isolated test environments where source doesn't exist, skip
+        src_file = Path("src/bernstein/core/orchestrator.py")
+        if not src_file.exists():
             pytest.skip("Source file not available in test environment")
+
+        # Set source_mtime well before the file's actual mtime so the
+        # check reliably detects a "newer" file, regardless of when the
+        # file was last modified on disk.
+        file_mtime = src_file.stat().st_mtime
+        orch._source_mtime = file_mtime - 10  # type: ignore[union-attr]
+        assert orch._check_source_changed() is True  # type: ignore[union-attr]
 
     def test_old_source_file_returns_false(self, tmp_path: Path) -> None:
         orch = self._make_orchestrator(tmp_path)

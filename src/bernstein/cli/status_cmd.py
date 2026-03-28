@@ -13,10 +13,10 @@ import click
 
 from bernstein.cli.helpers import (
     STATUS_COLORS,
-    _is_process_alive,
-    _print_banner,
-    _server_get,
     console,
+    is_process_alive,
+    print_banner,
+    server_get,
 )
 
 # ---------------------------------------------------------------------------
@@ -33,7 +33,7 @@ def status(as_json: bool) -> None:
       bernstein status          # Rich table output
       bernstein status --json   # machine-readable JSON
     """
-    data = _server_get("/status")
+    data = server_get("/status")
     if data is None:
         if as_json:
             click.echo(json.dumps({"error": "Cannot reach task server"}))
@@ -47,7 +47,7 @@ def status(as_json: bool) -> None:
         click.echo(json.dumps(data, indent=2))
         return
 
-    _print_banner()
+    print_banner()
 
     # ---- Task table ----
     from rich.table import Table
@@ -139,7 +139,7 @@ def status(as_json: bool) -> None:
             console.print(cost_table)
 
     # ---- Cluster section (only shown when nodes are registered) ----
-    cluster = _server_get("/cluster/status")
+    cluster = server_get("/cluster/status")
     if cluster and cluster.get("total_nodes", 0) > 0:
         node_table = Table(title="Cluster Nodes", show_lines=False, header_style="bold cyan")
         node_table.add_column("ID", style="dim", min_width=12)
@@ -202,7 +202,7 @@ def ps_cmd(as_json: bool, pid_dir: str) -> None:
 
         worker_pid = info.get("worker_pid", 0)
         child_pid = info.get("child_pid")
-        alive = _is_process_alive(worker_pid) if worker_pid else False
+        alive = is_process_alive(worker_pid) if worker_pid else False
 
         if not alive:
             stale_files.append(pid_file)

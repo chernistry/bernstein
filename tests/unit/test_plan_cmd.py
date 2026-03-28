@@ -61,7 +61,7 @@ SAMPLE_TASKS = [
 
 def test_plan_table_output() -> None:
     runner = CliRunner()
-    with patch("bernstein.cli.main._server_get", return_value=SAMPLE_TASKS):
+    with patch("bernstein.cli.main.server_get", return_value=SAMPLE_TASKS):
         result = runner.invoke(plan, [])
     assert result.exit_code == 0, result.output
     assert "Task Backlog" in result.output
@@ -79,7 +79,7 @@ def test_plan_status_filter_passes_param() -> None:
         captured.append(path)
         return [SAMPLE_TASKS[0]]
 
-    with patch("bernstein.cli.main._server_get", side_effect=fake_get):
+    with patch("bernstein.cli.main.server_get", side_effect=fake_get):
         result = runner.invoke(plan, ["--status", "open"])
 
     assert result.exit_code == 0, result.output
@@ -89,7 +89,7 @@ def test_plan_status_filter_passes_param() -> None:
 def test_plan_export_creates_json(tmp_path: Path) -> None:
     out_file = tmp_path / "plan.json"
     runner = CliRunner()
-    with patch("bernstein.cli.main._server_get", return_value=SAMPLE_TASKS):
+    with patch("bernstein.cli.main.server_get", return_value=SAMPLE_TASKS):
         result = runner.invoke(plan, ["--export", str(out_file)])
 
     assert result.exit_code == 0, result.output
@@ -102,7 +102,7 @@ def test_plan_export_creates_json(tmp_path: Path) -> None:
 
 def test_plan_server_unreachable() -> None:
     runner = CliRunner()
-    with patch("bernstein.cli.main._server_get", return_value=None):
+    with patch("bernstein.cli.main.server_get", return_value=None):
         result = runner.invoke(plan, [])
     assert result.exit_code != 0
     assert "Cannot reach task server" in result.output
@@ -110,7 +110,7 @@ def test_plan_server_unreachable() -> None:
 
 def test_plan_empty_task_list() -> None:
     runner = CliRunner()
-    with patch("bernstein.cli.main._server_get", return_value=[]):
+    with patch("bernstein.cli.main.server_get", return_value=[]):
         result = runner.invoke(plan, [])
     assert result.exit_code == 0
     assert "No tasks found" in result.output

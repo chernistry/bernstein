@@ -79,13 +79,20 @@ from bernstein.core.tick_pipeline import (
     group_by_role,
     parse_backlog_file,
 )
-
-# Re-export for backward compatibility: tests import these from orchestrator module
-from bernstein.core.tick_pipeline import _compute_total_spent as _compute_total_spent
-from bernstein.core.tick_pipeline import _total_spent_cache as _total_spent_cache
+from bernstein.core.tick_pipeline import (
+    compute_total_spent as compute_total_spent,
+)
+from bernstein.core.tick_pipeline import (
+    total_spent_cache as total_spent_cache,
+)
 from bernstein.evolution.governance import AdaptiveGovernor, GovernanceEntry, ProjectContext
 
+# Preserve underscore-prefixed aliases so existing test imports keep working
+_compute_total_spent = compute_total_spent
+_total_spent_cache = total_spent_cache
+
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from bernstein.core.spawner import AgentSpawner
@@ -97,7 +104,7 @@ logger = logging.getLogger(__name__)
 #   from bernstein.core.orchestrator import _fail_task, _complete_task, ...
 # continues to work.
 # ---------------------------------------------------------------------------
-_task_from_dict = lambda raw: Task.from_dict(raw)  # noqa: E731
+_task_from_dict: Callable[[dict[str, Any]], Task] = lambda raw: Task.from_dict(raw)  # noqa: E731
 _fetch_all_tasks = fetch_all_tasks
 _fail_task = fail_task
 _block_task = block_task
@@ -242,6 +249,10 @@ class Orchestrator:
             else None
         )
 
+        # Hot-reload: track source file mtimes so the orchestrator can
+        # detect when agents modify its own code and restart in-place.
+        self._source_mtime: float = time.time()
+
         # Agent signal manager: writes WAKEUP/SHUTDOWN files into
         # .sdd/runtime/signals/{session_id}/ for stale agent detection.
         self._signal_mgr = AgentSignalManager(self._workdir)
@@ -257,6 +268,39 @@ class Orchestrator:
                 auth_token=cluster_config.auth_token or config.auth_token,
                 capacity_fn=self._current_capacity,
             )
+
+    # -- Hot-reload source detection -----------------------------------------
+
+    # Key source files whose modification triggers an orchestrator restart.
+    _HOT_RELOAD_SOURCES: ClassVar[list[str]] = [
+        "src/bernstein/core/orchestrator.py",
+        "src/bernstein/core/spawner.py",
+        "src/bernstein/core/router.py",
+        "src/bernstein/core/server.py",
+        "src/bernstein/core/models.py",
+    ]
+
+    def _check_source_changed(self) -> bool:
+        """Check if orchestrator source files changed since last tick.
+
+        Compares mtime of key source files against the timestamp recorded
+        at startup (or the last restart).  When any file is newer, a
+        restart is warranted so the orchestrator picks up the new code.
+
+        Returns:
+            True if at least one source file was modified after startup.
+        """
+        from pathlib import Path as _Path
+
+        for rel in self._HOT_RELOAD_SOURCES:
+            src = _Path(rel)
+            try:
+                if src.exists() and src.stat().st_mtime > self._source_mtime:
+                    logger.info("Source changed: %s", rel)
+                    return True
+            except OSError:
+                continue
+        return False
 
     def _current_capacity(self) -> NodeCapacity:
         """Build a NodeCapacity snapshot reflecting current agent usage."""
@@ -554,9 +598,16 @@ class Orchestrator:
 
             # Check if a restart was requested (own source code changed)
             restart_flag = self._workdir / ".sdd" / "runtime" / "restart_requested"
+            needs_restart = False
             if restart_flag.exists():
                 restart_flag.unlink(missing_ok=True)
+                needs_restart = True
+            elif self._config.evolve_mode and self._check_source_changed():
+                needs_restart = True
+
+            if needs_restart:
                 logger.info("Restarting orchestrator (own code updated)")
+                self._save_session_state()
                 self._restart()
                 return  # _restart calls os.execv, but just in case
 

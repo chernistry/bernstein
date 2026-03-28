@@ -1205,7 +1205,7 @@ def _parse_upgrade_dict(raw: dict[str, Any] | None) -> UpgradeProposalDetails | 
     )
 
 
-def _a2a_task_to_response(task: Any) -> A2ATaskResponse:
+def a2a_task_to_response(task: Any) -> A2ATaskResponse:
     """Convert an A2ATask to its Pydantic response model."""
     return A2ATaskResponse(
         id=task.id,
@@ -1227,7 +1227,7 @@ def _a2a_task_to_response(task: Any) -> A2ATaskResponse:
     )
 
 
-def _node_to_response(node: NodeInfo) -> NodeResponse:
+def node_to_response(node: NodeInfo) -> NodeResponse:
     """Convert a NodeInfo to a Pydantic response model."""
     return NodeResponse(
         id=node.id,
@@ -1248,7 +1248,7 @@ def _node_to_response(node: NodeInfo) -> NodeResponse:
     )
 
 
-def _task_to_response(task: Task) -> TaskResponse:
+def task_to_response(task: Task) -> TaskResponse:
     """Convert a domain Task to a Pydantic response model."""
     return TaskResponse(
         id=task.id,
@@ -1348,7 +1348,7 @@ async def _sse_heartbeat_loop(bus: SSEBus, interval_s: float = 15.0) -> None:
 DEFAULT_JSONL_PATH = Path(".sdd/runtime/tasks.jsonl")
 
 
-def _read_log_tail(path: Path, offset: int = 0) -> str:
+def read_log_tail(path: Path, offset: int = 0) -> str:
     """Read a log file from *offset* bytes, skipping the partial first line.
 
     Args:

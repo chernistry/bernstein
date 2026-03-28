@@ -37,52 +37,87 @@ from bernstein.cli.evolve_cmd import evolve
 #   from bernstein.cli.main import console, SERVER_URL
 # continue to work.
 # ---------------------------------------------------------------------------
+
+# Explicit __all__ so pyright knows these are intentional re-exports.
+__all__ = [
+    "BANNER",
+    "DEMO_TASKS",
+    "SDD_DIRS",
+    "SDD_PID_SERVER",
+    "SDD_PID_SPAWNER",
+    "SDD_PID_WATCHDOG",
+    "SERVER_URL",
+    "STATUS_COLORS",
+    "auth_headers",
+    "console",
+    "detect_available_adapter",
+    "find_seed_file",
+    "hard_stop",
+    "is_alive",
+    "is_process_alive",
+    "kill_pid",
+    "kill_pid_hard",
+    "print_banner",
+    "print_dry_run_table",
+    "read_pid",
+    "recover_orphaned_claims",
+    "register_sigint_handler",
+    "return_claimed_to_open",
+    "save_session_on_stop",
+    "server_get",
+    "server_post",
+    "setup_demo_project",
+    "sigint_handler",
+    "soft_stop",
+    "write_pid",
+    "write_shutdown_signals",
+]
 from bernstein.cli.helpers import (
-    BANNER,  # noqa: F401
-    SDD_DIRS,  # noqa: F401
+    BANNER,
+    SDD_DIRS,
     SDD_PID_SERVER,
-    SDD_PID_SPAWNER,  # noqa: F401
-    SDD_PID_WATCHDOG,  # noqa: F401
+    SDD_PID_SPAWNER,
+    SDD_PID_WATCHDOG,
     SERVER_URL,
     STATUS_COLORS,
-    auth_headers,  # noqa: F401
+    auth_headers,
     console,
     find_seed_file,
     is_alive,
-    is_process_alive,  # noqa: F401
-    kill_pid,  # noqa: F401
-    kill_pid_hard,  # noqa: F401
+    is_process_alive,
+    kill_pid,
+    kill_pid_hard,
     print_banner,
     print_dry_run_table,
     read_pid,
     server_get,
     server_post,
-    write_pid,  # noqa: F401
+    write_pid,
 )
 
 # Re-export run_cmd helpers used by tests
 from bernstein.cli.run_cmd import (
-    DEMO_TASKS,  # noqa: F401
+    DEMO_TASKS,
     demo,
-    detect_available_adapter,  # noqa: F401
+    detect_available_adapter,
     init,
     run,
-    setup_demo_project,  # noqa: F401
+    setup_demo_project,
     start,
 )
 from bernstein.cli.status_cmd import doctor, ps_cmd, status
 
 # Re-export stop_cmd helpers used by tests and other modules
 from bernstein.cli.stop_cmd import (
-    hard_stop,  # noqa: F401
+    hard_stop,
     recover_orphaned_claims,
     register_sigint_handler,
-    return_claimed_to_open,  # noqa: F401
-    save_session_on_stop,  # noqa: F401
-    sigint_handler,  # noqa: F401
-    soft_stop,  # noqa: F401
+    return_claimed_to_open,
+    save_session_on_stop,
+    sigint_handler,
+    soft_stop,
     stop,
-    write_shutdown_signals,  # noqa: F401
+    write_shutdown_signals,
 )
 
 if TYPE_CHECKING:
@@ -2243,6 +2278,7 @@ def recap(archive: str, as_json: bool) -> None:
         else:
             console.print(f"[yellow]No archive found:[/yellow] {archive_path}")
             console.print("[dim]Run 'bernstein' to start, then check again after tasks complete.[/dim]")
+        return
 
     records: list[dict[str, Any]] = []
     for line in archive_path.read_text().splitlines():

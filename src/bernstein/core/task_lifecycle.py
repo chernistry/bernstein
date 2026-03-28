@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 # Completion data extraction
 # ---------------------------------------------------------------------------
 
+
 def collect_completion_data(workdir: Path, session: AgentSession) -> CompletionData:
     """Read agent log file and extract structured completion data.
 
@@ -90,6 +91,7 @@ def collect_completion_data(workdir: Path, session: AgentSession) -> CompletionD
 # File ownership helpers
 # ---------------------------------------------------------------------------
 
+
 def check_file_overlap(
     batch: list[Task],
     file_ownership: dict[str, str],
@@ -124,6 +126,7 @@ def check_file_overlap(
 # ---------------------------------------------------------------------------
 # Task retry / fail
 # ---------------------------------------------------------------------------
+
 
 def maybe_retry_task(
     task: Task,
@@ -364,6 +367,7 @@ def retry_or_fail_task(
 # Auto-decomposition
 # ---------------------------------------------------------------------------
 
+
 def should_auto_decompose(task: Task, decomposed_task_ids: set[str]) -> bool:
     """Return True if a large task should be decomposed into subtasks.
 
@@ -466,6 +470,7 @@ def auto_decompose_task(
 # ---------------------------------------------------------------------------
 # Claim and spawn
 # ---------------------------------------------------------------------------
+
 
 def claim_and_spawn_batches(
     orch: Any,  # Orchestrator instance (avoids circular import)
@@ -948,6 +953,7 @@ def process_completed_tasks(
 # ---------------------------------------------------------------------------
 # Private helpers shared with claim_and_spawn_batches
 # ---------------------------------------------------------------------------
+
 
 def _get_changed_files_in_worktree(worktree_path: Path) -> list[str]:
     """Return the list of files changed in a worktree relative to HEAD.

@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from bernstein.core.server import _read_log_tail, create_app
+from bernstein.core.server import read_log_tail, create_app
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +51,7 @@ def test_read_log_tail_full(tmp_path: Path) -> None:
     """Reading from offset 0 returns all content."""
     log = tmp_path / "test.log"
     log.write_text("line one\nline two\nline three\n", encoding="utf-8")
-    result = _read_log_tail(log, 0)
+    result = read_log_tail(log, 0)
     assert "line one" in result
     assert "line two" in result
     assert "line three" in result
@@ -63,7 +63,7 @@ def test_read_log_tail_partial(tmp_path: Path) -> None:
     content = "line one\nline two\nline three\n"
     log.write_bytes(content.encode("utf-8"))
     # Seek into the middle of "line one\n" (offset 5 = mid-word)
-    result = _read_log_tail(log, 5)
+    result = read_log_tail(log, 5)
     # Partial first line (e.g., "one\n") should be stripped
     assert "line two" in result
     assert "line three" in result
@@ -75,7 +75,7 @@ def test_read_log_tail_empty_file(tmp_path: Path) -> None:
     """Empty file returns empty string."""
     log = tmp_path / "empty.log"
     log.write_bytes(b"")
-    result = _read_log_tail(log, 0)
+    result = read_log_tail(log, 0)
     assert result == ""
 
 

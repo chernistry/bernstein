@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 # Agent state refresh
 # ---------------------------------------------------------------------------
 
+
 def refresh_agent_states(orch: Any, tasks_snapshot: dict[str, list[Task]]) -> None:
     """Update alive/dead status for all tracked agents.
 
@@ -111,6 +112,7 @@ def purge_dead_agents(orch: Any) -> None:
 # Crash recovery / worktree preservation
 # ---------------------------------------------------------------------------
 
+
 def _maybe_preserve_worktree(orch: Any, session: AgentSession, task_id: str) -> None:
     """Preserve the crashed agent's worktree for resume if policy permits.
 
@@ -144,6 +146,7 @@ def _maybe_preserve_worktree(orch: Any, session: AgentSession, task_id: str) -> 
 # ---------------------------------------------------------------------------
 # Orphaned task handling
 # ---------------------------------------------------------------------------
+
 
 def handle_orphaned_task(
     orch: Any,
@@ -346,6 +349,7 @@ def handle_orphaned_task(
 # Metrics emission
 # ---------------------------------------------------------------------------
 
+
 def emit_orphan_metrics(
     workdir: Path,
     task_id: str,
@@ -394,6 +398,7 @@ def emit_orphan_metrics(
 # Stale agent detection
 # ---------------------------------------------------------------------------
 
+
 def check_stale_agents(orch: Any) -> None:
     """Write WAKEUP / SHUTDOWN signals for agents that stopped heartbeating.
 
@@ -434,6 +439,7 @@ def check_stale_agents(orch: Any) -> None:
 # ---------------------------------------------------------------------------
 # Reap dead / timed-out agents
 # ---------------------------------------------------------------------------
+
 
 def reap_dead_agents(
     orch: Any,
@@ -536,6 +542,7 @@ def reap_dead_agents(
 # Kill signal processing
 # ---------------------------------------------------------------------------
 
+
 def check_kill_signals(orch: Any, result: Any) -> None:
     """Process ``.kill`` signal files from the runtime directory.
 
@@ -583,6 +590,7 @@ def send_shutdown_signals(orch: Any, reason: str) -> None:
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
 
 def _release_file_ownership(orch: Any, agent_id: str) -> None:
     """Release all files owned by the given agent.

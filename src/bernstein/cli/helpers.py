@@ -53,13 +53,13 @@ console = Console()
 # ---------------------------------------------------------------------------
 
 
-def _print_banner() -> None:
+def print_banner() -> None:
     from rich.panel import Panel
 
     console.print(Panel(BANNER, border_style="blue", expand=False))
 
 
-def _auth_headers() -> dict[str, str]:
+def auth_headers() -> dict[str, str]:
     """Return Authorization header dict if BERNSTEIN_AUTH_TOKEN is set."""
     token = os.environ.get("BERNSTEIN_AUTH_TOKEN")
     if token:
@@ -67,10 +67,10 @@ def _auth_headers() -> dict[str, str]:
     return {}
 
 
-def _server_get(path: str) -> dict[str, Any] | None:
+def server_get(path: str) -> dict[str, Any] | None:
     """GET from the task server.  Returns None if server is unreachable."""
     try:
-        resp = httpx.get(f"{SERVER_URL}{path}", timeout=5.0, headers=_auth_headers())
+        resp = httpx.get(f"{SERVER_URL}{path}", timeout=5.0, headers=auth_headers())
         resp.raise_for_status()
         return resp.json()  # type: ignore[no-any-return]
     except httpx.ConnectError:
@@ -80,10 +80,10 @@ def _server_get(path: str) -> dict[str, Any] | None:
         return None
 
 
-def _server_post(path: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+def server_post(path: str, payload: dict[str, Any]) -> dict[str, Any] | None:
     """POST to the task server.  Returns None if server is unreachable."""
     try:
-        resp = httpx.post(f"{SERVER_URL}{path}", json=payload, timeout=5.0, headers=_auth_headers())
+        resp = httpx.post(f"{SERVER_URL}{path}", json=payload, timeout=5.0, headers=auth_headers())
         resp.raise_for_status()
         return resp.json()  # type: ignore[no-any-return]
     except httpx.ConnectError:
@@ -93,7 +93,7 @@ def _server_post(path: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         return None
 
 
-def _read_pid(path: str) -> int | None:
+def read_pid(path: str) -> int | None:
     p = Path(path)
     if p.exists():
         try:
@@ -103,11 +103,11 @@ def _read_pid(path: str) -> int | None:
     return None
 
 
-def _write_pid(path: str, pid: int) -> None:  # type: ignore[reportUnusedFunction]
+def write_pid(path: str, pid: int) -> None:  # type: ignore[reportUnusedFunction]
     Path(path).write_text(str(pid))
 
 
-def _is_alive(pid: int) -> bool:
+def is_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
         return True
@@ -115,12 +115,12 @@ def _is_alive(pid: int) -> bool:
         return False
 
 
-def _kill_pid(path: str, label: str) -> None:
-    pid = _read_pid(path)
+def kill_pid(path: str, label: str) -> None:
+    pid = read_pid(path)
     if pid is None:
         console.print(f"[dim]No PID file found for {label}.[/dim]")
         return
-    if _is_alive(pid):
+    if is_alive(pid):
         try:
             # Kill the entire process group so child processes (pytest, uv,
             # agent subprocesses) don't survive and leak memory.
@@ -138,20 +138,20 @@ def _kill_pid(path: str, label: str) -> None:
     Path(path).unlink(missing_ok=True)
 
 
-def _kill_pid_hard(path: str, label: str) -> None:
+def kill_pid_hard(path: str, label: str) -> None:
     """Kill a process by PID file using SIGKILL (no grace period).
 
-    Unlike :func:`_kill_pid` which sends SIGTERM, this sends SIGKILL to
+    Unlike :func:`kill_pid` which sends SIGTERM, this sends SIGKILL to
     the entire process group for an immediate, non-catchable kill.
 
     Args:
         path: Path to the PID file.
         label: Human-readable label for log messages.
     """
-    pid = _read_pid(path)
+    pid = read_pid(path)
     if pid is None:
         return
-    if _is_alive(pid):
+    if is_alive(pid):
         try:
             try:
                 pgid = os.getpgid(pid)
@@ -164,7 +164,7 @@ def _kill_pid_hard(path: str, label: str) -> None:
     Path(path).unlink(missing_ok=True)
 
 
-def _print_dry_run_table(workdir: Path) -> None:
+def print_dry_run_table(workdir: Path) -> None:
     """Print a summary table of tasks that would be spawned in dry-run mode.
 
     Reads open backlog tasks directly from .sdd/backlog/open/ and renders
@@ -218,7 +218,7 @@ def _print_dry_run_table(workdir: Path) -> None:
 _SEED_FILENAMES = ("bernstein.yaml", "bernstein.yml")
 
 
-def _find_seed_file() -> Path | None:
+def find_seed_file() -> Path | None:
     """Look for a bernstein.yaml in the current directory.
 
     Returns:
@@ -231,7 +231,7 @@ def _find_seed_file() -> Path | None:
     return None
 
 
-def _is_process_alive(pid: int) -> bool:
+def is_process_alive(pid: int) -> bool:
     """Check if a process with the given PID is alive."""
     try:
         os.kill(pid, 0)

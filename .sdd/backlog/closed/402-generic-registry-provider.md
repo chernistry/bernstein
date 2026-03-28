@@ -25,3 +25,9 @@ Users should be able to plug in any external agent catalog without modifying Ber
 ## Completion signals
 - test_passes: uv run pytest tests/unit/test_generic_provider.py -x -q
 - file_contains: src/bernstein/agents/generic_provider.py :: GenericRegistryProvider
+
+
+---
+**completed**: 2026-03-28 04:43:44
+**task_id**: 83b2f4fef420
+**result**: Completed: Add unit tests for adapters/registry.py (0% coverage)

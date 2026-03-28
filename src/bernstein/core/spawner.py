@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from bernstein.adapters.base import CLIAdapter
     from bernstein.core.agency_loader import AgencyAgent
 
+from bernstein.agents.catalog import CatalogRegistry
 from bernstein.agents.registry import AgentRegistry, get_registry
 from bernstein.core.models import AgentSession, ModelConfig, Task
 from bernstein.core.router import RouterError, TierAwareRouter
@@ -24,6 +25,7 @@ def _render_prompt(
     templates_dir: Path,
     workdir: Path,
     agency_catalog: dict[str, AgencyAgent] | None = None,
+    catalog_system_prompt: str | None = None,
 ) -> str:
     """Build the full agent prompt from role template + tasks + context.
 
@@ -32,11 +34,16 @@ def _render_prompt(
     template renderer fallback is used, the agency catalog is checked for
     roles not covered by templates/roles/.
 
+    If *catalog_system_prompt* is provided it replaces the built-in role
+    template entirely, so the spawner can inject catalog-defined personas.
+
     Args:
         tasks: Batch of 1-3 tasks (all same role).
         templates_dir: Root of templates/roles/ directory.
         workdir: Project working directory.
         agency_catalog: Optional Agency agent catalog for extended roles.
+        catalog_system_prompt: Optional system prompt from a catalog agent.
+            When set, this replaces the template/role-based role prompt.
 
     Returns:
         Complete prompt string ready for the CLI adapter.
@@ -178,6 +185,7 @@ class AgentSpawner:
         agency_catalog: dict[str, AgencyAgent] | None = None,
         router: TierAwareRouter | None = None,
         mcp_config: dict[str, Any] | None = None,
+        catalog: CatalogRegistry | None = None,
     ) -> None:
         self._adapter = adapter
         self._templates_dir = templates_dir
@@ -189,6 +197,7 @@ class AgentSpawner:
         self._agency_catalog = agency_catalog
         self._router = router
         self._mcp_config = mcp_config
+        self._catalog = catalog
 
     def spawn_for_tasks(self, tasks: list[Task]) -> AgentSession:
         """Route, render prompt, and spawn an agent for a task batch.
@@ -222,18 +231,41 @@ class AgentSpawner:
             except RouterError as exc:
                 logger.warning("Router failed to select provider, using fallback: %s", exc)
 
-        # Render prompt
-        prompt = _render_prompt(tasks, self._templates_dir, self._workdir, self._agency_catalog)
+        # Check catalog for a specialist agent before building from templates
+        role = tasks[0].role
+        task_description = " ".join(t.description for t in tasks)
+        catalog_agent = None
+        if self._catalog is not None:
+            catalog_agent = self._catalog.match(role, task_description)
+
+        # Render prompt (catalog system_prompt replaces role template when matched)
+        prompt = _render_prompt(
+            tasks,
+            self._templates_dir,
+            self._workdir,
+            self._agency_catalog,
+            catalog_system_prompt=catalog_agent.system_prompt if catalog_agent else None,
+        )
+
+        agent_source = catalog_agent.source if catalog_agent else "built-in"
+        if catalog_agent:
+            logger.info(
+                "Catalog agent '%s' (source=%s) selected for role '%s'",
+                catalog_agent.name,
+                catalog_agent.source,
+                role,
+            )
 
         # Build session
-        session_id = f"{tasks[0].role}-{uuid.uuid4().hex[:8]}"
+        session_id = f"{role}-{uuid.uuid4().hex[:8]}"
         session = AgentSession(
             id=session_id,
-            role=tasks[0].role,
+            role=role,
             task_ids=[t.id for t in tasks],
             model_config=model_config,
             status="starting",
             provider=provider_name,
+            agent_source=agent_source,
         )
 
         # Use CLI adapter for all roles including manager.

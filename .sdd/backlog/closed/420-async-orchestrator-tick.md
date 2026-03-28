@@ -32,3 +32,9 @@
 ## Completion signals
 - test_passes: uv run pytest tests/unit/test_orchestrator.py -x -q
 - file_contains: src/bernstein/core/orchestrator.py :: async def tick
+
+
+---
+**completed**: 2026-03-28 04:39:37
+**task_id**: 4b80492d2651
+**result**: Completed: Add auto backlog replenishment to orchestrator

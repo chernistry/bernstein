@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -81,6 +82,7 @@ class AgentMetrics:
     tasks_failed: int = 0
     total_tokens: int = 0
     total_cost_usd: float = 0.0
+    agent_source: str = "built-in"  # "catalog", "agency", or "built-in"
 
 
 @dataclass
@@ -134,6 +136,9 @@ class MetricsCollector:
         # Write buffer for batched file I/O
         self._buffer: list[tuple[Path, str]] = []
         self._buffer_limit: int = 50
+        self._flush_interval: float = 5.0  # seconds between time-based flushes
+        self._last_flush: float = time.time()
+        self._lock: threading.Lock = threading.Lock()
 
     # -- Task Metrics --------------------------------------------------------
 
@@ -252,7 +257,14 @@ class MetricsCollector:
 
     # -- Agent Metrics -------------------------------------------------------
 
-    def start_agent(self, agent_id: str, role: str, model: str, provider: str) -> AgentMetrics:
+    def start_agent(
+        self,
+        agent_id: str,
+        role: str,
+        model: str,
+        provider: str,
+        agent_source: str = "built-in",
+    ) -> AgentMetrics:
         """Record the start of an agent session.
 
         Args:
@@ -260,6 +272,8 @@ class MetricsCollector:
             role: Agent role.
             model: Model being used.
             provider: API provider.
+            agent_source: Where the agent prompt came from — ``"catalog"``,
+                ``"agency"``, or ``"built-in"`` (default).
 
         Returns:
             AgentMetrics object for this agent.
@@ -270,6 +284,7 @@ class MetricsCollector:
             model=model,
             provider=provider,
             start_time=time.time(),
+            agent_source=agent_source,
         )
         self._agent_metrics[agent_id] = metrics
         return metrics
@@ -329,6 +344,7 @@ class MetricsCollector:
                     "role": metrics.role,
                     "model": metrics.model,
                     "provider": metrics.provider,
+                    "agent_source": metrics.agent_source,
                 },
             )
 
@@ -635,19 +651,30 @@ class MetricsCollector:
             "labels": labels,
         }
 
-        self._buffer.append((filepath, json.dumps(point)))
-        if len(self._buffer) >= self._buffer_limit:
+        with self._lock:
+            self._buffer.append((filepath, json.dumps(point)))
+            should_flush = (
+                len(self._buffer) >= self._buffer_limit
+                or (time.time() - self._last_flush) >= self._flush_interval
+            )
+        if should_flush:
             self._flush_buffer()
 
     def _flush_buffer(self) -> None:
         """Batch-write all buffered metric points, grouped by file path."""
-        if not self._buffer:
-            return
+        with self._lock:
+            if not self._buffer:
+                return
+            # Drain the buffer under the lock, then write without holding it
+            batch = self._buffer
+            self._buffer = []
+            self._last_flush = time.time()
+
         # Group lines by file path
         by_file: dict[Path, list[str]] = {}
-        for filepath, line in self._buffer:
+        for filepath, line in batch:
             by_file.setdefault(filepath, []).append(line)
-        self._buffer = []
+
         for filepath, lines in by_file.items():
             try:
                 with filepath.open("a") as f:

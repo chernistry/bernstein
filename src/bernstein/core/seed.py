@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 import yaml
 
+from bernstein.agents.catalog import CatalogRegistry
 from bernstein.core.models import Complexity, Scope, Task, TaskStatus
 
 if TYPE_CHECKING:
@@ -50,6 +51,8 @@ class SeedConfig:
         constraints: Project constraints passed to the manager (e.g. "Python only").
         context_files: Additional file paths to include in manager context.
         agent_catalog: Optional path to an Agency agent catalog directory.
+        catalogs: Catalog registry built from the ``catalogs`` section of the
+            seed file.  Defaults to Agency-only remote mode when absent.
         mcp_servers: MCP server definitions to pass to spawned agents.
         notify: Optional webhook notification configuration.
     """
@@ -63,6 +66,7 @@ class SeedConfig:
     constraints: tuple[str, ...] = ()
     context_files: tuple[str, ...] = ()
     agent_catalog: str | None = None
+    catalogs: CatalogRegistry | None = None
     mcp_servers: dict[str, dict[str, Any]] | None = None
     notify: NotifyConfig | None = None
 
@@ -206,6 +210,16 @@ def parse_seed(path: Path) -> SeedConfig:
     if mcp_servers_raw is not None and not isinstance(mcp_servers_raw, dict):
         raise SeedError(f"mcp_servers must be a mapping, got: {type(mcp_servers_raw).__name__}")
 
+    catalogs_raw = data.get("catalogs")
+    catalogs: CatalogRegistry | None = None
+    if catalogs_raw is not None:
+        if not isinstance(catalogs_raw, list):
+            raise SeedError(f"catalogs must be a list, got: {type(catalogs_raw).__name__}")
+        try:
+            catalogs = CatalogRegistry.from_config(catalogs_raw)
+        except ValueError as exc:
+            raise SeedError(f"Invalid catalogs configuration: {exc}") from exc
+
     notify_raw = data.get("notify")
     notify: NotifyConfig | None = None
     if notify_raw is not None:
@@ -236,6 +250,7 @@ def parse_seed(path: Path) -> SeedConfig:
         constraints=constraints,
         context_files=context_files,
         agent_catalog=agent_catalog_raw,
+        catalogs=catalogs,
         mcp_servers=mcp_servers_raw,
         notify=notify,
     )

@@ -5,7 +5,7 @@
 ### Agent orchestration for code that writes itself
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-1305+-2ea44f)]()
+[![Tests](https://img.shields.io/badge/tests-1471+-2ea44f)]()
 [![License](https://img.shields.io/badge/license-PolyForm_NC-f89820)](LICENSE)
 
 </div>
@@ -80,6 +80,15 @@ bernstein benchmark run --tier smoke     Smoke tier only
 bernstein benchmark run --tier stretch   Stretch tier only
 ```
 
+## Dashboard
+
+Live TUI dashboard shows agents, tasks, and activity in a three-column Bloomberg-style layout. Hotkeys: `q` quit, `r` refresh, `s` stop, `l` toggle activity, `c` chat (type tasks inline). `Esc` exits the chat input.
+
+```bash
+bernstein          # starts with dashboard
+bernstein --headless   # no dashboard (CI/overnight)
+```
+
 ## Architecture
 
 ```
@@ -89,6 +98,7 @@ bernstein
     ├── Orchestrator (Python)        ← deterministic scheduler, no LLM
     ├── Spawner                      ← launches CLI agents per task batch
     ├── Janitor                      ← verifies done tasks (tests pass? files exist?)
+    ├── Context Builder              ← injects file maps, architecture notes into agent prompts
     └── Evolution                    ← adjusts prompts/config between runs
 ```
 
@@ -185,13 +195,39 @@ bernstein --evolve --budget 5.00          # stop after $5 spent
 bernstein evolve run --window 2h          # dedicated evolution session
 ```
 
+## Agent catalogs
+
+Bernstein can load agent definitions from external catalogs. [Agency](https://github.com/msitarzewski/agency-agents) is the default. Custom registries can be added via `bernstein.yaml`:
+
+```yaml
+catalogs:
+  - name: agency
+    type: agency
+    source: https://github.com/msitarzewski/agency-agents
+    priority: 100
+  - name: internal
+    type: generic
+    path: ./custom-agents/
+    format: yaml
+    priority: 50
+```
+
+```bash
+bernstein agents sync       # refresh catalogs
+bernstein agents list       # show available agents
+bernstein agents validate   # check catalog health
+```
+
+When a task is assigned, the orchestrator checks the catalog for a specialized agent before falling back to built-in roles.
+
 ## Project structure
 
 ```
 src/bernstein/
 ├── adapters/      # CLI agent adapters (claude, codex, gemini, qwen)
+├── agents/        # agent catalog, providers, registry
 ├── cli/           # CLI entry points
-├── core/          # orchestrator, server, spawner, janitor, evolution
+├── core/          # orchestrator, server, spawner, janitor, context
 ├── evolution/     # metrics aggregation, proposal generation, safety gates
 └── templates/     # role system prompts
 .sdd/              # file-based runtime state (backlog, metrics, config)
@@ -204,7 +240,8 @@ src/bernstein/
 | Scheduling | Deterministic code | LLM | LLM | Graph |
 | Agent lifetime | Short (minutes) | Long-running | Long-running | Long-running |
 | Verification | Built-in janitor | Manual | Manual | Manual |
-| Self-evolution | Risk-gated (L0–L3) + continuous `--evolve` mode | No | No | No |
+| Self-evolution | Risk-gated (L0-L3) + continuous `--evolve` mode | No | No | No |
+| External agent catalogs | Yes (Agency, custom registries) | No | No | No |
 | Works with CLI agents | Yes | No | No | No |
 | Multi-provider | Claude/Codex/Gemini/Qwen | API-only | API-only | API-only |
 

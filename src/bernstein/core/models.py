@@ -212,6 +212,7 @@ class AgentSession:
     status: Literal["starting", "working", "idle", "dead"] = "starting"
     cell_id: str | None = None             # Which cell this agent belongs to
     provider: str | None = None            # Provider selected by TierAwareRouter
+    agent_source: str = "built-in"         # "catalog", "agency", or "built-in"
 
 
 @dataclass

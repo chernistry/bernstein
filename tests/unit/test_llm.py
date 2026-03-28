@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from bernstein.core.llm import LLMSettings, get_client
+from bernstein.core.llm import LLMSettings, call_llm, get_client, tavily_search
 
 
 # ---------------------------------------------------------------------------
@@ -267,3 +267,176 @@ class TestGetClient:
         with patch("bernstein.core.llm.LLMSettings", return_value=settings):
             client = get_client("openrouter")
         assert isinstance(client, AsyncOpenAI)
+
+
+# ---------------------------------------------------------------------------
+# call_llm — async LLM invocation
+# ---------------------------------------------------------------------------
+
+
+def _make_completion_response(content: str | None, num_choices: int = 1) -> MagicMock:
+    """Build a mock chat completion response."""
+    response = MagicMock()
+    if num_choices == 0:
+        response.choices = []
+    else:
+        choice = MagicMock()
+        choice.message.content = content
+        response.choices = [choice]
+    return response
+
+
+class TestCallLLM:
+    @pytest.mark.asyncio
+    async def test_successful_call_returns_content_string(self) -> None:
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            return_value=_make_completion_response("Hello, world!")
+        )
+        with patch("bernstein.core.llm.get_client", return_value=mock_client):
+            result = await call_llm("test prompt", "gpt-4")
+        assert result == "Hello, world!"
+
+    @pytest.mark.asyncio
+    async def test_empty_choices_returns_empty_string(self) -> None:
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            return_value=_make_completion_response(None, num_choices=0)
+        )
+        with patch("bernstein.core.llm.get_client", return_value=mock_client):
+            result = await call_llm("test prompt", "gpt-4")
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_none_content_returns_empty_string(self) -> None:
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            return_value=_make_completion_response(None)
+        )
+        with patch("bernstein.core.llm.get_client", return_value=mock_client):
+            result = await call_llm("test prompt", "gpt-4")
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_api_exception_wraps_in_runtime_error(self) -> None:
+        mock_client = MagicMock()
+        original_error = ValueError("quota exceeded")
+        mock_client.chat.completions.create = AsyncMock(side_effect=original_error)
+        with patch("bernstein.core.llm.get_client", return_value=mock_client):
+            with pytest.raises(RuntimeError, match="quota exceeded"):
+                await call_llm("test prompt", "gpt-4")
+
+    @pytest.mark.asyncio
+    async def test_provider_routing_calls_get_client_with_correct_provider(self) -> None:
+        mock_client = MagicMock()
+        mock_client.chat.completions.create = AsyncMock(
+            return_value=_make_completion_response("response")
+        )
+        with patch("bernstein.core.llm.get_client", return_value=mock_client) as mock_get_client:
+            await call_llm("test prompt", "gpt-4", provider="openrouter")
+        mock_get_client.assert_called_once_with("openrouter")
+
+
+# ---------------------------------------------------------------------------
+# tavily_search — web search via Tavily API
+# ---------------------------------------------------------------------------
+
+
+class TestTavilySearch:
+    @pytest.mark.asyncio
+    async def test_missing_api_key_returns_empty_string(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+        settings = _make_settings(tavily_api_key=None)
+        with patch("bernstein.core.llm.LLMSettings", return_value=settings):
+            result = await tavily_search("test query")
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_successful_search_formats_results_as_markdown(self) -> None:
+        settings = _make_settings(tavily_api_key="tvly-secret")
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "results": [
+                {"title": "Article 1", "content": "Content 1", "url": "https://example.com/1"},
+                {"title": "Article 2", "content": "Content 2", "url": "https://example.com/2"},
+            ]
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_async_client = AsyncMock()
+        mock_async_client.post = AsyncMock(return_value=mock_response)
+        mock_async_client.__aenter__ = AsyncMock(return_value=mock_async_client)
+        mock_async_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("bernstein.core.llm.LLMSettings", return_value=settings), patch(
+            "httpx.AsyncClient", return_value=mock_async_client
+        ):
+            result = await tavily_search("test query")
+
+        assert "**Article 1**" in result
+        assert "Content 1" in result
+        assert "https://example.com/1" in result
+        assert "**Article 2**" in result
+
+    @pytest.mark.asyncio
+    async def test_empty_results_returns_no_results_message(self) -> None:
+        settings = _make_settings(tavily_api_key="tvly-secret")
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"results": []}
+        mock_response.raise_for_status = MagicMock()
+
+        mock_async_client = AsyncMock()
+        mock_async_client.post = AsyncMock(return_value=mock_response)
+        mock_async_client.__aenter__ = AsyncMock(return_value=mock_async_client)
+        mock_async_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("bernstein.core.llm.LLMSettings", return_value=settings), patch(
+            "httpx.AsyncClient", return_value=mock_async_client
+        ):
+            result = await tavily_search("obscure query")
+
+        assert result == "(No relevant web results found.)"
+
+    @pytest.mark.asyncio
+    async def test_http_error_returns_formatted_error_message(self) -> None:
+        import httpx
+
+        settings = _make_settings(tavily_api_key="tvly-secret")
+        http_error = httpx.HTTPStatusError(
+            "403 Forbidden",
+            request=MagicMock(),
+            response=MagicMock(),
+        )
+
+        mock_async_client = AsyncMock()
+        mock_async_client.post = AsyncMock(side_effect=http_error)
+        mock_async_client.__aenter__ = AsyncMock(return_value=mock_async_client)
+        mock_async_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("bernstein.core.llm.LLMSettings", return_value=settings), patch(
+            "httpx.AsyncClient", return_value=mock_async_client
+        ):
+            result = await tavily_search("test query")
+
+        assert result.startswith("(Web search failed:")
+
+    @pytest.mark.asyncio
+    async def test_network_exception_returns_formatted_error_message(self) -> None:
+        import httpx
+
+        settings = _make_settings(tavily_api_key="tvly-secret")
+        network_error = httpx.ConnectError("Connection refused")
+
+        mock_async_client = AsyncMock()
+        mock_async_client.post = AsyncMock(side_effect=network_error)
+        mock_async_client.__aenter__ = AsyncMock(return_value=mock_async_client)
+        mock_async_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("bernstein.core.llm.LLMSettings", return_value=settings), patch(
+            "httpx.AsyncClient", return_value=mock_async_client
+        ):
+            result = await tavily_search("test query")
+
+        assert result.startswith("(Web search failed:")

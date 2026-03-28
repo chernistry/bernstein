@@ -182,7 +182,10 @@ class Orchestrator:
         self._config = config
         self._spawner = spawner
         self._workdir = workdir
-        self._client = client or httpx.Client(timeout=10.0)
+        self._client = client or httpx.Client(
+            timeout=10.0,
+            limits=httpx.Limits(max_connections=50, max_keepalive_connections=20),
+        )
         self._agents: dict[str, AgentSession] = {}
         self._file_ownership: dict[str, str] = {}  # filepath → agent_id
         self._processed_done_tasks: set[str] = set()  # avoid re-processing done tasks

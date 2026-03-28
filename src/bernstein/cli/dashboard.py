@@ -1,4 +1,4 @@
-"""Bernstein TUI — retro-futuristic agent orchestration dashboard.
+"""Bernstein TUI -- retro-futuristic agent orchestration dashboard.
 
 Design: Bloomberg terminal meets early macOS. Dark, clean, information-dense.
 Three columns: Agents (live logs) | Tasks (status board) | Activity feed.
@@ -17,7 +17,9 @@ from typing import Any, ClassVar
 
 import httpx
 from rich.text import Text
+from textual import events
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import (
@@ -29,20 +31,30 @@ from textual.widgets import (
     Sparkline,
     Static,
 )
+from textual.worker import Worker, WorkerState
 
 logger = logging.getLogger(__name__)
 
 SERVER_URL = "http://127.0.0.1:8052"
 
-# ── Data fetching ──────────────────────────────────────────────────
+# -- Data fetching (sync -- called via run_worker in a thread) -----
 
 
 def _get(path: str) -> Any:
     try:
-        return httpx.get(f"{SERVER_URL}{path}", timeout=3.0).json()
+        return httpx.get(f"{SERVER_URL}{path}", timeout=2.0).json()
     except Exception as exc:
         logger.warning("Dashboard GET %s failed: %s", path, exc)
         return None
+
+
+def _fetch_all() -> dict[str, Any]:
+    """Fetch all dashboard data in one blocking call (run in thread)."""
+    return {
+        "tasks": _get("/tasks"),
+        "status": _get("/status"),
+        "agents": _load_agents(),
+    }
 
 
 def _load_agents() -> list[dict[str, Any]]:
@@ -67,11 +79,13 @@ def _tail_log(session_id: str, n: int = 5) -> list[str]:
         return []
 
 
-# ── Widgets ────────────────────────────────────────────────────────
+# -- Widgets -------------------------------------------------------
 
 
 class AgentWidget(Static):
     """Single agent: header + live log tail."""
+
+    can_focus = False
 
     def __init__(self, agent: dict[str, Any], tasks: dict[str, str], **kw: Any) -> None:
         super().__init__(**kw)
@@ -90,31 +104,30 @@ class AgentWidget(Static):
         color = {
             "working": "bright_yellow", "starting": "bright_cyan", "dead": "bright_red"
         }.get(status, "bright_green")
-        dot = {"working": "◉", "starting": "◎", "dead": "◌"}.get(status, "●")
+        dot = {"working": "\u25c9", "starting": "\u25ce", "dead": "\u25cc"}.get(status, "\u25cf")
 
         t = Text()
-        # ── Header line ──
         t.append(f" {dot} ", style=f"bold {color}")
         t.append(f"{role.upper()}", style=f"bold {color}")
         t.append(f"  {model}", style="bold dim")
         t.append(f"  {m}:{s:02d}", style="dim")
 
-        # Task titles
         for tid in a.get("task_ids", [])[:2]:
             title = self._tasks.get(tid, tid[:12])
-            t.append(f"\n   → {title[:60]}", style="italic dim")
+            t.append(f"\n   \u2192 {title[:60]}", style="italic dim")
 
-        # Log tail
         lines = _tail_log(aid, 3)
         for line in lines:
-            clean = line[:90] + "…" if len(line) > 90 else line
+            clean = line[:90] + "\u2026" if len(line) > 90 else line
             t.append(f"\n   {clean}", style="dim")
 
         return t
 
 
 class BigStats(Static):
-    """Large stats display — the focal point."""
+    """Large stats display -- the focal point."""
+
+    can_focus = False
 
     done = reactive(0)
     total = reactive(0)
@@ -131,26 +144,24 @@ class BigStats(Static):
         t = Text()
 
         if self.evolve:
-            t.append(" ∞ ", style="bold white on dark_cyan")
+            t.append(" \u221e ", style="bold white on dark_cyan")
             t.append(" ", style="")
 
-        # Big progress fraction
         t.append(f" {self.done}", style="bold bright_green")
         t.append(f"/{self.total}", style="bold")
         t.append("  ", style="")
 
-        # Progress bar — wider, gradient
         bar_w = 35
         filled = int(pct / 100 * bar_w)
-        t.append("▐", style="dim")
+        t.append("\u2590", style="dim")
         for i in range(bar_w):
             if i < filled:
                 r = i / max(bar_w - 1, 1)
                 style = "bold bright_red" if r < 0.3 else ("bold bright_yellow" if r < 0.6 else "bold bright_green")
-                t.append("█", style=style)
+                t.append("\u2588", style=style)
             else:
-                t.append("░", style="dim")
-        t.append("▌", style="dim")
+                t.append("\u2591", style="dim")
+        t.append("\u258c", style="dim")
         t.append(f" {pct}%", style="bold bright_green" if pct == 100 else "bold")
 
         t.append(f"  {self.agents} agents", style="bold bright_cyan")
@@ -165,7 +176,21 @@ class BigStats(Static):
         return t
 
 
-# ── App ────────────────────────────────────────────────────────────
+# -- Chat input with Escape support -------------------------------
+
+
+class ChatInput(Input):
+    """Input that yields focus on Escape."""
+
+    BINDINGS = [
+        Binding("escape", "unfocus", "Back", show=False),
+    ]
+
+    def action_unfocus(self) -> None:
+        self.screen.focus_next()
+
+
+# -- App -----------------------------------------------------------
 
 
 class BernsteinApp(App):
@@ -242,7 +267,7 @@ class BernsteinApp(App):
 
     #bottom-bar {
         height: auto;
-        max-height: 5;
+        max-height: 8;
         background: $surface;
         border-top: heavy $border;
     }
@@ -253,17 +278,18 @@ class BernsteinApp(App):
     }
 
     #spark-row {
-        height: 3;
+        height: 2;
         padding: 0 1;
     }
 
-    #chat-input {
+    ChatInput {
         background: $surface;
-        border: none;
         color: $accent;
+        height: 3;
+        border: tall $surface;
     }
 
-    #chat-input:focus {
+    ChatInput:focus {
         border: tall $accent;
     }
 
@@ -274,12 +300,12 @@ class BernsteinApp(App):
     }
     """
 
-    BINDINGS: ClassVar[list[tuple[str, str, str]]] = [
-        ("q", "quit", "Quit"),
-        ("r", "refresh", "Refresh"),
-        ("s", "stop_bernstein", "Stop"),
-        ("l", "toggle_activity", "Activity"),
-        ("c", "focus_chat", "Chat"),
+    BINDINGS: ClassVar[list[Binding]] = [
+        Binding("q", "quit", "Quit"),
+        Binding("r", "refresh", "Refresh"),
+        Binding("s", "stop_bernstein", "Stop"),
+        Binding("l", "toggle_activity", "Activity"),
+        Binding("c", "focus_chat", "Chat"),
     ]
 
     def __init__(self, **kw: Any) -> None:
@@ -307,11 +333,24 @@ class BernsteinApp(App):
             yield BigStats(id="stats-row")
             with Horizontal(id="spark-row"):
                 yield Sparkline([], summary_function=max, id="spark")
-            yield Input(
-                placeholder="/ Type a task and press Enter...",
+            yield ChatInput(
+                placeholder="Type a task and press Enter... (Esc to exit)",
                 id="chat-input",
             )
         yield Footer()
+
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        """Disable single-char bindings when typing in chat input."""
+        if isinstance(self.focused, ChatInput) and action != "focus_chat":
+            return False
+        return True
+
+    def on_key(self, event: events.Key) -> None:
+        """Prevent single-char keys from reaching app bindings while Input is focused."""
+        if isinstance(self.focused, ChatInput):
+            # Let the Input handle everything except its own bindings
+            return
+        # When NOT in input: single-char bindings work normally via BINDINGS
 
     def on_mount(self) -> None:
         t = self.query_one("#tasks-table", DataTable)
@@ -326,43 +365,77 @@ class BernsteinApp(App):
             except Exception as exc:
                 logger.warning("Failed to read evolve.json: %s", exc)
 
-        self.set_interval(2.0, self._poll)
-        self._poll()
+        self.set_interval(2.0, self._schedule_poll)
+        self._schedule_poll()
 
-    def _poll(self) -> None:
-        self._update_tasks()
-        self._update_agents()
-        self._update_stats()
-        self._update_activity()
+    # -- Polling via background worker (non-blocking) --
 
-    # ── Agents ──
+    def _schedule_poll(self) -> None:
+        """Kick off data fetch in a background thread so the event loop stays free."""
+        self.run_worker(_fetch_all, thread=True, group="poll", exclusive=True)
 
-    def _update_agents(self) -> None:
+    def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
+        if event.worker.group != "poll" or event.state != WorkerState.SUCCESS:
+            return
+        data = event.worker.result
+        if not isinstance(data, dict):
+            return
+        focused = self.focused
+        self._apply_data(data)
+        if focused is not None and self.focused is not focused:
+            try:
+                focused.focus()
+            except Exception:
+                pass
+
+    def _apply_data(self, data: dict[str, Any]) -> None:
+        """Apply fetched data to widgets (main thread, non-blocking)."""
+        self._update_tasks(data.get("tasks"))
+        self._update_agents(data.get("agents", []))
+        self._update_stats(data.get("status"), data.get("agents", []))
+        self._update_activity(data.get("agents", []))
+
+    # -- Agents --
+
+    def _update_agents(self, agents: list[dict[str, Any]]) -> None:
         col = self.query_one("#col-agents")
-        agents = _load_agents()
         alive = [a for a in agents if a.get("status") != "dead"]
+        alive_ids = {a.get("id", "") for a in alive}
 
-        # Remove dynamic widgets
+        existing_ids: set[str] = set()
         for child in list(col.children):
-            is_dynamic = isinstance(child, (AgentWidget, Static))
-            if is_dynamic and child.id != "col-agents" and not child.has_class("col-header"):
-                    child.remove()
+            if not isinstance(child, (AgentWidget, Static)):
+                continue
+            if child.has_class("col-header"):
+                continue
+            if isinstance(child, AgentWidget):
+                aid = child._a.get("id", "")
+                if aid in alive_ids:
+                    existing_ids.add(aid)
+                    matching = [a for a in alive if a.get("id", "") == aid]
+                    if matching:
+                        child._a = matching[0]
+                        child._tasks = self._task_titles
+                    continue
+            child.remove()
 
         if not alive:
-            col.mount(Static("[dim]Waiting for agents...[/]", id="no-agents"))
+            if not col.query("Static#no-agents"):
+                col.mount(Static("[dim]Waiting for agents...[/]", id="no-agents"))
         else:
+            for w in col.query("Static#no-agents"):
+                w.remove()
             for a in alive:
-                col.mount(AgentWidget(a, self._task_titles))
+                if a.get("id", "") not in existing_ids:
+                    col.mount(AgentWidget(a, self._task_titles))
 
-    # ── Tasks ──
+    # -- Tasks --
 
-    def _update_tasks(self) -> None:
+    def _update_tasks(self, data: Any) -> None:
         table = self.query_one("#tasks-table", DataTable)
-        data = _get("/tasks")
         if not isinstance(data, list):
             return
 
-        # Cache task titles for agent display
         self._task_titles = {t.get("id", ""): t.get("title", "?") for t in data}
 
         table.clear()
@@ -371,7 +444,7 @@ class BernsteinApp(App):
 
         for t in data:
             st = t.get("status", "open")
-            icon = {"done": "✓", "failed": "✗", "claimed": "⚡", "open": "·"}.get(st, "?")
+            icon = {"done": "\u2713", "failed": "\u2717", "claimed": "\u26a1", "open": "\u00b7"}.get(st, "?")
             color = {"done": "green", "failed": "red", "claimed": "yellow", "open": "dim"}.get(st, "white")
             table.add_row(
                 Text(f" {icon}", style=f"bold {color}"),
@@ -379,12 +452,10 @@ class BernsteinApp(App):
                 Text(t.get("title", "-"), style=color if st != "open" else ""),
             )
 
-    # ── Stats ──
+    # -- Stats --
 
-    def _update_stats(self) -> None:
-        sd = _get("/status")
+    def _update_stats(self, sd: Any, agents: list[dict[str, Any]]) -> None:
         bar = self.query_one("#stats-row", BigStats)
-        agents = _load_agents()
 
         if sd:
             bar.total = sd.get("total", 0)
@@ -399,13 +470,11 @@ class BernsteinApp(App):
         spark = self.query_one("#spark", Sparkline)
         spark.data = list(self._history) if self._history else [0.0]
 
-    # ── Activity ──
+    # -- Activity --
 
-    def _update_activity(self) -> None:
+    def _update_activity(self, agents: list[dict[str, Any]]) -> None:
         log = self.query_one("#activity-log", RichLog)
-        agents = _load_agents()
 
-        # Collect last 2 lines from each alive agent
         new_lines: list[str] = []
         for a in agents:
             if a.get("status") == "dead":
@@ -414,22 +483,21 @@ class BernsteinApp(App):
             role = a.get("role", "?")
             lines = _tail_log(aid, 2)
             for line in lines:
-                clean = line[:100] + "…" if len(line) > 100 else line
+                clean = line[:100] + "\u2026" if len(line) > 100 else line
                 new_lines.append(f"[bold]{role}[/] {clean}")
 
-        # Only write new lines (avoid duplicates)
         for line in new_lines:
             if line not in self._last_activity:
                 log.write(line)
         self._last_activity = new_lines
 
-    # ── Actions ──
+    # -- Actions --
 
     def action_refresh(self) -> None:
-        self._poll()
+        self._schedule_poll()
 
     def action_focus_chat(self) -> None:
-        self.query_one("#chat-input", Input).focus()
+        self.query_one("#chat-input", ChatInput).focus()
 
     def action_toggle_activity(self) -> None:
         col = self.query_one("#col-activity")
@@ -470,12 +538,12 @@ class BernsteinApp(App):
                 timeout=5.0,
             )
             if resp.status_code == 201:
-                self.notify(f"→ {text[:50]}", severity="information")
+                self.notify(f"\u2192 {text[:50]}", severity="information")
             else:
                 self.notify(f"Failed: {resp.status_code}", severity="error")
         except Exception as exc:
             self.notify(f"Error: {exc}", severity="error")
-        self._poll()
+        self._schedule_poll()
 
 
 def run_dashboard() -> None:

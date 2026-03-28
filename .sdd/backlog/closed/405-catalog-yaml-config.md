@@ -43,3 +43,9 @@ Users need to configure which agent catalogs are enabled, their sources, and pri
 ## Completion signals
 - file_contains: src/bernstein/core/seed.py :: catalogs
 - file_contains: templates/bernstein.yaml :: catalogs
+
+
+---
+**completed**: 2026-03-28 04:47:33
+**task_id**: a0876deb2b9f
+**result**: Completed: 405 — Catalog configuration in bernstein.yaml

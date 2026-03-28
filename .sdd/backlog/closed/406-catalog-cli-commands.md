@@ -26,3 +26,9 @@ Users need CLI commands to manage agent catalogs: sync from remote, list availab
 ## Completion signals
 - test_passes: uv run pytest tests/unit/test_cli_agents.py -x -q
 - file_contains: src/bernstein/cli/main.py :: agents sync
+
+
+---
+**completed**: 2026-03-28 04:47:03
+**task_id**: 16c2b19cf94e
+**result**: Completed: 406 — CLI commands: bernstein agents sync/list/validate

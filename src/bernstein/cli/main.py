@@ -1111,6 +1111,210 @@ cli.add_command(cost_cmd, "cost")
 
 
 # ---------------------------------------------------------------------------
+# agents — catalog management
+# ---------------------------------------------------------------------------
+
+
+@cli.group("agents")
+def agents_group() -> None:
+    """Manage agent catalogs: sync, list, and validate.
+
+    \b
+      bernstein agents sync               # refresh all catalogs
+      bernstein agents list               # show all available agents
+      bernstein agents list --source local  # filter by source
+      bernstein agents validate           # check catalog health
+    """
+
+
+@agents_group.command("sync")
+@click.option(
+    "--dir",
+    "definitions_dir",
+    default=".sdd/agents/definitions",
+    show_default=True,
+    help="Agent definitions directory.",
+)
+def agents_sync(definitions_dir: str) -> None:
+    """Force-refresh all agent catalogs and update cache."""
+    from bernstein.agents.registry import AgentRegistry, SchemaValidationError
+
+    definitions_path = Path(definitions_dir)
+
+    # Provider: local YAML definitions
+    console.print("[bold]Syncing agent catalogs…[/bold]\n")
+    console.print(f"[cyan]→ local[/cyan]  {definitions_path}")
+
+    if not definitions_path.exists():
+        console.print(f"  [yellow]Directory does not exist:[/yellow] {definitions_path}")
+        console.print(f"  [dim]Create it with: mkdir -p {definitions_path}[/dim]")
+    else:
+        registry = AgentRegistry(definitions_dir=definitions_path)
+        loaded = registry.load_definitions()
+        console.print(f"  [green]✓[/green] Loaded {len(loaded)} agent definition(s)")
+        for defn in loaded:
+            console.print(f"    [dim]{defn.name}[/dim] v{defn.version} ({defn.role})")
+
+    # Provider: agency catalog (if present)
+    agency_dir = Path(".sdd/agents/agency")
+    console.print(f"\n[cyan]→ agency[/cyan] {agency_dir}")
+    if not agency_dir.exists():
+        console.print(f"  [dim]Directory not found — skipping (place Agency YAML files in {agency_dir})[/dim]")
+    else:
+        from bernstein.core.agency_loader import load_agency_catalog
+        catalog = load_agency_catalog(agency_dir)
+        console.print(f"  [green]✓[/green] Loaded {len(catalog)} agency agent(s)")
+        for name in list(catalog)[:5]:
+            agent = catalog[name]
+            console.print(f"    [dim]{name}[/dim] ({agent.role})")
+        if len(catalog) > 5:
+            console.print(f"    [dim]… and {len(catalog) - 5} more[/dim]")
+
+    console.print("\n[green]Sync complete.[/green]")
+
+
+@agents_group.command("list")
+@click.option(
+    "--source",
+    type=click.Choice(["local", "agency", "all"]),
+    default="all",
+    show_default=True,
+    help="Filter agents by catalog source.",
+)
+@click.option(
+    "--dir",
+    "definitions_dir",
+    default=".sdd/agents/definitions",
+    show_default=True,
+    help="Local agent definitions directory.",
+)
+def agents_list(source: str, definitions_dir: str) -> None:
+    """List all available agents from loaded catalogs."""
+    from bernstein.agents.registry import AgentRegistry
+
+    rows: list[tuple[str, str, str, str]] = []
+
+    # Local definitions
+    if source in ("local", "all"):
+        definitions_path = Path(definitions_dir)
+        if definitions_path.exists():
+            registry = AgentRegistry(definitions_dir=definitions_path)
+            registry.load_definitions()
+            for defn in registry.definitions.values():
+                rows.append((defn.name, defn.name, defn.role, "local"))
+
+    # Agency catalog
+    if source in ("agency", "all"):
+        agency_dir = Path(".sdd/agents/agency")
+        if agency_dir.exists():
+            from bernstein.core.agency_loader import load_agency_catalog
+            catalog = load_agency_catalog(agency_dir)
+            for name, agent in catalog.items():
+                rows.append((name, agent.name, agent.role, "agency"))
+
+    if not rows:
+        console.print("[dim]No agents found. Run [bold]bernstein agents sync[/bold] first.[/dim]")
+        return
+
+    table = Table(
+        title="Available Agents",
+        show_lines=False,
+        header_style="bold cyan",
+    )
+    table.add_column("ID", style="dim", min_width=20)
+    table.add_column("Name", min_width=20)
+    table.add_column("Role", min_width=14)
+    table.add_column("Source", min_width=8)
+
+    for agent_id, name, role, src in sorted(rows, key=lambda r: (r[3], r[0])):
+        src_color = "cyan" if src == "local" else "magenta"
+        table.add_row(agent_id, name, role, f"[{src_color}]{src}[/{src_color}]")
+
+    console.print(table)
+    console.print(f"\n[dim]{len(rows)} agent(s) total[/dim]")
+
+
+@agents_group.command("validate")
+@click.option(
+    "--dir",
+    "definitions_dir",
+    default=".sdd/agents/definitions",
+    show_default=True,
+    help="Local agent definitions directory.",
+)
+def agents_validate(definitions_dir: str) -> None:
+    """Validate all agent catalogs and report issues.
+
+    Exits with code 1 if any provider is unreachable or has invalid agents.
+    """
+    import yaml
+
+    from bernstein.agents.registry import SchemaValidationError
+
+    definitions_path = Path(definitions_dir)
+    issues: list[str] = []
+
+    console.print("[bold]Validating agent catalogs…[/bold]\n")
+
+    # --- Local definitions ---
+    console.print(f"[cyan]→ local[/cyan]  {definitions_path}")
+    if not definitions_path.exists():
+        issues.append(f"local: definitions directory not found: {definitions_path}")
+        console.print(f"  [red]✗[/red] Directory not found: {definitions_path}")
+    else:
+        yaml_files = list(definitions_path.glob("*.yaml")) + list(definitions_path.glob("*.yml"))
+        if not yaml_files:
+            console.print("  [dim]No YAML files found — catalog is empty[/dim]")
+        for yaml_file in sorted(yaml_files):
+            try:
+                content = yaml_file.read_text(encoding="utf-8")
+                data = yaml.safe_load(content)
+                if not isinstance(data, dict):
+                    raise ValueError("YAML must be a mapping")
+                from bernstein.agents.registry import AgentRegistry
+                registry = AgentRegistry(definitions_dir=definitions_path)
+                registry._validate_schema(data, yaml_file)
+                console.print(f"  [green]✓[/green] {yaml_file.name}")
+            except SchemaValidationError as exc:
+                issues.append(f"local/{yaml_file.name}: {exc}")
+                console.print(f"  [red]✗[/red] {yaml_file.name}: {exc}")
+            except Exception as exc:
+                issues.append(f"local/{yaml_file.name}: {exc}")
+                console.print(f"  [red]✗[/red] {yaml_file.name}: {exc}")
+
+    # --- Agency catalog ---
+    agency_dir = Path(".sdd/agents/agency")
+    console.print(f"\n[cyan]→ agency[/cyan] {agency_dir}")
+    if not agency_dir.exists():
+        console.print(f"  [dim]Not configured — skipping[/dim]")
+    else:
+        from bernstein.core.agency_loader import load_agency_catalog, parse_agency_agent
+        agency_files = [
+            p for p in sorted(agency_dir.iterdir())
+            if p.suffix in (".yaml", ".yml")
+        ]
+        if not agency_files:
+            console.print("  [dim]No YAML files found — catalog is empty[/dim]")
+        for p in agency_files:
+            try:
+                parse_agency_agent(p)
+                console.print(f"  [green]✓[/green] {p.name}")
+            except ValueError as exc:
+                issues.append(f"agency/{p.name}: {exc}")
+                console.print(f"  [red]✗[/red] {p.name}: {exc}")
+
+    # --- Summary ---
+    console.print()
+    if issues:
+        console.print(f"[red]Validation failed: {len(issues)} issue(s)[/red]")
+        for issue in issues:
+            console.print(f"  [red]•[/red] {issue}")
+        raise SystemExit(1)
+    else:
+        console.print("[green]All catalogs valid.[/green]")
+
+
+# ---------------------------------------------------------------------------
 # Backward-compatible aliases (old names still work)
 # ---------------------------------------------------------------------------
 

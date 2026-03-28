@@ -786,10 +786,11 @@ class Orchestrator:
 
     def _release_file_ownership(self, agent_id: str) -> None:
         """Release all files owned by the given agent."""
-        released = self._lock_manager.release(agent_id)
-        # Keep legacy dict in sync
-        for fp in released:
-            self._file_ownership.pop(fp, None)
+        self._lock_manager.release(agent_id)
+        # Always clean the legacy dict so code that reads _file_ownership directly stays consistent
+        to_remove = [fp for fp, owner in self._file_ownership.items() if owner == agent_id]
+        for fp in to_remove:
+            del self._file_ownership[fp]
 
     def _release_task_to_session(self, task_ids: list[str]) -> None:
         """Remove reverse-index entries for the given task IDs."""

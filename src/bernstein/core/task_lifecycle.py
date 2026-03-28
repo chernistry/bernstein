@@ -24,6 +24,10 @@ from bernstein.core.fast_path import (
     get_l1_model_config,
     try_fast_path_batch,
 )
+from bernstein.core.cross_model_verifier import (
+    CrossModelVerifierConfig,
+    run_cross_model_verification_sync,
+)
 from bernstein.core.janitor import verify_task
 from bernstein.core.metrics import get_collector
 from bernstein.core.models import (
@@ -582,6 +586,20 @@ def claim_and_spawn_batches(
         if _agent.status != "dead":
             _alive_per_role[_agent.role] += 1
 
+    # Starvation prevention: promote batches for roles with 0 alive agents to the
+    # front of the spawn queue. Guarantees a starving role gets at least one agent
+    # before over-represented roles receive additional agents. Within each tier
+    # (starving / non-starving), stable sort preserves round-robin ordering from
+    # group_by_role so no role is permanently delayed.
+    _starving_roles: set[str] = {b[0].role for b in batches if b and _alive_per_role[b[0].role] == 0}
+    if _starving_roles:
+        batches = sorted(batches, key=lambda b: 0 if (b and b[0].role in _starving_roles) else 1)
+        logger.debug(
+            "Starvation prevention: %d role(s) with 0 agents promoted to front: %s",
+            len(_starving_roles),
+            sorted(_starving_roles),
+        )
+
     # Track agents spawned this tick per role (avoids stale alive_per_role during loop)
     _spawned_per_role: dict[str, int] = defaultdict(int)
 
@@ -930,6 +948,68 @@ def process_completed_tasks(
                         ", ".join(_qg_failed),
                     )
 
+            # Cross-model verification: route diff to a different model for review.
+            # Runs after quality gates, before the approval gate.
+            _cmv_config: CrossModelVerifierConfig | None = getattr(
+                orch._config, "cross_model_verify", None
+            )
+            if janitor_passed and _cmv_config is not None and _cmv_config.enabled:
+                _cmv_worktree = orch._spawner.get_worktree_path(session.id)
+                _cmv_path = _cmv_worktree if _cmv_worktree is not None else orch._workdir
+                _cmv_writer = session.model_config.model
+                _cmv_verdict = run_cross_model_verification_sync(
+                    task, _cmv_path, _cmv_writer, _cmv_config
+                )
+                if _cmv_verdict.verdict == "request_changes" and _cmv_config.block_on_issues:
+                    janitor_passed = False
+                    _cmv_issues_str = "; ".join(_cmv_verdict.issues) if _cmv_verdict.issues else _cmv_verdict.feedback
+                    with contextlib.suppress(ValueError):
+                        result.verified.remove(task.id)
+                    result.verification_failures.append(
+                        (task.id, [f"cross_model_review:{_cmv_issues_str}"])
+                    )
+                    logger.info(
+                        "Cross-model review blocked merge for task %s (reviewer=%s): %s",
+                        task.id,
+                        _cmv_verdict.reviewer_model,
+                        _cmv_verdict.feedback,
+                    )
+                    # Queue a fix task so the issues get addressed.
+                    _cmv_fix_description = (
+                        f"Cross-model review flagged issues in task {task.id} "
+                        f"({task.title!r}).\n\n"
+                        f"**Reviewer:** {_cmv_verdict.reviewer_model}\n"
+                        f"**Feedback:** {_cmv_verdict.feedback}\n\n"
+                        f"**Issues to fix:**\n"
+                        + "\n".join(f"- {i}" for i in _cmv_verdict.issues)
+                        + f"\n\nOriginal task description:\n{task.description}\n"
+                    )
+                    _cmv_fix_body: dict[str, Any] = {
+                        "title": f"[REVIEW-FIX] {task.title[:80]}",
+                        "description": _cmv_fix_description,
+                        "role": task.role,
+                        "priority": max(1, task.priority - 1),
+                        "scope": "small",
+                        "complexity": "medium",
+                        "owned_files": task.owned_files,
+                    }
+                    try:
+                        orch._client.post(
+                            f"{orch._config.server_url}/tasks", json=_cmv_fix_body
+                        ).raise_for_status()
+                    except httpx.HTTPError as _cmv_exc:
+                        logger.warning(
+                            "cross_model_verifier: failed to create fix task for %s: %s",
+                            task.id,
+                            _cmv_exc,
+                        )
+                else:
+                    logger.info(
+                        "Cross-model review approved task %s (reviewer=%s)",
+                        task.id,
+                        _cmv_verdict.reviewer_model,
+                    )
+
             orch._record_provider_health(session, success=janitor_passed)
             _skip_merge = False
             if janitor_passed and orch._approval_gate is not None:
@@ -1144,11 +1224,26 @@ def _get_changed_files_in_worktree(worktree_path: Path) -> list[str]:
 def _claim_file_ownership(orch: Any, agent_id: str, tasks: list[Task]) -> None:
     """Register file ownership for files in the given tasks.
 
+    Uses :class:`~bernstein.core.file_locks.FileLockManager` when available,
+    falling back to the legacy ``_file_ownership`` dict for compatibility.
+
     Args:
         orch: Orchestrator instance.
         agent_id: The agent claiming ownership.
         tasks: Tasks whose owned_files to claim.
     """
+    lock_manager = getattr(orch, "_lock_manager", None)
     for task in tasks:
-        for fpath in task.owned_files:
+        files = task.owned_files
+        if not files:
+            continue
+        if lock_manager is not None:
+            lock_manager.acquire(
+                files,
+                agent_id=agent_id,
+                task_id=task.id,
+                task_title=task.title,
+            )
+        # Keep legacy dict in sync so existing code that reads _file_ownership still works
+        for fpath in files:
             orch._file_ownership[fpath] = agent_id

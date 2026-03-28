@@ -814,10 +814,17 @@ def send_shutdown_signals(orch: Any, reason: str) -> None:
 def _release_file_ownership(orch: Any, agent_id: str) -> None:
     """Release all files owned by the given agent.
 
+    Uses :class:`~bernstein.core.file_locks.FileLockManager` when available,
+    falling back to the legacy ``_file_ownership`` dict for compatibility.
+
     Args:
         orch: Orchestrator instance.
         agent_id: The agent whose files to release.
     """
+    lock_manager = getattr(orch, "_lock_manager", None)
+    if lock_manager is not None:
+        lock_manager.release(agent_id)
+    # Always clean the legacy dict so tests and code that write to it directly stay consistent
     to_remove = [fp for fp, owner in orch._file_ownership.items() if owner == agent_id]
     for fp in to_remove:
         del orch._file_ownership[fp]

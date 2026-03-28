@@ -14,15 +14,21 @@ The self-healing loop is:
 
 from __future__ import annotations
 
+import logging
 import re
 import subprocess
 import textwrap
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from bernstein.core.ci_log_parser import CILogParser
+
+logger = logging.getLogger(__name__)
 
 
 class CIFailureKind(Enum):
@@ -371,3 +377,274 @@ def check_test_dependencies() -> list[dict[str, str]]:
     )
 
     return checks
+
+
+# ---------------------------------------------------------------------------
+# Log download
+# ---------------------------------------------------------------------------
+
+
+def download_github_actions_log(
+    run_url: str,
+    *,
+    timeout: int = 60,
+) -> str:
+    """Download the failed-step log from a GitHub Actions run.
+
+    Delegates to the GitHub Actions adapter.  This is a convenience
+    wrapper so callers do not need to import the adapter directly.
+
+    Args:
+        run_url: URL of the GitHub Actions run, e.g.
+            ``https://github.com/owner/repo/actions/runs/123456``.
+        timeout: Subprocess timeout in seconds.
+
+    Returns:
+        Raw log text from the failed steps.
+
+    Raises:
+        RuntimeError: If the ``gh`` command fails.
+    """
+    from bernstein.adapters.ci.github_actions import (
+        download_github_actions_log as _download,
+    )
+
+    return _download(run_url, timeout=timeout)
+
+
+# ---------------------------------------------------------------------------
+# CI Fix Pipeline
+# ---------------------------------------------------------------------------
+
+
+class CIFixResult(Enum):
+    """Outcome of a single pipeline iteration."""
+
+    TASK_CREATED = "task_created"
+    NO_FAILURES = "no_failures"
+    MAX_RETRIES = "max_retries"
+    DOWNLOAD_ERROR = "download_error"
+
+
+@dataclass
+class CIFixAttempt:
+    """Record of a single fix attempt.
+
+    Attributes:
+        attempt: 1-based attempt number.
+        failures: Failures parsed from the CI log.
+        result: Outcome of this attempt.
+        timestamp: Unix timestamp of the attempt.
+        task_id: ID of the created fix task (if any).
+        error: Error message if something went wrong.
+    """
+
+    attempt: int
+    failures: list[CIFailure]
+    result: CIFixResult
+    timestamp: float = field(default_factory=time.time)
+    task_id: str = ""
+    error: str = ""
+
+
+@dataclass
+class CIFixPipeline:
+    """Orchestrates the full CI-failure-to-fix-task loop.
+
+    Usage::
+
+        pipeline = CIFixPipeline(
+            server_url="http://127.0.0.1:8052",
+            max_retries=3,
+        )
+        # From a CI run URL:
+        attempts = pipeline.run_from_url("https://github.com/.../runs/123")
+
+        # Or from a raw log:
+        attempts = pipeline.run_from_log(raw_log_text)
+
+    Attributes:
+        server_url: Base URL of the Bernstein task server.
+        max_retries: Maximum number of fix attempts before giving up.
+        parser: Optional CI log parser override.  When ``None``, the
+            default ``GitHubActionsParser`` is used for URL-based runs
+            and the core ``parse_failures`` is used for raw logs.
+        backlog_dir: When set, write tasks as files instead of POSTing
+            to the server (offline mode).
+    """
+
+    server_url: str = "http://127.0.0.1:8052"
+    max_retries: int = 3
+    parser: CILogParser | None = None
+    backlog_dir: Path | None = None
+
+    def run_from_url(self, run_url: str) -> list[CIFixAttempt]:
+        """Download a CI log and create fix task(s).
+
+        This is a single-shot method: it downloads the log once, parses
+        it, and creates at most one fix task.  To retry after the agent
+        has pushed a fix, call this method again — the pipeline tracks
+        attempts internally via the returned list.
+
+        Args:
+            run_url: GitHub Actions run URL.
+
+        Returns:
+            List with one ``CIFixAttempt`` (for caller bookkeeping).
+        """
+        attempt_num = 1
+        try:
+            raw_log = download_github_actions_log(run_url)
+        except Exception as exc:
+            return [
+                CIFixAttempt(
+                    attempt=attempt_num,
+                    failures=[],
+                    result=CIFixResult.DOWNLOAD_ERROR,
+                    error=str(exc),
+                )
+            ]
+
+        return self._process_log(raw_log, run_url=run_url, attempt=attempt_num)
+
+    def run_from_log(self, raw_log: str, *, run_url: str = "") -> list[CIFixAttempt]:
+        """Parse an already-downloaded CI log and create fix task(s).
+
+        Args:
+            raw_log: Raw CI log text.
+            run_url: Optional URL for context.
+
+        Returns:
+            List with one ``CIFixAttempt``.
+        """
+        return self._process_log(raw_log, run_url=run_url, attempt=1)
+
+    def run_loop(
+        self,
+        raw_log: str,
+        *,
+        run_url: str = "",
+    ) -> list[CIFixAttempt]:
+        """Run the fix loop up to ``max_retries`` times on the same log.
+
+        Each iteration creates a fix task.  The loop stops when either
+        no failures are found or the retry limit is reached.
+
+        Note: in real usage the agent would push a fix between iterations,
+        and you would call ``run_from_url`` with the *new* CI run.  This
+        method is primarily useful for testing the retry-limit logic.
+
+        Args:
+            raw_log: Raw CI log text.
+            run_url: Optional URL for context.
+
+        Returns:
+            List of all ``CIFixAttempt`` records.
+        """
+        attempts: list[CIFixAttempt] = []
+        for i in range(1, self.max_retries + 1):
+            result = self._process_log(raw_log, run_url=run_url, attempt=i)
+            attempts.extend(result)
+            last = result[-1] if result else None
+            if last and last.result == CIFixResult.NO_FAILURES:
+                break
+        else:
+            # Exhausted retries — mark the last attempt.
+            if attempts and attempts[-1].result == CIFixResult.TASK_CREATED:
+                attempts.append(
+                    CIFixAttempt(
+                        attempt=self.max_retries + 1,
+                        failures=attempts[-1].failures,
+                        result=CIFixResult.MAX_RETRIES,
+                    )
+                )
+        return attempts
+
+    # -- internal helpers --------------------------------------------------
+
+    def _process_log(
+        self,
+        raw_log: str,
+        *,
+        run_url: str,
+        attempt: int,
+    ) -> list[CIFixAttempt]:
+        """Core logic: parse log, create task, return attempt record.
+
+        Args:
+            raw_log: Raw CI log text.
+            run_url: CI run URL (for context in the task).
+            attempt: 1-based attempt number.
+
+        Returns:
+            Single-element list with the attempt record.
+        """
+        failures = self._parse(raw_log)
+        if not failures:
+            return [
+                CIFixAttempt(
+                    attempt=attempt,
+                    failures=[],
+                    result=CIFixResult.NO_FAILURES,
+                )
+            ]
+
+        task_id = self._create_task(failures, run_url=run_url)
+        return [
+            CIFixAttempt(
+                attempt=attempt,
+                failures=failures,
+                result=CIFixResult.TASK_CREATED,
+                task_id=task_id,
+            )
+        ]
+
+    def _parse(self, raw_log: str) -> list[CIFailure]:
+        """Parse failures using the configured parser or the default.
+
+        Args:
+            raw_log: Raw CI log text.
+
+        Returns:
+            List of ``CIFailure`` objects.  An ``UNKNOWN`` failure with
+            no actionable content is filtered out.
+        """
+        failures = self.parser.parse(raw_log) if self.parser is not None else parse_failures(raw_log)
+
+        # Filter out a lone UNKNOWN with empty details (means "no real failure").
+        if len(failures) == 1 and failures[0].kind == CIFailureKind.UNKNOWN and not failures[0].details.strip():
+            return []
+        return failures
+
+    def _create_task(
+        self,
+        failures: list[CIFailure],
+        *,
+        run_url: str,
+    ) -> str:
+        """Create a fix task via the server or the backlog directory.
+
+        Args:
+            failures: Parsed CI failures.
+            run_url: CI run URL.
+
+        Returns:
+            Task ID string (from server response or generated filename).
+        """
+        payload = build_task_payload(failures, run_url)
+        payload["role"] = "ci-fixer"
+
+        if self.backlog_dir is not None:
+            path = write_ci_fix_task(self.backlog_dir, failures, run_url)
+            task_id = path.stem
+            logger.info("CI fix task written to backlog: %s", task_id)
+            return task_id
+
+        ok = post_ci_fix_task(self.server_url, failures, run_url)
+        if ok:
+            task_id = f"ci-fix-{int(time.time())}"
+            logger.info("CI fix task posted to server: %s", task_id)
+            return task_id
+
+        logger.warning("Failed to post CI fix task to server; writing to fallback")
+        return ""

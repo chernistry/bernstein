@@ -188,6 +188,8 @@ Any tool, CI pipeline, Slack bot, or custom UI can create tasks and read status.
 
 CrewAI, AutoGen, and LangGraph work with any model via API wrappers — but they require you to write Python code to orchestrate. Ruflo uses self-evolution but ties you to Claude. Bernstein works with installed CLI agents (no API key plumbing, no SDK) and doesn't care which provider you use.
 
+**[Full comparison pages →](docs/compare/README.md)** — detailed feature matrices, benchmark data, and "when to use X instead" guides for Conductor, Dorothy, Parallel Code, Crystal, Stoneforge, and single-agent workflows.
+
 </details>
 
 ## Observability
@@ -238,4 +240,4 @@ PRs welcome. [CONTRIBUTING.md](CONTRIBUTING.md) | [Issues](https://github.com/ch
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE) -- Free for non-commercial use. Commercial licensing: [alex@alexchernysh.com](mailto:alex@alexchernysh.com)
+[Apache License 2.0](LICENSE)

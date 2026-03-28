@@ -17,7 +17,7 @@ How Bernstein compares to other multi-agent frameworks, as of March 2026.
 | **Multi-turn conversation** | No — agents are short-lived (1-3 tasks, then exit) | Yes — agents converse in roles | Yes — strong multi-turn, multi-party conversations | Yes — stateful conversation graphs | Yes — built for conversation handoffs | Yes — multi-turn with session state |
 | **Visual workflow builder** | No | No | AutoGen Studio provides a UI | LangGraph Studio provides a UI | No | No |
 | **Ecosystem / integrations** | Adapters for major CLI agents; MCP server registry | LangChain ecosystem, many tool integrations | Microsoft ecosystem, Azure integration | Full LangChain/LangSmith ecosystem | OpenAI platform (tools, retrieval, code interpreter) | Google Cloud, Vertex AI, A2A protocol |
-| **Open source license** | PolyForm Noncommercial (commercial license available) | Apache 2.0 | Apache 2.0 (with CC-BY-SA docs) | MIT | MIT | Apache 2.0 |
+| **Open source license** | Apache 2.0 | Apache 2.0 | Apache 2.0 (with CC-BY-SA docs) | MIT | MIT | Apache 2.0 |
 
 ## Where Bernstein is different
 
@@ -39,4 +39,4 @@ How Bernstein compares to other multi-agent frameworks, as of March 2026.
 
 **Visual development.** AutoGen Studio and LangGraph Studio offer visual workflow builders for designing and debugging agent pipelines. Bernstein is CLI-first with no GUI.
 
-**Permissive licensing.** CrewAI, AutoGen, LangGraph, OpenAI Agents SDK, and Google ADK all use permissive open source licenses (Apache 2.0 or MIT). Bernstein uses PolyForm Noncommercial, which means commercial use requires a separate license.
+**Permissive licensing.** All frameworks in this comparison, including Bernstein, use permissive open source licenses (Apache 2.0 or MIT).

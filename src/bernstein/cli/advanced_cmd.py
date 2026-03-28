@@ -42,25 +42,25 @@ from bernstein.cli.helpers import (
     help="Polling interval in seconds.",
 )
 @click.option(
-    "--textual",
+    "--classic",
     is_flag=True,
     default=False,
-    help="Use the experimental Textual TUI (interactive, htop-style).",
+    help="Use the classic Rich Live display instead of the interactive TUI.",
 )
-def live(interval: float, textual: bool) -> None:
+def live(interval: float, classic: bool) -> None:
     """Live dashboard: active agents, task events, and stats (Ctrl+C to exit).
 
-    Shows the classic Rich Live display by default.
-    Pass --textual for the interactive Textual TUI with keyboard controls.
+    Launches the interactive Textual TUI by default (mouse + keyboard).
+    Pass --classic for the simpler Rich Live display.
     """
-    if textual:
+    if not classic:
         from bernstein.tui.app import BernsteinApp
 
         app = BernsteinApp(poll_interval=interval)
         app.run()
         return
 
-    # -- classic Rich Live display (default) --
+    # -- classic Rich Live display --
     from bernstein.cli.live import LiveView
 
     print_banner()

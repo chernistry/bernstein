@@ -338,7 +338,7 @@ class BernsteinApp(App):
                 yield DataTable(id="tasks-table")
         with Vertical(id="activity-bar"):
             yield Static("ACTIVITY", classes="col-header")
-            yield RichLog(id="activity-log", wrap=True, markup=True)
+            yield RichLog(id="activity-log", wrap=True, markup=True, auto_scroll=True, can_focus=False)
         with Vertical(id="bottom-bar"):
             yield BigStats(id="stats-row")
             with Horizontal(id="spark-row"):
@@ -541,6 +541,73 @@ class BernsteinApp(App):
     def _clear_stop_pending(self) -> None:
         self._stop_pending = False  # type: ignore[attr-defined]
 
+    _SYSTEM_COMMANDS: ClassVar[dict[str, str]] = {}
+
+    @classmethod
+    def _init_system_commands(cls) -> dict[str, str]:
+        """Build keyword→action map for system commands handled by dashboard, not agents."""
+        if not cls._SYSTEM_COMMANDS:
+            stop_words = (
+                "stop", "halt", "shut", "kill", "exit", "quit",
+                "остано", "выключ", "заверш", "убей", "стоп",
+                "засып", "выход",
+            )
+            save_words = (
+                "save", "commit", "push",
+                "сохран", "коммит", "запуш",
+            )
+            for w in stop_words:
+                cls._SYSTEM_COMMANDS[w] = "stop"
+            for w in save_words:
+                cls._SYSTEM_COMMANDS[w] = "save"
+        return cls._SYSTEM_COMMANDS
+
+    def _is_system_command(self, text: str) -> str | None:
+        """Check if chat input is a system command, not a task. Returns action or None."""
+        lower = text.lower()
+        cmds = self._init_system_commands()
+        # Check save first (user might say "save and stop")
+        for keyword, action in cmds.items():
+            if action == "save" and keyword in lower:
+                return "save"
+        for keyword, action in cmds.items():
+            if action == "stop" and keyword in lower:
+                return "stop"
+        return None
+
+    def _handle_system_command(self, action: str, text: str) -> None:
+        """Execute a system command from chat input."""
+        lower = text.lower()
+        # Detect combo: save + stop
+        wants_stop = any(k in lower for k in ("stop", "halt", "shut", "kill", "exit", "quit",
+                                                "остано", "выключ", "заверш", "стоп", "засып"))
+
+        if action == "save":
+            self.notify("Saving work (committing changes)...", severity="information")
+            import subprocess
+            result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                capture_output=True, text=True, cwd=".",
+            )
+            if result.stdout.strip():
+                subprocess.run(
+                    ["git", "add", "-A"], capture_output=True, cwd=".",
+                )
+                subprocess.run(
+                    ["git", "commit", "-m", f"Dashboard save: {text[:50]}"],
+                    capture_output=True, cwd=".",
+                )
+                self.notify("Changes committed.", severity="information")
+            else:
+                self.notify("Nothing to save — working tree clean.", severity="information")
+            # If user also asked to stop, do it after save
+            if wants_stop:
+                self.notify("Stopping all agents...", severity="warning")
+                self.set_timer(1.0, lambda: self.action_stop_bernstein())
+        elif action == "stop":
+            self.notify("Stopping all agents...", severity="warning")
+            self.action_stop_bernstein()
+
     @staticmethod
     def _detect_role(text: str) -> str:
         """Infer the best role from task description keywords."""
@@ -563,6 +630,13 @@ class BernsteinApp(App):
         if not text:
             return
         event.input.value = ""
+
+        # System commands (stop/save/quit) are handled by dashboard, not agents
+        system_action = self._is_system_command(text)
+        if system_action:
+            self._handle_system_command(system_action, text)
+            return
+
         role = self._detect_role(text)
         try:
             resp = httpx.post(

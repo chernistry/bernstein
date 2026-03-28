@@ -49,11 +49,19 @@ export function activate(context: vscode.ExtensionContext): void {
   const timer = setInterval(() => void refresh(), refreshIntervalSecs * 1000);
   context.subscriptions.push({ dispose: () => clearInterval(timer) });
 
+  // Debounced refresh — max 2 updates per second from SSE events
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  const debouncedRefresh = (): void => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => void refresh(), 500);
+  };
+  context.subscriptions.push({ dispose: () => clearTimeout(debounceTimer) });
+
   // SSE real-time updates
   stopSse = client.subscribeToEvents(
     (event, rawData) => {
       if (event === 'task_update' || event === 'agent_update') {
-        void refresh();
+        debouncedRefresh();
       }
       if (event === 'agent_output') {
         try {

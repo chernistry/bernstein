@@ -12,6 +12,12 @@ export function registerCommands(
 ): void {
   context.subscriptions.push(
 
+    vscode.commands.registerCommand('bernstein.start', () => {
+      const terminal = vscode.window.createTerminal({ name: 'Bernstein' });
+      terminal.show();
+      terminal.sendText('bernstein run');
+    }),
+
     vscode.commands.registerCommand('bernstein.refresh', onRefresh),
 
     vscode.commands.registerCommand('bernstein.showDashboard', () => {

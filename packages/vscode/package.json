@@ -47,6 +47,7 @@
       ]
     },
     "commands": [
+      { "command": "bernstein.start", "title": "Bernstein: Start", "icon": "$(play)" },
       { "command": "bernstein.refresh", "title": "Bernstein: Refresh", "icon": "$(refresh)" },
       { "command": "bernstein.showDashboard", "title": "Bernstein: Show Dashboard", "icon": "$(browser)" },
       { "command": "bernstein.killAgent", "title": "Bernstein: Kill Agent", "icon": "$(stop)" },

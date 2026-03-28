@@ -9,7 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write   # needed to create GitHub Release
 
     steps:
       - uses: actions/checkout@v4
@@ -40,25 +40,38 @@ jobs:
         working-directory: packages/vscode
         run: npx vsce package --no-dependencies
 
-      # Requires VSCE_PAT secret from marketplace.visualstudio.com/manage
+      # Publish to VS Code Marketplace (requires VS_MARKETPLACE_TOKEN secret)
       - name: Publish to VS Code Marketplace
-        if: ${{ secrets.VSCE_PAT != '' }}
-        working-directory: packages/vscode
-        run: npx vsce publish --no-dependencies --packagePath *.vsix
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-
-      # Requires OVSX_PAT secret — Cursor/VSCodium/Gitpod use Open VSX
-      - name: Publish to Open VSX
-        if: ${{ secrets.OVSX_PAT != '' }}
-        working-directory: packages/vscode
-        run: npx ovsx publish --packagePath *.vsix
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
-
-      - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
+        if: ${{ secrets.VS_MARKETPLACE_TOKEN != '' }}
+        uses: HaaLeo/publish-vscode-extension@v1
         with:
-          name: bernstein-vscode-${{ github.ref_name }}
-          path: packages/vscode/*.vsix
-          retention-days: 30
+          pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
+          registryUrl: https://marketplace.visualstudio.com
+
+      # Publish to Open VSX — used by Cursor, VSCodium, Gitpod (requires OPEN_VSX_TOKEN secret)
+      - name: Publish to Open VSX
+        if: ${{ secrets.OPEN_VSX_TOKEN != '' }}
+        uses: HaaLeo/publish-vscode-extension@v1
+        with:
+          pat: ${{ secrets.OPEN_VSX_TOKEN }}
+          registryUrl: https://open-vsx.org
+
+      # Upload VSIX as GitHub Release asset for direct installation fallback
+      - name: Create GitHub Release with VSIX
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packages/vscode/*.vsix
+          body: |
+            ## Bernstein VS Code Extension ${{ github.ref_name }}
+
+            ### Install options
+
+            1. **VS Code Marketplace** — search "bernstein" in VS Code extensions
+            2. **Cursor / Open VSX** — search "bernstein" in Cursor extensions
+            3. **Manual install from VSIX**:
+               ```
+               code --install-extension bernstein-*.vsix
+               ```
+               or: Extensions panel → ⋯ → Install from VSIX…
+          draft: false
+          prerelease: false

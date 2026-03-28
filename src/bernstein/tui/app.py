@@ -4,17 +4,26 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import time
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import httpx
 from textual.app import App, ComposeResult
 from textual.binding import Binding, BindingType
-from textual.containers import Horizontal
-from textual.widgets import Footer, Header
+from textual.containers import Vertical
 
-from bernstein.tui.widgets import AgentLogWidget, StatusBar, TaskListWidget, TaskRow
+if TYPE_CHECKING:
+    from textual.widgets import DataTable
+
+from bernstein.tui.widgets import (
+    ActionBar,
+    AgentLogWidget,
+    StatusBar,
+    TaskListWidget,
+    TaskRow,
+)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -55,6 +64,84 @@ def _get(path: str) -> dict[str, Any] | list[Any] | None:
         return None
 
 
+def _post(path: str, data: dict[str, Any] | None = None) -> dict[str, Any] | None:
+    """HTTP POST to the task server.
+
+    Args:
+        path: URL path (e.g. "/shutdown").
+        data: JSON body payload.
+
+    Returns:
+        Parsed JSON response, or None on failure.
+    """
+    try:
+        resp = httpx.post(
+            f"{SERVER_URL}{path}",
+            json=data or {},
+            timeout=5.0,
+            headers=_auth_headers(),
+        )
+        resp.raise_for_status()
+        return resp.json()  # type: ignore[no-any-return]
+    except Exception:
+        return None
+
+
+def _kill_agent(session_id: str) -> bool:
+    """Kill an agent process by its session ID.
+
+    Reads agents.json to find the PID, then sends SIGTERM to the process group.
+
+    Args:
+        session_id: The agent's session identifier.
+
+    Returns:
+        True if the signal was sent successfully, False otherwise.
+    """
+    agents_json = Path(".sdd/runtime/agents.json")
+    if not agents_json.exists():
+        return False
+    try:
+        data = json.loads(agents_json.read_text())
+    except (OSError, ValueError):
+        return False
+    for agent in data.get("agents", []):
+        if agent.get("id") == session_id:
+            pid = agent.get("pid")
+            if pid:
+                try:
+                    os.killpg(os.getpgid(int(pid)), signal.SIGTERM)
+                    return True
+                except OSError:
+                    pass
+    return False
+
+
+def _kill_all_agents() -> int:
+    """Kill all agent processes listed in agents.json.
+
+    Returns:
+        Number of agents successfully signalled.
+    """
+    agents_json = Path(".sdd/runtime/agents.json")
+    if not agents_json.exists():
+        return 0
+    try:
+        data = json.loads(agents_json.read_text())
+    except (OSError, ValueError):
+        return 0
+    killed = 0
+    for agent in data.get("agents", []):
+        pid = agent.get("pid")
+        if pid:
+            try:
+                os.killpg(os.getpgid(int(pid)), signal.SIGTERM)
+                killed += 1
+            except OSError:
+                pass
+    return killed
+
+
 # ---------------------------------------------------------------------------
 # Application
 # ---------------------------------------------------------------------------
@@ -63,15 +150,25 @@ CSS_PATH = "styles.tcss"
 
 
 class BernsteinApp(App[None]):
-    """Textual TUI for monitoring a Bernstein orchestration session."""
+    """Textual TUI for monitoring a Bernstein orchestration session.
+
+    Slim, htop-inspired layout: no Header/Footer widgets, single-line
+    status bar, interactive task list with action bar, and a compact log.
+    """
 
     TITLE = "Bernstein"
     CSS_PATH = CSS_PATH
 
     BINDINGS: ClassVar[list[BindingType]] = [
-        Binding("q", "quit", "Quit"),
-        Binding("tab", "focus_next", "Switch focus"),
-        Binding("r", "refresh", "Refresh"),
+        Binding("q", "quit", "Quit", show=False),
+        Binding("r", "refresh", "Refresh", show=False),
+        Binding("s", "soft_stop", "Soft stop", show=False),
+        Binding("S", "hard_stop", "Hard stop", show=False, priority=True),
+        Binding("enter", "toggle_action_bar", "Actions", show=False),
+        Binding("k", "kill_agent", "Kill agent", show=False),
+        Binding("escape", "close_action_bar", "Close", show=False),
+        Binding("j", "cursor_down", "Down", show=False),
+        Binding("k", "cursor_up", "Up", show=False, priority=True),
     ]
 
     def __init__(self, *, poll_interval: float = _POLL_INTERVAL) -> None:
@@ -83,20 +180,25 @@ class BernsteinApp(App[None]):
         super().__init__()
         self._poll_interval = poll_interval
         self._start_ts = time.time()
+        self._action_bar_visible = False
+        self._current_rows: list[TaskRow] = []
 
     # -- layout ---------------------------------------------------------------
 
     def compose(self) -> ComposeResult:
-        """Build the widget tree."""
-        yield Header()
+        """Build the widget tree: status bar, task table, action bar, log."""
         yield StatusBar(id="top-bar")
-        with Horizontal(id="main-content"):
+        with Vertical(id="main-body"):
             yield TaskListWidget(id="task-list")
+            yield ActionBar(id="action-bar")
             yield AgentLogWidget(id="agent-log")
-        yield Footer()
 
     def on_mount(self) -> None:
         """Start the periodic poll timer after mounting."""
+        # Hide action bar initially.
+        action_bar = self.query_one("#action-bar", ActionBar)
+        action_bar.display = False
+
         self.set_interval(self._poll_interval, self._poll_server)
         # Fire an immediate poll so the UI is populated straight away.
         self.call_later(self._poll_server)
@@ -106,6 +208,97 @@ class BernsteinApp(App[None]):
     def action_refresh(self) -> None:
         """Force an immediate server poll (bound to 'r')."""
         self._poll_server()
+
+    def action_soft_stop(self) -> None:
+        """Soft stop: POST to /shutdown and show status."""
+        status_bar = self.query_one("#top-bar", StatusBar)
+        log_widget = self.query_one("#agent-log", AgentLogWidget)
+        result = _post("/shutdown")
+        if result is not None:
+            log_widget.append_line("[yellow]Soft stop requested \u2014 waiting for agents...[/yellow]")
+        else:
+            log_widget.append_line("[red]Soft stop failed \u2014 server unreachable[/red]")
+        status_bar.update("Stopping...")
+
+    def action_hard_stop(self) -> None:
+        """Hard stop: kill all agent PIDs immediately."""
+        log_widget = self.query_one("#agent-log", AgentLogWidget)
+        killed = _kill_all_agents()
+        log_widget.append_line(f"[bold red]Hard stop \u2014 killed {killed} agent(s)[/bold red]")
+
+    def action_toggle_action_bar(self) -> None:
+        """Toggle the inline action bar for the selected task."""
+        task_list = self.query_one("#task-list", TaskListWidget)
+        action_bar = self.query_one("#action-bar", ActionBar)
+
+        if self._action_bar_visible:
+            action_bar.display = False
+            self._action_bar_visible = False
+            return
+
+        # Find the selected task row.
+        row_key, _ = task_list.coordinate_to_cell_key(task_list.cursor_coordinate)
+        task_id = str(row_key.value) if row_key.value is not None else ""
+        if not task_id:
+            return
+
+        action_bar.set_task(task_id)
+        action_bar.display = True
+        self._action_bar_visible = True
+
+    def action_close_action_bar(self) -> None:
+        """Close the action bar if visible."""
+        if self._action_bar_visible:
+            action_bar = self.query_one("#action-bar", ActionBar)
+            action_bar.display = False
+            self._action_bar_visible = False
+
+    def action_kill_agent(self) -> None:
+        """Kill the agent for the currently selected task."""
+        task_list = self.query_one("#task-list", TaskListWidget)
+        log_widget = self.query_one("#agent-log", AgentLogWidget)
+
+        row_key, _ = task_list.coordinate_to_cell_key(task_list.cursor_coordinate)
+        task_id = str(row_key.value) if row_key.value is not None else ""
+        if not task_id:
+            return
+
+        # Find session_id from cached rows.
+        session_id = ""
+        for r in self._current_rows:
+            if r.task_id == task_id:
+                session_id = r.session_id
+                break
+
+        if session_id and _kill_agent(session_id):
+            log_widget.append_line(f"[red]Killed agent {session_id} (task {task_id})[/red]")
+        else:
+            log_widget.append_line(f"[dim]No running agent found for task {task_id}[/dim]")
+
+    def action_cursor_down(self) -> None:
+        """Move task list cursor down."""
+        task_list = self.query_one("#task-list", TaskListWidget)
+        task_list.action_cursor_down()
+
+    def action_cursor_up(self) -> None:
+        """Move task list cursor up."""
+        task_list = self.query_one("#task-list", TaskListWidget)
+        task_list.action_cursor_up()
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Handle click/Enter on a task row \u2014 toggle the action bar.
+
+        Args:
+            event: The row-selected event from the DataTable.
+        """
+        action_bar = self.query_one("#action-bar", ActionBar)
+        task_id = str(event.row_key.value) if event.row_key.value is not None else ""
+        if not task_id:
+            return
+
+        action_bar.set_task(task_id)
+        action_bar.display = True
+        self._action_bar_visible = True
 
     # -- data fetching --------------------------------------------------------
 
@@ -125,11 +318,12 @@ class BernsteinApp(App[None]):
             [t for t in tasks_raw if isinstance(t, dict)] if isinstance(tasks_raw, list) else []
         )
 
-        # Parse tasks
+        # Parse tasks.
         rows = [TaskRow.from_api(t) for t in tasks]
+        self._current_rows = rows
         task_list.refresh_tasks(rows)
 
-        # Agent count from agents.json
+        # Agent count from agents.json.
         agents_active = self._count_active_agents()
 
         elapsed = time.time() - self._start_ts
@@ -143,7 +337,7 @@ class BernsteinApp(App[None]):
             server_online=True,
         )
 
-        # Append recent task completions / failures to the log
+        # Append recent task completions / failures to the log.
         self._update_log(log_widget, tasks)
 
     @staticmethod
@@ -172,12 +366,10 @@ class BernsteinApp(App[None]):
             log_widget: The RichLog widget to append to.
             tasks: Raw task dicts from the server.
         """
-        # Show progress_log entries from tasks that have them
         for task in tasks:
             progress: list[dict[str, Any]] = task.get("progress_log", [])
             if not progress:
                 continue
-            # Show the most recent log entry per task
             last = progress[-1]
             msg = last.get("message", "")
             task_id = task.get("id", "?")

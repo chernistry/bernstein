@@ -1,44 +1,60 @@
-/* Bernstein TUI — dark theme */
+/* Bernstein TUI — slim, htop-inspired dark theme */
 
 Screen {
     background: $surface;
 }
 
-Header {
-    dock: top;
-    height: 1;
-    background: $primary;
-    color: $text;
-}
-
-Footer {
-    dock: bottom;
-    height: 1;
-}
+/* No Header or Footer — everything is inline */
 
 #top-bar {
     dock: top;
-    height: 3;
-    background: $surface-darken-1;
-    padding: 0 2;
+    height: 1;
+    background: $primary-darken-3;
+    color: $text;
+    padding: 0 1;
     content-align: left middle;
 }
 
-#main-content {
-    layout: horizontal;
+/* Thin separator between status bar and body */
+#main-body {
+    height: 1fr;
 }
 
 #task-list {
-    width: 40%;
-    border: solid $primary;
+    height: 1fr;
+    min-height: 6;
+    border: none;
+    scrollbar-size: 1 1;
+}
+
+/* Slim cursor and row styling */
+#task-list > .datatable--cursor {
+    background: $primary-darken-1;
+}
+
+#task-list > .datatable--header {
+    background: $surface-darken-1;
+    text-style: bold;
+    height: 1;
+}
+
+#action-bar {
+    height: 1;
+    background: $surface-darken-2;
+    color: $text;
+    padding: 0 1;
+    display: none;
 }
 
 #agent-log {
-    width: 60%;
-    border: solid $secondary;
+    height: 8;
+    min-height: 4;
+    border-top: thin $surface-lighten-2;
+    padding: 0 1;
+    scrollbar-size: 1 1;
 }
 
-/* Status colour classes */
+/* Status colour classes (kept for any custom usage) */
 .status-open {
     color: white;
 }
@@ -65,11 +81,4 @@ Footer {
 
 .status-cancelled {
     color: $text-muted;
-}
-
-StatusBar {
-    height: 3;
-    background: $surface-darken-1;
-    padding: 0 2;
-    content-align: left middle;
 }

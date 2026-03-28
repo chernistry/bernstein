@@ -7,14 +7,17 @@ from typing import Any
 
 import pytest
 
-from bernstein.tui.app import BernsteinApp
+from bernstein.tui.app import BernsteinApp, _kill_agent, _kill_all_agents
 from bernstein.tui.widgets import (
     STATUS_COLORS,
+    STATUS_DOTS,
+    ActionBar,
     AgentLogWidget,
     StatusBar,
     TaskListWidget,
     TaskRow,
     status_color,
+    status_dot,
 )
 
 
@@ -50,6 +53,28 @@ class TestStatusColors:
         assert set(STATUS_COLORS.keys()) == expected
 
 
+class TestStatusDots:
+    """Tests for status dot symbols."""
+
+    def test_open_is_hollow(self) -> None:
+        assert status_dot("open") == "\u25cb"
+
+    def test_in_progress_is_filled(self) -> None:
+        assert status_dot("in_progress") == "\u25cf"
+
+    def test_done_is_filled(self) -> None:
+        assert status_dot("done") == "\u25cf"
+
+    def test_failed_is_filled(self) -> None:
+        assert status_dot("failed") == "\u25cf"
+
+    def test_unknown_defaults_to_hollow(self) -> None:
+        assert status_dot("xyz") == "\u25cb"
+
+    def test_dots_cover_same_statuses_as_colors(self) -> None:
+        assert set(STATUS_DOTS.keys()) == set(STATUS_COLORS.keys())
+
+
 class TestTaskRow:
     """Tests for TaskRow.from_api parsing."""
 
@@ -59,12 +84,18 @@ class TestTaskRow:
             "status": "in_progress",
             "role": "backend",
             "title": "Implement login",
+            "model": "sonnet",
+            "elapsed": "34s",
+            "session_id": "abc123",
         }
         row = TaskRow.from_api(raw)
         assert row.task_id == "t-001"
         assert row.status == "in_progress"
         assert row.role == "backend"
         assert row.title == "Implement login"
+        assert row.model == "sonnet"
+        assert row.elapsed == "34s"
+        assert row.session_id == "abc123"
 
     def test_missing_fields_use_defaults(self) -> None:
         row = TaskRow.from_api({})
@@ -72,6 +103,9 @@ class TestTaskRow:
         assert row.status == "open"
         assert row.role == ""
         assert row.title == ""
+        assert row.model == "\u2014"
+        assert row.elapsed == "\u2014"
+        assert row.session_id == ""
 
     def test_numeric_id_coerced_to_str(self) -> None:
         raw: dict[str, Any] = {"id": 42, "status": "done", "role": "qa", "title": "Test things"}
@@ -107,6 +141,10 @@ class TestWidgetCreation:
         widget = StatusBar("initial")
         assert widget is not None
 
+    def test_action_bar(self) -> None:
+        widget = ActionBar()
+        assert widget is not None
+
 
 class TestAppInstantiation:
     """Tests that the Textual app can be created."""
@@ -124,11 +162,27 @@ class TestAppInstantiation:
         app = BernsteinApp()
         binding_keys = {b.key for b in app.BINDINGS if hasattr(b, "key")}
         assert "q" in binding_keys
-        assert "tab" in binding_keys
         assert "r" in binding_keys
+        assert "s" in binding_keys
+        assert "S" in binding_keys
+        assert "enter" in binding_keys
 
     def test_count_active_agents_no_file(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Returns 0 when agents.json does not exist."""
         monkeypatch.chdir(tmp_path)
         count = BernsteinApp._count_active_agents()  # noqa: SLF001
         assert count == 0
+
+
+class TestKillAgent:
+    """Tests for agent kill helpers."""
+
+    def test_kill_agent_no_file(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Returns False when agents.json does not exist."""
+        monkeypatch.chdir(tmp_path)
+        assert _kill_agent("nonexistent") is False
+
+    def test_kill_all_agents_no_file(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Returns 0 when agents.json does not exist."""
+        monkeypatch.chdir(tmp_path)
+        assert _kill_all_agents() == 0

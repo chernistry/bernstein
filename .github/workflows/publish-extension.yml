@@ -1,0 +1,64 @@
+name: Publish VS Code Extension
+
+on:
+  push:
+    tags:
+      - 'vscode-v*'   # trigger: git tag vscode-v0.1.0 && git push --tags
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: packages/vscode/package-lock.json
+
+      - name: Install dependencies
+        working-directory: packages/vscode
+        run: npm ci
+
+      - name: Type check
+        working-directory: packages/vscode
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        working-directory: packages/vscode
+        run: npm test
+
+      - name: Build extension
+        working-directory: packages/vscode
+        run: npm run compile
+
+      - name: Package extension
+        working-directory: packages/vscode
+        run: npx vsce package --no-dependencies
+
+      # Requires VSCE_PAT secret from marketplace.visualstudio.com/manage
+      - name: Publish to VS Code Marketplace
+        if: ${{ secrets.VSCE_PAT != '' }}
+        working-directory: packages/vscode
+        run: npx vsce publish --no-dependencies --packagePath *.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      # Requires OVSX_PAT secret — Cursor/VSCodium/Gitpod use Open VSX
+      - name: Publish to Open VSX
+        if: ${{ secrets.OVSX_PAT != '' }}
+        working-directory: packages/vscode
+        run: npx ovsx publish --packagePath *.vsix
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bernstein-vscode-${{ github.ref_name }}
+          path: packages/vscode/*.vsix
+          retention-days: 30

@@ -1,0 +1,90 @@
+{
+  "name": "bernstein",
+  "displayName": "Bernstein",
+  "description": "Multi-agent orchestration — monitor agents, track tasks, and control your team from VS Code",
+  "version": "0.1.0",
+  "publisher": "bernstein",
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Other"],
+  "icon": "media/bernstein-icon.png",
+  "repository": { "type": "git", "url": "https://github.com/YOUR_ORG/bernstein" },
+  "license": "MIT",
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Bernstein",
+      "properties": {
+        "bernstein.apiUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8052",
+          "description": "Bernstein orchestrator API URL"
+        },
+        "bernstein.apiToken": {
+          "type": "string",
+          "default": "",
+          "description": "Bearer token for Bernstein API (optional)"
+        },
+        "bernstein.refreshInterval": {
+          "type": "number",
+          "default": 5,
+          "description": "Tree view refresh interval in seconds"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "bernstein", "title": "Bernstein", "icon": "media/bernstein-icon.svg" }
+      ]
+    },
+    "views": {
+      "bernstein": [
+        { "id": "bernstein.agents", "name": "Agents" },
+        { "id": "bernstein.tasks", "name": "Tasks" },
+        { "id": "bernstein.dashboard", "name": "Overview", "type": "webview" }
+      ]
+    },
+    "commands": [
+      { "command": "bernstein.refresh", "title": "Bernstein: Refresh", "icon": "$(refresh)" },
+      { "command": "bernstein.showDashboard", "title": "Bernstein: Show Dashboard", "icon": "$(browser)" },
+      { "command": "bernstein.killAgent", "title": "Bernstein: Kill Agent", "icon": "$(stop)" },
+      { "command": "bernstein.showAgentOutput", "title": "Bernstein: Show Agent Output", "icon": "$(output)" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "bernstein.refresh", "when": "view == bernstein.agents || view == bernstein.tasks", "group": "navigation" },
+        { "command": "bernstein.showDashboard", "when": "view == bernstein.agents", "group": "navigation" }
+      ],
+      "view/item/context": [
+        { "command": "bernstein.killAgent", "when": "view == bernstein.agents && viewItem == agent.active", "group": "inline" },
+        { "command": "bernstein.showAgentOutput", "when": "view == bernstein.agents && viewItem == agent.active", "group": "inline" }
+      ]
+    },
+    "chatParticipants": [
+      {
+        "id": "bernstein.chat",
+        "fullName": "Bernstein Orchestrator",
+        "name": "bernstein",
+        "description": "Query Bernstein orchestrator status and control agents",
+        "isSticky": false
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "test": "npx jest",
+    "package": "npm run compile && vsce package --no-dependencies",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5",
+    "@types/node": "^20",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^2.26",
+    "esbuild": "^0.21",
+    "jest": "^29.7",
+    "ts-jest": "^29.1",
+    "typescript": "^5.4"
+  }
+}

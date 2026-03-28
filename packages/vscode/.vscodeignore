@@ -1,0 +1,12 @@
+**/.git/**
+**/.gitignore
+**/*.ts
+!dist/**/*.d.ts
+**/*.map
+**/.vscode/**
+**/node_modules/**
+**/src/**
+**/esbuild.mjs
+**/jest.config.js
+**/tsconfig.json
+**/.vscodeignore

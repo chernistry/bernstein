@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -550,6 +551,24 @@ class TaskStore:
         """Flush any buffered JSONL records to disk (acquires the store lock)."""
         async with self._lock:
             await self._flush_buffer_unlocked()
+
+    async def startup(self) -> None:
+        """Initialise the store by replaying persisted JSONL state.
+
+        Provides a uniform lifecycle entry-point that mirrors the
+        ``startup()`` method expected by
+        :func:`~bernstein.core.server.create_app` for all store backends.
+        """
+        self.replay_jsonl()
+
+    async def shutdown(self) -> None:
+        """Flush buffered writes to disk.
+
+        Provides a uniform lifecycle exit-point that mirrors the
+        ``shutdown()`` method expected by
+        :func:`~bernstein.core.server.create_app` for all store backends.
+        """
+        await self.flush_buffer()
 
     async def _append_archive(self, task: Task, completed_at: float) -> None:
         """Append a completed/failed task record to the archive JSONL."""
@@ -1231,17 +1250,29 @@ def create_app(
     metrics_jsonl_path: Path | None = None,
     auth_token: str | None = None,
     cluster_config: ClusterConfig | None = None,
+    store: TaskStore | None = None,
 ) -> FastAPI:
     """Build and return the FastAPI application.
 
     Args:
-        jsonl_path: Where to persist the JSONL task log.
+        jsonl_path: Where to persist the JSONL task log.  Ignored when *store*
+            is provided.
         metrics_jsonl_path: Path to the metrics JSONL for cost reporting.
             Defaults to <jsonl_path.parent.parent>/metrics/tasks.jsonl.
+            Ignored when *store* is provided.
         auth_token: If set, all API requests must include a matching
             ``Authorization: Bearer <token>`` header.
         cluster_config: Cluster mode configuration. If provided and
             enabled, node registration and cluster endpoints are active.
+        store: Pre-constructed task store to use instead of the default
+            in-memory :class:`TaskStore`.  When supplied, *jsonl_path* and
+            *metrics_jsonl_path* are ignored.  Pass a
+            :class:`~bernstein.core.store_postgres.PostgresTaskStore` or the
+            result of
+            :func:`~bernstein.core.store_factory.create_store` to use an
+            alternative backend.  The store's ``startup()`` and
+            ``shutdown()`` lifecycle methods are called automatically by the
+            FastAPI lifespan.
 
     Returns:
         Configured FastAPI app with all routes registered.
@@ -1253,14 +1284,18 @@ def create_app(
     effective_cluster = cluster_config or ClusterConfig()
     node_registry = NodeRegistry(effective_cluster)
 
-    store = TaskStore(jsonl_path, metrics_jsonl_path=metrics_jsonl_path)
+    effective_store: TaskStore = (
+        store if store is not None
+        else TaskStore(jsonl_path, metrics_jsonl_path=metrics_jsonl_path)
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-        # Startup: replay persisted state
-        store.replay_jsonl()
+        # Startup: call the unified lifecycle hook (works for TaskStore and
+        # PostgresTaskStore which share the startup()/shutdown() contract).
+        await effective_store.startup()
         # Launch the stale-agent reaper
-        reaper = asyncio.create_task(_reaper_loop(store))
+        reaper = asyncio.create_task(_reaper_loop(effective_store))
         # Launch node-stale reaper if cluster mode is on
         node_reaper: asyncio.Task[None] | None = None
         if effective_cluster.enabled:
@@ -1276,7 +1311,7 @@ def create_app(
             node_reaper.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await node_reaper
-        await store.flush_buffer()
+        await effective_store.shutdown()
 
     application = FastAPI(title="Bernstein Task Server", version="0.1.0", lifespan=lifespan)
 
@@ -1288,13 +1323,13 @@ def create_app(
     @application.post("/tasks", response_model=TaskResponse, status_code=201)
     async def create_task(body: TaskCreate) -> TaskResponse:
         """Create a new task."""
-        task = await store.create(body)
+        task = await effective_store.create(body)
         return _task_to_response(task)
 
     @application.get("/tasks/next/{role}", response_model=TaskResponse)
     async def next_task(role: str) -> TaskResponse:
         """Claim the next available task for *role*."""
-        task = await store.claim_next(role)
+        task = await effective_store.claim_next(role)
         if task is None:
             raise HTTPException(status_code=404, detail=f"No open tasks for role '{role}'")
         return _task_to_response(task)
@@ -1302,7 +1337,7 @@ def create_app(
     @application.post("/tasks/claim-batch", response_model=BatchClaimResponse)
     async def claim_batch(body: BatchClaimRequest) -> BatchClaimResponse:
         """Atomically claim multiple tasks by ID for an agent."""
-        claimed, failed = await store.claim_batch(body.task_ids, body.agent_id)
+        claimed, failed = await effective_store.claim_batch(body.task_ids, body.agent_id)
         return BatchClaimResponse(claimed=claimed, failed=failed)
 
     @application.post("/tasks/{task_id}/claim", response_model=TaskResponse)
@@ -1313,7 +1348,7 @@ def create_app(
         (CAS). If the task's version doesn't match, returns 409 Conflict.
         """
         try:
-            task = await store.claim_by_id(task_id, expected_version=expected_version)
+            task = await effective_store.claim_by_id(task_id, expected_version=expected_version)
         except KeyError:
             raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
         except ValueError as exc:
@@ -1324,7 +1359,7 @@ def create_app(
     async def complete_task(task_id: str, body: TaskCompleteRequest) -> TaskResponse:
         """Mark a task as done with a result summary."""
         try:
-            task = await store.complete(task_id, body.result_summary)
+            task = await effective_store.complete(task_id, body.result_summary)
         except KeyError:
             raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
         return _task_to_response(task)
@@ -1333,7 +1368,7 @@ def create_app(
     async def fail_task(task_id: str, body: TaskFailRequest) -> TaskResponse:
         """Mark a task as failed."""
         try:
-            task = await store.fail(task_id, body.reason)
+            task = await effective_store.fail(task_id, body.reason)
         except KeyError:
             raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
         return _task_to_response(task)
@@ -1342,7 +1377,7 @@ def create_app(
     async def cancel_task(task_id: str, body: TaskCancelRequest) -> TaskResponse:
         """Cancel a task that has not yet finished."""
         try:
-            task = await store.cancel(task_id, body.reason)
+            task = await effective_store.cancel(task_id, body.reason)
         except KeyError:
             raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
         except ValueError as exc:
@@ -1353,7 +1388,7 @@ def create_app(
     async def progress_task(task_id: str, body: TaskProgressRequest) -> TaskResponse:
         """Append an intermediate progress update to a task."""
         try:
-            task = await store.add_progress(task_id, body.message, body.percent)
+            task = await effective_store.add_progress(task_id, body.message, body.percent)
         except KeyError:
             raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
         return _task_to_response(task)
@@ -1364,17 +1399,17 @@ def create_app(
         cell_id: str | None = None,
     ) -> list[TaskResponse]:
         """List all tasks, optionally filtered by status and/or cell_id."""
-        return [_task_to_response(t) for t in store.list_tasks(status, cell_id)]
+        return [_task_to_response(t) for t in effective_store.list_tasks(status, cell_id)]
 
     @application.get("/tasks/archive", response_model=list[ArchiveRecord])
     async def get_archive(limit: int = 50) -> list[ArchiveRecord]:
         """Return the last N archived (done/failed) task records."""
-        return store.read_archive(limit=limit)
+        return effective_store.read_archive(limit=limit)
 
     @application.get("/tasks/{task_id}", response_model=TaskResponse)
     async def get_task(task_id: str) -> TaskResponse:
         """Get a single task by ID."""
-        task = store.get_task(task_id)
+        task = effective_store.get_task(task_id)
         if task is None:
             raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
         return _task_to_response(task)
@@ -1382,12 +1417,12 @@ def create_app(
     @application.get("/status", response_model=StatusResponse)
     async def status_dashboard() -> StatusResponse:
         """Dashboard summary of task counts."""
-        return store.status_summary()
+        return effective_store.status_summary()
 
     @application.post("/agents/{agent_id}/heartbeat", response_model=HeartbeatResponse)
     async def agent_heartbeat(agent_id: str, body: HeartbeatRequest) -> HeartbeatResponse:
         """Register an agent heartbeat."""
-        ts = store.heartbeat(agent_id, body.role, body.status)
+        ts = effective_store.heartbeat(agent_id, body.role, body.status)
         return HeartbeatResponse(agent_id=agent_id, acknowledged=True, server_ts=ts)
 
     @application.get("/health", response_model=HealthResponse)
@@ -1395,9 +1430,9 @@ def create_app(
         """Basic liveness check."""
         return HealthResponse(
             status="ok",
-            uptime_s=round(time.time() - store.start_ts, 2),
-            task_count=len(store.list_tasks()),
-            agent_count=store.agent_count,
+            uptime_s=round(time.time() - effective_store.start_ts, 2),
+            task_count=len(effective_store.list_tasks()),
+            agent_count=effective_store.agent_count,
         )
 
     @application.get("/metrics")
@@ -1407,7 +1442,7 @@ def create_app(
         Updates all gauges from the current task store state, then
         returns the full metric exposition in Prometheus text format.
         """
-        status_dict = store.status_summary().model_dump()
+        status_dict = effective_store.status_summary().model_dump()
         update_metrics_from_status(status_dict)
         payload = generate_latest(registry)
         return PlainTextResponse(
@@ -1476,7 +1511,7 @@ def create_app(
             role=body.role,
         )
         # Create the corresponding Bernstein task.
-        bernstein_task = await store.create(
+        bernstein_task = await effective_store.create(
             TaskCreate(
                 title=f"[A2A] {body.message[:80]}",
                 description=body.message,
@@ -1494,7 +1529,7 @@ def create_app(
             raise HTTPException(status_code=404, detail=f"A2A task '{a2a_task_id}' not found")
         # Sync status from the underlying Bernstein task.
         if a2a_task.bernstein_task_id is not None:
-            bt = store.get_task(a2a_task.bernstein_task_id)
+            bt = effective_store.get_task(a2a_task.bernstein_task_id)
             if bt is not None:
                 a2a_handler.sync_status(a2a_task.id, bt.status.value)
         return _a2a_task_to_response(a2a_task)
@@ -1520,6 +1555,89 @@ def create_app(
             content_type=artifact.content_type,
             data=artifact.data,
             created_at=artifact.created_at,
+        )
+
+    # -- GitHub App webhook route ----------------------------------------------
+
+    @application.post("/webhooks/github", status_code=200)
+    async def github_webhook(request: Request) -> JSONResponse:
+        """Receive a GitHub App webhook, verify the signature, and create tasks.
+
+        The endpoint reads the ``X-Hub-Signature-256`` header to authenticate
+        the delivery.  When ``BERNSTEIN_GITHUB_WEBHOOK_SECRET`` is set in the
+        environment, requests whose HMAC signature does not match are rejected
+        with HTTP 401.  When the env-var is unset, signature verification is
+        skipped (useful for local development).
+
+        Parsed events are converted to Bernstein tasks via the mapper module.
+        """
+        from bernstein.github_app.mapper import (
+            issue_to_tasks,
+            pr_comment_to_task,
+            push_to_tasks,
+        )
+        from bernstein.github_app.webhooks import parse_webhook, verify_signature
+
+        body = await request.body()
+
+        # Signature verification — only enforced when a secret is configured.
+        webhook_secret = os.environ.get("BERNSTEIN_GITHUB_WEBHOOK_SECRET")
+        if webhook_secret:
+            sig_header = request.headers.get("x-hub-signature-256", "")
+            if not verify_signature(body, sig_header, webhook_secret):
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "Invalid webhook signature"},
+                )
+
+        # Parse the event.
+        try:
+            event = parse_webhook(dict(request.headers), body)
+        except ValueError as exc:
+            return JSONResponse(
+                status_code=400,
+                content={"detail": str(exc)},
+            )
+
+        # Map to tasks.
+        task_payloads: list[dict[str, Any]] = []
+        if event.event_type == "issues":
+            task_payloads = issue_to_tasks(event)
+        elif event.event_type in ("pull_request_review_comment", "issue_comment"):
+            result = pr_comment_to_task(event)
+            if result is not None:
+                task_payloads = [result]
+        elif event.event_type == "push":
+            task_payloads = push_to_tasks(event)
+        # Other event types are accepted but produce no tasks.
+
+        # Create tasks in the store.
+        created_ids: list[str] = []
+        for payload in task_payloads:
+            task = await effective_store.create(
+                TaskCreate(
+                    title=payload.get("title", "GitHub event task"),
+                    description=payload.get("description", ""),
+                    role=payload.get("role", "backend"),
+                    priority=int(payload.get("priority", 2)),
+                    scope=str(payload.get("scope", "small")),
+                    complexity=str(payload.get("complexity", "medium")),
+                    estimated_minutes=int(payload.get("estimated_minutes", 30)),
+                    task_type=str(payload.get("task_type", "standard")),
+                    owned_files=list(payload.get("owned_files", [])),
+                )
+            )
+            created_ids.append(task.id)
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "event_type": event.event_type,
+                "action": event.action,
+                "repo": event.repo,
+                "tasks_created": len(created_ids),
+                "task_ids": created_ids,
+            },
         )
 
     # -- Cluster routes --------------------------------------------------------
@@ -1593,6 +1711,209 @@ def create_app(
             nodes=[NodeResponse(**n) for n in summary["nodes"]],
         )
 
+    # -- dashboard routes ------------------------------------------------------
+
+    _DASHBOARD_TEMPLATES = Path(__file__).parent.parent / "dashboard" / "templates"
+    _DASHBOARD_STATIC = Path(__file__).parent.parent / "dashboard" / "static"
+
+    # Mount static files (CSS overrides, images, etc.) when the directory has content
+    if _DASHBOARD_STATIC.exists() and any(_DASHBOARD_STATIC.iterdir()):
+        application.mount(
+            "/dashboard/static",
+            StaticFiles(directory=str(_DASHBOARD_STATIC)),
+            name="dashboard_static",
+        )
+
+    @application.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+    async def dashboard_index() -> HTMLResponse:
+        """Serve the single-page web dashboard."""
+        index_html = _DASHBOARD_TEMPLATES / "index.html"
+        if not index_html.exists():
+            raise HTTPException(status_code=404, detail="Dashboard template not found")
+        return HTMLResponse(content=index_html.read_text(encoding="utf-8"))
+
+    @application.get("/dashboard/data", response_class=HTMLResponse, include_in_schema=False)
+    async def dashboard_data() -> HTMLResponse:
+        """Return an HTML fragment with current task/agent data for HTMX polling."""
+        summary = effective_store.status_summary()
+        tasks = effective_store.list_tasks()
+        agents = list(effective_store._agents.values())  # type: ignore[reportPrivateUsage]
+
+        # Sort tasks: active first (claimed/in_progress), then open, done, failed
+        _order: dict[str, int] = {
+            "claimed": 0,
+            "in_progress": 1,
+            "open": 2,
+            "done": 3,
+            "failed": 4,
+            "blocked": 5,
+            "cancelled": 6,
+        }
+        sorted_tasks = sorted(tasks, key=lambda t: _order.get(t.status.value, 9))
+
+        total_cost = summary.total_cost_usd
+
+        def _badge(status: str) -> str:
+            return f'<span class="badge badge-{status}">{status}</span>'
+
+        # -- Stats bar ---------------------------------------------------------
+        pct = int(summary.done / summary.total * 100) if summary.total > 0 else 0
+        stats_html = f"""
+<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+  <div class="bg-[#16213e] border border-[#0f3460] rounded-lg p-4 text-center">
+    <div class="text-2xl font-bold text-gray-100">{summary.total}</div>
+    <div class="text-xs text-gray-400 mt-1">TOTAL</div>
+  </div>
+  <div class="bg-[#16213e] border border-[#0f3460] rounded-lg p-4 text-center">
+    <div class="text-2xl font-bold text-green-400">{summary.done}</div>
+    <div class="text-xs text-gray-400 mt-1">DONE</div>
+  </div>
+  <div class="bg-[#16213e] border border-[#0f3460] rounded-lg p-4 text-center">
+    <div class="text-2xl font-bold text-yellow-400">{summary.open + summary.claimed}</div>
+    <div class="text-xs text-gray-400 mt-1">IN QUEUE</div>
+  </div>
+  <div class="bg-[#16213e] border border-[#0f3460] rounded-lg p-4 text-center">
+    <div class="text-2xl font-bold text-red-400">{summary.failed}</div>
+    <div class="text-xs text-gray-400 mt-1">FAILED</div>
+  </div>
+  <div class="bg-[#16213e] border border-[#0f3460] rounded-lg p-4 text-center">
+    <div class="text-2xl font-bold text-cyan-400">${total_cost:.4f}</div>
+    <div class="text-xs text-gray-400 mt-1">COST (USD)</div>
+  </div>
+</div>
+<div class="mb-6 bg-[#16213e] border border-[#0f3460] rounded-lg px-4 py-2 flex items-center gap-3">
+  <span class="text-xs text-gray-400">PROGRESS</span>
+  <div class="flex-1 bg-gray-800 rounded-full h-2">
+    <div class="bg-gradient-to-r from-blue-500 to-cyan-400 h-2 rounded-full transition-all duration-500" style="width:{pct}%"></div>
+  </div>
+  <span class="text-xs font-bold text-cyan-400">{pct}%</span>
+</div>"""
+
+        # -- Active Agents section ---------------------------------------------
+        alive_agents = [a for a in agents if a.status != "dead"]
+        if alive_agents:
+            agent_cards_html = ""
+            for a in alive_agents:
+                runtime_s = max(0, int(time.time() - a.heartbeat_ts))
+                m, s = divmod(runtime_s, 60)
+                runtime_str = f"{m}m {s:02d}s"
+                status_color = {
+                    "working": "text-green-400",
+                    "starting": "text-yellow-400",
+                    "idle": "text-gray-400",
+                }.get(a.status, "text-gray-300")
+                dot = {"working": "●", "starting": "◌", "idle": "○"}.get(a.status, "●")
+                agent_cards_html += f"""
+<div class="bg-[#16213e] border border-[#0f3460] rounded-lg p-3 flex flex-col gap-1">
+  <div class="flex items-center justify-between">
+    <span class="font-bold text-sm {status_color}">{dot} {a.role.upper()}</span>
+    <span class="text-xs text-gray-500">{runtime_str}</span>
+  </div>
+  <div class="text-xs text-gray-400 font-mono">{a.id[:20]}…</div>
+  <div class="flex items-center gap-2">
+    <span class="badge badge-{a.status}">{a.status}</span>
+  </div>
+</div>"""
+            agents_section = f"""
+<section class="mb-6">
+  <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Active Agents ({len(alive_agents)})</h2>
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+    {agent_cards_html}
+  </div>
+</section>"""
+        else:
+            agents_section = """
+<section class="mb-6">
+  <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Active Agents</h2>
+  <div class="text-sm text-gray-600 italic">No active agents.</div>
+</section>"""
+
+        # -- Task Board --------------------------------------------------------
+        if sorted_tasks:
+            rows_html = ""
+            for t in sorted_tasks:
+                status_val = t.status.value
+                agent_cell = (
+                    t.assigned_agent[:20] + "…"
+                    if t.assigned_agent and len(t.assigned_agent) > 20
+                    else (t.assigned_agent or "–")
+                )
+                title_escaped = t.title.replace("<", "&lt;").replace(">", "&gt;")
+                rows_html += f"""
+<tr class="task-row border-b border-[#0f3460] hover:bg-[#0f3460]">
+  <td class="px-3 py-2 font-mono text-xs text-gray-500">{t.id[:12]}</td>
+  <td class="px-3 py-2 text-sm font-medium text-gray-200" style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{title_escaped}">{title_escaped}</td>
+  <td class="px-3 py-2 text-xs text-gray-300">{t.role}</td>
+  <td class="px-3 py-2">{_badge(status_val)}</td>
+  <td class="px-3 py-2 text-xs text-gray-500 font-mono">{agent_cell}</td>
+</tr>"""
+            tasks_section = f"""
+<section>
+  <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Task Board ({len(sorted_tasks)})</h2>
+  <div class="overflow-x-auto rounded-lg border border-[#0f3460]">
+    <table class="w-full text-sm">
+      <thead class="bg-[#16213e] border-b border-[#0f3460]">
+        <tr>
+          <th class="px-3 py-2 text-left text-xs font-bold text-gray-400 uppercase tracking-wide">ID</th>
+          <th class="px-3 py-2 text-left text-xs font-bold text-gray-400 uppercase tracking-wide">Title</th>
+          <th class="px-3 py-2 text-left text-xs font-bold text-gray-400 uppercase tracking-wide">Role</th>
+          <th class="px-3 py-2 text-left text-xs font-bold text-gray-400 uppercase tracking-wide">Status</th>
+          <th class="px-3 py-2 text-left text-xs font-bold text-gray-400 uppercase tracking-wide">Agent</th>
+        </tr>
+      </thead>
+      <tbody class="bg-[#0d1117]">
+        {rows_html}
+      </tbody>
+    </table>
+  </div>
+</section>"""
+        else:
+            tasks_section = """
+<section>
+  <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Task Board</h2>
+  <div class="text-sm text-gray-600 italic">No tasks yet.</div>
+</section>"""
+
+        html = stats_html + agents_section + tasks_section
+        return HTMLResponse(content=html)
+
+    async def _sse_event_generator(req: Request) -> "AsyncGenerator[str, None]":
+        """Yield SSE messages until the client disconnects."""
+        import json as _json
+
+        last_summary: dict[str, Any] | None = None
+        while not await req.is_disconnected():
+            summary = effective_store.status_summary()
+            current: dict[str, Any] = {
+                "total": summary.total,
+                "open": summary.open,
+                "claimed": summary.claimed,
+                "done": summary.done,
+                "failed": summary.failed,
+                "total_cost_usd": summary.total_cost_usd,
+            }
+            if current != last_summary:
+                last_summary = current
+                data = _json.dumps(current)
+                yield f"data: {data}\n\n"
+            else:
+                # Send a keep-alive comment so proxies don't close the connection
+                yield ": keep-alive\n\n"
+            await asyncio.sleep(5)
+
+    @application.get("/events", include_in_schema=False)
+    async def sse_events(request: Request) -> StreamingResponse:
+        """Server-Sent Events stream for real-time task status updates."""
+        return StreamingResponse(
+            _sse_event_generator(request),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive",
+            },
+        )
+
     # Attach store, bulletin, and cluster registry for testing access.
     # FastAPI's `state` is a plain object with no predefined attributes;
     # type: ignore[attr-defined] is the standard pattern here.
@@ -1625,11 +1946,15 @@ def create_app(
         a2a_send_task,
         a2a_get_task,
         a2a_add_artifact,
+        github_webhook,
         register_node,
         node_heartbeat,
         unregister_node,
         list_nodes,
         cluster_status,
+        dashboard_index,
+        dashboard_data,
+        sse_events,
     )
     del _routes
 

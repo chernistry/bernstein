@@ -1,0 +1,12 @@
+name: Bernstein
+description: Multi-agent orchestration for your repository
+url: https://github.com/chernistry/bernstein
+default_events:
+  - issues
+  - pull_request
+  - push
+  - issue_comment
+default_permissions:
+  issues: write
+  pull_requests: write
+  contents: read

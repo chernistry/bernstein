@@ -1925,6 +1925,7 @@ class TestProviderHealthRecording:
             status="working",
         )
         orch._agents["backend-a"] = session
+        orch._task_to_session["T-done"] = "backend-a"
 
         orch.tick()
 
@@ -1954,6 +1955,7 @@ class TestProviderHealthRecording:
             status="working",
         )
         orch._agents["backend-c"] = session
+        orch._task_to_session["T-done-sig"] = "backend-c"
 
         orch.tick()
 
@@ -1978,6 +1980,7 @@ class TestProviderHealthRecording:
             status="working",
         )
         orch._agents["backend-d"] = session
+        orch._task_to_session["T-done2"] = "backend-d"
 
         # Should not raise even without a router
         result = orch.tick()
@@ -2067,6 +2070,7 @@ class TestEvolutionMetricsRecording:
             status="working",
         )
         orch._agents["backend-agent-task"] = session
+        orch._task_to_session["T-evo"] = "backend-agent-task"
 
         collector = get_collector(tmp_path / ".sdd" / "metrics")
         collector.start_agent(
@@ -4136,6 +4140,7 @@ class TestMetricsWiring:
             status="working",
         )
         orch._agents["sess-ea"] = session
+        orch._task_to_session["T-done-ea"] = "sess-ea"
 
         orch.tick()
 
@@ -4246,6 +4251,7 @@ class TestEvolutionAgentLifetimeRecording:
             status="working",
         )
         orch._agents["sess-lt"] = session
+        orch._task_to_session["T-lt"] = "sess-lt"
 
         orch.tick()
 
@@ -4275,6 +4281,8 @@ class TestEvolutionAgentLifetimeRecording:
             status="working",
         )
         orch._agents["sess-multi"] = session
+        orch._task_to_session["T-lt1"] = "sess-multi"
+        orch._task_to_session["T-lt2"] = "sess-multi"
 
         orch.tick()
 
@@ -4566,3 +4574,147 @@ class TestOrchestratorBulletinIntegration:
         # The run summary bulletin should have been posted
         status_msgs = [m.content for m in board.read_by_type("status")]
         assert any("run complete" in c for c in status_msgs)
+
+
+# --- Adaptive polling backoff ---
+
+
+class TestAdaptivePollingBackoff:
+    """Adaptive backoff in the run loop: idle ticks double the sleep, active ticks reset it."""
+
+    def _make_orch(self, tmp_path: Path, poll_interval_s: int = 3) -> Orchestrator:
+        transport = _mock_transport({"GET /tasks": httpx.Response(200, json=[])})
+        cfg = OrchestratorConfig(
+            max_agents=6,
+            poll_interval_s=poll_interval_s,
+            heartbeat_timeout_s=120,
+            max_tasks_per_agent=3,
+            server_url="http://testserver",
+        )
+        return _build_orchestrator(tmp_path, transport, config=cfg)
+
+    def test_idle_ticks_double_sleep_up_to_30s(self, tmp_path: Path, monkeypatch: object) -> None:
+        orch = self._make_orch(tmp_path, poll_interval_s=3)
+        sleep_calls: list[float] = []
+        import bernstein.core.orchestrator as _orch_mod
+        monkeypatch.setattr(_orch_mod.time, "sleep", lambda s: sleep_calls.append(float(s)))
+
+        call_count = 0
+
+        def fake_tick() -> TickResult:
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 5:
+                orch._running = False
+            return TickResult()  # idle: no spawned, no verified
+
+        monkeypatch.setattr(orch, "tick", fake_tick)
+        orch.run()
+
+        # After each idle tick, sleep doubles: 6, 12, 24, 30 (cap), 30 (cap)
+        assert sleep_calls[0] == 6.0
+        assert sleep_calls[1] == 12.0
+        assert sleep_calls[2] == 24.0
+        assert sleep_calls[3] == 30.0
+        assert sleep_calls[4] == 30.0
+
+    def test_active_tick_resets_sleep_to_poll_interval(self, tmp_path: Path, monkeypatch: object) -> None:
+        orch = self._make_orch(tmp_path, poll_interval_s=3)
+        sleep_calls: list[float] = []
+        import bernstein.core.orchestrator as _orch_mod
+        monkeypatch.setattr(_orch_mod.time, "sleep", lambda s: sleep_calls.append(float(s)))
+
+        call_count = 0
+
+        def fake_tick() -> TickResult:
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 4:
+                orch._running = False
+            r = TickResult()
+            if call_count == 3:
+                r.spawned.append("agent-1")  # active tick: work was done
+            return r
+
+        monkeypatch.setattr(orch, "tick", fake_tick)
+        orch.run()
+
+        # tick 1 (idle) → sleep 6, tick 2 (idle) → sleep 12,
+        # tick 3 (active, resets) → sleep 3, tick 4 (idle, stops loop) → sleep 6
+        assert sleep_calls == [6.0, 12.0, 3.0, 6.0]
+
+    def test_idle_multiplier_field_exists(self, tmp_path: Path) -> None:
+        orch = self._make_orch(tmp_path)
+        assert hasattr(orch, "_idle_multiplier")
+        assert orch._idle_multiplier == 1
+
+
+# --- Reverse task-to-session index ---
+
+
+class TestReverseTaskSessionIndex:
+    """_task_to_session provides O(1) lookup from task_id to agent_id."""
+
+    def _make_orch(self, tmp_path: Path) -> Orchestrator:
+        transport = _mock_transport({"GET /tasks": httpx.Response(200, json=[])})
+        return _build_orchestrator(tmp_path, transport)
+
+    def test_find_session_returns_correct_session(self, tmp_path: Path) -> None:
+        """_find_session_for_task returns the session that owns the task."""
+        orch = self._make_orch(tmp_path)
+        session = AgentSession(id="backend-x", role="backend", task_ids=["T-x1", "T-x2"])
+        orch._agents["backend-x"] = session
+        orch._task_to_session["T-x1"] = "backend-x"
+        orch._task_to_session["T-x2"] = "backend-x"
+
+        assert orch._find_session_for_task("T-x1") is session
+        assert orch._find_session_for_task("T-x2") is session
+
+    def test_find_session_returns_none_for_unknown_task(self, tmp_path: Path) -> None:
+        """_find_session_for_task returns None when task is not in the index."""
+        orch = self._make_orch(tmp_path)
+        assert orch._find_session_for_task("T-missing") is None
+
+    def test_find_session_returns_none_after_release(self, tmp_path: Path) -> None:
+        """After _release_task_to_session, the task is no longer findable."""
+        orch = self._make_orch(tmp_path)
+        session = AgentSession(id="backend-y", role="backend", task_ids=["T-y1"])
+        orch._agents["backend-y"] = session
+        orch._task_to_session["T-y1"] = "backend-y"
+
+        orch._release_task_to_session(["T-y1"])
+
+        assert orch._find_session_for_task("T-y1") is None
+
+    def test_release_only_removes_specified_tasks(self, tmp_path: Path) -> None:
+        """_release_task_to_session removes only the listed task IDs."""
+        orch = self._make_orch(tmp_path)
+        session_a = AgentSession(id="agent-a", role="backend", task_ids=["T-a1"])
+        session_b = AgentSession(id="agent-b", role="backend", task_ids=["T-b1"])
+        orch._agents["agent-a"] = session_a
+        orch._agents["agent-b"] = session_b
+        orch._task_to_session["T-a1"] = "agent-a"
+        orch._task_to_session["T-b1"] = "agent-b"
+
+        orch._release_task_to_session(["T-a1"])
+
+        assert orch._find_session_for_task("T-a1") is None
+        assert orch._find_session_for_task("T-b1") is session_b
+
+    def test_release_empty_list_is_noop(self, tmp_path: Path) -> None:
+        """_release_task_to_session with empty list leaves index unchanged."""
+        orch = self._make_orch(tmp_path)
+        session = AgentSession(id="agent-c", role="backend", task_ids=["T-c1"])
+        orch._agents["agent-c"] = session
+        orch._task_to_session["T-c1"] = "agent-c"
+
+        orch._release_task_to_session([])
+
+        assert orch._find_session_for_task("T-c1") is session
+
+    def test_release_unknown_task_ids_is_safe(self, tmp_path: Path) -> None:
+        """_release_task_to_session with unknown IDs does not raise."""
+        orch = self._make_orch(tmp_path)
+        # Should not raise even when task_ids are not in the index
+        orch._release_task_to_session(["T-phantom"])
+        assert orch._task_to_session == {}

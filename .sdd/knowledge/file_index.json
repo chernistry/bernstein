@@ -669,7 +669,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T09:09:47.841837"
+    "last_modified": "2026-03-28T09:36:41.667164"
   },
   "src/bernstein/core/policy.py": {
     "summary": "Policy engine for tier optimization and provider routing.",
@@ -727,7 +727,7 @@
       "pathlib",
       "time"
     ],
-    "last_modified": "2026-03-28T09:22:52.779035"
+    "last_modified": "2026-03-28T09:23:02.653665"
   },
   "src/bernstein/core/router.py": {
     "summary": "Route tasks to appropriate model and effort level with tier awareness.",
@@ -1005,6 +1005,26 @@
     ],
     "last_modified": "2026-03-28T04:04:58.123023"
   },
+  "src/bernstein/evolution/creative.py": {
+    "summary": "Creative evolution pipeline \u2014 visionary \u2192 analyst \u2192 production gate.",
+    "exports": [
+      "VisionaryProposal",
+      "AnalystVerdict",
+      "PipelineResult",
+      "CreativePipeline"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "json",
+      "logging",
+      "pathlib",
+      "re",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T08:42:54.037814"
+  },
   "src/bernstein/evolution/detector.py": {
     "summary": "Opportunity detection from aggregated metrics.",
     "exports": [
@@ -1176,6 +1196,35 @@
     ],
     "last_modified": "2026-03-22T17:08:56.049993"
   },
+  "templates/demo/app.py": {
+    "summary": "Simple Flask web application for the Bernstein demo.",
+    "exports": [
+      "hello"
+    ],
+    "imports": [
+      "flask"
+    ],
+    "last_modified": "2026-03-28T08:45:54.690127"
+  },
+  "templates/demo/tests/__init__.py": {
+    "summary": "",
+    "exports": [],
+    "imports": [],
+    "last_modified": "2026-03-28T08:45:59.093351"
+  },
+  "templates/demo/tests/test_app.py": {
+    "summary": "Basic tests for the demo Flask app.",
+    "exports": [
+      "client",
+      "test_hello_returns_200",
+      "test_hello_json_structure"
+    ],
+    "imports": [
+      "app",
+      "pytest"
+    ],
+    "last_modified": "2026-03-28T08:46:03.607491"
+  },
   "tests/__init__.py": {
     "summary": "",
     "exports": [],
@@ -1239,6 +1288,23 @@
       "time"
     ],
     "last_modified": "2026-03-28T01:47:18.573743"
+  },
+  "tests/integration/test_evolution_feedback_loop.py": {
+    "summary": "Integration test for the self-evolution feedback loop wired into the Orchestrator.",
+    "exports": [
+      "TestEvolutionFeedbackLoop"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "json",
+      "pathlib",
+      "pytest",
+      "starlette",
+      "time",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T08:58:18.413979"
   },
   "tests/integration/test_lifecycle.py": {
     "summary": "Integration test: full spawn \u2192 execute \u2192 complete lifecycle.",
@@ -1783,6 +1849,53 @@
     ],
     "last_modified": "2026-03-28T04:46:55.840641"
   },
+  "tests/unit/test_cli_demo.py": {
+    "summary": "Tests for `bernstein demo` CLI command.",
+    "exports": [
+      "test_detect_available_adapter_returns_first_found",
+      "test_detect_available_adapter_returns_none_when_nothing_found",
+      "test_detect_available_adapter_prefers_claude_over_codex",
+      "test_setup_demo_project_creates_sdd_dirs",
+      "test_setup_demo_project_seeds_three_tasks",
+      "test_setup_demo_project_task_filenames_match",
+      "test_setup_demo_project_writes_config",
+      "test_setup_demo_project_creates_app_py",
+      "test_demo_dry_run_exits_zero",
+      "test_demo_dry_run_shows_cost_estimate",
+      "test_demo_dry_run_shows_dry_run_label",
+      "test_demo_no_adapter_exits_nonzero",
+      "test_demo_explicit_adapter_bypasses_detection",
+      "test_demo_tasks_have_required_fields",
+      "test_demo_tasks_filenames_end_with_md",
+      "test_demo_tasks_content_includes_role"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "click",
+      "pathlib",
+      "pytest",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T08:48:01.999895"
+  },
+  "tests/unit/test_conflict_resolution.py": {
+    "summary": "Tests for automated conflict resolution and merge strategy.",
+    "exports": [
+      "TestMergeResult",
+      "TestParseConflictFiles",
+      "TestMergeWithConflictDetection",
+      "TestSpawnerConflictResolution"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "pathlib",
+      "pytest",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T08:45:18.207853"
+  },
   "tests/unit/test_context.py": {
     "summary": "Tests for bernstein.core.context.",
     "exports": [
@@ -1842,6 +1955,27 @@
       "pytest"
     ],
     "last_modified": "2026-03-28T02:55:25.856744"
+  },
+  "tests/unit/test_creative_pipeline.py": {
+    "summary": "Tests for the creative evolution pipeline (visionary \u2192 analyst \u2192 production gate).",
+    "exports": [
+      "TestVisionaryProposal",
+      "TestAnalystVerdict",
+      "TestCreativePipeline",
+      "sdd",
+      "pipeline",
+      "sample_proposals",
+      "approved_verdict",
+      "rejected_verdict",
+      "revised_verdict"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "pathlib",
+      "pytest"
+    ],
+    "last_modified": "2026-03-28T08:44:29.302666"
   },
   "tests/unit/test_evolution.py": {
     "summary": "Tests for EvolutionCoordinator \u2014 self-evolution feedback loop.",
@@ -1950,6 +2084,26 @@
       "unittest"
     ],
     "last_modified": "2026-03-28T08:27:31.957738"
+  },
+  "tests/unit/test_evolve_report.py": {
+    "summary": "Unit tests for bernstein.evolution.report.",
+    "exports": [
+      "TestCycleRecord",
+      "TestExperimentRecord",
+      "TestEvolutionReportLoad",
+      "TestEvolutionReportStats",
+      "TestSparkline",
+      "TestExportMarkdown",
+      "TestExportHTML"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "json",
+      "pathlib",
+      "pytest"
+    ],
+    "last_modified": "2026-03-28T08:43:27.020269"
   },
   "tests/unit/test_failure_evolution.py": {
     "summary": "Tests for failure-driven evolution: FailureRecord, FailureAnalyzer, OpportunityDetector, MetricsAggregator.",
@@ -2397,6 +2551,8 @@
       "TestMetricsWiring",
       "TestEvolutionAgentLifetimeRecording",
       "TestOrchestratorBulletinIntegration",
+      "TestAdaptivePollingBackoff",
+      "TestReverseTaskSessionIndex",
       "test_per_task_timeout_short_task",
       "test_per_task_timeout_long_task_clamped",
       "test_reap_uses_per_session_timeout"
@@ -2411,7 +2567,7 @@
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T09:21:43.549344"
+    "last_modified": "2026-03-28T09:38:33.600492"
   },
   "tests/unit/test_plan_cmd.py": {
     "summary": "Tests for the `bernstein plan` CLI command.",
@@ -2511,6 +2667,34 @@
       "unittest"
     ],
     "last_modified": "2026-03-28T01:30:25.997375"
+  },
+  "tests/unit/test_retro_cmd.py": {
+    "summary": "Unit tests for bernstein retro CLI command.",
+    "exports": [
+      "test_load_archive_tasks_all",
+      "test_load_archive_tasks_since_filter",
+      "test_load_archive_tasks_missing_file",
+      "test_load_archive_tasks_skips_invalid_json",
+      "test_load_archive_tasks_skips_non_terminal_status",
+      "test_build_collector_from_archive",
+      "test_build_collector_since_filter",
+      "test_build_collector_cost_populated",
+      "test_retro_writes_report",
+      "test_retro_custom_output_file",
+      "test_retro_print_flag",
+      "test_retro_no_tasks",
+      "test_retro_since_flag"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "click",
+      "json",
+      "pathlib",
+      "pytest",
+      "time"
+    ],
+    "last_modified": "2026-03-28T08:49:33.220891"
   },
   "tests/unit/test_retrospective.py": {
     "summary": "Tests for bernstein.core.retrospective.",

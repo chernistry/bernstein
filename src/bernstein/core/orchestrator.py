@@ -226,8 +226,8 @@ def group_by_role(tasks: list[Task], max_per_batch: int) -> list[list[Task]]:
 
 
 # Cache for _compute_total_spent: maps absolute metrics_dir path ->
-# (cached_total, {file_path_str: mtime_ns}).
-_total_spent_cache: dict[str, tuple[float, dict[str, int]]] = {}
+# (cached_total, {file_path_str: (mtime_ns, file_total)}).
+_total_spent_cache: dict[str, tuple[float, dict[str, tuple[int, float]]]] = {}
 
 
 def _parse_file_total(jsonl_file: Path) -> float:
@@ -268,7 +268,7 @@ def _compute_total_spent(workdir: Path) -> float:
     """
     metrics_dir = workdir / ".sdd" / "metrics"
     cache_key = str(metrics_dir)
-    cached_total, cached_mtimes = _total_spent_cache.get(cache_key, (0.0, {}))
+    cached_total, cached_file_data = _total_spent_cache.get(cache_key, (0.0, {}))
 
     try:
         current_files = list(metrics_dir.glob("cost_efficiency_*.jsonl"))
@@ -276,17 +276,16 @@ def _compute_total_spent(workdir: Path) -> float:
         return cached_total
 
     current_paths = {str(f) for f in current_files}
-    cached_paths = set(cached_mtimes.keys())
+    cached_paths = set(cached_file_data.keys())
 
-    # If any previously-seen file was removed we cannot subtract its
-    # contribution from the cached total, so recompute from scratch.
-    if cached_paths - current_paths:
-        cached_total = 0.0
-        cached_mtimes = {}
-
-    new_mtimes: dict[str, int] = dict(cached_mtimes)
+    # If any previously-seen file was removed, subtract its contribution
+    # from the cached total incrementally.
+    removed_paths = cached_paths - current_paths
     total = cached_total
-    any_changed = False
+    new_file_data: dict[str, tuple[int, float]] = dict(cached_file_data)
+    for removed in removed_paths:
+        _, old_file_total = new_file_data.pop(removed)
+        total -= old_file_total
 
     for jsonl_file in current_files:
         path_str = str(jsonl_file)
@@ -295,20 +294,18 @@ def _compute_total_spent(workdir: Path) -> float:
         except OSError:
             continue
 
-        if new_mtimes.get(path_str) == mtime_ns:
+        cached_entry = new_file_data.get(path_str)
+        if cached_entry is not None and cached_entry[0] == mtime_ns:
             # File unchanged - skip re-parsing.
             continue
 
-        any_changed = True
-        new_mtimes[path_str] = mtime_ns
+        # Subtract old contribution for this file (if any), then add new.
+        old_file_total = cached_entry[1] if cached_entry is not None else 0.0
+        new_file_total = _parse_file_total(jsonl_file)
+        total += new_file_total - old_file_total
+        new_file_data[path_str] = (mtime_ns, new_file_total)
 
-    if any_changed:
-        # One or more files changed; reparse all files to get a correct total.
-        total = 0.0
-        for jsonl_file in current_files:
-            total += _parse_file_total(jsonl_file)
-
-    _total_spent_cache[cache_key] = (total, new_mtimes)
+    _total_spent_cache[cache_key] = (total, new_file_data)
     return total
 
 
@@ -350,6 +347,7 @@ class Orchestrator:
         )
         self._agents: dict[str, AgentSession] = {}
         self._file_ownership: dict[str, str] = {}  # filepath → agent_id
+        self._task_to_session: dict[str, str] = {}  # task_id → agent_id (reverse index)
         self._processed_done_tasks: set[str] = set()  # avoid re-processing done tasks
         self._retried_task_ids: set[str] = set()  # tasks that already have a retry queued
         self._running = False
@@ -385,6 +383,9 @@ class Orchestrator:
         # subsequent calls to get_collector() (without args) write to the right
         # directory regardless of cwd at call time.
         get_collector(workdir / ".sdd" / "metrics")
+
+        # Adaptive polling backoff: multiplied by 2 each idle tick, reset on work.
+        self._idle_multiplier: int = 1
 
     @property
     def active_agents(self) -> dict[str, AgentSession]:
@@ -570,8 +571,9 @@ class Orchestrator:
         consecutive_failures = 0
         max_consecutive_failures = 10
         while self._running:
+            tick_result: TickResult | None = None
             try:
-                self.tick()
+                tick_result = self.tick()
                 consecutive_failures = 0
             except Exception:
                 consecutive_failures += 1
@@ -588,7 +590,12 @@ class Orchestrator:
                     break
             if self._config.dry_run:
                 break
-            time.sleep(self._config.poll_interval_s)
+            # Adaptive backoff: double sleep when idle, reset when work is found.
+            if tick_result is not None and (tick_result.spawned or tick_result.verified or tick_result.retried):
+                self._idle_multiplier = 1
+            else:
+                self._idle_multiplier = min(self._idle_multiplier * 2, 1024)
+            time.sleep(min(self._config.poll_interval_s * self._idle_multiplier, 30.0))
 
             # Check if a restart was requested (own source code changed)
             restart_flag = self._workdir / ".sdd" / "runtime" / "restart_requested"
@@ -1261,6 +1268,7 @@ class Orchestrator:
                 session.status = "dead"
                 # Release file ownership for this agent
                 self._release_file_ownership(session.id)
+                self._release_task_to_session(session.task_ids)
                 # Handle orphaned tasks
                 for task_id in session.task_ids:
                     self._handle_orphaned_task(task_id, session, tasks_snapshot)
@@ -1474,9 +1482,10 @@ class Orchestrator:
 
         try:
             log_content = log_path.read_text(encoding="utf-8", errors="replace")
+            lines = log_content.splitlines()
             # Extract file modifications (lines like "Modified: path/to/file")
             files_modified: list[str] = []
-            for line in log_content.splitlines():
+            for line in lines:
                 stripped = line.strip()
                 if stripped.startswith("Modified: ") or stripped.startswith("Created: "):
                     fpath = stripped.split(": ", 1)[1].strip()
@@ -1485,7 +1494,7 @@ class Orchestrator:
             data["files_modified"] = files_modified
 
             # Extract test results (look for pytest-style summary)
-            for line in reversed(log_content.splitlines()):
+            for line in reversed(lines):
                 stripped = line.strip()
                 if "passed" in stripped or "failed" in stripped:
                     data["test_results"] = {"summary": stripped}
@@ -1538,6 +1547,15 @@ class Orchestrator:
         to_remove = [fp for fp, owner in self._file_ownership.items() if owner == agent_id]
         for fp in to_remove:
             del self._file_ownership[fp]
+
+    def _release_task_to_session(self, task_ids: list[str]) -> None:
+        """Remove reverse-index entries for the given task IDs.
+
+        Args:
+            task_ids: The task IDs whose mappings to remove.
+        """
+        for tid in task_ids:
+            self._task_to_session.pop(tid, None)
 
     def _maybe_retry_task(self, task: Task) -> bool:
         """Queue a retry for a failed task with model/effort escalation.
@@ -1628,10 +1646,10 @@ class Orchestrator:
         Returns:
             Matching AgentSession, or None if not found.
         """
-        for session in self._agents.values():
-            if task_id in session.task_ids:
-                return session
-        return None
+        agent_id = self._task_to_session.get(task_id)
+        if agent_id is None:
+            return None
+        return self._agents.get(agent_id)
 
     def _record_provider_health(
         self,
@@ -1835,6 +1853,8 @@ class Orchestrator:
                 session = self._spawner.spawn_for_tasks(batch)
                 session.timeout_s = batch_timeout_s
                 self._agents[session.id] = session
+                for _t in batch:
+                    self._task_to_session[_t.id] = session.id
                 self._claim_file_ownership(session.id, batch)
                 alive_count += 1
                 result.spawned.append(session.id)
@@ -2048,6 +2068,7 @@ class Orchestrator:
                 self._spawner.kill(session)
                 result.reaped.append(session.id)
                 self._release_file_ownership(session.id)
+                self._release_task_to_session(session.task_ids)
                 # Record agent end metrics (mirrors the heartbeat-timeout branch)
                 collector.end_agent(session.id)
                 # Record agent lifetime in evolution collector (wall-clock reap)
@@ -2076,6 +2097,7 @@ class Orchestrator:
                 result.reaped.append(session.id)
                 # Release file ownership
                 self._release_file_ownership(session.id)
+                self._release_task_to_session(session.task_ids)
                 # Record agent end metrics
                 collector.end_agent(session.id)
                 # Record agent lifetime in evolution collector (heartbeat reap)

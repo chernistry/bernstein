@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from bernstein.evolution import (  # noqa: F401
+from bernstein.evolution import (
     AgentMetrics,
     AnalysisEngine,
     AnalysisTrigger,

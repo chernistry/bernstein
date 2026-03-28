@@ -10,7 +10,7 @@ import logging
 import re
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -648,6 +648,7 @@ class Orchestrator:
             if "src/bernstein/" in changed:
                 logger.info("Evolve: own source code changed, signaling restart")
                 restart_flag = self._workdir / ".sdd" / "runtime" / "restart_requested"
+                restart_flag.parent.mkdir(parents=True, exist_ok=True)
                 restart_flag.write_text(str(time.time()))
 
             return True
@@ -786,7 +787,7 @@ class Orchestrator:
         entry: dict[str, Any] = {
             "cycle": cycle_number,
             "timestamp": timestamp,
-            "iso_time": datetime.fromtimestamp(timestamp, tz=timezone.utc).isoformat(),
+            "iso_time": datetime.fromtimestamp(timestamp, tz=UTC).isoformat(),
             "tick": self._tick_count,
         }
         if metrics:
@@ -891,7 +892,6 @@ class Orchestrator:
         verification if completion signals exist, and completes or fails
         accordingly. Also releases file ownership and emits metrics.
         """
-        base = self._config.server_url
         for session in list(self._agents.values()):
             if session.status == "dead":
                 continue
@@ -1016,7 +1016,7 @@ class Orchestrator:
         """
         now = time.time()
         record = MetricsRecord(
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             task_id=task_id,
             agent_id=session.id,
             role=session.role,
@@ -1031,7 +1031,7 @@ class Orchestrator:
             retry_count=0,
             step_count=0,
         )
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(UTC).strftime("%Y-%m-%d")
         metrics_dir = self._workdir / ".sdd" / "metrics"
         metrics_dir.mkdir(parents=True, exist_ok=True)
         metrics_path = metrics_dir / f"{today}.jsonl"
@@ -1344,7 +1344,7 @@ if __name__ == "__main__":
     from pathlib import Path
 
     from bernstein.adapters.registry import get_adapter
-    from bernstein.core.seed import parse_seed
+    from bernstein.core.seed import SeedConfig, parse_seed
     from bernstein.core.spawner import AgentSpawner
 
     parser = argparse.ArgumentParser()

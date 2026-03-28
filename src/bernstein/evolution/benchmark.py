@@ -15,12 +15,11 @@ import importlib
 import json
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-
 
 # ---------------------------------------------------------------------------
 # Data types
@@ -87,7 +86,7 @@ class RunSummary:
     passed: int
     failed: int
     results: list[BenchmarkResult] = field(default_factory=list)
-    run_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    run_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +323,7 @@ def save_results(summary: RunSummary, sdd_dir: Path) -> Path:
     benchmarks_results_dir = sdd_dir / "benchmarks"
     benchmarks_results_dir.mkdir(parents=True, exist_ok=True)
 
-    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    date_str = datetime.now(UTC).strftime("%Y-%m-%d")
     out_path = benchmarks_results_dir / f"{date_str}.jsonl"
 
     record: dict[str, Any] = {

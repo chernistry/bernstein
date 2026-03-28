@@ -6,14 +6,13 @@ enough context to decompose a goal into well-scoped tasks.
 from __future__ import annotations
 
 import json
+import subprocess
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
 from pathlib import Path
-import subprocess
 
-from bernstein.core.models import ProviderType, ApiTier
+from bernstein.core.models import ApiTier
 
 _IGNORED_DIRS = frozenset({
     ".git", "__pycache__", "node_modules", ".mypy_cache",

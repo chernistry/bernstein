@@ -558,7 +558,7 @@ class EvolutionLoop:
 def _to_types_proposal(
     proposal: UpgradeProposal,
     risk_level: RiskLevel,
-) -> "bernstein.evolution.types.UpgradeProposal":  # noqa: F821
+) -> "bernstein.evolution.types.UpgradeProposal":
     """Convert a proposals.UpgradeProposal to a types.UpgradeProposal for the gate.
 
     The ApprovalGate.route() expects bernstein.evolution.types.UpgradeProposal

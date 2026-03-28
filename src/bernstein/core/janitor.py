@@ -350,7 +350,7 @@ def _parse_judge_response(raw: str) -> JudgeVerdict:
     if text.startswith("```"):
         lines = text.splitlines()
         # Remove first and last fence lines
-        lines = [l for l in lines if not l.strip().startswith("```")]
+        lines = [line for line in lines if not line.strip().startswith("```")]
         text = "\n".join(lines).strip()
 
     try:

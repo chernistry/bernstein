@@ -662,7 +662,7 @@ class MetricsCollector:
         """Flush remaining buffered metrics on garbage collection."""
         try:
             self._flush_buffer()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     def record_api_call(

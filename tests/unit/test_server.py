@@ -812,6 +812,120 @@ async def test_get_task_unknown(client: AsyncClient) -> None:
     assert resp.status_code == 404
 
 
+# -- invalid payload handling -----------------------------------------------
+
+@pytest.mark.anyio
+async def test_create_task_with_invalid_scope(client: AsyncClient) -> None:
+    """POST /tasks with scope='bogus' should not succeed (raises ValueError or returns non-201)."""
+    try:
+        resp = await client.post("/tasks", json={**TASK_PAYLOAD, "scope": "bogus"})
+    except ValueError:
+        pass  # ValueError propagated through ASGI transport — server rejected input
+    else:
+        assert resp.status_code != 201, f"Expected rejection for invalid scope, got {resp.status_code}"
+
+
+@pytest.mark.anyio
+async def test_create_task_with_invalid_complexity(client: AsyncClient) -> None:
+    """POST /tasks with complexity='bogus' should not succeed (raises ValueError or returns non-201)."""
+    try:
+        resp = await client.post("/tasks", json={**TASK_PAYLOAD, "complexity": "bogus"})
+    except ValueError:
+        pass  # ValueError propagated through ASGI transport — server rejected input
+    else:
+        assert resp.status_code != 201, f"Expected rejection for invalid complexity, got {resp.status_code}"
+
+
+@pytest.mark.anyio
+async def test_complete_already_completed_task(client: AsyncClient) -> None:
+    """Completing an already-done task is idempotent — returns 200 with status=done."""
+    create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
+    task_id = create_resp.json()["id"]
+
+    await client.post(f"/tasks/{task_id}/complete", json={"result_summary": "First"})
+    resp = await client.post(f"/tasks/{task_id}/complete", json={"result_summary": "Second"})
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "done"
+
+
+@pytest.mark.anyio
+async def test_fail_already_failed_task(client: AsyncClient) -> None:
+    """Failing an already-failed task is idempotent — returns 200 with status=failed."""
+    create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
+    task_id = create_resp.json()["id"]
+
+    await client.post(f"/tasks/{task_id}/fail", json={"reason": "First"})
+    resp = await client.post(f"/tasks/{task_id}/fail", json={"reason": "Second"})
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "failed"
+
+
+@pytest.mark.anyio
+async def test_claim_next_skips_tasks_with_unmet_deps(client: AsyncClient) -> None:
+    """Tasks with unmet deps are hidden from the open listing and become claimable once deps are done.
+
+    This verifies that:
+    1. A dep-blocked task is absent from GET /tasks?status=open while its dep is open.
+    2. After the dep is completed, GET /tasks/next/{role} can claim the previously blocked task.
+    """
+    # Create the dependency task (qa role — stays open, different from backend)
+    dep_resp = await client.post("/tasks", json={**TASK_PAYLOAD, "role": "qa", "title": "Dep task"})
+    dep_id = dep_resp.json()["id"]
+
+    # Create a backend task that depends on the qa dep
+    blocked_resp = await client.post("/tasks", json={
+        **TASK_PAYLOAD,
+        "title": "Blocked task",
+        "depends_on": [dep_id],
+    })
+    blocked_id = blocked_resp.json()["id"]
+
+    # Before dep is done: blocked task should NOT appear in the open listing
+    open_resp = await client.get("/tasks", params={"status": "open"})
+    open_ids = {t["id"] for t in open_resp.json()}
+    assert blocked_id not in open_ids, "dep-blocked task should be hidden while dep is open"
+
+    # Complete the dep — now blocked task's dep is satisfied
+    await client.post(f"/tasks/{dep_id}/complete", json={"result_summary": "done"})
+
+    # After dep is done: task should be claimable via next-task endpoint
+    claim_resp = await client.get("/tasks/next/backend")
+    assert claim_resp.status_code == 200
+    assert claim_resp.json()["id"] == blocked_id
+
+
+@pytest.mark.anyio
+async def test_create_task_with_completion_signals(client: AsyncClient) -> None:
+    """POST /tasks with completion_signals field is accepted and task is created."""
+    payload = {
+        **TASK_PAYLOAD,
+        "completion_signals": [
+            {"type": "path_exists", "value": "src/foo.py"},
+            {"type": "test_passes", "value": "uv run pytest tests/ -q"},
+        ],
+    }
+    resp = await client.post("/tasks", json=payload)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["title"] == TASK_PAYLOAD["title"]
+    assert data["status"] == "open"
+
+
+@pytest.mark.anyio
+async def test_heartbeat_unknown_agent(client: AsyncClient) -> None:
+    """POST /agents/{id}/heartbeat for a never-seen agent should not crash."""
+    resp = await client.post(
+        "/agents/brand-new-agent/heartbeat",
+        json={"role": "backend", "status": "starting"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["agent_id"] == "brand-new-agent"
+    assert data["acknowledged"] is True
+
+
 # -- dependency filtering ---------------------------------------------------
 
 @pytest.mark.anyio

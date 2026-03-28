@@ -558,7 +558,7 @@ def load_providers_from_yaml(path: Path, router: TierAwareRouter) -> None:
         path: Path to the providers YAML file.
         router: TierAwareRouter instance to register providers into.
     """
-    import yaml  # noqa: PLC0415 (lazy import — yaml is always available via pyyaml)
+    import yaml
 
     try:
         data: object = yaml.safe_load(path.read_text(encoding="utf-8"))

@@ -949,7 +949,6 @@ def live(interval: float) -> None:
         }
 
     _live_start_ts = time.time()
-    known_tasks: dict[str, str] = {}
     data: dict[str, Any] = {}
 
     def _render() -> Layout:
@@ -975,7 +974,6 @@ def live(interval: float) -> None:
                 new_map: dict[str, str] = {}
                 for t in tasks_list:
                     new_map[t.get("id", "")] = t.get("status", "open")
-                known_tasks = new_map
                 live_display.update(_render())
                 time.sleep(interval)
     except KeyboardInterrupt:
@@ -1021,13 +1019,13 @@ def benchmark_run(tier: str, benchmarks_dir: str, save: bool) -> None:
       bernstein benchmark run --tier smoke     # smoke only
       bernstein benchmark run --tier stretch   # stretch only
     """
+    from rich.table import Table
+
     from bernstein.evolution.benchmark import (
-        Tier,
         run_all,
         run_selected,
         save_results,
     )
-    from rich.table import Table
 
     bdir = Path(benchmarks_dir)
     if not bdir.exists():
@@ -1087,7 +1085,7 @@ def benchmark_run(tier: str, benchmarks_dir: str, save: bool) -> None:
 # cost
 # ---------------------------------------------------------------------------
 
-from bernstein.cli.cost import cost_cmd  # noqa: E402
+from bernstein.cli.cost import cost_cmd
 
 cli.add_command(cost_cmd, "cost")
 

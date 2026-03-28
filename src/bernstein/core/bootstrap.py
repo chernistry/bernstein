@@ -134,7 +134,6 @@ def _read_pid(pid_path: Path) -> int | None:
 
 def _is_alive(pid: int) -> bool:
     """Check whether a process with the given PID is alive."""
-    import os
 
     try:
         os.kill(pid, 0)
@@ -184,7 +183,7 @@ def _start_server(workdir: Path, port: int) -> int:
     log_path = workdir / ".sdd" / "runtime" / "server.log"
     # Keep the log file open — child inherits the fd via fork().
     # Closing it prematurely can cause the child's stdout to break.
-    log_fh = log_path.open("w")  # noqa: SIM115
+    log_fh = log_path.open("w")
     proc = subprocess.Popen(
         [
             sys.executable,
@@ -283,7 +282,7 @@ def _start_spawner(workdir: Path, port: int) -> int:
     pid_path = workdir / ".sdd" / "runtime" / "spawner.pid"
     log_path = workdir / ".sdd" / "runtime" / "spawner.log"
 
-    log_fh = log_path.open("w")  # noqa: SIM115
+    log_fh = log_path.open("w")
     proc = subprocess.Popen(
         [
             sys.executable,
@@ -424,7 +423,7 @@ def _start_watchdog(workdir: Path, port: int) -> int:
     pid_path = workdir / ".sdd" / "runtime" / "watchdog.pid"
     log_path = workdir / ".sdd" / "runtime" / "watchdog.log"
 
-    log_fh = log_path.open("w")  # noqa: SIM115
+    log_fh = log_path.open("w")
     proc = subprocess.Popen(
         [
             sys.executable,

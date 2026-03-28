@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from bernstein.adapters.amp import AmpAdapter
 from bernstein.adapters.aider import AiderAdapter
+from bernstein.adapters.amp import AmpAdapter
 from bernstein.adapters.base import CLIAdapter
 from bernstein.adapters.claude import ClaudeCodeAdapter
 from bernstein.adapters.codex import CodexAdapter

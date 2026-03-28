@@ -1,38 +1,14 @@
-"""Tests for bernstein.core.workspace — multi-repo workspace coordinator."""
+"""Tests for bernstein.core.workspace — multi-repo workspace orchestration."""
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from bernstein.core.workspace import Workspace
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def simple_config(tmp_path: Path) -> dict:
-    """A minimal workspace config dict referencing two repos."""
-    return {
-        "repos": [
-            {
-                "name": "backend",
-                "path": str(tmp_path / "backend"),
-                "url": "git@github.com:org/backend.git",
-            },
-            {
-                "name": "frontend",
-                "path": str(tmp_path / "frontend"),
-                "url": "git@github.com:org/frontend.git",
-                "branch": "develop",
-            },
-        ]
-    }
-
+from bernstein.core.workspace import RepoConfig, Workspace
 
 # ---------------------------------------------------------------------------
 # Workspace.from_config
@@ -40,64 +16,68 @@ def simple_config(tmp_path: Path) -> dict:
 
 
 class TestFromConfig:
-    def test_parses_repos(self, tmp_path: Path, simple_config: dict) -> None:
-        ws = Workspace.from_config(simple_config, root=tmp_path)
+    """Tests for Workspace.from_config parsing."""
+
+    def test_parses_basic_config(self, tmp_path: Path) -> None:
+        config = {
+            "repos": [
+                {"name": "backend", "path": "./services/backend"},
+                {"name": "frontend", "path": "./services/frontend"},
+            ]
+        }
+        ws = Workspace.from_config(config, root=tmp_path)
         assert len(ws.repos) == 2
         assert ws.repos[0].name == "backend"
+        assert ws.repos[0].path == Path("./services/backend")
+        assert ws.repos[0].branch == "main"
+        assert ws.repos[0].url is None
         assert ws.repos[1].name == "frontend"
 
-    def test_resolves_relative_paths(self, tmp_path: Path) -> None:
-        config = {"repos": [{"name": "core", "path": "./core"}]}
+    def test_parses_full_config_with_url_and_branch(self, tmp_path: Path) -> None:
+        config = {
+            "repos": [
+                {
+                    "name": "api",
+                    "path": "./api",
+                    "url": "git@github.com:org/api.git",
+                    "branch": "develop",
+                },
+            ]
+        }
         ws = Workspace.from_config(config, root=tmp_path)
-        assert ws.repos[0].path == (tmp_path / "core").resolve()
-
-    def test_preserves_absolute_paths(self, tmp_path: Path) -> None:
-        abs_path = str(tmp_path / "absolute_repo")
-        config = {"repos": [{"name": "abs", "path": abs_path}]}
-        ws = Workspace.from_config(config, root=tmp_path)
-        assert ws.repos[0].path == Path(abs_path)
-
-    def test_default_branch_is_main(self, tmp_path: Path) -> None:
-        config = {"repos": [{"name": "repo", "path": "./repo"}]}
-        ws = Workspace.from_config(config, root=tmp_path)
-        assert ws.repos[0].branch == "main"
-
-    def test_custom_branch_parsed(self, tmp_path: Path) -> None:
-        config = {"repos": [{"name": "fe", "path": "./fe", "branch": "develop"}]}
-        ws = Workspace.from_config(config, root=tmp_path)
+        assert ws.repos[0].url == "git@github.com:org/api.git"
         assert ws.repos[0].branch == "develop"
 
-    def test_url_none_when_absent(self, tmp_path: Path) -> None:
-        config = {"repos": [{"name": "local", "path": "./local"}]}
-        ws = Workspace.from_config(config, root=tmp_path)
-        assert ws.repos[0].url is None
+    def test_root_is_resolved(self, tmp_path: Path) -> None:
+        config = {"repos": [{"name": "x", "path": "./x"}]}
+        ws = Workspace.from_config(config, root=tmp_path / "subdir")
+        assert ws.root == (tmp_path / "subdir").resolve()
 
-    def test_url_set_when_present(self, tmp_path: Path) -> None:
-        config = {"repos": [{"name": "r", "path": "./r", "url": "git@github.com:o/r.git"}]}
-        ws = Workspace.from_config(config, root=tmp_path)
-        assert ws.repos[0].url == "git@github.com:o/r.git"
+    def test_rejects_missing_repos_key(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match=r"workspace\.repos must be a list"):
+            Workspace.from_config({}, root=tmp_path)
 
-    def test_empty_repos_list(self, tmp_path: Path) -> None:
-        ws = Workspace.from_config({"repos": []}, root=tmp_path)
-        assert ws.repos == []
+    def test_rejects_non_list_repos(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match=r"workspace\.repos must be a list"):
+            Workspace.from_config({"repos": "invalid"}, root=tmp_path)
 
-    def test_missing_repos_key(self, tmp_path: Path) -> None:
-        ws = Workspace.from_config({}, root=tmp_path)
-        assert ws.repos == []
+    def test_rejects_missing_name(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="non-empty 'name'"):
+            Workspace.from_config({"repos": [{"path": "./x"}]}, root=tmp_path)
 
-    def test_missing_name_raises(self, tmp_path: Path) -> None:
-        config = {"repos": [{"path": "./x"}]}
-        with pytest.raises(ValueError, match="name"):
+    def test_rejects_missing_path(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="non-empty 'path'"):
+            Workspace.from_config({"repos": [{"name": "x"}]}, root=tmp_path)
+
+    def test_rejects_duplicate_names(self, tmp_path: Path) -> None:
+        config = {
+            "repos": [
+                {"name": "dup", "path": "./a"},
+                {"name": "dup", "path": "./b"},
+            ]
+        }
+        with pytest.raises(ValueError, match="Duplicate repo name"):
             Workspace.from_config(config, root=tmp_path)
-
-    def test_missing_path_raises(self, tmp_path: Path) -> None:
-        config = {"repos": [{"name": "x"}]}
-        with pytest.raises(ValueError, match="path"):
-            Workspace.from_config(config, root=tmp_path)
-
-    def test_repos_not_list_raises(self, tmp_path: Path) -> None:
-        with pytest.raises(ValueError, match="list"):
-            Workspace.from_config({"repos": "not-a-list"}, root=tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -106,20 +86,28 @@ class TestFromConfig:
 
 
 class TestResolveRepo:
-    def test_returns_correct_path(self, tmp_path: Path, simple_config: dict) -> None:
-        ws = Workspace.from_config(simple_config, root=tmp_path)
-        path = ws.resolve_repo("backend")
-        assert path == Path(simple_config["repos"][0]["path"])
+    """Tests for Workspace.resolve_repo path resolution."""
 
-    def test_returns_second_repo(self, tmp_path: Path, simple_config: dict) -> None:
-        ws = Workspace.from_config(simple_config, root=tmp_path)
-        path = ws.resolve_repo("frontend")
-        assert path == Path(simple_config["repos"][1]["path"])
+    def test_returns_correct_absolute_path(self, tmp_path: Path) -> None:
+        ws = Workspace(
+            root=tmp_path,
+            repos=[RepoConfig(name="svc", path=Path("./services/svc"))],
+        )
+        result = ws.resolve_repo("svc")
+        assert result == (tmp_path / "services" / "svc").resolve()
 
-    def test_unknown_name_raises_key_error(self, tmp_path: Path, simple_config: dict) -> None:
-        ws = Workspace.from_config(simple_config, root=tmp_path)
-        with pytest.raises(KeyError, match="unknown"):
-            ws.resolve_repo("unknown")
+    def test_handles_absolute_path(self, tmp_path: Path) -> None:
+        abs_path = tmp_path / "absolute" / "repo"
+        ws = Workspace(
+            root=tmp_path,
+            repos=[RepoConfig(name="abs", path=abs_path)],
+        )
+        assert ws.resolve_repo("abs") == abs_path.resolve()
+
+    def test_raises_keyerror_for_unknown(self, tmp_path: Path) -> None:
+        ws = Workspace(root=tmp_path, repos=[])
+        with pytest.raises(KeyError, match="Unknown repo"):
+            ws.resolve_repo("nonexistent")
 
 
 # ---------------------------------------------------------------------------
@@ -128,88 +116,74 @@ class TestResolveRepo:
 
 
 class TestCloneMissing:
-    def test_clones_missing_repo(self, tmp_path: Path) -> None:
-        config = {
-            "repos": [
-                {
-                    "name": "myrepo",
-                    "path": str(tmp_path / "myrepo"),
-                    "url": "git@github.com:org/myrepo.git",
-                },
-            ]
-        }
-        ws = Workspace.from_config(config, root=tmp_path)
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stderr="")
-            cloned = ws.clone_missing()
+    """Tests for Workspace.clone_missing git clone functionality."""
 
-        assert cloned == ["myrepo"]
+    @patch("bernstein.core.workspace.subprocess.run")
+    def test_clones_missing_repo(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
+        ws = Workspace(
+            root=tmp_path,
+            repos=[
+                RepoConfig(
+                    name="new-repo",
+                    path=Path("./repos/new-repo"),
+                    url="https://github.com/org/new-repo.git",
+                    branch="main",
+                ),
+            ],
+        )
+        cloned = ws.clone_missing()
+        assert cloned == ["new-repo"]
         mock_run.assert_called_once()
         args = mock_run.call_args[0][0]
-        assert "git" in args
-        assert "clone" in args
-        assert "git@github.com:org/myrepo.git" in args
+        assert args[0] == "git"
+        assert args[1] == "clone"
+        assert "--branch" in args
+        assert "main" in args
 
-    def test_skips_existing_repo(self, tmp_path: Path) -> None:
-        existing = tmp_path / "existing"
-        existing.mkdir()
-        config = {
-            "repos": [
-                {"name": "existing", "path": str(existing), "url": "git@github.com:org/e.git"},
-            ]
-        }
-        ws = Workspace.from_config(config, root=tmp_path)
-        with patch("subprocess.run") as mock_run:
-            cloned = ws.clone_missing()
-
+    @patch("bernstein.core.workspace.subprocess.run")
+    def test_skips_existing_repo(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        existing = tmp_path / "repos" / "existing"
+        existing.mkdir(parents=True)
+        ws = Workspace(
+            root=tmp_path,
+            repos=[
+                RepoConfig(
+                    name="existing",
+                    path=Path("./repos/existing"),
+                    url="https://github.com/org/existing.git",
+                ),
+            ],
+        )
+        cloned = ws.clone_missing()
         assert cloned == []
         mock_run.assert_not_called()
 
     def test_skips_repo_without_url(self, tmp_path: Path) -> None:
-        config = {
-            "repos": [
-                {"name": "local", "path": str(tmp_path / "local")},
-            ]
-        }
-        ws = Workspace.from_config(config, root=tmp_path)
-        with patch("subprocess.run") as mock_run:
-            cloned = ws.clone_missing()
-
+        ws = Workspace(
+            root=tmp_path,
+            repos=[RepoConfig(name="local", path=Path("./local"))],
+        )
+        cloned = ws.clone_missing()
         assert cloned == []
-        mock_run.assert_not_called()
 
-    def test_raises_on_git_failure(self, tmp_path: Path) -> None:
-        config = {
-            "repos": [
-                {"name": "fail", "path": str(tmp_path / "fail"), "url": "git@github.com:org/fail.git"},
-            ]
-        }
-        ws = Workspace.from_config(config, root=tmp_path)
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=128, stderr="fatal: repo not found")
-            with pytest.raises(RuntimeError, match="git clone failed"):
-                ws.clone_missing()
-
-    def test_uses_configured_branch(self, tmp_path: Path) -> None:
-        config = {
-            "repos": [
-                {
-                    "name": "br",
-                    "path": str(tmp_path / "br"),
-                    "url": "git@github.com:org/br.git",
-                    "branch": "release",
-                },
-            ]
-        }
-        ws = Workspace.from_config(config, root=tmp_path)
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stderr="")
-            ws.clone_missing()
-
-        args = mock_run.call_args[0][0]
-        assert "--branch" in args
-        idx = args.index("--branch")
-        assert args[idx + 1] == "release"
+    @patch("bernstein.core.workspace.subprocess.run")
+    def test_handles_clone_failure(self, mock_run: MagicMock, tmp_path: Path) -> None:
+        mock_run.side_effect = subprocess.CalledProcessError(
+            returncode=128, cmd=["git", "clone"], stderr="fatal: repo not found"
+        )
+        ws = Workspace(
+            root=tmp_path,
+            repos=[
+                RepoConfig(
+                    name="bad",
+                    path=Path("./repos/bad"),
+                    url="https://github.com/org/bad.git",
+                ),
+            ],
+        )
+        cloned = ws.clone_missing()
+        assert cloned == []
 
 
 # ---------------------------------------------------------------------------
@@ -217,188 +191,308 @@ class TestCloneMissing:
 # ---------------------------------------------------------------------------
 
 
-class TestWorkspaceStatus:
-    def test_returns_status_for_each_repo(self, tmp_path: Path) -> None:
-        config = {
-            "repos": [
-                {"name": "a", "path": str(tmp_path / "a")},
-                {"name": "b", "path": str(tmp_path / "b")},
-            ]
-        }
-        ws = Workspace.from_config(config, root=tmp_path)
-        statuses = ws.status()
-        assert set(statuses.keys()) == {"a", "b"}
+class TestStatus:
+    """Tests for Workspace.status git status retrieval."""
 
-    def test_missing_path_returns_error(self, tmp_path: Path) -> None:
-        config = {"repos": [{"name": "gone", "path": str(tmp_path / "gone")}]}
-        ws = Workspace.from_config(config, root=tmp_path)
-        statuses = ws.status()
-        assert "error" in statuses["gone"]
-        assert "does not exist" in statuses["gone"]["error"]
+    def _make_git_repo(self, path: Path, branch: str = "main") -> None:
+        """Create a minimal git repo at the given path."""
+        path.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            ["git", "init", "-b", branch],
+            cwd=str(path),
+            capture_output=True,
+            check=True,
+        )
+        # Make an initial commit so rev-parse works
+        (path / "README.md").write_text("init")
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=str(path),
+            capture_output=True,
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-c", "user.name=Test", "-c", "user.email=test@test.com", "commit", "-m", "init"],
+            cwd=str(path),
+            capture_output=True,
+            check=True,
+        )
 
-    def test_status_keys_present_for_valid_repo(self, tmp_path: Path) -> None:
-        repo_dir = tmp_path / "repo"
-        repo_dir.mkdir()
-        config = {"repos": [{"name": "repo", "path": str(repo_dir)}]}
-        ws = Workspace.from_config(config, root=tmp_path)
+    def test_returns_status_for_valid_repos(self, tmp_path: Path) -> None:
+        repo_path = tmp_path / "repos" / "svc"
+        self._make_git_repo(repo_path, branch="main")
 
-        def fake_run(cmd: list[str], **kwargs):  # type: ignore[no-untyped-def]
-            mock = MagicMock()
-            if "rev-parse" in cmd:
-                mock.returncode = 0
-                mock.stdout = "main\n"
-            elif "status" in cmd:
-                mock.returncode = 0
-                mock.stdout = ""
-            elif "rev-list" in cmd:
-                mock.returncode = 0
-                mock.stdout = "0\t0\n"
-            else:
-                mock.returncode = 0
-                mock.stdout = ""
-            mock.stderr = ""
-            return mock
+        ws = Workspace(
+            root=tmp_path,
+            repos=[RepoConfig(name="svc", path=Path("./repos/svc"))],
+        )
+        result = ws.status()
+        assert "svc" in result
+        assert result["svc"].branch == "main"
+        assert result["svc"].clean is True
 
-        with patch("subprocess.run", side_effect=fake_run):
-            statuses = ws.status()
+    def test_detects_dirty_repo(self, tmp_path: Path) -> None:
+        repo_path = tmp_path / "repos" / "dirty"
+        self._make_git_repo(repo_path)
+        (repo_path / "dirty.txt").write_text("uncommitted")
 
-        info = statuses["repo"]
-        assert info["branch"] == "main"
-        assert info["state"] == "clean"
-        assert info["ahead"] == "0"
-        assert info["behind"] == "0"
+        ws = Workspace(
+            root=tmp_path,
+            repos=[RepoConfig(name="dirty", path=Path("./repos/dirty"))],
+        )
+        result = ws.status()
+        assert result["dirty"].clean is False
 
-    def test_dirty_state_detected(self, tmp_path: Path) -> None:
-        repo_dir = tmp_path / "repo"
-        repo_dir.mkdir()
-        config = {"repos": [{"name": "repo", "path": str(repo_dir)}]}
-        ws = Workspace.from_config(config, root=tmp_path)
-
-        def fake_run(cmd: list[str], **kwargs):  # type: ignore[no-untyped-def]
-            mock = MagicMock()
-            if "rev-parse" in cmd:
-                mock.returncode = 0
-                mock.stdout = "feature/foo\n"
-            elif "status" in cmd:
-                mock.returncode = 0
-                mock.stdout = " M somefile.py\n"
-            elif "rev-list" in cmd:
-                mock.returncode = 0
-                mock.stdout = "2\t1\n"
-            else:
-                mock.returncode = 0
-                mock.stdout = ""
-            mock.stderr = ""
-            return mock
-
-        with patch("subprocess.run", side_effect=fake_run):
-            statuses = ws.status()
-
-        info = statuses["repo"]
-        assert info["state"] == "dirty"
-        assert info["ahead"] == "2"
-        assert info["behind"] == "1"
+    def test_skips_nonexistent_repos(self, tmp_path: Path) -> None:
+        ws = Workspace(
+            root=tmp_path,
+            repos=[RepoConfig(name="ghost", path=Path("./repos/ghost"))],
+        )
+        result = ws.status()
+        assert "ghost" not in result
 
 
 # ---------------------------------------------------------------------------
-# Task.repo field + spawner workdir selection
+# Workspace.validate
+# ---------------------------------------------------------------------------
+
+
+class TestValidate:
+    """Tests for Workspace.validate health checks."""
+
+    def test_no_issues_when_all_valid(self, tmp_path: Path) -> None:
+        repo_path = tmp_path / "repos" / "valid"
+        repo_path.mkdir(parents=True)
+        (repo_path / ".git").mkdir()  # Fake .git dir
+
+        ws = Workspace(
+            root=tmp_path,
+            repos=[RepoConfig(name="valid", path=Path("./repos/valid"))],
+        )
+        issues = ws.validate()
+        assert issues == []
+
+    def test_detects_missing_repo(self, tmp_path: Path) -> None:
+        ws = Workspace(
+            root=tmp_path,
+            repos=[RepoConfig(name="missing", path=Path("./repos/missing"))],
+        )
+        issues = ws.validate()
+        assert len(issues) == 1
+        assert "does not exist" in issues[0]
+
+    def test_detects_non_git_repo(self, tmp_path: Path) -> None:
+        repo_path = tmp_path / "repos" / "not-git"
+        repo_path.mkdir(parents=True)
+
+        ws = Workspace(
+            root=tmp_path,
+            repos=[RepoConfig(name="not-git", path=Path("./repos/not-git"))],
+        )
+        issues = ws.validate()
+        assert len(issues) == 1
+        assert "not a git repository" in issues[0]
+
+
+# ---------------------------------------------------------------------------
+# Task with repo field + spawner integration
 # ---------------------------------------------------------------------------
 
 
 class TestTaskRepoField:
-    def test_task_repo_defaults_to_none(self, make_task) -> None:
-        task = make_task()
-        assert task.repo is None
+    """Tests for the repo field on Task and its integration with the spawner."""
 
-    def test_task_repo_can_be_set(self) -> None:
-        from bernstein.core.models import Task
-
-        task = Task(id="T-1", title="x", description="y", role="backend", repo="backend")
-        assert task.repo == "backend"
-
-    def test_from_dict_deserializes_repo(self) -> None:
+    def test_task_from_dict_includes_repo(self) -> None:
         from bernstein.core.models import Task
 
         raw = {
-            "id": "T-1",
-            "title": "t",
-            "description": "d",
+            "id": "abc123",
+            "title": "Fix API",
+            "description": "Fix the bug",
             "role": "backend",
-            "repo": "frontend",
+            "repo": "api-service",
         }
         task = Task.from_dict(raw)
-        assert task.repo == "frontend"
+        assert task.repo == "api-service"
 
-    def test_from_dict_repo_none_when_absent(self) -> None:
+    def test_task_from_dict_repo_defaults_none(self) -> None:
         from bernstein.core.models import Task
 
-        raw = {"id": "T-1", "title": "t", "description": "d", "role": "backend"}
+        raw = {
+            "id": "abc123",
+            "title": "Fix API",
+            "description": "Fix the bug",
+            "role": "backend",
+        }
         task = Task.from_dict(raw)
         assert task.repo is None
 
+    def test_spawner_uses_workspace_repo_path(self, tmp_path: Path, make_task, mock_adapter_factory) -> None:
+        """Spawner should use the repo path as cwd when task has a repo field."""
+        repo_path = tmp_path / "services" / "backend"
+        repo_path.mkdir(parents=True)
 
-class TestSpawnerRepoWorkdir:
-    def test_uses_repo_workdir_when_task_has_repo(self, tmp_path: Path, make_task, mock_adapter_factory) -> None:
-        from bernstein.core.spawner import AgentSpawner
-        from bernstein.core.workspace import RepoConfig, Workspace
+        adapter = mock_adapter_factory(pid=100)
+        templates_dir = tmp_path / "templates" / "roles"
+        templates_dir.mkdir(parents=True)
 
-        repo_path = tmp_path / "myrepo"
-        repo_path.mkdir()
         ws = Workspace(
             root=tmp_path,
-            repos=[RepoConfig(name="myrepo", path=repo_path)],
+            repos=[RepoConfig(name="backend", path=Path("./services/backend"))],
         )
-        adapter = mock_adapter_factory(pid=55)
-        templates_dir = tmp_path / "templates" / "roles"
-        templates_dir.mkdir(parents=True)
+
+        from bernstein.core.spawner import AgentSpawner
+
         spawner = AgentSpawner(adapter, templates_dir, tmp_path, workspace=ws)
 
-        base_task = make_task(id="T-repo")
-        task = base_task.__class__(
-            id=base_task.id,
-            title=base_task.title,
-            description=base_task.description,
-            role=base_task.role,
-            repo="myrepo",
-        )
-        spawner.spawn_for_tasks([task])
+        task = make_task(id="T-100", role="backend")
+        # Manually set repo since make_task doesn't support it
+        task.repo = "backend"
 
+        session = spawner.spawn_for_tasks([task])
+        assert session.pid == 100
+
+        # Verify the adapter was called with the repo path as workdir
         call_kwargs = adapter.spawn.call_args
-        assert call_kwargs.kwargs["workdir"] == repo_path
+        assert call_kwargs is not None
+        spawn_workdir = call_kwargs.kwargs.get("workdir") or call_kwargs[1].get("workdir")
+        assert spawn_workdir == repo_path.resolve()
 
-    def test_falls_back_to_workdir_when_no_workspace(self, tmp_path: Path, make_task, mock_adapter_factory) -> None:
-        from bernstein.core.spawner import AgentSpawner
-
-        adapter = mock_adapter_factory(pid=56)
+    def test_spawner_falls_back_on_unknown_repo(self, tmp_path: Path, make_task, mock_adapter_factory) -> None:
+        """Spawner should fall back to workdir when repo name is not in workspace."""
+        adapter = mock_adapter_factory(pid=101)
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
-        spawner = AgentSpawner(adapter, templates_dir, tmp_path)
-
-        task = make_task(id="T-noworkspace")
-        spawner.spawn_for_tasks([task])
-
-        call_kwargs = adapter.spawn.call_args
-        assert call_kwargs.kwargs["workdir"] == tmp_path
-
-    def test_falls_back_to_workdir_for_unknown_repo(self, tmp_path: Path, make_task, mock_adapter_factory) -> None:
-        from bernstein.core.spawner import AgentSpawner
-        from bernstein.core.workspace import Workspace
 
         ws = Workspace(root=tmp_path, repos=[])
-        adapter = mock_adapter_factory(pid=57)
-        templates_dir = tmp_path / "templates" / "roles"
-        templates_dir.mkdir(parents=True)
+
+        from bernstein.core.spawner import AgentSpawner
+
         spawner = AgentSpawner(adapter, templates_dir, tmp_path, workspace=ws)
 
-        base_task = make_task(id="T-unknown")
-        task = base_task.__class__(
-            id=base_task.id,
-            title=base_task.title,
-            description=base_task.description,
-            role=base_task.role,
-            repo="nonexistent",
-        )
-        spawner.spawn_for_tasks([task])
+        task = make_task(id="T-101", role="backend")
+        task.repo = "nonexistent"
 
+        session = spawner.spawn_for_tasks([task])
+        assert session.pid == 101
+
+        # Should fall back to tmp_path
         call_kwargs = adapter.spawn.call_args
-        assert call_kwargs.kwargs["workdir"] == tmp_path
+        spawn_workdir = call_kwargs.kwargs.get("workdir") or call_kwargs[1].get("workdir")
+        assert spawn_workdir == tmp_path
+
+    def test_spawner_ignores_repo_without_workspace(self, tmp_path: Path, make_task, mock_adapter_factory) -> None:
+        """Spawner with no workspace should ignore the repo field entirely."""
+        adapter = mock_adapter_factory(pid=102)
+        templates_dir = tmp_path / "templates" / "roles"
+        templates_dir.mkdir(parents=True)
+
+        from bernstein.core.spawner import AgentSpawner
+
+        spawner = AgentSpawner(adapter, templates_dir, tmp_path)
+
+        task = make_task(id="T-102", role="backend")
+        task.repo = "some-repo"
+
+        session = spawner.spawn_for_tasks([task])
+        assert session.pid == 102
+
+
+# ---------------------------------------------------------------------------
+# Seed config integration
+# ---------------------------------------------------------------------------
+
+
+class TestSeedWorkspaceIntegration:
+    """Tests for workspace parsing from bernstein.yaml via seed module."""
+
+    def test_seed_parses_workspace_section(self, tmp_path: Path) -> None:
+        from bernstein.core.seed import parse_seed
+
+        seed_file = tmp_path / "bernstein.yaml"
+        seed_file.write_text(
+            'goal: "Build the thing"\n'
+            "workspace:\n"
+            "  repos:\n"
+            "    - name: backend\n"
+            "      path: ./services/backend\n"
+            "      url: git@github.com:org/backend.git\n"
+            "    - name: frontend\n"
+            "      path: ./services/frontend\n"
+        )
+        cfg = parse_seed(seed_file)
+        assert cfg.workspace is not None
+        assert len(cfg.workspace.repos) == 2
+        assert cfg.workspace.repos[0].name == "backend"
+        assert cfg.workspace.repos[0].url == "git@github.com:org/backend.git"
+        assert cfg.workspace.repos[1].name == "frontend"
+        assert cfg.workspace.repos[1].url is None
+
+    def test_seed_without_workspace_returns_none(self, tmp_path: Path) -> None:
+        from bernstein.core.seed import parse_seed
+
+        seed_file = tmp_path / "bernstein.yaml"
+        seed_file.write_text('goal: "Simple project"\n')
+        cfg = parse_seed(seed_file)
+        assert cfg.workspace is None
+
+    def test_seed_rejects_invalid_workspace(self, tmp_path: Path) -> None:
+        from bernstein.core.seed import SeedError, parse_seed
+
+        seed_file = tmp_path / "bernstein.yaml"
+        seed_file.write_text('goal: "Test"\nworkspace: "invalid"\n')
+        with pytest.raises(SeedError, match="workspace must be a mapping"):
+            parse_seed(seed_file)
+
+
+# ---------------------------------------------------------------------------
+# CLI workspace commands
+# ---------------------------------------------------------------------------
+
+
+class TestWorkspaceCLI:
+    """Tests for bernstein workspace CLI commands."""
+
+    def test_workspace_validate_no_seed_file(self) -> None:
+        from click.testing import CliRunner
+
+        from bernstein.cli.main import workspace_validate
+
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            result = runner.invoke(workspace_validate)
+            assert result.exit_code == 0
+            assert "No bernstein.yaml found" in result.output
+
+    def test_workspace_clone_no_seed_file(self) -> None:
+        from click.testing import CliRunner
+
+        from bernstein.cli.main import workspace_clone
+
+        runner = CliRunner()
+        with runner.isolated_filesystem():
+            result = runner.invoke(workspace_clone)
+            assert result.exit_code == 0
+            assert "No bernstein.yaml found" in result.output
+
+    def test_workspace_validate_healthy(self, tmp_path: Path) -> None:
+        from click.testing import CliRunner
+
+        from bernstein.cli.main import workspace_validate
+
+        # Create a repo with .git dir
+        repo_path = tmp_path / "repos" / "svc"
+        repo_path.mkdir(parents=True)
+        (repo_path / ".git").mkdir()
+
+        seed_content = f'goal: "Test"\nworkspace:\n  repos:\n    - name: svc\n      path: {repo_path}\n'
+        seed_file = tmp_path / "bernstein.yaml"
+        seed_file.write_text(seed_content)
+
+        runner = CliRunner()
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            # Write the seed file in the isolated dir
+            Path("bernstein.yaml").write_text(seed_content)
+            result = runner.invoke(workspace_validate)
+            assert result.exit_code == 0
+            assert "healthy" in result.output

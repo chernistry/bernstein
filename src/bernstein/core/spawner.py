@@ -272,10 +272,10 @@ class AgentSpawner:
         self._mcp_config = mcp_config
         self._mcp_registry = mcp_registry
         self._catalog = catalog
+        self._workspace = workspace
         self._context_builder = TaskContextBuilder(workdir)
         self._procs: dict[str, subprocess.Popen[bytes] | None] = {}
         self._use_worktrees = use_worktrees
-        self._workspace = workspace
         self._worktree_mgr: WorktreeManager | None = WorktreeManager(workdir) if use_worktrees else None
         self._worktree_paths: dict[str, Path] = {}
         self._traces: dict[str, AgentTrace] = {}
@@ -363,13 +363,20 @@ class AgentSpawner:
 
         # Determine working directory: repo-specific > worktree > shared workdir
         spawn_cwd = self._workdir
-        repo_name = tasks[0].repo
-        if repo_name is not None and self._workspace is not None:
+
+        # If the task targets a specific repo in a multi-repo workspace,
+        # use that repo's path as the working directory.
+        task_repo = tasks[0].repo
+        if task_repo is not None and self._workspace is not None:
             try:
-                spawn_cwd = self._workspace.resolve_repo(repo_name)
-                logger.info("Using repo '%s' workdir %s for session %s", repo_name, spawn_cwd, session_id)
-            except KeyError as exc:
-                logger.warning("Unknown repo '%s' in task — falling back to workdir: %s", repo_name, exc)
+                spawn_cwd = self._workspace.resolve_repo(task_repo)
+                logger.info("Task targets repo '%s', spawn cwd: %s", task_repo, spawn_cwd)
+            except KeyError:
+                logger.warning(
+                    "Task repo '%s' not found in workspace, falling back to workdir",
+                    task_repo,
+                )
+
         if self._use_worktrees and self._worktree_mgr is not None:
             try:
                 spawn_cwd = self._worktree_mgr.create(session_id)

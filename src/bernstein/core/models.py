@@ -182,8 +182,7 @@ class Task:
     assigned_agent: str | None = None
     result_summary: str | None = None
     cell_id: str | None = None  # Which cell this task belongs to
-    # Multi-repo workspace: if set, spawner uses workspace.resolve_repo(repo) as cwd
-    repo: str | None = None
+    repo: str | None = None  # Target repo in a multi-repo workspace
     # Manager-specified routing hints (override auto-routing when set)
     model: str | None = None  # "opus", "sonnet", "haiku"
     effort: str | None = None  # "max", "high", "medium", "low"

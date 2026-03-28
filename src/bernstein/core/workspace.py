@@ -1,7 +1,8 @@
-"""Multi-repo workspace coordinator for Bernstein.
+"""Multi-repo workspace orchestration.
 
-Allows Bernstein to orchestrate tasks across multiple repositories.
-Workspace configuration lives in the seed file under the ``workspace:`` key.
+Manages a collection of git repositories as a single workspace.
+Tasks can target specific repos, and the spawner routes agents to
+the correct working directory.
 """
 
 from __future__ import annotations
@@ -10,20 +11,20 @@ import logging
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True)
 class RepoConfig:
-    """Configuration for a single repository in a workspace.
+    """Configuration for a single repository in the workspace.
 
     Attributes:
-        name: Short identifier used by tasks to reference this repo.
-        path: Local filesystem path (may be relative to workspace root).
-        url: Optional remote URL for cloning (git@github.com:org/repo.git).
-        branch: Default branch to check out (default: "main").
+        name: Short identifier for the repo (e.g. "backend").
+        path: Relative or absolute path to the repo root.
+        url: Optional git clone URL.
+        branch: Default branch name.
     """
 
     name: str
@@ -32,203 +33,224 @@ class RepoConfig:
     branch: str = "main"
 
 
-@dataclass
-class Workspace:
-    """A multi-repository workspace managed by Bernstein.
+@dataclass(frozen=True)
+class RepoStatus:
+    """Git status snapshot for a single repository.
 
     Attributes:
-        root: The root directory of the workspace (usually the project root).
-        repos: Ordered list of repository configurations.
+        branch: Current checked-out branch.
+        clean: True if the working tree has no uncommitted changes.
+        ahead: Number of commits ahead of upstream.
+        behind: Number of commits behind upstream.
+    """
+
+    branch: str
+    clean: bool
+    ahead: int
+    behind: int
+
+
+@dataclass
+class Workspace:
+    """A multi-repo workspace managed by Bernstein.
+
+    Attributes:
+        root: Absolute path to the workspace root directory.
+        repos: List of repository configurations.
     """
 
     root: Path
     repos: list[RepoConfig] = field(default_factory=list[RepoConfig])
 
-    # ---------------------------------------------------------------------------
-    # Construction
-    # ---------------------------------------------------------------------------
-
     @classmethod
     def from_config(cls, config: dict[str, Any], root: Path) -> Workspace:
-        """Build a Workspace from a parsed YAML config dict.
-
-        The ``config`` dict corresponds to the ``workspace:`` section of
-        ``bernstein.yaml``.  Each entry under ``repos`` must have at least a
-        ``name`` and a ``path``.
+        """Parse workspace config from the ``workspace:`` section of bernstein.yaml.
 
         Args:
-            config: Parsed workspace config mapping (``repos`` list expected).
-            root: Workspace root directory used to resolve relative paths.
+            config: The parsed ``workspace`` dict from YAML.  Expected shape::
+
+                {"repos": [{"name": "...", "path": "...", ...}, ...]}
+
+            root: Workspace root directory (used to resolve relative paths).
 
         Returns:
-            Populated Workspace instance.
+            A populated Workspace instance.
 
         Raises:
-            ValueError: If a repo entry is missing ``name`` or ``path``.
+            ValueError: If the config is malformed or missing required fields.
         """
-        repos_raw: object = config.get("repos", [])
-        if not isinstance(repos_raw, list):
-            raise ValueError(f"workspace.repos must be a list, got {type(repos_raw).__name__}")
+        raw_repos: object = config.get("repos")
+        if not isinstance(raw_repos, list):
+            raise ValueError("workspace.repos must be a list")
 
-        repos: list[RepoConfig] = []
-        for entry in repos_raw:
-            if not isinstance(entry, dict):
-                raise ValueError(f"Each workspace repo entry must be a mapping, got {type(entry).__name__}")
+        repo_configs: list[RepoConfig] = []
+        seen_names: set[str] = set()
+        entries: list[object] = cast("list[object]", raw_repos)
+        for raw_entry in entries:
+            if not isinstance(raw_entry, dict):
+                raise ValueError(f"Each repo entry must be a mapping, got {type(raw_entry).__name__}")
+            entry: dict[str, object] = cast("dict[str, object]", raw_entry)
             name: object = entry.get("name")
+            path_raw: object = entry.get("path")
             if not name or not isinstance(name, str):
-                raise ValueError(f"Each workspace repo entry must have a non-empty 'name', got: {entry!r}")
-            raw_path: object = entry.get("path")
-            if not raw_path or not isinstance(raw_path, str):
-                raise ValueError(f"Each workspace repo entry must have a non-empty 'path', got: {entry!r}")
-
-            resolved = Path(raw_path)
-            if not resolved.is_absolute():
-                resolved = (root / resolved).resolve()
+                raise ValueError("Each repo must have a non-empty 'name' string")
+            if not path_raw or not isinstance(path_raw, str):
+                raise ValueError(f"Repo '{name}' must have a non-empty 'path' string")
+            if name in seen_names:
+                raise ValueError(f"Duplicate repo name: '{name}'")
+            seen_names.add(name)
 
             url_raw: object = entry.get("url")
             url: str | None = str(url_raw) if url_raw is not None else None
             branch_raw: object = entry.get("branch", "main")
             branch: str = str(branch_raw)
 
-            repos.append(RepoConfig(name=str(name), path=resolved, url=url, branch=branch))
+            repo_configs.append(
+                RepoConfig(
+                    name=name,
+                    path=Path(path_raw),
+                    url=url,
+                    branch=branch,
+                )
+            )
 
-        return cls(root=root, repos=repos)
+        return cls(root=root.resolve(), repos=repo_configs)
 
-    # ---------------------------------------------------------------------------
-    # Queries
-    # ---------------------------------------------------------------------------
-
-    def resolve_repo(self, repo_name: str) -> Path:
-        """Return the local path for a named repository.
+    def resolve_repo(self, name: str) -> Path:
+        """Get the absolute path for a named repo.
 
         Args:
-            repo_name: The ``name`` field of the desired repo.
+            name: Repository name as declared in the workspace config.
 
         Returns:
-            Absolute path to the local repository directory.
+            Absolute path to the repo directory.
 
         Raises:
-            KeyError: If no repo with the given name is configured.
+            KeyError: If no repo with that name exists.
         """
         for repo in self.repos:
-            if repo.name == repo_name:
-                return repo.path
-        raise KeyError(f"No repo named {repo_name!r} in workspace. Known repos: {[r.name for r in self.repos]}")
-
-    # ---------------------------------------------------------------------------
-    # Operations
-    # ---------------------------------------------------------------------------
+            if repo.name == name:
+                repo_path = repo.path
+                if not repo_path.is_absolute():
+                    repo_path = self.root / repo_path
+                return repo_path.resolve()
+        raise KeyError(f"Unknown repo: '{name}'")
 
     def clone_missing(self) -> list[str]:
-        """Clone any repos whose local paths do not yet exist.
+        """Clone repos that don't exist locally via ``git clone``.
 
-        Uses ``git clone`` with the configured URL and branch.  Repos without
-        a URL configured are skipped with a warning.
+        Only repos with a configured ``url`` are considered.  Repos
+        whose directories already exist are skipped.
 
         Returns:
             List of repo names that were successfully cloned.
-
-        Raises:
-            RuntimeError: If ``git clone`` fails for any repo.
         """
         cloned: list[str] = []
         for repo in self.repos:
-            if repo.path.exists():
-                logger.debug("Repo '%s' already exists at %s, skipping", repo.name, repo.path)
-                continue
             if repo.url is None:
-                logger.warning(
-                    "Repo '%s' at %s does not exist and has no URL — cannot clone",
-                    repo.name,
-                    repo.path,
-                )
                 continue
-            logger.info("Cloning %s from %s into %s", repo.name, repo.url, repo.path)
-            cmd = ["git", "clone", "--branch", repo.branch, repo.url, str(repo.path)]
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                raise RuntimeError(f"git clone failed for repo '{repo.name}': {result.stderr.strip()}")
-            cloned.append(repo.name)
-            logger.info("Cloned '%s' successfully", repo.name)
+            abs_path = repo.path if repo.path.is_absolute() else self.root / repo.path
+            if abs_path.exists():
+                logger.debug("Repo '%s' already exists at %s, skipping clone", repo.name, abs_path)
+                continue
+
+            abs_path.parent.mkdir(parents=True, exist_ok=True)
+            cmd = ["git", "clone", "--branch", repo.branch, repo.url, str(abs_path)]
+            logger.info("Cloning %s -> %s", repo.url, abs_path)
+            try:
+                subprocess.run(cmd, capture_output=True, text=True, check=True)
+                cloned.append(repo.name)
+            except subprocess.CalledProcessError as exc:
+                logger.warning("Failed to clone '%s': %s", repo.name, exc.stderr.strip())
+
         return cloned
 
-    def status(self) -> dict[str, dict[str, str]]:
-        """Return git status information for each configured repository.
-
-        For each repo, runs ``git rev-parse``, ``git status``, and
-        ``git rev-list`` to collect branch, clean/dirty state, and
-        ahead/behind counts.
+    def status(self) -> dict[str, RepoStatus]:
+        """Get git status for each repo in the workspace.
 
         Returns:
-            Mapping of repo name → status dict with keys:
-            - ``branch``: current branch name (or ``"(detached)"``).
-            - ``state``: ``"clean"`` or ``"dirty"``.
-            - ``ahead``: number of commits ahead of upstream.
-            - ``behind``: number of commits behind upstream.
-            - ``error``: error message if the repo could not be queried.
+            Mapping of repo name to its RepoStatus.  Repos whose
+            directories don't exist or aren't git repos are skipped.
         """
-        result: dict[str, dict[str, str]] = {}
+        result: dict[str, RepoStatus] = {}
         for repo in self.repos:
-            result[repo.name] = _repo_status(repo)
+            abs_path = repo.path if repo.path.is_absolute() else self.root / repo.path
+            if not (abs_path / ".git").exists():
+                continue
+
+            branch = self._git_current_branch(abs_path)
+            clean = self._git_is_clean(abs_path)
+            ahead, behind = self._git_ahead_behind(abs_path)
+            result[repo.name] = RepoStatus(
+                branch=branch,
+                clean=clean,
+                ahead=ahead,
+                behind=behind,
+            )
         return result
 
+    def validate(self) -> list[str]:
+        """Check all repos exist and are valid git repos.
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
+        Returns:
+            List of human-readable issue descriptions.  Empty list
+            means all repos are healthy.
+        """
+        issues: list[str] = []
+        for repo in self.repos:
+            abs_path = repo.path if repo.path.is_absolute() else self.root / repo.path
+            if not abs_path.exists():
+                issues.append(f"Repo '{repo.name}': path does not exist ({abs_path})")
+            elif not (abs_path / ".git").exists():
+                issues.append(f"Repo '{repo.name}': not a git repository ({abs_path})")
+        return issues
 
+    # -- private git helpers --------------------------------------------------
 
-def _run_git(args: list[str], cwd: Path) -> tuple[int, str, str]:
-    """Run a git command and return (returncode, stdout, stderr).
+    @staticmethod
+    def _git_current_branch(repo_path: Path) -> str:
+        """Return the current branch name, or 'HEAD' if detached."""
+        try:
+            result = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=str(repo_path),
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return result.stdout.strip()
+        except (subprocess.CalledProcessError, OSError):
+            return "unknown"
 
-    Args:
-        args: Git subcommand and arguments (without the leading "git").
-        cwd: Working directory.
+    @staticmethod
+    def _git_is_clean(repo_path: Path) -> bool:
+        """Return True if the working tree has no uncommitted changes."""
+        try:
+            result = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=str(repo_path),
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            return result.stdout.strip() == ""
+        except (subprocess.CalledProcessError, OSError):
+            return False
 
-    Returns:
-        Tuple of (returncode, stdout, stderr).
-    """
-    completed = subprocess.run(
-        ["git", *args],
-        capture_output=True,
-        text=True,
-        cwd=cwd,
-    )
-    return completed.returncode, completed.stdout.strip(), completed.stderr.strip()
-
-
-def _repo_status(repo: RepoConfig) -> dict[str, str]:
-    """Collect git status for a single repo.
-
-    Args:
-        repo: Repository configuration.
-
-    Returns:
-        Status dict with branch, state, ahead, behind, and optional error.
-    """
-    if not repo.path.exists():
-        return {"error": f"path does not exist: {repo.path}"}
-
-    # Branch name
-    rc, branch_out, _ = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], repo.path)
-    if rc != 0:
-        return {"error": f"not a git repo or git error at {repo.path}"}
-    branch = branch_out if branch_out else "(detached)"
-
-    # Clean/dirty
-    rc_s, status_out, _ = _run_git(["status", "--porcelain"], repo.path)
-    state = "dirty" if (rc_s == 0 and status_out) else "clean"
-
-    # Ahead / behind relative to @{u} (upstream tracking branch)
-    ahead = "0"
-    behind = "0"
-    rc_ab, ab_out, _ = _run_git(
-        ["rev-list", "--left-right", "--count", f"{branch}...@{{u}}"],
-        repo.path,
-    )
-    if rc_ab == 0 and "\t" in ab_out:
-        parts = ab_out.split("\t", 1)
-        ahead = parts[0].strip()
-        behind = parts[1].strip()
-
-    return {"branch": branch, "state": state, "ahead": ahead, "behind": behind}
+    @staticmethod
+    def _git_ahead_behind(repo_path: Path) -> tuple[int, int]:
+        """Return (ahead, behind) counts relative to upstream."""
+        try:
+            result = subprocess.run(
+                ["git", "rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
+                cwd=str(repo_path),
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            parts = result.stdout.strip().split()
+            if len(parts) == 2:
+                return int(parts[0]), int(parts[1])
+        except (subprocess.CalledProcessError, OSError, ValueError):
+            pass
+        return 0, 0

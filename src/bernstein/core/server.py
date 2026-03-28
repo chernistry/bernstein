@@ -753,3 +753,7 @@ def get_app() -> FastAPI:
         cluster_config=_default_cluster_config,
         readonly=os.environ.get("BERNSTEIN_READONLY", "").lower() in ("1", "true", "yes"),
     )
+
+
+# Module-level app instance for uvicorn (bernstein.core.server:app)
+app = get_app()

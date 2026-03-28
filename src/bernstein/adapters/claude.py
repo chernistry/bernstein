@@ -45,10 +45,10 @@ def load_mcp_config(
             global_cfg = json.loads(global_path.read_text(encoding="utf-8"))
             if isinstance(global_cfg, dict):
                 # mcp.json has {"mcpServers": {...}} structure
-                cfg = cast(dict[str, Any], global_cfg)
+                cfg = cast("dict[str, Any]", global_cfg)
                 servers = cfg.get("mcpServers", cfg)
                 if isinstance(servers, dict):
-                    merged.update(cast(dict[str, Any], servers))
+                    merged.update(cast("dict[str, Any]", servers))
         except (OSError, json.JSONDecodeError):
             pass
 
@@ -71,10 +71,10 @@ def _resolve_env_vars(obj: Any) -> Any:
         var_name = obj[2:-1]
         return os.environ.get(var_name, obj)
     if isinstance(obj, dict):
-        d = cast(dict[str, Any], obj)
+        d = cast("dict[str, Any]", obj)
         return {k: _resolve_env_vars(v) for k, v in d.items()}
     if isinstance(obj, list):
-        lst = cast(list[Any], obj)
+        lst = cast("list[Any]", obj)
         return [_resolve_env_vars(item) for item in lst]
     return obj
 

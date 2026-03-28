@@ -789,9 +789,7 @@ class MetricsCollector:
         if not tasks:
             return 0.0
 
-        total_time: float = sum(
-            (t.end_time - t.start_time) for t in tasks if t.end_time is not None
-        )
+        total_time: float = sum((t.end_time - t.start_time) for t in tasks if t.end_time is not None)
         return total_time / len(tasks)
 
     def get_total_cost(self, agent_id: str | None = None) -> float:

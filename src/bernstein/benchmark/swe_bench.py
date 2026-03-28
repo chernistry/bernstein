@@ -81,13 +81,13 @@ class SWEInstance:
 
         def _parse_tests(value: Any) -> list[str]:
             if isinstance(value, list):
-                lst = cast(list[Any], value)
+                lst = cast("list[Any]", value)
                 return [str(v) for v in lst]
             if isinstance(value, str):
                 try:
                     parsed: Any = json.loads(value)
                     if isinstance(parsed, list):
-                        plst = cast(list[Any], parsed)
+                        plst = cast("list[Any]", parsed)
                         return [str(v) for v in plst]
                 except json.JSONDecodeError:
                     pass
@@ -323,7 +323,7 @@ class SWEBenchRunner:
         try:
             from datasets import load_dataset as hf_load  # type: ignore[import-untyped]
 
-            raw_dataset: list[Any] = cast(list[Any], hf_load("princeton-nlp/SWE-bench_Lite", split="test"))
+            raw_dataset: list[Any] = cast("list[Any]", hf_load("princeton-nlp/SWE-bench_Lite", split="test"))
             instances = [SWEInstance.from_dict(dict(row)) for row in raw_dataset]
             return self.filter_instances(instances)
         except ImportError:

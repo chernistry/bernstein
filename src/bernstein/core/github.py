@@ -41,7 +41,7 @@ import json
 import logging
 import subprocess
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -133,15 +133,16 @@ class GitHubIssue:
         Returns:
             Populated GitHubIssue.
         """
-        labels = [lbl["name"] for lbl in data.get("labels", [])]
+        labels = [str(lbl["name"]) for lbl in cast("list[Any]", data.get("labels", []))]
         # Reaction counts are present when the ``reactions`` field is requested.
         reactions = data.get("reactions", {})
         thumbs_up = 0
         if isinstance(reactions, dict):
-            thumbs_up = int(reactions.get("+1", 0))
+            r = cast("dict[str, Any]", reactions)
+            thumbs_up = int(r.get("+1", 0))
         # Author login.
         author_obj = data.get("author", {})
-        author = author_obj.get("login", "") if isinstance(author_obj, dict) else ""
+        author: str = str(cast("dict[str, Any]", author_obj).get("login", "")) if isinstance(author_obj, dict) else ""
         return cls(
             number=data["number"],
             title=data.get("title", ""),

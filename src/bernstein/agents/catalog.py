@@ -148,7 +148,9 @@ class CatalogRegistry:
     loaded_agents: list[CatalogAgent] = field(default_factory=list[CatalogAgent], repr=False)
     _cache_path: Path = field(default_factory=lambda: _CACHE_FILE, repr=False, compare=False)
     _cached_roles: dict[str, CachedAgentEntry] = field(
-        default_factory=dict[str, CachedAgentEntry], repr=False, compare=False,
+        default_factory=dict[str, CachedAgentEntry],
+        repr=False,
+        compare=False,
     )
 
     @classmethod

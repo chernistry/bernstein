@@ -1,0 +1,588 @@
+"""Tests for bernstein.core.git_ops — centralized git write operations."""
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+from unittest.mock import MagicMock, call, patch
+
+import pytest
+
+from bernstein.core.git_ops import (
+    GitResult,
+    _classify_change,
+    _detect_scope,
+    _diff_stat_to_bullets,
+    _summarize_from_files,
+    apply_diff,
+    bisect_regression,
+    branch_delete,
+    checkout_discard,
+    commit,
+    conventional_commit,
+    diff_cached,
+    diff_cached_names,
+    diff_cached_stat,
+    diff_head,
+    fetch,
+    is_git_repo,
+    merge_branch,
+    rev_parse_head,
+    revert_commit,
+    run_git,
+    safe_push,
+    stage_all_except,
+    stage_files,
+    stage_task_files,
+    status_porcelain,
+    tag,
+    unstage_paths,
+    worktree_add,
+    worktree_list,
+    worktree_remove,
+)
+
+REPO = Path("/fake/repo")
+
+
+def _mock_run(returncode: int = 0, stdout: str = "", stderr: str = "") -> MagicMock:
+    """Create a mock subprocess.run return value."""
+    m = MagicMock()
+    m.returncode = returncode
+    m.stdout = stdout
+    m.stderr = stderr
+    return m
+
+
+class TestRunGit:
+    """Tests for the low-level run_git helper."""
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_basic_call(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_run(stdout="ok\n")
+        result = run_git(["status"], REPO)
+        assert result.ok
+        assert result.stdout == "ok\n"
+        mock_run.assert_called_once_with(
+            ["git", "status"],
+            cwd=REPO,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            input=None,
+        )
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_non_zero_exit(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_run(returncode=1, stderr="fatal: not a repo")
+        result = run_git(["status"], REPO)
+        assert not result.ok
+        assert result.stderr == "fatal: not a repo"
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_check_raises(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_run(returncode=128, stderr="error")
+        with pytest.raises(subprocess.CalledProcessError):
+            run_git(["status"], REPO, check=True)
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_input_data(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_run()
+        run_git(["apply", "-"], REPO, input_data="diff content")
+        mock_run.assert_called_once_with(
+            ["git", "apply", "-"],
+            cwd=REPO,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            input="diff content",
+        )
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_custom_timeout(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_run()
+        run_git(["push"], REPO, timeout=120)
+        assert mock_run.call_args[1]["timeout"] == 120
+
+
+class TestGitResult:
+    """Tests for the GitResult dataclass."""
+
+    def test_ok_property(self) -> None:
+        assert GitResult(0, "out", "").ok
+        assert not GitResult(1, "", "err").ok
+
+    def test_frozen(self) -> None:
+        r = GitResult(0, "a", "b")
+        with pytest.raises(AttributeError):
+            r.returncode = 1  # type: ignore[misc]
+
+
+class TestQueries:
+    """Tests for read-only git wrappers."""
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_is_git_repo_true(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "true", "")
+        assert is_git_repo(REPO)
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_is_git_repo_false(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(128, "", "fatal")
+        assert not is_git_repo(REPO)
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_status_porcelain(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, " M file.py\n?? new.py\n", "")
+        assert status_porcelain(REPO) == "M file.py\n?? new.py"
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_diff_cached_names(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "a.py\nb.py\n", "")
+        assert diff_cached_names(REPO) == ["a.py", "b.py"]
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_diff_cached_names_empty(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        assert diff_cached_names(REPO) == []
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_diff_cached_stat(self, mock: MagicMock) -> None:
+        stat_out = "file.py | 10 +++"
+        mock.return_value = GitResult(0, stat_out, "")
+        assert diff_cached_stat(REPO) == stat_out
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_diff_cached(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "diff --git a/f b/f\n", "")
+        assert diff_cached(REPO) == "diff --git a/f b/f\n"
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_diff_head_with_files(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "diff output", "")
+        diff_head(REPO, files=["a.py", "b.py"], refs="HEAD~2")
+        mock.assert_called_once_with(
+            ["diff", "HEAD~2", "--", "a.py", "b.py"], REPO, timeout=30,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_rev_parse_head(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "abc123\n", "")
+        assert rev_parse_head(REPO) == "abc123"
+
+
+class TestStaging:
+    """Tests for staging operations."""
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_stage_files(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        stage_files(REPO, ["src/a.py", "src/b.py"])
+        mock.assert_called_once_with(
+            ["add", "--", "src/a.py", "src/b.py"], REPO,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_stage_files_filters_never_stage(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        stage_files(REPO, [".sdd/runtime/state.json", "src/a.py", ".env"])
+        mock.assert_called_once_with(["add", "--", "src/a.py"], REPO)
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_stage_files_all_filtered(self, mock: MagicMock) -> None:
+        stage_files(REPO, [".sdd/runtime/x", ".env"])
+        mock.assert_not_called()
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_stage_task_files(self, mock: MagicMock) -> None:
+        # First call is status_porcelain, second is add
+        mock.side_effect = [
+            GitResult(0, "?? src/test_a.py\n?? unrelated/x.py\n", ""),
+            GitResult(0, "", ""),
+        ]
+        result = stage_task_files(REPO, ["src/a.py"])
+        assert "src/a.py" in result
+        assert "src/test_a.py" in result
+        assert "unrelated/x.py" not in result
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_stage_task_files_empty(self, mock: MagicMock) -> None:
+        result = stage_task_files(REPO, [])
+        assert result == []
+        mock.assert_not_called()
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_unstage_paths(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        unstage_paths(REPO, [".sdd/runtime/", ".sdd/metrics/"])
+        mock.assert_called_once_with(
+            ["reset", "HEAD", "--", ".sdd/runtime/", ".sdd/metrics/"], REPO,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_stage_all_except(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        stage_all_except(REPO, exclude=[".sdd/metrics/"])
+        assert mock.call_count == 2
+        mock.assert_any_call(["add", "-A"], REPO)
+        # Second call should include the exclude AND never-stage dirs
+        reset_call = mock.call_args_list[1]
+        args = reset_call[0][0]
+        assert "reset" in args
+        assert ".sdd/metrics/" in args
+        assert ".sdd/runtime/" in args
+
+
+class TestCommit:
+    """Tests for commit operations."""
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_commit(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        result = commit(REPO, "test message")
+        assert result.ok
+        mock.assert_called_once_with(["commit", "-m", "test message"], REPO)
+
+
+class TestConventionalCommit:
+    """Tests for conventional commit message generation."""
+
+    @patch("bernstein.core.git_ops.commit")
+    @patch("bernstein.core.git_ops.diff_cached")
+    @patch("bernstein.core.git_ops.diff_cached_stat")
+    @patch("bernstein.core.git_ops.diff_cached_names")
+    def test_with_task_title(
+        self,
+        mock_names: MagicMock,
+        mock_stat: MagicMock,
+        mock_diff: MagicMock,
+        mock_commit: MagicMock,
+    ) -> None:
+        mock_names.return_value = ["src/bernstein/core/server.py"]
+        mock_stat.return_value = "src/bernstein/core/server.py | 10 ++"
+        mock_diff.return_value = "new file mode 100644\n"
+        mock_commit.return_value = GitResult(0, "", "")
+
+        conventional_commit(REPO, task_title="add health endpoint", task_id="T-42")
+
+        msg = mock_commit.call_args[0][1]
+        assert msg.startswith("feat(core): add health endpoint")
+        assert "Refs: #T-42" in msg
+        assert "Co-Authored-By: bernstein[bot]" in msg
+
+    @patch("bernstein.core.git_ops.commit")
+    @patch("bernstein.core.git_ops.diff_cached")
+    @patch("bernstein.core.git_ops.diff_cached_stat")
+    @patch("bernstein.core.git_ops.diff_cached_names")
+    def test_nothing_staged(
+        self,
+        mock_names: MagicMock,
+        mock_stat: MagicMock,
+        mock_diff: MagicMock,
+        mock_commit: MagicMock,
+    ) -> None:
+        mock_names.return_value = []
+        result = conventional_commit(REPO)
+        assert not result.ok
+        mock_commit.assert_not_called()
+
+    @patch("bernstein.core.git_ops.commit")
+    @patch("bernstein.core.git_ops.diff_cached")
+    @patch("bernstein.core.git_ops.diff_cached_stat")
+    @patch("bernstein.core.git_ops.diff_cached_names")
+    def test_evolve_scope(
+        self,
+        mock_names: MagicMock,
+        mock_stat: MagicMock,
+        mock_diff: MagicMock,
+        mock_commit: MagicMock,
+    ) -> None:
+        mock_names.return_value = ["random_file.txt"]
+        mock_stat.return_value = ""
+        mock_diff.return_value = ""
+        mock_commit.return_value = GitResult(0, "", "")
+
+        conventional_commit(REPO, evolve=True)
+
+        msg = mock_commit.call_args[0][1]
+        assert "(evolution)" in msg
+
+    @patch("bernstein.core.git_ops.commit")
+    @patch("bernstein.core.git_ops.diff_cached")
+    @patch("bernstein.core.git_ops.diff_cached_stat")
+    @patch("bernstein.core.git_ops.diff_cached_names")
+    def test_test_files_only(
+        self,
+        mock_names: MagicMock,
+        mock_stat: MagicMock,
+        mock_diff: MagicMock,
+        mock_commit: MagicMock,
+    ) -> None:
+        mock_names.return_value = ["tests/test_foo.py", "tests/test_bar.py"]
+        mock_stat.return_value = ""
+        mock_diff.return_value = ""
+        mock_commit.return_value = GitResult(0, "", "")
+
+        conventional_commit(REPO)
+
+        msg = mock_commit.call_args[0][1]
+        assert msg.startswith("test(")
+
+
+class TestSafePush:
+    """Tests for safe_push."""
+
+    @patch("bernstein.core.git_ops.run_git")
+    @patch("bernstein.core.git_ops.fetch")
+    def test_no_divergence(self, mock_fetch: MagicMock, mock_run: MagicMock) -> None:
+        mock_fetch.return_value = GitResult(0, "", "")
+        mock_run.side_effect = [
+            GitResult(0, "0\n", ""),  # rev-list --count
+            GitResult(0, "", ""),     # push
+        ]
+        result = safe_push(REPO, "main")
+        assert result.ok
+
+    @patch("bernstein.core.git_ops.run_git")
+    @patch("bernstein.core.git_ops.fetch")
+    def test_behind_rebase_success(self, mock_fetch: MagicMock, mock_run: MagicMock) -> None:
+        mock_fetch.return_value = GitResult(0, "", "")
+        mock_run.side_effect = [
+            GitResult(0, "3\n", ""),  # rev-list shows 3 behind
+            GitResult(0, "", ""),     # rebase succeeds
+            GitResult(0, "", ""),     # push
+        ]
+        result = safe_push(REPO, "main")
+        assert result.ok
+        # Should have called rebase
+        rebase_call = mock_run.call_args_list[1]
+        assert "rebase" in rebase_call[0][0]
+
+    @patch("bernstein.core.git_ops.run_git")
+    @patch("bernstein.core.git_ops.fetch")
+    def test_behind_rebase_fails_merge_fallback(
+        self, mock_fetch: MagicMock, mock_run: MagicMock
+    ) -> None:
+        mock_fetch.return_value = GitResult(0, "", "")
+        mock_run.side_effect = [
+            GitResult(0, "2\n", ""),      # behind
+            GitResult(1, "", "conflict"), # rebase fails
+            GitResult(0, "", ""),          # rebase --abort
+            GitResult(0, "", ""),          # merge fallback
+            GitResult(0, "", ""),          # push
+        ]
+        result = safe_push(REPO, "main")
+        assert result.ok
+
+
+class TestBranching:
+    """Tests for branch operations."""
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_merge_branch_no_ff(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        merge_branch(REPO, "feature/x", message="Merge feature/x")
+        mock.assert_called_once_with(
+            ["merge", "--no-ff", "feature/x", "-m", "Merge feature/x"],
+            REPO,
+            timeout=60,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_merge_branch_ff(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        merge_branch(REPO, "feature/x", no_ff=False)
+        mock.assert_called_once_with(
+            ["merge", "feature/x"],
+            REPO,
+            timeout=60,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_branch_delete(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        branch_delete(REPO, "agent/session-1")
+        mock.assert_called_once_with(["branch", "-D", "agent/session-1"], REPO, timeout=10)
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_revert_commit_no_commit(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        revert_commit(REPO, "abc123")
+        mock.assert_called_once_with(
+            ["revert", "--no-commit", "abc123"], REPO, timeout=30,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_revert_commit_with_commit(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        revert_commit(REPO, "abc123", no_commit=False)
+        mock.assert_called_once_with(
+            ["revert", "abc123"], REPO, timeout=30,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_checkout_discard(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        checkout_discard(REPO)
+        mock.assert_called_once_with(["checkout", "--", "."], REPO)
+
+
+class TestWorktree:
+    """Tests for worktree operations."""
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_worktree_add(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        wt_path = Path("/tmp/wt/session-1")
+        worktree_add(REPO, wt_path, "agent/session-1")
+        mock.assert_called_once_with(
+            ["worktree", "add", str(wt_path), "-b", "agent/session-1"],
+            REPO,
+            timeout=30,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_worktree_remove(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        wt_path = Path("/tmp/wt/session-1")
+        worktree_remove(REPO, wt_path)
+        mock.assert_called_once_with(
+            ["worktree", "remove", "--force", str(wt_path)],
+            REPO,
+            timeout=30,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_worktree_list(self, mock: MagicMock) -> None:
+        porcelain = "worktree /repo\nHEAD abc123\nbranch refs/heads/main\n"
+        mock.return_value = GitResult(0, porcelain, "")
+        result = worktree_list(REPO)
+        assert "worktree /repo" in result
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_apply_diff(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        apply_diff(REPO, "--- a/f\n+++ b/f\n@@ -1 +1 @@\n-old\n+new")
+        mock.assert_called_once()
+        assert mock.call_args[1]["input_data"].startswith("---")
+
+
+class TestBisectRegression:
+    """Tests for bisect_regression."""
+
+    @patch("bernstein.core.git_ops.run_git")
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_finds_bad_commit(self, mock_sub: MagicMock, mock_git: MagicMock) -> None:
+        # bisect start succeeds
+        mock_git.side_effect = [
+            GitResult(0, "", ""),  # bisect start
+            GitResult(0, "", ""),  # bisect reset
+        ]
+        mock_sub.return_value = _mock_run(
+            stdout="abc1234 is the first bad commit\ncommit abc1234\n"
+        )
+        result = bisect_regression(REPO, "uv run pytest tests/ -x")
+        assert result == "abc1234"
+
+    @patch("bernstein.core.git_ops.run_git")
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_no_bad_commit(self, mock_sub: MagicMock, mock_git: MagicMock) -> None:
+        mock_git.side_effect = [
+            GitResult(0, "", ""),  # bisect start
+            GitResult(0, "", ""),  # bisect reset
+        ]
+        mock_sub.return_value = _mock_run(stdout="bisect complete\n")
+        result = bisect_regression(REPO, "pytest")
+        assert result is None
+
+    @patch("bernstein.core.git_ops.run_git")
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_timeout_returns_none(self, mock_sub: MagicMock, mock_git: MagicMock) -> None:
+        mock_git.side_effect = [
+            GitResult(0, "", ""),  # bisect start
+            GitResult(0, "", ""),  # bisect reset
+        ]
+        mock_sub.side_effect = subprocess.TimeoutExpired(cmd="git", timeout=600)
+        result = bisect_regression(REPO, "pytest")
+        assert result is None
+
+
+class TestTag:
+    """Tests for git tag."""
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_lightweight_tag(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        tag(REPO, "v1.0.0")
+        mock.assert_called_once_with(["tag", "v1.0.0"], REPO)
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_annotated_tag(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        tag(REPO, "v1.0.0", message="Release 1.0.0")
+        mock.assert_called_once_with(
+            ["tag", "-a", "v1.0.0", "-m", "Release 1.0.0"], REPO,
+        )
+
+
+class TestConventionalCommitHelpers:
+    """Tests for internal helpers used by conventional_commit."""
+
+    def test_classify_change_all_tests(self) -> None:
+        assert _classify_change(["tests/test_a.py", "tests/test_b.py"], "") == "test"
+
+    def test_classify_change_all_docs(self) -> None:
+        assert _classify_change(["README.md", "docs/guide.rst"], "") == "docs"
+
+    def test_classify_change_all_config(self) -> None:
+        assert _classify_change(["pyproject.toml", ".gitignore"], "") == "chore"
+
+    def test_classify_change_new_files(self) -> None:
+        diff = "new file mode 100644\nnew file mode 100644\n"
+        assert _classify_change(["a.py", "b.py"], diff) == "feat"
+
+    def test_classify_change_modifications(self) -> None:
+        assert _classify_change(["src/a.py"], "") == "refactor"
+
+    def test_detect_scope_core(self) -> None:
+        assert _detect_scope(["src/bernstein/core/server.py"]) == "core"
+
+    def test_detect_scope_evolution(self) -> None:
+        assert _detect_scope(["src/bernstein/evolution/loop.py"]) == "evolution"
+
+    def test_detect_scope_tests(self) -> None:
+        assert _detect_scope(["tests/unit/test_foo.py"]) == "tests"
+
+    def test_detect_scope_mixed(self) -> None:
+        files = [
+            "src/bernstein/core/a.py",
+            "src/bernstein/core/b.py",
+            "src/bernstein/cli/c.py",
+        ]
+        assert _detect_scope(files) == "core"
+
+    def test_detect_scope_empty(self) -> None:
+        assert _detect_scope([]) == "unknown"
+
+    def test_summarize_from_files(self) -> None:
+        result = _summarize_from_files(["src/server.py", "src/client.py"])
+        assert "server" in result
+        assert "client" in result
+
+    def test_summarize_from_files_truncated(self) -> None:
+        files = [f"src/mod{i}.py" for i in range(10)]
+        result = _summarize_from_files(files)
+        assert "(+7 more)" in result
+
+    def test_diff_stat_to_bullets(self) -> None:
+        stat = (
+            " src/a.py | 10 +++++\n"
+            " src/b.py |  5 +--\n"
+            " 2 files changed, 12 insertions(+), 3 deletions(-)\n"
+        )
+        bullets = _diff_stat_to_bullets(stat)
+        assert len(bullets) == 3
+        assert "src/a.py" in bullets[0]
+        assert "2 files changed" in bullets[2]
+
+    def test_diff_stat_to_bullets_empty(self) -> None:
+        assert _diff_stat_to_bullets("") == []

@@ -1580,6 +1580,8 @@ def evolve() -> None:
       bernstein evolve review           # list proposals pending human review
       bernstein evolve approve <id>     # approve a specific proposal
       bernstein evolve run              # run the autoresearch evolution loop
+      bernstein evolve status           # show evolution history table
+      bernstein evolve export [path]    # export HTML/Markdown report
     """
 
 

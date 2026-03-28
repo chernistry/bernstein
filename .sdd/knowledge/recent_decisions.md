@@ -2,26 +2,6 @@
 
 No decisions recorded yet.
 
-## [2026-03-28 07:56] [RETRY 1] Use server-side status filtering instead of fetching all tasks (22850454c089)
-Completed: [RETRY 1] Use server-side status filtering instead of fetching all tasks
-
-## [2026-03-28 07:56] [RETRY 1] Parallelize done-task verification in _process_completed_tasks (2d55588d591d)
-Completed: [RETRY 1] Parallelize done-task verification in _process_completed_tasks
-
-## [2026-03-28 07:56] [RETRY 1] Use server-side status filtering instead of fetching all tasks (c85d95cc8917)
-Completed: [RETRY 1] Use server-side status filtering instead of fetching all tasks
-
-## [2026-03-28 07:58] [RETRY 1] Use server-side status filtering instead of fetching all tasks (8aee2041bf4b)
-Completed: [RETRY 1] Use server-side status filtering instead of fetching all tasks
-
-## [2026-03-28 07:58] [RETRY 2] Parallelize done-task verification in _process_completed_tasks (542f5325b748)
-Completed: [RETRY 2] Parallelize done-task verification in _process_completed_tasks
-
-## [2026-03-28 07:58] [RETRY 2] Use server-side status filtering instead of fetching all tasks (857f0bb5e151)
-Completed: _fetch_all_tasks now makes per-status GET /tasks?status=X calls instead of one unfiltered GET /tasks. All 1778 tests pass.
-## [2026-03-28 07:59] Fix CONTRIBUTING.md reference to nonexistent bernstein serve command (6d403064f183)
-Completed: Fix CONTRIBUTING.md reference to nonexistent bernstein serve command
-
 ## [2026-03-28 07:59] Add missing CLI subcommands to GETTING_STARTED.md reference table (e318b85ad557)
 Completed: Add missing CLI subcommands to GETTING_STARTED.md reference table
 
@@ -63,3 +43,6 @@ Completed: Implement run retrospective report generation
 
 ## [2026-03-28 08:20] Wire MultiCellOrchestrator into bootstrap and CLI (f16f8154f735)
 Completed: Wire MultiCellOrchestrator into bootstrap and CLI
+
+## [2026-03-28 08:41] Plan and decompose goal into tasks (ce7a42b5384e)
+Decomposed goal into 6 tasks after thorough codebase analysis (1810 tests passing, all DESIGN.md API endpoints implemented). Gaps found: (1) no CLI retro command, (2) bulletin board not wired in single-cell orchestrator, (3) sandbox L1/L2 tests missing, (4) evolution loop error tests weak, (5) no full feedback loop integration test, (6) metrics flow needs audit. Created tasks: f14b161e2469 (retro CLI), fdc3de46553c (bulletin wiring), 2ee4a89259c4 (sandbox tests), 71a86cb306ac (evolution error tests), 87257edcbba7 (feedback loop e2e test), 4e104d77863b (metrics flow audit).

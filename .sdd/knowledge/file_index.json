@@ -571,6 +571,34 @@
     ],
     "last_modified": "2026-03-22T17:26:55.101872"
   },
+  "src/bernstein/core/orchestrator.py": {
+    "summary": "Orchestrator loop: watch tasks, spawn agents, verify completion, repeat.",
+    "exports": [
+      "_RuffLocation",
+      "RuffViolation",
+      "TestResults",
+      "CompletionData",
+      "Orchestrator",
+      "TickResult",
+      "group_by_role"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "collections",
+      "concurrent",
+      "contextlib",
+      "datetime",
+      "httpx",
+      "json",
+      "logging",
+      "os",
+      "re",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T08:26:17.833861"
+  },
   "src/bernstein/core/policy.py": {
     "summary": "Policy engine for tier optimization and provider routing.",
     "exports": [
@@ -656,6 +684,25 @@
     ],
     "last_modified": "2026-03-28T04:04:58.123319"
   },
+  "src/bernstein/core/seed.py": {
+    "summary": "Seed file parser for bernstein.yaml.",
+    "exports": [
+      "SeedError",
+      "NotifyConfig",
+      "SeedConfig",
+      "parse_seed",
+      "seed_to_initial_task"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "dataclasses",
+      "re",
+      "typing",
+      "yaml"
+    ],
+    "last_modified": "2026-03-28T08:23:46.833647"
+  },
   "src/bernstein/core/server.py": {
     "summary": "FastAPI task server \u2014 central coordination point for all agents.",
     "exports": [
@@ -697,6 +744,21 @@
       "uuid"
     ],
     "last_modified": "2026-03-28T07:39:24.321711"
+  },
+  "src/bernstein/core/spawner.py": {
+    "summary": "Spawn short-lived CLI agents for task batches.",
+    "exports": [
+      "AgentSpawner"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "logging",
+      "subprocess",
+      "typing",
+      "uuid"
+    ],
+    "last_modified": "2026-03-28T08:24:24.073164"
   },
   "src/bernstein/core/sync.py": {
     "summary": "Sync .sdd/backlog/*.md files with the task server.",
@@ -1784,7 +1846,7 @@
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T01:17:01.362260"
+    "last_modified": "2026-03-28T08:27:31.957738"
   },
   "tests/unit/test_failure_evolution.py": {
     "summary": "Tests for failure-driven evolution: FailureRecord, FailureAnalyzer, OpportunityDetector, MetricsAggregator.",
@@ -2475,6 +2537,29 @@
       "unittest"
     ],
     "last_modified": "2026-03-28T07:39:24.322385"
+  },
+  "tests/unit/test_spawner.py": {
+    "summary": "Tests for AgentSpawner \u2014 adapter is always mocked.",
+    "exports": [
+      "TestSpawnForTasks",
+      "TestLifecycle",
+      "TestRenderPrompt",
+      "TestSelectBatchConfig",
+      "TestSpawnerWithRouter",
+      "TestRenderPromptWithAgencyCatalog",
+      "TestRenderFallback",
+      "TestSelectBatchConfigExtended",
+      "TestLoadRoleConfig",
+      "TestWorktreeIntegration"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "pathlib",
+      "pytest",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T08:25:43.396339"
   },
   "tests/unit/test_sync.py": {
     "summary": "Tests for the backlog-to-server sync module.",

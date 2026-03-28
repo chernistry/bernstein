@@ -918,25 +918,22 @@ class Orchestrator:
         """
         import subprocess
 
+        from bernstein.core.git_ops import (
+            checkout_discard,
+            conventional_commit,
+            safe_push,
+            stage_all_except,
+            status_porcelain,
+        )
+
         try:
             # Check for changes
-            status = subprocess.run(
-                ["git", "status", "--porcelain"],
-                capture_output=True, text=True, cwd=self._workdir, timeout=10,
-            )
-            if not status.stdout.strip():
+            changed = status_porcelain(self._workdir)
+            if not changed:
                 return False  # Nothing to commit
 
-            # Stage all changes (except .sdd/runtime/)
-            subprocess.run(
-                ["git", "add", "-A"],
-                cwd=self._workdir, timeout=10,
-            )
-            # Unstage runtime artifacts
-            subprocess.run(
-                ["git", "reset", "HEAD", "--", ".sdd/runtime/", ".sdd/metrics/"],
-                capture_output=True, cwd=self._workdir, timeout=10,
-            )
+            # Stage all changes except runtime artifacts
+            stage_all_except(self._workdir, exclude=[".sdd/runtime/", ".sdd/metrics/"])
 
             # Run tests before committing
             test_result = subprocess.run(
@@ -945,35 +942,20 @@ class Orchestrator:
             )
             if test_result.returncode != 0:
                 logger.warning("Evolve: tests failed, rolling back changes")
-                subprocess.run(
-                    ["git", "checkout", "--", "."],
-                    cwd=self._workdir, timeout=10,
-                )
+                checkout_discard(self._workdir)
                 return False
 
-            # Build a descriptive commit message from staged files
-            staged = subprocess.run(
-                ["git", "diff", "--cached", "--name-only"],
-                capture_output=True, text=True, cwd=self._workdir, timeout=10,
-            )
-            staged_files = [f.strip() for f in staged.stdout.strip().splitlines() if f.strip()]
-            commit_msg = self._generate_evolve_commit_msg(staged_files)
+            # Commit with conventional message
+            result = conventional_commit(self._workdir, evolve=True)
+            if not result.ok:
+                logger.warning("Evolve: commit failed: %s", result.stderr)
+                return False
 
-            # Commit
-            subprocess.run(
-                ["git", "commit", "-m", commit_msg],
-                cwd=self._workdir, timeout=10,
-            )
-
-            # Push
-            subprocess.run(
-                ["git", "push", "origin", "HEAD"],
-                capture_output=True, cwd=self._workdir, timeout=30,
-            )
+            # Push safely (fetch + rebase + push)
+            safe_push(self._workdir, "master")
             logger.info("Evolve: auto-committed and pushed changes")
 
             # Check if own source code changed — if so, signal restart
-            changed = status.stdout.strip()
             if "src/bernstein/" in changed:
                 logger.info("Evolve: own source code changed, signaling restart")
                 restart_flag = self._workdir / ".sdd" / "runtime" / "restart_requested"

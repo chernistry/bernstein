@@ -33,20 +33,14 @@ _Bernstein — Multi-agent orchestration for CLI coding agents._
 - `metrics` — Performance metrics collection and storage. [MetricType, ProviderStatus, MetricPoint, TaskMetrics, AgentMetrics, ProviderHealth]
 - `models` — Core data models for tasks, agents, and cells. [ProviderType, ApiTier, RateLimit, CostStructure, ApiTierInfo, Scope]
 - `multi_cell` — Multi-cell orchestrator: coordinates multiple cells, each with its own manager + workers. [CellStatus, MultiCellTickResult, MultiCellOrchestrator, cell_status]
-- `orchestrator`
-- `orchestrator`
-- `orchestrator`
+- `orchestrator` — Orchestrator loop: watch tasks, spawn agents, verify completion, repeat. [_RuffLocation, RuffViolation, TestResults, CompletionData, Orchestrator, TickResult]
 - `policy` — Policy engine for tier optimization and provider routing. [Operator, ActionType, Condition, Action, Policy, PolicyEngine]
 - `researcher` — Web research module for evolve mode. [ResearchResult, ResearchReport, ResearchCache, run_research, format_research_context, run_research_sync]
 - `retrospective` — Run retrospective report generation. [generate_retrospective]
 - `router` — Route tasks to appropriate model and effort level with tier awareness. [Tier, ProviderHealthStatus, ProviderHealth, CostTracker, ProviderConfig, RoutingDecision]
-- `seed`
-- `seed`
-- `seed`
+- `seed` — Seed file parser for bernstein.yaml. [SeedError, NotifyConfig, SeedConfig, parse_seed, seed_to_initial_task]
 - `server` — FastAPI task server — central coordination point for all agents. [TaskRecord, ArchiveRecord, ProgressEntry, CompletionSignalSchema, TaskCreate, TaskResponse]
-- `spawner`
-- `spawner`
-- `spawner`
+- `spawner` — Spawn short-lived CLI agents for task batches. [AgentSpawner]
 - `sync` — Sync .sdd/backlog/*.md files with the task server. [BacklogTask, SyncResult, parse_backlog_file, normalise_title, sync_backlog_to_server]
 - `upgrade_executor` — Autonomous upgrade executor with transaction-like safety and rollback. [UpgradeStatus, UpgradeType, FileChange, UpgradeTransaction, UpgradeReviewer, ReviewResult]
 - `worktree` — WorktreeManager — git worktree lifecycle for agent session isolation. [WorktreeError, WorktreeManager]
@@ -106,20 +100,14 @@ _Core: task server, spawner, scheduler._
 - `metrics` — Performance metrics collection and storage. [MetricType, ProviderStatus, MetricPoint, TaskMetrics, AgentMetrics, ProviderHealth]
 - `models` — Core data models for tasks, agents, and cells. [ProviderType, ApiTier, RateLimit, CostStructure, ApiTierInfo, Scope]
 - `multi_cell` — Multi-cell orchestrator: coordinates multiple cells, each with its own manager + workers. [CellStatus, MultiCellTickResult, MultiCellOrchestrator, cell_status]
-- `orchestrator`
-- `orchestrator`
-- `orchestrator`
+- `orchestrator` — Orchestrator loop: watch tasks, spawn agents, verify completion, repeat. [_RuffLocation, RuffViolation, TestResults, CompletionData, Orchestrator, TickResult]
 - `policy` — Policy engine for tier optimization and provider routing. [Operator, ActionType, Condition, Action, Policy, PolicyEngine]
 - `researcher` — Web research module for evolve mode. [ResearchResult, ResearchReport, ResearchCache, run_research, format_research_context, run_research_sync]
 - `retrospective` — Run retrospective report generation. [generate_retrospective]
 - `router` — Route tasks to appropriate model and effort level with tier awareness. [Tier, ProviderHealthStatus, ProviderHealth, CostTracker, ProviderConfig, RoutingDecision]
-- `seed`
-- `seed`
-- `seed`
+- `seed` — Seed file parser for bernstein.yaml. [SeedError, NotifyConfig, SeedConfig, parse_seed, seed_to_initial_task]
 - `server` — FastAPI task server — central coordination point for all agents. [TaskRecord, ArchiveRecord, ProgressEntry, CompletionSignalSchema, TaskCreate, TaskResponse]
-- `spawner`
-- `spawner`
-- `spawner`
+- `spawner` — Spawn short-lived CLI agents for task batches. [AgentSpawner]
 - `sync` — Sync .sdd/backlog/*.md files with the task server. [BacklogTask, SyncResult, parse_backlog_file, normalise_title, sync_backlog_to_server]
 - `upgrade_executor` — Autonomous upgrade executor with transaction-like safety and rollback. [UpgradeStatus, UpgradeType, FileChange, UpgradeTransaction, UpgradeReviewer, ReviewResult]
 - `worktree` — WorktreeManager — git worktree lifecycle for agent session isolation. [WorktreeError, WorktreeManager]
@@ -204,9 +192,7 @@ _Template loading and rendering._
 - `test_sandbox` — Tests for SandboxValidator. [TestL0Validation, TestL3Blocked, TestWorktreeValidation, TestLegacyValidate]
 - `test_seed` — Tests for bernstein.core.seed. [TestParseSeedValid, TestParseSeedInvalid, TestSeedToInitialTask, TestSeedConfig, TestNotifyConfig, TestBuildManagerDescription]
 - `test_server` — Tests for the Bernstein task server. [jsonl_path, app, client, test_create_task, test_create_task_defaults, test_claim_next_task]
-- `test_spawner`
-- `test_spawner`
-- `test_spawner`
+- `test_spawner` — Tests for AgentSpawner — adapter is always mocked. [TestSpawnForTasks, TestLifecycle, TestRenderPrompt, TestSelectBatchConfig, TestSpawnerWithRouter, TestRenderPromptWithAgencyCatalog]
 - `test_sync` — Tests for the backlog-to-server sync module. [TestParseBacklogFile, TestNormaliseTitle, TestFileToSlug, TestTaskAlreadyExists, TestSyncBacklogToServer]
 - `test_upgrade_executor` — Tests for FileUpgradeExecutor — YAML read-modify-write and rollback. [TestFileUpgradeExecutorPolicyUpdate, TestFileUpgradeExecutorRoutingRules, TestFileUpgradeExecutorProviderConfig, TestFileUpgradeExecutorRoleTemplate, TestFileUpgradeExecutorAtomicWrite, TestFileUpgradeExecutorRollback]
 
@@ -266,8 +252,6 @@ _Template loading and rendering._
 - `test_sandbox` — Tests for SandboxValidator. [TestL0Validation, TestL3Blocked, TestWorktreeValidation, TestLegacyValidate]
 - `test_seed` — Tests for bernstein.core.seed. [TestParseSeedValid, TestParseSeedInvalid, TestSeedToInitialTask, TestSeedConfig, TestNotifyConfig, TestBuildManagerDescription]
 - `test_server` — Tests for the Bernstein task server. [jsonl_path, app, client, test_create_task, test_create_task_defaults, test_claim_next_task]
-- `test_spawner`
-- `test_spawner`
-- `test_spawner`
+- `test_spawner` — Tests for AgentSpawner — adapter is always mocked. [TestSpawnForTasks, TestLifecycle, TestRenderPrompt, TestSelectBatchConfig, TestSpawnerWithRouter, TestRenderPromptWithAgencyCatalog]
 - `test_sync` — Tests for the backlog-to-server sync module. [TestParseBacklogFile, TestNormaliseTitle, TestFileToSlug, TestTaskAlreadyExists, TestSyncBacklogToServer]
 - `test_upgrade_executor` — Tests for FileUpgradeExecutor — YAML read-modify-write and rollback. [TestFileUpgradeExecutorPolicyUpdate, TestFileUpgradeExecutorRoutingRules, TestFileUpgradeExecutorProviderConfig, TestFileUpgradeExecutorRoleTemplate, TestFileUpgradeExecutorAtomicWrite, TestFileUpgradeExecutorRollback]

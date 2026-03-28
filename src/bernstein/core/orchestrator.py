@@ -1512,6 +1512,30 @@ class Orchestrator:
             for tid in stale_tasks:
                 del self._task_to_session[tid]
 
+    def _check_kill_signals(self, result: TickResult) -> None:
+        """Process ``.kill`` signal files from the runtime directory.
+
+        For each ``<session_id>.kill`` file found, terminates the matching
+        agent (if alive) and removes the signal file.
+
+        Args:
+            result: Current tick result to record reaped agents.
+        """
+        runtime_dir = self._workdir / ".sdd" / "runtime"
+        if not runtime_dir.is_dir():
+            return
+        for kill_file in runtime_dir.glob("*.kill"):
+            session_id = kill_file.stem
+            # Remove the signal file first (idempotent)
+            with contextlib.suppress(OSError):
+                kill_file.unlink()
+            session = self._agents.get(session_id)
+            if session is None or session.status == "dead":
+                continue
+            logger.info("Kill signal received for %s, terminating", session_id)
+            self._spawner.kill(session)
+            result.reaped.append(session_id)
+
     def _handle_orphaned_task(
         self,
         task_id: str,

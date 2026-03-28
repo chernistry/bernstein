@@ -1293,6 +1293,39 @@ async def _sse_heartbeat_loop(bus: SSEBus, interval_s: float = 15.0) -> None:
 DEFAULT_JSONL_PATH = Path(".sdd/runtime/tasks.jsonl")
 
 
+def _read_log_tail(path: Path, offset: int = 0) -> str:
+    """Read a log file from *offset* bytes, skipping the partial first line.
+
+    Args:
+        path: Path to the log file.
+        offset: Byte offset to start reading from.
+
+    Returns:
+        Log content as a string, with partial leading line stripped when
+        offset is mid-line.
+    """
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return ""
+    if size == 0:
+        return ""
+    with open(path, "rb") as f:
+        f.seek(offset)
+        data = f.read()
+    if not data:
+        return ""
+    text = data.decode("utf-8", errors="replace")
+    # When seeking into the middle of a file, the first partial line is
+    # incomplete — strip it so callers only see whole lines.
+    if offset > 0 and not text.startswith("\n"):
+        idx = text.find("\n")
+        if idx == -1:
+            return ""
+        text = text[idx + 1 :]
+    return text
+
+
 def create_app(
     jsonl_path: Path = DEFAULT_JSONL_PATH,
     metrics_jsonl_path: Path | None = None,
@@ -1975,6 +2008,98 @@ def create_app(
             },
         )
 
+    # -- agent session streaming routes ----------------------------------------
+
+    # Runtime directory containing per-session .log and .kill files.
+    _runtime_dir = jsonl_path.parent  # .sdd/runtime/
+
+    @application.get("/agents/{session_id}/logs")
+    async def agent_logs(session_id: str, tail_bytes: int = 0) -> JSONResponse:
+        """Return log file content for a session.
+
+        Args:
+            session_id: Agent session ID.
+            tail_bytes: If > 0, return only the last N bytes of the log.
+        """
+        log_path = _runtime_dir / f"{session_id}.log"
+        if not log_path.exists():
+            raise HTTPException(status_code=404, detail=f"No log file for session '{session_id}'")
+        size = log_path.stat().st_size
+        offset = max(0, size - tail_bytes) if tail_bytes > 0 else 0
+        content = _read_log_tail(log_path, offset)
+        return JSONResponse(
+            content={
+                "session_id": session_id,
+                "content": content,
+                "size": size,
+            }
+        )
+
+    @application.post("/agents/{session_id}/kill")
+    async def agent_kill(session_id: str) -> JSONResponse:
+        """Request that an agent session be killed.
+
+        Writes a ``.kill`` signal file that the orchestrator picks up on
+        its next tick.
+        """
+        _runtime_dir.mkdir(parents=True, exist_ok=True)
+        kill_path = _runtime_dir / f"{session_id}.kill"
+        kill_path.write_text(str(time.time()))
+        return JSONResponse(
+            content={
+                "session_id": session_id,
+                "kill_requested": True,
+            }
+        )
+
+    @application.get("/agents/{session_id}/stream")
+    async def agent_stream(session_id: str) -> StreamingResponse:
+        """SSE stream of live log output for a session."""
+        log_path = _runtime_dir / f"{session_id}.log"
+
+        async def _generate() -> AsyncGenerator[str, None]:
+            # Initial connection event
+            yield f"data: {json.dumps({'connected': True, 'session_id': session_id})}\n\n"
+
+            offset = 0
+            idle_ticks = 0
+            max_idle = 60  # stop after ~30s of no file
+
+            while True:
+                if not log_path.exists():
+                    idle_ticks += 1
+                    if idle_ticks >= max_idle:
+                        yield f"data: {json.dumps({'done': True, 'reason': 'no_log_file'})}\n\n"
+                        return
+                    await asyncio.sleep(0.5)
+                    continue
+
+                size = log_path.stat().st_size
+                if size > offset:
+                    chunk = _read_log_tail(log_path, offset)
+                    offset = size
+                    idle_ticks = 0
+                    for line in chunk.splitlines():
+                        if line.strip():
+                            yield f"data: {json.dumps({'line': line})}\n\n"
+                else:
+                    idle_ticks += 1
+                    if idle_ticks >= max_idle:
+                        yield f"data: {json.dumps({'done': True, 'reason': 'idle'})}\n\n"
+                        return
+
+                await asyncio.sleep(0.5)
+
+        return StreamingResponse(
+            _generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
     # Attach store, bulletin, and cluster registry for testing access.
     # FastAPI's `state` is a plain object with no predefined attributes;
     # type: ignore[attr-defined] is the standard pattern here.
@@ -2018,6 +2143,9 @@ def create_app(
         list_nodes,
         cluster_status,
         github_webhook,
+        agent_logs,
+        agent_kill,
+        agent_stream,
     )
     del _routes
 

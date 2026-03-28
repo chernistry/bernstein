@@ -304,6 +304,7 @@ class AgentSession:
     provider: str | None = None  # Provider selected by TierAwareRouter
     agent_source: str = "built-in"  # "catalog", "agency", or "built-in"
     timeout_s: int | None = None  # Per-agent wall-clock timeout; None = use OrchestratorConfig default
+    log_path: str = ""  # Path to agent log file for live streaming
 
 
 @dataclass

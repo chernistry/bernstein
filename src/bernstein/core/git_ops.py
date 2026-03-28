@@ -466,6 +466,128 @@ def branch_delete(cwd: Path, branch: str) -> GitResult:
     return run_git(["branch", "-D", branch], cwd, timeout=10)
 
 
+def create_task_branch(cwd: Path, branch_name: str) -> GitResult:
+    """Create and checkout a new branch from the current HEAD.
+
+    Args:
+        cwd: Repository root.
+        branch_name: Name of the new branch (e.g. ``bernstein/task-abc123``).
+
+    Returns:
+        GitResult from ``git checkout -b <branch_name>``.
+    """
+    return run_git(["checkout", "-b", branch_name], cwd, timeout=10)
+
+
+def push_branch(cwd: Path, branch: str, remote: str = "origin") -> GitResult:
+    """Push a branch to remote, setting the upstream tracking ref.
+
+    Args:
+        cwd: Repository root.
+        branch: Branch name to push.
+        remote: Remote name (default ``"origin"``).
+
+    Returns:
+        GitResult from ``git push --set-upstream <remote> <branch>``.
+    """
+    return run_git(["push", "--set-upstream", remote, branch], cwd, timeout=60)
+
+
+@dataclass(frozen=True)
+class PullRequestResult:
+    """Outcome of a GitHub PR creation attempt.
+
+    Attributes:
+        success: True if the PR was created.
+        pr_url: URL of the created PR (empty on failure).
+        error: Error message on failure.
+    """
+
+    success: bool
+    pr_url: str = ""
+    error: str = ""
+
+
+def create_github_pr(
+    cwd: Path,
+    *,
+    title: str,
+    body: str,
+    head: str,
+    base: str = "master",
+    labels: list[str] | None = None,
+) -> PullRequestResult:
+    """Create a GitHub pull request via the ``gh`` CLI.
+
+    Args:
+        cwd: Repository root (used as working directory for ``gh``).
+        title: PR title.
+        body: PR body / description.
+        head: Source branch name.
+        base: Target branch (default ``"master"``).
+        labels: Optional list of label names to attach.
+
+    Returns:
+        PullRequestResult with ``pr_url`` set on success.
+    """
+    cmd = [
+        "gh",
+        "pr",
+        "create",
+        "--title",
+        title,
+        "--body",
+        body,
+        "--head",
+        head,
+        "--base",
+        base,
+    ]
+    if labels:
+        cmd.extend(["--label", ",".join(labels)])
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0:
+            pr_url = result.stdout.strip()
+            return PullRequestResult(success=True, pr_url=pr_url)
+        return PullRequestResult(success=False, error=result.stderr.strip())
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        return PullRequestResult(success=False, error=str(exc))
+
+
+def enable_pr_auto_merge(cwd: Path, pr_url_or_number: str) -> GitResult:
+    """Enable auto-merge (squash) on a PR via ``gh pr merge --auto``.
+
+    Args:
+        cwd: Repository root.
+        pr_url_or_number: PR URL or number string.
+
+    Returns:
+        GitResult with the exit code from ``gh pr merge --auto --squash``.
+    """
+    try:
+        result = subprocess.run(
+            ["gh", "pr", "merge", "--auto", "--squash", pr_url_or_number],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return GitResult(
+            returncode=result.returncode,
+            stdout=result.stdout,
+            stderr=result.stderr,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        return GitResult(returncode=1, stdout="", stderr=str(exc))
+
+
 def revert_commit(cwd: Path, commit_hash: str, *, no_commit: bool = True) -> GitResult:
     """Revert a commit.
 

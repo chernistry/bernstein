@@ -9,6 +9,7 @@ import pytest
 
 from bernstein.core.git_ops import (
     GitResult,
+    PullRequestResult,
     _classify_change,
     _detect_scope,
     _diff_stat_to_bullets,
@@ -19,13 +20,17 @@ from bernstein.core.git_ops import (
     checkout_discard,
     commit,
     conventional_commit,
+    create_github_pr,
+    create_task_branch,
     diff_cached,
     diff_cached_names,
     diff_cached_stat,
     diff_head,
+    enable_pr_auto_merge,
     fetch,
     is_git_repo,
     merge_branch,
+    push_branch,
     rev_parse_head,
     revert_commit,
     run_git,
@@ -586,3 +591,184 @@ class TestConventionalCommitHelpers:
 
     def test_diff_stat_to_bullets_empty(self) -> None:
         assert _diff_stat_to_bullets("") == []
+
+
+# ---------------------------------------------------------------------------
+# Pull request helpers
+# ---------------------------------------------------------------------------
+
+
+class TestPullRequestResult:
+    """Tests for the PullRequestResult dataclass."""
+
+    def test_success(self) -> None:
+        r = PullRequestResult(success=True, pr_url="https://github.com/a/b/pull/1")
+        assert r.success
+        assert r.pr_url == "https://github.com/a/b/pull/1"
+
+    def test_failure(self) -> None:
+        r = PullRequestResult(success=False, error="gh: not found")
+        assert not r.success
+        assert r.error == "gh: not found"
+        assert r.pr_url == ""
+
+    def test_frozen(self) -> None:
+        r = PullRequestResult(success=True)
+        with pytest.raises(AttributeError):
+            r.success = False  # type: ignore[misc]
+
+
+class TestCreateTaskBranch:
+    """Tests for create_task_branch."""
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_creates_branch(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        result = create_task_branch(REPO, "bernstein/task-abc123")
+        assert result.ok
+        mock.assert_called_once_with(
+            ["checkout", "-b", "bernstein/task-abc123"],
+            REPO,
+            timeout=10,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_returns_failure_on_branch_exists(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(1, "", "fatal: branch already exists")
+        result = create_task_branch(REPO, "bernstein/task-abc123")
+        assert not result.ok
+
+
+class TestPushBranch:
+    """Tests for push_branch."""
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_pushes_with_upstream(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        result = push_branch(REPO, "bernstein/task-abc123")
+        assert result.ok
+        mock.assert_called_once_with(
+            ["push", "--set-upstream", "origin", "bernstein/task-abc123"],
+            REPO,
+            timeout=60,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_custom_remote(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        push_branch(REPO, "feature/x", remote="upstream")
+        mock.assert_called_once_with(
+            ["push", "--set-upstream", "upstream", "feature/x"],
+            REPO,
+            timeout=60,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_returns_failure_on_push_error(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(1, "", "remote: Permission denied")
+        result = push_branch(REPO, "feature/x")
+        assert not result.ok
+
+
+class TestCreateGithubPr:
+    """Tests for create_github_pr — delegates to the gh CLI."""
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_success(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_run(
+            returncode=0, stdout="https://github.com/owner/repo/pull/42\n"
+        )
+        result = create_github_pr(
+            REPO,
+            title="feat: add PR support",
+            body="Adds PR creation",
+            head="bernstein/task-abc123",
+        )
+        assert result.success
+        assert result.pr_url == "https://github.com/owner/repo/pull/42"
+        cmd = mock_run.call_args[0][0]
+        assert cmd[0] == "gh"
+        assert "pr" in cmd
+        assert "create" in cmd
+        assert "--title" in cmd
+        assert "feat: add PR support" in cmd
+        assert "--head" in cmd
+        assert "bernstein/task-abc123" in cmd
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_with_labels(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_run(
+            returncode=0, stdout="https://github.com/owner/repo/pull/5\n"
+        )
+        create_github_pr(
+            REPO,
+            title="task",
+            body="body",
+            head="bernstein/task-x",
+            labels=["bernstein", "auto-generated"],
+        )
+        cmd = mock_run.call_args[0][0]
+        assert "--label" in cmd
+        label_idx = cmd.index("--label")
+        assert "bernstein" in cmd[label_idx + 1]
+        assert "auto-generated" in cmd[label_idx + 1]
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_failure_returns_error(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_run(returncode=1, stderr="gh: authentication required")
+        result = create_github_pr(
+            REPO,
+            title="task",
+            body="body",
+            head="bernstein/task-x",
+        )
+        assert not result.success
+        assert "authentication required" in result.error
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_gh_not_installed(self, mock_run: MagicMock) -> None:
+        mock_run.side_effect = FileNotFoundError("gh not found")
+        result = create_github_pr(
+            REPO,
+            title="task",
+            body="body",
+            head="bernstein/task-x",
+        )
+        assert not result.success
+        assert result.error != ""
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_custom_base_branch(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_run(returncode=0, stdout="https://github.com/x/y/pull/1\n")
+        create_github_pr(REPO, title="t", body="b", head="feature/x", base="develop")
+        cmd = mock_run.call_args[0][0]
+        assert "--base" in cmd
+        base_idx = cmd.index("--base")
+        assert cmd[base_idx + 1] == "develop"
+
+
+class TestEnablePrAutoMerge:
+    """Tests for enable_pr_auto_merge."""
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_enables_auto_merge(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_run(returncode=0)
+        result = enable_pr_auto_merge(REPO, "https://github.com/owner/repo/pull/42")
+        assert result.ok
+        cmd = mock_run.call_args[0][0]
+        assert cmd[0] == "gh"
+        assert "pr" in cmd
+        assert "merge" in cmd
+        assert "--auto" in cmd
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_failure(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = _mock_run(returncode=1, stderr="error")
+        result = enable_pr_auto_merge(REPO, "42")
+        assert not result.ok
+
+    @patch("bernstein.core.git_ops.subprocess.run")
+    def test_timeout_returns_failure(self, mock_run: MagicMock) -> None:
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd="gh", timeout=30)
+        result = enable_pr_auto_merge(REPO, "42")
+        assert not result.ok

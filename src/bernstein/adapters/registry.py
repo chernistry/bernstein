@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bernstein.adapters.amp import AmpAdapter
 from bernstein.adapters.aider import AiderAdapter
 from bernstein.adapters.base import CLIAdapter
 from bernstein.adapters.claude import ClaudeCodeAdapter
@@ -11,6 +12,7 @@ from bernstein.adapters.generic import GenericAdapter
 from bernstein.adapters.qwen import QwenAdapter
 
 _ADAPTERS: dict[str, type[CLIAdapter] | CLIAdapter] = {
+    "amp": AmpAdapter,
     "aider": AiderAdapter,
     "claude": ClaudeCodeAdapter,
     "codex": CodexAdapter,

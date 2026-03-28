@@ -1,10 +1,13 @@
 """Core data models for tasks, agents, and cells."""
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
+
+logger = logging.getLogger(__name__)
 
 
 class ProviderType(Enum):
@@ -171,6 +174,69 @@ class Task:
     effort: str | None = None              # "max", "high", "medium", "low"
     created_at: float = field(default_factory=time.time)
     progress_log: list[dict] = field(default_factory=list)  # [{timestamp, message, percent}]
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any]) -> Task:
+        """Deserialise a server JSON response into a Task.
+
+        Args:
+            raw: Dict from the task server JSON response.
+
+        Returns:
+            Populated Task dataclass.
+        """
+        task_type = TaskType.STANDARD
+        if "task_type" in raw:
+            try:
+                task_type = TaskType(raw["task_type"])
+            except ValueError:
+                logger.warning("Invalid task_type %r from server", raw["task_type"])
+
+        signals: list[CompletionSignal] = []
+        for sig in raw.get("completion_signals", []):
+            try:
+                signals.append(CompletionSignal(type=sig["type"], value=sig["value"]))
+            except (KeyError, TypeError):
+                logger.warning("Invalid completion_signal entry: %r", sig)
+
+        upgrade_details: UpgradeProposalDetails | None = None
+        raw_upgrade = raw.get("upgrade_details")
+        if raw_upgrade:
+            risk = RiskAssessment(**raw_upgrade.get("risk_assessment", {}))
+            rollback = RollbackPlan(**raw_upgrade.get("rollback_plan", {}))
+            upgrade_details = UpgradeProposalDetails(
+                current_state=raw_upgrade.get("current_state", ""),
+                proposed_change=raw_upgrade.get("proposed_change", ""),
+                benefits=raw_upgrade.get("benefits", []),
+                risk_assessment=risk,
+                rollback_plan=rollback,
+                cost_estimate_usd=raw_upgrade.get("cost_estimate_usd", 0.0),
+                performance_impact=raw_upgrade.get("performance_impact", ""),
+            )
+
+        return cls(
+            id=raw["id"],
+            title=raw["title"],
+            description=raw["description"],
+            role=raw["role"],
+            priority=raw.get("priority", 2),
+            scope=Scope(raw.get("scope", "medium")),
+            complexity=Complexity(raw.get("complexity", "medium")),
+            estimated_minutes=raw.get("estimated_minutes", 30),
+            status=TaskStatus(raw.get("status", "open")),
+            task_type=task_type,
+            upgrade_details=upgrade_details,
+            depends_on=raw.get("depends_on", []),
+            completion_signals=signals,
+            owned_files=raw.get("owned_files", []),
+            assigned_agent=raw.get("assigned_agent"),
+            result_summary=raw.get("result_summary"),
+            cell_id=raw.get("cell_id"),
+            model=raw.get("model"),
+            effort=raw.get("effort"),
+            created_at=raw.get("created_at", time.time()),
+            progress_log=list(raw.get("progress_log", [])),
+        )
 
 
 @dataclass(frozen=True)

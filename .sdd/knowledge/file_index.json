@@ -546,10 +546,11 @@
       "__future__",
       "dataclasses",
       "enum",
+      "logging",
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T06:56:11.072019"
+    "last_modified": "2026-03-28T07:19:03.512519"
   },
   "src/bernstein/core/multi_cell.py": {
     "summary": "Multi-cell orchestrator: coordinates multiple cells, each with its own manager + workers.",
@@ -573,6 +574,10 @@
   "src/bernstein/core/orchestrator.py": {
     "summary": "Orchestrator loop: watch tasks, spawn agents, verify completion, repeat.",
     "exports": [
+      "_RuffLocation",
+      "RuffViolation",
+      "TestResults",
+      "CompletionData",
       "Orchestrator",
       "TickResult",
       "group_by_role"
@@ -591,7 +596,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T06:58:23.452239"
+    "last_modified": "2026-03-28T07:19:20.258473"
   },
   "src/bernstein/core/policy.py": {
     "summary": "Policy engine for tier optimization and provider routing.",
@@ -685,6 +690,9 @@
   "src/bernstein/core/server.py": {
     "summary": "FastAPI task server \u2014 central coordination point for all agents.",
     "exports": [
+      "TaskRecord",
+      "ArchiveRecord",
+      "ProgressEntry",
       "CompletionSignalSchema",
       "TaskCreate",
       "TaskResponse",
@@ -719,7 +727,7 @@
       "typing",
       "uuid"
     ],
-    "last_modified": "2026-03-28T07:03:47.144895"
+    "last_modified": "2026-03-28T07:18:57.419513"
   },
   "src/bernstein/core/spawner.py": {
     "summary": "Spawn short-lived CLI agents for task batches.",
@@ -2197,6 +2205,7 @@
       "TestDryRun",
       "TestRunEvolutionCycle",
       "TestExtractFromAgentLog",
+      "TestCheckEvolve",
       "test_per_task_timeout_short_task",
       "test_per_task_timeout_long_task_clamped",
       "test_reap_uses_per_session_timeout"
@@ -2210,7 +2219,7 @@
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T07:10:22.075802"
+    "last_modified": "2026-03-28T07:19:28.931858"
   },
   "tests/unit/test_plan_cmd.py": {
     "summary": "Tests for the `bernstein plan` CLI command.",

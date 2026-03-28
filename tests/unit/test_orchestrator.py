@@ -22,7 +22,6 @@ from bernstein.core.models import (
 from bernstein.core.orchestrator import (
     Orchestrator,
     TickResult,
-    _task_from_dict,
     group_by_role,
 )
 from bernstein.core.router import (
@@ -149,14 +148,14 @@ def _build_orchestrator(
     return Orchestrator(cfg, spawner, tmp_path, client=client)
 
 
-# --- _task_from_dict ---
+# --- Task.from_dict ---
 
 
 class TestTaskFromDict:
     def test_round_trip(self) -> None:
         task = _make_task(id="T-099", role="qa", priority=1)
         raw = _task_as_dict(task)
-        parsed = _task_from_dict(raw)
+        parsed = Task.from_dict(raw)
 
         assert parsed.id == "T-099"
         assert parsed.role == "qa"
@@ -166,7 +165,7 @@ class TestTaskFromDict:
 
     def test_defaults_for_missing_fields(self) -> None:
         raw = {"id": "T-min", "title": "x", "description": "y", "role": "z"}
-        parsed = _task_from_dict(raw)
+        parsed = Task.from_dict(raw)
 
         assert parsed.priority == 2
         assert parsed.scope == Scope.MEDIUM

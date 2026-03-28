@@ -13,7 +13,7 @@ import re
 import time
 from collections import defaultdict
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypedDict
 
 import httpx
 
@@ -23,10 +23,7 @@ from bernstein.core.janitor import verify_task
 from bernstein.core.metrics import get_collector
 from bernstein.core.models import (
     AgentSession,
-    CompletionSignal,
-    Complexity,
     OrchestratorConfig,
-    Scope,
     Task,
     TaskStatus,
     TaskType,
@@ -42,50 +39,38 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class _RuffLocation(TypedDict, total=False):
+    row: int
+    column: int
+
+
+class RuffViolation(TypedDict, total=False):
+    """A single violation from ``ruff check --output-format=json``."""
+
+    code: str
+    filename: str
+    message: str
+    location: _RuffLocation
+
+
+class TestResults(TypedDict, total=False):
+    """Parsed pytest output with pass/fail counts and a one-line summary."""
+
+    passed: int
+    failed: int
+    summary: str
+
+
+class CompletionData(TypedDict):
+    """Structured data extracted from an agent's runtime log after task completion."""
+
+    files_modified: list[str]
+    test_results: TestResults
+
+
 def _task_from_dict(raw: dict[str, Any]) -> Task:
-    """Deserialise a server JSON response into a domain Task.
-
-    Args:
-        raw: Dict from the task server JSON response.
-
-    Returns:
-        Populated Task dataclass.
-    """
-    # Parse task type
-    task_type = TaskType.STANDARD
-    if "task_type" in raw:
-        try:
-            task_type = TaskType(raw["task_type"])
-        except ValueError:
-            logger.warning("Invalid task_type %r from server", raw["task_type"])
-
-    # Parse completion signals
-    signals: list[CompletionSignal] = []
-    for sig in raw.get("completion_signals", []):
-        try:
-            signals.append(CompletionSignal(type=sig["type"], value=sig["value"]))
-        except (KeyError, TypeError):
-            logger.warning("Invalid completion_signal entry: %r", sig)
-
-    return Task(
-        id=raw["id"],
-        title=raw["title"],
-        description=raw["description"],
-        role=raw["role"],
-        priority=raw.get("priority", 2),
-        scope=Scope(raw.get("scope", "medium")),
-        complexity=Complexity(raw.get("complexity", "medium")),
-        estimated_minutes=raw.get("estimated_minutes", 30),
-        status=TaskStatus(raw.get("status", "open")),
-        task_type=task_type,
-        depends_on=raw.get("depends_on", []),
-        completion_signals=signals,
-        owned_files=raw.get("owned_files", []),
-        assigned_agent=raw.get("assigned_agent"),
-        result_summary=raw.get("result_summary"),
-        model=raw.get("model"),
-        effort=raw.get("effort"),
-    )
+    """Deserialise a server JSON response into a domain Task (delegates to Task.from_dict)."""
+    return Task.from_dict(raw)
 
 
 def _parse_backlog_file(filename: str, content: str) -> dict[str, Any]:
@@ -168,7 +153,7 @@ def _fetch_all_tasks(client: httpx.Client, base_url: str) -> dict[str, list[Task
     resp.raise_for_status()
     by_status: dict[str, list[Task]] = defaultdict(list)
     for raw in resp.json():
-        task = _task_from_dict(raw)
+        task = Task.from_dict(raw)
         by_status[task.status.value].append(task)
     # Ensure standard keys are always present
     for key in ("open", "claimed", "done", "failed", "cancelled"):
@@ -307,8 +292,8 @@ class Orchestrator:
         self._run_start_ts: float = time.time()
         # Background thread pool for non-blocking ruff/pytest runs
         self._executor: concurrent.futures.ThreadPoolExecutor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
-        self._pending_ruff_future: concurrent.futures.Future[list[dict[str, Any]]] | None = None
-        self._pending_test_future: concurrent.futures.Future[dict[str, Any]] | None = None
+        self._pending_ruff_future: concurrent.futures.Future[list[RuffViolation]] | None = None
+        self._pending_test_future: concurrent.futures.Future[TestResults] | None = None
 
         # Provider-aware routing and health tracking
         self._router = router
@@ -446,7 +431,7 @@ class Orchestrator:
         if self._tick_count % (self._config.evolution_tick_interval * 5) == 0:
             try:
                 refresh_knowledge_base(self._workdir)
-            except Exception as exc:
+            except OSError as exc:
                 logger.warning("Knowledge base refresh failed: %s", exc)
 
         # 7. Check evolve mode: if all tasks done and no agents alive, trigger new cycle
@@ -654,7 +639,7 @@ class Orchestrator:
     _REPLENISH_COOLDOWN_S: float = 60.0
     _REPLENISH_MAX_TASKS: int = 5
 
-    def _run_ruff_check(self) -> list[dict[str, Any]]:
+    def _run_ruff_check(self) -> list[RuffViolation]:
         """Run ruff check and return parsed violations (runs in a background thread)."""
         import subprocess
 
@@ -667,13 +652,13 @@ class Orchestrator:
         )
         return json.loads(proc.stdout) if proc.stdout.strip() else []
 
-    def _create_ruff_tasks(self, violations: list[dict[str, Any]]) -> None:
+    def _create_ruff_tasks(self, violations: list[RuffViolation]) -> None:
         """Create backlog tasks from ruff violations."""
         if not violations:
             logger.debug("Replenish: no ruff violations found, backlog is clean")
             return
 
-        by_rule: dict[str, dict[str, Any]] = {}
+        by_rule: dict[str, RuffViolation] = {}
         for v in violations:
             code = (v.get("code") or "unknown").strip()
             if code not in by_rule:
@@ -737,8 +722,8 @@ class Orchestrator:
             if not self._pending_ruff_future.done():
                 return  # still running; skip this tick
             try:
-                violations: list[dict[str, Any]] = self._pending_ruff_future.result()
-            except Exception as exc:
+                violations: list[RuffViolation] = self._pending_ruff_future.result()
+            except (concurrent.futures.CancelledError, RuntimeError) as exc:
                 logger.warning("Replenish: ruff check failed: %s", exc)
                 self._pending_ruff_future = None
                 return
@@ -755,11 +740,11 @@ class Orchestrator:
         self._pending_ruff_future = self._executor.submit(self._run_ruff_check)
         logger.debug("Replenish: ruff check submitted to background thread")
 
-    def _run_pytest(self) -> dict[str, Any]:
+    def _run_pytest(self) -> TestResults:
         """Run pytest and return parsed results (runs in a background thread)."""
         import subprocess
 
-        info: dict[str, Any] = {"passed": 0, "failed": 0, "summary": ""}
+        info: TestResults = {"passed": 0, "failed": 0, "summary": ""}
         result = subprocess.run(
             ["uv", "run", "pytest", "tests/", "-q", "--tb=line"],
             capture_output=True, text=True, cwd=self._workdir, timeout=300,
@@ -774,7 +759,7 @@ class Orchestrator:
             info["failed"] = int(match.group(1))
         return info
 
-    def _evolve_run_tests(self) -> dict[str, Any]:
+    def _evolve_run_tests(self) -> TestResults:
         """Return test results from a background pytest run.
 
         On the first call a future is submitted and an empty result is returned.
@@ -784,14 +769,14 @@ class Orchestrator:
         Returns:
             Dict with 'passed', 'failed', 'summary' keys.
         """
-        info: dict[str, Any] = {"passed": 0, "failed": 0, "summary": ""}
+        info: TestResults = {"passed": 0, "failed": 0, "summary": ""}
 
         if self._pending_test_future is not None:
             if not self._pending_test_future.done():
                 return info  # still running; return empty until done
             try:
                 info = self._pending_test_future.result()
-            except Exception as exc:
+            except (concurrent.futures.CancelledError, RuntimeError) as exc:
                 logger.warning("Evolve: test run failed: %s", exc)
                 info["summary"] = f"test run error: {exc}"
             self._pending_test_future = None
@@ -1068,7 +1053,7 @@ class Orchestrator:
                         proposal.id, exc,
                     )
                     result.errors.append(f"evolution_task: {exc}")
-        except Exception as exc:
+        except (OSError, ValueError, RuntimeError) as exc:
             logger.error("Evolution analysis cycle failed: %s", exc)
             result.errors.append(f"evolution: {exc}")
 
@@ -1155,7 +1140,7 @@ class Orchestrator:
             try:
                 resp = self._client.get(f"{base}/tasks/{task_id}")
                 resp.raise_for_status()
-                task = _task_from_dict(resp.json())
+                task = Task.from_dict(resp.json())
                 logger.debug("_handle_orphaned_task %s: fetched live (not in snapshot)", task_id)
             except httpx.HTTPError as exc:
                 logger.error("Failed to fetch orphaned task %s: %s", task_id, exc)
@@ -1271,7 +1256,7 @@ class Orchestrator:
         with metrics_path.open("a") as f:
             f.write(json.dumps(record.to_dict()) + "\n")
 
-    def _collect_completion_data(self, session: AgentSession) -> dict[str, Any]:
+    def _collect_completion_data(self, session: AgentSession) -> CompletionData:
         """Read agent log file and extract structured completion data.
 
         Parses the agent's runtime log for files_modified and test_results.
@@ -1282,7 +1267,7 @@ class Orchestrator:
         Returns:
             Dict with files_modified and test_results keys.
         """
-        data: dict[str, Any] = {"files_modified": [], "test_results": {}}
+        data: CompletionData = {"files_modified": [], "test_results": {}}
         log_path = self._workdir / ".sdd" / "runtime" / f"{session.id}.log"
         if not log_path.exists():
             return data
@@ -1512,7 +1497,7 @@ class Orchestrator:
             try:
                 resp = self._client.get(f"{base}/tasks/{task_id}")
                 resp.raise_for_status()
-                task = _task_from_dict(resp.json())
+                task = Task.from_dict(resp.json())
             except httpx.HTTPError as exc:
                 logger.error("_retry_or_fail_task: could not fetch task %s: %s", task_id, exc)
                 return

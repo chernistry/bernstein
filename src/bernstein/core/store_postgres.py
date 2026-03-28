@@ -244,11 +244,14 @@ class PostgresTaskStore(BaseTaskStore):
 
     async def startup(self) -> None:
         """Create the connection pool and run DDL migrations."""
-        self._pool = cast("Any", await asyncpg.create_pool(  # type: ignore[union-attr]
-            self._dsn,
-            min_size=self._pool_min,
-            max_size=self._pool_max,
-        ))
+        self._pool = cast(
+            "Any",
+            await asyncpg.create_pool(  # type: ignore[union-attr]
+                self._dsn,
+                min_size=self._pool_min,
+                max_size=self._pool_max,
+            ),
+        )
         assert self._pool is not None
         async with self._pool.acquire() as conn:
             await conn.execute(_DDL)

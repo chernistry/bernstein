@@ -175,9 +175,7 @@ class RoutingDecision:
 class RouterState:
     """Current state of available providers and tiers."""
 
-    providers: dict[str, ProviderConfig] = field(
-        default_factory=lambda: dict[str, ProviderConfig]()
-    )
+    providers: dict[str, ProviderConfig] = field(default_factory=lambda: dict[str, ProviderConfig]())
     preferred_tier: Tier = Tier.FREE
     fallback_enabled: bool = True
 

@@ -177,9 +177,7 @@ class TaskCreate(BaseModel):
     upgrade_details: dict[str, Any] | None = None
     model: str | None = None  # Manager hint: "opus", "sonnet", "haiku"
     effort: str | None = None  # Manager hint: "max", "high", "medium", "low"
-    completion_signals: list[CompletionSignalSchema] = Field(
-        default_factory=lambda: list[CompletionSignalSchema]()
-    )
+    completion_signals: list[CompletionSignalSchema] = Field(default_factory=lambda: list[CompletionSignalSchema]())
 
 
 class TaskResponse(BaseModel):
@@ -203,13 +201,9 @@ class TaskResponse(BaseModel):
     upgrade_details: dict[str, Any] | None
     model: str | None
     effort: str | None
-    completion_signals: list[dict[str, str]] = Field(
-        default_factory=lambda: list[dict[str, str]]()
-    )
+    completion_signals: list[dict[str, str]] = Field(default_factory=lambda: list[dict[str, str]]())
     created_at: float
-    progress_log: list[ProgressEntry] = Field(
-        default_factory=lambda: list[ProgressEntry]()
-    )
+    progress_log: list[ProgressEntry] = Field(default_factory=lambda: list[ProgressEntry]())
     version: int = 1
 
 

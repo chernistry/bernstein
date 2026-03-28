@@ -10,6 +10,7 @@ from bernstein.agents.registry import AgentRegistry, get_registry
 from bernstein.core.context import TaskContextBuilder
 from bernstein.core.models import AgentSession, ModelConfig, Task
 from bernstein.core.router import RouterError, TierAwareRouter
+from bernstein.core.git_ops import MergeResult, merge_with_conflict_detection
 from bernstein.core.worktree import WorktreeError, WorktreeManager
 from bernstein.templates.renderer import TemplateError, render_role_prompt
 
@@ -396,22 +397,28 @@ class AgentSpawner:
             self._adapter.kill(session.pid)
         session.status = "dead"
 
-    def reap_completed_agent(self, session: AgentSession) -> None:
+    def reap_completed_agent(self, session: AgentSession) -> MergeResult | None:
         """Terminate and wait on the subprocess for a completed agent.
 
         Calls proc.terminate() then proc.wait(timeout=5) to reap the OS
         process. Safe to call when no proc is stored (pid-only spawns or
         unknown sessions). Idempotent: a second call is a no-op.
 
-        When worktrees are enabled, merges the agent branch back into the
-        current branch and removes the worktree after the process is reaped.
+        When worktrees are enabled, attempts conflict-aware merge of the
+        agent branch back into the current branch.  On conflict, aborts
+        the merge and returns the MergeResult so the caller can route to
+        a resolver agent or re-queue the task.
 
         Args:
             session: The AgentSession whose underlying process should be reaped.
+
+        Returns:
+            MergeResult when worktrees are enabled (None otherwise, or if
+            no proc was stored).
         """
         proc = self._procs.pop(session.id, None)
         if proc is None:
-            return
+            return None
         try:
             proc.terminate()
         except Exception as exc:
@@ -424,37 +431,46 @@ class AgentSpawner:
 
         # Merge worktree branch back and clean up
         worktree_path = self._worktree_paths.pop(session.id, None)
+        merge_result: MergeResult | None = None
         if worktree_path is not None and self._worktree_mgr is not None:
-            self._merge_worktree_branch(session.id)
+            merge_result = self._merge_worktree_branch(session.id)
             self._worktree_mgr.cleanup(session.id)
+        return merge_result
 
-    def _merge_worktree_branch(self, session_id: str) -> None:
-        """Merge the agent's worktree branch back into the current branch.
+    def _merge_worktree_branch(self, session_id: str) -> MergeResult:
+        """Merge the agent's worktree branch with conflict detection.
 
-        Best-effort: logs warnings on failure but does not raise.
+        Uses ``merge_with_conflict_detection`` for a safe, abort-on-conflict
+        merge.  On success the branch is merged; on conflict the merge is
+        aborted and the caller receives the list of conflicting files.
 
         Args:
             session_id: The session whose branch should be merged.
+
+        Returns:
+            MergeResult with success status and any conflicting files.
         """
         branch_name = f"agent/{session_id}"
         try:
-            result = subprocess.run(
-                ["git", "merge", "--no-ff", branch_name, "-m", f"Merge {branch_name}"],
-                cwd=self._workdir,
-                capture_output=True,
-                text=True,
-                timeout=60,
+            result = merge_with_conflict_detection(
+                self._workdir,
+                branch_name,
+                message=f"Merge {branch_name}",
             )
-            if result.returncode != 0:
+            if result.success:
+                logger.info("Merged worktree branch %s into current branch", branch_name)
+            elif result.conflicting_files:
                 logger.warning(
-                    "git merge failed for %s: %s",
+                    "Merge conflicts for %s in files: %s",
                     session_id,
-                    result.stderr.strip(),
+                    ", ".join(result.conflicting_files),
                 )
             else:
-                logger.info("Merged worktree branch %s into current branch", branch_name)
+                logger.warning("Merge failed for %s: %s", session_id, result.error)
+            return result
         except Exception as exc:
             logger.warning("Merge failed for %s: %s", session_id, exc)
+            return MergeResult(success=False, conflicting_files=[], error=str(exc))
 
 
 def _load_role_config(role: str, templates_dir: Path) -> ModelConfig | None:

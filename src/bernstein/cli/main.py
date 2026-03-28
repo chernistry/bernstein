@@ -804,6 +804,371 @@ def stop(timeout: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# demo
+# ---------------------------------------------------------------------------
+
+_DEMO_PORT = 8055
+
+_ADAPTER_COMMANDS: dict[str, str] = {
+    "claude": "claude",
+    "codex": "codex",
+    "gemini": "gemini",
+    "qwen": "qwen",
+}
+
+_DEMO_TASKS: list[dict[str, str]] = [
+    {
+        "filename": "1-health-check.md",
+        "content": (
+            "# Add health check endpoint\n\n"
+            "**Role:** backend\n"
+            "**Priority:** 1\n"
+            "**Scope:** small\n"
+            "**Complexity:** low\n\n"
+            "Add a `/health` endpoint to `app.py` that returns "
+            '`{"status": "healthy", "version": "1.0.0"}` with HTTP 200.\n'
+        ),
+    },
+    {
+        "filename": "2-add-tests.md",
+        "content": (
+            "# Add tests for app.py\n\n"
+            "**Role:** qa\n"
+            "**Priority:** 2\n"
+            "**Scope:** small\n"
+            "**Complexity:** low\n\n"
+            "Add pytest tests in `tests/test_app.py` covering all routes in "
+            "`app.py`, including the `/health` endpoint.\n"
+        ),
+    },
+    {
+        "filename": "3-error-handling.md",
+        "content": (
+            "# Add error handling middleware\n\n"
+            "**Role:** backend\n"
+            "**Priority:** 2\n"
+            "**Scope:** small\n"
+            "**Complexity:** low\n\n"
+            "Add 404 and 500 JSON error handlers to `app.py`. "
+            'Return `{"error": "Not found", "status": 404}` for missing routes.\n'
+        ),
+    },
+]
+
+
+def _detect_available_adapter() -> str | None:
+    """Return the name of the first available CLI adapter found in PATH.
+
+    Returns:
+        Adapter name (e.g. ``'claude'``) or None if none found.
+    """
+    import shutil as _shutil
+
+    for name, cmd in _ADAPTER_COMMANDS.items():
+        if _shutil.which(cmd) is not None:
+            return name
+    return None
+
+
+def _setup_demo_project(project_dir: Path, adapter: str) -> None:
+    """Copy demo template files and seed three backlog tasks.
+
+    Args:
+        project_dir: Destination directory (should be empty / temp dir).
+        adapter: CLI adapter name — written into the workspace config.
+    """
+    import shutil as _shutil
+
+    # Copy template files from templates/demo/
+    template_dir = Path(__file__).parent.parent.parent.parent / "templates" / "demo"
+    if template_dir.exists():
+        _shutil.copytree(str(template_dir), str(project_dir), dirs_exist_ok=True)
+    else:
+        # Fallback: write minimal files inline so the command works even without
+        # the templates/ directory being present on PYTHONPATH.
+        (project_dir / "app.py").write_text(
+            '"""Simple Flask web application."""\n'
+            "from flask import Flask, jsonify\n\n"
+            "app = Flask(__name__)\n\n\n"
+            '@app.route("/")\n'
+            "def hello() -> object:\n"
+            '    """Return a greeting."""\n'
+            '    return jsonify({"message": "Hello, World!", "status": "ok"})\n\n\n'
+            'if __name__ == "__main__":\n'
+            "    app.run(debug=True)\n"
+        )
+        (project_dir / "requirements.txt").write_text("flask>=3.0.0\npytest>=8.0.0\n")
+        tests_dir = project_dir / "tests"
+        tests_dir.mkdir(exist_ok=True)
+        (tests_dir / "__init__.py").write_text("")
+        (tests_dir / "test_app.py").write_text(
+            '"""Basic tests."""\nimport pytest\nfrom app import app\n\n\n'
+            "@pytest.fixture\ndef client():\n"
+            '    app.config["TESTING"] = True\n'
+            "    with app.test_client() as c:\n        yield c\n\n\n"
+            "def test_hello(client):\n"
+            '    resp = client.get("/")\n'
+            "    assert resp.status_code == 200\n"
+        )
+
+    # Create .sdd/ structure
+    for d in SDD_DIRS:
+        (project_dir / d).mkdir(parents=True, exist_ok=True)
+
+    config_path = project_dir / ".sdd" / "config.yaml"
+    config_path.write_text(
+        "# Bernstein demo workspace\n"
+        f"server_port: {_DEMO_PORT}\n"
+        "max_workers: 2\n"
+        "default_model: sonnet\n"
+        "default_effort: normal\n"
+        f"cli: {adapter}\n"
+    )
+    (project_dir / ".sdd" / "runtime" / ".gitignore").write_text("*.pid\n*.log\ntasks.jsonl\n")
+
+    # Seed the three backlog tasks
+    backlog_open = project_dir / ".sdd" / "backlog" / "open"
+    for task in _DEMO_TASKS:
+        (backlog_open / task["filename"]).write_text(task["content"])
+
+
+def _stop_demo_processes(project_dir: Path) -> None:
+    """Terminate server, spawner and watchdog started in project_dir.
+
+    Args:
+        project_dir: Demo project root whose .sdd/runtime/ holds PID files.
+    """
+    runtime_dir = project_dir / ".sdd" / "runtime"
+    for pid_filename, label in [
+        ("watchdog.pid", "Watchdog"),
+        ("spawner.pid", "Spawner"),
+        ("server.pid", "Task server"),
+    ]:
+        pid_file = runtime_dir / pid_filename
+        if not pid_file.exists():
+            continue
+        try:
+            pid = int(pid_file.read_text().strip())
+        except (ValueError, OSError):
+            continue
+        if _is_alive(pid):
+            try:
+                import signal as _signal
+                os.kill(pid, _signal.SIGTERM)
+            except OSError:
+                pass
+        pid_file.unlink(missing_ok=True)
+
+
+def _print_demo_summary(project_dir: Path, server_url: str) -> None:
+    """Print final demo summary: tasks done, files changed, cost.
+
+    Args:
+        project_dir: Demo project root.
+        server_url: Base URL of the demo task server.
+    """
+    from rich.table import Table
+
+    tasks_data: list[dict[str, Any]] = []
+    total_cost: float = 0.0
+    try:
+        resp = httpx.get(f"{server_url}/status", timeout=3.0)
+        if resp.status_code == 200:
+            payload = resp.json()
+            tasks_data = payload.get("tasks", [])
+            total_cost = payload.get("total_cost_usd", 0.0)
+    except Exception:
+        pass
+
+    done = sum(1 for t in tasks_data if t.get("status") == "done")
+    failed = sum(1 for t in tasks_data if t.get("status") == "failed")
+    total = len(tasks_data)
+
+    console.print("\n[bold cyan]── Demo Summary ──────────────────────────[/bold cyan]")
+
+    table = Table(show_header=True, header_style="bold magenta", show_lines=False)
+    table.add_column("Metric", style="bold")
+    table.add_column("Value", justify="right")
+    table.add_row("Tasks completed", f"[green]{done}[/green] / {total}")
+    if failed:
+        table.add_row("Tasks failed", f"[red]{failed}[/red]")
+
+    # Count Python files in the project dir (excluding .sdd/)
+    py_files = [
+        p for p in project_dir.glob("**/*.py")
+        if ".sdd" not in p.parts
+    ]
+    table.add_row("Python files in project", str(len(py_files)))
+    table.add_row("API cost", f"${total_cost:.4f}")
+    console.print(table)
+
+    console.print(f"\n[dim]Project directory:[/dim] {project_dir}")
+    console.print("[dim]Inspect it to see what the agents changed.[/dim]")
+    console.print("\n[bold green]Try it yourself:[/bold green]")
+    console.print(f"  cd {project_dir}")
+    console.print("  pip install -r requirements.txt")
+    console.print("  pytest tests/ -q")
+
+
+@cli.command("demo")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show the demo plan without spawning any agents.",
+)
+@click.option(
+    "--adapter",
+    default=None,
+    metavar="NAME",
+    help="CLI adapter to use (auto-detected by default).  "
+    "Choices: claude, codex, gemini, qwen.",
+)
+@click.option(
+    "--timeout",
+    default=120,
+    show_default=True,
+    help="Maximum seconds to wait for tasks to complete.",
+)
+def demo(dry_run: bool, adapter: str | None, timeout: int) -> None:
+    """Zero-to-running demo: spin up a Flask app and ship 3 tasks.
+
+    \b
+    Creates a temporary project directory with a Flask hello-world starter,
+    seeds 3 tasks into the backlog (health check, tests, error handling),
+    then runs agents to complete them while showing live progress.
+
+    \b
+      bernstein demo              # run the full demo
+      bernstein demo --dry-run    # preview the plan without spawning agents
+      bernstein demo --timeout 60 # cap run time at 60 seconds
+    """
+    import tempfile
+
+    _print_banner()
+
+    # Resolve adapter
+    detected = adapter or _detect_available_adapter()
+    if detected is None:
+        console.print(
+            "[red]No supported CLI agent found in PATH.[/red]\n\n"
+            "Install one of:\n"
+            "  Claude Code  https://claude.ai/code\n"
+            "  Codex CLI    https://github.com/openai/codex-cli\n"
+            "  Gemini CLI   https://github.com/google-gemini/gemini-cli\n"
+        )
+        raise SystemExit(1)
+
+    # Always print cost estimate before doing anything
+    console.print(
+        "\n[bold yellow]Cost estimate:[/bold yellow] "
+        "~$0.15 in API credits (3 small tasks, sonnet model)\n"
+        f"[dim]Adapter: {detected}  |  Tasks: 3  |  Timeout: {timeout}s[/dim]"
+    )
+
+    if dry_run:
+        console.print("\n[bold cyan][DRY RUN] What would happen:[/bold cyan]\n")
+        from rich.table import Table
+
+        plan_table = Table(show_header=True, header_style="bold magenta")
+        plan_table.add_column("Step")
+        plan_table.add_column("Action")
+        plan_table.add_column("Detail")
+        plan_table.add_row("1", "Create project", "Temp dir with Flask hello-world (5 files)")
+        plan_table.add_row("2", "Seed backlog", "3 tasks in .sdd/backlog/open/")
+        for i, t in enumerate(_DEMO_TASKS, start=3):
+            from bernstein.core.sync import parse_backlog_file as _parse
+            import tempfile as _tmp
+            import io
+            # Parse task inline to get title/role
+            parts = t["content"].split("\n")
+            title = parts[0].lstrip("# ").strip()
+            role = next(
+                (ln.split("**Role:**")[-1].strip() for ln in parts if "**Role:**" in ln),
+                "backend",
+            )
+            plan_table.add_row(str(i), f"Run {role} agent", title)
+        plan_table.add_row(str(len(_DEMO_TASKS) + 3), "Print summary", "tasks done, cost, files changed")
+        console.print(plan_table)
+        console.print(
+            f"\n[dim]No agents were spawned. Run [bold]bernstein demo[/bold] to execute.[/dim]"
+        )
+        return
+
+    # Create temp project dir
+    project_dir = Path(tempfile.mkdtemp(prefix="bernstein-demo-"))
+    console.print(f"\n[dim]Creating demo project in {project_dir}…[/dim]")
+
+    _setup_demo_project(project_dir, detected)
+    console.print("[green]✓[/green] Flask starter project created (5 files)")
+    console.print("[green]✓[/green] 3 tasks seeded: health check, tests, error handling")
+
+    server_url = f"http://127.0.0.1:{_DEMO_PORT}"
+
+    try:
+        # Bootstrap: start server + spawner in the demo project dir
+        console.print("\n[bold]Starting orchestration…[/bold]")
+        from bernstein.core.bootstrap import bootstrap_from_goal
+
+        bootstrap_from_goal(
+            goal="Complete the seeded backlog tasks for the demo Flask app.",
+            workdir=project_dir,
+            port=_DEMO_PORT,
+            cli=detected,
+        )
+
+        # Poll for completion with a live progress indicator
+        from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+
+        start = time.monotonic()
+        deadline = start + timeout
+
+        console.print()
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
+        ) as progress:
+            poll_task = progress.add_task("Agents working…", total=None)
+
+            while time.monotonic() < deadline:
+                try:
+                    resp = httpx.get(f"{server_url}/status", timeout=3.0)
+                    if resp.status_code == 200:
+                        payload = resp.json()
+                        tasks_list: list[dict[str, Any]] = payload.get("tasks", [])
+                        done = sum(1 for t in tasks_list if t.get("status") == "done")
+                        failed = sum(1 for t in tasks_list if t.get("status") == "failed")
+                        total_tasks = len(tasks_list)
+                        progress.update(
+                            poll_task,
+                            description=(
+                                f"Agents working… "
+                                f"[green]{done}[/green]/{total_tasks} done"
+                                + (f"  [red]{failed} failed[/red]" if failed else "")
+                            ),
+                        )
+                        if total_tasks > 0 and done + failed >= total_tasks:
+                            break
+                except Exception:
+                    pass
+                time.sleep(2)
+
+        console.print("[green]✓[/green] Orchestration finished")
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Interrupted.[/yellow]")
+    except RuntimeError as exc:
+        console.print(f"[red]Bootstrap error:[/red] {exc}")
+    finally:
+        _stop_demo_processes(project_dir)
+
+    _print_demo_summary(project_dir, server_url)
+
+
+# ---------------------------------------------------------------------------
 # cancel
 # ---------------------------------------------------------------------------
 
@@ -1347,6 +1712,258 @@ cli.add_command(cost_cmd, "cost")
 
 
 # ---------------------------------------------------------------------------
+# retro — on-demand retrospective report
+# ---------------------------------------------------------------------------
+
+
+def _load_archive_tasks(
+    archive_path: Path,
+    since_ts: float | None,
+) -> tuple[list[Any], list[Any]]:
+    """Load done/failed Task objects from the archive JSONL file.
+
+    Args:
+        archive_path: Path to .sdd/archive/tasks.jsonl.
+        since_ts: If set, only include tasks completed after this timestamp.
+
+    Returns:
+        Tuple of (done_tasks, failed_tasks) as Task objects.
+    """
+    from bernstein.core.models import Complexity, Scope, Task, TaskStatus
+
+    done_tasks: list[Task] = []
+    failed_tasks: list[Task] = []
+
+    if not archive_path.exists():
+        return done_tasks, failed_tasks
+
+    for line in archive_path.read_text().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        status = record.get("status", "")
+        if status not in ("done", "failed"):
+            continue
+
+        completed_at = record.get("completed_at")
+        if since_ts is not None and (completed_at is None or completed_at < since_ts):
+            continue
+
+        task = Task(
+            id=record.get("task_id", ""),
+            title=record.get("title", ""),
+            description=record.get("result_summary", "") or "",
+            role=record.get("role", "unknown"),
+            complexity=Complexity(record.get("complexity", "medium")),
+            scope=Scope(record.get("scope", "medium")),
+            status=TaskStatus.DONE if status == "done" else TaskStatus.FAILED,
+            created_at=record.get("created_at", 0.0),
+        )
+        if status == "done":
+            done_tasks.append(task)
+        else:
+            failed_tasks.append(task)
+
+    return done_tasks, failed_tasks
+
+
+def _build_collector_from_archive(
+    archive_path: Path,
+    since_ts: float | None,
+) -> Any:
+    """Build a MetricsCollector populated from the archive JSONL file.
+
+    Args:
+        archive_path: Path to .sdd/archive/tasks.jsonl.
+        since_ts: If set, only include tasks completed after this timestamp.
+
+    Returns:
+        MetricsCollector with task metrics pre-populated.
+    """
+    from bernstein.core.metrics import MetricsCollector, TaskMetrics
+
+    collector = MetricsCollector(metrics_dir=None)
+
+    if not archive_path.exists():
+        return collector
+
+    for line in archive_path.read_text().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+
+        status = record.get("status", "")
+        if status not in ("done", "failed"):
+            continue
+
+        completed_at: float | None = record.get("completed_at")
+        if since_ts is not None and (completed_at is None or completed_at < since_ts):
+            continue
+
+        task_id = record.get("task_id", "")
+        role = record.get("role", "unknown")
+        model = record.get("model") or "unknown"
+        provider = record.get("provider") or "unknown"
+        start_time: float = record.get("created_at") or 0.0
+        cost_usd: float = record.get("cost_usd") or 0.0
+
+        tm = TaskMetrics(
+            task_id=task_id,
+            role=role,
+            model=model,
+            provider=provider,
+            start_time=start_time,
+            end_time=completed_at,
+            success=(status == "done"),
+            cost_usd=cost_usd,
+        )
+        collector._task_metrics[task_id] = tm  # noqa: SLF001
+
+    # Enrich with token data from .sdd/metrics/tasks.jsonl if available
+    metrics_path = archive_path.parent.parent / "metrics" / "tasks.jsonl"
+    if metrics_path.exists():
+        metrics_by_task: dict[str, dict[str, object]] = {}
+        for line in metrics_path.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            tid = rec.get("task_id", "")
+            if tid:
+                metrics_by_task[str(tid)] = rec
+
+        for task_id, tm in collector._task_metrics.items():  # noqa: SLF001
+            if task_id in metrics_by_task:
+                rec = metrics_by_task[task_id]
+                tm.tokens_prompt = int(rec.get("tokens_prompt", 0) or 0)
+                tm.tokens_completion = int(rec.get("tokens_completion", 0) or 0)
+                tm.tokens_used = tm.tokens_prompt + tm.tokens_completion
+                # Use metrics cost if archive cost is missing
+                if not tm.cost_usd and rec.get("cost_usd"):
+                    tm.cost_usd = float(rec.get("cost_usd") or 0.0)
+
+    return collector
+
+
+@cli.command("retro")
+@click.option(
+    "--since",
+    default=None,
+    metavar="HOURS",
+    type=float,
+    help="Only include tasks completed in the last N hours.",
+)
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    metavar="FILE",
+    help="Write report to FILE instead of stdout (default: .sdd/runtime/retrospective.md).",
+)
+@click.option(
+    "--print",
+    "print_output",
+    is_flag=True,
+    default=False,
+    help="Print report to stdout even when writing to file.",
+)
+@click.option(
+    "--archive",
+    default=".sdd/archive/tasks.jsonl",
+    show_default=True,
+    hidden=True,
+    help="Path to the task archive JSONL file.",
+)
+def retro(
+    since: float | None,
+    output: str | None,
+    print_output: bool,
+    archive: str,
+) -> None:
+    """Generate a retrospective report from completed and failed tasks.
+
+    \b
+    Reads task history from .sdd/archive/tasks.jsonl and writes a markdown
+    report to .sdd/runtime/retrospective.md.
+
+    \b
+      bernstein retro                    # report on all recorded tasks
+      bernstein retro --since 24         # last 24 hours only
+      bernstein retro --print            # print to stdout as well
+      bernstein retro -o report.md       # write to custom file
+    """
+    import time as _time
+
+    from bernstein.core.retrospective import generate_retrospective
+
+    workdir = Path.cwd()
+    archive_path = Path(archive)
+    runtime_dir = workdir / ".sdd" / "runtime"
+
+    since_ts: float | None = None
+    if since is not None:
+        since_ts = _time.time() - since * 3600
+
+    done_tasks, failed_tasks = _load_archive_tasks(archive_path, since_ts)
+
+    if not done_tasks and not failed_tasks:
+        label = f"in the last {since}h" if since is not None else "in the archive"
+        console.print(f"[yellow]No completed or failed tasks found {label}.[/yellow]")
+        console.print(f"[dim]Archive: {archive_path}[/dim]")
+        raise SystemExit(0)
+
+    collector = _build_collector_from_archive(archive_path, since_ts)
+
+    all_ts = [t.created_at for t in done_tasks + failed_tasks if t.created_at]
+    run_start_ts = min(all_ts) if all_ts else _time.time()
+
+    # Redirect output if custom file given
+    out_dir = runtime_dir
+    retro_filename = "retrospective.md"
+    if output:
+        out_path = Path(output).resolve()
+        out_dir = out_path.parent
+        retro_filename = out_path.name
+
+    generate_retrospective(
+        done_tasks=done_tasks,
+        failed_tasks=failed_tasks,
+        collector=collector,
+        runtime_dir=out_dir,
+        run_start_ts=run_start_ts,
+    )
+
+    # generate_retrospective always writes to runtime_dir/retrospective.md
+    actual_path = out_dir / "retrospective.md"
+    if output and Path(output).name != "retrospective.md":
+        # Rename to the requested filename
+        actual_path.rename(out_dir / retro_filename)
+        actual_path = out_dir / retro_filename
+
+    if print_output:
+        console.print(actual_path.read_text())
+    else:
+        console.print(f"[green]Retrospective written to[/green] {actual_path}")
+        console.print(
+            f"[dim]{len(done_tasks)} done, {len(failed_tasks)} failed"
+            + (f", since {since}h ago" if since is not None else "")
+            + "[/dim]"
+        )
+
+
+# ---------------------------------------------------------------------------
 # agents — catalog management
 # ---------------------------------------------------------------------------
 
@@ -1814,4 +2431,255 @@ def evolve_approve(proposal_id: str, reviewer: str, workdir: str) -> None:
     console.print(
         f"[green]Approved:[/green] [bold]{proposal_id}[/bold] "
         f"(reviewer={reviewer})"
+    )
+
+
+@evolve.command("status")
+@click.option(
+    "--dir",
+    "workdir",
+    default=".",
+    show_default=True,
+    help="Project root directory (parent of .sdd/).",
+)
+def evolve_status(workdir: str) -> None:
+    """Show evolution history as a rich table.
+
+    Reads .sdd/metrics/evolve_cycles.jsonl and .sdd/evolution/experiments.jsonl
+    and displays a per-cycle breakdown with cumulative improvement metrics.
+
+    \b
+      bernstein evolve status           # history from current directory
+      bernstein evolve status --dir /path/to/project
+    """
+    from bernstein.evolution.report import EvolutionReport
+
+    root = Path(workdir).resolve()
+    state_dir = root / ".sdd"
+
+    if not state_dir.is_dir():
+        console.print(
+            "[red].sdd directory not found.[/red] "
+            "Run [bold]bernstein[/bold] first to initialise the workspace."
+        )
+        raise SystemExit(1)
+
+    report = EvolutionReport(state_dir=state_dir)
+    report.load()
+    report.print_status()
+
+
+@evolve.command("export")
+@click.argument("output", default="evolution_report", required=False)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["html", "md", "markdown"], case_sensitive=False),
+    default="html",
+    show_default=True,
+    help="Output format: html or md/markdown.",
+)
+@click.option(
+    "--dir",
+    "workdir",
+    default=".",
+    show_default=True,
+    help="Project root directory (parent of .sdd/).",
+)
+def evolve_export(output: str, fmt: str, workdir: str) -> None:
+    """Export a static evolution report (HTML or Markdown).
+
+    OUTPUT is the output file path (without extension). Defaults to
+    'evolution_report' in the current directory.
+
+    \b
+      bernstein evolve export                        # evolution_report.html
+      bernstein evolve export --format md            # evolution_report.md
+      bernstein evolve export docs/evolution         # docs/evolution.html
+    """
+    from bernstein.evolution.report import EvolutionReport
+
+    root = Path(workdir).resolve()
+    state_dir = root / ".sdd"
+
+    if not state_dir.is_dir():
+        console.print(
+            "[red].sdd directory not found.[/red] "
+            "Run [bold]bernstein[/bold] first to initialise the workspace."
+        )
+        raise SystemExit(1)
+
+    report = EvolutionReport(state_dir=state_dir)
+    report.load()
+
+    if not report.cycles:
+        console.print("[dim]No evolution data found to export.[/dim]")
+        raise SystemExit(1)
+
+    is_markdown = fmt.lower() in ("md", "markdown")
+    ext = ".md" if is_markdown else ".html"
+    out_path = Path(output)
+    if out_path.suffix.lower() not in (".html", ".md"):
+        out_path = out_path.with_suffix(ext)
+
+    if is_markdown:
+        report.export_markdown(out_path)
+    else:
+        report.export_html(out_path)
+
+    console.print(
+        f"[green]Report written:[/green] {out_path} "
+        f"({report.total_cycles} cycles, {report.total_tasks_completed} tasks completed)"
+    )
+
+
+# ---------------------------------------------------------------------------
+# ideate — creative evolution pipeline
+# ---------------------------------------------------------------------------
+
+
+@cli.command("ideate")
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show proposals without creating backlog tasks.",
+)
+@click.option(
+    "--proposals",
+    type=click.Path(exists=True),
+    default=None,
+    help="JSON file with pre-written visionary proposals (skip agent stage).",
+)
+@click.option(
+    "--verdicts",
+    type=click.Path(exists=True),
+    default=None,
+    help="JSON file with pre-written analyst verdicts (skip agent stage).",
+)
+@click.option(
+    "--threshold",
+    type=float,
+    default=7.0,
+    show_default=True,
+    help="Minimum composite score for approval.",
+)
+@click.option(
+    "--dir",
+    "workdir",
+    default=".",
+    show_default=True,
+    help="Project root directory (parent of .sdd/).",
+)
+def ideate(
+    dry_run: bool,
+    proposals: str | None,
+    verdicts: str | None,
+    threshold: float,
+    workdir: str,
+) -> None:
+    """Run the creative evolution pipeline (visionary -> analyst -> tasks).
+
+    \b
+    Generates bold feature ideas, evaluates them ruthlessly, and converts
+    approved proposals into backlog tasks. Requires pre-written proposal
+    and verdict JSON files (agent-driven generation is a future feature).
+
+    \b
+      bernstein ideate --proposals ideas.json --verdicts evals.json
+      bernstein ideate --proposals ideas.json --verdicts evals.json --dry-run
+      bernstein ideate --proposals ideas.json --verdicts evals.json --threshold 8
+    """
+    from bernstein.evolution.creative import (
+        AnalystVerdict,
+        CreativePipeline,
+        VisionaryProposal,
+    )
+
+    root = Path(workdir).resolve()
+    state_dir = root / ".sdd"
+
+    if not state_dir.is_dir():
+        console.print(
+            "[red].sdd directory not found.[/red] "
+            "Run [bold]bernstein[/bold] first to initialise the workspace."
+        )
+        raise SystemExit(1)
+
+    # Load proposals.
+    proposal_list: list[VisionaryProposal] = []
+    if proposals:
+        try:
+            raw = json.loads(Path(proposals).read_text(encoding="utf-8"))
+            proposal_list = [VisionaryProposal.from_dict(p) for p in raw]
+        except (OSError, json.JSONDecodeError, KeyError) as exc:
+            console.print(f"[red]Failed to load proposals:[/red] {exc}")
+            raise SystemExit(1) from exc
+        console.print(f"Loaded [bold]{len(proposal_list)}[/bold] proposal(s)")
+
+    # Load verdicts.
+    verdict_list: list[AnalystVerdict] = []
+    if verdicts:
+        try:
+            raw = json.loads(Path(verdicts).read_text(encoding="utf-8"))
+            verdict_list = [AnalystVerdict.from_dict(v) for v in raw]
+        except (OSError, json.JSONDecodeError, KeyError) as exc:
+            console.print(f"[red]Failed to load verdicts:[/red] {exc}")
+            raise SystemExit(1) from exc
+        console.print(f"Loaded [bold]{len(verdict_list)}[/bold] verdict(s)")
+
+    if not proposal_list or not verdict_list:
+        console.print(
+            "[yellow]Both --proposals and --verdicts are required.[/yellow]\n\n"
+            "Provide JSON files with visionary proposals and analyst verdicts.\n"
+            "See templates/roles/visionary/ and templates/roles/analyst/ for output formats."
+        )
+        raise SystemExit(1)
+
+    pipeline = CreativePipeline(
+        state_dir=state_dir,
+        repo_root=root,
+        approval_threshold=threshold,
+    )
+
+    result = pipeline.run(proposal_list, verdict_list, dry_run=dry_run)
+
+    # Print results.
+    if dry_run:
+        console.print("\n[bold cyan][DRY RUN][/bold cyan] No backlog tasks created.\n")
+
+    from rich.table import Table
+
+    table = Table(
+        title="Creative Pipeline Results",
+        show_lines=True,
+        header_style="bold cyan",
+    )
+    table.add_column("Proposal", min_width=25)
+    table.add_column("Verdict", min_width=8)
+    table.add_column("Feas.", justify="right", min_width=5)
+    table.add_column("Impact", justify="right", min_width=6)
+    table.add_column("Risk", justify="right", min_width=5)
+    table.add_column("Score", justify="right", min_width=6)
+
+    for v in result.verdicts:
+        verdict_color = {
+            "APPROVE": "green",
+            "REVISE": "yellow",
+            "REJECT": "red",
+        }.get(v.verdict, "white")
+        table.add_row(
+            v.proposal_title,
+            f"[{verdict_color}]{v.verdict}[/{verdict_color}]",
+            f"{v.feasibility_score:.0f}",
+            f"{v.impact_score:.0f}",
+            f"{v.risk_score:.0f}",
+            f"{v.composite_score:.1f}",
+        )
+
+    console.print(table)
+    console.print(
+        f"\n  Proposals: {len(result.proposals)}"
+        f"  |  Approved: {len(result.approved)}"
+        f"  |  Tasks created: {len(result.tasks_created)}"
     )

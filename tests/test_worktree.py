@@ -72,6 +72,7 @@ class TestCreate:
             capture_output=True,
             text=True,
             timeout=30,
+            input=None,
         )
 
     def test_creates_base_directory(self, mgr: WorktreeManager, repo_root: Path) -> None:
@@ -124,6 +125,7 @@ class TestCleanup:
                 capture_output=True,
                 text=True,
                 timeout=30,
+                input=None,
             ),
             call(
                 ["git", "branch", "-D", "agent/sess1"],
@@ -131,6 +133,7 @@ class TestCleanup:
                 capture_output=True,
                 text=True,
                 timeout=10,
+                input=None,
             ),
         ]
         mock_run.assert_has_calls(expected_calls)

@@ -17,7 +17,16 @@ import subprocess
 import time
 from pathlib import Path
 
+from bernstein.core.git_ops import (
+    apply_diff as git_apply_diff,
+    branch_delete,
+    worktree_add,
+    worktree_remove,
+)
 from bernstein.evolution.types import RiskLevel, SandboxResult, UpgradeProposal
+
+# Re-export for backwards compatibility (already imported above)
+__all__ = ["SandboxValidator", "SANDBOX_TIMEOUT"]
 
 logger = logging.getLogger(__name__)
 
@@ -222,15 +231,9 @@ class SandboxValidator:
         log_path = str(log_dir / f"{proposal.id}.log")
 
         try:
-            # Step 1 — create git worktree
-            result = subprocess.run(
-                ["git", "worktree", "add", str(sandbox_dir), "-b", branch_name],
-                cwd=self.repo_root,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            if result.returncode != 0:
+            # Step 1 — create git worktree via git_ops
+            wt_result = worktree_add(self.repo_root, sandbox_dir, branch_name)
+            if not wt_result.ok:
                 return SandboxResult(
                     proposal_id=proposal.id,
                     passed=False,
@@ -242,7 +245,7 @@ class SandboxValidator:
                     delta=0.0,
                     duration_seconds=round(time.time() - start, 2),
                     log_path=log_path,
-                    error=f"git worktree add failed: {result.stderr.strip()}",
+                    error=f"git worktree add failed: {wt_result.stderr.strip()}",
                 )
 
             # Step 2 — apply diff
@@ -303,27 +306,16 @@ class SandboxValidator:
 
     def _create_worktree(self, path: Path, branch_name: str) -> None:
         """Create a temporary git worktree."""
-        subprocess.run(
-            ["git", "worktree", "add", "-b", branch_name, str(path)],
-            cwd=self.repo_root,
-            capture_output=True,
-            check=True,
-            timeout=30,
-        )
+        result = worktree_add(self.repo_root, path, branch_name)
+        if not result.ok:
+            raise RuntimeError(f"git worktree add failed: {result.stderr}")
 
     def _apply_diff(self, worktree: Path, diff: str) -> None:
         """Apply a unified diff to the worktree."""
         if not diff.strip():
             return
-        result = subprocess.run(
-            ["git", "apply", "--allow-empty", "-"],
-            cwd=worktree,
-            input=diff,
-            text=True,
-            capture_output=True,
-            timeout=30,
-        )
-        if result.returncode != 0:
+        result = git_apply_diff(worktree, diff)
+        if not result.ok:
             raise RuntimeError(f"Failed to apply diff: {result.stderr}")
 
     def _run_tests(
@@ -362,21 +354,11 @@ class SandboxValidator:
     def _cleanup_worktree(self, path: Path, branch_name: str) -> None:
         """Remove the temporary git worktree and its branch."""
         try:
-            subprocess.run(
-                ["git", "worktree", "remove", "--force", str(path)],
-                cwd=self.repo_root,
-                capture_output=True,
-                timeout=30,
-            )
+            worktree_remove(self.repo_root, path)
         except Exception as exc:
             logger.warning("Failed to cleanup sandbox worktree %s: %s", path, exc)
 
         try:
-            subprocess.run(
-                ["git", "branch", "-D", branch_name],
-                cwd=self.repo_root,
-                capture_output=True,
-                timeout=10,
-            )
+            branch_delete(self.repo_root, branch_name)
         except Exception as exc:
             logger.warning("Failed to delete sandbox branch %s: %s", branch_name, exc)

@@ -1160,10 +1160,9 @@ class Orchestrator:
 
         Steps:
             1. Run analysis to generate proposals from metrics.
-            2. Persist pending proposals to .sdd/upgrades/pending.json.
-            3. Execute any auto-approved proposals via the UpgradeExecutor.
-            4. Roll back failed executions.
-            5. Create server tasks for remaining pending proposals.
+            2. Execute any auto-approved proposals via the UpgradeExecutor.
+            3. Persist remaining pending proposals to .sdd/upgrades/pending.json.
+            4. Create server tasks for remaining pending proposals.
 
         Args:
             result: Current tick result to record errors into.
@@ -1186,8 +1185,13 @@ class Orchestrator:
             if not proposals:
                 return
 
+            # Only create server tasks for proposals that are still pending —
+            # auto-applied proposals were already handled by execute_pending_upgrades.
+            _task_eligible_statuses = {UpgradeStatus.PENDING, UpgradeStatus.APPROVED}
             base = self._config.server_url
             for proposal in proposals:
+                if proposal.status not in _task_eligible_statuses:
+                    continue
                 try:
                     task_body = {
                         "title": f"Upgrade: {proposal.title}",

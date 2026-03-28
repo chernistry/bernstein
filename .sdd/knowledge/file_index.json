@@ -253,6 +253,7 @@
       "add_task",
       "sync",
       "stop",
+      "demo",
       "cancel",
       "plan",
       "logs_cmd",
@@ -260,6 +261,7 @@
       "live",
       "benchmark_group",
       "benchmark_run",
+      "retro",
       "agents_group",
       "agents_sync",
       "agents_list",
@@ -267,7 +269,10 @@
       "evolve",
       "evolve_run",
       "evolve_review",
-      "evolve_approve"
+      "evolve_approve",
+      "evolve_status",
+      "evolve_export",
+      "ideate"
     ],
     "imports": [
       "__future__",
@@ -282,7 +287,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T08:18:20.886416"
+    "last_modified": "2026-03-28T09:22:43.935176"
   },
   "src/bernstein/core/__init__.py": {
     "summary": "Core: task server, spawner, scheduler.",
@@ -371,6 +376,7 @@
     "imports": [
       "__future__",
       "ast",
+      "bernstein",
       "dataclasses",
       "datetime",
       "functools",
@@ -381,7 +387,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T06:22:37.118368"
+    "last_modified": "2026-03-28T09:06:55.471914"
   },
   "src/bernstein/core/evolution.py": {
     "summary": "Backward-compatibility shim \u2014 delegates to bernstein.evolution package.",
@@ -394,6 +400,72 @@
       "pathlib"
     ],
     "last_modified": "2026-03-28T03:11:59.964219"
+  },
+  "src/bernstein/core/git_context.py": {
+    "summary": "Git read operations for building agent context.",
+    "exports": [
+      "ls_files",
+      "ls_files_pattern",
+      "blame_summary",
+      "hot_files",
+      "cochange_files",
+      "recent_changes",
+      "recent_changes_multi",
+      "build_agent_git_context"
+    ],
+    "imports": [
+      "__future__",
+      "collections",
+      "logging",
+      "pathlib",
+      "re",
+      "subprocess"
+    ],
+    "last_modified": "2026-03-28T08:38:51.528004"
+  },
+  "src/bernstein/core/git_ops.py": {
+    "summary": "Centralized git write operations for Bernstein.",
+    "exports": [
+      "GitResult",
+      "MergeResult",
+      "run_git",
+      "is_git_repo",
+      "status_porcelain",
+      "diff_cached_names",
+      "diff_cached_stat",
+      "diff_cached",
+      "diff_head",
+      "rev_parse_head",
+      "stage_files",
+      "stage_task_files",
+      "unstage_paths",
+      "stage_all_except",
+      "commit",
+      "conventional_commit",
+      "fetch",
+      "safe_push",
+      "merge_branch",
+      "merge_with_conflict_detection",
+      "branch_delete",
+      "revert_commit",
+      "checkout_discard",
+      "worktree_add",
+      "worktree_remove",
+      "worktree_list",
+      "apply_diff",
+      "bisect_regression",
+      "tag"
+    ],
+    "imports": [
+      "__future__",
+      "collections",
+      "dataclasses",
+      "logging",
+      "pathlib",
+      "re",
+      "subprocess"
+    ],
+    "last_modified": "2026-03-28T09:06:55.472121"
   },
   "src/bernstein/core/hijacker.py": {
     "summary": "Automatic tier hijacking \u2014 detects and routes to free tier opportunities.",
@@ -516,7 +588,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T04:48:27.319885"
+    "last_modified": "2026-03-28T09:22:32.381273"
   },
   "src/bernstein/core/models.py": {
     "summary": "Core data models for tasks, agents, and cells.",
@@ -597,7 +669,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T08:26:17.833861"
+    "last_modified": "2026-03-28T09:09:47.841837"
   },
   "src/bernstein/core/policy.py": {
     "summary": "Policy engine for tier optimization and provider routing.",
@@ -655,7 +727,7 @@
       "pathlib",
       "time"
     ],
-    "last_modified": "2026-03-28T08:19:00.066462"
+    "last_modified": "2026-03-28T09:22:52.779035"
   },
   "src/bernstein/core/router.py": {
     "summary": "Route tasks to appropriate model and effort level with tier awareness.",
@@ -758,7 +830,7 @@
       "typing",
       "uuid"
     ],
-    "last_modified": "2026-03-28T08:24:24.073164"
+    "last_modified": "2026-03-28T09:06:55.472719"
   },
   "src/bernstein/core/sync.py": {
     "summary": "Sync .sdd/backlog/*.md files with the task server.",
@@ -804,11 +876,10 @@
       "logging",
       "pathlib",
       "shutil",
-      "subprocess",
       "time",
       "uuid"
     ],
-    "last_modified": "2026-03-22T21:22:07.391396"
+    "last_modified": "2026-03-28T09:06:55.472919"
   },
   "src/bernstein/core/worktree.py": {
     "summary": "WorktreeManager \u2014 git worktree lifecycle for agent session isolation.",
@@ -818,11 +889,11 @@
     ],
     "imports": [
       "__future__",
+      "bernstein",
       "logging",
-      "pathlib",
-      "subprocess"
+      "pathlib"
     ],
-    "last_modified": "2026-03-28T04:30:12.857794"
+    "last_modified": "2026-03-28T09:06:55.473106"
   },
   "src/bernstein/evolution/__init__.py": {
     "summary": "Bernstein self-evolution system.",
@@ -838,7 +909,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T04:04:58.122077"
+    "last_modified": "2026-03-28T09:21:40.032986"
   },
   "src/bernstein/evolution/aggregator.py": {
     "summary": "Metrics aggregation with EWMA, CUSUM, BOCPD, and Goodhart defenses.",
@@ -1013,7 +1084,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T04:56:05.549419"
+    "last_modified": "2026-03-28T09:21:19.770101"
   },
   "src/bernstein/evolution/proposals.py": {
     "summary": "Upgrade proposal generation.",
@@ -1034,6 +1105,23 @@
     ],
     "last_modified": "2026-03-28T04:04:58.122722"
   },
+  "src/bernstein/evolution/report.py": {
+    "summary": "Evolution observability \u2014 history table and static report generation.",
+    "exports": [
+      "CycleRecord",
+      "ExperimentRecord",
+      "EvolutionReport"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "datetime",
+      "json",
+      "pathlib",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T08:42:20.581699"
+  },
   "src/bernstein/evolution/sandbox.py": {
     "summary": "SandboxValidator \u2014 isolated testing of evolution proposals.",
     "exports": [
@@ -1048,7 +1136,7 @@
       "subprocess",
       "time"
     ],
-    "last_modified": "2026-03-28T04:04:14.079071"
+    "last_modified": "2026-03-28T09:06:55.473741"
   },
   "src/bernstein/evolution/types.py": {
     "summary": "Shared types for the evolution system.",
@@ -1239,7 +1327,7 @@
       "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T04:30:39.634106"
+    "last_modified": "2026-03-28T09:20:04.121279"
   },
   "tests/unit/__init__.py": {
     "summary": "",
@@ -1764,7 +1852,8 @@
       "TestEvolutionCoordinator",
       "TestUpgradeProposal",
       "TestGetDefaultCoordinator",
-      "TestEvolutionIntegration"
+      "TestEvolutionIntegration",
+      "TestRecordAgentLifetime"
     ],
     "imports": [
       "__future__",
@@ -1775,7 +1864,7 @@
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-22T21:23:13.788922"
+    "last_modified": "2026-03-28T09:06:55.474032"
   },
   "tests/unit/test_evolution_integration.py": {
     "summary": "Integration test: full self-evolution feedback loop from task completion to upgrade.",
@@ -1811,7 +1900,21 @@
       "test_infer_risk_level",
       "test_log_experiment_creates_file",
       "test_run_baseline_no_benchmarks",
-      "test_generate_proposal_filters_high_risk"
+      "test_generate_proposal_filters_high_risk",
+      "test_run_cycle_proposal_generation_llm_timeout",
+      "test_run_cycle_proposal_generation_malformed_response",
+      "test_run_logs_and_continues_after_run_cycle_exception",
+      "test_run_cycle_sandbox_raises_worktree_error",
+      "test_run_cycle_sandbox_raises_test_crash",
+      "test_run_cycle_auto_approved_audit_still_applied",
+      "test_run_cycle_confidence_exactly_at_auto_threshold",
+      "test_run_cycle_blocked_outcome_skips_sandbox",
+      "test_run_cycle_selects_highest_confidence_opportunity",
+      "test_circuit_breaker_trips_after_sandbox_failure_blocks_next_cycle",
+      "test_proposals_generated_increments_even_when_breaker_blocks",
+      "test_run_cycle_application_fails_triggers_rollback",
+      "test_run_cycle_partial_failure_proposal_applied_but_failed",
+      "test_run_cycle_full_state_transition_pending_to_applied"
     ],
     "imports": [
       "__future__",
@@ -1823,7 +1926,7 @@
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T00:31:30.695653"
+    "last_modified": "2026-03-28T09:06:55.474253"
   },
   "tests/unit/test_evolve_mode.py": {
     "summary": "Tests for the evolve mode cycle flow in the orchestrator.",
@@ -1915,6 +2018,53 @@
       "pytest"
     ],
     "last_modified": "2026-03-28T04:48:08.219491"
+  },
+  "tests/unit/test_git_context.py": {
+    "summary": "Tests for bernstein.core.git_context \u2014 git read operations for agent context.",
+    "exports": [
+      "TestLsFiles",
+      "TestBlameSummary",
+      "TestHotFiles",
+      "TestCochangeFiles",
+      "TestRecentChanges",
+      "TestRecentChangesMulti",
+      "TestBuildAgentGitContext",
+      "TestEpochToRelative"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "pathlib",
+      "pytest",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T08:40:57.966533"
+  },
+  "tests/unit/test_git_ops.py": {
+    "summary": "Tests for bernstein.core.git_ops \u2014 centralized git write operations.",
+    "exports": [
+      "TestRunGit",
+      "TestGitResult",
+      "TestQueries",
+      "TestStaging",
+      "TestCommit",
+      "TestConventionalCommit",
+      "TestSafePush",
+      "TestBranching",
+      "TestWorktree",
+      "TestBisectRegression",
+      "TestTag",
+      "TestConventionalCommitHelpers"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "pathlib",
+      "pytest",
+      "subprocess",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T08:40:18.125728"
   },
   "tests/unit/test_hijacker.py": {
     "summary": "Tests for TierHijacker \u2014 automatic free tier detection and routing.",
@@ -2227,6 +2377,7 @@
       "TestEvolveIdleDetection",
       "TestProviderHealthRecording",
       "TestEvolutionMetricsRecording",
+      "TestOrphanEvolutionMetrics",
       "TestConsecutiveTickFailureCircuitBreaker",
       "TestDeadAgentFileOwnershipEdgeCases",
       "TestStaleHeartbeatReapingDefault",
@@ -2243,6 +2394,9 @@
       "TestParallelVerification",
       "TestProcessCompletedTasksParallel",
       "TestComputeTotalSpentCache",
+      "TestMetricsWiring",
+      "TestEvolutionAgentLifetimeRecording",
+      "TestOrchestratorBulletinIntegration",
       "test_per_task_timeout_short_task",
       "test_per_task_timeout_long_task_clamped",
       "test_reap_uses_per_session_timeout"
@@ -2253,10 +2407,11 @@
       "httpx",
       "json",
       "pathlib",
+      "pytest",
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T08:00:39.365859"
+    "last_modified": "2026-03-28T09:21:43.549344"
   },
   "tests/unit/test_plan_cmd.py": {
     "summary": "Tests for the `bernstein plan` CLI command.",
@@ -2410,7 +2565,7 @@
       "subprocess",
       "unittest"
     ],
-    "last_modified": "2026-03-28T00:12:56.139965"
+    "last_modified": "2026-03-28T09:06:55.475113"
   },
   "tests/unit/test_seed.py": {
     "summary": "Tests for bernstein.core.seed.",

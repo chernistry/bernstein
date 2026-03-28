@@ -27,6 +27,12 @@ from bernstein.evolution.aggregator import (
 from bernstein.evolution.applicator import FileUpgradeExecutor
 from bernstein.evolution.benchmark import RunSummary, run_all, save_results
 from bernstein.evolution.circuit import CircuitBreaker
+from bernstein.evolution.creative import (
+    AnalystVerdict,
+    CreativePipeline,
+    PipelineResult,
+    VisionaryProposal,
+)
 from bernstein.evolution.detector import (
     FeatureDiscovery,
     ImprovementOpportunity,
@@ -55,6 +61,16 @@ _AUTO_RISK_LEVELS: frozenset[str] = frozenset({
     RiskLevel.L0_CONFIG.value,
     RiskLevel.L1_TEMPLATE.value,
 })
+
+# Focus area rotation — creative_vision runs every 4th cycle.
+# Agents write proposals to .sdd/evolution/creative/pending_proposals.jsonl;
+# the loop picks them up on creative_vision turns.
+_FOCUS_ROTATION: tuple[str, ...] = (
+    "code_quality",
+    "test_coverage",
+    "performance",
+    "creative_vision",
+)
 
 
 @dataclass
@@ -159,12 +175,19 @@ class EvolutionLoop:
         self._experiments_path = self._evolution_dir / "experiments.jsonl"
         self._deferred_path = self._evolution_dir / "deferred.jsonl"
 
+        # Creative pipeline (lazy-wired, shared across cycles).
+        self._creative_pipeline = CreativePipeline(
+            state_dir=state_dir,
+            repo_root=self._repo_root,
+        )
+
         # --- Session counters ---
         self._experiments: list[ExperimentResult] = []
         self._proposals_generated: int = 0
         self._proposals_accepted: int = 0
         self._start_time: float = 0.0
         self._running: bool = False
+        self._cycle_count: int = 0
 
     # ------------------------------------------------------------------
     # Public API
@@ -192,6 +215,7 @@ class EvolutionLoop:
         self._experiments = []
         self._proposals_generated = 0
         self._proposals_accepted = 0
+        self._cycle_count = 0
 
         logger.info(
             "Evolution loop started: window=%ds, max_proposals=%d, cycle=%ds",
@@ -248,6 +272,16 @@ class EvolutionLoop:
             ExperimentResult, or None if no opportunities were found.
         """
         cycle_start = time.time()
+
+        # Determine focus area from rotation.
+        focus = _FOCUS_ROTATION[self._cycle_count % len(_FOCUS_ROTATION)]
+        self._cycle_count += 1
+
+        logger.info("Evolution cycle %d — focus: %s", self._cycle_count, focus)
+
+        # Creative vision cycles delegate entirely to the creative pipeline.
+        if focus == "creative_vision":
+            return self._run_creative_cycle(cycle_start)
 
         # Step 1 — Gather metrics, detect opportunities, and run feature discovery.
         self._aggregator.run_full_analysis()
@@ -414,6 +448,91 @@ class EvolutionLoop:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _run_creative_cycle(self, cycle_start: float) -> ExperimentResult | None:
+        """Run a creative vision cycle via the three-stage pipeline.
+
+        Reads pending visionary proposals and analyst verdicts from
+        ``.sdd/evolution/creative/pending_proposals.jsonl``.  Each line must
+        be a JSON object with ``"proposal"`` and ``"verdict"`` keys.  The loop
+        drains the file on each creative turn and runs the production gate.
+
+        Agents that want to contribute creative ideas write lines to that file;
+        the evolution loop picks them up on the next creative_vision turn.
+
+        Args:
+            cycle_start: Unix timestamp when this cycle started.
+
+        Returns:
+            ExperimentResult summarising the creative run, or None if no
+            pending proposals were found.
+        """
+        pending_path = self._evolution_dir / "creative" / "pending_proposals.jsonl"
+        pending_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if not pending_path.exists() or pending_path.stat().st_size == 0:
+            logger.debug("Creative vision: no pending proposals — skipping cycle")
+            return None
+
+        proposals: list[VisionaryProposal] = []
+        verdicts: list[AnalystVerdict] = []
+
+        try:
+            raw_lines = pending_path.read_text(encoding="utf-8").strip().splitlines()
+            for line in raw_lines:
+                if not line.strip():
+                    continue
+                record = json.loads(line)
+                if "proposal" in record:
+                    proposals.append(VisionaryProposal.from_dict(record["proposal"]))
+                if "verdict" in record:
+                    verdicts.append(AnalystVerdict.from_dict(record["verdict"]))
+            # Drain the file so proposals are not re-processed next cycle.
+            pending_path.write_text("", encoding="utf-8")
+        except (OSError, json.JSONDecodeError, KeyError):
+            logger.exception("Creative vision: failed to read pending proposals")
+            return None
+
+        if not proposals and not verdicts:
+            return None
+
+        logger.info(
+            "Creative vision: running pipeline with %d proposal(s), %d verdict(s)",
+            len(proposals),
+            len(verdicts),
+        )
+
+        pipeline_result: PipelineResult = self._creative_pipeline.run(
+            proposals, verdicts,
+        )
+
+        approved_count = len(pipeline_result.approved)
+        tasks_count = len(pipeline_result.tasks_created)
+        accepted = approved_count > 0
+
+        logger.info(
+            "Creative vision: %d approved, %d backlog task(s) created",
+            approved_count,
+            tasks_count,
+        )
+
+        result = ExperimentResult(
+            proposal_id=f"creative-{self._cycle_count}",
+            title=f"Creative vision cycle ({len(proposals)} proposals)",
+            risk_level=RiskLevel.L1_TEMPLATE.value,
+            baseline_score=1.0,
+            candidate_score=1.0 + (0.01 * approved_count),
+            delta=0.01 * approved_count,
+            accepted=accepted,
+            reason=(
+                f"{approved_count}/{len(verdicts)} approved, "
+                f"{tasks_count} backlog task(s) created"
+            ),
+            cost_usd=_COST_PER_PROPOSAL_USD * max(1, len(proposals)),
+            duration_seconds=time.time() - cycle_start,
+        )
+        self._log_experiment(result)
+        return result
 
     def _run_baseline(self) -> float:
         """Run benchmark suite and return aggregate score.

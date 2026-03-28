@@ -789,6 +789,26 @@ class TestEvolutionCoordinator:
         assert metrics[0].duration_seconds == 120
         assert metrics[0].cost_usd == 0.05
 
+    def test_init_loads_historical_metrics_from_files(self, tmp_path: Path) -> None:
+        """EvolutionCoordinator loads persisted metrics on init for cross-session trend analysis."""
+        # First coordinator records a task completion → persists to tasks.jsonl
+        coordinator1 = EvolutionCoordinator(tmp_path)
+        task = _make_task()
+        coordinator1.record_task_completion(
+            task=task, duration_seconds=45.0, cost_usd=0.02,
+            janitor_passed=True, model="sonnet", provider="anthropic",
+        )
+
+        # Second coordinator (fresh start, simulating a process restart) should
+        # see the metric from the previous session.
+        coordinator2 = EvolutionCoordinator(tmp_path)
+        metrics = coordinator2.collector.get_recent_task_metrics(hours=24)
+        assert len(metrics) >= 1, (
+            "EvolutionCoordinator must load historical metrics on init so "
+            "run_analysis_cycle() has data from previous sessions"
+        )
+        assert any(m.duration_seconds == 45.0 for m in metrics)
+
 
 # --- UpgradeProposal ---
 
@@ -946,3 +966,60 @@ class TestEvolutionIntegration:
         assert task.role == "manager"
         assert task.upgrade_details is not None
         assert task.upgrade_details.benefits == ["Benefit 1", "Benefit 2"]
+
+
+# --- record_agent_lifetime ---
+
+
+class TestRecordAgentLifetime:
+    """EvolutionCoordinator.record_agent_lifetime() persists to agents.jsonl."""
+
+    def test_record_writes_to_agents_jsonl(self, tmp_path: Path) -> None:
+        coordinator = EvolutionCoordinator(tmp_path)
+
+        coordinator.record_agent_lifetime(
+            agent_id="agent-1",
+            role="backend",
+            lifetime_seconds=120.5,
+            tasks_completed=2,
+            model="sonnet",
+        )
+
+        agents_file = tmp_path / "metrics" / "agents.jsonl"
+        assert agents_file.exists(), "agents.jsonl must be created on first write"
+        lines = [l for l in agents_file.read_text().splitlines() if l.strip()]
+        assert len(lines) == 1
+        record = json.loads(lines[0])
+        assert record["agent_id"] == "agent-1"
+        assert record["role"] == "backend"
+        assert record["lifetime_seconds"] == 120.5
+        assert record["tasks_completed"] == 2
+
+    def test_record_is_queryable_via_collector(self, tmp_path: Path) -> None:
+        coordinator = EvolutionCoordinator(tmp_path)
+
+        coordinator.record_agent_lifetime(
+            agent_id="agent-2",
+            role="qa",
+            lifetime_seconds=60.0,
+            tasks_completed=1,
+        )
+
+        recent = coordinator.collector.get_recent_agent_metrics(hours=1)
+        assert len(recent) == 1
+        assert recent[0].agent_id == "agent-2"
+        assert recent[0].tasks_completed == 1
+
+    def test_multiple_calls_accumulate(self, tmp_path: Path) -> None:
+        coordinator = EvolutionCoordinator(tmp_path)
+
+        for i in range(3):
+            coordinator.record_agent_lifetime(
+                agent_id=f"agent-{i}",
+                role="backend",
+                lifetime_seconds=float(i * 30),
+                tasks_completed=i,
+            )
+
+        recent = coordinator.collector.get_recent_agent_metrics(hours=1)
+        assert len(recent) == 3

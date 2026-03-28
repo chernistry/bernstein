@@ -20,6 +20,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from bernstein.core.git_context import (
+    cochange_files as _gc_cochange_files,
+    ls_files as _gc_ls_files,
+    ls_files_pattern as _gc_ls_files_pattern,
+    recent_changes_multi as _gc_recent_changes_multi,
+)
+
 if TYPE_CHECKING:
     from bernstein.core.models import ApiTier, Task
 
@@ -78,18 +85,7 @@ def file_tree(workdir: Path, max_lines: int = 50) -> str:
     lines: list[str] = []
 
     # Try git ls-files first — fast and .gitignore-aware.
-    try:
-        result = subprocess.run(
-            ["git", "ls-files"],
-            cwd=workdir,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            lines = result.stdout.strip().splitlines()
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    lines = _gc_ls_files(workdir)
 
     # Fallback: walk the directory tree.
     if not lines:
@@ -308,10 +304,9 @@ def _find_importers(target_rel: str, workdir: Path) -> list[str]:
 def _git_cochanged_files(target_rel: str, workdir: Path, max_results: int = 5) -> list[str]:
     """Find files frequently co-modified with the target in git history.
 
-    Uses a single batched ``git log --name-only`` call instead of per-commit
-    ``git diff-tree`` calls, reducing subprocess overhead from O(n_commits) to
-    O(1) per unique (target_rel, workdir) pair.  Results are cached via
-    ``lru_cache`` so repeated calls within the same process are free.
+    Delegates to ``git_context.cochange_files`` for the actual git queries.
+    Results are cached via ``lru_cache`` so repeated calls within the same
+    process are free.
 
     Args:
         target_rel: Relative path of the file to analyze.
@@ -321,48 +316,14 @@ def _git_cochanged_files(target_rel: str, workdir: Path, max_results: int = 5) -
     Returns:
         List of relative paths, most frequently co-changed first.
     """
-    try:
-        # Single call: commit hashes + changed filenames in one shot.
-        # Output format per commit block: "<hash>\n<file1>\n<file2>\n\n"
-        # (blank line separates commit blocks).
-        result = subprocess.run(
-            [
-                "git", "log",
-                "--pretty=format:%H",
-                "--name-only",
-                "--follow",
-                "-20",
-                "--",
-                target_rel,
-            ],
-            cwd=workdir,
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if result.returncode != 0 or not result.stdout.strip():
-            return []
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return []
-
-    # Parse: blocks separated by blank lines; first non-empty line is the hash,
-    # remaining lines are files changed in that commit.
-    cochange_counts: dict[str, int] = {}
-    for block in result.stdout.split("\n\n"):
-        lines = [ln for ln in block.splitlines() if ln.strip()]
-        if len(lines) < 2:
-            continue
-        # lines[0] is the commit hash, lines[1:] are changed files
-        for f in lines[1:]:
-            if f != target_rel and f.endswith(".py"):
-                cochange_counts[f] = cochange_counts.get(f, 0) + 1
-
-    ranked = sorted(cochange_counts.items(), key=lambda x: x[1], reverse=True)
-    return [f for f, _ in ranked[:max_results]]
+    pairs = _gc_cochange_files(workdir, target_rel, depth=20, max_results=max_results)
+    return [f for f, _ in pairs]
 
 
 def _recent_git_changes(files: list[str], workdir: Path, max_entries: int = 5) -> list[str]:
     """Get recent git commit summaries touching any of the given files.
+
+    Delegates to ``git_context.recent_changes_multi``.
 
     Args:
         files: Relative file paths to check.
@@ -370,24 +331,9 @@ def _recent_git_changes(files: list[str], workdir: Path, max_entries: int = 5) -
         max_entries: Maximum number of log entries.
 
     Returns:
-        List of formatted commit lines: "hash: subject — changed files".
+        List of formatted commit lines: "hash: subject".
     """
-    if not files:
-        return []
-    try:
-        cmd = [
-            "git", "log", "--pretty=format:%h: %s",
-            f"-{max_entries}", "--",
-            *files,
-        ]
-        result = subprocess.run(
-            cmd, cwd=workdir, capture_output=True, text=True, timeout=10,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip().splitlines()[:max_entries]
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
-    return []
+    return _gc_recent_changes_multi(workdir, files, max_entries=max_entries)
 
 
 def _subsystem_context(filepath: str, workdir: Path) -> str:
@@ -585,18 +531,8 @@ def build_file_index(workdir: Path) -> dict[str, dict[str, object]]:
     index: dict[str, dict[str, object]] = {}
 
     # Get Python files from git
-    try:
-        result = subprocess.run(
-            ["git", "ls-files", "*.py"],
-            cwd=workdir,
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if result.returncode != 0:
-            return index
-        py_files = result.stdout.strip().splitlines()
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    py_files = _gc_ls_files_pattern(workdir, "*.py")
+    if not py_files:
         return index
 
     for rel_path in py_files:
@@ -643,18 +579,8 @@ def build_architecture_md(workdir: Path) -> str:
     sections: list[str] = ["# Architecture Map (auto-generated)\n"]
 
     # Find Python packages (directories with __init__.py)
-    try:
-        result = subprocess.run(
-            ["git", "ls-files", "*/__init__.py"],
-            cwd=workdir,
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        if result.returncode != 0:
-            return ""
-        init_files = sorted(result.stdout.strip().splitlines())
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    init_files = sorted(_gc_ls_files_pattern(workdir, "*/__init__.py"))
+    if not init_files:
         return ""
 
     for init_path in init_files:
@@ -668,34 +594,24 @@ def build_architecture_md(workdir: Path) -> str:
             sections.append(f"_{summary.docstring}_\n")
 
         # List modules in this package
-        try:
-            result = subprocess.run(
-                ["git", "ls-files", f"{pkg_dir}/*.py"],
-                cwd=workdir,
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if result.returncode == 0:
-                for mod_path in sorted(result.stdout.strip().splitlines()):
-                    if mod_path == init_path:
-                        continue
-                    mod_name = Path(mod_path).stem
-                    mod_summary = _parse_python_file(workdir / mod_path)
-                    if mod_summary:
-                        doc = f" — {mod_summary.docstring}" if mod_summary.docstring else ""
-                        exports = []
-                        for cls_name, _ in mod_summary.classes:
-                            exports.append(cls_name)
-                        for fn in mod_summary.functions:
-                            if not fn.startswith("_"):
-                                exports.append(fn)
-                        export_str = f" [{', '.join(exports[:6])}]" if exports else ""
-                        sections.append(f"- `{mod_name}`{doc}{export_str}")
-                    else:
-                        sections.append(f"- `{mod_name}`")
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass
+        pkg_py_files = _gc_ls_files_pattern(workdir, f"{pkg_dir}/*.py")
+        for mod_path in sorted(pkg_py_files):
+            if mod_path == init_path:
+                continue
+            mod_name = Path(mod_path).stem
+            mod_summary = _parse_python_file(workdir / mod_path)
+            if mod_summary:
+                doc = f" — {mod_summary.docstring}" if mod_summary.docstring else ""
+                exports = []
+                for cls_name, _ in mod_summary.classes:
+                    exports.append(cls_name)
+                for fn in mod_summary.functions:
+                    if not fn.startswith("_"):
+                        exports.append(fn)
+                export_str = f" [{', '.join(exports[:6])}]" if exports else ""
+                sections.append(f"- `{mod_name}`{doc}{export_str}")
+            else:
+                sections.append(f"- `{mod_name}`")
 
         sections.append("")
 

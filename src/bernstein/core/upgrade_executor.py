@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import logging
 import shutil
-import subprocess
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -23,6 +22,13 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
+from bernstein.core.git_ops import (
+    commit as git_commit,
+    is_git_repo,
+    revert_commit,
+    rev_parse_head,
+    stage_files,
+)
 from bernstein.core.llm import call_llm
 from bernstein.core.models import (
     RollbackPlan,
@@ -399,46 +405,22 @@ class UpgradeExecutor:
                     logger.debug("Deleted %s", change.path)
 
     async def _commit_changes(self, transaction: UpgradeTransaction) -> str | None:
-        """Commit changes to git."""
+        """Commit changes to git via centralized git_ops."""
         try:
-            # Check if git repo
-            result = subprocess.run(
-                ["git", "rev-parse", "--is-inside-work-tree"],
-                cwd=self._workdir,
-                capture_output=True,
-                text=True,
-            )
-            if result.returncode != 0:
+            if not is_git_repo(self._workdir):
                 logger.warning("Not a git repository, skipping commit")
                 return None
 
             # Stage changes
-            for change in transaction.file_changes:
-                file_path = change.path
-                subprocess.run(
-                    ["git", "add", file_path],
-                    cwd=self._workdir,
-                    capture_output=True,
-                )
+            paths = [change.path for change in transaction.file_changes]
+            stage_files(self._workdir, paths)
 
             # Commit
             commit_msg = f"Upgrade {transaction.id}: {transaction.title}\n\n{transaction.description}"
-            result = subprocess.run(
-                ["git", "commit", "-m", commit_msg],
-                cwd=self._workdir,
-                capture_output=True,
-                text=True,
-            )
+            result = git_commit(self._workdir, commit_msg)
 
-            if result.returncode == 0:
-                # Get commit hash
-                hash_result = subprocess.run(
-                    ["git", "rev-parse", "HEAD"],
-                    cwd=self._workdir,
-                    capture_output=True,
-                    text=True,
-                )
-                commit_hash = hash_result.stdout.strip()
+            if result.ok:
+                commit_hash = rev_parse_head(self._workdir)
                 logger.info("Committed upgrade %s as %s", transaction.id, commit_hash)
                 return commit_hash
 
@@ -472,22 +454,11 @@ class UpgradeExecutor:
         logger.info("Rolling back upgrade %s", transaction.id)
 
         if transaction.git_commit:
-            # Use git revert
+            # Use git revert via git_ops
             try:
-                result = subprocess.run(
-                    ["git", "revert", "--no-commit", transaction.git_commit],
-                    cwd=self._workdir,
-                    capture_output=True,
-                    text=True,
-                )
-
-                if result.returncode == 0:
-                    # Commit the revert
-                    subprocess.run(
-                        ["git", "commit", "-m", f"Revert upgrade {transaction.id}"],
-                        cwd=self._workdir,
-                        capture_output=True,
-                    )
+                result = revert_commit(self._workdir, transaction.git_commit, no_commit=True)
+                if result.ok:
+                    git_commit(self._workdir, f"Revert upgrade {transaction.id}")
                     transaction.status = UpgradeStatus.ROLLED_BACK
                     transaction.rolled_back_at = time.time()
                     logger.info("Upgrade %s rolled back successfully", transaction.id)

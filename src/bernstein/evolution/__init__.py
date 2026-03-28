@@ -31,6 +31,12 @@ from bernstein.evolution.applicator import (
     FileUpgradeExecutor,
     UpgradeExecutor,
 )
+from bernstein.evolution.creative import (
+    AnalystVerdict,
+    CreativePipeline,
+    PipelineResult,
+    VisionaryProposal,
+)
 from bernstein.evolution.circuit import CircuitBreaker
 from bernstein.evolution.detector import (
     FailureAnalyzer,
@@ -72,6 +78,8 @@ __all__ = [
     "AnalysisEngine",  # wrapper combining aggregator + detector
     # proposals
     "AnalysisTrigger",
+    # creative pipeline
+    "AnalystVerdict",
     "AnomalyDetection",
     # gate
     "ApprovalGate",
@@ -80,6 +88,7 @@ __all__ = [
     "CircuitBreaker",
     "CircuitState",
     "CostMetrics",
+    "CreativePipeline",
     # coordinator
     "EvolutionCoordinator",
     # loop
@@ -97,6 +106,7 @@ __all__ = [
     "MetricsCollector",
     "MetricsRecord",
     "OpportunityDetector",
+    "PipelineResult",
     "ProposalGenerator",
     "ProposalStatus",
     "QualityMetrics",
@@ -113,6 +123,7 @@ __all__ = [
     "UpgradeExecutor",
     "UpgradeProposal",
     "UpgradeStatus",
+    "VisionaryProposal",
     "check_proposal_targets",
     # invariants
     "compute_invariants",
@@ -215,6 +226,11 @@ class EvolutionCoordinator:
         self._running: bool = False
         self._proposal_generator = ProposalGenerator()
         self._proposal_counter: int = 0
+
+        # Load historical metrics persisted from previous runs so trend
+        # analysis has cross-session data from the first analysis cycle.
+        if hasattr(self.collector, "load_from_files"):
+            self.collector.load_from_files()
 
     def _create_proposal(
         self,
@@ -370,6 +386,32 @@ class EvolutionCoordinator:
             janitor_passed=janitor_passed,
         )
         self.collector.record_task_metrics(metrics)
+
+    def record_agent_lifetime(
+        self,
+        agent_id: str,
+        role: str,
+        lifetime_seconds: float,
+        tasks_completed: int,
+        model: str | None = None,
+    ) -> None:
+        """Record agent session lifetime metrics when an agent ends.
+
+        Args:
+            agent_id: Unique agent session identifier.
+            role: Role the agent was assigned.
+            lifetime_seconds: Total wall-clock time the agent was alive.
+            tasks_completed: Number of tasks the agent successfully completed.
+            model: Model used by the agent.
+        """
+        metrics = AgentMetrics(
+            timestamp=time.time(),
+            agent_id=agent_id,
+            role=role,
+            lifetime_seconds=round(lifetime_seconds, 2),
+            tasks_completed=tasks_completed,
+        )
+        self.collector.record_agent_metrics(metrics)
 
 
 # Default coordinator instance

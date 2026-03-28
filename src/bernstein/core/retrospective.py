@@ -46,8 +46,12 @@ def generate_retrospective(
     completion_rate = (n_done / total * 100) if total else 0.0
 
     wall_clock_s = time.time() - run_start_ts
-    total_cost = collector.get_total_cost()
     task_metrics: dict[str, TaskMetrics] = collector._task_metrics  # noqa: SLF001
+    # get_total_cost() sums agent_metrics; when only task_metrics are populated
+    # (e.g. bernstein retro reading from archive) fall back to summing task costs.
+    total_cost = collector.get_total_cost()
+    if total_cost == 0.0 and task_metrics:
+        total_cost = sum(tm.cost_usd for tm in task_metrics.values())
 
     lines: list[str] = []
     _section = lines.append
@@ -224,6 +228,34 @@ def generate_retrospective(
         _section("|------|-------|------|")
         for role in sorted(role_costs, key=lambda r: role_costs[r], reverse=True):
             _section(f"| {role} | {role_task_counts[role]} | ${role_costs[role]:.4f} |")
+        _section("")
+
+    # Token breakdown (only shown when token data is available)
+    total_prompt_tokens = sum(tm.tokens_prompt for tm in task_metrics.values())
+    total_completion_tokens = sum(tm.tokens_completion for tm in task_metrics.values())
+    if total_prompt_tokens > 0 or total_completion_tokens > 0:
+        model_token_data: dict[str, dict[str, int | float]] = defaultdict(
+            lambda: {"prompt": 0, "completion": 0}
+        )
+        for tm in task_metrics.values():
+            m = tm.model or "unknown"
+            model_token_data[m]["prompt"] = int(model_token_data[m]["prompt"]) + tm.tokens_prompt
+            model_token_data[m]["completion"] = int(model_token_data[m]["completion"]) + tm.tokens_completion
+
+        _section("### Token usage by model")
+        _section("")
+        _section("| Model | Prompt tokens | Completion tokens | Total tokens |")
+        _section("|-------|--------------|------------------|-------------|")
+        for m in sorted(model_token_data, key=lambda k: model_token_data[k]["prompt"] + model_token_data[k]["completion"], reverse=True):
+            p = int(model_token_data[m]["prompt"])
+            c = int(model_token_data[m]["completion"])
+            _section(f"| {m} | {p:,} | {c:,} | {p + c:,} |")
+        _section("")
+        total_tokens = total_prompt_tokens + total_completion_tokens
+        _section(
+            f"**Total tokens:** {total_tokens:,} "
+            f"({total_prompt_tokens:,} prompt, {total_completion_tokens:,} completion)"
+        )
         _section("")
 
     # ------------------------------------------------------------------

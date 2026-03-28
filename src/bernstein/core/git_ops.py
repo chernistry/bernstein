@@ -44,6 +44,23 @@ class GitResult:
         return self.returncode == 0
 
 
+@dataclass(frozen=True)
+class MergeResult:
+    """Outcome of a merge attempt with conflict detection.
+
+    Attributes:
+        success: True if the merge completed without conflicts.
+        conflicting_files: File paths with merge conflicts (empty on success).
+        merge_diff: The diff of merged changes (empty on conflict).
+        error: Error message if the merge failed for non-conflict reasons.
+    """
+
+    success: bool
+    conflicting_files: list[str]
+    merge_diff: str = ""
+    error: str = ""
+
+
 # ------------------------------------------------------------------
 # Low-level runner
 # ------------------------------------------------------------------
@@ -366,6 +383,84 @@ def merge_branch(
     if message:
         cmd.extend(["-m", message])
     return run_git(cmd, cwd, timeout=60)
+
+
+def merge_with_conflict_detection(
+    cwd: Path,
+    branch: str,
+    *,
+    message: str | None = None,
+) -> MergeResult:
+    """Merge a branch with explicit conflict detection and safe abort on failure.
+
+    Performs ``git merge --no-commit --no-ff`` to stage the merge without
+    committing.  If conflicts are detected, aborts the merge cleanly and
+    returns the list of conflicting files so a resolver agent can act on them.
+
+    Args:
+        cwd: Repository root.
+        branch: Branch to merge into the current HEAD.
+        message: Commit message when the merge is clean.
+
+    Returns:
+        MergeResult indicating success or listing conflicting files.
+    """
+    # 1. Attempt the merge without committing
+    merge_r = run_git(
+        ["merge", "--no-commit", "--no-ff", branch],
+        cwd,
+        timeout=120,
+    )
+
+    if merge_r.ok:
+        # Clean merge — commit it
+        msg = message or f"Merge {branch}"
+        commit_r = run_git(["commit", "-m", msg], cwd, timeout=30)
+        if commit_r.ok:
+            diff = run_git(["diff", "HEAD~1", "--stat"], cwd, timeout=30).stdout
+            return MergeResult(success=True, conflicting_files=[], merge_diff=diff)
+        # Nothing to commit (branches already identical)
+        run_git(["merge", "--abort"], cwd, timeout=10)
+        return MergeResult(success=True, conflicting_files=[])
+
+    # 2. Check if the failure is due to merge conflicts
+    conflicts = _parse_conflict_files(cwd)
+    if conflicts:
+        # Abort the conflicted merge to restore clean state
+        run_git(["merge", "--abort"], cwd, timeout=10)
+        return MergeResult(success=False, conflicting_files=conflicts)
+
+    # 3. Non-conflict failure (missing branch, unrelated histories, etc.)
+    run_git(["merge", "--abort"], cwd, timeout=10)
+    return MergeResult(
+        success=False,
+        conflicting_files=[],
+        error=merge_r.stderr.strip() or "merge failed for unknown reason",
+    )
+
+
+def _parse_conflict_files(cwd: Path) -> list[str]:
+    """Extract list of files with merge conflicts from git status.
+
+    Looks for unmerged entries (UU, AA, DD, AU, UA, DU, UD) in porcelain
+    output.
+
+    Args:
+        cwd: Repository root.
+
+    Returns:
+        List of conflicting file paths.
+    """
+    status = run_git(["status", "--porcelain"], cwd, timeout=10)
+    conflicts: list[str] = []
+    for line in status.stdout.splitlines():
+        if len(line) < 4:
+            continue
+        xy = line[:2]
+        # Unmerged status codes per git-status(1)
+        if xy in ("UU", "AA", "DD", "AU", "UA", "DU", "UD"):
+            conflicts.append(line[3:].strip())
+    return conflicts
 
 
 def branch_delete(cwd: Path, branch: str) -> GitResult:

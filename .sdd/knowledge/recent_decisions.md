@@ -2,47 +2,47 @@
 
 No decisions recorded yet.
 
-## [2026-03-28 07:59] Add missing CLI subcommands to GETTING_STARTED.md reference table (e318b85ad557)
-Completed: Add missing CLI subcommands to GETTING_STARTED.md reference table
+## [2026-03-28 08:52] Add evolution loop error handling and state transition tests (71a86cb306ac)
+Completed: Add evolution loop error handling and state transition tests
 
-## [2026-03-28 07:59] [RETRY 2] Use server-side status filtering instead of fetching all tasks (6cbaa6daa9f8)
-Completed: [RETRY 2] Use server-side status filtering instead of fetching all tasks — _fetch_all_tasks now makes per-status GET /tasks?status=X calls instead of one unfiltered GET /tasks. Updated caller comment and HTTP read counter. All 140 orchestrator tests pass.
+## [2026-03-28 08:58] Add self-evolution feedback loop integration test (c3f5dc5d2080)
+Completed: Add self-evolution feedback loop integration test
 
-## [2026-03-28 07:59] Update DESIGN.md implementation plan to reflect current state (4a9e3857ab4e)
-Completed: Update DESIGN.md implementation plan to reflect current state
+## [2026-03-28 09:00] [RETRY 1] Add self-evolution feedback loop integration test (16ed381892ac)
+Completed: [RETRY 1] Add self-evolution feedback loop integration test
 
-## [2026-03-28 08:00] [RETRY 2] Use server-side status filtering instead of fetching all tasks (19b8e8936544)
-Completed: [RETRY 2] Use server-side status filtering instead of fetching all tasks
+## [2026-03-28 09:00] [RETRY 1] 414 — Modern git integration: branches, PRs, smart commits, context from history (85ab2dd2a683)
+Completed: [RETRY 1] 414 — Modern git integration: branches, PRs, smart commits, context from history
 
-## [2026-03-28 08:01] [RETRY 1] Parallelize done-task verification in _process_completed_tasks (4b3bd6401307)
-Completed: [RETRY 1] Parallelize done-task verification in _process_completed_tasks
+## [2026-03-28 09:00] Verify and fix orchestrator evolution cycle metrics flow (235cca6c9511)
+Completed: Verify and fix orchestrator evolution cycle metrics flow
 
-## [2026-03-28 08:01] Update README.md test count and verify CLI usage (af8e8c7ce062)
-Completed: Update README.md test count and verify CLI usage
+## [2026-03-28 09:06] Wire bulletin board into single-cell orchestrator (efd803a3deb6)
+Completed: Wire bulletin board into single-cell orchestrator
 
-## [2026-03-28 08:02] [RETRY 1] Reduce HTTP round-trips in orchestrator tick loop (65a1c650fceb)
-Already implemented: tick loop makes 1 GET /tasks per tick via _fetch_all_tasks(), buckets client-side, passes tasks_by_status to _check_evolve() and all consumers. Debug log already present counting requests per tick.
+## [2026-03-28 09:07] [RETRY 1] Wire bulletin board into single-cell orchestrator (957ad2a630df)
+Completed: [RETRY 1] Wire bulletin board into single-cell orchestrator
 
-## [2026-03-28 08:03] [RETRY 2] Reduce HTTP round-trips in orchestrator tick loop (11989050c702)
-Verified: tick loop already makes 1 HTTP read via _fetch_all_tasks (single GET /tasks, client-side bucketing). Fixed stale docstring that incorrectly claimed per-status queries. Fallback GET /tasks/{id} calls in _handle_orphaned_task and _retry_or_fail_task only fire on cache misses (edge case). Debug log counting HTTP reads per tick already present at line 420. 140 tests pass.
+## [2026-03-28 09:08] [RETRY 1] Wire bulletin board into single-cell orchestrator (1dbfc3ed0b41)
+Completed: [RETRY 1] Wire bulletin board into single-cell orchestrator
 
-## [2026-03-28 08:15] Fix _fetch_all_tasks to include failed status (ccdc20f11608)
-Completed: Fix _fetch_all_tasks to include failed status
+## [2026-03-28 09:20] Fix worktree test regressions from git_ops refactoring (1a557f5b3235)
+Completed: Fix worktree test regressions from git_ops refactoring
 
-## [2026-03-28 08:15] Plan and decompose goal into tasks (efd3d3fb1429)
-Analyzed codebase (1309 tests passing, 1 failing). Identified 5 gaps between DESIGN.md and implementation. Created 5 tasks: (1) P1 fix _fetch_all_tasks missing failed status [ccdc20f11608], (2) P2 wire WorktreeManager into spawner [2e6a8ef5149e], (3) P2 wire MultiCellOrchestrator into bootstrap [d41f98014a9b], (4) P3 implement run retrospectives [d229e17fcf51], (5) P2 lifecycle integration test [1e43f5102645]. Tasks ordered by priority with dependency on bug fix.
+## [2026-03-28 09:20] Implement tier detection for non-Claude adapters (846e37f2b5e4)
+Completed: Implement tier detection for non-Claude adapters
 
-## [2026-03-28 08:16] Wire WorktreeManager into AgentSpawner (2e6a8ef5149e)
-Completed: Wire WorktreeManager into AgentSpawner
+## [2026-03-28 09:20] Plan and decompose goal into tasks (b5d6a38d6b9f)
+Completed: Plan and decompose goal into tasks. Analysis: 2027 tests passing, 6 failing (worktree mock assertions + orchestrator evolution cycle mocks). Codebase is ~80% complete vs DESIGN.md. Created 6 tasks: (1) Fix worktree test regressions [P1 qa], (2) Fix orchestrator evolution cycle test regressions [P1 qa], (3) Wire creative pipeline into evolution loop [P2 backend], (4) Add integration test for self-evolution feedback loop [P2 qa], (5) Complete retrospective cost calculation [P2 backend], (6) Implement adapter tier detection for non-Claude adapters [P3 backend].
 
-## [2026-03-28 08:18] Add integration test for spawn-execute-complete lifecycle (1e43f5102645)
-Completed: Add integration test for spawn-execute-complete lifecycle
+## [2026-03-28 09:21] Add end-to-end integration test for self-evolution feedback loop (49690e8b50ec)
+Completed: Add end-to-end integration test for self-evolution feedback loop
 
-## [2026-03-28 08:19] Implement run retrospective report generation (d229e17fcf51)
-Completed: Implement run retrospective report generation
+## [2026-03-28 09:21] Wire creative evolution pipeline into evolution loop rotation (b7e085054bed)
+Completed: Wire creative evolution pipeline into evolution loop rotation
 
-## [2026-03-28 08:20] Wire MultiCellOrchestrator into bootstrap and CLI (f16f8154f735)
-Completed: Wire MultiCellOrchestrator into bootstrap and CLI
+## [2026-03-28 09:22] Fix orchestrator evolution cycle test regressions (a728517fc867)
+Completed: Fix orchestrator evolution cycle test regressions
 
-## [2026-03-28 08:41] Plan and decompose goal into tasks (ce7a42b5384e)
-Decomposed goal into 6 tasks after thorough codebase analysis (1810 tests passing, all DESIGN.md API endpoints implemented). Gaps found: (1) no CLI retro command, (2) bulletin board not wired in single-cell orchestrator, (3) sandbox L1/L2 tests missing, (4) evolution loop error tests weak, (5) no full feedback loop integration test, (6) metrics flow needs audit. Created tasks: f14b161e2469 (retro CLI), fdc3de46553c (bulletin wiring), 2ee4a89259c4 (sandbox tests), 71a86cb306ac (evolution error tests), 87257edcbba7 (feedback loop e2e test), 4e104d77863b (metrics flow audit).
+## [2026-03-28 09:23] Complete retrospective cost calculation (stubbed) (081213de4433)
+Completed: Complete retrospective cost calculation (stubbed)

@@ -2492,9 +2492,16 @@ class TestEvolveAutoCommitRuntimeExclusion:
 
         status_result = MagicMock()
         status_result.stdout = "M src/bernstein/foo.py\n"
+        status_result.returncode = 0
 
         test_result = MagicMock()
         test_result.returncode = 0
+
+        # conventional_commit calls diff_cached_names (git diff --cached --name-only)
+        # before committing; return at least one staged file so it doesn't bail out.
+        diff_result = MagicMock()
+        diff_result.returncode = 0
+        diff_result.stdout = "src/bernstein/foo.py\n"
 
         completed_ok = MagicMock()
         completed_ok.returncode = 0
@@ -2503,6 +2510,8 @@ class TestEvolveAutoCommitRuntimeExclusion:
         def _fake_run(cmd: list[str], **kwargs: object) -> MagicMock:
             if cmd[:2] == ["git", "status"]:
                 return status_result
+            if cmd[:2] == ["git", "diff"]:
+                return diff_result
             if cmd[:2] == ["uv", "run"]:
                 return test_result
             return completed_ok
@@ -2517,15 +2526,16 @@ class TestEvolveAutoCommitRuntimeExclusion:
         # git add -A must appear
         assert ["git", "add", "-A"] in cmds
 
-        # git reset HEAD -- .sdd/runtime/ .sdd/metrics/ must appear
-        reset_cmd = [
-            "git", "reset", "HEAD", "--", ".sdd/runtime/", ".sdd/metrics/",
-        ]
-        assert reset_cmd in cmds
+        # git reset HEAD -- must include .sdd/runtime/ and .sdd/metrics/
+        reset_calls = [c for c in cmds if c[:4] == ["git", "reset", "HEAD", "--"]]
+        assert len(reset_calls) >= 1, "Expected at least one git reset HEAD -- call"
+        reset_args = reset_calls[0]
+        assert ".sdd/runtime/" in reset_args
+        assert ".sdd/metrics/" in reset_args
 
         # reset must come after add
         add_idx = cmds.index(["git", "add", "-A"])
-        reset_idx = cmds.index(reset_cmd)
+        reset_idx = next(i for i, c in enumerate(cmds) if c[:4] == ["git", "reset", "HEAD", "--"])
         assert reset_idx > add_idx
 
 
@@ -3391,10 +3401,13 @@ class TestRunEvolutionCycle:
         return orch, evolution
 
     def _make_proposal(self, proposal_id: str = "P-001", title: str = "Improve routing") -> MagicMock:
+        from bernstein.evolution.proposals import UpgradeStatus
+
         proposal = MagicMock()
         proposal.id = proposal_id
         proposal.title = title
         proposal.description = f"Description for {title}"
+        proposal.status = UpgradeStatus.PENDING
         return proposal
 
     def test_happy_path_creates_http_task_per_proposal(self, tmp_path: Path) -> None:
@@ -3520,6 +3533,69 @@ class TestRunEvolutionCycle:
         assert len(result.errors) == 1
         assert "evolution:" in result.errors[0]
         assert "analysis failed" in result.errors[0]
+
+    def test_auto_applied_proposals_skip_task_creation(self, tmp_path: Path) -> None:
+        """Proposals already applied by execute_pending_upgrades do NOT create server tasks."""
+        from bernstein.evolution.proposals import UpgradeStatus
+
+        posted: list[dict[str, object]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.method == "POST" and request.url.path == "/tasks":
+                posted.append(json.loads(request.content))
+                return httpx.Response(200, json={"id": "T-new"})
+            return httpx.Response(200, json=[])
+
+        orch, evolution = self._build_with_evolution_mock(tmp_path)
+        orch._client = httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="http://testserver",
+        )
+
+        # p1 was auto-applied, p2 is still pending
+        p_applied = self._make_proposal("P-auto", "Auto-applied proposal")
+        p_applied.status = UpgradeStatus.APPLIED
+        p_pending = self._make_proposal("P-pend", "Pending proposal")
+        p_pending.status = UpgradeStatus.PENDING
+        evolution.run_analysis_cycle.return_value = [p_applied, p_pending]
+
+        result = TickResult()
+        orch._run_evolution_cycle(result)
+
+        # Only the PENDING proposal should create a task — APPLIED one is skipped.
+        assert len(posted) == 1
+        assert posted[0]["title"] == "Upgrade: Pending proposal"
+        assert result.errors == []
+
+    def test_rejected_proposals_skip_task_creation(self, tmp_path: Path) -> None:
+        """Proposals rejected during execute_pending_upgrades do NOT create server tasks."""
+        from bernstein.evolution.proposals import UpgradeStatus
+
+        posted: list[dict[str, object]] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.method == "POST" and request.url.path == "/tasks":
+                posted.append(json.loads(request.content))
+                return httpx.Response(200, json={"id": "T-new"})
+            return httpx.Response(200, json=[])
+
+        orch, evolution = self._build_with_evolution_mock(tmp_path)
+        orch._client = httpx.Client(
+            transport=httpx.MockTransport(handler),
+            base_url="http://testserver",
+        )
+
+        p_rejected = self._make_proposal("P-rej", "Rejected proposal")
+        p_rejected.status = UpgradeStatus.REJECTED
+        p_rolled_back = self._make_proposal("P-rb", "Rolled-back proposal")
+        p_rolled_back.status = UpgradeStatus.ROLLED_BACK
+        evolution.run_analysis_cycle.return_value = [p_rejected, p_rolled_back]
+
+        result = TickResult()
+        orch._run_evolution_cycle(result)
+
+        assert posted == []
+        assert result.errors == []
 
 
 # --- _collect_completion_data ---

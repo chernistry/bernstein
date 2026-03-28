@@ -216,6 +216,131 @@ class TestWorktreeValidation:
 
         assert result.delta < 0
 
+    def test_worktree_cleanup_called_on_success(self, tmp_path: Path) -> None:
+        validator = SandboxValidator(tmp_path)
+        proposal = _make_proposal(risk_level=RiskLevel.L1_TEMPLATE)
+
+        calls: list[list[str]] = []
+
+        def tracking_run(*args, **kwargs):
+            cmd = args[0] if args else kwargs.get("args", [])
+            if isinstance(cmd, list):
+                calls.append(cmd)
+            m = MagicMock()
+            m.returncode = 0
+            m.stderr = ""
+            m.stdout = "5 passed in 1.0s\n"
+            return m
+
+        with patch("subprocess.run", side_effect=tracking_run):
+            result = validator.create_sandbox(proposal)
+
+        assert result.passed
+        remove_calls = [c for c in calls if "worktree" in c and "remove" in c]
+        assert remove_calls, "worktree remove should be called during cleanup"
+
+    def test_worktree_cleanup_called_on_test_failure(self, tmp_path: Path) -> None:
+        validator = SandboxValidator(tmp_path)
+        proposal = _make_proposal(risk_level=RiskLevel.L1_TEMPLATE)
+
+        calls: list[list[str]] = []
+
+        def tracking_run(*args, **kwargs):
+            cmd = args[0] if args else kwargs.get("args", [])
+            if isinstance(cmd, list):
+                calls.append(cmd)
+            m = MagicMock()
+            m.returncode = 0
+            m.stderr = ""
+            m.stdout = "0 passed, 3 failed in 1.0s\n"
+            return m
+
+        with patch("subprocess.run", side_effect=tracking_run):
+            result = validator.create_sandbox(proposal)
+
+        assert not result.passed
+        remove_calls = [c for c in calls if "worktree" in c and "remove" in c]
+        assert remove_calls, "worktree remove should be called even when tests fail"
+
+    def test_diff_apply_failure_returns_error(self, tmp_path: Path) -> None:
+        """Proposal diff targets files not present in the worktree — git apply fails."""
+        validator = SandboxValidator(tmp_path)
+        proposal = _make_proposal(
+            risk_level=RiskLevel.L1_TEMPLATE,
+            diff="--- a/nonexistent_file.py\n+++ b/nonexistent_file.py\n@@ -1 +1 @@\n-old\n+new\n",
+        )
+
+        def fail_on_apply(*args, **kwargs):
+            cmd = args[0] if args else kwargs.get("args", [])
+            m = MagicMock()
+            if isinstance(cmd, list) and "apply" in cmd:
+                m.returncode = 1
+                m.stderr = "error: nonexistent_file.py: No such file or directory"
+                m.stdout = ""
+            else:
+                m.returncode = 0
+                m.stderr = ""
+                m.stdout = ""
+            return m
+
+        with patch("subprocess.run", side_effect=fail_on_apply):
+            result = validator.create_sandbox(proposal)
+
+        assert not result.passed
+        assert result.error is not None
+
+    def test_l1_uses_unit_tests_only(self, tmp_path: Path) -> None:
+        """L1 validation runs unit tests only, not the full suite."""
+        validator = SandboxValidator(tmp_path, test_command="uv run pytest tests/ -x -q")
+        proposal = _make_proposal(risk_level=RiskLevel.L1_TEMPLATE)
+
+        test_commands_used: list[str] = []
+
+        def capture_test_cmd(*args, **kwargs):
+            cmd = args[0] if args else kwargs.get("args", [])
+            if isinstance(cmd, str):
+                test_commands_used.append(cmd)
+            m = MagicMock()
+            m.returncode = 0
+            m.stderr = ""
+            m.stdout = "5 passed in 1.0s\n"
+            return m
+
+        with patch("subprocess.run", side_effect=capture_test_cmd):
+            result = validator.create_sandbox(proposal)
+
+        assert result.passed
+        assert test_commands_used, "at least one shell test command should be run"
+        assert any("unit" in cmd for cmd in test_commands_used), (
+            "L1 should run unit tests only, got: " + str(test_commands_used)
+        )
+
+    def test_l2_uses_full_test_suite(self, tmp_path: Path) -> None:
+        """L2 validation uses the configured full test command."""
+        full_cmd = "uv run pytest tests/ -x -q"
+        validator = SandboxValidator(tmp_path, test_command=full_cmd)
+        proposal = _make_proposal(risk_level=RiskLevel.L2_LOGIC)
+
+        test_commands_used: list[str] = []
+
+        def capture_test_cmd(*args, **kwargs):
+            cmd = args[0] if args else kwargs.get("args", [])
+            if isinstance(cmd, str):
+                test_commands_used.append(cmd)
+            m = MagicMock()
+            m.returncode = 0
+            m.stderr = ""
+            m.stdout = "10 passed in 2.0s\n"
+            return m
+
+        with patch("subprocess.run", side_effect=capture_test_cmd):
+            result = validator.create_sandbox(proposal)
+
+        assert result.passed
+        assert any(full_cmd in cmd for cmd in test_commands_used), (
+            "L2 should use full test command, got: " + str(test_commands_used)
+        )
+
 
 # ---------------------------------------------------------------------------
 # Legacy validate() interface

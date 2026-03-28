@@ -61,6 +61,8 @@ class TaskMetrics:
     success: bool = False
     error: str | None = None
     tokens_used: int = 0
+    tokens_prompt: int = 0
+    tokens_completion: int = 0
     cost_usd: float = 0.0
     retry_count: int = 0
     janitor_passed: bool = False

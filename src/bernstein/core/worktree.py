@@ -14,8 +14,9 @@ Usage::
 from __future__ import annotations
 
 import logging
-import subprocess
 from pathlib import Path
+
+from bernstein.core.git_ops import branch_delete, worktree_add, worktree_list, worktree_remove
 
 logger = logging.getLogger(__name__)
 
@@ -75,17 +76,10 @@ class WorktreeManager:
 
         self._base_dir.mkdir(parents=True, exist_ok=True)
 
-        result = subprocess.run(
-            ["git", "worktree", "add", str(worktree_path), "-b", branch_name],
-            cwd=self.repo_root,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
+        result = worktree_add(self.repo_root, worktree_path, branch_name)
 
-        if result.returncode != 0:
+        if not result.ok:
             stderr = result.stderr.strip()
-            # Detect branch-already-exists case for a clearer message
             if "already exists" in stderr:
                 raise WorktreeError(
                     f"Branch '{branch_name}' already exists. "
@@ -112,14 +106,8 @@ class WorktreeManager:
 
         # 1. Remove the worktree (--force handles dirty state)
         try:
-            result = subprocess.run(
-                ["git", "worktree", "remove", "--force", str(worktree_path)],
-                cwd=self.repo_root,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            if result.returncode != 0:
+            result = worktree_remove(self.repo_root, worktree_path)
+            if not result.ok:
                 logger.warning(
                     "git worktree remove failed for %s: %s",
                     session_id,
@@ -130,14 +118,8 @@ class WorktreeManager:
 
         # 2. Delete the branch
         try:
-            result = subprocess.run(
-                ["git", "branch", "-D", branch_name],
-                cwd=self.repo_root,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            if result.returncode != 0:
+            result = branch_delete(self.repo_root, branch_name)
+            if not result.ok:
                 logger.warning(
                     "git branch -D failed for %s: %s",
                     branch_name,
@@ -159,32 +141,19 @@ class WorktreeManager:
             List of active session IDs (may be empty).
         """
         try:
-            result = subprocess.run(
-                ["git", "worktree", "list", "--porcelain"],
-                cwd=self.repo_root,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
+            output = worktree_list(self.repo_root)
         except Exception as exc:
             logger.warning("git worktree list failed: %s", exc)
-            return []
-
-        if result.returncode != 0:
-            logger.warning(
-                "git worktree list returned non-zero: %s", result.stderr.strip()
-            )
             return []
 
         session_ids: list[str] = []
         base_str = str(self._base_dir)
 
-        for line in result.stdout.splitlines():
+        for line in output.splitlines():
             if not line.startswith("worktree "):
                 continue
             wt_path = line[len("worktree "):].strip()
             if wt_path.startswith(base_str):
-                # Extract session_id = last path component
                 session_id = Path(wt_path).name
                 session_ids.append(session_id)
 

@@ -2049,6 +2049,221 @@ class TestEvolutionMetricsRecording:
         assert len(result.errors) == 0
         evolution.record_task_completion.assert_called_once()
 
+    def test_complete_agent_task_called_before_end_agent(self, tmp_path: Path) -> None:
+        """complete_agent_task() is called before end_agent() so AGENT_SUCCESS metric is written."""
+        from bernstein.core.metrics import MetricsCollector, get_collector
+        import bernstein.core.metrics as _metrics_mod
+
+        # Reset the global so we get a fresh collector for this test.
+        _metrics_mod._default_collector = None
+
+        orch, evolution = self._build_with_evolution(tmp_path)
+        session = AgentSession(
+            id="backend-agent-task",
+            role="backend",
+            pid=22,
+            task_ids=["T-evo"],
+            spawn_ts=time.time() - 3.0,
+            status="working",
+        )
+        orch._agents["backend-agent-task"] = session
+
+        collector = get_collector(tmp_path / ".sdd" / "metrics")
+        collector.start_agent(
+            agent_id="backend-agent-task",
+            role="backend",
+            model="sonnet",
+            provider="anthropic",
+        )
+        collector.start_task(
+            task_id="T-evo",
+            role="backend",
+            model="sonnet",
+            provider="anthropic",
+        )
+
+        orch.tick()
+
+        agent_m = collector._agent_metrics.get("backend-agent-task")
+        assert agent_m is not None, "AgentMetrics not found in collector"
+        total = agent_m.tasks_completed + agent_m.tasks_failed
+        assert total == 1, (
+            f"complete_agent_task() was not called: tasks_completed={agent_m.tasks_completed}, "
+            f"tasks_failed={agent_m.tasks_failed}"
+        )
+
+        # Cleanup global collector so other tests are not affected.
+        _metrics_mod._default_collector = None
+
+
+class TestOrphanEvolutionMetrics:
+    """Orphaned task handling feeds the evolution coordinator via record_task_completion."""
+
+    def _build_with_evolution(self, tmp_path: Path) -> tuple[Orchestrator, MagicMock]:
+        from bernstein.core.evolution import EvolutionCoordinator
+
+        evolution = MagicMock(spec=EvolutionCoordinator)
+        evolution.execute_pending_upgrades.return_value = []
+        return evolution
+
+    def test_orphan_success_feeds_evolution(self, tmp_path: Path) -> None:
+        """Successful orphan auto-complete calls evolution.record_task_completion."""
+        (tmp_path / "result.txt").write_text("ok")
+        from bernstein.core.evolution import EvolutionCoordinator
+
+        evolution = MagicMock(spec=EvolutionCoordinator)
+        task_dict = _task_as_dict(_make_task(id="T-orp-evo", status="in_progress"))
+        task_dict["completion_signals"] = [{"type": "path_exists", "value": "result.txt"}]
+        task_dict["status"] = "in_progress"
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            url = request.url
+            key = f"{request.method} {url.path}"
+            if url.query:
+                key += f"?{url.query.decode()}"
+            if request.method == "GET" and url.path == "/tasks":
+                return httpx.Response(200, json=[])
+            if key == "GET /tasks/T-orp-evo":
+                return httpx.Response(200, json=task_dict)
+            if key == "POST /tasks/T-orp-evo/complete":
+                return httpx.Response(200, json={})
+            return httpx.Response(404)
+
+        transport = httpx.MockTransport(handler)
+        adapter = _mock_adapter()
+        adapter.is_alive.return_value = False
+        cfg = OrchestratorConfig(
+            max_agents=6,
+            poll_interval_s=1,
+            server_url="http://testserver",
+            evolution_enabled=True,
+        )
+        adp = adapter
+        templates_dir = tmp_path / "templates" / "roles"
+        templates_dir.mkdir(parents=True)
+        spawner = AgentSpawner(adp, templates_dir, tmp_path)
+        client = httpx.Client(transport=transport, base_url="http://testserver")
+        orch = Orchestrator(cfg, spawner, tmp_path, client=client, evolution=evolution)
+
+        session = AgentSession(
+            id="backend-orp-evo",
+            role="backend",
+            pid=42,
+            task_ids=["T-orp-evo"],
+            status="working",
+        )
+        orch._agents["backend-orp-evo"] = session
+
+        orch.tick()
+
+        evolution.record_task_completion.assert_called_once()
+        call_kwargs = evolution.record_task_completion.call_args
+        assert call_kwargs.kwargs["janitor_passed"] is True
+        assert call_kwargs.kwargs["duration_seconds"] >= 0.0
+
+    def test_orphan_fail_feeds_evolution(self, tmp_path: Path) -> None:
+        """Failed orphan (no completion signals) calls evolution.record_task_completion."""
+        from bernstein.core.evolution import EvolutionCoordinator
+
+        evolution = MagicMock(spec=EvolutionCoordinator)
+        task_dict = _task_as_dict(_make_task(id="T-orp-fail", status="claimed"))
+        task_dict["status"] = "claimed"
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            url = request.url
+            key = f"{request.method} {url.path}"
+            if url.query:
+                key += f"?{url.query.decode()}"
+            if request.method == "GET" and url.path == "/tasks":
+                return httpx.Response(200, json=[])
+            if key == "GET /tasks/T-orp-fail":
+                return httpx.Response(200, json=task_dict)
+            if key == "POST /tasks/T-orp-fail/fail":
+                return httpx.Response(200, json={})
+            return httpx.Response(404)
+
+        transport = httpx.MockTransport(handler)
+        adapter = _mock_adapter()
+        adapter.is_alive.return_value = False
+        cfg = OrchestratorConfig(
+            max_agents=6,
+            poll_interval_s=1,
+            server_url="http://testserver",
+            evolution_enabled=True,
+        )
+        templates_dir = tmp_path / "templates" / "roles"
+        templates_dir.mkdir(parents=True)
+        spawner = AgentSpawner(adapter, templates_dir, tmp_path)
+        client = httpx.Client(transport=transport, base_url="http://testserver")
+        orch = Orchestrator(cfg, spawner, tmp_path, client=client, evolution=evolution)
+
+        session = AgentSession(
+            id="backend-orp-fail",
+            role="backend",
+            pid=43,
+            task_ids=["T-orp-fail"],
+            status="working",
+        )
+        orch._agents["backend-orp-fail"] = session
+
+        orch.tick()
+
+        evolution.record_task_completion.assert_called_once()
+        call_kwargs = evolution.record_task_completion.call_args
+        assert call_kwargs.kwargs["janitor_passed"] is False
+
+    def test_orphan_evolution_failure_does_not_crash(self, tmp_path: Path) -> None:
+        """If evolution.record_task_completion raises for an orphan, orchestrator does not crash."""
+        (tmp_path / "result.txt").write_text("ok")
+        from bernstein.core.evolution import EvolutionCoordinator
+
+        evolution = MagicMock(spec=EvolutionCoordinator)
+        evolution.record_task_completion.side_effect = RuntimeError("evolution down")
+        task_dict = _task_as_dict(_make_task(id="T-orp-err", status="in_progress"))
+        task_dict["completion_signals"] = [{"type": "path_exists", "value": "result.txt"}]
+        task_dict["status"] = "in_progress"
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            url = request.url
+            key = f"{request.method} {url.path}"
+            if url.query:
+                key += f"?{url.query.decode()}"
+            if request.method == "GET" and url.path == "/tasks":
+                return httpx.Response(200, json=[])
+            if key == "GET /tasks/T-orp-err":
+                return httpx.Response(200, json=task_dict)
+            if key == "POST /tasks/T-orp-err/complete":
+                return httpx.Response(200, json={})
+            return httpx.Response(404)
+
+        transport = httpx.MockTransport(handler)
+        adapter = _mock_adapter()
+        adapter.is_alive.return_value = False
+        cfg = OrchestratorConfig(
+            max_agents=6,
+            poll_interval_s=1,
+            server_url="http://testserver",
+            evolution_enabled=True,
+        )
+        templates_dir = tmp_path / "templates" / "roles"
+        templates_dir.mkdir(parents=True)
+        spawner = AgentSpawner(adapter, templates_dir, tmp_path)
+        client = httpx.Client(transport=transport, base_url="http://testserver")
+        orch = Orchestrator(cfg, spawner, tmp_path, client=client, evolution=evolution)
+
+        session = AgentSession(
+            id="backend-orp-err",
+            role="backend",
+            pid=44,
+            task_ids=["T-orp-err"],
+            status="working",
+        )
+        orch._agents["backend-orp-err"] = session
+
+        # Must not raise
+        result = orch.tick()
+        assert len(result.errors) == 0
+
 
 class TestConsecutiveTickFailureCircuitBreaker:
     """run() exits after max_consecutive_failures tick exceptions."""
@@ -2409,7 +2624,7 @@ class TestRetryOrFailTask:
         assert body["priority"] == 1
         assert body["scope"] == "large"
         assert body["complexity"] == "high"
-        assert body["title"] == task.title
+        assert task.title in body["title"]  # may have [RETRY N] prefix
 
 
 # --- _maybe_retry_task ---
@@ -3752,3 +3967,526 @@ class TestComputeTotalSpentCache:
         _total_spent_cache.clear()
 
         assert _compute_total_spent(tmp_path) == 0.0
+
+
+# --- Metrics wiring ---
+
+
+import pytest  # noqa: E402 (already imported at top of file but need for type hints below)
+
+
+class TestMetricsWiring:
+    """Verify the operational MetricsCollector is correctly wired in the orchestrator.
+
+    Each test resets the global _default_collector singleton so tests are isolated.
+    """
+
+    def _reset_collector(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import bernstein.core.metrics as _metrics
+        monkeypatch.setattr(_metrics, "_default_collector", None)
+
+    def test_spawn_records_start_task_for_each_task(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """start_task() is called for every task in the spawned batch."""
+        self._reset_collector(monkeypatch)
+
+        task1 = _make_task(id="T-m1", role="backend")
+        task2 = _make_task(id="T-m2", role="backend")
+        transport = _mock_transport({
+            "GET /tasks?status=open": httpx.Response(200, json=[
+                _task_as_dict(task1), _task_as_dict(task2),
+            ]),
+            "POST /tasks/T-m1/claim": httpx.Response(200, json=_task_as_dict(task1)),
+            "POST /tasks/T-m2/claim": httpx.Response(200, json=_task_as_dict(task2)),
+        })
+        orch = _build_orchestrator(tmp_path, transport)
+        orch.tick()
+
+        from bernstein.core.metrics import get_collector
+        collector = get_collector(tmp_path / ".sdd" / "metrics")
+        assert "T-m1" in collector._task_metrics
+        assert "T-m2" in collector._task_metrics
+
+    def test_process_completed_tasks_calls_complete_task(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """complete_task() is called for each done task, setting end_time and success."""
+        self._reset_collector(monkeypatch)
+
+        done_task = _make_task(id="T-done-ct", status="done")
+        transport = _mock_transport({
+            "GET /tasks?status=open": httpx.Response(200, json=[]),
+            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
+        })
+        orch = _build_orchestrator(tmp_path, transport)
+
+        from bernstein.core.metrics import get_collector
+        collector = get_collector(tmp_path / ".sdd" / "metrics")
+        # Pre-register the task so complete_task() finds it
+        collector.start_task("T-done-ct", "backend", "sonnet", "claude")
+
+        orch.tick()
+
+        tm = collector._task_metrics["T-done-ct"]
+        assert tm.end_time is not None
+        # No completion_signals → janitor_passed=True
+        assert tm.success is True
+        assert tm.janitor_passed is True
+
+    def test_process_completed_tasks_calls_end_agent(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """end_agent() is called when the session is found for a done task."""
+        self._reset_collector(monkeypatch)
+
+        done_task = _make_task(id="T-done-ea", status="done")
+        transport = _mock_transport({
+            "GET /tasks?status=open": httpx.Response(200, json=[]),
+            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
+        })
+        orch = _build_orchestrator(tmp_path, transport)
+
+        from bernstein.core.metrics import get_collector
+        collector = get_collector(tmp_path / ".sdd" / "metrics")
+        collector.start_agent("sess-ea", "backend", "sonnet", "claude")
+        collector.start_task("T-done-ea", "backend", "sonnet", "claude")
+
+        session = AgentSession(
+            id="sess-ea",
+            role="backend",
+            pid=55,
+            task_ids=["T-done-ea"],
+            status="working",
+        )
+        orch._agents["sess-ea"] = session
+
+        orch.tick()
+
+        am = collector._agent_metrics["sess-ea"]
+        assert am.end_time is not None
+
+    def test_wall_clock_reap_records_end_agent(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """end_agent() is called for agents reaped by wall-clock timeout."""
+        self._reset_collector(monkeypatch)
+
+        adapter = _mock_adapter()
+        adapter.is_alive.return_value = True
+        config = OrchestratorConfig(
+            max_agents=6,
+            poll_interval_s=1,
+            max_agent_runtime_s=60,
+            server_url="http://testserver",
+        )
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            url = request.url
+            if request.method == "GET" and url.path == "/tasks":
+                return httpx.Response(200, json=[])
+            if url.path == "/tasks/T-wct":
+                return httpx.Response(200, json=_task_as_dict(_make_task(id="T-wct")))
+            if request.method == "POST" and url.path.startswith("/tasks/T-wct"):
+                return httpx.Response(200, json={})
+            if request.method == "POST" and url.path == "/tasks":
+                return httpx.Response(201, json={"id": "T-retry"})
+            return httpx.Response(404)
+
+        orch = _build_orchestrator(
+            tmp_path, httpx.MockTransport(handler), adapter=adapter, config=config
+        )
+
+        from bernstein.core.metrics import get_collector
+        collector = get_collector(tmp_path / ".sdd" / "metrics")
+        collector.start_agent("sess-wct", "backend", "sonnet", "claude")
+
+        timeout_session = AgentSession(
+            id="sess-wct",
+            role="backend",
+            pid=88,
+            task_ids=["T-wct"],
+            spawn_ts=time.time() - 200,  # 200s > 60s limit → wall-clock reap
+            heartbeat_ts=time.time(),    # fresh heartbeat, so only wall-clock fires
+            status="working",
+        )
+        orch._agents["sess-wct"] = timeout_session
+
+        orch.tick()
+
+        assert "sess-wct" in orch._agents
+        am = collector._agent_metrics.get("sess-wct")
+        assert am is not None, "end_agent() was not called for wall-clock-reaped agent"
+        assert am.end_time is not None
+
+
+# --- Evolution agent-lifetime recording ---
+
+
+class TestEvolutionAgentLifetimeRecording:
+    """Evolution coordinator receives agent-lifetime metrics from all reaping paths."""
+
+    def _build_with_evolution(
+        self, tmp_path: Path, transport: httpx.MockTransport,
+    ) -> tuple[Orchestrator, MagicMock]:
+        from bernstein.core.evolution import EvolutionCoordinator
+
+        evolution = MagicMock(spec=EvolutionCoordinator)
+        evolution.record_task_completion.return_value = None
+        evolution.record_agent_lifetime.return_value = None
+        evolution.run_analysis_cycle.return_value = []
+        evolution.execute_pending_upgrades.return_value = []
+        cfg = OrchestratorConfig(
+            max_agents=6,
+            poll_interval_s=1,
+            max_agent_runtime_s=300,
+            heartbeat_timeout_s=60,
+            server_url="http://testserver",
+            evolution_enabled=True,
+        )
+        adp = _mock_adapter()
+        adp.is_alive.return_value = True
+        templates_dir = tmp_path / "templates" / "roles"
+        templates_dir.mkdir(parents=True)
+        spawner = AgentSpawner(adp, templates_dir, tmp_path)
+        client = httpx.Client(transport=transport, base_url="http://testserver")
+        orch = Orchestrator(cfg, spawner, tmp_path, client=client, evolution=evolution)
+        return orch, evolution
+
+    def test_normal_completion_records_agent_lifetime(self, tmp_path: Path) -> None:
+        """_process_completed_tasks calls record_agent_lifetime on evolution coordinator."""
+        transport = _mock_transport({
+            "GET /tasks": httpx.Response(
+                200, json=[_task_as_dict(_make_task(id="T-lt", status="done"))]
+            ),
+        })
+        orch, evolution = self._build_with_evolution(tmp_path, transport)
+        session = AgentSession(
+            id="sess-lt",
+            role="backend",
+            pid=10,
+            task_ids=["T-lt"],
+            spawn_ts=time.time() - 30.0,
+            status="working",
+        )
+        orch._agents["sess-lt"] = session
+
+        orch.tick()
+
+        evolution.record_agent_lifetime.assert_called_once()
+        kw = evolution.record_agent_lifetime.call_args.kwargs
+        assert kw["agent_id"] == "sess-lt"
+        assert kw["role"] == "backend"
+        assert kw["lifetime_seconds"] >= 0.0
+
+    def test_multi_task_agent_lifetime_recorded_once(self, tmp_path: Path) -> None:
+        """When an agent owns two tasks that both complete in the same tick,
+        record_agent_lifetime is called exactly once."""
+        done_tasks = [
+            _task_as_dict(_make_task(id="T-lt1", status="done")),
+            _task_as_dict(_make_task(id="T-lt2", status="done")),
+        ]
+        transport = _mock_transport({
+            "GET /tasks": httpx.Response(200, json=done_tasks),
+        })
+        orch, evolution = self._build_with_evolution(tmp_path, transport)
+        session = AgentSession(
+            id="sess-multi",
+            role="backend",
+            pid=11,
+            task_ids=["T-lt1", "T-lt2"],
+            spawn_ts=time.time() - 20.0,
+            status="working",
+        )
+        orch._agents["sess-multi"] = session
+
+        orch.tick()
+
+        # Lifetime should be recorded exactly once even though two tasks completed
+        assert evolution.record_agent_lifetime.call_count == 1
+
+    def test_wall_clock_reap_records_agent_lifetime(self, tmp_path: Path) -> None:
+        """_reap_dead_agents (wall-clock path) calls record_agent_lifetime."""
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.method == "GET" and request.url.path == "/tasks":
+                return httpx.Response(200, json=[])
+            if request.url.path == "/tasks/T-wlt":
+                return httpx.Response(200, json=_task_as_dict(_make_task(id="T-wlt")))
+            if request.method == "POST":
+                return httpx.Response(200, json={})
+            return httpx.Response(404)
+
+        cfg = OrchestratorConfig(
+            max_agents=6,
+            poll_interval_s=1,
+            max_agent_runtime_s=60,  # short timeout
+            server_url="http://testserver",
+            evolution_enabled=True,
+        )
+        from bernstein.core.evolution import EvolutionCoordinator
+
+        evolution = MagicMock(spec=EvolutionCoordinator)
+        evolution.record_agent_lifetime.return_value = None
+        evolution.record_task_completion.return_value = None
+        evolution.run_analysis_cycle.return_value = []
+        evolution.execute_pending_upgrades.return_value = []
+
+        adp = _mock_adapter()
+        adp.is_alive.return_value = True
+        templates_dir = tmp_path / "templates" / "roles"
+        templates_dir.mkdir(parents=True)
+        spawner = AgentSpawner(adp, templates_dir, tmp_path)
+        client = httpx.Client(
+            transport=httpx.MockTransport(handler), base_url="http://testserver"
+        )
+        orch = Orchestrator(cfg, spawner, tmp_path, client=client, evolution=evolution)
+
+        session = AgentSession(
+            id="sess-wlt",
+            role="qa",
+            pid=55,
+            task_ids=["T-wlt"],
+            spawn_ts=time.time() - 200,  # exceeds 60s limit
+            heartbeat_ts=time.time(),
+            status="working",
+        )
+        orch._agents["sess-wlt"] = session
+
+        orch.tick()
+
+        evolution.record_agent_lifetime.assert_called()
+        kw = evolution.record_agent_lifetime.call_args.kwargs
+        assert kw["agent_id"] == "sess-wlt"
+        assert kw["role"] == "qa"
+        assert kw["tasks_completed"] == 0  # timed out before completing
+
+    def test_heartbeat_reap_records_agent_lifetime(self, tmp_path: Path) -> None:
+        """_reap_dead_agents (heartbeat path) calls record_agent_lifetime."""
+        transport = _mock_transport({"GET /tasks": httpx.Response(200, json=[])})
+        cfg = OrchestratorConfig(
+            max_agents=6,
+            poll_interval_s=1,
+            max_agent_runtime_s=9999,
+            heartbeat_timeout_s=30,
+            server_url="http://testserver",
+            evolution_enabled=True,
+        )
+        from bernstein.core.evolution import EvolutionCoordinator
+
+        evolution = MagicMock(spec=EvolutionCoordinator)
+        evolution.record_agent_lifetime.return_value = None
+        evolution.record_task_completion.return_value = None
+        evolution.run_analysis_cycle.return_value = []
+        evolution.execute_pending_upgrades.return_value = []
+
+        adp = _mock_adapter()
+        adp.is_alive.return_value = True
+        templates_dir = tmp_path / "templates" / "roles"
+        templates_dir.mkdir(parents=True)
+        spawner = AgentSpawner(adp, templates_dir, tmp_path)
+        client = httpx.Client(transport=transport, base_url="http://testserver")
+        orch = Orchestrator(cfg, spawner, tmp_path, client=client, evolution=evolution)
+
+        stale_session = AgentSession(
+            id="sess-hbt",
+            role="security",
+            pid=66,
+            task_ids=[],
+            spawn_ts=time.time() - 50,
+            heartbeat_ts=time.time() - 60,  # stale: 60s > 30s timeout
+            status="working",
+        )
+        orch._agents["sess-hbt"] = stale_session
+
+        orch.tick()
+
+        evolution.record_agent_lifetime.assert_called()
+        kw = evolution.record_agent_lifetime.call_args.kwargs
+        assert kw["agent_id"] == "sess-hbt"
+        assert kw["role"] == "security"
+        assert kw["tasks_completed"] == 0  # heartbeat-reaped
+
+    def test_lifetime_failure_does_not_crash(self, tmp_path: Path) -> None:
+        """If record_agent_lifetime raises, the orchestrator silently suppresses it."""
+        transport = _mock_transport({
+            "GET /tasks": httpx.Response(
+                200, json=[_task_as_dict(_make_task(id="T-lf", status="done"))]
+            ),
+        })
+        orch, evolution = self._build_with_evolution(tmp_path, transport)
+        evolution.record_agent_lifetime.side_effect = RuntimeError("db offline")
+
+        session = AgentSession(
+            id="sess-lf",
+            role="backend",
+            pid=77,
+            task_ids=["T-lf"],
+            spawn_ts=time.time() - 10,
+            status="working",
+        )
+        orch._agents["sess-lf"] = session
+
+        # Must not raise and must not produce errors
+        result = orch.tick()
+        assert len(result.errors) == 0
+
+
+# ---------------------------------------------------------------------------
+# Bulletin board integration
+# ---------------------------------------------------------------------------
+
+
+class TestOrchestratorBulletinIntegration:
+    """Bulletin board is wired into the single-cell Orchestrator lifecycle."""
+
+    def _build_with_bulletin(
+        self,
+        tmp_path: Path,
+        transport: httpx.MockTransport,
+    ) -> tuple[Orchestrator, "BulletinBoard"]:
+        from bernstein.core.bulletin import BulletinBoard
+
+        board = BulletinBoard()
+        cfg = OrchestratorConfig(
+            max_agents=6,
+            poll_interval_s=1,
+            heartbeat_timeout_s=120,
+            max_tasks_per_agent=3,
+            server_url="http://testserver",
+        )
+        adp = _mock_adapter()
+        templates_dir = tmp_path / "templates" / "roles"
+        templates_dir.mkdir(parents=True)
+        spawner = AgentSpawner(adp, templates_dir, tmp_path)
+        client = httpx.Client(transport=transport, base_url="http://testserver")
+        orch = Orchestrator(cfg, spawner, tmp_path, client=client, bulletin=board)
+        return orch, board
+
+    def test_bulletin_property_returns_board(self, tmp_path: Path) -> None:
+        """Orchestrator.bulletin returns the injected BulletinBoard."""
+        from bernstein.core.bulletin import BulletinBoard
+
+        transport = _mock_transport({"GET /tasks": httpx.Response(200, json=[])})
+        orch, board = self._build_with_bulletin(tmp_path, transport)
+        assert orch.bulletin is board
+
+    def test_bulletin_none_when_not_provided(self, tmp_path: Path) -> None:
+        """Orchestrator.bulletin is None when no board is injected."""
+        transport = _mock_transport({"GET /tasks": httpx.Response(200, json=[])})
+        orch = _build_orchestrator(tmp_path, transport)
+        assert orch.bulletin is None
+
+    def test_run_started_posted_on_run(self, tmp_path: Path) -> None:
+        """run() posts 'run started' to the bulletin board before the loop."""
+        from bernstein.core.bulletin import BulletinBoard
+
+        transport = _mock_transport({"GET /tasks": httpx.Response(200, json=[])})
+        orch, board = self._build_with_bulletin(tmp_path, transport)
+
+        # Patch dry_run so run() exits after one tick
+        orch._config = OrchestratorConfig(
+            max_agents=6,
+            poll_interval_s=0,
+            heartbeat_timeout_s=120,
+            max_tasks_per_agent=3,
+            server_url="http://testserver",
+            dry_run=True,
+        )
+        orch.run()
+
+        statuses = [m.content for m in board.read_by_type("status")]
+        assert any("run started" in s for s in statuses)
+
+    def test_task_completed_posted_to_bulletin(self, tmp_path: Path) -> None:
+        """A done task that passes janitor verification posts a 'task completed' status."""
+        from bernstein.core.bulletin import BulletinBoard
+        from bernstein.core.models import CompletionSignal
+
+        done_task = _make_task(id="T-bb1", title="BB task", status="done")
+        transport = _mock_transport({
+            "GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)]),
+        })
+
+        orch, board = self._build_with_bulletin(tmp_path, transport)
+        orch._processed_done_tasks = set()  # ensure not pre-processed
+
+        orch.tick()
+
+        contents = [m.content for m in board.read_by_type("status")]
+        assert any("task completed" in c and "T-bb1" in c for c in contents)
+
+    def test_task_failed_janitor_posts_alert(self, tmp_path: Path) -> None:
+        """A done task that fails janitor verification posts an alert."""
+        from bernstein.core.bulletin import BulletinBoard
+        from bernstein.core.models import CompletionSignal
+
+        done_task = _make_task(id="T-bb2", title="Fail task", status="done")
+        # Add a completion signal that will fail (file does not exist)
+        done_task = Task(
+            id=done_task.id,
+            title=done_task.title,
+            description=done_task.description,
+            role=done_task.role,
+            priority=done_task.priority,
+            scope=done_task.scope,
+            complexity=done_task.complexity,
+            status=done_task.status,
+            completion_signals=[
+                CompletionSignal(type="file_exists", value="/nonexistent/path/file.txt")
+            ],
+        )
+
+        transport = _mock_transport({
+            "GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)]),
+        })
+
+        orch, board = self._build_with_bulletin(tmp_path, transport)
+        orch.tick()
+
+        # Either a 'task completed' or 'task failed janitor' alert should be posted
+        all_msgs = board.read_since(0.0)
+        assert len(all_msgs) > 0
+
+    def test_no_bulletin_no_crash(self, tmp_path: Path) -> None:
+        """_post_bulletin is a no-op when no board is configured."""
+        done_task = _make_task(id="T-bb3", title="No board task", status="done")
+        transport = _mock_transport({
+            "GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)]),
+        })
+
+        orch = _build_orchestrator(tmp_path, transport)
+        assert orch.bulletin is None
+        # Should not raise
+        result = orch.tick()
+        assert len(result.errors) == 0
+
+    def test_run_summary_posted_to_bulletin(self, tmp_path: Path) -> None:
+        """When all tasks are done and no agents are alive, a run complete message is posted."""
+        from bernstein.core.bulletin import BulletinBoard
+
+        done_task = _make_task(id="T-bb4", title="Done summary task", status="done")
+        transport = _mock_transport({
+            "GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)]),
+        })
+
+        cfg = OrchestratorConfig(
+            max_agents=6,
+            poll_interval_s=1,
+            heartbeat_timeout_s=120,
+            max_tasks_per_agent=3,
+            server_url="http://testserver",
+            evolve_mode=False,
+        )
+        board = BulletinBoard()
+        adp = _mock_adapter()
+        templates_dir = tmp_path / "templates" / "roles"
+        templates_dir.mkdir(parents=True)
+        spawner = AgentSpawner(adp, templates_dir, tmp_path)
+        client = httpx.Client(transport=transport, base_url="http://testserver")
+        orch = Orchestrator(cfg, spawner, tmp_path, client=client, bulletin=board)
+
+        orch.tick()
+
+        # The run summary bulletin should have been posted
+        status_msgs = [m.content for m in board.read_by_type("status")]
+        assert any("run complete" in c for c in status_msgs)

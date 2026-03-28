@@ -18,8 +18,9 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypedDict
 
 import httpx
 
+from bernstein.core.bulletin import BulletinBoard, BulletinMessage
 from bernstein.core.context import append_decision, refresh_knowledge_base
-from bernstein.core.evolution import EvolutionCoordinator
+from bernstein.core.evolution import EvolutionCoordinator, UpgradeStatus
 from bernstein.core.janitor import verify_task
 from bernstein.core.metrics import get_collector
 from bernstein.core.retrospective import generate_retrospective
@@ -337,10 +338,12 @@ class Orchestrator:
         client: httpx.Client | None = None,
         evolution: EvolutionCoordinator | None = None,
         router: TierAwareRouter | None = None,
+        bulletin: BulletinBoard | None = None,
     ) -> None:
         self._config = config
         self._spawner = spawner
         self._workdir = workdir
+        self._bulletin: BulletinBoard | None = bulletin
         self._client = client or httpx.Client(
             timeout=10.0,
             limits=httpx.Limits(max_connections=50, max_keepalive_connections=20),
@@ -378,10 +381,37 @@ class Orchestrator:
         else:
             self._evolution: EvolutionCoordinator | None = None
 
+        # Pre-initialize the global metrics collector with the correct path so
+        # subsequent calls to get_collector() (without args) write to the right
+        # directory regardless of cwd at call time.
+        get_collector(workdir / ".sdd" / "metrics")
+
     @property
     def active_agents(self) -> dict[str, AgentSession]:
         """Currently tracked agent sessions, keyed by session id."""
         return dict(self._agents)
+
+    @property
+    def bulletin(self) -> BulletinBoard | None:
+        """The bulletin board, if one was provided."""
+        return self._bulletin
+
+    def _post_bulletin(self, msg_type: str, content: str) -> None:
+        """Post a message to the bulletin board if one is configured.
+
+        Args:
+            msg_type: Message category (status, alert, finding, etc.).
+            content: Free-text message body.
+        """
+        if self._bulletin is None:
+            return
+        from typing import cast as _cast
+        from bernstein.core.bulletin import MessageType
+        self._bulletin.post(BulletinMessage(
+            agent_id="orchestrator",
+            type=_cast(MessageType, msg_type),
+            content=content,
+        ))
 
     # -- Core tick -----------------------------------------------------------
 
@@ -536,6 +566,7 @@ class Orchestrator:
             self._config.max_agents,
             self._config.server_url,
         )
+        self._post_bulletin("status", "run started")
         consecutive_failures = 0
         max_consecutive_failures = 10
         while self._running:
@@ -567,6 +598,7 @@ class Orchestrator:
                 self._restart()
                 return  # _restart calls os.execv, but just in case
 
+        self._post_bulletin("status", "run stopped")
         logger.info("Orchestrator stopped")
 
     def stop(self) -> None:
@@ -704,6 +736,12 @@ class Orchestrator:
             "consecutive_empty": evolve_cfg.get("_consecutive_empty", 0),
             "duration_s": round(now - cycle_start, 2),
         })
+
+        self._post_bulletin(
+            "status",
+            f"evolve cycle {cycle_number} complete: focus={focus}, "
+            f"completed={tasks_completed}, committed={committed}",
+        )
 
     _REPLENISH_COOLDOWN_S: float = 60.0
     _REPLENISH_MAX_TASKS: int = 5
@@ -1315,24 +1353,62 @@ class Orchestrator:
                     logger.error("Failed to retry/fail orphaned task %s: %s", task_id, exc)
                 error_type = "janitor_failed"
         else:
-            # No completion signals -- retry or fail the task
-            try:
-                self._retry_or_fail_task(
-                    task_id,
-                    f"Agent {session.id} died; no completion signals to verify",
-                )
-                logger.info(
-                    "Orphaned task %s retry/failed (no signals) after agent %s died",
-                    task_id, session.id,
-                )
-            except httpx.HTTPError as exc:
-                logger.error("Failed to retry/fail orphaned task %s: %s", task_id, exc)
-            error_type = "no_signals"
+            # No completion signals -- check if agent produced output (files modified)
+            completion_data = self._collect_completion_data(session)
+            files_changed = len(completion_data.get("files_modified", []))
+            if files_changed > 0:
+                # Agent did work but task had no signals — auto-complete
+                try:
+                    _complete_task(
+                        self._client, base, task_id,
+                        f"Auto-completed: agent {session.id} modified {files_changed} files (no signals to verify)",
+                    )
+                    success = True
+                    logger.info(
+                        "Orphaned task %s auto-completed (%d files modified, no signals) after agent %s died",
+                        task_id, files_changed, session.id,
+                    )
+                except httpx.HTTPError as exc:
+                    logger.error("Failed to complete orphaned task %s: %s", task_id, exc)
+                    error_type = "complete_failed"
+            else:
+                try:
+                    self._retry_or_fail_task(
+                        task_id,
+                        f"Agent {session.id} died; no completion signals and no files modified",
+                    )
+                    logger.info(
+                        "Orphaned task %s retry/failed (no signals, no output) after agent %s died",
+                        task_id, session.id,
+                    )
+                except httpx.HTTPError as exc:
+                    logger.error("Failed to retry/fail orphaned task %s: %s", task_id, exc)
+                error_type = "no_signals"
 
         self._emit_orphan_metrics(
             task_id, session, start_ts, success=success, error_type=error_type,
         )
         self._record_provider_health(session, success=success)
+
+        # Feed orphaned task outcome to the evolution coordinator so that
+        # failed/timed-out agent runs are visible to trend analysis.
+        if self._evolution is not None:
+            _now = time.time()
+            _duration = _now - start_ts
+            try:
+                self._evolution.record_task_completion(
+                    task=task,
+                    duration_seconds=round(_duration, 2),
+                    cost_usd=0.0,
+                    janitor_passed=success,
+                    model=session.model_config.model,
+                    provider=session.provider,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Evolution record_task_completion for orphan %s failed: %s",
+                    task_id, exc,
+                )
 
     def _emit_orphan_metrics(
         self,
@@ -1630,8 +1706,11 @@ class Orchestrator:
 
         if retry_count < max_retries:
             new_description = f"[retry:{retry_count + 1}] {base_description}"
-            task_body = {
-                "title": task.title,
+            # Escalate model on retry: sonnet→opus, effort→high
+            retry_model = "opus" if retry_count >= 1 else (task.model or "sonnet")
+            retry_effort = "high" if retry_count >= 1 else (task.effort or "high")
+            task_body: dict[str, Any] = {
+                "title": f"[RETRY {retry_count + 1}] {task.title}",
                 "description": new_description,
                 "role": task.role,
                 "priority": task.priority,
@@ -1641,7 +1720,15 @@ class Orchestrator:
                 "depends_on": task.depends_on,
                 "owned_files": task.owned_files,
                 "task_type": task.task_type.value,
+                "model": retry_model,
+                "effort": retry_effort,
             }
+            # Preserve completion signals on retry
+            if task.completion_signals:
+                task_body["completion_signals"] = [
+                    {"type": s.type, "value": s.value}
+                    for s in task.completion_signals
+                ]
             try:
                 self._client.post(f"{base}/tasks", json=task_body).raise_for_status()
                 logger.info(
@@ -1757,7 +1844,7 @@ class Orchestrator:
                     len(batch),
                     [t.id for t in batch],
                 )
-                collector = get_collector()
+                collector = get_collector(self._workdir / ".sdd" / "metrics")
                 collector.start_agent(
                     agent_id=session.id,
                     role=session.role,
@@ -1765,6 +1852,13 @@ class Orchestrator:
                     provider=session.provider or "default",
                     agent_source=session.agent_source,
                 )
+                for _task in batch:
+                    collector.start_task(
+                        task_id=_task.id,
+                        role=session.role,
+                        model=session.model_config.model,
+                        provider=session.provider or "default",
+                    )
                 logger.info(
                     "Agent '%s' using prompt source: %s",
                     session.id,
@@ -1773,7 +1867,7 @@ class Orchestrator:
             except (OSError, RuntimeError, ValueError) as exc:
                 logger.error("Spawn failed for batch %s: %s", [t.id for t in batch], exc)
                 result.errors.append(f"spawn: {exc}")
-                collector = get_collector()
+                collector = get_collector(self._workdir / ".sdd" / "metrics")
                 collector.record_error(
                     "agent_spawn_failed", "default", role=batch[0].role if batch else None
                 )
@@ -1836,12 +1930,62 @@ class Orchestrator:
                 janitor_passed = True
 
             session = self._find_session_for_task(task.id)
+            # Track whether this is the first time we're reaping this session so
+            # agent-lifetime metrics are recorded exactly once per agent even when
+            # an agent owns multiple tasks that all complete in the same tick.
+            _agent_just_reaped = session is not None and session.status != "dead"
             if session is not None:
                 self._record_provider_health(session, success=janitor_passed)
                 self._spawner.reap_completed_agent(session)
                 session.status = "dead"
                 logger.info(
                     "Agent %s finished task %s, process reaped", session.id, task.id
+                )
+
+            # Record task completion in the operational metrics collector so
+            # run summaries and evolution analysis see real duration/success data.
+            _collector = get_collector(self._workdir / ".sdd" / "metrics")
+            _task_m = _collector._task_metrics.get(task.id)
+            _cost_usd = _task_m.cost_usd if _task_m else 0.0
+            _collector.complete_task(task.id, success=janitor_passed, janitor_passed=janitor_passed, cost_usd=_cost_usd)
+            if session is not None:
+                # complete_agent_task must be called before end_agent so that
+                # end_agent() has non-zero task counts and writes the AGENT_SUCCESS
+                # metric to the JSONL file.
+                _collector.complete_agent_task(session.id, success=janitor_passed)
+                _collector.end_agent(session.id)
+                # Record agent lifetime to evolution collector (once per agent).
+                if self._evolution is not None and _agent_just_reaped:
+                    try:
+                        _agent_m = _collector._agent_metrics.get(session.id)
+                        _lifetime = round(
+                            (time.time() - session.spawn_ts)
+                            if session.spawn_ts > 0 else 0.0,
+                            2,
+                        )
+                        _tasks_done = _agent_m.tasks_completed if _agent_m else 0
+                        self._evolution.record_agent_lifetime(
+                            agent_id=session.id,
+                            role=session.role,
+                            lifetime_seconds=_lifetime,
+                            tasks_completed=_tasks_done,
+                            model=session.model_config.model,
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "Evolution record_agent_lifetime failed: %s", exc
+                        )
+
+            # Post bulletin: task completed or failed (with janitor result)
+            if janitor_passed:
+                self._post_bulletin(
+                    "status",
+                    f"task completed: {task.title} ({task.id})",
+                )
+            else:
+                self._post_bulletin(
+                    "alert",
+                    f"task failed janitor: {task.title} ({task.id})",
                 )
 
             self._sync_backlog_file(task)
@@ -1857,12 +2001,16 @@ class Orchestrator:
             if self._evolution is not None:
                 model = session.model_config.model if session else None
                 provider = session.provider if session else None
-                duration = time.time() - session.spawn_ts if session and session.spawn_ts > 0 else 0.0
+                duration = (
+                    (_task_m.end_time - _task_m.start_time)
+                    if _task_m and _task_m.end_time
+                    else (time.time() - session.spawn_ts if session and session.spawn_ts > 0 else 0.0)
+                )
                 try:
                     self._evolution.record_task_completion(
                         task=task,
                         duration_seconds=round(duration, 2),
-                        cost_usd=0.0,
+                        cost_usd=_cost_usd,
                         janitor_passed=janitor_passed,
                         model=model,
                         provider=provider,
@@ -1896,6 +2044,18 @@ class Orchestrator:
                 self._spawner.kill(session)
                 result.reaped.append(session.id)
                 self._release_file_ownership(session.id)
+                # Record agent end metrics (mirrors the heartbeat-timeout branch)
+                collector.end_agent(session.id)
+                # Record agent lifetime in evolution collector (wall-clock reap)
+                if self._evolution is not None:
+                    with contextlib.suppress(Exception):
+                        self._evolution.record_agent_lifetime(
+                            agent_id=session.id,
+                            role=session.role,
+                            lifetime_seconds=round(runtime, 2),
+                            tasks_completed=0,
+                            model=session.model_config.model,
+                        )
                 for task_id in session.task_ids:
                     self._handle_orphaned_task(task_id, session, tasks_snapshot)
                 continue
@@ -1914,6 +2074,16 @@ class Orchestrator:
                 self._release_file_ownership(session.id)
                 # Record agent end metrics
                 collector.end_agent(session.id)
+                # Record agent lifetime in evolution collector (heartbeat reap)
+                if self._evolution is not None:
+                    with contextlib.suppress(Exception):
+                        self._evolution.record_agent_lifetime(
+                            agent_id=session.id,
+                            role=session.role,
+                            lifetime_seconds=round(now - session.spawn_ts, 2),
+                            tasks_completed=0,
+                            model=session.model_config.model,
+                        )
                 # Record provider health failure for reaped agent
                 self._record_provider_health(session, success=False)
                 # Retry or fail their tasks
@@ -2098,6 +2268,12 @@ class Orchestrator:
         summary_path.write_text("\n".join(lines))
         self._summary_written = True
         logger.info("Run complete. Summary at .sdd/runtime/summary.md")
+
+        self._post_bulletin(
+            "status",
+            f"run complete: {total_completed} tasks done, {total_failed} failed, "
+            f"${total_cost:.4f} spent, {duration_str} elapsed",
+        )
 
         generate_retrospective(
             done_tasks=done_tasks,

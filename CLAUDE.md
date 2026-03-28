@@ -30,6 +30,11 @@ You are working on Bernstein, a multi-agent orchestration system for CLI coding 
 This project develops itself. Run `bernstein run` in this directory to spawn
 agents that read the codebase, plan improvements, and execute them.
 
+## Git rules
+- Default branch is `main`. NEVER push to or create a branch called `master`.
+- When pushing, always use `main`: `git push origin main`
+- PRs target `main` as base branch
+
 ## Coding standards
 - Python 3.12+, strict typing (Pyright strict)
 - Ruff for linting, pytest for tests

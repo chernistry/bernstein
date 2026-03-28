@@ -15,7 +15,7 @@ import uuid
 from contextlib import asynccontextmanager
 from dataclasses import asdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -34,6 +34,54 @@ from bernstein.core.models import (
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
+
+# ---------------------------------------------------------------------------
+# TypedDicts for file-based state records
+# ---------------------------------------------------------------------------
+
+
+class TaskRecord(TypedDict):
+    """JSONL record format for persisted tasks."""
+
+    id: str
+    title: str
+    description: str
+    role: str
+    priority: int
+    scope: str
+    complexity: str
+    estimated_minutes: int
+    status: str
+    task_type: str
+    upgrade_details: dict[str, Any] | None
+    depends_on: list[str]
+    owned_files: list[str]
+    assigned_agent: str | None
+    result_summary: str | None
+    cell_id: str | None
+
+
+class ArchiveRecord(TypedDict):
+    """Archive JSONL entry written when a task reaches a terminal state."""
+
+    task_id: str
+    title: str
+    role: str
+    status: str
+    created_at: float
+    completed_at: float
+    duration_seconds: float
+    result_summary: str | None
+    cost_usd: float | None
+
+
+class ProgressEntry(TypedDict):
+    """Single entry in a task's progress_log."""
+
+    timestamp: float
+    message: str
+    percent: int
+
 
 # ---------------------------------------------------------------------------
 # Pydantic request / response schemas
@@ -92,7 +140,7 @@ class TaskResponse(BaseModel):
     effort: str | None
     completion_signals: list[dict[str, str]] = Field(default_factory=list)
     created_at: float
-    progress_log: list[dict[str, Any]] = Field(default_factory=list)
+    progress_log: list[ProgressEntry] = Field(default_factory=list)
 
 
 class TaskCompleteRequest(BaseModel):
@@ -278,7 +326,7 @@ class TaskStore:
             if not line:
                 continue
             try:
-                record: dict[str, Any] = json.loads(line)
+                record: TaskRecord = json.loads(line)
             except json.JSONDecodeError:
                 continue
             task_id: str = record.get("id", "")
@@ -292,30 +340,11 @@ class TaskStore:
                 task.result_summary = record.get("result_summary", task.result_summary)
                 self._index_add(task)
             else:
-                from bernstein.core.models import Complexity, Scope
-
-                task = Task(
-                    id=task_id,
-                    title=record.get("title", ""),
-                    description=record.get("description", ""),
-                    role=record.get("role", ""),
-                    priority=record.get("priority", 2),
-                    scope=Scope(record.get("scope", "medium")),
-                    complexity=Complexity(record.get("complexity", "medium")),
-                    estimated_minutes=record.get("estimated_minutes", 30),
-                    status=TaskStatus(record.get("status", "open")),
-                    task_type=TaskType(record.get("task_type", "standard")),
-                    upgrade_details=_parse_upgrade_dict(record.get("upgrade_details")),
-                    depends_on=record.get("depends_on", []),
-                    owned_files=record.get("owned_files", []),
-                    assigned_agent=record.get("assigned_agent"),
-                    result_summary=record.get("result_summary"),
-                    cell_id=record.get("cell_id"),
-                )
+                task = Task.from_dict(record)
                 self._tasks[task_id] = task
                 self._index_add(task)
 
-    async def _append_jsonl(self, record: dict[str, Any]) -> None:
+    async def _append_jsonl(self, record: TaskRecord) -> None:
         """Append a single JSON record to the JSONL log."""
         self._jsonl_path.parent.mkdir(parents=True, exist_ok=True)
         line = json.dumps(record, default=str) + "\n"
@@ -329,7 +358,7 @@ class TaskStore:
     async def _append_archive(self, task: Task, completed_at: float) -> None:
         """Append a completed/failed task record to the archive JSONL."""
         self._archive_path.parent.mkdir(parents=True, exist_ok=True)
-        record: dict[str, Any] = {
+        record: ArchiveRecord = {
             "task_id": task.id,
             "title": task.title,
             "role": task.role,
@@ -348,7 +377,7 @@ class TaskStore:
 
         await asyncio.to_thread(_write)
 
-    def _task_to_record(self, task: Task) -> dict[str, Any]:
+    def _task_to_record(self, task: Task) -> TaskRecord:
         """Serialise a Task to a dict suitable for JSONL storage."""
         return {
             "id": task.id,
@@ -613,7 +642,8 @@ class TaskStore:
             task = self._tasks.get(task_id)
             if task is None:
                 raise KeyError(task_id)
-            task.progress_log.append({"timestamp": time.time(), "message": message, "percent": percent})
+            entry: ProgressEntry = {"timestamp": time.time(), "message": message, "percent": percent}
+            task.progress_log.append(entry)
             return task
 
     async def cancel(self, task_id: str, reason: str) -> Task:
@@ -805,7 +835,7 @@ class TaskStore:
             total_cost_usd=total_cost_usd,
         )
 
-    def read_archive(self, limit: int = 50) -> list[dict[str, Any]]:
+    def read_archive(self, limit: int = 50) -> list[ArchiveRecord]:
         """Return the last *limit* records from the archive JSONL.
 
         Uses reverse file seeking (tail-style) so only O(limit) bytes are
@@ -853,7 +883,7 @@ class TaskStore:
 
         # raw_lines is newest-first; take up to limit, then reverse to oldest-first.
         tail = raw_lines[:limit] if limit > 0 else raw_lines
-        records: list[dict[str, Any]] = []
+        records: list[ArchiveRecord] = []
         for raw in reversed(tail):
             try:
                 records.append(json.loads(raw))
@@ -1047,8 +1077,8 @@ def create_app(
         """List all tasks, optionally filtered by status and/or cell_id."""
         return [_task_to_response(t) for t in store.list_tasks(status, cell_id)]
 
-    @application.get("/tasks/archive", response_model=list[dict[str, Any]])
-    async def get_archive(limit: int = 50) -> list[dict[str, Any]]:
+    @application.get("/tasks/archive", response_model=list[ArchiveRecord])
+    async def get_archive(limit: int = 50) -> list[ArchiveRecord]:
         """Return the last N archived (done/failed) task records."""
         return store.read_archive(limit=limit)
 

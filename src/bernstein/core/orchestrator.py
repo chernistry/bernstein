@@ -2107,6 +2107,7 @@ if __name__ == "__main__":
             catalog=catalog_registry,
             use_worktrees=seed.worktree_setup is not None if seed else False,
             worktree_setup_config=seed.worktree_setup if seed else None,
+            enable_caching=True,
         )
         budget_usd = 0.0
         dry_run = False

@@ -349,7 +349,12 @@ class AgentSpawner:
         worktree_setup_config: WorktreeSetupConfig | None = None,
         workspace: Workspace | None = None,
         bulletin: BulletinBoard | None = None,
+        enable_caching: bool = False,
     ) -> None:
+        if enable_caching:
+            from bernstein.adapters.caching_adapter import CachingAdapter
+
+            adapter = CachingAdapter(adapter, workdir)
         self._adapter = adapter
         self._templates_dir = templates_dir
         self._workdir = workdir

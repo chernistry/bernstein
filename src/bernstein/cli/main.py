@@ -930,11 +930,12 @@ cli.add_command(list_tasks, "list-tasks")
 
 
 # ---------------------------------------------------------------------------
-# live — module-level display helpers (extracted for testability)
+# live — legacy display helpers (kept for test backward compatibility,
+# superseded by bernstein.cli.live.LiveView)
 # ---------------------------------------------------------------------------
 
 
-def _build_agents_table(agents: list[dict[str, Any]]) -> Table:
+def _build_agents_table(agents: list[dict[str, Any]]) -> Table:  # pyright: ignore[reportUnusedFunction]
     """Build a Rich Table showing active agents."""
     from rich.table import Table
 
@@ -968,7 +969,7 @@ def _build_agents_table(agents: list[dict[str, Any]]) -> Table:
     return table
 
 
-def _build_events_table(tasks: list[dict[str, Any]]) -> Table:
+def _build_events_table(tasks: list[dict[str, Any]]) -> Table:  # pyright: ignore[reportUnusedFunction]
     """Build a Rich Table showing tasks."""
     from rich.table import Table
 
@@ -994,7 +995,7 @@ def _build_events_table(tasks: list[dict[str, Any]]) -> Table:
     return table
 
 
-def _build_stats_bar(summary: dict[str, Any]) -> Text:
+def _build_stats_bar(summary: dict[str, Any]) -> Text:  # pyright: ignore[reportUnusedFunction]
     """Build a Rich Text stats bar from a summary dict."""
     from rich.text import Text
 
@@ -1050,78 +1051,16 @@ def live(interval: float, classic: bool) -> None:
         app.run()
         return
 
-    # -- classic Rich Live display (kept for fallback) --
-    from rich.layout import Layout
-    from rich.live import Live
-    from rich.panel import Panel
+    # -- classic Rich Live display using the LiveView module --
+    from bernstein.cli.live import LiveView
 
     print_banner()
 
-    def _fetch_dashboard() -> dict[str, Any]:
-        """Fetch all data needed for the live dashboard."""
-        status_data = server_get("/status")
-        if status_data is None:
-            return {}
-        tasks_raw = server_get("/tasks")
-        tasks: list[dict[str, Any]] = cast("list[dict[str, Any]]", tasks_raw) if isinstance(tasks_raw, list) else []
-
-        # Read agent state from orchestrator's agents.json (written each tick)
-        agents: list[dict[str, Any]] = []
-        agents_json = Path(".sdd/runtime/agents.json")
-        if agents_json.exists():
-            try:
-                import json as _json
-
-                data = _json.loads(agents_json.read_text())
-                agents = [a for a in data.get("agents", []) if a.get("status") != "dead"]
-            except (OSError, ValueError):
-                pass
-
-        elapsed = time.time() - _live_start_ts
-
-        return {
-            "agents": agents,
-            "tasks": tasks,
-            "summary": {
-                "total": status_data.get("total", 0),
-                "done": status_data.get("done", 0),
-                "in_progress": status_data.get("claimed", 0),
-                "failed": status_data.get("failed", 0),
-                "elapsed_seconds": elapsed,
-            },
-        }
-
-    _live_start_ts = time.time()
-    data: dict[str, Any] = {}
-
-    def _render() -> Layout:
-        layout = Layout()
-        layout.split_column(
-            Layout(name="agents", ratio=3),
-            Layout(name="events", ratio=4),
-            Layout(name="stats", size=3),
-        )
-        agents = data.get("agents", [])
-        tasks = data.get("tasks", [])
-        summary = data.get("summary", {})
-        layout["agents"].update(_build_agents_table(agents))
-        layout["events"].update(_build_events_table(tasks))
-        layout["stats"].update(Panel(_build_stats_bar(summary), border_style="blue"))
-        return layout
-
-    try:
-        with Live(_render(), refresh_per_second=4, screen=True) as live_display:
-            while True:
-                data = _fetch_dashboard()
-                tasks_list: list[dict[str, Any]] = data.get("tasks", [])
-                new_map: dict[str, str] = {}
-                for t in tasks_list:
-                    new_map[t.get("id", "")] = t.get("status", "open")
-                live_display.update(_render())
-                time.sleep(interval)
-    except KeyboardInterrupt:
-        pass
-    console.print("\n[dim]Live display stopped.[/dim]")
+    view = LiveView(
+        server_url=SERVER_URL,
+        interval=interval,
+    )
+    view.run()
 
 
 # ---------------------------------------------------------------------------

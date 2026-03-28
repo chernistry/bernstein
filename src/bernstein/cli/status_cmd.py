@@ -12,12 +12,13 @@ from typing import Any
 import click
 
 from bernstein.cli.helpers import (
-    STATUS_COLORS,
     console,
     is_process_alive,
     print_banner,
     server_get,
 )
+from bernstein.cli.status import render_status
+from bernstein.cli.ui import make_console
 
 # ---------------------------------------------------------------------------
 # status
@@ -26,7 +27,8 @@ from bernstein.cli.helpers import (
 
 @click.command("score", hidden=True)
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
-def status(as_json: bool) -> None:
+@click.option("--no-color", "no_color", is_flag=True, default=False, help="Disable colour output.")
+def status(as_json: bool, no_color: bool) -> None:
     """Task summary, active agents, cost estimate.
 
     \b
@@ -49,126 +51,11 @@ def status(as_json: bool) -> None:
 
     print_banner()
 
-    # ---- Task table ----
-    from rich.table import Table
+    # Detect non-TTY (piped output) or explicit --no-color
+    force_no_color = no_color or not sys.stdout.isatty()
+    con = make_console(no_color=force_no_color)
 
-    tasks: list[dict[str, Any]] = data.get("tasks", [])
-    task_table = Table(title="Tasks", show_lines=False, header_style="bold cyan")
-    task_table.add_column("ID", style="dim", min_width=10)
-    task_table.add_column("Title", min_width=30)
-    task_table.add_column("Role", min_width=10)
-    task_table.add_column("Status", min_width=14)
-    task_table.add_column("Priority", justify="right")
-    task_table.add_column("Agent", min_width=12)
-
-    for t in tasks:
-        raw_status = t.get("status", "open")
-        color = STATUS_COLORS.get(raw_status, "white")
-        task_table.add_row(
-            t.get("id", "—"),
-            t.get("title", "—"),
-            t.get("role", "—"),
-            f"[{color}]{raw_status}[/{color}]",
-            str(t.get("priority", 2)),
-            t.get("assigned_agent") or "[dim]—[/dim]",
-        )
-
-    console.print(task_table)
-
-    # ---- Agent table ----
-    agents: list[dict[str, Any]] = data.get("agents", [])
-    if agents:
-        agent_table = Table(title="Active Agents", show_lines=False, header_style="bold cyan")
-        agent_table.add_column("ID", style="dim", min_width=12)
-        agent_table.add_column("Role", min_width=10)
-        agent_table.add_column("Status", min_width=10)
-        agent_table.add_column("Model", min_width=10)
-        agent_table.add_column("Tasks")
-
-        for a in agents:
-            raw_astatus = a.get("status", "idle")
-            acolor = "yellow" if raw_astatus == "working" else "dim"
-            agent_table.add_row(
-                a.get("id", "—"),
-                a.get("role", "—"),
-                f"[{acolor}]{raw_astatus}[/{acolor}]",
-                a.get("model", "—"),
-                str(len(a.get("task_ids", []))),
-            )
-        console.print(agent_table)
-    else:
-        console.print("[dim]No active agents.[/dim]")
-
-    # ---- Summary stats ----
-    summary: dict[str, Any] = data.get("summary", {})
-    total = summary.get("total", len(tasks))
-    done = summary.get("done", sum(1 for t in tasks if t.get("status") == "done"))
-    in_prog = summary.get("in_progress", sum(1 for t in tasks if t.get("status") == "in_progress"))
-    failed = summary.get("failed", sum(1 for t in tasks if t.get("status") == "failed"))
-
-    console.print(
-        f"\n[bold]Tasks:[/bold] {total} total  "
-        f"[green]{done} done[/green]  "
-        f"[yellow]{in_prog} in progress[/yellow]  "
-        f"[red]{failed} failed[/red]"
-    )
-
-    elapsed_s: int | None = data.get("elapsed_seconds")
-    if elapsed_s is not None:
-        minutes, secs = divmod(elapsed_s, 60)
-        console.print(f"[bold]Elapsed:[/bold] {minutes}m {secs}s")
-
-    # ---- Cost section ----
-    total_cost_usd: float = data.get("total_cost_usd", 0.0)
-    per_role: list[dict[str, Any]] = data.get("per_role", [])
-    roles_with_cost = [r for r in per_role if r.get("cost_usd", 0.0) > 0.0]
-    if total_cost_usd > 0.0 or roles_with_cost:
-        console.print(f"\n[bold]Total spend:[/bold] [green]${total_cost_usd:.4f}[/green]")
-        if roles_with_cost:
-            cost_table = Table(title="Cost by Role", show_lines=False, header_style="bold cyan")
-            cost_table.add_column("Role", min_width=12)
-            cost_table.add_column("Tasks", justify="right")
-            cost_table.add_column("Cost", justify="right")
-            for r in sorted(roles_with_cost, key=lambda x: x.get("cost_usd", 0.0), reverse=True):
-                role_tasks = r.get("done", 0) + r.get("failed", 0) + r.get("claimed", 0) + r.get("open", 0)
-                cost_table.add_row(
-                    r.get("role", "—"),
-                    str(role_tasks),
-                    f"${r.get('cost_usd', 0.0):.4f}",
-                )
-            console.print(cost_table)
-
-    # ---- Cluster section (only shown when nodes are registered) ----
-    cluster = server_get("/cluster/status")
-    if cluster and cluster.get("total_nodes", 0) > 0:
-        node_table = Table(title="Cluster Nodes", show_lines=False, header_style="bold cyan")
-        node_table.add_column("ID", style="dim", min_width=12)
-        node_table.add_column("Name", min_width=12)
-        node_table.add_column("Status", min_width=10)
-        node_table.add_column("Slots", justify="right")
-        node_table.add_column("Active", justify="right")
-        node_table.add_column("URL", min_width=20)
-
-        for n in cluster.get("nodes", []):
-            raw_nstatus = n.get("status", "offline")
-            ncolor = "green" if raw_nstatus == "online" else ("yellow" if raw_nstatus == "degraded" else "red")
-            cap = n.get("capacity", {})
-            node_table.add_row(
-                n.get("id", "—")[:12],
-                n.get("name", "—"),
-                f"[{ncolor}]{raw_nstatus}[/{ncolor}]",
-                str(cap.get("available_slots", "—")),
-                str(cap.get("active_agents", "—")),
-                n.get("url", "—") or "[dim]—[/dim]",
-            )
-
-        console.print(node_table)
-        console.print(
-            f"[bold]Cluster:[/bold] {cluster.get('topology', '?')}  "
-            f"[green]{cluster.get('online_nodes', 0)} online[/green]  "
-            f"{cluster.get('offline_nodes', 0)} offline  "
-            f"[bold]{cluster.get('available_slots', 0)} slots available[/bold]"
-        )
+    render_status(data, console=con)
 
 
 # ---------------------------------------------------------------------------

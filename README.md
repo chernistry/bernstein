@@ -20,6 +20,8 @@
 [![Tests](https://img.shields.io/badge/tests-2056-2ea44f)]()
 [![License](https://img.shields.io/badge/license-PolyForm_NC-f89820)](LICENSE)
 
+[Homepage](https://alexchernysh.com/bernstein) | [Documentation](https://chernistry.github.io/bernstein/)
+
 </div>
 
 ---

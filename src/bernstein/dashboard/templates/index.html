@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bernstein Dashboard</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg: '#0d1117',
+            surface: '#161b22',
+            border: '#30363d',
+            text: '#c9d1d9',
+            muted: '#8b949e',
+            accent: '#58a6ff',
+          },
+          fontFamily: {
+            mono: ['JetBrains Mono', 'Fira Code', 'SF Mono', 'Menlo', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #0d1117; color: #c9d1d9; }
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .pulse-dot { animation: pulse-green 2s ease-in-out infinite; }
+    /* Sortable column headers */
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { color: #58a6ff; }
+    th.sortable::after { content: ' \2195'; opacity: 0.3; font-size: 0.75em; }
+    th.sortable.asc::after { content: ' \2191'; opacity: 0.8; }
+    th.sortable.desc::after { content: ' \2193'; opacity: 0.8; }
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #161b22; }
+    ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #484f58; }
+  </style>
+</head>
+<body class="min-h-screen font-sans antialiased" x-data="dashboard()">
+
+  <!-- Header -->
+  <header class="bg-surface border-b border-border px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none" class="shrink-0">
+        <rect width="32" height="32" rx="6" fill="#58a6ff" fill-opacity="0.15"/>
+        <path d="M8 24V10l8-4 8 4v14l-8 4-8-4z" stroke="#58a6ff" stroke-width="1.5" fill="none"/>
+        <path d="M16 6v22M8 10l8 4 8-4" stroke="#58a6ff" stroke-width="1.5" fill="none"/>
+      </svg>
+      <div>
+        <h1 class="text-lg font-semibold text-text">Bernstein</h1>
+        <p class="text-xs text-muted">Agent Orchestra</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2 text-sm">
+        <span class="inline-block w-2 h-2 rounded-full"
+              :class="connected ? 'bg-green-500 pulse-dot' : 'bg-red-500'"></span>
+        <span class="text-muted" x-text="connected ? 'Connected' : 'Disconnected'"></span>
+      </div>
+      <div class="text-sm font-mono text-muted">
+        <span x-text="elapsedFormatted"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats Bar -->
+  <div id="stats-bar"
+       hx-get="/dashboard/data"
+       hx-trigger="load, every 3s"
+       hx-select="#stats-inner"
+       hx-target="#stats-inner"
+       hx-swap="outerHTML">
+    <div id="stats-inner" class="bg-surface border-b border-border px-6 py-3">
+      <div class="flex items-center gap-6 flex-wrap">
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-muted uppercase tracking-wider">Total</span>
+          <span class="text-lg font-semibold font-mono text-text" id="stat-total">0</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+          <span class="text-xs text-muted">Done</span>
+          <span class="text-lg font-semibold font-mono text-green-400" id="stat-done">0</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-yellow-500"></span>
+          <span class="text-xs text-muted">In Progress</span>
+          <span class="text-lg font-semibold font-mono text-yellow-400" id="stat-claimed">0</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-red-500"></span>
+          <span class="text-xs text-muted">Failed</span>
+          <span class="text-lg font-semibold font-mono text-red-400" id="stat-failed">0</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full bg-white"></span>
+          <span class="text-xs text-muted">Open</span>
+          <span class="text-lg font-semibold font-mono text-white" id="stat-open">0</span>
+        </div>
+        <div class="border-l border-border h-6 mx-2"></div>
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span class="text-xs text-muted">Agents</span>
+          <span class="text-lg font-semibold font-mono text-accent" id="stat-agents">0</span>
+        </div>
+        <div class="border-l border-border h-6 mx-2"></div>
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span class="text-xs text-muted">Cost</span>
+          <span class="text-lg font-semibold font-mono text-green-400" id="stat-cost">$0.00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="flex flex-col lg:flex-row gap-0 min-h-[calc(100vh-120px)]">
+
+    <!-- Task Board (main) -->
+    <div class="flex-1 p-6 overflow-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider">Task Board</h2>
+        <span class="text-xs text-muted" id="task-count-label"></span>
+      </div>
+      <div id="task-table-wrap"
+           hx-get="/dashboard/data"
+           hx-trigger="load, every 3s"
+           hx-select="#task-table-content"
+           hx-target="#task-table-content"
+           hx-swap="outerHTML">
+        <div class="overflow-x-auto rounded-lg border border-border">
+          <table class="w-full text-sm" id="task-board">
+            <thead class="bg-surface">
+              <tr class="border-b border-border">
+                <th class="sortable px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider" data-col="id">ID</th>
+                <th class="sortable px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider" data-col="title">Title</th>
+                <th class="sortable px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider" data-col="role">Role</th>
+                <th class="sortable px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider" data-col="status">Status</th>
+                <th class="sortable px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider" data-col="priority">Priority</th>
+                <th class="sortable px-4 py-3 text-left text-xs font-medium text-muted uppercase tracking-wider" data-col="agent">Agent</th>
+              </tr>
+            </thead>
+            <tbody id="task-table-content" class="divide-y divide-border">
+              <tr><td colspan="6" class="px-4 py-8 text-center text-muted">Loading tasks...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <div class="w-full lg:w-80 border-l border-border bg-surface p-6 space-y-6 overflow-auto">
+
+      <!-- Active Agents -->
+      <div>
+        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-3">Active Agents</h2>
+        <div id="agents-panel"
+             hx-get="/dashboard/data"
+             hx-trigger="load, every 3s"
+             hx-select="#agents-content"
+             hx-target="#agents-content"
+             hx-swap="outerHTML">
+          <div id="agents-content" class="space-y-3">
+            <p class="text-sm text-muted">No active agents</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cost Breakdown -->
+      <div>
+        <h2 class="text-sm font-semibold text-muted uppercase tracking-wider mb-3">Cost Breakdown</h2>
+        <div id="cost-panel"
+             hx-get="/dashboard/data"
+             hx-trigger="load, every 3s"
+             hx-select="#cost-content"
+             hx-target="#cost-content"
+             hx-swap="outerHTML">
+          <div id="cost-content" class="space-y-2">
+            <p class="text-sm text-muted">No cost data</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Alpine.js dashboard component — SSE connection + elapsed timer
+    function dashboard() {
+      return {
+        connected: false,
+        startTime: Date.now(),
+        elapsed: 0,
+        elapsedFormatted: '00:00:00',
+        eventSource: null,
+
+        init() {
+          this.connectSSE();
+          this.startTimer();
+        },
+
+        connectSSE() {
+          try {
+            this.eventSource = new EventSource('/events');
+            this.eventSource.onopen = () => { this.connected = true; };
+            this.eventSource.onerror = () => {
+              this.connected = false;
+              // Reconnect after 5s
+              setTimeout(() => this.connectSSE(), 5000);
+            };
+            this.eventSource.addEventListener('heartbeat', () => {
+              this.connected = true;
+            });
+            this.eventSource.addEventListener('task_update', () => {
+              // Trigger HTMX refresh on task updates
+              htmx.trigger(document.body, 'sse-refresh');
+            });
+            this.eventSource.addEventListener('agent_update', () => {
+              htmx.trigger(document.body, 'sse-refresh');
+            });
+          } catch (e) {
+            this.connected = false;
+            setTimeout(() => this.connectSSE(), 5000);
+          }
+        },
+
+        startTimer() {
+          setInterval(() => {
+            this.elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+            const h = String(Math.floor(this.elapsed / 3600)).padStart(2, '0');
+            const m = String(Math.floor((this.elapsed % 3600) / 60)).padStart(2, '0');
+            const s = String(this.elapsed % 60).padStart(2, '0');
+            this.elapsedFormatted = `${h}:${m}:${s}`;
+          }, 1000);
+        }
+      };
+    }
+
+    // Client-side column sorting
+    document.addEventListener('click', function(e) {
+      const th = e.target.closest('th.sortable');
+      if (!th) return;
+      const col = th.dataset.col;
+      const table = th.closest('table');
+      const tbody = table.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr[data-task-id]'));
+      if (rows.length === 0) return;
+
+      // Toggle sort direction
+      const wasAsc = th.classList.contains('asc');
+      table.querySelectorAll('th.sortable').forEach(h => h.classList.remove('asc', 'desc'));
+      th.classList.add(wasAsc ? 'desc' : 'asc');
+      const dir = wasAsc ? -1 : 1;
+
+      rows.sort((a, b) => {
+        const aVal = (a.dataset[col] || '').toLowerCase();
+        const bVal = (b.dataset[col] || '').toLowerCase();
+        // Try numeric sort for priority
+        const aNum = parseFloat(aVal);
+        const bNum = parseFloat(bVal);
+        if (!isNaN(aNum) && !isNaN(bNum)) return (aNum - bNum) * dir;
+        return aVal.localeCompare(bVal) * dir;
+      });
+
+      rows.forEach(row => tbody.appendChild(row));
+    });
+  </script>
+</body>
+</html>

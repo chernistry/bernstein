@@ -226,6 +226,12 @@ class _RichGroup(click.Group):
     def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         _print_rich_help()
 
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        """Intercept ``--help-all`` so it works as both option and subcommand."""
+        if "--help-all" in args:
+            args = ["help-all"]
+        return super().parse_args(ctx, args)
+
 
 @click.group(cls=_RichGroup, invoke_without_command=True)
 @click.version_option(package_name="bernstein")
@@ -449,7 +455,9 @@ cli.add_command(init, "init")
 cli.add_command(run, "run")
 cli.add_command(start, "start")
 cli.add_command(status, "status")
-cli.add_command(stop, "rest")
+# Musical alias: "rest" = stop (hidden to avoid clutter)
+_rest = click.Command("rest", callback=stop.callback, params=stop.params, hidden=True, help=stop.help)
+cli.add_command(_rest)
 
 
 # ---------------------------------------------------------------------------

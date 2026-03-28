@@ -1,4 +1,5 @@
 """Tests for the Orchestrator — httpx calls and spawner are always mocked."""
+
 from __future__ import annotations
 
 import json
@@ -116,6 +117,7 @@ def _mock_transport(responses: dict[str, httpx.Response]) -> httpx.MockTransport
                    do not need to be rewritten when the orchestrator switches to a
                    single bulk fetch.
     """
+
     def handler(request: httpx.Request) -> httpx.Response:
         url = request.url
         key = f"{request.method} {url.path}"
@@ -140,9 +142,7 @@ def _mock_transport(responses: dict[str, httpx.Response]) -> httpx.MockTransport
             for resp_key, resp in responses.items():
                 if resp_key.startswith("GET /tasks?status=") and resp.status_code == 200:
                     aggregated.extend(resp.json())
-            if aggregated or any(
-                k.startswith("GET /tasks?status=") for k in responses
-            ):
+            if aggregated or any(k.startswith("GET /tasks?status=") for k in responses):
                 return httpx.Response(200, json=aggregated)
         return httpx.Response(404, json={"detail": f"No mock for {key}"})
 
@@ -317,9 +317,11 @@ class TestGroupByRole:
 class TestOrchestratorTick:
     def test_spawns_agent_for_open_tasks(self, tmp_path: Path) -> None:
         tasks = [_make_task(id="T-1"), _make_task(id="T-2")]
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(t) for t in tasks]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(t) for t in tasks]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
 
         result = orch.tick()
@@ -338,9 +340,11 @@ class TestOrchestratorTick:
             _make_task(id="T-5", role="devops"),
             _make_task(id="T-6", role="devops"),
         ]
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(t) for t in tasks]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(t) for t in tasks]),
+            }
+        )
         config = OrchestratorConfig(
             max_agents=2,
             poll_interval_s=1,
@@ -353,9 +357,11 @@ class TestOrchestratorTick:
         assert len(result.spawned) == 2  # capped at max_agents
 
     def test_no_spawn_when_no_open_tasks(self, tmp_path: Path) -> None:
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
 
         result = orch.tick()
@@ -370,11 +376,11 @@ class TestOrchestratorTick:
         task_b.depends_on = ["T-A"]
 
         # Tick 1: A is open, B depends on A — only A should be scheduled
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(
-                200, json=[_task_as_dict(task_a), _task_as_dict(task_b)]
-            ),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(task_a), _task_as_dict(task_b)]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
 
         result = orch.tick()
@@ -392,9 +398,11 @@ class TestOrchestratorTick:
         task_b.depends_on = ["T-A"]
         task_a_done = _make_task(id="T-A", role="backend", status="done")
 
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(task_b), _task_as_dict(task_a_done)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(task_b), _task_as_dict(task_a_done)]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
 
         result = orch.tick()
@@ -405,9 +413,11 @@ class TestOrchestratorTick:
         assert "T-B" in spawned_task_ids
 
     def test_handles_server_error_on_fetch(self, tmp_path: Path) -> None:
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(500, text="Internal error"),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(500, text="Internal error"),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
 
         result = orch.tick()
@@ -423,6 +433,7 @@ class TestOrchestratorTick:
         # This approach is agnostic to how many GET /tasks requests the orchestrator
         # makes per tick (works with both 1 bulk request and N per-status requests).
         phase = [1]  # mutable container to avoid nonlocal in nested fn
+
         def handler(request: httpx.Request) -> httpx.Response:
             url = request.url
             if request.method == "POST" and url.path == "/tasks/T-1/claim":
@@ -448,9 +459,11 @@ class TestOrchestratorTick:
         assert len(orch.active_agents) == 2
 
     def test_writes_log_file(self, tmp_path: Path) -> None:
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
 
         orch.tick()
@@ -463,9 +476,11 @@ class TestOrchestratorTick:
 
     def test_spawn_failure_records_error(self, tmp_path: Path) -> None:
         tasks = [_make_task(id="T-1")]
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(t) for t in tasks]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(t) for t in tasks]),
+            }
+        )
         adapter = _mock_adapter()
         adapter.spawn.side_effect = RuntimeError("process failed to start")
         orch = _build_orchestrator(tmp_path, transport, adapter=adapter)
@@ -478,24 +493,12 @@ class TestOrchestratorTick:
 
     def test_tick_skips_spawning_when_budget_exceeded(self, tmp_path: Path) -> None:
         """tick() must not spawn agents when cumulative cost has reached the budget cap."""
-        # Simulate $0.10 already spent by writing a cost_efficiency metrics file
-        metrics_dir = tmp_path / ".sdd" / "metrics"
-        metrics_dir.mkdir(parents=True)
-        today = time.strftime("%Y-%m-%d")
-        cost_file = metrics_dir / f"cost_efficiency_{today}.jsonl"
-        cost_file.write_text(
-            json.dumps({
-                "timestamp": time.time(),
-                "metric_type": "cost_efficiency",
-                "value": 0.10,
-                "labels": {"task_id": "T-prev", "role": "backend", "model": "sonnet"},
-            }) + "\n"
-        )
-
         task = _make_task(id="T-001")
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(task)]),
+            }
+        )
         adapter = _mock_adapter()
         config = OrchestratorConfig(
             max_agents=6,
@@ -505,6 +508,16 @@ class TestOrchestratorTick:
         )
         orch = _build_orchestrator(tmp_path, transport, adapter=adapter, config=config)
 
+        # Pre-seed the cost tracker with spend exceeding the budget
+        orch._cost_tracker.record(  # noqa: SLF001
+            agent_id="prev-agent",
+            task_id="T-prev",
+            model="sonnet",
+            input_tokens=0,
+            output_tokens=0,
+            cost_usd=0.10,
+        )
+
         result = orch.tick()
 
         adapter.spawn.assert_not_called()
@@ -512,23 +525,12 @@ class TestOrchestratorTick:
 
     def test_tick_spawns_normally_when_under_budget(self, tmp_path: Path) -> None:
         """tick() spawns normally when spent < budget_usd."""
-        metrics_dir = tmp_path / ".sdd" / "metrics"
-        metrics_dir.mkdir(parents=True)
-        today = time.strftime("%Y-%m-%d")
-        cost_file = metrics_dir / f"cost_efficiency_{today}.jsonl"
-        cost_file.write_text(
-            json.dumps({
-                "timestamp": time.time(),
-                "metric_type": "cost_efficiency",
-                "value": 0.01,
-                "labels": {"task_id": "T-prev", "role": "backend", "model": "sonnet"},
-            }) + "\n"
-        )
-
         task = _make_task(id="T-001")
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(task)]),
+            }
+        )
         adapter = _mock_adapter()
         config = OrchestratorConfig(
             max_agents=6,
@@ -538,29 +540,28 @@ class TestOrchestratorTick:
         )
         orch = _build_orchestrator(tmp_path, transport, adapter=adapter, config=config)
 
+        # Pre-seed with small spend under budget
+        orch._cost_tracker.record(  # noqa: SLF001
+            agent_id="prev-agent",
+            task_id="T-prev",
+            model="sonnet",
+            input_tokens=0,
+            output_tokens=0,
+            cost_usd=0.01,
+        )
+
         result = orch.tick()
 
         assert len(result.spawned) == 1
 
     def test_tick_no_budget_check_when_budget_is_zero(self, tmp_path: Path) -> None:
         """tick() never enforces a budget when budget_usd=0 (default)."""
-        metrics_dir = tmp_path / ".sdd" / "metrics"
-        metrics_dir.mkdir(parents=True)
-        today = time.strftime("%Y-%m-%d")
-        cost_file = metrics_dir / f"cost_efficiency_{today}.jsonl"
-        cost_file.write_text(
-            json.dumps({
-                "timestamp": time.time(),
-                "metric_type": "cost_efficiency",
-                "value": 999.99,
-                "labels": {"task_id": "T-prev", "role": "backend", "model": "sonnet"},
-            }) + "\n"
-        )
-
         task = _make_task(id="T-001")
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(task)]),
+            }
+        )
         adapter = _mock_adapter()
         # Default config has budget_usd=0 (no cap)
         config = OrchestratorConfig(
@@ -571,6 +572,16 @@ class TestOrchestratorTick:
         )
         orch = _build_orchestrator(tmp_path, transport, adapter=adapter, config=config)
 
+        # Even with huge recorded spend, budget=0 means unlimited
+        orch._cost_tracker.record(  # noqa: SLF001
+            agent_id="prev-agent",
+            task_id="T-prev",
+            model="sonnet",
+            input_tokens=0,
+            output_tokens=0,
+            cost_usd=999.99,
+        )
+
         result = orch.tick()
 
         assert len(result.spawned) == 1
@@ -578,9 +589,11 @@ class TestOrchestratorTick:
     def test_dry_run_prevents_spawning(self, tmp_path: Path) -> None:
         """tick() with dry_run=True logs planned spawns but never calls adapter.spawn."""
         task = _make_task(id="T-dry", role="backend", title="Build something")
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(task)]),
+            }
+        )
         adapter = _mock_adapter()
         config = OrchestratorConfig(
             max_agents=6,
@@ -651,9 +664,11 @@ class TestSpawnResiliency:
     def test_spawn_failure_not_retried_within_backoff_window(self, tmp_path: Path) -> None:
         """A batch that failed to spawn is not retried until the backoff window expires."""
         task = _make_task(id="T-backoff")
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(task)]),
+            }
+        )
         adapter = _mock_adapter()
         adapter.spawn.side_effect = RuntimeError("subprocess died")
         orch = _build_orchestrator(tmp_path, transport, adapter=adapter)
@@ -696,6 +711,7 @@ class TestSpawnResiliency:
         # - Within the cleanup purge window (so the entry is NOT purged).
         # Backoff for fail_count=2 is base*2^1 = 60s, cleanup purge is 300s.
         import time as _time
+
         batch_key = frozenset(["T-maxfail"])
         max_failures = orch._MAX_SPAWN_FAILURES
         expired_ts = _time.time() - 120  # 120s ago: past 60s backoff, within 300s purge
@@ -714,9 +730,11 @@ class TestSpawnResiliency:
 
 class TestReaping:
     def test_reaps_stale_heartbeat(self, tmp_path: Path) -> None:
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[]),
+            }
+        )
         adapter = _mock_adapter()
         adapter.is_alive.return_value = True  # process is alive but heartbeat stale
         config = OrchestratorConfig(
@@ -740,6 +758,7 @@ class TestReaping:
 
         # Need fail endpoint for the reaped task
         fail_called = False
+
         def handler(request: httpx.Request) -> httpx.Response:
             nonlocal fail_called
             url = request.url
@@ -752,9 +771,7 @@ class TestReaping:
                 return httpx.Response(201, json={"id": "T-stale-retry"})
             if key == "POST /tasks/T-stale/fail":
                 fail_called = True
-                return httpx.Response(200, json=_task_as_dict(
-                    _make_task(id="T-stale", status="failed")
-                ))
+                return httpx.Response(200, json=_task_as_dict(_make_task(id="T-stale", status="failed")))
             return httpx.Response(404)
 
         # Rebuild with custom transport
@@ -769,9 +786,11 @@ class TestReaping:
         adapter.kill.assert_called_once_with(999)
 
     def test_does_not_reap_fresh_heartbeat(self, tmp_path: Path) -> None:
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[]),
+            }
+        )
         adapter = _mock_adapter()
         adapter.is_alive.return_value = True
         config = OrchestratorConfig(
@@ -799,9 +818,11 @@ class TestReaping:
         assert fresh_session.status == "working"
 
     def test_dead_process_marked_dead_on_refresh(self, tmp_path: Path) -> None:
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[]),
+            }
+        )
         adapter = _mock_adapter()
         adapter.is_alive.return_value = False  # process exited
         orch = _build_orchestrator(tmp_path, transport, adapter=adapter)
@@ -820,9 +841,11 @@ class TestReaping:
 
     def test_zero_heartbeat_not_reaped_if_alive(self, tmp_path: Path) -> None:
         """An agent that never heartbeated but whose process is alive is NOT reaped."""
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[]),
+            }
+        )
         adapter = _mock_adapter()
         adapter.is_alive.return_value = True
         config = OrchestratorConfig(
@@ -851,9 +874,11 @@ class TestReaping:
 
 class TestRunStop:
     def test_stop_breaks_loop(self, tmp_path: Path) -> None:
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[]),
+            }
+        )
         config = OrchestratorConfig(
             poll_interval_s=0,  # no sleep between ticks for test speed
             server_url="http://testserver",
@@ -909,14 +934,20 @@ class TestAgentCompletionProtocol:
         task_dict["status"] = "in_progress"
 
         complete_called = False
+
         def handler(request: httpx.Request) -> httpx.Response:
             nonlocal complete_called
             url = request.url
             key = f"{request.method} {url.path}"
             if url.query:
                 key += f"?{url.query.decode()}"
-            if key in ("GET /tasks", "GET /tasks?status=open", "GET /tasks?status=claimed",
-                       "GET /tasks?status=done", "GET /tasks?status=failed"):
+            if key in (
+                "GET /tasks",
+                "GET /tasks?status=open",
+                "GET /tasks?status=claimed",
+                "GET /tasks?status=done",
+                "GET /tasks?status=failed",
+            ):
                 return httpx.Response(200, json=[])
             if key == "GET /tasks/T-orphan":
                 return httpx.Response(200, json=task_dict)
@@ -954,14 +985,20 @@ class TestAgentCompletionProtocol:
         task_dict["status"] = "in_progress"
 
         fail_called = False
+
         def handler(request: httpx.Request) -> httpx.Response:
             nonlocal fail_called
             url = request.url
             key = f"{request.method} {url.path}"
             if url.query:
                 key += f"?{url.query.decode()}"
-            if key in ("GET /tasks", "GET /tasks?status=open", "GET /tasks?status=claimed",
-                       "GET /tasks?status=done", "GET /tasks?status=failed"):
+            if key in (
+                "GET /tasks",
+                "GET /tasks?status=open",
+                "GET /tasks?status=claimed",
+                "GET /tasks?status=done",
+                "GET /tasks?status=failed",
+            ):
                 return httpx.Response(200, json=[])
             if key == "GET /tasks/T-orphan-fail":
                 return httpx.Response(200, json=task_dict)
@@ -996,6 +1033,7 @@ class TestAgentCompletionProtocol:
         # no completion_signals field
 
         fail_called = False
+
         def handler(request: httpx.Request) -> httpx.Response:
             nonlocal fail_called
             url = request.url
@@ -1036,6 +1074,7 @@ class TestAgentCompletionProtocol:
 
         complete_called = False
         fail_called = False
+
         def handler(request: httpx.Request) -> httpx.Response:
             nonlocal complete_called, fail_called
             url = request.url
@@ -1089,6 +1128,7 @@ class TestFileOwnership:
         task2.owned_files = ["src/main.py"]
 
         call_count = 0
+
         def handler(request: httpx.Request) -> httpx.Response:
             nonlocal call_count
             url = request.url
@@ -1113,10 +1153,12 @@ class TestFileOwnership:
 
     def test_releases_ownership_on_death(self, tmp_path: Path) -> None:
         """File ownership is released when an agent dies."""
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         adapter = _mock_adapter()
         adapter.is_alive.return_value = False  # process died
         orch = _build_orchestrator(tmp_path, transport, adapter=adapter)
@@ -1145,6 +1187,7 @@ class TestFileOwnership:
         task2.owned_files = ["src/b.py"]
 
         call_count = 0
+
         def handler(request: httpx.Request) -> httpx.Response:
             nonlocal call_count
             url = request.url
@@ -1166,10 +1209,12 @@ class TestFileOwnership:
 
     def test_ownership_released_on_reap(self, tmp_path: Path) -> None:
         """File ownership released when a stale agent is reaped."""
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         adapter = _mock_adapter()
         adapter.is_alive.return_value = True
         config = OrchestratorConfig(
@@ -1202,7 +1247,8 @@ class TestFileOwnership:
             return httpx.Response(404)
 
         orch._client = httpx.Client(
-            transport=httpx.MockTransport(handler), base_url="http://testserver",
+            transport=httpx.MockTransport(handler),
+            base_url="http://testserver",
         )
 
         orch.tick()
@@ -1324,15 +1370,17 @@ class TestOrphanMetrics:
 def _make_router_with_provider() -> TierAwareRouter:
     """Create a TierAwareRouter with a single test provider."""
     router = TierAwareRouter()
-    router.register_provider(ProviderConfig(
-        name="test_provider",
-        models={
-            "sonnet": RouterModelConfig("sonnet", "high"),
-            "opus": RouterModelConfig("opus", "max"),
-        },
-        tier=Tier.STANDARD,
-        cost_per_1k_tokens=0.003,
-    ))
+    router.register_provider(
+        ProviderConfig(
+            name="test_provider",
+            models={
+                "sonnet": RouterModelConfig("sonnet", "high"),
+                "opus": RouterModelConfig("opus", "max"),
+            },
+            tier=Tier.STANDARD,
+            cost_per_1k_tokens=0.003,
+        )
+    )
     return router
 
 
@@ -1341,10 +1389,12 @@ class TestTierAwareRouterWiring:
 
     def test_orchestrator_accepts_router(self, tmp_path: Path) -> None:
         router = _make_router_with_provider()
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
         orch._router = router
 
@@ -1357,10 +1407,12 @@ class TestTierAwareRouterWiring:
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
         spawner = AgentSpawner(adapter, templates_dir, tmp_path, router=router)
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         client = httpx.Client(transport=transport, base_url="http://testserver")
         orch = Orchestrator(cfg, spawner, tmp_path, client=client, router=router)
 
@@ -1369,10 +1421,12 @@ class TestTierAwareRouterWiring:
 
     def test_record_provider_health_updates_router(self, tmp_path: Path) -> None:
         router = _make_router_with_provider()
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         cfg = OrchestratorConfig(server_url="http://testserver")
         adapter = _mock_adapter()
         templates_dir = tmp_path / "templates" / "roles"
@@ -1395,10 +1449,12 @@ class TestTierAwareRouterWiring:
 
     def test_record_provider_cost_updates_router(self, tmp_path: Path) -> None:
         router = _make_router_with_provider()
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         cfg = OrchestratorConfig(server_url="http://testserver")
         adapter = _mock_adapter()
         templates_dir = tmp_path / "templates" / "roles"
@@ -1414,7 +1470,10 @@ class TestTierAwareRouterWiring:
             provider="test_provider",
         )
         orch._record_provider_health(
-            session, success=True, cost_usd=0.05, tokens=1000,
+            session,
+            success=True,
+            cost_usd=0.05,
+            tokens=1000,
         )
 
         provider = router.state.providers["test_provider"]
@@ -1423,15 +1482,20 @@ class TestTierAwareRouterWiring:
 
     def test_no_router_is_noop(self, tmp_path: Path) -> None:
         """When no router is configured, health/cost recording is a no-op."""
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
         assert orch._router is None
 
         session = AgentSession(
-            id="backend-123", role="backend", pid=42, provider="x",
+            id="backend-123",
+            role="backend",
+            pid=42,
+            provider="x",
         )
         # Should not raise
         orch._record_provider_health(session, success=True, cost_usd=1.0, tokens=500)
@@ -1454,10 +1518,12 @@ class TestTierAwareRouterWiring:
 
         router = TierAwareRouter()
         # Router starts with no providers; constructor loads from YAML
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         cfg = OrchestratorConfig(server_url="http://testserver")
         adapter = _mock_adapter()
         templates_dir = tmp_path / "templates" / "roles"
@@ -1495,10 +1561,12 @@ class TestBacklogSync:
             status="done",
         )
 
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
         orch.tick()
 
@@ -1518,10 +1586,12 @@ class TestBacklogSync:
         )
         done_task.result_summary = "All tests pass"
 
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
         orch.tick()
 
@@ -1539,10 +1609,12 @@ class TestBacklogSync:
             status="done",
         )
 
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
         orch.tick()
 
@@ -1558,10 +1630,12 @@ class TestBacklogSync:
             title="Sync .sdd/backlog files with task server state",
             status="done",
         )
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
         orch.tick()
 
@@ -1575,10 +1649,12 @@ class TestBacklogSync:
     def test_no_backlog_dir_is_noop(self, tmp_path: Path) -> None:
         """If .sdd/backlog/open/ does not exist, sync silently does nothing."""
         done_task = _make_task(id="T-nodir", title="Whatever task", status="done")
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
         orch.tick()  # Should not raise
 
@@ -1647,10 +1723,12 @@ class TestEvolveIdleDetection:
 
     def test_no_evolve_config_is_noop(self, tmp_path: Path) -> None:
         """No evolve.json => evolve check silently does nothing."""
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
         result = orch.tick()
         assert result.errors == []
@@ -1658,10 +1736,12 @@ class TestEvolveIdleDetection:
     def test_evolve_disabled_is_noop(self, tmp_path: Path) -> None:
         """evolve.json with enabled=false does nothing."""
         _write_evolve_config(tmp_path, enabled=False)
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
         result = orch.tick()
         assert result.errors == []
@@ -1720,8 +1800,11 @@ class TestEvolveIdleDetection:
 
         # Inject an alive agent
         session = AgentSession(
-            id="backend-busy", role="backend", pid=42,
-            task_ids=["T-x"], status="working",
+            id="backend-busy",
+            role="backend",
+            pid=42,
+            task_ids=["T-x"],
+            status="working",
         )
         orch._agents["backend-busy"] = session
 
@@ -1746,7 +1829,10 @@ class TestEvolveIdleDetection:
     def test_evolve_stops_at_budget(self, tmp_path: Path) -> None:
         """Evolve does NOT trigger after budget_usd is exhausted."""
         _write_evolve_config(
-            tmp_path, budget_usd=10.0, spent_usd=10.0, interval_s=0,
+            tmp_path,
+            budget_usd=10.0,
+            spent_usd=10.0,
+            interval_s=0,
         )
         created: list[dict[str, object]] = []
         transport = _evolve_handler(manager_task_created=created)
@@ -1899,10 +1985,14 @@ class TestProviderHealthRecording:
     def _build_with_router(self, tmp_path: Path) -> tuple[Orchestrator, MagicMock]:
         router = MagicMock(spec=TierAwareRouter)
         router.state = RouterState(providers={})
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(_make_task(id="T-done", status="done"))]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(
+                    200, json=[_task_as_dict(_make_task(id="T-done", status="done"))]
+                ),
+            }
+        )
         cfg = OrchestratorConfig(
             max_agents=6,
             poll_interval_s=1,
@@ -1941,14 +2031,14 @@ class TestProviderHealthRecording:
 
         # Build task JSON with completion_signals so the janitor runs
         done_task_json = _task_as_dict(_make_task(id="T-done-sig", status="done"))
-        done_task_json["completion_signals"] = [
-            {"type": "file_exists", "value": "definitely_missing_file.txt"}
-        ]
+        done_task_json["completion_signals"] = [{"type": "file_exists", "value": "definitely_missing_file.txt"}]
 
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[done_task_json]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[done_task_json]),
+            }
+        )
         orch._client = httpx.Client(transport=transport, base_url="http://testserver")
 
         session = AgentSession(
@@ -1969,10 +2059,14 @@ class TestProviderHealthRecording:
 
     def test_tick_without_router_skips_health(self, tmp_path: Path) -> None:
         """No crash when router is None and a done task is processed."""
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(_make_task(id="T-done2", status="done"))]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(
+                    200, json=[_task_as_dict(_make_task(id="T-done2", status="done"))]
+                ),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
         assert orch._router is None
 
@@ -1999,10 +2093,14 @@ class TestEvolutionMetricsRecording:
         from bernstein.core.evolution import EvolutionCoordinator
 
         evolution = MagicMock(spec=EvolutionCoordinator)
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(_make_task(id="T-evo", status="done"))]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(
+                    200, json=[_task_as_dict(_make_task(id="T-evo", status="done"))]
+                ),
+            }
+        )
         cfg = OrchestratorConfig(
             max_agents=6,
             poll_interval_s=1,
@@ -2278,10 +2376,12 @@ class TestConsecutiveTickFailureCircuitBreaker:
     """run() exits after max_consecutive_failures tick exceptions."""
 
     def test_run_stops_after_max_consecutive_failures(self, tmp_path: Path) -> None:
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         config = OrchestratorConfig(
             poll_interval_s=0,
             server_url="http://testserver",
@@ -2310,10 +2410,12 @@ class TestDeadAgentFileOwnershipEdgeCases:
 
     def test_dead_agent_file_ownership_released(self, tmp_path: Path) -> None:
         """When an agent process dies, all its file ownership entries are removed."""
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         adapter = _mock_adapter()
         adapter.is_alive.return_value = False
         orch = _build_orchestrator(tmp_path, transport, adapter=adapter)
@@ -2337,9 +2439,7 @@ class TestDeadAgentFileOwnershipEdgeCases:
         assert "src/main.py" not in orch._file_ownership
         assert "src/utils.py" not in orch._file_ownership
 
-    def test_file_overlap_cleared_after_dead_agent_allows_respawn(
-        self, tmp_path: Path
-    ) -> None:
+    def test_file_overlap_cleared_after_dead_agent_allows_respawn(self, tmp_path: Path) -> None:
         """Spawn is blocked while an agent owns a file; after it dies the next tick spawns."""
         task1 = _make_task(id="T-owner", role="backend")
         task1.owned_files = ["src/shared.py"]
@@ -2493,10 +2593,12 @@ class TestEvolveAutoCommitRuntimeExclusion:
         """git add -A is followed by git reset HEAD -- .sdd/runtime/ .sdd/metrics/."""
         from unittest.mock import patch
 
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
 
         status_result = MagicMock()
@@ -2689,8 +2791,8 @@ class TestMaybeRetryTask:
         assert result is True
         assert len(posted) == 1
         body = posted[0]
-        assert body["model"] == "sonnet"   # model unchanged
-        assert body["effort"] == "medium"   # low → medium
+        assert body["model"] == "sonnet"  # model unchanged
+        assert body["effort"] == "medium"  # low → medium
 
     def test_first_retry_title_prefixed(self, tmp_path: Path) -> None:
         task = Task(
@@ -2723,8 +2825,8 @@ class TestMaybeRetryTask:
 
         assert result is True
         body = posted[0]
-        assert body["model"] == "opus"     # sonnet → opus
-        assert body["effort"] == "high"    # reset to high
+        assert body["model"] == "opus"  # sonnet → opus
+        assert body["effort"] == "high"  # reset to high
 
     def test_max_retries_respected(self, tmp_path: Path) -> None:
         task = Task(
@@ -3038,9 +3140,11 @@ class TestReplenishBacklog:
 
         def slow_popen(*_args: object, **_kwargs: object) -> object:
             m = MagicMock()
+
             def slow_communicate(timeout: object = None) -> tuple[str, str]:
                 time.sleep(2)
                 return ("[]", "")
+
             m.communicate = slow_communicate
             m.pid = 9999
             return m
@@ -3053,9 +3157,7 @@ class TestReplenishBacklog:
             orch._replenish_backlog(result)
             elapsed = time.monotonic() - start
 
-        assert elapsed < 1.0, (
-            f"_replenish_backlog blocked for {elapsed:.2f}s; expected < 1s"
-        )
+        assert elapsed < 1.0, f"_replenish_backlog blocked for {elapsed:.2f}s; expected < 1s"
         # Future should be pending (submitted to thread pool, not yet complete)
         assert orch._pending_ruff_future is not None
         # Clean up — wait for the background thread so it doesn't leak
@@ -3093,13 +3195,15 @@ def test_per_task_timeout_short_task(tmp_path: Path) -> None:
         "result_summary": None,
         "task_type": "standard",
     }
-    transport = _mock_transport({
-        "GET /tasks?status=open": httpx.Response(200, json=[task_dict]),
-        "GET /tasks?status=done": httpx.Response(200, json=[]),
-        "GET /tasks?status=failed": httpx.Response(200, json=[]),
-        "GET /status": httpx.Response(200, json={"open": 1, "done": 0}),
-        f"POST /tasks/{task.id}/claim": httpx.Response(200, json={}),
-    })
+    transport = _mock_transport(
+        {
+            "GET /tasks?status=open": httpx.Response(200, json=[task_dict]),
+            "GET /tasks?status=done": httpx.Response(200, json=[]),
+            "GET /tasks?status=failed": httpx.Response(200, json=[]),
+            "GET /status": httpx.Response(200, json={"open": 1, "done": 0}),
+            f"POST /tasks/{task.id}/claim": httpx.Response(200, json={}),
+        }
+    )
     cfg = OrchestratorConfig(
         max_agents=6,
         poll_interval_s=1,
@@ -3146,13 +3250,15 @@ def test_per_task_timeout_long_task_clamped(tmp_path: Path) -> None:
         "result_summary": None,
         "task_type": "standard",
     }
-    transport = _mock_transport({
-        "GET /tasks?status=open": httpx.Response(200, json=[task_dict]),
-        "GET /tasks?status=done": httpx.Response(200, json=[]),
-        "GET /tasks?status=failed": httpx.Response(200, json=[]),
-        "GET /status": httpx.Response(200, json={"open": 1, "done": 0}),
-        f"POST /tasks/{task.id}/claim": httpx.Response(200, json={}),
-    })
+    transport = _mock_transport(
+        {
+            "GET /tasks?status=open": httpx.Response(200, json=[task_dict]),
+            "GET /tasks?status=done": httpx.Response(200, json=[]),
+            "GET /tasks?status=failed": httpx.Response(200, json=[]),
+            "GET /status": httpx.Response(200, json={"open": 1, "done": 0}),
+            f"POST /tasks/{task.id}/claim": httpx.Response(200, json={}),
+        }
+    )
     cfg = OrchestratorConfig(
         max_agents=6,
         poll_interval_s=1,
@@ -3178,12 +3284,14 @@ def test_reap_uses_per_session_timeout(tmp_path: Path) -> None:
         max_agent_runtime_s=600,
         server_url="http://testserver",
     )
-    transport = _mock_transport({
-        "GET /tasks?status=open": httpx.Response(200, json=[]),
-        "GET /tasks?status=done": httpx.Response(200, json=[]),
-        "GET /tasks?status=failed": httpx.Response(200, json=[]),
-        "GET /status": httpx.Response(200, json={"open": 0, "done": 0}),
-    })
+    transport = _mock_transport(
+        {
+            "GET /tasks?status=open": httpx.Response(200, json=[]),
+            "GET /tasks?status=done": httpx.Response(200, json=[]),
+            "GET /tasks?status=failed": httpx.Response(200, json=[]),
+            "GET /status": httpx.Response(200, json={"open": 0, "done": 0}),
+        }
+    )
     orch = _build_orchestrator(tmp_path, transport, config=cfg)
 
     # Inject a session with a short timeout (120s) that has been running for 130s
@@ -3278,6 +3386,7 @@ class TestRunCompletionSummary:
 
     def test_summary_not_created_in_evolve_mode(self, tmp_path: Path) -> None:
         """summary.md is NOT created when evolve_mode=True."""
+
         def handler(request: httpx.Request) -> httpx.Response:
             url = request.url
             if request.method == "GET" and url.path == "/tasks":
@@ -3317,9 +3426,11 @@ class TestDryRun:
 
     def test_dry_run_populates_planned(self, tmp_path: Path) -> None:
         open_task = _task_as_dict(_make_task(id="T-1", role="backend", title="Add feature"))
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[open_task]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[open_task]),
+            }
+        )
         cfg = OrchestratorConfig(
             max_agents=6,
             poll_interval_s=1,
@@ -3339,9 +3450,11 @@ class TestDryRun:
     def test_dry_run_does_not_spawn_agents(self, tmp_path: Path) -> None:
         adapter = _mock_adapter()
         open_task = _task_as_dict(_make_task(id="T-1", role="backend", title="Add feature"))
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[open_task]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[open_task]),
+            }
+        )
         cfg = OrchestratorConfig(
             max_agents=6,
             poll_interval_s=1,
@@ -3359,12 +3472,14 @@ class TestDryRun:
         """Sanity check: without dry_run, spawn IS called for open tasks."""
         adapter = _mock_adapter()
         open_task = _task_as_dict(_make_task(id="T-1", role="backend", title="Add feature"))
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[open_task]),
-            "POST /tasks/T-1/claim": httpx.Response(200, json=_task_as_dict(
-                _make_task(id="T-1", status="claimed")
-            )),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[open_task]),
+                "POST /tasks/T-1/claim": httpx.Response(
+                    200, json=_task_as_dict(_make_task(id="T-1", status="claimed"))
+                ),
+            }
+        )
         cfg = OrchestratorConfig(
             max_agents=6,
             poll_interval_s=1,
@@ -3390,9 +3505,11 @@ class TestRunEvolutionCycle:
 
         evolution = MagicMock(spec=EvolutionCoordinator)
         evolution.execute_pending_upgrades.return_value = []
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[]),
+            }
+        )
         cfg = OrchestratorConfig(
             max_agents=6,
             poll_interval_s=1,
@@ -3611,6 +3728,7 @@ class TestRunEvolutionCycle:
 class TestExtractFromAgentLog:
     def _make_session(self, session_id: str = "sess-001") -> AgentSession:
         from bernstein.core.models import ModelConfig
+
         return AgentSession(id=session_id, role="backend", model_config=ModelConfig("sonnet", "high"))
 
     def _make_orch(self, tmp_path: Path) -> Orchestrator:
@@ -3627,36 +3745,29 @@ class TestExtractFromAgentLog:
     def test_modified_and_created_files(self, tmp_path: Path) -> None:
         orch = self._make_orch(tmp_path)
         session = self._make_session("s1")
-        self._write_log(tmp_path, "s1", (
-            "Some output\n"
-            "Modified: src/foo.py\n"
-            "Created: src/bar.py\n"
-            "More output\n"
-            "Modified: tests/test_foo.py\n"
-        ))
+        self._write_log(
+            tmp_path,
+            "s1",
+            ("Some output\nModified: src/foo.py\nCreated: src/bar.py\nMore output\nModified: tests/test_foo.py\n"),
+        )
         result = orch._collect_completion_data(session)
         assert result["files_modified"] == ["src/foo.py", "src/bar.py", "tests/test_foo.py"]
 
     def test_deduplicates_file_paths(self, tmp_path: Path) -> None:
         orch = self._make_orch(tmp_path)
         session = self._make_session("s2")
-        self._write_log(tmp_path, "s2", (
-            "Modified: src/foo.py\n"
-            "Modified: src/foo.py\n"
-            "Created: src/foo.py\n"
-            "Modified: src/bar.py\n"
-        ))
+        self._write_log(
+            tmp_path, "s2", ("Modified: src/foo.py\nModified: src/foo.py\nCreated: src/foo.py\nModified: src/bar.py\n")
+        )
         result = orch._collect_completion_data(session)
         assert result["files_modified"] == ["src/foo.py", "src/bar.py"]
 
     def test_extracts_pytest_summary(self, tmp_path: Path) -> None:
         orch = self._make_orch(tmp_path)
         session = self._make_session("s3")
-        self._write_log(tmp_path, "s3", (
-            "collecting ...\n"
-            "test_foo.py::test_bar PASSED\n"
-            "===== 3 passed, 1 failed in 0.42s =====\n"
-        ))
+        self._write_log(
+            tmp_path, "s3", ("collecting ...\ntest_foo.py::test_bar PASSED\n===== 3 passed, 1 failed in 0.42s =====\n")
+        )
         result = orch._collect_completion_data(session)
         assert result["test_results"] == {"summary": "===== 3 passed, 1 failed in 0.42s ====="}
 
@@ -3668,6 +3779,7 @@ class TestExtractFromAgentLog:
 
     def test_oserror_on_read(self, tmp_path: Path) -> None:
         from unittest.mock import patch
+
         orch = self._make_orch(tmp_path)
         session = self._make_session("s4")
         log_path = tmp_path / ".sdd" / "runtime" / "s4.log"
@@ -3850,9 +3962,7 @@ class TestCheckEvolve:
 
     def test_consecutive_empty_resets_when_committed(self, tmp_path: Path) -> None:
         """If committed=True, _consecutive_empty resets to 0."""
-        evolve_path = _write_evolve_config(
-            tmp_path, interval_s=0, consecutive_empty=5
-        )
+        evolve_path = _write_evolve_config(tmp_path, interval_s=0, consecutive_empty=5)
         orch = self._make_orch(tmp_path)
         self._patch_evolve_helpers(orch, committed=True)
 
@@ -3863,9 +3973,7 @@ class TestCheckEvolve:
 
     def test_consecutive_empty_increments_when_no_changes(self, tmp_path: Path) -> None:
         """If nothing committed and no done tasks, _consecutive_empty increments."""
-        evolve_path = _write_evolve_config(
-            tmp_path, interval_s=0, consecutive_empty=2
-        )
+        evolve_path = _write_evolve_config(tmp_path, interval_s=0, consecutive_empty=2)
         orch = self._make_orch(tmp_path)
         self._patch_evolve_helpers(orch, committed=False)
 
@@ -3909,10 +4017,12 @@ class TestParallelVerification:
             task_dicts.append(td)
         tasks_with_signals = [Task.from_dict(td) for td in task_dicts]
 
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=task_dicts),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=task_dicts),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
 
         with patch("bernstein.core.orchestrator.verify_task", side_effect=slow_verify):
@@ -3958,33 +4068,29 @@ class TestProcessCompletedTasksParallel:
             d["completion_signals"] = [{"type": "path_exists", "value": "x.txt"}]
             task_dicts.append(d)
 
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=task_dicts),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=task_dicts),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
 
         def slow_verify(task: object, workdir: object) -> tuple[bool, list[str]]:
             time.sleep(SLEEP)
             return True, []
 
-        with patch(
-            "bernstein.core.orchestrator.verify_task", side_effect=slow_verify
-        ):
+        with patch("bernstein.core.orchestrator.verify_task", side_effect=slow_verify):
             tick_result = TickResult()
             start = time.monotonic()
-            orch._process_completed_tasks(
-                [Task.from_dict(d) for d in task_dicts], tick_result
-            )
+            orch._process_completed_tasks([Task.from_dict(d) for d in task_dicts], tick_result)
             elapsed = time.monotonic() - start
 
         # All tasks verified successfully
         assert len(tick_result.verified) == N
         assert tick_result.verification_failures == []
         # Parallel: total wall time should be much less than N * SLEEP
-        assert elapsed < SLEEP * N * 0.75, (
-            f"Expected parallel execution (<{SLEEP * N * 0.75:.2f}s), got {elapsed:.2f}s"
-        )
+        assert elapsed < SLEEP * N * 0.75, f"Expected parallel execution (<{SLEEP * N * 0.75:.2f}s), got {elapsed:.2f}s"
 
 
 class TestComputeTotalSpentCache:
@@ -4000,10 +4106,7 @@ class TestComputeTotalSpentCache:
         metrics_dir = tmp_path / ".sdd" / "metrics"
         metrics_dir.mkdir(parents=True)
         jsonl = metrics_dir / "cost_efficiency_agent1.jsonl"
-        jsonl.write_text(
-            '{"value": 0.05, "labels": {"task_id": "t1"}}\n'
-            '{"value": 0.10, "labels": {"task_id": "t2"}}\n'
-        )
+        jsonl.write_text('{"value": 0.05, "labels": {"task_id": "t1"}}\n{"value": 0.10, "labels": {"task_id": "t2"}}\n')
 
         _total_spent_cache.clear()
 
@@ -4033,10 +4136,7 @@ class TestComputeTotalSpentCache:
         assert first == pytest.approx(0.05)
 
         _time.sleep(0.01)
-        jsonl.write_text(
-            '{"value": 0.05, "labels": {"task_id": "t1"}}\n'
-            '{"value": 0.20, "labels": {"task_id": "t3"}}\n'
-        )
+        jsonl.write_text('{"value": 0.05, "labels": {"task_id": "t1"}}\n{"value": 0.20, "labels": {"task_id": "t3"}}\n')
 
         second = _compute_total_spent(tmp_path)
         assert second == pytest.approx(0.25)
@@ -4066,45 +4166,52 @@ class TestMetricsWiring:
 
     def _reset_collector(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import bernstein.core.metrics as _metrics
+
         monkeypatch.setattr(_metrics, "_default_collector", None)
 
-    def test_spawn_records_start_task_for_each_task(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_spawn_records_start_task_for_each_task(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """start_task() is called for every task in the spawned batch."""
         self._reset_collector(monkeypatch)
 
         task1 = _make_task(id="T-m1", role="backend")
         task2 = _make_task(id="T-m2", role="backend")
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[
-                _task_as_dict(task1), _task_as_dict(task2),
-            ]),
-            "POST /tasks/T-m1/claim": httpx.Response(200, json=_task_as_dict(task1)),
-            "POST /tasks/T-m2/claim": httpx.Response(200, json=_task_as_dict(task2)),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(
+                    200,
+                    json=[
+                        _task_as_dict(task1),
+                        _task_as_dict(task2),
+                    ],
+                ),
+                "POST /tasks/T-m1/claim": httpx.Response(200, json=_task_as_dict(task1)),
+                "POST /tasks/T-m2/claim": httpx.Response(200, json=_task_as_dict(task2)),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
         orch.tick()
 
         from bernstein.core.metrics import get_collector
+
         collector = get_collector(tmp_path / ".sdd" / "metrics")
         assert "T-m1" in collector._task_metrics
         assert "T-m2" in collector._task_metrics
 
-    def test_process_completed_tasks_calls_complete_task(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_process_completed_tasks_calls_complete_task(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """complete_task() is called for each done task, setting end_time and success."""
         self._reset_collector(monkeypatch)
 
         done_task = _make_task(id="T-done-ct", status="done")
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
 
         from bernstein.core.metrics import get_collector
+
         collector = get_collector(tmp_path / ".sdd" / "metrics")
         # Pre-register the task so complete_task() finds it
         collector.start_task("T-done-ct", "backend", "sonnet", "claude")
@@ -4117,20 +4224,21 @@ class TestMetricsWiring:
         assert tm.success is True
         assert tm.janitor_passed is True
 
-    def test_process_completed_tasks_calls_end_agent(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_process_completed_tasks_calls_end_agent(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """end_agent() is called when the session is found for a done task."""
         self._reset_collector(monkeypatch)
 
         done_task = _make_task(id="T-done-ea", status="done")
-        transport = _mock_transport({
-            "GET /tasks?status=open": httpx.Response(200, json=[]),
-            "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks?status=open": httpx.Response(200, json=[]),
+                "GET /tasks?status=done": httpx.Response(200, json=[_task_as_dict(done_task)]),
+            }
+        )
         orch = _build_orchestrator(tmp_path, transport)
 
         from bernstein.core.metrics import get_collector
+
         collector = get_collector(tmp_path / ".sdd" / "metrics")
         collector.start_agent("sess-ea", "backend", "sonnet", "claude")
         collector.start_task("T-done-ea", "backend", "sonnet", "claude")
@@ -4150,9 +4258,7 @@ class TestMetricsWiring:
         am = collector._agent_metrics["sess-ea"]
         assert am.end_time is not None
 
-    def test_wall_clock_reap_records_end_agent(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_wall_clock_reap_records_end_agent(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """end_agent() is called for agents reaped by wall-clock timeout."""
         self._reset_collector(monkeypatch)
 
@@ -4177,11 +4283,10 @@ class TestMetricsWiring:
                 return httpx.Response(201, json={"id": "T-retry"})
             return httpx.Response(404)
 
-        orch = _build_orchestrator(
-            tmp_path, httpx.MockTransport(handler), adapter=adapter, config=config
-        )
+        orch = _build_orchestrator(tmp_path, httpx.MockTransport(handler), adapter=adapter, config=config)
 
         from bernstein.core.metrics import get_collector
+
         collector = get_collector(tmp_path / ".sdd" / "metrics")
         collector.start_agent("sess-wct", "backend", "sonnet", "claude")
 
@@ -4191,7 +4296,7 @@ class TestMetricsWiring:
             pid=88,
             task_ids=["T-wct"],
             spawn_ts=time.time() - 200,  # 200s > 60s limit → wall-clock reap
-            heartbeat_ts=time.time(),    # fresh heartbeat, so only wall-clock fires
+            heartbeat_ts=time.time(),  # fresh heartbeat, so only wall-clock fires
             status="working",
         )
         orch._agents["sess-wct"] = timeout_session
@@ -4211,7 +4316,9 @@ class TestEvolutionAgentLifetimeRecording:
     """Evolution coordinator receives agent-lifetime metrics from all reaping paths."""
 
     def _build_with_evolution(
-        self, tmp_path: Path, transport: httpx.MockTransport,
+        self,
+        tmp_path: Path,
+        transport: httpx.MockTransport,
     ) -> tuple[Orchestrator, MagicMock]:
         from bernstein.core.evolution import EvolutionCoordinator
 
@@ -4239,11 +4346,11 @@ class TestEvolutionAgentLifetimeRecording:
 
     def test_normal_completion_records_agent_lifetime(self, tmp_path: Path) -> None:
         """_process_completed_tasks calls record_agent_lifetime on evolution coordinator."""
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(
-                200, json=[_task_as_dict(_make_task(id="T-lt", status="done"))]
-            ),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(_make_task(id="T-lt", status="done"))]),
+            }
+        )
         orch, evolution = self._build_with_evolution(tmp_path, transport)
         session = AgentSession(
             id="sess-lt",
@@ -4271,9 +4378,11 @@ class TestEvolutionAgentLifetimeRecording:
             _task_as_dict(_make_task(id="T-lt1", status="done")),
             _task_as_dict(_make_task(id="T-lt2", status="done")),
         ]
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=done_tasks),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=done_tasks),
+            }
+        )
         orch, evolution = self._build_with_evolution(tmp_path, transport)
         session = AgentSession(
             id="sess-multi",
@@ -4294,6 +4403,7 @@ class TestEvolutionAgentLifetimeRecording:
 
     def test_wall_clock_reap_records_agent_lifetime(self, tmp_path: Path) -> None:
         """_reap_dead_agents (wall-clock path) calls record_agent_lifetime."""
+
         def handler(request: httpx.Request) -> httpx.Response:
             if request.method == "GET" and request.url.path == "/tasks":
                 return httpx.Response(200, json=[])
@@ -4323,9 +4433,7 @@ class TestEvolutionAgentLifetimeRecording:
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
         spawner = AgentSpawner(adp, templates_dir, tmp_path)
-        client = httpx.Client(
-            transport=httpx.MockTransport(handler), base_url="http://testserver"
-        )
+        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://testserver")
         orch = Orchestrator(cfg, spawner, tmp_path, client=client, evolution=evolution)
 
         session = AgentSession(
@@ -4395,11 +4503,11 @@ class TestEvolutionAgentLifetimeRecording:
 
     def test_lifetime_failure_does_not_crash(self, tmp_path: Path) -> None:
         """If record_agent_lifetime raises, the orchestrator silently suppresses it."""
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(
-                200, json=[_task_as_dict(_make_task(id="T-lf", status="done"))]
-            ),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(_make_task(id="T-lf", status="done"))]),
+            }
+        )
         orch, evolution = self._build_with_evolution(tmp_path, transport)
         evolution.record_agent_lifetime.side_effect = RuntimeError("db offline")
 
@@ -4490,9 +4598,11 @@ class TestOrchestratorBulletinIntegration:
         from bernstein.core.models import CompletionSignal
 
         done_task = _make_task(id="T-bb1", title="BB task", status="done")
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)]),
+            }
+        )
 
         orch, board = self._build_with_bulletin(tmp_path, transport)
         orch._processed_done_tasks = set()  # ensure not pre-processed
@@ -4518,14 +4628,14 @@ class TestOrchestratorBulletinIntegration:
             scope=done_task.scope,
             complexity=done_task.complexity,
             status=done_task.status,
-            completion_signals=[
-                CompletionSignal(type="file_exists", value="/nonexistent/path/file.txt")
-            ],
+            completion_signals=[CompletionSignal(type="file_exists", value="/nonexistent/path/file.txt")],
         )
 
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)]),
+            }
+        )
 
         orch, board = self._build_with_bulletin(tmp_path, transport)
         orch.tick()
@@ -4537,9 +4647,11 @@ class TestOrchestratorBulletinIntegration:
     def test_no_bulletin_no_crash(self, tmp_path: Path) -> None:
         """_post_bulletin is a no-op when no board is configured."""
         done_task = _make_task(id="T-bb3", title="No board task", status="done")
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)]),
+            }
+        )
 
         orch = _build_orchestrator(tmp_path, transport)
         assert orch.bulletin is None
@@ -4552,9 +4664,11 @@ class TestOrchestratorBulletinIntegration:
         from bernstein.core.bulletin import BulletinBoard
 
         done_task = _make_task(id="T-bb4", title="Done summary task", status="done")
-        transport = _mock_transport({
-            "GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)]),
-        })
+        transport = _mock_transport(
+            {
+                "GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)]),
+            }
+        )
 
         cfg = OrchestratorConfig(
             max_agents=6,
@@ -4600,6 +4714,7 @@ class TestAdaptivePollingBackoff:
         orch = self._make_orch(tmp_path, poll_interval_s=3)
         sleep_calls: list[float] = []
         import bernstein.core.orchestrator as _orch_mod
+
         monkeypatch.setattr(_orch_mod.time, "sleep", lambda s: sleep_calls.append(float(s)))
 
         call_count = 0
@@ -4625,6 +4740,7 @@ class TestAdaptivePollingBackoff:
         orch = self._make_orch(tmp_path, poll_interval_s=3)
         sleep_calls: list[float] = []
         import bernstein.core.orchestrator as _orch_mod
+
         monkeypatch.setattr(_orch_mod.time, "sleep", lambda s: sleep_calls.append(float(s)))
 
         call_count = 0

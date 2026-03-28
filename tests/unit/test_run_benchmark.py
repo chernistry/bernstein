@@ -290,10 +290,7 @@ def test_run_simulate_mean_speedup_3_above_1() -> None:
             description="d",
             category="c",
             parallelizable=True,
-            subtasks=[
-                SubTask(id=f"s{i}", role="backend", description="x", estimated_minutes=10.0)
-                for i in range(5)
-            ],
+            subtasks=[SubTask(id=f"s{i}", role="backend", description="x", estimated_minutes=10.0) for i in range(5)],
         )
     ]
     suite = run_simulate(tasks)
@@ -311,10 +308,24 @@ def test_run_simulate_mode_is_simulate() -> None:
 
 
 def test_mean_speedup_3_averages_across_tasks() -> None:
-    task1 = ScenarioResult(task_id="t1", scenario="multi-3", wall_time_minutes=5.0, cost_usd=0.1,
-                           test_pass_rate=0.9, speedup=2.0, cost_ratio=0.8)
-    task2 = ScenarioResult(task_id="t2", scenario="multi-3", wall_time_minutes=5.0, cost_usd=0.1,
-                           test_pass_rate=0.9, speedup=4.0, cost_ratio=0.8)
+    task1 = ScenarioResult(
+        task_id="t1",
+        scenario="multi-3",
+        wall_time_minutes=5.0,
+        cost_usd=0.1,
+        test_pass_rate=0.9,
+        speedup=2.0,
+        cost_ratio=0.8,
+    )
+    task2 = ScenarioResult(
+        task_id="t2",
+        scenario="multi-3",
+        wall_time_minutes=5.0,
+        cost_usd=0.1,
+        test_pass_rate=0.9,
+        speedup=4.0,
+        cost_ratio=0.8,
+    )
     tr1 = TaskBenchmarkResult(task_id="t1", task_name="T1", category="c", subtask_count=2, results=[task1])
     tr2 = TaskBenchmarkResult(task_id="t2", task_name="T2", category="c", subtask_count=2, results=[task2])
     suite = BenchmarkSuite(run_at="2026-01-01", mode="simulate", task_results=[tr1, tr2])
@@ -328,8 +339,15 @@ def test_mean_cost_savings_3_positive_for_cheaper_multi() -> None:
         category="c",
         subtask_count=2,
         results=[
-            ScenarioResult(task_id="t1", scenario="multi-3", wall_time_minutes=5.0, cost_usd=0.08,
-                           test_pass_rate=0.9, speedup=2.0, cost_ratio=0.8),
+            ScenarioResult(
+                task_id="t1",
+                scenario="multi-3",
+                wall_time_minutes=5.0,
+                cost_usd=0.08,
+                test_pass_rate=0.9,
+                speedup=2.0,
+                cost_ratio=0.8,
+            ),
         ],
     )
     suite = BenchmarkSuite(run_at="2026-01-01", mode="simulate", task_results=[tr])
@@ -374,14 +392,16 @@ def test_load_all_tasks_loads_10_real_tasks() -> None:
 def test_load_all_tasks_sorted_by_filename(tmp_path: Path) -> None:
     for name in ("task_003.yaml", "task_001.yaml", "task_002.yaml"):
         (tmp_path / name).write_text(
-            yaml.dump({
-                "id": name.replace(".yaml", ""),
-                "name": name,
-                "description": "d",
-                "category": "c",
-                "parallelizable": True,
-                "subtasks": [],
-            })
+            yaml.dump(
+                {
+                    "id": name.replace(".yaml", ""),
+                    "name": name,
+                    "description": "d",
+                    "category": "c",
+                    "parallelizable": True,
+                    "subtasks": [],
+                }
+            )
         )
     tasks = load_all_tasks(tmp_path)
     ids = [t.id for t in tasks]

@@ -13,9 +13,12 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from pathlib import Path
 from httpx import ASGITransport, AsyncClient
 
 from bernstein.core.server import create_app, read_log_tail
@@ -179,17 +182,19 @@ async def test_agent_stream_yields_existing_lines(app, tmp_runtime: Path) -> Non
 
     received_lines: list[str] = []
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        async with client.stream("GET", f"/agents/{session_id}/stream") as resp:
-            assert resp.status_code == 200
-            async for raw_line in resp.aiter_lines():
-                if raw_line.startswith("data: "):
-                    payload = json.loads(raw_line[6:])
-                    if "line" in payload:
-                        received_lines.append(payload["line"])
-                    # Stop after collecting initial content
-                    if len(received_lines) >= 2:
-                        break
+    async with (
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+        client.stream("GET", f"/agents/{session_id}/stream") as resp,
+    ):
+        assert resp.status_code == 200
+        async for raw_line in resp.aiter_lines():
+            if raw_line.startswith("data: "):
+                payload = json.loads(raw_line[6:])
+                if "line" in payload:
+                    received_lines.append(payload["line"])
+                # Stop after collecting initial content
+                if len(received_lines) >= 2:
+                    break
 
     assert "first line" in received_lines
     assert "second line" in received_lines

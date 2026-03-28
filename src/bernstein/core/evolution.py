@@ -36,6 +36,10 @@ from bernstein.evolution.governance import (
     GovernanceEntry,
     ProjectContext,
 )
+from bernstein.evolution.risk import (
+    ProposalRiskScore,
+    RiskScorer,
+)
 
 __all__ = [
     "AdaptiveGovernor",
@@ -54,7 +58,9 @@ __all__ = [
     "MetricRecord",
     "MetricsCollector",
     "ProjectContext",
+    "ProposalRiskScore",
     "QualityMetrics",
+    "RiskScorer",
     "TaskMetrics",
     "TrendAnalysis",
     "UpgradeCategory",

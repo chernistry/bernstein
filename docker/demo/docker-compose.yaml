@@ -31,7 +31,8 @@ services:
       - "8052"
     environment:
       BERNSTEIN_AUTH_TOKEN: ${BERNSTEIN_AUTH_TOKEN}
-      BERNSTEIN_READONLY: "true"
+      # NOT readonly — Caddy enforces public read-only at the proxy layer.
+      # The internal bernstein-demo orchestrator needs write access to create/complete tasks.
     volumes:
       - sdd-data:/workspace/.sdd
     healthcheck:

@@ -62,6 +62,10 @@ from bernstein.evolution.proposals import (
     UpgradeProposal,
     UpgradeStatus,
 )
+from bernstein.evolution.risk import (
+    ProposalRiskScore,
+    RiskScorer,
+)
 from bernstein.evolution.sandbox import SandboxValidator
 from bernstein.evolution.types import (
     CircuitState,
@@ -78,23 +82,17 @@ if TYPE_CHECKING:
 
 __all__ = [
     "AgentMetrics",
-    "AnalysisEngine",  # wrapper combining aggregator + detector
-    # proposals
+    "AnalysisEngine",
     "AnalysisTrigger",
-    # creative pipeline
     "AnalystVerdict",
     "AnomalyDetection",
-    # gate
     "ApprovalGate",
     "ApprovalMode",
-    # circuit
     "CircuitBreaker",
     "CircuitState",
     "CostMetrics",
     "CreativePipeline",
-    # coordinator
     "EvolutionCoordinator",
-    # loop
     "EvolutionLoop",
     "ExperimentResult",
     "FailureAnalyzer",
@@ -103,7 +101,6 @@ __all__ = [
     "FileMetricsCollector",
     "FileUpgradeExecutor",
     "ImprovementOpportunity",
-    # aggregator
     "MetricRecord",
     "MetricsAggregator",
     "MetricsCollector",
@@ -111,24 +108,21 @@ __all__ = [
     "OpportunityDetector",
     "PipelineResult",
     "ProposalGenerator",
+    "ProposalRiskScore",
     "ProposalStatus",
     "QualityMetrics",
-    # types
     "RiskLevel",
+    "RiskScorer",
     "SandboxResult",
-    # sandbox
     "SandboxValidator",
     "TaskMetrics",
     "TrendAnalysis",
-    # detector
     "UpgradeCategory",
-    # applicator
     "UpgradeExecutor",
     "UpgradeProposal",
     "UpgradeStatus",
     "VisionaryProposal",
     "check_proposal_targets",
-    # invariants
     "compute_invariants",
     "get_default_coordinator",
     "verify_invariants",

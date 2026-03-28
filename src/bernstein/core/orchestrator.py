@@ -88,6 +88,7 @@ from bernstein.core.tick_pipeline import (
     total_spent_cache as total_spent_cache,
 )
 from bernstein.evolution.governance import AdaptiveGovernor, GovernanceEntry, ProjectContext
+from bernstein.evolution.risk import RiskScorer
 
 # Preserve underscore-prefixed aliases so existing test imports keep working
 _compute_total_spent = compute_total_spent
@@ -201,6 +202,10 @@ class Orchestrator:
 
         # Adaptive governance: adjusts metric weights each evolution cycle
         self._governor = AdaptiveGovernor(state_dir=workdir / ".sdd")
+
+        # Strategic Risk Scorer: scores proposals before routing
+        self._risk_scorer = RiskScorer()
+        self._last_cycle_risk_scores: list[float] = []
 
         # Pre-initialize the global metrics collector with the correct path so
         # subsequent calls to get_collector() (without args) write to the right
@@ -945,7 +950,7 @@ class Orchestrator:
                 weight_change_reason=weight_reason,
                 proposals_evaluated=tasks_completed + tasks_failed,
                 proposals_applied=tasks_completed,
-                risk_scores=[],
+                risk_scores=self._last_cycle_risk_scores,
                 outcome_metrics={
                     "test_pass_rate": test_pass_rate,
                     "committed": 1.0 if committed else 0.0,
@@ -1385,6 +1390,34 @@ class Orchestrator:
         try:
             proposals = self._evolution.run_analysis_cycle()
 
+            # Score each proposal with Strategic Risk Score before routing
+            cycle_risk_scores: list[float] = []
+            for proposal in proposals:
+                target_files = proposal.risk_assessment.affected_components
+                # Estimate diff size from description length (heuristic)
+                diff_estimate = max(len(proposal.proposed_change) // 10, 10)
+                risk_score = self._risk_scorer.score_proposal(
+                    target_files=target_files,
+                    diff_size=diff_estimate,
+                    test_coverage_delta=0.0,  # unknown pre-execution
+                )
+                cycle_risk_scores.append(risk_score.composite_risk)
+                if self._risk_scorer.is_high_risk(risk_score):
+                    logger.info(
+                        "Proposal %s (%s) flagged high-risk (%.2f) — routing to sandbox",
+                        proposal.id,
+                        proposal.title,
+                        risk_score.composite_risk,
+                    )
+                else:
+                    logger.info(
+                        "Proposal %s (%s) low-risk (%.2f) — fast-tracking",
+                        proposal.id,
+                        proposal.title,
+                        risk_score.composite_risk,
+                    )
+            self._last_cycle_risk_scores = cycle_risk_scores
+
             # Persist pending proposals
             self._persist_pending_proposals()
 
@@ -1407,22 +1440,32 @@ class Orchestrator:
                 if proposal.status not in _task_eligible_statuses:
                     continue
                 try:
+                    # Score for task priority routing
+                    target_files = proposal.risk_assessment.affected_components
+                    diff_estimate = max(len(proposal.proposed_change) // 10, 10)
+                    risk_score = self._risk_scorer.score_proposal(
+                        target_files=target_files,
+                        diff_size=diff_estimate,
+                        test_coverage_delta=0.0,
+                    )
+                    is_high = self._risk_scorer.is_high_risk(risk_score)
                     task_body = {
                         "title": f"Upgrade: {proposal.title}",
                         "description": proposal.description,
                         "role": "backend",
-                        "priority": 2,
-                        "scope": "medium",
-                        "complexity": "medium",
-                        "estimated_minutes": 30,
+                        "priority": 1 if is_high else 2,
+                        "scope": "large" if is_high else "medium",
+                        "complexity": "high" if is_high else "medium",
+                        "estimated_minutes": 60 if is_high else 30,
                         "task_type": TaskType.UPGRADE_PROPOSAL.value,
                     }
                     resp = self._client.post(f"{base}/tasks", json=task_body)
                     resp.raise_for_status()
                     logger.info(
-                        "Created upgrade task for proposal %s: %s",
+                        "Created upgrade task for proposal %s: %s (risk=%.2f)",
                         proposal.id,
                         proposal.title,
+                        risk_score.composite_risk,
                     )
                 except httpx.HTTPError as exc:
                     logger.warning(

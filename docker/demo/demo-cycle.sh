@@ -100,6 +100,19 @@ seed_tasks() {
     log "Seeded 4 tasks."
 }
 
+ensure_git_repo() {
+    # Initialize a git repo with an initial commit so reset_project can
+    # restore the project to a clean state across cycles.
+    if [ ! -d "${PROJECT_DIR}/.git" ]; then
+        log "Initializing git repo for demo project..."
+        git -C "${PROJECT_DIR}" init -b main
+        git -C "${PROJECT_DIR}" config user.email "demo@bernstein.dev"
+        git -C "${PROJECT_DIR}" config user.name "Bernstein Demo"
+        git -C "${PROJECT_DIR}" add -A
+        git -C "${PROJECT_DIR}" commit -m "Initial demo project"
+    fi
+}
+
 reset_project() {
     log "Resetting demo project..."
     if [ -d "${PROJECT_DIR}/.git" ]; then
@@ -111,6 +124,7 @@ reset_project() {
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
 wait_for_server
+ensure_git_repo
 
 CONDUCTOR_PID=""
 

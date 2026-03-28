@@ -19,14 +19,13 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 import random
 import time
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from bernstein.core.models import Complexity, ModelConfig, Scope, Task
+from bernstein.core.models import Complexity, Scope, Task
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +114,7 @@ class BanditArm:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "BanditArm":
+    def from_dict(cls, d: dict[str, Any]) -> BanditArm:
         return cls(
             role=d["role"],
             model=d["model"],
@@ -161,7 +160,7 @@ class EpsilonGreedyBandit:
     # ------------------------------------------------------------------
 
     @classmethod
-    def load(cls, metrics_dir: Path) -> "EpsilonGreedyBandit":
+    def load(cls, metrics_dir: Path) -> EpsilonGreedyBandit:
         """Load bandit state from disk, returning a fresh instance on error."""
         bandit = cls()
         state_path = metrics_dir / cls.STATE_FILE
@@ -300,13 +299,7 @@ def get_cascade_model(task: Task, retry_count: int = 0) -> str:
         Model name string.
     """
     # High-stakes roles always start at sonnet or opus
-    if task.role in ("manager", "architect"):
-        cascade = ["sonnet", "opus"]
-    elif task.role == "security":
-        cascade = ["sonnet", "opus"]
-    elif task.complexity == Complexity.HIGH or task.scope == Scope.LARGE:
-        cascade = ["sonnet", "opus"]
-    elif task.priority == 1:
+    if task.role in ("manager", "architect") or task.role == "security" or task.complexity == Complexity.HIGH or task.scope == Scope.LARGE or task.priority == 1:
         cascade = ["sonnet", "opus"]
     else:
         cascade = list(CASCADE)  # ["haiku", "sonnet", "opus"]

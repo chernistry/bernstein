@@ -20,13 +20,13 @@ from typing import TYPE_CHECKING, Any, ClassVar, TypedDict
 import httpx
 
 from bernstein.core.bulletin import BulletinBoard, BulletinMessage
+from bernstein.core.cluster import NodeHeartbeatClient
 from bernstein.core.context import append_decision, refresh_knowledge_base
 from bernstein.core.evolution import EvolutionCoordinator, UpgradeStatus
+from bernstein.core.fast_path import FastPathStats, TaskLevel, classify_task, get_l1_model_config, try_fast_path_batch
+from bernstein.core.graph import TaskGraph
 from bernstein.core.janitor import verify_task
 from bernstein.core.metrics import get_collector
-from bernstein.core.retrospective import generate_retrospective
-from bernstein.core.graph import TaskGraph
-from bernstein.core.cluster import NodeHeartbeatClient
 from bernstein.core.models import (
     AgentSession,
     ClusterConfig,
@@ -36,9 +36,9 @@ from bernstein.core.models import (
     TaskStatus,
     TaskType,
 )
-from bernstein.core.signals import read_unresolved_pivots
-from bernstein.core.fast_path import FastPathStats, classify_task, try_fast_path_batch, TaskLevel, get_l1_model_config
+from bernstein.core.retrospective import generate_retrospective
 from bernstein.core.router import TierAwareRouter, load_providers_from_yaml
+from bernstein.core.signals import read_unresolved_pivots
 from bernstein.evolution.types import MetricsRecord
 
 if TYPE_CHECKING:
@@ -468,10 +468,11 @@ class Orchestrator:
         if self._bulletin is None:
             return
         from typing import cast as _cast
+
         from bernstein.core.bulletin import MessageType
         self._bulletin.post(BulletinMessage(
             agent_id="orchestrator",
-            type=_cast(MessageType, msg_type),
+            type=_cast("MessageType", msg_type),
             content=content,
         ))
 
@@ -2748,11 +2749,38 @@ if __name__ == "__main__":
             except (json.JSONDecodeError, ValueError):
                 pass
 
+        # Resolve cluster-aware settings from env vars + seed config
+        server_url = os.environ.get(
+            "BERNSTEIN_SERVER_URL", f"http://127.0.0.1:{args.port}"
+        )
+        auth_token = os.environ.get("BERNSTEIN_AUTH_TOKEN")
+
+        # Build cluster config: env vars take precedence over seed file
+        cluster_cfg: ClusterConfig | None = seed.cluster if seed else None
+        cluster_enabled = os.environ.get(
+            "BERNSTEIN_CLUSTER_ENABLED", ""
+        ).lower() in ("1", "true", "yes")
+        if cluster_enabled:
+            cluster_cfg = ClusterConfig(
+                enabled=True,
+                topology=(cluster_cfg.topology if cluster_cfg else ClusterTopology.STAR),
+                auth_token=auth_token or (cluster_cfg.auth_token if cluster_cfg else None),
+                node_heartbeat_interval_s=(
+                    cluster_cfg.node_heartbeat_interval_s if cluster_cfg else 15
+                ),
+                node_timeout_s=(cluster_cfg.node_timeout_s if cluster_cfg else 60),
+                server_url=os.environ.get("BERNSTEIN_SERVER_URL") or (
+                    cluster_cfg.server_url if cluster_cfg else None
+                ),
+                bind_host=os.environ.get("BERNSTEIN_BIND_HOST", "127.0.0.1"),
+            )
+
         config = OrchestratorConfig(
-            server_url=f"http://127.0.0.1:{args.port}",
-            max_agents=6,
+            server_url=server_url,
+            max_agents=seed.max_agents if seed else 6,
             budget_usd=budget_usd,
             dry_run=dry_run,
+            auth_token=auth_token,
         )
 
         if args.cells > 1:
@@ -2780,7 +2808,13 @@ if __name__ == "__main__":
             )
             multi_orchestrator.run()
         else:
-            orchestrator = Orchestrator(config=config, spawner=spawner, workdir=workdir, router=router)
+            orchestrator = Orchestrator(
+                config=config,
+                spawner=spawner,
+                workdir=workdir,
+                router=router,
+                cluster_config=cluster_cfg,
+            )
             orchestrator.run()
     except Exception:
         logger.exception("Orchestrator crashed")

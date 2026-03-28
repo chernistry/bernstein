@@ -522,7 +522,7 @@ class RouterError(Exception):
 
 
 # Legacy compatibility function - uses default routing rules
-def route_task(task: Task, bandit_metrics_dir: "Path | None" = None) -> ModelConfig:
+def route_task(task: Task, bandit_metrics_dir: Path | None = None) -> ModelConfig:
     """Select model and effort based on task metadata.
 
     If the manager specified model/effort on the task, use those.
@@ -567,7 +567,7 @@ def route_task(task: Task, bandit_metrics_dir: "Path | None" = None) -> ModelCon
     # Consult epsilon-greedy bandit for dynamic model selection
     if bandit_metrics_dir is not None:
         try:
-            from bernstein.core.cost import EpsilonGreedyBandit, CASCADE
+            from bernstein.core.cost import CASCADE, EpsilonGreedyBandit
             bandit = EpsilonGreedyBandit.load(bandit_metrics_dir)
             # For high-complexity tasks, restrict candidates to sonnet/opus
             if task.complexity == Complexity.HIGH:

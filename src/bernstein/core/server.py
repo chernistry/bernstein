@@ -23,9 +23,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from bernstein.core.a2a import A2AHandler, A2ATaskStatus
+from bernstein.core.a2a import A2AHandler
 from bernstein.core.bulletin import BulletinBoard, BulletinMessage, MessageType
-from bernstein.core.cluster import NodeRegistry, node_from_dict
+from bernstein.core.cluster import NodeRegistry
 from bernstein.core.models import (
     AgentSession,
     ClusterConfig,

@@ -582,7 +582,7 @@ class CreativePipeline:
             approved_verdicts: Only the approved analyst verdicts.
         """
         # Deferred import keeps gh CLI optional.
-        from bernstein.core.github import GitHubClient  # noqa: PLC0415
+        from bernstein.core.github import GitHubClient
 
         if self._github is None:
             self._github = GitHubClient()

@@ -20,15 +20,11 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import httpx
 
 from bernstein.core.metrics import get_collector
 from bernstein.core.models import Complexity, ModelConfig, Scope, Task
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

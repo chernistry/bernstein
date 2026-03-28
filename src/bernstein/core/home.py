@@ -56,7 +56,7 @@ class BernsteinHome:
     # ------------------------------------------------------------------
 
     @classmethod
-    def default(cls) -> "BernsteinHome":
+    def default(cls) -> BernsteinHome:
         """Return a BernsteinHome pointing at ~/.bernstein."""
         return cls(Path.home() / ".bernstein")
 

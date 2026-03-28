@@ -423,10 +423,11 @@ def init(target_dir: str) -> None:
     templates_dst = root / "templates"
     if not templates_dst.exists():
         import shutil
+
         from bernstein import _BUNDLED_TEMPLATES_DIR
         if _BUNDLED_TEMPLATES_DIR.is_dir():
             shutil.copytree(_BUNDLED_TEMPLATES_DIR, templates_dst)
-            console.print(f"[green]Created[/green] templates/ (default roles & prompts)")
+            console.print("[green]Created[/green] templates/ (default roles & prompts)")
 
     # Append .sdd/runtime/ to root .gitignore if not already present
     root_gi_path = root / ".gitignore"
@@ -1192,9 +1193,6 @@ def demo(dry_run: bool, adapter: str | None, timeout: int) -> None:
         plan_table.add_row("1", "Create project", "Temp dir with Flask hello-world (5 files)")
         plan_table.add_row("2", "Seed backlog", "3 tasks in .sdd/backlog/open/")
         for i, t in enumerate(_DEMO_TASKS, start=3):
-            from bernstein.core.sync import parse_backlog_file as _parse
-            import tempfile as _tmp
-            import io
             # Parse task inline to get title/role
             parts = t["content"].split("\n")
             title = parts[0].lstrip("# ").strip()
@@ -1206,7 +1204,7 @@ def demo(dry_run: bool, adapter: str | None, timeout: int) -> None:
         plan_table.add_row(str(len(_DEMO_TASKS) + 3), "Print summary", "tasks done, cost, files changed")
         console.print(plan_table)
         console.print(
-            f"\n[dim]No agents were spawned. Run [bold]bernstein demo[/bold] to execute.[/dim]"
+            "\n[dim]No agents were spawned. Run [bold]bernstein demo[/bold] to execute.[/dim]"
         )
         return
 
@@ -1960,7 +1958,7 @@ def config_list(project_dir: str) -> None:
     """List all config keys with their effective values and sources."""
     from rich.table import Table
 
-    from bernstein.core.home import BernsteinHome, _DEFAULTS, resolve_config
+    from bernstein.core.home import _DEFAULTS, BernsteinHome, resolve_config
 
     home = BernsteinHome.default()
     table = Table(show_header=True, header_style="bold magenta")
@@ -2097,7 +2095,7 @@ def _build_collector_from_archive(
             success=(status == "done"),
             cost_usd=cost_usd,
         )
-        collector._task_metrics[task_id] = tm  # noqa: SLF001
+        collector._task_metrics[task_id] = tm
 
     # Enrich with token data from .sdd/metrics/tasks.jsonl if available
     metrics_path = archive_path.parent.parent / "metrics" / "tasks.jsonl"
@@ -2115,7 +2113,7 @@ def _build_collector_from_archive(
             if tid:
                 metrics_by_task[str(tid)] = rec
 
-        for task_id, tm in collector._task_metrics.items():  # noqa: SLF001
+        for task_id, tm in collector._task_metrics.items():
             if task_id in metrics_by_task:
                 rec = metrics_by_task[task_id]
                 tm.tokens_prompt = int(rec.get("tokens_prompt", 0) or 0)
@@ -2590,20 +2588,20 @@ def agents_match(role: str, task_description: str) -> None:
     from rich.text import Text as RichText
 
     t = RichText()
-    t.append(f"  Role      ", style="dim")
+    t.append("  Role      ", style="dim")
     t.append(f"{match.role}\n", style="bold")
-    t.append(f"  Name      ", style="dim")
+    t.append("  Name      ", style="dim")
     t.append(f"{match.name}\n", style="bold cyan")
-    t.append(f"  ID        ", style="dim")
+    t.append("  ID        ", style="dim")
     t.append(f"{match.id or '—'}\n")
-    t.append(f"  Source    ", style="dim")
+    t.append("  Source    ", style="dim")
     t.append(f"{match.source}\n")
-    t.append(f"  Priority  ", style="dim")
+    t.append("  Priority  ", style="dim")
     t.append(f"{match.priority}\n")
-    t.append(f"  Tools     ", style="dim")
+    t.append("  Tools     ", style="dim")
     t.append(", ".join(match.tools) if match.tools else "—")
     t.append("\n\n")
-    t.append(f"  Description\n", style="dim")
+    t.append("  Description\n", style="dim")
     t.append(f"    {match.description[:120]}\n")
 
     console.print(Panel(t, title=f"[bold]Agent match: {role}[/bold]", border_style="cyan"))

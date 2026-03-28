@@ -14,14 +14,12 @@ import logging
 import socket
 import threading
 import time
-from dataclasses import asdict
 from typing import TYPE_CHECKING, Any
 
 import httpx
 
 from bernstein.core.models import (
     ClusterConfig,
-    ClusterTopology,
     NodeCapacity,
     NodeInfo,
     NodeStatus,

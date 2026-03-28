@@ -22,8 +22,14 @@ from typing import TYPE_CHECKING
 
 from bernstein.core.git_context import (
     cochange_files as _gc_cochange_files,
+)
+from bernstein.core.git_context import (
     ls_files as _gc_ls_files,
+)
+from bernstein.core.git_context import (
     ls_files_pattern as _gc_ls_files_pattern,
+)
+from bernstein.core.git_context import (
     recent_changes_multi as _gc_recent_changes_multi,
 )
 

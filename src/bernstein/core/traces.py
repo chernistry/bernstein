@@ -9,10 +9,9 @@ import json
 import re
 import time
 import uuid
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
-
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -43,7 +42,7 @@ class TraceStep:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "TraceStep":
+    def from_dict(cls, d: dict[str, Any]) -> TraceStep:
         return cls(
             type=d["type"],
             timestamp=d["timestamp"],
@@ -97,7 +96,7 @@ class AgentTrace:
         return d
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "AgentTrace":
+    def from_dict(cls, d: dict[str, Any]) -> AgentTrace:
         steps = [TraceStep.from_dict(s) for s in d.get("steps", [])]
         return cls(
             trace_id=d["trace_id"],

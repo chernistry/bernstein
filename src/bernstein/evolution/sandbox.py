@@ -19,6 +19,8 @@ from pathlib import Path
 
 from bernstein.core.git_ops import (
     apply_diff as git_apply_diff,
+)
+from bernstein.core.git_ops import (
     branch_delete,
     worktree_add,
     worktree_remove,
@@ -26,7 +28,7 @@ from bernstein.core.git_ops import (
 from bernstein.evolution.types import RiskLevel, SandboxResult, UpgradeProposal
 
 # Re-export for backwards compatibility (already imported above)
-__all__ = ["SandboxValidator", "SANDBOX_TIMEOUT"]
+__all__ = ["SANDBOX_TIMEOUT", "SandboxValidator"]
 
 logger = logging.getLogger(__name__)
 

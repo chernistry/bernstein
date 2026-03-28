@@ -7,11 +7,10 @@ Data sources:
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # Data model
@@ -238,7 +237,6 @@ class EvolutionReport:
         from rich.console import Console
         from rich.panel import Panel
         from rich.table import Table
-        from rich.text import Text
 
         console = Console()
 
@@ -283,7 +281,7 @@ class EvolutionReport:
         table.add_column("Duration", justify="right", min_width=9)
 
         for i, c in enumerate(self.cycles):
-            dt = datetime.fromtimestamp(c.timestamp, tz=timezone.utc)
+            dt = datetime.fromtimestamp(c.timestamp, tz=UTC)
             time_str = dt.strftime("%m-%d %H:%M")
 
             task_str = f"[green]{c.tasks_completed}[/green]/[red]{c.tasks_failed}[/red]"
@@ -354,15 +352,15 @@ class EvolutionReport:
     def export_markdown(self, output_path: Path) -> None:
         """Write a Markdown report to output_path."""
         lines: list[str] = []
-        now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
         lines.append("# Bernstein Evolution Report")
         lines.append(f"\n_Generated {now}_\n")
 
         # Summary section
         lines.append("## Summary\n")
-        lines.append(f"| Metric | Value |")
-        lines.append(f"|--------|-------|")
+        lines.append("| Metric | Value |")
+        lines.append("|--------|-------|")
         lines.append(f"| Total cycles | {self.total_cycles} |")
         lines.append(f"| Tasks completed | {self.total_tasks_completed} |")
         lines.append(f"| Tasks failed | {self.total_tasks_failed} |")
@@ -384,7 +382,7 @@ class EvolutionReport:
         lines.append("|---|-----------|-------|---------|---------|-------|----------|---------|----------|")
 
         for i, c in enumerate(self.cycles):
-            dt = datetime.fromtimestamp(c.timestamp, tz=timezone.utc)
+            dt = datetime.fromtimestamp(c.timestamp, tz=UTC)
             time_str = dt.strftime("%Y-%m-%d %H:%M")
             test_str = str(c.tests_passed) if c.tests_passed > 0 else "—"
             lines.append(
@@ -410,14 +408,14 @@ class EvolutionReport:
 
     def export_html(self, output_path: Path) -> None:
         """Write a static HTML report to output_path."""
-        now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
         sparkline = self._tests_sparkline()
         success_sparkline = self._success_rate_sparkline()
 
         # Build cycle rows
         cycle_rows: list[str] = []
         for i, c in enumerate(self.cycles):
-            dt = datetime.fromtimestamp(c.timestamp, tz=timezone.utc)
+            dt = datetime.fromtimestamp(c.timestamp, tz=UTC)
             time_str = dt.strftime("%Y-%m-%d %H:%M")
             test_str = str(c.tests_passed) if c.tests_passed > 0 else "—"
             row_class = ""

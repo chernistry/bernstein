@@ -160,7 +160,7 @@ def _check_port_free(port: int) -> None:
             )
             console.print(
                 "Run [bold]bernstein stop[/bold] to free it, "
-                f"or pass [bold]--port <n>[/bold] to use a different port."
+                "or pass [bold]--port <n>[/bold] to use a different port."
             )
             raise SystemExit(1)
 

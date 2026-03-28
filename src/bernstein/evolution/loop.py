@@ -51,7 +51,8 @@ from bernstein.evolution.types import UpgradeProposal as TypesUpgradeProposal
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from bernstein.core.github import GitHubClient, GitHubIssue
+
+    from bernstein.core.github import GitHubClient
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +233,7 @@ class EvolutionLoop:
         if not self._github_sync:
             return None
         if self._github is None:
-            from bernstein.core.github import GitHubClient  # noqa: PLC0415
+            from bernstein.core.github import GitHubClient
             self._github = GitHubClient()
             if not self._github.available:
                 logger.warning(
@@ -721,9 +722,9 @@ class EvolutionLoop:
             )
             # Close the GitHub issue now that a backlog task exists.
             closing_comment = (
-                f"Bernstein has created a backlog task for this request. "
-                f"Implementation will be tracked internally.\n\n"
-                f"*Processed by `bernstein evolve run --community`*"
+                "Bernstein has created a backlog task for this request. "
+                "Implementation will be tracked internally.\n\n"
+                "*Processed by `bernstein evolve run --community`*"
             )
             gh.close_issue(selected.number, comment=closing_comment)
         else:

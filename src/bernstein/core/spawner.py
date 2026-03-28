@@ -8,12 +8,12 @@ from typing import TYPE_CHECKING, Any
 
 from bernstein.agents.registry import AgentRegistry, get_registry
 from bernstein.core.context import TaskContextBuilder
+from bernstein.core.git_ops import MergeResult, merge_with_conflict_detection
 from bernstein.core.mcp_registry import MCPRegistry
 from bernstein.core.models import AgentSession, ModelConfig, Task
 from bernstein.core.router import RouterError, TierAwareRouter
-from bernstein.core.git_ops import MergeResult, merge_with_conflict_detection
-from bernstein.core.worktree import WorktreeError, WorktreeManager
 from bernstein.core.traces import AgentTrace, TraceStore, finalize_trace, new_trace
+from bernstein.core.worktree import WorktreeError, WorktreeManager
 from bernstein.templates.renderer import TemplateError, render_role_prompt
 
 if TYPE_CHECKING:

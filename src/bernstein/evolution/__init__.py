@@ -31,13 +31,13 @@ from bernstein.evolution.applicator import (
     FileUpgradeExecutor,
     UpgradeExecutor,
 )
+from bernstein.evolution.circuit import CircuitBreaker
 from bernstein.evolution.creative import (
     AnalystVerdict,
     CreativePipeline,
     PipelineResult,
     VisionaryProposal,
 )
-from bernstein.evolution.circuit import CircuitBreaker
 from bernstein.evolution.detector import (
     FailureAnalyzer,
     FailurePattern,

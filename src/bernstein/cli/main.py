@@ -37,52 +37,52 @@ from bernstein.cli.evolve_cmd import evolve
 #   from bernstein.cli.main import console, SERVER_URL
 # continue to work.
 # ---------------------------------------------------------------------------
-from bernstein.cli.helpers import (  # noqa: F401 — re-exports for backward compat
-    BANNER,
-    SDD_DIRS,
+from bernstein.cli.helpers import (
+    BANNER,  # noqa: F401
+    SDD_DIRS,  # noqa: F401
     SDD_PID_SERVER,
-    SDD_PID_SPAWNER,
-    SDD_PID_WATCHDOG,
+    SDD_PID_SPAWNER,  # noqa: F401
+    SDD_PID_WATCHDOG,  # noqa: F401
     SERVER_URL,
     STATUS_COLORS,
-    _auth_headers,
-    _find_seed_file,
-    _is_alive,
-    _is_process_alive,
-    _kill_pid,
-    _kill_pid_hard,
-    _print_banner,
-    _print_dry_run_table,
-    _read_pid,
-    _server_get,
-    _server_post,
-    _write_pid,
+    auth_headers,  # noqa: F401
     console,
+    find_seed_file,
+    is_alive,
+    is_process_alive,  # noqa: F401
+    kill_pid,  # noqa: F401
+    kill_pid_hard,  # noqa: F401
+    print_banner,
+    print_dry_run_table,
+    read_pid,
+    server_get,
+    server_post,
+    write_pid,  # noqa: F401
 )
 
 # Re-export run_cmd helpers used by tests
-from bernstein.cli.run_cmd import (  # noqa: F401 — re-exports for backward compat
-    _DEMO_TASKS,
-    _detect_available_adapter,
-    _setup_demo_project,
+from bernstein.cli.run_cmd import (
+    DEMO_TASKS,  # noqa: F401
     demo,
+    detect_available_adapter,  # noqa: F401
     init,
     run,
+    setup_demo_project,  # noqa: F401
     start,
 )
 from bernstein.cli.status_cmd import doctor, ps_cmd, status
 
 # Re-export stop_cmd helpers used by tests and other modules
-from bernstein.cli.stop_cmd import (  # noqa: F401 — re-exports for backward compat
-    _hard_stop,
-    _recover_orphaned_claims,
-    _register_sigint_handler,
-    _return_claimed_to_open,
-    _save_session_on_stop,
-    _sigint_handler,
-    _soft_stop,
-    _write_shutdown_signals,
+from bernstein.cli.stop_cmd import (
+    hard_stop,  # noqa: F401
+    recover_orphaned_claims,
+    register_sigint_handler,
+    return_claimed_to_open,  # noqa: F401
+    save_session_on_stop,  # noqa: F401
+    sigint_handler,  # noqa: F401
+    soft_stop,  # noqa: F401
     stop,
+    write_shutdown_signals,  # noqa: F401
 )
 
 if TYPE_CHECKING:
@@ -92,11 +92,107 @@ if TYPE_CHECKING:
     from bernstein.eval.golden import Tier
 
 # ---------------------------------------------------------------------------
+# Rich help
+# ---------------------------------------------------------------------------
+
+
+def _print_rich_help() -> None:
+    """Print a grouped, color-coded help screen."""
+    from rich.panel import Panel
+    from rich.table import Table
+
+    c = console
+    c.print()
+    c.print(
+        Panel(
+            "[bold]bernstein[/bold]  —  multi-agent orchestration for CLI coding agents",
+            border_style="blue",
+            padding=(0, 2),
+        )
+    )
+    c.print("\n  [bold cyan]Quick start[/bold cyan]")
+    c.print('  [dim]$[/dim] bernstein -g [green]"Add JWT auth with tests"[/green]     [dim]# inline goal[/dim]')
+    c.print("  [dim]$[/dim] bernstein                                    [dim]# from bernstein.yaml[/dim]")
+    c.print("  [dim]$[/dim] bernstein init                               [dim]# set up a new project[/dim]")
+    c.print()
+
+    groups: list[tuple[str, list[tuple[str, str]]]] = [
+        (
+            "Run & manage",
+            [
+                ("bernstein -g [dim]GOAL[/dim]", "Orchestrate agents for an inline goal"),
+                ("bernstein", "Run from bernstein.yaml or backlog"),
+                ("init", "Initialize project (.sdd/ + bernstein.yaml)"),
+                ("stop", "Graceful stop (agents save work first)"),
+                ("stop --force", "Hard stop (kill immediately)"),
+            ],
+        ),
+        (
+            "Monitor",
+            [
+                ("status", "Task summary and agent health"),
+                ("live", "Real-time TUI dashboard"),
+                ("ps", "Running agent processes"),
+                ("cost", "Spend breakdown by model and task"),
+                ("logs", "Tail agent output"),
+            ],
+        ),
+        (
+            "Diagnostics",
+            [
+                ("doctor", "Pre-flight check: Python, adapters, API keys, ports"),
+                ("recap", "Post-run summary: tasks, pass/fail, cost"),
+                ("retro", "Detailed retrospective report"),
+                ("plan", "Show task backlog"),
+            ],
+        ),
+        (
+            "Agents & evolution",
+            [
+                ("agents list", "Available agents and capabilities"),
+                ("agents sync", "Pull latest agent catalog"),
+                ("evolve", "Self-improvement proposals"),
+                ("demo", "Zero-to-running demo in 60 seconds"),
+            ],
+        ),
+    ]
+    for group_name, commands in groups:
+        table = Table(show_header=False, box=None, padding=(0, 2), expand=True)
+        table.add_column("Command", style="bold green", no_wrap=True, min_width=24)
+        table.add_column("Description", style="dim")
+        for cmd, desc in commands:
+            table.add_row(cmd, desc)
+        c.print(f"  [bold]{group_name}[/bold]")
+        c.print(table)
+        c.print()
+
+    c.print("  [bold]Options[/bold]")
+    opts = Table(show_header=False, box=None, padding=(0, 2), expand=True)
+    opts.add_column("Flag", style="yellow", no_wrap=True, min_width=24)
+    opts.add_column("", style="dim")
+    opts.add_row("--budget [dim]N[/dim]", "Cost cap in USD (0 = unlimited)")
+    opts.add_row("--dry-run", "Preview task plan without spawning")
+    opts.add_row("--approval [dim]auto|review|pr[/dim]", "Gate before merge")
+    opts.add_row("--fresh", "Ignore saved session, start clean")
+    opts.add_row("--version", "Show version")
+    c.print(opts)
+    c.print("\n  [dim]Docs:[/dim] https://chernistry.github.io/bernstein/")
+    c.print("  [dim]Repo:[/dim] https://github.com/chernistry/bernstein\n")
+
+
+# ---------------------------------------------------------------------------
 # CLI group
 # ---------------------------------------------------------------------------
 
 
-@click.group(invoke_without_command=True)
+class _RichGroup(click.Group):
+    """Click group that renders help with Rich instead of plain text."""
+
+    def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+        _print_rich_help()
+
+
+@click.group(cls=_RichGroup, invoke_without_command=True)
 @click.version_option(package_name="bernstein")
 @click.option("--goal", "-g", default=None, help="Inline goal (no seed file needed).")
 @click.option("--evolve", "-e", is_flag=True, default=False, hidden=True, help="Continuous self-improvement mode.")
@@ -141,34 +237,22 @@ def cli(
     approval: str,
     merge_strategy: str,
 ) -> None:
-    """Bernstein — multi-agent orchestration for CLI coding agents.
-
-    \b
-    Usage:
-      bernstein -g "Build auth with JWT"    Run with inline goal
-      bernstein                             Run from bernstein.yaml
-      bernstein status                      Check progress
-      bernstein stop                        Stop everything
-      bernstein doctor                      Run self-diagnostics
-      bernstein recap                       Show post-run summary
-
-    For full options: bernstein --help-all
-    """
+    """Multi-agent orchestration for CLI coding agents."""
     if ctx.invoked_subcommand is not None:
         return
 
-    _print_banner()
+    print_banner()
 
-    seed_path = _find_seed_file()
+    seed_path = find_seed_file()
     workdir = Path.cwd()
     port = 8052
 
     if dry_run:
-        _print_dry_run_table(workdir)
+        print_dry_run_table(workdir)
         return
 
     # Recover orphaned claimed tickets from any prior crashed/stopped session
-    recovered = _recover_orphaned_claims()
+    recovered = recover_orphaned_claims()
     if recovered:
         console.print(f"[yellow]Recovered {recovered} orphaned ticket(s) from a prior session.[/yellow]")
 
@@ -196,12 +280,11 @@ def cli(
             input()
         except (KeyboardInterrupt, EOFError):
             console.print("\n[yellow]Aborted.[/yellow]")
-            raise SystemExit(0) from None
 
     # Check if already running
     server_pid_path = Path(SDD_PID_SERVER)
-    server_pid = _read_pid(str(server_pid_path))
-    already_running = server_pid is not None and _is_alive(server_pid)
+    server_pid = read_pid(str(server_pid_path))
+    already_running = server_pid is not None and is_alive(server_pid)
 
     if not already_running:
         # Write run_config.json so the orchestrator subprocess can read budget_usd, approval,
@@ -230,7 +313,6 @@ def cli(
                     input()
                 except (KeyboardInterrupt, EOFError):
                     console.print("\n[yellow]Aborted.[/yellow]")
-                    raise SystemExit(0) from None
             from bernstein.core.bootstrap import bootstrap_from_goal
 
             try:
@@ -300,7 +382,7 @@ def cli(
         return
 
     # Register Ctrl+C handler so we save state before the dashboard exits
-    _register_sigint_handler()
+    register_sigint_handler()
 
     # Show live dashboard (blocks until Ctrl+C / q)
     from bernstein.cli.dashboard import run_dashboard
@@ -392,7 +474,7 @@ def add_task(
         "depends_on": list(depends_on),
     }
 
-    result = _server_post("/task", payload)
+    result = server_post("/task", payload)
     if result is None:
         console.print("[red]Cannot reach task server.[/red] Is Bernstein running? Run [bold]bernstein[/bold] to start.")
         raise SystemExit(1)
@@ -465,7 +547,7 @@ def sync(port: int, workdir: str) -> None:
 @click.option("--reason", "-r", default="Cancelled by user", help="Cancellation reason")
 def cancel(task_id: str, reason: str) -> None:
     """Cancel a running or queued task."""
-    data = _server_post(f"/tasks/{task_id}/cancel", {"reason": reason})
+    data = server_post(f"/tasks/{task_id}/cancel", {"reason": reason})
     if data is None:
         console.print("[red]Server not reachable.[/red]")
         raise SystemExit(1)
@@ -592,7 +674,7 @@ def plan(export_file: str | None, status_filter: str | None) -> None:
     if status_filter:
         path = f"/tasks?status={status_filter}"
 
-    raw = _server_get(path)
+    raw = server_get(path)
     if raw is None:
         console.print("[red]Cannot reach task server.[/red] Is Bernstein running? Run [bold]bernstein[/bold] to start.")
         raise SystemExit(1)
@@ -758,7 +840,7 @@ cli.add_command(_notes_legacy, "logs-legacy")
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
 def list_tasks(status_filter: str | None, role: str | None, as_json: bool) -> None:
     """List tasks with optional filters."""
-    data = _server_get("/status")
+    data = server_get("/status")
     if data is None:
         console.print("[red]Cannot reach task server.[/red] Is Bernstein running? Run [bold]bernstein[/bold] to start.")
         raise SystemExit(1)
@@ -929,14 +1011,14 @@ def live(interval: float, classic: bool) -> None:
     from rich.live import Live
     from rich.panel import Panel
 
-    _print_banner()
+    print_banner()
 
     def _fetch_dashboard() -> dict[str, Any]:
         """Fetch all data needed for the live dashboard."""
-        status_data = _server_get("/status")
+        status_data = server_get("/status")
         if status_data is None:
             return {}
-        tasks_raw = _server_get("/tasks")
+        tasks_raw = server_get("/tasks")
         tasks: list[dict[str, Any]] = cast("list[dict[str, Any]]", tasks_raw) if isinstance(tasks_raw, list) else []
 
         # Read agent state from orchestrator's agents.json (written each tick)
@@ -1418,10 +1500,10 @@ def workspace_group(ctx: click.Context) -> None:
 
     from rich.table import Table
 
-    data = _server_get("/workspace")
+    data = server_get("/workspace")
     if data is None:
         # No server running — try to parse workspace from seed file
-        seed_path = _find_seed_file()
+        seed_path = find_seed_file()
         if seed_path is None:
             console.print("[dim]No workspace configured (no bernstein.yaml found).[/dim]")
             return
@@ -1488,7 +1570,7 @@ def workspace_group(ctx: click.Context) -> None:
 @workspace_group.command("clone")
 def workspace_clone() -> None:
     """Clone all missing repos defined in the workspace."""
-    seed_path = _find_seed_file()
+    seed_path = find_seed_file()
     if seed_path is None:
         console.print("[red]No bernstein.yaml found.[/red]")
         return
@@ -1516,7 +1598,7 @@ def workspace_clone() -> None:
 @workspace_group.command("validate")
 def workspace_validate() -> None:
     """Check workspace health -- all repos exist and are valid git repos."""
-    seed_path = _find_seed_file()
+    seed_path = find_seed_file()
     if seed_path is None:
         console.print("[red]No bernstein.yaml found.[/red]")
         return
@@ -1829,7 +1911,6 @@ def retro(
         label = f"in the last {since}h" if since is not None else "in the archive"
         console.print(f"[yellow]No completed or failed tasks found {label}.[/yellow]")
         console.print(f"[dim]Archive: {archive_path}[/dim]")
-        raise SystemExit(0)
 
     collector = _build_collector_from_archive(archive_path, since_ts)
 
@@ -2162,7 +2243,6 @@ def recap(archive: str, as_json: bool) -> None:
         else:
             console.print(f"[yellow]No archive found:[/yellow] {archive_path}")
             console.print("[dim]Run 'bernstein' to start, then check again after tasks complete.[/dim]")
-        raise SystemExit(0)
 
     records: list[dict[str, Any]] = []
     for line in archive_path.read_text().splitlines():
@@ -2467,7 +2547,7 @@ def replay_cmd(
         )
 
         # Try fetching current task from server to get fresh metadata
-        current = _server_get(f"/tasks/{task_id_item}")
+        current = server_get(f"/tasks/{task_id_item}")
         if current is not None:
             # Re-create as a new task (copy title/description, use new model/effort)
             src = current
@@ -2487,7 +2567,7 @@ def replay_cmd(
             "model": effective_model,
             "effort": effective_effort,
         }
-        resp = _server_post("/tasks", payload)
+        resp = server_post("/tasks", payload)
         if resp is not None:
             new_id = resp.get("id", "?")
             submitted.append(new_id)

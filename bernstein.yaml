@@ -27,7 +27,7 @@ fallback:
   target: claude-sonnet        # fallback agent
   log: true                    # log fallback events to .sdd/metrics/fallbacks.jsonl
 
-budget: "$15"
+budget: "$0"  # no cap — run until rate limits, then wait and resume
 
 constraints:
   - "Python 3.12+, strict typing (Pyright strict), Ruff linting"

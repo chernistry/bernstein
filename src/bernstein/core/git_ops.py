@@ -561,7 +561,7 @@ def bisect_regression(
         run_git(["bisect", "start", "HEAD", good_ref], cwd, timeout=10)
 
         result = subprocess.run(
-            ["git", "bisect", "run"] + test_cmd.split(),
+            ["git", "bisect", "run", *test_cmd.split()],
             cwd=cwd,
             capture_output=True,
             text=True,

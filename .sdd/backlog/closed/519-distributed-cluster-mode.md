@@ -49,3 +49,9 @@ ring, star) with Raft consensus. Bernstein must match or exceed this.
 - Two Bernstein instances on different machines coordinate on shared tasks
 - `bernstein status` shows cluster view with all active nodes
 - Integration test: start 2 servers, verify task handoff
+
+
+---
+**completed**: 2026-03-28 12:32:03
+**task_id**: 8a92f93f82cc
+**result**: Completed: [RETRY 1] 523 — Docker / Kubernetes deployment for cluster mode

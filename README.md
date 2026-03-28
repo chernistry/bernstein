@@ -33,7 +33,7 @@ bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
 
 Bernstein takes a goal, breaks it into tasks, assigns them to AI coding agents running in parallel, verifies the output, and commits the results. You come back to working code, passing tests, and a clean git history.
 
-**No framework to learn.** If you have [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex CLI](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), or [Qwen](https://github.com/QwenLM/Qwen-Agent) installed, Bernstein uses them. Agents spawn, work, exit. No context drift. No babysitting.
+**No framework to learn. No vendor lock-in.** If you have [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex CLI](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), or [Qwen](https://github.com/QwenLM/Qwen-Agent) installed, Bernstein uses them. Mix models in the same run — cheap free-tier agents for boilerplate, heavy models for architecture. Switch providers without rewriting anything. Agents spawn, work, exit. No context drift. No babysitting.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture.svg">
@@ -105,17 +105,28 @@ bernstein --evolve --max-cycles 10 --budget 5.00
 
 Analyzes metrics, proposes changes to prompts and routing rules, sandboxes them, and auto-applies what passes. Critical files are SHA-locked. Circuit breaker halts on test regression. Risk-stratified: L0 auto-apply, L1 sandbox-first, L2 human review, L3 blocked.
 
-<details>
-<summary><strong>Supported agents</strong></summary>
+## Supported agents
 
-| Agent | CLI flag | Notes |
-|-------|----------|-------|
-| Claude Code | `--cli claude` | Default. Full tool-use, file editing, tests. |
-| Codex CLI | `--cli codex` | OpenAI Codex. |
-| Gemini CLI | `--cli gemini` | Google Gemini. |
-| Qwen | `--cli qwen` | Local-friendly, Alibaba Qwen. |
+| Agent | Provider | CLI flag | Install |
+|-------|----------|----------|---------|
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Anthropic | `--cli claude` | `npm install -g @anthropic-ai/claude-code` |
+| [Codex CLI](https://github.com/openai/codex) | OpenAI | `--cli codex` | `npm install -g @openai/codex` |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Google | `--cli gemini` | `npm install -g @google/gemini-cli` |
+| [Qwen](https://github.com/QwenLM/Qwen-Agent) | Alibaba / OpenRouter | `--cli qwen` | `npm install -g qwen-code` |
+| Any CLI agent | Yours | `--cli generic` | Provide `--cli-command` and `--prompt-flag` |
 
-</details>
+Mix and match in a single run — the orchestrator doesn't care which agent handles which task:
+
+```bash
+# Claude on architecture, Codex on tests, Gemini on docs
+bernstein -g "Refactor auth module, add tests, update API docs" \
+  --cli claude          # default for all roles
+  # override per task via bernstein.yaml roles config
+```
+
+> **Why this matters:** every other AI agent framework (OpenAI Agents SDK, Google ADK, Anthropic Agent SDK) ties your orchestration to one provider. Bernstein doesn't. Your prompts, task graphs, and agent roles are portable. Swap providers without touching your workflow.
+
+See [`docs/adapters.html`](https://chernistry.github.io/bernstein/adapters.html) for a feature matrix and the "bring your own agent" guide.
 
 <details>
 <summary><strong>Specialist roles</strong></summary>
@@ -147,14 +158,17 @@ Any tool, CI pipeline, Slack bot, or custom UI can create tasks and read status.
 <details>
 <summary><strong>How it compares</strong></summary>
 
-|  | Bernstein | CrewAI | AutoGen | LangGraph |
-|--|-----------|--------|---------|-----------|
-| Scheduling | Deterministic code | LLM-based | LLM-based | Graph |
-| Agent lifetime | Short (minutes) | Long-running | Long-running | Long-running |
-| Verification | Built-in janitor | Manual | Manual | Manual |
-| Self-evolution | Yes (risk-gated) | No | No | No |
-| CLI agents | Claude/Codex/Gemini/Qwen | API-only | API-only | API-only |
-| Agent catalogs | Yes (Agency + custom) | No | No | No |
+|  | Bernstein | CrewAI | AutoGen | LangGraph | Ruflo |
+|--|-----------|--------|---------|-----------|-------|
+| Scheduling | Deterministic code | LLM-based | LLM-based | Graph | LLM-based |
+| Agent lifetime | Short (minutes) | Long-running | Long-running | Long-running | Long-running |
+| Verification | Built-in janitor | Manual | Manual | Manual | Manual |
+| Self-evolution | Yes (risk-gated) | No | No | No | Yes |
+| CLI agents | Claude/Codex/Gemini/Qwen | API-only | API-only | API-only | Claude-only |
+| Model lock-in | **None** | Soft (LiteLLM) | Soft (LiteLLM) | Soft (LiteLLM) | **Claude-only** |
+| Agent catalogs | Yes (Agency + custom) | No | No | No | No |
+
+CrewAI, AutoGen, and LangGraph work with any model via API wrappers — but they require you to write Python code to orchestrate. Ruflo uses self-evolution but ties you to Claude. Bernstein works with installed CLI agents (no API key plumbing, no SDK) and doesn't care which provider you use.
 
 </details>
 

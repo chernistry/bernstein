@@ -15,12 +15,14 @@ from __future__ import annotations
 import json
 import logging
 from collections import defaultdict, deque
-from collections.abc import Sequence
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from bernstein.core.models import Task, TaskStatus
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +175,6 @@ class TaskGraph:
                 dist[tid] = (self._tasks[tid].estimated_minutes, None)
 
         for node in topo:
-            node_weight = self._tasks[node].estimated_minutes
             current_dist = dist[node][0]
             for child in self._forward.get(node, []):
                 if child not in dist:

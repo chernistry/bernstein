@@ -11,14 +11,14 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from bernstein import _BUNDLED_TEMPLATES_DIR
+
 
 class TemplateError(Exception):
     """Raised when template rendering fails (missing file, bad syntax, etc.)."""
 
 
 # Default templates directory — works both from source tree and after pip install.
-from bernstein import _BUNDLED_TEMPLATES_DIR
-
 _DEFAULT_TEMPLATES_DIR = _BUNDLED_TEMPLATES_DIR / "roles"
 
 # Regex patterns — compiled once at module level.

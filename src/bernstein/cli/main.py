@@ -9,9 +9,6 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-if sys.version_info < (3, 12):
-    sys.exit(f"Bernstein requires Python 3.12+. You have {sys.version}")
-
 import click
 import httpx
 from rich.console import Console
@@ -229,7 +226,7 @@ def _find_seed_file() -> Path | None:
 @click.option("--max-cycles", default=0, hidden=True, help="Stop after N evolve cycles (0=unlimited).")
 @click.option("--budget", default=0.0, hidden=True, help="Stop after $N spent (0=unlimited).")
 @click.option("--interval", default=300, hidden=True, help="Seconds between evolve cycles (default 5min).")
-@click.option("--github", "github_sync", is_flag=True, default=False, hidden=True, help="Sync evolve proposals as GitHub Issues.")
+@click.option("--github", "github_sync", is_flag=True, default=False, hidden=True, help="Sync evolve proposals as GitHub Issues.")  # noqa: E501
 @click.option("--headless", is_flag=True, default=False, hidden=True, help="Run without dashboard (for overnight/CI).")
 @click.option("--dry-run", is_flag=True, default=False, help="Preview task plan without spawning agents.")
 @click.option("--yes", "-y", is_flag=True, default=False, hidden=True, help="Skip cost confirmation prompt.")
@@ -292,14 +289,14 @@ def cli(
             # Inline goal — no config files needed
             if not yes:
                 console.print(
-                    "[bold yellow]Cost estimate:[/bold yellow] ~$0.10–$1.00 per task with Sonnet. "
+                    "[bold yellow]Cost estimate:[/bold yellow] ~$0.10-$1.00 per task with Sonnet. "
                     "Press [bold]Enter[/bold] to continue or Ctrl+C to cancel."
                 )
                 try:
                     input()
                 except (KeyboardInterrupt, EOFError):
                     console.print("\n[yellow]Aborted.[/yellow]")
-                    raise SystemExit(0)
+                    raise SystemExit(0) from None
             from bernstein.core.bootstrap import bootstrap_from_goal
             try:
                 bootstrap_from_goal(goal, workdir=workdir, port=port)
@@ -311,7 +308,7 @@ def cli(
             from bernstein.core.bootstrap import bootstrap_from_seed
             from bernstein.core.seed import SeedError
             try:
-                result = bootstrap_from_seed(seed_path, workdir=workdir, port=port)
+                bootstrap_from_seed(seed_path, workdir=workdir, port=port)
             except (SeedError, RuntimeError) as exc:
                 console.print(f"[red]Error:[/red] {exc}")
                 raise SystemExit(1) from exc
@@ -1055,7 +1052,7 @@ def _stop_demo_processes(project_dir: Path) -> None:
         project_dir: Demo project root whose .sdd/runtime/ holds PID files.
     """
     runtime_dir = project_dir / ".sdd" / "runtime"
-    for pid_filename, label in [
+    for pid_filename, _label in [
         ("watchdog.pid", "Watchdog"),
         ("spawner.pid", "Spawner"),
         ("server.pid", "Task server"),
@@ -1766,7 +1763,9 @@ def benchmark_swe_bench(
     instances = runner.load_dataset(dpath)
 
     if not instances:
-        console.print("[yellow]No instances found. Pass --dataset <path.jsonl> or install the 'datasets' package.[/yellow]")
+        console.print(
+            "[yellow]No instances found. Pass --dataset <path.jsonl> or install the 'datasets' package.[/yellow]"
+        )
         raise SystemExit(1)
 
     console.print(f"[bold]SWE-Bench evaluation[/bold] — {len(instances)} instance(s)")
@@ -3280,7 +3279,6 @@ def doctor(as_json: bool) -> None:
     """
     import shutil
     import socket
-    import sys
 
     checks: list[dict[str, Any]] = []
 
@@ -3304,7 +3302,7 @@ def doctor(as_json: bool) -> None:
         "gemini": "GEMINI_API_KEY",
     }
     any_adapter = False
-    for adapter_name, env_var in adapters.items():
+    for adapter_name, _env_var in adapters.items():
         found = shutil.which(adapter_name) is not None
         if found:
             any_adapter = True

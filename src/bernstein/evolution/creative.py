@@ -19,10 +19,11 @@ import logging
 import re
 import time
 from dataclasses import asdict, dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from bernstein.core.github import GitHubIssue
 
 logger = logging.getLogger(__name__)

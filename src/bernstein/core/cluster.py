@@ -103,7 +103,7 @@ class NodeRegistry:
 
         Returns the list of nodes that were marked offline.
         """
-        now = time.time()
+        time.time()
         timeout = self._config.node_timeout_s
         stale: list[NodeInfo] = []
         for node in self._nodes.values():
@@ -352,11 +352,10 @@ class NodeHeartbeatClient:
         """Main loop for the heartbeat daemon thread."""
         with httpx.Client() as client:
             while not self._stop_event.is_set():
-                if self._node_id is None:
-                    if not self._register(client):
-                        # Retry registration after interval
-                        self._stop_event.wait(self._interval_s)
-                        continue
+                if self._node_id is None and not self._register(client):
+                    # Retry registration after interval
+                    self._stop_event.wait(self._interval_s)
+                    continue
 
                 self._send_heartbeat(client)
                 self._stop_event.wait(self._interval_s)

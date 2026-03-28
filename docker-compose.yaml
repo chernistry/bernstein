@@ -45,14 +45,23 @@ x-bernstein-common: &bernstein-common
 
 services:
   # ── Task server ────────────────────────────────────────────────────────────
+  # Runs uvicorn directly so the container's PID 1 is the server (not a wrapper).
+  # The BERNSTEIN_* env vars are read by the FastAPI app at module load time.
   bernstein-server:
     image: bernstein:latest
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["start", "--bind", "0.0.0.0", "--port", "8052"]
+    entrypoint: ["python", "-m", "uvicorn"]
+    command:
+      - "bernstein.core.server:app"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8052"
     environment:
       BERNSTEIN_BIND_HOST: "0.0.0.0"
+      BERNSTEIN_CLUSTER_ENABLED: "true"
       BERNSTEIN_AUTH_TOKEN: ${BERNSTEIN_AUTH_TOKEN:-changeme}
       BERNSTEIN_DATABASE_URL: postgresql://bernstein:bernstein@postgres:5432/bernstein
       BERNSTEIN_REDIS_URL: redis://redis:6379/0
@@ -74,17 +83,23 @@ services:
     restart: unless-stopped
 
   # ── Orchestrator ───────────────────────────────────────────────────────────
+  # Connects to bernstein-server via BERNSTEIN_SERVER_URL, claims tasks,
+  # and spawns CLI agents. Does NOT start its own server.
   bernstein-orchestrator:
     <<: *bernstein-common
-    command: ["conduct", "--remote"]
+    entrypoint: ["python", "-m", "bernstein.core.orchestrator"]
+    command: []
     depends_on:
       bernstein-server:
         condition: service_healthy
 
   # ── Worker nodes (scale with: docker compose up --scale bernstein-worker=N) ─
+  # Each worker is an independent orchestrator instance that claims and executes
+  # tasks from the shared task server.
   bernstein-worker:
     <<: *bernstein-common
-    command: ["conduct", "--worker"]
+    entrypoint: ["python", "-m", "bernstein.core.orchestrator"]
+    command: []
     depends_on:
       bernstein-server:
         condition: service_healthy

@@ -9,8 +9,10 @@ import json
 import logging
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +227,4 @@ def needs_vp_review(signal: PivotSignal) -> bool:
     """
     if signal.severity == "high":
         return True
-    if len(signal.affected_tickets) >= 3:
-        return True
-    return False
+    return len(signal.affected_tickets) >= 3

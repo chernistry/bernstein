@@ -570,10 +570,7 @@ def route_task(task: Task, bandit_metrics_dir: Path | None = None) -> ModelConfi
             from bernstein.core.cost import CASCADE, EpsilonGreedyBandit
             bandit = EpsilonGreedyBandit.load(bandit_metrics_dir)
             # For high-complexity tasks, restrict candidates to sonnet/opus
-            if task.complexity == Complexity.HIGH:
-                candidates = ["sonnet", "opus"]
-            else:
-                candidates = list(CASCADE)
+            candidates = ["sonnet", "opus"] if task.complexity == Complexity.HIGH else list(CASCADE)
             selected = bandit.select(role=task.role, candidate_models=candidates)
             effort = "max" if selected == "opus" else "high"
             logger.debug(

@@ -12,6 +12,7 @@ L0 tasks bypass the spawner entirely, saving LLM cost and executing in <1s.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import re
@@ -19,12 +20,15 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx
 
 from bernstein.core.metrics import get_collector
 from bernstein.core.models import Complexity, ModelConfig, Scope, Task
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -90,8 +94,8 @@ class FastPathStats:
 _L0_PATTERNS: list[tuple[re.Pattern[str], FastPathAction, str]] = [
     (re.compile(r"\b(format|formatting|auto-?format|black|prettier)\b"), FastPathAction.RUFF_FORMAT, "formatting"),
     (re.compile(r"\b(lint|linting|ruff fix|fix lint|autofix)\b"), FastPathAction.RUFF_FIX, "lint-fix"),
-    (re.compile(r"\b(sort imports?|isort|import order|organiz\w+ imports?)\b"), FastPathAction.SORT_IMPORTS, "import-sort"),
-    (re.compile(r"\brename\s+['\"]?\w+['\"]?\s+(?:to|->|=>)\s+['\"]?\w+['\"]?"), FastPathAction.RENAME_SYMBOL, "rename"),
+    (re.compile(r"\b(sort imports?|isort|import order|organiz\w+ imports?)\b"), FastPathAction.SORT_IMPORTS, "import-sort"),  # noqa: E501
+    (re.compile(r"\brename\s+['\"]?\w+['\"]?\s+(?:to|->|=>)\s+['\"]?\w+['\"]?"), FastPathAction.RENAME_SYMBOL, "rename"),  # noqa: E501
 ]
 
 # Regex patterns for L1 (simple) tasks — route to cheapest model
@@ -402,6 +406,109 @@ def get_l1_model_config() -> ModelConfig:
 
 
 # ---------------------------------------------------------------------------
+# Config loading from routing.yaml
+# ---------------------------------------------------------------------------
+
+_ACTION_MAP: dict[str, FastPathAction] = {a.value: a for a in FastPathAction}
+
+
+def load_fast_path_config(routing_yaml: "Path") -> bool:
+    """Load fast-path patterns from routing.yaml and update module-level rules.
+
+    Reads the ``fast_path`` section of ``.sdd/config/routing.yaml`` and
+    replaces the module-level ``_L0_PATTERNS`` / ``_L1_PATTERNS`` with the
+    patterns defined there.  Falls back silently when the file is missing or
+    malformed so that the defaults stay active.
+
+    Args:
+        routing_yaml: Path to the routing YAML file.
+
+    Returns:
+        True if config was loaded successfully, False otherwise.
+    """
+    global _L0_PATTERNS, _L1_PATTERNS, L1_MODEL_CONFIG  # noqa: PLW0603
+
+    try:
+        import yaml  # lazy import — only needed if routing.yaml is present
+    except ImportError:
+        logger.debug("PyYAML not available; using default fast-path patterns")
+        return False
+
+    try:
+        data: object = yaml.safe_load(routing_yaml.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning("Could not read %s: %s — using default fast-path patterns", routing_yaml, exc)
+        return False
+
+    if not isinstance(data, dict):
+        return False
+
+    fp_cfg: object = data.get("fast_path")
+    if not isinstance(fp_cfg, dict):
+        return False
+
+    if not fp_cfg.get("enabled", True):
+        logger.info("Fast-path disabled via routing.yaml")
+        _L0_PATTERNS = []
+        _L1_PATTERNS = []
+        return True
+
+    # Load L0 patterns
+    raw_l0: object = fp_cfg.get("l0_patterns", [])
+    if isinstance(raw_l0, list):
+        new_l0: list[tuple[re.Pattern[str], FastPathAction, str]] = []
+        for entry in raw_l0:
+            if not isinstance(entry, dict):
+                continue
+            pat_str = entry.get("pattern", "")
+            action_str = entry.get("action", "")
+            label = entry.get("label", action_str)
+            action = _ACTION_MAP.get(action_str)
+            if not pat_str or action is None:
+                logger.debug("Skipping invalid l0 pattern entry: %s", entry)
+                continue
+            try:
+                new_l0.append((re.compile(pat_str), action, label))
+            except re.error as exc:
+                logger.warning("Bad regex in routing.yaml l0_patterns (%r): %s", pat_str, exc)
+        if new_l0:
+            _L0_PATTERNS = new_l0
+            logger.debug("Loaded %d L0 patterns from %s", len(new_l0), routing_yaml)
+
+    # Load L1 patterns
+    raw_l1: object = fp_cfg.get("l1_patterns", [])
+    if isinstance(raw_l1, list):
+        new_l1: list[tuple[re.Pattern[str], str]] = []
+        for entry in raw_l1:
+            if not isinstance(entry, dict):
+                continue
+            pat_str = entry.get("pattern", "")
+            label = entry.get("label", "")
+            if not pat_str:
+                continue
+            try:
+                new_l1.append((re.compile(pat_str), label))
+            except re.error as exc:
+                logger.warning("Bad regex in routing.yaml l1_patterns (%r): %s", pat_str, exc)
+        if new_l1:
+            _L1_PATTERNS = new_l1
+            logger.debug("Loaded %d L1 patterns from %s", len(new_l1), routing_yaml)
+
+    # Load L1 model override
+    l1_model = fp_cfg.get("l1_model")
+    l1_effort = fp_cfg.get("l1_effort")
+    if l1_model or l1_effort:
+        L1_MODEL_CONFIG = ModelConfig(
+            model=str(l1_model) if l1_model else "haiku",
+            effort=str(l1_effort) if l1_effort else "low",
+            max_tokens=50_000,
+        )
+        logger.debug("L1 model config from routing.yaml: %s/%s", L1_MODEL_CONFIG.model, L1_MODEL_CONFIG.effort)
+
+    return True
+
+
+# ---------------------------------------------------------------------------
 # Orchestrator integration
 # ---------------------------------------------------------------------------
 
@@ -537,13 +644,11 @@ def try_fast_path_batch(
             task.id,
             result.error,
         )
-        try:
+        with contextlib.suppress(httpx.HTTPError, httpx.TransportError):
             client.post(
                 f"{server_url}/tasks/{task.id}/fail",
                 json={"reason": f"[fast-path] {result.error}"},
             )
-        except (httpx.HTTPError, httpx.TransportError):
-            pass
         collector.complete_task(task_id=task.id, success=False, error=result.error)
 
     return True

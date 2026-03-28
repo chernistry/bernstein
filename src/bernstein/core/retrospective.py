@@ -8,10 +8,14 @@ from __future__ import annotations
 import logging
 import time
 from collections import defaultdict
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from bernstein.core.metrics import MetricsCollector, TaskMetrics
 from bernstein.core.models import Complexity, Task
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from bernstein.core.metrics import MetricsCollector, TaskMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -246,7 +250,10 @@ def generate_retrospective(
         _section("")
         _section("| Model | Prompt tokens | Completion tokens | Total tokens |")
         _section("|-------|--------------|------------------|-------------|")
-        for m in sorted(model_token_data, key=lambda k: model_token_data[k]["prompt"] + model_token_data[k]["completion"], reverse=True):
+        def _total_tokens(k: str) -> int:
+            return model_token_data[k]["prompt"] + model_token_data[k]["completion"]
+
+        for m in sorted(model_token_data, key=_total_tokens, reverse=True):
             p = int(model_token_data[m]["prompt"])
             c = int(model_token_data[m]["completion"])
             _section(f"| {m} | {p:,} | {c:,} | {p + c:,} |")

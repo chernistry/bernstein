@@ -9,8 +9,10 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Data model
@@ -365,7 +367,9 @@ class EvolutionReport:
         lines.append(f"| Tasks completed | {self.total_tasks_completed} |")
         lines.append(f"| Tasks failed | {self.total_tasks_failed} |")
         lines.append(f"| Commits made | {self.total_commits} |")
-        lines.append(f"| Tests (first → last) | {self.first_tests_passed} → {self.last_tests_passed} (+{self.test_delta}) |")
+        lines.append(
+            f"| Tests (first -> last) | {self.first_tests_passed} -> {self.last_tests_passed} (+{self.test_delta}) |"
+        )
         if self.experiments:
             lines.append(f"| Experiments run | {len(self.experiments)} |")
             lines.append(f"| Experiments accepted | {self.experiments_accepted} |")

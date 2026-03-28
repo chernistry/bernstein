@@ -31,7 +31,10 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["bernstein", "conduct", "--remote"]
+          command:
+            - "python"
+            - "-m"
+            - "bernstein.core.orchestrator"
           envFrom:
             - configMapRef:
                 name: {{ include "bernstein.fullname" . }}-config
@@ -41,6 +44,26 @@ spec:
                 secretKeyRef:
                   name: {{ include "bernstein.authSecretName" . }}
                   key: {{ .Values.auth.secretKey }}
+            {{- if .Values.providerKeys.existingSecret }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bernstein.providerKeysSecretName" . }}
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bernstein.providerKeysSecretName" . }}
+                  key: OPENAI_API_KEY
+                  optional: true
+            - name: GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bernstein.providerKeysSecretName" . }}
+                  key: GOOGLE_API_KEY
+                  optional: true
+            {{- end }}
           resources:
             {{- toYaml .Values.orchestrator.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

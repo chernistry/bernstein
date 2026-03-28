@@ -2,15 +2,6 @@
 
 No decisions recorded yet.
 
-## [2026-03-28 09:49] 507 — bernstein init creates bernstein.yaml and .gitignore entry (f1e8c1a887a5)
-Completed: 507 — bernstein init creates bernstein.yaml and .gitignore entry
-
-## [2026-03-28 09:52] 501 — Fix critical UX blockers: broken aliases, missing pre-flight checks (acf827d928e1)
-Completed: 501 — Fix critical UX blockers: broken aliases, missing pre-flight checks
-
-## [2026-03-28 09:54] 504 — Align dashboard SVG mockup with real TUI (850f38640dfe)
-Completed: 504 — Align dashboard SVG mockup with real TUI
-
 ## [2026-03-28 09:55] 506 — Ticket re-evaluation system: VP gate for strategic pivots (32fefa677b2a)
 Completed: 506 — Ticket re-evaluation system: VP gate for strategic pivots. Created signals.py with PivotSignal/TicketChange/VPDecision models + file/read/resolve functions. Updated VP system_prompt.md with pivot evaluation instructions. Integrated pivot-blocked task filtering into orchestrator tick loop. 17 new tests, all 1999 unit tests pass.
 
@@ -46,3 +37,12 @@ Completed: 525 — Community-driven evolution: GitHub Issues -> evolve pipeline
 
 ## [2026-03-28 12:21] 528 — Intelligent cost optimization engine (be3354a1cbe7)
 Completed: 528 — Intelligent cost optimization engine
+
+## [2026-03-28 12:32] [RETRY 1] 523 — Docker / Kubernetes deployment for cluster mode (8a92f93f82cc)
+Completed: [RETRY 1] 523 — Docker / Kubernetes deployment for cluster mode
+
+## [2026-03-28 12:32] [RETRY 1] 533 — WASM fast-path for simple tasks (Agent Booster pattern) (166bccc7b0a3)
+Completed: [RETRY 1] 533 — WASM fast-path for simple tasks (Agent Booster pattern)
+
+## [2026-03-28 12:33] [RETRY 1] 523 — Docker / Kubernetes deployment for cluster mode (7a647654784b)
+Completed: [RETRY 1] 523 — Docker / Kubernetes deployment for cluster mode

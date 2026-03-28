@@ -31,7 +31,15 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["bernstein", "start", "--bind", "0.0.0.0", "--port", "8052"]
+          command:
+            - "python"
+            - "-m"
+            - "uvicorn"
+            - "bernstein.core.server:app"
+            - "--host"
+            - "0.0.0.0"
+            - "--port"
+            - "8052"
           ports:
             - name: http
               containerPort: 8052

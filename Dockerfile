@@ -36,7 +36,9 @@ VOLUME ["/workspace/.sdd"]
 # Task server port
 EXPOSE 8052
 
-# Default: run the task server
-# Override CMD to run orchestrator or worker modes
+# Default: all-in-one mode (reads bernstein.yaml, starts server + agents)
+# Override CMD in docker-compose / Helm to run individual components:
+#   Server only:     python -m uvicorn bernstein.core.server:app --host 0.0.0.0 --port 8052
+#   Orchestrator:    python -m bernstein.core.orchestrator
 ENTRYPOINT ["bernstein"]
-CMD ["start"]
+CMD ["conduct"]

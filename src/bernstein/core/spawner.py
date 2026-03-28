@@ -2,14 +2,12 @@
 from __future__ import annotations
 
 import logging
-import subprocess
 import uuid
 from typing import TYPE_CHECKING, Any
 
 from bernstein.agents.registry import AgentRegistry, get_registry
 from bernstein.core.context import TaskContextBuilder
 from bernstein.core.git_ops import MergeResult, merge_with_conflict_detection
-from bernstein.core.mcp_registry import MCPRegistry
 from bernstein.core.models import AgentSession, ModelConfig, Task
 from bernstein.core.router import RouterError, TierAwareRouter
 from bernstein.core.traces import AgentTrace, TraceStore, finalize_trace, new_trace
@@ -17,11 +15,13 @@ from bernstein.core.worktree import WorktreeError, WorktreeManager
 from bernstein.templates.renderer import TemplateError, render_role_prompt
 
 if TYPE_CHECKING:
+    import subprocess
     from pathlib import Path
 
     from bernstein.adapters.base import CLIAdapter
     from bernstein.agents.catalog import CatalogAgent, CatalogRegistry
     from bernstein.core.agency_loader import AgencyAgent
+    from bernstein.core.mcp_registry import MCPRegistry
 
 # ---------------------------------------------------------------------------
 # Module-level file cache (mtime-keyed, automatically invalidates on change)

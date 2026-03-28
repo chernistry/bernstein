@@ -19,6 +19,7 @@
       <a href="index.html" class="nav-link" data-page="index.html">Overview</a>
       <a href="getting-started.html" class="nav-link" data-page="getting-started.html">Getting Started</a>
       <a href="concepts.html" class="nav-link" data-page="concepts.html">Concepts</a>
+      <a href="adapters.html" class="nav-link" data-page="adapters.html">Adapters</a>
       <a href="api.html" class="nav-link" data-page="api.html">API Reference</a>
     </div>
     <div class="nav-actions">
@@ -54,9 +55,11 @@
       <li><a href="#seed-file">Seed file</a></li>
       <li><a href="#configuration">Configuration</a></li>
       <li><a href="#monitoring">Monitoring</a></li>
+      <li><a href="#cli">CLI reference</a></li>
       <li><a href="#stopping">Stopping</a></li>
       <li><a href="#headless">Headless mode</a></li>
       <li><a href="#evolve">Evolve mode</a></li>
+      <li><a href="#cost">Cost tracking</a></li>
     </ul>
   </aside>
 
@@ -64,18 +67,25 @@
   <main class="doc-content">
 
     <h2 id="install">Installation</h2>
-    <p>Requires Python 3.12+ and at least one CLI coding agent (Claude Code, Codex, or Gemini CLI).</p>
+    <p>Requires Python 3.12+ and at least one CLI coding agent (<a href="https://docs.anthropic.com/en/docs/claude-code">Claude Code</a>, <a href="https://github.com/openai/codex">Codex CLI</a>, <a href="https://github.com/google-gemini/gemini-cli">Gemini CLI</a>, or <a href="https://github.com/QwenLM/Qwen-Agent">Qwen</a>).</p>
     <div class="code-block">
-      <pre><code class="language-bash"># Clone and install
-git clone https://github.com/chernistry/bernstein && cd bernstein
-uv venv && uv pip install -e .
+      <pre><code class="language-bash"># Install from PyPI
+pipx install bernstein   # or: uv tool install bernstein
 
 # Verify
 bernstein --version</code></pre>
     </div>
     <div class="callout callout-info">
       <span>ℹ️</span>
-      <p>Bernstein itself is pure Python. The CLI agents it spawns (Claude Code, Codex, etc.) must be installed and authenticated separately.</p>
+      <p>Bernstein itself is pure Python. The CLI agents it spawns (Claude Code, Codex, etc.) must be installed and authenticated separately. Bernstein auto-detects which agents are available.</p>
+    </div>
+
+    <h3>Development install</h3>
+    <p>If you want to contribute or develop Bernstein itself:</p>
+    <div class="code-block">
+      <pre><code class="language-bash">git clone https://github.com/chernistry/bernstein && cd bernstein
+uv venv && uv pip install -e ".[dev]"
+uv run pytest tests/ -x -q</code></pre>
     </div>
 
     <h2 id="first-run">First run</h2>
@@ -177,21 +187,22 @@ bernstein --seed-file path/to/bernstein.yaml</code></pre>
     </table>
 
     <h2 id="monitoring">Monitoring</h2>
-    <p>Bernstein starts with a live terminal dashboard by default. You can also query the task server directly:</p>
+    <p>Bernstein starts with a live TUI dashboard by default. You can also attach to a running session or query the server directly:</p>
     <div class="code-block">
-      <pre><code class="language-bash"># Dashboard summary
+      <pre><code class="language-bash"># Attach to running dashboard
+bernstein live
+
+# View recent agent logs
+bernstein logs
+
+# Dashboard summary via API
 curl http://127.0.0.1:8052/status
 
 # All tasks
 curl http://127.0.0.1:8052/tasks
 
 # Filter by status
-curl "http://127.0.0.1:8052/tasks?status=open"
-curl "http://127.0.0.1:8052/tasks?status=in_progress"
-
-# Tail logs
-tail -f .sdd/runtime/server.log
-tail -f .sdd/runtime/spawner.log</code></pre>
+curl "http://127.0.0.1:8052/tasks?status=open"</code></pre>
     </div>
 
     <h3>Inject tasks at runtime</h3>
@@ -252,7 +263,7 @@ bernstein --evolve --headless --max-cycles 20 --budget 10</code></pre>
       </tbody>
     </table>
 
-    <p>Low-risk proposals (L0/L1) are applied automatically. Higher-risk proposals are saved to <code>.sdd/evolution/deferred.jsonl</code> for review:</p>
+    <p>Risk-stratified: L0 (config tweaks) auto-apply, L1 (templates) sandbox-first, L2 (logic) requires PR + review, L3 (core) human-only. Critical files are SHA-locked.</p>
     <div class="code-block">
       <pre><code class="language-bash"># Review pending proposals
 bernstein evolve review
@@ -261,12 +272,46 @@ bernstein evolve review
 bernstein evolve approve &lt;PROPOSAL_ID&gt;</code></pre>
     </div>
 
+    <h2 id="cost">Cost tracking</h2>
+    <p>Monitor API spend in real-time:</p>
+    <div class="code-block">
+      <pre><code class="language-bash"># Show cost breakdown
+bernstein cost
+
+# Set a budget cap (stops execution when reached)
+bernstein run --budget 5.00 -g "Add auth"</code></pre>
+    </div>
+    <p>The cost engine tracks spend per model, per role, and per task. A bandit-based model selector learns the cheapest model that meets quality thresholds.</p>
+
+    <h2 id="cli">CLI reference</h2>
+    <table>
+      <thead>
+        <tr><th>Command</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>bernstein init</code></td><td>Initialize <code>.sdd/</code> directory in current project</td></tr>
+        <tr><td><code>bernstein run</code> / <code>-g</code></td><td>Start orchestration with a goal</td></tr>
+        <tr><td><code>bernstein stop</code></td><td>Gracefully stop all agents and server</td></tr>
+        <tr><td><code>bernstein status</code></td><td>Show current task/agent status</td></tr>
+        <tr><td><code>bernstein live</code></td><td>Attach to running TUI dashboard</td></tr>
+        <tr><td><code>bernstein logs</code></td><td>View recent agent logs</td></tr>
+        <tr><td><code>bernstein cost</code></td><td>Show spend breakdown by model, role, task</td></tr>
+        <tr><td><code>bernstein plan</code></td><td>Decompose a goal into tasks without running</td></tr>
+        <tr><td><code>bernstein demo</code></td><td>Run a quick demo with a temp project</td></tr>
+        <tr><td><code>bernstein ideate</code></td><td>Run creative visionary/analyst pipeline</td></tr>
+        <tr><td><code>bernstein retro</code></td><td>Generate retrospective from last run</td></tr>
+        <tr><td><code>bernstein agents list</code></td><td>List available agent roles</td></tr>
+        <tr><td><code>bernstein agents sync</code></td><td>Sync agent catalog from remote registries</td></tr>
+        <tr><td><code>bernstein benchmark</code></td><td>Run evaluation harness</td></tr>
+      </tbody>
+    </table>
+
   </main>
 </div>
 
 <footer>
   <div class="container">
-    <p>Bernstein · <a href="https://github.com/chernistry/bernstein" target="_blank" rel="noopener">GitHub</a> · PolyForm Noncommercial</p>
+    <p>Bernstein · <a href="https://alexchernysh.com/bernstein" target="_blank" rel="noopener">Homepage</a> · <a href="https://github.com/chernistry/bernstein" target="_blank" rel="noopener">GitHub</a> · PolyForm Noncommercial</p>
   </div>
 </footer>
 

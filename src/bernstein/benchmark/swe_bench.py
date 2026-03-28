@@ -19,8 +19,10 @@ import statistics
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # ---------------------------------------------------------------------------
 # Data types
@@ -157,7 +159,7 @@ class BenchmarkReport:
     Args:
         total: Total number of instances evaluated.
         resolved: Number of instances resolved.
-        resolve_rate: Fraction resolved (0.0–1.0).
+        resolve_rate: Fraction resolved (0.0-1.0).
         median_cost_usd: Median cost across all instances.
         median_duration_seconds: Median wall-clock time across all instances.
         cost_effectiveness_ratio: resolved / total_cost_usd.

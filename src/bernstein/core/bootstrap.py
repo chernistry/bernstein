@@ -162,7 +162,7 @@ def _check_port_free(port: int) -> None:
                 "Run [bold]bernstein stop[/bold] to free it, "
                 "or pass [bold]--port <n>[/bold] to use a different port."
             )
-            raise SystemExit(1)
+            raise SystemExit(1) from None
 
 
 def preflight_checks(cli: str, port: int) -> None:
@@ -366,13 +366,21 @@ def create_router(workdir: Path) -> TierAwareRouter | None:
     return router
 
 
-def _start_server(workdir: Path, port: int, bind_host: str = "127.0.0.1") -> int:
+def _start_server(
+    workdir: Path,
+    port: int,
+    bind_host: str = "127.0.0.1",
+    cluster_enabled: bool = False,
+    auth_token: str | None = None,
+) -> int:
     """Launch the task server as a background process.
 
     Args:
         workdir: Project root (server runs from here).
         port: TCP port for the uvicorn server.
         bind_host: Host to bind to. Use "0.0.0.0" for remote access.
+        cluster_enabled: Enable cluster endpoints and node reaper.
+        auth_token: Bearer token for API auth.
 
     Returns:
         PID of the server process.
@@ -387,6 +395,16 @@ def _start_server(workdir: Path, port: int, bind_host: str = "127.0.0.1") -> int
             f"Server already running (PID {existing}). "
             "Run `bernstein stop` first."
         )
+
+    # Build env for the server subprocess — inherit parent env and overlay
+    # cluster-specific vars so the server's module-level app factory picks
+    # them up.
+    env = dict(os.environ)
+    if cluster_enabled:
+        env["BERNSTEIN_CLUSTER_ENABLED"] = "1"
+    env["BERNSTEIN_BIND_HOST"] = bind_host
+    if auth_token:
+        env["BERNSTEIN_AUTH_TOKEN"] = auth_token
 
     log_path = workdir / ".sdd" / "runtime" / "server.log"
     # Keep the log file open — child inherits the fd via fork().
@@ -403,6 +421,7 @@ def _start_server(workdir: Path, port: int, bind_host: str = "127.0.0.1") -> int
             "--port",
             str(port),
         ],
+        env=env,
         stdout=log_fh,
         stderr=subprocess.STDOUT,
         start_new_session=True,
@@ -489,19 +508,39 @@ def _inject_manager_task(
     return str(data.get("id", "unknown"))
 
 
-def _start_spawner(workdir: Path, port: int, cells: int = 1) -> int:
+def _start_spawner(
+    workdir: Path,
+    port: int,
+    cells: int = 1,
+    server_url: str | None = None,
+    auth_token: str | None = None,
+    cluster_enabled: bool = False,
+) -> int:
     """Launch the spawner process in the background.
 
     Args:
         workdir: Project root.
         port: Task server port.
         cells: Number of parallel orchestration cells (1 = single-cell).
+        server_url: Override server URL (e.g. remote central server).
+        auth_token: Bearer token for API auth.
+        cluster_enabled: Whether cluster mode is active.
 
     Returns:
         PID of the spawner process.
     """
     pid_path = workdir / ".sdd" / "runtime" / "spawner.pid"
     log_path = workdir / ".sdd" / "runtime" / "spawner.log"
+
+    # Pass cluster-related env vars to the spawner subprocess so the
+    # orchestrator's __main__ block can build ClusterConfig from them.
+    env = dict(os.environ)
+    if server_url:
+        env["BERNSTEIN_SERVER_URL"] = server_url
+    if auth_token:
+        env["BERNSTEIN_AUTH_TOKEN"] = auth_token
+    if cluster_enabled:
+        env["BERNSTEIN_CLUSTER_ENABLED"] = "1"
 
     log_fh = log_path.open("w")
     proc = subprocess.Popen(
@@ -514,6 +553,7 @@ def _start_spawner(workdir: Path, port: int, cells: int = 1) -> int:
             "--cells",
             str(cells),
         ],
+        env=env,
         stdout=log_fh,
         stderr=subprocess.STDOUT,
         start_new_session=True,
@@ -619,9 +659,22 @@ def bootstrap_from_seed(
     else:
         console.print("[green]→[/green] Workspace ready")
 
+    # Determine if cluster mode should be enabled (seed config or env var)
+    cluster_enabled = (
+        (seed.cluster is not None and seed.cluster.enabled)
+        or os.environ.get("BERNSTEIN_CLUSTER_ENABLED", "").lower() in ("1", "true", "yes")
+    )
+    if cluster_enabled:
+        console.print("  [bold]Cluster:[/bold] enabled")
+
     # 3. Start server
     with Status(f"[bold]Starting task server on {bind_host}:{port}...[/bold]", console=console):
-        server_pid = _start_server(workdir, port, bind_host=bind_host)
+        server_pid = _start_server(
+            workdir, port,
+            bind_host=bind_host,
+            cluster_enabled=cluster_enabled,
+            auth_token=auth_token,
+        )
         if not _wait_for_server(port, server_url=server_url):
             console.print(
                 f"[bold red]Error:[/bold red] Task server on port {port} did not respond within "
@@ -659,7 +712,13 @@ def bootstrap_from_seed(
     # 5. Start spawner + watchdog
     cell_label = f"{effective_cells} cells" if effective_cells > 1 else "single cell"
     with Status(f"[bold]Spawning agents ({cell_label})...[/bold]", console=console):
-        spawner_pid = _start_spawner(workdir, port, cells=effective_cells)
+        spawner_pid = _start_spawner(
+            workdir, port,
+            cells=effective_cells,
+            server_url=server_url,
+            auth_token=auth_token,
+            cluster_enabled=cluster_enabled,
+        )
         _start_watchdog(workdir, port)
     console.print(f"[green]→[/green] Spawning agents (PID {spawner_pid})")
 

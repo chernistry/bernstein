@@ -23,13 +23,14 @@ from bernstein.core.bulletin import BulletinBoard, BulletinMessage
 from bernstein.core.cluster import NodeHeartbeatClient
 from bernstein.core.context import append_decision, refresh_knowledge_base
 from bernstein.core.evolution import EvolutionCoordinator, UpgradeStatus
-from bernstein.core.fast_path import FastPathStats, TaskLevel, classify_task, get_l1_model_config, try_fast_path_batch
+from bernstein.core.fast_path import FastPathStats, TaskLevel, classify_task, get_l1_model_config, load_fast_path_config, try_fast_path_batch
 from bernstein.core.graph import TaskGraph
 from bernstein.core.janitor import verify_task
 from bernstein.core.metrics import get_collector
 from bernstein.core.models import (
     AgentSession,
     ClusterConfig,
+    ClusterTopology,
     NodeCapacity,
     OrchestratorConfig,
     Task,
@@ -421,7 +422,11 @@ class Orchestrator:
         # directory regardless of cwd at call time.
         get_collector(workdir / ".sdd" / "metrics")
 
-        # Fast-path: deterministic execution for trivial tasks (L0)
+        # Fast-path: deterministic execution for trivial tasks (L0).
+        # Load patterns from routing.yaml so the YAML config is authoritative.
+        routing_yaml = workdir / ".sdd" / "config" / "routing.yaml"
+        if routing_yaml.exists():
+            load_fast_path_config(routing_yaml)
         self._fast_path_stats = FastPathStats()
 
         # Adaptive polling backoff: multiplied by 2 each idle tick, reset on work.
@@ -2119,8 +2124,9 @@ class Orchestrator:
                 _ROLE_MULTIPLIER.get(t.role, 1.0) for t in batch
             )
             complexity_mult = max(scope_mult, role_mult)
+            max_runtime = self._config.max_agent_runtime_s * complexity_mult
             batch_timeout_s = int(
-                max(120, min(int(max_estimated_s * complexity_mult), self._config.max_agent_runtime_s * complexity_mult))
+                max(120, min(int(max_estimated_s * complexity_mult), max_runtime))
             )
 
             try:

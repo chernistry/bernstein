@@ -22,10 +22,12 @@ import logging
 import random
 import time
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from bernstein.core.models import Complexity, Scope, Task
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -299,7 +301,12 @@ def get_cascade_model(task: Task, retry_count: int = 0) -> str:
         Model name string.
     """
     # High-stakes roles always start at sonnet or opus
-    if task.role in ("manager", "architect") or task.role == "security" or task.complexity == Complexity.HIGH or task.scope == Scope.LARGE or task.priority == 1:
+    if (
+        task.role in ("manager", "architect", "security")
+        or task.complexity == Complexity.HIGH
+        or task.scope == Scope.LARGE
+        or task.priority == 1
+    ):
         cascade = ["sonnet", "opus"]
     else:
         cascade = list(CASCADE)  # ["haiku", "sonnet", "opus"]

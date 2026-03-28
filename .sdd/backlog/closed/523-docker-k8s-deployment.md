@@ -56,3 +56,9 @@ ENTRYPOINT ["bernstein"]
 ## Completion signal
 - `docker-compose up` starts a working Bernstein cluster
 - Helm chart deploys to K8s with `helm install bernstein ./deploy/helm/bernstein`
+
+
+---
+**completed**: 2026-03-28 12:33:52
+**task_id**: 7a647654784b
+**result**: Completed: [RETRY 1] 523 — Docker / Kubernetes deployment for cluster mode

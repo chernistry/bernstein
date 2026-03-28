@@ -301,10 +301,7 @@ class CodebaseIndexer:
                 logger.warning("Could not read %s for indexing", rel)
                 continue
 
-            if fpath.suffix == ".py":
-                chunks = _extract_python_chunks(source, rel)
-            else:
-                chunks = _line_chunks(source, rel)
+            chunks = _extract_python_chunks(source, rel) if fpath.suffix == ".py" else _line_chunks(source, rel)
 
             for chunk in chunks:
                 conn.execute(

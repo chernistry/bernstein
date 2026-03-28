@@ -21,6 +21,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "setproctitle>=1.3",
     "prometheus-client>=0.21",
+    "pluggy>=1.5",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +30,9 @@ dev = ["pytest", "ruff", "pyright"]
 [project.scripts]
 bernstein = "bernstein.cli.main:cli"
 bernstein-worker = "bernstein.core.worker:main"
+
+[project.entry-points."bernstein.plugins"]
+# Example: my_plugin = "my_package:MyPlugin"
 
 [tool.hatch.build.targets.wheel.force-include]
 "templates/prompts" = "bernstein/_default_templates/prompts"

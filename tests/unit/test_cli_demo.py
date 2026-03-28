@@ -93,7 +93,7 @@ def test_setup_demo_project_creates_app_py(tmp_path):
 def test_demo_dry_run_exits_zero():
     """bernstein demo --dry-run must exit with code 0."""
     runner = CliRunner()
-    with patch("bernstein.cli.main._detect_available_adapter", return_value="claude"):
+    with patch("bernstein.cli.run_cmd._detect_available_adapter", return_value="claude"):
         result = runner.invoke(cli, ["demo", "--dry-run"])
     assert result.exit_code == 0, result.output
 
@@ -101,7 +101,7 @@ def test_demo_dry_run_exits_zero():
 def test_demo_dry_run_shows_cost_estimate():
     """bernstein demo --dry-run must print the cost estimate."""
     runner = CliRunner()
-    with patch("bernstein.cli.main._detect_available_adapter", return_value="claude"):
+    with patch("bernstein.cli.run_cmd._detect_available_adapter", return_value="claude"):
         result = runner.invoke(cli, ["demo", "--dry-run"])
     assert "0.15" in result.output
 
@@ -109,7 +109,7 @@ def test_demo_dry_run_shows_cost_estimate():
 def test_demo_dry_run_shows_dry_run_label():
     """bernstein demo --dry-run output must contain '[DRY RUN]'."""
     runner = CliRunner()
-    with patch("bernstein.cli.main._detect_available_adapter", return_value="claude"):
+    with patch("bernstein.cli.run_cmd._detect_available_adapter", return_value="claude"):
         result = runner.invoke(cli, ["demo", "--dry-run"])
     assert "DRY RUN" in result.output
 
@@ -117,7 +117,7 @@ def test_demo_dry_run_shows_dry_run_label():
 def test_demo_no_adapter_exits_nonzero():
     """bernstein demo must exit non-zero when no adapter is available."""
     runner = CliRunner()
-    with patch("bernstein.cli.main._detect_available_adapter", return_value=None):
+    with patch("bernstein.cli.run_cmd._detect_available_adapter", return_value=None):
         result = runner.invoke(cli, ["demo", "--dry-run"])
     assert result.exit_code != 0
 
@@ -126,7 +126,7 @@ def test_demo_explicit_adapter_bypasses_detection():
     """--adapter flag must skip auto-detection."""
     runner = CliRunner()
     # No need to patch _detect_available_adapter — explicit flag skips it
-    with patch("bernstein.cli.main._detect_available_adapter") as mock_detect:
+    with patch("bernstein.cli.run_cmd._detect_available_adapter") as mock_detect:
         result = runner.invoke(cli, ["demo", "--dry-run", "--adapter", "claude"])
     mock_detect.assert_not_called()
     assert result.exit_code == 0, result.output

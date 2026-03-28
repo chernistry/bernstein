@@ -1,10 +1,24 @@
-"""CLI entry point for Bernstein -- multi-agent orchestration."""
+"""CLI entry point for Bernstein -- multi-agent orchestration.
+
+This module defines the top-level click group and registers all
+subcommand modules.  Actual command implementations live in:
+
+  helpers.py    — shared constants (SERVER_URL, console, STATUS_COLORS) and
+                  utility functions (_server_get, _server_post, _read_pid, etc.)
+  run_cmd.py    — init, conduct (run), downbeat (start), demo
+  stop_cmd.py   — stop (soft/hard), shutdown signals, session save, ticket recovery
+  status_cmd.py — status (score), ps, doctor
+  agents_cmd.py — agents sync/list/validate/showcase/match/discover
+  evolve_cmd.py — evolve run/review/approve/status/export
+  cost.py       — cost breakdown command
+  dashboard.py  — live Textual TUI / Rich Live display
+"""
 
 from __future__ import annotations
 
+import datetime
 import json
 import os
-import signal
 import sys
 import time
 from pathlib import Path
@@ -12,7 +26,64 @@ from typing import TYPE_CHECKING, Any, cast
 
 import click
 import httpx
-from rich.console import Console
+
+# Subcommand imports
+from bernstein.cli.agents_cmd import agents_group
+from bernstein.cli.cost import cost_cmd
+from bernstein.cli.evolve_cmd import evolve
+
+# ---------------------------------------------------------------------------
+# Re-export shared state so existing imports like
+#   from bernstein.cli.main import console, SERVER_URL
+# continue to work.
+# ---------------------------------------------------------------------------
+from bernstein.cli.helpers import (  # noqa: F401 — re-exports for backward compat
+    BANNER,
+    SDD_DIRS,
+    SDD_PID_SERVER,
+    SDD_PID_SPAWNER,
+    SDD_PID_WATCHDOG,
+    SERVER_URL,
+    STATUS_COLORS,
+    _auth_headers,
+    _find_seed_file,
+    _is_alive,
+    _is_process_alive,
+    _kill_pid,
+    _kill_pid_hard,
+    _print_banner,
+    _print_dry_run_table,
+    _read_pid,
+    _server_get,
+    _server_post,
+    _write_pid,
+    console,
+)
+
+# Re-export run_cmd helpers used by tests
+from bernstein.cli.run_cmd import (  # noqa: F401 — re-exports for backward compat
+    _DEMO_TASKS,
+    _detect_available_adapter,
+    _setup_demo_project,
+    demo,
+    init,
+    run,
+    start,
+)
+from bernstein.cli.status_cmd import doctor, ps_cmd, status
+
+# Re-export stop_cmd helpers used by tests and other modules
+from bernstein.cli.stop_cmd import (  # noqa: F401 — re-exports for backward compat
+    _hard_stop,
+    _recover_orphaned_claims,
+    _register_sigint_handler,
+    _return_claimed_to_open,
+    _save_session_on_stop,
+    _sigint_handler,
+    _soft_stop,
+    _write_shutdown_signals,
+    stop,
+)
 
 if TYPE_CHECKING:
     from rich.table import Table
@@ -20,372 +91,9 @@ if TYPE_CHECKING:
 
     from bernstein.eval.golden import Tier
 
-from bernstein.cli.cost import cost_cmd
-
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-SERVER_URL = os.environ.get("BERNSTEIN_SERVER_URL", "http://localhost:8052")
-SDD_DIRS = [
-    ".sdd",
-    ".sdd/backlog",
-    ".sdd/backlog/open",
-    ".sdd/backlog/done",
-    ".sdd/agents",
-    ".sdd/runtime",
-    ".sdd/docs",
-    ".sdd/decisions",
-]
-SDD_PID_SERVER = ".sdd/runtime/server.pid"
-SDD_PID_SPAWNER = ".sdd/runtime/spawner.pid"
-SDD_PID_WATCHDOG = ".sdd/runtime/watchdog.pid"
-
-BANNER = """\
-╔══════════════════════════════════╗
-║  🎼 Bernstein — Agent Orchestra  ║
-╚══════════════════════════════════╝"""
-
-# Task status → Rich color
-STATUS_COLORS: dict[str, str] = {
-    "open": "white",
-    "claimed": "cyan",
-    "in_progress": "yellow",
-    "done": "green",
-    "failed": "red",
-    "blocked": "magenta",
-    "cancelled": "red",
-}
-
-console = Console()
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _print_banner() -> None:
-    from rich.panel import Panel
-
-    console.print(Panel(BANNER, border_style="blue", expand=False))
-
-
-def _print_dry_run_table(workdir: Path) -> None:
-    """Print a summary table of tasks that would be spawned in dry-run mode.
-
-    Reads open backlog tasks directly from .sdd/backlog/open/ and renders
-    a Rich table showing role, title, model, effort, priority, and scope.
-
-    Args:
-        workdir: Project root directory.
-    """
-    from rich.table import Table
-
-    from bernstein.core.sync import BacklogTask, parse_backlog_file
-
-    backlog_dir = workdir / ".sdd" / "backlog" / "open"
-    tasks: list[BacklogTask] = []
-    if backlog_dir.exists():
-        for md_file in sorted(backlog_dir.glob("*.md")):
-            bt = parse_backlog_file(md_file)
-            if bt is not None:
-                tasks.append(bt)
-
-    console.print("\n[bold cyan][DRY RUN] Planned task spawns:[/bold cyan]")
-
-    if not tasks:
-        console.print("[dim]No open tasks found in backlog.[/dim]")
-        return
-
-    table = Table(show_header=True, header_style="bold magenta")
-    table.add_column("Role", style="cyan")
-    table.add_column("Title")
-    table.add_column("Priority", justify="center")
-    table.add_column("Scope", justify="center")
-    table.add_column("Complexity", justify="center")
-    table.add_column("Model", style="dim", justify="center")
-    table.add_column("Effort", style="dim", justify="center")
-
-    for bt in sorted(tasks, key=lambda t: t.priority):
-        table.add_row(
-            bt.role,
-            bt.title,
-            str(bt.priority),
-            bt.scope,
-            bt.complexity,
-            "auto",
-            "auto",
-        )
-
-    console.print(table)
-    console.print(f"\n[dim]Total: {len(tasks)} task(s) — no agents were spawned.[/dim]")
-
-
-def _auth_headers() -> dict[str, str]:
-    """Return Authorization header dict if BERNSTEIN_AUTH_TOKEN is set."""
-    token = os.environ.get("BERNSTEIN_AUTH_TOKEN")
-    if token:
-        return {"Authorization": f"Bearer {token}"}
-    return {}
-
-
-def _server_get(path: str) -> dict[str, Any] | None:
-    """GET from the task server.  Returns None if server is unreachable."""
-    try:
-        resp = httpx.get(f"{SERVER_URL}{path}", timeout=5.0, headers=_auth_headers())
-        resp.raise_for_status()
-        return resp.json()  # type: ignore[no-any-return]
-    except httpx.ConnectError:
-        return None
-    except Exception as exc:
-        from bernstein.cli.errors import server_error
-
-        server_error(exc).print()
-        return None
-
-
-def _server_post(path: str, payload: dict[str, Any]) -> dict[str, Any] | None:
-    """POST to the task server.  Returns None if server is unreachable."""
-    try:
-        resp = httpx.post(f"{SERVER_URL}{path}", json=payload, timeout=5.0, headers=_auth_headers())
-        resp.raise_for_status()
-        return resp.json()  # type: ignore[no-any-return]
-    except httpx.ConnectError:
-        return None
-    except Exception as exc:
-        from bernstein.cli.errors import server_error
-
-        server_error(exc).print()
-        return None
-
-
-def _read_pid(path: str) -> int | None:
-    p = Path(path)
-    if p.exists():
-        try:
-            return int(p.read_text().strip())
-        except ValueError:
-            return None
-    return None
-
-
-def _write_pid(path: str, pid: int) -> None:  # type: ignore[reportUnusedFunction]
-    Path(path).write_text(str(pid))
-
-
-def _is_alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
-
-
-def _kill_pid(path: str, label: str) -> None:
-    pid = _read_pid(path)
-    if pid is None:
-        console.print(f"[dim]No PID file found for {label}.[/dim]")
-        return
-    if _is_alive(pid):
-        try:
-            # Kill the entire process group so child processes (pytest, uv,
-            # agent subprocesses) don't survive and leak memory.
-            try:
-                pgid = os.getpgid(pid)
-                os.killpg(pgid, signal.SIGTERM)
-                console.print(f"[green]Sent SIGTERM to {label} process group (PID {pid}, PGID {pgid}).[/green]")
-            except (OSError, ProcessLookupError):
-                os.kill(pid, signal.SIGTERM)
-                console.print(f"[green]Sent SIGTERM to {label} (PID {pid}).[/green]")
-        except OSError as exc:
-            console.print(f"[yellow]Could not terminate {label} (PID {pid}): {exc}[/yellow]")
-    else:
-        console.print(f"[dim]{label} (PID {pid}) was not running.[/dim]")
-    Path(path).unlink(missing_ok=True)
-
-
-def _kill_pid_hard(path: str, label: str) -> None:
-    """Kill a process by PID file using SIGKILL (no grace period).
-
-    Unlike :func:`_kill_pid` which sends SIGTERM, this sends SIGKILL to
-    the entire process group for an immediate, non-catchable kill.
-
-    Args:
-        path: Path to the PID file.
-        label: Human-readable label for log messages.
-    """
-    pid = _read_pid(path)
-    if pid is None:
-        return
-    if _is_alive(pid):
-        try:
-            try:
-                pgid = os.getpgid(pid)
-                os.killpg(pgid, signal.SIGKILL)
-            except (OSError, ProcessLookupError):
-                os.kill(pid, signal.SIGKILL)
-            console.print(f"[red]Killed {label} (PID {pid}) with SIGKILL.[/red]")
-        except OSError:
-            pass
-    Path(path).unlink(missing_ok=True)
-
-
-def _write_shutdown_signals(reason: str = "User requested stop") -> list[str]:
-    """Write SHUTDOWN signal files for all active agents.
-
-    Creates a ``SHUTDOWN`` file in ``.sdd/runtime/signals/{session_id}/``
-    for each agent listed in ``agents.json``.  Agents that poll for signal
-    files will see this and save their work before exiting.
-
-    Args:
-        reason: Human-readable reason written into the signal file.
-
-    Returns:
-        List of session IDs that were signaled.
-    """
-    signals_dir = Path(".sdd/runtime/signals")
-    agents_json = Path(".sdd/runtime/agents.json")
-    signaled: list[str] = []
-    if not agents_json.exists():
-        return signaled
-    try:
-        agent_data = json.loads(agents_json.read_text())
-        for agent in agent_data.get("agents", []):
-            session_id: str = agent.get("id", "")
-            if session_id:
-                sig_dir = signals_dir / session_id
-                sig_dir.mkdir(parents=True, exist_ok=True)
-                (sig_dir / "SHUTDOWN").write_text(
-                    f"# SHUTDOWN\nReason: {reason}\nSave your work, commit WIP, and exit.\n"
-                )
-                signaled.append(session_id)
-    except (OSError, ValueError):
-        pass
-    return signaled
-
-
-def _return_claimed_to_open() -> int:
-    """Move all claimed backlog tickets back to open.
-
-    Files in ``.sdd/backlog/claimed/`` are moved to ``.sdd/backlog/open/``
-    so they can be picked up by the next run.  Files whose ticket number
-    already exists in ``backlog/closed/`` (i.e. duplicate of a completed
-    task) are silently deleted instead.
-
-    Returns:
-        Number of files moved back to open.
-    """
-    claimed_dir = Path(".sdd/backlog/claimed")
-    open_dir = Path(".sdd/backlog/open")
-    if not claimed_dir.exists():
-        return 0
-
-    open_dir.mkdir(parents=True, exist_ok=True)
-
-    closed_nums: set[str] = set()
-    closed_dir = Path(".sdd/backlog/closed")
-    if closed_dir.exists():
-        closed_nums = {f.name.split("-")[0] for f in closed_dir.glob("*.md")}
-    # Also check backlog/done/ which some codepaths use
-    done_dir = Path(".sdd/backlog/done")
-    if done_dir.exists():
-        closed_nums |= {f.name.split("-")[0] for f in done_dir.glob("*.md")}
-
-    count = 0
-    for f in claimed_dir.glob("*.md"):
-        num = f.name.split("-")[0]
-        if num in closed_nums:
-            f.unlink()  # already completed — remove duplicate
-        else:
-            f.rename(open_dir / f.name)
-            count += 1
-    return count
-
-
-def _save_session_on_stop(workdir: Path) -> None:
-    """Persist session state to disk so the next run can resume quickly.
-
-    Queries the running task server for current task statuses and writes a
-    proper ``session.json`` snapshot via the session module.  Falls back to
-    a lightweight ``session_state.json`` diagnostic file if the server is
-    unreachable.
-
-    Args:
-        workdir: Project root directory containing ``.sdd/``.
-    """
-    import contextlib as _cl
-
-    # Try to save a rich session.json (used by bootstrap for fast resume)
-    saved_proper = False
-    with _cl.suppress(Exception):
-        import httpx as _httpx
-
-        from bernstein.core.session import SessionState, save_session
-
-        resp = _httpx.get(f"{SERVER_URL}/tasks", timeout=3.0, headers=_auth_headers())
-        resp.raise_for_status()
-        task_list: list[dict[str, Any]] = resp.json() if isinstance(resp.json(), list) else []
-        done_ids = [t["id"] for t in task_list if t.get("status") == "done"]
-        pending_ids = [t["id"] for t in task_list if t.get("status") in ("claimed", "in_progress")]
-        state = SessionState(
-            saved_at=time.time(),
-            goal="",
-            completed_task_ids=done_ids,
-            pending_task_ids=pending_ids,
-            cost_spent=0.0,
-        )
-        save_session(workdir, state)
-        saved_proper = True
-
-    if not saved_proper:
-        # Fallback: lightweight diagnostic snapshot (not used by resume logic)
-        runtime_dir = workdir / ".sdd" / "runtime"
-        runtime_dir.mkdir(parents=True, exist_ok=True)
-        fallback: dict[str, Any] = {
-            "stopped_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "open_tasks": sum(1 for _ in (workdir / ".sdd" / "backlog" / "open").glob("*.md"))
-            if (workdir / ".sdd" / "backlog" / "open").exists()
-            else 0,
-            "claimed_tasks": sum(1 for _ in (workdir / ".sdd" / "backlog" / "claimed").glob("*.md"))
-            if (workdir / ".sdd" / "backlog" / "claimed").exists()
-            else 0,
-        }
-        (runtime_dir / "session_state.json").write_text(json.dumps(fallback, indent=2))
-
-
-def _recover_orphaned_claims() -> int:
-    """On startup, return claimed tickets from dead sessions to open.
-
-    Since we are starting a fresh run, any tickets still in
-    ``backlog/claimed/`` are orphaned from a previous session and should
-    be returned to ``backlog/open/`` so they can be picked up again.
-
-    Returns:
-        Number of tickets returned to open.
-    """
-    return _return_claimed_to_open()
-
-
 # ---------------------------------------------------------------------------
 # CLI group
 # ---------------------------------------------------------------------------
-
-
-_SEED_FILENAMES = ("bernstein.yaml", "bernstein.yml")
-
-
-def _find_seed_file() -> Path | None:
-    """Look for a bernstein.yaml in the current directory.
-
-    Returns:
-        Path to the seed file if found, None otherwise.
-    """
-    for name in _SEED_FILENAMES:
-        p = Path(name)
-        if p.is_file():
-            return p
-    return None
 
 
 @click.group(invoke_without_command=True)
@@ -528,44 +236,17 @@ def cli(
             try:
                 bootstrap_from_goal(goal, workdir=workdir, port=port, force_fresh=force_fresh)
             except RuntimeError as exc:
-                from bernstein.cli.errors import bootstrap_failed
-
-                bootstrap_failed(exc).print()
+                console.print(f"[red]Error:[/red] {exc}")
                 raise SystemExit(1) from exc
         elif seed_path is not None:
             console.print(f"Using: [bold]{seed_path.name}[/bold]")
             from bernstein.core.bootstrap import bootstrap_from_seed
             from bernstein.core.seed import SeedError
 
-            # Cost estimate before spawning agents
-            if not yes:
-                from bernstein.core.cost import estimate_run_cost
-
-                backlog_dir_est = workdir / ".sdd" / "backlog" / "open"
-                est_count = sum(1 for _ in backlog_dir_est.glob("*.md")) if backlog_dir_est.exists() else 1
-                low, high = estimate_run_cost(max(est_count, 1))
-                console.print(
-                    f"[bold yellow]Cost estimate:[/bold yellow] ~${low:.2f}-${high:.2f} "
-                    f"for {est_count} task(s). "
-                    "Press [bold]Enter[/bold] to continue or Ctrl+C to cancel."
-                )
-                try:
-                    input()
-                except (KeyboardInterrupt, EOFError):
-                    console.print("\n[yellow]Aborted.[/yellow]")
-                    raise SystemExit(0) from None
-
             try:
                 bootstrap_from_seed(seed_path, workdir=workdir, port=port, force_fresh=force_fresh)
-            except SeedError as exc:
-                from bernstein.cli.errors import seed_parse_error
-
-                seed_parse_error(exc).print()
-                raise SystemExit(1) from exc
-            except RuntimeError as exc:
-                from bernstein.cli.errors import bootstrap_failed
-
-                bootstrap_failed(exc).print()
+            except (SeedError, RuntimeError) as exc:
+                console.print(f"[red]Error:[/red] {exc}")
                 raise SystemExit(1) from exc
         else:
             # No seed file, no goal — check if backlog has tasks
@@ -574,31 +255,12 @@ def cli(
             if has_backlog:
                 task_count = sum(1 for _ in backlog_dir.glob("*.md"))
                 console.print(f"[dim]No seed file — loading {task_count} tasks from backlog[/dim]")
-
-                # Cost estimate before spawning agents
-                if not yes:
-                    from bernstein.core.cost import estimate_run_cost as _est
-
-                    low, high = _est(task_count)
-                    console.print(
-                        f"[bold yellow]Cost estimate:[/bold yellow] ~${low:.2f}-${high:.2f} "
-                        f"for {task_count} task(s). "
-                        "Press [bold]Enter[/bold] to continue or Ctrl+C to cancel."
-                    )
-                    try:
-                        input()
-                    except (KeyboardInterrupt, EOFError):
-                        console.print("\n[yellow]Aborted.[/yellow]")
-                        raise SystemExit(0) from None
-
                 from bernstein.core.bootstrap import bootstrap_from_goal
 
                 try:
                     bootstrap_from_goal("Execute backlog tasks", workdir=workdir, port=port, force_fresh=force_fresh)
                 except RuntimeError as exc:
-                    from bernstein.cli.errors import bootstrap_failed
-
-                    bootstrap_failed(exc).print()
+                    console.print(f"[red]Error:[/red] {exc}")
                     raise SystemExit(1) from exc
             else:
                 console.print(
@@ -646,502 +308,36 @@ def cli(
     run_dashboard()
 
 
-def _sigint_handler(signum: int, frame: Any) -> None:
-    """Handle Ctrl+C: save state, return claimed tickets, then exit.
+# ---------------------------------------------------------------------------
+# Register subcommands from modules
+# ---------------------------------------------------------------------------
 
-    This handler is installed while the dashboard is running so that an
-    interactive Ctrl+C still persists session state and avoids orphaning
-    claimed tickets.
+# Primary names
+cli.add_command(stop, "stop")
+cli.add_command(ps_cmd, "ps")
+cli.add_command(doctor, "doctor")
+cli.add_command(agents_group, "agents")
+cli.add_command(evolve, "evolve")
+cli.add_command(demo, "demo")
+cli.add_command(cost_cmd, "cost")
 
-    Args:
-        signum: Signal number (always ``SIGINT``).
-        frame: Current stack frame (unused).
-    """
-    import contextlib
+# Hidden "music" names (original names)
+cli.add_command(init, "overture")
+cli.add_command(run, "conduct")
+cli.add_command(start, "downbeat")
+cli.add_command(status, "score")
 
-    console.print("\n[yellow]Ctrl+C received — saving state…[/yellow]")
-    with contextlib.suppress(OSError):
-        _save_session_on_stop(Path.cwd())
-    moved = _return_claimed_to_open()
-    if moved:
-        console.print(f"[dim]Returned {moved} claimed ticket(s) to open.[/dim]")
-    console.print("[yellow]Use 'bernstein stop' for graceful shutdown.[/yellow]")
-    raise SystemExit(130)
-
-
-def _register_sigint_handler() -> None:
-    """Install :func:`_sigint_handler` for ``SIGINT``."""
-    signal.signal(signal.SIGINT, _sigint_handler)
+# Backward-compatible aliases
+cli.add_command(init, "init")
+cli.add_command(run, "run")
+cli.add_command(start, "start")
+cli.add_command(status, "status")
+cli.add_command(stop, "rest")
 
 
 # ---------------------------------------------------------------------------
-# init
+# Remaining commands that are small enough to stay inline
 # ---------------------------------------------------------------------------
-
-
-def _detect_project_type(root: Path) -> str:
-    """Auto-detect project type by checking for common config files.
-
-    Args:
-        root: Project root directory.
-
-    Returns:
-        Detected project type string (e.g. "python", "node", "go", "generic").
-    """
-    if (root / "pyproject.toml").exists() or (root / "setup.py").exists():
-        return "python"
-    if (root / "package.json").exists():
-        return "node"
-    if (root / "go.mod").exists():
-        return "go"
-    if (root / "Cargo.toml").exists():
-        return "rust"
-    return "generic"
-
-
-def _default_constraints_for(project_type: str) -> list[str]:
-    """Return sensible default constraints for a detected project type.
-
-    Args:
-        project_type: One of the types returned by ``_detect_project_type``.
-
-    Returns:
-        List of constraint strings.
-    """
-    mapping: dict[str, list[str]] = {
-        "python": ["Python 3.12+", "pytest for tests", "ruff for linting"],
-        "node": ["Node.js", "TypeScript preferred", "vitest or jest for tests"],
-        "go": ["Go modules", "go test for tests"],
-        "rust": ["Cargo for builds", "cargo test for tests"],
-    }
-    return mapping.get(project_type, [])
-
-
-def _generate_default_yaml(project_type: str) -> str:
-    """Generate a default bernstein.yaml with project-aware defaults.
-
-    Args:
-        project_type: Detected project type.
-
-    Returns:
-        YAML content string.
-    """
-    lines = [
-        "# Bernstein orchestration config",
-        "# Uncomment and edit the goal, then run: bernstein",
-        "",
-        '# goal: "Describe what you want the agents to build or improve"',
-        "",
-        "cli: claude  # or codex, gemini, qwen",
-        "team: auto",
-        'budget: "$10"',
-    ]
-    constraints = _default_constraints_for(project_type)
-    if constraints:
-        lines.append("")
-        lines.append("constraints:")
-        for c in constraints:
-            lines.append(f'  - "{c}"')
-    lines.append("")
-    return "\n".join(lines)
-
-
-@cli.command("overture", hidden=True)
-@click.option(
-    "--dir",
-    "target_dir",
-    default=".",
-    show_default=True,
-    help="Directory to initialise (default: current directory).",
-)
-def init(target_dir: str) -> None:
-    """Init workspace — create .sdd/ structure."""
-    _print_banner()
-    root = Path(target_dir).resolve()
-    console.print(f"Initialising Bernstein workspace in [bold]{root}[/bold]")
-
-    # Auto-detect project type
-    project_type = _detect_project_type(root)
-    if project_type != "generic":
-        console.print(f"[cyan]Detected[/cyan] {project_type} project")
-
-    for d in SDD_DIRS:
-        p = root / d
-        p.mkdir(parents=True, exist_ok=True)
-
-    # Write a minimal default config
-    config_path = root / ".sdd" / "config.yaml"
-    if not config_path.exists():
-        config_path.write_text(
-            "# Bernstein workspace config\n"
-            "server_port: 8052\n"
-            "max_workers: 6\n"
-            "default_model: sonnet\n"
-            "default_effort: high\n"
-        )
-        console.print(f"[green]Created[/green] {config_path.relative_to(root)}")
-
-    # Write a .gitignore for the runtime dir
-    gi_path = root / ".sdd" / "runtime" / ".gitignore"
-    if not gi_path.exists():
-        gi_path.write_text("*.pid\n*.log\n")
-
-    # Create bernstein.yaml in project root if not present
-    yaml_path = root / "bernstein.yaml"
-    if not yaml_path.exists():
-        yaml_path.write_text(_generate_default_yaml(project_type))
-        console.print(f"[green]Created[/green] {yaml_path.relative_to(root)}")
-
-    # Copy bundled default templates if the project doesn't have its own
-    templates_dst = root / "templates"
-    if not templates_dst.exists():
-        import shutil
-
-        from bernstein import _BUNDLED_TEMPLATES_DIR  # type: ignore[reportPrivateUsage]
-
-        if _BUNDLED_TEMPLATES_DIR.is_dir():
-            shutil.copytree(_BUNDLED_TEMPLATES_DIR, templates_dst)
-            console.print("[green]Created[/green] templates/ (default roles & prompts)")
-
-    # Append .sdd/runtime/ to root .gitignore if not already present
-    root_gi_path = root / ".gitignore"
-    gitignore_entry = ".sdd/runtime/"
-    if root_gi_path.exists():
-        existing = root_gi_path.read_text()
-        if gitignore_entry not in existing:
-            root_gi_path.write_text(existing.rstrip("\n") + f"\n{gitignore_entry}\n")
-            console.print(f"[green]Updated[/green] .gitignore (added {gitignore_entry})")
-    else:
-        root_gi_path.write_text(f"{gitignore_entry}\n")
-        console.print(f"[green]Created[/green] .gitignore (added {gitignore_entry})")
-
-    # Print clear next steps
-    console.print("")
-    console.print("[green]Done.[/green] Next steps:")
-    console.print("  1. Edit [bold]bernstein.yaml[/bold] — set a goal")
-    console.print("  2. Run [bold]bernstein[/bold] to start the orchestra")
-    console.print("")
-    console.print(
-        "  See [link=https://chernistry.github.io/bernstein/]docs[/link] "
-        "or [bold]examples/quickstart/[/bold] for a working example."
-    )
-
-
-# ---------------------------------------------------------------------------
-# run  (the "one command" Seed UX)
-# ---------------------------------------------------------------------------
-
-
-@cli.command("conduct", hidden=True)
-@click.option(
-    "--goal",
-    default=None,
-    help="Inline goal (skips bernstein.yaml).",
-)
-@click.option(
-    "--seed",
-    "seed_file",
-    default=None,
-    help="Path to a custom seed YAML file (default: bernstein.yaml).",
-)
-@click.option(
-    "--port",
-    default=8052,
-    show_default=True,
-    help="Port for the task server.",
-)
-@click.option(
-    "--cells",
-    default=1,
-    show_default=True,
-    help="Number of parallel orchestration cells (1 = single-cell, >1 = MultiCellOrchestrator).",
-)
-@click.option(
-    "--remote",
-    is_flag=True,
-    default=False,
-    help="Bind server to 0.0.0.0 for remote/cluster access (default: 127.0.0.1).",
-)
-def run(goal: str | None, seed_file: str | None, port: int, cells: int, remote: bool) -> None:
-    """Parse seed, init workspace, start server, launch agents.
-
-    \b
-      bernstein conduct                     # reads bernstein.yaml
-      bernstein conduct --goal "Build X"    # inline goal
-      bernstein conduct --seed custom.yaml  # custom seed file
-      bernstein conduct --cells 3           # 3 parallel cells (multi-cell mode)
-      bernstein conduct --remote            # bind to 0.0.0.0 for cluster access
-    """
-    _print_banner()
-
-    # Set process title so orchestrator is visible in Activity Monitor / ps
-    try:
-        import setproctitle
-
-        setproctitle.setproctitle("bernstein: orchestrator")
-    except ImportError:
-        pass
-
-    from bernstein.core.bootstrap import bootstrap_from_goal, bootstrap_from_seed
-    from bernstein.core.seed import SeedError
-
-    workdir = Path.cwd()
-
-    if goal is not None:
-        # Inline goal mode -- no YAML needed
-        try:
-            bootstrap_from_goal(goal=goal, workdir=workdir, port=port, cells=cells)
-        except RuntimeError as exc:
-            from bernstein.cli.errors import bootstrap_failed
-
-            bootstrap_failed(exc).print()
-            raise SystemExit(1) from exc
-        return
-
-    # Seed file mode
-    if seed_file is not None:
-        path = Path(seed_file)
-    else:
-        found = _find_seed_file()
-        if found is not None:
-            path = found
-        else:
-            from bernstein.cli.errors import no_seed_or_goal
-
-            no_seed_or_goal().print()
-            raise SystemExit(1)
-
-    console.print(f"[dim]Using seed file:[/dim] {path}")
-    try:
-        # CLI --cells overrides seed file value when explicitly set (cells > 1)
-        cli_cells: int | None = cells if cells > 1 else None
-        bootstrap_from_seed(seed_path=path, workdir=workdir, port=port, cells=cli_cells, remote=remote)
-    except SeedError as exc:
-        from bernstein.cli.errors import seed_parse_error
-
-        seed_parse_error(exc).print()
-        raise SystemExit(1) from exc
-    except RuntimeError as exc:
-        from bernstein.cli.errors import bootstrap_failed
-
-        bootstrap_failed(exc).print()
-        raise SystemExit(1) from exc
-
-
-# ---------------------------------------------------------------------------
-# start  (legacy, kept for backward compat)
-# ---------------------------------------------------------------------------
-
-
-@cli.command("downbeat", hidden=True)
-@click.argument("goal", required=False, default=None)
-@click.option(
-    "--seed-file",
-    default="bernstein.yaml",
-    show_default=True,
-    help="YAML seed file to read goal/tasks from (used when GOAL is not given).",
-)
-@click.option(
-    "--port",
-    default=8052,
-    show_default=True,
-    help="Port for the task server.",
-)
-def start(goal: str | None, seed_file: str, port: int) -> None:
-    """Start server and spawn manager (legacy, use 'conduct')."""
-    _print_banner()
-
-    try:
-        import setproctitle
-
-        setproctitle.setproctitle("bernstein: orchestrator")
-    except ImportError:
-        pass
-
-    from bernstein.core.bootstrap import bootstrap_from_goal, bootstrap_from_seed
-    from bernstein.core.seed import SeedError
-
-    workdir = Path.cwd()
-
-    if goal:
-        try:
-            bootstrap_from_goal(goal=goal, workdir=workdir, port=port)
-        except RuntimeError as exc:
-            from bernstein.cli.errors import bootstrap_failed
-
-            bootstrap_failed(exc).print()
-            raise SystemExit(1) from exc
-    else:
-        path = Path(seed_file)
-        if not path.exists():
-            from bernstein.cli.errors import no_seed_or_goal
-
-            no_seed_or_goal().print()
-            raise SystemExit(1)
-        try:
-            bootstrap_from_seed(seed_path=path, workdir=workdir, port=port)
-        except SeedError as exc:
-            from bernstein.cli.errors import seed_parse_error
-
-            seed_parse_error(exc).print()
-            raise SystemExit(1) from exc
-        except RuntimeError as exc:
-            from bernstein.cli.errors import bootstrap_failed
-
-            bootstrap_failed(exc).print()
-            raise SystemExit(1) from exc
-
-
-# ---------------------------------------------------------------------------
-# status
-# ---------------------------------------------------------------------------
-
-
-@cli.command("score", hidden=True)
-@click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
-def status(as_json: bool) -> None:
-    """Task summary, active agents, cost estimate.
-
-    \b
-      bernstein status          # Rich table output
-      bernstein status --json   # machine-readable JSON
-    """
-    data = _server_get("/status")
-    if data is None:
-        if as_json:
-            click.echo(json.dumps({"error": "Cannot reach task server"}))
-        else:
-            console.print(
-                "[red]Cannot reach task server.[/red] Is Bernstein running? Run [bold]bernstein[/bold] to start."
-            )
-        raise SystemExit(1)
-
-    if as_json:
-        click.echo(json.dumps(data, indent=2))
-        return
-
-    _print_banner()
-
-    # ---- Task table ----
-    from rich.table import Table
-
-    tasks: list[dict[str, Any]] = data.get("tasks", [])
-    task_table = Table(title="Tasks", show_lines=False, header_style="bold cyan")
-    task_table.add_column("ID", style="dim", min_width=10)
-    task_table.add_column("Title", min_width=30)
-    task_table.add_column("Role", min_width=10)
-    task_table.add_column("Status", min_width=14)
-    task_table.add_column("Priority", justify="right")
-    task_table.add_column("Agent", min_width=12)
-
-    for t in tasks:
-        raw_status = t.get("status", "open")
-        color = STATUS_COLORS.get(raw_status, "white")
-        task_table.add_row(
-            t.get("id", "—"),
-            t.get("title", "—"),
-            t.get("role", "—"),
-            f"[{color}]{raw_status}[/{color}]",
-            str(t.get("priority", 2)),
-            t.get("assigned_agent") or "[dim]—[/dim]",
-        )
-
-    console.print(task_table)
-
-    # ---- Agent table ----
-    agents: list[dict[str, Any]] = data.get("agents", [])
-    if agents:
-        agent_table = Table(title="Active Agents", show_lines=False, header_style="bold cyan")
-        agent_table.add_column("ID", style="dim", min_width=12)
-        agent_table.add_column("Role", min_width=10)
-        agent_table.add_column("Status", min_width=10)
-        agent_table.add_column("Model", min_width=10)
-        agent_table.add_column("Tasks")
-
-        for a in agents:
-            raw_astatus = a.get("status", "idle")
-            acolor = "yellow" if raw_astatus == "working" else "dim"
-            agent_table.add_row(
-                a.get("id", "—"),
-                a.get("role", "—"),
-                f"[{acolor}]{raw_astatus}[/{acolor}]",
-                a.get("model", "—"),
-                str(len(a.get("task_ids", []))),
-            )
-        console.print(agent_table)
-    else:
-        console.print("[dim]No active agents.[/dim]")
-
-    # ---- Summary stats ----
-    summary: dict[str, Any] = data.get("summary", {})
-    total = summary.get("total", len(tasks))
-    done = summary.get("done", sum(1 for t in tasks if t.get("status") == "done"))
-    in_prog = summary.get("in_progress", sum(1 for t in tasks if t.get("status") == "in_progress"))
-    failed = summary.get("failed", sum(1 for t in tasks if t.get("status") == "failed"))
-
-    console.print(
-        f"\n[bold]Tasks:[/bold] {total} total  "
-        f"[green]{done} done[/green]  "
-        f"[yellow]{in_prog} in progress[/yellow]  "
-        f"[red]{failed} failed[/red]"
-    )
-
-    elapsed_s: int | None = data.get("elapsed_seconds")
-    if elapsed_s is not None:
-        minutes, secs = divmod(elapsed_s, 60)
-        console.print(f"[bold]Elapsed:[/bold] {minutes}m {secs}s")
-
-    # ---- Cost section ----
-    total_cost_usd: float = data.get("total_cost_usd", 0.0)
-    per_role: list[dict[str, Any]] = data.get("per_role", [])
-    roles_with_cost = [r for r in per_role if r.get("cost_usd", 0.0) > 0.0]
-    if total_cost_usd > 0.0 or roles_with_cost:
-        console.print(f"\n[bold]Total spend:[/bold] [green]${total_cost_usd:.4f}[/green]")
-        if roles_with_cost:
-            cost_table = Table(title="Cost by Role", show_lines=False, header_style="bold cyan")
-            cost_table.add_column("Role", min_width=12)
-            cost_table.add_column("Tasks", justify="right")
-            cost_table.add_column("Cost", justify="right")
-            for r in sorted(roles_with_cost, key=lambda x: x.get("cost_usd", 0.0), reverse=True):
-                role_tasks = r.get("done", 0) + r.get("failed", 0) + r.get("claimed", 0) + r.get("open", 0)
-                cost_table.add_row(
-                    r.get("role", "—"),
-                    str(role_tasks),
-                    f"${r.get('cost_usd', 0.0):.4f}",
-                )
-            console.print(cost_table)
-
-    # ---- Cluster section (only shown when nodes are registered) ----
-    cluster = _server_get("/cluster/status")
-    if cluster and cluster.get("total_nodes", 0) > 0:
-        node_table = Table(title="Cluster Nodes", show_lines=False, header_style="bold cyan")
-        node_table.add_column("ID", style="dim", min_width=12)
-        node_table.add_column("Name", min_width=12)
-        node_table.add_column("Status", min_width=10)
-        node_table.add_column("Slots", justify="right")
-        node_table.add_column("Active", justify="right")
-        node_table.add_column("URL", min_width=20)
-
-        for n in cluster.get("nodes", []):
-            raw_nstatus = n.get("status", "offline")
-            ncolor = "green" if raw_nstatus == "online" else ("yellow" if raw_nstatus == "degraded" else "red")
-            cap = n.get("capacity", {})
-            node_table.add_row(
-                n.get("id", "—")[:12],
-                n.get("name", "—"),
-                f"[{ncolor}]{raw_nstatus}[/{ncolor}]",
-                str(cap.get("available_slots", "—")),
-                str(cap.get("active_agents", "—")),
-                n.get("url", "—") or "[dim]—[/dim]",
-            )
-
-        console.print(node_table)
-        console.print(
-            f"[bold]Cluster:[/bold] {cluster.get('topology', '?')}  "
-            f"[green]{cluster.get('online_nodes', 0)} online[/green]  "
-            f"{cluster.get('offline_nodes', 0)} offline  "
-            f"[bold]{cluster.get('available_slots', 0)} slots available[/bold]"
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -1207,6 +403,9 @@ def add_task(
     )
 
 
+cli.add_command(add_task, "add-task")
+
+
 # ---------------------------------------------------------------------------
 # sync
 # ---------------------------------------------------------------------------
@@ -1257,624 +456,6 @@ def sync(port: int, workdir: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# stop
-# ---------------------------------------------------------------------------
-
-
-@cli.command("stop")
-@click.option(
-    "--timeout",
-    default=30,
-    show_default=True,
-    help="Seconds to wait for agents (soft stop).",
-)
-@click.option(
-    "--force",
-    "--hard",
-    is_flag=True,
-    default=False,
-    help="Hard stop: kill immediately without waiting.",
-)
-def stop(timeout: int, force: bool) -> None:
-    """Stop all agents and the task server.
-
-    Default (soft stop): writes SHUTDOWN signal files so agents can save
-    their work, waits up to ``--timeout`` seconds, saves session state,
-    returns claimed tickets to open, then kills remaining processes with
-    SIGTERM.
-
-    With ``--force`` / ``--hard``: skips signal files and waiting, kills
-    everything immediately with SIGKILL, then does best-effort session
-    save and ticket recovery.
-    """
-    _print_banner()
-
-    if force:
-        console.print("[bold red]Hard stop — killing everything immediately…[/bold red]\n")
-        _hard_stop()
-    else:
-        console.print("[bold]Soft stop — giving agents time to save…[/bold]\n")
-        _soft_stop(timeout)
-
-
-def _soft_stop(timeout: int) -> None:
-    """Soft stop: signal agents, wait, save state, return tickets, kill.
-
-    Args:
-        timeout: Maximum seconds to wait for agents to exit gracefully.
-    """
-    # 1. Write SHUTDOWN signal files for all active agents
-    signaled = _write_shutdown_signals(reason="User requested stop")
-    if signaled:
-        console.print(f"[dim]Wrote SHUTDOWN signals for {len(signaled)} agent(s).[/dim]")
-
-    # 2. Ask the server to initiate graceful shutdown
-    data = _server_post("/shutdown", {})
-    if data is not None:
-        console.print("[dim]Shutdown signal sent to task server.[/dim]")
-    else:
-        console.print("[dim]Task server not reachable — skipping server shutdown.[/dim]")
-
-    # 3. Wait for agents to wind down
-    if timeout > 0:
-        console.print(f"[dim]Waiting up to {timeout}s for agents…[/dim]")
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            status_data = _server_get("/status")
-            if status_data is None:
-                break
-            active = [a for a in status_data.get("agents", []) if a.get("status") in {"working", "starting"}]
-            if not active:
-                break
-            time.sleep(1)
-
-    # 4. Save session state
-    _save_session_on_stop(Path.cwd())
-    console.print("[dim]Session state saved.[/dim]")
-
-    # 5. Return claimed tickets to open
-    moved = _return_claimed_to_open()
-    if moved:
-        console.print(f"[dim]Returned {moved} claimed ticket(s) to open.[/dim]")
-
-    # 6. Kill watchdog first so it doesn't restart things we're stopping
-    _kill_pid(SDD_PID_WATCHDOG, "Watchdog")
-
-    # 7. Kill spawner
-    _kill_pid(SDD_PID_SPAWNER, "Spawner")
-
-    # 8. Kill all spawned agents (they run in separate process groups)
-    agents_json = Path(".sdd/runtime/agents.json")
-    if agents_json.exists():
-        try:
-            agent_data = json.loads(agents_json.read_text())
-            for agent in agent_data.get("agents", []):
-                pid = agent.get("pid")
-                if pid and _is_alive(pid):
-                    try:
-                        os.killpg(os.getpgid(pid), signal.SIGTERM)
-                        console.print(f"[dim]Sent SIGTERM to agent {agent.get('id', '?')} (PID {pid})[/dim]")
-                    except OSError:
-                        pass
-        except (OSError, ValueError):
-            pass
-
-    # 9. Kill server
-    _kill_pid(SDD_PID_SERVER, "Task server")
-
-    console.print("\n[green]Bernstein stopped (soft).[/green]")
-
-
-def _hard_stop() -> None:
-    """Hard stop: SIGKILL everything, best-effort save, return tickets."""
-    # 1. Kill watchdog immediately
-    _kill_pid_hard(SDD_PID_WATCHDOG, "Watchdog")
-
-    # 2. Kill spawner immediately
-    _kill_pid_hard(SDD_PID_SPAWNER, "Spawner")
-
-    # 3. Kill all spawned agents with SIGKILL
-    agents_json = Path(".sdd/runtime/agents.json")
-    if agents_json.exists():
-        try:
-            agent_data = json.loads(agents_json.read_text())
-            for agent in agent_data.get("agents", []):
-                pid = agent.get("pid")
-                if pid and _is_alive(pid):
-                    import contextlib
-
-                    try:
-                        pgid = os.getpgid(pid)
-                        os.killpg(pgid, signal.SIGKILL)
-                    except (OSError, ProcessLookupError):
-                        with contextlib.suppress(OSError):
-                            os.kill(pid, signal.SIGKILL)
-                    console.print(f"[red]Killed agent {agent.get('id', '?')} (PID {pid}) with SIGKILL[/red]")
-        except (OSError, ValueError):
-            pass
-
-    # 4. Kill server immediately
-    _kill_pid_hard(SDD_PID_SERVER, "Task server")
-
-    # 5. Best-effort session save
-    try:
-        _save_session_on_stop(Path.cwd())
-        console.print("[dim]Session state saved (best-effort).[/dim]")
-    except OSError:
-        console.print("[yellow]Could not save session state.[/yellow]")
-
-    # 6. Return claimed tickets to open
-    try:
-        moved = _return_claimed_to_open()
-        if moved:
-            console.print(f"[dim]Returned {moved} claimed ticket(s) to open.[/dim]")
-    except OSError:
-        console.print("[yellow]Could not return claimed tickets.[/yellow]")
-
-    console.print("\n[red]Bernstein stopped (hard).[/red]")
-
-
-# ---------------------------------------------------------------------------
-# ps — process visibility
-# ---------------------------------------------------------------------------
-
-
-def _is_process_alive(pid: int) -> bool:
-    """Check if a process with the given PID is alive."""
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
-
-
-@cli.command("ps")
-@click.option("--json-output", "as_json", is_flag=True, help="Output as JSON instead of table.")
-@click.option("--pid-dir", default=".sdd/runtime/pids", help="PID metadata directory.")
-def ps_cmd(as_json: bool, pid_dir: str) -> None:
-    """Show running Bernstein agent processes."""
-    from rich.table import Table
-
-    pid_path = Path(pid_dir)
-    if not pid_path.exists():
-        if as_json:
-            console.print("[]")
-        else:
-            console.print("[dim]No agent processes found.[/dim]")
-        return
-
-    agents: list[dict[str, Any]] = []
-    stale_files: list[Path] = []
-
-    for pid_file in sorted(pid_path.glob("*.json")):
-        try:
-            info = json.loads(pid_file.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-
-        worker_pid = info.get("worker_pid", 0)
-        child_pid = info.get("child_pid")
-        alive = _is_process_alive(worker_pid) if worker_pid else False
-
-        if not alive:
-            stale_files.append(pid_file)
-            continue
-
-        started_at = info.get("started_at", 0)
-        runtime_s = time.time() - started_at if started_at else 0
-        minutes, secs = divmod(int(runtime_s), 60)
-        hours, minutes = divmod(minutes, 60)
-        runtime_str = f"{hours}h {minutes:02d}m" if hours else f"{minutes}m {secs:02d}s"
-
-        agents.append(
-            {
-                "session": info.get("session", "?"),
-                "role": info.get("role", "?"),
-                "command": info.get("command", "?"),
-                "model": info.get("model", "?"),
-                "worker_pid": worker_pid,
-                "child_pid": child_pid,
-                "runtime": runtime_str,
-                "started_at": started_at,
-            }
-        )
-
-    # Clean up stale PID files
-    for f in stale_files:
-        f.unlink(missing_ok=True)
-
-    if as_json:
-        console.print(json.dumps(agents, indent=2))
-        return
-
-    if not agents:
-        console.print("[dim]No running agents.[/dim]")
-        return
-
-    table = Table(title="Bernstein Agents", show_lines=False, header_style="bold cyan")
-    table.add_column("Session", style="dim", min_width=18)
-    table.add_column("Role", min_width=10)
-    table.add_column("CLI", min_width=8)
-    table.add_column("Model", min_width=16)
-    table.add_column("Worker PID", justify="right")
-    table.add_column("Agent PID", justify="right")
-    table.add_column("Runtime", justify="right")
-
-    for a in agents:
-        table.add_row(
-            a["session"],
-            f"[bold]{a['role']}[/bold]",
-            a["command"],
-            a["model"],
-            str(a["worker_pid"]),
-            str(a["child_pid"] or "—"),
-            a["runtime"],
-        )
-
-    console.print(table)
-    console.print(f"\n[dim]{len(agents)} agent(s) running[/dim]")
-
-
-# ---------------------------------------------------------------------------
-# demo
-# ---------------------------------------------------------------------------
-
-_DEMO_PORT = 8055
-
-_ADAPTER_COMMANDS: dict[str, str] = {
-    "claude": "claude",
-    "codex": "codex",
-    "gemini": "gemini",
-    "qwen": "qwen",
-}
-
-_DEMO_TASKS: list[dict[str, str]] = [
-    {
-        "filename": "1-health-check.md",
-        "content": (
-            "# Add health check endpoint\n\n"
-            "**Role:** backend\n"
-            "**Priority:** 1\n"
-            "**Scope:** small\n"
-            "**Complexity:** low\n\n"
-            "Add a `/health` endpoint to `app.py` that returns "
-            '`{"status": "healthy", "version": "1.0.0"}` with HTTP 200.\n'
-        ),
-    },
-    {
-        "filename": "2-add-tests.md",
-        "content": (
-            "# Add tests for app.py\n\n"
-            "**Role:** qa\n"
-            "**Priority:** 2\n"
-            "**Scope:** small\n"
-            "**Complexity:** low\n\n"
-            "Add pytest tests in `tests/test_app.py` covering all routes in "
-            "`app.py`, including the `/health` endpoint.\n"
-        ),
-    },
-    {
-        "filename": "3-error-handling.md",
-        "content": (
-            "# Add error handling middleware\n\n"
-            "**Role:** backend\n"
-            "**Priority:** 2\n"
-            "**Scope:** small\n"
-            "**Complexity:** low\n\n"
-            "Add 404 and 500 JSON error handlers to `app.py`. "
-            'Return `{"error": "Not found", "status": 404}` for missing routes.\n'
-        ),
-    },
-]
-
-
-def _detect_available_adapter() -> str | None:
-    """Return the name of the first available CLI adapter found in PATH.
-
-    Returns:
-        Adapter name (e.g. ``'claude'``) or None if none found.
-    """
-    import shutil as _shutil
-
-    for name, cmd in _ADAPTER_COMMANDS.items():
-        if _shutil.which(cmd) is not None:
-            return name
-    return None
-
-
-def _setup_demo_project(project_dir: Path, adapter: str) -> None:
-    """Copy demo template files and seed three backlog tasks.
-
-    Args:
-        project_dir: Destination directory (should be empty / temp dir).
-        adapter: CLI adapter name — written into the workspace config.
-    """
-    import shutil as _shutil
-
-    # Copy template files from templates/demo/
-    template_dir = Path(__file__).parent.parent.parent.parent / "templates" / "demo"
-    if template_dir.exists():
-        _shutil.copytree(str(template_dir), str(project_dir), dirs_exist_ok=True)
-    else:
-        # Fallback: write minimal files inline so the command works even without
-        # the templates/ directory being present on PYTHONPATH.
-        (project_dir / "app.py").write_text(
-            '"""Simple Flask web application."""\n'
-            "from flask import Flask, jsonify\n\n"
-            "app = Flask(__name__)\n\n\n"
-            '@app.route("/")\n'
-            "def hello() -> object:\n"
-            '    """Return a greeting."""\n'
-            '    return jsonify({"message": "Hello, World!", "status": "ok"})\n\n\n'
-            'if __name__ == "__main__":\n'
-            "    app.run(debug=True)\n"
-        )
-        (project_dir / "requirements.txt").write_text("flask>=3.0.0\npytest>=8.0.0\n")
-        tests_dir = project_dir / "tests"
-        tests_dir.mkdir(exist_ok=True)
-        (tests_dir / "__init__.py").write_text("")
-        (tests_dir / "test_app.py").write_text(
-            '"""Basic tests."""\nimport pytest\nfrom app import app\n\n\n'
-            "@pytest.fixture\ndef client():\n"
-            '    app.config["TESTING"] = True\n'
-            "    with app.test_client() as c:\n        yield c\n\n\n"
-            "def test_hello(client):\n"
-            '    resp = client.get("/")\n'
-            "    assert resp.status_code == 200\n"
-        )
-
-    # Create .sdd/ structure
-    for d in SDD_DIRS:
-        (project_dir / d).mkdir(parents=True, exist_ok=True)
-
-    config_path = project_dir / ".sdd" / "config.yaml"
-    config_path.write_text(
-        "# Bernstein demo workspace\n"
-        f"server_port: {_DEMO_PORT}\n"
-        "max_workers: 2\n"
-        "default_model: sonnet\n"
-        "default_effort: normal\n"
-        f"cli: {adapter}\n"
-    )
-    (project_dir / ".sdd" / "runtime" / ".gitignore").write_text("*.pid\n*.log\ntasks.jsonl\n")
-
-    # Seed the three backlog tasks
-    backlog_open = project_dir / ".sdd" / "backlog" / "open"
-    for task in _DEMO_TASKS:
-        (backlog_open / task["filename"]).write_text(task["content"])
-
-
-def _stop_demo_processes(project_dir: Path) -> None:
-    """Terminate server, spawner and watchdog started in project_dir.
-
-    Args:
-        project_dir: Demo project root whose .sdd/runtime/ holds PID files.
-    """
-    runtime_dir = project_dir / ".sdd" / "runtime"
-    for pid_filename, _label in [
-        ("watchdog.pid", "Watchdog"),
-        ("spawner.pid", "Spawner"),
-        ("server.pid", "Task server"),
-    ]:
-        pid_file = runtime_dir / pid_filename
-        if not pid_file.exists():
-            continue
-        try:
-            pid = int(pid_file.read_text().strip())
-        except (ValueError, OSError):
-            continue
-        if _is_alive(pid):
-            try:
-                import signal as _signal
-
-                os.kill(pid, _signal.SIGTERM)
-            except OSError:
-                pass
-        pid_file.unlink(missing_ok=True)
-
-
-def _print_demo_summary(project_dir: Path, server_url: str) -> None:
-    """Print final demo summary: tasks done, files changed, cost.
-
-    Args:
-        project_dir: Demo project root.
-        server_url: Base URL of the demo task server.
-    """
-    from rich.table import Table
-
-    tasks_data: list[dict[str, Any]] = []
-    total_cost: float = 0.0
-    try:
-        resp = httpx.get(f"{server_url}/status", timeout=3.0)
-        if resp.status_code == 200:
-            payload = resp.json()
-            tasks_data = payload.get("tasks", [])
-            total_cost = payload.get("total_cost_usd", 0.0)
-    except Exception:
-        pass
-
-    done = sum(1 for t in tasks_data if t.get("status") == "done")
-    failed = sum(1 for t in tasks_data if t.get("status") == "failed")
-    total = len(tasks_data)
-
-    console.print("\n[bold cyan]── Demo Summary ──────────────────────────[/bold cyan]")
-
-    table = Table(show_header=True, header_style="bold magenta", show_lines=False)
-    table.add_column("Metric", style="bold")
-    table.add_column("Value", justify="right")
-    table.add_row("Tasks completed", f"[green]{done}[/green] / {total}")
-    if failed:
-        table.add_row("Tasks failed", f"[red]{failed}[/red]")
-
-    # Count Python files in the project dir (excluding .sdd/)
-    py_files = [p for p in project_dir.glob("**/*.py") if ".sdd" not in p.parts]
-    table.add_row("Python files in project", str(len(py_files)))
-    table.add_row("API cost", f"${total_cost:.4f}")
-    console.print(table)
-
-    console.print(f"\n[dim]Project directory:[/dim] {project_dir}")
-    console.print("[dim]Inspect it to see what the agents changed.[/dim]")
-    console.print("\n[bold green]Try it yourself:[/bold green]")
-    console.print(f"  cd {project_dir}")
-    console.print("  pip install -r requirements.txt")
-    console.print("  pytest tests/ -q")
-
-
-@cli.command("demo")
-@click.option(
-    "--dry-run",
-    is_flag=True,
-    default=False,
-    help="Show the demo plan without spawning any agents.",
-)
-@click.option(
-    "--adapter",
-    default=None,
-    metavar="NAME",
-    help="CLI adapter to use (auto-detected by default).  Choices: claude, codex, gemini, qwen.",
-)
-@click.option(
-    "--timeout",
-    default=120,
-    show_default=True,
-    help="Maximum seconds to wait for tasks to complete.",
-)
-def demo(dry_run: bool, adapter: str | None, timeout: int) -> None:
-    """Zero-to-running demo: spin up a Flask app and ship 3 tasks.
-
-    \b
-    Creates a temporary project directory with a Flask hello-world starter,
-    seeds 3 tasks into the backlog (health check, tests, error handling),
-    then runs agents to complete them while showing live progress.
-
-    \b
-      bernstein demo              # run the full demo
-      bernstein demo --dry-run    # preview the plan without spawning agents
-      bernstein demo --timeout 60 # cap run time at 60 seconds
-    """
-    import tempfile
-
-    _print_banner()
-
-    # Resolve adapter
-    detected = adapter or _detect_available_adapter()
-    if detected is None:
-        console.print(
-            "[red]No supported CLI agent found in PATH.[/red]\n\n"
-            "Install one of:\n"
-            "  Claude Code  https://claude.ai/code\n"
-            "  Codex CLI    https://github.com/openai/codex-cli\n"
-            "  Gemini CLI   https://github.com/google-gemini/gemini-cli\n"
-        )
-        raise SystemExit(1)
-
-    # Always print cost estimate before doing anything
-    console.print(
-        "\n[bold yellow]Cost estimate:[/bold yellow] "
-        "~$0.15 in API credits (3 small tasks, sonnet model)\n"
-        f"[dim]Adapter: {detected}  |  Tasks: 3  |  Timeout: {timeout}s[/dim]"
-    )
-
-    if dry_run:
-        console.print("\n[bold cyan][DRY RUN] What would happen:[/bold cyan]\n")
-        from rich.table import Table
-
-        plan_table = Table(show_header=True, header_style="bold magenta")
-        plan_table.add_column("Step")
-        plan_table.add_column("Action")
-        plan_table.add_column("Detail")
-        plan_table.add_row("1", "Create project", "Temp dir with Flask hello-world (5 files)")
-        plan_table.add_row("2", "Seed backlog", "3 tasks in .sdd/backlog/open/")
-        for i, t in enumerate(_DEMO_TASKS, start=3):
-            # Parse task inline to get title/role
-            parts = t["content"].split("\n")
-            title = parts[0].lstrip("# ").strip()
-            role = next(
-                (ln.split("**Role:**")[-1].strip() for ln in parts if "**Role:**" in ln),
-                "backend",
-            )
-            plan_table.add_row(str(i), f"Run {role} agent", title)
-        plan_table.add_row(str(len(_DEMO_TASKS) + 3), "Print summary", "tasks done, cost, files changed")
-        console.print(plan_table)
-        console.print("\n[dim]No agents were spawned. Run [bold]bernstein demo[/bold] to execute.[/dim]")
-        return
-
-    # Create temp project dir
-    project_dir = Path(tempfile.mkdtemp(prefix="bernstein-demo-"))
-    console.print(f"\n[dim]Creating demo project in {project_dir}…[/dim]")
-
-    _setup_demo_project(project_dir, detected)
-    console.print("[green]✓[/green] Flask starter project created (5 files)")
-    console.print("[green]✓[/green] 3 tasks seeded: health check, tests, error handling")
-
-    server_url = f"http://127.0.0.1:{_DEMO_PORT}"
-
-    try:
-        # Bootstrap: start server + spawner in the demo project dir
-        console.print("\n[bold]Starting orchestration…[/bold]")
-        from bernstein.core.bootstrap import bootstrap_from_goal
-
-        bootstrap_from_goal(
-            goal="Complete the seeded backlog tasks for the demo Flask app.",
-            workdir=project_dir,
-            port=_DEMO_PORT,
-            cli=detected,
-        )
-
-        # Poll for completion with a live progress indicator
-        from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
-
-        start = time.monotonic()
-        deadline = start + timeout
-
-        console.print()
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            TimeElapsedColumn(),
-            console=console,
-            transient=True,
-        ) as progress:
-            poll_task = progress.add_task("Agents working…", total=None)
-
-            while time.monotonic() < deadline:
-                try:
-                    resp = httpx.get(f"{server_url}/status", timeout=3.0)
-                    if resp.status_code == 200:
-                        payload = resp.json()
-                        tasks_list: list[dict[str, Any]] = payload.get("tasks", [])
-                        done = sum(1 for t in tasks_list if t.get("status") == "done")
-                        failed = sum(1 for t in tasks_list if t.get("status") == "failed")
-                        total_tasks = len(tasks_list)
-                        progress.update(
-                            poll_task,
-                            description=(
-                                f"Agents working… "
-                                f"[green]{done}[/green]/{total_tasks} done"
-                                + (f"  [red]{failed} failed[/red]" if failed else "")
-                            ),
-                        )
-                        if total_tasks > 0 and done + failed >= total_tasks:
-                            break
-                except Exception:
-                    pass
-                time.sleep(2)
-
-        console.print("[green]✓[/green] Orchestration finished")
-
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Interrupted.[/yellow]")
-    except RuntimeError as exc:
-        from bernstein.cli.errors import bootstrap_failed
-
-        bootstrap_failed(exc).print()
-    finally:
-        _stop_demo_processes(project_dir)
-
-    _print_demo_summary(project_dir, server_url)
-
-
-# ---------------------------------------------------------------------------
 # cancel
 # ---------------------------------------------------------------------------
 
@@ -1893,7 +474,7 @@ def cancel(task_id: str, reason: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# approve / reject
+# approve / reject / pending
 # ---------------------------------------------------------------------------
 
 
@@ -1926,7 +507,7 @@ def reject(task_id: str, workdir: str) -> None:
 
     When running with ``--approval review``, Bernstein pauses after each
     verified task and writes a pending approval file.  Run this command
-    to reject the work — the worktree will be cleaned up without merging.
+    to reject the work -- the worktree will be cleaned up without merging.
 
     \b
     Example:
@@ -2157,6 +738,9 @@ def _notes_legacy(lines: int, component: str) -> None:
     )
 
 
+cli.add_command(_notes_legacy, "logs-legacy")
+
+
 # ---------------------------------------------------------------------------
 # tasks  (alias for `bernstein status --tasks-only`)
 # ---------------------------------------------------------------------------
@@ -2214,6 +798,9 @@ def list_tasks(status_filter: str | None, role: str | None, as_json: bool) -> No
             str(t.get("priority", 2)),
         )
     console.print(table)
+
+
+cli.add_command(list_tasks, "list-tasks")
 
 
 # ---------------------------------------------------------------------------
@@ -2346,8 +933,8 @@ def live(interval: float, classic: bool) -> None:
 
     def _fetch_dashboard() -> dict[str, Any]:
         """Fetch all data needed for the live dashboard."""
-        status = _server_get("/status")
-        if status is None:
+        status_data = _server_get("/status")
+        if status_data is None:
             return {}
         tasks_raw = _server_get("/tasks")
         tasks: list[dict[str, Any]] = cast("list[dict[str, Any]]", tasks_raw) if isinstance(tasks_raw, list) else []
@@ -2370,10 +957,10 @@ def live(interval: float, classic: bool) -> None:
             "agents": agents,
             "tasks": tasks,
             "summary": {
-                "total": status.get("total", 0),
-                "done": status.get("done", 0),
-                "in_progress": status.get("claimed", 0),
-                "failed": status.get("failed", 0),
+                "total": status_data.get("total", 0),
+                "done": status_data.get("done", 0),
+                "in_progress": status_data.get("claimed", 0),
+                "failed": status_data.get("failed", 0),
                 "elapsed_seconds": elapsed,
             },
         }
@@ -2514,8 +1101,8 @@ def benchmark_swe_bench(
         console.print(f"  Running [cyan]{inst.instance_id}[/cyan]…", end="")
         result = runner.run_instance(inst)
         results.append(result)
-        status = "[green]✓[/green]" if result.resolved else "[red]✗[/red]"
-        console.print(f" {status}")
+        status_icon = "[green]✓[/green]" if result.resolved else "[red]✗[/red]"
+        console.print(f" {status_icon}")
         table.add_row(
             inst.instance_id,
             "[green]YES[/green]" if result.resolved else "[red]NO[/red]",
@@ -2815,13 +1402,6 @@ def eval_failures() -> None:
 
 
 # ---------------------------------------------------------------------------
-# cost
-# ---------------------------------------------------------------------------
-
-cli.add_command(cost_cmd, "cost")
-
-
-# ---------------------------------------------------------------------------
 # workspace — multi-repo workspace management
 # ---------------------------------------------------------------------------
 
@@ -2851,9 +1431,7 @@ def workspace_group(ctx: click.Context) -> None:
         try:
             cfg = parse_seed(seed_path)
         except SeedError as exc:
-            from bernstein.cli.errors import seed_parse_error
-
-            seed_parse_error(exc).print()
+            console.print(f"[red]Error parsing seed file:[/red] {exc}")
             return
 
         if cfg.workspace is None:
@@ -2937,7 +1515,7 @@ def workspace_clone() -> None:
 
 @workspace_group.command("validate")
 def workspace_validate() -> None:
-    """Check workspace health — all repos exist and are valid git repos."""
+    """Check workspace health -- all repos exist and are valid git repos."""
     seed_path = _find_seed_file()
     if seed_path is None:
         console.print("[red]No bernstein.yaml found.[/red]")
@@ -3075,8 +1653,8 @@ def _load_archive_tasks(
         except json.JSONDecodeError:
             continue
 
-        status = record.get("status", "")
-        if status not in ("done", "failed"):
+        status_str = record.get("status", "")
+        if status_str not in ("done", "failed"):
             continue
 
         completed_at = record.get("completed_at")
@@ -3090,10 +1668,10 @@ def _load_archive_tasks(
             role=record.get("role", "unknown"),
             complexity=Complexity(record.get("complexity", "medium")),
             scope=Scope(record.get("scope", "medium")),
-            status=TaskStatus.DONE if status == "done" else TaskStatus.FAILED,
+            status=TaskStatus.DONE if status_str == "done" else TaskStatus.FAILED,
             created_at=record.get("created_at", 0.0),
         )
-        if status == "done":
+        if status_str == "done":
             done_tasks.append(task)
         else:
             failed_tasks.append(task)
@@ -3130,8 +1708,8 @@ def _build_collector_from_archive(
         except json.JSONDecodeError:
             continue
 
-        status = record.get("status", "")
-        if status not in ("done", "failed"):
+        status_str = record.get("status", "")
+        if status_str not in ("done", "failed"):
             continue
 
         completed_at: float | None = record.get("completed_at")
@@ -3152,7 +1730,7 @@ def _build_collector_from_archive(
             provider=provider,
             start_time=start_time,
             end_time=completed_at,
-            success=(status == "done"),
+            success=(status_str == "done"),
             cost_usd=cost_usd,
         )
         collector._task_metrics[task_id] = tm  # type: ignore[reportPrivateUsage]
@@ -3293,476 +1871,6 @@ def retro(
 
 
 # ---------------------------------------------------------------------------
-# agents — catalog management
-# ---------------------------------------------------------------------------
-
-
-@cli.group("agents")
-def agents_group() -> None:
-    """Manage agent catalogs: sync, list, and validate.
-
-    \b
-      bernstein agents sync               # refresh all catalogs
-      bernstein agents list               # show all available agents
-      bernstein agents list --source local  # filter by source
-      bernstein agents validate           # check catalog health
-    """
-
-
-@agents_group.command("sync")
-@click.option(
-    "--dir",
-    "definitions_dir",
-    default=".sdd/agents/definitions",
-    show_default=True,
-    help="Agent definitions directory.",
-)
-@click.option(
-    "--force",
-    is_flag=True,
-    default=False,
-    help="Force re-sync even if within the 24-hour TTL.",
-)
-def agents_sync(definitions_dir: str, force: bool) -> None:
-    """Force-refresh all agent catalogs and update cache."""
-    import asyncio
-
-    from bernstein.agents.agency_provider import AgencyProvider
-    from bernstein.agents.registry import AgentRegistry
-
-    definitions_path = Path(definitions_dir)
-
-    # Provider: local YAML definitions
-    console.print("[bold]Syncing agent catalogs…[/bold]\n")
-    console.print(f"[cyan]→ local[/cyan]  {definitions_path}")
-
-    if not definitions_path.exists():
-        console.print(f"  [yellow]Directory does not exist:[/yellow] {definitions_path}")
-        console.print(f"  [dim]Create it with: mkdir -p {definitions_path}[/dim]")
-    else:
-        registry = AgentRegistry(definitions_dir=definitions_path)
-        loaded = registry.load_definitions()
-        console.print(f"  [green]✓[/green] Loaded {len(loaded)} agent definition(s)")
-        for defn in loaded:
-            console.print(f"    [dim]{defn.name}[/dim] v{defn.version} ({defn.role})")
-
-    # Provider: agency catalog (legacy YAML format — .sdd/agents/agency/)
-    agency_dir = Path(".sdd/agents/agency")
-    console.print(f"\n[cyan]→ agency (local YAML)[/cyan] {agency_dir}")
-    if not agency_dir.exists():
-        console.print(f"  [dim]Directory not found — skipping (place Agency YAML files in {agency_dir})[/dim]")
-    else:
-        from bernstein.core.agency_loader import load_agency_catalog
-
-        catalog = load_agency_catalog(agency_dir)
-        console.print(f"  [green]✓[/green] Loaded {len(catalog)} agency agent(s)")
-        for name in list(catalog)[:5]:
-            agent = catalog[name]
-            console.print(f"    [dim]{name}[/dim] ({agent.role})")
-        if len(catalog) > 5:
-            console.print(f"    [dim]… and {len(catalog) - 5} more[/dim]")
-
-    # Provider: Agency GitHub repo (msitarzewski/agency-agents markdown format)
-    default_agency_path = AgencyProvider.default_cache_path()
-    console.print(f"\n[cyan]→ agency (GitHub)[/cyan] {default_agency_path}")
-    ok, msg = AgencyProvider.sync_catalog(force=force)
-    if ok:
-        console.print(f"  [green]✓[/green] {msg}")
-        provider = AgencyProvider(local_path=default_agency_path)
-        agency_agents = asyncio.run(provider.fetch_agents())
-        console.print(f"  [green]✓[/green] {len(agency_agents)} specialist agent(s) available")
-        for a in agency_agents[:5]:
-            caps = ", ".join(a.capabilities[:3]) if a.capabilities else "—"
-            console.print(f"    [dim]{a.name}[/dim] ({a.role})  {caps}")
-        if len(agency_agents) > 5:
-            console.print(f"    [dim]… and {len(agency_agents) - 5} more[/dim]")
-    else:
-        console.print(f"  [yellow]![/yellow] {msg}")
-        console.print(
-            f"  [dim]Manual clone: git clone https://github.com/msitarzewski/agency-agents {default_agency_path}[/dim]"
-        )
-
-    console.print("\n[green]Sync complete.[/green]")
-
-
-@agents_group.command("list")
-@click.option(
-    "--source",
-    type=click.Choice(["local", "agency", "all"]),
-    default="all",
-    show_default=True,
-    help="Filter agents by catalog source.",
-)
-@click.option(
-    "--dir",
-    "definitions_dir",
-    default=".sdd/agents/definitions",
-    show_default=True,
-    help="Local agent definitions directory.",
-)
-def agents_list(source: str, definitions_dir: str) -> None:
-    """List all available agents from loaded catalogs."""
-    import asyncio
-
-    from bernstein.agents.agency_provider import AgencyProvider
-    from bernstein.agents.registry import AgentRegistry
-
-    # rows: (id, name, role, capabilities, source)
-    rows: list[tuple[str, str, str, str, str]] = []
-
-    # Local definitions
-    if source in ("local", "all"):
-        definitions_path = Path(definitions_dir)
-        if definitions_path.exists():
-            registry = AgentRegistry(definitions_dir=definitions_path)
-            registry.load_definitions()
-            for defn in registry.definitions.values():
-                rows.append((defn.name, defn.name, defn.role, "", "local"))
-
-    # Agency catalog — legacy YAML format (.sdd/agents/agency/)
-    if source in ("agency", "all"):
-        agency_dir = Path(".sdd/agents/agency")
-        if agency_dir.exists():
-            from bernstein.core.agency_loader import load_agency_catalog
-
-            catalog = load_agency_catalog(agency_dir)
-            for name, agent in catalog.items():
-                rows.append((name, agent.name, agent.role, "", "agency"))
-
-    # Agency catalog — GitHub markdown format (~/.bernstein/catalogs/agency/)
-    if source in ("agency", "all"):
-        default_agency_path = AgencyProvider.default_cache_path()
-        if default_agency_path.exists():
-            provider = AgencyProvider(local_path=default_agency_path)
-            agency_agents = asyncio.run(provider.fetch_agents())
-            for a in agency_agents:
-                caps = ", ".join(a.capabilities[:4]) if a.capabilities else ""
-                rows.append((a.id or a.name, a.name, a.role, caps, "agency"))
-
-    if not rows:
-        console.print("[dim]No agents found. Run [bold]bernstein agents sync[/bold] first.[/dim]")
-        return
-
-    from rich.table import Table
-
-    table = Table(
-        title="Available Agents",
-        show_lines=False,
-        header_style="bold cyan",
-    )
-    table.add_column("NAME", style="dim", min_width=22)
-    table.add_column("ROLE", min_width=12)
-    table.add_column("CAPABILITIES", min_width=32)
-    table.add_column("SOURCE", min_width=8)
-
-    source_order = {"agency": 0, "local": 1}
-    for _agent_id, name, role, caps, src in sorted(rows, key=lambda r: (source_order.get(r[4], 9), r[1])):
-        src_color = "cyan" if src == "local" else "magenta"
-        table.add_row(
-            name,
-            role,
-            caps or "[dim]—[/dim]",
-            f"[{src_color}]{src}[/{src_color}]",
-        )
-
-    console.print(table)
-    console.print(f"\n[dim]{len(rows)} agent(s) total[/dim]")
-
-
-@agents_group.command("validate")
-@click.option(
-    "--dir",
-    "definitions_dir",
-    default=".sdd/agents/definitions",
-    show_default=True,
-    help="Local agent definitions directory.",
-)
-def agents_validate(definitions_dir: str) -> None:
-    """Validate all agent catalogs and report issues.
-
-    Exits with code 1 if any provider is unreachable or has invalid agents.
-    """
-    import yaml
-
-    from bernstein.agents.registry import SchemaValidationError
-
-    definitions_path = Path(definitions_dir)
-    issues: list[str] = []
-
-    console.print("[bold]Validating agent catalogs…[/bold]\n")
-
-    # --- Local definitions ---
-    console.print(f"[cyan]→ local[/cyan]  {definitions_path}")
-    if not definitions_path.exists():
-        issues.append(f"local: definitions directory not found: {definitions_path}")
-        console.print(f"  [red]✗[/red] Directory not found: {definitions_path}")
-    else:
-        yaml_files = list(definitions_path.glob("*.yaml")) + list(definitions_path.glob("*.yml"))
-        if not yaml_files:
-            console.print("  [dim]No YAML files found — catalog is empty[/dim]")
-        for yaml_file in sorted(yaml_files):
-            try:
-                content = yaml_file.read_text(encoding="utf-8")
-                data = yaml.safe_load(content)
-                if not isinstance(data, dict):
-                    raise ValueError("YAML must be a mapping")
-                from bernstein.agents.registry import AgentRegistry
-
-                registry = AgentRegistry(definitions_dir=definitions_path)
-                registry._validate_schema(cast("dict[str, Any]", data), yaml_file)  # type: ignore[reportPrivateUsage]
-                console.print(f"  [green]✓[/green] {yaml_file.name}")
-            except SchemaValidationError as exc:
-                issues.append(f"local/{yaml_file.name}: {exc}")
-                console.print(f"  [red]✗[/red] {yaml_file.name}: {exc}")
-            except Exception as exc:
-                issues.append(f"local/{yaml_file.name}: {exc}")
-                console.print(f"  [red]✗[/red] {yaml_file.name}: {exc}")
-
-    # --- Agency catalog ---
-    agency_dir = Path(".sdd/agents/agency")
-    console.print(f"\n[cyan]→ agency[/cyan] {agency_dir}")
-    if not agency_dir.exists():
-        console.print("  [dim]Not configured — skipping[/dim]")
-    else:
-        from bernstein.core.agency_loader import parse_agency_agent
-
-        agency_files = [p for p in sorted(agency_dir.iterdir()) if p.suffix in (".yaml", ".yml")]
-        if not agency_files:
-            console.print("  [dim]No YAML files found — catalog is empty[/dim]")
-        for p in agency_files:
-            try:
-                parse_agency_agent(p)
-                console.print(f"  [green]✓[/green] {p.name}")
-            except ValueError as exc:
-                issues.append(f"agency/{p.name}: {exc}")
-                console.print(f"  [red]✗[/red] {p.name}: {exc}")
-
-    # --- Summary ---
-    console.print()
-    if issues:
-        console.print(f"[red]Validation failed: {len(issues)} issue(s)[/red]")
-        for issue in issues:
-            console.print(f"  [red]•[/red] {issue}")
-        raise SystemExit(1)
-    else:
-        console.print("[green]All catalogs valid.[/green]")
-
-
-@agents_group.command("showcase")
-@click.option(
-    "--dir",
-    "definitions_dir",
-    default=".sdd/agents/definitions",
-    show_default=True,
-    help="Local agent definitions directory.",
-)
-def agents_showcase(definitions_dir: str) -> None:
-    """Rich display of available agents grouped by role, with success rates.
-
-    \b
-    Shows:
-      - All agents from loaded catalogs, grouped by role / division
-      - Per-agent match count and success rate (from .sdd/agents/registry.json)
-      - Featured agents with the highest success rates
-    """
-    from rich.table import Table
-
-    from bernstein.agents.discovery import AgentDiscovery
-
-    # Load success metrics from registry
-    discovery = AgentDiscovery.load()
-    metrics = discovery.metrics
-
-    rows: list[tuple[str, str, str, str, str, str]] = []
-
-    # Local definitions
-    definitions_path = Path(definitions_dir)
-    if definitions_path.exists():
-        from bernstein.agents.registry import AgentRegistry
-
-        registry = AgentRegistry(definitions_dir=definitions_path)
-        registry.load_definitions()
-        for defn in registry.definitions.values():
-            m = metrics.get("local")
-            rate = f"{m.success_rate * 100:.0f}%" if m and m.tasks_assigned else "—"
-            assigned = str(m.tasks_assigned) if m else "0"
-            rows.append((defn.name, defn.role, defn.description[:60], "local", assigned, rate))
-
-    # Agency catalog
-    agency_dir = Path(".sdd/agents/agency")
-    if agency_dir.exists():
-        from bernstein.core.agency_loader import load_agency_catalog
-
-        catalog = load_agency_catalog(agency_dir)
-        for name, agent in catalog.items():
-            m = metrics.get("agency")
-            rate = f"{m.success_rate * 100:.0f}%" if m and m.tasks_assigned else "—"
-            assigned = str(m.tasks_assigned) if m else "0"
-            rows.append((name, agent.role, agent.description[:60], "agency", assigned, rate))
-
-    # Built-in roles (fallback)
-    from bernstein.agents.catalog import _BUILTIN_AGENT_ENTRIES  # type: ignore[reportPrivateUsage]
-
-    builtin_names = {r[0] for r in rows}
-    for entry in _BUILTIN_AGENT_ENTRIES:
-        if entry["role"] not in builtin_names:
-            m = metrics.get("builtin")
-            rate = f"{m.success_rate * 100:.0f}%" if m and m.tasks_assigned else "—"
-            assigned = str(m.tasks_assigned) if m else "0"
-            rows.append(
-                (
-                    entry["role"],
-                    entry["role"],
-                    entry.get("description", ""),
-                    "builtin",
-                    assigned,
-                    rate,
-                )
-            )
-
-    if not rows:
-        console.print("[dim]No agents found. Run [bold]bernstein agents sync[/bold] first.[/dim]")
-        return
-
-    # Sort by source priority then role
-    source_order = {"agency": 0, "local": 1, "builtin": 2}
-    rows.sort(key=lambda r: (source_order.get(r[3], 9), r[1], r[0]))
-
-    # Identify "featured" agents — top success rates with ≥3 tasks
-    top_sources = {m.source for m in discovery.top_sources(min_tasks=3)}
-
-    table = Table(
-        title="Agent Showcase",
-        show_lines=False,
-        header_style="bold cyan",
-        expand=False,
-    )
-    table.add_column("Name", min_width=22)
-    table.add_column("Role", min_width=14)
-    table.add_column("Description", min_width=40)
-    table.add_column("Source", min_width=8)
-    table.add_column("Tasks", min_width=6, justify="right")
-    table.add_column("Success", min_width=8, justify="right")
-
-    for name, role, desc, src, assigned, rate in rows:
-        src_color = {"agency": "magenta", "local": "cyan", "builtin": "dim"}.get(src, "white")
-        star = " ★" if src in top_sources else ""
-        name_text = f"[bold]{name}[/bold]{star}" if star else name
-        table.add_row(
-            name_text,
-            role,
-            desc or "[dim]—[/dim]",
-            f"[{src_color}]{src}[/{src_color}]",
-            assigned,
-            rate,
-        )
-
-    console.print(table)
-
-    # Summary line
-    total = discovery.total_agents or len(rows)
-    console.print(f"\n[dim]{len(rows)} agent(s) shown · {total} total across all directories[/dim]")
-    if top_sources:
-        console.print(f"[dim]★ Featured sources (≥3 tasks, highest success): {', '.join(sorted(top_sources))}[/dim]")
-
-    # Discovery hints
-    console.print()
-    console.print("[dim]Discover more agents:[/dim]")
-    console.print("[dim]  bernstein agents discover         # scan local + project dirs[/dim]")
-    console.print("[dim]  bernstein agents discover --net   # also search GitHub & npm[/dim]")
-
-
-@agents_group.command("match")
-@click.option("--role", required=True, help="Agent role to match (e.g. security, backend, qa).")
-@click.option("--task", "task_description", default="", help="Task description for fuzzy matching.")
-def agents_match(role: str, task_description: str) -> None:
-    """Show which agent would be selected for a given role.
-
-    \b
-    Example:
-      bernstein agents match --role security
-      bernstein agents match --role backend --task "add rate limiting middleware"
-    """
-    from bernstein.agents.catalog import CatalogRegistry
-
-    # Load from agency catalog if available
-    registry = CatalogRegistry.default()
-    agency_dir = Path(".sdd/agents/agency")
-    if agency_dir.exists():
-        from bernstein.core.agency_loader import load_agency_catalog
-
-        catalog = load_agency_catalog(agency_dir)
-        registry.load_from_agency(catalog)
-
-    match = registry.match(role, task_description)
-    if match is None:
-        console.print(f"[yellow]No catalog agent found for role '[bold]{role}[/bold]'.[/yellow]")
-        console.print("[dim]Built-in role template will be used.[/dim]")
-        return
-
-    from rich.panel import Panel
-    from rich.text import Text as RichText
-
-    t = RichText()
-    t.append("  Role      ", style="dim")
-    t.append(f"{match.role}\n", style="bold")
-    t.append("  Name      ", style="dim")
-    t.append(f"{match.name}\n", style="bold cyan")
-    t.append("  ID        ", style="dim")
-    t.append(f"{match.id or '—'}\n")
-    t.append("  Source    ", style="dim")
-    t.append(f"{match.source}\n")
-    t.append("  Priority  ", style="dim")
-    t.append(f"{match.priority}\n")
-    t.append("  Tools     ", style="dim")
-    t.append(", ".join(match.tools) if match.tools else "—")
-    t.append("\n\n")
-    t.append("  Description\n", style="dim")
-    t.append(f"    {match.description[:120]}\n")
-
-    console.print(Panel(t, title=f"[bold]Agent match: {role}[/bold]", border_style="cyan"))
-
-
-@agents_group.command("discover")
-@click.option("--net", "include_network", is_flag=True, default=False, help="Also search GitHub and npm.")
-def agents_discover(include_network: bool) -> None:
-    """Scan known sources for agent directories and update the registry.
-
-    \b
-    Scans:
-      ~/.bernstein/agents/     user-level definitions
-      .sdd/agents/local/       project-level definitions
-      GitHub (--net)           repos tagged bernstein-agents
-      npm (--net)              packages with bernstein-agent keyword
-    """
-    from bernstein.agents.discovery import AgentDiscovery
-
-    discovery = AgentDiscovery.load()
-
-    console.print("[bold]Discovering agent directories…[/bold]\n")
-    results = discovery.full_sync(include_network=include_network)
-
-    for source, count in results.items():
-        icon = "[green]✓[/green]" if count >= 0 else "[yellow]![/yellow]"
-        console.print(f"  {icon} [cyan]{source}[/cyan]  {count} agent(s)")
-
-    if include_network:
-        gh_entries = [d for d in discovery.directories if d.source_type == "github"]
-        npm_entries = [d for d in discovery.directories if d.source_type == "npm"]
-        if gh_entries:
-            console.print(f"\n  [magenta]GitHub[/magenta] ({len(gh_entries)} repos)")
-            for e in gh_entries[:5]:
-                console.print(f"    [dim]{e.name}[/dim]  {e.url}")
-        if npm_entries:
-            console.print(f"\n  [magenta]npm[/magenta] ({len(npm_entries)} packages)")
-            for e in npm_entries[:5]:
-                console.print(f"    [dim]{e.name}[/dim]  {e.url}")
-
-    console.print(f"\n[green]Done.[/green] Registry: [dim]{discovery.registry_path}[/dim]")
-    console.print(f"[dim]Total agents tracked: {discovery.total_agents}[/dim]")
-
-
-# ---------------------------------------------------------------------------
 # help-all — progressive disclosure: full flag list
 # ---------------------------------------------------------------------------
 
@@ -3799,430 +1907,6 @@ def help_all(ctx: click.Context) -> None:
       bernstein benchmark       Run the golden benchmark suite
     """
     console.print(ctx.get_help())
-
-
-# ---------------------------------------------------------------------------
-# Backward-compatible aliases (old names still work)
-# ---------------------------------------------------------------------------
-
-# Backward-compat aliases — register the decorated Click Command objects directly
-# so all options and parameters are preserved.
-cli.add_command(init, "init")
-cli.add_command(run, "run")
-cli.add_command(start, "start")
-cli.add_command(status, "status")
-cli.add_command(stop, "rest")
-cli.add_command(add_task, "add-task")
-cli.add_command(_notes_legacy, "logs-legacy")
-cli.add_command(list_tasks, "list-tasks")
-
-
-# ---------------------------------------------------------------------------
-# evolve  — manage evolution proposals
-# ---------------------------------------------------------------------------
-
-
-@cli.group("evolve")
-def evolve() -> None:
-    """Manage self-evolution proposals.
-
-    \b
-      bernstein evolve review           # list proposals pending human review
-      bernstein evolve approve <id>     # approve a specific proposal
-      bernstein evolve run              # run the autoresearch evolution loop
-      bernstein evolve status           # show evolution history table
-      bernstein evolve export [path]    # export HTML/Markdown report
-    """
-
-
-@evolve.command("run")
-@click.option(
-    "--window",
-    default="2h",
-    show_default=True,
-    help="Evolution window duration (e.g. 2h, 30m, 1h30m).",
-)
-@click.option(
-    "--max-proposals",
-    default=24,
-    show_default=True,
-    help="Maximum proposals to evaluate per session.",
-)
-@click.option(
-    "--cycle",
-    default=300,
-    show_default=True,
-    help="Seconds per experiment cycle (default 300 = 5 min).",
-)
-@click.option(
-    "--dir",
-    "workdir",
-    default=".",
-    show_default=True,
-    help="Project root directory (parent of .sdd/).",
-)
-@click.option(
-    "--github",
-    "github_sync",
-    is_flag=True,
-    default=False,
-    help="Sync proposals as GitHub Issues for distributed coordination.",
-)
-@click.option(
-    "--github-repo",
-    default=None,
-    help="GitHub repo slug (owner/repo). Inferred from git remote if omitted.",
-)
-def evolve_run(
-    window: str,
-    max_proposals: int,
-    cycle: int,
-    workdir: str,
-    github_sync: bool,
-    github_repo: str | None,
-) -> None:
-    """Run the autoresearch evolution loop.
-
-    \b
-    Runs time-boxed experiment cycles that:
-    1. Analyze metrics and detect improvement opportunities
-    2. Generate low-risk proposals (L0/L1 only)
-    3. Sandbox validate each proposal
-    4. Auto-apply improvements that pass validation
-    5. Log all results to .sdd/evolution/experiments.jsonl
-
-    L2+ proposals are saved to .sdd/evolution/deferred.jsonl for human review.
-
-    When --github is set, each proposal is published as a GitHub Issue with
-    label ``bernstein-evolve``.  Multiple instances running concurrently will
-    claim different issues, preventing duplicate work.
-
-    \b
-      bernstein evolve run                         # default: 2h window, 24 proposals
-      bernstein evolve run --window 30m            # short session
-      bernstein evolve run --max-proposals 48      # more experiments
-      bernstein evolve run --github                # sync proposals to GitHub Issues
-      bernstein evolve run --github --github-repo owner/myrepo
-    """
-    from bernstein.evolution.loop import EvolutionLoop
-
-    root = Path(workdir).resolve()
-    state_dir = root / ".sdd"
-
-    if not state_dir.is_dir():
-        console.print(
-            "[red].sdd directory not found.[/red] Run [bold]bernstein[/bold] first to initialise the workspace."
-        )
-        raise SystemExit(1)
-
-    # Read evolve.github_sync / evolve.github_repo from bernstein.yaml if present
-    # and the flags were not set on the CLI.
-    for _seed_name in ("bernstein.yaml", "bernstein.yml"):
-        _seed_path = root / _seed_name
-        if _seed_path.exists():
-            try:
-                import yaml as _yaml
-
-                _seed_raw = _yaml.safe_load(_seed_path.read_text(encoding="utf-8"))
-                if isinstance(_seed_raw, dict):
-                    _seed_dict = cast("dict[str, Any]", _seed_raw)
-                    _evolve_cfg = _seed_dict.get("evolve", {})
-                    if isinstance(_evolve_cfg, dict):
-                        _evolve_dict = cast("dict[str, Any]", _evolve_cfg)
-                        if not github_sync and _evolve_dict.get("github_sync"):
-                            github_sync = True
-                        if github_repo is None and _evolve_dict.get("github_repo"):
-                            github_repo = str(_evolve_dict["github_repo"])
-            except Exception:
-                pass  # YAML parse errors are non-fatal here
-            break
-
-    # Parse window duration string (e.g. "2h", "30m", "1h30m").
-    window_seconds = _parse_duration(window)
-    if window_seconds <= 0:
-        console.print(f"[red]Invalid window duration:[/red] {window}")
-        raise SystemExit(1)
-
-    # Check GitHub availability early so we can warn before the loop starts.
-    if github_sync:
-        from bernstein.core.github import GitHubClient
-
-        _gh_check = GitHubClient(repo=github_repo)
-        if not _gh_check.available:
-            console.print(
-                "[yellow]Warning:[/yellow] --github requested but [bold]gh[/bold] CLI "
-                "is not available or not authenticated.\n"
-                "GitHub sync will be skipped. Run [bold]gh auth login[/bold] to enable it."
-            )
-            github_sync = False
-
-    console.print(
-        f"[bold]Evolution loop starting[/bold]\n"
-        f"  Window:     {window} ({window_seconds}s)\n"
-        f"  Max props:  {max_proposals}\n"
-        f"  Cycle:      {cycle}s\n"
-        f"  State dir:  {state_dir}\n"
-        + (f"  GitHub:     {'enabled' if github_sync else 'disabled'}\n" if github_sync else "")
-    )
-
-    loop = EvolutionLoop(
-        state_dir=state_dir,
-        repo_root=root,
-        cycle_seconds=cycle,
-        max_proposals=max_proposals,
-        window_seconds=window_seconds,
-        github_sync=github_sync,
-    )
-    if github_sync and github_repo:
-        # Pass the explicit repo slug to the lazily-created GitHubClient.
-        from bernstein.core.github import GitHubClient
-
-        loop._github = GitHubClient(repo=github_repo)  # type: ignore[reportPrivateUsage]
-
-    try:
-        results = loop.run(
-            window_seconds=window_seconds,
-            max_proposals=max_proposals,
-        )
-    except KeyboardInterrupt:
-        loop.stop()
-        results = loop._experiments  # type: ignore[reportPrivateUsage]
-        console.print("\n[dim]Evolution loop interrupted.[/dim]")
-
-    # Print summary.
-    summary = loop.get_summary()
-    console.print(
-        f"\n[bold]Evolution complete[/bold]\n"
-        f"  Experiments:  {summary['experiments_run']}\n"
-        f"  Accepted:     {summary['proposals_accepted']}\n"
-        f"  Rate:         {summary['acceptance_rate']:.0%}\n"
-        f"  Cost:         ${summary['total_cost_usd']:.4f}\n"
-        f"  Elapsed:      {summary['elapsed_seconds']:.0f}s\n"
-    )
-
-    if results:
-        from rich.table import Table
-
-        result_table = Table(
-            title="Experiment Results",
-            show_lines=False,
-            header_style="bold cyan",
-        )
-        result_table.add_column("Proposal", min_width=12)
-        result_table.add_column("Title", min_width=30)
-        result_table.add_column("Risk", min_width=8)
-        result_table.add_column("Delta", justify="right", min_width=8)
-        result_table.add_column("Result", min_width=10)
-
-        for r in results:
-            color = "green" if r.accepted else "red"
-            delta_str = f"{r.delta:+.3f}" if r.delta != 0 else "—"
-            result_table.add_row(
-                r.proposal_id,
-                r.title,
-                r.risk_level,
-                delta_str,
-                f"[{color}]{'accepted' if r.accepted else 'rejected'}[/{color}]",
-            )
-        console.print(result_table)
-
-
-def _parse_duration(s: str) -> int:
-    """Parse a duration string like '2h', '30m', '1h30m' into seconds."""
-    import re as _re
-
-    total = 0
-    for match in _re.finditer(r"(\d+)\s*(h|m|s)", s.lower()):
-        value = int(match.group(1))
-        unit = match.group(2)
-        if unit == "h":
-            total += value * 3600
-        elif unit == "m":
-            total += value * 60
-        elif unit == "s":
-            total += value
-
-    if total == 0:
-        try:
-            total = int(s)
-        except ValueError:
-            return 0
-    return total
-
-
-@evolve.command("review")
-@click.option(
-    "--dir",
-    "workdir",
-    default=".",
-    show_default=True,
-    help="Project root directory (parent of .sdd/).",
-)
-def evolve_review(workdir: str) -> None:
-    """Show upgrade proposals pending human review."""
-    from bernstein.evolution.gate import ApprovalGate
-
-    root = Path(workdir).resolve()
-    decisions_dir = root / ".sdd" / "evolution"
-    gate = ApprovalGate(decisions_dir=decisions_dir)
-    pending = gate.get_pending_decisions()
-
-    if not pending:
-        console.print("[dim]No proposals pending review.[/dim]")
-        return
-
-    from rich.table import Table
-
-    review_table = Table(title="Proposals Pending Review", show_lines=True, header_style="bold cyan")
-    review_table.add_column("ID", style="dim", min_width=12)
-    review_table.add_column("Risk", min_width=12)
-    review_table.add_column("Confidence", justify="right", min_width=10)
-    review_table.add_column("Outcome", min_width=22)
-    review_table.add_column("Reason")
-
-    for d in sorted(pending, key=lambda x: x.decided_at):
-        outcome_color = "red" if "immediate" in d.outcome.value else "yellow"
-        review_table.add_row(
-            d.proposal_id,
-            d.risk_level.value,
-            f"{d.confidence:.0%}",
-            f"[{outcome_color}]{d.outcome.value}[/{outcome_color}]",
-            d.reason,
-        )
-
-    console.print(review_table)
-    console.print("\n[dim]Approve with:[/dim] [bold]bernstein evolve approve <id>[/bold]")
-
-
-@evolve.command("approve")
-@click.argument("proposal_id")
-@click.option(
-    "--reviewer",
-    default="human",
-    show_default=True,
-    help="Name of the approver.",
-)
-@click.option(
-    "--dir",
-    "workdir",
-    default=".",
-    show_default=True,
-    help="Project root directory (parent of .sdd/).",
-)
-def evolve_approve(proposal_id: str, reviewer: str, workdir: str) -> None:
-    """Approve an upgrade proposal by ID."""
-    from bernstein.evolution.gate import ApprovalGate
-
-    root = Path(workdir).resolve()
-    decisions_dir = root / ".sdd" / "evolution"
-    gate = ApprovalGate(decisions_dir=decisions_dir)
-    decision = gate.approve(proposal_id, reviewer=reviewer)
-
-    if decision is None:
-        console.print(
-            f"[red]No pending proposal found:[/red] {proposal_id}\n"
-            "Run [bold]bernstein evolve review[/bold] to list pending proposals."
-        )
-        raise SystemExit(1)
-
-    console.print(f"[green]Approved:[/green] [bold]{proposal_id}[/bold] (reviewer={reviewer})")
-
-
-@evolve.command("status")
-@click.option(
-    "--dir",
-    "workdir",
-    default=".",
-    show_default=True,
-    help="Project root directory (parent of .sdd/).",
-)
-def evolve_status(workdir: str) -> None:
-    """Show evolution history as a rich table.
-
-    Reads .sdd/metrics/evolve_cycles.jsonl and .sdd/evolution/experiments.jsonl
-    and displays a per-cycle breakdown with cumulative improvement metrics.
-
-    \b
-      bernstein evolve status           # history from current directory
-      bernstein evolve status --dir /path/to/project
-    """
-    from bernstein.evolution.report import EvolutionReport
-
-    root = Path(workdir).resolve()
-    state_dir = root / ".sdd"
-
-    if not state_dir.is_dir():
-        console.print(
-            "[red].sdd directory not found.[/red] Run [bold]bernstein[/bold] first to initialise the workspace."
-        )
-        raise SystemExit(1)
-
-    report = EvolutionReport(state_dir=state_dir)
-    report.load()
-    report.print_status()
-
-
-@evolve.command("export")
-@click.argument("output", default="evolution_report", required=False)
-@click.option(
-    "--format",
-    "fmt",
-    type=click.Choice(["html", "md", "markdown"], case_sensitive=False),
-    default="html",
-    show_default=True,
-    help="Output format: html or md/markdown.",
-)
-@click.option(
-    "--dir",
-    "workdir",
-    default=".",
-    show_default=True,
-    help="Project root directory (parent of .sdd/).",
-)
-def evolve_export(output: str, fmt: str, workdir: str) -> None:
-    """Export a static evolution report (HTML or Markdown).
-
-    OUTPUT is the output file path (without extension). Defaults to
-    'evolution_report' in the current directory.
-
-    \b
-      bernstein evolve export                        # evolution_report.html
-      bernstein evolve export --format md            # evolution_report.md
-      bernstein evolve export docs/evolution         # docs/evolution.html
-    """
-    from bernstein.evolution.report import EvolutionReport
-
-    root = Path(workdir).resolve()
-    state_dir = root / ".sdd"
-
-    if not state_dir.is_dir():
-        console.print(
-            "[red].sdd directory not found.[/red] Run [bold]bernstein[/bold] first to initialise the workspace."
-        )
-        raise SystemExit(1)
-
-    report = EvolutionReport(state_dir=state_dir)
-    report.load()
-
-    if not report.cycles:
-        console.print("[dim]No evolution data found to export.[/dim]")
-        raise SystemExit(1)
-
-    is_markdown = fmt.lower() in ("md", "markdown")
-    ext = ".md" if is_markdown else ".html"
-    out_path = Path(output)
-    if out_path.suffix.lower() not in (".html", ".md"):
-        out_path = out_path.with_suffix(ext)
-
-    if is_markdown:
-        report.export_markdown(out_path)
-    else:
-        report.export_html(out_path)
-
-    console.print(
-        f"[green]Report written:[/green] {out_path} "
-        f"({report.total_cycles} cycles, {report.total_tasks_completed} tasks completed)"
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -4377,266 +2061,6 @@ def ideate(
 
 
 # ---------------------------------------------------------------------------
-# doctor — self-diagnostic
-# ---------------------------------------------------------------------------
-
-
-@cli.command("doctor")
-@click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
-def doctor(as_json: bool) -> None:
-    """Run self-diagnostics: check Python, adapters, API keys, port, and workspace.
-
-    \b
-      bernstein doctor          # print diagnostic report
-      bernstein doctor --json   # machine-readable output
-    """
-    import shutil
-    import socket
-
-    checks: list[dict[str, Any]] = []
-
-    def _check(name: str, ok: bool, detail: str, fix: str = "") -> None:
-        checks.append({"name": name, "ok": ok, "detail": detail, "fix": fix})
-
-    # 1. Python version
-    major, minor = sys.version_info.major, sys.version_info.minor
-    py_ok = (major, minor) >= (3, 12)
-    _check(
-        "Python version",
-        py_ok,
-        f"Python {major}.{minor} (need 3.12+)",
-        "Install Python 3.12 or newer" if not py_ok else "",
-    )
-
-    # 2. CLI adapters
-    adapters = {
-        "claude": "ANTHROPIC_API_KEY",
-        "codex": "OPENAI_API_KEY",
-        "gemini": "GEMINI_API_KEY",
-    }
-    any_adapter = False
-    for adapter_name, _env_var in adapters.items():
-        found = shutil.which(adapter_name) is not None
-        if found:
-            any_adapter = True
-        _check(
-            f"Adapter: {adapter_name}",
-            found,
-            "found in PATH" if found else "not in PATH",
-            f"Install {adapter_name} CLI — see docs" if not found else "",
-        )
-
-    # 3. API keys (Claude Code supports OAuth — API key optional)
-    key_vars = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY"]
-    any_key = False
-    for var in key_vars:
-        set_val = bool(os.environ.get(var))
-        if set_val:
-            any_key = True
-        hint = ""
-        status = "set" if set_val else "not set"
-        if var == "ANTHROPIC_API_KEY" and not set_val:
-            # Check for OAuth session
-            from bernstein.core.bootstrap import _claude_has_oauth_session  # type: ignore[reportPrivateUsage]
-
-            if _claude_has_oauth_session():
-                status = "not set (OAuth active — OK)"
-                any_key = True
-                set_val = True
-            else:
-                hint = "export ANTHROPIC_API_KEY=key or: claude login"
-        elif not set_val:
-            hint = f"export {var}=your-key"
-        _check(f"Env: {var}", set_val, status, hint)
-
-    # 4. Port 8052 availability
-    port = 8052
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(0.5)
-            result = s.connect_ex(("127.0.0.1", port))
-            port_in_use = result == 0
-    except Exception:
-        port_in_use = False
-    _check(
-        f"Port {port}",
-        not port_in_use,
-        "in use — server may already be running" if port_in_use else "available",
-        "Run 'bernstein stop' to free the port" if port_in_use else "",
-    )
-
-    # 5. .sdd/ structure
-    workdir = Path.cwd()
-    required_dirs = [".sdd", ".sdd/backlog", ".sdd/runtime"]
-    sdd_ok = all((workdir / d).exists() for d in required_dirs)
-    _check(
-        ".sdd workspace",
-        sdd_ok,
-        "present" if sdd_ok else "missing or incomplete",
-        "Run 'bernstein' or 'bernstein -g \"goal\"' to initialise" if not sdd_ok else "",
-    )
-
-    # 6. Stale PID files
-    stale_pids: list[str] = []
-    for pid_name in ("server.pid", "spawner.pid", "watchdog.pid"):
-        pid_path = workdir / ".sdd" / "runtime" / pid_name
-        if pid_path.exists():
-            try:
-                pid_val = int(pid_path.read_text().strip())
-                try:
-                    os.kill(pid_val, 0)
-                except OSError:
-                    stale_pids.append(pid_name)
-            except ValueError:
-                stale_pids.append(pid_name)
-    _check(
-        "Stale PID files",
-        len(stale_pids) == 0,
-        f"found: {', '.join(stale_pids)}" if stale_pids else "none",
-        "Run 'bernstein stop' to clean up" if stale_pids else "",
-    )
-
-    # 7. Guardrail stats
-    from bernstein.core.guardrails import get_guardrail_stats
-
-    guardrail_stats = get_guardrail_stats(workdir)
-    g_total = guardrail_stats["total"]
-    g_blocked = guardrail_stats["blocked"]
-    g_flagged = guardrail_stats["flagged"]
-    if g_total > 0:
-        g_detail = f"{g_total} checked, {g_blocked} blocked, {g_flagged} flagged"
-    else:
-        g_detail = "no events recorded yet"
-    _check("Guardrails", True, g_detail)
-
-    # 8. CI tool dependencies (ruff, pytest, pyright)
-    from bernstein.core.ci_fix import check_test_dependencies
-
-    ci_dep_results = check_test_dependencies()
-    for dep in ci_dep_results:
-        _check(
-            f"CI tool: {dep['name']}",
-            dep["ok"] == "True",
-            dep["detail"],
-            dep["fix"],
-        )
-
-    # 8. Storage backend connectivity
-    storage_backend = os.environ.get("BERNSTEIN_STORAGE_BACKEND", "memory")
-    if storage_backend == "memory":
-        _check("Storage backend", True, "memory (default, no external dependencies)", "")
-    elif storage_backend == "postgres":
-        db_url = os.environ.get("BERNSTEIN_DATABASE_URL")
-        if db_url:
-            try:
-                import asyncpg  # type: ignore[import-untyped]
-
-                async def _check_pg() -> bool:
-                    conn = await asyncpg.connect(db_url)  # type: ignore[reportUnknownVariableType,reportUnknownMemberType]
-                    await conn.close()  # type: ignore[reportUnknownMemberType]
-                    return True
-
-                import asyncio
-
-                asyncio.run(_check_pg())
-                _check("Storage backend", True, f"postgres — connected ({db_url[:40]}...)", "")
-            except ImportError:
-                _check(
-                    "Storage backend",
-                    False,
-                    "postgres — asyncpg not installed",
-                    "pip install bernstein[postgres]",
-                )
-            except Exception as exc:
-                _check(
-                    "Storage backend",
-                    False,
-                    f"postgres — connection failed: {exc}",
-                    "Check BERNSTEIN_DATABASE_URL and ensure PostgreSQL is running",
-                )
-        else:
-            _check(
-                "Storage backend",
-                False,
-                "postgres — BERNSTEIN_DATABASE_URL not set",
-                "export BERNSTEIN_DATABASE_URL=postgresql://user:pass@localhost/bernstein",
-            )
-    elif storage_backend == "redis":
-        db_url = os.environ.get("BERNSTEIN_DATABASE_URL")
-        redis_url = os.environ.get("BERNSTEIN_REDIS_URL")
-        storage_ok = True
-        if not db_url:
-            _check(
-                "Storage backend (postgres)",
-                False,
-                "redis mode — BERNSTEIN_DATABASE_URL not set",
-                "export BERNSTEIN_DATABASE_URL=postgresql://user:pass@localhost/bernstein",
-            )
-            storage_ok = False
-        if not redis_url:
-            _check(
-                "Storage backend (redis)",
-                False,
-                "redis mode — BERNSTEIN_REDIS_URL not set",
-                "export BERNSTEIN_REDIS_URL=redis://localhost:6379",
-            )
-            storage_ok = False
-        if storage_ok:
-            _check("Storage backend", True, "redis mode (pg + redis locking)", "")
-    else:
-        _check(
-            "Storage backend",
-            False,
-            f"unknown backend: {storage_backend}",
-            "Set BERNSTEIN_STORAGE_BACKEND to memory, postgres, or redis",
-        )
-
-    # 10. Overall readiness
-    any_adapter_key = any_adapter and any_key
-    _check(
-        "Ready to run",
-        py_ok and any_adapter_key,
-        "yes" if (py_ok and any_adapter_key) else "missing adapter or API key",
-        "Install an adapter (claude/codex/gemini) and set its API key" if not any_adapter_key else "",
-    )
-
-    if as_json:
-        import json as _json
-
-        click.echo(_json.dumps({"checks": checks}, indent=2))
-        failed = [c for c in checks if not c["ok"]]
-        if failed:
-            raise SystemExit(1)
-        return
-
-    from rich.table import Table
-
-    table = Table(title="Bernstein Doctor", header_style="bold cyan", show_lines=False)
-    table.add_column("Check", min_width=22)
-    table.add_column("Status", min_width=8)
-    table.add_column("Detail", min_width=35)
-    table.add_column("Fix")
-
-    for c in checks:
-        icon = "[green]✓[/green]" if c["ok"] else "[red]✗[/red]"
-        table.add_row(
-            c["name"],
-            icon,
-            c["detail"],
-            f"[dim]{c['fix']}[/dim]" if c["fix"] else "",
-        )
-
-    console.print(table)
-
-    failed_checks = [c for c in checks if not c["ok"]]
-    if failed_checks:
-        console.print(f"\n[red]{len(failed_checks)} issue(s) found.[/red]")
-        raise SystemExit(1)
-    else:
-        console.print("\n[green]All checks passed.[/green]")
-
-
-# ---------------------------------------------------------------------------
 # install-hooks — git pre-push hook installer
 # ---------------------------------------------------------------------------
 
@@ -4730,8 +2154,6 @@ def recap(archive: str, as_json: bool) -> None:
       bernstein recap           # human-readable summary
       bernstein recap --json    # machine-readable output
     """
-    import datetime
-
     archive_path = Path(archive)
 
     if not archive_path.exists():
@@ -5037,26 +2459,26 @@ def replay_cmd(
     submitted: list[str] = []
     errors: list[str] = []
 
-    for task_id in trace.task_ids:
+    for task_id_item in trace.task_ids:
         # Find snapshot for this task (stored in trace at spawn time)
         snapshot = next(
-            (s for s in trace.task_snapshots if s.get("id") == task_id),
+            (s for s in trace.task_snapshots if s.get("id") == task_id_item),
             None,
         )
 
         # Try fetching current task from server to get fresh metadata
-        current = _server_get(f"/tasks/{task_id}")
+        current = _server_get(f"/tasks/{task_id_item}")
         if current is not None:
             # Re-create as a new task (copy title/description, use new model/effort)
             src = current
         elif snapshot is not None:
             src = snapshot
         else:
-            errors.append(f"{task_id}: not found on server and no snapshot available")
+            errors.append(f"{task_id_item}: not found on server and no snapshot available")
             continue
 
         payload: dict[str, Any] = {
-            "title": f"[replay] {src.get('title', task_id)}",
+            "title": f"[replay] {src.get('title', task_id_item)}",
             "description": src.get("description", ""),
             "role": src.get("role", trace.agent_role),
             "priority": src.get("priority", 2),
@@ -5070,7 +2492,7 @@ def replay_cmd(
             new_id = resp.get("id", "?")
             submitted.append(new_id)
         else:
-            errors.append(f"{task_id}: failed to create replay task on server")
+            errors.append(f"{task_id_item}: failed to create replay task on server")
 
     if submitted:
         console.print(f"\n[green]Submitted {len(submitted)} task(s) for replay:[/green]")
@@ -5246,10 +2668,10 @@ def mcp_server(transport: str, host: str, port: int, server_url: str) -> None:
     """Start Bernstein as an MCP server.
 
     \b
-    stdio transport (default) — for local IDE integration:
+    stdio transport (default) -- for local IDE integration:
       bernstein mcp
 
-    SSE transport — for remote/web clients:
+    SSE transport -- for remote/web clients:
       bernstein mcp --transport sse --port 8053
 
     Once running, any MCP client (Cursor, Claude Code, Cline, Windsurf)
@@ -5362,7 +2784,7 @@ def quarantine_clear(title: str | None, workdir: str) -> None:
 
     \b
     Remove a specific task:
-      bernstein quarantine clear "519 — Distributed cluster mode"
+      bernstein quarantine clear "519 -- Distributed cluster mode"
 
     Remove all quarantined tasks:
       bernstein quarantine clear

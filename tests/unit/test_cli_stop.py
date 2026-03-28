@@ -217,7 +217,7 @@ class TestKillPidHard:
         pid_file.write_text("12345")
 
         with (
-            patch("bernstein.cli.main._is_alive", return_value=True),
+            patch("bernstein.cli.helpers._is_alive", return_value=True),
             patch("os.getpgid", return_value=12345),
             patch("os.killpg") as mock_killpg,
         ):
@@ -232,7 +232,7 @@ class TestKillPidHard:
         pid_file.write_text("99999")
 
         with (
-            patch("bernstein.cli.main._is_alive", return_value=True),
+            patch("bernstein.cli.helpers._is_alive", return_value=True),
             patch("os.getpgid", side_effect=OSError("no pgid")),
             patch("os.kill") as mock_kill,
         ):
@@ -245,7 +245,7 @@ class TestKillPidHard:
         pid_file = tmp_path / "test.pid"
         pid_file.write_text("11111")
 
-        with patch("bernstein.cli.main._is_alive", return_value=False):
+        with patch("bernstein.cli.helpers._is_alive", return_value=False):
             _kill_pid_hard(str(pid_file), "test")
 
         assert not pid_file.exists()
@@ -260,7 +260,7 @@ class TestStopCommand:
     def test_soft_stop_is_default(self) -> None:
         """Default stop (no flags) calls _soft_stop."""
         runner = CliRunner()
-        with patch("bernstein.cli.main._soft_stop") as mock_soft:
+        with patch("bernstein.cli.stop_cmd._soft_stop") as mock_soft:
             result = runner.invoke(cli, ["stop"])
             mock_soft.assert_called_once_with(30)
             assert result.exit_code == 0
@@ -268,7 +268,7 @@ class TestStopCommand:
     def test_hard_stop_with_force_flag(self) -> None:
         """--force flag triggers _hard_stop."""
         runner = CliRunner()
-        with patch("bernstein.cli.main._hard_stop") as mock_hard:
+        with patch("bernstein.cli.stop_cmd._hard_stop") as mock_hard:
             result = runner.invoke(cli, ["stop", "--force"])
             mock_hard.assert_called_once()
             assert result.exit_code == 0
@@ -276,7 +276,7 @@ class TestStopCommand:
     def test_hard_stop_with_hard_flag(self) -> None:
         """--hard flag (alias) triggers _hard_stop."""
         runner = CliRunner()
-        with patch("bernstein.cli.main._hard_stop") as mock_hard:
+        with patch("bernstein.cli.stop_cmd._hard_stop") as mock_hard:
             result = runner.invoke(cli, ["stop", "--hard"])
             mock_hard.assert_called_once()
             assert result.exit_code == 0
@@ -284,7 +284,7 @@ class TestStopCommand:
     def test_custom_timeout(self) -> None:
         """--timeout value is forwarded to _soft_stop."""
         runner = CliRunner()
-        with patch("bernstein.cli.main._soft_stop") as mock_soft:
+        with patch("bernstein.cli.stop_cmd._soft_stop") as mock_soft:
             result = runner.invoke(cli, ["stop", "--timeout", "60"])
             mock_soft.assert_called_once_with(60)
             assert result.exit_code == 0

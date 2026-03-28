@@ -31,6 +31,7 @@ from bernstein.core.git_ops import (
     is_git_repo,
     merge_branch,
     push_branch,
+    push_head_as,
     rev_parse_head,
     revert_commit,
     run_git,
@@ -668,6 +669,37 @@ class TestPushBranch:
     def test_returns_failure_on_push_error(self, mock: MagicMock) -> None:
         mock.return_value = GitResult(1, "", "remote: Permission denied")
         result = push_branch(REPO, "feature/x")
+        assert not result.ok
+
+
+class TestPushHeadAs:
+    """Tests for push_head_as — pushes HEAD as a named remote branch."""
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_pushes_head_via_refspec(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        result = push_head_as(REPO, "bernstein/task-abc123")
+        assert result.ok
+        mock.assert_called_once_with(
+            ["push", "--set-upstream", "origin", "HEAD:refs/heads/bernstein/task-abc123"],
+            REPO,
+            timeout=60,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_custom_remote(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        push_head_as(REPO, "bernstein/task-xyz", remote="upstream")
+        mock.assert_called_once_with(
+            ["push", "--set-upstream", "upstream", "HEAD:refs/heads/bernstein/task-xyz"],
+            REPO,
+            timeout=60,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_returns_failure_on_push_error(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(1, "", "remote: Permission denied")
+        result = push_head_as(REPO, "bernstein/task-fail")
         assert not result.ok
 
 

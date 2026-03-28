@@ -493,6 +493,28 @@ def push_branch(cwd: Path, branch: str, remote: str = "origin") -> GitResult:
     return run_git(["push", "--set-upstream", remote, branch], cwd, timeout=60)
 
 
+def push_head_as(cwd: Path, branch: str, remote: str = "origin") -> GitResult:
+    """Push the current HEAD to a named remote branch via refspec.
+
+    Use when the local branch name differs from the desired remote branch name.
+    For example, push an ``agent/{session_id}`` worktree as
+    ``bernstein/task-{id}`` on the remote without checking out a new branch.
+
+    Args:
+        cwd: Repository root (usually a worktree).
+        branch: Desired remote branch name (e.g. ``"bernstein/task-abc123"``).
+        remote: Remote name (default ``"origin"``).
+
+    Returns:
+        GitResult from ``git push --set-upstream <remote> HEAD:refs/heads/<branch>``.
+    """
+    return run_git(
+        ["push", "--set-upstream", remote, f"HEAD:refs/heads/{branch}"],
+        cwd,
+        timeout=60,
+    )
+
+
 @dataclass(frozen=True)
 class PullRequestResult:
     """Outcome of a GitHub PR creation attempt.

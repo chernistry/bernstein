@@ -819,11 +819,21 @@ def process_completed_tasks(
                     _skip_merge = True
                     _worktree_path = orch._spawner.get_worktree_path(session.id)
                     if _worktree_path is not None:
+                        # Gather metadata for the PR body
+                        _pr_collector = get_collector(orch._workdir / ".sdd" / "metrics")
+                        _pr_task_m = _pr_collector.task_metrics.get(task.id)
+                        _pr_cost_usd = _pr_task_m.cost_usd if _pr_task_m else 0.0
+                        _pr_completion = collect_completion_data(orch._workdir, session)
+                        _pr_test_summary = _pr_completion.get("test_results", {}).get("summary", "")
                         _pr_url = orch._approval_gate.create_pr(
                             task,
                             worktree_path=_worktree_path,
                             session_id=session.id,
                             labels=orch._config.pr_labels,
+                            role=session.role,
+                            model=session.model_config.model,
+                            cost_usd=_pr_cost_usd,
+                            test_summary=_pr_test_summary,
                         )
                         if _pr_url:
                             logger.info(

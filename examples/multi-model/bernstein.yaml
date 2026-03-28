@@ -47,6 +47,12 @@ role_config:
 max_agents: 4
 budget: "$2.00"
 
+# Merge strategy: "pr" (default) creates a GitHub PR per task for code review.
+# Use "direct" to push agent work straight to the main branch without a PR.
+merge_strategy: pr
+auto_merge: true           # Auto-merge the PR after code review passes
+pr_labels: [bernstein, auto-generated]
+
 constraints:
   - "Python 3.12+ with FastAPI"
   - "In-memory storage is fine for this demo"

@@ -66,7 +66,7 @@ class AgentCard:
 
     name: str
     description: str
-    capabilities: list[str] = field(default_factory=list)
+    capabilities: list[str] = field(default_factory=list)  # type: ignore[reportUnknownVariableType]
     protocol_version: str = "0.1"
     endpoint: str = ""
     provider: str = "bernstein"
@@ -132,7 +132,7 @@ class A2ATask:
     sender: str = ""
     message: str = ""
     status: A2ATaskStatus = A2ATaskStatus.SUBMITTED
-    artifacts: list[A2AArtifact] = field(default_factory=list)
+    artifacts: list[A2AArtifact] = field(default_factory=list)  # type: ignore[reportUnknownVariableType]
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
 

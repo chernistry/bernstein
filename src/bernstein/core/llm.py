@@ -174,12 +174,12 @@ async def tavily_search(query: str, max_results: int = 5) -> str:
         if not results:
             return "(No relevant web results found.)"
 
-        formatted = []
+        formatted: list[str] = []  # type: ignore[reportUnknownVariableType]
         for r in results:
             title = r.get("title", "Untitled")
             content = r.get("content", "")
             url = r.get("url", "")
-            formatted.append(f"**{title}**\n{content}\nSource: {url}")
+            formatted.append(f"**{title}**\n{content}\nSource: {url}")  # type: ignore[reportUnknownMemberType]
 
         return "\n\n".join(formatted)
 

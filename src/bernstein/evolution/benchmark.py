@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import yaml
 
@@ -73,7 +73,7 @@ class BenchmarkResult:
     tier: Tier
     passed: bool
     goal: str
-    signal_results: list[SignalResult] = field(default_factory=list)
+    signal_results: list[SignalResult] = field(default_factory=lambda: [])
     duration_seconds: float = 0.0
     error: str | None = None
 
@@ -86,7 +86,7 @@ class RunSummary:
     total: int
     passed: int
     failed: int
-    results: list[BenchmarkResult] = field(default_factory=list)
+    results: list[BenchmarkResult] = field(default_factory=lambda: [])
     run_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 
@@ -182,7 +182,7 @@ def load_benchmarks(benchmarks_dir: Path, tier: Tier) -> list[BenchmarkSpec]:
             raw = yaml.safe_load(yaml_path.read_text())
             if not isinstance(raw, dict):
                 continue
-            specs.append(_parse_spec(raw, tier))
+            specs.append(_parse_spec(cast("dict[str, Any]", raw), tier))
         except (yaml.YAMLError, KeyError, TypeError):
             # Skip malformed benchmark files rather than crashing the run
             pass

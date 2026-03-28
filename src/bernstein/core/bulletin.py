@@ -46,7 +46,7 @@ class BulletinBoard:
     be flushed to a JSONL file for persistence / debugging.
     """
 
-    _messages: list[BulletinMessage] = field(default_factory=list)
+    _messages: list[BulletinMessage] = field(default_factory=list)  # type: ignore[reportUnknownVariableType]
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def post(self, msg: BulletinMessage) -> BulletinMessage:

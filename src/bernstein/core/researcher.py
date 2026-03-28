@@ -66,9 +66,9 @@ class ResearchReport:
         searches_performed: Number of API calls made this cycle.
     """
 
-    competitors: list[ResearchResult] = field(default_factory=list)
-    user_needs: list[ResearchResult] = field(default_factory=list)
-    trending: list[ResearchResult] = field(default_factory=list)
+    competitors: list[ResearchResult] = field(default_factory=lambda: [])
+    user_needs: list[ResearchResult] = field(default_factory=lambda: [])
+    trending: list[ResearchResult] = field(default_factory=lambda: [])
     searches_performed: int = 0
 
 

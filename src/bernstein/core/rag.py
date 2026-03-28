@@ -146,8 +146,8 @@ def _extract_python_chunks(source: str, rel_path: str) -> list[dict[str, object]
 
     for node in nodes:
         start = node.lineno  # type: ignore[attr-defined]
-        end = getattr(node, "end_lineno", None) or start
-        end = min(end, total)
+        end = getattr(node, "end_lineno", None) or start  # type: ignore[reportUnknownVariableType]
+        end = min(end, total)  # type: ignore[reportUnknownVariableType]
         name = getattr(node, "name", "")
         content = "".join(lines[start - 1 : end]).strip()
         if content:

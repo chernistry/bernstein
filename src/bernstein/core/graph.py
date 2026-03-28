@@ -46,10 +46,10 @@ class Edge:
 class GraphAnalysis:
     """Results of analysing the task DAG."""
 
-    critical_path: list[str] = field(default_factory=list)
+    critical_path: list[str] = field(default_factory=list)  # type: ignore[reportUnknownVariableType]
     critical_path_minutes: int = 0
     parallel_width: int = 0
-    bottlenecks: list[str] = field(default_factory=list)
+    bottlenecks: list[str] = field(default_factory=list)  # type: ignore[reportUnknownVariableType]
 
 
 # ---------------------------------------------------------------------------

@@ -94,7 +94,7 @@ class GitHubIssue:
     number: int
     title: str
     url: str
-    labels: list[str] = field(default_factory=list)
+    labels: list[str] = field(default_factory=list[str])
     state: str = "open"
     body: str = ""
     author: str = ""

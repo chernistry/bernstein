@@ -347,10 +347,10 @@ class SyncResult:
         errors: Human-readable error messages.
     """
 
-    created: list[str] = field(default_factory=list)
-    skipped: list[str] = field(default_factory=list)
-    moved: list[str] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
+    created: list[str] = field(default_factory=lambda: [])
+    skipped: list[str] = field(default_factory=lambda: [])
+    moved: list[str] = field(default_factory=lambda: [])
+    errors: list[str] = field(default_factory=lambda: [])
 
 
 # ---------------------------------------------------------------------------

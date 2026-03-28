@@ -104,7 +104,7 @@ class AgencyProvider:
             return None
         if not isinstance(fm, dict):
             return None
-        return fm, body
+        return (fm, body)  # type: ignore[reportUnknownVariableType]
 
     @staticmethod
     def _parse_file(path: Path, division: str) -> list[CatalogAgent]:

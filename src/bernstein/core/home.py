@@ -87,7 +87,7 @@ class BernsteinHome:
             return {}
         try:
             data = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-            return data if isinstance(data, dict) else {}
+            return data if isinstance(data, dict) else {}  # type: ignore[reportUnknownVariableType]
         except Exception:
             return {}
 
@@ -174,7 +174,7 @@ def resolve_config(
             pass
 
     # 2. Global ~/.bernstein/config.yaml
-    global_data = home._load()
+    global_data = home._load()  # type: ignore[reportPrivateUsage]
     if key in global_data:
         return {"value": global_data[key], "source": "global"}
 

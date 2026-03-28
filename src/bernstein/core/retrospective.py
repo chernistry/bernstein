@@ -51,7 +51,7 @@ def generate_retrospective(
     completion_rate = (n_done / total * 100) if total else 0.0
 
     wall_clock_s = time.time() - run_start_ts
-    task_metrics: dict[str, TaskMetrics] = collector._task_metrics
+    task_metrics: dict[str, TaskMetrics] = collector._task_metrics  # type: ignore[reportPrivateUsage]
     # get_total_cost() sums agent_metrics; when only task_metrics are populated
     # (e.g. bernstein retro reading from archive) fall back to summing task costs.
     total_cost = collector.get_total_cost()
@@ -249,7 +249,7 @@ def generate_retrospective(
         _section("|-------|--------------|------------------|-------------|")
 
         def _total_tokens(k: str) -> int:
-            return model_token_data[k]["prompt"] + model_token_data[k]["completion"]
+            return int(model_token_data[k]["prompt"]) + int(model_token_data[k]["completion"])
 
         for m in sorted(model_token_data, key=_total_tokens, reverse=True):
             p = int(model_token_data[m]["prompt"])
@@ -269,7 +269,7 @@ def generate_retrospective(
     _section("## Agent Summary")
     _section("")
 
-    agent_metrics = collector._agent_metrics
+    agent_metrics = collector._agent_metrics  # type: ignore[reportPrivateUsage]
     if agent_metrics:
         timed_out_or_killed: list[str] = []
         high_failure: list[str] = []

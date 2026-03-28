@@ -267,7 +267,7 @@ class EpsilonGreedyBandit:
 
     def summary(self) -> list[dict[str, Any]]:
         """Return a summary of all arm statistics, sorted by role then cost."""
-        rows = []
+        rows: list[dict[str, Any]] = []
         for arm in sorted(self._arms.values(), key=lambda a: (a.role, _model_cost(a.model))):
             rows.append(
                 {
@@ -323,7 +323,7 @@ def get_cascade_model(task: Task, retry_count: int = 0) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _days_in_window(records: list[dict[str, Any]], days: int) -> list[dict[str, Any]]:
+def _days_in_window(records: list[dict[str, Any]], days: int) -> list[dict[str, Any]]:  # type: ignore[reportUnusedFunction]
     """Filter records to those within the last N days."""
     cutoff = time.time() - days * 86400
     return [r for r in records if r.get("timestamp", 0) >= cutoff]

@@ -14,11 +14,11 @@ import re
 import subprocess
 import uuid
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal
 
 import httpx
 
-from bernstein import _BUNDLED_TEMPLATES_DIR
+from bernstein import _BUNDLED_TEMPLATES_DIR  # type: ignore[reportPrivateUsage]
 from bernstein.core.llm import call_llm
 from bernstein.core.models import (
     CompletionSignal,
@@ -146,6 +146,9 @@ async def run_janitor(
         if not task.completion_signals:
             continue
 
+        # Initialize judge_verdict for all paths
+        judge_verdict: JudgeVerdict | None = None
+
         # Special handling for upgrade proposals
         if task.task_type == TaskType.UPGRADE_PROPOSAL:
             all_passed, failed_descs = await verify_upgrade_task(task, workdir)
@@ -157,7 +160,6 @@ async def run_janitor(
             signal_results = _collect_signal_results(task, workdir)
 
             # Handle llm_judge signals (async, evaluated separately)
-            judge_verdict: JudgeVerdict | None = None
             judge_signals = [s for s in task.completion_signals if s.type == "llm_judge"]
             if judge_signals:
                 # Only run judge if all non-judge signals pass
@@ -384,9 +386,10 @@ def _parse_judge_response(raw: str) -> JudgeVerdict:
                 flagged_for_review=True,
             )
 
-    verdict_str = str(data.get("verdict", "retry")).lower()
-    if verdict_str not in ("accept", "retry"):
-        verdict_str = "retry"
+    verdict_raw = str(data.get("verdict", "retry")).lower()
+    verdict_str: Literal["accept", "retry"] = "retry"
+    if verdict_raw == "accept":
+        verdict_str = "accept"
 
     confidence = float(data.get("confidence", 0.5))
     confidence = max(0.0, min(1.0, confidence))
@@ -395,7 +398,7 @@ def _parse_judge_response(raw: str) -> JudgeVerdict:
     flagged = confidence < JUDGE_CONFIDENCE_THRESHOLD
 
     return JudgeVerdict(
-        verdict=cast("Literal['accept', 'retry']", verdict_str),
+        verdict=verdict_str,
         confidence=confidence,
         feedback=feedback,
         flagged_for_review=flagged,

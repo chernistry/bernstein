@@ -40,7 +40,7 @@ class PivotSignal:
     signal_type: Literal["strategic_pivot"] = "strategic_pivot"
     severity: Literal["low", "medium", "high"] = "medium"
     summary: str = ""
-    affected_tickets: list[str] = field(default_factory=list)
+    affected_tickets: list[str] = field(default_factory=list)  # type: ignore[reportUnknownVariableType]
     proposed_action: str = ""
 
 
@@ -83,7 +83,7 @@ class VPDecision:
     pivot_task_id: str
     decision: Literal["approve", "reject", "escalate"]
     rationale: str = ""
-    ticket_updates: dict[str, dict[str, str]] = field(default_factory=dict)
+    ticket_updates: dict[str, dict[str, str]] = field(default_factory=dict)  # type: ignore[reportUnknownVariableType]
     timestamp: str = field(
         default_factory=lambda: datetime.now(UTC).isoformat(),
     )

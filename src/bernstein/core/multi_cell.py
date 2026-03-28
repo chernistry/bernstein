@@ -66,10 +66,10 @@ class MultiCellTickResult:
         errors: Any errors encountered during the tick.
     """
 
-    cell_results: dict[str, TickResult] = field(default_factory=dict)
-    vp_actions: list[str] = field(default_factory=list)
+    cell_results: dict[str, TickResult] = field(default_factory=lambda: {})
+    vp_actions: list[str] = field(default_factory=lambda: [])
     blockers_found: int = 0
-    errors: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=lambda: [])
 
 
 def _fetch_tasks_for_cell(

@@ -42,7 +42,7 @@ class StatusSummary:
     claimed: int
     done: int
     failed: int
-    per_role: list[RoleSummary] = field(default_factory=list)
+    per_role: list[RoleSummary] = field(default_factory=list)  # type: ignore[reportUnknownVariableType]
     total_cost_usd: float = 0.0
 
 

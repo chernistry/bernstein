@@ -12,7 +12,7 @@ import time
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -35,7 +35,7 @@ class TraceStep:
     type: Literal["spawn", "orient", "plan", "edit", "verify", "complete", "fail"]
     timestamp: float
     detail: str = ""
-    files: list[str] = field(default_factory=list)
+    files: list[str] = field(default_factory=lambda: [])
     tokens: int = 0
     duration_ms: int = 0
 
@@ -48,9 +48,9 @@ class TraceStep:
             type=d["type"],
             timestamp=d["timestamp"],
             detail=d.get("detail", ""),
-            files=d.get("files", []),
-            tokens=d.get("tokens", 0),
-            duration_ms=d.get("duration_ms", 0),
+            files=cast("list[str]", d.get("files", [])),
+            tokens=cast("int", d.get("tokens", 0)),
+            duration_ms=cast("int", d.get("duration_ms", 0)),
         )
 
 
@@ -81,10 +81,10 @@ class AgentTrace:
     effort: str
     spawn_ts: float
     end_ts: float | None = None
-    steps: list[TraceStep] = field(default_factory=list)
+    steps: list[TraceStep] = field(default_factory=lambda: [])
     outcome: Literal["success", "failed", "unknown"] = "unknown"
     log_path: str = ""
-    task_snapshots: list[dict[str, Any]] = field(default_factory=list)
+    task_snapshots: list[dict[str, Any]] = field(default_factory=lambda: [])
 
     @property
     def duration_s(self) -> float | None:
@@ -98,11 +98,11 @@ class AgentTrace:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> AgentTrace:
-        steps = [TraceStep.from_dict(s) for s in d.get("steps", [])]
+        steps = [TraceStep.from_dict(s) for s in cast("list[dict[str, Any]]", d.get("steps", []))]
         return cls(
             trace_id=d["trace_id"],
             session_id=d["session_id"],
-            task_ids=d.get("task_ids", []),
+            task_ids=cast("list[str]", d.get("task_ids", [])),
             agent_role=d.get("agent_role", ""),
             model=d.get("model", ""),
             effort=d.get("effort", ""),
@@ -111,7 +111,7 @@ class AgentTrace:
             steps=steps,
             outcome=d.get("outcome", "unknown"),
             log_path=d.get("log_path", ""),
-            task_snapshots=d.get("task_snapshots", []),
+            task_snapshots=cast("list[dict[str, Any]]", d.get("task_snapshots", [])),
         )
 
 
@@ -312,13 +312,13 @@ class TraceStore:
         path = self._path_for_task(task_id)
         if not path.exists():
             return []
-        traces = []
+        traces: list[AgentTrace] = []
         for line in path.read_text().splitlines():
             line = line.strip()
             if not line:
                 continue
             try:
-                traces.append(AgentTrace.from_dict(json.loads(line)))
+                traces.append(AgentTrace.from_dict(cast("dict[str, Any]", json.loads(line))))
             except (json.JSONDecodeError, KeyError):
                 continue
         return traces

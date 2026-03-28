@@ -310,9 +310,9 @@ def _discover_catalog(workdir: Path) -> None:
     cache_path = workdir / ".sdd" / "agents" / "catalog.json"
     try:
         registry = CatalogRegistry.default()
-        registry._cache_path = cache_path
+        registry._cache_path = cache_path  # type: ignore[reportPrivateUsage]
         registry.discover()
-        console.print(f"[dim]Catalog: {len(registry._cached_roles)} role(s) ready[/dim]")
+        console.print(f"[dim]Catalog: {len(registry._cached_roles)} role(s) ready[/dim]")  # type: ignore[reportPrivateUsage]
     except Exception:
         logger.warning("Catalog auto-discovery failed (non-fatal)", exc_info=True)
 

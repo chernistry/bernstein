@@ -10,10 +10,13 @@ _PACKAGE_DIR = Path(__file__).resolve().parent
 
 # Bundled default templates — present inside the wheel after pip install.
 # In dev/editable mode, fall back to <repo>/templates/ at the project root.
-_BUNDLED_TEMPLATES_DIR = _PACKAGE_DIR / "_default_templates"
-if not _BUNDLED_TEMPLATES_DIR.is_dir():
+_bundled_templates_dir = _PACKAGE_DIR / "_default_templates"
+if not _bundled_templates_dir.is_dir():
     # Dev mode: src/bernstein/../../templates → <repo>/templates
-    _BUNDLED_TEMPLATES_DIR = _PACKAGE_DIR.parent.parent / "templates"
+    _bundled_templates_dir = _PACKAGE_DIR.parent.parent / "templates"
+
+# Public access via uppercase constant
+_BUNDLED_TEMPLATES_DIR = _bundled_templates_dir
 
 
 def get_templates_dir(workdir: Path) -> Path:

@@ -657,16 +657,18 @@ def _detect_scope(staged_files: list[str]) -> str:
         parts = Path(f).parts
         if len(parts) >= 3 and parts[0] == "src" and parts[1] == "bernstein":
             dirs[parts[2]] += 1
-        elif parts[0] == "tests":
+        elif len(parts) > 0 and parts[0] == "tests":
             dirs["tests"] += 1
-        else:
+        elif len(parts) > 0:
             dirs[parts[0]] += 1
 
     if not dirs:
         return "unknown"
 
-    top_dir = dirs.most_common(1)[0][0]
-    return top_dir
+    top_result = dirs.most_common(1)
+    if top_result:
+        return top_result[0][0]
+    return "unknown"
 
 
 def _summarize_from_files(staged_files: list[str]) -> str:

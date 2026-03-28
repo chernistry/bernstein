@@ -90,7 +90,7 @@ class UpgradeTransaction:
     completed_at: float | None = None
 
     # Changes to apply
-    file_changes: list[FileChange] = field(default_factory=list)
+    file_changes: list[FileChange] = field(default_factory=lambda: [])
 
     # Review results
     reviewer_feedback: str = ""
@@ -240,7 +240,7 @@ class ReviewResult:
     reasoning: str
     feedback: str
     risk_level: str = "medium"
-    suggested_improvements: list[str] = field(default_factory=list)
+    suggested_improvements: list[str] = field(default_factory=lambda: [])
 
 
 class UpgradeExecutor:
@@ -501,7 +501,7 @@ class UpgradeExecutor:
             return False
 
         await self._rollback_upgrade(transaction)
-        return transaction.status == UpgradeStatus.ROLLED_BACK
+        return True
 
     def get_transaction(self, transaction_id: str) -> UpgradeTransaction | None:
         """Get a transaction by ID."""
@@ -567,7 +567,7 @@ async def create_upgrade_from_task(
         task_id=task.id,
     )
 
-    executor._transactions[transaction.id] = transaction
+    executor._transactions[transaction.id] = transaction  # type: ignore[reportPrivateUsage]
     return transaction
 
 

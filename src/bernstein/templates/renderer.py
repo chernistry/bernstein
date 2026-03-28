@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from bernstein import _BUNDLED_TEMPLATES_DIR
+from bernstein import _BUNDLED_TEMPLATES_DIR  # type: ignore[reportPrivateUsage]
 
 
 class TemplateError(Exception):

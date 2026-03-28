@@ -220,6 +220,21 @@ def parse_log_to_steps(log_path: Path) -> list[TraceStep]:
     return steps
 
 
+def parse_agent_log(log_path: Path) -> list[TraceStep]:
+    """Parse an agent log file into a list of TraceStep objects.
+
+    Alias for :func:`parse_log_to_steps` that matches the public API name
+    specified in the trace enhancement spec.
+
+    Args:
+        log_path: Path to the agent log file produced by the wrapper script.
+
+    Returns:
+        List of TraceStep objects (empty if the log doesn't exist or is empty).
+    """
+    return parse_log_to_steps(log_path)
+
+
 def _extract_file_hint(args: str) -> str:
     """Try to extract a file path from a tool argument string.
 

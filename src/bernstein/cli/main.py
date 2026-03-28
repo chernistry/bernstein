@@ -3791,13 +3791,34 @@ def trace_cmd(task_id: str, as_json: bool, traces_dir: str) -> None:
 
         for step in trace.steps:
             style = STEP_STYLES.get(step.type, "white")
-            label = f"[{style}]{step.type:8s}[/{style}]  {step.detail}"
+
+            # Build suffix: duration + tokens
+            suffix_parts: list[str] = []
+            if step.duration_ms > 0:
+                if step.duration_ms >= 1000:
+                    suffix_parts.append(f"[dim]{step.duration_ms // 1000}s[/dim]")
+                else:
+                    suffix_parts.append(f"[dim]{step.duration_ms}ms[/dim]")
+            if step.tokens > 0:
+                suffix_parts.append(f"[dim]{step.tokens:,} tok[/dim]")
+            suffix = ("  " + "  ".join(suffix_parts)) if suffix_parts else ""
+
+            label = f"[{style}]{step.type:8s}[/{style}]  {step.detail}{suffix}"
             snode = steps_node.add(label)
             if step.files:
                 for f in step.files[:5]:
                     snode.add(f"[dim]{f}[/dim]")
                 if len(step.files) > 5:
                     snode.add(f"[dim]… and {len(step.files) - 5} more[/dim]")
+
+        # Token/cost summary across all steps
+        total_tokens = sum(s.tokens for s in trace.steps)
+        if total_tokens > 0:
+            from bernstein.core.cost import _model_cost  # type: ignore[attr-defined]
+
+            cost_per_1k = _model_cost(trace.model)
+            est_cost = total_tokens / 1000 * cost_per_1k
+            tree.add(f"[dim]tokens:[/dim]  {total_tokens:,}  [dim]est. cost:[/dim] [yellow]${est_cost:.4f}[/yellow]")
 
         console.print(Panel(tree, border_style="blue", expand=False))
 

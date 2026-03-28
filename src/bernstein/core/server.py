@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -40,6 +40,7 @@ from bernstein.core.models import (
     TaskType,
     UpgradeProposalDetails,
 )
+from bernstein.core.prometheus import generate_latest, registry, update_metrics_from_status
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Callable
@@ -1399,6 +1400,21 @@ def create_app(
             agent_count=store.agent_count,
         )
 
+    @application.get("/metrics")
+    async def metrics_endpoint() -> PlainTextResponse:
+        """Prometheus metrics scrape endpoint.
+
+        Updates all gauges from the current task store state, then
+        returns the full metric exposition in Prometheus text format.
+        """
+        status_dict = store.status_summary().model_dump()
+        update_metrics_from_status(status_dict)
+        payload = generate_latest(registry)
+        return PlainTextResponse(
+            content=payload.decode("utf-8"),
+            media_type="text/plain; version=0.0.4; charset=utf-8",
+        )
+
     # -- bulletin board routes -------------------------------------------------
 
     bulletin = BulletinBoard()
@@ -1602,6 +1618,7 @@ def create_app(
         status_dashboard,
         agent_heartbeat,
         health_check,
+        metrics_endpoint,
         post_bulletin,
         get_bulletin,
         agent_card,

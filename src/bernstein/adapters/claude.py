@@ -148,7 +148,7 @@ class ClaudeCodeAdapter(CLIAdapter):
             "            print(txt, flush=True)\n"
         )
 
-        log_file = log_path.open("w")  # noqa: SIM115
+        log_file = log_path.open("w")
         # Pipe: claude --stream-json | python wrapper > log_file
         claude_proc = subprocess.Popen(
             cmd,

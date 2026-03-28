@@ -7,6 +7,7 @@ and the dynamic task server (tasks.jsonl). This module bridges them:
 """
 from __future__ import annotations
 
+import logging
 import re
 import shutil
 import unicodedata
@@ -15,8 +16,6 @@ from pathlib import Path
 from typing import Any, cast
 
 import httpx
-
-import logging
 
 logger = logging.getLogger(__name__)
 

@@ -18,7 +18,9 @@ from bernstein.core.router import (
     Tier,
     TierAwareRouter,
 )
-from bernstein.core.spawner import AgentSpawner, _render_prompt, _select_batch_config
+from bernstein.core.agency_loader import AgencyAgent
+from bernstein.core.models import Task, TaskStatus, TaskType
+from bernstein.core.spawner import AgentSpawner, _load_role_config, _render_fallback, _render_prompt, _select_batch_config
 
 
 # --- spawn_for_tasks ---
@@ -323,3 +325,226 @@ class TestSpawnerWithRouter:
         # Should fall back gracefully
         assert session.provider is None
         assert session.pid == 500
+
+
+# --- _render_prompt with agency_catalog ---
+
+
+class TestRenderPromptWithAgencyCatalog:
+    def _make_agent(self, name: str = "ml-expert", role: str = "ml-engineer") -> AgencyAgent:
+        return AgencyAgent(
+            name=name,
+            description="ML specialist",
+            division="machine_learning",
+            role=role,
+            prompt_body="You are an ML engineer.",
+        )
+
+    def test_specialist_block_included_for_manager_role(self, tmp_path: Path, make_task) -> None:
+        catalog = {"ml-expert": self._make_agent()}
+        task = make_task(role="manager")
+        prompt = _render_prompt([task], tmp_path, tmp_path, agency_catalog=catalog)
+        assert "ml-expert" in prompt
+        assert "ML specialist" in prompt
+        assert "Available specialist agents" in prompt
+
+    def test_no_specialist_block_for_non_manager_role(self, tmp_path: Path, make_task) -> None:
+        catalog = {"ml-expert": self._make_agent()}
+        task = make_task(role="backend")
+        prompt = _render_prompt([task], tmp_path, tmp_path, agency_catalog=catalog)
+        assert "Available specialist agents" not in prompt
+
+    def test_no_specialist_block_when_catalog_is_none(self, tmp_path: Path, make_task) -> None:
+        task = make_task(role="manager")
+        prompt = _render_prompt([task], tmp_path, tmp_path, agency_catalog=None)
+        assert "Available specialist agents" not in prompt
+
+    def test_specialist_block_lists_role_and_description(self, tmp_path: Path, make_task) -> None:
+        catalog = {
+            "ml-expert": self._make_agent("ml-expert", "ml-engineer"),
+            "sec-agent": AgencyAgent(
+                name="sec-agent",
+                description="Security reviewer",
+                division="security",
+                role="security",
+                prompt_body="You review security.",
+            ),
+        }
+        task = make_task(role="manager")
+        prompt = _render_prompt([task], tmp_path, tmp_path, agency_catalog=catalog)
+        assert "ml-engineer" in prompt
+        assert "security" in prompt
+        assert "Security reviewer" in prompt
+
+
+# --- _render_fallback with agency_catalog ---
+
+
+class TestRenderFallback:
+    def test_exact_name_match_returns_prompt_body(self, tmp_path: Path) -> None:
+        agent = AgencyAgent(
+            name="data-eng",
+            description="Data engineering",
+            division="engineering",
+            role="backend",
+            prompt_body="You are a data engineer.",
+        )
+        result = _render_fallback("data-eng", tmp_path, agency_catalog={"data-eng": agent})
+        assert result == "You are a data engineer."
+
+    def test_role_based_fallback_uses_agent_prompt_body(self, tmp_path: Path) -> None:
+        agent = AgencyAgent(
+            name="some-agent",
+            description="DevOps agent",
+            division="devops",
+            role="devops",
+            prompt_body="You handle infrastructure.",
+        )
+        result = _render_fallback("devops", tmp_path, agency_catalog={"some-agent": agent})
+        assert result == "You handle infrastructure."
+
+    def test_template_takes_precedence_over_catalog(self, tmp_path: Path) -> None:
+        role_dir = tmp_path / "backend"
+        role_dir.mkdir()
+        (role_dir / "system_prompt.md").write_text("Template content.")
+        agent = AgencyAgent(
+            name="backend-agent",
+            description="Backend",
+            division="engineering",
+            role="backend",
+            prompt_body="Catalog content.",
+        )
+        result = _render_fallback("backend", tmp_path, agency_catalog={"backend-agent": agent})
+        assert result == "Template content."
+
+    def test_default_when_no_template_or_catalog(self, tmp_path: Path) -> None:
+        result = _render_fallback("unknown-role", tmp_path, agency_catalog=None)
+        assert result == "You are a unknown-role specialist."
+
+    def test_skips_agent_without_prompt_body(self, tmp_path: Path) -> None:
+        agent = AgencyAgent(
+            name="empty-agent",
+            description="Empty",
+            division="devops",
+            role="devops",
+            prompt_body="",
+        )
+        result = _render_fallback("devops", tmp_path, agency_catalog={"empty-agent": agent})
+        assert result == "You are a devops specialist."
+
+
+# --- _select_batch_config with config.yaml and task overrides ---
+
+
+class TestSelectBatchConfigExtended:
+    def test_role_config_yaml_overrides_heuristics(self, tmp_path: Path, make_task) -> None:
+        role_dir = tmp_path / "backend"
+        role_dir.mkdir()
+        (role_dir / "config.yaml").write_text("default_model: opus\ndefault_effort: max\n")
+
+        # Low-complexity task would normally route to sonnet
+        task = make_task(role="backend", complexity=Complexity.LOW, scope=Scope.SMALL)
+        config = _select_batch_config([task], templates_dir=tmp_path)
+        assert config.model == "opus"
+        assert config.effort == "max"
+
+    def test_heuristics_used_when_no_config_yaml(self, tmp_path: Path, make_task) -> None:
+        task = make_task(role="backend", complexity=Complexity.HIGH, scope=Scope.LARGE)
+        config = _select_batch_config([task], templates_dir=tmp_path)
+        assert config.model == "opus"
+
+    def test_task_model_override_respected(self, make_task) -> None:
+        task = Task(
+            id="T-001",
+            title="Override task",
+            description="desc",
+            role="backend",
+            scope=Scope.SMALL,
+            complexity=Complexity.LOW,
+            status=TaskStatus.OPEN,
+            task_type=TaskType.STANDARD,
+            priority=2,
+            owned_files=[],
+            model="opus",
+            effort=None,
+        )
+        config = _select_batch_config([task])
+        assert config.model == "opus"
+
+    def test_task_effort_override_respected(self, make_task) -> None:
+        task = Task(
+            id="T-001",
+            title="Override task",
+            description="desc",
+            role="backend",
+            scope=Scope.SMALL,
+            complexity=Complexity.LOW,
+            status=TaskStatus.OPEN,
+            task_type=TaskType.STANDARD,
+            priority=2,
+            owned_files=[],
+            model=None,
+            effort="max",
+        )
+        config = _select_batch_config([task])
+        assert config.effort == "max"
+
+    def test_both_model_and_effort_override(self) -> None:
+        task = Task(
+            id="T-001",
+            title="Full override",
+            description="desc",
+            role="backend",
+            scope=Scope.SMALL,
+            complexity=Complexity.LOW,
+            status=TaskStatus.OPEN,
+            task_type=TaskType.STANDARD,
+            priority=2,
+            owned_files=[],
+            model="opus",
+            effort="max",
+        )
+        config = _select_batch_config([task])
+        assert config.model == "opus"
+        assert config.effort == "max"
+
+
+# --- _load_role_config ---
+
+
+class TestLoadRoleConfig:
+    def test_returns_none_when_no_config_file(self, tmp_path: Path) -> None:
+        result = _load_role_config("backend", tmp_path)
+        assert result is None
+
+    def test_returns_model_config_from_valid_yaml(self, tmp_path: Path) -> None:
+        role_dir = tmp_path / "backend"
+        role_dir.mkdir()
+        (role_dir / "config.yaml").write_text("default_model: opus\ndefault_effort: max\n")
+        result = _load_role_config("backend", tmp_path)
+        assert result is not None
+        assert result.model == "opus"
+        assert result.effort == "max"
+
+    def test_returns_none_on_malformed_yaml(self, tmp_path: Path) -> None:
+        role_dir = tmp_path / "backend"
+        role_dir.mkdir()
+        (role_dir / "config.yaml").write_text(": invalid: yaml: [\n")
+        result = _load_role_config("backend", tmp_path)
+        assert result is None
+
+    def test_returns_none_when_yaml_is_not_a_mapping(self, tmp_path: Path) -> None:
+        role_dir = tmp_path / "backend"
+        role_dir.mkdir()
+        (role_dir / "config.yaml").write_text("- just a list\n- not a dict\n")
+        result = _load_role_config("backend", tmp_path)
+        assert result is None
+
+    def test_defaults_when_fields_missing(self, tmp_path: Path) -> None:
+        role_dir = tmp_path / "backend"
+        role_dir.mkdir()
+        (role_dir / "config.yaml").write_text("{}\n")
+        result = _load_role_config("backend", tmp_path)
+        assert result is not None
+        assert result.model == "sonnet"
+        assert result.effort == "high"

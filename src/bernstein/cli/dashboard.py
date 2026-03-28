@@ -19,18 +19,14 @@ logger = logging.getLogger(__name__)
 import httpx
 from rich.text import Text
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical, ScrollableContainer
+from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import (
     DataTable,
-    Digits,
     Footer,
     Header,
     Input,
-    Label,
-    LoadingIndicator,
     RichLog,
-    Rule,
     Sparkline,
     Static,
 )

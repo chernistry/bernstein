@@ -41,7 +41,6 @@ from bernstein.evolution.detector import (
     OpportunityDetector,
     UpgradeCategory,
 )
-from bernstein.evolution.loop import EvolutionLoop, ExperimentResult
 from bernstein.evolution.gate import ApprovalGate
 from bernstein.evolution.invariants import (
     check_proposal_targets,
@@ -49,6 +48,7 @@ from bernstein.evolution.invariants import (
     verify_invariants,
     write_lockfile,
 )
+from bernstein.evolution.loop import EvolutionLoop, ExperimentResult
 from bernstein.evolution.proposals import (
     AnalysisTrigger,
     ApprovalMode,
@@ -64,7 +64,6 @@ from bernstein.evolution.types import (
     RiskLevel,
     SandboxResult,
 )
-from bernstein.evolution.types import UpgradeProposal as EvolutionUpgradeProposal  # noqa: F811  # types.py version
 
 __all__ = [
     # types

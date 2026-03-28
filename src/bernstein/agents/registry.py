@@ -223,7 +223,6 @@ class AgentRegistry:
         if not definitions_path.exists():
             return [], []
 
-        current_names = set(self._definitions.keys())
         yaml_files = list(definitions_path.glob("*.yaml")) + list(definitions_path.glob("*.yml"))
         current_files = {f.name for f in yaml_files}
 

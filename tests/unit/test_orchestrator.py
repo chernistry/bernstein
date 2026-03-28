@@ -1867,3 +1867,246 @@ class TestConsecutiveTickFailureCircuitBreaker:
 
         # 10 consecutive failures → loop breaks
         assert call_count == 10
+
+
+# --- New edge-case coverage ---
+
+
+class TestDeadAgentFileOwnershipEdgeCases:
+    """Edge cases for file ownership release and respawn after agent death."""
+
+    def test_dead_agent_file_ownership_released(self, tmp_path: Path) -> None:
+        """When an agent process dies, all its file ownership entries are removed."""
+        transport = _mock_transport({
+            "GET /tasks?status=open": httpx.Response(200, json=[]),
+            "GET /tasks?status=done": httpx.Response(200, json=[]),
+        })
+        adapter = _mock_adapter()
+        adapter.is_alive.return_value = False
+        orch = _build_orchestrator(tmp_path, transport, adapter=adapter)
+
+        # Pre-claim two files for the dying agent
+        orch._file_ownership["src/main.py"] = "backend-dying"
+        orch._file_ownership["src/utils.py"] = "backend-dying"
+
+        session = AgentSession(
+            id="backend-dying",
+            role="backend",
+            pid=42,
+            task_ids=[],  # no tasks avoids needing orphan-handler endpoints
+            status="working",
+        )
+        orch._agents["backend-dying"] = session
+
+        orch.tick()
+
+        assert session.status == "dead"
+        assert "src/main.py" not in orch._file_ownership
+        assert "src/utils.py" not in orch._file_ownership
+
+    def test_file_overlap_cleared_after_dead_agent_allows_respawn(
+        self, tmp_path: Path
+    ) -> None:
+        """Spawn is blocked while an agent owns a file; after it dies the next tick spawns."""
+        task1 = _make_task(id="T-owner", role="backend")
+        task1.owned_files = ["src/shared.py"]
+        task2 = _make_task(id="T-waiter", role="qa")
+        task2.owned_files = ["src/shared.py"]
+
+        # Reflect task1 as "in_progress" so the orphan handler skips completing it
+        task1_inprog = _make_task(id="T-owner", role="backend", status="in_progress")
+
+        tick = 0
+        is_alive_flag = True
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal tick
+            url = request.url
+            key = f"{request.method} {url.path}"
+            if url.query:
+                key += f"?{url.query.decode()}"
+            if key == "GET /tasks?status=done":
+                return httpx.Response(200, json=[])
+            if key == "GET /tasks?status=open":
+                tick += 1
+                if tick == 1:
+                    return httpx.Response(200, json=[_task_as_dict(task1)])
+                return httpx.Response(200, json=[_task_as_dict(task2)])
+            if key == "GET /tasks/T-owner":
+                # Orphan handler fetches the task; return it as in_progress (no signals → fail)
+                return httpx.Response(200, json=_task_as_dict(task1_inprog))
+            if key == "POST /tasks/T-owner/fail":
+                return httpx.Response(200, json={})
+            # claim endpoint and other best-effort calls
+            return httpx.Response(200, json={})
+
+        adapter = _mock_adapter()
+        adapter.is_alive.side_effect = lambda session: is_alive_flag
+
+        transport = httpx.MockTransport(handler)
+        orch = _build_orchestrator(tmp_path, transport, adapter=adapter)
+
+        # Tick 1: spawns agent for task1, claims src/shared.py
+        r1 = orch.tick()
+        assert len(r1.spawned) == 1
+        assert "src/shared.py" in orch._file_ownership
+
+        # Tick 2: task2 blocked because src/shared.py is still owned (agent alive)
+        r2 = orch.tick()
+        assert len(r2.spawned) == 0
+
+        # Capture the id of the agent that owns the file before it dies
+        dead_agent_id = orch._file_ownership["src/shared.py"]
+
+        # Agent for task1 dies
+        is_alive_flag = False
+
+        # Tick 3: dead agent detected → file released → task2 can spawn
+        r3 = orch.tick()
+        assert len(r3.spawned) == 1
+        # The dead agent must no longer own the file
+        assert orch._file_ownership.get("src/shared.py") != dead_agent_id
+
+
+class TestStaleHeartbeatReapingDefault:
+    """An agent whose heartbeat exceeds the configured timeout is reaped and its tasks failed."""
+
+    def test_stale_heartbeat_reaps_agent(self, tmp_path: Path) -> None:
+        """Heartbeat older than heartbeat_timeout_s triggers reaping and task failure."""
+        adapter = _mock_adapter()
+        adapter.is_alive.return_value = True  # process alive but heartbeat is stale
+        config = OrchestratorConfig(
+            heartbeat_timeout_s=600,
+            server_url="http://testserver",
+        )
+
+        fail_called = False
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal fail_called
+            url = request.url
+            key = f"{request.method} {url.path}"
+            if url.query:
+                key += f"?{url.query.decode()}"
+            if key == "GET /tasks?status=open":
+                return httpx.Response(200, json=[])
+            if key == "GET /tasks?status=done":
+                return httpx.Response(200, json=[])
+            if key == "POST /tasks/T-stale/fail":
+                fail_called = True
+                return httpx.Response(200, json={})
+            return httpx.Response(404)
+
+        transport = httpx.MockTransport(handler)
+        orch = _build_orchestrator(tmp_path, transport, adapter=adapter, config=config)
+
+        stale_session = AgentSession(
+            id="backend-stale-hb",
+            role="backend",
+            pid=77,
+            task_ids=["T-stale"],
+            heartbeat_ts=time.time() - 700,  # 700s ago > 600s threshold
+            status="working",
+            # spawn_ts defaults to time.time() so wall-clock timeout won't fire
+        )
+        orch._agents["backend-stale-hb"] = stale_session
+
+        result = orch.tick()
+
+        assert "backend-stale-hb" in result.reaped
+        assert stale_session.status != "working"  # reaped but not necessarily "dead" yet
+        assert fail_called
+        adapter.kill.assert_called()
+
+
+class TestAssignedTaskIdDoubleSpawn:
+    """Two consecutive ticks with identical open tasks must not double-spawn agents."""
+
+    def test_assigned_task_ids_prevents_double_spawn(self, tmp_path: Path) -> None:
+        """Second tick skips batches whose tasks are already owned by alive agents."""
+        task = _make_task(id="T-singleton", role="backend")
+
+        call_count = 0
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            url = request.url
+            key = f"{request.method} {url.path}"
+            if url.query:
+                key += f"?{url.query.decode()}"
+            if key == "GET /tasks?status=open":
+                call_count += 1
+                # Same task returned on every tick (simulate server not yet updated)
+                return httpx.Response(200, json=[_task_as_dict(task)])
+            if key == "GET /tasks?status=done":
+                return httpx.Response(200, json=[])
+            # claim / other endpoints
+            return httpx.Response(200, json={})
+
+        adapter = _mock_adapter()
+        adapter.is_alive.return_value = True  # agent stays alive between ticks
+
+        transport = httpx.MockTransport(handler)
+        orch = _build_orchestrator(tmp_path, transport, adapter=adapter)
+
+        r1 = orch.tick()
+        assert len(r1.spawned) == 1  # first tick spawns
+
+        r2 = orch.tick()
+        assert len(r2.spawned) == 0  # second tick skips — task already assigned
+
+        # Only one agent should exist in total
+        non_dead = [s for s in orch.active_agents.values() if s.status != "dead"]
+        assert len(non_dead) == 1
+
+
+class TestEvolveAutoCommitRuntimeExclusion:
+    """_evolve_auto_commit stages all changes then unstages .sdd/runtime/ and .sdd/metrics/."""
+
+    def test_evolve_auto_commit_excludes_runtime_files(self, tmp_path: Path) -> None:
+        """git add -A is followed by git reset HEAD -- .sdd/runtime/ .sdd/metrics/."""
+        from unittest.mock import patch
+
+        transport = _mock_transport({
+            "GET /tasks?status=open": httpx.Response(200, json=[]),
+            "GET /tasks?status=done": httpx.Response(200, json=[]),
+        })
+        orch = _build_orchestrator(tmp_path, transport)
+
+        status_result = MagicMock()
+        status_result.stdout = "M src/bernstein/foo.py\n"
+
+        test_result = MagicMock()
+        test_result.returncode = 0
+
+        completed_ok = MagicMock()
+        completed_ok.returncode = 0
+        completed_ok.stdout = ""
+
+        def _fake_run(cmd: list[str], **kwargs: object) -> MagicMock:
+            if cmd[:2] == ["git", "status"]:
+                return status_result
+            if cmd[:2] == ["uv", "run"]:
+                return test_result
+            return completed_ok
+
+        with patch("subprocess.run", side_effect=_fake_run) as mock_run:
+            result = orch._evolve_auto_commit()
+
+        assert result is True
+
+        cmds = [c.args[0] for c in mock_run.call_args_list]
+
+        # git add -A must appear
+        assert ["git", "add", "-A"] in cmds
+
+        # git reset HEAD -- .sdd/runtime/ .sdd/metrics/ must appear
+        reset_cmd = [
+            "git", "reset", "HEAD", "--", ".sdd/runtime/", ".sdd/metrics/",
+        ]
+        assert reset_cmd in cmds
+
+        # reset must come after add
+        add_idx = cmds.index(["git", "add", "-A"])
+        reset_idx = cmds.index(reset_cmd)
+        assert reset_idx > add_idx

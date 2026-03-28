@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from pathlib import Path  # noqa: TC003 — used at runtime in parse_seed
+from pathlib import Path
 from typing import Any, Literal, cast
 
 import yaml
 
-from bernstein.core.models import Complexity, Scope, Task, TaskStatus, TaskType, UpgradeProposalDetails, RiskAssessment, RollbackPlan
+from bernstein.core.models import Complexity, Scope, Task, TaskStatus
 
 
 class SeedError(Exception):

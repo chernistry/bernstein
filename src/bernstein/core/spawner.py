@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 from bernstein.agents.registry import AgentRegistry, get_registry
 from bernstein.core.agency_loader import AgencyAgent
 from bernstein.core.models import AgentSession, ModelConfig, Task
-from bernstein.core.router import RouterError, TierAwareRouter, route_task
+from bernstein.core.router import RouterError, TierAwareRouter
 from bernstein.templates.renderer import TemplateError, render_role_prompt
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,6 @@ def _render_prompt(
     project_context = project_md.read_text(encoding="utf-8") if project_md.exists() else ""
 
     # Completion instructions with concrete curl commands
-    task_ids = ", ".join(t.id for t in tasks)
     completion_cmds = "\n".join(
         f'curl -s -X POST http://127.0.0.1:8052/tasks/{t.id}/complete '
         f'-H "Content-Type: application/json" '
@@ -292,7 +291,7 @@ def _load_role_config(role: str, templates_dir: Path) -> ModelConfig | None:
     if not config_path.exists():
         return None
     try:
-        import yaml  # noqa: PLC0415
+        import yaml
 
         data: object = yaml.safe_load(config_path.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
@@ -330,7 +329,7 @@ def _select_batch_config(
         if role_config is not None:
             return role_config
 
-    from bernstein.core.models import Complexity, Scope  # noqa: PLC0415
+    from bernstein.core.models import Complexity, Scope
 
     def _route_for_batch(task: Task) -> ModelConfig:
         """Batch-specific routing: conservative default, escalates for complex tasks."""

@@ -26,8 +26,11 @@ from bernstein.core.janitor import verify_task
 from bernstein.core.metrics import get_collector
 from bernstein.core.retrospective import generate_retrospective
 from bernstein.core.graph import TaskGraph
+from bernstein.core.cluster import NodeHeartbeatClient
 from bernstein.core.models import (
     AgentSession,
+    ClusterConfig,
+    NodeCapacity,
     OrchestratorConfig,
     Task,
     TaskStatus,
@@ -348,11 +351,13 @@ class Orchestrator:
         evolution: EvolutionCoordinator | None = None,
         router: TierAwareRouter | None = None,
         bulletin: BulletinBoard | None = None,
+        cluster_config: ClusterConfig | None = None,
     ) -> None:
         self._config = config
         self._spawner = spawner
         self._workdir = workdir
         self._bulletin: BulletinBoard | None = bulletin
+        self._cluster_config = cluster_config
         _headers: dict[str, str] = {}
         if config.auth_token:
             _headers["Authorization"] = f"Bearer {config.auth_token}"
@@ -405,6 +410,27 @@ class Orchestrator:
 
         # Adaptive polling backoff: multiplied by 2 each idle tick, reset on work.
         self._idle_multiplier: int = 1
+
+        # Cluster heartbeat client: when cluster mode is enabled and this node
+        # is a worker (server_url points to a remote central server), send
+        # periodic heartbeats with current capacity.
+        self._heartbeat_client: NodeHeartbeatClient | None = None
+        if cluster_config and cluster_config.enabled and cluster_config.server_url:
+            self._heartbeat_client = NodeHeartbeatClient(
+                server_url=cluster_config.server_url,
+                interval_s=cluster_config.node_heartbeat_interval_s,
+                auth_token=cluster_config.auth_token or config.auth_token,
+                capacity_fn=self._current_capacity,
+            )
+
+    def _current_capacity(self) -> NodeCapacity:
+        """Build a NodeCapacity snapshot reflecting current agent usage."""
+        alive = sum(1 for a in self._agents.values() if a.status != "dead")
+        return NodeCapacity(
+            max_agents=self._config.max_agents,
+            available_slots=max(0, self._config.max_agents - alive),
+            active_agents=alive,
+        )
 
     @property
     def active_agents(self) -> dict[str, AgentSession]:
@@ -635,6 +661,10 @@ class Orchestrator:
             self._config.max_agents,
             self._config.server_url,
         )
+        # Start cluster heartbeat client (registers this node with central server)
+        if self._heartbeat_client is not None:
+            self._heartbeat_client.start()
+            logger.info("Cluster heartbeat client started")
         self._post_bulletin("status", "run started")
         consecutive_failures = 0
         max_consecutive_failures = 10
@@ -688,6 +718,11 @@ class Orchestrator:
         ruff subprocesses) and cancels any pending futures.  Without this,
         ``uv run pytest`` processes survive parent death and eat 40 GB+ RAM.
         """
+        # Stop cluster heartbeat client (unregisters from central server)
+        if self._heartbeat_client is not None:
+            self._heartbeat_client.stop()
+            logger.info("Cluster heartbeat client stopped")
+
         # Cancel pending futures first
         for future in (self._pending_ruff_future, self._pending_test_future):
             if future is not None and not future.done():
@@ -1990,12 +2025,27 @@ class Orchestrator:
                 continue
 
             # Claim tasks BEFORE spawning to prevent duplicate agents.
-            # Abort on server errors (5xx) or transport failures (unreachable).
-            # 4xx responses are treated as best-effort (claim may not be implemented).
+            # Pass expected_version for CAS (compare-and-swap) to prevent two
+            # distributed nodes from claiming the same task simultaneously.
+            # Abort on server errors (5xx), CAS conflicts (409), or transport failures.
             claim_failed = False
             for task in batch:
                 try:
-                    resp = self._client.post(f"{base}/tasks/{task.id}/claim")
+                    resp = self._client.post(
+                        f"{base}/tasks/{task.id}/claim",
+                        params={"expected_version": task.version},
+                    )
+                    if resp.status_code == 409:
+                        logger.info(
+                            "CAS conflict claiming task %s (version %d) — another node claimed it",
+                            task.id,
+                            task.version,
+                        )
+                        result.errors.append(
+                            f"claim:{task.id}: CAS conflict (version {task.version})"
+                        )
+                        claim_failed = True
+                        break
                     if resp.status_code >= 500:
                         logger.error(
                             "Server error %d claiming task %s — aborting spawn",

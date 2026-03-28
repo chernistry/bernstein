@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 import yaml
 
 from bernstein.agents.catalog import CatalogRegistry
-from bernstein.core.models import Complexity, Scope, Task, TaskStatus
+from bernstein.core.models import ClusterConfig, ClusterTopology, Complexity, Scope, Task, TaskStatus
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -71,6 +71,7 @@ class SeedConfig:
     mcp_servers: dict[str, dict[str, Any]] | None = None
     notify: NotifyConfig | None = None
     cells: int = 1
+    cluster: ClusterConfig | None = None
 
 
 _BUDGET_RE = re.compile(r"^\$(\d+(?:\.\d+)?)$")
@@ -246,6 +247,27 @@ def parse_seed(path: Path) -> SeedConfig:
     if not isinstance(cells_raw, int) or cells_raw < 1:
         raise SeedError(f"cells must be a positive integer, got: {cells_raw!r}")
 
+    cluster_raw = data.get("cluster")
+    cluster: ClusterConfig | None = None
+    if cluster_raw is not None:
+        if not isinstance(cluster_raw, dict):
+            raise SeedError(f"cluster must be a mapping, got: {type(cluster_raw).__name__}")
+        topology_str = cluster_raw.get("topology", "star")
+        try:
+            topology = ClusterTopology(topology_str)
+        except ValueError:
+            valid = [t.value for t in ClusterTopology]
+            raise SeedError(f"cluster.topology must be one of {valid}, got: {topology_str!r}") from None
+        cluster = ClusterConfig(
+            enabled=bool(cluster_raw.get("enabled", False)),
+            topology=topology,
+            auth_token=cluster_raw.get("auth_token"),
+            node_heartbeat_interval_s=int(cluster_raw.get("node_heartbeat_interval_s", 15)),
+            node_timeout_s=int(cluster_raw.get("node_timeout_s", 60)),
+            server_url=cluster_raw.get("server_url"),
+            bind_host=str(cluster_raw.get("bind_host", "127.0.0.1")),
+        )
+
     return SeedConfig(
         goal=goal,
         budget_usd=budget_usd,
@@ -260,6 +282,7 @@ def parse_seed(path: Path) -> SeedConfig:
         mcp_servers=mcp_servers_raw,
         notify=notify,
         cells=cells_raw,
+        cluster=cluster,
     )
 
 

@@ -32,6 +32,7 @@ from bernstein.evolution.creative import (
     CreativePipeline,
     PipelineResult,
     VisionaryProposal,
+    issue_to_proposal,
 )
 from bernstein.evolution.detector import (
     FeatureDiscovery,
@@ -68,6 +69,15 @@ _AUTO_RISK_LEVELS: frozenset[str] = frozenset({
 # the loop picks them up on creative_vision turns.
 _FOCUS_ROTATION: tuple[str, ...] = (
     "code_quality",
+    "test_coverage",
+    "performance",
+    "creative_vision",
+)
+
+# In community mode the first slot of each rotation is replaced with a
+# community_issue scan so community work gets priority.
+_FOCUS_ROTATION_COMMUNITY: tuple[str, ...] = (
+    "community_issue",
     "test_coverage",
     "performance",
     "creative_vision",
@@ -141,6 +151,9 @@ class EvolutionLoop:
         github_sync: If True, sync proposals with GitHub Issues for distributed
             coordination.  Requires the ``gh`` CLI to be installed and
             authenticated.  Disabled by default.
+        community_mode: If True, scan for community ``evolve-candidate`` /
+            ``feature-request`` issues and prioritise them in the evolve queue.
+            Implies ``github_sync=True``.
     """
 
     def __init__(
@@ -151,13 +164,16 @@ class EvolutionLoop:
         max_proposals: int = 24,
         window_seconds: int = 7200,
         github_sync: bool = False,
+        community_mode: bool = False,
     ) -> None:
         self._state_dir = state_dir
         self._repo_root = repo_root or state_dir.parent
         self._cycle_seconds = cycle_seconds
         self._max_proposals = max_proposals
         self._window_seconds = window_seconds
-        self._github_sync = github_sync
+        self._community_mode = community_mode
+        # Community mode requires GitHub sync to claim/update issues.
+        self._github_sync = github_sync or community_mode
         self._github: GitHubClient | None = None
 
         # --- Component wiring ---
@@ -258,7 +274,13 @@ class EvolutionLoop:
         if self._github_sync:
             gh = self._gh
             if gh and gh.available:
-                logger.info("GitHub sync enabled — proposals will be synced as Issues")
+                if self._community_mode:
+                    logger.info(
+                        "Community mode enabled — scanning GitHub for "
+                        "evolve-candidate and feature-request issues"
+                    )
+                else:
+                    logger.info("GitHub sync enabled — proposals will be synced as Issues")
 
         while (
             self._within_window(effective_window)
@@ -310,10 +332,17 @@ class EvolutionLoop:
         cycle_start = time.time()
 
         # Determine focus area from rotation.
-        focus = _FOCUS_ROTATION[self._cycle_count % len(_FOCUS_ROTATION)]
+        rotation = (
+            _FOCUS_ROTATION_COMMUNITY if self._community_mode else _FOCUS_ROTATION
+        )
+        focus = rotation[self._cycle_count % len(rotation)]
         self._cycle_count += 1
 
         logger.info("Evolution cycle %d — focus: %s", self._cycle_count, focus)
+
+        # Community issue cycles delegate to the community pipeline.
+        if focus == "community_issue":
+            return self._run_community_cycle(cycle_start)
 
         # Creative vision cycles delegate entirely to the creative pipeline.
         if focus == "creative_vision":
@@ -594,6 +623,128 @@ class EvolutionLoop:
                 f"{tasks_count} backlog task(s) created"
             ),
             cost_usd=_COST_PER_PROPOSAL_USD * max(1, len(proposals)),
+            duration_seconds=time.time() - cycle_start,
+        )
+        self._log_experiment(result)
+        return result
+
+    def _run_community_cycle(self, cycle_start: float) -> ExperimentResult | None:
+        """Process the highest-priority community-requested issue.
+
+        Fetches open ``evolve-candidate`` / ``feature-request`` issues from
+        GitHub, sorted by 👍 reaction count.  The top issue that passes the
+        trust check (collaborator author or ``maintainer-approved`` label) is
+        converted to a ``VisionaryProposal``, pushed through the analyst gate,
+        and written to the backlog for the main orchestrator.
+
+        Marks the issue as ``evolve-in-progress`` on start, and closes it
+        when the backlog task is created successfully.
+
+        Args:
+            cycle_start: Unix timestamp when this cycle started.
+
+        Returns:
+            ExperimentResult summarising the community cycle, or None if no
+            eligible community issues were found.
+        """
+        gh = self._gh
+        if gh is None or not gh.available:
+            logger.debug("Community cycle: GitHub unavailable — skipping")
+            return None
+
+        issues = gh.fetch_community_issues()
+        if not issues:
+            logger.debug("Community cycle: no eligible community issues found")
+            return None
+
+        # Pick the first issue that passes the trust check.
+        selected = None
+        for issue in issues:
+            if issue.is_maintainer_approved:
+                selected = issue
+                break
+            if issue.author and gh.check_is_collaborator(issue.author):
+                selected = issue
+                break
+
+        if selected is None:
+            logger.info(
+                "Community cycle: %d issue(s) found but none passed trust check "
+                "(no collaborator author and no maintainer-approved label)",
+                len(issues),
+            )
+            return None
+
+        logger.info(
+            "Community cycle: processing issue #%d '%s' (%d 👍)",
+            selected.number,
+            selected.title,
+            selected.thumbs_up,
+        )
+
+        # Mark in-progress so other instances skip this issue.
+        gh.mark_in_progress(selected.number)
+
+        # Convert the issue to a visionary proposal.
+        proposal = issue_to_proposal(selected)
+
+        # Run the analyst + production gate via the creative pipeline.
+        # We create a synthetic AnalystVerdict that auto-approves community
+        # issues with a reasonable baseline score.  The human can always
+        # reject the resulting backlog task or PR.
+        analyst_verdict = AnalystVerdict(
+            proposal_title=proposal.title,
+            verdict="APPROVE",
+            feasibility_score=7.0,
+            impact_score=8.0,
+            risk_score=4.0,
+            composite_score=AnalystVerdict.compute_composite(7.0, 8.0, 4.0),
+            reasoning=(
+                f"Community-requested feature from GitHub issue #{selected.number}. "
+                f"Thumbs-up: {selected.thumbs_up}. Auto-approved for backlog creation."
+            ),
+            decomposition=[],
+        )
+
+        pipeline_result: PipelineResult = self._creative_pipeline.run(
+            [proposal], [analyst_verdict],
+        )
+
+        tasks_created = len(pipeline_result.tasks_created)
+        accepted = tasks_created > 0
+
+        if accepted:
+            logger.info(
+                "Community cycle: created %d backlog task(s) for issue #%d",
+                tasks_created,
+                selected.number,
+            )
+            # Close the GitHub issue now that a backlog task exists.
+            closing_comment = (
+                f"Bernstein has created a backlog task for this request. "
+                f"Implementation will be tracked internally.\n\n"
+                f"*Processed by `bernstein evolve run --community`*"
+            )
+            gh.close_issue(selected.number, comment=closing_comment)
+        else:
+            # Pipeline rejected or no tasks — unmark so it can be retried.
+            gh.unmark_in_progress(selected.number)
+            logger.info("Community cycle: pipeline produced no tasks for issue #%d", selected.number)
+
+        result = ExperimentResult(
+            proposal_id=f"community-{selected.number}",
+            title=f"Community issue #{selected.number}: {selected.title}",
+            risk_level=RiskLevel.L1_TEMPLATE.value,
+            baseline_score=1.0,
+            candidate_score=1.0 + (0.01 * tasks_created),
+            delta=0.01 * tasks_created,
+            accepted=accepted,
+            reason=(
+                f"{tasks_created} backlog task(s) created"
+                if accepted
+                else "Pipeline produced no tasks"
+            ),
+            cost_usd=_COST_PER_PROPOSAL_USD,
             duration_seconds=time.time() - cycle_start,
         )
         self._log_experiment(result)

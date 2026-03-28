@@ -120,3 +120,87 @@ def test_cost_empty_metrics_dir(tmp_path: Path) -> None:
     result = runner.invoke(cost_cmd, ["--metrics-dir", str(mdir)])
     assert result.exit_code == 0
     assert "No metrics data found" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Enhanced output: savings, daily costs, projected monthly
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def metrics_dir_with_timestamps(tmp_path: Path) -> Path:
+    """Metrics dir with timestamped records for projection/trend tests."""
+    import time
+
+    mdir = tmp_path / "metrics"
+    mdir.mkdir()
+    now = time.time()
+    tasks = []
+    for i in range(7):
+        ts = now - i * 86400
+        tasks.append({
+            "task_id": f"task-{i}",
+            "role": "backend",
+            "model": "haiku",
+            "timestamp": ts,
+            "tokens_prompt": 500,
+            "tokens_completion": 500,
+            "cost_usd": 0.50,
+        })
+    (mdir / "tasks.jsonl").write_text("\n".join(json.dumps(r) for r in tasks))
+    return mdir
+
+
+def test_cost_json_includes_savings_vs_opus(metrics_dir_with_timestamps: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        cost_cmd, ["--metrics-dir", str(metrics_dir_with_timestamps), "--json"]
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert "savings_vs_opus_usd" in data
+    assert data["savings_vs_opus_usd"] >= 0.0
+
+
+def test_cost_json_includes_daily_costs(metrics_dir_with_timestamps: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        cost_cmd, ["--metrics-dir", str(metrics_dir_with_timestamps), "--json"]
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert "daily_costs" in data
+    assert isinstance(data["daily_costs"], list)
+    # Should have entries for recent days
+    assert len(data["daily_costs"]) > 0
+    # Each entry has date and cost_usd
+    entry = data["daily_costs"][0]
+    assert "date" in entry
+    assert "cost_usd" in entry
+
+
+def test_cost_json_includes_projected_monthly(metrics_dir_with_timestamps: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        cost_cmd, ["--metrics-dir", str(metrics_dir_with_timestamps), "--json"]
+    )
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert "projected_monthly_usd" in data
+    assert data["projected_monthly_usd"] > 0.0
+
+
+def test_cost_table_shows_savings_section(metrics_dir_with_timestamps: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(cost_cmd, ["--metrics-dir", str(metrics_dir_with_timestamps)])
+    assert result.exit_code == 0, result.output
+    # Should show savings vs Opus in table output
+    assert "savings" in result.output.lower() or "Savings" in result.output
+
+
+def test_cost_table_shows_projection(metrics_dir_with_timestamps: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(cost_cmd, ["--metrics-dir", str(metrics_dir_with_timestamps)])
+    assert result.exit_code == 0, result.output
+    # Should show projected monthly cost
+    assert "projected" in result.output.lower() or "Projected" in result.output

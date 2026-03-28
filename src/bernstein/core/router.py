@@ -522,11 +522,20 @@ class RouterError(Exception):
 
 
 # Legacy compatibility function - uses default routing rules
-def route_task(task: Task) -> ModelConfig:
+def route_task(task: Task, bandit_metrics_dir: "Path | None" = None) -> ModelConfig:
     """Select model and effort based on task metadata.
 
     If the manager specified model/effort on the task, use those.
-    Otherwise fall back to heuristics (Sonnet by default for speed).
+    If a bandit_metrics_dir is provided, consults the epsilon-greedy bandit to
+    pick the cheapest model that has historically met quality thresholds for
+    this task's role.  Falls back to heuristics when no bandit data exists.
+
+    Args:
+        task: Task to route.
+        bandit_metrics_dir: Optional path to ``.sdd/metrics`` for bandit state.
+
+    Returns:
+        ModelConfig with selected model and effort.
     """
     # Manager-specified overrides take precedence
     if task.model or task.effort:
@@ -534,7 +543,7 @@ def route_task(task: Task) -> ModelConfig:
         effort = task.effort or "high"
         return ModelConfig(model=model, effort=effort)
 
-    # Auto-routing heuristics
+    # High-stakes roles skip bandit — always use premium models
     if task.role == "manager":
         return ModelConfig(model="opus", effort="max")
 
@@ -544,6 +553,38 @@ def route_task(task: Task) -> ModelConfig:
     if task.priority == 1 or task.scope == Scope.LARGE:
         return ModelConfig(model="sonnet", effort="max")
 
+    # L1 fast-path: route simple tasks to the cheapest model
+    from bernstein.core.fast_path import TaskLevel, classify_task, get_l1_model_config
+    classification = classify_task(task)
+    if classification.level == TaskLevel.L1:
+        l1_cfg = get_l1_model_config()
+        logger.debug(
+            "L1 fast-path routed task %s (role=%s) → %s/%s (%s)",
+            task.id, task.role, l1_cfg.model, l1_cfg.effort, classification.reason,
+        )
+        return l1_cfg
+
+    # Consult epsilon-greedy bandit for dynamic model selection
+    if bandit_metrics_dir is not None:
+        try:
+            from bernstein.core.cost import EpsilonGreedyBandit, CASCADE
+            bandit = EpsilonGreedyBandit.load(bandit_metrics_dir)
+            # For high-complexity tasks, restrict candidates to sonnet/opus
+            if task.complexity == Complexity.HIGH:
+                candidates = ["sonnet", "opus"]
+            else:
+                candidates = list(CASCADE)
+            selected = bandit.select(role=task.role, candidate_models=candidates)
+            effort = "max" if selected == "opus" else "high"
+            logger.debug(
+                "Bandit routed task %s (role=%s) → %s/%s",
+                task.id, task.role, selected, effort,
+            )
+            return ModelConfig(model=selected, effort=effort)
+        except Exception as exc:
+            logger.warning("Bandit routing failed, using heuristics: %s", exc)
+
+    # Heuristic fallback
     if task.complexity == Complexity.HIGH:
         return ModelConfig(model="sonnet", effort="high")
 

@@ -10,12 +10,26 @@ Distributed evolve protocol:
   3. Works on the task locally.
   4. Closes the issue on completion, optionally linking to a PR.
 
+Community evolve protocol:
+  1. Community members file issues with ``evolve-candidate`` or ``feature-request`` labels.
+  2. ``bernstein evolve run --community`` scans for these issues.
+  3. Issues are prioritised by 👍 reaction count (community voting).
+  4. Trust check: issue author must be a repo collaborator, OR the issue must
+     carry the ``maintainer-approved`` label.
+  5. Bernstein claims the issue (``evolve-in-progress``), converts it to a
+     proposal, and opens a PR referencing the issue.
+  6. On merge, the issue is automatically closed.
+
 Labels:
   - ``bernstein-evolve``    — all evolution proposals
   - ``auto-generated``      — machine-generated proposals
   - ``evolve-claimed``      — issue is being worked on by an instance
   - ``evolve-hash-<hex>``   — 8-char SHA-256 prefix of the lowercased title
                               (used for deduplication across instances)
+  - ``evolve-candidate``    — community request eligible for community evolve
+  - ``feature-request``     — community feature request (also eligible)
+  - ``evolve-in-progress``  — Bernstein is actively working on this issue
+  - ``maintainer-approved`` — maintainer trust override for community issues
 
 All operations degrade gracefully when ``gh`` is unavailable or unauthenticated.
 """
@@ -35,8 +49,17 @@ _LABEL_EVOLVE = "bernstein-evolve"
 _LABEL_CLAIMED = "evolve-claimed"
 _LABEL_AUTO = "auto-generated"
 
+# Community evolve labels.
+_LABEL_EVOLVE_CANDIDATE = "evolve-candidate"
+_LABEL_FEATURE_REQUEST = "feature-request"
+_LABEL_IN_PROGRESS = "evolve-in-progress"
+_LABEL_MAINTAINER_APPROVED = "maintainer-approved"
+
 # Prefix for per-proposal dedup labels.
 _HASH_LABEL_PREFIX = "evolve-hash-"
+
+# Community issue scanning labels — either of these qualifies.
+_COMMUNITY_LABELS: tuple[str, ...] = (_LABEL_EVOLVE_CANDIDATE, _LABEL_FEATURE_REQUEST)
 
 
 def _hash_title(title: str) -> str:
@@ -62,6 +85,9 @@ class GitHubIssue:
         url: HTML URL to the issue.
         labels: List of label names attached to the issue.
         state: ``"open"`` or ``"closed"``.
+        body: Issue body text (may be empty if not requested).
+        author: Login of the issue author (may be empty if not requested).
+        thumbs_up: Number of 👍 reactions (used for community priority).
     """
 
     number: int
@@ -69,11 +95,24 @@ class GitHubIssue:
     url: str
     labels: list[str] = field(default_factory=list)
     state: str = "open"
+    body: str = ""
+    author: str = ""
+    thumbs_up: int = 0
 
     @property
     def is_claimed(self) -> bool:
         """True if the issue has the ``evolve-claimed`` label."""
         return _LABEL_CLAIMED in self.labels
+
+    @property
+    def is_in_progress(self) -> bool:
+        """True if Bernstein is actively working on this community issue."""
+        return _LABEL_IN_PROGRESS in self.labels
+
+    @property
+    def is_maintainer_approved(self) -> bool:
+        """True if a maintainer has approved this community issue for evolve."""
+        return _LABEL_MAINTAINER_APPROVED in self.labels
 
     @property
     def hash_label(self) -> str | None:
@@ -94,12 +133,23 @@ class GitHubIssue:
             Populated GitHubIssue.
         """
         labels = [lbl["name"] for lbl in data.get("labels", [])]
+        # Reaction counts are present when the ``reactions`` field is requested.
+        reactions = data.get("reactions", {})
+        thumbs_up = 0
+        if isinstance(reactions, dict):
+            thumbs_up = int(reactions.get("+1", 0))
+        # Author login.
+        author_obj = data.get("author", {})
+        author = author_obj.get("login", "") if isinstance(author_obj, dict) else ""
         return cls(
             number=data["number"],
             title=data.get("title", ""),
             url=data.get("url", ""),
             labels=labels,
             state=data.get("state", "open"),
+            body=data.get("body", "") or "",
+            author=author,
+            thumbs_up=thumbs_up,
         )
 
 
@@ -286,6 +336,170 @@ class GitHubClient:
 
         return self._run(args) is not None
 
+    # ------------------------------------------------------------------
+    # Community evolve API
+    # ------------------------------------------------------------------
+
+    def fetch_community_issues(self) -> list[GitHubIssue]:
+        """Return open community issues eligible for the evolve pipeline.
+
+        Fetches issues labelled ``evolve-candidate`` or ``feature-request``
+        that do NOT already have ``evolve-in-progress``.  Results are sorted
+        by 👍 reaction count descending (community voting).
+
+        Returns:
+            List of community issues, most-upvoted first.
+        """
+        if not self.available:
+            return []
+
+        seen: dict[int, GitHubIssue] = {}
+        for label in _COMMUNITY_LABELS:
+            args = [
+                "gh", "issue", "list",
+                "--label", label,
+                "--state", "open",
+                "--json", "number,title,url,labels,state,body,author,reactions",
+                "--limit", "50",
+            ]
+            if self._repo:
+                args += ["--repo", self._repo]
+            result = self._run(args)
+            if result is None:
+                continue
+            try:
+                raw: list[dict[str, Any]] = json.loads(result)
+                for item in raw:
+                    issue = GitHubIssue.from_gh_json(item)
+                    if not issue.is_in_progress and issue.number not in seen:
+                        seen[issue.number] = issue
+            except (json.JSONDecodeError, KeyError):
+                logger.warning("Failed to parse community issue list for label '%s'", label)
+
+        issues = list(seen.values())
+        issues.sort(key=lambda i: i.thumbs_up, reverse=True)
+        return issues
+
+    def check_is_collaborator(self, username: str) -> bool:
+        """Check whether a GitHub user is a collaborator on this repo.
+
+        Args:
+            username: GitHub login to check.
+
+        Returns:
+            ``True`` if the user has collaborator access, ``False`` otherwise
+            or on any error.
+        """
+        if not self.available or not username:
+            return False
+
+        args = ["gh", "api", f"repos/{{owner}}/{{repo}}/collaborators/{username}"]
+        if self._repo:
+            # gh api expands {owner}/{repo} automatically when --repo is set,
+            # but we need to build the path with the literal repo slug.
+            owner_repo = self._repo
+            args = ["gh", "api", f"repos/{owner_repo}/collaborators/{username}"]
+
+        result = self._run(args)
+        # gh api returns HTTP 204 (empty body) if user IS a collaborator.
+        # Returns non-zero exit code + error body if not.
+        return result is not None
+
+    def mark_in_progress(self, issue_number: int, comment: str | None = None) -> bool:
+        """Mark a community issue as in-progress by Bernstein.
+
+        Adds the ``evolve-in-progress`` label and optionally posts a status
+        comment so the original reporter knows work has started.
+
+        Args:
+            issue_number: GitHub issue number.
+            comment: Optional Markdown comment (defaults to a standard message).
+
+        Returns:
+            ``True`` if the label was added successfully.
+        """
+        if not self.available:
+            return False
+
+        self._ensure_labels([_LABEL_IN_PROGRESS])
+        args = [
+            "gh", "issue", "edit", str(issue_number),
+            "--add-label", _LABEL_IN_PROGRESS,
+        ]
+        if self._repo:
+            args += ["--repo", self._repo]
+
+        ok = self._run(args) is not None
+        if ok:
+            body = comment or (
+                "Bernstein is now working on this request. "
+                "A pull request will be opened when the implementation is ready."
+            )
+            self._post_comment(issue_number, body)
+
+        return ok
+
+    def unmark_in_progress(self, issue_number: int) -> bool:
+        """Remove the ``evolve-in-progress`` label from a community issue.
+
+        Call this when Bernstein abandons a community issue so it can be
+        picked up again later.
+
+        Args:
+            issue_number: GitHub issue number.
+
+        Returns:
+            ``True`` if the label was removed successfully.
+        """
+        if not self.available:
+            return False
+
+        args = [
+            "gh", "issue", "edit", str(issue_number),
+            "--remove-label", _LABEL_IN_PROGRESS,
+        ]
+        if self._repo:
+            args += ["--repo", self._repo]
+        return self._run(args) is not None
+
+    def create_pr(
+        self,
+        title: str,
+        body: str,
+        head: str,
+        base: str = "main",
+        draft: bool = False,
+    ) -> str | None:
+        """Create a pull request.
+
+        Args:
+            title: PR title.
+            body: PR body (Markdown).
+            head: Source branch name.
+            base: Target branch (default ``"main"``).
+            draft: If True, open as a draft PR.
+
+        Returns:
+            PR URL string on success, ``None`` on error.
+        """
+        if not self.available:
+            return None
+
+        args = [
+            "gh", "pr", "create",
+            "--title", title,
+            "--body", body,
+            "--head", head,
+            "--base", base,
+        ]
+        if draft:
+            args.append("--draft")
+        if self._repo:
+            args += ["--repo", self._repo]
+
+        result = self._run(args)
+        return result.strip() if result else None
+
     def close_issue(
         self,
         issue_number: int,
@@ -370,6 +584,24 @@ class GitHubClient:
             logger.debug("gh command error: %s", exc)
             return None
 
+    def _post_comment(self, issue_number: int, body: str) -> bool:
+        """Post a comment on a GitHub issue.
+
+        Args:
+            issue_number: GitHub issue number.
+            body: Markdown comment body.
+
+        Returns:
+            ``True`` if the comment was posted successfully.
+        """
+        args = [
+            "gh", "issue", "comment", str(issue_number),
+            "--body", body,
+        ]
+        if self._repo:
+            args += ["--repo", self._repo]
+        return self._run(args) is not None
+
     def _ensure_labels(self, names: list[str]) -> None:
         """Create labels if they do not already exist.
 
@@ -401,9 +633,13 @@ def _label_color(name: str) -> str:
         6-character hex color string (without ``#``).
     """
     _colors: dict[str, str] = {
-        _LABEL_EVOLVE: "0075ca",   # blue — evolution
-        _LABEL_CLAIMED: "e4e669",  # yellow — in-progress
-        _LABEL_AUTO: "cfd3d7",     # grey — machine-generated
+        _LABEL_EVOLVE: "0075ca",              # blue — evolution
+        _LABEL_CLAIMED: "e4e669",             # yellow — claimed
+        _LABEL_AUTO: "cfd3d7",                # grey — machine-generated
+        _LABEL_EVOLVE_CANDIDATE: "a2eeef",    # cyan — community request
+        _LABEL_FEATURE_REQUEST: "a2eeef",     # cyan — community request
+        _LABEL_IN_PROGRESS: "fbca04",         # orange — in progress
+        _LABEL_MAINTAINER_APPROVED: "0e8a16", # green — trusted
     }
     if name in _colors:
         return _colors[name]

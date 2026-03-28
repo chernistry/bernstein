@@ -342,7 +342,7 @@ class TierHijacker:
             FreeTierSource.NEW_PROVIDER_TRIAL,
             FreeTierSource.PROMOTIONAL_CREDITS,
         ]:
-            supported_models = ["sonnet", "opus", "gpt-4", "gpt-3.5"]
+            supported_models = ["haiku", "sonnet", "opus", "gpt-4", "gpt-3.5"]
             return any(m in model.lower() for m in supported_models)
 
         return True

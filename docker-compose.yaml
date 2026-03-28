@@ -1,0 +1,128 @@
+version: "3.9"
+
+# Bernstein cluster-mode deployment
+#
+# Roles:
+#   bernstein-server      — task server (port 8052), shared state coordinator
+#   bernstein-orchestrator — reads the backlog, spawns workers via HTTP
+#   bernstein-worker      — claims and executes tasks (scale with --scale)
+#   postgres              — shared relational state (future: persistent task store)
+#   redis                 — distributed locks + bulletin board (future)
+#
+# Usage:
+#   docker compose up -d
+#   docker compose up --scale bernstein-worker=4
+#
+# Required env vars (copy .env.example → .env):
+#   ANTHROPIC_API_KEY, OPENAI_API_KEY, BERNSTEIN_AUTH_TOKEN
+
+x-bernstein-common: &bernstein-common
+  image: bernstein:latest
+  build:
+    context: .
+    dockerfile: Dockerfile
+  environment:
+    BERNSTEIN_SERVER_URL: http://bernstein-server:8052
+    BERNSTEIN_AUTH_TOKEN: ${BERNSTEIN_AUTH_TOKEN:-changeme}
+    BERNSTEIN_BIND_HOST: "0.0.0.0"
+    BERNSTEIN_CLUSTER_ENABLED: "true"
+    # LLM provider keys — set in .env
+    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+    TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+    # Future: database / cache URLs
+    BERNSTEIN_DATABASE_URL: postgresql://bernstein:bernstein@postgres:5432/bernstein
+    BERNSTEIN_REDIS_URL: redis://redis:6379/0
+  volumes:
+    - sdd-data:/workspace/.sdd
+    - project-data:/workspace/project
+  depends_on:
+    bernstein-server:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  # ── Task server ────────────────────────────────────────────────────────────
+  bernstein-server:
+    image: bernstein:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["start", "--bind", "0.0.0.0", "--port", "8052"]
+    environment:
+      BERNSTEIN_BIND_HOST: "0.0.0.0"
+      BERNSTEIN_AUTH_TOKEN: ${BERNSTEIN_AUTH_TOKEN:-changeme}
+      BERNSTEIN_DATABASE_URL: postgresql://bernstein:bernstein@postgres:5432/bernstein
+      BERNSTEIN_REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8052:8052"
+    volumes:
+      - sdd-data:/workspace/.sdd
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8052/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Orchestrator ───────────────────────────────────────────────────────────
+  bernstein-orchestrator:
+    <<: *bernstein-common
+    command: ["conduct", "--remote"]
+    depends_on:
+      bernstein-server:
+        condition: service_healthy
+
+  # ── Worker nodes (scale with: docker compose up --scale bernstein-worker=N) ─
+  bernstein-worker:
+    <<: *bernstein-common
+    command: ["conduct", "--worker"]
+    depends_on:
+      bernstein-server:
+        condition: service_healthy
+
+  # ── Infrastructure ─────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bernstein
+      POSTGRES_PASSWORD: bernstein
+      POSTGRES_DB: bernstein
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bernstein"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  sdd-data:
+    driver: local
+  project-data:
+    driver: local
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local

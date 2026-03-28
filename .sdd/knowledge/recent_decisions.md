@@ -2,12 +2,6 @@
 
 No decisions recorded yet.
 
-## [2026-03-28 09:48] Update README.md: test count, missing CLI commands, missing roles (74ab3d71c2f6)
-Completed: Update README.md: test count, missing CLI commands, missing roles
-
-## [2026-03-28 09:49] 505 — One-command cross-platform installation (85ce17301b23)
-Completed: 505 — One-command cross-platform installation
-
 ## [2026-03-28 09:49] 507 — bernstein init creates bernstein.yaml and .gitignore entry (f1e8c1a887a5)
 Completed: 507 — bernstein init creates bernstein.yaml and .gitignore entry
 
@@ -46,3 +40,9 @@ Completed: [RETRY 1] 520 — GitHub Issues as evolve coordination layer
 
 ## [2026-03-28 11:38] [RETRY 1] 520 — GitHub Issues as evolve coordination layer (d7a3682d6ada)
 Completed: [RETRY 1] 520 — GitHub Issues as evolve coordination layer
+
+## [2026-03-28 12:05] 525 — Community-driven evolution: GitHub Issues -> evolve pipeline (3a13d3a593f1)
+Completed: 525 — Community-driven evolution: GitHub Issues -> evolve pipeline
+
+## [2026-03-28 12:21] 528 — Intelligent cost optimization engine (be3354a1cbe7)
+Completed: 528 — Intelligent cost optimization engine

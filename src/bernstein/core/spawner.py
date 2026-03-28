@@ -13,6 +13,7 @@ from bernstein.core.models import AgentSession, ModelConfig, Task
 from bernstein.core.router import RouterError, TierAwareRouter
 from bernstein.core.git_ops import MergeResult, merge_with_conflict_detection
 from bernstein.core.worktree import WorktreeError, WorktreeManager
+from bernstein.core.traces import AgentTrace, TraceStore, finalize_trace, new_trace
 from bernstein.templates.renderer import TemplateError, render_role_prompt
 
 if TYPE_CHECKING:
@@ -273,6 +274,8 @@ class AgentSpawner:
         self._use_worktrees = use_worktrees
         self._worktree_mgr: WorktreeManager | None = WorktreeManager(workdir) if use_worktrees else None
         self._worktree_paths: dict[str, Path] = {}
+        self._traces: dict[str, AgentTrace] = {}
+        self._trace_store = TraceStore(workdir / ".sdd" / "traces")
 
     def spawn_for_tasks(self, tasks: list[Task]) -> AgentSession:
         """Route, render prompt, and spawn an agent for a task batch.
@@ -294,7 +297,12 @@ class AgentSpawner:
             raise ValueError(f"All tasks in a batch must share the same role, got: {roles}")
 
         # Route based on highest-complexity task in batch; use TierAwareRouter if available
-        base_config = _select_batch_config(tasks, templates_dir=self._templates_dir)
+        metrics_dir = self._workdir / ".sdd" / "metrics"
+        base_config = _select_batch_config(
+            tasks,
+            templates_dir=self._templates_dir,
+            metrics_dir=metrics_dir if metrics_dir.exists() else None,
+        )
         model_config = base_config
         provider_name: str | None = None
 
@@ -380,6 +388,35 @@ class AgentSpawner:
         if result.proc is not None:
             self._procs[session_id] = result.proc
 
+        # Create and persist the initial trace
+        # Serialize task fields to JSON-safe types (convert Enums to their values)
+        import dataclasses
+        def _task_to_dict(t: Task) -> dict:
+            d = {}
+            for f in dataclasses.fields(t):
+                val = getattr(t, f.name)
+                if hasattr(val, "value"):  # Enum
+                    val = val.value
+                elif isinstance(val, list):
+                    val = [v.value if hasattr(v, "value") else v for v in val]
+                d[f.name] = val
+            return d
+        task_snapshots = [_task_to_dict(t) for t in tasks]
+        trace = new_trace(
+            session_id=session_id,
+            task_ids=[t.id for t in tasks],
+            role=role,
+            model=model_config.model,
+            effort=model_config.effort,
+            log_path=str(result.log_path) if result.log_path else "",
+            task_snapshots=task_snapshots,
+        )
+        self._traces[session_id] = trace
+        try:
+            self._trace_store.write(trace)
+        except Exception as exc:
+            logger.warning("Failed to write initial trace for %s: %s", session_id, exc)
+
         return session
 
     def check_alive(self, session: AgentSession) -> bool:
@@ -437,6 +474,16 @@ class AgentSpawner:
             logger.warning("reap_completed_agent: wait failed for %s: %s", session.id, exc)
         logger.info("Agent %s process reaped", session.id)
 
+        # Finalize trace with outcome and parsed log steps
+        trace = self._traces.pop(session.id, None)
+        if trace is not None:
+            outcome = "success" if session.status != "dead" else "unknown"
+            finalize_trace(trace, outcome)
+            try:
+                self._trace_store.write(trace)
+            except Exception as exc:
+                logger.warning("Failed to write finalized trace for %s: %s", session.id, exc)
+
         # Merge worktree branch back and clean up
         worktree_path = self._worktree_paths.pop(session.id, None)
         merge_result: MergeResult | None = None
@@ -444,6 +491,26 @@ class AgentSpawner:
             merge_result = self._merge_worktree_branch(session.id)
             self._worktree_mgr.cleanup(session.id)
         return merge_result
+
+    def update_trace_outcome(self, session_id: str, outcome: str) -> None:
+        """Update the stored trace outcome for a session.
+
+        Called by the orchestrator when it learns a task succeeded or failed
+        via the task server (before the process is reaped).
+
+        Args:
+            session_id: The session whose trace should be updated.
+            outcome: "success" or "failed".
+        """
+        trace = self._traces.get(session_id)
+        if trace is None:
+            return
+        if outcome in ("success", "failed", "unknown"):
+            trace.outcome = outcome  # type: ignore[assignment]
+            try:
+                self._trace_store.write(trace)
+            except Exception as exc:
+                logger.warning("Failed to update trace outcome for %s: %s", session_id, exc)
 
     def _merge_worktree_branch(self, session_id: str) -> MergeResult:
         """Merge the agent's worktree branch with conflict detection.
@@ -511,17 +578,21 @@ def _load_role_config(role: str, templates_dir: Path) -> ModelConfig | None:
 def _select_batch_config(
     tasks: list[Task],
     templates_dir: Path | None = None,
+    metrics_dir: Path | None = None,
 ) -> ModelConfig:
     """Pick the highest-tier model config across all tasks in a batch.
 
     If *templates_dir* is provided, reads the role's config.yaml first and
     uses that as the baseline before falling back to heuristic routing.
+    If *metrics_dir* is provided, consults the epsilon-greedy bandit for
+    non-high-stakes roles to dynamically pick the cheapest viable model.
     Routes each task individually, then picks the most capable config
     so the agent can handle the hardest task in its batch.
 
     Args:
         tasks: Non-empty list of tasks.
         templates_dir: Optional path to templates/roles/ for config.yaml lookup.
+        metrics_dir: Optional path to .sdd/metrics for bandit state.
 
     Returns:
         ModelConfig suitable for the entire batch.
@@ -534,11 +605,13 @@ def _select_batch_config(
             return role_config
 
     from bernstein.core.models import Complexity, Scope
+    from bernstein.core.router import route_task
 
     def _route_for_batch(task: Task) -> ModelConfig:
-        """Batch-specific routing: conservative default, escalates for complex tasks."""
+        """Batch-specific routing: consult bandit when available, else heuristics."""
         if task.model or task.effort:
             return ModelConfig(model=task.model or "sonnet", effort=task.effort or "normal")
+        # High-stakes roles skip bandit — always use premium models
         if task.role == "manager":
             return ModelConfig(model="opus", effort="max")
         if task.role in ("architect", "security"):
@@ -547,13 +620,12 @@ def _select_batch_config(
             return ModelConfig(model="opus", effort="high")
         if task.priority == 1 or task.scope == Scope.LARGE:
             return ModelConfig(model="sonnet", effort="max")
-        if task.complexity == Complexity.HIGH:
-            return ModelConfig(model="sonnet", effort="high")
-        return ModelConfig(model="sonnet", effort="normal")
+        # Consult bandit for standard tasks
+        return route_task(task, bandit_metrics_dir=metrics_dir)
 
     configs = [_route_for_batch(t) for t in tasks]
-    # Sort by model tier (opus > sonnet) then effort (max > high > normal)
-    model_rank = {"opus": 2, "sonnet": 1}
+    # Sort by model tier (opus > sonnet > haiku) then effort (max > high > normal)
+    model_rank = {"opus": 3, "sonnet": 2, "haiku": 1}
     effort_rank = {"max": 3, "high": 2, "normal": 1}
     return max(
         configs,

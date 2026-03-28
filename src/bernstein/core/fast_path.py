@@ -160,12 +160,15 @@ def classify_task(task: Task) -> ClassificationResult:
                 matched_rule=rule_name,
             )
 
-    # Low complexity + small scope → L1 candidate
+    # Low-complexity + small-scope tasks that didn't match L0/L1 patterns
+    # still benefit from the cheapest model — they're simple by metadata.
     if task.complexity == Complexity.LOW and task.scope == Scope.SMALL:
         return ClassificationResult(
             level=TaskLevel.L1,
+            action=None,
             confidence=0.7,
             reason="low complexity + small scope",
+            matched_rule="metadata-l1",
         )
 
     return ClassificationResult(level=TaskLevel.L2, reason="no fast-path match")
@@ -523,6 +526,7 @@ def try_fast_path_batch(
             cost_usd=0.0,
             files_modified=result.files_modified,
         )
+        _persist_fast_path_record(workdir / ".sdd" / "metrics", task, result)
         stats.record(result)
         logger.info(
             "Fast-path completed task %s in %.2fs (saved ~$0.15): %s",

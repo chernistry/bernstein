@@ -3561,3 +3561,229 @@ def recap(archive: str, as_json: bool) -> None:
     parts.append(f"[cyan]{cost_str}[/cyan] spent")
 
     console.print("  ".join(parts))
+
+
+# ---------------------------------------------------------------------------
+# trace — view agent decision trace for a task
+# ---------------------------------------------------------------------------
+
+
+@cli.command("trace")
+@click.argument("task_id")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
+@click.option(
+    "--traces-dir",
+    default=".sdd/traces",
+    show_default=True,
+    hidden=True,
+    help="Directory containing trace files.",
+)
+def trace_cmd(task_id: str, as_json: bool, traces_dir: str) -> None:
+    """Show the step-by-step decision trace for TASK_ID.
+
+    \b
+    Each agent execution is recorded as a structured trace capturing:
+      - Files read (orient), decisions made (plan), edits (edit), tests run (verify)
+      - Model, effort, total duration, and outcome
+
+    \b
+      bernstein trace abc123          # Rich tree view
+      bernstein trace abc123 --json   # Raw JSON
+    """
+    from bernstein.core.traces import TraceStore
+
+    store = TraceStore(Path(traces_dir))
+    traces = store.read_by_task(task_id)
+
+    if not traces:
+        # Also try treating task_id as a trace_id directly
+        t = store.read_by_trace_id(task_id)
+        if t is not None:
+            traces = [t]
+
+    if not traces:
+        console.print(f"[yellow]No trace found for:[/yellow] {task_id}")
+        console.print("[dim]Traces are written to .sdd/traces/ during agent runs.[/dim]")
+        raise SystemExit(1)
+
+    if as_json:
+        click.echo(json.dumps([t.to_dict() for t in traces], indent=2))
+        return
+
+    from rich.panel import Panel
+    from rich.tree import Tree
+
+    for trace in traces:
+        dur = ""
+        if trace.duration_s is not None:
+            m, s = divmod(int(trace.duration_s), 60)
+            dur = f" • {m}m{s:02d}s" if m else f" • {s}s"
+
+        outcome_style = {
+            "success": "[green]success[/green]",
+            "failed": "[red]failed[/red]",
+            "unknown": "[yellow]unknown[/yellow]",
+        }.get(trace.outcome, trace.outcome)
+
+        header = (
+            f"[bold]{trace.agent_role}[/bold] agent "
+            f"[dim]{trace.model}/{trace.effort}[/dim]"
+            f"{dur} • {outcome_style}"
+        )
+        tree = Tree(header)
+        tree.add(f"[dim]trace_id:[/dim] {trace.trace_id}")
+        tree.add(f"[dim]session:[/dim]  {trace.session_id}")
+        tree.add(f"[dim]tasks:[/dim]    {', '.join(trace.task_ids)}")
+
+        steps_node = tree.add(f"[bold cyan]steps ({len(trace.steps)})[/bold cyan]")
+
+        STEP_STYLES: dict[str, str] = {
+            "spawn":    "dim",
+            "orient":   "blue",
+            "plan":     "yellow",
+            "edit":     "magenta",
+            "verify":   "cyan",
+            "complete": "green",
+            "fail":     "red",
+        }
+
+        for step in trace.steps:
+            style = STEP_STYLES.get(step.type, "white")
+            label = f"[{style}]{step.type:8s}[/{style}]  {step.detail}"
+            snode = steps_node.add(label)
+            if step.files:
+                for f in step.files[:5]:
+                    snode.add(f"[dim]{f}[/dim]")
+                if len(step.files) > 5:
+                    snode.add(f"[dim]… and {len(step.files) - 5} more[/dim]")
+
+        console.print(Panel(tree, border_style="blue", expand=False))
+
+
+# ---------------------------------------------------------------------------
+# replay — re-run a task from a trace
+# ---------------------------------------------------------------------------
+
+
+@cli.command("replay")
+@click.argument("trace_id")
+@click.option("--model", default=None, help="Override model (opus/sonnet/haiku).")
+@click.option("--effort", default=None, help="Override effort (max/high/medium/low).")
+@click.option(
+    "--traces-dir",
+    default=".sdd/traces",
+    show_default=True,
+    hidden=True,
+    help="Directory containing trace files.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Show what would be replayed without actually spawning an agent.",
+)
+def replay_cmd(
+    trace_id: str,
+    model: str | None,
+    effort: str | None,
+    traces_dir: str,
+    dry_run: bool,
+) -> None:
+    """Re-run a task from a previous trace.
+
+    Loads the trace identified by TRACE_ID (or task ID), then re-submits
+    the same task(s) to the task server so the orchestrator picks them up.
+
+    \b
+      bernstein replay abc123                # replay with same model
+      bernstein replay abc123 --model opus   # retry with better model
+      bernstein replay abc123 --dry-run      # preview without spawning
+    """
+    from bernstein.core.traces import TraceStore
+
+    store = TraceStore(Path(traces_dir))
+
+    # Try trace_id first, then as task_id
+    trace = store.read_by_trace_id(trace_id)
+    if trace is None:
+        traces = store.read_by_task(trace_id)
+        if traces:
+            trace = traces[-1]  # most recent
+
+    if trace is None:
+        console.print(f"[red]Trace not found:[/red] {trace_id}")
+        console.print("[dim]Use 'bernstein trace <task_id>' to list available traces.[/dim]")
+        raise SystemExit(1)
+
+    effective_model = model or trace.model
+    effective_effort = effort or trace.effort
+
+    console.print(f"[bold]Replaying trace[/bold] [cyan]{trace.trace_id}[/cyan]")
+    console.print(
+        f"  role:    {trace.agent_role}\n"
+        f"  tasks:   {', '.join(trace.task_ids)}\n"
+        f"  model:   [yellow]{effective_model}[/yellow] "
+        f"{'(overridden)' if model else '(original)'}\n"
+        f"  effort:  [yellow]{effective_effort}[/yellow] "
+        f"{'(overridden)' if effort else '(original)'}"
+    )
+
+    if not trace.task_ids:
+        console.print("[red]No task IDs found in trace — cannot replay.[/red]")
+        raise SystemExit(1)
+
+    if dry_run:
+        console.print("\n[dim][dry-run] No tasks submitted.[/dim]")
+        return
+
+    # Re-submit tasks via the task server: re-open them if they exist,
+    # or re-create from stored snapshots if available.
+    submitted: list[str] = []
+    errors: list[str] = []
+
+    for task_id in trace.task_ids:
+        # Find snapshot for this task (stored in trace at spawn time)
+        snapshot = next(
+            (s for s in trace.task_snapshots if s.get("id") == task_id),
+            None,
+        )
+
+        # Try fetching current task from server to get fresh metadata
+        current = _server_get(f"/tasks/{task_id}")
+        if current is not None:
+            # Re-create as a new task (copy title/description, use new model/effort)
+            src = current
+        elif snapshot is not None:
+            src = snapshot
+        else:
+            errors.append(f"{task_id}: not found on server and no snapshot available")
+            continue
+
+        payload: dict[str, Any] = {
+            "title": f"[replay] {src.get('title', task_id)}",
+            "description": src.get("description", ""),
+            "role": src.get("role", trace.agent_role),
+            "priority": src.get("priority", 2),
+            "scope": src.get("scope", "medium"),
+            "complexity": src.get("complexity", "medium"),
+            "model": effective_model,
+            "effort": effective_effort,
+        }
+        resp = _server_post("/tasks", payload)
+        if resp is not None:
+            new_id = resp.get("id", "?")
+            submitted.append(new_id)
+        else:
+            errors.append(f"{task_id}: failed to create replay task on server")
+
+    if submitted:
+        console.print(f"\n[green]Submitted {len(submitted)} task(s) for replay:[/green]")
+        for tid in submitted:
+            console.print(f"  [cyan]{tid}[/cyan]")
+        console.print("[dim]Run 'bernstein run' to process them.[/dim]")
+
+    for err in errors:
+        console.print(f"[red]Error:[/red] {err}")
+
+    if errors and not submitted:
+        raise SystemExit(1)

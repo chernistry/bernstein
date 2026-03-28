@@ -22,6 +22,7 @@ from bernstein.core.context import append_decision, refresh_knowledge_base
 from bernstein.core.evolution import EvolutionCoordinator
 from bernstein.core.janitor import verify_task
 from bernstein.core.metrics import get_collector
+from bernstein.core.retrospective import generate_retrospective
 from bernstein.core.models import (
     AgentSession,
     OrchestratorConfig,
@@ -590,6 +591,7 @@ class Orchestrator:
     # Priority rotation for evolve mode — each cycle emphasizes a different area
     _EVOLVE_FOCUS_AREAS: ClassVar[list[str]] = [
         "new_features",
+        "user_interface",
         "test_coverage",
         "code_quality",
         "performance",
@@ -853,6 +855,61 @@ class Orchestrator:
         self._pending_test_future = self._executor.submit(self._run_pytest)
         return info  # results available on the next call
 
+    @staticmethod
+    def _generate_evolve_commit_msg(staged_files: list[str]) -> str:
+        """Build a short, descriptive commit message from the list of staged files.
+
+        Categorises changed paths by subsystem and produces a message like
+        "Evolve: improve dashboard, fix orchestrator" instead of a generic one.
+
+        Args:
+            staged_files: Paths returned by ``git diff --cached --name-only``.
+
+        Returns:
+            A one-line commit message under ~72 characters.
+        """
+        if not staged_files:
+            return "Evolve: housekeeping"
+
+        # Map specific filenames / path prefixes to short labels
+        LABEL_RULES: list[tuple[str, str]] = [
+            ("src/bernstein/cli/dashboard", "improve dashboard"),
+            ("src/bernstein/cli/main", "update CLI"),
+            ("src/bernstein/cli/cost", "add cost tracking"),
+            ("src/bernstein/cli/", "update CLI"),
+            ("src/bernstein/core/orchestrator", "fix orchestrator"),
+            ("src/bernstein/core/server", "fix server"),
+            ("src/bernstein/core/models", "extend models"),
+            ("src/bernstein/core/spawner", "fix spawner"),
+            ("src/bernstein/core/", "update core"),
+            ("src/bernstein/adapters/", "refactor adapters"),
+            ("src/bernstein/evolution/", "tune evolution"),
+            ("src/bernstein/agents/", "update agents"),
+            ("tests/", "update tests"),
+            ("docs/", "update docs"),
+            ("README", "update README"),
+            ("CONTRIBUTING", "update CONTRIBUTING"),
+            (".sdd/backlog/", "add backlog tasks"),
+        ]
+
+        seen: set[str] = set()
+        labels: list[str] = []
+        for path in staged_files:
+            for prefix, label in LABEL_RULES:
+                if prefix in path and label not in seen:
+                    seen.add(label)
+                    labels.append(label)
+                    break
+
+        if not labels:
+            # Fallback: name the first changed file
+            first = staged_files[0].split("/")[-1]
+            labels = [f"update {first}"]
+
+        # Keep the message short: at most 3 segments
+        summary = "; ".join(labels[:3])
+        return f"Evolve: {summary}"
+
     def _evolve_auto_commit(self) -> bool:
         """Auto-commit and push any uncommitted changes from the last cycle.
 
@@ -894,9 +951,17 @@ class Orchestrator:
                 )
                 return False
 
+            # Build a descriptive commit message from staged files
+            staged = subprocess.run(
+                ["git", "diff", "--cached", "--name-only"],
+                capture_output=True, text=True, cwd=self._workdir, timeout=10,
+            )
+            staged_files = [f.strip() for f in staged.stdout.strip().splitlines() if f.strip()]
+            commit_msg = self._generate_evolve_commit_msg(staged_files)
+
             # Commit
             subprocess.run(
-                ["git", "commit", "-m", "Auto-evolve: improvements from self-development cycle"],
+                ["git", "commit", "-m", commit_msg],
                 cwd=self._workdir, timeout=10,
             )
 
@@ -953,6 +1018,12 @@ class Orchestrator:
 
         focus_instructions = {
             "new_features": "Focus on missing features that block real usage.",
+            "user_interface": (
+                "Focus on the CLI dashboard and user-facing experience. "
+                "Improve the Textual dashboard (src/bernstein/cli/dashboard.py): "
+                "better live metrics display, clearer task status, more useful panels. "
+                "Also improve CLI output quality and error messages."
+            ),
             "test_coverage": "Focus on test gaps and missing edge-case coverage.",
             "code_quality": "Focus on code smells, type safety, and refactoring.",
             "performance": "Focus on performance bottlenecks and efficiency.",
@@ -2046,6 +2117,14 @@ class Orchestrator:
         self._summary_written = True
         logger.info("Run complete. Summary at .sdd/runtime/summary.md")
 
+        generate_retrospective(
+            done_tasks=done_tasks,
+            failed_tasks=failed_tasks,
+            collector=collector,
+            runtime_dir=runtime_dir,
+            run_start_ts=self._run_start_ts,
+        )
+
     def _log_summary(self, result: TickResult) -> None:
         """Write a one-line summary and agent state snapshot each tick.
 
@@ -2118,6 +2197,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8052)
     parser.add_argument("--adapter", type=str, default="claude")
+    parser.add_argument("--cells", type=int, default=1, help="Number of parallel cells (1=single-cell)")
     args = parser.parse_args()
 
     workdir = Path.cwd()
@@ -2213,8 +2293,33 @@ if __name__ == "__main__":
             dry_run=dry_run,
         )
 
-        orchestrator = Orchestrator(config=config, spawner=spawner, workdir=workdir, router=router)
-        orchestrator.run()
+        if args.cells > 1:
+            from bernstein.core.models import Cell
+            from bernstein.core.multi_cell import MultiCellOrchestrator
+
+            multi_orchestrator = MultiCellOrchestrator(
+                config=config,
+                spawner=spawner,
+                workdir=workdir,
+            )
+            for i in range(args.cells):
+                cell_id = f"cell-{i + 1}"
+                role = "vp" if i == 0 else "manager"
+                cell = Cell(
+                    id=cell_id,
+                    name=f"Cell {i + 1}",
+                    role=role,
+                    max_workers=config.max_agents,
+                )
+                multi_orchestrator.register_cell(cell)
+            logger.info(
+                "Starting MultiCellOrchestrator with %d cells (VP on cell-1)",
+                args.cells,
+            )
+            multi_orchestrator.run()
+        else:
+            orchestrator = Orchestrator(config=config, spawner=spawner, workdir=workdir, router=router)
+            orchestrator.run()
     except Exception:
         logger.exception("Orchestrator crashed")
         sys.exit(1)

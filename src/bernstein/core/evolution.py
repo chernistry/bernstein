@@ -30,8 +30,15 @@ from bernstein.evolution import (
     UpgradeProposal,
     UpgradeStatus,
 )
+from bernstein.evolution.governance import (
+    AdaptiveGovernor,
+    EvolutionWeights,
+    GovernanceEntry,
+    ProjectContext,
+)
 
 __all__ = [
+    "AdaptiveGovernor",
     "AgentMetrics",
     "AnalysisEngine",
     "AnalysisTrigger",
@@ -39,11 +46,14 @@ __all__ = [
     "ApprovalMode",
     "CostMetrics",
     "EvolutionCoordinator",
+    "EvolutionWeights",
     "FileMetricsCollector",
     "FileUpgradeExecutor",
+    "GovernanceEntry",
     "ImprovementOpportunity",
     "MetricRecord",
     "MetricsCollector",
+    "ProjectContext",
     "QualityMetrics",
     "TaskMetrics",
     "TrendAnalysis",

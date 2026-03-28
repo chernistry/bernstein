@@ -418,7 +418,10 @@ class TaskContextBuilder:
         owned = sorted(set(owned))
 
         if not owned:
-            return ""
+            # Auto-discover relevant files from task text when none specified
+            owned = self._discover_relevant_files(tasks)
+            if not owned:
+                return ""
 
         sections: list[str] = []
         sections.append("### Context (auto-generated)")
@@ -502,6 +505,65 @@ class TaskContextBuilder:
             lines[0] += " (file not found)"
 
         return "\n".join(lines)
+
+    def _discover_relevant_files(
+        self, tasks: list[Task], max_files: int = 8
+    ) -> list[str]:
+        """Discover relevant files from task title and description keywords.
+
+        Extracts meaningful keywords from task text and matches them against
+        git-tracked filenames and directory paths. Returns the best matches
+        so agents get orientation even when owned_files is empty.
+
+        Args:
+            tasks: Batch of tasks to extract keywords from.
+            max_files: Maximum number of files to return.
+
+        Returns:
+            List of relative file paths (may be empty).
+        """
+        # Build text corpus from all tasks
+        text_parts: list[str] = []
+        for task in tasks:
+            text_parts.append(task.title)
+            text_parts.append(task.description)
+        text = " ".join(text_parts).lower()
+
+        # Extract keywords: split on non-alphanumeric, filter noise
+        import re as _re
+
+        tokens = _re.findall(r"[a-z][a-z0-9_]{2,}", text)
+        _STOP_WORDS = frozenset({
+            "the", "and", "for", "that", "this", "with", "from", "are", "was",
+            "will", "have", "has", "not", "can", "but", "all", "each", "should",
+            "when", "task", "tasks", "implement", "create", "add", "update",
+            "fix", "make", "use", "using", "into", "file", "files", "code",
+            "new", "one", "two", "need", "also", "after", "before", "then",
+            "retry", "completed", "done", "write", "read", "check", "test",
+        })
+        keywords = sorted(set(t for t in tokens if t not in _STOP_WORDS))
+        if not keywords:
+            return []
+
+        # Get all tracked files
+        all_files = _gc_ls_files(self._workdir)
+        if not all_files:
+            return []
+
+        # Score each file by keyword matches in its path
+        scored: list[tuple[int, str]] = []
+        for fpath in all_files:
+            fpath_lower = fpath.lower()
+            # Skip non-source files and hidden paths
+            if fpath_lower.startswith(".") and not fpath_lower.startswith(".sdd/"):
+                continue
+            score = sum(1 for kw in keywords if kw in fpath_lower)
+            if score > 0:
+                scored.append((score, fpath))
+
+        # Sort by score descending, take top N
+        scored.sort(key=lambda x: (-x[0], x[1]))
+        return [fpath for _, fpath in scored[:max_files]]
 
     def _load_recent_decisions(self) -> str:
         """Load recent decisions from knowledge base.

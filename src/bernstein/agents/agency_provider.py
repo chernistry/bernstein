@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from pathlib import Path
+import subprocess
+import time
+from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -25,6 +25,9 @@ _DIVISION_ROLE_MAP: dict[str, str] = {
     "engineering": "backend",
     "design": "architect",
 }
+
+_DEFAULT_AGENCY_SOURCE = "https://github.com/msitarzewski/agency-agents"
+_SYNC_TTL_SECONDS = 86400  # 24 hours
 
 
 def _slugify(name: str) -> str:
@@ -110,6 +113,10 @@ class AgencyProvider:
     def _parse_file(path: Path, division: str) -> list[CatalogAgent]:
         """Parse a single Agency markdown file into ``CatalogAgent`` instances.
 
+        Extracts ``name``, ``description``, ``capabilities``, and ``tools``
+        from the YAML frontmatter, and uses the markdown body as the system
+        prompt.
+
         Args:
             path: Path to a ``.md`` file.
             division: Agency division name (parent subdirectory name).
@@ -136,6 +143,18 @@ class AgencyProvider:
         role = _division_to_role(division)
         agent_id = f"agency:{_slugify(name)}"
 
+        # Extract capabilities list (e.g. [api-design, authentication, jwt])
+        raw_caps: Any = fm.get("capabilities") or []
+        capabilities: list[str] = (
+            [str(c) for c in raw_caps] if isinstance(raw_caps, list) else []
+        )
+
+        # Extract preferred tools list (e.g. [pytest, ruff, mypy])
+        raw_tools: Any = fm.get("tools") or []
+        tools: list[str] = (
+            [str(t) for t in raw_tools] if isinstance(raw_tools, list) else []
+        )
+
         return [
             CatalogAgent(
                 name=name,
@@ -143,7 +162,8 @@ class AgencyProvider:
                 description=description,
                 system_prompt=body,
                 id=agent_id,
-                tools=[],
+                tools=tools,
+                capabilities=capabilities,
                 priority=100,
                 source="agency",
             )
@@ -181,3 +201,76 @@ class AgencyProvider:
             All parsed ``CatalogAgent`` instances.
         """
         return await self.fetch_agents()
+
+    # ------------------------------------------------------------------
+    # Auto-sync helpers
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def default_cache_path(cls) -> Path:
+        """Return the default Agency catalog cache path: ``~/.bernstein/catalogs/agency``."""
+        return Path.home() / ".bernstein" / "catalogs" / "agency"
+
+    @classmethod
+    def sync_catalog(
+        cls,
+        target: Path | None = None,
+        url: str = _DEFAULT_AGENCY_SOURCE,
+        *,
+        force: bool = False,
+    ) -> tuple[bool, str]:
+        """Clone or update the Agency catalog repo to *target*.
+
+        On first call, does a shallow ``git clone``.  On subsequent calls,
+        does ``git pull --ff-only``.  Skips the network request if the last
+        sync was less than ``_SYNC_TTL_SECONDS`` ago, unless *force* is True.
+
+        Args:
+            target: Local directory to clone into.  Defaults to
+                :meth:`default_cache_path`.
+            url: Remote git URL to clone from.
+            force: Bypass the TTL check and always sync.
+
+        Returns:
+            ``(success, message)`` where *message* is suitable for display.
+        """
+        if target is None:
+            target = cls.default_cache_path()
+
+        # TTL check — skip if synced recently
+        marker = target.parent / f".{target.name}.synced"
+        if not force and marker.exists():
+            age = time.time() - marker.stat().st_mtime
+            if age < _SYNC_TTL_SECONDS:
+                return True, f"up to date (synced {age / 3600:.1f}h ago)"
+
+        if target.exists() and (target / ".git").exists():
+            # Existing clone — just pull
+            result = subprocess.run(
+                ["git", "-C", str(target), "pull", "--ff-only", "--quiet"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if result.returncode != 0:
+                return False, f"git pull failed: {result.stderr.strip()}"
+            action = "updated"
+        else:
+            # Fresh clone (shallow to keep it fast)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists():
+                import shutil
+
+                shutil.rmtree(target)
+            result = subprocess.run(
+                ["git", "clone", "--depth=1", "--quiet", url, str(target)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if result.returncode != 0:
+                return False, f"git clone failed: {result.stderr.strip()}"
+            action = "cloned"
+
+        marker.touch()
+        return True, f"Agency catalog {action} from {url}"

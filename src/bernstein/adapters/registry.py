@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from bernstein.adapters.aider import AiderAdapter
 from bernstein.adapters.base import CLIAdapter
 from bernstein.adapters.claude import ClaudeCodeAdapter
 from bernstein.adapters.codex import CodexAdapter
@@ -10,6 +11,7 @@ from bernstein.adapters.generic import GenericAdapter
 from bernstein.adapters.qwen import QwenAdapter
 
 _ADAPTERS: dict[str, type[CLIAdapter] | CLIAdapter] = {
+    "aider": AiderAdapter,
     "claude": ClaudeCodeAdapter,
     "codex": CodexAdapter,
     "gemini": GeminiAdapter,
@@ -18,7 +20,7 @@ _ADAPTERS: dict[str, type[CLIAdapter] | CLIAdapter] = {
 
 
 def get_adapter(cli_name: str) -> CLIAdapter:
-    """Get adapter by name: 'claude', 'codex', 'gemini', or 'generic'.
+    """Get adapter by name: 'aider', 'claude', 'codex', 'gemini', 'qwen', or 'generic'.
 
     For 'generic', returns a GenericAdapter with default settings.
     For known adapters, instantiates the corresponding class.

@@ -22,6 +22,7 @@ import httpx
 
 from bernstein.core.bulletin import BulletinBoard, BulletinMessage
 from bernstein.core.cluster import NodeHeartbeatClient
+from bernstein.core.notifications import NotificationManager, NotificationPayload
 from bernstein.core.context import append_decision, refresh_knowledge_base
 from bernstein.core.cost_tracker import CostTracker
 from bernstein.core.evolution import EvolutionCoordinator, UpgradeStatus
@@ -33,8 +34,10 @@ from bernstein.core.fast_path import (
     load_fast_path_config,
     try_fast_path_batch,
 )
+from bernstein.core.approval import ApprovalGate, ApprovalMode
 from bernstein.core.graph import TaskGraph
 from bernstein.core.janitor import verify_task
+from bernstein.core.agent_signals import AgentSignalManager
 from bernstein.core.metrics import get_collector
 from bernstein.core.models import (
     AgentSession,
@@ -49,6 +52,7 @@ from bernstein.core.models import (
 from bernstein.core.retrospective import generate_retrospective
 from bernstein.core.router import TierAwareRouter, load_providers_from_yaml
 from bernstein.core.signals import read_unresolved_pivots
+from bernstein.evolution.governance import AdaptiveGovernor, GovernanceEntry, ProjectContext
 from bernstein.evolution.types import MetricsRecord
 
 if TYPE_CHECKING:
@@ -378,11 +382,13 @@ class Orchestrator:
         router: TierAwareRouter | None = None,
         bulletin: BulletinBoard | None = None,
         cluster_config: ClusterConfig | None = None,
+        notifier: NotificationManager | None = None,
     ) -> None:
         self._config = config
         self._spawner = spawner
         self._workdir = workdir
         self._bulletin: BulletinBoard | None = bulletin
+        self._notifier: NotificationManager | None = notifier
         self._cluster_config = cluster_config
         _headers: dict[str, str] = {}
         if config.auth_token:
@@ -397,6 +403,10 @@ class Orchestrator:
         self._task_to_session: dict[str, str] = {}  # task_id → agent_id (reverse index)
         self._processed_done_tasks: set[str] = set()  # avoid re-processing done tasks
         self._retried_task_ids: set[str] = set()  # tasks that already have a retry queued
+        self._decomposed_task_ids: set[str] = set()  # large tasks queued for decomposition
+        # Crash recovery: per-task crash count and preserved worktrees for resume
+        self._crash_counts: dict[str, int] = {}  # task_id → crash count
+        self._preserved_worktrees: dict[str, "Path"] = {}  # task_id → worktree to reuse
         self._running = False
         self._tick_count = 0
         # Track spawn failures per batch for backoff: task_ids → (fail_count, last_fail_ts)
@@ -426,6 +436,9 @@ class Orchestrator:
         else:
             self._evolution: EvolutionCoordinator | None = None
 
+        # Adaptive governance: adjusts metric weights each evolution cycle
+        self._governor = AdaptiveGovernor(state_dir=workdir / ".sdd")
+
         # Pre-initialize the global metrics collector with the correct path so
         # subsequent calls to get_collector() (without args) write to the right
         # directory regardless of cwd at call time.
@@ -448,6 +461,33 @@ class Orchestrator:
             run_id=run_id,
             budget_usd=config.budget_usd,
         )
+
+        # Approval gate: controls whether verified work is merged directly,
+        # held for interactive review, or pushed as a GitHub PR.
+        # merge_strategy="pr" activates PR mode by default; "direct" forces auto.
+        # An explicit approval override ("review" or "pr") takes precedence.
+        if config.approval != "auto":
+            _effective_approval = config.approval
+        elif config.merge_strategy == "direct":
+            _effective_approval = "auto"
+        else:
+            # merge_strategy="pr" (default) → PR mode
+            _effective_approval = "pr"
+        _approval_mode = ApprovalMode(_effective_approval)
+        self._approval_gate: ApprovalGate | None = (
+            ApprovalGate(
+                mode=_approval_mode,
+                workdir=workdir,
+                auto_merge=config.auto_merge,
+                pr_labels=config.pr_labels,
+            )
+            if _approval_mode != ApprovalMode.AUTO
+            else None
+        )
+
+        # Agent signal manager: writes WAKEUP/SHUTDOWN files into
+        # .sdd/runtime/signals/{session_id}/ for stale agent detection.
+        self._signal_mgr = AgentSignalManager(self._workdir)
 
         # Cluster heartbeat client: when cluster mode is enabled and this node
         # is a worker (server_url points to a remote central server), send
@@ -500,6 +540,23 @@ class Orchestrator:
                 content=content,
             )
         )
+
+    def _notify(self, event: str, title: str, body: str, **metadata: Any) -> None:
+        """Fire a notification event if a NotificationManager is configured.
+
+        Errors are swallowed inside NotificationManager; this wrapper exists
+        only to build the payload and guard against a missing notifier.
+
+        Args:
+            event: Notification event name (e.g. ``"run.completed"``).
+            title: Short human-readable title.
+            body: Longer description / summary.
+            **metadata: Arbitrary key-value pairs attached to the payload.
+        """
+        if self._notifier is None:
+            return
+        payload = NotificationPayload(event=event, title=title, body=body, metadata=dict(metadata))
+        self._notifier.notify(event, payload)
 
     # -- Core tick -----------------------------------------------------------
 
@@ -633,6 +690,16 @@ class Orchestrator:
                 _bs.spent_usd,
                 _bs.percentage_used * 100,
             )
+            self._notify(
+                "budget.warning",
+                "Budget cap reached",
+                f"Spending cap of ${_bs.budget_usd:.2f} reached. "
+                f"${_bs.spent_usd:.2f} spent ({_bs.percentage_used * 100:.0f}%). "
+                "Agent spawning paused.",
+                budget_usd=round(_bs.budget_usd, 2),
+                spent_usd=round(_bs.spent_usd, 4),
+                percent_used=round(_bs.percentage_used * 100, 1),
+            )
         else:
             self._claim_and_spawn_batches(batches, alive_count, assigned_task_ids, done_ids, result)
 
@@ -644,6 +711,9 @@ class Orchestrator:
         for task in failed_tasks:
             if self._maybe_retry_task(task):
                 result.retried.append(task.id)
+
+        # 4c. Check heartbeat-based staleness; send WAKEUP/SHUTDOWN as needed
+        self._check_stale_agents()
 
         # 5. Reap dead/stale agents and fail their tasks
         self._reap_dead_agents(result, tasks_by_status)
@@ -698,6 +768,7 @@ class Orchestrator:
             self._heartbeat_client.start()
             logger.info("Cluster heartbeat client started")
         self._post_bulletin("status", "run started")
+        self._notify("run.started", "Bernstein run started", "Agents are being spawned.")
         consecutive_failures = 0
         max_consecutive_failures = 10
         while self._running:
@@ -740,16 +811,60 @@ class Orchestrator:
         logger.info("Orchestrator stopped")
 
     def stop(self) -> None:
-        """Signal the run loop to exit after the current tick."""
+        """Signal the run loop to exit after the current tick.
+
+        Also writes SHUTDOWN signal files to all active agents so they can
+        save WIP and exit cleanly before the orchestrator terminates.
+        """
         self._running = False
+        with contextlib.suppress(Exception):
+            self._send_shutdown_signals(reason="orchestrator_stopped")
+
+    def _save_session_state(self) -> None:
+        """Persist session state for fast resume on next start.
+
+        Queries the task server for current task statuses and writes a
+        session snapshot to ``.sdd/runtime/session.json``.  Errors are
+        silently caught — session saving is best-effort.
+        """
+        try:
+            from bernstein.core.session import SessionState, save_session
+
+            resp = self._client.get(f"{self._config.server_url}/tasks")
+            resp.raise_for_status()
+            tasks_data = resp.json()
+            task_list: list[dict[str, Any]] = []
+            if isinstance(tasks_data, list):
+                task_list = tasks_data
+            elif isinstance(tasks_data, dict):
+                task_list = tasks_data.get("tasks", [])
+
+            done_ids = [t["id"] for t in task_list if t.get("status") == "done"]
+            pending_ids = [t["id"] for t in task_list if t.get("status") in ("claimed", "in_progress")]
+
+            state = SessionState(
+                saved_at=time.time(),
+                goal="",
+                completed_task_ids=done_ids,
+                pending_task_ids=pending_ids,
+                cost_spent=self._cost_tracker.spent_usd,
+            )
+            save_session(self._workdir, state)
+            logger.info("Session state saved (%d done, %d pending)", len(done_ids), len(pending_ids))
+        except Exception:
+            logger.debug("Failed to save session state (best-effort)", exc_info=True)
 
     def _cleanup(self) -> None:
         """Release resources held by the orchestrator.
 
-        Shuts down the background thread pool (which may be running pytest or
-        ruff subprocesses) and cancels any pending futures.  Without this,
-        ``uv run pytest`` processes survive parent death and eat 40 GB+ RAM.
+        Saves session state for fast resume, then shuts down the background
+        thread pool (which may be running pytest or ruff subprocesses) and
+        cancels any pending futures.  Without this, ``uv run pytest`` processes
+        survive parent death and eat 40 GB+ RAM.
         """
+        # Save session state before releasing resources
+        self._save_session_state()
+
         # Stop cluster heartbeat client (unregisters from central server)
         if self._heartbeat_client is not None:
             self._heartbeat_client.stop()
@@ -870,6 +985,44 @@ class Orchestrator:
 
         # Step 3: COMMIT — auto-commit if tests pass
         committed = self._evolve_auto_commit()
+
+        # Step 3b: GOVERN — adaptively adjust metric weights for this cycle
+        weights_before = self._governor.get_current_weights()
+        test_pass_rate = (
+            test_info.get("passed", 0)
+            / max(test_info.get("passed", 0) + test_info.get("failed", 0), 1)
+        )
+        gov_context = ProjectContext(
+            cycle_number=cycle_number,
+            test_pass_rate=test_pass_rate,
+            lint_violations=evolve_cfg.get("_lint_violations", 0),
+            security_issues_last_5_cycles=evolve_cfg.get("_security_issues", 0),
+            codebase_size_files=evolve_cfg.get("_codebase_files", 0),
+            consecutive_empty_cycles=consecutive_empty,
+        )
+        weights_after, weight_reason = self._governor.adjust_weights(weights_before, gov_context)
+        self._governor.persist_weights(weights_after, reason=weight_reason)
+        self._governor.log_decision(
+            GovernanceEntry(
+                cycle=cycle_number,
+                timestamp=datetime.now(UTC).isoformat(),
+                weights_before=weights_before.to_dict(),
+                weights_after=weights_after.to_dict(),
+                weight_change_reason=weight_reason,
+                proposals_evaluated=tasks_completed + tasks_failed,
+                proposals_applied=tasks_completed,
+                risk_scores=[],
+                outcome_metrics={
+                    "test_pass_rate": test_pass_rate,
+                    "committed": 1.0 if committed else 0.0,
+                },
+            )
+        )
+        logger.info(
+            "Evolve: governance cycle %d — weights adjusted (%s)",
+            cycle_number,
+            weight_reason,
+        )
 
         # Step 4: PLAN — spawn manager with priority rotation
         focus_areas: list[str] = list(self._EVOLVE_FOCUS_AREAS)
@@ -1479,6 +1632,9 @@ class Orchestrator:
                 self._release_task_to_session(session.task_ids)
                 # Handle orphaned tasks
                 for task_id in session.task_ids:
+                    # Increment crash count and preserve worktree when using resume strategy
+                    self._crash_counts[task_id] = self._crash_counts.get(task_id, 0) + 1
+                    self._maybe_preserve_worktree(session, task_id)
                     self._handle_orphaned_task(task_id, session, tasks_snapshot)
 
         # Purge dead agents to prevent unbounded dict growth (memory leak fix)
@@ -1512,6 +1668,59 @@ class Orchestrator:
             for tid in stale_tasks:
                 del self._task_to_session[tid]
 
+    def _maybe_preserve_worktree(self, session: AgentSession, task_id: str) -> None:
+        """Preserve the crashed agent's worktree for resume if policy permits.
+
+        Stores the worktree path in ``_preserved_worktrees`` so the next spawn
+        for this task can call ``spawn_for_resume`` instead of creating a fresh
+        worktree.  Only applies when ``recovery == "resume"`` and the crash
+        count is still within ``max_crash_retries``.
+
+        Args:
+            session: The crashed agent's session.
+            task_id: ID of the task that was being worked on.
+        """
+        if self._config.recovery != "resume":
+            return
+        crash_count = self._crash_counts.get(task_id, 0)
+        if crash_count > self._config.max_crash_retries:
+            return
+        worktree_path = self._spawner._worktree_paths.get(session.id)  # type: ignore[attr-defined]
+        if worktree_path is None:
+            return
+        self._preserved_worktrees[task_id] = worktree_path
+        logger.info(
+            "Crash recovery: preserving worktree %s for task %s (crash #%d)",
+            worktree_path,
+            task_id,
+            crash_count,
+        )
+
+    def _get_changed_files_in_worktree(self, worktree_path: "Path") -> list[str]:
+        """Return the list of files changed in a worktree relative to HEAD.
+
+        Args:
+            worktree_path: Path to the git worktree.
+
+        Returns:
+            List of changed file paths, or empty list on any error.
+        """
+        import subprocess
+
+        try:
+            result = subprocess.run(
+                ["git", "diff", "--name-only", "HEAD"],
+                cwd=worktree_path,
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                return [f for f in result.stdout.splitlines() if f.strip()]
+        except Exception as exc:
+            logger.debug("_get_changed_files_in_worktree failed for %s: %s", worktree_path, exc)
+        return []
+
     def _check_kill_signals(self, result: TickResult) -> None:
         """Process ``.kill`` signal files from the runtime directory.
 
@@ -1535,6 +1744,55 @@ class Orchestrator:
             logger.info("Kill signal received for %s, terminating", session_id)
             self._spawner.kill(session)
             result.reaped.append(session_id)
+
+    def _send_shutdown_signals(self, reason: str) -> None:
+        """Write SHUTDOWN signal files to all currently active agents.
+
+        Called when ``bernstein stop`` is issued or the budget is hit so
+        agents can save WIP before the orchestrator exits.
+
+        Args:
+            reason: Human-readable reason for the shutdown.
+        """
+        for session in self._agents.values():
+            if session.status == "dead":
+                continue
+            task_title = ", ".join(session.task_ids) if session.task_ids else "unknown task"
+            with contextlib.suppress(OSError):
+                self._signal_mgr.write_shutdown(session.id, reason=reason, task_title=task_title)
+
+    def _check_stale_agents(self) -> None:
+        """Write WAKEUP / SHUTDOWN signals for agents that stopped heartbeating.
+
+        Thresholds:
+        - 60s without a heartbeat  → WAKEUP
+        - 120s without a heartbeat → SHUTDOWN
+        - 180s without a heartbeat → handled by wall-clock kill in _reap_dead_agents
+
+        Only fires when an agent has at least one heartbeat on record (agents
+        that never wrote a heartbeat are assumed to not support the protocol).
+        """
+        now = time.time()
+        for session in self._agents.values():
+            if session.status == "dead":
+                continue
+            hb = self._signal_mgr.read_heartbeat(session.id)
+            if hb is None:
+                continue  # Agent never wrote a heartbeat — skip
+            age = now - hb.timestamp
+            task_title = ", ".join(session.task_ids) if session.task_ids else "unknown task"
+            elapsed = now - session.spawn_ts
+            if age >= 120:
+                with contextlib.suppress(OSError):
+                    self._signal_mgr.write_shutdown(session.id, reason="no_heartbeat_120s", task_title=task_title)
+            elif age >= 60:
+                with contextlib.suppress(OSError):
+                    self._signal_mgr.write_wakeup(
+                        session.id,
+                        task_title=task_title,
+                        elapsed_s=elapsed,
+                        last_activity_ago_s=age,
+                    )
 
     def _handle_orphaned_task(
         self,
@@ -1871,7 +2129,14 @@ class Orchestrator:
         effort_ladder = ["low", "medium", "high", "max"]
         model_ladder = ["haiku", "sonnet", "opus"]
 
-        if next_retry == 1:
+        from bernstein.core.models import Scope as _Scope
+
+        # High-stakes roles/scopes always get opus/max on any retry
+        _high_stakes_roles = ("architect", "security")
+        if task.scope == _Scope.LARGE or task.role in _high_stakes_roles:
+            new_model = "opus"
+            new_effort = "max"
+        elif next_retry == 1:
             # First retry: bump effort one level, keep model
             idx = effort_ladder.index(current_effort) if current_effort in effort_ladder else 2
             new_effort = effort_ladder[min(idx + 1, len(effort_ladder) - 1)]
@@ -1891,6 +2156,9 @@ class Orchestrator:
         new_title = f"[RETRY {next_retry}] {base_title}"
         new_description = f"[RETRY {next_retry}] {task.description}"
 
+        # Progressive timeout: each retry multiplies estimated_minutes by (retry_count + 2)
+        progressive_minutes = task.estimated_minutes * (retry_count + 2)
+
         payload: dict[str, Any] = {
             "title": new_title,
             "description": new_description,
@@ -1898,7 +2166,7 @@ class Orchestrator:
             "priority": task.priority,
             "scope": task.scope.value,
             "complexity": task.complexity.value,
-            "estimated_minutes": task.estimated_minutes,
+            "estimated_minutes": progressive_minutes,
             "model": new_model,
             "effort": new_effort,
         }
@@ -2018,9 +2286,23 @@ class Orchestrator:
 
         if retry_count < max_retries:
             new_description = f"[retry:{retry_count + 1}] {base_description}"
-            # Escalate model on retry: sonnet→opus, effort→high
-            retry_model = "opus" if retry_count >= 1 else (task.model or "sonnet")
-            retry_effort = "high" if retry_count >= 1 else (task.effort or "high")
+            # Escalate model on retry: large/architect/security always opus/max;
+            # other roles: sonnet→opus on 2nd retry, effort→high on 1st retry.
+            from bernstein.core.models import Scope as _Scope
+
+            _high_stakes_roles = ("architect", "security")
+            if task.scope == _Scope.LARGE or task.role in _high_stakes_roles:
+                retry_model = "opus"
+                retry_effort = "max"
+            elif retry_count >= 1:
+                retry_model = "opus"
+                retry_effort = "high"
+            else:
+                retry_model = task.model or "sonnet"
+                retry_effort = task.effort or "high"
+            # Progressive timeout: each retry multiplies estimated_minutes by (retry_count + 2)
+            # so retry 1 doubles the time, retry 2 triples it, giving agents more runway.
+            progressive_minutes = task.estimated_minutes * (retry_count + 2)
             task_body: dict[str, Any] = {
                 "title": f"[RETRY {retry_count + 1}] {task.title}",
                 "description": new_description,
@@ -2028,7 +2310,7 @@ class Orchestrator:
                 "priority": task.priority,
                 "scope": task.scope.value,
                 "complexity": task.complexity.value,
-                "estimated_minutes": task.estimated_minutes,
+                "estimated_minutes": progressive_minutes,
                 "depends_on": task.depends_on,
                 "owned_files": task.owned_files,
                 "task_type": task.task_type.value,
@@ -2057,6 +2339,93 @@ class Orchestrator:
                 _fail_task(self._client, base, task_id, f"Retried: {reason}")
         else:
             _fail_task(self._client, base, task_id, f"Max retries exceeded: {reason}")
+
+    def _should_auto_decompose(self, task: Task) -> bool:
+        """Return True if a large task should be decomposed into subtasks.
+
+        Decomposition is triggered for scope=LARGE tasks that haven't been
+        queued for decomposition yet in this orchestrator session.
+
+        Args:
+            task: The task to check.
+
+        Returns:
+            True if the task should be auto-decomposed.
+        """
+        from bernstein.core.models import Scope
+
+        # Already queued for decomposition in this session
+        if task.id in self._decomposed_task_ids:
+            return False
+        # Manager-created decompose tasks should never be re-decomposed
+        if task.title.startswith("[DECOMPOSE]"):
+            return False
+        # Tasks that have failed 2+ times should be decomposed regardless of scope —
+        # they've proven too large for a single agent session.
+        retry_match = re.match(r"^\[RETRY (\d+)\]", task.title)
+        if retry_match:
+            return int(retry_match.group(1)) >= 2
+        # Fresh tasks: only decompose scope=LARGE
+        return task.scope == Scope.LARGE
+
+    def _auto_decompose_task(self, task: Task) -> None:
+        """Queue a large task for decomposition by spawning a planner manager.
+
+        Creates a lightweight manager task (haiku/high) that reads the original
+        task and creates 3-5 atomic subtasks. The original large task stays open
+        until the subtasks are done.
+
+        Args:
+            task: The large task to decompose.
+        """
+        base = self._config.server_url
+
+        manager_description = (
+            f"A large task needs to be decomposed into 3-5 smaller, atomic subtasks.\n\n"
+            f"## Original large task (id={task.id})\n"
+            f"**Title:** {task.title}\n"
+            f"**Role:** {task.role}\n"
+            f"**Description:**\n{task.description}\n\n"
+            f"## Your job\n"
+            f"1. Read the task description carefully\n"
+            f"2. Identify 3-5 specific, atomic subtasks (each completable in one agent session, < 30 min)\n"
+            f"3. Each subtask should target specific files and have clear completion criteria\n"
+            f"4. Create each subtask via the task server:\n"
+            f"```bash\n"
+            f"curl -s -X POST {base}/tasks -H 'Content-Type: application/json' \\\n"
+            f'  -d \'{{"title": "...", "description": "... [subtask of {task.id}]", '
+            f'"role": "{task.role}", "priority": {task.priority}, '
+            f'"scope": "small", "complexity": "medium"}}\'\n'
+            f"```\n"
+            f"5. After creating all subtasks, exit.\n\n"
+            f"IMPORTANT: Each subtask description MUST include '[subtask of {task.id}]' "
+            f"so it can be tracked back to the original task."
+        )
+
+        planner_task_body: dict[str, Any] = {
+            "title": f"[DECOMPOSE] {task.title[:80]}",
+            "description": manager_description,
+            "role": "manager",
+            "priority": max(1, task.priority - 1),  # Higher priority than original
+            "scope": "small",
+            "complexity": "medium",
+            "model": "haiku",
+            "effort": "high",
+        }
+
+        try:
+            resp = self._client.post(f"{base}/tasks", json=planner_task_body)
+            resp.raise_for_status()
+            planner_id = resp.json().get("id", "?")
+            self._decomposed_task_ids.add(task.id)
+            logger.info(
+                "Auto-decompose: created planner task %s for large task %s ('%s')",
+                planner_id,
+                task.id,
+                task.title,
+            )
+        except httpx.HTTPError as exc:
+            logger.warning("Auto-decompose: failed to create planner task for %s: %s", task.id, exc)
 
     def _claim_and_spawn_batches(
         self,
@@ -2110,6 +2479,13 @@ class Orchestrator:
                     [t.id for t in batch],
                     fail_count,
                 )
+                continue
+
+            # Pre-flight: auto-decompose large tasks before claiming.
+            # Creates a lightweight manager task that breaks the large task into
+            # 3-5 atomic subtasks; the original stays open until subtasks complete.
+            if len(batch) == 1 and self._should_auto_decompose(batch[0]):
+                self._auto_decompose_task(batch[0])
                 continue
 
             # Claim tasks BEFORE spawning to prevent duplicate agents.
@@ -2193,7 +2569,28 @@ class Orchestrator:
             batch_timeout_s = int(max(120, min(int(max_estimated_s * complexity_mult), max_runtime)))
 
             try:
-                session = self._spawner.spawn_for_tasks(batch)
+                # Check if any task in this batch has a preserved worktree for resume
+                resume_worktree = next(
+                    (self._preserved_worktrees[t.id] for t in batch if t.id in self._preserved_worktrees),
+                    None,
+                )
+                if resume_worktree is not None:
+                    changed_files = self._get_changed_files_in_worktree(resume_worktree)
+                    session = self._spawner.spawn_for_resume(
+                        batch,
+                        worktree_path=resume_worktree,
+                        changed_files=changed_files,
+                    )
+                    for _t in batch:
+                        self._preserved_worktrees.pop(_t.id, None)
+                    logger.info(
+                        "Resumed %s in preserved worktree %s for tasks: %s",
+                        session.id,
+                        resume_worktree,
+                        [t.id for t in batch],
+                    )
+                else:
+                    session = self._spawner.spawn_for_tasks(batch)
                 session.timeout_s = batch_timeout_s
                 self._agents[session.id] = session
                 for _t in batch:
@@ -2299,7 +2696,42 @@ class Orchestrator:
             _agent_just_reaped = session is not None and session.status != "dead"
             if session is not None:
                 self._record_provider_health(session, success=janitor_passed)
-                self._spawner.reap_completed_agent(session)
+                _skip_merge = False
+                if janitor_passed and self._approval_gate is not None:
+                    _approval_result = self._approval_gate.evaluate(
+                        task,
+                        session_id=session.id,
+                    )
+                    if _approval_result.rejected:
+                        _skip_merge = True
+                        logger.warning(
+                            "Approval gate: task %s rejected — skipping merge for agent %s",
+                            task.id,
+                            session.id,
+                        )
+                    elif not _approval_result.approved:
+                        # PR mode — create PR then skip local merge
+                        _skip_merge = True
+                        _worktree_path = self._spawner.get_worktree_path(session.id)
+                        if _worktree_path is not None:
+                            _pr_url = self._approval_gate.create_pr(
+                                task,
+                                worktree_path=_worktree_path,
+                                session_id=session.id,
+                                labels=self._config.pr_labels,
+                            )
+                            if _pr_url:
+                                logger.info(
+                                    "Approval gate: PR created for task %s: %s",
+                                    task.id,
+                                    _pr_url,
+                                )
+                        else:
+                            logger.warning(
+                                "Approval gate PR mode: no worktree for agent %s — cannot create PR",
+                                session.id,
+                            )
+                self._spawner.reap_completed_agent(session, skip_merge=_skip_merge)
                 session.status = "dead"
                 logger.info("Agent %s finished task %s, process reaped", session.id, task.id)
 
@@ -2359,10 +2791,24 @@ class Orchestrator:
                     "status",
                     f"task completed: {task.title} ({task.id})",
                 )
+                self._notify(
+                    "task.completed",
+                    f"Task completed: {task.title}",
+                    task.result_summary or "",
+                    task_id=task.id,
+                    role=task.role,
+                )
             else:
                 self._post_bulletin(
                     "alert",
                     f"task failed janitor: {task.title} ({task.id})",
+                )
+                self._notify(
+                    "task.failed",
+                    f"Task failed: {task.title}",
+                    task.result_summary or "Janitor verification did not pass.",
+                    task_id=task.id,
+                    role=task.role,
                 )
 
             self._sync_backlog_file(task)
@@ -2439,6 +2885,8 @@ class Orchestrator:
                             tasks_completed=0,
                             model=session.model_config.model,
                         )
+                with contextlib.suppress(OSError):
+                    self._signal_mgr.clear_signals(session.id)
                 for task_id in session.task_ids:
                     self._handle_orphaned_task(task_id, session, tasks_snapshot)
                 continue
@@ -2470,6 +2918,8 @@ class Orchestrator:
                         )
                 # Record provider health failure for reaped agent
                 self._record_provider_health(session, success=False)
+                with contextlib.suppress(OSError):
+                    self._signal_mgr.clear_signals(session.id)
                 # Retry or fail their tasks
                 for task_id in session.task_ids:
                     try:
@@ -2652,6 +3102,16 @@ class Orchestrator:
             "status",
             f"run complete: {total_completed} tasks done, {total_failed} failed, "
             f"${total_cost:.4f} spent, {duration_str} elapsed",
+        )
+        self._notify(
+            "run.completed",
+            "Bernstein run complete",
+            f"{total_completed} tasks done, {total_failed} failed in {duration_str}.",
+            tasks_completed=total_completed,
+            tasks_failed=total_failed,
+            files_modified=files_modified,
+            cost_usd=round(total_cost, 4),
+            duration=duration_str,
         )
 
         generate_retrospective(
@@ -2837,12 +3297,18 @@ if __name__ == "__main__":
         )
         budget_usd = 0.0
         dry_run = False
+        approval_mode = "auto"
+        merge_strategy = "pr"
+        auto_merge = True
         run_config_path = workdir / ".sdd" / "runtime" / "run_config.json"
         if run_config_path.exists():
             try:
                 run_cfg = json.loads(run_config_path.read_text())
                 budget_usd = float(run_cfg.get("budget_usd", 0.0))
                 dry_run = bool(run_cfg.get("dry_run", False))
+                approval_mode = str(run_cfg.get("approval", "auto"))
+                merge_strategy = str(run_cfg.get("merge_strategy", "pr"))
+                auto_merge = bool(run_cfg.get("auto_merge", True))
             except (json.JSONDecodeError, ValueError):
                 pass
 
@@ -2870,6 +3336,9 @@ if __name__ == "__main__":
             budget_usd=budget_usd,
             dry_run=dry_run,
             auth_token=auth_token,
+            approval=approval_mode,
+            merge_strategy=merge_strategy,
+            auto_merge=auto_merge,
         )
 
         if args.cells > 1:
@@ -2894,6 +3363,13 @@ if __name__ == "__main__":
                 "Starting MultiCellOrchestrator with %d cells (VP on cell-1)",
                 args.cells,
             )
+
+            def _multi_signal_handler(signum: int, _frame: object) -> None:
+                logger.info("Signal %d received, stopping multi-cell orchestrator", signum)
+                multi_orchestrator.stop()
+
+            signal.signal(signal.SIGINT, _multi_signal_handler)
+            signal.signal(signal.SIGTERM, _multi_signal_handler)
             try:
                 multi_orchestrator.run()
             finally:
@@ -2907,6 +3383,13 @@ if __name__ == "__main__":
                 router=router,
                 cluster_config=cluster_cfg,
             )
+
+            def _signal_handler(signum: int, _frame: object) -> None:
+                logger.info("Signal %d received, stopping orchestrator", signum)
+                orchestrator.stop()
+
+            signal.signal(signal.SIGINT, _signal_handler)
+            signal.signal(signal.SIGTERM, _signal_handler)
             try:
                 orchestrator.run()
             finally:

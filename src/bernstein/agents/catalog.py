@@ -53,7 +53,9 @@ class CatalogAgent:
         description: Short description of agent capabilities.
         system_prompt: Full system prompt text for this agent.
         id: Unique catalog identifier, e.g. ``agency:code-reviewer``.
-        tools: Tool names/capabilities the agent expects.
+        tools: Tool names the agent prefers (e.g. "pytest", "ruff").
+        capabilities: Declared capability keywords for task matching
+            (e.g. "api-design", "authentication", "jwt").
         priority: Matching priority — lower value wins (default 100).
         source: Origin label (e.g. "catalog", "agency").
     """
@@ -64,6 +66,7 @@ class CatalogAgent:
     system_prompt: str
     id: str = ""
     tools: list[str] = field(default_factory=list[str])
+    capabilities: list[str] = field(default_factory=list[str])
     priority: int = 100
     source: str = "catalog"
 
@@ -459,15 +462,15 @@ class CatalogRegistry:
 
         Matching strategy:
         1. Collect all agents whose ``role`` exactly matches *role*.
-        2. If none found, collect agents whose description shares keyword
-           overlap with *task_description* (fuzzy fallback).
-        3. Among candidates, return the agent with the lowest ``priority``
-           value (i.e. highest priority wins).
+        2. Among those, rank by capability overlap with *task_description*
+           (capabilities weighted 2×), then by ``priority``.
+        3. If no exact role match, fall back to capability + description
+           keyword matching across all agents.
 
         Args:
             role: Bernstein role name to match (e.g. ``"security"``).
-            task_description: Task description for fuzzy keyword matching
-                when no exact role match exists.
+            task_description: Task description used for capability and keyword
+                matching.
 
         Returns:
             Best-matching ``CatalogAgent``, or ``None`` if no candidates.
@@ -475,30 +478,38 @@ class CatalogRegistry:
         if not self.loaded_agents:
             return None
 
-        # 1. Exact role match
+        desc_lower = task_description.lower()
+        keywords = {w for w in desc_lower.split() if len(w) > 3}
+
+        # 1. Exact role match — rank by capability overlap then priority
         exact: list[CatalogAgent] = [a for a in self.loaded_agents if a.role == role]
         if exact:
-            winner = min(exact, key=lambda a: a.priority)
+            if keywords:
+                scored_exact = [
+                    (_capability_score(a, desc_lower, keywords), a) for a in exact
+                ]
+                scored_exact.sort(key=lambda t: (-t[0], t[1].priority))
+                winner = scored_exact[0][1]
+            else:
+                winner = min(exact, key=lambda a: a.priority)
             logger.debug("Catalog exact match: agent '%s' for role '%s'", winner.name, role)
             return winner
 
-        # 2. Fuzzy match by description keyword overlap
-        desc_lower = task_description.lower()
-        keywords = {w for w in desc_lower.split() if len(w) > 3}
         if not keywords:
             return None
 
+        # 2. Fuzzy match: capabilities (×2) + description keyword overlap
         scored: list[tuple[int, CatalogAgent]] = []
         for agent in self.loaded_agents:
-            agent_words = set(agent.description.lower().split())
-            overlap = len(keywords & agent_words)
-            if overlap > 0:
-                scored.append((overlap, agent))
+            cap_score = _capability_score(agent, desc_lower, keywords) * 2
+            desc_score = len(keywords & set(agent.description.lower().split()))
+            total = cap_score + desc_score
+            if total > 0:
+                scored.append((total, agent))
 
         if not scored:
             return None
 
-        # Sort by overlap descending, then priority ascending
         scored.sort(key=lambda t: (-t[0], t[1].priority))
         winner = scored[0][1]
         logger.debug(
@@ -508,6 +519,28 @@ class CatalogRegistry:
             role,
         )
         return winner
+
+
+def _capability_score(agent: CatalogAgent, desc_lower: str, keywords: set[str]) -> int:
+    """Score *agent* by how many of its capabilities match the task keywords.
+
+    Each capability is normalised (hyphens/underscores → spaces) then checked
+    against *desc_lower* and *keywords* for any overlap.
+
+    Args:
+        agent: The catalog agent to score.
+        desc_lower: Lowercase task description string.
+        keywords: Set of keyword tokens extracted from the description.
+
+    Returns:
+        Integer overlap count (0 when agent has no capabilities).
+    """
+    score = 0
+    for cap in agent.capabilities:
+        cap_norm = cap.lower().replace("-", " ").replace("_", " ")
+        if cap_norm in desc_lower or any(kw in cap_norm for kw in keywords):
+            score += 1
+    return score
 
 
 def _parse_catalog_entry(raw: dict[str, Any]) -> CatalogEntry:

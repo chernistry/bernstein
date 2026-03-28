@@ -19,9 +19,11 @@ from typing import Literal
 import httpx
 
 from bernstein import _BUNDLED_TEMPLATES_DIR  # type: ignore[reportPrivateUsage]
+from bernstein.core.guardrails import GuardrailsConfig, run_guardrails
 from bernstein.core.llm import call_llm
 from bernstein.core.models import (
     CompletionSignal,
+    GuardrailResult,
     JanitorResult,
     JudgeVerdict,
     Task,
@@ -122,6 +124,7 @@ async def run_janitor(
     workdir: Path,
     *,
     server_url: str | None = None,
+    guardrails_config: GuardrailsConfig | None = None,
 ) -> list[JanitorResult]:
     """Evaluate tasks and return structured results.
 
@@ -137,10 +140,13 @@ async def run_janitor(
         tasks: Tasks to evaluate.
         workdir: Project root for path resolution.
         server_url: Optional task server URL for auto-creating fix tasks.
+        guardrails_config: Guardrail configuration. Defaults to GuardrailsConfig()
+            (all checks enabled). Pass None to disable all guardrails.
 
     Returns:
         List of JanitorResult for each evaluated task.
     """
+    _guardrails = guardrails_config if guardrails_config is not None else GuardrailsConfig()
     results: list[JanitorResult] = []
     for task in tasks:
         if not task.completion_signals:
@@ -184,6 +190,18 @@ async def run_janitor(
             all_passed = all(passed for _, passed, _ in signal_results)
             failed_descs = [desc for desc, passed, _ in signal_results if not passed]
 
+        # Run pre-merge guardrails on the agent's diff
+        diff = _get_git_diff(task, workdir)
+        guardrail_results: list[GuardrailResult] = run_guardrails(diff, task, _guardrails, workdir)
+
+        # Hard-blocked guardrails (e.g. secrets detected) prevent merge
+        blocked_guards = [r for r in guardrail_results if r.blocked and not r.passed]
+        if blocked_guards:
+            all_passed = False
+            for gr in blocked_guards:
+                signal_results.append((f"guardrail:{gr.check}", False, gr.detail))
+                failed_descs.append(f"guardrail:{gr.check}: {gr.detail}")
+
         fix_task_ids: list[str] = []
         if not all_passed and server_url is not None:
             if judge_verdict and judge_verdict.verdict == "retry":
@@ -211,6 +229,7 @@ async def run_janitor(
                 signal_results=signal_results,
                 fix_tasks_created=fix_task_ids,
                 judge_verdict=judge_verdict,
+                guardrail_results=guardrail_results,
             )
         )
     return results

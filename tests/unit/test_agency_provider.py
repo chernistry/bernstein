@@ -21,6 +21,8 @@ FULL_AGENT_MD = textwrap.dedent("""\
     color: purple
     emoji: "\U0001f441\ufe0f"
     vibe: Reviews code like a mentor, not a gatekeeper.
+    capabilities: [code-review, security-analysis, static-analysis]
+    tools: [ruff, mypy, pytest]
     ---
 
     # Code Reviewer Agent
@@ -94,11 +96,29 @@ class TestParseFile:
         agents = AgencyProvider._parse_file(f, division="xr")
         assert agents[0].role == "xr"
 
-    def test_tools_is_empty_list(self, tmp_path: Path) -> None:
+    def test_tools_extracted_from_frontmatter(self, tmp_path: Path) -> None:
         f = tmp_path / "engineering-code-reviewer.md"
         f.write_text(FULL_AGENT_MD)
         agents = AgencyProvider._parse_file(f, division="engineering")
+        assert agents[0].tools == ["ruff", "mypy", "pytest"]
+
+    def test_tools_empty_when_not_in_frontmatter(self, tmp_path: Path) -> None:
+        f = tmp_path / "general-minimal.md"
+        f.write_text(MINIMAL_AGENT_MD)
+        agents = AgencyProvider._parse_file(f, division="general")
         assert agents[0].tools == []
+
+    def test_capabilities_extracted_from_frontmatter(self, tmp_path: Path) -> None:
+        f = tmp_path / "engineering-code-reviewer.md"
+        f.write_text(FULL_AGENT_MD)
+        agents = AgencyProvider._parse_file(f, division="engineering")
+        assert agents[0].capabilities == ["code-review", "security-analysis", "static-analysis"]
+
+    def test_capabilities_empty_when_not_in_frontmatter(self, tmp_path: Path) -> None:
+        f = tmp_path / "general-minimal.md"
+        f.write_text(MINIMAL_AGENT_MD)
+        agents = AgencyProvider._parse_file(f, division="general")
+        assert agents[0].capabilities == []
 
     def test_parses_minimal_frontmatter(self, tmp_path: Path) -> None:
         f = tmp_path / "general-minimal.md"
@@ -230,3 +250,58 @@ class TestRefresh:
         (eng / "engineering-code-reviewer.md").write_text(FULL_AGENT_MD)
         agents = asyncio.run(provider.refresh())
         assert len(agents) == 1
+
+
+# ---------------------------------------------------------------------------
+# default_cache_path / sync_catalog
+# ---------------------------------------------------------------------------
+
+
+class TestSyncCatalog:
+    def test_default_cache_path_under_home(self) -> None:
+        path = AgencyProvider.default_cache_path()
+        assert path.name == "agency"
+        assert ".bernstein" in path.parts
+        assert "catalogs" in path.parts
+
+    def test_sync_catalog_respects_ttl(self, tmp_path: Path) -> None:
+        """If a fresh marker file exists, sync_catalog returns (True, ...) without git."""
+        target = tmp_path / "agency"
+        target.mkdir()
+        # Create a git repo stub so the "pull" path would be taken
+        (target / ".git").mkdir()
+        # Create a fresh marker file
+        marker = tmp_path / ".agency.synced"
+        marker.touch()
+        ok, msg = AgencyProvider.sync_catalog(target=target, force=False)
+        assert ok is True
+        assert "synced" in msg
+
+    def test_sync_catalog_force_ignores_ttl(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """With force=True the TTL is bypassed; subprocess is called."""
+        import subprocess as _sp
+
+        target = tmp_path / "agency"
+        target.mkdir()
+        (target / ".git").mkdir()
+
+        calls: list[list[str]] = []
+
+        def fake_run(cmd: list[str], **_kwargs: object) -> object:
+            calls.append(cmd)
+
+            class _Result:
+                returncode = 0
+                stderr = ""
+
+            return _Result()
+
+        monkeypatch.setattr(_sp, "run", fake_run)
+
+        # Plant a fresh marker
+        marker = tmp_path / ".agency.synced"
+        marker.touch()
+
+        ok, _msg = AgencyProvider.sync_catalog(target=target, force=True)
+        assert ok is True
+        assert any("pull" in c for c in calls)

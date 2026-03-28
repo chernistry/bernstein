@@ -6,18 +6,18 @@ How Bernstein compares to other tools in the multi-agent coding space.
 
 ## Quick reference matrix
 
-|  | [Single agent](./bernstein-vs-single-agent.md) | [Conductor](./bernstein-vs-conductor.md) | [Dorothy](./bernstein-vs-dorothy.md) | [Parallel Code](./bernstein-vs-parallel-code.md) | [Crystal](./bernstein-vs-crystal.md) | [Stoneforge](./bernstein-vs-stoneforge.md) |
-|--|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Parallel execution** | — | ✓ | — | ✓ | — | ✓ |
-| **CLI agent support** | ✓ | — | — | varies | — | — |
-| **Result verification** | — | — | — | — | internal | external |
-| **Task planning from goal** | — | — | — | — | — | — |
-| **Self-evolution** | — | — | — | — | — | — |
-| **Model routing** | — | — | — | — | — | — |
-| **Headless / overnight** | — | ✓ | — | — | — | limited |
-| **IDE integration** | — | ✓ | — | — | varies | ✓ |
-| **Multi-provider** | ✓ | ✓ | varies | varies | — | — |
-| **Open source** | ✓ | ✓ Apache 2.0 | ✓ MIT | varies | — | — |
+|  | [Single agent](./bernstein-vs-single-agent.md) | [Conductor](./bernstein-vs-conductor.md) | [Dorothy](./bernstein-vs-dorothy.md) | [Parallel Code](./bernstein-vs-parallel-code.md) | [Crystal](./bernstein-vs-crystal.md) | [Stoneforge](./bernstein-vs-stoneforge.md) | [GitHub Agent HQ](./bernstein-vs-github-agent-hq.md) |
+|--|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Parallel execution** | — | ✓ | — | ✓ | — | ✓ | ✓ |
+| **CLI agent support** | ✓ | — | — | varies | — | — | — |
+| **Result verification** | — | — | — | — | internal | external | GitHub CI |
+| **Task planning from goal** | — | — | — | — | — | — | ✓ |
+| **Self-evolution** | — | — | — | — | — | — | — |
+| **Model routing** | — | — | — | — | — | — | — |
+| **Headless / overnight** | — | ✓ | — | — | — | limited | limited |
+| **IDE integration** | — | ✓ | — | — | varies | ✓ | GitHub UI |
+| **Multi-provider** | ✓ | ✓ | varies | varies | — | — | GitHub-managed |
+| **Open source** | ✓ | ✓ Apache 2.0 | ✓ MIT | varies | — | — | — |
 
 ✓ = yes, — = no/not applicable, "varies" = depends on configuration
 
@@ -70,6 +70,7 @@ From `benchmarks/README.md` — 25 real GitHub issues across 10 popular Python r
 - [Bernstein vs. Parallel Code](./bernstein-vs-parallel-code.md) — orchestrated parallel vs. manual parallel
 - [Bernstein vs. Crystal](./bernstein-vs-crystal.md) — external verification vs. iterative self-review
 - [Bernstein vs. Stoneforge](./bernstein-vs-stoneforge.md) — provider-agnostic vs. provider-integrated
+- [Bernstein vs. GitHub Agent HQ](./bernstein-vs-github-agent-hq.md) — open-source alternative to GitHub's multi-agent system
 
 ---
 

@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from bernstein.adapters.base import CLIAdapter
     from bernstein.agents.catalog import CatalogAgent, CatalogRegistry
     from bernstein.core.agency_loader import AgencyAgent
+    from bernstein.core.bulletin import BulletinBoard
     from bernstein.core.mcp_manager import MCPManager
     from bernstein.core.mcp_registry import MCPRegistry
     from bernstein.core.workspace import Workspace
@@ -82,6 +83,31 @@ def _list_subdirs_cached(path: Path) -> list[str]:
 logger = logging.getLogger(__name__)
 
 
+def _render_signal_check(session_id: str) -> str:
+    """Return signal-check instructions to append to every agent's system prompt.
+
+    Args:
+        session_id: The session ID assigned to this agent.
+
+    Returns:
+        Markdown block instructing the agent to poll signal files.
+    """
+    return (
+        "\n## Signal files — check periodically\n"
+        "Every 60 seconds, check for orchestrator signals:\n"
+        "```bash\n"
+        f"cat .sdd/runtime/signals/{session_id}/WAKEUP 2>/dev/null\n"
+        f"cat .sdd/runtime/signals/{session_id}/SHUTDOWN 2>/dev/null\n"
+        "```\n"
+        "If **SHUTDOWN** exists:\n"
+        "```bash\n"
+        'git add -A && git commit -m "[WIP] <task title>" 2>/dev/null || true\n'
+        "exit 0\n"
+        "```\n"
+        "If **WAKEUP** exists: read it, address the concern, then continue working.\n"
+    )
+
+
 def _render_prompt(
     tasks: list[Task],
     templates_dir: Path,
@@ -89,6 +115,8 @@ def _render_prompt(
     agency_catalog: dict[str, AgencyAgent] | None = None,
     catalog_system_prompt: str | None = None,
     context_builder: TaskContextBuilder | None = None,
+    session_id: str = "",
+    bulletin_summary: str = "",
 ) -> str:
     """Build the full agent prompt from role template + tasks + context.
 
@@ -108,6 +136,8 @@ def _render_prompt(
         catalog_system_prompt: Optional system prompt from a catalog agent.
             When set, this replaces the template/role-based role prompt.
         context_builder: Optional TaskContextBuilder for rich context injection.
+        bulletin_summary: Optional recent bulletin activity to inject as a
+            team-awareness section. Empty string means no section is added.
 
     Returns:
         Complete prompt string ready for the CLI adapter.
@@ -177,12 +207,16 @@ def _render_prompt(
         "SPECIALISTS": specialist_block,
     }
 
-    # Try renderer first, fall back to string concat on failure
-    try:
-        role_prompt = render_role_prompt(role, context, templates_dir=templates_dir)
-    except (FileNotFoundError, TemplateError) as exc:
-        logger.debug("Template render failed for role %s, using fallback: %s", role, exc)
-        role_prompt = _render_fallback(role, templates_dir, agency_catalog)
+    # Use catalog system prompt when available (Agency specialist prompt),
+    # otherwise fall back to role template or built-in default.
+    if catalog_system_prompt:
+        role_prompt = catalog_system_prompt
+    else:
+        try:
+            role_prompt = render_role_prompt(role, context, templates_dir=templates_dir)
+        except (FileNotFoundError, TemplateError) as exc:
+            logger.debug("Template render failed for role %s, using fallback: %s", role, exc)
+            role_prompt = _render_fallback(role, templates_dir, agency_catalog)
 
     # Assemble final prompt
     sections = [role_prompt]
@@ -191,9 +225,18 @@ def _render_prompt(
     sections.append(f"\n## Assigned tasks\n{task_block}")
     if rich_context:
         sections.append(f"\n{rich_context}\n")
+    if bulletin_summary:
+        sections.append(
+            f"\n## Team awareness\n"
+            f"Other agents are working in parallel. Recent activity:\n{bulletin_summary}\n\n"
+            f"If you need to create a shared utility, check if it already exists first.\n"
+            f"If you define an API endpoint, use consistent naming with existing endpoints.\n"
+        )
     if project_context:
         sections.append(f"\n## Project context\n{project_context}\n")
     sections.append(f"\n## Instructions\n{instructions}\n")
+    if session_id:
+        sections.append(_render_signal_check(session_id))
 
     return "".join(sections)
 
@@ -261,6 +304,7 @@ class AgentSpawner:
         catalog: CatalogRegistry | None = None,
         use_worktrees: bool = False,
         workspace: Workspace | None = None,
+        bulletin: BulletinBoard | None = None,
     ) -> None:
         self._adapter = adapter
         self._templates_dir = templates_dir
@@ -276,6 +320,7 @@ class AgentSpawner:
         self._mcp_manager = mcp_manager
         self._catalog = catalog
         self._workspace = workspace
+        self._bulletin = bulletin
         self._context_builder = TaskContextBuilder(workdir)
         self._procs: dict[str, subprocess.Popen[bytes] | None] = {}
         self._use_worktrees = use_worktrees
@@ -328,7 +373,11 @@ class AgentSpawner:
         if self._catalog is not None:
             catalog_agent = self._catalog.match(role, task_description)
 
+        # Build session ID early so we can inject it into the prompt for signal checks
+        session_id = f"{role}-{uuid.uuid4().hex[:8]}"
+
         # Render prompt (catalog system_prompt replaces role template when matched)
+        bulletin_summary = self._bulletin.summary() if self._bulletin is not None else ""
         prompt = _render_prompt(
             tasks,
             self._templates_dir,
@@ -336,6 +385,8 @@ class AgentSpawner:
             self._agency_catalog,
             catalog_system_prompt=catalog_agent.system_prompt if catalog_agent else None,
             context_builder=self._context_builder,
+            session_id=session_id,
+            bulletin_summary=bulletin_summary,
         )
 
         agent_source = catalog_agent.source if catalog_agent else "built-in"
@@ -346,9 +397,6 @@ class AgentSpawner:
                 catalog_agent.source,
                 role,
             )
-
-        # Build session
-        session_id = f"{role}-{uuid.uuid4().hex[:8]}"
         session = AgentSession(
             id=session_id,
             role=role,
@@ -464,6 +512,85 @@ class AgentSpawner:
 
         return session
 
+    def spawn_for_resume(
+        self,
+        tasks: list[Task],
+        *,
+        worktree_path: "Path",
+        changed_files: list[str],
+    ) -> AgentSession:
+        """Spawn a new agent to resume work in a crashed agent's worktree.
+
+        Builds a prompt that includes context about the previous crash and the
+        files already modified, then spawns the agent in the preserved worktree
+        directory instead of creating a new one.
+
+        Args:
+            tasks: Batch of tasks (same role) to resume.
+            worktree_path: Path to the preserved worktree from the crashed agent.
+            changed_files: Files already modified by the crashed agent.
+
+        Returns:
+            AgentSession with PID and metadata populated.
+        """
+        if not tasks:
+            raise ValueError("Cannot resume with empty task list")
+
+        # Build resume context prefix
+        files_list = "\n".join(f"  - {f}" for f in changed_files) if changed_files else "  (none)"
+        resume_header = (
+            "## Crash recovery\n"
+            "The previous agent assigned to this task crashed. "
+            "Continue from where it left off.\n"
+            f"Files already modified by the previous agent:\n{files_list}\n\n"
+        )
+
+        metrics_dir = self._workdir / ".sdd" / "metrics"
+        model_config = _select_batch_config(
+            tasks,
+            templates_dir=self._templates_dir,
+            metrics_dir=metrics_dir if metrics_dir.exists() else None,
+        )
+        role = tasks[0].role
+        session_id = f"{role}-resume-{uuid.uuid4().hex[:8]}"
+
+        prompt = _render_prompt(
+            tasks,
+            self._templates_dir,
+            self._workdir,
+            self._agency_catalog,
+            context_builder=self._context_builder,
+            session_id=session_id,
+        )
+        # Prepend crash recovery context
+        prompt = resume_header + prompt
+
+        session = AgentSession(
+            id=session_id,
+            role=role,
+            task_ids=[t.id for t in tasks],
+            model_config=model_config,
+            status="starting",
+        )
+
+        result = self._adapter.spawn(
+            prompt=prompt,
+            workdir=worktree_path,
+            model_config=model_config,
+            session_id=session_id,
+        )
+        session.pid = result.pid
+        session.status = "working"
+        if result.log_path:
+            session.log_path = str(result.log_path)
+        if result.proc is not None:
+            self._procs[session_id] = result.proc  # type: ignore[assignment]
+
+        # Track worktree so reap_completed_agent can merge+clean up
+        self._worktree_paths[session_id] = worktree_path
+
+        return session
+
     def check_alive(self, session: AgentSession) -> bool:
         """Check if the agent process is still running.
 
@@ -487,7 +614,11 @@ class AgentSpawner:
             self._adapter.kill(session.pid)
         session.status = "dead"
 
-    def reap_completed_agent(self, session: AgentSession) -> MergeResult | None:
+    def reap_completed_agent(
+        self,
+        session: AgentSession,
+        skip_merge: bool = False,
+    ) -> MergeResult | None:
         """Terminate and wait on the subprocess for a completed agent.
 
         Calls proc.terminate() then proc.wait(timeout=5) to reap the OS
@@ -501,10 +632,13 @@ class AgentSpawner:
 
         Args:
             session: The AgentSession whose underlying process should be reaped.
+            skip_merge: When True, skip the worktree merge but still clean up
+                the process and worktree.  Used by the approval gate when the
+                user rejects a task or when a PR is created instead.
 
         Returns:
-            MergeResult when worktrees are enabled (None otherwise, or if
-            no proc was stored).
+            MergeResult when worktrees are enabled and skip_merge is False
+            (None otherwise, or if no proc was stored).
         """
         proc = self._procs.pop(session.id, None)
         if proc is None:
@@ -533,9 +667,22 @@ class AgentSpawner:
         worktree_path = self._worktree_paths.pop(session.id, None)
         merge_result: MergeResult | None = None
         if worktree_path is not None and self._worktree_mgr is not None:
-            merge_result = self._merge_worktree_branch(session.id)
+            if not skip_merge:
+                merge_result = self._merge_worktree_branch(session.id)
             self._worktree_mgr.cleanup(session.id)
         return merge_result
+
+    def get_worktree_path(self, session_id: str) -> Path | None:
+        """Return the worktree path for *session_id*, or None if not registered.
+
+        Args:
+            session_id: The session whose worktree path to look up.
+
+        Returns:
+            Path to the agent's git worktree, or None if not using worktrees or
+            the session was already reaped.
+        """
+        return self._worktree_paths.get(session_id)
 
     def update_trace_outcome(self, session_id: str, outcome: str) -> None:
         """Update the stored trace outcome for a session.
@@ -660,11 +807,16 @@ def _select_batch_config(
         # High-stakes roles skip bandit — always use premium models
         if task.role == "manager":
             return ModelConfig(model="opus", effort="max")
+        # Architect/security always get opus/max — they need deep reasoning
         if task.role in ("architect", "security"):
+            return ModelConfig(model="opus", effort="max")
+        # Large-scope tasks always get opus/max — they fail at lower tiers
+        if task.scope == Scope.LARGE:
+            return ModelConfig(model="opus", effort="max")
+        # High-complexity tasks get opus/high minimum
+        if task.complexity == Complexity.HIGH:
             return ModelConfig(model="opus", effort="high")
-        if task.scope == Scope.LARGE and task.complexity == Complexity.HIGH:
-            return ModelConfig(model="opus", effort="high")
-        if task.priority == 1 or task.scope == Scope.LARGE:
+        if task.priority == 1:
             return ModelConfig(model="sonnet", effort="max")
         # Consult bandit for standard tasks
         return route_task(task, bandit_metrics_dir=metrics_dir)

@@ -138,6 +138,71 @@ class BulletinBoard:
                 f.write(json.dumps(asdict(msg), default=str) + "\n")
         return len(messages)
 
+    def summary(self, limit: int = 10) -> str:
+        """Return the last *limit* messages as a human-readable string.
+
+        Useful for injecting recent team activity into an agent's prompt.
+
+        Args:
+            limit: Maximum number of messages to include (most recent first).
+
+        Returns:
+            Multi-line string, one message per line, or empty string if the
+            board is empty.
+        """
+        with self._lock:
+            recent = self._messages[-limit:]
+        if not recent:
+            return ""
+        lines = [f"- {m.agent_id}: {m.content}" for m in recent]
+        return "\n".join(lines)
+
+    def post_file_created(
+        self,
+        agent_id: str,
+        file_path: str,
+        classes: list[str] | None = None,
+    ) -> BulletinMessage:
+        """Post a status message announcing a newly created file.
+
+        Args:
+            agent_id: ID of the agent that created the file.
+            file_path: Path of the file relative to the project root.
+            classes: Optional list of top-level class/function names defined.
+
+        Returns:
+            The stored BulletinMessage.
+        """
+        if classes:
+            content = f"created {file_path} with classes: {', '.join(classes)}"
+        else:
+            content = f"created {file_path}"
+        return self.post(BulletinMessage(agent_id=agent_id, type="status", content=content))
+
+    def post_api_endpoint(
+        self,
+        agent_id: str,
+        method: str,
+        route: str,
+        response: str | None = None,
+    ) -> BulletinMessage:
+        """Post a finding message announcing a new API endpoint definition.
+
+        Args:
+            agent_id: ID of the agent that defined the endpoint.
+            method: HTTP method (GET, POST, etc.).
+            route: URL path (e.g. "/auth/login").
+            response: Optional description of the response shape.
+
+        Returns:
+            The stored BulletinMessage.
+        """
+        if response:
+            content = f"added {method} {route} returning {response}"
+        else:
+            content = f"added {method} {route}"
+        return self.post(BulletinMessage(agent_id=agent_id, type="finding", content=content))
+
     def load_from_disk(self, path: Path) -> int:
         """Load messages from a JSONL file, adding them to the board.
 

@@ -267,10 +267,14 @@ def _ensure_sdd(workdir: Path) -> bool:
             "default_effort: max\n"
         )
 
-    # .gitignore for runtime dir
+    # .gitignore for runtime dir — ensure session.json is always listed.
     gi_path = workdir / ".sdd" / "runtime" / ".gitignore"
     if not gi_path.exists():
-        gi_path.write_text("*.pid\n*.log\ntasks.jsonl\n")
+        gi_path.write_text("*.pid\n*.log\ntasks.jsonl\nsession.json\n")
+    else:
+        existing = gi_path.read_text()
+        if "session.json" not in existing:
+            gi_path.write_text(existing.rstrip("\n") + "\nsession.json\n")
 
     return created
 
@@ -581,6 +585,7 @@ def bootstrap_from_seed(
     port: int = 8052,
     cells: int | None = None,
     remote: bool = False,
+    force_fresh: bool = False,
 ) -> BootstrapResult:
     """Full bootstrap: parse seed -> init .sdd -> start server -> plan -> orchestrate.
 
@@ -589,7 +594,8 @@ def bootstrap_from_seed(
     2. Creates the .sdd/ workspace if needed.
     3. Starts the task server.
     4. Waits for the server to be ready.
-    5. Injects the initial manager task with goal + constraints + context.
+    5. Injects the initial manager task with goal + constraints + context
+       (skipped when a valid session exists, unless force_fresh=True).
     6. Starts the spawner (which launches the manager agent).
 
     Args:
@@ -598,6 +604,7 @@ def bootstrap_from_seed(
         port: TCP port for the task server.
         cells: Number of parallel cells. If None, reads from seed config.
         remote: If True, bind to 0.0.0.0 for remote access.
+        force_fresh: Ignore any saved session and start from scratch.
 
     Returns:
         BootstrapResult with PIDs and task ID.
@@ -687,21 +694,30 @@ def bootstrap_from_seed(
     console.print(f"[green]→[/green] Task server ready (PID {server_pid}, {bind_host}:{port})")
 
     # 4. Sync backlog / create manager task
+    from bernstein.core.session import check_resume_session
     from bernstein.core.sync import sync_backlog_to_server
+
+    prior_session = check_resume_session(workdir, force_fresh=force_fresh)
 
     with Status("[bold]Loading tasks...[/bold]", console=console):
         sync_result = sync_backlog_to_server(workdir, server_url=server_url)
     backlog_count = len(sync_result.created) + len(sync_result.skipped)
 
     manager_task_id = ""
-    if backlog_count > 0:
+    if prior_session is not None:
+        completed_count = len(prior_session.completed_task_ids)
+        console.print(
+            f"[bold cyan]Resuming from previous session[/bold cyan] "
+            f"({completed_count} task(s) already completed — skipping re-planning)"
+        )
+    elif backlog_count > 0:
         console.print(
             f"[green]→[/green] Planning tasks ({backlog_count} found in backlog"
             + (f", {len(sync_result.skipped)} already synced" if sync_result.skipped else "")
             + ")"
         )
     else:
-        # No backlog — use the manager agent to plan from scratch
+        # No backlog and no prior session — use the manager agent to plan from scratch
         with Status("[bold]Creating planning task...[/bold]", console=console):
             manager_task_id = _inject_manager_task(
                 seed,
@@ -841,6 +857,7 @@ def bootstrap_from_goal(
     port: int = 8052,
     cli: str = "claude",
     cells: int = 1,
+    force_fresh: bool = False,
 ) -> BootstrapResult:
     """Bootstrap from an inline goal string (no YAML file needed).
 
@@ -853,6 +870,7 @@ def bootstrap_from_goal(
         port: TCP port for the task server.
         cli: CLI backend to use.
         cells: Number of parallel orchestration cells.
+        force_fresh: Ignore any saved session and start from scratch.
 
     Returns:
         BootstrapResult with PIDs and task ID.
@@ -902,15 +920,24 @@ def bootstrap_from_goal(
             raise SystemExit(1)
     console.print(f"[green]→[/green] Task server ready (PID {server_pid}, {bind_host}:{port})")
 
-    # Sync backlog first; only use manager if backlog is empty
+    # Sync backlog first; only use manager if backlog is empty and no prior session
+    from bernstein.core.session import check_resume_session
     from bernstein.core.sync import sync_backlog_to_server
+
+    prior_session = check_resume_session(workdir, force_fresh=force_fresh)
 
     with Status("[bold]Loading tasks...[/bold]", console=console):
         sync_result = sync_backlog_to_server(workdir, server_url=server_url)
     backlog_count = len(sync_result.created) + len(sync_result.skipped)
 
     manager_task_id = ""
-    if backlog_count > 0:
+    if prior_session is not None:
+        completed_count = len(prior_session.completed_task_ids)
+        console.print(
+            f"[bold cyan]Resuming from previous session[/bold cyan] "
+            f"({completed_count} task(s) already completed — skipping re-planning)"
+        )
+    elif backlog_count > 0:
         console.print(
             f"[green]→[/green] Planning tasks ({backlog_count} found in backlog"
             + (f", {len(sync_result.skipped)} already synced" if sync_result.skipped else "")

@@ -110,6 +110,33 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
         return response
 
 
+# Write methods that mutate state
+_WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+class ReadOnlyMiddleware(BaseHTTPMiddleware):
+    """Block all write operations when the server is in read-only mode.
+
+    Useful for public demo deployments where the dashboard should be
+    visible but task mutation must be disabled entirely.  All GET/HEAD/OPTIONS
+    requests pass through; any write method returns 405.
+    """
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Any],
+    ) -> StarletteResponse:
+        if request.method in _WRITE_METHODS:
+            return JSONResponse(
+                status_code=405,
+                content={"detail": "Server is in read-only mode"},
+                headers={"Allow": "GET, HEAD, OPTIONS"},
+            )
+        response: StarletteResponse = await call_next(request)
+        return response
+
+
 # ---------------------------------------------------------------------------
 # TypedDicts for file-based state records
 # ---------------------------------------------------------------------------
@@ -1331,6 +1358,7 @@ def create_app(
     metrics_jsonl_path: Path | None = None,
     auth_token: str | None = None,
     cluster_config: ClusterConfig | None = None,
+    readonly: bool = False,
 ) -> FastAPI:
     """Build and return the FastAPI application.
 
@@ -1342,6 +1370,10 @@ def create_app(
             ``Authorization: Bearer <token>`` header.
         cluster_config: Cluster mode configuration. If provided and
             enabled, node registration and cluster endpoints are active.
+        readonly: If True, all write operations (POST/PUT/PATCH/DELETE) are
+            rejected with 405.  The dashboard, events stream, and read
+            endpoints remain fully accessible.  Useful for public demo
+            deployments.
 
     Returns:
         Configured FastAPI app with all routes registered.
@@ -1385,6 +1417,10 @@ def create_app(
         await store.flush_buffer()
 
     application = FastAPI(title="Bernstein Task Server", version="0.1.0", lifespan=lifespan)
+
+    # Read-only mode — blocks all writes before auth is even checked
+    if readonly:
+        application.add_middleware(ReadOnlyMiddleware)
 
     # Auth middleware — only enforced when a token is configured
     application.add_middleware(BearerAuthMiddleware, auth_token=effective_token)
@@ -2177,4 +2213,5 @@ _default_cluster_config = (
 app: FastAPI = create_app(
     auth_token=os.environ.get("BERNSTEIN_AUTH_TOKEN"),
     cluster_config=_default_cluster_config,
+    readonly=os.environ.get("BERNSTEIN_READONLY", "").lower() in ("1", "true", "yes"),
 )

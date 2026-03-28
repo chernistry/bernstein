@@ -368,6 +368,21 @@ def _find_seed_file() -> Path | None:
 @click.option("--headless", is_flag=True, default=False, hidden=True, help="Run without dashboard (for overnight/CI).")
 @click.option("--dry-run", is_flag=True, default=False, help="Preview task plan without spawning agents.")
 @click.option("--yes", "-y", is_flag=True, default=False, hidden=True, help="Skip cost confirmation prompt.")
+@click.option(
+    "--approval",
+    type=click.Choice(["auto", "review", "pr"]),
+    default="auto",
+    show_default=True,
+    help="Approval gate: auto=merge immediately, review=pause for human review, pr=open GitHub PR.",
+)
+@click.option(
+    "--merge",
+    "merge_strategy",
+    type=click.Choice(["pr", "direct"]),
+    default="pr",
+    show_default=True,
+    help="Merge strategy: pr=create GitHub PR (default), direct=push directly to main branch.",
+)
 @click.pass_context
 def cli(
     ctx: click.Context,
@@ -380,6 +395,8 @@ def cli(
     headless: bool,
     dry_run: bool,
     yes: bool,
+    approval: str,
+    merge_strategy: str,
 ) -> None:
     """Bernstein — multi-agent orchestration for CLI coding agents.
 
@@ -427,13 +444,20 @@ def cli(
     already_running = server_pid is not None and _is_alive(server_pid)
 
     if not already_running:
-        # Write run_config.json so the orchestrator subprocess can read budget_usd
-        if budget > 0:
+        # Write run_config.json so the orchestrator subprocess can read budget_usd, approval,
+        # merge_strategy, and other per-run settings.
+        if budget > 0 or approval != "auto" or merge_strategy != "pr":
             import json as _json
 
             runtime_dir = workdir / ".sdd" / "runtime"
             runtime_dir.mkdir(parents=True, exist_ok=True)
-            (runtime_dir / "run_config.json").write_text(_json.dumps({"budget_usd": budget}))
+            run_cfg: dict[str, Any] = {}
+            if budget > 0:
+                run_cfg["budget_usd"] = budget
+            if approval != "auto":
+                run_cfg["approval"] = approval
+            run_cfg["merge_strategy"] = merge_strategy
+            (runtime_dir / "run_config.json").write_text(_json.dumps(run_cfg))
 
         if goal is not None:
             # Inline goal — no config files needed
@@ -1743,6 +1767,91 @@ def cancel(task_id: str, reason: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# approve / reject
+# ---------------------------------------------------------------------------
+
+
+@cli.command("approve")
+@click.argument("task_id")
+@click.option("--workdir", default=".", help="Project root directory.", type=click.Path())
+def approve(task_id: str, workdir: str) -> None:
+    """Approve a pending task review so Bernstein merges the work.
+
+    When running with ``--approval review``, Bernstein pauses after each
+    verified task and writes a pending approval file.  Run this command
+    to signal approval so the orchestrator continues with the merge.
+
+    \b
+    Example:
+      bernstein approve T-abc123
+    """
+    approvals_dir = Path(workdir) / ".sdd" / "runtime" / "approvals"
+    approvals_dir.mkdir(parents=True, exist_ok=True)
+    decision_file = approvals_dir / f"{task_id}.approved"
+    decision_file.write_text("approved")
+    console.print(f"[green]Approved:[/green] task [bold]{task_id}[/bold] — Bernstein will merge the work.")
+
+
+@cli.command("reject")
+@click.argument("task_id")
+@click.option("--workdir", default=".", help="Project root directory.", type=click.Path())
+def reject(task_id: str, workdir: str) -> None:
+    """Reject a pending task review so Bernstein discards the work.
+
+    When running with ``--approval review``, Bernstein pauses after each
+    verified task and writes a pending approval file.  Run this command
+    to reject the work — the worktree will be cleaned up without merging.
+
+    \b
+    Example:
+      bernstein reject T-abc123
+    """
+    approvals_dir = Path(workdir) / ".sdd" / "runtime" / "approvals"
+    approvals_dir.mkdir(parents=True, exist_ok=True)
+    decision_file = approvals_dir / f"{task_id}.rejected"
+    decision_file.write_text("rejected")
+    console.print(f"[red]Rejected:[/red] task [bold]{task_id}[/bold] — work will be discarded.")
+
+
+@cli.command("pending")
+@click.option("--workdir", default=".", help="Project root directory.", type=click.Path())
+def pending(workdir: str) -> None:
+    """List tasks waiting for approval review.
+
+    Shows all tasks that have been verified and are waiting for a human
+    decision (``bernstein approve <id>`` or ``bernstein reject <id>``).
+    """
+    from rich.table import Table
+
+    pending_dir = Path(workdir) / ".sdd" / "runtime" / "pending_approvals"
+    if not pending_dir.exists() or not any(pending_dir.glob("*.json")):
+        console.print("[dim]No tasks pending approval.[/dim]")
+        return
+
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("Task ID", style="cyan")
+    table.add_column("Title")
+    table.add_column("Tests")
+
+    for f in sorted(pending_dir.glob("*.json")):
+        try:
+            import json as _json
+
+            data = _json.loads(f.read_text())
+            table.add_row(
+                data.get("task_id", f.stem),
+                data.get("task_title", ""),
+                data.get("test_summary", ""),
+            )
+        except Exception:
+            table.add_row(f.stem, "[dim]unreadable[/dim]", "")
+
+    console.print(table)
+    console.print("\n[dim]Approve with:[/dim] bernstein approve <task_id>")
+    console.print("[dim]Reject with:[/dim]  bernstein reject <task_id>")
+
+
+# ---------------------------------------------------------------------------
 # plan
 # ---------------------------------------------------------------------------
 
@@ -2892,8 +3001,17 @@ def agents_group() -> None:
     show_default=True,
     help="Agent definitions directory.",
 )
-def agents_sync(definitions_dir: str) -> None:
+@click.option(
+    "--force",
+    is_flag=True,
+    default=False,
+    help="Force re-sync even if within the 24-hour TTL.",
+)
+def agents_sync(definitions_dir: str, force: bool) -> None:
     """Force-refresh all agent catalogs and update cache."""
+    import asyncio
+
+    from bernstein.agents.agency_provider import AgencyProvider
     from bernstein.agents.registry import AgentRegistry
 
     definitions_path = Path(definitions_dir)
@@ -2912,9 +3030,9 @@ def agents_sync(definitions_dir: str) -> None:
         for defn in loaded:
             console.print(f"    [dim]{defn.name}[/dim] v{defn.version} ({defn.role})")
 
-    # Provider: agency catalog (if present)
+    # Provider: agency catalog (legacy YAML format — .sdd/agents/agency/)
     agency_dir = Path(".sdd/agents/agency")
-    console.print(f"\n[cyan]→ agency[/cyan] {agency_dir}")
+    console.print(f"\n[cyan]→ agency (local YAML)[/cyan] {agency_dir}")
     if not agency_dir.exists():
         console.print(f"  [dim]Directory not found — skipping (place Agency YAML files in {agency_dir})[/dim]")
     else:
@@ -2927,6 +3045,24 @@ def agents_sync(definitions_dir: str) -> None:
             console.print(f"    [dim]{name}[/dim] ({agent.role})")
         if len(catalog) > 5:
             console.print(f"    [dim]… and {len(catalog) - 5} more[/dim]")
+
+    # Provider: Agency GitHub repo (msitarzewski/agency-agents markdown format)
+    default_agency_path = AgencyProvider.default_cache_path()
+    console.print(f"\n[cyan]→ agency (GitHub)[/cyan] {default_agency_path}")
+    ok, msg = AgencyProvider.sync_catalog(force=force)
+    if ok:
+        console.print(f"  [green]✓[/green] {msg}")
+        provider = AgencyProvider(local_path=default_agency_path)
+        agency_agents = asyncio.run(provider.fetch_agents())
+        console.print(f"  [green]✓[/green] {len(agency_agents)} specialist agent(s) available")
+        for a in agency_agents[:5]:
+            caps = ", ".join(a.capabilities[:3]) if a.capabilities else "—"
+            console.print(f"    [dim]{a.name}[/dim] ({a.role})  {caps}")
+        if len(agency_agents) > 5:
+            console.print(f"    [dim]… and {len(agency_agents) - 5} more[/dim]")
+    else:
+        console.print(f"  [yellow]![/yellow] {msg}")
+        console.print(f"  [dim]Manual clone: git clone https://github.com/msitarzewski/agency-agents {default_agency_path}[/dim]")
 
     console.print("\n[green]Sync complete.[/green]")
 
@@ -2948,9 +3084,13 @@ def agents_sync(definitions_dir: str) -> None:
 )
 def agents_list(source: str, definitions_dir: str) -> None:
     """List all available agents from loaded catalogs."""
+    import asyncio
+
+    from bernstein.agents.agency_provider import AgencyProvider
     from bernstein.agents.registry import AgentRegistry
 
-    rows: list[tuple[str, str, str, str]] = []
+    # rows: (id, name, role, capabilities, source)
+    rows: list[tuple[str, str, str, str, str]] = []
 
     # Local definitions
     if source in ("local", "all"):
@@ -2959,9 +3099,9 @@ def agents_list(source: str, definitions_dir: str) -> None:
             registry = AgentRegistry(definitions_dir=definitions_path)
             registry.load_definitions()
             for defn in registry.definitions.values():
-                rows.append((defn.name, defn.name, defn.role, "local"))
+                rows.append((defn.name, defn.name, defn.role, "", "local"))
 
-    # Agency catalog
+    # Agency catalog — legacy YAML format (.sdd/agents/agency/)
     if source in ("agency", "all"):
         agency_dir = Path(".sdd/agents/agency")
         if agency_dir.exists():
@@ -2969,7 +3109,17 @@ def agents_list(source: str, definitions_dir: str) -> None:
 
             catalog = load_agency_catalog(agency_dir)
             for name, agent in catalog.items():
-                rows.append((name, agent.name, agent.role, "agency"))
+                rows.append((name, agent.name, agent.role, "", "agency"))
+
+    # Agency catalog — GitHub markdown format (~/.bernstein/catalogs/agency/)
+    if source in ("agency", "all"):
+        default_agency_path = AgencyProvider.default_cache_path()
+        if default_agency_path.exists():
+            provider = AgencyProvider(local_path=default_agency_path)
+            agency_agents = asyncio.run(provider.fetch_agents())
+            for a in agency_agents:
+                caps = ", ".join(a.capabilities[:4]) if a.capabilities else ""
+                rows.append((a.id or a.name, a.name, a.role, caps, "agency"))
 
     if not rows:
         console.print("[dim]No agents found. Run [bold]bernstein agents sync[/bold] first.[/dim]")
@@ -2982,14 +3132,22 @@ def agents_list(source: str, definitions_dir: str) -> None:
         show_lines=False,
         header_style="bold cyan",
     )
-    table.add_column("ID", style="dim", min_width=20)
-    table.add_column("Name", min_width=20)
-    table.add_column("Role", min_width=14)
-    table.add_column("Source", min_width=8)
+    table.add_column("NAME", style="dim", min_width=22)
+    table.add_column("ROLE", min_width=12)
+    table.add_column("CAPABILITIES", min_width=32)
+    table.add_column("SOURCE", min_width=8)
 
-    for agent_id, name, role, src in sorted(rows, key=lambda r: (r[3], r[0])):
+    source_order = {"agency": 0, "local": 1}
+    for agent_id, name, role, caps, src in sorted(
+        rows, key=lambda r: (source_order.get(r[4], 9), r[1])
+    ):
         src_color = "cyan" if src == "local" else "magenta"
-        table.add_row(agent_id, name, role, f"[{src_color}]{src}[/{src_color}]")
+        table.add_row(
+            name,
+            role,
+            caps or "[dim]—[/dim]",
+            f"[{src_color}]{src}[/{src_color}]",
+        )
 
     console.print(table)
     console.print(f"\n[dim]{len(rows)} agent(s) total[/dim]")
@@ -4722,3 +4880,56 @@ def github_test_webhook(event: str, server_url: str | None) -> None:
         console.print(f"[red]Cannot connect to {url}[/red]")
         console.print("[dim]Is the Bernstein server running? Try 'bernstein start' first.[/dim]")
         raise SystemExit(1) from None
+
+
+# ---------------------------------------------------------------------------
+# mcp — expose Bernstein as an MCP server
+# ---------------------------------------------------------------------------
+
+
+@cli.command("mcp")
+@click.option(
+    "--transport",
+    type=click.Choice(["stdio", "sse"]),
+    default="stdio",
+    show_default=True,
+    help="MCP transport: stdio (local IDE) or sse (remote/web).",
+)
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    show_default=True,
+    help="SSE server host (only used with --transport sse).",
+)
+@click.option(
+    "--port",
+    default=8053,
+    show_default=True,
+    help="SSE server port (only used with --transport sse).",
+)
+@click.option(
+    "--server-url",
+    default=SERVER_URL,
+    show_default=True,
+    help="Bernstein task server URL.",
+)
+def mcp_server(transport: str, host: str, port: int, server_url: str) -> None:
+    """Start Bernstein as an MCP server.
+
+    \b
+    stdio transport (default) — for local IDE integration:
+      bernstein mcp
+
+    SSE transport — for remote/web clients:
+      bernstein mcp --transport sse --port 8053
+
+    Once running, any MCP client (Cursor, Claude Code, Cline, Windsurf)
+    can call bernstein_run, bernstein_status, bernstein_tasks, and more.
+    """
+    from bernstein.mcp.server import run_sse, run_stdio
+
+    if transport == "sse":
+        console.print(f"[dim]Starting Bernstein MCP server (SSE) on {host}:{port} ...[/dim]")
+        run_sse(server_url=server_url, host=host, port=port)
+    else:
+        run_stdio(server_url=server_url)

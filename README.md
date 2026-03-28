@@ -10,15 +10,14 @@
 
 ### One command. Multiple AI agents. Your codebase moves forward while you sleep.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/dashboard.svg">
-  <source media="(prefers-color-scheme: light)" srcset="docs/assets/dashboard.svg">
-  <img alt="Bernstein Dashboard" src="docs/assets/dashboard.svg" width="700">
-</picture>
+<img alt="Bernstein demo — one command, three agents, 47 seconds" src="docs/assets/demo.gif" width="700">
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
 [![Tests](https://img.shields.io/badge/tests-2415-2ea44f)]()
 [![License](https://img.shields.io/badge/license-Apache_2.0-blue)](LICENSE)
+[![Benchmark: 1.78x faster](https://img.shields.io/badge/benchmark-1.78x_faster_than_single_agent-brightgreen)](benchmarks/README.md)
+<!-- TODO: replace the URL below with the actual YouTube link once uploaded -->
+[![Watch demo](https://img.shields.io/badge/▶_watch_demo-2min-ff0000?logo=youtube&logoColor=white)](https://github.com/chernistry/bernstein)
 
 [Homepage](https://alexchernysh.com/bernstein) | [Documentation](https://chernistry.github.io/bernstein/)
 
@@ -127,6 +126,7 @@ Analyzes metrics, proposes changes to prompts and routing rules, sandboxes them,
 
 | Agent | Provider | CLI flag | Install |
 |-------|----------|----------|---------|
+| [Aider](https://github.com/Aider-AI/aider) | OpenAI / Anthropic / any | `--cli aider` | `pip install aider-chat` |
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Anthropic | `--cli claude` | `npm install -g @anthropic-ai/claude-code` |
 | [Codex CLI](https://github.com/openai/codex) | OpenAI | `--cli codex` | `npm install -g @openai/codex` |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Google | `--cli gemini` | `npm install -g @google/gemini-cli` |
@@ -188,7 +188,7 @@ Any tool, CI pipeline, Slack bot, or custom UI can create tasks and read status.
 
 CrewAI, AutoGen, and LangGraph work with any model via API wrappers — but they require you to write Python code to orchestrate. Ruflo uses self-evolution but ties you to Claude. Bernstein works with installed CLI agents (no API key plumbing, no SDK) and doesn't care which provider you use.
 
-**[Full comparison pages →](docs/compare/README.md)** — detailed feature matrices, benchmark data, and "when to use X instead" guides for Conductor, Dorothy, Parallel Code, Crystal, Stoneforge, and single-agent workflows.
+**[Full comparison pages →](docs/compare/README.md)** — detailed feature matrices, benchmark data, and "when to use X instead" guides for Conductor, Dorothy, Parallel Code, Crystal, Stoneforge, [GitHub Agent HQ](docs/compare/bernstein-vs-github-agent-hq.md), and single-agent workflows.
 
 </details>
 

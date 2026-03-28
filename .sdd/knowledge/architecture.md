@@ -3,8 +3,11 @@
 ## src/bernstein/
 _Bernstein — Multi-agent orchestration for CLI coding agents._
 
+- `__main__` — Allow running as ``python -m bernstein``.
 - `__init__` — Adapters for different CLI agents (Claude Code, Codex, Gemini, etc.).
-- `base` — Base adapter for CLI coding agents. [SpawnResult, CLIAdapter]
+- `base` — Base adapter for CLI coding agents. [SpawnResult, CLIAdapter, build_worker_cmd]
+- `__init__` — CI system adapters for log parsing and failure extraction.
+- `github_actions` — GitHub Actions CI adapter. [GHAStep, GitHubActionsParser, download_github_actions_log, download_github_actions_log_api]
 - `claude` — Claude Code CLI adapter. [ClaudeCodeAdapter, load_mcp_config]
 - `codex` — OpenAI Codex CLI adapter. [CodexAdapter]
 - `gemini` — Google Gemini CLI adapter. [GeminiAdapter]
@@ -15,43 +18,70 @@ _Bernstein — Multi-agent orchestration for CLI coding agents._
 - `__init__` — Agent definitions, roles, and factory.
 - `agency_provider` — AgencyProvider — loads CatalogAgent instances from msitarzewski/agency-agents format. [AgencyProvider]
 - `catalog` — Agent catalog registry — loads agent definitions from external sources. [CatalogAgent, CatalogEntry, CachedAgentEntry, CatalogRegistry]
+- `discovery` — Agent directory auto-discovery for Bernstein. [DirectoryEntry, AgentMetrics, AgentDiscovery]
 - `registry` — Dynamic agent registry with YAML-based definitions and hot-reload support. [AgentDefinition, AgentInstance, SchemaValidationError, AgentRegistry, get_registry]
+- `__init__`
+- `swe_bench` — SWE-Bench evaluation harness for Bernstein. [SWEInstance, InstanceResult, BenchmarkReport, SWEBenchRunner, compute_report, save_results]
 - `__init__` — CLI entry points.
 - `cost` — Bernstein cost — spend visibility across all recorded metrics. [cost_cmd]
 - `dashboard` — Bernstein TUI -- retro-futuristic agent orchestration dashboard. [AgentWidget, BigStats, ChatInput, BernsteinApp, run_dashboard]
+- `errors` — Structured error reporting for Bernstein CLI. [BernsteinError, port_in_use, server_unreachable, no_seed_or_goal, missing_api_key]
 - `main` — CLI entry point for Bernstein -- multi-agent orchestration. [cli, init, run, start, status, add_task]
 - `__init__` — Core: task server, spawner, scheduler.
+- `a2a` — A2A (Agent-to-Agent) protocol support. [A2ATaskStatus, AgentCard, A2AArtifact, A2ATask, A2AHandler]
 - `agency_loader` — Load Agency agent personas as additional Bernstein role templates. [AgencyAgent, parse_agency_agent, load_agency_catalog]
-- `bootstrap` — Bootstrap: parse seed -> init .sdd -> start server -> plan -> orchestrate. [BootstrapResult, create_router, bootstrap_from_seed, run_watchdog, bootstrap_from_goal]
+- `bootstrap` — Bootstrap: parse seed -> init .sdd -> start server -> plan -> orchestrate. [BootstrapResult, preflight_checks, create_router, bootstrap_from_seed, run_watchdog, bootstrap_from_goal]
 - `bulletin` — Append-only bulletin board for cross-agent communication. [BulletinMessage, BulletinBoard]
+- `ci_fix` — CI self-healing: detect failing CI jobs and create fix tasks. [CIFailureKind, CIFailure, CIFixResult, CIFixAttempt, CIFixPipeline, parse_failures]
+- `ci_log_parser` — Generic CI log parser with adapter pattern. [CILogParser, register_parser, get_parser, list_parsers]
+- `cluster` — Cluster coordination: node registration, heartbeats, topology management. [NodeRegistry, NodeHeartbeatClient, node_from_dict]
 - `context` — Gather project context for the manager's planning prompt. [FileSummary, TaskContextBuilder, FileIndexEntry, ApiCallRecord, ProviderUsageSummary, AgentSessionUsage]
+- `cost` — Intelligent cost optimization engine. [BanditArm, EpsilonGreedyBandit, get_cascade_model, compute_savings_vs_opus, compute_daily_cost, project_monthly_cost]
+- `cost_tracker` — Per-run cost budget tracker. [TokenUsage, BudgetStatus, CostTracker, estimate_cost]
 - `evolution` — Backward-compatibility shim — delegates to bernstein.evolution package. [get_default_coordinator]
+- `fast_path` — Fast-path execution for trivial tasks that don't need an LLM agent. [TaskLevel, FastPathAction, ClassificationResult, FastPathResult, FastPathStats, classify_task]
 - `git_context` — Git read operations for building agent context. [ls_files, ls_files_pattern, blame_summary, hot_files, cochange_files, recent_changes]
-- `git_ops` — Centralized git write operations for Bernstein. [GitResult, MergeResult, run_git, is_git_repo, status_porcelain, diff_cached_names]
+- `git_ops` — Centralized git write operations for Bernstein. [GitResult, MergeResult, PullRequestResult, run_git, is_git_repo, status_porcelain]
+- `github` — GitHub API integration for evolve coordination. [GitHubIssue, GitHubClient]
+- `graph` — Task dependency graph with critical-path and parallelism analysis. [Edge, GraphAnalysis, TaskGraph]
 - `hijacker` — Automatic tier hijacking — detects and routes to free tier opportunities. [FreeTierSource, HijackOpportunity, HijackResult, TierDetector, EnvVarConfig, EnvVarTierDetector]
+- `home` — Global ~/.bernstein home directory management. [BernsteinHome, resolve_config]
 - `janitor` — Verify task completion via concrete signals. [evaluate_signal, verify_task, run_janitor, verify_upgrade_task, create_fix_tasks, judge_task]
 - `llm` — Async native LLM client for Bernstein manager and external models. [LLMSettings, get_client, call_llm, tavily_search]
 - `manager` — Manager Intelligence — LLM-powered task decomposition and review. [ReviewResult, ManagerAgent, render_plan_prompt, render_review_prompt, parse_tasks_response, raw_dicts_to_tasks]
+- `mcp_manager` — MCP server lifecycle manager. [MCPServerConfig, _ServerState, MCPManager, parse_server_configs]
+- `mcp_registry` — MCP server auto-discovery and per-task configuration. [MCPServerEntry, MCPRegistry]
 - `metrics` — Performance metrics collection and storage. [MetricType, ProviderStatus, MetricPoint, TaskMetrics, AgentMetrics, ProviderHealth]
 - `models` — Core data models for tasks, agents, and cells. [ProviderType, ApiTier, RateLimit, CostStructure, ApiTierInfo, Scope]
 - `multi_cell` — Multi-cell orchestrator: coordinates multiple cells, each with its own manager + workers. [CellStatus, MultiCellTickResult, MultiCellOrchestrator, cell_status]
 - `orchestrator` — Orchestrator loop: watch tasks, spawn agents, verify completion, repeat. [_RuffLocation, RuffViolation, TestResults, CompletionData, Orchestrator, TickResult]
 - `policy` — Policy engine for tier optimization and provider routing. [Operator, ActionType, Condition, Action, Policy, PolicyEngine]
+- `prometheus` — Prometheus metrics for Bernstein. [update_metrics_from_status]
+- `rag` — Lightweight codebase RAG using SQLite FTS5 (BM25 ranking). [SearchResult, CodebaseIndexer, build_or_update_index]
 - `researcher` — Web research module for evolve mode. [ResearchResult, ResearchReport, ResearchCache, run_research, format_research_context, run_research_sync]
 - `retrospective` — Run retrospective report generation. [generate_retrospective]
 - `router` — Route tasks to appropriate model and effort level with tier awareness. [Tier, ProviderHealthStatus, ProviderHealth, CostTracker, ProviderConfig, RoutingDecision]
-- `seed` — Seed file parser for bernstein.yaml. [SeedError, NotifyConfig, SeedConfig, parse_seed, seed_to_initial_task]
-- `server` — FastAPI task server — central coordination point for all agents. [TaskRecord, ArchiveRecord, ProgressEntry, CompletionSignalSchema, TaskCreate, TaskResponse]
+- `seed` — Seed file parser for bernstein.yaml. [SeedError, StorageConfig, NotifyConfig, SeedConfig, parse_seed, seed_to_initial_task]
+- `server` — FastAPI task server — central coordination point for all agents. [BearerAuthMiddleware, ReadOnlyMiddleware, TaskRecord, ArchiveRecord, ProgressEntry, CompletionSignalSchema]
+- `signals` — Pivot signal system for strategic re-evaluation of tickets. [PivotSignal, TicketChange, VPDecision, file_pivot_signal, record_ticket_change, read_pivot_signals]
 - `spawner` — Spawn short-lived CLI agents for task batches. [AgentSpawner]
+- `store` — Abstract TaskStore base class for pluggable storage backends. [RoleSummary, StatusSummary, BaseTaskStore]
+- `store_factory` — Storage backend factory for the Bernstein task server. [create_store]
+- `store_postgres` — PostgreSQL task store backend. [PostgresTaskStore]
+- `store_redis` — Redis coordinator for distributed locking. [RedisCoordinator]
 - `sync` — Sync .sdd/backlog/*.md files with the task server. [BacklogTask, SyncResult, parse_backlog_file, normalise_title, sync_backlog_to_server]
+- `traces` — Agent execution trace storage, parsing, and replay utilities. [TraceStep, AgentTrace, TraceStore, parse_log_to_steps, parse_agent_log, new_trace]
 - `upgrade_executor` — Autonomous upgrade executor with transaction-like safety and rollback. [UpgradeStatus, UpgradeType, FileChange, UpgradeTransaction, UpgradeReviewer, ReviewResult]
+- `worker` — bernstein-worker: visible process wrapper for spawned CLI agents. [main]
+- `workspace` — Multi-repo workspace orchestration. [RepoConfig, RepoStatus, Workspace]
 - `worktree` — WorktreeManager — git worktree lifecycle for agent session isolation. [WorktreeError, WorktreeManager]
+- `__init__` — Bernstein web dashboard package.
 - `__init__` — Bernstein self-evolution system. [AnalysisEngine, EvolutionCoordinator, get_default_coordinator]
 - `aggregator` — Metrics aggregation with EWMA, CUSUM, BOCPD, and Goodhart defenses. [MetricRecord, TaskMetrics, AgentMetrics, CostMetrics, QualityMetrics, TrendAnalysis]
 - `applicator` — Change applicator — execute upgrades via file modification. [UpgradeExecutor, FileUpgradeExecutor]
 - `benchmark` — Tiered benchmark runner for evolution validation. [SignalSpec, BenchmarkSpec, SignalResult, BenchmarkResult, RunSummary, load_benchmarks]
 - `circuit` — CircuitBreaker — halt evolution when safety conditions are violated. [CircuitBreaker]
-- `creative` — Creative evolution pipeline — visionary → analyst → production gate. [VisionaryProposal, AnalystVerdict, PipelineResult, CreativePipeline]
+- `creative` — Creative evolution pipeline — visionary → analyst → production gate. [VisionaryProposal, AnalystVerdict, PipelineResult, CreativePipeline, issue_to_proposal]
 - `detector` — Opportunity detection from aggregated metrics. [UpgradeCategory, ImprovementOpportunity, FailurePattern, FailureRecord, FailureAnalyzer, OpportunityDetector]
 - `gate` — ApprovalGate — risk-stratified routing for evolution proposals. [ApprovalOutcome, ApprovalDecision, RiskClassifier, ApprovalGate]
 - `invariants` — InvariantsGuard — hash-lock safety-critical files. [compute_invariants, write_lockfile, verify_invariants, check_proposal_targets]
@@ -60,13 +90,25 @@ _Bernstein — Multi-agent orchestration for CLI coding agents._
 - `report` — Evolution observability — history table and static report generation. [CycleRecord, ExperimentRecord, EvolutionReport]
 - `sandbox` — SandboxValidator — isolated testing of evolution proposals. [SandboxValidator]
 - `types` — Shared types for the evolution system. [RiskLevel, ProposalStatus, CircuitState, MetricsRecord, UpgradeProposal, SandboxResult]
+- `__init__` — GitHub App integration for Bernstein.
+- `app` — GitHub App authentication: JWT creation and installation token exchange. [GitHubAppConfig, create_jwt, create_installation_token]
+- `mapper` — Event-to-task conversion: maps GitHub webhook events to Bernstein task payloads. [issue_to_tasks, pr_review_to_task, push_to_tasks, label_to_action]
+- `webhooks` — Webhook parsing and HMAC-SHA256 signature verification. [WebhookEvent, verify_signature, parse_webhook]
+- `__init__` — Bernstein plugin system using pluggy.
+- `hookspecs` — Hook specifications — defines extension points for Bernstein plugins. [BernsteinSpec]
+- `manager` — Plugin manager — discovers, loads, and invokes Bernstein plugins. [PluginManager, get_plugin_manager]
 - `__init__` — Template loading and rendering.
 - `renderer` — Template renderer for role system prompts. [TemplateError, render_template, render_role_prompt]
+- `__init__` — TUI session manager for Bernstein orchestration.
+- `app` — Main Textual application for the Bernstein TUI session manager. [BernsteinApp]
+- `widgets` — Custom Textual widgets for the Bernstein TUI. [TaskRow, TaskListWidget, ActionBar, AgentLogWidget, StatusBar, status_color]
 
 ## src/bernstein/adapters/
 _Adapters for different CLI agents (Claude Code, Codex, Gemini, etc.)._
 
-- `base` — Base adapter for CLI coding agents. [SpawnResult, CLIAdapter]
+- `base` — Base adapter for CLI coding agents. [SpawnResult, CLIAdapter, build_worker_cmd]
+- `__init__` — CI system adapters for log parsing and failure extraction.
+- `github_actions` — GitHub Actions CI adapter. [GHAStep, GitHubActionsParser, download_github_actions_log, download_github_actions_log_api]
 - `claude` — Claude Code CLI adapter. [ClaudeCodeAdapter, load_mcp_config]
 - `codex` — OpenAI Codex CLI adapter. [CodexAdapter]
 - `gemini` — Google Gemini CLI adapter. [GeminiAdapter]
@@ -75,48 +117,84 @@ _Adapters for different CLI agents (Claude Code, Codex, Gemini, etc.)._
 - `qwen` — Qwen CLI adapter for OpenAI compatible models. [QwenAdapter]
 - `registry` — Adapter registry — look up CLI adapters by name. [get_adapter, register_adapter]
 
+## src/bernstein/adapters/ci/
+_CI system adapters for log parsing and failure extraction._
+
+- `github_actions` — GitHub Actions CI adapter. [GHAStep, GitHubActionsParser, download_github_actions_log, download_github_actions_log_api]
+
 ## src/bernstein/agents/
 _Agent definitions, roles, and factory._
 
 - `agency_provider` — AgencyProvider — loads CatalogAgent instances from msitarzewski/agency-agents format. [AgencyProvider]
 - `catalog` — Agent catalog registry — loads agent definitions from external sources. [CatalogAgent, CatalogEntry, CachedAgentEntry, CatalogRegistry]
+- `discovery` — Agent directory auto-discovery for Bernstein. [DirectoryEntry, AgentMetrics, AgentDiscovery]
 - `registry` — Dynamic agent registry with YAML-based definitions and hot-reload support. [AgentDefinition, AgentInstance, SchemaValidationError, AgentRegistry, get_registry]
+
+## src/bernstein/benchmark/
+- `swe_bench` — SWE-Bench evaluation harness for Bernstein. [SWEInstance, InstanceResult, BenchmarkReport, SWEBenchRunner, compute_report, save_results]
 
 ## src/bernstein/cli/
 _CLI entry points._
 
 - `cost` — Bernstein cost — spend visibility across all recorded metrics. [cost_cmd]
 - `dashboard` — Bernstein TUI -- retro-futuristic agent orchestration dashboard. [AgentWidget, BigStats, ChatInput, BernsteinApp, run_dashboard]
+- `errors` — Structured error reporting for Bernstein CLI. [BernsteinError, port_in_use, server_unreachable, no_seed_or_goal, missing_api_key]
 - `main` — CLI entry point for Bernstein -- multi-agent orchestration. [cli, init, run, start, status, add_task]
 
 ## src/bernstein/core/
 _Core: task server, spawner, scheduler._
 
+- `a2a` — A2A (Agent-to-Agent) protocol support. [A2ATaskStatus, AgentCard, A2AArtifact, A2ATask, A2AHandler]
 - `agency_loader` — Load Agency agent personas as additional Bernstein role templates. [AgencyAgent, parse_agency_agent, load_agency_catalog]
-- `bootstrap` — Bootstrap: parse seed -> init .sdd -> start server -> plan -> orchestrate. [BootstrapResult, create_router, bootstrap_from_seed, run_watchdog, bootstrap_from_goal]
+- `bootstrap` — Bootstrap: parse seed -> init .sdd -> start server -> plan -> orchestrate. [BootstrapResult, preflight_checks, create_router, bootstrap_from_seed, run_watchdog, bootstrap_from_goal]
 - `bulletin` — Append-only bulletin board for cross-agent communication. [BulletinMessage, BulletinBoard]
+- `ci_fix` — CI self-healing: detect failing CI jobs and create fix tasks. [CIFailureKind, CIFailure, CIFixResult, CIFixAttempt, CIFixPipeline, parse_failures]
+- `ci_log_parser` — Generic CI log parser with adapter pattern. [CILogParser, register_parser, get_parser, list_parsers]
+- `cluster` — Cluster coordination: node registration, heartbeats, topology management. [NodeRegistry, NodeHeartbeatClient, node_from_dict]
 - `context` — Gather project context for the manager's planning prompt. [FileSummary, TaskContextBuilder, FileIndexEntry, ApiCallRecord, ProviderUsageSummary, AgentSessionUsage]
+- `cost` — Intelligent cost optimization engine. [BanditArm, EpsilonGreedyBandit, get_cascade_model, compute_savings_vs_opus, compute_daily_cost, project_monthly_cost]
+- `cost_tracker` — Per-run cost budget tracker. [TokenUsage, BudgetStatus, CostTracker, estimate_cost]
 - `evolution` — Backward-compatibility shim — delegates to bernstein.evolution package. [get_default_coordinator]
+- `fast_path` — Fast-path execution for trivial tasks that don't need an LLM agent. [TaskLevel, FastPathAction, ClassificationResult, FastPathResult, FastPathStats, classify_task]
 - `git_context` — Git read operations for building agent context. [ls_files, ls_files_pattern, blame_summary, hot_files, cochange_files, recent_changes]
-- `git_ops` — Centralized git write operations for Bernstein. [GitResult, MergeResult, run_git, is_git_repo, status_porcelain, diff_cached_names]
+- `git_ops` — Centralized git write operations for Bernstein. [GitResult, MergeResult, PullRequestResult, run_git, is_git_repo, status_porcelain]
+- `github` — GitHub API integration for evolve coordination. [GitHubIssue, GitHubClient]
+- `graph` — Task dependency graph with critical-path and parallelism analysis. [Edge, GraphAnalysis, TaskGraph]
 - `hijacker` — Automatic tier hijacking — detects and routes to free tier opportunities. [FreeTierSource, HijackOpportunity, HijackResult, TierDetector, EnvVarConfig, EnvVarTierDetector]
+- `home` — Global ~/.bernstein home directory management. [BernsteinHome, resolve_config]
 - `janitor` — Verify task completion via concrete signals. [evaluate_signal, verify_task, run_janitor, verify_upgrade_task, create_fix_tasks, judge_task]
 - `llm` — Async native LLM client for Bernstein manager and external models. [LLMSettings, get_client, call_llm, tavily_search]
 - `manager` — Manager Intelligence — LLM-powered task decomposition and review. [ReviewResult, ManagerAgent, render_plan_prompt, render_review_prompt, parse_tasks_response, raw_dicts_to_tasks]
+- `mcp_manager` — MCP server lifecycle manager. [MCPServerConfig, _ServerState, MCPManager, parse_server_configs]
+- `mcp_registry` — MCP server auto-discovery and per-task configuration. [MCPServerEntry, MCPRegistry]
 - `metrics` — Performance metrics collection and storage. [MetricType, ProviderStatus, MetricPoint, TaskMetrics, AgentMetrics, ProviderHealth]
 - `models` — Core data models for tasks, agents, and cells. [ProviderType, ApiTier, RateLimit, CostStructure, ApiTierInfo, Scope]
 - `multi_cell` — Multi-cell orchestrator: coordinates multiple cells, each with its own manager + workers. [CellStatus, MultiCellTickResult, MultiCellOrchestrator, cell_status]
 - `orchestrator` — Orchestrator loop: watch tasks, spawn agents, verify completion, repeat. [_RuffLocation, RuffViolation, TestResults, CompletionData, Orchestrator, TickResult]
 - `policy` — Policy engine for tier optimization and provider routing. [Operator, ActionType, Condition, Action, Policy, PolicyEngine]
+- `prometheus` — Prometheus metrics for Bernstein. [update_metrics_from_status]
+- `rag` — Lightweight codebase RAG using SQLite FTS5 (BM25 ranking). [SearchResult, CodebaseIndexer, build_or_update_index]
 - `researcher` — Web research module for evolve mode. [ResearchResult, ResearchReport, ResearchCache, run_research, format_research_context, run_research_sync]
 - `retrospective` — Run retrospective report generation. [generate_retrospective]
 - `router` — Route tasks to appropriate model and effort level with tier awareness. [Tier, ProviderHealthStatus, ProviderHealth, CostTracker, ProviderConfig, RoutingDecision]
-- `seed` — Seed file parser for bernstein.yaml. [SeedError, NotifyConfig, SeedConfig, parse_seed, seed_to_initial_task]
-- `server` — FastAPI task server — central coordination point for all agents. [TaskRecord, ArchiveRecord, ProgressEntry, CompletionSignalSchema, TaskCreate, TaskResponse]
+- `seed` — Seed file parser for bernstein.yaml. [SeedError, StorageConfig, NotifyConfig, SeedConfig, parse_seed, seed_to_initial_task]
+- `server` — FastAPI task server — central coordination point for all agents. [BearerAuthMiddleware, ReadOnlyMiddleware, TaskRecord, ArchiveRecord, ProgressEntry, CompletionSignalSchema]
+- `signals` — Pivot signal system for strategic re-evaluation of tickets. [PivotSignal, TicketChange, VPDecision, file_pivot_signal, record_ticket_change, read_pivot_signals]
 - `spawner` — Spawn short-lived CLI agents for task batches. [AgentSpawner]
+- `store` — Abstract TaskStore base class for pluggable storage backends. [RoleSummary, StatusSummary, BaseTaskStore]
+- `store_factory` — Storage backend factory for the Bernstein task server. [create_store]
+- `store_postgres` — PostgreSQL task store backend. [PostgresTaskStore]
+- `store_redis` — Redis coordinator for distributed locking. [RedisCoordinator]
 - `sync` — Sync .sdd/backlog/*.md files with the task server. [BacklogTask, SyncResult, parse_backlog_file, normalise_title, sync_backlog_to_server]
+- `traces` — Agent execution trace storage, parsing, and replay utilities. [TraceStep, AgentTrace, TraceStore, parse_log_to_steps, parse_agent_log, new_trace]
 - `upgrade_executor` — Autonomous upgrade executor with transaction-like safety and rollback. [UpgradeStatus, UpgradeType, FileChange, UpgradeTransaction, UpgradeReviewer, ReviewResult]
+- `worker` — bernstein-worker: visible process wrapper for spawned CLI agents. [main]
+- `workspace` — Multi-repo workspace orchestration. [RepoConfig, RepoStatus, Workspace]
 - `worktree` — WorktreeManager — git worktree lifecycle for agent session isolation. [WorktreeError, WorktreeManager]
+
+## src/bernstein/dashboard/
+_Bernstein web dashboard package._
+
 
 ## src/bernstein/evolution/
 _Bernstein self-evolution system._
@@ -125,7 +203,7 @@ _Bernstein self-evolution system._
 - `applicator` — Change applicator — execute upgrades via file modification. [UpgradeExecutor, FileUpgradeExecutor]
 - `benchmark` — Tiered benchmark runner for evolution validation. [SignalSpec, BenchmarkSpec, SignalResult, BenchmarkResult, RunSummary, load_benchmarks]
 - `circuit` — CircuitBreaker — halt evolution when safety conditions are violated. [CircuitBreaker]
-- `creative` — Creative evolution pipeline — visionary → analyst → production gate. [VisionaryProposal, AnalystVerdict, PipelineResult, CreativePipeline]
+- `creative` — Creative evolution pipeline — visionary → analyst → production gate. [VisionaryProposal, AnalystVerdict, PipelineResult, CreativePipeline, issue_to_proposal]
 - `detector` — Opportunity detection from aggregated metrics. [UpgradeCategory, ImprovementOpportunity, FailurePattern, FailureRecord, FailureAnalyzer, OpportunityDetector]
 - `gate` — ApprovalGate — risk-stratified routing for evolution proposals. [ApprovalOutcome, ApprovalDecision, RiskClassifier, ApprovalGate]
 - `invariants` — InvariantsGuard — hash-lock safety-critical files. [compute_invariants, write_lockfile, verify_invariants, check_proposal_targets]
@@ -135,17 +213,37 @@ _Bernstein self-evolution system._
 - `sandbox` — SandboxValidator — isolated testing of evolution proposals. [SandboxValidator]
 - `types` — Shared types for the evolution system. [RiskLevel, ProposalStatus, CircuitState, MetricsRecord, UpgradeProposal, SandboxResult]
 
+## src/bernstein/github_app/
+_GitHub App integration for Bernstein._
+
+- `app` — GitHub App authentication: JWT creation and installation token exchange. [GitHubAppConfig, create_jwt, create_installation_token]
+- `mapper` — Event-to-task conversion: maps GitHub webhook events to Bernstein task payloads. [issue_to_tasks, pr_review_to_task, push_to_tasks, label_to_action]
+- `webhooks` — Webhook parsing and HMAC-SHA256 signature verification. [WebhookEvent, verify_signature, parse_webhook]
+
+## src/bernstein/plugins/
+_Bernstein plugin system using pluggy._
+
+- `hookspecs` — Hook specifications — defines extension points for Bernstein plugins. [BernsteinSpec]
+- `manager` — Plugin manager — discovers, loads, and invokes Bernstein plugins. [PluginManager, get_plugin_manager]
+
 ## src/bernstein/templates/
 _Template loading and rendering._
 
 - `renderer` — Template renderer for role system prompts. [TemplateError, render_template, render_role_prompt]
 
+## src/bernstein/tui/
+_TUI session manager for Bernstein orchestration._
+
+- `app` — Main Textual application for the Bernstein TUI session manager. [BernsteinApp]
+- `widgets` — Custom Textual widgets for the Bernstein TUI. [TaskRow, TaskListWidget, ActionBar, AgentLogWidget, StatusBar, status_color]
+
 ## templates/demo/tests/
 - `test_app` — Basic tests for the demo Flask app. [client, test_hello_returns_200, test_hello_json_structure]
 
 ## tests/
-- `conftest` — Shared pytest fixtures for the bernstein test suite. [make_task, mock_adapter_factory, sdd_dir]
+- `conftest` — Shared pytest fixtures for the bernstein test suite. [pytest_runtest_teardown, make_task, mock_adapter_factory, sdd_dir]
 - `__init__`
+- `test_cluster_coordination` — Integration test: two Bernstein instances coordinating on shared tasks. [central_app, central, test_two_nodes_register_and_appear_in_status, test_task_claimed_by_exactly_one_node, test_tasks_distributed_across_nodes, test_node_heartbeat_keeps_node_online]
 - `test_end_to_end` — Integration test: server + orchestrator tick + mock adapter. [test_task_create_visible_to_orchestrator, test_orchestrator_tick_spawns_agent_for_open_task, test_orchestrator_respects_max_agents, test_task_complete_cycle_via_api, test_two_tasks_different_roles_spawn_separately, test_no_tasks_no_spawn]
 - `test_evolution_e2e` — End-to-end integration test for the self-evolution feedback loop. [TestEvolutionFeedbackLoopE2E]
 - `test_evolution_feedback_loop` — Integration test for the self-evolution feedback loop wired into the Orchestrator. [TestEvolutionFeedbackLoop]
@@ -154,6 +252,7 @@ _Template loading and rendering._
 - `test_server` — Tests for completion_signals API round-trip. [jsonl_path, app, client, test_post_task_with_path_exists_signal_stored, test_post_task_multiple_signals_stored, test_get_task_returns_completion_signals]
 - `test_worktree` — Tests for WorktreeManager — create/cleanup lifecycle (mocked subprocess). [TestCreate, TestCleanup, TestListActive, TestRoundTrip, repo_root, mgr]
 - `__init__`
+- `test_a2a` — Tests for the A2A (Agent-to-Agent) protocol support. [TestAgentCard, TestA2AHandler, jsonl_path, app, client, handler]
 - `test_adapter_claude` — Unit tests for ClaudeCodeAdapter spawn/kill/is_alive logic. [TestSpawnCommandArgs, TestSpawnPipeline, TestIsAlive, TestKill, TestLoadMcpConfigMerge, TestResolveEnvVars]
 - `test_adapter_manager` — Unit tests for ManagerAdapter (adapters/manager.py). [TestSpawn, TestIsAlive, TestKill, TestName]
 - `test_adapter_non_claude` — Unit tests for Codex, Gemini, Qwen, and Generic adapter spawn/kill/is_alive. [TestCodexAdapterSpawn, TestGeminiAdapterSpawn, TestQwenAdapterSpawn, TestGenericAdapterSpawn, TestGenericAdapterName, TestIsAlive]
@@ -169,24 +268,36 @@ _Template loading and rendering._
 - `test_catalog_cache` — Tests for CatalogRegistry cache and auto-discovery (task 403). [TestCachedAgentEntryFreshness, TestWriteCache, TestLoadCache, TestDiscover]
 - `test_catalog_discover` — Tests for CatalogRegistry._fetch_from_providers, _load_entry, _load_generic_entry, [TestFetchFromProviders, TestLoadEntry, TestLoadGenericEntry, TestParseCatalogEntry]
 - `test_catalog_matching` — Tests for CatalogRegistry.match() — role matching with catalog fallback. [test_match_empty_registry_returns_none, test_match_exact_role, test_match_exact_role_no_match_returns_none_without_fuzzy_candidates, test_match_exact_role_picks_lowest_priority, test_match_fuzzy_by_description_keywords, test_match_fuzzy_no_keyword_overlap_returns_none]
+- `test_ci_fix` — Tests for bernstein.core.ci_fix and related CI modules. [TestParseFailures, TestBuildTaskPayload, TestWriteCiFixTask, TestInstallPrePushHook, TestCIFixPipeline, TestCIFixAttemptDataclass]
 - `test_circuit_breaker` — Tests for CircuitBreaker. [TestCircuitBreaker]
 - `test_cli_agents` — Tests for `bernstein agents` CLI command group. [test_agents_sync_no_directory, test_agents_sync_empty_directory, test_agents_sync_with_valid_definition, test_agents_sync_complete_message, test_agents_list_no_agents, test_agents_list_shows_local_agents]
 - `test_cli_demo` — Tests for `bernstein demo` CLI command. [test_detect_available_adapter_returns_first_found, test_detect_available_adapter_returns_none_when_nothing_found, test_detect_available_adapter_prefers_claude_over_codex, test_setup_demo_project_creates_sdd_dirs, test_setup_demo_project_seeds_three_tasks, test_setup_demo_project_task_filenames_match]
+- `test_cli_stop` — Tests for soft/hard stop, shutdown signals, and crash recovery. [TestWriteShutdownSignals, TestReturnClaimedToOpen, TestSaveSessionOnStop, TestRecoverOrphanedClaims, TestKillPidHard, TestStopCommand]
+- `test_cluster` — Unit tests for NodeRegistry and cluster coordination. [test_register_new_node, test_register_same_id_updates_info, test_register_two_nodes, test_heartbeat_updates_timestamp, test_heartbeat_updates_capacity, test_heartbeat_unknown_node_returns_none]
 - `test_conflict_resolution` — Tests for automated conflict resolution and merge strategy. [TestMergeResult, TestParseConflictFiles, TestMergeWithConflictDetection, TestSpawnerConflictResolution]
 - `test_context` — Tests for bernstein.core.context. [TestShouldSkip, TestFileTree, TestReadIfExists, TestAvailableRoles, TestGatherProjectContext, TestApiUsageTracker]
 - `test_context_builder` — Tests for TaskContextBuilder and knowledge base utilities. [TestParsePythonFile, TestTaskContextBuilder, TestSubsystemContext, TestBuildFileIndex, TestRefreshKnowledgeBase, TestAppendDecision]
 - `test_cost_cmd` — Tests for the `bernstein cost` CLI command. [metrics_dir, test_cost_table_contains_expected_columns, test_cost_json_output, test_cost_missing_metrics_dir, test_cost_missing_metrics_dir_json, test_cost_empty_metrics_dir]
+- `test_cost_engine` — Tests for the intelligent cost optimization engine. [TestBanditArm, TestEpsilonGreedyBanditPersistence, TestEpsilonGreedyBanditSelect, TestRoutTaskBanditIntegration, TestSelectBatchConfigBanditIntegration, TestGetCascadeModel]
+- `test_cost_tracker` — Tests for bernstein.core.cost_tracker — per-run cost budget tracker. [TestEstimateCost, TestTokenUsage, TestBudgetStatus, TestCostTrackerRecording, TestCostTrackerUnlimited, TestCostTrackerThresholds]
 - `test_creative_pipeline` — Tests for the creative evolution pipeline (visionary → analyst → production gate). [TestVisionaryProposal, TestAnalystVerdict, TestCreativePipeline, sdd, pipeline, sample_proposals]
+- `test_dashboard` — Tests for the Bernstein web dashboard. [jsonl_path, app, client, test_dashboard_returns_200, test_dashboard_contains_key_elements, test_dashboard_contains_htmx]
+- `test_doctor` — Tests for `bernstein doctor` CLI command. [TestDoctorCommand]
 - `test_evolution` — Tests for EvolutionCoordinator — self-evolution feedback loop. [TestFileMetricsCollector, TestAnalysisEngine, TestFileUpgradeExecutor, TestEvolutionCoordinator, TestUpgradeProposal, TestGetDefaultCoordinator]
 - `test_evolution_integration` — Integration test: full self-evolution feedback loop from task completion to upgrade. [TestEvolutionEndToEnd]
 - `test_evolution_loop` — Tests for EvolutionLoop and ExperimentResult from bernstein.evolution.loop. [test_experiment_result_to_dict, test_evolution_loop_init, test_run_cycle_no_opportunities, test_run_cycle_with_opportunity_auto_approved, test_run_cycle_circuit_breaker_blocks, test_run_cycle_deferred_for_human_review]
 - `test_evolve_mode` — Tests for the evolve mode cycle flow in the orchestrator. [TestEvolveTriggering, TestEvolveBudgetCap, TestEvolveMaxCycles, TestEvolveDiminishingReturns, TestEvolvePriorityRotation, TestEvolveCycleLogging]
 - `test_evolve_report` — Unit tests for bernstein.evolution.report. [TestCycleRecord, TestExperimentRecord, TestEvolutionReportLoad, TestEvolutionReportStats, TestSparkline, TestExportMarkdown]
 - `test_failure_evolution` — Tests for failure-driven evolution: FailureRecord, FailureAnalyzer, OpportunityDetector, MetricsAggregator. [test_failure_record_to_dict, test_failure_record_to_dict_with_model, test_analyzer_init_creates_dirs, test_record_failure_persists, test_record_failure_in_memory, test_detect_patterns_below_threshold]
+- `test_fast_path` — Tests for fast-path task classification and deterministic executors. [TestClassifyTask, TestExecuteFastPath, TestFastPathStats, TestL1ModelConfig, TestTryFastPathBatch]
 - `test_feature_discovery` — Tests for FeatureDiscovery in bernstein.evolution.detector. [test_feature_ticket_defaults, test_discover_finds_todo_comment, test_discover_finds_fixme_comment, test_discover_skips_test_files, test_discover_deduplicates_against_open_backlog, test_discover_deduplicates_against_closed_backlog]
 - `test_git_context` — Tests for bernstein.core.git_context — git read operations for agent context. [TestLsFiles, TestBlameSummary, TestHotFiles, TestCochangeFiles, TestRecentChanges, TestRecentChangesMulti]
 - `test_git_ops` — Tests for bernstein.core.git_ops — centralized git write operations. [TestRunGit, TestGitResult, TestQueries, TestStaging, TestCommit, TestConventionalCommit]
+- `test_github` — Unit tests for bernstein.core.github — GitHub Issues integration. [test_hash_title_is_8_chars, test_hash_title_case_insensitive, test_hash_title_strip_whitespace, test_hash_title_different_titles_differ, test_issue_is_claimed_true, test_issue_is_claimed_false]
+- `test_github_app` — Tests for the GitHub App webhook integration. [TestVerifySignature, TestParseWebhook, TestIssueToTasks, TestPrReviewToTask, TestPushToTasks, TestLabelToAction]
+- `test_graph` — Tests for the task dependency graph module. [TestGraphConstruction, TestTopologicalSort, TestCriticalPath, TestParallelWidth, TestBottlenecks, TestReadyTasks]
 - `test_hijacker` — Tests for TierHijacker — automatic free tier detection and routing. [TestEnvVarTierDetector, TestQuotaTracker, TestTierHijacker, TestRateLimitSafetyCheck, TestQuotaSafetyCheck, TestModelSafetyCheck]
+- `test_home` — Tests for bernstein.core.home — BernsteinHome global config. [TestBernsteinHomeEnsure, TestBernsteinHomeGetSet, TestResolveConfig, TestBernsteinHomeDefault]
 - `test_idle_agent_detection` — Tests for idle agent detection: backlog auto-ingestion and proc reaping. [TestIngestBacklog, TestSpawnerReapCompletedAgent]
 - `test_invariants` — Tests for InvariantsGuard. [TestComputeInvariants, TestVerifyInvariants, TestCheckProposalTargets]
 - `test_janitor` — Tests for janitor -- completion signal verification. [TestPathExists, TestGlobExists, TestTestPasses, TestFileContains, TestLlmReview, TestVerifyTask]
@@ -195,13 +306,18 @@ _Template loading and rendering._
 - `test_logs_cmd` — Tests for the `bernstein logs` CLI command. [test_find_agent_logs_empty_dir, test_find_agent_logs_missing_dir, test_find_agent_logs_returns_sorted_by_mtime, test_find_agent_logs_excludes_watchdog, test_find_agent_logs_filters_by_agent_id, runtime_dir]
 - `test_manager` — Tests for bernstein.core.manager — parsing, rendering, task construction. [TestExtractJson, TestFormatRoles, TestFormatExistingTasks, TestParseTasksResponse, TestRawDictsToTasks, TestParseUpgradeDetails]
 - `test_mcp_config` — Tests for MCP config loading, merging, and passing to spawned agents. [TestLoadMcpConfig, TestResolveEnvVars, TestSeedMcpServers, TestSpawnerMcpPassthrough, TestClaudeAdapterMcpFlag]
+- `test_mcp_manager` — Tests for MCP server lifecycle manager. [TestMCPServerConfig, TestParseServerConfigs, TestMCPManagerLifecycle, TestMCPManagerHealthChecks, TestMCPManagerGetServerInfo, TestMCPManagerBuildConfig]
+- `test_mcp_registry` — Tests for MCP server auto-discovery and per-task configuration. [TestMCPServerEntry, TestMCPRegistryLoading, TestMCPRegistryDetection, TestMCPRegistryFiltering, TestMCPRegistryConfigBuilding, TestMCPRegistryResolveForTasks]
 - `test_metrics` — Dedicated tests for MetricsCollector in src/bernstein/core/metrics.py. [TestInit, TestStartTask, TestCompleteTask, TestIncrementTaskRetry, TestAgentMetrics, TestProviderHealth]
 - `test_metrics_batching` — Tests for metrics write batching in MetricsCollector. [collector, test_buffer_accumulates_before_flush, test_buffer_flushes_at_limit, test_flush_writes_valid_jsonl, test_flush_groups_by_file, test_flush_clears_buffer]
 - `test_models` — Tests for API tier configuration models and schema. [TestProviderType, TestApiTier, TestRateLimit, TestCostStructure, TestApiTierInfo, TestProviderTypeCoverage]
 - `test_multi_cell` — Tests for bernstein.core.multi_cell — CellStatus tracking, VP coordination, rebalancing. [TestCellStatus, TestRegisterRemoveCell, TestMultiCellTick, TestCheckRebalance, TestBulletinProperty, TestTickCell]
 - `test_orchestrator` — Tests for the Orchestrator — httpx calls and spawner are always mocked. [TestTaskFromDict, TestGroupByRole, TestOrchestratorTick, TestSpawnResiliency, TestReaping, TestRunStop]
 - `test_plan_cmd` — Tests for the `bernstein plan` CLI command. [test_plan_table_output, test_plan_status_filter_passes_param, test_plan_export_creates_json, test_plan_server_unreachable, test_plan_empty_task_list]
+- `test_plugins` — Tests for the Bernstein plugin system. [_CollectorPlugin, _PartialPlugin, _BrokenPlugin, pm, test_manual_registration, test_plugin_hooks_returns_implemented]
 - `test_policy` — Tests for the policy engine — policy loading, evaluation, and management. [TestCondition, TestAction, TestPolicy, TestPolicyEngine, TestCreateContext, TestPolicyEngineIntegration]
+- `test_prometheus` — Tests for the Prometheus metrics module and /metrics endpoint. [test_tasks_total_counter_exists, test_agents_active_gauge_exists, test_task_duration_histogram_exists, test_cost_usd_counter_exists, test_evolve_proposals_counter_exists, test_update_metrics_from_status_populates_gauges]
+- `test_rag` — Tests for bernstein.core.rag. [TestShouldSkipPath, TestExtractPythonChunks, TestLineChunks, TestCodebaseIndexer, TestBuildOrUpdateIndex, project]
 - `test_registry` — Tests for AgentRegistry — dynamic agent registration with YAML hot-reload. [TestAgentDefinition, TestAgentRegistry, TestYamlLoading, TestHotReload, TestSchemaValidation, TestGlobalRegistry]
 - `test_renderer` — Tests for bernstein.templates.renderer. [TestPlaceholderSubstitution, TestConditionals, TestFileHandling, TestRenderRolePrompt, templates_dir, simple_template]
 - `test_researcher` — Tests for bernstein.core.researcher — web research for evolve mode. [TestResearchResult, TestResearchCache, TestFormatResearchContext, TestRunResearch]
@@ -211,17 +327,27 @@ _Template loading and rendering._
 - `test_sandbox` — Tests for SandboxValidator. [TestL0Validation, TestL3Blocked, TestWorktreeValidation, TestLegacyValidate]
 - `test_seed` — Tests for bernstein.core.seed. [TestParseSeedValid, TestParseSeedInvalid, TestSeedToInitialTask, TestSeedConfig, TestNotifyConfig, TestBuildManagerDescription]
 - `test_server` — Tests for the Bernstein task server. [jsonl_path, app, client, test_create_task, test_create_task_defaults, test_claim_next_task]
+- `test_session_streaming` — Tests for interactive session streaming (ticket 708). [tmp_runtime, app, test_read_log_tail_full, test_read_log_tail_partial, test_read_log_tail_empty_file, test_agent_logs_not_found]
+- `test_signals` — Tests for pivot signal system. [TestFileAndReadPivotSignals, TestRecordTicketChange, TestNeedsVPReview, TestReadUnresolvedPivots, TestVPDecision]
 - `test_spawner` — Tests for AgentSpawner — adapter is always mocked. [TestSpawnForTasks, TestLifecycle, TestRenderPrompt, TestSelectBatchConfig, TestSpawnerWithRouter, TestRenderPromptWithAgencyCatalog]
+- `test_store_factory` — Tests for the pluggable storage backend factory. [TestCreateStoreMemory, TestCreateStorePostgres, TestCreateStoreRedis, TestUnknownBackend, TestEnvVarOverride, TestSeedStorageParsing]
+- `test_swe_bench_harness` — Unit tests for bernstein.benchmark.swe_bench — SWE-Bench evaluation harness. [sample_instance, passing_result, failing_result, test_swe_instance_has_required_fields, test_swe_instance_from_dict_parses_correctly, test_swe_instance_from_dict_handles_list_fail_to_pass]
 - `test_sync` — Tests for the backlog-to-server sync module. [TestParseBacklogFile, TestNormaliseTitle, TestFileToSlug, TestTaskAlreadyExists, TestSyncBacklogToServer]
+- `test_traces` — Tests for bernstein.core.traces — TraceStep, parse_agent_log, replay payload. [TestTraceStepSerialization, TestParseAgentLog, TestTraceStore, TestReplayPayloadConstruction, TestNewTrace]
+- `test_tui` — Unit tests for the Bernstein TUI session manager. [TestStatusColors, TestStatusDots, TestTaskRow, TestWidgetCreation, TestAppInstantiation, TestKillAgent]
 - `test_upgrade_executor` — Tests for FileUpgradeExecutor — YAML read-modify-write and rollback. [TestFileUpgradeExecutorPolicyUpdate, TestFileUpgradeExecutorRoutingRules, TestFileUpgradeExecutorProviderConfig, TestFileUpgradeExecutorRoleTemplate, TestFileUpgradeExecutorAtomicWrite, TestFileUpgradeExecutorRollback]
+- `test_worker` — Tests for bernstein-worker process wrapper and bernstein ps. [TestBuildWorkerCmd, TestWorkerProcess]
+- `test_workspace` — Tests for bernstein.core.workspace — multi-repo workspace orchestration. [TestFromConfig, TestResolveRepo, TestCloneMissing, TestStatus, TestValidate, TestTaskRepoField]
 
 ## tests/integration/
+- `test_cluster_coordination` — Integration test: two Bernstein instances coordinating on shared tasks. [central_app, central, test_two_nodes_register_and_appear_in_status, test_task_claimed_by_exactly_one_node, test_tasks_distributed_across_nodes, test_node_heartbeat_keeps_node_online]
 - `test_end_to_end` — Integration test: server + orchestrator tick + mock adapter. [test_task_create_visible_to_orchestrator, test_orchestrator_tick_spawns_agent_for_open_task, test_orchestrator_respects_max_agents, test_task_complete_cycle_via_api, test_two_tasks_different_roles_spawn_separately, test_no_tasks_no_spawn]
 - `test_evolution_e2e` — End-to-end integration test for the self-evolution feedback loop. [TestEvolutionFeedbackLoopE2E]
 - `test_evolution_feedback_loop` — Integration test for the self-evolution feedback loop wired into the Orchestrator. [TestEvolutionFeedbackLoop]
 - `test_lifecycle` — Integration test: full spawn → execute → complete lifecycle. [test_lifecycle_spawn_execute_complete, test_lifecycle_model_effort_routing_by_complexity, test_lifecycle_orchestrator_detects_completion_state]
 
 ## tests/unit/
+- `test_a2a` — Tests for the A2A (Agent-to-Agent) protocol support. [TestAgentCard, TestA2AHandler, jsonl_path, app, client, handler]
 - `test_adapter_claude` — Unit tests for ClaudeCodeAdapter spawn/kill/is_alive logic. [TestSpawnCommandArgs, TestSpawnPipeline, TestIsAlive, TestKill, TestLoadMcpConfigMerge, TestResolveEnvVars]
 - `test_adapter_manager` — Unit tests for ManagerAdapter (adapters/manager.py). [TestSpawn, TestIsAlive, TestKill, TestName]
 - `test_adapter_non_claude` — Unit tests for Codex, Gemini, Qwen, and Generic adapter spawn/kill/is_alive. [TestCodexAdapterSpawn, TestGeminiAdapterSpawn, TestQwenAdapterSpawn, TestGenericAdapterSpawn, TestGenericAdapterName, TestIsAlive]
@@ -237,24 +363,36 @@ _Template loading and rendering._
 - `test_catalog_cache` — Tests for CatalogRegistry cache and auto-discovery (task 403). [TestCachedAgentEntryFreshness, TestWriteCache, TestLoadCache, TestDiscover]
 - `test_catalog_discover` — Tests for CatalogRegistry._fetch_from_providers, _load_entry, _load_generic_entry, [TestFetchFromProviders, TestLoadEntry, TestLoadGenericEntry, TestParseCatalogEntry]
 - `test_catalog_matching` — Tests for CatalogRegistry.match() — role matching with catalog fallback. [test_match_empty_registry_returns_none, test_match_exact_role, test_match_exact_role_no_match_returns_none_without_fuzzy_candidates, test_match_exact_role_picks_lowest_priority, test_match_fuzzy_by_description_keywords, test_match_fuzzy_no_keyword_overlap_returns_none]
+- `test_ci_fix` — Tests for bernstein.core.ci_fix and related CI modules. [TestParseFailures, TestBuildTaskPayload, TestWriteCiFixTask, TestInstallPrePushHook, TestCIFixPipeline, TestCIFixAttemptDataclass]
 - `test_circuit_breaker` — Tests for CircuitBreaker. [TestCircuitBreaker]
 - `test_cli_agents` — Tests for `bernstein agents` CLI command group. [test_agents_sync_no_directory, test_agents_sync_empty_directory, test_agents_sync_with_valid_definition, test_agents_sync_complete_message, test_agents_list_no_agents, test_agents_list_shows_local_agents]
 - `test_cli_demo` — Tests for `bernstein demo` CLI command. [test_detect_available_adapter_returns_first_found, test_detect_available_adapter_returns_none_when_nothing_found, test_detect_available_adapter_prefers_claude_over_codex, test_setup_demo_project_creates_sdd_dirs, test_setup_demo_project_seeds_three_tasks, test_setup_demo_project_task_filenames_match]
+- `test_cli_stop` — Tests for soft/hard stop, shutdown signals, and crash recovery. [TestWriteShutdownSignals, TestReturnClaimedToOpen, TestSaveSessionOnStop, TestRecoverOrphanedClaims, TestKillPidHard, TestStopCommand]
+- `test_cluster` — Unit tests for NodeRegistry and cluster coordination. [test_register_new_node, test_register_same_id_updates_info, test_register_two_nodes, test_heartbeat_updates_timestamp, test_heartbeat_updates_capacity, test_heartbeat_unknown_node_returns_none]
 - `test_conflict_resolution` — Tests for automated conflict resolution and merge strategy. [TestMergeResult, TestParseConflictFiles, TestMergeWithConflictDetection, TestSpawnerConflictResolution]
 - `test_context` — Tests for bernstein.core.context. [TestShouldSkip, TestFileTree, TestReadIfExists, TestAvailableRoles, TestGatherProjectContext, TestApiUsageTracker]
 - `test_context_builder` — Tests for TaskContextBuilder and knowledge base utilities. [TestParsePythonFile, TestTaskContextBuilder, TestSubsystemContext, TestBuildFileIndex, TestRefreshKnowledgeBase, TestAppendDecision]
 - `test_cost_cmd` — Tests for the `bernstein cost` CLI command. [metrics_dir, test_cost_table_contains_expected_columns, test_cost_json_output, test_cost_missing_metrics_dir, test_cost_missing_metrics_dir_json, test_cost_empty_metrics_dir]
+- `test_cost_engine` — Tests for the intelligent cost optimization engine. [TestBanditArm, TestEpsilonGreedyBanditPersistence, TestEpsilonGreedyBanditSelect, TestRoutTaskBanditIntegration, TestSelectBatchConfigBanditIntegration, TestGetCascadeModel]
+- `test_cost_tracker` — Tests for bernstein.core.cost_tracker — per-run cost budget tracker. [TestEstimateCost, TestTokenUsage, TestBudgetStatus, TestCostTrackerRecording, TestCostTrackerUnlimited, TestCostTrackerThresholds]
 - `test_creative_pipeline` — Tests for the creative evolution pipeline (visionary → analyst → production gate). [TestVisionaryProposal, TestAnalystVerdict, TestCreativePipeline, sdd, pipeline, sample_proposals]
+- `test_dashboard` — Tests for the Bernstein web dashboard. [jsonl_path, app, client, test_dashboard_returns_200, test_dashboard_contains_key_elements, test_dashboard_contains_htmx]
+- `test_doctor` — Tests for `bernstein doctor` CLI command. [TestDoctorCommand]
 - `test_evolution` — Tests for EvolutionCoordinator — self-evolution feedback loop. [TestFileMetricsCollector, TestAnalysisEngine, TestFileUpgradeExecutor, TestEvolutionCoordinator, TestUpgradeProposal, TestGetDefaultCoordinator]
 - `test_evolution_integration` — Integration test: full self-evolution feedback loop from task completion to upgrade. [TestEvolutionEndToEnd]
 - `test_evolution_loop` — Tests for EvolutionLoop and ExperimentResult from bernstein.evolution.loop. [test_experiment_result_to_dict, test_evolution_loop_init, test_run_cycle_no_opportunities, test_run_cycle_with_opportunity_auto_approved, test_run_cycle_circuit_breaker_blocks, test_run_cycle_deferred_for_human_review]
 - `test_evolve_mode` — Tests for the evolve mode cycle flow in the orchestrator. [TestEvolveTriggering, TestEvolveBudgetCap, TestEvolveMaxCycles, TestEvolveDiminishingReturns, TestEvolvePriorityRotation, TestEvolveCycleLogging]
 - `test_evolve_report` — Unit tests for bernstein.evolution.report. [TestCycleRecord, TestExperimentRecord, TestEvolutionReportLoad, TestEvolutionReportStats, TestSparkline, TestExportMarkdown]
 - `test_failure_evolution` — Tests for failure-driven evolution: FailureRecord, FailureAnalyzer, OpportunityDetector, MetricsAggregator. [test_failure_record_to_dict, test_failure_record_to_dict_with_model, test_analyzer_init_creates_dirs, test_record_failure_persists, test_record_failure_in_memory, test_detect_patterns_below_threshold]
+- `test_fast_path` — Tests for fast-path task classification and deterministic executors. [TestClassifyTask, TestExecuteFastPath, TestFastPathStats, TestL1ModelConfig, TestTryFastPathBatch]
 - `test_feature_discovery` — Tests for FeatureDiscovery in bernstein.evolution.detector. [test_feature_ticket_defaults, test_discover_finds_todo_comment, test_discover_finds_fixme_comment, test_discover_skips_test_files, test_discover_deduplicates_against_open_backlog, test_discover_deduplicates_against_closed_backlog]
 - `test_git_context` — Tests for bernstein.core.git_context — git read operations for agent context. [TestLsFiles, TestBlameSummary, TestHotFiles, TestCochangeFiles, TestRecentChanges, TestRecentChangesMulti]
 - `test_git_ops` — Tests for bernstein.core.git_ops — centralized git write operations. [TestRunGit, TestGitResult, TestQueries, TestStaging, TestCommit, TestConventionalCommit]
+- `test_github` — Unit tests for bernstein.core.github — GitHub Issues integration. [test_hash_title_is_8_chars, test_hash_title_case_insensitive, test_hash_title_strip_whitespace, test_hash_title_different_titles_differ, test_issue_is_claimed_true, test_issue_is_claimed_false]
+- `test_github_app` — Tests for the GitHub App webhook integration. [TestVerifySignature, TestParseWebhook, TestIssueToTasks, TestPrReviewToTask, TestPushToTasks, TestLabelToAction]
+- `test_graph` — Tests for the task dependency graph module. [TestGraphConstruction, TestTopologicalSort, TestCriticalPath, TestParallelWidth, TestBottlenecks, TestReadyTasks]
 - `test_hijacker` — Tests for TierHijacker — automatic free tier detection and routing. [TestEnvVarTierDetector, TestQuotaTracker, TestTierHijacker, TestRateLimitSafetyCheck, TestQuotaSafetyCheck, TestModelSafetyCheck]
+- `test_home` — Tests for bernstein.core.home — BernsteinHome global config. [TestBernsteinHomeEnsure, TestBernsteinHomeGetSet, TestResolveConfig, TestBernsteinHomeDefault]
 - `test_idle_agent_detection` — Tests for idle agent detection: backlog auto-ingestion and proc reaping. [TestIngestBacklog, TestSpawnerReapCompletedAgent]
 - `test_invariants` — Tests for InvariantsGuard. [TestComputeInvariants, TestVerifyInvariants, TestCheckProposalTargets]
 - `test_janitor` — Tests for janitor -- completion signal verification. [TestPathExists, TestGlobExists, TestTestPasses, TestFileContains, TestLlmReview, TestVerifyTask]
@@ -263,13 +401,18 @@ _Template loading and rendering._
 - `test_logs_cmd` — Tests for the `bernstein logs` CLI command. [test_find_agent_logs_empty_dir, test_find_agent_logs_missing_dir, test_find_agent_logs_returns_sorted_by_mtime, test_find_agent_logs_excludes_watchdog, test_find_agent_logs_filters_by_agent_id, runtime_dir]
 - `test_manager` — Tests for bernstein.core.manager — parsing, rendering, task construction. [TestExtractJson, TestFormatRoles, TestFormatExistingTasks, TestParseTasksResponse, TestRawDictsToTasks, TestParseUpgradeDetails]
 - `test_mcp_config` — Tests for MCP config loading, merging, and passing to spawned agents. [TestLoadMcpConfig, TestResolveEnvVars, TestSeedMcpServers, TestSpawnerMcpPassthrough, TestClaudeAdapterMcpFlag]
+- `test_mcp_manager` — Tests for MCP server lifecycle manager. [TestMCPServerConfig, TestParseServerConfigs, TestMCPManagerLifecycle, TestMCPManagerHealthChecks, TestMCPManagerGetServerInfo, TestMCPManagerBuildConfig]
+- `test_mcp_registry` — Tests for MCP server auto-discovery and per-task configuration. [TestMCPServerEntry, TestMCPRegistryLoading, TestMCPRegistryDetection, TestMCPRegistryFiltering, TestMCPRegistryConfigBuilding, TestMCPRegistryResolveForTasks]
 - `test_metrics` — Dedicated tests for MetricsCollector in src/bernstein/core/metrics.py. [TestInit, TestStartTask, TestCompleteTask, TestIncrementTaskRetry, TestAgentMetrics, TestProviderHealth]
 - `test_metrics_batching` — Tests for metrics write batching in MetricsCollector. [collector, test_buffer_accumulates_before_flush, test_buffer_flushes_at_limit, test_flush_writes_valid_jsonl, test_flush_groups_by_file, test_flush_clears_buffer]
 - `test_models` — Tests for API tier configuration models and schema. [TestProviderType, TestApiTier, TestRateLimit, TestCostStructure, TestApiTierInfo, TestProviderTypeCoverage]
 - `test_multi_cell` — Tests for bernstein.core.multi_cell — CellStatus tracking, VP coordination, rebalancing. [TestCellStatus, TestRegisterRemoveCell, TestMultiCellTick, TestCheckRebalance, TestBulletinProperty, TestTickCell]
 - `test_orchestrator` — Tests for the Orchestrator — httpx calls and spawner are always mocked. [TestTaskFromDict, TestGroupByRole, TestOrchestratorTick, TestSpawnResiliency, TestReaping, TestRunStop]
 - `test_plan_cmd` — Tests for the `bernstein plan` CLI command. [test_plan_table_output, test_plan_status_filter_passes_param, test_plan_export_creates_json, test_plan_server_unreachable, test_plan_empty_task_list]
+- `test_plugins` — Tests for the Bernstein plugin system. [_CollectorPlugin, _PartialPlugin, _BrokenPlugin, pm, test_manual_registration, test_plugin_hooks_returns_implemented]
 - `test_policy` — Tests for the policy engine — policy loading, evaluation, and management. [TestCondition, TestAction, TestPolicy, TestPolicyEngine, TestCreateContext, TestPolicyEngineIntegration]
+- `test_prometheus` — Tests for the Prometheus metrics module and /metrics endpoint. [test_tasks_total_counter_exists, test_agents_active_gauge_exists, test_task_duration_histogram_exists, test_cost_usd_counter_exists, test_evolve_proposals_counter_exists, test_update_metrics_from_status_populates_gauges]
+- `test_rag` — Tests for bernstein.core.rag. [TestShouldSkipPath, TestExtractPythonChunks, TestLineChunks, TestCodebaseIndexer, TestBuildOrUpdateIndex, project]
 - `test_registry` — Tests for AgentRegistry — dynamic agent registration with YAML hot-reload. [TestAgentDefinition, TestAgentRegistry, TestYamlLoading, TestHotReload, TestSchemaValidation, TestGlobalRegistry]
 - `test_renderer` — Tests for bernstein.templates.renderer. [TestPlaceholderSubstitution, TestConditionals, TestFileHandling, TestRenderRolePrompt, templates_dir, simple_template]
 - `test_researcher` — Tests for bernstein.core.researcher — web research for evolve mode. [TestResearchResult, TestResearchCache, TestFormatResearchContext, TestRunResearch]
@@ -279,6 +422,14 @@ _Template loading and rendering._
 - `test_sandbox` — Tests for SandboxValidator. [TestL0Validation, TestL3Blocked, TestWorktreeValidation, TestLegacyValidate]
 - `test_seed` — Tests for bernstein.core.seed. [TestParseSeedValid, TestParseSeedInvalid, TestSeedToInitialTask, TestSeedConfig, TestNotifyConfig, TestBuildManagerDescription]
 - `test_server` — Tests for the Bernstein task server. [jsonl_path, app, client, test_create_task, test_create_task_defaults, test_claim_next_task]
+- `test_session_streaming` — Tests for interactive session streaming (ticket 708). [tmp_runtime, app, test_read_log_tail_full, test_read_log_tail_partial, test_read_log_tail_empty_file, test_agent_logs_not_found]
+- `test_signals` — Tests for pivot signal system. [TestFileAndReadPivotSignals, TestRecordTicketChange, TestNeedsVPReview, TestReadUnresolvedPivots, TestVPDecision]
 - `test_spawner` — Tests for AgentSpawner — adapter is always mocked. [TestSpawnForTasks, TestLifecycle, TestRenderPrompt, TestSelectBatchConfig, TestSpawnerWithRouter, TestRenderPromptWithAgencyCatalog]
+- `test_store_factory` — Tests for the pluggable storage backend factory. [TestCreateStoreMemory, TestCreateStorePostgres, TestCreateStoreRedis, TestUnknownBackend, TestEnvVarOverride, TestSeedStorageParsing]
+- `test_swe_bench_harness` — Unit tests for bernstein.benchmark.swe_bench — SWE-Bench evaluation harness. [sample_instance, passing_result, failing_result, test_swe_instance_has_required_fields, test_swe_instance_from_dict_parses_correctly, test_swe_instance_from_dict_handles_list_fail_to_pass]
 - `test_sync` — Tests for the backlog-to-server sync module. [TestParseBacklogFile, TestNormaliseTitle, TestFileToSlug, TestTaskAlreadyExists, TestSyncBacklogToServer]
+- `test_traces` — Tests for bernstein.core.traces — TraceStep, parse_agent_log, replay payload. [TestTraceStepSerialization, TestParseAgentLog, TestTraceStore, TestReplayPayloadConstruction, TestNewTrace]
+- `test_tui` — Unit tests for the Bernstein TUI session manager. [TestStatusColors, TestStatusDots, TestTaskRow, TestWidgetCreation, TestAppInstantiation, TestKillAgent]
 - `test_upgrade_executor` — Tests for FileUpgradeExecutor — YAML read-modify-write and rollback. [TestFileUpgradeExecutorPolicyUpdate, TestFileUpgradeExecutorRoutingRules, TestFileUpgradeExecutorProviderConfig, TestFileUpgradeExecutorRoleTemplate, TestFileUpgradeExecutorAtomicWrite, TestFileUpgradeExecutorRollback]
+- `test_worker` — Tests for bernstein-worker process wrapper and bernstein ps. [TestBuildWorkerCmd, TestWorkerProcess]
+- `test_workspace` — Tests for bernstein.core.workspace — multi-repo workspace orchestration. [TestFromConfig, TestResolveRepo, TestCloneMissing, TestStatus, TestValidate, TestTaskRepoField]

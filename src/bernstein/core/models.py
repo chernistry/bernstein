@@ -85,6 +85,7 @@ class TaskStatus(Enum):
     FAILED = "failed"
     BLOCKED = "blocked"
     CANCELLED = "cancelled"
+    ORPHANED = "orphaned"  # Agent crashed mid-task; pending crash recovery
 
 
 class TaskType(Enum):
@@ -269,6 +270,25 @@ class JudgeVerdict:
 
 
 @dataclass
+class GuardrailResult:
+    """Result of a single guardrail check on an agent's diff.
+
+    Attributes:
+        check: Check name (e.g. "secret_detection", "scope_enforcement").
+        passed: Whether the check passed.
+        blocked: True if this is a hard block (merge must not proceed).
+        detail: Human-readable description of findings.
+        files: Files involved in any violation.
+    """
+
+    check: str
+    passed: bool
+    blocked: bool
+    detail: str
+    files: list[str] = field(default_factory=list[str])
+
+
+@dataclass
 class JanitorResult:
     """Result of a janitor run for a single task."""
 
@@ -278,6 +298,7 @@ class JanitorResult:
     fix_tasks_created: list[str] = field(default_factory=list[str])  # IDs of created fix tasks
     judge_verdict: JudgeVerdict | None = None  # Set when llm_judge signal was evaluated
     pr_url: str | None = None  # PR URL if created after successful verification
+    guardrail_results: list[GuardrailResult] = field(default_factory=list[GuardrailResult])  # Pre-merge guardrail checks
 
 
 @dataclass(frozen=True)
@@ -287,6 +308,26 @@ class ModelConfig:
     model: str  # e.g. "opus", "sonnet", "gpt-4.1"
     effort: str  # e.g. "max", "high", "normal"
     max_tokens: int = 200_000
+
+
+@dataclass
+class AgentHeartbeat:
+    """Heartbeat written by an agent to signal it is still making progress.
+
+    Agents write this to `.sdd/runtime/heartbeats/{session_id}.json` every
+    30 seconds so the orchestrator can detect stuck agents.
+
+    Attributes:
+        timestamp: Unix timestamp when the heartbeat was written.
+        files_changed: Number of files modified since the agent started.
+        status: Agent self-reported status ("working", "idle", "stuck").
+        current_file: File currently being edited, or empty string.
+    """
+
+    timestamp: float
+    files_changed: int = 0
+    status: str = "working"
+    current_file: str = ""
 
 
 @dataclass
@@ -351,6 +392,9 @@ class OrchestratorConfig:
     merge_strategy: str = "pr"  # "pr" | "direct" — how agent work reaches the main branch
     auto_merge: bool = True  # Auto-merge PR after code review passes (requires gh CLI)
     pr_labels: list[str] = field(default_factory=lambda: ["bernstein", "auto-generated"])
+    approval: str = "auto"  # "auto" | "review" | "pr" — gate between verification and merge
+    recovery: str = "resume"  # "resume" | "restart" | "escalate" — crash recovery strategy
+    max_crash_retries: int = 2  # Max times to resume in same worktree before escalating
 
 
 # ---------------------------------------------------------------------------

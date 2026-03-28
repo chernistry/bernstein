@@ -3223,7 +3223,11 @@ def test_per_task_timeout_short_task(tmp_path: Path) -> None:
 
 
 def test_per_task_timeout_long_task_clamped(tmp_path: Path) -> None:
-    """A 60-minute large/backend task gets adaptive timeout: 60*60*2.5=9000, clamped to 600*2.5=1500."""
+    """A 60-minute medium/backend task gets adaptive timeout: 60*60*1.5=5400, clamped to 600*1.5=900.
+
+    Note: scope=large tasks are auto-decomposed (not spawned directly), so this test
+    uses scope=medium with high complexity to verify the clamping logic.
+    """
     task = Task(
         id="T-long",
         title="Long task",
@@ -3231,7 +3235,7 @@ def test_per_task_timeout_long_task_clamped(tmp_path: Path) -> None:
         role="backend",
         estimated_minutes=60,
         status=TaskStatus.OPEN,
-        scope=Scope.LARGE,
+        scope=Scope.MEDIUM,
         complexity=Complexity.HIGH,
     )
     task_dict = {
@@ -3241,7 +3245,7 @@ def test_per_task_timeout_long_task_clamped(tmp_path: Path) -> None:
         "role": task.role,
         "estimated_minutes": task.estimated_minutes,
         "status": "open",
-        "scope": "large",
+        "scope": "medium",
         "complexity": "high",
         "priority": 2,
         "depends_on": [],
@@ -3272,8 +3276,8 @@ def test_per_task_timeout_long_task_clamped(tmp_path: Path) -> None:
     sessions = list(orch._agents.values())
     assert sessions, "Expected one agent to be spawned"
     session = sessions[0]
-    # 60*60=3600, scope=large (2.5x), clamped to 600*2.5=1500
-    assert session.timeout_s == 1500
+    # 60*60=3600, scope=medium (1.5x), clamped to 600*1.5=900
+    assert session.timeout_s == 900
 
 
 def test_reap_uses_per_session_timeout(tmp_path: Path) -> None:

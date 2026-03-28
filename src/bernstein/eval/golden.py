@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import yaml
 
@@ -91,7 +91,7 @@ def _parse_golden_file(path: Path, tier: Tier) -> GoldenTask | None:
         logger.warning("Golden task frontmatter is not a dict: %s", path)
         return None
 
-    m: dict[str, Any] = dict(meta)
+    m: dict[str, Any] = dict(cast("dict[str, Any]", meta))
     body = parts[2].strip()
     task_id: str = str(m.get("id", path.stem))
 

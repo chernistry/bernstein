@@ -7,6 +7,7 @@ Schema violations degrade the reliability gate.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import cast
 
 
 @dataclass(frozen=True)
@@ -126,9 +127,9 @@ def parse_telemetry(raw: dict[str, object]) -> AgentTelemetry:
         return int(v) if isinstance(v, int | float) else default
 
     def _str_list(key: str) -> list[str]:
-        v = raw.get(key, [])
+        v: object = raw.get(key, [])
         if isinstance(v, list):
-            return [str(item) for item in v]
+            return [str(item) for item in cast("list[object]", v)]
         return []
 
     return AgentTelemetry(

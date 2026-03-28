@@ -56,7 +56,7 @@ bernstein start --dashboard
 goal: "Build a REST API for user management"
 budget: "$20"
 team: auto
-cli: claude
+cli: auto    # auto-detects installed agents; or set explicitly: claude, codex, gemini, qwen
 ```
 
 ```bash

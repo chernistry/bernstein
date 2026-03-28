@@ -141,7 +141,7 @@ Expected: No output (zero matches)
 
 - [ ] **Step 9: Run existing tests**
 
-Run: `uv run pytest tests/ -x -q --tb=short`
+Run: `uv run python scripts/run_tests.py -x`
 Expected: All tests pass
 
 - [ ] **Step 10: Commit**
@@ -224,7 +224,7 @@ Expected: No output
 
 - [ ] **Step 5: Run tests**
 
-Run: `uv run pytest tests/ -x -q --tb=short`
+Run: `uv run python scripts/run_tests.py -x`
 Expected: All tests pass
 
 - [ ] **Step 6: Commit**
@@ -347,7 +347,7 @@ Expected: No output
 
 - [ ] **Step 6: Run tests**
 
-Run: `uv run pytest tests/ -x -q --tb=short`
+Run: `uv run python scripts/run_tests.py -x`
 Expected: All tests pass
 
 - [ ] **Step 7: Commit**
@@ -523,7 +523,7 @@ Expected: No output
 
 - [ ] **Step 7: Run tests**
 
-Run: `uv run pytest tests/ -x -q --tb=short`
+Run: `uv run python scripts/run_tests.py -x`
 Expected: All tests pass
 
 - [ ] **Step 8: Commit**
@@ -598,7 +598,7 @@ Expected: No output
 
 - [ ] **Step 10: Run full test suite**
 
-Run: `uv run pytest tests/ -x -q`
+Run: `uv run python scripts/run_tests.py -x`
 Expected: All tests pass
 
 - [ ] **Step 11: Mark task complete on task server**

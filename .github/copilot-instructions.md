@@ -15,7 +15,7 @@ This is Bernstein — a multi-agent orchestrator for CLI coding agents (Claude C
 ```bash
 uv run ruff check src/
 uv run pyright src/
-uv run pytest
+uv run python scripts/run_tests.py -x
 ```
 
 ## Architecture

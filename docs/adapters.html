@@ -313,8 +313,8 @@ register_adapter("my-agent", MyAgentAdapter())</code></pre>
     <div class="code-block">
       <pre><code class="language-yaml">goal: "Add auth, write tests, and document the API"
 
-# Default adapter for all roles
-cli: claude
+# Default adapter for all roles (auto-detects installed agents)
+cli: auto
 
 # Per-role overrides
 role_config:

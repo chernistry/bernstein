@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-28
 **Task set:** 10 medium-complexity Python tasks (see `benchmarks/tasks/`)
-**Bernstein version:** current `master`
+**Bernstein version:** current `main`
 
 ---
 

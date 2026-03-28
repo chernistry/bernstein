@@ -765,7 +765,7 @@ Expected: PASS.
 - [ ] **Step 5: Smoke-test the full test suite**
 
 ```bash
-uv run pytest tests/ -x -q
+uv run python scripts/run_tests.py -x
 ```
 
 Expected: all pass.
@@ -1007,7 +1007,7 @@ Expected: PASS.
 - [ ] **Step 6: Run full test suite**
 
 ```bash
-uv run pytest tests/ -x -q
+uv run python scripts/run_tests.py -x
 ```
 
 Expected: all pass.
@@ -1197,7 +1197,7 @@ Expected: All pass.
 - [ ] **Step 3: Run full test suite**
 
 ```bash
-uv run pytest tests/ -x -q
+uv run python scripts/run_tests.py -x
 ```
 
 Expected: all pass.

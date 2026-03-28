@@ -7,7 +7,7 @@ Thanks for your interest! Here's how to get started.
 ```bash
 git clone https://github.com/chernistry/bernstein && cd bernstein
 uv venv && uv pip install -e ".[dev]"
-uv run pytest
+uv run python scripts/run_tests.py -x
 ```
 
 ## Ways to Contribute
@@ -26,10 +26,10 @@ uv run pytest
    ```bash
    uv run ruff check src/
    uv run pyright src/
-   uv run pytest
+   uv run python scripts/run_tests.py -x
    ```
 4. Commit with a clear message
-5. Open a PR against `master`
+5. Open a PR against `main`
 
 ## Testing Your Changes
 
@@ -73,6 +73,23 @@ After making changes, verify them end-to-end before opening a PR.
 - **File-based state** — everything in `.sdd/`, no databases
 - **Pluggable adapters** — new CLI agents via `adapters/base.py` ABC
 
+## CLI Structure
+
+The CLI is decomposed into separate modules under `src/bernstein/cli/`:
+
+| Module | Purpose |
+|---|---|
+| `main.py` | Click group and top-level flags |
+| `run_cmd.py` | `bernstein run` / `-g` orchestration entry point |
+| `stop_cmd.py` | `bernstein stop` graceful shutdown |
+| `status_cmd.py` | `bernstein status` / `bernstein ps` |
+| `evolve_cmd.py` | `bernstein evolve` subcommands |
+| `agents_cmd.py` | `bernstein agents` catalog commands |
+| `helpers.py` | Shared utilities (PID files, port checks, output formatting) |
+| `errors.py` | CLI error types and handlers |
+
+When adding a new CLI command, create a new `*_cmd.py` module and register it in `main.py`.
+
 ## Writing a Custom Adapter
 
 Adapters let Bernstein spawn any CLI coding agent. Implement the `CLIAdapter` ABC from `src/bernstein/adapters/base.py`.
@@ -105,7 +122,7 @@ class CLIAdapter(ABC):
    ```
    Or register at runtime: `from bernstein.adapters.registry import register_adapter; register_adapter("mycli", MyCLIAdapter)`.
 
-3. **Run checks**: `uv run ruff check src/ && uv run pyright src/ && uv run pytest`.
+3. **Run checks**: `uv run ruff check src/ && uv run pyright src/ && uv run python scripts/run_tests.py -x`.
 
 4. Open a PR — include a short note on how you tested it (e.g., ran a real task with `bernstein run --adapter mycli`).
 
@@ -272,4 +289,4 @@ The new role is available immediately — no code changes required. Assign tasks
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+By contributing, you agree that your contributions will be licensed under the [Apache License 2.0](LICENSE).

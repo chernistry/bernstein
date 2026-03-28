@@ -13,9 +13,9 @@ uv venv && uv pip install -e ".[dev]"
 ## Testing
 
 ```bash
-uv run pytest                    # all tests
-uv run pytest tests/unit/        # unit only
-uv run pytest -x                 # stop on first failure
+uv run python scripts/run_tests.py -x   # all tests (isolated per-file runner)
+uv run pytest tests/unit/               # unit only
+uv run pytest tests/unit/test_foo.py -x -q  # single file
 ```
 
 ## Linting & type checking
@@ -58,9 +58,9 @@ tests/
 
 ## PR instructions
 
-- Branch from `master`
+- Branch from `main`
 - Title: concise, imperative mood ("Add X", "Fix Y")
-- Run `uv run ruff check src/ && uv run pyright src/ && uv run pytest` before committing
+- Run `uv run ruff check src/ && uv run pyright src/ && uv run python scripts/run_tests.py -x` before committing
 - One logical change per PR
 
 ## What to work on

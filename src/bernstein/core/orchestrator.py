@@ -2131,11 +2131,15 @@ class Orchestrator:
         effort_ladder = ["low", "medium", "high", "max"]
         model_ladder = ["haiku", "sonnet", "opus"]
 
-        from bernstein.core.models import Scope as _Scope
+        from bernstein.core.models import Complexity as _Complexity, Scope as _Scope
 
-        # High-stakes roles/scopes always get opus/max on any retry
+        # High-stakes roles/scopes/complexity always get opus/max on any retry
         _high_stakes_roles = ("architect", "security")
-        if task.scope == _Scope.LARGE or task.role in _high_stakes_roles:
+        if (
+            task.scope == _Scope.LARGE
+            or task.role in _high_stakes_roles
+            or task.complexity == _Complexity.HIGH
+        ):
             new_model = "opus"
             new_effort = "max"
         elif next_retry == 1:
@@ -2451,6 +2455,14 @@ class Orchestrator:
             result: TickResult accumulator for spawned/error lists.
         """
         base = self._config.server_url
+        # Track titles claimed this tick to prevent duplicate assignments
+        # (strips [RETRY N] prefix for dedup purposes)
+        _claimed_titles: set[str] = set()
+        for agent in self._agents.values():
+            if agent.status != "dead":
+                for tid in agent.task_ids:
+                    _claimed_titles.add(tid)  # ID as fallback
+
         for batch in batches:
             if alive_count >= self._config.max_agents:
                 break
@@ -2459,8 +2471,31 @@ class Orchestrator:
             if any(t.id in assigned_task_ids for t in batch):
                 continue
 
+            # Dedup: skip if a task with the same base title is already being worked on
+            def _base_title(title: str) -> str:
+                t = title
+                while t.startswith("[RETRY"):
+                    t = t.split("] ", 1)[-1] if "] " in t else t
+                return t.strip()
+
+            batch_base_titles = {_base_title(t.title) for t in batch}
+            if batch_base_titles & _claimed_titles:
+                logger.debug("Skipping batch — duplicate title already active: %s", batch_base_titles & _claimed_titles)
+                continue
+
             # Skip if any owned files overlap with active agents
             if self._check_file_overlap(batch):
+                continue
+
+            # Skip quarantined tasks (failed QUARANTINE_THRESHOLD+ times across runs)
+            if any(self._quarantine.is_quarantined(t.title) for t in batch):
+                for t in batch:
+                    if self._quarantine.is_quarantined(t.title):
+                        logger.warning(
+                            "Skipping quarantined task %s ('%s') — exceeded cross-run failure limit",
+                            t.id,
+                            t.title,
+                        )
                 continue
 
             # Check spawn backoff: skip batches that recently failed
@@ -2601,6 +2636,7 @@ class Orchestrator:
                 alive_count += 1
                 result.spawned.append(session.id)
                 assigned_task_ids.update(t.id for t in batch)
+                _claimed_titles.update(_base_title(t.title) for t in batch)
                 session.heartbeat_ts = time.time()
                 self._spawn_failures.pop(batch_key, None)
 

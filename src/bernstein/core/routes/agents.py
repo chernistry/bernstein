@@ -61,11 +61,13 @@ async def agent_logs(
     offset = max(0, size - tail_bytes) if tail_bytes > 0 else 0
     content = read_log_tail(log_path, offset)
 
-    return JSONResponse({
-        "session_id": session_id,
-        "content": content,
-        "size": size,
-    })
+    return JSONResponse(
+        {
+            "session_id": session_id,
+            "content": content,
+            "size": size,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------

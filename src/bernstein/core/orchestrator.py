@@ -23,6 +23,7 @@ import httpx
 from bernstein.core.bulletin import BulletinBoard, BulletinMessage
 from bernstein.core.cluster import NodeHeartbeatClient
 from bernstein.core.context import append_decision, refresh_knowledge_base
+from bernstein.core.cost_tracker import CostTracker
 from bernstein.core.evolution import EvolutionCoordinator, UpgradeStatus
 from bernstein.core.fast_path import (
     FastPathStats,
@@ -286,7 +287,7 @@ def _parse_file_total(jsonl_file: Path) -> float:
     return file_total
 
 
-def _compute_total_spent(workdir: Path) -> float:
+def _compute_total_spent(workdir: Path) -> float:  # type: ignore[reportUnusedFunction]
     """Sum cost_efficiency metric values recorded for individual tasks.
 
     Reads all cost_efficiency_*.jsonl files in .sdd/metrics/ and returns the
@@ -439,6 +440,14 @@ class Orchestrator:
 
         # Adaptive polling backoff: multiplied by 2 each idle tick, reset on work.
         self._idle_multiplier: int = 1
+
+        # Per-run cost budget tracker.  When budget_usd > 0 the tracker
+        # emits warnings at 80%/95% and blocks spawns at 100%.
+        run_id = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+        self._cost_tracker = CostTracker(
+            run_id=run_id,
+            budget_usd=config.budget_usd,
+        )
 
         # Cluster heartbeat client: when cluster mode is enabled and this node
         # is a worker (server_url points to a remote central server), send
@@ -616,16 +625,14 @@ class Orchestrator:
                         task.effort,
                     )
                     result.dry_run_planned.append((task.role, task.title, task.model, task.effort))
-        elif self._config.budget_usd > 0:
-            total_spent = _compute_total_spent(self._workdir)
-            if total_spent >= self._config.budget_usd:
-                logger.warning(
-                    "Budget cap ($%.2f) reached ($%.2f spent), skipping agent spawning",
-                    self._config.budget_usd,
-                    total_spent,
-                )
-            else:
-                self._claim_and_spawn_batches(batches, alive_count, assigned_task_ids, done_ids, result)
+        elif self._cost_tracker.budget_usd > 0 and self._cost_tracker.status().should_stop:
+            _bs = self._cost_tracker.status()
+            logger.warning(
+                "Budget cap ($%.2f) reached ($%.2f spent, %.0f%%), skipping agent spawning",
+                _bs.budget_usd,
+                _bs.spent_usd,
+                _bs.percentage_used * 100,
+            )
         else:
             self._claim_and_spawn_batches(batches, alive_count, assigned_task_ids, done_ids, result)
 
@@ -2277,6 +2284,25 @@ class Orchestrator:
             _collector = get_collector(self._workdir / ".sdd" / "metrics")
             _task_m = _collector.task_metrics.get(task.id)
             _cost_usd = _task_m.cost_usd if _task_m else 0.0
+
+            # Record cost in the per-run budget tracker and persist to disk.
+            _agent_id = session.id if session else "unknown"
+            _model = session.model_config.model if session else "unknown"
+            _tokens_in = _task_m.tokens_prompt if _task_m else 0
+            _tokens_out = _task_m.tokens_completion if _task_m else 0
+            self._cost_tracker.record(
+                agent_id=_agent_id,
+                task_id=task.id,
+                model=_model,
+                input_tokens=_tokens_in,
+                output_tokens=_tokens_out,
+                cost_usd=_cost_usd if _cost_usd > 0 else None,
+            )
+            try:
+                self._cost_tracker.save(self._workdir / ".sdd")
+            except OSError as exc:
+                logger.warning("Failed to persist cost tracker: %s", exc)
+
             _collector.complete_task(task.id, success=janitor_passed, janitor_passed=janitor_passed, cost_usd=_cost_usd)
             if session is not None:
                 # complete_agent_task must be called before end_agent so that

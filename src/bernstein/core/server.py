@@ -1491,6 +1491,23 @@ def create_app(
             media_type="text/plain; version=0.0.4; charset=utf-8",
         )
 
+    # -- cost budget routes ----------------------------------------------------
+
+    @application.get("/costs/{run_id}")
+    async def get_cost_budget(run_id: str) -> JSONResponse:
+        """Return budget status for a specific run.
+
+        Loads the persisted cost tracker from ``.sdd/runtime/costs/{run_id}.json``
+        and returns its ``BudgetStatus`` as JSON.
+        """
+        from bernstein.core.cost_tracker import CostTracker
+
+        sdd_dir = jsonl_path.parent.parent  # .sdd
+        tracker = CostTracker.load(sdd_dir, run_id)
+        if tracker is None:
+            raise HTTPException(status_code=404, detail=f"No cost data for run '{run_id}'")
+        return JSONResponse(content=tracker.status().to_dict())
+
     # -- dashboard routes -------------------------------------------------------
 
     @application.get("/dashboard", response_class=HTMLResponse)
@@ -1912,6 +1929,7 @@ def create_app(
         agent_heartbeat,
         health_check,
         metrics_endpoint,
+        get_cost_budget,
         dashboard_page,
         dashboard_data,
         sse_events,

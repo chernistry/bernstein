@@ -225,7 +225,7 @@ def _find_seed_file() -> Path | None:
 @click.option("--goal", "-g", default=None, help="Inline goal (no seed file needed).")
 @click.option("--evolve", "-e", is_flag=True, default=False, hidden=True, help="Continuous self-improvement mode.")
 @click.option("--max-cycles", default=0, hidden=True, help="Stop after N evolve cycles (0=unlimited).")
-@click.option("--budget", default=0.0, hidden=True, help="Stop after $N spent (0=unlimited).")
+@click.option("--budget", default=0.0, help="Cost cap in USD; stop spawning agents when reached (0=unlimited).")
 @click.option("--interval", default=300, hidden=True, help="Seconds between evolve cycles (default 5min).")
 @click.option(
     "--github", "github_sync", is_flag=True, default=False, hidden=True, help="Sync evolve proposals as GitHub Issues."

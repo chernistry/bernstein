@@ -4029,7 +4029,7 @@ class TestParallelVerification:
         )
         orch = _build_orchestrator(tmp_path, transport)
 
-        with patch("bernstein.core.orchestrator.verify_task", side_effect=slow_verify):
+        with patch("bernstein.core.task_lifecycle.verify_task", side_effect=slow_verify):
             t_start = time.time()
             result = TickResult()
             orch._process_completed_tasks(tasks_with_signals, result)
@@ -4084,7 +4084,7 @@ class TestProcessCompletedTasksParallel:
             time.sleep(SLEEP)
             return True, []
 
-        with patch("bernstein.core.orchestrator.verify_task", side_effect=slow_verify):
+        with patch("bernstein.core.task_lifecycle.verify_task", side_effect=slow_verify):
             tick_result = TickResult()
             start = time.monotonic()
             orch._process_completed_tasks([Task.from_dict(d) for d in task_dicts], tick_result)
@@ -4104,7 +4104,7 @@ class TestComputeTotalSpentCache:
         """Second call with unchanged files must not re-parse them."""
         import pytest
         from unittest.mock import patch, call
-        from bernstein.core import orchestrator as orch_mod
+        from bernstein.core import tick_pipeline as pipeline_mod
         from bernstein.core.orchestrator import _compute_total_spent, _total_spent_cache
 
         metrics_dir = tmp_path / ".sdd" / "metrics"
@@ -4118,7 +4118,7 @@ class TestComputeTotalSpentCache:
         assert first == pytest.approx(0.15)
 
         # Second call: _parse_file_total should not be called at all.
-        with patch.object(orch_mod, "_parse_file_total", wraps=orch_mod._parse_file_total) as mock_parse:
+        with patch.object(pipeline_mod, "_parse_file_total", wraps=pipeline_mod._parse_file_total) as mock_parse:
             second = _compute_total_spent(tmp_path)
             assert second == pytest.approx(0.15)
             mock_parse.assert_not_called()

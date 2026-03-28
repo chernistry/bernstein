@@ -2,6 +2,11 @@
 
 The orchestrator is DETERMINISTIC CODE, not an LLM. It matches tasks to agents
 via the spawner and verifies completion via the janitor. See ADR-001.
+
+This module is the public facade. Heavy lifting lives in:
+- tick_pipeline.py   — task fetching, batching, server interaction, TypedDicts
+- task_lifecycle.py  — claim/spawn, completion processing, retry/decompose
+- agent_lifecycle.py — agent tracking, heartbeat, crash detection, reaping
 """
 
 from __future__ import annotations
@@ -14,29 +19,30 @@ import os
 import re
 import signal
 import time
-from collections import defaultdict
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, ClassVar, TypedDict
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import httpx
 
+from bernstein.core.agent_lifecycle import (
+    check_kill_signals,
+    check_stale_agents,
+    reap_dead_agents,
+    refresh_agent_states,
+    send_shutdown_signals,
+)
 from bernstein.core.agent_signals import AgentSignalManager
 from bernstein.core.approval import ApprovalGate, ApprovalMode
 from bernstein.core.bulletin import BulletinBoard, BulletinMessage
 from bernstein.core.cluster import NodeHeartbeatClient
-from bernstein.core.context import append_decision, refresh_knowledge_base
+from bernstein.core.context import refresh_knowledge_base
 from bernstein.core.cost_tracker import CostTracker
 from bernstein.core.evolution import EvolutionCoordinator, UpgradeStatus
 from bernstein.core.fast_path import (
     FastPathStats,
-    TaskLevel,
-    classify_task,
-    get_l1_model_config,
     load_fast_path_config,
-    try_fast_path_batch,
 )
 from bernstein.core.graph import TaskGraph
-from bernstein.core.janitor import verify_task
 from bernstein.core.metrics import get_collector
 from bernstein.core.models import (
     AgentSession,
@@ -45,7 +51,6 @@ from bernstein.core.models import (
     NodeCapacity,
     OrchestratorConfig,
     Task,
-    TaskStatus,
     TaskType,
 )
 from bernstein.core.notifications import NotificationManager, NotificationPayload
@@ -53,8 +58,32 @@ from bernstein.core.quarantine import QuarantineStore
 from bernstein.core.retrospective import generate_retrospective
 from bernstein.core.router import TierAwareRouter, load_providers_from_yaml
 from bernstein.core.signals import read_unresolved_pivots
+from bernstein.core.task_lifecycle import (
+    auto_decompose_task,
+    check_file_overlap,
+    claim_and_spawn_batches,
+    collect_completion_data,
+    maybe_retry_task,
+    process_completed_tasks,
+    retry_or_fail_task,
+    should_auto_decompose,
+)
+from bernstein.core.tick_pipeline import (
+    CompletionData,
+    RuffViolation,
+    TestResults,
+    block_task,
+    complete_task,
+    fail_task,
+    fetch_all_tasks,
+    group_by_role,
+    parse_backlog_file,
+)
+
+# Re-export for backward compatibility: tests import these from orchestrator module
+from bernstein.core.tick_pipeline import _compute_total_spent as _compute_total_spent
+from bernstein.core.tick_pipeline import _total_spent_cache as _total_spent_cache
 from bernstein.evolution.governance import AdaptiveGovernor, GovernanceEntry, ProjectContext
-from bernstein.evolution.types import MetricsRecord
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -63,306 +92,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-class _RuffLocation(TypedDict, total=False):
-    row: int
-    column: int
-
-
-class RuffViolation(TypedDict, total=False):
-    """A single violation from ``ruff check --output-format=json``."""
-
-    code: str
-    filename: str
-    message: str
-    location: _RuffLocation
-
-
-class TestResults(TypedDict, total=False):
-    """Parsed pytest output with pass/fail counts and a one-line summary."""
-
-    passed: int
-    failed: int
-    summary: str
-
-
-class CompletionData(TypedDict):
-    """Structured data extracted from an agent's runtime log after task completion."""
-
-    files_modified: list[str]
-    test_results: TestResults
-
-
-def _task_from_dict(raw: dict[str, Any]) -> Task:  # type: ignore[reportUnusedFunction]
-    """Deserialise a server JSON response into a domain Task (delegates to Task.from_dict)."""
-    return Task.from_dict(raw)
-
-
-def _parse_backlog_file(filename: str, content: str) -> dict[str, Any]:
-    """Parse a backlog markdown file into a task creation payload.
-
-    Extracts title, role, priority, and description from the markdown.
-    Falls back to safe defaults for any missing fields.
-
-    Args:
-        filename: The filename (e.g. "100-fix-the-bug.md"), used to derive a
-            slug for the title when no H1 heading is found.
-        content: Full markdown text of the backlog file.
-
-    Returns:
-        Dict suitable for POST /tasks.
-    """
-    lines = content.splitlines()
-
-    # Title: first H1 line, strip leading "# " and numeric prefix like "100 -- "
-    title = filename.replace(".md", "").replace("-", " ")
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith("# "):
-            raw = stripped[2:].strip()
-            raw = re.sub(r"^\d+\s*--\s*", "", raw)
-            title = raw
-            break
-
-    # Role: **Role:** backend
-    role = "backend"
-    role_match = re.search(r"\*\*Role:\*\*\s*(\S+)", content)
-    if role_match:
-        role = role_match.group(1).strip()
-
-    # Priority: **Priority:** 2
-    priority = 2
-    priority_match = re.search(r"\*\*Priority:\*\*\s*(\d+)", content)
-    if priority_match:
-        priority = int(priority_match.group(1))
-
-    # Description: everything after the header/front-matter lines
-    desc_lines: list[str] = []
-    past_header = False
-    for line in lines:
-        stripped = line.strip()
-        if not past_header:
-            if stripped.startswith("# ") or re.match(r"\*\*\w+:\*\*", stripped):
-                past_header = True
-                continue
-            continue
-        if re.match(r"\*\*\w+:\*\*", stripped):
-            continue
-        desc_lines.append(line)
-    description = "\n".join(desc_lines).strip() or content.strip()
-
-    return {
-        "title": title,
-        "description": description,
-        "role": role,
-        "priority": priority,
-        "scope": "medium",
-        "complexity": "medium",
-    }
-
-
-def _fetch_all_tasks(
-    client: httpx.Client,
-    base_url: str,
-    statuses: list[str] | None = None,
-) -> dict[str, list[Task]]:
-    """Fetch all tasks from the server in a single GET /tasks call.
-
-    Makes exactly one HTTP request and buckets the results client-side by
-    status, keeping per-tick round-trips to a minimum.
-
-    Args:
-        client: httpx client.
-        base_url: Server base URL.
-        statuses: Status keys to include in the result dict.  Defaults to
-            ["open", "claimed", "done", "failed"].
-
-    Returns:
-        Dict mapping status string → list of Tasks.  Always includes keys for
-        every requested status even if the list is empty.
-        NOTE: "open" here includes tasks with unmet dependencies; callers
-        that need the dependency-filtered view should apply their own dep check.
-    """
-    if statuses is None:
-        statuses = ["open", "claimed", "done", "failed"]
-    by_status: dict[str, list[Task]] = {s: [] for s in statuses}
-    resp = client.get(f"{base_url}/tasks")
-    resp.raise_for_status()
-    for raw in resp.json():
-        task = Task.from_dict(raw)
-        key = task.status.value
-        if key not in by_status:
-            by_status[key] = []
-        by_status[key].append(task)
-    return by_status
-
-
-def _fail_task(client: httpx.Client, base_url: str, task_id: str, reason: str) -> None:
-    """POST /tasks/{task_id}/fail to mark a task as failed.
-
-    Args:
-        client: httpx client.
-        base_url: Server base URL.
-        task_id: ID of the task to fail.
-        reason: Why the task failed.
-    """
-    resp = client.post(f"{base_url}/tasks/{task_id}/fail", json={"reason": reason})
-    resp.raise_for_status()
-
-
-def _block_task(client: httpx.Client, base_url: str, task_id: str, reason: str) -> None:
-    """POST /tasks/{task_id}/block to mark a task as blocked (requires human intervention).
-
-    Args:
-        client: httpx client.
-        base_url: Server base URL.
-        task_id: ID of the task to block.
-        reason: Why the task is blocked.
-    """
-    resp = client.post(f"{base_url}/tasks/{task_id}/block", json={"reason": reason})
-    resp.raise_for_status()
-
-
-def _complete_task(client: httpx.Client, base_url: str, task_id: str, result_summary: str) -> None:
-    """POST /tasks/{task_id}/complete to mark a task as done.
-
-    Args:
-        client: httpx client.
-        base_url: Server base URL.
-        task_id: ID of the task to complete.
-        result_summary: Human-readable summary of what was accomplished.
-    """
-    resp = client.post(
-        f"{base_url}/tasks/{task_id}/complete",
-        json={"result_summary": result_summary},
-    )
-    resp.raise_for_status()
-
-
-def group_by_role(tasks: list[Task], max_per_batch: int) -> list[list[Task]]:
-    """Group open tasks by role into batches of up to max_per_batch.
-
-    Tasks are sorted by priority (ascending, 1=critical first) within each
-    role before batching. Upgrade proposal tasks get a priority boost
-    (effective priority reduced by 1) to ensure self-evolution tasks are
-    processed promptly.
-
-    Args:
-        tasks: Open tasks to batch.
-        max_per_batch: Maximum tasks per batch (typically 1-3).
-
-    Returns:
-        List of batches, each a list of same-role tasks.
-    """
-    by_role: dict[str, list[Task]] = defaultdict(list)
-    for task in tasks:
-        by_role[task.role].append(task)
-
-    batches: list[list[Task]] = []
-    for role_tasks in by_role.values():
-        # Sort by effective priority: upgrade proposals get a boost (lower priority value)
-        def _sort_key(t: Task) -> tuple[int, int]:
-            # Priority boost for upgrade proposals: subtract 1 from priority value
-            # (lower = higher priority). Second element is original priority for ties.
-            priority_boost = t.priority - 1 if t.task_type == TaskType.UPGRADE_PROPOSAL else t.priority
-            return (priority_boost, t.priority)
-
-        role_tasks.sort(key=_sort_key)
-        for i in range(0, len(role_tasks), max_per_batch):
-            batches.append(role_tasks[i : i + max_per_batch])
-
-    # Sort batches by best (lowest) priority so critical work goes first.
-    batches.sort(key=lambda b: b[0].priority)
-    return batches
-
-
-# Cache for _compute_total_spent: maps absolute metrics_dir path ->
-# (cached_total, {file_path_str: (mtime_ns, file_total)}).
-_total_spent_cache: dict[str, tuple[float, dict[str, tuple[int, float]]]] = {}
-
-
-def _parse_file_total(jsonl_file: Path) -> float:
-    """Parse cost contributions from a single cost_efficiency JSONL file.
-
-    Streams line-by-line to avoid loading the entire file into memory
-    (files can grow to 100MB+ during long runs).
-    """
-    file_total = 0.0
-    try:
-        with open(jsonl_file, encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    point = json.loads(line)
-                    if "task_id" in point.get("labels", {}):
-                        file_total += point.get("value", 0.0)
-                except json.JSONDecodeError:
-                    continue
-    except OSError:
-        pass
-    return file_total
-
-
-def _compute_total_spent(workdir: Path) -> float:  # type: ignore[reportUnusedFunction]
-    """Sum cost_efficiency metric values recorded for individual tasks.
-
-    Reads all cost_efficiency_*.jsonl files in .sdd/metrics/ and returns the
-    total cost in USD for entries that have a ``task_id`` label, avoiding
-    double-counting the per-agent average entries that lack that label.
-
-    Results are mtime-cached: files that have not changed since the last call
-    are not re-read, making repeated calls on an unchanged metrics directory
-    effectively free.
-
-    Args:
-        workdir: Project root directory.
-
-    Returns:
-        Total USD spent as recorded in metrics files.
-    """
-    metrics_dir = workdir / ".sdd" / "metrics"
-    cache_key = str(metrics_dir)
-    cached_total, cached_file_data = _total_spent_cache.get(cache_key, (0.0, {}))
-
-    try:
-        current_files = list(metrics_dir.glob("cost_efficiency_*.jsonl"))
-    except OSError:
-        return cached_total
-
-    current_paths = {str(f) for f in current_files}
-    cached_paths = set(cached_file_data.keys())
-
-    # If any previously-seen file was removed, subtract its contribution
-    # from the cached total incrementally.
-    removed_paths = cached_paths - current_paths
-    total = cached_total
-    new_file_data: dict[str, tuple[int, float]] = dict(cached_file_data)
-    for removed in removed_paths:
-        _, old_file_total = new_file_data.pop(removed)
-        total -= old_file_total
-
-    for jsonl_file in current_files:
-        path_str = str(jsonl_file)
-        try:
-            mtime_ns = os.stat(jsonl_file).st_mtime_ns
-        except OSError:
-            continue
-
-        cached_entry = new_file_data.get(path_str)
-        if cached_entry is not None and cached_entry[0] == mtime_ns:
-            # File unchanged - skip re-parsing.
-            continue
-
-        # Subtract old contribution for this file (if any), then add new.
-        old_file_total = cached_entry[1] if cached_entry is not None else 0.0
-        new_file_total = _parse_file_total(jsonl_file)
-        total += new_file_total - old_file_total
-        new_file_data[path_str] = (mtime_ns, new_file_total)
-
-    _total_spent_cache[cache_key] = (total, new_file_data)
-    return total
+# ---------------------------------------------------------------------------
+# Backward-compatible aliases so external code that does
+#   from bernstein.core.orchestrator import _fail_task, _complete_task, ...
+# continues to work.
+# ---------------------------------------------------------------------------
+_task_from_dict = lambda raw: Task.from_dict(raw)  # noqa: E731
+_fetch_all_tasks = fetch_all_tasks
+_fail_task = fail_task
+_block_task = block_task
+_complete_task = complete_task
+_parse_backlog_file = parse_backlog_file
 
 
 class Orchestrator:
@@ -413,17 +153,17 @@ class Orchestrator:
             headers=_headers,
         )
         self._agents: dict[str, AgentSession] = {}
-        self._file_ownership: dict[str, str] = {}  # filepath → agent_id
-        self._task_to_session: dict[str, str] = {}  # task_id → agent_id (reverse index)
+        self._file_ownership: dict[str, str] = {}  # filepath -> agent_id
+        self._task_to_session: dict[str, str] = {}  # task_id -> agent_id (reverse index)
         self._processed_done_tasks: set[str] = set()  # avoid re-processing done tasks
         self._retried_task_ids: set[str] = set()  # tasks that already have a retry queued
         self._decomposed_task_ids: set[str] = set()  # large tasks queued for decomposition
         # Crash recovery: per-task crash count and preserved worktrees for resume
-        self._crash_counts: dict[str, int] = {}  # task_id → crash count
-        self._preserved_worktrees: dict[str, Path] = {}  # task_id → worktree to reuse
+        self._crash_counts: dict[str, int] = {}  # task_id -> crash count
+        self._preserved_worktrees: dict[str, Path] = {}  # task_id -> worktree to reuse
         self._running = False
         self._tick_count = 0
-        # Track spawn failures per batch for backoff: task_ids → (fail_count, last_fail_ts)
+        # Track spawn failures per batch for backoff: task_ids -> (fail_count, last_fail_ts)
         self._spawn_failures: dict[frozenset[str], tuple[int, float]] = {}
         # Track last backlog replenishment timestamp
         self._last_replenish_ts: float = 0.0
@@ -488,7 +228,7 @@ class Orchestrator:
         elif config.merge_strategy == "direct":
             _effective_approval = "auto"
         else:
-            # merge_strategy="pr" (default) → PR mode
+            # merge_strategy="pr" (default) -> PR mode
             _effective_approval = "pr"
         _approval_mode = ApprovalMode(_effective_approval)
         self._approval_gate: ApprovalGate | None = (
@@ -517,43 +257,6 @@ class Orchestrator:
                 auth_token=cluster_config.auth_token or config.auth_token,
                 capacity_fn=self._current_capacity,
             )
-
-        # Hot-reload: track source file mtimes so the orchestrator can
-        # detect when agents modify its own code and restart in-place.
-        self._source_mtime: float = time.time()
-
-    # -- Hot-reload source detection -----------------------------------------
-
-    # Key source files whose modification triggers an orchestrator restart.
-    _HOT_RELOAD_SOURCES: ClassVar[list[str]] = [
-        "src/bernstein/core/orchestrator.py",
-        "src/bernstein/core/spawner.py",
-        "src/bernstein/core/router.py",
-        "src/bernstein/core/server.py",
-        "src/bernstein/core/models.py",
-    ]
-
-    def _check_source_changed(self) -> bool:
-        """Check if orchestrator source files changed since last tick.
-
-        Compares mtime of key source files against the timestamp recorded
-        at startup (or the last restart).  When any file is newer, a
-        restart is warranted so the orchestrator picks up the new code.
-
-        Returns:
-            True if at least one source file was modified after startup.
-        """
-        from pathlib import Path as _Path
-
-        for rel in self._HOT_RELOAD_SOURCES:
-            src = _Path(rel)
-            try:
-                if src.exists() and src.stat().st_mtime > self._source_mtime:
-                    logger.info("Source changed: %s", rel)
-                    return True
-            except OSError:
-                continue
-        return False
 
     def _current_capacity(self) -> NodeCapacity:
         """Build a NodeCapacity snapshot reflecting current agent usage."""
@@ -598,9 +301,6 @@ class Orchestrator:
     def _notify(self, event: str, title: str, body: str, **metadata: Any) -> None:
         """Fire a notification event if a NotificationManager is configured.
 
-        Errors are swallowed inside NotificationManager; this wrapper exists
-        only to build the payload and guard against a missing notifier.
-
         Args:
             event: Notification event name (e.g. ``"run.completed"``).
             title: Short human-readable title.
@@ -640,7 +340,7 @@ class Orchestrator:
 
         # 1. Fetch all tasks in a single bulk request, bucketed client-side.
         try:
-            tasks_by_status = _fetch_all_tasks(self._client, base)
+            tasks_by_status = fetch_all_tasks(self._client, base)
             _tick_http_reads += 1  # single GET /tasks (no status filter)
         except httpx.HTTPError as exc:
             logger.error("Failed to fetch tasks: %s", exc)
@@ -692,14 +392,14 @@ class Orchestrator:
 
         if analysis.parallel_width < self._config.max_agents and analysis.parallel_width > 0:
             logger.debug(
-                "Graph parallel width (%d) < max_agents (%d) — dependency filter already limits concurrency",
+                "Graph parallel width (%d) < max_agents (%d) -- dependency filter already limits concurrency",
                 analysis.parallel_width,
                 self._config.max_agents,
             )
 
         if analysis.bottlenecks:
             logger.info(
-                "Graph bottleneck(s): %s — %d downstream tasks blocked",
+                "Graph bottleneck(s): %s -- %d downstream tasks blocked",
                 analysis.bottlenecks,
                 sum(len(task_graph.dependents(b)) for b in analysis.bottlenecks),
             )
@@ -714,7 +414,7 @@ class Orchestrator:
         batches = group_by_role(ready_tasks, self._config.max_tasks_per_agent)
 
         # 3. Count alive agents, spawn if capacity (capped by graph parallel width)
-        self._refresh_agent_states(tasks_by_status)
+        refresh_agent_states(self, tasks_by_status)
         alive_count = sum(1 for a in self._agents.values() if a.status != "dead")
         result.active_agents = alive_count
 
@@ -755,10 +455,10 @@ class Orchestrator:
                 percent_used=round(_bs.percentage_used * 100, 1),
             )
         else:
-            self._claim_and_spawn_batches(batches, alive_count, assigned_task_ids, done_ids, result)
+            claim_and_spawn_batches(self, batches, alive_count, assigned_task_ids, done_ids, result)
 
         # 4. Check done tasks, run janitor, record evolution metrics
-        self._process_completed_tasks(done_tasks, result)
+        process_completed_tasks(self, done_tasks, result)
 
         # 4b. Use cached failed tasks and maybe retry with escalation
         failed_tasks = tasks_by_status["failed"]
@@ -767,10 +467,10 @@ class Orchestrator:
                 result.retried.append(task.id)
 
         # 4c. Check heartbeat-based staleness; send WAKEUP/SHUTDOWN as needed
-        self._check_stale_agents()
+        check_stale_agents(self)
 
         # 5. Reap dead/stale agents and fail their tasks
-        self._reap_dead_agents(result, tasks_by_status)
+        reap_dead_agents(self, result, tasks_by_status)
 
         # 6. Run evolution analysis cycle every N ticks
         if self._evolution is not None and self._tick_count % self._config.evolution_tick_interval == 0:
@@ -852,19 +552,11 @@ class Orchestrator:
                 self._idle_multiplier = min(self._idle_multiplier * 2, 1024)
             time.sleep(min(self._config.poll_interval_s * self._idle_multiplier, 30.0))
 
-            # Check if a restart was requested via flag file or source change.
-            # The flag-file path is the legacy mechanism; proactive mtime
-            # detection covers evolve mode where agents modify our source.
+            # Check if a restart was requested (own source code changed)
             restart_flag = self._workdir / ".sdd" / "runtime" / "restart_requested"
-            needs_restart = restart_flag.exists()
-            if needs_restart:
+            if restart_flag.exists():
                 restart_flag.unlink(missing_ok=True)
-            elif self._config.evolve_mode and self._check_source_changed():
-                needs_restart = True
-
-            if needs_restart:
-                logger.info("Source code changed, restarting orchestrator...")
-                self._save_session_state()
+                logger.info("Restarting orchestrator (own code updated)")
                 self._restart()
                 return  # _restart calls os.execv, but just in case
 
@@ -880,14 +572,151 @@ class Orchestrator:
         """
         self._running = False
         with contextlib.suppress(Exception):
-            self._send_shutdown_signals(reason="orchestrator_stopped")
+            send_shutdown_signals(self, reason="orchestrator_stopped")
+
+    # -- Delegating methods (keep as methods for backward compat) -----------
+
+    def _refresh_agent_states(self, tasks_snapshot: dict[str, list[Task]]) -> None:
+        """Delegate to agent_lifecycle.refresh_agent_states."""
+        refresh_agent_states(self, tasks_snapshot)
+
+    def _claim_and_spawn_batches(
+        self,
+        batches: list[list[Task]],
+        alive_count: int,
+        assigned_task_ids: set[str],
+        done_ids: set[str],
+        result: TickResult,
+    ) -> None:
+        """Delegate to task_lifecycle.claim_and_spawn_batches."""
+        claim_and_spawn_batches(self, batches, alive_count, assigned_task_ids, done_ids, result)
+
+    def _process_completed_tasks(self, done_tasks: list[Task], result: TickResult) -> None:
+        """Delegate to task_lifecycle.process_completed_tasks."""
+        process_completed_tasks(self, done_tasks, result)
+
+    def _maybe_retry_task(self, task: Task) -> bool:
+        """Delegate to task_lifecycle.maybe_retry_task."""
+        return maybe_retry_task(
+            task,
+            retried_task_ids=self._retried_task_ids,
+            max_task_retries=self._config.max_task_retries,
+            client=self._client,
+            server_url=self._config.server_url,
+            quarantine=self._quarantine,
+        )
+
+    def _reap_dead_agents(self, result: TickResult, tasks_snapshot: dict[str, list[Task]]) -> None:
+        """Delegate to agent_lifecycle.reap_dead_agents."""
+        reap_dead_agents(self, result, tasks_snapshot)
+
+    def _check_stale_agents(self) -> None:
+        """Delegate to agent_lifecycle.check_stale_agents."""
+        check_stale_agents(self)
+
+    def _check_kill_signals(self, result: TickResult) -> None:
+        """Delegate to agent_lifecycle.check_kill_signals."""
+        check_kill_signals(self, result)
+
+    def _send_shutdown_signals(self, reason: str) -> None:
+        """Delegate to agent_lifecycle.send_shutdown_signals."""
+        send_shutdown_signals(self, reason)
+
+    def _find_session_for_task(self, task_id: str) -> AgentSession | None:
+        """Return the agent session that owns *task_id*, or None.
+
+        Args:
+            task_id: ID of the task to look up.
+
+        Returns:
+            Matching AgentSession, or None if not found.
+        """
+        agent_id = self._task_to_session.get(task_id)
+        if agent_id is None:
+            return None
+        return self._agents.get(agent_id)
+
+    def _record_provider_health(
+        self,
+        session: AgentSession,
+        success: bool,
+        latency_ms: float = 0.0,
+        cost_usd: float = 0.0,
+        tokens: int = 0,
+    ) -> None:
+        """Update provider health and cost in the router based on task outcome.
+
+        No-op when no router is configured or the session has no provider.
+
+        Args:
+            session: Agent session whose provider to update.
+            success: Whether the task completed successfully.
+            latency_ms: Approximate task latency in milliseconds.
+            cost_usd: Cost of the task in USD.
+            tokens: Number of tokens used.
+        """
+        if self._router is not None and session.provider is not None:
+            self._router.update_provider_health(session.provider, success, latency_ms)
+            if cost_usd > 0 or tokens > 0:
+                self._router.record_provider_cost(session.provider, tokens, cost_usd)
+
+    def _release_file_ownership(self, agent_id: str) -> None:
+        """Release all files owned by the given agent."""
+        to_remove = [fp for fp, owner in self._file_ownership.items() if owner == agent_id]
+        for fp in to_remove:
+            del self._file_ownership[fp]
+
+    def _release_task_to_session(self, task_ids: list[str]) -> None:
+        """Remove reverse-index entries for the given task IDs."""
+        for tid in task_ids:
+            self._task_to_session.pop(tid, None)
+
+    def _collect_completion_data(self, session: AgentSession) -> CompletionData:
+        """Delegate to task_lifecycle.collect_completion_data."""
+        return collect_completion_data(self._workdir, session)
+
+    def _retry_or_fail_task(
+        self,
+        task_id: str,
+        reason: str,
+        tasks_snapshot: dict[str, list[Task]] | None = None,
+    ) -> None:
+        """Delegate to task_lifecycle.retry_or_fail_task."""
+        retry_or_fail_task(
+            task_id,
+            reason,
+            client=self._client,
+            server_url=self._config.server_url,
+            max_task_retries=self._config.max_task_retries,
+            retried_task_ids=self._retried_task_ids,
+            tasks_snapshot=tasks_snapshot,
+        )
+
+    def _check_file_overlap(self, batch: list[Task]) -> bool:
+        """Delegate to task_lifecycle.check_file_overlap."""
+        return check_file_overlap(batch, self._file_ownership, self._agents)
+
+    def _should_auto_decompose(self, task: Task) -> bool:
+        """Delegate to task_lifecycle.should_auto_decompose."""
+        return should_auto_decompose(task, self._decomposed_task_ids)
+
+    def _auto_decompose_task(self, task: Task) -> None:
+        """Delegate to task_lifecycle.auto_decompose_task."""
+        auto_decompose_task(
+            task,
+            client=self._client,
+            server_url=self._config.server_url,
+            decomposed_task_ids=self._decomposed_task_ids,
+        )
+
+    # -- Session and cleanup ------------------------------------------------
 
     def _save_session_state(self) -> None:
         """Persist session state for fast resume on next start.
 
         Queries the task server for current task statuses and writes a
         session snapshot to ``.sdd/runtime/session.json``.  Errors are
-        silently caught — session saving is best-effort.
+        silently caught -- session saving is best-effort.
         """
         try:
             from bernstein.core.session import SessionState, save_session
@@ -920,13 +749,7 @@ class Orchestrator:
             logger.debug("Failed to save session state (best-effort)", exc_info=True)
 
     def _cleanup(self) -> None:
-        """Release resources held by the orchestrator.
-
-        Saves session state for fast resume, then shuts down the background
-        thread pool (which may be running pytest or ruff subprocesses) and
-        cancels any pending futures.  Without this, ``uv run pytest`` processes
-        survive parent death and eat 40 GB+ RAM.
-        """
+        """Release resources held by the orchestrator."""
         # Save session state before releasing resources
         self._save_session_state()
 
@@ -942,9 +765,7 @@ class Orchestrator:
         self._pending_ruff_future = None
         self._pending_test_future = None
 
-        # Shut down the thread pool — this blocks until running threads finish
-        # or the interpreter exits.  cancel_futures=True prevents queued work
-        # from starting.
+        # Shut down the thread pool
         try:
             self._executor.shutdown(wait=False, cancel_futures=True)
         except TypeError:
@@ -953,29 +774,15 @@ class Orchestrator:
         logger.info("Executor shut down, background test/ruff processes released")
 
     def _restart(self) -> None:
-        """Replace the current process with a fresh orchestrator.
-
-        Uses ``os.execv`` to re-exec with the same arguments, picking up
-        any code changes made by agents to ``src/bernstein/``.  Running
-        agents are NOT killed because they live in separate process groups
-        (``start_new_session=True``) and communicate with the server via
-        HTTP.  During the brief restart window, agents may see transient
-        connection errors which they retry automatically.
-        """
-        import os
+        """Replace the current process with a fresh orchestrator."""
         import sys
 
-        alive = sum(1 for a in self._agents.values() if a.status != "dead")
-        logger.info(
-            "Exec'ing fresh orchestrator process (%d agent(s) will survive restart)",
-            alive,
-        )
-        # Re-exec the same command that started us
+        logger.info("Exec'ing fresh orchestrator process")
         os.execv(sys.executable, [sys.executable, *sys.argv])
 
     # -- Evolve mode ---------------------------------------------------------
 
-    # Priority rotation for evolve mode — each cycle emphasizes a different area
+    # Priority rotation for evolve mode -- each cycle emphasizes a different area
     _EVOLVE_FOCUS_AREAS: ClassVar[list[str]] = [
         "new_features",
         "user_interface",
@@ -988,13 +795,9 @@ class Orchestrator:
     def _check_evolve(self, result: TickResult, tasks_by_status: dict[str, list[Task]]) -> None:
         """If evolve mode is on and all tasks are done, trigger a new cycle.
 
-        Full cycle: analyze → verify → commit → plan → execute.
-        Tracks budget, detects diminishing returns with backoff, rotates priorities.
-
         Args:
             result: Current tick result (mutated in place).
-            tasks_by_status: Pre-fetched task snapshot keyed by status string,
-                produced by _fetch_all_tasks().  Avoids extra HTTP round-trips.
+            tasks_by_status: Pre-fetched task snapshot keyed by status string.
         """
         evolve_path = self._workdir / ".sdd" / "runtime" / "evolve.json"
         if not evolve_path.exists():
@@ -1029,8 +832,7 @@ class Orchestrator:
             logger.info("Evolve: budget cap ($%.2f) reached, stopping", budget_usd)
             return
 
-        # Diminishing returns backoff: if N consecutive cycles produced zero
-        # successful changes, increase the interval exponentially (max 8x)
+        # Diminishing returns backoff
         consecutive_empty = evolve_cfg.get("_consecutive_empty", 0)
         backoff_factor = min(2**consecutive_empty, 8) if consecutive_empty >= 3 else 1
 
@@ -1049,17 +851,17 @@ class Orchestrator:
             effective_interval,
         )
 
-        # Step 1: ANALYZE — count results from last cycle (use cached snapshot)
+        # Step 1: ANALYZE
         tasks_completed = len(tasks_by_status.get("done", []))
         tasks_failed = len(tasks_by_status.get("failed", []))
 
-        # Step 2: VERIFY — run tests to get current state
+        # Step 2: VERIFY
         test_info = self._evolve_run_tests()
 
-        # Step 3: COMMIT — auto-commit if tests pass
+        # Step 3: COMMIT
         committed = self._evolve_auto_commit()
 
-        # Step 3b: GOVERN — adaptively adjust metric weights for this cycle
+        # Step 3b: GOVERN
         weights_before = self._governor.get_current_weights()
         test_pass_rate = test_info.get("passed", 0) / max(test_info.get("passed", 0) + test_info.get("failed", 0), 1)
         gov_context = ProjectContext(
@@ -1089,12 +891,12 @@ class Orchestrator:
             )
         )
         logger.info(
-            "Evolve: governance cycle %d — weights adjusted (%s)",
+            "Evolve: governance cycle %d -- weights adjusted (%s)",
             cycle_number,
             weight_reason,
         )
 
-        # Step 4: PLAN — spawn manager with priority rotation
+        # Step 4: PLAN
         focus_areas: list[str] = list(self._EVOLVE_FOCUS_AREAS)
         focus_idx: int = cycle_count % len(focus_areas)
         focus: str = str(focus_areas[focus_idx])
@@ -1144,12 +946,7 @@ class Orchestrator:
     _REPLENISH_MAX_TASKS: int = 5
 
     def _run_ruff_check(self) -> list[RuffViolation]:
-        """Run ruff check and return parsed violations (runs in a background thread).
-
-        Uses Popen with a process group so we can kill the entire tree on
-        timeout, preventing orphaned ``uv`` / ``ruff`` processes from leaking
-        memory.
-        """
+        """Run ruff check and return parsed violations (runs in a background thread)."""
         import subprocess
 
         proc = subprocess.Popen(
@@ -1192,7 +989,7 @@ class Orchestrator:
                 "title": f"Fix ruff violation {code}",
                 "description": (
                     f"Fix all occurrences of ruff rule {code}.\n"
-                    f"Example: {filename}:{row} — {message}\n"
+                    f"Example: {filename}:{row} -- {message}\n"
                     f"Run `uv run ruff check . --select {code}` to find all instances."
                 ),
                 "role": "backend",
@@ -1212,22 +1009,7 @@ class Orchestrator:
             logger.info("Replenish: created %d lint-fix task(s)", created)
 
     def _replenish_backlog(self, result: TickResult) -> None:
-        """Create fix tasks from ruff lint violations when evolve mode is idle.
-
-        Only runs when:
-        - evolve_mode is enabled in config
-        - open_tasks == 0
-        - At least 60 seconds since last replenishment
-
-        Ruff is run in a background thread so the tick loop is never blocked.
-        On the first eligible tick a future is submitted; on subsequent ticks
-        the result is harvested once the future completes.
-
-        Caps at 5 tasks per cycle to avoid flooding the task server.
-
-        Args:
-            result: Current tick result (used to read open_tasks count).
-        """
+        """Create fix tasks from ruff lint violations when evolve mode is idle."""
         if not self._config.evolve_mode:
             return
         if result.open_tasks > 0:
@@ -1257,12 +1039,7 @@ class Orchestrator:
         logger.debug("Replenish: ruff check submitted to background thread")
 
     def _run_pytest(self) -> TestResults:
-        """Run pytest and return parsed results (runs in a background thread).
-
-        Uses Popen with a process group so the entire process tree can be
-        killed on timeout.  This prevents orphaned ``uv``/``pytest`` processes
-        from eating 40 GB+ RAM.
-        """
+        """Run pytest and return parsed results (runs in a background thread)."""
         import subprocess
 
         info: TestResults = {"passed": 0, "failed": 0, "summary": ""}
@@ -1277,7 +1054,6 @@ class Orchestrator:
         try:
             stdout, stderr = proc.communicate(timeout=120)
         except subprocess.TimeoutExpired:
-            # Kill the entire process group — not just the parent
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
             except OSError:
@@ -1298,20 +1074,12 @@ class Orchestrator:
         return info
 
     def _evolve_run_tests(self) -> TestResults:
-        """Return test results from a background pytest run.
-
-        On the first call a future is submitted and an empty result is returned.
-        On subsequent calls the future is checked; once done the result is
-        harvested and a new future is submitted for the next cycle.
-
-        Returns:
-            Dict with 'passed', 'failed', 'summary' keys.
-        """
+        """Return test results from a background pytest run."""
         info: TestResults = {"passed": 0, "failed": 0, "summary": ""}
 
         if self._pending_test_future is not None:
             if not self._pending_test_future.done():
-                return info  # still running; return empty until done
+                return info
             try:
                 info = self._pending_test_future.result()
             except (concurrent.futures.CancelledError, RuntimeError) as exc:
@@ -1320,27 +1088,15 @@ class Orchestrator:
             self._pending_test_future = None
             return info
 
-        # Submit a new test run in the background
         self._pending_test_future = self._executor.submit(self._run_pytest)
-        return info  # results available on the next call
+        return info
 
     @staticmethod
     def _generate_evolve_commit_msg(staged_files: list[str]) -> str:
-        """Build a short, descriptive commit message from the list of staged files.
-
-        Categorises changed paths by subsystem and produces a message like
-        "Evolve: improve dashboard, fix orchestrator" instead of a generic one.
-
-        Args:
-            staged_files: Paths returned by ``git diff --cached --name-only``.
-
-        Returns:
-            A one-line commit message under ~72 characters.
-        """
+        """Build a short, descriptive commit message from the list of staged files."""
         if not staged_files:
             return "Evolve: housekeeping"
 
-        # Map specific filenames / path prefixes to short labels
         LABEL_RULES: list[tuple[str, str]] = [
             ("src/bernstein/cli/dashboard", "improve dashboard"),
             ("src/bernstein/cli/main", "update CLI"),
@@ -1371,20 +1127,14 @@ class Orchestrator:
                     break
 
         if not labels:
-            # Fallback: name the first changed file
             first = staged_files[0].split("/")[-1]
             labels = [f"update {first}"]
 
-        # Keep the message short: at most 3 segments
         summary = "; ".join(labels[:3])
         return f"Evolve: {summary}"
 
     def _evolve_auto_commit(self) -> bool:
-        """Auto-commit and push any uncommitted changes from the last cycle.
-
-        Returns:
-            True if a commit was made, False otherwise.
-        """
+        """Auto-commit and push any uncommitted changes from the last cycle."""
         import subprocess
 
         from bernstein.core.git_ops import (
@@ -1396,15 +1146,12 @@ class Orchestrator:
         )
 
         try:
-            # Check for changes
             changed = status_porcelain(self._workdir)
             if not changed:
-                return False  # Nothing to commit
+                return False
 
-            # Stage all changes except runtime artifacts
             stage_all_except(self._workdir, exclude=[".sdd/runtime/", ".sdd/metrics/"])
 
-            # Run tests before committing
             test_result = subprocess.run(
                 ["uv", "run", "pytest", "tests/", "-x", "-q", "--tb=line"],
                 capture_output=True,
@@ -1417,17 +1164,14 @@ class Orchestrator:
                 checkout_discard(self._workdir)
                 return False
 
-            # Commit with conventional message
             result = conventional_commit(self._workdir, evolve=True)
             if not result.ok:
                 logger.warning("Evolve: commit failed: %s", result.stderr)
                 return False
 
-            # Push safely (fetch + rebase + push)
             safe_push(self._workdir, "master")
             logger.info("Evolve: auto-committed and pushed changes")
 
-            # Check if own source code changed — if so, signal restart
             if "src/bernstein/" in changed:
                 logger.info("Evolve: own source code changed, signaling restart")
                 restart_flag = self._workdir / ".sdd" / "runtime" / "restart_requested"
@@ -1446,19 +1190,9 @@ class Orchestrator:
         focus_area: str = "new_features",
         test_summary: str = "",
     ) -> None:
-        """Spawn a manager agent to analyze the codebase and create new tasks.
-
-        When Tavily API is available, runs web research first and includes
-        market context in the manager task description.
-
-        Args:
-            cycle_number: Current evolve cycle number.
-            focus_area: Priority rotation focus for this cycle.
-            test_summary: Latest test run summary line.
-        """
+        """Spawn a manager agent to analyze the codebase and create new tasks."""
         base = self._config.server_url
 
-        # Run web research if Tavily is available
         research_context = ""
         try:
             from bernstein.core.researcher import format_research_context, run_research_sync
@@ -1508,7 +1242,7 @@ class Orchestrator:
             "2. Missing features that block real usage (P1)\n"
             "3. Performance and reliability (P2)\n"
             "4. Code quality and test gaps (P2)\n"
-            "5. Documentation (P3 — only if truly missing)\n\n"
+            "5. Documentation (P3 -- only if truly missing)\n\n"
             "## Process\n"
             "1. Run `uv run pytest tests/ -q` to see current test state\n"
             "2. Read key files to understand architecture\n"
@@ -1524,7 +1258,7 @@ class Orchestrator:
             "- Use sonnet/high for most implementation tasks (fast)\n"
             "- Use opus/max ONLY for complex architecture or security reviews\n"
             "- Use sonnet/low for simple fixes, typos, config changes\n\n"
-            "## Task size — KEEP THEM SMALL\n"
+            "## Task size -- KEEP THEM SMALL\n"
             "Each task MUST be completable in ONE file change, under 10 minutes.\n"
             "BAD: 'Implement entire web research module'\n"
             "GOOD: 'Add Tavily search function to researcher.py'\n"
@@ -1563,13 +1297,7 @@ class Orchestrator:
         timestamp: float,
         metrics: dict[str, Any] | None = None,
     ) -> None:
-        """Append an entry to the evolve_cycles.jsonl log.
-
-        Args:
-            cycle_number: The 1-based cycle number.
-            timestamp: Unix timestamp of this cycle.
-            metrics: Additional cycle metrics to include.
-        """
+        """Append an entry to the evolve_cycles.jsonl log."""
         metrics_dir = self._workdir / ".sdd" / "metrics"
         metrics_dir.mkdir(parents=True, exist_ok=True)
         log_path = metrics_dir / "evolve_cycles.jsonl"
@@ -1590,17 +1318,7 @@ class Orchestrator:
     # -- Evolution integration -----------------------------------------------
 
     def _run_evolution_cycle(self, result: TickResult) -> None:
-        """Run an evolution analysis cycle and create upgrade tasks from proposals.
-
-        Steps:
-            1. Run analysis to generate proposals from metrics.
-            2. Execute any auto-approved proposals via the UpgradeExecutor.
-            3. Persist remaining pending proposals to .sdd/upgrades/pending.json.
-            4. Create server tasks for remaining pending proposals.
-
-        Args:
-            result: Current tick result to record errors into.
-        """
+        """Run an evolution analysis cycle and create upgrade tasks from proposals."""
         assert self._evolution is not None
         try:
             proposals = self._evolution.run_analysis_cycle()
@@ -1621,8 +1339,6 @@ class Orchestrator:
             if not proposals:
                 return
 
-            # Only create server tasks for proposals that are still pending —
-            # auto-applied proposals were already handled by execute_pending_upgrades.
             _task_eligible_statuses = {UpgradeStatus.PENDING, UpgradeStatus.APPROVED}
             base = self._config.server_url
             for proposal in proposals:
@@ -1679,1406 +1395,10 @@ class Orchestrator:
         ]
         pending_path.write_text(json.dumps(data, indent=2))
 
-    # -- Internal helpers ----------------------------------------------------
-
-    def _refresh_agent_states(self, tasks_snapshot: dict[str, list[Task]]) -> None:
-        """Update alive/dead status for all tracked agents.
-
-        When an agent process dies, handles orphaned tasks via the agent
-        completion protocol: checks task status on the server, runs janitor
-        verification if completion signals exist, and completes or fails
-        accordingly. Also releases file ownership and emits metrics.
-
-        Args:
-            tasks_snapshot: Pre-fetched tasks bucketed by status from this tick.
-        """
-        for session in list(self._agents.values()):
-            if session.status == "dead":
-                continue
-            if not self._spawner.check_alive(session):
-                session.status = "dead"
-                # Release file ownership for this agent
-                self._release_file_ownership(session.id)
-                self._release_task_to_session(session.task_ids)
-                # Handle orphaned tasks
-                for task_id in session.task_ids:
-                    # Increment crash count and preserve worktree when using resume strategy
-                    self._crash_counts[task_id] = self._crash_counts.get(task_id, 0) + 1
-                    self._maybe_preserve_worktree(session, task_id)
-                    self._handle_orphaned_task(task_id, session, tasks_snapshot)
-
-        # Purge dead agents to prevent unbounded dict growth (memory leak fix)
-        self._purge_dead_agents()
-
-        # Purge expired spawn backoff entries
-        now = time.time()
-        expired = [k for k, (_, ts) in self._spawn_failures.items() if now - ts > self._SPAWN_BACKOFF_MAX_S]
-        for k in expired:
-            del self._spawn_failures[k]
-
-        # Cap _processed_done_tasks to prevent unbounded set growth
-        if len(self._processed_done_tasks) > self._MAX_PROCESSED_DONE:
-            # Keep only the most recent half
-            excess = len(self._processed_done_tasks) - self._MAX_PROCESSED_DONE // 2
-            for _ in range(excess):
-                self._processed_done_tasks.pop()
-
-    def _purge_dead_agents(self) -> None:
-        """Remove oldest dead agent sessions to bound memory usage."""
-        dead = [(sid, s) for sid, s in self._agents.items() if s.status == "dead"]
-        if len(dead) <= self._MAX_DEAD_AGENTS_KEPT:
-            return
-        # Sort by heartbeat_ts (oldest first), remove excess
-        dead.sort(key=lambda x: x[1].heartbeat_ts)
-        to_remove = len(dead) - self._MAX_DEAD_AGENTS_KEPT
-        for sid, _ in dead[:to_remove]:
-            del self._agents[sid]
-            # Clean up reverse index entries pointing to this agent
-            stale_tasks = [tid for tid, aid in self._task_to_session.items() if aid == sid]
-            for tid in stale_tasks:
-                del self._task_to_session[tid]
-
-    def _maybe_preserve_worktree(self, session: AgentSession, task_id: str) -> None:
-        """Preserve the crashed agent's worktree for resume if policy permits.
-
-        Stores the worktree path in ``_preserved_worktrees`` so the next spawn
-        for this task can call ``spawn_for_resume`` instead of creating a fresh
-        worktree.  Only applies when ``recovery == "resume"`` and the crash
-        count is still within ``max_crash_retries``.
-
-        Args:
-            session: The crashed agent's session.
-            task_id: ID of the task that was being worked on.
-        """
-        if self._config.recovery != "resume":
-            return
-        crash_count = self._crash_counts.get(task_id, 0)
-        if crash_count > self._config.max_crash_retries:
-            return
-        worktree_path = self._spawner._worktree_paths.get(session.id)  # type: ignore[attr-defined]
-        if worktree_path is None:
-            return
-        self._preserved_worktrees[task_id] = worktree_path
-        logger.info(
-            "Crash recovery: preserving worktree %s for task %s (crash #%d)",
-            worktree_path,
-            task_id,
-            crash_count,
-        )
-
-    def _get_changed_files_in_worktree(self, worktree_path: Path) -> list[str]:
-        """Return the list of files changed in a worktree relative to HEAD.
-
-        Args:
-            worktree_path: Path to the git worktree.
-
-        Returns:
-            List of changed file paths, or empty list on any error.
-        """
-        import subprocess
-
-        try:
-            result = subprocess.run(
-                ["git", "diff", "--name-only", "HEAD"],
-                cwd=worktree_path,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            if result.returncode == 0:
-                return [f for f in result.stdout.splitlines() if f.strip()]
-        except Exception as exc:
-            logger.debug("_get_changed_files_in_worktree failed for %s: %s", worktree_path, exc)
-        return []
-
-    def _check_kill_signals(self, result: TickResult) -> None:
-        """Process ``.kill`` signal files from the runtime directory.
-
-        For each ``<session_id>.kill`` file found, terminates the matching
-        agent (if alive) and removes the signal file.
-
-        Args:
-            result: Current tick result to record reaped agents.
-        """
-        runtime_dir = self._workdir / ".sdd" / "runtime"
-        if not runtime_dir.is_dir():
-            return
-        for kill_file in runtime_dir.glob("*.kill"):
-            session_id = kill_file.stem
-            # Remove the signal file first (idempotent)
-            with contextlib.suppress(OSError):
-                kill_file.unlink()
-            session = self._agents.get(session_id)
-            if session is None or session.status == "dead":
-                continue
-            logger.info("Kill signal received for %s, terminating", session_id)
-            self._spawner.kill(session)
-            result.reaped.append(session_id)
-
-    def _send_shutdown_signals(self, reason: str) -> None:
-        """Write SHUTDOWN signal files to all currently active agents.
-
-        Called when ``bernstein stop`` is issued or the budget is hit so
-        agents can save WIP before the orchestrator exits.
-
-        Args:
-            reason: Human-readable reason for the shutdown.
-        """
-        for session in self._agents.values():
-            if session.status == "dead":
-                continue
-            task_title = ", ".join(session.task_ids) if session.task_ids else "unknown task"
-            with contextlib.suppress(OSError):
-                self._signal_mgr.write_shutdown(session.id, reason=reason, task_title=task_title)
-
-    def _check_stale_agents(self) -> None:
-        """Write WAKEUP / SHUTDOWN signals for agents that stopped heartbeating.
-
-        Thresholds:
-        - 60s without a heartbeat  → WAKEUP
-        - 120s without a heartbeat → SHUTDOWN
-        - 180s without a heartbeat → handled by wall-clock kill in _reap_dead_agents
-
-        Only fires when an agent has at least one heartbeat on record (agents
-        that never wrote a heartbeat are assumed to not support the protocol).
-        """
-        now = time.time()
-        for session in self._agents.values():
-            if session.status == "dead":
-                continue
-            hb = self._signal_mgr.read_heartbeat(session.id)
-            if hb is None:
-                continue  # Agent never wrote a heartbeat — skip
-            age = now - hb.timestamp
-            task_title = ", ".join(session.task_ids) if session.task_ids else "unknown task"
-            elapsed = now - session.spawn_ts
-            if age >= 120:
-                with contextlib.suppress(OSError):
-                    self._signal_mgr.write_shutdown(session.id, reason="no_heartbeat_120s", task_title=task_title)
-            elif age >= 60:
-                with contextlib.suppress(OSError):
-                    self._signal_mgr.write_wakeup(
-                        session.id,
-                        task_title=task_title,
-                        elapsed_s=elapsed,
-                        last_activity_ago_s=age,
-                    )
-
-    def _handle_orphaned_task(
-        self,
-        task_id: str,
-        session: AgentSession,
-        tasks_snapshot: dict[str, list[Task]],
-    ) -> None:
-        """Handle a task left behind by a dead agent process.
-
-        Checks task status using the pre-fetched snapshot (no extra HTTP call).
-        Falls back to a live fetch only if the task is not found in the snapshot.
-        Runs janitor verification if the task has completion signals, and marks
-        it complete or failed. Emits a MetricsRecord afterward.
-
-        Args:
-            task_id: ID of the orphaned task.
-            session: The dead agent's session.
-            tasks_snapshot: Pre-fetched tasks bucketed by status from this tick.
-        """
-        base = self._config.server_url
-        start_ts = session.heartbeat_ts if session.heartbeat_ts > 0 else time.time()
-        success = False
-        error_type: str | None = None
-
-        # Try to find the task in the pre-fetched snapshot first (avoids HTTP call)
-        all_cached: list[Task] = []
-        for bucket in tasks_snapshot.values():
-            all_cached.extend(bucket)
-        task_by_id = {t.id: t for t in all_cached}
-
-        if task_id in task_by_id:
-            task = task_by_id[task_id]
-            logger.debug("_handle_orphaned_task %s: resolved from tick snapshot", task_id)
-        else:
-            # Not in snapshot — fall back to a live fetch
-            try:
-                resp = self._client.get(f"{base}/tasks/{task_id}")
-                resp.raise_for_status()
-                task = Task.from_dict(resp.json())
-                logger.debug("_handle_orphaned_task %s: fetched live (not in snapshot)", task_id)
-            except httpx.HTTPError as exc:
-                logger.error("Failed to fetch orphaned task %s: %s", task_id, exc)
-                error_type = "fetch_failed"
-                self._emit_orphan_metrics(
-                    task_id,
-                    session,
-                    start_ts,
-                    success=False,
-                    error_type=error_type,
-                )
-                return
-
-        status = task.status
-        if status not in (TaskStatus.OPEN, TaskStatus.CLAIMED, TaskStatus.IN_PROGRESS):
-            logger.info(
-                "Orphaned task %s already resolved (status=%s), skipping",
-                task_id,
-                status.value,
-            )
-            return
-
-        # Escalate strategy: block task when crash limit exceeded
-        if self._config.recovery == "escalate" and self._crash_counts.get(task_id, 0) >= self._config.max_crash_retries:
-            reason = (
-                f"Agent {session.id} died; escalating after "
-                f"{self._crash_counts[task_id]} crash(es) — requires human intervention"
-            )
-            try:
-                _block_task(self._client, base, task_id, reason)
-                logger.warning(
-                    "Escalated task %s to BLOCKED after %d crash(es)",
-                    task_id,
-                    self._crash_counts[task_id],
-                )
-            except httpx.HTTPError as exc:
-                logger.error("Failed to block escalated task %s: %s", task_id, exc)
-            self._emit_orphan_metrics(task_id, session, start_ts, success=False, error_type="escalated")
-            return
-
-        # Collect structured completion data from agent log
-        completion_data = self._collect_completion_data(session)
-
-        if task.completion_signals:
-            passed, failed_signals = verify_task(task, self._workdir)
-            if passed:
-                try:
-                    result_payload: dict[str, Any] = {
-                        "result_summary": f"Auto-completed after agent {session.id} died; janitor passed",
-                        **completion_data,
-                    }
-                    self._client.post(
-                        f"{base}/tasks/{task_id}/complete",
-                        json=result_payload,
-                    )
-                    success = True
-                    logger.info(
-                        "Orphaned task %s auto-completed (janitor passed) after agent %s died",
-                        task_id,
-                        session.id,
-                    )
-                except httpx.HTTPError as exc:
-                    logger.error("Failed to complete orphaned task %s: %s", task_id, exc)
-                    error_type = "complete_failed"
-            else:
-                try:
-                    self._retry_or_fail_task(
-                        task_id,
-                        f"Agent {session.id} died; janitor failed: {failed_signals}",
-                    )
-                    logger.info(
-                        "Orphaned task %s retry/failed (janitor failed: %s) after agent %s died",
-                        task_id,
-                        failed_signals,
-                        session.id,
-                    )
-                except httpx.HTTPError as exc:
-                    logger.error("Failed to retry/fail orphaned task %s: %s", task_id, exc)
-                error_type = "janitor_failed"
-        else:
-            # No completion signals -- check if agent produced output (files modified)
-            completion_data = self._collect_completion_data(session)
-            files_changed = len(completion_data.get("files_modified", []))
-            if files_changed > 0:
-                # Agent did work but task had no signals — auto-complete
-                try:
-                    _complete_task(
-                        self._client,
-                        base,
-                        task_id,
-                        f"Auto-completed: agent {session.id} modified {files_changed} files (no signals to verify)",
-                    )
-                    success = True
-                    logger.info(
-                        "Orphaned task %s auto-completed (%d files modified, no signals) after agent %s died",
-                        task_id,
-                        files_changed,
-                        session.id,
-                    )
-                except httpx.HTTPError as exc:
-                    logger.error("Failed to complete orphaned task %s: %s", task_id, exc)
-                    error_type = "complete_failed"
-            else:
-                try:
-                    self._retry_or_fail_task(
-                        task_id,
-                        f"Agent {session.id} died; no completion signals and no files modified",
-                    )
-                    logger.info(
-                        "Orphaned task %s retry/failed (no signals, no output) after agent %s died",
-                        task_id,
-                        session.id,
-                    )
-                except httpx.HTTPError as exc:
-                    logger.error("Failed to retry/fail orphaned task %s: %s", task_id, exc)
-                error_type = "no_signals"
-
-        self._emit_orphan_metrics(
-            task_id,
-            session,
-            start_ts,
-            success=success,
-            error_type=error_type,
-        )
-        self._record_provider_health(session, success=success)
-
-        # Feed orphaned task outcome to the evolution coordinator so that
-        # failed/timed-out agent runs are visible to trend analysis.
-        if self._evolution is not None:
-            _now = time.time()
-            _duration = _now - start_ts
-            try:
-                self._evolution.record_task_completion(
-                    task=task,
-                    duration_seconds=round(_duration, 2),
-                    cost_usd=0.0,
-                    janitor_passed=success,
-                    model=session.model_config.model,
-                    provider=session.provider,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "Evolution record_task_completion for orphan %s failed: %s",
-                    task_id,
-                    exc,
-                )
-
-    def _emit_orphan_metrics(
-        self,
-        task_id: str,
-        session: AgentSession,
-        start_ts: float,
-        *,
-        success: bool,
-        error_type: str | None,
-    ) -> None:
-        """Write a 14-field MetricsRecord to .sdd/metrics/YYYY-MM-DD.jsonl.
-
-        Args:
-            task_id: The task ID.
-            session: The agent session that died.
-            start_ts: Approximate start timestamp of the agent run.
-            success: Whether the orphaned task was auto-completed.
-            error_type: Error category, or None on success.
-        """
-        now = time.time()
-        record = MetricsRecord(
-            timestamp=datetime.now(UTC).isoformat(),
-            task_id=task_id,
-            agent_id=session.id,
-            role=session.role,
-            model_used=session.model_config.model,
-            duration_seconds=round(now - start_ts, 2),
-            token_count=0,
-            cost_usd=0.0,
-            success=success,
-            error_type=error_type,
-            files_modified=0,
-            test_pass_rate=1.0 if success else 0.0,
-            retry_count=0,
-            step_count=0,
-        )
-        today = datetime.now(UTC).strftime("%Y-%m-%d")
-        metrics_dir = self._workdir / ".sdd" / "metrics"
-        metrics_dir.mkdir(parents=True, exist_ok=True)
-        metrics_path = metrics_dir / f"{today}.jsonl"
-        with metrics_path.open("a") as f:
-            f.write(json.dumps(record.to_dict()) + "\n")
-
-    def _collect_completion_data(self, session: AgentSession) -> CompletionData:
-        """Read agent log file and extract structured completion data.
-
-        Parses the agent's runtime log for files_modified and test_results.
-
-        Args:
-            session: Agent session whose log to parse.
-
-        Returns:
-            Dict with files_modified and test_results keys.
-        """
-        data: CompletionData = {"files_modified": [], "test_results": {}}
-        log_path = self._workdir / ".sdd" / "runtime" / f"{session.id}.log"
-        if not log_path.exists():
-            return data
-
-        try:
-            log_content = log_path.read_text(encoding="utf-8", errors="replace")
-            lines = log_content.splitlines()
-            # Extract file modifications (lines like "Modified: path/to/file")
-            files_modified: list[str] = []
-            for line in lines:
-                stripped = line.strip()
-                if stripped.startswith("Modified: ") or stripped.startswith("Created: "):
-                    fpath = stripped.split(": ", 1)[1].strip()
-                    if fpath and fpath not in files_modified:
-                        files_modified.append(fpath)
-            data["files_modified"] = files_modified
-
-            # Extract test results (look for pytest-style summary)
-            for line in reversed(lines):
-                stripped = line.strip()
-                if "passed" in stripped or "failed" in stripped:
-                    data["test_results"] = {"summary": stripped}
-                    break
-        except OSError as exc:
-            logger.debug("Could not read agent log %s: %s", log_path, exc)
-
-        return data
-
-    def _check_file_overlap(self, batch: list[Task]) -> bool:
-        """Check if any file in the batch is owned by an active agent.
-
-        Args:
-            batch: Tasks to check for file conflicts.
-
-        Returns:
-            True if there is a conflict, False if safe to spawn.
-        """
-        for task in batch:
-            for fpath in task.owned_files:
-                if fpath in self._file_ownership:
-                    owner = self._file_ownership[fpath]
-                    # Only conflict if the owning agent is still alive
-                    owner_session = self._agents.get(owner)
-                    if owner_session and owner_session.status != "dead":
-                        logger.debug(
-                            "File %s owned by active agent %s, skipping batch",
-                            fpath,
-                            owner,
-                        )
-                        return True
-        return False
-
-    def _claim_file_ownership(self, agent_id: str, tasks: list[Task]) -> None:
-        """Register file ownership for files in the given tasks.
-
-        Args:
-            agent_id: The agent claiming ownership.
-            tasks: Tasks whose owned_files to claim.
-        """
-        for task in tasks:
-            for fpath in task.owned_files:
-                self._file_ownership[fpath] = agent_id
-
-    def _release_file_ownership(self, agent_id: str) -> None:
-        """Release all files owned by the given agent.
-
-        Args:
-            agent_id: The agent whose files to release.
-        """
-        to_remove = [fp for fp, owner in self._file_ownership.items() if owner == agent_id]
-        for fp in to_remove:
-            del self._file_ownership[fp]
-
-    def _release_task_to_session(self, task_ids: list[str]) -> None:
-        """Remove reverse-index entries for the given task IDs.
-
-        Args:
-            task_ids: The task IDs whose mappings to remove.
-        """
-        for tid in task_ids:
-            self._task_to_session.pop(tid, None)
-
-    def _maybe_retry_task(self, task: Task) -> bool:
-        """Queue a retry for a failed task with model/effort escalation.
-
-        First retry bumps effort one level (low→medium→high→max), keeps model.
-        Second retry escalates model (haiku→sonnet→opus) and resets effort to high.
-
-        Args:
-            task: The failed task to potentially retry.
-
-        Returns:
-            True if a retry task was created, False otherwise.
-        """
-        if task.id in self._retried_task_ids:
-            return False
-
-        # Determine current retry count from title prefix [RETRY N]
-        retry_count = 0
-        m = re.match(r"^\[RETRY (\d+)\] ", task.title)
-        if m:
-            retry_count = int(m.group(1))
-
-        if retry_count >= self._config.max_task_retries:
-            base_title = re.sub(r"^\[RETRY \d+\] ", "", task.title)
-            self._quarantine.record_failure(base_title, "Max retries exhausted")
-            logger.warning(
-                "Task %r exhausted %d retries — recorded cross-run failure in quarantine",
-                base_title,
-                self._config.max_task_retries,
-            )
-            return False
-
-        next_retry = retry_count + 1
-
-        current_model = task.model or "sonnet"
-        current_effort = task.effort or "high"
-
-        effort_ladder = ["low", "medium", "high", "max"]
-        model_ladder = ["haiku", "sonnet", "opus"]
-
-        from bernstein.core.models import Scope as _Scope
-
-        # High-stakes roles/scopes always get opus/max on any retry
-        _high_stakes_roles = ("architect", "security")
-        if task.scope == _Scope.LARGE or task.role in _high_stakes_roles:
-            new_model = "opus"
-            new_effort = "max"
-        elif next_retry == 1:
-            # First retry: bump effort one level, keep model
-            idx = effort_ladder.index(current_effort) if current_effort in effort_ladder else 2
-            new_effort = effort_ladder[min(idx + 1, len(effort_ladder) - 1)]
-            new_model = current_model
-        else:
-            # Second+ retry: escalate model, reset effort to high
-            model_lower = current_model.lower()
-            model_idx = 1  # default to sonnet position
-            for i, name in enumerate(model_ladder):
-                if name in model_lower:
-                    model_idx = i
-                    break
-            new_model = model_ladder[min(model_idx + 1, len(model_ladder) - 1)]
-            new_effort = "high"
-
-        base_title = re.sub(r"^\[RETRY \d+\] ", "", task.title)
-        new_title = f"[RETRY {next_retry}] {base_title}"
-        new_description = f"[RETRY {next_retry}] {task.description}"
-
-        # Progressive timeout: each retry multiplies estimated_minutes by (retry_count + 2)
-        progressive_minutes = task.estimated_minutes * (retry_count + 2)
-
-        payload: dict[str, Any] = {
-            "title": new_title,
-            "description": new_description,
-            "role": task.role,
-            "priority": task.priority,
-            "scope": task.scope.value,
-            "complexity": task.complexity.value,
-            "estimated_minutes": progressive_minutes,
-            "model": new_model,
-            "effort": new_effort,
-        }
-
-        try:
-            resp = self._client.post(f"{self._config.server_url}/tasks", json=payload)
-            resp.raise_for_status()
-            new_task_id = resp.json().get("id", "?")
-            self._retried_task_ids.add(task.id)
-            logger.info(
-                "Retry %d queued for failed task %s → %s (model=%s effort=%s)",
-                next_retry,
-                task.id,
-                new_task_id,
-                new_model,
-                new_effort,
-            )
-            return True
-        except Exception as exc:
-            logger.warning("Failed to queue retry for task %s: %s", task.id, exc)
-            return False
-
-    def _find_session_for_task(self, task_id: str) -> AgentSession | None:
-        """Return the agent session that owns *task_id*, or None.
-
-        Args:
-            task_id: ID of the task to look up.
-
-        Returns:
-            Matching AgentSession, or None if not found.
-        """
-        agent_id = self._task_to_session.get(task_id)
-        if agent_id is None:
-            return None
-        return self._agents.get(agent_id)
-
-    def _record_provider_health(
-        self,
-        session: AgentSession,
-        success: bool,
-        latency_ms: float = 0.0,
-        cost_usd: float = 0.0,
-        tokens: int = 0,
-    ) -> None:
-        """Update provider health and cost in the router based on task outcome.
-
-        No-op when no router is configured or the session has no provider.
-
-        Args:
-            session: Agent session whose provider to update.
-            success: Whether the task completed successfully.
-            latency_ms: Approximate task latency in milliseconds.
-            cost_usd: Cost of the task in USD.
-            tokens: Number of tokens used.
-        """
-        if self._router is not None and session.provider is not None:
-            self._router.update_provider_health(session.provider, success, latency_ms)
-            if cost_usd > 0 or tokens > 0:
-                self._router.record_provider_cost(session.provider, tokens, cost_usd)
-
-    def _retry_or_fail_task(
-        self,
-        task_id: str,
-        reason: str,
-        tasks_snapshot: dict[str, list[Task]] | None = None,
-    ) -> None:
-        """Re-queue a task for retry, or fail it permanently if max retries reached.
-
-        Reads the current retry count from a ``[retry:N]`` marker in the task
-        description.  If the count is below ``max_task_retries`` a new open task
-        is created (clone of the original with the marker bumped) and the old
-        task is failed silently.  Once the limit is hit the task is failed with
-        a "Max retries exceeded" reason.
-
-        Args:
-            task_id: ID of the task to retry or fail.
-            reason: Human-readable reason for the failure / retry.
-            tasks_snapshot: Optional pre-fetched tasks snapshot to avoid an
-                extra HTTP round-trip when the task is already in cache.
-        """
-        base = self._config.server_url
-        max_retries = self._config.max_task_retries
-
-        # Try the pre-fetched snapshot first to avoid an extra GET
-        task: Task | None = None
-        if tasks_snapshot is not None:
-            for bucket in tasks_snapshot.values():
-                for t in bucket:
-                    if t.id == task_id:
-                        task = t
-                        break
-                if task is not None:
-                    break
-            if task is not None:
-                logger.debug("_retry_or_fail_task %s: resolved from tick snapshot", task_id)
-
-        if task is None:
-            try:
-                resp = self._client.get(f"{base}/tasks/{task_id}")
-                resp.raise_for_status()
-                task = Task.from_dict(resp.json())
-            except httpx.HTTPError as exc:
-                logger.error("_retry_or_fail_task: could not fetch task %s: %s", task_id, exc)
-                return
-
-        # Dedup: prevent retry fan-out (same task retried multiple times)
-        if task_id in self._retried_task_ids:
-            logger.debug("Skipping duplicate retry for task %s", task_id)
-            return
-        self._retried_task_ids.add(task_id)
-
-        # Extract current retry count from description marker
-        marker_re = re.compile(r"^\[retry:(\d+)\]\s*")
-        m = marker_re.match(task.description)
-        retry_count = int(m.group(1)) if m else 0
-        base_description = marker_re.sub("", task.description)
-
-        if retry_count < max_retries:
-            new_description = f"[retry:{retry_count + 1}] {base_description}"
-            # Escalate model on retry: large/architect/security always opus/max;
-            # other roles: sonnet→opus on 2nd retry, effort→high on 1st retry.
-            from bernstein.core.models import Scope as _Scope
-
-            _high_stakes_roles = ("architect", "security")
-            if task.scope == _Scope.LARGE or task.role in _high_stakes_roles:
-                retry_model = "opus"
-                retry_effort = "max"
-            elif retry_count >= 1:
-                retry_model = "opus"
-                retry_effort = "high"
-            else:
-                retry_model = task.model or "sonnet"
-                retry_effort = task.effort or "high"
-            # Progressive timeout: each retry multiplies estimated_minutes by (retry_count + 2)
-            # so retry 1 doubles the time, retry 2 triples it, giving agents more runway.
-            progressive_minutes = task.estimated_minutes * (retry_count + 2)
-            task_body: dict[str, Any] = {
-                "title": f"[RETRY {retry_count + 1}] {task.title}",
-                "description": new_description,
-                "role": task.role,
-                "priority": task.priority,
-                "scope": task.scope.value,
-                "complexity": task.complexity.value,
-                "estimated_minutes": progressive_minutes,
-                "depends_on": task.depends_on,
-                "owned_files": task.owned_files,
-                "task_type": task.task_type.value,
-                "model": retry_model,
-                "effort": retry_effort,
-            }
-            # Preserve completion signals on retry
-            if task.completion_signals:
-                task_body["completion_signals"] = [{"type": s.type, "value": s.value} for s in task.completion_signals]
-            try:
-                self._client.post(f"{base}/tasks", json=task_body).raise_for_status()
-                logger.info(
-                    "Retrying task %s (attempt %d/%d): %s",
-                    task_id,
-                    retry_count + 1,
-                    max_retries,
-                    reason,
-                )
-            except httpx.HTTPError as exc:
-                logger.error("Failed to re-create task %s for retry: %s", task_id, exc)
-                # Fall through to permanent fail
-                _fail_task(self._client, base, task_id, f"Max retries exceeded: {reason}")
-                return
-            # Fail the old task silently (it has been replaced)
-            with contextlib.suppress(httpx.HTTPError):
-                _fail_task(self._client, base, task_id, f"Retried: {reason}")
-        else:
-            _fail_task(self._client, base, task_id, f"Max retries exceeded: {reason}")
-
-    def _should_auto_decompose(self, task: Task) -> bool:
-        """Return True if a large task should be decomposed into subtasks.
-
-        Decomposition is triggered for scope=LARGE tasks that haven't been
-        queued for decomposition yet in this orchestrator session.
-
-        Args:
-            task: The task to check.
-
-        Returns:
-            True if the task should be auto-decomposed.
-        """
-        from bernstein.core.models import Scope
-
-        # Already queued for decomposition in this session
-        if task.id in self._decomposed_task_ids:
-            return False
-        # Manager-created decompose tasks should never be re-decomposed
-        if task.title.startswith("[DECOMPOSE]"):
-            return False
-        # Tasks that have failed 2+ times should be decomposed regardless of scope —
-        # they've proven too large for a single agent session.
-        retry_match = re.match(r"^\[RETRY (\d+)\]", task.title)
-        if retry_match:
-            return int(retry_match.group(1)) >= 2
-        # Fresh tasks: only decompose scope=LARGE
-        return task.scope == Scope.LARGE
-
-    def _auto_decompose_task(self, task: Task) -> None:
-        """Queue a large task for decomposition by spawning a planner manager.
-
-        Creates a lightweight manager task (haiku/high) that reads the original
-        task and creates 3-5 atomic subtasks. The original large task stays open
-        until the subtasks are done.
-
-        Args:
-            task: The large task to decompose.
-        """
-        base = self._config.server_url
-
-        manager_description = (
-            f"A large task needs to be decomposed into 3-5 smaller, atomic subtasks.\n\n"
-            f"## Original large task (id={task.id})\n"
-            f"**Title:** {task.title}\n"
-            f"**Role:** {task.role}\n"
-            f"**Description:**\n{task.description}\n\n"
-            f"## Your job\n"
-            f"1. Read the task description carefully\n"
-            f"2. Identify 3-5 specific, atomic subtasks (each completable in one agent session, < 30 min)\n"
-            f"3. Each subtask should target specific files and have clear completion criteria\n"
-            f"4. Create each subtask via the task server:\n"
-            f"```bash\n"
-            f"curl -s -X POST {base}/tasks -H 'Content-Type: application/json' \\\n"
-            f'  -d \'{{"title": "...", "description": "... [subtask of {task.id}]", '
-            f'"role": "{task.role}", "priority": {task.priority}, '
-            f'"scope": "small", "complexity": "medium"}}\'\n'
-            f"```\n"
-            f"5. After creating all subtasks, exit.\n\n"
-            f"IMPORTANT: Each subtask description MUST include '[subtask of {task.id}]' "
-            f"so it can be tracked back to the original task."
-        )
-
-        planner_task_body: dict[str, Any] = {
-            "title": f"[DECOMPOSE] {task.title[:80]}",
-            "description": manager_description,
-            "role": "manager",
-            "priority": max(1, task.priority - 1),  # Higher priority than original
-            "scope": "small",
-            "complexity": "medium",
-            "model": "haiku",
-            "effort": "high",
-        }
-
-        try:
-            resp = self._client.post(f"{base}/tasks", json=planner_task_body)
-            resp.raise_for_status()
-            planner_id = resp.json().get("id", "?")
-            self._decomposed_task_ids.add(task.id)
-            logger.info(
-                "Auto-decompose: created planner task %s for large task %s ('%s')",
-                planner_id,
-                task.id,
-                task.title,
-            )
-        except httpx.HTTPError as exc:
-            logger.warning("Auto-decompose: failed to create planner task for %s: %s", task.id, exc)
-
-    def _claim_and_spawn_batches(
-        self,
-        batches: list[list[Task]],
-        alive_count: int,
-        assigned_task_ids: set[str],
-        done_ids: set[str],
-        result: TickResult,
-    ) -> None:
-        """Claim tasks and spawn agents for each ready batch.
-
-        Iterates over role-grouped batches, enforces capacity/overlap/backoff
-        guards, claims tasks on the server, spawns an agent, and records metrics.
-        Batches that fail to spawn are tracked for backoff and eventually failed.
-
-        Args:
-            batches: Role-grouped task batches from group_by_role.
-            alive_count: Current number of alive agents (used to enforce max_agents cap).
-            assigned_task_ids: Task IDs already owned by active agents (mutated in-place).
-            done_ids: IDs of already-completed tasks (reserved for future guard use).
-            result: TickResult accumulator for spawned/error lists.
-        """
-        base = self._config.server_url
-
-        # Track titles claimed this tick to prevent duplicate agent assignments.
-        # Strips [RETRY N] prefixes so retries don't bypass the dedup check.
-        def _base_title(title: str) -> str:
-            t = title
-            while t.startswith("[RETRY"):
-                t = t.split("] ", 1)[-1] if "] " in t else t
-            return t.strip()
-
-        _claimed_titles: set[str] = set()
-        for agent in self._agents.values():
-            if agent.status != "dead":
-                for tid in agent.task_ids:
-                    _claimed_titles.add(tid)
-
-        for batch in batches:
-            if alive_count >= self._config.max_agents:
-                break
-
-            # Skip batches where any task is already assigned to an active agent
-            if any(t.id in assigned_task_ids for t in batch):
-                continue
-
-            # Dedup: skip if a task with the same base title is already active
-            batch_base_titles = {_base_title(t.title) for t in batch}
-            if batch_base_titles & _claimed_titles:
-                logger.debug(
-                    "Skipping batch — duplicate title already active: %s",
-                    batch_base_titles & _claimed_titles,
-                )
-                continue
-
-            # Skip if any owned files overlap with active agents
-            if self._check_file_overlap(batch):
-                continue
-
-            # Check spawn backoff: skip batches that recently failed
-            batch_key = frozenset(t.id for t in batch)
-            fail_count, last_fail_ts = self._spawn_failures.get(batch_key, (0, 0.0))
-            # Exponential backoff: base * 2^(failures-1), capped at max
-            backoff_s = (
-                min(
-                    self._SPAWN_BACKOFF_BASE_S * (2 ** max(fail_count - 1, 0)),
-                    self._SPAWN_BACKOFF_MAX_S,
-                )
-                if fail_count > 0
-                else 0.0
-            )
-            if fail_count > 0 and (time.time() - last_fail_ts) < backoff_s:
-                logger.warning(
-                    "Skipping batch %s: in backoff after %d consecutive spawn failure(s)",
-                    [t.id for t in batch],
-                    fail_count,
-                )
-                continue
-
-            # Cross-run quarantine: skip tasks that have repeatedly failed across runs.
-            # action="skip" → skip entirely; action="decompose" → auto-decompose first.
-            quarantined_tasks = [t for t in batch if self._quarantine.is_quarantined(t.title)]
-            if quarantined_tasks:
-                for task in quarantined_tasks:
-                    entry = self._quarantine.get_entry(task.title)
-                    action = entry.action if entry else "skip"
-                    logger.warning(
-                        "Skipping quarantined task %s (title=%r, fail_count=%d, action=%s)",
-                        task.id,
-                        task.title,
-                        entry.fail_count if entry else 0,
-                        action,
-                    )
-                    if action == "decompose" and len(batch) == 1:
-                        self._auto_decompose_task(task)
-                continue
-
-            # Pre-flight: auto-decompose large tasks before claiming.
-            # Creates a lightweight manager task that breaks the large task into
-            # 3-5 atomic subtasks; the original stays open until subtasks complete.
-            if len(batch) == 1 and self._should_auto_decompose(batch[0]):
-                self._auto_decompose_task(batch[0])
-                continue
-
-            # Claim tasks BEFORE spawning to prevent duplicate agents.
-            # Pass expected_version for CAS (compare-and-swap) to prevent two
-            # distributed nodes from claiming the same task simultaneously.
-            # Abort on server errors (5xx), CAS conflicts (409), or transport failures.
-            claim_failed = False
-            for task in batch:
-                try:
-                    resp = self._client.post(
-                        f"{base}/tasks/{task.id}/claim",
-                        params={"expected_version": task.version},
-                    )
-                    if resp.status_code == 409:
-                        logger.info(
-                            "CAS conflict claiming task %s (version %d) — another node claimed it",
-                            task.id,
-                            task.version,
-                        )
-                        result.errors.append(f"claim:{task.id}: CAS conflict (version {task.version})")
-                        claim_failed = True
-                        break
-                    if resp.status_code >= 500:
-                        logger.error(
-                            "Server error %d claiming task %s — aborting spawn",
-                            resp.status_code,
-                            task.id,
-                        )
-                        result.errors.append(f"claim:{task.id}: server error {resp.status_code}")
-                        claim_failed = True
-                        break
-                except httpx.TransportError as exc:
-                    logger.error(
-                        "Server unreachable claiming task %s: %s — aborting spawn",
-                        task.id,
-                        exc,
-                    )
-                    result.errors.append(f"claim:{task.id}: {exc}")
-                    claim_failed = True
-                    break
-            if claim_failed:
-                continue
-
-            # Fast-path: try deterministic execution for trivial (L0) tasks.
-            # Runs inline, marks task complete on server, skips spawner entirely.
-            if try_fast_path_batch(
-                batch,
-                self._workdir,
-                self._client,
-                base,
-                self._fast_path_stats,
-            ):
-                assigned_task_ids.update(t.id for t in batch)
-                result.spawned.append(f"fast-path:{batch[0].id}")
-                continue
-
-            # L1 downgrade: classify single-task batches and override to cheapest model
-            if len(batch) == 1:
-                l1_check = classify_task(batch[0])
-                if l1_check.level == TaskLevel.L1 and not batch[0].model:
-                    l1_cfg = get_l1_model_config()
-                    batch[0].model = l1_cfg.model
-                    batch[0].effort = l1_cfg.effort
-                    logger.info(
-                        "L1 downgrade for task %s → %s/%s (%s)",
-                        batch[0].id,
-                        l1_cfg.model,
-                        l1_cfg.effort,
-                        l1_check.reason,
-                    )
-
-            # Adaptive timeout: scale by task complexity/role
-            # Architect/security tasks need 3x base, large tasks 2x, etc.
-            _SCOPE_MULTIPLIER = {"small": 1.0, "medium": 1.5, "large": 2.5}
-            _ROLE_MULTIPLIER = {"architect": 3.0, "security": 2.5, "manager": 2.0}
-            max_estimated_s = max((t.estimated_minutes for t in batch), default=30) * 60
-            scope_mult = max(_SCOPE_MULTIPLIER.get(t.scope.value, 1.0) for t in batch)
-            role_mult = max(_ROLE_MULTIPLIER.get(t.role, 1.0) for t in batch)
-            complexity_mult = max(scope_mult, role_mult)
-            max_runtime = self._config.max_agent_runtime_s * complexity_mult
-            batch_timeout_s = int(max(120, min(int(max_estimated_s * complexity_mult), max_runtime)))
-
-            try:
-                # Check if any task in this batch has a preserved worktree for resume
-                resume_worktree = next(
-                    (self._preserved_worktrees[t.id] for t in batch if t.id in self._preserved_worktrees),
-                    None,
-                )
-                if resume_worktree is not None:
-                    changed_files = self._get_changed_files_in_worktree(resume_worktree)
-                    session = self._spawner.spawn_for_resume(
-                        batch,
-                        worktree_path=resume_worktree,
-                        changed_files=changed_files,
-                    )
-                    for _t in batch:
-                        self._preserved_worktrees.pop(_t.id, None)
-                    logger.info(
-                        "Resumed %s in preserved worktree %s for tasks: %s",
-                        session.id,
-                        resume_worktree,
-                        [t.id for t in batch],
-                    )
-                else:
-                    session = self._spawner.spawn_for_tasks(batch)
-                session.timeout_s = batch_timeout_s
-                self._agents[session.id] = session
-                for _t in batch:
-                    self._task_to_session[_t.id] = session.id
-                self._claim_file_ownership(session.id, batch)
-                alive_count += 1
-                result.spawned.append(session.id)
-                assigned_task_ids.update(t.id for t in batch)
-                _claimed_titles.update(_base_title(t.title) for t in batch)
-                session.heartbeat_ts = time.time()
-                self._spawn_failures.pop(batch_key, None)
-
-                logger.info(
-                    "Spawned %s for %d tasks: %s",
-                    session.id,
-                    len(batch),
-                    [t.id for t in batch],
-                )
-                collector = get_collector(self._workdir / ".sdd" / "metrics")
-                collector.start_agent(
-                    agent_id=session.id,
-                    role=session.role,
-                    model=session.model_config.model,
-                    provider=session.provider or "default",
-                    agent_source=session.agent_source,
-                )
-                for _task in batch:
-                    collector.start_task(
-                        task_id=_task.id,
-                        role=session.role,
-                        model=session.model_config.model,
-                        provider=session.provider or "default",
-                    )
-                logger.info(
-                    "Agent '%s' using prompt source: %s",
-                    session.id,
-                    session.agent_source,
-                )
-            except (OSError, RuntimeError, ValueError) as exc:
-                logger.error("Spawn failed for batch %s: %s", [t.id for t in batch], exc)
-                result.errors.append(f"spawn: {exc}")
-                collector = get_collector(self._workdir / ".sdd" / "metrics")
-                collector.record_error("agent_spawn_failed", "default", role=batch[0].role if batch else None)
-                new_count = fail_count + 1
-                self._spawn_failures[batch_key] = (new_count, time.time())
-                if new_count >= self._MAX_SPAWN_FAILURES:
-                    for task in batch:
-                        try:
-                            _fail_task(
-                                self._client,
-                                base,
-                                task.id,
-                                f"Spawn failed {new_count} consecutive times: {exc}",
-                            )
-                        except Exception as fail_exc:
-                            logger.warning("Could not mark task %s as failed: %s", task.id, fail_exc)
-                    self._spawn_failures.pop(batch_key, None)
-
-    def _process_completed_tasks(self, done_tasks: list[Task], result: TickResult) -> None:
-        """Run janitor verification and record evolution metrics for done tasks.
-
-        Skips tasks already processed in a prior tick. For each new done task,
-        submits verify_task() calls in parallel via self._executor, then
-        processes post-verification steps (sync backlog, append decision,
-        record evolution) after all verifications complete.
-
-        Args:
-            done_tasks: Tasks with status "done" fetched from the server.
-            result: TickResult accumulator for verified/verification_failures lists.
-        """
-        # Filter to only new tasks and mark them all processed upfront.
-        new_tasks: list[Task] = []
-        for task in done_tasks:
-            if task.id in self._processed_done_tasks:
-                continue
-            self._processed_done_tasks.add(task.id)
-            new_tasks.append(task)
-
-        if not new_tasks:
-            return
-
-        # Fan-out: submit all verify_task() calls in parallel.
-        verify_futures: dict[str, concurrent.futures.Future[tuple[bool, list[str]]]] = {}
-        for task in new_tasks:
-            if task.completion_signals:
-                verify_futures[task.id] = self._executor.submit(verify_task, task, self._workdir)
-
-        # Fan-in: collect results then run sequential post-verification steps.
-        for task in new_tasks:
-            if task.id in verify_futures:
-                passed, failed_signals = verify_futures[task.id].result()
-                janitor_passed = passed
-                if passed:
-                    result.verified.append(task.id)
-                else:
-                    result.verification_failures.append((task.id, failed_signals))
-            else:
-                janitor_passed = True
-
-            session = self._find_session_for_task(task.id)
-            # Track whether this is the first time we're reaping this session so
-            # agent-lifetime metrics are recorded exactly once per agent even when
-            # an agent owns multiple tasks that all complete in the same tick.
-            _agent_just_reaped = session is not None and session.status != "dead"
-            if session is not None:
-                self._record_provider_health(session, success=janitor_passed)
-                _skip_merge = False
-                if janitor_passed and self._approval_gate is not None:
-                    _approval_result = self._approval_gate.evaluate(
-                        task,
-                        session_id=session.id,
-                    )
-                    if _approval_result.rejected:
-                        _skip_merge = True
-                        logger.warning(
-                            "Approval gate: task %s rejected — skipping merge for agent %s",
-                            task.id,
-                            session.id,
-                        )
-                    elif not _approval_result.approved:
-                        # PR mode — create PR then skip local merge
-                        _skip_merge = True
-                        _worktree_path = self._spawner.get_worktree_path(session.id)
-                        if _worktree_path is not None:
-                            _pr_url = self._approval_gate.create_pr(
-                                task,
-                                worktree_path=_worktree_path,
-                                session_id=session.id,
-                                labels=self._config.pr_labels,
-                            )
-                            if _pr_url:
-                                logger.info(
-                                    "Approval gate: PR created for task %s: %s",
-                                    task.id,
-                                    _pr_url,
-                                )
-                        else:
-                            logger.warning(
-                                "Approval gate PR mode: no worktree for agent %s — cannot create PR",
-                                session.id,
-                            )
-                self._spawner.reap_completed_agent(session, skip_merge=_skip_merge)
-                session.status = "dead"
-                logger.info("Agent %s finished task %s, process reaped", session.id, task.id)
-
-            # Record task completion in the operational metrics collector so
-            # run summaries and evolution analysis see real duration/success data.
-            _collector = get_collector(self._workdir / ".sdd" / "metrics")
-            _task_m = _collector.task_metrics.get(task.id)
-            _cost_usd = _task_m.cost_usd if _task_m else 0.0
-
-            # Record cost in the per-run budget tracker and persist to disk.
-            _agent_id = session.id if session else "unknown"
-            _model = session.model_config.model if session else "unknown"
-            _tokens_in = _task_m.tokens_prompt if _task_m else 0
-            _tokens_out = _task_m.tokens_completion if _task_m else 0
-            self._cost_tracker.record(
-                agent_id=_agent_id,
-                task_id=task.id,
-                model=_model,
-                input_tokens=_tokens_in,
-                output_tokens=_tokens_out,
-                cost_usd=_cost_usd if _cost_usd > 0 else None,
-            )
-            try:
-                self._cost_tracker.save(self._workdir / ".sdd")
-            except OSError as exc:
-                logger.warning("Failed to persist cost tracker: %s", exc)
-
-            _collector.complete_task(task.id, success=janitor_passed, janitor_passed=janitor_passed, cost_usd=_cost_usd)
-            if session is not None:
-                # complete_agent_task must be called before end_agent so that
-                # end_agent() has non-zero task counts and writes the AGENT_SUCCESS
-                # metric to the JSONL file.
-                _collector.complete_agent_task(session.id, success=janitor_passed)
-                _collector.end_agent(session.id)
-                # Record agent lifetime to evolution collector (once per agent).
-                if self._evolution is not None and _agent_just_reaped:
-                    try:
-                        _agent_m = _collector.agent_metrics.get(session.id)
-                        _lifetime = round(
-                            (time.time() - session.spawn_ts) if session.spawn_ts > 0 else 0.0,
-                            2,
-                        )
-                        _tasks_done = _agent_m.tasks_completed if _agent_m else 0
-                        self._evolution.record_agent_lifetime(
-                            agent_id=session.id,
-                            role=session.role,
-                            lifetime_seconds=_lifetime,
-                            tasks_completed=_tasks_done,
-                            model=session.model_config.model,
-                        )
-                    except Exception as exc:
-                        logger.warning("Evolution record_agent_lifetime failed: %s", exc)
-
-            # Post bulletin: task completed or failed (with janitor result)
-            if janitor_passed:
-                self._post_bulletin(
-                    "status",
-                    f"task completed: {task.title} ({task.id})",
-                )
-                self._notify(
-                    "task.completed",
-                    f"Task completed: {task.title}",
-                    task.result_summary or "",
-                    task_id=task.id,
-                    role=task.role,
-                )
-            else:
-                self._post_bulletin(
-                    "alert",
-                    f"task failed janitor: {task.title} ({task.id})",
-                )
-                self._notify(
-                    "task.failed",
-                    f"Task failed: {task.title}",
-                    task.result_summary or "Janitor verification did not pass.",
-                    task_id=task.id,
-                    role=task.role,
-                )
-
-            self._sync_backlog_file(task)
-
-            if task.result_summary:
-                try:
-                    append_decision(
-                        self._workdir,
-                        task.id,
-                        task.title,
-                        task.result_summary,
-                    )
-                except Exception as exc:
-                    logger.warning("append_decision failed for task %s: %s", task.id, exc)
-
-            if self._evolution is not None:
-                model = session.model_config.model if session else None
-                provider = session.provider if session else None
-                duration = (
-                    (_task_m.end_time - _task_m.start_time)
-                    if _task_m and _task_m.end_time
-                    else (time.time() - session.spawn_ts if session and session.spawn_ts > 0 else 0.0)
-                )
-                try:
-                    self._evolution.record_task_completion(
-                        task=task,
-                        duration_seconds=round(duration, 2),
-                        cost_usd=_cost_usd,
-                        janitor_passed=janitor_passed,
-                        model=model,
-                        provider=provider,
-                    )
-                except Exception as exc:
-                    logger.warning("Evolution record_task_completion failed: %s", exc)
-
-    def _reap_dead_agents(self, result: TickResult, tasks_snapshot: dict[str, list[Task]]) -> None:
-        """Kill agents that exceeded heartbeat or wall-clock timeout.
-
-        Also fails any tasks owned by reaped agents.
-
-        Args:
-            result: TickResult to record reaped agent IDs into.
-            tasks_snapshot: Pre-fetched tasks bucketed by status from this tick.
-        """
-        now = time.time()
-        collector = get_collector()
-        for session in list(self._agents.values()):
-            if session.status == "dead":
-                continue
-
-            # Wall-clock timeout: use per-session timeout if set, else global config
-            timeout_s = session.timeout_s if session.timeout_s is not None else self._config.max_agent_runtime_s
-            runtime = now - session.spawn_ts
-            if runtime > timeout_s:
-                logger.warning(
-                    "Reaping agent %s (exceeded timeout %.0fs, runtime %.0fs)",
-                    session.id,
-                    timeout_s,
-                    runtime,
-                )
-                self._spawner.kill(session)
-                result.reaped.append(session.id)
-                self._release_file_ownership(session.id)
-                self._release_task_to_session(session.task_ids)
-                # Record agent end metrics (mirrors the heartbeat-timeout branch)
-                collector.end_agent(session.id)
-                # Record agent lifetime in evolution collector (wall-clock reap)
-                if self._evolution is not None:
-                    with contextlib.suppress(Exception):
-                        self._evolution.record_agent_lifetime(
-                            agent_id=session.id,
-                            role=session.role,
-                            lifetime_seconds=round(runtime, 2),
-                            tasks_completed=0,
-                            model=session.model_config.model,
-                        )
-                with contextlib.suppress(OSError):
-                    self._signal_mgr.clear_signals(session.id)
-                for task_id in session.task_ids:
-                    self._handle_orphaned_task(task_id, session, tasks_snapshot)
-                continue
-
-            # Heartbeat timeout
-            age = now - session.heartbeat_ts
-            if session.heartbeat_ts > 0 and age > self._config.heartbeat_timeout_s:
-                logger.warning(
-                    "Reaping stale agent %s (last heartbeat %.0fs ago)",
-                    session.id,
-                    age,
-                )
-                self._spawner.kill(session)
-                result.reaped.append(session.id)
-                # Release file ownership
-                self._release_file_ownership(session.id)
-                self._release_task_to_session(session.task_ids)
-                # Record agent end metrics
-                collector.end_agent(session.id)
-                # Record agent lifetime in evolution collector (heartbeat reap)
-                if self._evolution is not None:
-                    with contextlib.suppress(Exception):
-                        self._evolution.record_agent_lifetime(
-                            agent_id=session.id,
-                            role=session.role,
-                            lifetime_seconds=round(now - session.spawn_ts, 2),
-                            tasks_completed=0,
-                            model=session.model_config.model,
-                        )
-                # Record provider health failure for reaped agent
-                self._record_provider_health(session, success=False)
-                with contextlib.suppress(OSError):
-                    self._signal_mgr.clear_signals(session.id)
-                # Retry or fail their tasks
-                for task_id in session.task_ids:
-                    try:
-                        self._retry_or_fail_task(
-                            task_id,
-                            f"Agent {session.id} reaped (heartbeat timeout)",
-                            tasks_snapshot,
-                        )
-                    except httpx.HTTPError as exc:
-                        logger.error("Failed to retry/fail task %s: %s", task_id, exc)
+    # -- Backlog -------------------------------------------------------------
 
     def _sync_backlog_file(self, task: Task) -> None:
-        """Move the matching .md file from backlog/open/ to backlog/closed/.
-
-        Looks for a .md file in ``.sdd/backlog/open/`` whose filename slug
-        shares significant keywords with the task title. If found, moves it to
-        ``backlog/closed/`` and appends completion metadata.
-
-        Args:
-            task: The completed task to sync.
-        """
+        """Move the matching .md file from backlog/open/ to backlog/closed/."""
         open_dir = self._workdir / ".sdd" / "backlog" / "open"
         if not open_dir.exists():
             return
@@ -3091,7 +1411,6 @@ class Orchestrator:
         best_match: str | None = None
         best_score = 0
         for md_file in open_dir.glob("*.md"):
-            # Strip leading number prefix and extension to get slug words
             slug = re.sub(r"^\d+-", "", md_file.name[:-3])
             file_words = set(slug.split("-"))
             significant_file_words = {w for w in file_words if len(w) >= 4}
@@ -3114,14 +1433,10 @@ class Orchestrator:
         content += f"\n\n---\n**completed**: {ts}\n**task_id**: {task.id}\n**result**: {summary}\n"
         dst.write_text(content, encoding="utf-8")
         src.unlink()
-        logger.info("Synced backlog: %s → closed/", best_match)
+        logger.info("Synced backlog: %s -> closed/", best_match)
 
     def ingest_backlog(self) -> int:
         """Scan .sdd/backlog/open/ and POST any new files to the task server.
-
-        Each .md file in backlog/open/ that has not already been claimed is
-        parsed and submitted to POST /tasks, then moved to backlog/claimed/ to
-        prevent re-ingestion on subsequent ticks.
 
         Returns:
             Number of files ingested this call.
@@ -3134,12 +1449,11 @@ class Orchestrator:
 
         count = 0
         for md_file in sorted(open_dir.glob("*.md")):
-            # Skip if already present in claimed/ (e.g. from a prior run)
             if (claimed_dir / md_file.name).exists():
                 continue
 
             content = md_file.read_text(encoding="utf-8")
-            payload = _parse_backlog_file(md_file.name, content)
+            payload = parse_backlog_file(md_file.name, content)
 
             try:
                 resp = self._client.post(f"{self._config.server_url}/tasks", json=payload)
@@ -3157,37 +1471,19 @@ class Orchestrator:
 
     @staticmethod
     def _backlog_words_from_title(title: str) -> set[str]:
-        """Extract significant lowercase words (≥4 chars) from a task title.
-
-        Handles camelCase splitting so e.g. "ApprovalGate" yields
-        {"approval", "gate"}.
-
-        Args:
-            title: Task title string.
-
-        Returns:
-            Set of significant word strings.
-        """
-        # Split camelCase
+        """Extract significant lowercase words (>=4 chars) from a task title."""
         expanded = re.sub(r"([a-z])([A-Z])", r"\1 \2", title)
-        # Split on non-alphanumeric
         tokens = re.split(r"[^a-zA-Z0-9]+", expanded.lower())
         return {w for w in tokens if len(w) >= 4}
+
+    # -- Run summary --------------------------------------------------------
 
     def _generate_run_summary(
         self,
         done_tasks: list[Task],
         failed_tasks: list[Task],
     ) -> None:
-        """Write a run completion summary to .sdd/runtime/summary.md.
-
-        Called once when open_tasks == 0, active_agents == 0, and evolve_mode
-        is False. Idempotent: sets _summary_written to prevent duplicate writes.
-
-        Args:
-            done_tasks: Tasks with status 'done'.
-            failed_tasks: Tasks with status 'failed'.
-        """
+        """Write a run completion summary to .sdd/runtime/summary.md."""
         runtime_dir = self._workdir / ".sdd" / "runtime"
         runtime_dir.mkdir(parents=True, exist_ok=True)
         summary_path = runtime_dir / "summary.md"
@@ -3196,12 +1492,10 @@ class Orchestrator:
         total_failed = len(failed_tasks)
         wall_clock_s = time.time() - self._run_start_ts
 
-        # Collect files-modified count and cost from metrics
         collector = get_collector(self._workdir / ".sdd" / "metrics")
         total_cost = collector.get_total_cost()
         files_modified: int = sum(getattr(m, "files_modified", 0) for m in collector.task_metrics.values())
 
-        # Build task list section
         task_lines: list[str] = []
         for task in sorted(done_tasks, key=lambda t: t.title):
             task_lines.append(f"- [x] {task.title}")
@@ -3261,11 +1555,7 @@ class Orchestrator:
         )
 
     def _log_summary(self, result: TickResult) -> None:
-        """Write a one-line summary and agent state snapshot each tick.
-
-        Args:
-            result: TickResult from the current tick.
-        """
+        """Write a one-line summary and agent state snapshot each tick."""
         log_dir = self._workdir / ".sdd" / "runtime"
         log_dir.mkdir(parents=True, exist_ok=True)
         log_path = log_dir / "orchestrator.log"

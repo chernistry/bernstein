@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,10 @@ from bernstein.cli.helpers import (
     find_seed_file,
     is_alive,
     print_banner,
+    server_get,
 )
+from bernstein.cli.run import render_run_summary_from_dict
+from bernstein.cli.ui import make_console
 
 # ---------------------------------------------------------------------------
 # init
@@ -172,6 +176,24 @@ def init(target_dir: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Post-run summary helper
+# ---------------------------------------------------------------------------
+
+
+def _show_run_summary() -> None:
+    """Fetch final status from the task server and render a summary.
+
+    Silently returns if the server is unreachable (e.g. already stopped).
+    """
+    data = server_get("/status")
+    if data is None:
+        return
+    force_no_color = not sys.stdout.isatty()
+    con = make_console(no_color=force_no_color)
+    render_run_summary_from_dict(data, console=con)
+
+
+# ---------------------------------------------------------------------------
 # run  (the "one command" Seed UX)
 # ---------------------------------------------------------------------------
 
@@ -238,6 +260,7 @@ def run(goal: str | None, seed_file: str | None, port: int, cells: int, remote: 
         except RuntimeError as exc:
             console.print(f"[red]Bootstrap error:[/red] {exc}")
             raise SystemExit(1) from exc
+        _show_run_summary()
         return
 
     # Seed file mode
@@ -265,6 +288,7 @@ def run(goal: str | None, seed_file: str | None, port: int, cells: int, remote: 
     except RuntimeError as exc:
         console.print(f"[red]Bootstrap error:[/red] {exc}")
         raise SystemExit(1) from exc
+    _show_run_summary()
 
 
 # ---------------------------------------------------------------------------
@@ -323,6 +347,7 @@ def start(goal: str | None, seed_file: str, port: int) -> None:
         except RuntimeError as exc:
             console.print(f"[red]Bootstrap error:[/red] {exc}")
             raise SystemExit(1) from exc
+    _show_run_summary()
 
 
 # ---------------------------------------------------------------------------

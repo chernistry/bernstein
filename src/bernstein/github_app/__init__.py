@@ -1,18 +1,29 @@
-"""GitHub App integration layer for Bernstein.
+"""GitHub App integration for Bernstein.
 
-Provides webhook parsing, HMAC signature verification, and event-to-task
-mapping so that GitHub events (issues, PRs, pushes) can be automatically
-converted into Bernstein tasks.
+Receives GitHub webhooks, converts events to Bernstein tasks, and posts
+them to the task server. Provides webhook verification, event parsing,
+and event-to-task mapping.
 """
 
-from bernstein.github_app.mapper import issue_to_tasks, pr_comment_to_task, push_to_tasks
+from __future__ import annotations
+
+from bernstein.github_app.app import GitHubAppConfig, create_installation_token
+from bernstein.github_app.mapper import (
+    issue_to_tasks,
+    label_to_action,
+    pr_review_to_task,
+    push_to_tasks,
+)
 from bernstein.github_app.webhooks import WebhookEvent, parse_webhook, verify_signature
 
 __all__ = [
+    "GitHubAppConfig",
     "WebhookEvent",
+    "create_installation_token",
     "issue_to_tasks",
+    "label_to_action",
     "parse_webhook",
-    "pr_comment_to_task",
+    "pr_review_to_task",
     "push_to_tasks",
     "verify_signature",
 ]

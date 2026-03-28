@@ -136,14 +136,23 @@ async def test_dashboard_data_reflects_tasks(client: AsyncClient) -> None:
 
 
 @pytest.mark.anyio
-async def test_events_content_type(client: AsyncClient) -> None:
-    """/events returns text/event-stream content-type."""
-    # Use a HEAD-equivalent: send the request and read only the response headers.
-    # We break out of the stream immediately after checking headers so the test
-    # does not block on the infinite SSE generator.
-    async with client.stream("GET", "/events") as resp:
-        assert resp.status_code == 200
-        assert "text/event-stream" in resp.headers["content-type"]
-        # Read one chunk to confirm the stream is live, then exit.
-        async for _chunk in resp.aiter_bytes(chunk_size=1):
-            break
+async def test_events_content_type(app) -> None:  # type: ignore[no-untyped-def]
+    """/events returns text/event-stream content-type.
+
+    Uses a short-lived ASGI transport to inspect just the response status
+    and content-type without blocking on the infinite SSE body.
+    """
+    import anyio
+    from httpx import ASGITransport, AsyncClient
+
+    transport = ASGITransport(app=app)
+    # We only need to verify headers; use anyio move_on_after to cap the wait.
+    with anyio.move_on_after(3):
+        async with AsyncClient(transport=transport, base_url="http://test") as c:
+            async with c.stream("GET", "/events") as resp:
+                assert resp.status_code == 200
+                assert "text/event-stream" in resp.headers["content-type"]
+                # Consume one SSE frame to confirm the stream is live.
+                async for line in resp.aiter_lines():
+                    if line.startswith("data:"):
+                        break

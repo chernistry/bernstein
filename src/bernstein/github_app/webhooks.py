@@ -1,10 +1,8 @@
-"""GitHub App webhook parsing and signature verification.
+"""Webhook parsing and HMAC-SHA256 signature verification.
 
-Parses raw HTTP webhook requests from GitHub into typed ``WebhookEvent``
-objects, and verifies the HMAC-SHA256 signature that GitHub includes in
-every delivery.
-
-Signature format:  ``X-Hub-Signature-256: sha256=<hex-digest>``
+GitHub sends webhooks with an ``X-Hub-Signature-256`` header containing
+an HMAC-SHA256 digest of the request body.  This module verifies that
+signature and parses the JSON payload into a typed ``WebhookEvent``.
 """
 
 from __future__ import annotations
@@ -12,103 +10,107 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-from dataclasses import dataclass
+import logging
+from dataclasses import dataclass, field
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
 class WebhookEvent:
-    """A parsed GitHub webhook delivery.
-
-    Attributes:
-        event_type: GitHub event name from ``X-GitHub-Event`` header
-            (e.g. ``"issues"``, ``"pull_request"``, ``"push"``,
-            ``"issue_comment"``).
-        action: Action field from the payload body (e.g. ``"opened"``,
-            ``"closed"``, ``"synchronize"``). Empty string when the event
-            has no ``action`` field (e.g. ``"push"``).
-        repo: Full repository name in ``"owner/repo"`` format, sourced
-            from ``payload["repository"]["full_name"]``.
-        payload: Raw decoded JSON payload as a dict.
-    """
+    """Parsed GitHub webhook event."""
 
     event_type: str
+    """GitHub event name: ``issues``, ``pull_request``, ``push``, ``issue_comment``."""
+
     action: str
-    repo: str
-    payload: dict[str, Any]
+    """Event action: ``opened``, ``closed``, ``synchronize``, etc.  Empty for push events."""
+
+    repo_full_name: str
+    """Full repository name in ``owner/repo`` format."""
+
+    sender: str
+    """GitHub username that triggered the event."""
+
+    payload: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())
+    """Raw JSON payload from GitHub."""
 
 
 def verify_signature(body: bytes, signature: str, secret: str) -> bool:
-    """Verify the HMAC-SHA256 signature GitHub attaches to every delivery.
-
-    GitHub computes ``HMAC-SHA256(secret, body)`` and sends it as
-    ``X-Hub-Signature-256: sha256=<hex>``.  This function recomputes the
-    digest and performs a constant-time comparison to prevent timing attacks.
+    """Verify the ``X-Hub-Signature-256`` HMAC-SHA256 digest.
 
     Args:
-        body: Raw request body bytes exactly as received (before any decoding).
-        signature: Value of the ``X-Hub-Signature-256`` header, including the
-            ``"sha256="`` prefix.
-        secret: The webhook secret configured in the GitHub App settings.
+        body: Raw request body bytes.
+        signature: Value of the ``X-Hub-Signature-256`` header
+            (e.g. ``sha256=abc123...``).
+        secret: The webhook secret configured in the GitHub App.
 
     Returns:
-        ``True`` if the signature is valid, ``False`` otherwise (including
-        when the signature header is missing or malformed).
+        ``True`` if the signature is valid, ``False`` otherwise.
     """
     if not signature.startswith("sha256="):
         return False
-    expected_hex = signature[len("sha256=") :]
-    mac = hmac.new(secret.encode(), msg=body, digestmod=hashlib.sha256)
-    return hmac.compare_digest(mac.hexdigest(), expected_hex)
+    expected = hmac.new(
+        secret.encode("utf-8"),
+        body,
+        hashlib.sha256,
+    ).hexdigest()
+    provided = signature[7:]  # Strip "sha256=" prefix
+    return hmac.compare_digest(expected, provided)
 
 
 def parse_webhook(headers: dict[str, str], body: bytes) -> WebhookEvent:
-    """Parse a raw GitHub webhook request into a :class:`WebhookEvent`.
-
-    Header lookup is case-insensitive to tolerate both the canonical
-    ``X-GitHub-Event`` form and lowercased variants produced by some
-    HTTP frameworks.
+    """Parse GitHub webhook headers and JSON body into a ``WebhookEvent``.
 
     Args:
-        headers: HTTP request headers as a plain dict.  May use any case
-            for key names.
-        body: Raw request body bytes.
+        headers: HTTP request headers (case-insensitive lookup expected).
+        body: Raw request body bytes containing JSON.
 
     Returns:
-        A fully populated :class:`WebhookEvent`.
+        Parsed ``WebhookEvent``.
 
     Raises:
-        ValueError: If the ``X-GitHub-Event`` header is missing, the body
-            is not valid JSON, or ``repository.full_name`` cannot be found
-            in the payload.
+        ValueError: If required headers or payload fields are missing.
     """
-    # Normalise header keys to lowercase for case-insensitive lookup.
+    # Normalise header keys to lowercase for case-insensitive lookup
     lower_headers = {k.lower(): v for k, v in headers.items()}
-
-    event_type = lower_headers.get("x-github-event", "").strip()
+    event_type = lower_headers.get("x-github-event", "")
     if not event_type:
-        raise ValueError("Missing required header: X-GitHub-Event")
+        msg = "Missing X-GitHub-Event header"
+        raise ValueError(msg)
 
     try:
         payload: dict[str, Any] = json.loads(body)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"Webhook body is not valid JSON: {exc}") from exc
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        msg = f"Invalid JSON payload: {exc}"
+        raise ValueError(msg) from exc
 
-    if not isinstance(payload, dict):
-        raise ValueError("Webhook payload must be a JSON object")
+    action = payload.get("action", "")
 
-    repo_obj = payload.get("repository")
-    if not isinstance(repo_obj, dict):
-        raise ValueError("Payload missing 'repository' object")
-    repo = repo_obj.get("full_name", "")
-    if not repo:
-        raise ValueError("Payload missing 'repository.full_name'")
+    # Extract repo full name — different location for push vs other events
+    repo: dict[str, Any] = payload.get("repository", {})
+    repo_full_name = repo.get("full_name", "")
+    if not repo_full_name:
+        msg = "Missing repository.full_name in payload"
+        raise ValueError(msg)
 
-    action: str = payload.get("action") or ""
+    # Extract sender
+    sender_obj: dict[str, Any] = payload.get("sender", {})
+    sender = sender_obj.get("login", "unknown")
+
+    logger.info(
+        "Parsed webhook: event=%s action=%s repo=%s sender=%s",
+        event_type,
+        action,
+        repo_full_name,
+        sender,
+    )
 
     return WebhookEvent(
         event_type=event_type,
         action=action,
-        repo=repo,
+        repo_full_name=repo_full_name,
+        sender=sender,
         payload=payload,
     )

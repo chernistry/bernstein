@@ -1,261 +1,307 @@
-"""Event-to-task mapper: converts GitHub webhook events into Bernstein task dicts.
+"""Event-to-task conversion: maps GitHub webhook events to Bernstein task payloads.
 
-Each function accepts a :class:`~bernstein.github_app.webhooks.WebhookEvent`
-and returns one or more task payload dicts suitable for ``POST /tasks``.
-The returned dicts intentionally use only primitive types so callers can
-serialise them directly to JSON without extra conversion steps.
-
-Role assignment heuristics
----------------------------
-Issues are mapped to roles based on label prefixes:
-
-- ``bug`` / ``fix`` labels  ->  ``"backend"``
-- ``security`` labels       ->  ``"security"``
-- ``docs`` labels           ->  ``"docs"``
-- ``test`` labels           ->  ``"qa"``
-- everything else           ->  ``"backend"`` (safe default)
-
-Complexity heuristics
----------------------
-- issue body > 500 chars or body contains a code block  ->  ``"high"``
-- issue body 100-500 chars                              ->  ``"medium"``
-- short body / no body                                  ->  ``"low"``
+Each mapper function accepts a ``WebhookEvent`` and returns one or more
+task creation payloads (dicts matching ``TaskCreate`` fields) ready to be
+posted to the task server.
 """
 
 from __future__ import annotations
 
+import logging
+import re
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from bernstein.github_app.webhooks import WebhookEvent
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
+logger = logging.getLogger(__name__)
 
-_SECURITY_LABELS = frozenset({"security", "vulnerability", "cve", "security-bug"})
-_BUG_LABELS = frozenset({"bug", "fix", "regression", "broken"})
-_DOCS_LABELS = frozenset({"documentation", "docs", "doc"})
-_QA_LABELS = frozenset({"test", "tests", "testing", "qa"})
+# Label → priority mapping (lower = higher priority)
+_LABEL_PRIORITY: dict[str, int] = {
+    "bug": 1,
+    "critical": 1,
+    "security": 1,
+    "enhancement": 2,
+    "feature": 2,
+    "docs": 3,
+    "documentation": 3,
+    "chore": 3,
+}
+
+# Label → role mapping
+_LABEL_ROLE: dict[str, str] = {
+    "backend": "backend",
+    "frontend": "frontend",
+    "qa": "qa",
+    "security": "security",
+    "docs": "docs",
+    "documentation": "docs",
+    "infra": "backend",
+    "devops": "backend",
+}
+
+# File path prefix → role mapping for PR reviews
+_PATH_ROLE: list[tuple[str, str]] = [
+    ("tests/", "qa"),
+    ("test_", "qa"),
+    ("docs/", "docs"),
+    ("README", "docs"),
+    (".github/", "backend"),
+    ("deploy/", "backend"),
+    ("src/bernstein/adapters/", "backend"),
+    ("src/bernstein/cli/", "backend"),
+    ("src/bernstein/core/", "backend"),
+]
+
+# Patterns that indicate an actionable PR review comment
+_ACTIONABLE_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"\bfix\b", re.IGNORECASE),
+    re.compile(r"\bchange\b", re.IGNORECASE),
+    re.compile(r"\bupdate\b", re.IGNORECASE),
+    re.compile(r"\breplace\b", re.IGNORECASE),
+    re.compile(r"\bremove\b", re.IGNORECASE),
+    re.compile(r"\badd\b", re.IGNORECASE),
+    re.compile(r"\brefactor\b", re.IGNORECASE),
+    re.compile(r"\bshould\b", re.IGNORECASE),
+    re.compile(r"\bmust\b", re.IGNORECASE),
+    re.compile(r"\bconsider\b", re.IGNORECASE),
+    re.compile(r"```suggestion", re.IGNORECASE),
+]
 
 
-def _extract_labels(issue_or_pr: dict[str, Any]) -> list[str]:
-    """Return the list of label name strings from an issue/PR payload."""
-    raw: list[dict[str, Any]] = issue_or_pr.get("labels") or []
-    return [lbl.get("name", "") for lbl in raw if isinstance(lbl, dict)]
-
-
-def _role_from_labels(labels: list[str]) -> str:
-    """Determine the most appropriate Bernstein role from GitHub label names."""
-    lower = {lbl.lower() for lbl in labels}
-    if lower & _SECURITY_LABELS:
-        return "security"
-    if lower & _DOCS_LABELS:
-        return "docs"
-    if lower & _QA_LABELS:
-        return "qa"
-    # bug / fix labels and the default both land on backend
-    return "backend"
-
-
-def _complexity_from_body(body: str | None) -> str:
-    """Estimate task complexity from the issue/PR body text."""
-    if not body:
-        return "low"
-    if len(body) > 500 or "```" in body:
-        return "high"
-    if len(body) >= 100:
-        return "medium"
-    return "low"
+def _extract_labels(payload: dict[str, Any]) -> list[str]:
+    """Extract label names from an issue or PR payload."""
+    labels_raw: list[dict[str, Any]] = payload.get("issue", payload).get("labels", [])
+    return [lbl.get("name", "").lower() for lbl in labels_raw if lbl.get("name")]
 
 
 def _priority_from_labels(labels: list[str]) -> int:
-    """Map labels to Bernstein priority (1=critical, 2=normal, 3=nice-to-have)."""
-    lower = {lbl.lower() for lbl in labels}
-    if lower & {"critical", "blocker", "p0", "priority: critical"}:
-        return 1
-    if lower & {"low-priority", "nice-to-have", "wontfix", "p3"}:
-        return 3
+    """Determine task priority from GitHub labels. Default is 2."""
+    for label in labels:
+        if label in _LABEL_PRIORITY:
+            return _LABEL_PRIORITY[label]
     return 2
 
 
-# ---------------------------------------------------------------------------
-# Public mappers
-# ---------------------------------------------------------------------------
+def _role_from_labels(labels: list[str]) -> str:
+    """Determine role from GitHub labels. Default is 'backend'."""
+    for label in labels:
+        if label in _LABEL_ROLE:
+            return _LABEL_ROLE[label]
+    return "backend"
+
+
+def _role_from_path(path: str) -> str:
+    """Determine role from a file path."""
+    for prefix, role in _PATH_ROLE:
+        if path.startswith(prefix):
+            return role
+    return "backend"
+
+
+def _is_actionable(text: str) -> bool:
+    """Determine if a comment is actionable (contains a suggestion/fix request)."""
+    return any(pattern.search(text) for pattern in _ACTIONABLE_PATTERNS)
 
 
 def issue_to_tasks(event: WebhookEvent) -> list[dict[str, Any]]:
-    """Convert a new GitHub issue into Bernstein task payloads.
+    """Convert a new issue event into one or more Bernstein task payloads.
 
-    Only ``action == "opened"`` produces tasks; all other actions return an
-    empty list so that edits and closures are silently ignored.
+    - Parses issue labels for role hints (``label:backend`` -> ``role:backend``)
+    - Parses issue body for scope hints
+    - Sets priority based on labels (bug=1, enhancement=2, docs=3)
 
     Args:
-        event: A parsed webhook event with ``event_type == "issues"``.
+        event: A webhook event with ``event_type == "issues"`` and
+            ``action == "opened"``.
 
     Returns:
-        A list of task payload dicts (zero or one element).  Each dict is
-        ready to ``POST`` to ``/tasks``.
+        List of task creation dicts matching ``TaskCreate`` fields.
     """
-    if event.action != "opened":
+    if event.event_type != "issues" or event.action != "opened":
         return []
 
-    issue: dict[str, Any] = event.payload.get("issue") or {}
-    title: str = issue.get("title") or "(untitled issue)"
-    body: str | None = issue.get("body")
-    issue_number: int = issue.get("number") or 0
-    html_url: str = issue.get("html_url") or ""
-    labels = _extract_labels(issue)
+    issue: dict[str, Any] = event.payload.get("issue", {})
+    title = issue.get("title", "Untitled issue")
+    body = issue.get("body", "") or ""
+    number = issue.get("number", 0)
 
-    description_parts = [
-        f"GitHub issue #{issue_number} opened in {event.repo}.",
-        f"URL: {html_url}" if html_url else "",
-        "",
-        body or "(no description provided)",
-    ]
-    description = "\n".join(p for p in description_parts if p or p == "")
+    labels = _extract_labels(event.payload)
+    priority = _priority_from_labels(labels)
+    role = _role_from_labels(labels)
 
-    return [
-        {
-            "title": f"[GH#{issue_number}] {title}",
-            "description": description.strip(),
-            "role": _role_from_labels(labels),
-            "priority": _priority_from_labels(labels),
-            "complexity": _complexity_from_body(body),
-            "scope": "small",
-            "estimated_minutes": 30,
-            "task_type": "standard",
-            "owned_files": [],
-        }
-    ]
+    # Estimate scope from body length
+    scope = "small" if len(body) < 200 else ("large" if len(body) > 1000 else "medium")
+
+    description = f"GitHub issue #{number} from {event.sender} in {event.repo_full_name}.\n\n{body[:2000]}"
+
+    task: dict[str, Any] = {
+        "title": f"[GH#{number}] {title}"[:120],
+        "description": description,
+        "role": role,
+        "priority": priority,
+        "scope": scope,
+        "task_type": "standard",
+    }
+
+    logger.info(
+        "Mapped issue #%d to task: role=%s priority=%d scope=%s",
+        number,
+        role,
+        priority,
+        scope,
+    )
+
+    return [task]
 
 
-def pr_comment_to_task(event: WebhookEvent) -> dict[str, Any] | None:
+def pr_review_to_task(event: WebhookEvent) -> dict[str, Any] | None:
     """Convert a PR review comment into a fix task if actionable.
 
-    Only ``action == "created"`` on ``"pull_request_review_comment"`` or
-    ``"issue_comment"`` on a PR produces a task.  Comments that look like
-    review approvals (containing ``"LGTM"``, ``"Approved"``, ``"+1"``) are
-    skipped.
+    Only creates a task if the comment body contains actionable language
+    (fix, change, replace, etc.) or a code suggestion block.
 
     Args:
-        event: A parsed webhook event.  Handles both
-            ``"pull_request_review_comment"`` and ``"issue_comment"``
-            event types when issued on a pull request.
+        event: A webhook event with ``event_type == "pull_request_review_comment"``
+            or ``event_type == "issue_comment"`` on a PR.
 
     Returns:
-        A single task payload dict, or ``None`` if the comment is not
-        actionable.
+        Task creation dict, or ``None`` if the comment is not actionable.
     """
-    if event.action != "created":
+    comment: dict[str, Any] = event.payload.get("comment", {})
+    comment_body = comment.get("body", "") or ""
+
+    if not _is_actionable(comment_body):
         return None
 
-    # Normalise: both event types carry a comment body under "comment"
-    comment: dict[str, Any] = event.payload.get("comment") or {}
-    body: str = comment.get("body") or ""
+    # Determine the file path for role inference
+    path = comment.get("path", "")
+    role = _role_from_path(path) if path else "backend"
 
-    # Skip approval / non-actionable comments
-    skip_phrases = ("lgtm", "approved", "+1", "looks good", ":+1:", "\U0001f44d")
-    if any(phrase in body.lower() for phrase in skip_phrases):
-        return None
+    pr: dict[str, Any] = event.payload.get("pull_request", {})
+    pr_number = pr.get("number", 0)
+    pr_title = pr.get("title", "")
 
-    # Determine PR number — may be in "pull_request" or "issue" sub-object
-    pr_obj: dict[str, Any] = event.payload.get("pull_request") or {}
-    issue_obj: dict[str, Any] = event.payload.get("issue") or {}
-    pr_number: int = pr_obj.get("number") or issue_obj.get("number") or 0
+    description = (
+        f"PR review comment on #{pr_number} ({pr_title}) "
+        f"in {event.repo_full_name} by {event.sender}.\n\n"
+        f"File: {path}\n\n"
+        f"Comment:\n{comment_body[:2000]}"
+    )
 
-    # For issue_comment events on issues (not PRs), skip
-    if event.event_type == "issue_comment" and not pr_obj:
-        # Check via issue.pull_request field
-        if not issue_obj.get("pull_request"):
-            return None
-        pr_number = issue_obj.get("number") or 0
-
-    html_url: str = comment.get("html_url") or ""
-    commenter: str = (comment.get("user") or {}).get("login") or "unknown"
-
-    description_parts = [
-        f"Review comment on PR #{pr_number} in {event.repo} by @{commenter}.",
-        f"URL: {html_url}" if html_url else "",
-        "",
-        body,
-    ]
-    description = "\n".join(p for p in description_parts if p or p == "")
-
-    return {
-        "title": f"[PR#{pr_number}] Address review comment",
-        "description": description.strip(),
-        "role": "backend",
-        "priority": 2,
-        "complexity": _complexity_from_body(body),
+    task: dict[str, Any] = {
+        "title": f"[GH-PR#{pr_number}] Fix: {comment_body[:80]}"[:120],
+        "description": description,
+        "role": role,
+        "priority": 1,
         "scope": "small",
-        "estimated_minutes": 20,
         "task_type": "fix",
-        "owned_files": [],
     }
+
+    logger.info(
+        "Mapped PR review comment to fix task: pr=#%d role=%s path=%s",
+        pr_number,
+        role,
+        path,
+    )
+
+    return task
 
 
 def push_to_tasks(event: WebhookEvent) -> list[dict[str, Any]]:
-    """Convert a push event into CI / review tasks.
+    """Convert a push event to a CI verification task.
 
-    Creates a single review task for non-merge commits pushed to the default
-    branch (``refs/heads/main`` or ``refs/heads/master``).  Force-pushes and
-    empty pushes are silently ignored.
+    Creates a QA task to verify the push, including commit messages
+    in the task description.
 
     Args:
-        event: A parsed webhook event with ``event_type == "push"``.
+        event: A webhook event with ``event_type == "push"``.
 
     Returns:
-        A list of task payload dicts (zero or one element).
+        List containing a single QA verification task.
     """
-    ref: str = event.payload.get("ref") or ""
-    # Only act on pushes to main/master
-    if ref not in ("refs/heads/main", "refs/heads/master"):
+    if event.event_type != "push":
         return []
 
-    commits: list[dict[str, Any]] = event.payload.get("commits") or []
-    if not commits:
-        return []
+    ref = event.payload.get("ref", "")
+    commits: list[dict[str, Any]] = event.payload.get("commits", [])
 
-    after_sha: str = event.payload.get("after") or ""
-    before_sha: str = event.payload.get("before") or ""
+    # Build commit summary
+    commit_lines: list[str] = []
+    for commit in commits[:10]:  # Cap at 10 commits
+        sha = commit.get("id", "")[:8]
+        msg = commit.get("message", "").split("\n")[0]
+        commit_lines.append(f"  - {sha}: {msg}")
 
-    # Skip force pushes where before is the zero SHA
-    zero_sha = "0000000000000000000000000000000000000000"
-    if before_sha == zero_sha:
-        return []
+    commit_summary = "\n".join(commit_lines) if commit_lines else "  (no commits)"
 
-    commit_count = len(commits)
-    branch = ref.split("/")[-1]
-    compare_url: str = event.payload.get("compare") or ""
-    pusher: str = (event.payload.get("pusher") or {}).get("name") or "unknown"
+    description = (
+        f"Push to {ref} in {event.repo_full_name} by {event.sender}.\n\n"
+        f"Commits:\n{commit_summary}\n\n"
+        f"Verify that all tests pass and no regressions were introduced."
+    )
 
-    short_after = after_sha[:8] if after_sha else "unknown"
-    commit_word = "commit" if commit_count == 1 else "commits"
-    description_parts = [
-        f"{commit_count} {commit_word} pushed to {branch} in {event.repo} by {pusher}.",
-        f"HEAD: {short_after}",
-        f"Compare: {compare_url}" if compare_url else "",
-        "",
-        "Commit messages:",
-    ]
-    for commit in commits[:10]:  # cap at 10 to keep description readable
-        msg_line = (commit.get("message") or "").splitlines()[0]
-        sha_short = (commit.get("id") or "")[:8]
-        description_parts.append(f"  - {sha_short}: {msg_line}")
+    task: dict[str, Any] = {
+        "title": f"[GH-push] Verify push to {ref.split('/')[-1]}"[:120],
+        "description": description,
+        "role": "qa",
+        "priority": 2,
+        "scope": "small",
+        "task_type": "standard",
+    }
 
-    description = "\n".join(p for p in description_parts if p is not None)
+    logger.info(
+        "Mapped push to QA task: ref=%s commits=%d",
+        ref,
+        len(commits),
+    )
 
-    return [
-        {
-            "title": f"[CI] Review {commit_count} {commit_word} on {branch} ({short_after})",
-            "description": description.strip(),
-            "role": "qa",
-            "priority": 2,
-            "complexity": "medium" if commit_count > 3 else "low",
-            "scope": "small",
-            "estimated_minutes": 15,
-            "task_type": "standard",
-            "owned_files": [],
-        }
-    ]
+    return [task]
+
+
+def label_to_action(event: WebhookEvent) -> dict[str, Any] | None:
+    """Convert a label event for ``evolve-candidate`` into an evolution task.
+
+    Only triggers when the ``evolve-candidate`` label is added to an issue.
+
+    Args:
+        event: A webhook event with ``event_type == "issues"`` and
+            ``action == "labeled"``.
+
+    Returns:
+        Task creation dict for an evolution task, or ``None`` if the label
+        is not ``evolve-candidate``.
+    """
+    if event.action != "labeled":
+        return None
+
+    label: dict[str, Any] = event.payload.get("label", {})
+    label_name = label.get("name", "").lower()
+
+    if label_name != "evolve-candidate":
+        return None
+
+    issue: dict[str, Any] = event.payload.get("issue", {})
+    title = issue.get("title", "Untitled")
+    body = issue.get("body", "") or ""
+    number = issue.get("number", 0)
+
+    description = (
+        f"Evolution candidate from GitHub issue #{number} in {event.repo_full_name}.\n\nTitle: {title}\n\n{body[:2000]}"
+    )
+
+    task: dict[str, Any] = {
+        "title": f"[evolve] {title}"[:120],
+        "description": description,
+        "role": "backend",
+        "priority": 2,
+        "scope": "medium",
+        "task_type": "upgrade_proposal",
+    }
+
+    logger.info(
+        "Mapped evolve-candidate label to evolution task: issue=#%d",
+        number,
+    )
+
+    return task

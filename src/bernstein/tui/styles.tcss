@@ -1,0 +1,75 @@
+/* Bernstein TUI — dark theme */
+
+Screen {
+    background: $surface;
+}
+
+Header {
+    dock: top;
+    height: 1;
+    background: $primary;
+    color: $text;
+}
+
+Footer {
+    dock: bottom;
+    height: 1;
+}
+
+#top-bar {
+    dock: top;
+    height: 3;
+    background: $surface-darken-1;
+    padding: 0 2;
+    content-align: left middle;
+}
+
+#main-content {
+    layout: horizontal;
+}
+
+#task-list {
+    width: 40%;
+    border: solid $primary;
+}
+
+#agent-log {
+    width: 60%;
+    border: solid $secondary;
+}
+
+/* Status colour classes */
+.status-open {
+    color: white;
+}
+
+.status-claimed {
+    color: cyan;
+}
+
+.status-in-progress {
+    color: yellow;
+}
+
+.status-done {
+    color: green;
+}
+
+.status-failed {
+    color: red;
+}
+
+.status-blocked {
+    color: $text-muted;
+}
+
+.status-cancelled {
+    color: $text-muted;
+}
+
+StatusBar {
+    height: 3;
+    background: $surface-darken-1;
+    padding: 0 2;
+    content-align: left middle;
+}

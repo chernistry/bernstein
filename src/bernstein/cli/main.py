@@ -1821,8 +1821,26 @@ def _build_stats_bar(summary: dict[str, Any]) -> Text:
     show_default=True,
     help="Polling interval in seconds.",
 )
-def live(interval: float) -> None:
-    """Live dashboard: active agents, task events, and stats (Ctrl+C to exit)."""
+@click.option(
+    "--classic",
+    is_flag=True,
+    default=False,
+    help="Use the classic Rich Live display instead of the Textual TUI.",
+)
+def live(interval: float, classic: bool) -> None:
+    """Live dashboard: active agents, task events, and stats (Ctrl+C to exit).
+
+    Launches the Textual TUI session manager by default.
+    Pass --classic for the original Rich Live display.
+    """
+    if not classic:
+        from bernstein.tui.app import BernsteinApp
+
+        app = BernsteinApp(poll_interval=interval)
+        app.run()
+        return
+
+    # -- classic Rich Live display (kept for fallback) --
     from rich.layout import Layout
     from rich.live import Live
     from rich.panel import Panel

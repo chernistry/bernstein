@@ -1,4 +1,133 @@
 {
+  "benchmarks/run_benchmark.py": {
+    "summary": "Single-agent vs Bernstein multi-agent benchmark suite.",
+    "exports": [
+      "SubTask",
+      "BenchmarkTask",
+      "ScenarioResult",
+      "TaskBenchmarkResult",
+      "BenchmarkSuite",
+      "load_task",
+      "load_all_tasks",
+      "simulate_schedule",
+      "estimate_cost",
+      "estimate_pass_rate",
+      "run_simulate",
+      "run_real",
+      "format_table",
+      "format_summary",
+      "write_results",
+      "main"
+    ],
+    "imports": [
+      "__future__",
+      "argparse",
+      "dataclasses",
+      "datetime",
+      "json",
+      "pathlib",
+      "subprocess",
+      "time",
+      "yaml"
+    ],
+    "last_modified": "2026-03-28T21:04:53.048501"
+  },
+  "benchmarks/swe_bench/__init__.py": {
+    "summary": "SWE-Bench evaluation harness for Bernstein scaffolding thesis.",
+    "exports": [],
+    "imports": [],
+    "last_modified": "2026-03-28T18:20:29.742892"
+  },
+  "benchmarks/swe_bench/harness.py": {
+    "summary": "Core evaluation harness: runs each scenario against SWE-Bench instances.",
+    "exports": [
+      "HarnessConfig",
+      "AgentRunner",
+      "Harness"
+    ],
+    "imports": [
+      "__future__",
+      "benchmarks",
+      "contextlib",
+      "dataclasses",
+      "json",
+      "logging",
+      "os",
+      "pathlib",
+      "re",
+      "subprocess",
+      "tempfile",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T21:14:16.233018"
+  },
+  "benchmarks/swe_bench/metrics.py": {
+    "summary": "Result types and aggregation for SWE-Bench evaluation runs.",
+    "exports": [
+      "AgentTrace",
+      "InstanceResult",
+      "ScenarioSummary",
+      "ResultStore",
+      "aggregate"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "json",
+      "statistics",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T21:12:32.053734"
+  },
+  "benchmarks/swe_bench/report.py": {
+    "summary": "Generate a publishable markdown report from SWE-Bench evaluation results.",
+    "exports": [
+      "generate",
+      "generate_from_results_dir"
+    ],
+    "imports": [
+      "__future__",
+      "benchmarks",
+      "datetime",
+      "json",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T21:11:41.190724"
+  },
+  "benchmarks/swe_bench/run.py": {
+    "summary": "CLI entry point for the SWE-Bench evaluation harness.",
+    "exports": [
+      "cli",
+      "eval",
+      "report",
+      "list_scenarios",
+      "mock",
+      "status"
+    ],
+    "imports": [
+      "__future__",
+      "benchmarks",
+      "click",
+      "logging",
+      "pathlib",
+      "sys",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T21:14:20.517250"
+  },
+  "benchmarks/swe_bench/scenarios.py": {
+    "summary": "Evaluation scenario definitions for the SWE-Bench scaffolding thesis.",
+    "exports": [
+      "AgentRole",
+      "Scenario"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses"
+    ],
+    "last_modified": "2026-03-28T21:04:53.052616"
+  },
   "examples/plugins/logging_plugin.py": {
     "summary": "Example plugin that logs all task lifecycle events.",
     "exports": [
@@ -69,6 +198,32 @@
     "exports": [],
     "imports": [],
     "last_modified": "2026-03-22T16:50:45.981112"
+  },
+  "src/bernstein/adapters/aider.py": {
+    "summary": "Aider CLI adapter.",
+    "exports": [
+      "AiderAdapter"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "subprocess",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T19:20:45.969876"
+  },
+  "src/bernstein/adapters/amp.py": {
+    "summary": "Amp CLI adapter.",
+    "exports": [
+      "AmpAdapter"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "subprocess",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T21:48:45.398330"
   },
   "src/bernstein/adapters/base.py": {
     "summary": "Base adapter for CLI coding agents.",
@@ -215,7 +370,7 @@
       "__future__",
       "bernstein"
     ],
-    "last_modified": "2026-03-28T18:50:24.129217"
+    "last_modified": "2026-03-28T22:20:29.192998"
   },
   "src/bernstein/agents/__init__.py": {
     "summary": "Agent definitions, roles, and factory.",
@@ -232,11 +387,14 @@
       "__future__",
       "bernstein",
       "logging",
+      "pathlib",
       "re",
+      "subprocess",
+      "time",
       "typing",
       "yaml"
     ],
-    "last_modified": "2026-03-28T13:55:28.420371"
+    "last_modified": "2026-03-28T19:20:45.991444"
   },
   "src/bernstein/agents/catalog.py": {
     "summary": "Agent catalog registry \u2014 loads agent definitions from external sources.",
@@ -255,7 +413,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T13:52:04.591383"
+    "last_modified": "2026-03-28T19:08:23.559111"
   },
   "src/bernstein/agents/discovery.py": {
     "summary": "Agent directory auto-discovery for Bernstein.",
@@ -331,6 +489,27 @@
     "imports": [],
     "last_modified": "2026-03-22T16:50:45.977598"
   },
+  "src/bernstein/cli/agents_cmd.py": {
+    "summary": "Agent catalog management commands: sync, list, validate, showcase, match, discover.",
+    "exports": [
+      "agents_group",
+      "agents_sync",
+      "agents_list",
+      "agents_validate",
+      "agents_showcase",
+      "agents_match",
+      "agents_discover"
+    ],
+    "imports": [
+      "__future__",
+      "asyncio",
+      "bernstein",
+      "click",
+      "pathlib",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:29:05.640550"
+  },
   "src/bernstein/cli/cost.py": {
     "summary": "Bernstein cost \u2014 spend visibility across all recorded metrics.",
     "exports": [
@@ -380,29 +559,93 @@
       "port_in_use",
       "server_unreachable",
       "no_seed_or_goal",
-      "missing_api_key"
+      "missing_api_key",
+      "bootstrap_failed",
+      "seed_parse_error",
+      "server_error"
     ],
     "imports": [
       "__future__",
       "dataclasses",
       "rich"
     ],
-    "last_modified": "2026-03-28T12:39:39.565001"
+    "last_modified": "2026-03-28T20:22:55.363205"
+  },
+  "src/bernstein/cli/evolve_cmd.py": {
+    "summary": "Evolution commands: evolve run/review/approve/status/export.",
+    "exports": [
+      "evolve",
+      "evolve_run",
+      "evolve_review",
+      "evolve_approve",
+      "evolve_status",
+      "evolve_export"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "click",
+      "pathlib",
+      "re",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:29:05.642644"
+  },
+  "src/bernstein/cli/helpers.py": {
+    "summary": "Shared constants, helpers, and utilities for Bernstein CLI modules.",
+    "exports": [
+      "print_banner",
+      "auth_headers",
+      "server_get",
+      "server_post",
+      "read_pid",
+      "write_pid",
+      "is_alive",
+      "kill_pid",
+      "kill_pid_hard",
+      "print_dry_run_table",
+      "find_seed_file",
+      "is_process_alive"
+    ],
+    "imports": [
+      "__future__",
+      "httpx",
+      "os",
+      "pathlib",
+      "rich",
+      "signal",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:34:15.642144"
+  },
+  "src/bernstein/cli/live.py": {
+    "summary": "Live view helpers for ``bernstein live --classic``.",
+    "exports": [
+      "LiveView",
+      "render_sparkline"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "collections",
+      "httpx",
+      "rich",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T21:47:52.390909"
   },
   "src/bernstein/cli/main.py": {
     "summary": "CLI entry point for Bernstein -- multi-agent orchestration.",
     "exports": [
+      "_RichGroup",
       "cli",
-      "init",
-      "run",
-      "start",
-      "status",
       "add_task",
       "sync",
-      "stop",
-      "ps_cmd",
-      "demo",
       "cancel",
+      "approve",
+      "reject",
+      "pending",
       "plan",
       "logs_cmd",
       "list_tasks",
@@ -411,6 +654,10 @@
       "benchmark_group",
       "benchmark_swe_bench",
       "benchmark_run",
+      "eval_group",
+      "eval_run",
+      "eval_report",
+      "eval_failures",
       "workspace_group",
       "workspace_clone",
       "workspace_validate",
@@ -419,47 +666,159 @@
       "config_get",
       "config_list",
       "retro",
-      "agents_group",
-      "agents_sync",
-      "agents_list",
-      "agents_validate",
-      "agents_showcase",
-      "agents_match",
-      "agents_discover",
       "help_all",
-      "evolve",
-      "evolve_run",
-      "evolve_review",
-      "evolve_approve",
-      "evolve_status",
-      "evolve_export",
       "ideate",
-      "doctor",
       "install_hooks",
       "plugins_cmd",
+      "doctor",
       "recap",
       "trace_cmd",
       "replay_cmd",
       "github_group",
       "github_setup",
       "github_test_webhook",
-      "mcp_server"
+      "mcp_server",
+      "completions",
+      "quarantine_group",
+      "quarantine_list",
+      "quarantine_clear"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "click",
+      "datetime",
+      "httpx",
+      "json",
+      "os",
+      "pathlib",
+      "sys",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T22:20:29.193340"
+  },
+  "src/bernstein/cli/run.py": {
+    "summary": "Enhanced run output for ``bernstein run``.",
+    "exports": [
+      "create_live_dashboard",
+      "start_live",
+      "render_run_summary",
+      "render_run_summary_from_dict"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "rich",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:22:52.953317"
+  },
+  "src/bernstein/cli/run_cmd.py": {
+    "summary": "Run commands: init, conduct, downbeat (legacy start), and the main CLI group.",
+    "exports": [
+      "init",
+      "run",
+      "start",
+      "detect_available_adapter",
+      "setup_demo_project",
+      "demo"
     ],
     "imports": [
       "__future__",
       "bernstein",
       "click",
       "httpx",
+      "os",
+      "pathlib",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T22:20:29.193545"
+  },
+  "src/bernstein/cli/status.py": {
+    "summary": "Formatted status output for ``bernstein status``.",
+    "exports": [
+      "render_status",
+      "render_status_plain"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "rich",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:24:43.937808"
+  },
+  "src/bernstein/cli/status_cmd.py": {
+    "summary": "Status and diagnostic commands: status, ps, doctor.",
+    "exports": [
+      "status",
+      "ps_cmd",
+      "doctor"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "click",
       "json",
       "os",
       "pathlib",
-      "rich",
-      "signal",
       "sys",
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T18:56:20.203586"
+    "last_modified": "2026-03-28T20:41:08.363672"
+  },
+  "src/bernstein/cli/stop_cmd.py": {
+    "summary": "Stop commands: soft/hard stop, shutdown signals, session save, ticket recovery.",
+    "exports": [
+      "write_shutdown_signals",
+      "return_claimed_to_open",
+      "save_session_on_stop",
+      "recover_orphaned_claims",
+      "sigint_handler",
+      "register_sigint_handler",
+      "soft_stop",
+      "hard_stop",
+      "stop"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "click",
+      "contextlib",
+      "json",
+      "os",
+      "pathlib",
+      "signal",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:41:08.363335"
+  },
+  "src/bernstein/cli/ui.py": {
+    "summary": "Shared Rich UI components for Bernstein CLI.",
+    "exports": [
+      "AgentInfo",
+      "TaskSummary",
+      "RunStats",
+      "StatusPanel",
+      "CostBurnPanel",
+      "TaskProgressBar",
+      "AgentStatusTable",
+      "make_console",
+      "format_duration",
+      "create_summary_table",
+      "create_summary_plain"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "rich",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:22:52.953644"
   },
   "src/bernstein/core/__init__.py": {
     "summary": "Core: task server, spawner, scheduler.",
@@ -502,6 +861,94 @@
     ],
     "last_modified": "2026-03-28T13:51:42.846736"
   },
+  "src/bernstein/core/agent_discovery.py": {
+    "summary": "Auto-discover installed CLI coding agents, check login status, and register capabilities.",
+    "exports": [
+      "AgentCapabilities",
+      "DiscoveryResult",
+      "RouteRecommendation",
+      "discover_agents",
+      "discover_agents_cached",
+      "clear_discovery_cache",
+      "recommend_routing",
+      "generate_auto_routing_yaml"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "logging",
+      "os",
+      "pathlib",
+      "shutil",
+      "subprocess",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T22:20:29.193750"
+  },
+  "src/bernstein/core/agent_lifecycle.py": {
+    "summary": "Agent lifecycle: tracking, heartbeat, crash detection, reaping.",
+    "exports": [
+      "refresh_agent_states",
+      "purge_dead_agents",
+      "handle_orphaned_task",
+      "emit_orphan_metrics",
+      "check_stale_agents",
+      "check_stalled_tasks",
+      "reap_dead_agents",
+      "recycle_idle_agents",
+      "check_kill_signals",
+      "send_shutdown_signals"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "contextlib",
+      "datetime",
+      "httpx",
+      "json",
+      "logging",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T22:22:17.386475"
+  },
+  "src/bernstein/core/agent_signals.py": {
+    "summary": "Agent signal file protocol: WAKEUP, SHUTDOWN, and HEARTBEAT.",
+    "exports": [
+      "AgentSignalManager"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "contextlib",
+      "json",
+      "logging",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T19:20:45.972190"
+  },
+  "src/bernstein/core/approval.py": {
+    "summary": "Approval gates: configurable review step between janitor verification and merge.",
+    "exports": [
+      "ApprovalMode",
+      "ApprovalResult",
+      "ApprovalGate"
+    ],
+    "imports": [
+      "__future__",
+      "collections",
+      "dataclasses",
+      "enum",
+      "json",
+      "logging",
+      "pathlib",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T22:22:06.039714"
+  },
   "src/bernstein/core/bootstrap.py": {
     "summary": "Bootstrap: parse seed -> init .sdd -> start server -> plan -> orchestrate.",
     "exports": [
@@ -528,7 +975,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T18:41:38.385720"
+    "last_modified": "2026-03-28T22:20:29.193963"
   },
   "src/bernstein/core/bulletin.py": {
     "summary": "Append-only bulletin board for cross-agent communication.",
@@ -544,7 +991,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T13:55:22.289077"
+    "last_modified": "2026-03-28T19:20:45.976737"
   },
   "src/bernstein/core/ci_fix.py": {
     "summary": "CI self-healing: detect failing CI jobs and create fix tasks.",
@@ -573,7 +1020,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T15:32:57.767092"
+    "last_modified": "2026-03-28T22:21:57.817174"
   },
   "src/bernstein/core/ci_log_parser.py": {
     "summary": "Generic CI log parser with adapter pattern.",
@@ -644,7 +1091,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T18:48:26.835841"
+    "last_modified": "2026-03-28T19:08:07.180961"
   },
   "src/bernstein/core/cost.py": {
     "summary": "Intelligent cost optimization engine.",
@@ -654,7 +1101,8 @@
       "get_cascade_model",
       "compute_savings_vs_opus",
       "compute_daily_cost",
-      "project_monthly_cost"
+      "project_monthly_cost",
+      "estimate_run_cost"
     ],
     "imports": [
       "__future__",
@@ -666,7 +1114,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T13:57:58.033355"
+    "last_modified": "2026-03-28T21:49:24.617203"
   },
   "src/bernstein/core/cost_tracker.py": {
     "summary": "Per-run cost budget tracker.",
@@ -697,7 +1145,7 @@
       "bernstein",
       "pathlib"
     ],
-    "last_modified": "2026-03-28T12:39:39.563816"
+    "last_modified": "2026-03-28T21:42:38.319330"
   },
   "src/bernstein/core/fast_path.py": {
     "summary": "Fast-path execution for trivial tasks that don't need an LLM agent.",
@@ -779,6 +1227,7 @@
       "branch_delete",
       "create_task_branch",
       "push_branch",
+      "push_head_as",
       "create_github_pr",
       "enable_pr_auto_merge",
       "revert_commit",
@@ -799,7 +1248,7 @@
       "re",
       "subprocess"
     ],
-    "last_modified": "2026-03-28T18:13:19.726569"
+    "last_modified": "2026-03-28T22:21:47.406639"
   },
   "src/bernstein/core/github.py": {
     "summary": "GitHub API integration for evolve coordination.",
@@ -835,6 +1284,29 @@
       "typing"
     ],
     "last_modified": "2026-03-28T13:55:00.548600"
+  },
+  "src/bernstein/core/guardrails.py": {
+    "summary": "Output guardrails: secret detection, scope enforcement, dangerous operations.",
+    "exports": [
+      "GuardrailsConfig",
+      "check_secrets",
+      "check_scope",
+      "check_dangerous_operations",
+      "record_guardrail_event",
+      "get_guardrail_stats",
+      "run_guardrails"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "dataclasses",
+      "datetime",
+      "json",
+      "pathlib",
+      "re",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T19:08:23.561889"
   },
   "src/bernstein/core/hijacker.py": {
     "summary": "Automatic tier hijacking \u2014 detects and routes to free tier opportunities.",
@@ -903,7 +1375,7 @@
       "typing",
       "uuid"
     ],
-    "last_modified": "2026-03-28T18:10:56.015422"
+    "last_modified": "2026-03-28T22:20:29.194381"
   },
   "src/bernstein/core/llm.py": {
     "summary": "Async native LLM client for Bernstein manager and external models.",
@@ -1026,8 +1498,10 @@
       "CompletionSignal",
       "Task",
       "JudgeVerdict",
+      "GuardrailResult",
       "JanitorResult",
       "ModelConfig",
+      "ProgressSnapshot",
       "AgentHeartbeat",
       "AgentSession",
       "Cell",
@@ -1047,7 +1521,7 @@
       "typing",
       "uuid"
     ],
-    "last_modified": "2026-03-28T18:53:40.933602"
+    "last_modified": "2026-03-28T19:24:55.250940"
   },
   "src/bernstein/core/multi_cell.py": {
     "summary": "Multi-cell orchestrator: coordinates multiple cells, each with its own manager + workers.",
@@ -1068,21 +1542,35 @@
     ],
     "last_modified": "2026-03-28T13:56:49.638454"
   },
+  "src/bernstein/core/notifications.py": {
+    "summary": "Webhook notification system for Bernstein run events.",
+    "exports": [
+      "NotificationTarget",
+      "NotificationPayload",
+      "NotificationManager",
+      "format_slack",
+      "format_discord",
+      "format_telegram",
+      "format_webhook"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "httpx",
+      "logging",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T19:20:45.982348"
+  },
   "src/bernstein/core/orchestrator.py": {
     "summary": "Orchestrator loop: watch tasks, spawn agents, verify completion, repeat.",
     "exports": [
-      "_RuffLocation",
-      "RuffViolation",
-      "TestResults",
-      "CompletionData",
       "Orchestrator",
-      "TickResult",
-      "group_by_role"
+      "TickResult"
     ],
     "imports": [
       "__future__",
       "bernstein",
-      "collections",
       "concurrent",
       "contextlib",
       "datetime",
@@ -1095,7 +1583,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T18:55:50.995572"
+    "last_modified": "2026-03-28T22:22:12.772575"
   },
   "src/bernstein/core/policy.py": {
     "summary": "Policy engine for tier optimization and provider routing.",
@@ -1130,6 +1618,22 @@
       "typing"
     ],
     "last_modified": "2026-03-28T14:06:34.109928"
+  },
+  "src/bernstein/core/quarantine.py": {
+    "summary": "Cross-run task quarantine \u2014 track repeatedly-failing tasks across Bernstein runs.",
+    "exports": [
+      "QuarantineEntry",
+      "QuarantineStore"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "datetime",
+      "json",
+      "logging",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T19:20:45.986918"
   },
   "src/bernstein/core/rag.py": {
     "summary": "Lightweight codebase RAG using SQLite FTS5 (BM25 ranking).",
@@ -1198,9 +1702,11 @@
       "RouterState",
       "TierAwareRouter",
       "RouterError",
+      "AutoRouteDecision",
       "route_task",
       "load_providers_from_yaml",
-      "get_default_router"
+      "get_default_router",
+      "auto_route_task"
     ],
     "imports": [
       "__future__",
@@ -1211,13 +1717,130 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T13:45:16.611832"
+    "last_modified": "2026-03-28T19:18:02.488439"
+  },
+  "src/bernstein/core/routes/__init__.py": {
+    "summary": "FastAPI router modules for the Bernstein task server.",
+    "exports": [],
+    "imports": [],
+    "last_modified": "2026-03-28T20:20:31.567935"
+  },
+  "src/bernstein/core/routes/agents.py": {
+    "summary": "Agent inspection routes \u2014 logs, kill signals, and SSE output streams.",
+    "exports": [
+      "agent_logs",
+      "agent_kill",
+      "agent_stream"
+    ],
+    "imports": [
+      "__future__",
+      "asyncio",
+      "bernstein",
+      "fastapi",
+      "json",
+      "starlette",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T21:21:54.284914"
+  },
+  "src/bernstein/core/routes/costs.py": {
+    "summary": "Cost budget routes.",
+    "exports": [
+      "get_cost_budget"
+    ],
+    "imports": [
+      "__future__",
+      "fastapi",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:20:31.583088"
+  },
+  "src/bernstein/core/routes/status.py": {
+    "summary": "Status, health, metrics, dashboard, and SSE event routes.",
+    "exports": [
+      "status_dashboard",
+      "health_check",
+      "metrics_endpoint",
+      "dashboard_page",
+      "dashboard_data",
+      "sse_events"
+    ],
+    "imports": [
+      "__future__",
+      "asyncio",
+      "bernstein",
+      "fastapi",
+      "starlette",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:20:31.573411"
+  },
+  "src/bernstein/core/routes/tasks.py": {
+    "summary": "Task CRUD routes, agent heartbeats, bulletin board, A2A, cluster, and session streaming.",
+    "exports": [
+      "create_task",
+      "next_task",
+      "claim_batch",
+      "claim_task",
+      "complete_task",
+      "fail_task",
+      "cancel_task",
+      "block_task",
+      "progress_task",
+      "get_task_snapshots",
+      "list_tasks",
+      "get_archive",
+      "get_task",
+      "agent_heartbeat",
+      "agent_logs",
+      "agent_kill",
+      "agent_stream",
+      "post_bulletin",
+      "get_bulletin",
+      "agent_card",
+      "a2a_send_task",
+      "a2a_get_task",
+      "a2a_add_artifact",
+      "register_node",
+      "node_heartbeat",
+      "unregister_node",
+      "list_nodes",
+      "cluster_status"
+    ],
+    "imports": [
+      "__future__",
+      "asyncio",
+      "bernstein",
+      "fastapi",
+      "json",
+      "starlette",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T22:20:29.195019"
+  },
+  "src/bernstein/core/routes/webhooks.py": {
+    "summary": "GitHub webhook route.",
+    "exports": [
+      "github_webhook"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "fastapi",
+      "os",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:20:31.578717"
   },
   "src/bernstein/core/seed.py": {
     "summary": "Seed file parser for bernstein.yaml.",
     "exports": [
       "SeedError",
       "StorageConfig",
+      "SessionConfig",
       "NotifyConfig",
       "SeedConfig",
       "parse_seed",
@@ -1231,7 +1854,7 @@
       "typing",
       "yaml"
     ],
-    "last_modified": "2026-03-28T18:05:24.314623"
+    "last_modified": "2026-03-28T22:20:29.195228"
   },
   "src/bernstein/core/server.py": {
     "summary": "FastAPI task server \u2014 central coordination point for all agents.",
@@ -1241,12 +1864,14 @@
       "TaskRecord",
       "ArchiveRecord",
       "ProgressEntry",
+      "SnapshotEntry",
       "CompletionSignalSchema",
       "TaskCreate",
       "TaskResponse",
       "TaskCompleteRequest",
       "TaskFailRequest",
       "TaskCancelRequest",
+      "TaskBlockRequest",
       "TaskProgressRequest",
       "BatchClaimRequest",
       "BatchClaimResponse",
@@ -1269,12 +1894,17 @@
       "A2AAgentCardResponse",
       "TaskStore",
       "SSEBus",
+      "a2a_task_to_response",
+      "node_to_response",
+      "task_to_response",
+      "read_log_tail",
       "create_app"
     ],
     "imports": [
       "__future__",
       "asyncio",
       "bernstein",
+      "collections",
       "contextlib",
       "dataclasses",
       "fastapi",
@@ -1288,7 +1918,25 @@
       "typing",
       "uuid"
     ],
-    "last_modified": "2026-03-28T18:56:30.436214"
+    "last_modified": "2026-03-28T21:15:10.506990"
+  },
+  "src/bernstein/core/session.py": {
+    "summary": "Session state persistence for fast resume after bernstein stop/restart.",
+    "exports": [
+      "SessionState",
+      "save_session",
+      "load_session",
+      "discard_session",
+      "check_resume_session"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "json",
+      "pathlib",
+      "time"
+    ],
+    "last_modified": "2026-03-28T19:20:45.989145"
   },
   "src/bernstein/core/signals.py": {
     "summary": "Pivot signal system for strategic re-evaluation of tickets.",
@@ -1325,7 +1973,7 @@
       "typing",
       "uuid"
     ],
-    "last_modified": "2026-03-28T18:54:50.164245"
+    "last_modified": "2026-03-28T22:20:29.195442"
   },
   "src/bernstein/core/store.py": {
     "summary": "Abstract TaskStore base class for pluggable storage backends.",
@@ -1406,6 +2054,57 @@
       "unicodedata"
     ],
     "last_modified": "2026-03-28T13:56:03.845284"
+  },
+  "src/bernstein/core/task_lifecycle.py": {
+    "summary": "Task lifecycle: claim, spawn, complete, retry, decompose.",
+    "exports": [
+      "collect_completion_data",
+      "check_file_overlap",
+      "maybe_retry_task",
+      "retry_or_fail_task",
+      "should_auto_decompose",
+      "auto_decompose_task",
+      "claim_and_spawn_batches",
+      "process_completed_tasks"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "contextlib",
+      "httpx",
+      "logging",
+      "re",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T21:40:54.683072"
+  },
+  "src/bernstein/core/tick_pipeline.py": {
+    "summary": "Tick pipeline helpers: task fetching, batching, and server interaction.",
+    "exports": [
+      "_RuffLocation",
+      "RuffViolation",
+      "TestResults",
+      "CompletionData",
+      "fetch_all_tasks",
+      "fail_task",
+      "block_task",
+      "complete_task",
+      "group_by_role",
+      "parse_backlog_file",
+      "compute_total_spent"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "collections",
+      "json",
+      "logging",
+      "os",
+      "re",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:32:53.201106"
   },
   "src/bernstein/core/traces.py": {
     "summary": "Agent execution trace storage, parsing, and replay utilities.",
@@ -1517,6 +2216,141 @@
     ],
     "last_modified": "2026-03-28T14:35:09.107480"
   },
+  "src/bernstein/eval/__init__.py": {
+    "summary": "Evaluation harness for measuring orchestration quality.",
+    "exports": [],
+    "imports": [
+      "__future__",
+      "bernstein"
+    ],
+    "last_modified": "2026-03-28T19:20:16.967986"
+  },
+  "src/bernstein/eval/baseline.py": {
+    "summary": "Baseline tracking for eval-gated evolution.",
+    "exports": [
+      "EvalBaseline",
+      "load_baseline",
+      "save_baseline",
+      "compute_config_hash"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "datetime",
+      "hashlib",
+      "json",
+      "logging",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T19:25:12.388467"
+  },
+  "src/bernstein/eval/golden.py": {
+    "summary": "Golden benchmark suite \u2014 curated tasks for eval.",
+    "exports": [
+      "GoldenTask",
+      "load_golden_tasks",
+      "load_single_task"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "logging",
+      "pathlib",
+      "typing",
+      "yaml"
+    ],
+    "last_modified": "2026-03-28T20:22:31.424029"
+  },
+  "src/bernstein/eval/harness.py": {
+    "summary": "Eval harness \u2014 multiplicative scoring, LLM judge, failure taxonomy.",
+    "exports": [
+      "EvalTier",
+      "TaskEvalResult",
+      "EvalResult",
+      "EvalHarness"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "dataclasses",
+      "datetime",
+      "enum",
+      "json",
+      "logging",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:22:31.424355"
+  },
+  "src/bernstein/eval/judge.py": {
+    "summary": "LLM judge \u2014 evaluate code quality of agent-produced changes.",
+    "exports": [
+      "JudgeVerdict",
+      "judge_code_change"
+    ],
+    "imports": [
+      "__future__",
+      "asyncio",
+      "dataclasses",
+      "json",
+      "logging",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:22:31.424623"
+  },
+  "src/bernstein/eval/metrics.py": {
+    "summary": "Custom eval metrics \u2014 each metric is a dataclass with a compute method.",
+    "exports": [
+      "TaskCompletionRate",
+      "RetryRate",
+      "AgentUtilization",
+      "CostEfficiency",
+      "TimeEfficiency",
+      "ContextWaste",
+      "EvalScoreComponents",
+      "TierScores",
+      "compute_efficiency",
+      "compute_reliability",
+      "compute_safety"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T19:24:46.916823"
+  },
+  "src/bernstein/eval/taxonomy.py": {
+    "summary": "Failure taxonomy \u2014 classify every eval failure into a closed set.",
+    "exports": [
+      "FailureCategory",
+      "FailureRecord",
+      "FailureTaxonomy",
+      "classify_failure"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "enum",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:22:31.424847"
+  },
+  "src/bernstein/eval/telemetry.py": {
+    "summary": "Telemetry contract \u2014 strict schema for agent output metadata.",
+    "exports": [
+      "AgentTelemetry",
+      "TelemetryValidation",
+      "validate_telemetry",
+      "parse_telemetry"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T20:22:31.425174"
+  },
   "src/bernstein/evolution/__init__.py": {
     "summary": "Bernstein self-evolution system.",
     "exports": [
@@ -1531,7 +2365,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T18:05:24.315495"
+    "last_modified": "2026-03-28T21:45:41.528463"
   },
   "src/bernstein/evolution/aggregator.py": {
     "summary": "Metrics aggregation with EWMA, CUSUM, BOCPD, and Goodhart defenses.",
@@ -1674,12 +2508,15 @@
     "last_modified": "2026-03-28T13:46:44.230978"
   },
   "src/bernstein/evolution/gate.py": {
-    "summary": "ApprovalGate \u2014 risk-stratified routing for evolution proposals.",
+    "summary": "ApprovalGate and EvalGate \u2014 risk-stratified routing for evolution proposals.",
     "exports": [
       "ApprovalOutcome",
       "ApprovalDecision",
       "RiskClassifier",
-      "ApprovalGate"
+      "ApprovalGate",
+      "EvalGateResult",
+      "EvalGate",
+      "eval_gate"
     ],
     "imports": [
       "__future__",
@@ -1692,7 +2529,24 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T17:24:25.652814"
+    "last_modified": "2026-03-28T19:18:02.490397"
+  },
+  "src/bernstein/evolution/governance.py": {
+    "summary": "Adaptive governance for the evolution system.",
+    "exports": [
+      "EvolutionWeights",
+      "ProjectContext",
+      "GovernanceEntry",
+      "AdaptiveGovernor"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses",
+      "datetime",
+      "json",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T19:20:45.993595"
   },
   "src/bernstein/evolution/invariants.py": {
     "summary": "InvariantsGuard \u2014 hash-lock safety-critical files.",
@@ -1726,7 +2580,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T18:05:24.315887"
+    "last_modified": "2026-03-28T19:18:02.490812"
   },
   "src/bernstein/evolution/proposals.py": {
     "summary": "Upgrade proposal generation.",
@@ -1762,6 +2616,18 @@
       "typing"
     ],
     "last_modified": "2026-03-28T12:39:39.568501"
+  },
+  "src/bernstein/evolution/risk.py": {
+    "summary": "Strategic Risk Score (SRS) computation for evolution proposals.",
+    "exports": [
+      "ProposalRiskScore",
+      "RiskScorer"
+    ],
+    "imports": [
+      "__future__",
+      "dataclasses"
+    ],
+    "last_modified": "2026-03-28T19:08:23.564403"
   },
   "src/bernstein/evolution/sandbox.py": {
     "summary": "SandboxValidator \u2014 isolated testing of evolution proposals.",
@@ -1863,6 +2729,29 @@
     ],
     "last_modified": "2026-03-28T14:31:23.178674"
   },
+  "src/bernstein/mcp/__init__.py": {
+    "summary": "Bernstein MCP server \u2014 expose orchestration as MCP tools.",
+    "exports": [],
+    "imports": [],
+    "last_modified": "2026-03-28T18:52:00.220076"
+  },
+  "src/bernstein/mcp/server.py": {
+    "summary": "Bernstein MCP server.",
+    "exports": [
+      "create_mcp_server",
+      "run_stdio",
+      "run_sse"
+    ],
+    "imports": [
+      "__future__",
+      "httpx",
+      "json",
+      "mcp",
+      "pathlib",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T19:20:45.995933"
+  },
   "src/bernstein/plugins/__init__.py": {
     "summary": "Bernstein plugin system using pluggy.",
     "exports": [],
@@ -1945,7 +2834,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T18:49:43.286543"
+    "last_modified": "2026-03-28T21:47:46.512439"
   },
   "src/bernstein/tui/widgets.py": {
     "summary": "Custom Textual widgets for the Bernstein TUI.",
@@ -1976,7 +2865,7 @@
     "imports": [
       "flask"
     ],
-    "last_modified": "2026-03-28T08:45:54.690127"
+    "last_modified": "2026-03-28T21:04:53.045786"
   },
   "templates/demo/tests/__init__.py": {
     "summary": "",
@@ -1995,7 +2884,7 @@
       "app",
       "pytest"
     ],
-    "last_modified": "2026-03-28T08:46:03.607491"
+    "last_modified": "2026-03-28T21:04:53.045788"
   },
   "tests/__init__.py": {
     "summary": "",
@@ -2022,7 +2911,7 @@
       "sys",
       "unittest"
     ],
-    "last_modified": "2026-03-28T16:11:24.143464"
+    "last_modified": "2026-03-28T21:04:53.047239"
   },
   "tests/integration/__init__.py": {
     "summary": "",
@@ -2050,7 +2939,7 @@
       "pathlib",
       "pytest"
     ],
-    "last_modified": "2026-03-28T12:35:54.519389"
+    "last_modified": "2026-03-28T21:04:53.047740"
   },
   "tests/integration/test_end_to_end.py": {
     "summary": "Integration test: server + orchestrator tick + mock adapter.",
@@ -2067,11 +2956,10 @@
       "__future__",
       "bernstein",
       "pathlib",
-      "pytest",
       "starlette",
       "unittest"
     ],
-    "last_modified": "2026-03-27T22:54:39.053989"
+    "last_modified": "2026-03-28T21:04:53.048150"
   },
   "tests/integration/test_evolution_e2e.py": {
     "summary": "End-to-end integration test for the self-evolution feedback loop.",
@@ -2083,10 +2971,9 @@
       "bernstein",
       "json",
       "pathlib",
-      "pytest",
       "time"
     ],
-    "last_modified": "2026-03-28T01:47:18.573743"
+    "last_modified": "2026-03-28T21:04:53.048829"
   },
   "tests/integration/test_evolution_feedback_loop.py": {
     "summary": "Integration test for the self-evolution feedback loop wired into the Orchestrator.",
@@ -2098,12 +2985,11 @@
       "bernstein",
       "json",
       "pathlib",
-      "pytest",
       "starlette",
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T08:58:18.413979"
+    "last_modified": "2026-03-28T21:04:53.047298"
   },
   "tests/integration/test_lifecycle.py": {
     "summary": "Integration test: full spawn \u2192 execute \u2192 complete lifecycle.",
@@ -2116,11 +3002,10 @@
       "__future__",
       "bernstein",
       "pathlib",
-      "pytest",
       "starlette",
       "unittest"
     ],
-    "last_modified": "2026-03-28T08:18:46.039140"
+    "last_modified": "2026-03-28T21:04:53.049677"
   },
   "tests/test_evolution_e2e.py": {
     "summary": "End-to-end tests for the self-evolution feedback loop (ADR-003).",
@@ -2141,7 +3026,7 @@
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T04:23:07.056115"
+    "last_modified": "2026-03-28T21:04:53.052022"
   },
   "tests/test_server.py": {
     "summary": "Tests for completion_signals API round-trip.",
@@ -2173,7 +3058,7 @@
       "pathlib",
       "pytest"
     ],
-    "last_modified": "2026-03-28T04:42:14.614339"
+    "last_modified": "2026-03-28T21:04:53.052681"
   },
   "tests/test_worktree.py": {
     "summary": "Tests for WorktreeManager \u2014 create/cleanup lifecycle (mocked subprocess).",
@@ -2192,7 +3077,7 @@
       "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T09:20:04.121279"
+    "last_modified": "2026-03-28T21:04:53.050915"
   },
   "tests/unit/__init__.py": {
     "summary": "",
@@ -2223,7 +3108,29 @@
       "pathlib",
       "pytest"
     ],
-    "last_modified": "2026-03-28T10:03:08.549018"
+    "last_modified": "2026-03-28T21:04:53.051694"
+  },
+  "tests/unit/test_adapter_aider.py": {
+    "summary": "Unit tests for AiderAdapter spawn/kill/is_alive.",
+    "exports": [
+      "TestAiderAdapterSpawn",
+      "TestAiderAdapterName",
+      "TestAiderSpawnMissingBinary",
+      "TestAiderIsAlive",
+      "TestAiderKill",
+      "TestAiderRegistry"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "pathlib",
+      "pytest",
+      "signal",
+      "subprocess",
+      "sys",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T21:04:53.052207"
   },
   "tests/unit/test_adapter_claude.py": {
     "summary": "Unit tests for ClaudeCodeAdapter spawn/kill/is_alive logic.",
@@ -2249,7 +3156,7 @@
       "sys",
       "unittest"
     ],
-    "last_modified": "2026-03-28T03:51:33.183649"
+    "last_modified": "2026-03-28T21:04:53.054228"
   },
   "tests/unit/test_adapter_manager.py": {
     "summary": "Unit tests for ManagerAdapter (adapters/manager.py).",
@@ -2264,13 +3171,12 @@
       "bernstein",
       "os",
       "pathlib",
-      "pytest",
       "signal",
       "subprocess",
       "sys",
       "unittest"
     ],
-    "last_modified": "2026-03-28T13:04:23.887718"
+    "last_modified": "2026-03-28T21:04:53.046016"
   },
   "tests/unit/test_adapter_non_claude.py": {
     "summary": "Unit tests for Codex, Gemini, Qwen, and Generic adapter spawn/kill/is_alive.",
@@ -2288,7 +3194,6 @@
     "imports": [
       "__future__",
       "bernstein",
-      "os",
       "pathlib",
       "pytest",
       "signal",
@@ -2296,7 +3201,7 @@
       "sys",
       "unittest"
     ],
-    "last_modified": "2026-03-28T13:06:31.575910"
+    "last_modified": "2026-03-28T21:04:53.048812"
   },
   "tests/unit/test_adapter_registry.py": {
     "summary": "Unit tests for bernstein.adapters.registry.",
@@ -2317,7 +3222,7 @@
       "bernstein",
       "pytest"
     ],
-    "last_modified": "2026-03-28T04:43:36.123614"
+    "last_modified": "2026-03-28T21:04:53.051340"
   },
   "tests/unit/test_adapters_tier_detection.py": {
     "summary": "Tests for adapter tier detection \u2014 mocks provider responses.",
@@ -2333,10 +3238,9 @@
       "__future__",
       "bernstein",
       "os",
-      "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-22T21:19:27.904272"
+    "last_modified": "2026-03-28T21:04:53.053695"
   },
   "tests/unit/test_agency_loader.py": {
     "summary": "Tests for bernstein.core.agency_loader.",
@@ -2355,7 +3259,7 @@
       "pathlib",
       "pytest"
     ],
-    "last_modified": "2026-03-27T22:50:23.945567"
+    "last_modified": "2026-03-28T21:04:53.055396"
   },
   "tests/unit/test_agency_provider.py": {
     "summary": "Tests for AgencyProvider \u2014 parses msitarzewski/agency-agents format.",
@@ -2363,7 +3267,9 @@
       "TestParseFile",
       "TestProviderMeta",
       "TestFetchAgents",
-      "TestRefresh"
+      "TestRefresh",
+      "TestSyncCatalog",
+      "TestCatalogRegistryIntegration"
     ],
     "imports": [
       "__future__",
@@ -2373,7 +3279,52 @@
       "pytest",
       "textwrap"
     ],
-    "last_modified": "2026-03-28T04:47:16.827838"
+    "last_modified": "2026-03-28T21:19:47.863004"
+  },
+  "tests/unit/test_agent_discovery.py": {
+    "summary": "Tests for bernstein.core.agent_discovery \u2014 agent auto-discovery.",
+    "exports": [
+      "TestExtractVersion",
+      "TestDetectCodex",
+      "TestDetectGemini",
+      "TestDetectClaude",
+      "TestDetectQwen",
+      "TestDiscoverAgents",
+      "TestDiscoveryCache",
+      "TestRecommendRouting",
+      "TestGenerateAutoRoutingYaml",
+      "TestShortModel",
+      "TestAutoRouteTask"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "subprocess",
+      "typing",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T20:11:46.022910"
+  },
+  "tests/unit/test_agent_signals.py": {
+    "summary": "Tests for AgentSignalManager \u2014 WAKEUP / SHUTDOWN / HEARTBEAT signal files.",
+    "exports": [
+      "TestAgentHeartbeat",
+      "TestWriteWakeup",
+      "TestWriteShutdown",
+      "TestHeartbeat",
+      "TestIsStale",
+      "TestClearSignals",
+      "TestSpawnerSignalInjection"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "json",
+      "pathlib",
+      "pytest",
+      "time"
+    ],
+    "last_modified": "2026-03-28T21:04:53.062303"
   },
   "tests/unit/test_aggregator.py": {
     "summary": "Tests for MetricsAggregator \u2014 EWMA, CUSUM, BOCPD, Mann-Kendall, posteriors, Goodhart.",
@@ -2461,7 +3412,7 @@
       "pytest",
       "time"
     ],
-    "last_modified": "2026-03-28T18:05:24.316268"
+    "last_modified": "2026-03-28T21:04:53.057148"
   },
   "tests/unit/test_approval_gate.py": {
     "summary": "Tests for the risk-stratified ApprovalGate.",
@@ -2476,11 +3427,32 @@
       "__future__",
       "bernstein",
       "json",
-      "pathlib",
-      "pytest",
-      "time"
+      "pathlib"
     ],
-    "last_modified": "2026-03-28T00:12:15.196741"
+    "last_modified": "2026-03-28T21:04:53.062318"
+  },
+  "tests/unit/test_approval_gates.py": {
+    "summary": "Tests for approval gates \u2014 gating merge after janitor verification.",
+    "exports": [
+      "TestOrchestratorConfigApproval",
+      "TestApprovalGateAuto",
+      "TestApprovalGateReview",
+      "TestApprovalGateReviewFilePoll",
+      "TestApprovalGatePR",
+      "TestApprovalResult",
+      "TestSpawnerSkipMerge",
+      "TestApprovalGateAutoMerge",
+      "TestOrchestratorConfigMergeStrategy",
+      "TestSpawnerGetWorktreePath"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "json",
+      "pathlib",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T21:04:53.059041"
   },
   "tests/unit/test_benchmark.py": {
     "summary": "Unit tests for bernstein.evolution.benchmark.",
@@ -2529,7 +3501,7 @@
       "pytest",
       "yaml"
     ],
-    "last_modified": "2026-03-28T00:40:59.917311"
+    "last_modified": "2026-03-28T21:04:52.598943"
   },
   "tests/unit/test_bootstrap.py": {
     "summary": "Tests for bernstein.core.bootstrap.",
@@ -2559,7 +3531,7 @@
       "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T11:38:56.451021"
+    "last_modified": "2026-03-28T21:04:53.057836"
   },
   "tests/unit/test_bulletin.py": {
     "summary": "Tests for bernstein.core.bulletin \u2014 BulletinBoard.",
@@ -2576,11 +3548,10 @@
       "bernstein",
       "json",
       "pathlib",
-      "pytest",
       "threading",
       "time"
     ],
-    "last_modified": "2026-03-27T22:50:03.497752"
+    "last_modified": "2026-03-28T21:04:53.061208"
   },
   "tests/unit/test_catalog_cache.py": {
     "summary": "Tests for CatalogRegistry cache and auto-discovery (task 403).",
@@ -2595,10 +3566,9 @@
       "bernstein",
       "json",
       "pathlib",
-      "pytest",
       "time"
     ],
-    "last_modified": "2026-03-28T04:54:38.481995"
+    "last_modified": "2026-03-28T21:04:53.062403"
   },
   "tests/unit/test_catalog_discover.py": {
     "summary": "Tests for CatalogRegistry._fetch_from_providers, _load_entry, _load_generic_entry,",
@@ -2611,12 +3581,11 @@
     "imports": [
       "__future__",
       "bernstein",
-      "pathlib",
       "pytest",
       "unittest",
       "yaml"
     ],
-    "last_modified": "2026-03-28T06:13:34.697949"
+    "last_modified": "2026-03-28T21:04:53.063128"
   },
   "tests/unit/test_catalog_matching.py": {
     "summary": "Tests for CatalogRegistry.match() \u2014 role matching with catalog fallback.",
@@ -2637,10 +3606,9 @@
     ],
     "imports": [
       "__future__",
-      "bernstein",
-      "pytest"
+      "bernstein"
     ],
-    "last_modified": "2026-03-28T04:54:40.991388"
+    "last_modified": "2026-03-28T21:04:53.062752"
   },
   "tests/unit/test_ci_fix.py": {
     "summary": "Tests for bernstein.core.ci_fix and related CI modules.",
@@ -2670,10 +3638,9 @@
       "TestCircuitBreaker"
     ],
     "imports": [
-      "bernstein",
-      "pathlib"
+      "bernstein"
     ],
-    "last_modified": "2026-03-27T22:41:58.273801"
+    "last_modified": "2026-03-28T21:04:53.046675"
   },
   "tests/unit/test_cli_agents.py": {
     "summary": "Tests for `bernstein agents` CLI command group.",
@@ -2701,19 +3668,19 @@
       "pytest",
       "textwrap"
     ],
-    "last_modified": "2026-03-28T04:46:55.840641"
+    "last_modified": "2026-03-28T21:04:53.048317"
   },
   "tests/unit/test_cli_demo.py": {
     "summary": "Tests for `bernstein demo` CLI command.",
     "exports": [
-      "test_detect_available_adapter_returns_first_found",
-      "test_detect_available_adapter_returns_none_when_nothing_found",
-      "test_detect_available_adapter_prefers_claude_over_codex",
-      "test_setup_demo_project_creates_sdd_dirs",
-      "test_setup_demo_project_seeds_three_tasks",
-      "test_setup_demo_project_task_filenames_match",
-      "test_setup_demo_project_writes_config",
-      "test_setup_demo_project_creates_app_py",
+      "testdetect_available_adapter_returns_first_found",
+      "testdetect_available_adapter_returns_none_when_nothing_found",
+      "testdetect_available_adapter_prefers_claude_over_codex",
+      "testsetup_demo_project_creates_sdd_dirs",
+      "testsetup_demo_project_seeds_three_tasks",
+      "testsetup_demo_project_task_filenames_match",
+      "testsetup_demo_project_writes_config",
+      "testsetup_demo_project_creates_app_py",
       "test_demo_dry_run_exits_zero",
       "test_demo_dry_run_shows_cost_estimate",
       "test_demo_dry_run_shows_dry_run_label",
@@ -2727,11 +3694,23 @@
       "__future__",
       "bernstein",
       "click",
-      "pathlib",
-      "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T08:48:01.999895"
+    "last_modified": "2026-03-28T22:20:29.196121"
+  },
+  "tests/unit/test_cli_errors.py": {
+    "summary": "Tests for bernstein.cli.errors \u2014 structured error reporting.",
+    "exports": [
+      "TestBernsteinError",
+      "TestErrorFactories"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "io",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T20:22:55.364156"
   },
   "tests/unit/test_cli_stop.py": {
     "summary": "Tests for soft/hard stop, shutdown signals, and crash recovery.",
@@ -2753,7 +3732,7 @@
       "typing",
       "unittest"
     ],
-    "last_modified": "2026-03-28T18:48:21.823338"
+    "last_modified": "2026-03-28T20:40:17.009254"
   },
   "tests/unit/test_cluster.py": {
     "summary": "Unit tests for NodeRegistry and cluster coordination.",
@@ -2780,10 +3759,9 @@
     "imports": [
       "__future__",
       "bernstein",
-      "pytest",
       "time"
     ],
-    "last_modified": "2026-03-28T11:37:02.685747"
+    "last_modified": "2026-03-28T21:04:53.048052"
   },
   "tests/unit/test_conflict_resolution.py": {
     "summary": "Tests for automated conflict resolution and merge strategy.",
@@ -2800,7 +3778,7 @@
       "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T08:45:18.207853"
+    "last_modified": "2026-03-28T21:04:53.048819"
   },
   "tests/unit/test_context.py": {
     "summary": "Tests for bernstein.core.context.",
@@ -2817,10 +3795,9 @@
       "__future__",
       "bernstein",
       "pathlib",
-      "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T05:42:32.256821"
+    "last_modified": "2026-03-28T21:04:53.046983"
   },
   "tests/unit/test_context_builder.py": {
     "summary": "Tests for TaskContextBuilder and knowledge base utilities.",
@@ -2837,10 +3814,36 @@
       "__future__",
       "bernstein",
       "json",
-      "pathlib",
-      "pytest"
+      "pathlib"
     ],
-    "last_modified": "2026-03-28T04:59:46.352478"
+    "last_modified": "2026-03-28T21:04:53.049984"
+  },
+  "tests/unit/test_coordination.py": {
+    "summary": "Tests for team coordination: bulletin summaries, prompt injection, conflict detection.",
+    "exports": [
+      "test_bulletin_summary_empty_board",
+      "test_bulletin_summary_single_message",
+      "test_bulletin_summary_respects_limit",
+      "test_bulletin_summary_default_limit_is_10",
+      "test_post_file_created_adds_message",
+      "test_post_file_created_no_classes",
+      "test_post_api_endpoint_adds_message",
+      "test_post_api_endpoint_without_response",
+      "test_spawn_prompt_includes_bulletin_summary",
+      "test_spawn_prompt_no_bulletin_section_without_board",
+      "test_spawn_prompt_no_bulletin_section_with_empty_board",
+      "test_check_file_overlap_no_conflict",
+      "test_check_file_overlap_detects_active_agent",
+      "test_check_file_overlap_no_conflict_dead_agent",
+      "test_check_file_overlap_different_files_no_conflict"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "typing",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T21:47:21.017482"
   },
   "tests/unit/test_cost_cmd.py": {
     "summary": "Tests for the `bernstein cost` CLI command.",
@@ -2866,7 +3869,7 @@
       "pathlib",
       "pytest"
     ],
-    "last_modified": "2026-03-28T12:00:14.296196"
+    "last_modified": "2026-03-28T21:04:53.054096"
   },
   "tests/unit/test_cost_engine.py": {
     "summary": "Tests for the intelligent cost optimization engine.",
@@ -2879,7 +3882,8 @@
       "TestGetCascadeModel",
       "TestComputeSavingsVsOpus",
       "TestComputeDailyCost",
-      "TestProjectMonthlyCost"
+      "TestProjectMonthlyCost",
+      "TestEstimateRunCost"
     ],
     "imports": [
       "__future__",
@@ -2890,7 +3894,7 @@
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T12:23:19.661094"
+    "last_modified": "2026-03-28T21:04:53.050658"
   },
   "tests/unit/test_cost_tracker.py": {
     "summary": "Tests for bernstein.core.cost_tracker \u2014 per-run cost budget tracker.",
@@ -2912,7 +3916,38 @@
       "pytest",
       "typing"
     ],
-    "last_modified": "2026-03-28T15:34:56.264365"
+    "last_modified": "2026-03-28T21:04:53.051360"
+  },
+  "tests/unit/test_crash_recovery.py": {
+    "summary": "Tests for crash recovery \u2014 orphaned agent detection and resume.",
+    "exports": [
+      "test_orchestrator_config_has_recovery_field",
+      "test_orchestrator_config_has_max_crash_retries_field",
+      "test_orchestrator_config_recovery_accepts_all_strategies",
+      "test_spawn_for_resume_uses_provided_worktree",
+      "test_spawn_for_resume_does_not_create_new_worktree",
+      "test_spawn_for_resume_prompt_mentions_crash",
+      "test_spawn_for_resume_prompt_includes_changed_files",
+      "test_orchestrator_increments_crash_count_on_agent_death",
+      "test_orchestrator_fails_task_after_max_crash_retries",
+      "test_orchestrator_calls_spawn_for_resume_when_worktree_preserved",
+      "test_orchestrator_does_not_preserve_worktree_on_restart",
+      "test_escalate_strategy_blocks_task_when_crash_limit_exceeded",
+      "test_escalate_strategy_does_not_retry_when_limit_exceeded",
+      "test_orchestrator_restores_preserved_worktree_from_metadata",
+      "test_orchestrator_skips_worktrees_without_metadata",
+      "test_spawn_for_tasks_writes_task_metadata_to_worktree"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "httpx",
+      "json",
+      "pathlib",
+      "pytest",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T22:20:29.196319"
   },
   "tests/unit/test_creative_pipeline.py": {
     "summary": "Tests for the creative evolution pipeline (visionary \u2192 analyst \u2192 production gate).",
@@ -2933,7 +3968,7 @@
       "pathlib",
       "pytest"
     ],
-    "last_modified": "2026-03-28T08:44:29.302666"
+    "last_modified": "2026-03-28T21:04:53.053699"
   },
   "tests/unit/test_dashboard.py": {
     "summary": "Tests for the Bernstein web dashboard.",
@@ -2974,6 +4009,28 @@
     ],
     "last_modified": "2026-03-28T14:06:24.144884"
   },
+  "tests/unit/test_eval_gate.py": {
+    "summary": "Tests for the eval-gated evolution system (#516).",
+    "exports": [
+      "FakeEvalHarness",
+      "TestEvalBaseline",
+      "TestEvalGateResult",
+      "TestEvalGate",
+      "TestEvalTrajectory",
+      "TestEvalGateFunction",
+      "TestEvalTier",
+      "TestConstants"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "dataclasses",
+      "json",
+      "pathlib",
+      "pytest"
+    ],
+    "last_modified": "2026-03-28T21:04:52.577902"
+  },
   "tests/unit/test_evolution.py": {
     "summary": "Tests for EvolutionCoordinator \u2014 self-evolution feedback loop.",
     "exports": [
@@ -2991,11 +4048,10 @@
       "bernstein",
       "json",
       "pathlib",
-      "pytest",
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T09:06:55.474032"
+    "last_modified": "2026-03-28T21:04:53.049943"
   },
   "tests/unit/test_evolution_integration.py": {
     "summary": "Integration test: full self-evolution feedback loop from task completion to upgrade.",
@@ -3007,11 +4063,10 @@
       "bernstein",
       "json",
       "pathlib",
-      "pytest",
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T01:49:23.947767"
+    "last_modified": "2026-03-28T21:04:53.051611"
   },
   "tests/unit/test_evolution_loop.py": {
     "summary": "Tests for EvolutionLoop and ExperimentResult from bernstein.evolution.loop.",
@@ -3057,7 +4112,7 @@
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T09:06:55.474253"
+    "last_modified": "2026-03-28T21:04:53.053987"
   },
   "tests/unit/test_evolve_mode.py": {
     "summary": "Tests for the evolve mode cycle flow in the orchestrator.",
@@ -3080,7 +4135,7 @@
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T11:30:33.052572"
+    "last_modified": "2026-03-28T21:04:53.057287"
   },
   "tests/unit/test_evolve_report.py": {
     "summary": "Unit tests for bernstein.evolution.report.",
@@ -3100,7 +4155,7 @@
       "pathlib",
       "pytest"
     ],
-    "last_modified": "2026-03-28T08:43:27.020269"
+    "last_modified": "2026-03-28T21:04:53.060812"
   },
   "tests/unit/test_failure_evolution.py": {
     "summary": "Tests for failure-driven evolution: FailureRecord, FailureAnalyzer, OpportunityDetector, MetricsAggregator.",
@@ -3139,7 +4194,27 @@
       "pytest",
       "time"
     ],
-    "last_modified": "2026-03-28T00:31:51.056907"
+    "last_modified": "2026-03-28T21:04:53.061740"
+  },
+  "tests/unit/test_failure_reduction.py": {
+    "summary": "Tests for agent failure rate reduction \u2014 task #738.",
+    "exports": [
+      "TestProgressiveTimeout",
+      "TestLargeScopeOpusMaxOnRetry",
+      "TestAutoDecomposeOnRepeatedFailure",
+      "TestFileContextDiscovery",
+      "TestMaybeRetryProgressiveTimeout",
+      "TestRouteTaskLegacyFunction"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "httpx",
+      "json",
+      "pathlib",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T21:04:53.054525"
   },
   "tests/unit/test_fast_path.py": {
     "summary": "Tests for fast-path task classification and deterministic executors.",
@@ -3155,10 +4230,9 @@
       "bernstein",
       "pathlib",
       "pytest",
-      "textwrap",
       "unittest"
     ],
-    "last_modified": "2026-03-28T11:30:36.428153"
+    "last_modified": "2026-03-28T21:04:53.055121"
   },
   "tests/unit/test_feature_discovery.py": {
     "summary": "Tests for FeatureDiscovery in bernstein.evolution.detector.",
@@ -3184,10 +4258,9 @@
     "imports": [
       "__future__",
       "bernstein",
-      "pathlib",
-      "pytest"
+      "pathlib"
     ],
-    "last_modified": "2026-03-28T04:48:08.219491"
+    "last_modified": "2026-03-28T21:04:53.057162"
   },
   "tests/unit/test_git_context.py": {
     "summary": "Tests for bernstein.core.git_context \u2014 git read operations for agent context.",
@@ -3205,10 +4278,9 @@
       "__future__",
       "bernstein",
       "pathlib",
-      "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T08:40:57.966533"
+    "last_modified": "2026-03-28T21:04:53.057698"
   },
   "tests/unit/test_git_ops.py": {
     "summary": "Tests for bernstein.core.git_ops \u2014 centralized git write operations.",
@@ -3228,6 +4300,7 @@
       "TestPullRequestResult",
       "TestCreateTaskBranch",
       "TestPushBranch",
+      "TestPushHeadAs",
       "TestCreateGithubPr",
       "TestEnablePrAutoMerge"
     ],
@@ -3239,7 +4312,7 @@
       "subprocess",
       "unittest"
     ],
-    "last_modified": "2026-03-28T18:13:21.123017"
+    "last_modified": "2026-03-28T21:40:00.618525"
   },
   "tests/unit/test_github.py": {
     "summary": "Unit tests for bernstein.core.github \u2014 GitHub Issues integration.",
@@ -3283,10 +4356,9 @@
       "__future__",
       "bernstein",
       "json",
-      "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T11:30:08.112066"
+    "last_modified": "2026-03-28T21:04:53.061222"
   },
   "tests/unit/test_github_app.py": {
     "summary": "Tests for the GitHub App webhook integration.",
@@ -3322,6 +4394,34 @@
     ],
     "last_modified": "2026-03-28T14:31:23.178862"
   },
+  "tests/unit/test_governance.py": {
+    "summary": "Tests for adaptive governance \u2014 weight adjustment and decision logging.",
+    "exports": [
+      "test_evolution_weights_default_sum_to_one",
+      "test_evolution_weights_normalized_sums_to_one",
+      "test_evolution_weights_all_fields_non_negative",
+      "test_evolution_weights_to_dict_round_trip",
+      "test_project_context_fields",
+      "test_adjust_weights_boosts_security_when_issues_found",
+      "test_adjust_weights_boosts_test_coverage_when_low",
+      "test_adjust_weights_boosts_lint_when_many_violations",
+      "test_adjust_weights_result_normalized",
+      "test_adjust_weights_stable_context_minimal_change",
+      "test_governance_log_written_to_file",
+      "test_governance_log_appends_multiple_entries",
+      "test_persist_weights_and_reload",
+      "test_get_current_weights_returns_defaults_when_no_history",
+      "test_persist_weights_appended_to_jsonl"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "json",
+      "pathlib",
+      "pytest"
+    ],
+    "last_modified": "2026-03-28T21:04:53.060537"
+  },
   "tests/unit/test_graph.py": {
     "summary": "Tests for the task dependency graph module.",
     "exports": [
@@ -3338,7 +4438,25 @@
       "__future__",
       "bernstein"
     ],
-    "last_modified": "2026-03-28T09:54:42.045883"
+    "last_modified": "2026-03-28T21:04:53.049966"
+  },
+  "tests/unit/test_guardrails.py": {
+    "summary": "Tests for output guardrails: secret detection, scope enforcement, dangerous ops.",
+    "exports": [
+      "TestCheckSecrets",
+      "TestCheckScope",
+      "TestCheckDangerousOperations",
+      "TestRecordGuardrailEvent",
+      "TestGetGuardrailStats",
+      "TestRunGuardrails"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "json",
+      "pathlib"
+    ],
+    "last_modified": "2026-03-28T21:04:53.052310"
   },
   "tests/unit/test_hijacker.py": {
     "summary": "Tests for TierHijacker \u2014 automatic free tier detection and routing.",
@@ -3357,10 +4475,9 @@
       "__future__",
       "bernstein",
       "os",
-      "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T11:30:33.052765"
+    "last_modified": "2026-03-28T21:04:53.053813"
   },
   "tests/unit/test_home.py": {
     "summary": "Tests for bernstein.core.home \u2014 BernsteinHome global config.",
@@ -3373,11 +4490,27 @@
     "imports": [
       "__future__",
       "bernstein",
+      "pathlib"
+    ],
+    "last_modified": "2026-03-28T21:04:53.055511"
+  },
+  "tests/unit/test_hot_reload.py": {
+    "summary": "Tests for hot-reload support in evolve (self-development) mode.",
+    "exports": [
+      "TestServerHotReload",
+      "TestSourceChangeDetection",
+      "TestSessionSaveBeforeRestart",
+      "TestCurlRetryInPrompts",
+      "TestHotReloadSourcesList"
+    ],
+    "imports": [
+      "__future__",
       "pathlib",
       "pytest",
+      "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T10:02:58.190494"
+    "last_modified": "2026-03-28T20:54:05.479534"
   },
   "tests/unit/test_idle_agent_detection.py": {
     "summary": "Tests for idle agent detection: backlog auto-ingestion and proc reaping.",
@@ -3391,10 +4524,9 @@
       "httpx",
       "json",
       "pathlib",
-      "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T05:07:06.210454"
+    "last_modified": "2026-03-28T21:04:53.054982"
   },
   "tests/unit/test_invariants.py": {
     "summary": "Tests for InvariantsGuard.",
@@ -3404,12 +4536,9 @@
       "TestCheckProposalTargets"
     ],
     "imports": [
-      "bernstein",
-      "json",
-      "pathlib",
-      "pytest"
+      "bernstein"
     ],
-    "last_modified": "2026-03-27T22:41:51.139893"
+    "last_modified": "2026-03-28T21:04:53.057074"
   },
   "tests/unit/test_janitor.py": {
     "summary": "Tests for janitor -- completion signal verification.",
@@ -3436,7 +4565,7 @@
       "typing",
       "unittest"
     ],
-    "last_modified": "2026-03-28T00:05:12.308383"
+    "last_modified": "2026-03-28T21:04:53.056340"
   },
   "tests/unit/test_live_display.py": {
     "summary": "Tests for the bernstein live command Rich display helpers.",
@@ -3449,11 +4578,10 @@
     "imports": [
       "__future__",
       "bernstein",
-      "pytest",
       "rich",
       "typing"
     ],
-    "last_modified": "2026-03-28T18:05:24.316506"
+    "last_modified": "2026-03-28T21:04:53.054152"
   },
   "tests/unit/test_llm.py": {
     "summary": "Unit tests for bernstein.core.llm \u2014 LLMSettings and get_client.",
@@ -3469,7 +4597,7 @@
       "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T04:43:58.556231"
+    "last_modified": "2026-03-28T21:04:53.054801"
   },
   "tests/unit/test_logs_cmd.py": {
     "summary": "Tests for the `bernstein logs` CLI command.",
@@ -3494,7 +4622,7 @@
       "pytest",
       "time"
     ],
-    "last_modified": "2026-03-28T06:59:08.504795"
+    "last_modified": "2026-03-28T21:04:53.055116"
   },
   "tests/unit/test_manager.py": {
     "summary": "Tests for bernstein.core.manager \u2014 parsing, rendering, task construction.",
@@ -3532,7 +4660,7 @@
       "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T06:15:06.466310"
+    "last_modified": "2026-03-28T21:04:53.058168"
   },
   "tests/unit/test_mcp_config.py": {
     "summary": "Tests for MCP config loading, merging, and passing to spawned agents.",
@@ -3552,7 +4680,7 @@
       "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T01:50:09.149874"
+    "last_modified": "2026-03-28T21:04:53.058267"
   },
   "tests/unit/test_mcp_manager.py": {
     "summary": "Tests for MCP server lifecycle manager.",
@@ -3574,7 +4702,7 @@
       "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T16:11:24.141287"
+    "last_modified": "2026-03-28T21:04:52.607202"
   },
   "tests/unit/test_mcp_registry.py": {
     "summary": "Tests for MCP server auto-discovery and per-task configuration.",
@@ -3592,11 +4720,30 @@
       "bernstein",
       "os",
       "pathlib",
-      "pytest",
       "typing",
       "unittest"
     ],
-    "last_modified": "2026-03-28T09:58:05.858810"
+    "last_modified": "2026-03-28T21:04:53.058412"
+  },
+  "tests/unit/test_mcp_server.py": {
+    "summary": "Tests for Bernstein MCP server tools.",
+    "exports": [
+      "test_mcp_server_registers_all_tools",
+      "test_bernstein_run_creates_task",
+      "test_bernstein_run_uses_default_role",
+      "test_bernstein_status_returns_summary",
+      "test_bernstein_tasks_lists_tasks",
+      "test_bernstein_tasks_filters_by_status",
+      "test_bernstein_cost_returns_cost_summary",
+      "test_bernstein_stop_sends_stop_signal",
+      "test_bernstein_approve_completes_task"
+    ],
+    "imports": [
+      "__future__",
+      "pytest",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T21:04:52.606559"
   },
   "tests/unit/test_metrics.py": {
     "summary": "Dedicated tests for MetricsCollector in src/bernstein/core/metrics.py.",
@@ -3624,10 +4771,9 @@
       "json",
       "pathlib",
       "pytest",
-      "time",
-      "unittest"
+      "time"
     ],
-    "last_modified": "2026-03-28T02:45:13.945976"
+    "last_modified": "2026-03-28T21:04:53.059929"
   },
   "tests/unit/test_metrics_batching.py": {
     "summary": "Tests for metrics write batching in MetricsCollector.",
@@ -3651,7 +4797,7 @@
       "threading",
       "time"
     ],
-    "last_modified": "2026-03-28T04:53:45.884366"
+    "last_modified": "2026-03-28T21:04:53.047456"
   },
   "tests/unit/test_models.py": {
     "summary": "Tests for API tier configuration models and schema.",
@@ -3670,7 +4816,7 @@
       "bernstein",
       "pytest"
     ],
-    "last_modified": "2026-03-22T21:20:44.220369"
+    "last_modified": "2026-03-28T21:04:53.050055"
   },
   "tests/unit/test_multi_cell.py": {
     "summary": "Tests for bernstein.core.multi_cell \u2014 CellStatus tracking, VP coordination, rebalancing.",
@@ -3688,11 +4834,28 @@
       "bernstein",
       "httpx",
       "pathlib",
-      "pytest",
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T06:14:53.770260"
+    "last_modified": "2026-03-28T21:04:53.052690"
+  },
+  "tests/unit/test_notifications.py": {
+    "summary": "Tests for the notifications module \u2014 formatters and event dispatch.",
+    "exports": [
+      "TestFormatSlack",
+      "TestFormatDiscord",
+      "TestFormatTelegram",
+      "TestFormatWebhook",
+      "TestNotificationManager"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "httpx",
+      "typing",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T21:04:52.593286"
   },
   "tests/unit/test_orchestrator.py": {
     "summary": "Tests for the Orchestrator \u2014 httpx calls and spawner are always mocked.",
@@ -3748,7 +4911,7 @@
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T18:41:43.377712"
+    "last_modified": "2026-03-28T21:04:52.622006"
   },
   "tests/unit/test_plan_cmd.py": {
     "summary": "Tests for the `bernstein plan` CLI command.",
@@ -3765,10 +4928,9 @@
       "click",
       "json",
       "pathlib",
-      "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T06:57:45.318327"
+    "last_modified": "2026-03-28T21:04:53.062262"
   },
   "tests/unit/test_plugins.py": {
     "summary": "Tests for the Bernstein plugin system.",
@@ -3826,7 +4988,32 @@
       "tempfile",
       "typing"
     ],
-    "last_modified": "2026-03-27T22:50:23.946434"
+    "last_modified": "2026-03-28T21:04:53.064347"
+  },
+  "tests/unit/test_progress_checkpoints.py": {
+    "summary": "Tests for agent progress checkpoints and stall detection.",
+    "exports": [
+      "TestProgressSnapshot",
+      "TestTaskStoreSnapshots",
+      "TestCheckStalledTasks",
+      "store",
+      "app",
+      "client",
+      "test_progress_with_snapshot_fields_stored",
+      "test_progress_without_snapshot_fields_no_snapshot",
+      "test_get_snapshots_multiple",
+      "test_get_snapshots_empty"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "httpx",
+      "pytest",
+      "time",
+      "typing",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T21:18:01.664987"
   },
   "tests/unit/test_prometheus.py": {
     "summary": "Tests for the Prometheus metrics module and /metrics endpoint.",
@@ -3859,6 +5046,39 @@
     ],
     "last_modified": "2026-03-28T14:07:04.303497"
   },
+  "tests/unit/test_quarantine.py": {
+    "summary": "Tests for cross-run task quarantine.",
+    "exports": [
+      "test_quarantine_threshold_is_three",
+      "test_load_returns_empty_list_when_file_missing",
+      "test_load_returns_entries_from_file",
+      "test_save_then_load_round_trips",
+      "test_record_failure_increments_count",
+      "test_record_failure_quarantines_after_threshold",
+      "test_record_failure_not_quarantined_below_threshold",
+      "test_record_failure_updates_reason_and_date",
+      "test_record_failure_separate_tasks_tracked_independently",
+      "test_is_quarantined_false_for_unknown_task",
+      "test_get_entry_returns_none_for_unknown_task",
+      "test_is_quarantined_false_after_7_days_expiry",
+      "test_is_quarantined_true_within_7_days",
+      "test_get_all_returns_only_active_entries",
+      "test_get_all_returns_empty_when_all_expired",
+      "test_clear_by_title_removes_one_entry",
+      "test_clear_all_empties_quarantine",
+      "test_clear_nonexistent_title_is_noop",
+      "test_get_action_returns_skip_by_default",
+      "test_get_action_returns_none_for_unknown_task"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "datetime",
+      "json",
+      "pathlib"
+    ],
+    "last_modified": "2026-03-28T21:04:52.588343"
+  },
   "tests/unit/test_rag.py": {
     "summary": "Tests for bernstein.core.rag.",
     "exports": [
@@ -3875,7 +5095,23 @@
       "pathlib",
       "pytest"
     ],
-    "last_modified": "2026-03-28T13:37:41.892027"
+    "last_modified": "2026-03-28T21:04:53.061068"
+  },
+  "tests/unit/test_recap.py": {
+    "summary": "Tests for `bernstein recap` CLI command.",
+    "exports": [
+      "TestRecapCommand"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "click",
+      "json",
+      "os",
+      "time",
+      "typing"
+    ],
+    "last_modified": "2026-03-28T19:24:40.001596"
   },
   "tests/unit/test_registry.py": {
     "summary": "Tests for AgentRegistry \u2014 dynamic agent registration with YAML hot-reload.",
@@ -3892,12 +5128,10 @@
       "__future__",
       "bernstein",
       "pathlib",
-      "pytest",
       "time",
-      "unittest",
       "yaml"
     ],
-    "last_modified": "2026-03-22T21:20:37.626499"
+    "last_modified": "2026-03-28T21:04:53.062297"
   },
   "tests/unit/test_renderer.py": {
     "summary": "Tests for bernstein.templates.renderer.",
@@ -3915,7 +5149,7 @@
       "pathlib",
       "pytest"
     ],
-    "last_modified": "2026-03-28T12:42:33.404876"
+    "last_modified": "2026-03-28T21:04:53.063191"
   },
   "tests/unit/test_researcher.py": {
     "summary": "Tests for bernstein.core.researcher \u2014 web research for evolve mode.",
@@ -3927,15 +5161,13 @@
     ],
     "imports": [
       "__future__",
-      "asyncio",
       "bernstein",
-      "json",
       "pathlib",
       "pytest",
       "time",
       "unittest"
     ],
-    "last_modified": "2026-03-28T01:30:25.997375"
+    "last_modified": "2026-03-28T21:04:53.063074"
   },
   "tests/unit/test_retro_cmd.py": {
     "summary": "Unit tests for bernstein retro CLI command.",
@@ -3963,7 +5195,7 @@
       "pytest",
       "time"
     ],
-    "last_modified": "2026-03-28T08:49:33.220891"
+    "last_modified": "2026-03-28T21:04:53.063715"
   },
   "tests/unit/test_retrospective.py": {
     "summary": "Tests for bernstein.core.retrospective.",
@@ -3976,10 +5208,33 @@
       "__future__",
       "bernstein",
       "pathlib",
-      "pytest",
       "time"
     ],
-    "last_modified": "2026-03-28T08:18:52.506006"
+    "last_modified": "2026-03-28T21:04:53.063790"
+  },
+  "tests/unit/test_risk.py": {
+    "summary": "Tests for Strategic Risk Score (SRS) computation.",
+    "exports": [
+      "test_proposal_risk_score_fields",
+      "test_composite_risk_between_zero_and_one",
+      "test_single_small_file_low_risk",
+      "test_many_files_high_blast_radius",
+      "test_large_diff_raises_complexity_delta",
+      "test_negative_coverage_delta_raises_regression_potential",
+      "test_coverage_improvement_reduces_risk",
+      "test_core_module_increases_regression_potential",
+      "test_is_high_risk_above_threshold",
+      "test_is_high_risk_below_threshold",
+      "test_is_high_risk_custom_threshold",
+      "test_high_risk_proposal_flagged_for_sandbox",
+      "test_low_risk_proposal_fast_tracked"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "pytest"
+    ],
+    "last_modified": "2026-03-28T21:04:52.582195"
   },
   "tests/unit/test_router.py": {
     "summary": "Tests for TierAwareRouter \u2014 tier-based routing decisions.",
@@ -4000,7 +5255,51 @@
       "bernstein",
       "pytest"
     ],
-    "last_modified": "2026-03-28T12:05:44.538143"
+    "last_modified": "2026-03-28T21:04:53.055508"
+  },
+  "tests/unit/test_run_benchmark.py": {
+    "summary": "Unit tests for benchmarks/run_benchmark.py (single-agent vs multi-agent harness).",
+    "exports": [
+      "test_total_minutes_sums_all_subtasks",
+      "test_subtask_count_matches_list_length",
+      "test_simulate_schedule_single_agent_equals_total_minutes",
+      "test_simulate_schedule_parallel_independent_subtasks",
+      "test_simulate_schedule_multi_agent_faster_than_single",
+      "test_simulate_schedule_sequential_chain_same_for_any_agents",
+      "test_simulate_schedule_more_agents_never_slower",
+      "test_estimate_cost_single_uses_sonnet_for_all_roles",
+      "test_estimate_cost_multi_applies_overhead",
+      "test_estimate_cost_multi_cheaper_for_qa_heavy_task",
+      "test_estimate_pass_rate_single_baseline",
+      "test_estimate_pass_rate_single_degrades_with_many_subtasks",
+      "test_estimate_pass_rate_multi_higher_than_single_for_large_tasks",
+      "test_estimate_pass_rate_clamps_at_minimum",
+      "test_run_simulate_returns_one_result_per_task",
+      "test_run_simulate_produces_three_scenarios_per_task",
+      "test_run_simulate_speedup_single_is_1",
+      "test_run_simulate_mean_speedup_3_above_1",
+      "test_run_simulate_mode_is_simulate",
+      "test_mean_speedup_3_averages_across_tasks",
+      "test_mean_cost_savings_3_positive_for_cheaper_multi",
+      "test_load_task_reads_yaml_correctly",
+      "test_load_all_tasks_loads_10_real_tasks",
+      "test_load_all_tasks_sorted_by_filename",
+      "test_format_table_contains_task_name",
+      "test_format_table_has_header_row",
+      "test_format_summary_includes_speedup_numbers",
+      "test_write_results_creates_json_and_md",
+      "test_write_results_json_is_valid",
+      "test_full_simulation_10_tasks"
+    ],
+    "imports": [
+      "__future__",
+      "importlib",
+      "pathlib",
+      "pytest",
+      "sys",
+      "yaml"
+    ],
+    "last_modified": "2026-03-28T21:27:14.803057"
   },
   "tests/unit/test_sandbox.py": {
     "summary": "Tests for SandboxValidator.",
@@ -4014,11 +5313,10 @@
       "__future__",
       "bernstein",
       "pathlib",
-      "pytest",
       "subprocess",
       "unittest"
     ],
-    "last_modified": "2026-03-28T09:06:55.475113"
+    "last_modified": "2026-03-28T21:04:53.056079"
   },
   "tests/unit/test_seed.py": {
     "summary": "Tests for bernstein.core.seed.",
@@ -4037,7 +5335,7 @@
       "pathlib",
       "pytest"
     ],
-    "last_modified": "2026-03-28T07:09:50.950808"
+    "last_modified": "2026-03-28T22:20:29.196585"
   },
   "tests/unit/test_server.py": {
     "summary": "Tests for the Bernstein task server.",
@@ -4153,7 +5451,14 @@
       "test_auth_wrong_token_returns_403",
       "test_auth_correct_token_succeeds",
       "test_auth_public_paths_bypass_auth",
-      "test_auth_agent_json_bypass"
+      "test_auth_agent_json_bypass",
+      "readonly_app",
+      "readonly_client",
+      "test_readonly_blocks_post",
+      "test_readonly_blocks_put",
+      "test_readonly_blocks_delete",
+      "test_readonly_allows_get",
+      "test_readonly_allows_status"
     ],
     "imports": [
       "__future__",
@@ -4164,7 +5469,41 @@
       "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T11:37:52.491991"
+    "last_modified": "2026-03-28T21:19:39.030885"
+  },
+  "tests/unit/test_session_resume.py": {
+    "summary": "Tests for fast session resume (skip re-planning after brief stop).",
+    "exports": [
+      "test_session_state_not_stale_when_fresh",
+      "test_session_state_stale_after_threshold",
+      "test_session_state_custom_stale_minutes",
+      "test_session_state_roundtrip",
+      "test_session_state_roundtrip_without_pending",
+      "test_save_writes_json_to_sdd_runtime",
+      "test_load_returns_state_for_fresh_session",
+      "test_load_returns_none_when_file_missing",
+      "test_load_returns_none_when_stale",
+      "test_load_returns_none_on_corrupt_json",
+      "test_load_returns_none_on_missing_saved_at",
+      "test_discard_removes_session_file",
+      "test_discard_is_noop_when_no_file",
+      "test_load_respects_custom_stale_minutes",
+      "test_check_resume_returns_session_when_valid",
+      "test_check_resume_returns_none_when_no_session",
+      "test_check_resume_returns_none_when_fresh_flag",
+      "test_orchestrator_save_session_state",
+      "test_orchestrator_save_session_state_server_down"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "json",
+      "pathlib",
+      "pytest",
+      "time",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T21:04:53.061067"
   },
   "tests/unit/test_session_streaming.py": {
     "summary": "Tests for interactive session streaming (ticket 708).",
@@ -4191,11 +5530,11 @@
       "bernstein",
       "httpx",
       "json",
-      "pathlib",
       "pytest",
-      "time"
+      "time",
+      "typing"
     ],
-    "last_modified": "2026-03-28T18:13:59.516778"
+    "last_modified": "2026-03-28T21:33:52.331487"
   },
   "tests/unit/test_signals.py": {
     "summary": "Tests for pivot signal system.",
@@ -4212,7 +5551,7 @@
       "json",
       "typing"
     ],
-    "last_modified": "2026-03-28T09:53:20.114311"
+    "last_modified": "2026-03-28T21:04:53.062250"
   },
   "tests/unit/test_spawner.py": {
     "summary": "Tests for AgentSpawner \u2014 adapter is always mocked.",
@@ -4235,7 +5574,7 @@
       "pytest",
       "unittest"
     ],
-    "last_modified": "2026-03-28T12:47:17.036840"
+    "last_modified": "2026-03-28T21:04:53.060480"
   },
   "tests/unit/test_store_factory.py": {
     "summary": "Tests for the pluggable storage backend factory.",
@@ -4299,15 +5638,13 @@
     "imports": [
       "__future__",
       "bernstein",
-      "dataclasses",
       "json",
       "pathlib",
       "pytest",
-      "time",
       "typing",
       "unittest"
     ],
-    "last_modified": "2026-03-28T09:57:52.441464"
+    "last_modified": "2026-03-28T21:04:53.062750"
   },
   "tests/unit/test_sync.py": {
     "summary": "Tests for the backlog-to-server sync module.",
@@ -4323,11 +5660,9 @@
       "bernstein",
       "httpx",
       "json",
-      "pathlib",
-      "pytest",
-      "unittest"
+      "pathlib"
     ],
-    "last_modified": "2026-03-28T00:05:12.308702"
+    "last_modified": "2026-03-28T21:04:53.063313"
   },
   "tests/unit/test_traces.py": {
     "summary": "Tests for bernstein.core.traces \u2014 TraceStep, parse_agent_log, replay payload.",
@@ -4363,7 +5698,7 @@
       "pytest",
       "typing"
     ],
-    "last_modified": "2026-03-28T18:49:43.294005"
+    "last_modified": "2026-03-28T21:04:52.605794"
   },
   "tests/unit/test_upgrade_executor.py": {
     "summary": "Tests for FileUpgradeExecutor \u2014 YAML read-modify-write and rollback.",
@@ -4400,7 +5735,7 @@
       "unittest",
       "yaml"
     ],
-    "last_modified": "2026-03-27T22:52:36.760649"
+    "last_modified": "2026-03-28T21:04:53.063540"
   },
   "tests/unit/test_worker.py": {
     "summary": "Tests for bernstein-worker process wrapper and bernstein ps.",
@@ -4414,13 +5749,12 @@
       "json",
       "os",
       "pathlib",
-      "pytest",
       "signal",
       "subprocess",
       "sys",
       "time"
     ],
-    "last_modified": "2026-03-28T13:40:00.077225"
+    "last_modified": "2026-03-28T21:04:52.609083"
   },
   "tests/unit/test_workspace.py": {
     "summary": "Tests for bernstein.core.workspace \u2014 multi-repo workspace orchestration.",

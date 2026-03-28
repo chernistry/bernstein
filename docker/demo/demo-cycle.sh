@@ -3,7 +3,6 @@
 #
 # Runs inside the bernstein-demo container.  Requires:
 #   BERNSTEIN_SERVER_URL  — internal URL of bernstein-server (default: http://bernstein-server:8052)
-#   BERNSTEIN_AUTH_TOKEN  — write token for the task server
 #   ANTHROPIC_API_KEY or OPENAI_API_KEY — at least one LLM key
 #   DEMO_CYCLE_INTERVAL   — seconds between resets (default: 900 = 15 min)
 #
@@ -19,11 +18,8 @@
 set -euo pipefail
 
 SERVER="${BERNSTEIN_SERVER_URL:-http://bernstein-server:8052}"
-TOKEN="${BERNSTEIN_AUTH_TOKEN:-}"
 INTERVAL="${DEMO_CYCLE_INTERVAL:-900}"
 PROJECT_DIR="/workspace/project"
-
-AUTH_HEADER="Authorization: Bearer ${TOKEN}"
 
 log() { echo "[demo-cycle] $(date -u '+%H:%M:%S') $*"; }
 
@@ -40,8 +36,7 @@ wait_for_server() {
 cancel_all_active() {
     log "Cancelling leftover tasks..."
     for status in open claimed in_progress; do
-        curl -sf "${SERVER}/tasks?status=${status}" \
-            -H "${AUTH_HEADER}" 2>/dev/null \
+        curl -sf "${SERVER}/tasks?status=${status}" 2>/dev/null \
         | python3 -c "
 import sys, json
 for t in json.load(sys.stdin):
@@ -49,7 +44,6 @@ for t in json.load(sys.stdin):
 " 2>/dev/null \
         | while IFS= read -r task_id; do
             curl -sf -X POST "${SERVER}/tasks/${task_id}/cancel" \
-                -H "${AUTH_HEADER}" \
                 -H "Content-Type: application/json" \
                 -d '{"reason": "demo reset"}' > /dev/null 2>&1 || true
         done
@@ -62,7 +56,6 @@ post_task() {
     local role="${3:-backend}"
     local priority="${4:-2}"
     curl -sf -X POST "${SERVER}/tasks" \
-        -H "${AUTH_HEADER}" \
         -H "Content-Type: application/json" \
         -d "{
             \"title\": $(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "${title}"),
@@ -149,10 +142,13 @@ while true; do
     reset_project
     seed_tasks
 
-    # Start the orchestrator in the background (connects to the server via env vars)
+    # Start the orchestrator in the background.
+    # Uses python -m bernstein.core.orchestrator so it connects to the existing
+    # bernstein-server container (BERNSTEIN_SERVER_URL) without starting a new server.
+    # max_agents and cli adapter come from bernstein.yaml in the project directory.
     log "Starting orchestrator..."
     cd "${PROJECT_DIR}"
-    bernstein conduct --max-agents 2 &
+    python -m bernstein.core.orchestrator &
     CONDUCTOR_PID=$!
     log "Orchestrator running (PID ${CONDUCTOR_PID})"
 

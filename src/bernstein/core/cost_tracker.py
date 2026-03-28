@@ -337,6 +337,54 @@ class CostTracker:
             logger.warning("Failed to load cost tracker for run %s: %s", run_id, exc)
             return None
 
+    # ---- reporting --------------------------------------------------------
+
+    def shareable_summary(
+        self,
+        tasks_done: int = 0,
+        tasks_failed: int = 0,
+        total_duration_s: float = 0.0,
+    ) -> str:
+        """Return a markdown run-summary snippet suitable for sharing.
+
+        Computes savings vs an all-Opus baseline using current usages.
+
+        Args:
+            tasks_done: Number of tasks that completed successfully.
+            tasks_failed: Number of tasks that failed.
+            total_duration_s: Wall-clock duration of the run in seconds.
+
+        Returns:
+            Multi-line markdown string.
+        """
+        opus_cost_per_1k = _MODEL_COST_USD_PER_1K["opus"]
+        savings = 0.0
+        for u in self._usages:
+            if "opus" not in u.model.lower():
+                total_tokens = u.input_tokens + u.output_tokens
+                if total_tokens > 0:
+                    opus_est = (total_tokens / 1000.0) * opus_cost_per_1k
+                    savings += max(opus_est - u.cost_usd, 0.0)
+
+        actual = self._spent_usd
+        single_agent = actual + savings
+        savings_pct = (savings / single_agent * 100) if single_agent > 0 else 0.0
+
+        mins = int(total_duration_s // 60)
+        secs = int(total_duration_s % 60)
+        time_str = f"{mins}m {secs}s" if mins > 0 else f"{secs}s"
+
+        lines: list[str] = ["🎼 Bernstein run summary"]
+        lines.append(f"   Tasks: {tasks_done} completed" + (f", {tasks_failed} failed" if tasks_failed else ""))
+        if total_duration_s > 0:
+            lines.append(f"   Time:  {time_str}")
+        if single_agent > actual:
+            lines.append(f"   Cost:  ${actual:.2f} (vs ~${single_agent:.2f} single agent)")
+            lines.append(f"   Saved: ${savings:.2f} ({savings_pct:.0f}%)")
+        else:
+            lines.append(f"   Cost:  ${actual:.2f}")
+        return "\n".join(lines)
+
     # ---- internal ---------------------------------------------------------
 
     def _emit_threshold_warnings(self, status: BudgetStatus) -> None:

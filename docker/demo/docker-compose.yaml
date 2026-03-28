@@ -7,7 +7,7 @@
 #
 # Setup:
 #   1. cp docker/demo/.env.demo.example docker/demo/.env.demo
-#   2. Fill in ANTHROPIC_API_KEY (or OPENAI_API_KEY) and BERNSTEIN_AUTH_TOKEN
+#   2. Fill in ANTHROPIC_API_KEY (or OPENAI_API_KEY)
 #   3. Point demo.bernstein.dev DNS at this server
 #   4. docker compose -f docker/demo/docker-compose.yaml --env-file docker/demo/.env.demo up -d
 #
@@ -18,6 +18,11 @@ services:
   # ── Task server ──────────────────────────────────────────────────────────
   # Serves the API and dashboard. NOT exposed directly to the internet —
   # Caddy proxies only read-only paths to the public.
+  #
+  # No auth token — server is not exposed on host ports; Caddy is the security
+  # boundary.  Leaving auth off means GET /tasks/* and GET /agents/* work for
+  # public viewers (diff modal, live output streams) without credentials.
+  # NOT readonly — the internal bernstein-demo orchestrator needs write access.
   bernstein-server:
     build:
       context: ../..
@@ -29,10 +34,6 @@ services:
       - "0.0.0.0"
       - "--port"
       - "8052"
-    environment:
-      BERNSTEIN_AUTH_TOKEN: ${BERNSTEIN_AUTH_TOKEN}
-      # NOT readonly — Caddy enforces public read-only at the proxy layer.
-      # The internal bernstein-demo orchestrator needs write access to create/complete tasks.
     volumes:
       - sdd-data:/workspace/.sdd
     healthcheck:
@@ -53,7 +54,6 @@ services:
     entrypoint: ["/usr/local/bin/demo-cycle"]
     environment:
       BERNSTEIN_SERVER_URL: http://bernstein-server:8052
-      BERNSTEIN_AUTH_TOKEN: ${BERNSTEIN_AUTH_TOKEN}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       DEMO_CYCLE_INTERVAL: ${DEMO_CYCLE_INTERVAL:-900}

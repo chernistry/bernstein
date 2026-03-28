@@ -2,15 +2,6 @@
 
 No decisions recorded yet.
 
-## [2026-03-28 22:08] 344 — Bernstein as MCP Server (547d746ade6a)
-Completed: 344 — Bernstein as MCP Server. All 6 tools (bernstein_run, bernstein_status, bernstein_tasks, bernstein_cost, bernstein_stop, bernstein_approve) implemented in src/bernstein/mcp/server.py with stdio/SSE transport. CLI command bernstein mcp wired up. All 9 server tests pass.
-
-## [2026-03-28 22:09] 345 — Interactive Session Streaming (Crystal-killer) (f1253109c72b)
-Completed: 345 — Interactive Session Streaming (Crystal-killer)
-
-## [2026-03-28 22:09] 346a — Aider CLI Adapter (66ec25a0cbc0)
-Completed: 346a — Aider CLI Adapter
-
 ## [2026-03-28 22:10] 347 — Output Guardrails: Secret Detection + Scope Enforcement (7e2df2c42c20)
 Completed: 347 — Output Guardrails: Secret Detection + Scope Enforcement
 
@@ -46,3 +37,12 @@ Completed: 339 — Technical Content Strategy. All 5+ content pieces already dra
 
 ## [2026-03-28 22:16] 340 — Benchmark vs GitHub Agent HQ (10fd530a2754)
 Completed: 340 — Benchmark vs GitHub Agent HQ
+
+## [2026-03-28 22:22] 365 — Public Web Dashboard Demo Instance (1390a6007b33)
+Completed: 365 — Public Web Dashboard Demo Instance
+
+## [2026-03-28 22:24] [RETRY 1] 333d — Smart Task Distribution (No Greedy Claiming) (cd10e151ce67)
+Completed: [RETRY 1] 333d — Smart Task Distribution (No Greedy Claiming). Implemented round-robin interleaving in group_by_role (tick_pipeline.py) and per-role cap enforcement in claim_and_spawn_batches (task_lifecycle.py). Batches now interleave across roles so no role hogs agent slots. Cap formula: ceil(max_agents * role_tasks / total_tasks). All 174 tests pass, ruff+pyright clean.
+
+## [2026-03-28 22:25] [RETRY 1] 333g — Idle Agent Detection and Recycling (60d4927c02b1)
+Completed: [RETRY 1] 333g — Idle Agent Detection and Recycling

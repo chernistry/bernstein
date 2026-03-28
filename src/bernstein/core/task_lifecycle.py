@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import math
 import re
 import time
+from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -496,6 +498,23 @@ def claim_and_spawn_batches(
     """
     base = orch._config.server_url
 
+    # Compute fair per-role caps: ceil(max_agents * role_tasks / total_tasks).
+    # Prevents any single role from consuming all agent slots while other roles starve.
+    _all_task_count = sum(len(b) for b in batches)
+    _tasks_per_role: dict[str, int] = defaultdict(int)
+    for _b in batches:
+        if _b:
+            _tasks_per_role[_b[0].role] += len(_b)
+
+    # Count currently alive agents per role (baseline before this tick's spawns)
+    _alive_per_role: dict[str, int] = defaultdict(int)
+    for _agent in orch._agents.values():
+        if _agent.status != "dead":
+            _alive_per_role[_agent.role] += 1
+
+    # Track agents spawned this tick per role (avoids stale alive_per_role during loop)
+    _spawned_per_role: dict[str, int] = defaultdict(int)
+
     # Track titles claimed this tick to prevent duplicate agent assignments.
     # Strips [RETRY N] prefixes so retries don't bypass the dedup check.
     def _base_title(title: str) -> str:
@@ -517,6 +536,24 @@ def claim_and_spawn_batches(
         # Skip batches where any task is already assigned to an active agent
         if any(t.id in assigned_task_ids for t in batch):
             continue
+
+        # Enforce per-role cap: no role gets more than ceil(max_agents * role_tasks / total_tasks)
+        # agents. This prevents a role with many tasks from occupying all slots while other roles
+        # have tasks but zero agents (starvation).
+        if _all_task_count > 0 and batch:
+            _role = batch[0].role
+            _role_cap = math.ceil(orch._config.max_agents * _tasks_per_role[_role] / _all_task_count)
+            _current_role_agents = _alive_per_role[_role] + _spawned_per_role[_role]
+            if _current_role_agents >= _role_cap:
+                logger.debug(
+                    "Skipping batch for role %r: at cap (%d/%d agents for %d/%d tasks)",
+                    _role,
+                    _current_role_agents,
+                    _role_cap,
+                    _tasks_per_role[_role],
+                    _all_task_count,
+                )
+                continue
 
         # Dedup: skip if a task with the same base title is already active
         batch_base_titles = {_base_title(t.title) for t in batch}
@@ -700,6 +737,7 @@ def claim_and_spawn_batches(
             _claimed_titles.update(_base_title(t.title) for t in batch)
             session.heartbeat_ts = time.time()
             orch._spawn_failures.pop(batch_key, None)
+            _spawned_per_role[batch[0].role] += 1
 
             logger.info(
                 "Spawned %s for %d tasks: %s",

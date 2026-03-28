@@ -279,6 +279,13 @@ class TaskBlockRequest(BaseModel):
     reason: str = ""
 
 
+class TaskPatchRequest(BaseModel):
+    """Body for PATCH /tasks/{task_id} — manager corrections."""
+
+    role: str | None = None
+    priority: int | None = None
+
+
 class TaskProgressRequest(BaseModel):
     """Body for POST /tasks/{task_id}/progress."""
 
@@ -1012,6 +1019,38 @@ class TaskStore:
             completed_at = time.time()
             await self._append_jsonl(self._task_to_record(task))
             await self._append_archive(task, completed_at)
+            return task
+
+    async def update(self, task_id: str, role: str | None, priority: int | None) -> Task:
+        """Update mutable task fields (role, priority) — manager corrections.
+
+        Only open or failed tasks can be reassigned; claimed/in-progress tasks
+        are left to finish before the new assignment takes effect.
+
+        Args:
+            task_id: Task identifier.
+            role: New role if provided.
+            priority: New priority if provided.
+
+        Returns:
+            The updated Task.
+
+        Raises:
+            KeyError: If task_id does not exist.
+        """
+        async with self._lock:
+            task = self._tasks.get(task_id)
+            if task is None:
+                raise KeyError(task_id)
+            if role is not None and role != task.role:
+                # Role change requires re-indexing (role is part of secondary index key)
+                self._index_remove(task)
+                task.role = role
+                self._index_add(task)
+            if priority is not None:
+                task.priority = priority
+            task.version += 1
+            await self._append_jsonl(self._task_to_record(task))
             return task
 
     def list_tasks(

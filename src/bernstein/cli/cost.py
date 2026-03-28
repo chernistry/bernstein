@@ -10,8 +10,104 @@ from typing import Any
 
 import click
 from rich.console import Console
+from rich.panel import Panel
 
 console = Console()
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _ascii_bar(value: float, max_value: float, width: int = 30) -> str:
+    """Return a block-character bar proportional to value/max_value."""
+    if max_value <= 0 or value <= 0:
+        return "░" * width
+    filled = max(1, round((value / max_value) * width))
+    filled = min(filled, width)
+    return "█" * filled + "░" * (width - filled)
+
+
+def _count_task_status(task_records: list[dict[str, Any]]) -> tuple[int, int]:
+    """Return (done_count, failed_count) deduped by task_id."""
+    seen: dict[str, dict[str, Any]] = {}
+    for rec in task_records:
+        tid = rec.get("task_id", "")
+        if tid:
+            seen[tid] = rec
+    done = sum(1 for r in seen.values() if r.get("status") == "done")
+    failed = sum(1 for r in seen.values() if r.get("status") == "failed")
+    # If status not recorded, fall back to presence of cost as "done"
+    if done == 0 and failed == 0 and seen:
+        done = sum(1 for r in seen.values() if float(r.get("cost_usd", 0) or 0) > 0)
+    return done, failed
+
+
+def _render_savings_comparison(
+    cons: Console,
+    actual_cost: float,
+    savings_vs_opus: float,
+) -> None:
+    """Print an ASCII bar chart comparing Bernstein vs all-Opus baseline."""
+    single_agent_cost = actual_cost + savings_vs_opus
+    if single_agent_cost <= 0:
+        return
+
+    savings_pct = (savings_vs_opus / single_agent_cost) * 100
+
+    bar_width = 34
+    single_bar = _ascii_bar(single_agent_cost, single_agent_cost, bar_width)
+    bernstein_bar = _ascii_bar(actual_cost, single_agent_cost, bar_width)
+
+    cons.print()
+    cons.print("[bold]Cost Comparison[/bold]  (Bernstein vs all-Opus baseline)")
+    cons.print(f"  Single agent  [red]{single_bar}[/red]  [dim]${single_agent_cost:.4f}[/dim]")
+    cons.print(f"  Bernstein     [green]{bernstein_bar}[/green]  [bold green]${actual_cost:.4f}[/bold green]")
+    if savings_pct > 0:
+        cons.print(
+            f"\n  [bold green]You saved ${savings_vs_opus:.4f} "
+            f"({savings_pct:.0f}%) by using Bernstein's model cascade[/bold green]"
+        )
+
+
+def _render_shareable_summary(
+    cons: Console,
+    actual_cost: float,
+    savings_vs_opus: float,
+    tasks_done: int,
+    tasks_failed: int,
+    total_duration_s: float,
+) -> None:
+    """Print a copy-pasteable markdown run summary."""
+    single_agent_cost = actual_cost + savings_vs_opus
+    savings_pct = (savings_vs_opus / single_agent_cost) * 100 if single_agent_cost > 0 else 0
+
+    mins = int(total_duration_s // 60)
+    secs = int(total_duration_s % 60)
+    time_str = f"{mins}m {secs}s" if mins > 0 else f"{secs}s"
+
+    lines: list[str] = [
+        "🎼 Bernstein run summary",
+        f"   Tasks: {tasks_done} completed" + (f", {tasks_failed} failed" if tasks_failed else ""),
+    ]
+    if total_duration_s > 0:
+        lines.append(f"   Time:  {time_str}")
+    if single_agent_cost > actual_cost:
+        lines.append(f"   Cost:  ${actual_cost:.2f} (vs ~${single_agent_cost:.2f} single agent)")
+        lines.append(f"   Saved: ${savings_vs_opus:.2f} ({savings_pct:.0f}%)")
+    else:
+        lines.append(f"   Cost:  ${actual_cost:.2f}")
+
+    cons.print()
+    cons.print(
+        Panel(
+            "\n".join(lines),
+            title="[bold]Shareable summary[/bold]",
+            border_style="dim",
+            expand=False,
+        )
+    )
+
 
 # ---------------------------------------------------------------------------
 # Data loading
@@ -142,7 +238,8 @@ def _aggregate(
     help="Directory containing metrics JSONL files.",
 )
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
-def cost_cmd(metrics_dir: str, as_json: bool) -> None:
+@click.option("--share", is_flag=True, default=False, help="Print only the shareable summary snippet.")
+def cost_cmd(metrics_dir: str, as_json: bool, share: bool) -> None:
     """Show agent spend: cost, tokens, and duration per model."""
     mdir = Path(metrics_dir)
     if not mdir.exists():
@@ -198,6 +295,8 @@ def cost_cmd(metrics_dir: str, as_json: bool) -> None:
     daily_costs = compute_daily_cost(task_records, days=7)
     projected_monthly = project_monthly_cost(task_records, window_days=7)
 
+    tasks_done, tasks_failed = _count_task_status(task_records)
+
     if as_json:
         output = {
             "rows": [
@@ -207,6 +306,7 @@ def cost_cmd(metrics_dir: str, as_json: bool) -> None:
                     "tokens_in": v["tokens_in"],
                     "tokens_out": v["tokens_out"],
                     "cost_usd": round(v["cost_usd"], 6),
+                    "cost_per_task": round(v["cost_usd"] / v["tasks"], 6) if v["tasks"] > 0 else 0,
                     "avg_duration_s": (
                         round(v["duration_total"] / v["duration_count"], 1) if v["duration_count"] > 0 else None
                     ),
@@ -218,8 +318,22 @@ def cost_cmd(metrics_dir: str, as_json: bool) -> None:
             "savings_vs_opus_usd": round(savings_vs_opus, 6),
             "daily_costs": daily_costs,
             "projected_monthly_usd": round(projected_monthly, 4),
+            "tasks_done": tasks_done,
+            "tasks_failed": tasks_failed,
         }
         click.echo(json.dumps(output, indent=2))
+        return
+
+    # --share: print only the shareable snippet and exit
+    if share:
+        _render_shareable_summary(
+            console,
+            actual_cost=totals["cost_usd"],
+            savings_vs_opus=savings_vs_opus,
+            tasks_done=tasks_done,
+            tasks_failed=tasks_failed,
+            total_duration_s=total_dur,
+        )
         return
 
     from rich.table import Table
@@ -230,22 +344,26 @@ def cost_cmd(metrics_dir: str, as_json: bool) -> None:
     table.add_column("Tokens In", justify="right", min_width=10)
     table.add_column("Tokens Out", justify="right", min_width=10)
     table.add_column("Cost USD", justify="right", min_width=10)
+    table.add_column("Cost/Task", justify="right", min_width=10)
     table.add_column("Avg Duration", justify="right", min_width=12)
 
     for model, v in sorted_models:
         avg_dur = f"{v['duration_total'] / v['duration_count']:.1f}s" if v["duration_count"] > 0 else "—"
         cost_str = f"${v['cost_usd']:.4f}" if v["cost_usd"] > 0 else "$0.0000"
+        cost_per_task = f"${v['cost_usd'] / v['tasks']:.4f}" if v["tasks"] > 0 else "—"
         table.add_row(
             model,
             str(v["tasks"]),
             f"{v['tokens_in']:,}",
             f"{v['tokens_out']:,}",
             cost_str,
+            cost_per_task,
             avg_dur,
         )
 
     # Totals row
     avg_total = f"{total_dur / total_dur_count:.1f}s" if total_dur_count > 0 else "—"
+    total_cost_per_task = f"${totals['cost_usd'] / totals['tasks']:.4f}" if totals["tasks"] > 0 else "—"
     table.add_section()
     table.add_row(
         "[bold]TOTAL[/bold]",
@@ -253,6 +371,7 @@ def cost_cmd(metrics_dir: str, as_json: bool) -> None:
         f"[bold]{totals['tokens_in']:,}[/bold]",
         f"[bold]{totals['tokens_out']:,}[/bold]",
         f"[bold green]${totals['cost_usd']:.4f}[/bold green]",
+        f"[bold]{total_cost_per_task}[/bold]",
         f"[bold]{avg_total}[/bold]",
     )
 
@@ -269,9 +388,19 @@ def cost_cmd(metrics_dir: str, as_json: bool) -> None:
             f"bypassing LLM for {bp} task(s) ({', '.join(action_parts)})"
         )
 
-    # Savings vs all-Opus baseline
-    console.print(f"[bold green]Savings vs Opus baseline:[/bold green] ~${savings_vs_opus:.4f}")
+    # ASCII bar chart: Bernstein vs single-agent baseline
+    _render_savings_comparison(console, totals["cost_usd"], savings_vs_opus)
 
     # Projected monthly cost
     if projected_monthly > 0:
-        console.print(f"[dim]Projected monthly cost (30d):[/dim] ${projected_monthly:.2f}")
+        console.print(f"\n[dim]Projected monthly cost (30d):[/dim] ${projected_monthly:.2f}")
+
+    # Shareable run summary
+    _render_shareable_summary(
+        console,
+        actual_cost=totals["cost_usd"],
+        savings_vs_opus=savings_vs_opus,
+        tasks_done=tasks_done,
+        tasks_failed=tasks_failed,
+        total_duration_s=total_dur,
+    )

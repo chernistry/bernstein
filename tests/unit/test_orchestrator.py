@@ -311,6 +311,54 @@ class TestGroupByRole:
         # After boost: crit=0->1, norm=1, low=2
         assert ids == ["T-upg-crit", "T-upg-norm", "T-upg-low"]
 
+    def test_round_robin_interleaves_roles(self) -> None:
+        """Batches from different roles are interleaved so no role hogs all slots."""
+        tasks = [
+            _make_task(id="b1", role="backend", priority=2),
+            _make_task(id="b2", role="backend", priority=2),
+            _make_task(id="b3", role="backend", priority=2),
+            _make_task(id="q1", role="qa", priority=2),
+            _make_task(id="q2", role="qa", priority=2),
+        ]
+        batches = group_by_role(tasks, max_per_batch=1)
+
+        assert len(batches) == 5
+        # Round-robin: first 4 batches must alternate roles (b,q,b,q or q,b,q,b)
+        roles = [b[0].role for b in batches[:4]]
+        # No two consecutive batches should be the same role (for the interleaved portion)
+        for i in range(len(roles) - 1):
+            assert roles[i] != roles[i + 1], f"Consecutive same-role batches at index {i}: {roles}"
+
+    def test_round_robin_starving_role_gets_first_slot(self) -> None:
+        """A role with fewer tasks still gets an agent before over-represented role gets a 2nd."""
+        tasks = [
+            # backend has 3 tasks, qa has 1 task (same priority)
+            _make_task(id="b1", role="backend", priority=2),
+            _make_task(id="b2", role="backend", priority=2),
+            _make_task(id="b3", role="backend", priority=2),
+            _make_task(id="q1", role="qa", priority=2),
+        ]
+        batches = group_by_role(tasks, max_per_batch=1)
+
+        assert len(batches) == 4
+        # q1 must appear within the first 2 batches (round 1), not last
+        first_two_roles = {b[0].role for b in batches[:2]}
+        assert "qa" in first_two_roles, f"qa not in first 2 batches: {[b[0].id for b in batches]}"
+
+    def test_round_robin_preserves_within_role_priority(self) -> None:
+        """Within each role, priority ordering is still respected across rounds."""
+        tasks = [
+            _make_task(id="b-crit", role="backend", priority=1),
+            _make_task(id="b-norm", role="backend", priority=2),
+            _make_task(id="q-norm", role="qa", priority=2),
+        ]
+        batches = group_by_role(tasks, max_per_batch=1)
+
+        assert len(batches) == 3
+        # b-crit should appear before b-norm in the result
+        backend_ids = [b[0].id for b in batches if b[0].role == "backend"]
+        assert backend_ids == ["b-crit", "b-norm"]
+
 
 # --- Orchestrator.tick ---
 

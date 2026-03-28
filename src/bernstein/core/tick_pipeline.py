@@ -153,33 +153,53 @@ def group_by_role(tasks: list[Task], max_per_batch: int) -> list[list[Task]]:
     (effective priority reduced by 1) to ensure self-evolution tasks are
     processed promptly.
 
+    Batches are interleaved in round-robin order across roles so that no
+    single role monopolises all agent slots. Within each round, the most
+    critical role (lowest priority value) is emitted first, preserving
+    priority ordering while guaranteeing fair distribution.
+
+    Example: backend(5 tasks) + qa(3 tasks) → [b1,q1, b2,q2, b3,q3, b4, b5]
+    The orchestrator iterates this list and stops at max_agents, so qa never
+    starves even though backend has more work.
+
     Args:
         tasks: Open tasks to batch.
         max_per_batch: Maximum tasks per batch (typically 1-3).
 
     Returns:
-        List of batches, each a list of same-role tasks.
+        List of batches, each a list of same-role tasks, round-robin interleaved.
     """
     by_role: dict[str, list[Task]] = defaultdict(list)
     for task in tasks:
         by_role[task.role].append(task)
 
-    batches: list[list[Task]] = []
-    for role_tasks in by_role.values():
-        # Sort by effective priority: upgrade proposals get a boost (lower priority value)
-        def _sort_key(t: Task) -> tuple[int, int]:
-            # Priority boost for upgrade proposals: subtract 1 from priority value
-            # (lower = higher priority). Second element is original priority for ties.
-            priority_boost = t.priority - 1 if t.task_type == TaskType.UPGRADE_PROPOSAL else t.priority
-            return (priority_boost, t.priority)
+    def _sort_key(t: Task) -> tuple[int, int]:
+        # Priority boost for upgrade proposals: subtract 1 from priority value
+        # (lower = higher priority). Second element is original priority for ties.
+        priority_boost = t.priority - 1 if t.task_type == TaskType.UPGRADE_PROPOSAL else t.priority
+        return (priority_boost, t.priority)
 
+    # Build per-role batch queues, sorted by priority within each role
+    role_batch_queues: dict[str, list[list[Task]]] = {}
+    for role, role_tasks in by_role.items():
         role_tasks.sort(key=_sort_key)
+        role_batches: list[list[Task]] = []
         for i in range(0, len(role_tasks), max_per_batch):
-            batches.append(role_tasks[i : i + max_per_batch])
+            role_batches.append(role_tasks[i : i + max_per_batch])
+        role_batch_queues[role] = role_batches
 
-    # Sort batches by best (lowest) priority so critical work goes first.
-    batches.sort(key=lambda b: b[0].priority)
-    return batches
+    # Round-robin interleave: emit one batch per role per round.
+    # Within each round, the most critical roles (lowest priority value) go first.
+    result: list[list[Task]] = []
+    while any(role_batch_queues.values()):
+        round_batches: list[list[Task]] = []
+        for role in list(role_batch_queues.keys()):
+            if role_batch_queues[role]:
+                round_batches.append(role_batch_queues[role].pop(0))
+        round_batches.sort(key=lambda b: b[0].priority)
+        result.extend(round_batches)
+
+    return result
 
 
 # ---------------------------------------------------------------------------

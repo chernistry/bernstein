@@ -37,6 +37,7 @@ from bernstein.core.server import (
     TaskCompleteRequest,
     TaskCreate,
     TaskFailRequest,
+    TaskPatchRequest,
     TaskProgressRequest,
     TaskResponse,
     TaskStore,
@@ -255,6 +256,23 @@ async def get_task(task_id: str, request: Request) -> TaskResponse:
     task = store.get_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
+    return task_to_response(task)
+
+
+@router.patch("/tasks/{task_id}", response_model=TaskResponse)
+async def patch_task(task_id: str, body: TaskPatchRequest, request: Request) -> TaskResponse:
+    """Update mutable task fields (role, priority) — manager corrections.
+
+    Used by the manager agent to correct mis-assigned tasks or adjust
+    priority without interrupting the deterministic orchestrator.
+    """
+    store = _get_store(request)
+    sse_bus = _get_sse_bus(request)
+    try:
+        task = await store.update(task_id, role=body.role, priority=body.priority)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
+    sse_bus.publish("task_update", json.dumps({"id": task.id, "status": task.status.value}))
     return task_to_response(task)
 
 

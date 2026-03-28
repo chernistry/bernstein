@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from bernstein.eval.judge import JudgeVerdict, _parse_verdict
+from bernstein.eval.judge import (
+    CircuitBreakerTripped,
+    EvalJudge,
+    JudgeVerdict,
+    _parse_verdict,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -229,3 +236,218 @@ class TestParseVerdictErrors:
         v = _parse_verdict(raw)
         # Non-list issues should result in empty list
         assert v.issues == []
+
+
+# ---------------------------------------------------------------------------
+# CircuitBreakerTripped exception
+# ---------------------------------------------------------------------------
+
+
+class TestCircuitBreakerTripped:
+    def test_is_runtime_error(self) -> None:
+        assert issubclass(CircuitBreakerTripped, RuntimeError)
+
+    def test_message(self) -> None:
+        exc = CircuitBreakerTripped("tripped")
+        assert str(exc) == "tripped"
+
+
+# ---------------------------------------------------------------------------
+# EvalJudge — initialization and configuration
+# ---------------------------------------------------------------------------
+
+_GOOD_JSON = json.dumps(
+    {"correctness": 4, "style": 4, "test_coverage": 3, "safety": 5, "verdict": "PASS", "issues": []}
+)
+
+
+class TestEvalJudgeInit:
+    def test_defaults(self) -> None:
+        judge = EvalJudge()
+        assert judge.model == "anthropic/claude-sonnet-4"
+        assert judge.provider == "openrouter_free"
+        assert judge.circuit_breaker_threshold == 3
+        assert judge.consecutive_failures == 0
+
+    def test_custom_config(self) -> None:
+        judge = EvalJudge(
+            model="openai/gpt-4o",
+            provider="openai",
+            backoff_schedule=(1.0, 2.0),
+            circuit_breaker_threshold=5,
+        )
+        assert judge.model == "openai/gpt-4o"
+        assert judge.provider == "openai"
+        assert judge.backoff_schedule == (1.0, 2.0)
+        assert judge.circuit_breaker_threshold == 5
+
+    def test_reset(self) -> None:
+        judge = EvalJudge()
+        judge._consecutive_failures = 5
+        judge.reset()
+        assert judge.consecutive_failures == 0
+
+
+# ---------------------------------------------------------------------------
+# EvalJudge — circuit breaker
+# ---------------------------------------------------------------------------
+
+
+class TestEvalJudgeCircuitBreaker:
+    def test_no_trip_below_threshold(self) -> None:
+        judge = EvalJudge(circuit_breaker_threshold=3)
+        judge._consecutive_failures = 2
+        judge.circuit_breaker()  # Should not raise
+
+    def test_trips_at_threshold(self) -> None:
+        judge = EvalJudge(circuit_breaker_threshold=3)
+        judge._consecutive_failures = 3
+        with pytest.raises(CircuitBreakerTripped, match="3 consecutive"):
+            judge.circuit_breaker()
+
+    def test_trips_above_threshold(self) -> None:
+        judge = EvalJudge(circuit_breaker_threshold=3)
+        judge._consecutive_failures = 10
+        with pytest.raises(CircuitBreakerTripped):
+            judge.circuit_breaker()
+
+
+# ---------------------------------------------------------------------------
+# EvalJudge — retry_with_backoff
+# ---------------------------------------------------------------------------
+
+
+class TestEvalJudgeRetryBackoff:
+    def test_sleeps_correct_duration(self) -> None:
+        judge = EvalJudge(backoff_schedule=(2.0, 4.0, 8.0))
+        with patch.object(asyncio, "sleep", new_callable=AsyncMock) as mock_sleep:
+            asyncio.run(judge.retry_with_backoff(0))
+            mock_sleep.assert_awaited_once_with(2.0)
+
+    def test_second_attempt_backoff(self) -> None:
+        judge = EvalJudge(backoff_schedule=(2.0, 4.0, 8.0))
+        with patch.object(asyncio, "sleep", new_callable=AsyncMock) as mock_sleep:
+            asyncio.run(judge.retry_with_backoff(1))
+            mock_sleep.assert_awaited_once_with(4.0)
+
+    def test_beyond_schedule_no_sleep(self) -> None:
+        judge = EvalJudge(backoff_schedule=(2.0,))
+        with patch.object(asyncio, "sleep", new_callable=AsyncMock) as mock_sleep:
+            asyncio.run(judge.retry_with_backoff(5))
+            mock_sleep.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# EvalJudge — dual_attempt
+# ---------------------------------------------------------------------------
+
+
+class TestEvalJudgeDualAttempt:
+    def test_first_attempt_succeeds(self) -> None:
+        judge = EvalJudge()
+        mock_llm = AsyncMock(return_value=_GOOD_JSON)
+        with patch("bernstein.core.llm.call_llm", mock_llm):
+            verdict = asyncio.run(judge.dual_attempt("test prompt"))
+        assert verdict.verdict == "PASS"
+        assert mock_llm.await_count == 1
+
+    def test_falls_back_to_strict(self) -> None:
+        judge = EvalJudge()
+        # First call returns garbage, second returns valid JSON
+        mock_llm = AsyncMock(side_effect=["not valid json {{{", _GOOD_JSON])
+        with patch("bernstein.core.llm.call_llm", mock_llm):
+            verdict = asyncio.run(judge.dual_attempt("test prompt"))
+        assert verdict.verdict == "PASS"
+        assert mock_llm.await_count == 2
+
+    def test_both_attempts_fail_raises(self) -> None:
+        judge = EvalJudge()
+        mock_llm = AsyncMock(side_effect=["garbage", "still garbage"])
+        with patch("bernstein.core.llm.call_llm", mock_llm):
+            with pytest.raises((json.JSONDecodeError, ValueError)):
+                asyncio.run(judge.dual_attempt("test prompt"))
+
+    def test_llm_error_propagates(self) -> None:
+        judge = EvalJudge()
+        mock_llm = AsyncMock(side_effect=RuntimeError("API down"))
+        with patch("bernstein.core.llm.call_llm", mock_llm):
+            with pytest.raises(RuntimeError, match="API down"):
+                asyncio.run(judge.dual_attempt("test prompt"))
+
+
+# ---------------------------------------------------------------------------
+# EvalJudge — review_git_diff (integration of all resilience)
+# ---------------------------------------------------------------------------
+
+
+class TestEvalJudgeReviewGitDiff:
+    def test_success_on_first_try(self) -> None:
+        judge = EvalJudge()
+        mock_llm = AsyncMock(return_value=_GOOD_JSON)
+        with patch("bernstein.core.llm.call_llm", mock_llm):
+            verdict = asyncio.run(
+                judge.review_git_diff(task_description="fix bug", git_diff="diff --git a/b")
+            )
+        assert verdict.verdict == "PASS"
+        assert judge.consecutive_failures == 0
+
+    def test_retries_on_runtime_error(self) -> None:
+        judge = EvalJudge(backoff_schedule=(0.0, 0.0, 0.0, 0.0))
+        mock_llm = AsyncMock(side_effect=[RuntimeError("timeout"), _GOOD_JSON])
+        with patch("bernstein.core.llm.call_llm", mock_llm):
+            verdict = asyncio.run(
+                judge.review_git_diff(task_description="fix bug", git_diff="diff")
+            )
+        assert verdict.verdict == "PASS"
+        assert judge.consecutive_failures == 0
+
+    def test_circuit_breaker_trips(self) -> None:
+        judge = EvalJudge(
+            backoff_schedule=(0.0, 0.0, 0.0, 0.0),
+            circuit_breaker_threshold=3,
+        )
+        mock_llm = AsyncMock(side_effect=RuntimeError("down"))
+        with patch("bernstein.core.llm.call_llm", mock_llm):
+            with pytest.raises(CircuitBreakerTripped):
+                asyncio.run(
+                    judge.review_git_diff(task_description="fix bug", git_diff="diff")
+                )
+        assert judge.consecutive_failures >= 3
+
+    def test_resets_failures_on_success(self) -> None:
+        judge = EvalJudge(backoff_schedule=(0.0, 0.0, 0.0, 0.0))
+        judge._consecutive_failures = 2
+        mock_llm = AsyncMock(return_value=_GOOD_JSON)
+        with patch("bernstein.core.llm.call_llm", mock_llm):
+            verdict = asyncio.run(
+                judge.review_git_diff(task_description="fix bug", git_diff="diff")
+            )
+        assert verdict.verdict == "PASS"
+        assert judge.consecutive_failures == 0
+
+    def test_truncates_large_diff(self) -> None:
+        judge = EvalJudge()
+        large_diff = "x" * 20000
+        mock_llm = AsyncMock(return_value=_GOOD_JSON)
+        with patch("bernstein.core.llm.call_llm", mock_llm) as m:
+            asyncio.run(
+                judge.review_git_diff(task_description="task", git_diff=large_diff)
+            )
+        # The prompt should have truncated the diff to 8000 chars
+        call_prompt = m.call_args[0][0]
+        assert "x" * 8000 in call_prompt
+        assert "x" * 8001 not in call_prompt
+
+    def test_exhausted_attempts_returns_fail(self) -> None:
+        # With threshold=10 so circuit breaker doesn't trip, but all attempts parse-fail
+        judge = EvalJudge(
+            backoff_schedule=(0.0, 0.0),
+            circuit_breaker_threshold=10,
+        )
+        mock_llm = AsyncMock(return_value="not json")
+        with patch("bernstein.core.llm.call_llm", mock_llm):
+            verdict = asyncio.run(
+                judge.review_git_diff(task_description="fix bug", git_diff="diff")
+            )
+        assert verdict.verdict == "FAIL"
+        assert "exhausted" in verdict.issues[0].lower()

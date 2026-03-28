@@ -16,7 +16,7 @@ from bernstein.eval.harness import (
 )
 from bernstein.eval.judge import JudgeVerdict
 from bernstein.eval.metrics import EvalScoreComponents, TierScores
-from bernstein.eval.taxonomy import FailureCategory, FailureRecord, FailureTaxonomy
+from bernstein.eval.taxonomy import FailureCategory, FailureRecord, FailureTaxonomy, classify_failure
 from bernstein.eval.telemetry import AgentTelemetry
 
 
@@ -559,3 +559,99 @@ class TestTaxonomyAccess:
         }
         h.evaluate_task(task, telemetry_raw=telemetry)
         assert h.taxonomy.total == 1
+
+
+# ---------------------------------------------------------------------------
+# Taxonomy classification — classify_failure priority ordering
+# ---------------------------------------------------------------------------
+
+
+class TestClassifyFailure:
+    def test_test_regression_highest_priority(self) -> None:
+        rec = classify_failure(task_id="t1", tests_regressed=True, timed_out=True, scope_violated=True)
+        assert rec.category == FailureCategory.TEST_REGRESSION
+        assert rec.severity == "critical"
+
+    def test_timeout(self) -> None:
+        rec = classify_failure(task_id="t2", timed_out=True)
+        assert rec.category == FailureCategory.TIMEOUT
+        assert rec.severity == "high"
+
+    def test_scope_creep(self) -> None:
+        rec = classify_failure(task_id="t3", scope_violated=True, files_involved=["extra.py"])
+        assert rec.category == FailureCategory.SCOPE_CREEP
+        assert rec.files_involved == ["extra.py"]
+
+    def test_conflict(self) -> None:
+        rec = classify_failure(task_id="t4", conflict_detected=True)
+        assert rec.category == FailureCategory.CONFLICT
+
+    def test_hallucination(self) -> None:
+        rec = classify_failure(task_id="t5", compile_error=True)
+        assert rec.category == FailureCategory.HALLUCINATION
+
+    def test_orientation_miss(self) -> None:
+        rec = classify_failure(task_id="t6", orientation_ratio=0.75)
+        assert rec.category == FailureCategory.ORIENTATION_MISS
+        assert "75%" in rec.details
+
+    def test_orientation_miss_boundary(self) -> None:
+        rec = classify_failure(task_id="t6b", orientation_ratio=0.5)
+        assert rec.category != FailureCategory.ORIENTATION_MISS
+
+    def test_incomplete(self) -> None:
+        rec = classify_failure(task_id="t7", signals_incomplete=True)
+        assert rec.category == FailureCategory.INCOMPLETE
+
+    def test_context_miss_default(self) -> None:
+        rec = classify_failure(task_id="t8")
+        assert rec.category == FailureCategory.CONTEXT_MISS
+        assert rec.severity == "medium"
+
+    def test_custom_details(self) -> None:
+        rec = classify_failure(task_id="t9", timed_out=True, details="Ran for 10 minutes")
+        assert rec.details == "Ran for 10 minutes"
+
+    def test_priority_timeout_over_scope(self) -> None:
+        rec = classify_failure(task_id="t10", timed_out=True, scope_violated=True)
+        assert rec.category == FailureCategory.TIMEOUT
+
+    def test_priority_scope_over_hallucination(self) -> None:
+        rec = classify_failure(task_id="t11", scope_violated=True, compile_error=True)
+        assert rec.category == FailureCategory.SCOPE_CREEP
+
+
+# ---------------------------------------------------------------------------
+# Taxonomy drift tracking
+# ---------------------------------------------------------------------------
+
+
+class TestTaxonomyDrift:
+    def test_drift_detects_new_failures(self) -> None:
+        prev = FailureTaxonomy()
+        curr = FailureTaxonomy()
+        curr.add(FailureRecord(task_id="t1", category=FailureCategory.TIMEOUT))
+        deltas = curr.drift(prev)
+        assert deltas == {"timeout": 1}
+
+    def test_drift_detects_improvements(self) -> None:
+        prev = FailureTaxonomy()
+        prev.add(FailureRecord(task_id="t1", category=FailureCategory.SCOPE_CREEP))
+        prev.add(FailureRecord(task_id="t2", category=FailureCategory.SCOPE_CREEP))
+        curr = FailureTaxonomy()
+        deltas = curr.drift(prev)
+        assert deltas == {"scope_creep": -2}
+
+    def test_drift_empty_both(self) -> None:
+        assert FailureTaxonomy().drift(FailureTaxonomy()) == {}
+
+    def test_drift_mixed_changes(self) -> None:
+        prev = FailureTaxonomy()
+        prev.add(FailureRecord(task_id="t1", category=FailureCategory.TIMEOUT))
+        prev.add(FailureRecord(task_id="t2", category=FailureCategory.TIMEOUT))
+        curr = FailureTaxonomy()
+        curr.add(FailureRecord(task_id="t3", category=FailureCategory.TIMEOUT))
+        curr.add(FailureRecord(task_id="t4", category=FailureCategory.HALLUCINATION))
+        deltas = curr.drift(prev)
+        assert deltas["timeout"] == -1
+        assert deltas["hallucination"] == 1

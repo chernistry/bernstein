@@ -300,7 +300,7 @@ def test_run_cycle_sandbox_failure(tmp_path: Path) -> None:
     loop = EvolutionLoop(state_dir, repo_root=tmp_path)
 
     opportunity = _make_opportunity()
-    proposal = _make_proposal()
+    proposal = _make_proposal(risk_level="code")  # code-level changes require sandbox
     decision = _make_approval_decision(proposal_id=proposal.id)
     failed_sandbox = _make_sandbox_result(
         proposal_id=proposal.id,
@@ -332,6 +332,8 @@ def test_run_cycle_sandbox_failure(tmp_path: Path) -> None:
             "_breaker",
             breaker_mock,
         ),
+        # Force standard risk route so sandbox is not bypassed
+        patch.object(loop, "_classify_risk_route", return_value="standard"),
     ):
         result = loop.run_cycle()
 
@@ -652,6 +654,7 @@ def test_run_cycle_sandbox_raises_worktree_error(tmp_path: Path) -> None:
         patch.object(loop._proposal_generator, "create_proposal", return_value=proposal),
         patch.object(loop._breaker, "can_evolve", return_value=(True, "ok")),
         patch.object(loop._gate, "route", return_value=decision),
+        patch.object(loop, "_classify_risk_route", return_value="standard"),
         patch.object(
             loop._sandbox,
             "validate",
@@ -678,6 +681,7 @@ def test_run_cycle_sandbox_raises_test_crash(tmp_path: Path) -> None:
         patch.object(loop._proposal_generator, "create_proposal", return_value=proposal),
         patch.object(loop._breaker, "can_evolve", return_value=(True, "ok")),
         patch.object(loop._gate, "route", return_value=decision),
+        patch.object(loop, "_classify_risk_route", return_value="standard"),
         patch.object(
             loop._sandbox,
             "validate",
@@ -859,6 +863,7 @@ def test_circuit_breaker_trips_after_sandbox_failure_blocks_next_cycle(
         patch.object(loop, "_run_baseline", return_value=1.0),
         patch.object(loop._proposal_generator, "create_proposal", return_value=proposal),
         patch.object(loop._gate, "route", return_value=decision),
+        patch.object(loop, "_classify_risk_route", return_value="standard"),
         patch.object(loop._sandbox, "validate", return_value=failed_sandbox),
         patch.object(loop, "_breaker", breaker_mock),
     ):
@@ -1026,6 +1031,7 @@ def test_run_cycle_full_state_transition_pending_to_applied(tmp_path: Path) -> N
         patch.object(loop, "_run_baseline", return_value=1.0),
         patch.object(loop._proposal_generator, "create_proposal", return_value=proposal),
         patch.object(loop._gate, "route", return_value=decision),
+        patch.object(loop, "_classify_risk_route", return_value="standard"),
         patch.object(loop._sandbox, "validate", return_value=sandbox_result),
         patch.object(loop, "_executor", executor_mock),
         patch.object(loop, "_breaker", breaker_mock),

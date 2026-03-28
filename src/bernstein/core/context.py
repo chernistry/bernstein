@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from bernstein.core.git_context import (
     cochange_files as _gc_cochange_files,
@@ -207,7 +207,7 @@ def gather_project_context(workdir: Path, max_lines: int = 100) -> str:
     return "\n\n".join(sections) if sections else "(no project context available)"
 
 
-def get_recent_project_memory(sdd_dir: Path, limit: int = 5) -> list[dict]:
+def get_recent_project_memory(sdd_dir: Path, limit: int = 5) -> list[dict[str, Any]]:
     """Get the last N entries from project memory.
 
     Args:
@@ -222,9 +222,10 @@ def get_recent_project_memory(sdd_dir: Path, limit: int = 5) -> list[dict]:
         return []
 
     try:
-        data = json.loads(memory_file.read_text(encoding="utf-8"))
-        if not isinstance(data, list):
+        raw = json.loads(memory_file.read_text(encoding="utf-8"))
+        if not isinstance(raw, list):
             return []
+        data = cast("list[dict[str, Any]]", raw)
         # Return last N entries in chronological order (oldest first)
         return data[-limit:] if len(data) > limit else data
     except (json.JSONDecodeError, OSError):
@@ -255,10 +256,7 @@ def gather_project_memory(sdd_dir: Path) -> str:
         total = tasks_done + tasks_failed
         lesson = entry.get("lesson", "")
 
-        if total > 0:
-            line = f"- **{goal}**: {tasks_done}/{total} tasks done"
-        else:
-            line = f"- **{goal}**: no tasks"
+        line = f"- **{goal}**: {tasks_done}/{total} tasks done" if total > 0 else f"- **{goal}**: no tasks"
 
         if lesson:
             line += f" — {lesson}"

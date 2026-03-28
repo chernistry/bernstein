@@ -317,6 +317,256 @@ def test_fresh_heartbeat_agent_not_recycled(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Case 3: role queue empty with no assigned tasks
+# ---------------------------------------------------------------------------
+
+
+def test_shutdown_sent_when_no_tasks_and_role_queue_empty(tmp_path: Path) -> None:
+    """Agent with empty task_ids gets SHUTDOWN when role has no open tasks (#333d-03)."""
+    orch = _make_orch(tmp_path)
+    session = _make_session([], session_id="s-notasks-01")  # no assigned tasks
+    orch._agents["s-notasks-01"] = session
+
+    tasks_snapshot = {
+        "done": [],
+        "failed": [],
+        "open": [],  # role queue empty
+        "claimed": [],
+        "blocked": [],
+    }
+
+    recycle_idle_agents(orch, tasks_snapshot)
+
+    orch._signal_mgr.write_shutdown.assert_called_once()
+    call_kwargs = orch._signal_mgr.write_shutdown.call_args
+    assert call_kwargs.args[0] == "s-notasks-01"
+    assert "role_queue_empty_no_tasks" in call_kwargs.kwargs["reason"]
+
+
+def test_no_shutdown_when_no_tasks_but_role_has_open_work(tmp_path: Path) -> None:
+    """Agent with empty task_ids is NOT recycled when the role still has open tasks."""
+    orch = _make_orch(tmp_path)
+    session = _make_session([])  # no assigned tasks
+    orch._agents["s-notasks-02"] = session
+
+    tasks_snapshot = {
+        "done": [],
+        "failed": [],
+        "open": [_make_task(id="T-open-1", status="open")],  # role has pending work
+        "claimed": [],
+        "blocked": [],
+    }
+
+    recycle_idle_agents(orch, tasks_snapshot)
+
+    orch._signal_mgr.write_shutdown.assert_not_called()
+    orch._spawner.kill.assert_not_called()
+
+
+def test_exit_by_role_queue_no_orphans(tmp_path: Path) -> None:
+    """Case 3 exit leaves zero orphaned tasks — zero-data-loss invariant holds.
+
+    Full lifecycle: SHUTDOWN sent → grace period elapses → agent force-killed.
+    Because task_ids is empty, handle_orphaned_task is never triggered and
+    the reconciliation equation holds trivially:
+        source_tasks (0) == completed (0) + quarantined (0)
+    Janitor verification is not invoked (nothing to verify).
+    """
+    orch = _make_orch(tmp_path)
+    session = _make_session([], session_id="s-case3-no-orphan")
+    orch._agents["s-case3-no-orphan"] = session
+
+    tasks_snapshot = {
+        "done": [],
+        "failed": [],
+        "open": [],  # role queue empty → triggers Case 3
+        "claimed": [],
+        "blocked": [],
+    }
+
+    # --- First call: SHUTDOWN signal sent ---
+    recycle_idle_agents(orch, tasks_snapshot)
+
+    orch._signal_mgr.write_shutdown.assert_called_once()
+    call_kwargs = orch._signal_mgr.write_shutdown.call_args
+    assert call_kwargs.args[0] == "s-case3-no-orphan"
+    assert "role_queue_empty_no_tasks" in call_kwargs.kwargs["reason"]
+    # Shutdown timestamp must be recorded
+    assert "s-case3-no-orphan" in orch._idle_shutdown_ts
+    # Kill must NOT have been called yet
+    orch._spawner.kill.assert_not_called()
+
+    # --- Simulate grace period elapsed ---
+    orch._idle_shutdown_ts["s-case3-no-orphan"] = time.time() - (_IDLE_GRACE_S + 1)
+
+    # --- Second call: force-kill triggered ---
+    recycle_idle_agents(orch, tasks_snapshot)
+
+    orch._spawner.kill.assert_called_once_with(session)
+    orch._signal_mgr.clear_signals.assert_called_once_with("s-case3-no-orphan")
+    # Tracking entry must be removed (no memory leak)
+    assert "s-case3-no-orphan" not in orch._idle_shutdown_ts
+
+    # Zero-data-loss guarantee: agent had no tasks, so nothing can be orphaned.
+    # source_count (0) == completed (0) + quarantined (0)
+    assert session.task_ids == []
+    # No task complete/fail/retry HTTP calls should have been made
+    orch._client.post.assert_not_called()
+
+
+def test_no_shutdown_when_tasks_assigned_role_queue_empty(tmp_path: Path) -> None:
+    """Agent with assigned tasks is NOT recycled via Case 3 even if role queue empties.
+
+    Case 1 (task_already_resolved) handles that scenario when the tasks complete.
+    While tasks are still in-progress, the agent should keep running.
+    """
+    orch = _make_orch(tmp_path)
+    session = _make_session(["T-inprogress-1"])  # has assigned task
+    orch._agents["s-active-02"] = session
+
+    tasks_snapshot = {
+        "done": [],
+        "failed": [],
+        "open": [],  # role queue empty — but agent has active tasks
+        "claimed": [_make_task(id="T-inprogress-1", status="claimed")],
+        "blocked": [],
+    }
+
+    recycle_idle_agents(orch, tasks_snapshot)
+
+    # Agent is still working on T-inprogress-1 — neither Case 1 nor Case 3 should fire
+    orch._signal_mgr.write_shutdown.assert_not_called()
+    orch._spawner.kill.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Case 4: role fully drained — rebalancing exit (#333d-03)
+# ---------------------------------------------------------------------------
+
+
+def test_shutdown_on_role_drained_rebalance(tmp_path: Path) -> None:
+    """Agent exits when its role has zero active tasks (open+claimed+in_progress).
+
+    Catches the orphaned-task edge case: agent has task_ids that were deleted
+    from the server, so they don't appear in any status bucket. Cases 1-3 miss
+    this, but Case 4 catches it because the role has 0 active work.
+    """
+    orch = _make_orch(tmp_path)
+    # Agent has a task_id that doesn't appear in any snapshot status (deleted)
+    session = _make_session(["T-deleted-1"], session_id="s-orphan-01")
+    orch._agents["s-orphan-01"] = session
+
+    tasks_snapshot = {
+        "done": [],
+        "failed": [],
+        "open": [],
+        "claimed": [],
+        "in_progress": [],
+        "blocked": [],
+    }
+
+    recycle_idle_agents(orch, tasks_snapshot)
+
+    orch._signal_mgr.write_shutdown.assert_called_once()
+    call_kwargs = orch._signal_mgr.write_shutdown.call_args
+    assert call_kwargs.args[0] == "s-orphan-01"
+    assert "role_drained_rebalance" in call_kwargs.kwargs["reason"]
+
+
+def test_no_shutdown_when_role_has_active_work(tmp_path: Path) -> None:
+    """Agent is NOT recycled via Case 4 when its role still has active tasks."""
+    orch = _make_orch(tmp_path)
+    # Agent has orphaned task_id, but role still has other active work
+    session = _make_session(["T-deleted-2"], session_id="s-orphan-02")
+    orch._agents["s-orphan-02"] = session
+
+    tasks_snapshot = {
+        "done": [],
+        "failed": [],
+        "open": [],
+        "claimed": [_make_task(id="T-other-1", status="claimed")],  # role has active work
+        "in_progress": [],
+        "blocked": [],
+    }
+
+    recycle_idle_agents(orch, tasks_snapshot)
+
+    orch._signal_mgr.write_shutdown.assert_not_called()
+    orch._spawner.kill.assert_not_called()
+
+
+def test_rebalance_exit_when_all_tasks_done_role_empty(tmp_path: Path) -> None:
+    """Agent exits for rebalancing when its tasks are done AND role has no active work.
+
+    Case 1 fires first here (task_already_resolved), but this test validates
+    the end-to-end scenario: task completion + empty role queue → agent exits.
+    """
+    orch = _make_orch(tmp_path)
+    session = _make_session(["T-done-rebal-1"], session_id="s-rebal-01")
+    orch._agents["s-rebal-01"] = session
+
+    tasks_snapshot = {
+        "done": [_make_task(id="T-done-rebal-1", status="done")],
+        "failed": [],
+        "open": [],
+        "claimed": [],
+        "in_progress": [],
+        "blocked": [],
+    }
+
+    recycle_idle_agents(orch, tasks_snapshot)
+
+    # Case 1 fires (task_already_resolved) — agent exits either way
+    orch._signal_mgr.write_shutdown.assert_called_once()
+
+
+def test_role_drained_with_in_progress_elsewhere_no_shutdown(tmp_path: Path) -> None:
+    """Agent with orphaned task is NOT recycled if role has in_progress tasks."""
+    orch = _make_orch(tmp_path)
+    session = _make_session(["T-ghost-1"], session_id="s-ghost-01")
+    orch._agents["s-ghost-01"] = session
+
+    tasks_snapshot = {
+        "done": [],
+        "failed": [],
+        "open": [],
+        "claimed": [],
+        "in_progress": [_make_task(id="T-active-1", status="in_progress")],
+        "blocked": [],
+    }
+
+    recycle_idle_agents(orch, tasks_snapshot)
+
+    orch._signal_mgr.write_shutdown.assert_not_called()
+
+
+def test_multiple_agents_same_drained_role_all_exit(tmp_path: Path) -> None:
+    """All agents for a drained role get SHUTDOWN, not just one."""
+    orch = _make_orch(tmp_path)
+    s1 = _make_session(["T-orphan-a"], session_id="s-multi-01")
+    s2 = _make_session(["T-orphan-b"], session_id="s-multi-02")
+    orch._agents["s-multi-01"] = s1
+    orch._agents["s-multi-02"] = s2
+
+    tasks_snapshot = {
+        "done": [],
+        "failed": [],
+        "open": [],
+        "claimed": [],
+        "in_progress": [],
+        "blocked": [],
+    }
+
+    recycle_idle_agents(orch, tasks_snapshot)
+
+    assert orch._signal_mgr.write_shutdown.call_count == 2
+    shutdown_sessions = {
+        call.args[0] for call in orch._signal_mgr.write_shutdown.call_args_list
+    }
+    assert shutdown_sessions == {"s-multi-01", "s-multi-02"}
+
+
+# ---------------------------------------------------------------------------
 # Constants sanity checks
 # ---------------------------------------------------------------------------
 

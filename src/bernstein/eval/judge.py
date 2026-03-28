@@ -15,6 +15,10 @@ from typing import Literal, cast
 logger = logging.getLogger(__name__)
 
 
+class CircuitBreakerTripped(RuntimeError):
+    """Raised when the judge circuit breaker trips after consecutive failures."""
+
+
 @dataclass(frozen=True)
 class JudgeVerdict:
     """Structured verdict from the LLM judge.
@@ -134,6 +138,153 @@ def _parse_verdict(raw: str) -> JudgeVerdict:
     )
 
 
+class EvalJudge:
+    """LLM-based code quality judge with resilience patterns.
+
+    Provides dual-attempt prompting, circuit breaker, and retry with
+    exponential backoff for robust LLM-based code evaluation.
+
+    Args:
+        model: LLM model identifier.
+        provider: LLM provider name.
+        backoff_schedule: Retry delay sequence in seconds.
+        circuit_breaker_threshold: Consecutive failures before tripping.
+    """
+
+    def __init__(
+        self,
+        *,
+        model: str = "anthropic/claude-sonnet-4",
+        provider: str = "openrouter_free",
+        backoff_schedule: tuple[float, ...] = _BACKOFF_SCHEDULE,
+        circuit_breaker_threshold: int = _CIRCUIT_BREAKER_THRESHOLD,
+    ) -> None:
+        self.model = model
+        self.provider = provider
+        self.backoff_schedule = backoff_schedule
+        self.circuit_breaker_threshold = circuit_breaker_threshold
+        self._consecutive_failures = 0
+
+    @property
+    def consecutive_failures(self) -> int:
+        """Current consecutive failure count."""
+        return self._consecutive_failures
+
+    def reset(self) -> None:
+        """Reset the circuit breaker failure counter."""
+        self._consecutive_failures = 0
+
+    def circuit_breaker(self) -> None:
+        """Check circuit breaker state and raise if tripped.
+
+        Raises:
+            CircuitBreakerTripped: If consecutive failures >= threshold.
+        """
+        if self._consecutive_failures >= self.circuit_breaker_threshold:
+            raise CircuitBreakerTripped(
+                f"Judge circuit breaker tripped after {self._consecutive_failures} consecutive failures"
+            )
+
+    async def retry_with_backoff(self, attempt: int) -> None:
+        """Sleep with exponential backoff for the given attempt index.
+
+        Args:
+            attempt: Zero-based attempt index into the backoff schedule.
+        """
+        if attempt < len(self.backoff_schedule):
+            await asyncio.sleep(self.backoff_schedule[attempt])
+
+    async def dual_attempt(self, prompt: str) -> JudgeVerdict:
+        """Try standard prompt first, then strict JSON suffix on parse failure.
+
+        Args:
+            prompt: The judge prompt to send.
+
+        Returns:
+            Parsed JudgeVerdict.
+
+        Raises:
+            json.JSONDecodeError: If both attempts fail to produce valid JSON.
+            ValueError: If both attempts fail to parse.
+            RuntimeError: If the LLM call itself fails.
+        """
+        from bernstein.core.llm import call_llm
+
+        raw = await call_llm(prompt, model=self.model, provider=self.provider, temperature=0.1)
+        try:
+            return _parse_verdict(raw)
+        except (json.JSONDecodeError, ValueError, KeyError):
+            logger.debug("Judge parse failed, retrying with strict suffix")
+            raw_strict = await call_llm(
+                prompt + _STRICT_SUFFIX,
+                model=self.model,
+                provider=self.provider,
+                temperature=0.0,
+            )
+            return _parse_verdict(raw_strict)
+
+    async def review_git_diff(
+        self,
+        *,
+        task_description: str,
+        git_diff: str,
+        test_results: str = "",
+    ) -> JudgeVerdict:
+        """Judge a code change using an LLM with full resilience.
+
+        Combines dual-attempt prompting, circuit breaker, and retry with
+        exponential backoff.
+
+        Args:
+            task_description: What the agent was asked to do.
+            git_diff: The git diff of the agent's changes.
+            test_results: Output from running tests.
+
+        Returns:
+            JudgeVerdict with scores and issues.
+
+        Raises:
+            CircuitBreakerTripped: If consecutive failures hit the threshold.
+        """
+        prompt = _JUDGE_PROMPT.format(
+            task_description=task_description,
+            git_diff=git_diff[:8000],
+            test_results=test_results[:2000],
+        )
+
+        for attempt in range(len(self.backoff_schedule)):
+            self.circuit_breaker()
+
+            try:
+                verdict = await self.dual_attempt(prompt)
+                self._consecutive_failures = 0
+                return verdict
+
+            except RuntimeError:
+                self._consecutive_failures += 1
+                logger.warning(
+                    "Judge LLM call failed (attempt %d/%d)",
+                    attempt + 1,
+                    len(self.backoff_schedule),
+                )
+                if attempt < len(self.backoff_schedule) - 1:
+                    await self.retry_with_backoff(attempt)
+
+            except (json.JSONDecodeError, ValueError, KeyError):
+                self._consecutive_failures += 1
+                logger.warning(
+                    "Judge parse failed on both attempts (attempt %d/%d)",
+                    attempt + 1,
+                    len(self.backoff_schedule),
+                )
+                if attempt < len(self.backoff_schedule) - 1:
+                    await self.retry_with_backoff(attempt)
+
+        # Final circuit breaker check after all attempts exhausted
+        self.circuit_breaker()
+        return JudgeVerdict(verdict="FAIL", issues=["All judge attempts exhausted"])
+
+
 async def judge_code_change(
     *,
     task_description: str,
@@ -144,9 +295,7 @@ async def judge_code_change(
 ) -> JudgeVerdict:
     """Judge a code change using an LLM with resilience.
 
-    Dual-attempt: standard prompt first, then strict JSON suffix on parse failure.
-    Retries with exponential backoff on transient errors.
-    Circuit breaker stops after 3 consecutive failures.
+    Convenience wrapper around EvalJudge for backward compatibility.
 
     Args:
         task_description: What the agent was asked to do.
@@ -158,46 +307,12 @@ async def judge_code_change(
     Returns:
         JudgeVerdict with scores and issues.
     """
-    from bernstein.core.llm import call_llm
-
-    prompt = _JUDGE_PROMPT.format(
-        task_description=task_description,
-        git_diff=git_diff[:8000],  # Truncate large diffs
-        test_results=test_results[:2000],
-    )
-
-    consecutive_failures = 0
-
-    for attempt, backoff in enumerate(_BACKOFF_SCHEDULE):
-        if consecutive_failures >= _CIRCUIT_BREAKER_THRESHOLD:
-            logger.warning("Judge circuit breaker tripped after %d consecutive failures", consecutive_failures)
-            return JudgeVerdict(verdict="FAIL", issues=["Judge circuit breaker tripped"])
-
-        try:
-            # First attempt: standard prompt
-            raw = await call_llm(prompt, model=model, provider=provider, temperature=0.1)
-            try:
-                return _parse_verdict(raw)
-            except (json.JSONDecodeError, ValueError, KeyError):
-                # Second attempt: strict JSON suffix
-                logger.debug("Judge parse failed on attempt %d, retrying with strict suffix", attempt)
-                raw_strict = await call_llm(
-                    prompt + _STRICT_SUFFIX,
-                    model=model,
-                    provider=provider,
-                    temperature=0.0,
-                )
-                return _parse_verdict(raw_strict)
-
-        except RuntimeError:
-            consecutive_failures += 1
-            logger.warning("Judge LLM call failed (attempt %d/%d)", attempt + 1, len(_BACKOFF_SCHEDULE))
-            if attempt < len(_BACKOFF_SCHEDULE) - 1:
-                await asyncio.sleep(backoff)
-        except (json.JSONDecodeError, ValueError, KeyError):
-            consecutive_failures += 1
-            logger.warning("Judge parse failed on both attempts (attempt %d/%d)", attempt + 1, len(_BACKOFF_SCHEDULE))
-            if attempt < len(_BACKOFF_SCHEDULE) - 1:
-                await asyncio.sleep(backoff)
-
-    return JudgeVerdict(verdict="FAIL", issues=["All judge attempts exhausted"])
+    judge = EvalJudge(model=model, provider=provider)
+    try:
+        return await judge.review_git_diff(
+            task_description=task_description,
+            git_diff=git_diff,
+            test_results=test_results,
+        )
+    except CircuitBreakerTripped:
+        return JudgeVerdict(verdict="FAIL", issues=["Judge circuit breaker tripped"])

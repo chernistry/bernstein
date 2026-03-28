@@ -1,9 +1,10 @@
-"""GitHub webhook route."""
+"""GitHub webhook route and alerts endpoint."""
 
 from __future__ import annotations
 
 import logging
 import os
+import time
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -18,6 +19,37 @@ router = APIRouter()
 
 def _get_store(request: Request) -> TaskStore:
     return request.app.state.store  # type: ignore[no-any-return]
+
+
+# ---------------------------------------------------------------------------
+# Alerts
+# ---------------------------------------------------------------------------
+
+
+@router.get("/alerts")
+async def get_alerts(request: Request) -> JSONResponse:
+    """Return current dashboard alerts as JSON.
+
+    Builds alerts from the live task/agent state — failed tasks, blocked
+    tasks, stale agents, and budget thresholds.  Intended for dashboard
+    polling or external monitoring.
+
+    Returns a JSON object with keys:
+    - ``alerts``: list of alert dicts (``level``, ``message``, ``detail``)
+    - ``count``: total number of alerts
+    - ``ts``: server timestamp (Unix seconds)
+    """
+    from bernstein.core.routes.status import build_alerts
+
+    store = _get_store(request)
+    agents = store.agents
+    alive_agents = [a for a in agents.values() if a.status != "dead"]
+    cost_by_role = store.cost_by_role()
+    total_cost = sum(cost_by_role.values())
+    now = time.time()
+
+    alerts = build_alerts(store, alive_agents, total_cost, now)
+    return JSONResponse(content={"alerts": alerts, "count": len(alerts), "ts": now})
 
 
 def _count_ci_fix_attempts(store: TaskStore, head_branch: str) -> int:

@@ -70,7 +70,7 @@ async def file_locks_endpoint(request: Request) -> JSONResponse:
                         "elapsed_s": elapsed_s,
                         "files": [],
                     }
-                cast(list[str], locks_by_agent[agent_id]["files"]).append(file_path)
+                cast("list[str]", locks_by_agent[agent_id]["files"]).append(file_path)
         except (json.JSONDecodeError, OSError, KeyError, ValueError):
             pass
 

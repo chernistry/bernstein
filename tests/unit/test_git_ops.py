@@ -21,8 +21,10 @@ from bernstein.core.git_ops import (
     checkout_discard,
     commit,
     conventional_commit,
+    create_branch,
     create_github_pr,
     create_task_branch,
+    delete_old_branches,
     diff_cached,
     diff_cached_names,
     diff_cached_stat,
@@ -618,6 +620,87 @@ class TestPullRequestResult:
         r = PullRequestResult(success=True)
         with pytest.raises(AttributeError):
             r.success = False  # type: ignore[misc]
+
+
+class TestCreateBranch:
+    """Tests for create_branch — creates a branch from a base without checkout."""
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_creates_from_main(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        result = create_branch(REPO, "bernstein/task-abc123")
+        assert result.ok
+        mock.assert_called_once_with(
+            ["branch", "bernstein/task-abc123", "main"],
+            REPO,
+            timeout=10,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_creates_from_custom_base(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(0, "", "")
+        result = create_branch(REPO, "evolve/iteration-5", base="develop")
+        assert result.ok
+        mock.assert_called_once_with(
+            ["branch", "evolve/iteration-5", "develop"],
+            REPO,
+            timeout=10,
+        )
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_returns_failure_on_exists(self, mock: MagicMock) -> None:
+        mock.return_value = GitResult(1, "", "fatal: a branch named 'x' already exists")
+        result = create_branch(REPO, "x")
+        assert not result.ok
+
+
+class TestDeleteOldBranches:
+    """Tests for delete_old_branches — auto-cleanup of stale branches."""
+
+    @patch("bernstein.core.git_ops.time.time", return_value=1_000_000.0)
+    @patch("bernstein.core.git_ops.run_git")
+    def test_deletes_old_branches(self, mock_git: MagicMock, _mock_time: MagicMock) -> None:
+        # Branch list: one old (epoch 900000 = ~28h ago), one recent (epoch 999000 = ~17min ago)
+        branch_list = "bernstein/task-old 900000\nbernstein/task-new 999000\n"
+        mock_git.side_effect = [
+            GitResult(0, branch_list, ""),  # branch --list
+            GitResult(0, "", ""),  # branch -D (old)
+        ]
+        deleted = delete_old_branches(REPO, older_than_hours=24)
+        assert deleted == ["bernstein/task-old"]
+        # Should not try to delete the recent branch
+        assert mock_git.call_count == 2
+
+    @patch("bernstein.core.git_ops.time.time", return_value=1_000_000.0)
+    @patch("bernstein.core.git_ops.run_git")
+    def test_no_old_branches(self, mock_git: MagicMock, _mock_time: MagicMock) -> None:
+        branch_list = "bernstein/task-new 999000\n"
+        mock_git.side_effect = [
+            GitResult(0, branch_list, ""),  # branch --list
+        ]
+        deleted = delete_old_branches(REPO, older_than_hours=24)
+        assert deleted == []
+
+    @patch("bernstein.core.git_ops.time.time", return_value=1_000_000.0)
+    @patch("bernstein.core.git_ops.run_git")
+    def test_also_deletes_remote(self, mock_git: MagicMock, _mock_time: MagicMock) -> None:
+        branch_list = "bernstein/task-stale 800000\n"
+        mock_git.side_effect = [
+            GitResult(0, branch_list, ""),  # branch --list
+            GitResult(0, "", ""),  # branch -D
+            GitResult(0, "", ""),  # push --delete
+        ]
+        deleted = delete_old_branches(REPO, older_than_hours=24, remote="origin")
+        assert deleted == ["bernstein/task-stale"]
+        # Verify remote delete was called
+        push_call = mock_git.call_args_list[2]
+        assert push_call[0][0] == ["push", "origin", "--delete", "bernstein/task-stale"]
+
+    @patch("bernstein.core.git_ops.run_git")
+    def test_empty_branch_list(self, mock_git: MagicMock) -> None:
+        mock_git.return_value = GitResult(0, "", "")
+        deleted = delete_old_branches(REPO)
+        assert deleted == []
 
 
 class TestCreateTaskBranch:

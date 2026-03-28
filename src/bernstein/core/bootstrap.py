@@ -279,7 +279,7 @@ def _clean_stale_runtime(workdir: Path) -> None:
         jsonl.unlink(missing_ok=True)
 
 
-def _ensure_sdd(workdir: Path) -> bool:
+def ensure_sdd(workdir: Path) -> bool:
     """Create .sdd/ workspace structure if it does not exist.
 
     Args:
@@ -696,9 +696,9 @@ def bootstrap_from_seed(
         seed = parse_seed(seed_path)
         # Apply CLI overrides (--cli, --model take precedence over seed config)
         if cli is not None:
-            seed.cli = cli
+            object.__setattr__(seed, "cli", cli)
         if model is not None:
-            seed.model = model
+            object.__setattr__(seed, "model", model)
         # Pre-flight: verify binary, API key, and port before touching anything.
         preflight_checks(seed.cli, port)
     effective_cells = cells if cells is not None else seed.cells
@@ -719,7 +719,7 @@ def bootstrap_from_seed(
 
     # 2. Init workspace + clean stale state
     with Status("[bold]Initialising workspace...[/bold]", console=console):
-        created = _ensure_sdd(workdir)
+        created = ensure_sdd(workdir)
         _clean_stale_runtime(workdir)
         _discover_catalog(workdir)
         _build_codebase_index(workdir)
@@ -950,7 +950,7 @@ def run_watchdog(workdir: Path, port: int, poll_s: float = 5.0) -> None:
                     logger.exception("Failed to restart orchestrator")
 
 
-def _auto_write_bernstein_yaml(workdir: Path) -> None:
+def auto_write_bernstein_yaml(workdir: Path) -> None:
     """Write a minimal bernstein.yaml with auto-routing to the project root.
 
     Called on first ``bernstein -g`` when no bernstein.yaml exists so users
@@ -1025,11 +1025,11 @@ def bootstrap_from_goal(
 
     # Initialise workspace
     with Status("[bold]Initialising workspace...[/bold]", console=console):
-        created = _ensure_sdd(workdir)
+        created = ensure_sdd(workdir)
 
         # Auto-generate bernstein.yaml on first run so users can customise later
         if first_run and not (workdir / "bernstein.yaml").exists():
-            _auto_write_bernstein_yaml(workdir)
+            auto_write_bernstein_yaml(workdir)
 
         _clean_stale_runtime(workdir)
         _discover_catalog(workdir)

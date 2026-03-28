@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import time
 from pathlib import Path  # noqa: TC003 — used at runtime in dashboard_data
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
@@ -148,7 +148,7 @@ async def dashboard_data(request: Request) -> JSONResponse:
     cost_history = _read_cost_history(store)
 
     # -- Alerts --------------------------------------------------------------
-    alerts = _build_alerts(store, alive_agents, total_cost, now)
+    alerts = build_alerts(store, alive_agents, total_cost, now)
 
     # -- Merge queue snapshot ------------------------------------------------
     merge_queue = _read_merge_queue(request)
@@ -281,7 +281,7 @@ def _read_cost_history(store: TaskStore) -> list[dict[str, Any]]:
     return points
 
 
-def _build_alerts(
+def build_alerts(
     store: TaskStore,
     alive_agents: list[Any],
     total_cost: float,
@@ -393,25 +393,51 @@ def _load_live_costs(request: Request) -> dict[str, Any]:
         return _empty
 
 
-def _read_merge_queue(request: Request) -> list[dict[str, str]]:
-    """Read merge queue state if available on the orchestrator."""
-    # Merge queue lives on the orchestrator, not the server.
-    # Check for queue state file written by the orchestrator.
+def _read_merge_queue(request: Request) -> dict[str, Any]:
+    """Read merge queue state if available on the orchestrator.
+
+    Checks ``request.app.state.merge_queue`` (in-process) first, then falls
+    back to the ``merge_queue.json`` snapshot file written by the orchestrator.
+
+    Returns:
+        Dict with keys ``jobs`` (list of job dicts), ``depth`` (int), and
+        ``is_merging`` (bool).  All values are safe defaults when unavailable.
+    """
     import json
 
+    _empty: dict[str, Any] = {"jobs": [], "depth": 0, "is_merging": False}
+
+    # Fast path: in-process MergeQueue instance (same process as orchestrator)
+    mq = getattr(request.app.state, "merge_queue", None)
+    if mq is not None and hasattr(mq, "snapshot"):
+        return mq.snapshot()  # type: ignore[no-any-return]
+
+    # File-based fallback: orchestrator writes merge_queue.json when it runs
+    # in a separate process (typical production setup).
     runtime_dir: Any = getattr(request.app.state, "runtime_dir", None)
     if not runtime_dir:
-        return []
+        return _empty
     queue_path = runtime_dir / "merge_queue.json"
     if not queue_path.exists():
-        return []
+        return _empty
     try:
-        data = json.loads(queue_path.read_text(encoding="utf-8"))
-        if isinstance(data, list):
-            return [dict(item) for item in data if isinstance(item, dict)]  # type: ignore[reportUnknownArgumentType]
-        return []
+        raw: Any = json.loads(queue_path.read_text(encoding="utf-8"))
+        if isinstance(raw, list):
+            # Legacy format: plain list of job dicts
+            raw_list = cast("list[Any]", raw)
+            jobs: list[dict[str, Any]] = [cast("dict[str, Any]", item) for item in raw_list if isinstance(item, dict)]
+            return {"jobs": jobs, "depth": len(jobs), "is_merging": False}
+        if isinstance(raw, dict):
+            raw_dict = cast("dict[str, Any]", raw)
+            jobs = [cast("dict[str, Any]", item) for item in raw_dict.get("jobs", []) if isinstance(item, dict)]
+            return {
+                "jobs": jobs,
+                "depth": int(raw_dict.get("depth", len(jobs))),
+                "is_merging": bool(raw_dict.get("is_merging", False)),
+            }
+        return _empty
     except (OSError, json.JSONDecodeError):
-        return []
+        return _empty
 
 
 # ---------------------------------------------------------------------------

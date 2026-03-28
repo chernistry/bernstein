@@ -1380,11 +1380,14 @@ def _print_issues_suite(suite: IssuesBenchmarkSuite) -> None:
     print(f"{'Scenario':<20} {'Resolved':>8} {'Rate':>6}  {'Notes'}")
     print("-" * 80)
     print(f"{'Single agent':<20} {s_resolved:>8}/{n}  {s_rate * 100:>5.1f}%")
-    print(f"{'Multi-3 (Bernstein)':<20} {m3_resolved:>8}/{n}  {m3_rate * 100:>5.1f}%  "
-          f"{(m3_rate - s_rate) * 100:+.1f}pp  {mean_spd:.2f}x faster  "
-          f"{(1 - mean_cr) * 100:.0f}% cheaper")
-    print(f"{'Multi-5 (Bernstein)':<20} {m5_resolved:>8}/{n}  {m5_rate * 100:>5.1f}%  "
-          f"{(m5_rate - s_rate) * 100:+.1f}pp")
+    print(
+        f"{'Multi-3 (Bernstein)':<20} {m3_resolved:>8}/{n}  {m3_rate * 100:>5.1f}%  "
+        f"{(m3_rate - s_rate) * 100:+.1f}pp  {mean_spd:.2f}x faster  "
+        f"{(1 - mean_cr) * 100:.0f}% cheaper"
+    )
+    print(
+        f"{'Multi-5 (Bernstein)':<20} {m5_resolved:>8}/{n}  {m5_rate * 100:>5.1f}%  {(m5_rate - s_rate) * 100:+.1f}pp"
+    )
     print("-" * 80)
     print()
 

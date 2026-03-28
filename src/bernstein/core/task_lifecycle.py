@@ -577,14 +577,21 @@ def claim_and_spawn_batches(
     # Prevents any single role from consuming all agent slots while other roles starve.
     _all_task_count = sum(len(b) for b in batches)
     _tasks_per_role: dict[str, int] = defaultdict(int)
+    # Count open task batches per role — direct cap prevents spawning more agents
+    # than there are work items for a role (idle-agent accumulation guard).
+    _batches_per_role: dict[str, int] = defaultdict(int)
     for _b in batches:
         if _b:
             _tasks_per_role[_b[0].role] += len(_b)
+            _batches_per_role[_b[0].role] += 1
 
     # Count currently alive agents per role (baseline before this tick's spawns)
+    # Exclude idle agents (those sent SHUTDOWN signal) from count since they are
+    # exiting and won't accept new work. This ensures spawn prevention doesn't
+    # prevent spawning when a role's last agent is idle and waiting to exit.
     _alive_per_role: dict[str, int] = defaultdict(int)
     for _agent in orch._agents.values():
-        if _agent.status != "dead":
+        if _agent.status != "dead" and _agent.id not in orch._idle_shutdown_ts:
             _alive_per_role[_agent.role] += 1
 
     # Starvation prevention: promote batches for roles with 0 alive agents to the
@@ -629,18 +636,21 @@ def claim_and_spawn_batches(
         # Enforce per-role cap: no role gets more than ceil(max_agents * role_tasks / total_tasks)
         # agents. This prevents a role with many tasks from occupying all slots while other roles
         # have tasks but zero agents (starvation).
+        # Also capped at the number of open task batches for the role: never spawn more agents
+        # than there are work items. Prevents idle accumulation when a role's queue shrinks.
         if _all_task_count > 0 and batch:
             _role = batch[0].role
             _role_cap = math.ceil(orch._config.max_agents * _tasks_per_role[_role] / _all_task_count)
+            # Cap at open batches count: role can have at most one agent per available task batch
+            _effective_role_cap = min(_role_cap, _batches_per_role[_role])
             _current_role_agents = _alive_per_role[_role] + _spawned_per_role[_role]
-            if _current_role_agents >= _role_cap:
+            if _current_role_agents >= _effective_role_cap:
                 logger.debug(
-                    "Skipping batch for role %r: at cap (%d/%d agents for %d/%d tasks)",
+                    "Skipping batch for role %r: at cap (%d/%d agents for %d batches)",
                     _role,
                     _current_role_agents,
-                    _role_cap,
-                    _tasks_per_role[_role],
-                    _all_task_count,
+                    _effective_role_cap,
+                    _batches_per_role[_role],
                 )
                 continue
 

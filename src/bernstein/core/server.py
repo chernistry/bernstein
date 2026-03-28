@@ -786,7 +786,12 @@ class TaskStore:
             await self._append_jsonl(self._task_to_record(task))
             return task
 
-    async def claim_by_id(self, task_id: str, expected_version: int | None = None, agent_role: str | None = None) -> Task:
+    async def claim_by_id(
+        self,
+        task_id: str,
+        expected_version: int | None = None,
+        agent_role: str | None = None,
+    ) -> Task:
         """Claim a specific task by ID with optional optimistic locking and role matching.
 
         When ``expected_version`` is provided, the claim only succeeds if
@@ -830,7 +835,12 @@ class TaskStore:
                 await self._append_jsonl(self._task_to_record(task))
             return task
 
-    async def claim_batch(self, task_ids: list[str], agent_id: str, agent_role: str | None = None) -> tuple[list[str], list[str]]:
+    async def claim_batch(
+        self,
+        task_ids: list[str],
+        agent_id: str,
+        agent_role: str | None = None,
+    ) -> tuple[list[str], list[str]]:
         """Atomically claim multiple tasks by ID with optional role matching.
 
         Tasks that are not in OPEN status are skipped and reported as failed.

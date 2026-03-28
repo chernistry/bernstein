@@ -348,21 +348,22 @@ def cli(
         # Auto-detect available agents and initialize workspace
         console.print("[dim]No project setup found. Auto-detecting...[/dim]")
         from bernstein.core.agent_discovery import discover_agents_cached
-        from bernstein.core.bootstrap import _auto_write_bernstein_yaml, _ensure_sdd
+        from bernstein.core.bootstrap import auto_write_bernstein_yaml, ensure_sdd
 
         # Create .sdd/ structure
-        _ensure_sdd(workdir)
+        ensure_sdd(workdir)
 
         # Create bernstein.yaml with auto-detected agents
-        _auto_write_bernstein_yaml(workdir)
+        auto_write_bernstein_yaml(workdir)
 
         # Print what was detected
         discovery = discover_agents_cached()
         if discovery.agents:
+
             def model_short(m: str) -> str:
                 return m.split("-")[-1]
 
-            agents_str = []
+            agents_str: list[str] = []
             for a in discovery.agents:
                 models = ", ".join(model_short(m) for m in a.available_models[:2])
                 agents_str.append(f"{a.name.capitalize()} ({models})")

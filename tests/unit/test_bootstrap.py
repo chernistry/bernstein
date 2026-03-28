@@ -18,7 +18,7 @@ from bernstein.core.bootstrap import (
     _check_binary,
     _check_port_free,
     _clean_stale_runtime,
-    _ensure_sdd,
+    ensure_sdd,
     _is_alive,
     _read_pid,
     _resolve_auth_token,
@@ -138,40 +138,40 @@ class TestCleanStaleRuntime:
 
 
 # ---------------------------------------------------------------------------
-# _ensure_sdd
+# ensure_sdd
 # ---------------------------------------------------------------------------
 
 
 class TestEnsureSdd:
     def test_creates_all_sdd_dirs(self, tmp_path: Path) -> None:
-        _ensure_sdd(tmp_path)
+        ensure_sdd(tmp_path)
         for d in SDD_DIRS:
             assert (tmp_path / d).is_dir(), f"Missing {d}"
 
     def test_writes_default_config(self, tmp_path: Path) -> None:
-        _ensure_sdd(tmp_path)
+        ensure_sdd(tmp_path)
         config = (tmp_path / ".sdd" / "config.yaml").read_text()
         assert "server_port: 8052" in config
         assert "max_workers: 4" in config
 
     def test_writes_gitignore(self, tmp_path: Path) -> None:
-        _ensure_sdd(tmp_path)
+        ensure_sdd(tmp_path)
         gi = (tmp_path / ".sdd" / "runtime" / ".gitignore").read_text()
         assert "*.pid" in gi
         assert "*.log" in gi
 
     def test_returns_true_when_newly_created(self, tmp_path: Path) -> None:
-        assert _ensure_sdd(tmp_path) is True
+        assert ensure_sdd(tmp_path) is True
 
     def test_returns_false_when_already_exists(self, tmp_path: Path) -> None:
-        _ensure_sdd(tmp_path)
-        assert _ensure_sdd(tmp_path) is False
+        ensure_sdd(tmp_path)
+        assert ensure_sdd(tmp_path) is False
 
     def test_does_not_overwrite_existing_config(self, tmp_path: Path) -> None:
-        _ensure_sdd(tmp_path)
+        ensure_sdd(tmp_path)
         config_path = tmp_path / ".sdd" / "config.yaml"
         config_path.write_text("custom: true\n")
-        _ensure_sdd(tmp_path)
+        ensure_sdd(tmp_path)
         assert config_path.read_text() == "custom: true\n"
 
 

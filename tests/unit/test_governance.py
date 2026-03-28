@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import threading
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -12,6 +14,7 @@ from bernstein.evolution.governance import (
     EvolutionWeights,
     GovernanceEntry,
     ProjectContext,
+    log_evolution_decision,
 )
 
 # ---------------------------------------------------------------------------
@@ -306,3 +309,140 @@ def test_persist_weights_appended_to_jsonl(tmp_path: Path) -> None:
     last = json.loads(lines[-1])
     assert last["weights"]["security"] == pytest.approx(0.25)
     assert last["reason"] == "cycle 2"
+
+
+# ---------------------------------------------------------------------------
+# log_evolution_decision — standalone function
+# ---------------------------------------------------------------------------
+
+
+def test_log_evolution_decision_writes_valid_jsonl(tmp_path: Path) -> None:
+    """log_evolution_decision writes a parseable JSONL record with all fields."""
+    before = EvolutionWeights()
+    after = EvolutionWeights(
+        test_coverage=0.20,
+        lint_score=0.15,
+        type_safety=0.15,
+        performance=0.10,
+        security=0.25,
+        maintainability=0.15,
+    )
+    log_evolution_decision(
+        state_dir=tmp_path,
+        cycle=3,
+        weights_before=before,
+        weights_after=after,
+        weight_change_reason="security spike",
+        proposals_evaluated=7,
+        proposals_applied=4,
+        risk_scores=[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+        outcome_metrics={"pps_delta": 0.05, "srs_delta": -0.10},
+    )
+
+    log_path = tmp_path / "metrics" / "governance_log.jsonl"
+    assert log_path.exists()
+    lines = log_path.read_text().strip().splitlines()
+    assert len(lines) == 1
+
+    record = json.loads(lines[0])
+    assert record["cycle"] == 3
+    assert record["proposals_evaluated"] == 7
+    assert record["proposals_applied"] == 4
+    assert record["weight_change_reason"] == "security spike"
+    assert record["weights_before"]["test_coverage"] == pytest.approx(0.30)
+    assert record["weights_after"]["security"] == pytest.approx(0.25)
+    assert record["risk_scores"] == pytest.approx([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7])
+    assert record["outcome_metrics"]["pps_delta"] == pytest.approx(0.05)
+    assert record["outcome_metrics"]["srs_delta"] == pytest.approx(-0.10)
+
+
+def test_log_evolution_decision_custom_timestamp(tmp_path: Path) -> None:
+    """Explicit timestamp is preserved verbatim in the log record."""
+    ts = "2026-01-15T10:30:00+00:00"
+    log_evolution_decision(
+        state_dir=tmp_path,
+        cycle=1,
+        weights_before=EvolutionWeights(),
+        weights_after=EvolutionWeights(),
+        weight_change_reason="none",
+        proposals_evaluated=0,
+        proposals_applied=0,
+        risk_scores=[],
+        outcome_metrics={},
+        timestamp=ts,
+    )
+
+    log_path = tmp_path / "metrics" / "governance_log.jsonl"
+    record = json.loads(log_path.read_text().strip())
+    assert record["timestamp"] == ts
+
+
+def test_log_evolution_decision_auto_timestamp_accuracy(tmp_path: Path) -> None:
+    """Auto-generated timestamp is valid ISO 8601 and within 5 seconds of now."""
+    before_call = datetime.now(UTC)
+    log_evolution_decision(
+        state_dir=tmp_path,
+        cycle=1,
+        weights_before=EvolutionWeights(),
+        weights_after=EvolutionWeights(),
+        weight_change_reason="auto ts test",
+        proposals_evaluated=1,
+        proposals_applied=1,
+        risk_scores=[0.5],
+        outcome_metrics={"pps_delta": 0.0},
+    )
+    after_call = datetime.now(UTC)
+
+    log_path = tmp_path / "metrics" / "governance_log.jsonl"
+    record = json.loads(log_path.read_text().strip())
+    ts_str = record["timestamp"]
+
+    # Must parse without error (valid ISO 8601)
+    ts = datetime.fromisoformat(ts_str)
+
+    # Make both naive for comparison if needed
+    if ts.tzinfo is None:
+        before_call = before_call.replace(tzinfo=None)
+        after_call = after_call.replace(tzinfo=None)
+
+    assert before_call <= ts <= after_call
+
+
+def test_governance_log_concurrent_writes(tmp_path: Path) -> None:
+    """Concurrent calls to log_evolution_decision must not drop any entries."""
+    n_threads = 20
+    errors: list[Exception] = []
+
+    def write_entry(i: int) -> None:
+        try:
+            log_evolution_decision(
+                state_dir=tmp_path,
+                cycle=i,
+                weights_before=EvolutionWeights(),
+                weights_after=EvolutionWeights(),
+                weight_change_reason=f"concurrent write {i}",
+                proposals_evaluated=i,
+                proposals_applied=0,
+                risk_scores=[float(i) * 0.01],
+                outcome_metrics={"pps_delta": 0.0, "srs_delta": 0.0},
+            )
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    threads = [threading.Thread(target=write_entry, args=(i,)) for i in range(n_threads)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert not errors, f"Exceptions during concurrent writes: {errors}"
+
+    log_path = tmp_path / "metrics" / "governance_log.jsonl"
+    lines = log_path.read_text().strip().splitlines()
+    assert len(lines) == n_threads
+
+    # Every line must be valid JSON
+    for line in lines:
+        record = json.loads(line)
+        assert "cycle" in record
+        assert "timestamp" in record

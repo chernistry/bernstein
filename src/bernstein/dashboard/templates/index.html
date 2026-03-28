@@ -406,9 +406,9 @@
         <button class="tab-btn px-2 py-2 text-[10px] font-medium relative" :class="rightTab === 'alerts' && 'active'"
                 @click="rightTab = 'alerts'">
           Alerts
-          <span x-show="alerts.length > 0"
+          <span x-show="undismissedAlertCount > 0"
                 class="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center"
-                x-text="alerts.length"></span>
+                x-text="undismissedAlertCount"></span>
         </button>
       </div>
 
@@ -568,16 +568,41 @@
       </div>
 
       <!-- Merge Queue -->
-      <div x-show="rightTab === 'merge'" class="flex-1 overflow-auto p-2">
+      <div x-show="rightTab === 'merge'" class="flex-1 overflow-auto p-2 space-y-2">
+        <!-- Status header -->
+        <div class="flex items-center justify-between px-1">
+          <div class="flex items-center gap-1.5">
+            <span class="inline-block w-2 h-2 rounded-full"
+                  :class="mergeQueueMerging ? 'bg-yellow-500 pulse-dot' : (mergeQueue.length > 0 ? 'bg-accent' : 'bg-green-500')"></span>
+            <span class="text-[10px] text-muted"
+                  x-text="mergeQueueMerging ? 'Merging\u2026' : (mergeQueue.length > 0 ? 'Queued' : 'Idle')"></span>
+          </div>
+          <span class="text-[9px] text-muted font-mono"
+                x-text="mergeQueue.length + ' in queue'"></span>
+        </div>
         <template x-if="mergeQueue.length > 0">
           <div class="space-y-1.5">
-            <template x-for="(job, i) in mergeQueue" :key="i">
-              <div class="bg-surface border border-border rounded p-2">
-                <div class="flex items-center gap-1.5 mb-0.5">
-                  <span class="text-[10px] font-mono text-accent" x-text="'#' + (i + 1)"></span>
-                  <span class="text-xs text-text truncate" x-text="job.task_title || job.task_id"></span>
+            <template x-for="(job, i) in mergeQueue" :key="job.session_id || i">
+              <div class="bg-surface border rounded p-2 transition-colors"
+                   :class="i === 0 && mergeQueueMerging ? 'border-yellow-500/40 bg-yellow-900/10' : 'border-border'">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="text-[10px] font-mono shrink-0"
+                        :class="i === 0 && mergeQueueMerging ? 'text-yellow-400' : 'text-accent'"
+                        x-text="'#' + (i + 1)"></span>
+                  <template x-if="i === 0 && mergeQueueMerging">
+                    <span class="text-[9px] text-yellow-500/70 font-mono shrink-0 animate-pulse">merging</span>
+                  </template>
+                  <span class="text-xs text-text truncate flex-1"
+                        x-text="job.task_title || job.task_id"></span>
                 </div>
-                <div class="text-[10px] text-muted font-mono" x-text="job.session_id?.slice(0, 12) || '-'"></div>
+                <div class="pl-4 space-y-0.5">
+                  <div class="text-[9px] text-muted/70 font-mono truncate"
+                       x-text="'session: ' + (job.session_id?.slice(0, 14) || '\u2014')"></div>
+                  <template x-if="job.branch_name">
+                    <div class="text-[9px] text-muted/50 font-mono truncate"
+                         x-text="job.branch_name"></div>
+                  </template>
+                </div>
               </div>
             </template>
           </div>
@@ -593,35 +618,89 @@
       </div>
 
       <!-- Alerts -->
-      <div x-show="rightTab === 'alerts'" class="flex-1 overflow-auto p-2">
-        <template x-if="alerts.length > 0">
-          <div class="space-y-1.5">
-            <template x-for="(alert, i) in alerts" :key="i">
-              <div class="rounded-lg p-2 border slide-in"
-                   :class="alert.level === 'error' ? 'bg-red-900/20 border-red-500/30' : 'bg-yellow-900/20 border-yellow-500/30'">
-                <div class="flex items-center gap-1.5 mb-0.5">
-                  <svg x-show="alert.level === 'error'" class="w-3.5 h-3.5 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                  </svg>
-                  <svg x-show="alert.level === 'warning'" class="w-3.5 h-3.5 text-yellow-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                  </svg>
-                  <span class="text-xs font-medium" :class="alert.level === 'error' ? 'text-red-400' : 'text-yellow-400'"
-                        x-text="alert.message"></span>
+      <div x-show="rightTab === 'alerts'" class="flex-1 flex flex-col overflow-hidden">
+        <!-- Filter bar -->
+        <div class="px-2 py-1.5 border-b border-border/50 space-y-1 shrink-0">
+          <!-- Severity pills -->
+          <div class="flex items-center gap-1">
+            <span class="text-[9px] text-muted/60 uppercase tracking-widest w-10 shrink-0">Level</span>
+            <div class="flex gap-1">
+              <button @click="alertSeverity = 'all'"
+                      class="px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors"
+                      :class="alertSeverity === 'all' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-text'">All</button>
+              <button @click="alertSeverity = 'error'"
+                      class="px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors"
+                      :class="alertSeverity === 'error' ? 'bg-red-900/40 text-red-400' : 'text-muted hover:text-text'">Error</button>
+              <button @click="alertSeverity = 'warning'"
+                      class="px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors"
+                      :class="alertSeverity === 'warning' ? 'bg-yellow-900/40 text-yellow-400' : 'text-muted hover:text-text'">Warning</button>
+            </div>
+          </div>
+          <!-- Type pills -->
+          <div class="flex items-center gap-1 flex-wrap">
+            <span class="text-[9px] text-muted/60 uppercase tracking-widest w-10 shrink-0">Type</span>
+            <div class="flex gap-1 flex-wrap">
+              <template x-for="t in [{id:'all',label:'All'},{id:'failed',label:'Failed'},{id:'blocked',label:'Blocked'},{id:'stale',label:'Stale'},{id:'budget',label:'Budget'}]" :key="t.id">
+                <button @click="alertTypeFilter = t.id"
+                        class="px-1.5 py-0.5 rounded text-[9px] font-medium transition-colors"
+                        :class="alertTypeFilter === t.id ? 'bg-accent/20 text-accent' : 'text-muted hover:text-text'"
+                        x-text="t.label"></button>
+              </template>
+            </div>
+          </div>
+        </div>
+        <!-- Alert list -->
+        <div class="flex-1 overflow-auto p-2">
+          <template x-if="filteredAlerts.length > 0">
+            <div class="space-y-1.5">
+              <template x-for="alert in filteredAlerts" :key="alert._key">
+                <div class="rounded-lg p-2 border slide-in"
+                     :class="alert.level === 'error' ? 'bg-red-900/20 border-red-500/30' : 'bg-yellow-900/20 border-yellow-500/30'">
+                  <div class="flex items-start gap-1.5">
+                    <svg x-show="alert.level === 'error'" class="w-3.5 h-3.5 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <svg x-show="alert.level === 'warning'" class="w-3.5 h-3.5 text-yellow-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    <div class="flex-1 min-w-0">
+                      <span class="text-xs font-medium block"
+                            :class="alert.level === 'error' ? 'text-red-400' : 'text-yellow-400'"
+                            x-text="alert.message"></span>
+                      <p class="text-[10px] text-muted mt-0.5" x-text="alert.detail"></p>
+                    </div>
+                    <button @click="dismissAlert(alert.message)"
+                            class="shrink-0 w-4 h-4 flex items-center justify-center text-muted/40 hover:text-muted rounded transition-colors text-xs leading-none"
+                            title="Dismiss">&times;</button>
+                  </div>
                 </div>
-                <p class="text-[10px] text-muted pl-5" x-text="alert.detail"></p>
-              </div>
-            </template>
-          </div>
-        </template>
-        <template x-if="alerts.length === 0">
-          <div class="text-center py-8">
-            <svg class="w-6 h-6 text-green-500/30 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            <p class="text-xs text-muted">All clear</p>
-          </div>
-        </template>
+              </template>
+            </div>
+          </template>
+          <template x-if="filteredAlerts.length === 0 && alerts.length > 0">
+            <div class="text-center py-6">
+              <p class="text-xs text-muted">No alerts match filter</p>
+              <button @click="alertSeverity = 'all'; alertTypeFilter = 'all'"
+                      class="mt-2 text-[10px] text-accent hover:underline">Clear filters</button>
+            </div>
+          </template>
+          <template x-if="alerts.length === 0">
+            <div class="text-center py-8">
+              <svg class="w-6 h-6 text-green-500/30 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <p class="text-xs text-muted">All clear</p>
+            </div>
+          </template>
+        </div>
+        <!-- Footer: count + clear all -->
+        <div x-show="alerts.length > 0"
+             class="px-2 py-1.5 border-t border-border/50 flex items-center justify-between shrink-0">
+          <span class="text-[9px] text-muted font-mono"
+                x-text="filteredAlerts.length + ' / ' + alerts.length + ' shown'"></span>
+          <button @click="clearAllAlerts()"
+                  class="text-[9px] text-muted hover:text-red-400 transition-colors">Clear all</button>
+        </div>
       </div>
     </div>
   </div>
@@ -648,7 +727,13 @@
         fileLocks: {},
         locksData: { all_locks: [], locks_by_agent: {}, count: 0 },
         mergeQueue: [],
+        mergeQueueMerging: false,
         alerts: [],
+
+        // Alert filter + dismiss state
+        alertSeverity: 'all',
+        alertTypeFilter: 'all',
+        dismissedMessages: [],
 
         // UI state
         centerTab: 'tasks',
@@ -816,6 +901,31 @@
           return `0,75 ${line} ${lastX},75`;
         },
 
+        get undismissedAlertCount() {
+          return this.alerts.filter(a => !this.dismissedMessages.includes(a.message)).length;
+        },
+
+        get filteredAlerts() {
+          const active = this.alerts
+            .filter(a => !this.dismissedMessages.includes(a.message));
+          const bySev = this.alertSeverity === 'all'
+            ? active
+            : active.filter(a => a.level === this.alertSeverity);
+          const byType = this.alertTypeFilter === 'all'
+            ? bySev
+            : bySev.filter(a => {
+                const m = (a.message || '').toLowerCase();
+                switch (this.alertTypeFilter) {
+                  case 'failed':  return m.includes('failed');
+                  case 'blocked': return m.includes('blocked');
+                  case 'stale':   return m.includes('stall') || m.includes('heartbeat');
+                  case 'budget':  return m.includes('budget');
+                  default: return true;
+                }
+              });
+          return byType.map((a, i) => ({ ...a, _key: a.message + i }));
+        },
+
         init() {
           this.connectSSE();
           this.startTimer();
@@ -847,7 +957,9 @@
             this.costHistory = data.cost_history || [];
             this.liveCosts = data.live_costs || {};
             this.fileLocks = data.file_locks || {};
-            this.mergeQueue = data.merge_queue || [];
+            const mq = data.merge_queue || {};
+            this.mergeQueue = Array.isArray(mq) ? mq : (mq.jobs || []);
+            this.mergeQueueMerging = Array.isArray(mq) ? false : (mq.is_merging || false);
             this.alerts = data.alerts || [];
             this.lastUpdate = new Date().toLocaleTimeString();
             this.connected = true;
@@ -1040,6 +1152,16 @@
             const resp = await fetch(`/agents/${task.assigned_agent}/kill`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
             if (resp.ok) await this.fetchData();
           } finally { this.taskActionLoading = null; }
+        },
+
+        dismissAlert(msg) {
+          if (!this.dismissedMessages.includes(msg)) {
+            this.dismissedMessages = [...this.dismissedMessages, msg];
+          }
+        },
+
+        clearAllAlerts() {
+          this.dismissedMessages = this.alerts.map(a => a.message);
         },
       };
     }

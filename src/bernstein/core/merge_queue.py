@@ -11,6 +11,7 @@ import collections
 import logging
 import threading
 from dataclasses import dataclass, field
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,32 @@ class MergeQueue:
         """
         with self._queue_lock:
             return self._queue[0] if self._queue else None
+
+    def snapshot(self) -> dict[str, Any]:
+        """Return current queue state as a serialisable dict.
+
+        Includes all pending jobs, the current queue depth, and whether a
+        merge operation is currently in progress (``merge_lock`` is held).
+
+        Returns:
+            Dict with keys ``jobs`` (list[dict]), ``depth`` (int), and
+            ``is_merging`` (bool).
+        """
+        with self._queue_lock:
+            jobs: list[dict[str, str]] = [
+                {
+                    "session_id": job.session_id,
+                    "task_id": job.task_id,
+                    "task_title": job.task_title,
+                    "branch_name": job.branch_name,
+                }
+                for job in self._queue
+            ]
+        return {
+            "jobs": jobs,
+            "depth": len(jobs),
+            "is_merging": self.merge_lock.locked(),
+        }
 
     def __len__(self) -> int:
         with self._queue_lock:

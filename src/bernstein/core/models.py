@@ -368,7 +368,7 @@ class RunCostProjection:
         avg_cost_per_task_usd: Average cost per completed task (0 if no data).
         budget_usd: Budget cap (0 = unlimited).
         within_budget: True when projected total does not exceed the cap.
-        confidence: 0.0–1.0; reaches 1.0 after 5 completed tasks.
+        confidence: 0.0-1.0; reaches 1.0 after 5 completed tasks.
     """
 
     run_id: str

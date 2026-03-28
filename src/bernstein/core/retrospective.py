@@ -11,7 +11,7 @@ import logging
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from bernstein.core.models import Complexity, Task
 
@@ -464,19 +464,17 @@ def append_to_project_memory(
     memory_file = memory_dir / "project_memory.json"
 
     # Load existing entries or start fresh
+    entries: list[dict[str, object]] = []
     if memory_file.exists():
         try:
-            entries = json.loads(memory_file.read_text(encoding="utf-8"))
-            if not isinstance(entries, list):
-                entries = []
+            raw = json.loads(memory_file.read_text(encoding="utf-8"))
+            if isinstance(raw, list):
+                entries = cast("list[dict[str, object]]", raw)
         except (json.JSONDecodeError, OSError):
-            logger.warning(f"Failed to read project memory, starting fresh")
-            entries = []
-    else:
-        entries = []
+            logger.warning("Failed to read project memory, starting fresh")
 
     # Append new entry
-    entry = {
+    entry: dict[str, object] = {
         "run_id": run_id,
         "goal": goal,
         "tasks_done": tasks_done,

@@ -104,6 +104,7 @@ if TYPE_CHECKING:
 
     from bernstein.core.quality_gates import QualityGatesConfig
     from bernstein.core.spawner import AgentSpawner
+    from bernstein.evolution.loop import EvolutionLoop
 
 logger = logging.getLogger(__name__)
 
@@ -213,7 +214,9 @@ class Orchestrator:
         else:
             self._evolution: EvolutionCoordinator | None = None
 
-        # Adaptive governance: adjusts metric weights each evolution cycle
+        # Adaptive governance: adjusts metric weights each evolution cycle.
+        # Always initialize the governor — it's lightweight and evolve mode
+        # can be activated at runtime via evolve.json even if not in config.
         self._governor = AdaptiveGovernor(state_dir=workdir / ".sdd")
 
         # Strategic Risk Scorer: scores proposals before routing
@@ -1146,6 +1149,9 @@ class Orchestrator:
         committed = self._evolve_auto_commit()
 
         # Step 3b: GOVERN
+        # _governor is always non-None here because _check_evolve only runs
+        # when evolve_mode is enabled, and we initialize the governor in that case.
+        assert self._governor is not None, "AdaptiveGovernor must be initialized in evolve mode"
         weights_before = self._governor.get_current_weights()
         test_pass_rate = test_info.get("passed", 0) / max(test_info.get("passed", 0) + test_info.get("failed", 0), 1)
         gov_context = ProjectContext(
@@ -1600,6 +1606,25 @@ class Orchestrator:
             logger.warning("Evolve: failed to write cycle log: %s", exc)
 
     # -- Evolution integration -----------------------------------------------
+
+    def make_evolution_loop(self, **kwargs: Any) -> EvolutionLoop:
+        """Create an EvolutionLoop wired to this orchestrator's AdaptiveGovernor.
+
+        Passes the orchestrator's governor so the evolution loop shares the
+        same weight history and governance log as the orchestrator's evolve
+        cycles.  Any extra keyword arguments are forwarded to ``EvolutionLoop``.
+
+        Returns:
+            A fully-wired ``EvolutionLoop`` instance.
+        """
+        from bernstein.evolution.loop import EvolutionLoop
+
+        return EvolutionLoop(
+            state_dir=self._workdir / ".sdd",
+            repo_root=self._workdir,
+            governor=self._governor,
+            **kwargs,
+        )
 
     def _run_evolution_cycle(self, result: TickResult) -> None:
         """Run an evolution analysis cycle and create upgrade tasks from proposals."""

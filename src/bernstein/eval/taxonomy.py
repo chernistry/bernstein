@@ -80,6 +80,29 @@ class FailureTaxonomy:
         """Check if any test regressions occurred (safety gate trigger)."""
         return any(f.category == FailureCategory.TEST_REGRESSION for f in self.failures)
 
+    def drift(self, previous: FailureTaxonomy) -> dict[str, int]:
+        """Compare failure counts against a previous run to detect drift.
+
+        Returns a dict mapping category value to the signed delta
+        (positive = more failures this run, negative = fewer).
+        Only categories with non-zero delta are included.
+
+        Args:
+            previous: Taxonomy from a prior eval run.
+
+        Returns:
+            Dict of category value to count delta.
+        """
+        current_counts = self.counts()
+        prev_counts = previous.counts()
+        all_keys = set(current_counts) | set(prev_counts)
+        deltas: dict[str, int] = {}
+        for key in sorted(all_keys):
+            delta = current_counts.get(key, 0) - prev_counts.get(key, 0)
+            if delta != 0:
+                deltas[key] = delta
+        return deltas
+
 
 def classify_failure(
     *,

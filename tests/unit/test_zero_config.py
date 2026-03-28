@@ -141,17 +141,17 @@ class TestPreflightChecksAutoMode:
 
 
 # ---------------------------------------------------------------------------
-# _auto_write_bernstein_yaml
+# auto_write_bernstein_yaml
 # ---------------------------------------------------------------------------
 
 
 class TestAutoWriteBernsteinYaml:
     @patch("bernstein.core.agent_discovery.generate_auto_routing_yaml")
     def test_creates_file_with_auto_cli(self, mock_routing: MagicMock, tmp_path: Path) -> None:
-        from bernstein.core.bootstrap import _auto_write_bernstein_yaml
+        from bernstein.core.bootstrap import auto_write_bernstein_yaml
 
         mock_routing.return_value = "cli: auto  # detected: claude\nrouting:\n  backend: claude-sonnet\n"
-        _auto_write_bernstein_yaml(tmp_path)
+        auto_write_bernstein_yaml(tmp_path)
 
         yaml_path = tmp_path / "bernstein.yaml"
         assert yaml_path.exists()
@@ -161,10 +161,10 @@ class TestAutoWriteBernsteinYaml:
 
     @patch("bernstein.core.agent_discovery.generate_auto_routing_yaml")
     def test_creates_file_when_routing_empty(self, mock_routing: MagicMock, tmp_path: Path) -> None:
-        from bernstein.core.bootstrap import _auto_write_bernstein_yaml
+        from bernstein.core.bootstrap import auto_write_bernstein_yaml
 
         mock_routing.return_value = ""
-        _auto_write_bernstein_yaml(tmp_path)
+        auto_write_bernstein_yaml(tmp_path)
 
         yaml_path = tmp_path / "bernstein.yaml"
         assert yaml_path.exists()

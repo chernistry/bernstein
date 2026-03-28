@@ -379,6 +379,26 @@ class TestGroupByRole:
         # All qa batches should come before backend batches
         assert all(qa_index < bi for bi in backend_indices)
 
+    def test_group_by_role_multiple_starving_roles_prioritized(self) -> None:
+        """Multiple starving roles should all come before well-served roles."""
+        tasks = [
+            _make_task(id="b1", role="backend", priority=2),
+            _make_task(id="b2", role="backend", priority=2),
+            _make_task(id="q1", role="qa", priority=2),
+            _make_task(id="d1", role="docs", priority=2),
+        ]
+        # Only backend has agents; qa and docs are starving
+        alive_per_role = {"backend": 5}
+        batches = group_by_role(tasks, max_per_batch=1, alive_per_role=alive_per_role)
+
+        assert len(batches) == 4
+        roles = [b[0].role for b in batches]
+        # Both qa and docs (starving) should appear before backend (well-served)
+        first_backend_idx = next((i for i, r in enumerate(roles) if r == "backend"), None)
+        assert first_backend_idx is not None
+        for i, role in enumerate(roles[:first_backend_idx]):
+            assert role in ("qa", "docs"), f"Expected starving role at index {i}, got {role}"
+
 
 # --- prioritize_starving_roles ---
 
@@ -671,6 +691,282 @@ class TestPerRoleCapDistribution:
         assert "backend" not in spawned_roles, (
             f"backend is at its per-role cap (2/2); should not get a 3rd agent. Got: {spawned_roles}"
         )
+
+    def test_no_spawn_when_alive_agents_equal_open_batches(self, tmp_path: Path) -> None:
+        """No new agents spawned when alive agents for a role already equal open task batches.
+
+        Guards the rebalancing rule: alive_agents_for_role >= open_batches → skip.
+        Backend has 2 open tasks (2 batches) and already 2 alive agents → no new spawn.
+        QA has 1 open task and 0 agents → gets an agent.
+        """
+        be1 = _make_task(id="T-be1", role="backend", title="Backend 1")
+        be2 = _make_task(id="T-be2", role="backend", title="Backend 2")
+        qa1 = _make_task(id="T-qa1", role="qa", title="QA 1")
+        task_dicts = [_task_as_dict(be1), _task_as_dict(be2), _task_as_dict(qa1)]
+
+        cfg = OrchestratorConfig(
+            max_agents=6,
+            poll_interval_s=1,
+            heartbeat_timeout_s=120,
+            max_tasks_per_agent=1,
+            server_url="http://testserver",
+        )
+        orch = _build_orchestrator(tmp_path, httpx.MockTransport(self._make_handler(task_dicts)), config=cfg)
+
+        # Pre-seed 2 alive backend agents — one per open backend batch
+        for i in range(2):
+            session = AgentSession(
+                id=f"alive-backend-{i}",
+                role="backend",
+                pid=40000 + i,
+                task_ids=[f"T-be{i + 1}"],  # matches the open tasks
+                status="running",
+                model_config=RouterModelConfig(model="claude-sonnet-4-6", effort="normal"),
+                spawn_ts=time.time(),
+            )
+            orch._agents[session.id] = session
+
+        result = orch.tick()
+
+        spawned_roles = [orch._agents[sid].role for sid in result.spawned if sid in orch._agents]
+        assert "backend" not in spawned_roles, (
+            f"backend has {2} agents for {2} batches — must not spawn more. Got: {spawned_roles}"
+        )
+        assert "qa" in spawned_roles, f"qa (0 agents, 1 batch) should get a slot; got: {spawned_roles}"
+
+
+# --- Role-filtered claiming ---
+
+
+class TestRoleFilteredClaiming:
+    """Tests: orchestrator enforces single-role batches; claim failures abort spawn."""
+
+    def test_batches_contain_single_role_only(self) -> None:
+        """group_by_role guarantees each batch holds tasks of exactly one role.
+
+        This is the structural guarantee that prevents cross-role claiming:
+        the spawner always receives a same-role batch, so any agent it creates
+        only ever holds tasks for its own role.
+        """
+        tasks = [
+            _make_task(id="T-be1", role="backend"),
+            _make_task(id="T-qa1", role="qa"),
+            _make_task(id="T-be2", role="backend"),
+            _make_task(id="T-qa2", role="qa"),
+            _make_task(id="T-sec1", role="security"),
+        ]
+        batches = group_by_role(tasks, max_per_batch=3)
+
+        for batch in batches:
+            roles = {t.role for t in batch}
+            assert len(roles) == 1, f"batch mixes roles: {roles}"
+
+    def test_role_mismatch_error_from_server_aborts_spawn(self, tmp_path: Path) -> None:
+        """When the claim endpoint rejects with a server error (e.g. role mismatch),
+        the orchestrator aborts the spawn without creating an agent.
+        """
+        qa_task = _make_task(id="T-qa-mismatch", role="qa")
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            url = request.url
+            if request.method == "GET" and url.path == "/tasks":
+                return _tasks_response(url, [_task_as_dict(qa_task)])
+            if request.method == "POST" and "/claim" in url.path:
+                return httpx.Response(500, json={"detail": "role mismatch: task requires role 'qa'"})
+            return httpx.Response(404)
+
+        orch = _build_orchestrator(tmp_path, httpx.MockTransport(handler))
+        result = orch.tick()
+
+        assert len(result.spawned) == 0, "spawn must be aborted when claim is rejected"
+        assert any("claim" in e for e in result.errors), "claim error should be recorded"
+
+    def test_only_matching_role_tasks_per_agent(self, tmp_path: Path) -> None:
+        """Spawned agents hold tasks of exactly one role — no cross-role mixing."""
+        tasks = [
+            _make_task(id="T-be1", role="backend", title="Backend 1"),
+            _make_task(id="T-be2", role="backend", title="Backend 2"),
+            _make_task(id="T-qa1", role="qa", title="QA 1"),
+            _make_task(id="T-qa2", role="qa", title="QA 2"),
+        ]
+        task_dicts = [_task_as_dict(t) for t in tasks]
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            url = request.url
+            if request.method == "GET" and url.path == "/tasks":
+                return _tasks_response(url, task_dicts)
+            if request.method == "POST" and "/claim" in url.path:
+                task_id = url.path.split("/")[-2]
+                td = next((t for t in task_dicts if t["id"] == task_id), task_dicts[0])
+                return httpx.Response(200, json=td)
+            return httpx.Response(404)
+
+        cfg = OrchestratorConfig(
+            max_agents=4,
+            poll_interval_s=1,
+            heartbeat_timeout_s=120,
+            max_tasks_per_agent=2,
+            server_url="http://testserver",
+        )
+        orch = _build_orchestrator(tmp_path, httpx.MockTransport(handler), config=cfg)
+        result = orch.tick()
+
+        spawned_roles = [orch._agents[sid].role for sid in result.spawned if sid in orch._agents]
+        assert "backend" in spawned_roles, "backend role should get an agent"
+        assert "qa" in spawned_roles, "qa role should get an agent"
+
+
+# --- Agent rebalancing ---
+
+
+class TestAgentRebalancing:
+    """Tests: agents receive SHUTDOWN signal when their role's task queue empties."""
+
+    def test_agent_gets_shutdown_when_all_tasks_done(self, tmp_path: Path) -> None:
+        """Backend agent is recycled (SHUTDOWN written) when all its tasks are resolved."""
+        done_task = _make_task(id="T-be-done", role="backend", status="done")
+        transport = _mock_transport({"GET /tasks": httpx.Response(200, json=[_task_as_dict(done_task)])})
+        adapter = _mock_adapter()
+        adapter.is_alive.return_value = True  # process is still running
+
+        orch = _build_orchestrator(tmp_path, transport, adapter=adapter)
+
+        session = AgentSession(
+            id="backend-idle",
+            role="backend",
+            pid=12345,
+            task_ids=["T-be-done"],
+            status="running",
+            model_config=RouterModelConfig(model="claude-sonnet-4-6", effort="normal"),
+            spawn_ts=time.time(),
+        )
+        orch._agents["backend-idle"] = session
+
+        orch.tick()
+
+        shutdown_file = tmp_path / ".sdd" / "runtime" / "signals" / "backend-idle" / "SHUTDOWN"
+        assert shutdown_file.exists(), "SHUTDOWN signal must be written when all role tasks are done"
+
+    def test_no_shutdown_when_agent_task_still_claimed(self, tmp_path: Path) -> None:
+        """Agent is NOT recycled when its task is still claimed (in progress)."""
+        claimed_task = _make_task(id="T-be-claimed", role="backend", status="claimed")
+        transport = _mock_transport({"GET /tasks": httpx.Response(200, json=[_task_as_dict(claimed_task)])})
+        adapter = _mock_adapter()
+        adapter.is_alive.return_value = True
+
+        orch = _build_orchestrator(tmp_path, transport, adapter=adapter)
+
+        session = AgentSession(
+            id="backend-active",
+            role="backend",
+            pid=12345,
+            task_ids=["T-be-claimed"],
+            status="running",
+            model_config=RouterModelConfig(model="claude-sonnet-4-6", effort="normal"),
+            spawn_ts=time.time(),
+        )
+        orch._agents["backend-active"] = session
+
+        orch.tick()
+
+        shutdown_file = tmp_path / ".sdd" / "runtime" / "signals" / "backend-active" / "SHUTDOWN"
+        assert not shutdown_file.exists(), "no SHUTDOWN when agent's task is still in-progress"
+
+    def test_only_idle_role_agent_gets_shutdown_not_active_role(self, tmp_path: Path) -> None:
+        """When backend tasks are done but QA tasks are still active, only backend agent
+        receives SHUTDOWN; QA agent is left running.
+        """
+        done_task = _make_task(id="T-be-done", role="backend", status="done")
+        claimed_task = _make_task(id="T-qa-claimed", role="qa", status="claimed")
+        task_dicts = [_task_as_dict(done_task), _task_as_dict(claimed_task)]
+
+        transport = _mock_transport({"GET /tasks": httpx.Response(200, json=task_dicts)})
+        adapter = _mock_adapter()
+        adapter.is_alive.return_value = True
+
+        orch = _build_orchestrator(tmp_path, transport, adapter=adapter)
+
+        be_session = AgentSession(
+            id="backend-done",
+            role="backend",
+            pid=11111,
+            task_ids=["T-be-done"],
+            status="running",
+            model_config=RouterModelConfig(model="claude-sonnet-4-6", effort="normal"),
+            spawn_ts=time.time(),
+        )
+        qa_session = AgentSession(
+            id="qa-active",
+            role="qa",
+            pid=22222,
+            task_ids=["T-qa-claimed"],
+            status="running",
+            model_config=RouterModelConfig(model="claude-sonnet-4-6", effort="normal"),
+            spawn_ts=time.time(),
+        )
+        orch._agents["backend-done"] = be_session
+        orch._agents["qa-active"] = qa_session
+
+        orch.tick()
+
+        be_shutdown = tmp_path / ".sdd" / "runtime" / "signals" / "backend-done" / "SHUTDOWN"
+        qa_shutdown = tmp_path / ".sdd" / "runtime" / "signals" / "qa-active" / "SHUTDOWN"
+        assert be_shutdown.exists(), "backend agent (all tasks done) must receive SHUTDOWN"
+        assert not qa_shutdown.exists(), "qa agent (task still claimed) must NOT receive SHUTDOWN"
+
+    def test_spawn_allowed_when_idle_agent_waiting_to_exit(self, tmp_path: Path) -> None:
+        """New agents can be spawned for a role even when an idle agent is in grace period.
+
+        Scenario:
+        1. Agent A finishes its only task for role X
+        2. Agent A gets SHUTDOWN signal (idle, waiting to exit)
+        3. New tasks arrive for role X
+        4. A new agent should be spawned, NOT blocked by Agent A's presence
+
+        This tests the fix for (#333d-03a): _effective_role_cap calculation must
+        exclude idle agents from the alive count, since they won't accept new work.
+        """
+        # Setup: idle agent + new open tasks for the same role
+        idle_agent = AgentSession(
+            id="backend-idle",
+            role="backend",
+            pid=11111,
+            task_ids=[],  # no tasks (already completed/resolved)
+            status="running",
+            model_config=RouterModelConfig(model="claude-sonnet-4-6", effort="normal"),
+            spawn_ts=time.time(),
+        )
+
+        new_task = _make_task(id="T-new", role="backend", title="New backend task")
+        transport = _mock_transport(
+            {"GET /tasks": httpx.Response(200, json=[_task_as_dict(new_task)])}
+        )
+        adapter = _mock_adapter()
+        adapter.is_alive.return_value = True
+
+        config = OrchestratorConfig(
+            max_agents=2,
+            max_tasks_per_agent=1,
+            poll_interval_s=1,
+            server_url="http://testserver",
+        )
+        orch = _build_orchestrator(tmp_path, transport, adapter=adapter, config=config)
+
+        # Add the idle agent to orchestrator and mark it as having received SHUTDOWN
+        orch._agents["backend-idle"] = idle_agent
+        orch._idle_shutdown_ts["backend-idle"] = time.time()  # mark as idle/waiting to exit
+
+        result = orch.tick()
+
+        # Should spawn new agent for the new task, not blocked by idle agent
+        assert len(result.spawned) >= 1, "new agent should spawn despite idle agent in grace period"
+
+        # Verify the newly spawned agent is for backend role
+        spawned_backends = [
+            sid for sid in result.spawned
+            if sid in orch._agents and orch._agents[sid].role == "backend"
+        ]
+        assert len(spawned_backends) >= 1, "new backend agent must be spawned"
 
 
 # --- Orchestrator.tick ---

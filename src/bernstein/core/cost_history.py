@@ -104,7 +104,7 @@ class CostAlert:
         date_str: The date the alert applies to.
         spent_usd: Spend that triggered the alert.
         budget_usd: The budget against which spend was measured.
-        percentage_used: Fraction of budget used (0.0–1.0+).
+        percentage_used: Fraction of budget used (0.0-1.0+).
         message: Human-readable description.
     """
 
@@ -255,7 +255,7 @@ def load_history(sdd_dir: Path, days: int = _HISTORY_DAYS) -> list[DailyCostSnap
                 snap = DailyCostSnapshot.from_dict(d)
                 if date.fromisoformat(snap.date_str) >= cutoff:
                     snapshots.append(snap)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 logger.warning("Skipping malformed cost_history line: %s — %s", line[:80], exc)
     except OSError as exc:
         logger.warning("Could not read cost history: %s", exc)
@@ -290,7 +290,7 @@ def compute_trends(snapshots: list[DailyCostSnapshot]) -> CostTrend:
     avg_30 = _avg(30)
     avg_90 = _avg(90)
 
-    # Compare current 30-day window vs previous 30-day window (days 31–60)
+    # Compare current 30-day window vs previous 30-day window (days 31-60)
     prev_cutoff_end = today - timedelta(days=30)
     prev_cutoff_start = today - timedelta(days=60)
     prev_window = [

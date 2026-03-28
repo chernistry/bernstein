@@ -19,6 +19,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from bernstein.evolution.aggregator import (
@@ -41,11 +42,18 @@ from bernstein.evolution.detector import (
     OpportunityDetector,
 )
 from bernstein.evolution.gate import ApprovalGate, ApprovalOutcome, EvalGate
+from bernstein.evolution.governance import (
+    AdaptiveGovernor,
+    EvolutionWeights,
+    GovernanceEntry,
+    ProjectContext,
+)
 from bernstein.evolution.proposals import (
     AnalysisTrigger,
     ProposalGenerator,
     UpgradeProposal,
 )
+from bernstein.evolution.risk import ProposalRiskScore, RiskScorer
 from bernstein.evolution.sandbox import SandboxValidator
 from bernstein.evolution.types import RiskLevel, SandboxResult
 from bernstein.evolution.types import UpgradeProposal as TypesUpgradeProposal
@@ -169,6 +177,7 @@ class EvolutionLoop:
         window_seconds: int = 7200,
         github_sync: bool = False,
         community_mode: bool = False,
+        governor: AdaptiveGovernor | None = None,
     ) -> None:
         self._state_dir = state_dir
         self._repo_root = repo_root or state_dir.parent
@@ -218,6 +227,18 @@ class EvolutionLoop:
             github_sync=github_sync,
         )
 
+        # --- Adaptive governance and risk scoring ---
+        self._governor = governor or AdaptiveGovernor(state_dir)
+        self._risk_scorer = RiskScorer()
+        self._current_weights: EvolutionWeights = self._governor.get_current_weights()
+        # Per-cycle governance tracking (reset at start of each main cycle).
+        self._cycle_weights_before: EvolutionWeights = EvolutionWeights()
+        self._cycle_weight_reason: str = ""
+        self._cycle_proposals_evaluated: int = 0
+        self._cycle_proposals_applied: int = 0
+        self._cycle_risk_scores: list[float] = []
+        self._cycle_outcome_metrics: dict[str, float] = {}
+
         # --- Session counters ---
         self._experiments: list[ExperimentResult] = []
         self._proposals_generated: int = 0
@@ -225,6 +246,7 @@ class EvolutionLoop:
         self._start_time: float = 0.0
         self._running: bool = False
         self._cycle_count: int = 0
+        self._consecutive_empty: int = 0
 
         # --- GitHub sync state ---
         # Tracks the GitHub issue number for the proposal currently in flight
@@ -354,6 +376,19 @@ class EvolutionLoop:
         if focus == "creative_vision":
             return self._run_creative_cycle(cycle_start)
 
+        # Governance — adjust weights before each scoring cycle.
+        self._cycle_weights_before = self._current_weights
+        project_ctx = self._build_project_context()
+        self._current_weights, self._cycle_weight_reason = self._governor.adjust_weights(
+            self._cycle_weights_before, project_ctx
+        )
+        self._governor.persist_weights(self._current_weights, self._cycle_weight_reason)
+        # Reset per-cycle accumulators.
+        self._cycle_proposals_evaluated = 0
+        self._cycle_proposals_applied = 0
+        self._cycle_risk_scores = []
+        self._cycle_outcome_metrics = {}
+
         # Step 1 — Gather metrics, detect opportunities, and run feature discovery.
         self._aggregator.run_full_analysis()
         opportunities = self._detector.identify_opportunities()
@@ -381,19 +416,28 @@ class EvolutionLoop:
         proposal = self._generate_proposal(opportunities)
         if proposal is None:
             logger.debug("No actionable opportunities found this cycle")
+            self._consecutive_empty += 1
             if github_hint is not None:
                 # We may have claimed an issue but generated nothing locally.
                 # Unclaim so another instance can pick it up.
                 self._github_unclaim_current()
+            self._flush_governance_log()
             return None
 
         self._proposals_generated += 1
+        # Governance — compute risk score and determine routing strategy.
+        risk_score = self._compute_proposal_risk(proposal)
+        self._cycle_risk_scores.append(risk_score.composite_risk)
+        self._cycle_proposals_evaluated = 1
+        risk_route = self._classify_risk_route(risk_score.composite_risk)
         logger.info(
-            "Proposal %s: %s (risk=%s, confidence=%.2f)",
+            "Proposal %s: %s (risk=%s, confidence=%.2f, composite_risk=%.2f, route=%s)",
             proposal.id,
             proposal.title,
             proposal.risk_assessment.level,
             proposal.confidence,
+            risk_score.composite_risk,
+            risk_route,
         )
 
         # Publish or claim a GitHub issue for this proposal.
@@ -423,6 +467,7 @@ class EvolutionLoop:
                 duration_seconds=time.time() - cycle_start,
             )
             self._log_experiment(result)
+            self._flush_governance_log()
             return result
 
         # Step 6 — Approval gate routing.
@@ -454,31 +499,43 @@ class EvolutionLoop:
                 duration_seconds=time.time() - cycle_start,
             )
             self._log_experiment(result)
+            self._flush_governance_log()
             return result
 
         # Step 7 — Sandbox validation.
-        sandbox_result = self._sandbox.validate(
-            proposal_id=proposal.id,
-            diff=proposal.proposed_change,
-            baseline_score=baseline_score,
-        )
-
-        if not sandbox_result.passed:
-            self._breaker.record_sandbox_failure(proposal.id)
-            result = ExperimentResult(
-                proposal_id=proposal.id,
-                title=proposal.title,
-                risk_level=risk_level.value,
-                baseline_score=baseline_score,
-                candidate_score=sandbox_result.candidate_score,
-                delta=sandbox_result.delta,
-                accepted=False,
-                reason=f"Sandbox failed: {sandbox_result.error or 'tests did not pass'}",
-                cost_usd=_COST_PER_PROPOSAL_USD,
-                duration_seconds=time.time() - cycle_start,
+        # Fast-tracked proposals (composite_risk < 0.3) bypass the sandbox.
+        # High-risk proposals (composite_risk > 0.6) are always sandbox-verified.
+        if risk_route == "fast_track":
+            logger.info(
+                "Proposal %s fast-tracked (composite_risk=%.2f) — skipping sandbox",
+                proposal.id,
+                risk_score.composite_risk,
             )
-            self._log_experiment(result)
-            return result
+            sandbox_result = self._make_fast_track_sandbox_result(proposal.id, baseline_score)
+        else:
+            sandbox_result = self._sandbox.validate(
+                proposal_id=proposal.id,
+                diff=proposal.proposed_change,
+                baseline_score=baseline_score,
+            )
+
+            if not sandbox_result.passed:
+                self._breaker.record_sandbox_failure(proposal.id)
+                result = ExperimentResult(
+                    proposal_id=proposal.id,
+                    title=proposal.title,
+                    risk_level=risk_level.value,
+                    baseline_score=baseline_score,
+                    candidate_score=sandbox_result.candidate_score,
+                    delta=sandbox_result.delta,
+                    accepted=False,
+                    reason=f"Sandbox failed: {sandbox_result.error or 'tests did not pass'}",
+                    cost_usd=_COST_PER_PROPOSAL_USD,
+                    duration_seconds=time.time() - cycle_start,
+                )
+                self._log_experiment(result)
+                self._flush_governance_log()
+                return result
 
         # Step 7b — Eval gate (eval-gated evolution #516).
         # After sandbox passes, run the eval harness and compare against baseline.
@@ -500,6 +557,7 @@ class EvolutionLoop:
                 duration_seconds=time.time() - cycle_start,
             )
             self._log_experiment(result)
+            self._flush_governance_log()
             return result
 
         # Step 8 — Apply the proposal.
@@ -509,6 +567,13 @@ class EvolutionLoop:
 
         if applied:
             self._proposals_accepted += 1
+            self._consecutive_empty = 0
+            self._cycle_proposals_applied = 1
+            self._cycle_outcome_metrics = {
+                "delta": delta,
+                "candidate_score": candidate_score,
+                "composite_risk": risk_score.composite_risk,
+            }
             # Close the GitHub issue to signal completion.
             self._github_close_current(
                 comment=(
@@ -517,6 +582,12 @@ class EvolutionLoop:
                     f"- Score delta: `{delta:+.4f}`"
                 ),
             )
+        else:
+            self._consecutive_empty += 1
+            self._cycle_outcome_metrics = {
+                "delta": 0.0,
+                "composite_risk": risk_score.composite_risk,
+            }
 
         result = ExperimentResult(
             proposal_id=proposal.id,
@@ -531,6 +602,7 @@ class EvolutionLoop:
             duration_seconds=time.time() - cycle_start,
         )
         self._log_experiment(result)
+        self._flush_governance_log()
         return result
 
     def stop(self) -> None:
@@ -1002,6 +1074,117 @@ class EvolutionLoop:
             self._current_issue_number,
         )
         self._current_issue_number = None
+
+    # ------------------------------------------------------------------
+    # Governance helpers
+    # ------------------------------------------------------------------
+
+    def _build_project_context(self) -> ProjectContext:
+        """Build a ProjectContext snapshot for weight adjustment.
+
+        Uses available loop state as a proxy for project health. Source file
+        count is derived from the repo root (Python files, .git excluded).
+
+        Returns:
+            ProjectContext populated from current loop state.
+        """
+        try:
+            src_files = sum(1 for p in self._repo_root.rglob("*.py") if ".git" not in p.parts)
+        except OSError:
+            src_files = 0
+        return ProjectContext(
+            cycle_number=self._cycle_count,
+            test_pass_rate=0.9,  # optimistic default; updated by test runs
+            lint_violations=0,
+            security_issues_last_5_cycles=0,
+            codebase_size_files=src_files,
+            consecutive_empty_cycles=self._consecutive_empty,
+        )
+
+    def _compute_proposal_risk(self, proposal: UpgradeProposal) -> ProposalRiskScore:
+        """Compute a composite risk score for a proposal via RiskScorer.
+
+        Args:
+            proposal: The upgrade proposal to score.
+
+        Returns:
+            ProposalRiskScore with all dimensions populated.
+        """
+        target_files = list(proposal.risk_assessment.affected_components)
+        # Estimate diff size from proposed_change length (lines heuristic).
+        diff_estimate = max(len(proposal.proposed_change) // 10, 10)
+        return self._risk_scorer.score_proposal(
+            target_files=target_files,
+            diff_size=diff_estimate,
+            test_coverage_delta=0.0,  # unknown pre-execution
+        )
+
+    @staticmethod
+    def _classify_risk_route(composite_risk: float) -> str:
+        """Map a composite risk score to a routing strategy.
+
+        Thresholds:
+          - composite_risk > 0.6 → ``sandbox_verify``  (forced sandbox)
+          - composite_risk 0.3-0.6 → ``standard``       (normal flow)
+          - composite_risk < 0.3 → ``fast_track``       (skip sandbox)
+
+        Args:
+            composite_risk: Composite risk score in [0.0, 1.0].
+
+        Returns:
+            One of ``"sandbox_verify"``, ``"standard"``, or ``"fast_track"``.
+        """
+        if composite_risk > 0.6:
+            return "sandbox_verify"
+        if composite_risk > 0.3:
+            return "standard"
+        return "fast_track"
+
+    def _flush_governance_log(self) -> None:
+        """Write accumulated per-cycle governance state to governance_log.jsonl."""
+        self._governor.log_decision(
+            GovernanceEntry(
+                cycle=self._cycle_count,
+                timestamp=datetime.now(UTC).isoformat(),
+                weights_before=self._cycle_weights_before.to_dict(),
+                weights_after=self._current_weights.to_dict(),
+                weight_change_reason=self._cycle_weight_reason,
+                proposals_evaluated=self._cycle_proposals_evaluated,
+                proposals_applied=self._cycle_proposals_applied,
+                risk_scores=self._cycle_risk_scores,
+                outcome_metrics=self._cycle_outcome_metrics,
+            )
+        )
+
+    def _make_fast_track_sandbox_result(
+        self,
+        proposal_id: str,
+        baseline_score: float,
+    ) -> SandboxResult:
+        """Return a synthetic passed SandboxResult for fast-tracked proposals.
+
+        Fast-tracked proposals (composite_risk < 0.3) skip sandbox validation.
+        We create a neutral result so the apply path can proceed normally.
+
+        Args:
+            proposal_id: ID of the fast-tracked proposal.
+            baseline_score: Current baseline benchmark score.
+
+        Returns:
+            A ``SandboxResult`` marked as passed with no test data.
+        """
+        return SandboxResult(
+            proposal_id=proposal_id,
+            passed=True,
+            tests_passed=0,
+            tests_failed=0,
+            tests_total=0,
+            baseline_score=baseline_score,
+            candidate_score=baseline_score,
+            delta=0.0,
+            duration_seconds=0.0,
+            log_path="",
+        )
 
     # ------------------------------------------------------------------
     # Cycle helpers

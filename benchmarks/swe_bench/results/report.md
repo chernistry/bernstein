@@ -3,14 +3,14 @@
 > **NOTE:** These results are **simulated** (generated with `run.py mock`).
 > Replace with real Docker-based results by running `run.py eval`.
 
-**Date:** 2026-03-28
+**Date:** 2026-03-29
 **Dataset:** SWE-Bench Lite (300 instances)
 
 ## TL;DR
 
-> Bernstein + 3× Sonnet resolves 39.0% of SWE-Bench Lite at
+> Bernstein + 3x Sonnet resolves 39.0% of SWE-Bench Lite at
 > $0.42/issue — beating Solo Opus (37.0%, $1.20/issue)
-> at 2.9× lower cost.
+> at 2.9x lower cost.
 
 ## Results
 
@@ -37,7 +37,7 @@ Single `claude-sonnet-4-6` agent prompted to read the issue and produce a patch.
 #### Solo Opus (expensive baseline)
 Single `claude-opus-4-6` agent, same prompt.
 
-#### Bernstein 3× Sonnet (core thesis)
+#### Bernstein 3x Sonnet (core thesis)
 Three `claude-sonnet-4-6` agents in a sequential pipeline:
 1. **Analyst** — reads the issue, identifies affected files, writes a concise plan.
 2. **Implementer** — follows the plan to produce a patch.
@@ -64,7 +64,7 @@ Costs use March 2025 list prices:
 
 ## Key findings
 
-- **Bernstein 3× Sonnet outperforms Solo Opus** by 2.0 percentage points (39.0% vs 37.0%).
+- **Bernstein 3x Sonnet outperforms Solo Opus** by 2.0 percentage points (39.0% vs 37.0%).
 - The 3-agent pipeline adds +14.7 pp over a single Sonnet agent (39.0% vs 24.3%).
 - The mixed-model variant cuts cost by 62% ($0.16 vs $0.42/issue) with a -1.7 pp change in resolve rate.
 

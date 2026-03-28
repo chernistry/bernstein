@@ -461,10 +461,7 @@ class CostTracker:
         projected_total = current + avg_per_task * max(tasks_remaining, 0)
         confidence = min(tasks_done / 5.0, 1.0) if tasks_done > 0 else 0.0
 
-        if self.budget_usd <= 0:
-            within_budget = True
-        else:
-            within_budget = projected_total <= self.budget_usd
+        within_budget = True if self.budget_usd <= 0 else projected_total <= self.budget_usd
 
         return RunCostProjection(
             run_id=self.run_id,
@@ -501,7 +498,7 @@ class CostTracker:
             projection=projection,
         )
 
-    def save_metrics(self, metrics_dir: "Path") -> "Path":
+    def save_metrics(self, metrics_dir: Path) -> Path:
         """Persist a cost report to ``.sdd/metrics/costs_{run_id}.json``.
 
         Creates the directory if it does not exist.  Handles zero/missing

@@ -267,3 +267,53 @@ class AdaptiveGovernor:
         }
         with path.open("a") as fh:
             fh.write(json.dumps(record) + "\n")
+
+
+# ---------------------------------------------------------------------------
+# Module-level convenience function
+# ---------------------------------------------------------------------------
+
+
+def log_evolution_decision(
+    state_dir: Path,
+    cycle: int,
+    weights_before: EvolutionWeights,
+    weights_after: EvolutionWeights,
+    weight_change_reason: str,
+    proposals_evaluated: int,
+    proposals_applied: int,
+    risk_scores: list[float],
+    outcome_metrics: dict[str, float],
+    *,
+    timestamp: str | None = None,
+) -> None:
+    """Write one governance decision record to governance_log.jsonl.
+
+    A module-level convenience wrapper around ``AdaptiveGovernor.log_decision``
+    that handles ``EvolutionWeights`` serialisation and timestamp generation.
+
+    Args:
+        state_dir: Root state directory (e.g. project ``.sdd/`` folder).
+        cycle: Current evolution cycle number.
+        weights_before: Metric weights active before this cycle's adjustment.
+        weights_after: Metric weights active after this cycle's adjustment.
+        weight_change_reason: Human-readable reason for the weight change.
+        proposals_evaluated: Total proposals reviewed this cycle.
+        proposals_applied: Proposals accepted and applied this cycle.
+        risk_scores: Per-proposal risk scores in evaluation order.
+        outcome_metrics: Post-cycle deltas (``pps_delta``, ``srs_delta``, etc.).
+        timestamp: ISO 8601 string; auto-generated from UTC now if *None*.
+    """
+    ts = timestamp or datetime.now(UTC).isoformat()
+    entry = GovernanceEntry(
+        cycle=cycle,
+        timestamp=ts,
+        weights_before=weights_before.to_dict(),
+        weights_after=weights_after.to_dict(),
+        weight_change_reason=weight_change_reason,
+        proposals_evaluated=proposals_evaluated,
+        proposals_applied=proposals_applied,
+        risk_scores=risk_scores,
+        outcome_metrics=outcome_metrics,
+    )
+    AdaptiveGovernor(state_dir).log_decision(entry)

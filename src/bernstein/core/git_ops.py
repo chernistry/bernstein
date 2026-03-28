@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import re
 import subprocess
+import time
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -484,6 +485,78 @@ def create_task_branch(cwd: Path, branch_name: str) -> GitResult:
     return run_git(["checkout", "-b", branch_name], cwd, timeout=10)
 
 
+def create_branch(cwd: Path, branch_name: str, base: str = "main") -> GitResult:
+    """Create a new branch from a given base without switching to it.
+
+    Useful for creating task/, evolve/, or agent/ branches from main
+    without disrupting the current checkout.
+
+    Args:
+        cwd: Repository root.
+        branch_name: Name of the new branch.
+        base: Base ref to branch from (default ``"main"``).
+
+    Returns:
+        GitResult from ``git branch <branch_name> <base>``.
+    """
+    return run_git(["branch", branch_name, base], cwd, timeout=10)
+
+
+def delete_old_branches(
+    cwd: Path,
+    *,
+    older_than_hours: int = 24,
+    prefix: str = "bernstein/",
+    remote: str | None = None,
+) -> list[str]:
+    """Delete local branches matching *prefix* whose last commit is older than the threshold.
+
+    Args:
+        cwd: Repository root.
+        older_than_hours: Delete branches with HEAD commit older than this.
+        prefix: Only consider branches starting with this string.
+        remote: If set, also delete the branch on this remote.
+
+    Returns:
+        List of deleted branch names.
+    """
+    # List local branches matching the prefix
+    r = run_git(
+        ["branch", "--list", f"{prefix}*", "--format=%(refname:short) %(committerdate:unix)"],
+        cwd,
+        timeout=10,
+    )
+    if not r.ok or not r.stdout.strip():
+        return []
+
+    cutoff = time.time() - (older_than_hours * 3600)
+    deleted: list[str] = []
+
+    for line in r.stdout.strip().splitlines():
+        parts = line.rsplit(" ", 1)
+        if len(parts) != 2:
+            continue
+        branch, epoch_str = parts
+        try:
+            epoch = float(epoch_str)
+        except ValueError:
+            continue
+
+        if epoch >= cutoff:
+            continue
+
+        # Delete locally
+        del_r = run_git(["branch", "-D", branch.strip()], cwd, timeout=10)
+        if del_r.ok:
+            deleted.append(branch.strip())
+            logger.info("Deleted old branch: %s (age > %dh)", branch.strip(), older_than_hours)
+            # Optionally delete on remote
+            if remote:
+                run_git(["push", remote, "--delete", branch.strip()], cwd, timeout=30)
+
+    return deleted
+
+
 def push_branch(cwd: Path, branch: str, remote: str = "origin") -> GitResult:
     """Push a branch to remote, setting the upstream tracking ref.
 
@@ -751,6 +824,102 @@ def tag(cwd: Path, name: str, message: str | None = None) -> GitResult:
     else:
         cmd.append(name)
     return run_git(cmd, cwd)
+
+
+# Alias for discoverability
+create_tag = tag
+
+
+def list_tags(cwd: Path, pattern: str | None = None) -> list[str]:
+    """Return tag names, optionally filtered by glob pattern.
+
+    Args:
+        cwd: Repository root.
+        pattern: Optional glob (e.g. ``"v*"``).
+
+    Returns:
+        List of tag names, newest first.
+    """
+    cmd = ["tag", "-l", "--sort=-version:refname"]
+    if pattern:
+        cmd.append(pattern)
+    r = run_git(cmd, cwd, timeout=10)
+    if not r.ok or not r.stdout.strip():
+        return []
+    return [t.strip() for t in r.stdout.strip().splitlines() if t.strip()]
+
+
+def version_from_commits(cwd: Path, tag_prefix: str = "v") -> str:
+    """Compute the next semantic version from conventional commits since the last tag.
+
+    Scans commit messages between the latest ``v*`` tag and HEAD.  Bumps
+    major on ``BREAKING CHANGE`` or ``!:`` in a subject, minor on ``feat``,
+    patch on anything else (``fix``, ``refactor``, ``chore``, etc.).
+
+    If no previous tag exists, starts from ``0.1.0``.
+
+    Args:
+        cwd: Repository root.
+        tag_prefix: Prefix for version tags (default ``"v"``).
+
+    Returns:
+        Next version string *without* the prefix (e.g. ``"1.3.0"``).
+    """
+    tags = list_tags(cwd, pattern=f"{tag_prefix}*")
+
+    # Parse current version from latest tag
+    major, minor, patch_v = 0, 0, 0
+    latest_tag: str | None = None
+    for t in tags:
+        stripped = t.lstrip(tag_prefix)
+        parts = stripped.split(".")
+        if len(parts) >= 3 and all(p.isdigit() for p in parts[:3]):
+            major, minor, patch_v = int(parts[0]), int(parts[1]), int(parts[2])
+            latest_tag = t
+            break
+
+    # Get commits since latest tag (or all commits)
+    if latest_tag:
+        log_r = run_git(
+            ["log", f"{latest_tag}..HEAD", "--pretty=format:%s"],
+            cwd,
+            timeout=10,
+        )
+    else:
+        log_r = run_git(
+            ["log", "--pretty=format:%s"],
+            cwd,
+            timeout=10,
+        )
+
+    if not log_r.ok or not log_r.stdout.strip():
+        # No new commits — return current version as-is
+        return f"{major}.{minor}.{patch_v}"
+
+    subjects = log_r.stdout.strip().splitlines()
+
+    bump_major = False
+    bump_minor = False
+
+    for subj in subjects:
+        lower = subj.lower()
+        if "breaking change" in lower or "!:" in subj:
+            bump_major = True
+            break
+        if lower.startswith("feat"):
+            bump_minor = True
+
+    if bump_major:
+        major += 1
+        minor = 0
+        patch_v = 0
+    elif bump_minor:
+        minor += 1
+        patch_v = 0
+    else:
+        patch_v += 1
+
+    return f"{major}.{minor}.{patch_v}"
 
 
 # ------------------------------------------------------------------

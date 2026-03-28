@@ -408,6 +408,7 @@ class PostgresTaskStore(BaseTaskStore):
         self,
         task_id: str,
         expected_version: int | None = None,
+        agent_role: str | None = None,
     ) -> Task:
         """Claim a specific task, optionally with CAS.
 
@@ -453,6 +454,7 @@ class PostgresTaskStore(BaseTaskStore):
         self,
         task_ids: list[str],
         agent_id: str,
+        agent_role: str | None = None,
     ) -> tuple[list[str], list[str]]:
         """Atomically claim multiple tasks.  Uses a single transaction."""
         claimed: list[str] = []

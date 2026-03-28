@@ -686,7 +686,10 @@ def recycle_idle_agents(
     - All of its tasks are already resolved (done/failed) on the server
       while the process is still alive, OR
     - The process has not written a heartbeat for ``_IDLE_HEARTBEAT_THRESHOLD_S``
-      seconds (60 s in evolve mode for faster agent turnover).
+      seconds (60 s in evolve mode for faster agent turnover), OR
+    - The agent's role has zero active tasks (open + claimed + in_progress),
+      meaning the role is fully drained and the agent should exit so its
+      slot can be used by under-served roles (rebalancing).
 
     Recycling protocol:
     1. Send SHUTDOWN signal — agent has 30 s to save WIP and exit cleanly.
@@ -704,6 +707,18 @@ def recycle_idle_agents(
     for status in ("done", "failed", "blocked"):
         for t in tasks_snapshot.get(status, []):
             resolved_ids.add(t.id)
+
+    # Count open tasks per role — used in Case 3 to detect empty role queues.
+    open_per_role: dict[str, int] = {}
+    for t in tasks_snapshot.get("open", []):
+        open_per_role[t.role] = open_per_role.get(t.role, 0) + 1
+
+    # Count active tasks per role (open + claimed + in_progress) — used in
+    # Case 4 to detect fully drained roles for rebalancing (#333d-03).
+    active_per_role: dict[str, int] = {}
+    for status in ("open", "claimed", "in_progress"):
+        for t in tasks_snapshot.get(status, []):
+            active_per_role[t.role] = active_per_role.get(t.role, 0) + 1
 
     # Heartbeat-idle threshold — tighter in evolve mode for fast turnover
     hb_idle_s = _IDLE_HEARTBEAT_THRESHOLD_EVOLVE_S if orch._config.evolve_mode else _IDLE_HEARTBEAT_THRESHOLD_S
@@ -725,6 +740,20 @@ def recycle_idle_agents(
             hb = orch._signal_mgr.read_heartbeat(session.id)
             if hb is not None and (now - hb.timestamp) >= hb_idle_s:
                 idle_reason = f"no_heartbeat_{int(hb_idle_s)}s"
+
+        # Case 3: agent has no assigned tasks and the role queue is empty.
+        # Handles edge cases where an agent slipped through without tasks, or
+        # had its task list cleared, while the role has no pending work.
+        elif not session.task_ids and open_per_role.get(session.role, 0) == 0:
+            idle_reason = "role_queue_empty_no_tasks"
+
+        # Case 4: role fully drained — zero active tasks (open + claimed +
+        # in_progress) remain for this role.  Catches agents whose task_ids
+        # are orphaned (e.g. task deleted from server) that Cases 1-3 miss,
+        # and enables rebalancing: agents exit so their slots can be used by
+        # under-served roles.  (#333d-03)
+        elif active_per_role.get(session.role, 0) == 0:
+            idle_reason = "role_drained_rebalance"
 
         if idle_reason is None:
             continue

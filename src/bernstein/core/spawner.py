@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import subprocess
 import uuid
 from typing import TYPE_CHECKING, Any
 
@@ -212,7 +213,7 @@ class AgentSpawner:
         self._mcp_config = mcp_config
         self._catalog = catalog
         self._context_builder = TaskContextBuilder(workdir)
-        self._procs: dict[str, object] = {}  # session_id → subprocess.Popen
+        self._procs: dict[str, subprocess.Popen[bytes] | None] = {}
 
     def spawn_for_tasks(self, tasks: list[Task]) -> AgentSession:
         """Route, render prompt, and spawn an agent for a task batch.
@@ -341,11 +342,11 @@ class AgentSpawner:
         if proc is None:
             return
         try:
-            proc.terminate()  # type: ignore[union-attr]
+            proc.terminate()
         except Exception as exc:
             logger.warning("reap_completed_agent: terminate failed for %s: %s", session.id, exc)
         try:
-            proc.wait(timeout=5)  # type: ignore[union-attr]
+            proc.wait(timeout=5)
         except Exception as exc:
             logger.warning("reap_completed_agent: wait failed for %s: %s", session.id, exc)
         logger.info("Agent %s process reaped", session.id)

@@ -594,7 +594,7 @@
       "time",
       "typing"
     ],
-    "last_modified": "2026-03-28T05:09:39.491938"
+    "last_modified": "2026-03-28T05:35:04.895349"
   },
   "src/bernstein/core/policy.py": {
     "summary": "Policy engine for tier optimization and provider routing.",
@@ -731,10 +731,11 @@
       "__future__",
       "bernstein",
       "logging",
+      "subprocess",
       "typing",
       "uuid"
     ],
-    "last_modified": "2026-03-28T05:09:41.747488"
+    "last_modified": "2026-03-28T05:32:00.983025"
   },
   "src/bernstein/core/sync.py": {
     "summary": "Sync .sdd/backlog/*.md files with the task server.",
@@ -1854,6 +1855,23 @@
       "unittest"
     ],
     "last_modified": "2026-03-22T21:19:15.083424"
+  },
+  "tests/unit/test_idle_agent_detection.py": {
+    "summary": "Tests for idle agent detection: backlog auto-ingestion and proc reaping.",
+    "exports": [
+      "TestIngestBacklog",
+      "TestSpawnerReapCompletedAgent"
+    ],
+    "imports": [
+      "__future__",
+      "bernstein",
+      "httpx",
+      "json",
+      "pathlib",
+      "pytest",
+      "unittest"
+    ],
+    "last_modified": "2026-03-28T05:07:06.210454"
   },
   "tests/unit/test_invariants.py": {
     "summary": "Tests for InvariantsGuard.",

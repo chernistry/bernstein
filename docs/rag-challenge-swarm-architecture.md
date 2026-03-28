@@ -1,227 +1,127 @@
-# Multi-Agent Swarm Architecture — Reference from RAG Challenge 2026
+# Multi-Agent Swarm Architecture — Design Heritage
 
-## Proven Architecture (10+ agents, 48h sprint, file-based coordination)
+## Origin
 
-This document captures the battle-tested multi-agent coordination framework used in the Agentic RAG Legal Challenge 2026. The system ran 10+ LLM agents simultaneously, coordinated entirely through git-tracked files, and delivered a competitive submission.
-
----
-
-## 1. Organizational Hierarchy
-
-```
-SASHA (Human CEO)
-  └── MOMMY (VP Engineering, Opus — strategy, architecture, agent design)
-       └── PAPA (Engineering Manager, Sonnet — operations, queue management, dispatch)
-            ├── SMARTY (Retrieval Engineer, Opus)
-            ├── ALBY (ML Engineer, Opus)
-            ├── FRANKY (Prompt Engineer, Opus)
-            ├── SISSY (QA Engineer, Opus)
-            ├── MUFFY (Data Analyst, Sonnet)
-            ├── ROCKY (Integration Engineer, Sonnet)
-            ├── COCKY (Watchdog, Sonnet — regression detection)
-            ├── PENNY (Tech Writer/Janitor, Sonnet — dashboard, docs, cleanup)
-            ├── DINO (Retrieval Debugger, qwen-coder — diagnostic specialist)
-            └── JASPER (Asst Quality, claude-sonnet — prompt optimization)
-```
-
-**Key insight**: 3-tier hierarchy works. Human → VP (strategic) → Manager (operational) → Specialists. VP makes hard calls. Manager keeps everyone fed with tasks. Specialists stay in their lane.
+Bernstein's architecture was battle-tested during a 48-hour sprint: 12 AI agents on a single laptop, 737 tickets closed (15.7/hour), 826 commits. Every design decision in Bernstein is a direct response to what worked and what broke during that sprint. This document captures the patterns.
 
 ---
 
-## 2. File-Based Coordination Protocol
+## 1. Three-Tier Hierarchy
 
-All coordination happens through files in `.sdd/agents/`. No databases, no message queues, no APIs.
-
-### Directory Structure
 ```
-.sdd/agents/
-├── BULLETIN.jsonl          # Broadcast channel (all agents append, all agents read)
-├── DIRECTIVE.md            # VP's current orders (read-only for everyone except VP)
-├── KNOWLEDGE_BASE.md       # Shared intelligence (VP writes, all read)
-├── SUBMISSION_BRIEF.md     # Decision document for human (VP/reporter writes)
-├── WAKEUP.md               # Emergency recovery state
-├── team_health.json        # Auto-generated health dashboard
-│
-├── papa/                   # Manager agent
-│   ├── SYSTEM_PROMPT.md    # Role definition + behavioral instructions
-│   ├── STATUS.json         # Heartbeat: what am I doing right now?
-│   ├── TASK_QUEUE.jsonl    # My pending/active/done tasks
-│   └── RESUME.md           # Context recovery document
-│
-├── smarty/                 # Specialist agent (same structure for all)
-│   ├── SYSTEM_PROMPT.md
-│   ├── STATUS.json
-│   ├── TASK_QUEUE.jsonl
-│   └── RESUME.md
-│
-└── ... (one directory per agent)
+Human (CEO)
+  └── VP agent (Opus — strategy, architecture, hard calls)
+       └── Manager agent (Sonnet — operations, queue management, dispatch)
+            ├── Specialist A (role: retrieval)
+            ├── Specialist B (role: prompt engineering)
+            ├── Specialist C (role: QA)
+            └── ... (6-8 specialists total)
 ```
 
-### File Formats
+**Why 3 tiers**: Two-tier (human + agents) doesn't scale past 4 agents — the human becomes the bottleneck. Three tiers let the VP make strategic decisions (what to work on, when to kill a direction) while the manager handles operational dispatch (who gets which task). The human only intervenes for high-stakes decisions.
 
-**STATUS.json** — Agent heartbeat (updated every task):
-```json
-{
-  "agent": "smarty",
-  "status": "working",           // working | idle | blocked | error
-  "current_task": "Investigating retrieval regression for date questions",
-  "heartbeat_ts": "2026-03-22T05:15:00Z",
-  "last_completed": "smarty-400c: Rerank cap analysis"
-}
-```
+**Sweet spot**: 6-8 specialist agents on a single repo. Beyond 10, commit churn and merge conflicts outweigh the parallelism benefit.
 
-**TASK_QUEUE.jsonl** — One JSON object per line:
-```json
-{"task_id": "smarty-400c", "priority": 0, "description": "P0: Diagnose V13 retrieval regressions", "details": "...", "assigned_by": "papa", "assigned_at": "2026-03-22T05:15:00Z", "status": "pending"}
-{"task_id": "smarty-400d", "priority": 1, "description": "P1: Fix rerank cap", "status": "done", "completed_at": "2026-03-22T06:00:00Z", "result": "Fixed by raising threshold to 20. G restored."}
-```
+---
 
-**BULLETIN.jsonl** — Broadcast channel (append-only):
-```json
-{"ts": "2026-03-22T05:15:00Z", "from": "smarty", "type": "finding", "message": "[SMARTY] Rerank cap causing 6 questions to lose pages. Root cause: candidates < 5 for date queries."}
-```
+## 2. File-Based Coordination
 
-**DIRECTIVE.md** — VP's orders (single source of truth for priorities):
-```markdown
-# MOMMY DIRECTIVE — CHECK EVERY 5 MINUTES
-## CURRENT PRIORITY: V14 eval
-## AGENT ASSIGNMENTS:
-- SMARTY: Fix retrieval regression
-- FRANKY: Improve free_text prompts
-...
-```
+All coordination happens through files in `.sdd/`. No databases, no message queues, no APIs for state. This was the single most important architectural choice.
+
+**Why files**: Every agent gets a fresh context window. The only reliable way to persist knowledge across agent lifetimes is to write it to disk. Files are:
+- Git-native (merge conflicts = ownership violations caught automatically)
+- Human-inspectable (you can `cat` any file to see system state)
+- Crash-recoverable (process dies, files survive)
+- Tool-agnostic (works with any CLI agent that can read/write files)
+
+**Key files**:
+- **Bulletin board** (append-only JSONL) — broadcast channel. Agents post findings, all agents read.
+- **Directive** (single markdown) — current priorities. One file update reorients all agents instantly.
+- **Task queue** (JSONL per agent) — pending/active/done tasks with priority and status.
+- **Heartbeat** (JSON per agent) — "I'm alive, working on X." If stale for >10 min, agent is dead.
 
 ---
 
 ## 3. Agent Loop Protocol
 
-Every agent runs this loop:
+Every agent runs the same loop:
+
 ```
 LOOP:
-  1. Read DIRECTIVE.md (priorities may have changed)
-  2. Read own TASK_QUEUE.jsonl — pick highest priority pending task
-  3. If no pending tasks → ask PAPA for work (write to papa/TASK_QUEUE)
-  4. If PAPA unresponsive → ask MOMMY
+  1. Read directive (priorities may have changed)
+  2. Read own task queue — pick highest priority pending task
+  3. If no pending tasks → request work from manager
+  4. If manager unresponsive → escalate to VP
   5. Execute task
-  6. Update TASK_QUEUE with result
-  7. Update STATUS.json heartbeat
-  8. Post to BULLETIN if finding is significant
+  6. Update task queue with result
+  7. Update heartbeat
+  8. Post to bulletin if finding is significant
   9. Commit work to git
-  10. sleep 30 && goto 1
+  10. Exit (Bernstein spawns a fresh agent for the next task)
 ```
+
+**Critical difference from long-running agents**: Steps 1-9 happen in a single agent session. The agent exits at step 10. Bernstein spawns a fresh agent for the next iteration. This prevents context rot, eliminates the "sleeping agent" resource waste, and makes crash recovery trivial — if an agent dies, its task is simply re-queued.
 
 ---
 
-## 4. File Ownership (Conflict Prevention)
+## 4. File Ownership
 
-**Critical rule**: Each agent owns specific files. They may READ anything but WRITE only to their owned files. Shared files (BULLETIN) are append-only.
+Each agent owns specific files. They may READ anything but WRITE only to their owned files. Shared files (bulletin) are append-only.
 
 ```
-SMARTY owns: retriever.py, evidence_selector.py, query_scope_classifier.py
-FRANKY owns: generator_prompts.py, prompts/llm/generator_system_*.md
-SISSY  owns: answer_validator.py, answer_consensus.py
-ALBY   owns: ml/*, page_scorer.py
-ROCKY  owns: eval scripts, integration tests
-PENNY  owns: dashboard/*, README.md, docs/*
+backend agent  → src/server.py, src/models.py, src/routes/
+qa agent       → tests/, src/validators/
+security agent → src/auth/, src/middleware/
+docs agent     → docs/, README.md
 ```
 
-**Cross-cutting changes**: Write a PATCH description in BULLETIN, ask PAPA/MOMMY to apply.
+**Why this matters**: Without ownership rules, 8 agents editing the same file creates merge hell. File ownership is Bernstein's primary conflict prevention mechanism. The orchestrator checks ownership before spawning — if two agents need the same file, their tasks are serialized.
 
 ---
 
 ## 5. What Worked
 
-1. **BULLETIN as broadcast**: All agents could see each other's findings. Cross-pollination was high. COCKY caught regressions that SMARTY missed.
+1. **Bulletin as broadcast**: All agents could see each other's findings. Cross-pollination was high. QA caught regressions that the original author missed.
 
-2. **DIRECTIVE as single truth**: When priorities shifted (V12 catastrophe, V13 regression), one file update reoriented all agents instantly.
+2. **Directive as single truth**: When priorities shifted, one file update reoriented all agents instantly. No stale context, no out-of-date plans.
 
-3. **Task queue pattern**: JSONL with priority + status fields. Easy for any model to parse. Survives context resets.
+3. **Heartbeat for dead agent detection**: If heartbeat is >10 min old, agent is dead. Simple, reliable, no distributed coordination needed.
 
-4. **Heartbeat STATUS.json**: Made it trivial to detect dead agents. "If heartbeat_ts is >30 min old, agent is dead."
+4. **Model mixing**: Opus for strategic/hard reasoning (VP, security). Sonnet for operational/fast tasks (manager, backend). Free-tier for trivial fixes. This was 3x more cost-effective than all-Opus.
 
-5. **KNOWLEDGE_BASE.md**: Prevented agents from repeating failed experiments. Critical for avoiding repeated mistakes.
-
-6. **git as sync**: All agents commit to the same branch. Git's merge/conflict detection catches file ownership violations.
-
-7. **Russian-language dashboard notes**: Surprisingly effective for human consumption — quick scanning, blunt status.
-
-8. **Model mixing**: Opus for strategic/hard reasoning (MOMMY, SMARTY). Sonnet for operational/fast tasks (PAPA, PENNY, ROCKY). qwen-coder for code analysis (DINO). This was cost-effective and performant.
+5. **Kill criteria**: 2h with no progress → reassign. Any metric regression → immediate rollback. Confidence < 0.3 → kill without remorse. These rules prevented wasted compute on dead-end directions.
 
 ---
 
-## 6. What Failed / Lessons Learned
+## 6. What Failed
 
-1. **v9_1_polished disaster**: A "page-wipe" optimization created 35 no-pages (G=0.9611). Always gate destructive transformations.
+1. **Enabling new components without testing**: A new LLM component was enabled without a small-slice test first → catastrophic regression (873/900 failures). **Rule: Never enable new components without a bounded test first.** This became Bernstein's sandbox validation pattern.
 
-2. **Isaacus EQA catastrophe (V12)**: Enabling a new LLM component without a 50-question slice test first → 873/900 null answers. **Rule: Never enable new components without small-slice test.**
+2. **Destructive transformations without gates**: A "cleanup" optimization accidentally wiped critical data. **Rule: Gate all destructive changes behind test verification.** This became Bernstein's janitor completion signals.
 
-3. **BENNY/IGGY agents underperformed**: Noise generators. Not every agent adds value. Kill underperformers early.
+3. **Not all agents add value**: Some agents produced noise, not signal. **Rule: Kill underperformers early.** This informed Bernstein's evolve accept/reject pipeline.
 
-4. **Background polling ban**: Agents using `run_in_background` for polling created zombie processes. Ban this pattern.
+4. **Background polling creates zombies**: Agents using background polling created processes that outlived their parent. **Rule: No background polling. Agents do work and exit.** This is why Bernstein uses short-lived agents.
 
-5. **PENNY's initial V12 diagnosis was wrong**: Reported 873 nulls as "code failure" when it was actually "server down + EQA None". Always verify root cause before alerting.
-
-6. **SMARTY's rerank cap**: A TTFT optimization that helped average latency but killed tail retrieval coverage. Always check tail effects.
-
-7. **Too many active agents**: 10+ agents on the same repo created commit churn. 6-8 is the sweet spot for a single-branch setup.
+5. **Too many agents on one branch**: 10+ agents on the same git branch = commit churn. **Optimal: 6-8 agents.** Bernstein defaults to `max_agents=6`.
 
 ---
 
-## 7. Spawning a New Agent — Checklist
+## 7. How This Became Bernstein
 
-```
-1. mkdir .sdd/agents/{name}/
-2. Write SYSTEM_PROMPT.md:
-   - Who they are (role, model, manager)
-   - What they own (files they can write)
-   - What they must NOT touch
-   - Loop protocol
-   - Communication format (BULLETIN, STATUS)
-   - Escalation path (PAPA → MOMMY → SASHA)
-3. Write STATUS.json (initializing)
-4. Write TASK_QUEUE.jsonl (first 3-5 tasks)
-5. Post to BULLETIN: "{agent} spawned. Tasks: ..."
-6. Add to DIRECTIVE.md agent assignments
-7. git commit + force-add (if .sdd/ is gitignored)
-8. Start the agent in a new terminal
-```
+| Sprint Pattern | Bernstein Feature |
+|---------------|-------------------|
+| File-based coordination | `.sdd/` state directory |
+| Bulletin board | `POST /bulletin` API + bulletin.py |
+| Directive / single truth | Task server as central authority |
+| Heartbeat + dead detection | Agent reaping in orchestrator |
+| File ownership | `owned_files` field on tasks |
+| Model mixing | Tier-aware router (routing.yaml) |
+| Kill criteria | Circuit breaker + evolution gate |
+| Small-slice testing | Sandbox validation in evolve pipeline |
+| Janitor verification | Completion signals (test_passes, path_exists) |
+| Short-lived agents | Spawn → work → exit (no idle loops) |
 
 ---
 
-## 8. VP Decision Framework (MOMMY pattern)
-
-For every significant decision, compute:
-```
-RAEI = midpoint(expected ΔTotal) × confidence × private_generalization × safety
-```
-
-Classification:
-- A = tiny low-risk patch (ship fast)
-- B = narrow feature change (eval first)
-- C = bounded refactor (eval + QA)
-- D = branch-level rebuild (dedicated agent)
-- E = freeze/investigate
-- F = reject/kill
-
-Kill criteria:
-- 2h with no progress → reassign
-- Any metric regression → immediate rollback
-- Complexity > 2× estimate → simplify or abandon
-- Confidence drops < 0.3 → kill without remorse
-
----
-
-## 9. Adaptability for Other Domains
-
-This framework is domain-agnostic. Replace:
-- "questions" → your work items
-- "G/Det/Asst/F/T" → your success metrics
-- "retrieval/generation/validation" → your pipeline stages
-- "private dataset" → your production/test environment
-
-The core patterns (hierarchy, file protocol, ownership, BULLETIN, DIRECTIVE, gate criteria) work for any multi-agent software engineering sprint.
-
----
-
-*Extracted from Agentic RAG Legal Challenge 2026 — Team Tzur Labs*
-*Framework operated 10+ agents over 48h, delivering G=0.9956, F=1.029, Total≈0.90*
+*Architecture proven during Agentic RAG Legal Challenge 2026. 12 agents, 48 hours, 737 tasks completed.*

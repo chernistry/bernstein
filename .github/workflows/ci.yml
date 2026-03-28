@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
 
 jobs:
@@ -41,7 +41,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: uv run python scripts/run_tests.py -x
 
-  # Self-healing: open a GitHub Issue on master when CI fails so the evolve
+  # Self-healing: open a GitHub Issue on main when CI fails so the evolve
   # agent can pick it up as a priority-1 ci-fix task.
   self-heal:
     name: Self-heal (create fix issue on failure)
@@ -49,7 +49,7 @@ jobs:
     needs: [lint, test]
     if: >
       failure() &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
+      github.ref == 'refs/heads/main' &&
       github.event_name == 'push'
     permissions:
       issues: write

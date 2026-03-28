@@ -187,7 +187,7 @@ def build_task_payload(failures: list[CIFailure], run_url: str = "") -> dict[str
     run_link = f"\nCI run: {run_url}" if run_url else ""
 
     description = textwrap.dedent(f"""\
-        CI is failing on master. Failures detected: {kinds}
+        CI is failing. Failures detected: {kinds}
 
         ## Failures
         {summaries}

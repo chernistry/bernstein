@@ -320,12 +320,17 @@ def safe_push(cwd: Path, branch: str, remote: str = "origin") -> GitResult:
 
     Args:
         cwd: Repository root.
-        branch: Branch name to push.
+        branch: Branch name to push (``"master"`` is auto-corrected to ``"main"``).
         remote: Remote name (default "origin").
 
     Returns:
         GitResult from the push command.
     """
+    # Guardrail: never push to "master" — auto-correct to "main".
+    if branch == "master":
+        logger.info("safe_push: correcting branch 'master' -> 'main'")
+        branch = "main"
+
     # 1. Fetch
     fetch_result = fetch(cwd, remote)
     if not fetch_result.ok:
@@ -536,7 +541,7 @@ def create_github_pr(
     title: str,
     body: str,
     head: str,
-    base: str = "master",
+    base: str = "main",
     labels: list[str] | None = None,
 ) -> PullRequestResult:
     """Create a GitHub pull request via the ``gh`` CLI.
@@ -546,7 +551,7 @@ def create_github_pr(
         title: PR title.
         body: PR body / description.
         head: Source branch name.
-        base: Target branch (default ``"master"``).
+        base: Target branch (default ``"main"``).
         labels: Optional list of label names to attach.
 
     Returns:

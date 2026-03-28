@@ -5,7 +5,7 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
-    branches: [main, master]
+    branches: [main]
 
 # Only one fix attempt at a time per branch.
 concurrency:

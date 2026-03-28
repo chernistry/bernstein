@@ -645,6 +645,119 @@ def reap_dead_agents(
 
 
 # ---------------------------------------------------------------------------
+# Idle agent detection and recycling
+# ---------------------------------------------------------------------------
+
+#: Seconds to wait after sending SHUTDOWN before force-killing an idle agent.
+_IDLE_GRACE_S: float = 30.0
+
+#: Default no-heartbeat idle threshold (seconds).
+_IDLE_HEARTBEAT_THRESHOLD_S: float = 90.0
+
+#: Aggressive idle threshold used when evolve mode is active.
+_IDLE_HEARTBEAT_THRESHOLD_EVOLVE_S: float = 60.0
+
+
+def recycle_idle_agents(
+    orch: Any,
+    tasks_snapshot: dict[str, list[Task]],
+) -> None:
+    """Detect and recycle agents that are idle but consuming a slot.
+
+    An agent is considered idle when:
+    - All of its tasks are already resolved (done/failed) on the server
+      while the process is still alive, OR
+    - The process has not written a heartbeat for ``_IDLE_HEARTBEAT_THRESHOLD_S``
+      seconds (60 s in evolve mode for faster agent turnover).
+
+    Recycling protocol:
+    1. Send SHUTDOWN signal — agent has 30 s to save WIP and exit cleanly.
+    2. If still alive after 30 s → SIGKILL.
+    3. Clear signal files and release the slot.
+
+    Args:
+        orch: Orchestrator instance.
+        tasks_snapshot: Pre-fetched tasks bucketed by status from this tick.
+    """
+    now = time.time()
+
+    # Build resolved task ID set from snapshot (done / failed / blocked)
+    resolved_ids: set[str] = set()
+    for status in ("done", "failed", "blocked"):
+        for t in tasks_snapshot.get(status, []):
+            resolved_ids.add(t.id)
+
+    # Heartbeat-idle threshold — tighter in evolve mode for fast turnover
+    hb_idle_s = _IDLE_HEARTBEAT_THRESHOLD_EVOLVE_S if orch._config.evolve_mode else _IDLE_HEARTBEAT_THRESHOLD_S
+
+    for session in list(orch._agents.values()):
+        if session.status == "dead":
+            continue
+        if not orch._spawner.check_alive(session):
+            continue  # Already dead — refresh_agent_states handles it next tick
+
+        idle_reason: str | None = None
+
+        # Case 1: all tasks already resolved on server
+        if session.task_ids and all(tid in resolved_ids for tid in session.task_ids):
+            idle_reason = "task_already_resolved"
+
+        # Case 2: no heartbeat update for idle threshold
+        elif orch._signal_mgr.read_heartbeat(session.id) is not None:
+            hb = orch._signal_mgr.read_heartbeat(session.id)
+            if hb is not None and (now - hb.timestamp) >= hb_idle_s:
+                idle_reason = f"no_heartbeat_{int(hb_idle_s)}s"
+
+        if idle_reason is None:
+            continue
+
+        _recycle_or_kill(orch, session, now, idle_reason)
+
+
+def _recycle_or_kill(orch: Any, session: AgentSession, now: float, reason: str) -> None:
+    """Send SHUTDOWN or SIGKILL to an idle agent.
+
+    On first call: writes the SHUTDOWN signal file and records the timestamp.
+    On subsequent calls once grace period elapsed: force-kills the process and
+    clears the tracking entry.
+
+    Args:
+        orch: Orchestrator instance.
+        session: The idle agent session.
+        now: Current Unix timestamp.
+        reason: Human-readable reason for recycling (used in log and signal).
+    """
+    shutdown_sent_ts: float = orch._idle_shutdown_ts.get(session.id, 0.0)
+
+    if shutdown_sent_ts == 0.0:
+        # First detection — send SHUTDOWN and record timestamp
+        task_title = ", ".join(session.task_ids) if session.task_ids else "unknown task"
+        with contextlib.suppress(OSError):
+            orch._signal_mgr.write_shutdown(session.id, reason=reason, task_title=task_title)
+        orch._idle_shutdown_ts[session.id] = now
+        logger.info(
+            "Idle agent %s detected (%s) — SHUTDOWN signal sent, waiting %ds",
+            session.id,
+            reason,
+            int(_IDLE_GRACE_S),
+        )
+    elif now - shutdown_sent_ts >= _IDLE_GRACE_S:
+        # Grace period elapsed — force-kill
+        logger.warning(
+            "Recycled idle agent %s (%s — no exit after %ds SHUTDOWN grace)",
+            session.id,
+            reason,
+            int(_IDLE_GRACE_S),
+        )
+        with contextlib.suppress(Exception):
+            orch._spawner.kill(session)
+        orch._idle_shutdown_ts.pop(session.id, None)
+        with contextlib.suppress(OSError):
+            orch._signal_mgr.clear_signals(session.id)
+        get_collector().end_agent(session.id)
+
+
+# ---------------------------------------------------------------------------
 # Kill signal processing
 # ---------------------------------------------------------------------------
 

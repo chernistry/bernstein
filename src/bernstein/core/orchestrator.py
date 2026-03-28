@@ -29,6 +29,7 @@ from bernstein.core.agent_lifecycle import (
     check_stale_agents,
     check_stalled_tasks,
     reap_dead_agents,
+    recycle_idle_agents,
     refresh_agent_states,
     send_shutdown_signals,
 )
@@ -269,6 +270,10 @@ class Orchestrator:
         self._stall_counts: dict[str, int] = {}  # task_id -> consecutive identical count
         self._last_snapshot: dict[str, ProgressSnapshot | None] = {}  # task_id -> last snapshot
         self._last_snapshot_ts: dict[str, float] = {}  # task_id -> last snapshot timestamp
+
+        # Idle-agent recycling: tracks when a SHUTDOWN was sent to an idle agent
+        # so the grace period can be enforced (30 s before SIGKILL).
+        self._idle_shutdown_ts: dict[str, float] = {}  # session_id -> shutdown_sent_ts
 
         # Cluster heartbeat client: when cluster mode is enabled and this node
         # is a worker (server_url points to a remote central server), send
@@ -528,6 +533,10 @@ class Orchestrator:
 
         # 4d. Check progress-snapshot-based stalls; send WAKEUP/SHUTDOWN/kill
         check_stalled_tasks(self)
+
+        # 4e. Recycle idle agents (task already resolved but process still alive,
+        #     or no heartbeat for idle threshold). SHUTDOWN → 30s grace → SIGKILL.
+        recycle_idle_agents(self, tasks_by_status)
 
         # 5. Reap dead/stale agents and fail their tasks
         reap_dead_agents(self, result, tasks_by_status)
@@ -1236,7 +1245,7 @@ class Orchestrator:
                 logger.warning("Evolve: commit failed: %s", result.stderr)
                 return False
 
-            safe_push(self._workdir, "master")
+            safe_push(self._workdir, "main")
             logger.info("Evolve: auto-committed and pushed changes")
 
             if "src/bernstein/" in changed:

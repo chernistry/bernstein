@@ -194,7 +194,7 @@ class ApprovalGate:
         *,
         worktree_path: Path,
         session_id: str,
-        base_branch: str = "master",
+        base_branch: str = "main",
         labels: list[str] | None = None,
         role: str = "",
         model: str = "",

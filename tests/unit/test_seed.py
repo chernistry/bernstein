@@ -161,6 +161,82 @@ class TestParseSeedInvalid:
 
 
 # ---------------------------------------------------------------------------
+# parse_seed — worktree_setup
+# ---------------------------------------------------------------------------
+
+
+class TestParseSeedWorktreeSetup:
+    """Tests for worktree_setup section parsing."""
+
+    def test_no_worktree_setup_defaults_to_none(self, seed_file: Path) -> None:
+        seed_file.write_text(MINIMAL_YAML)
+        cfg = parse_seed(seed_file)
+        assert cfg.worktree_setup is None
+
+    def test_symlink_dirs_parsed(self, seed_file: Path) -> None:
+        seed_file.write_text(
+            'goal: "T"\nworktree_setup:\n  symlink_dirs: [node_modules, .venv]\n'
+        )
+        cfg = parse_seed(seed_file)
+        assert cfg.worktree_setup is not None
+        assert cfg.worktree_setup.symlink_dirs == ("node_modules", ".venv")
+
+    def test_copy_files_parsed(self, seed_file: Path) -> None:
+        seed_file.write_text(
+            'goal: "T"\nworktree_setup:\n  copy_files: [.env, .env.local]\n'
+        )
+        cfg = parse_seed(seed_file)
+        assert cfg.worktree_setup is not None
+        assert cfg.worktree_setup.copy_files == (".env", ".env.local")
+
+    def test_setup_command_parsed(self, seed_file: Path) -> None:
+        seed_file.write_text(
+            'goal: "T"\nworktree_setup:\n  setup_command: "uv sync"\n'
+        )
+        cfg = parse_seed(seed_file)
+        assert cfg.worktree_setup is not None
+        assert cfg.worktree_setup.setup_command == "uv sync"
+
+    def test_all_fields_together(self, seed_file: Path) -> None:
+        seed_file.write_text(
+            "goal: T\n"
+            "worktree_setup:\n"
+            "  symlink_dirs: [node_modules]\n"
+            "  copy_files: [.env]\n"
+            "  setup_command: npm install\n"
+        )
+        cfg = parse_seed(seed_file)
+        assert cfg.worktree_setup is not None
+        assert cfg.worktree_setup.symlink_dirs == ("node_modules",)
+        assert cfg.worktree_setup.copy_files == (".env",)
+        assert cfg.worktree_setup.setup_command == "npm install"
+
+    def test_empty_worktree_setup_block(self, seed_file: Path) -> None:
+        """An empty worktree_setup block creates a default config with no dirs/files."""
+        seed_file.write_text("goal: T\nworktree_setup: {}\n")
+        cfg = parse_seed(seed_file)
+        assert cfg.worktree_setup is not None
+        assert cfg.worktree_setup.symlink_dirs == ()
+        assert cfg.worktree_setup.copy_files == ()
+        assert cfg.worktree_setup.setup_command is None
+
+    def test_non_mapping_worktree_setup_raises(self, seed_file: Path) -> None:
+        seed_file.write_text('goal: "T"\nworktree_setup: "invalid"\n')
+        with pytest.raises(SeedError, match="worktree_setup must be a mapping"):
+            parse_seed(seed_file)
+
+    def test_non_list_symlink_dirs_raises(self, seed_file: Path) -> None:
+        seed_file.write_text('goal: "T"\nworktree_setup:\n  symlink_dirs: "node_modules"\n')
+        with pytest.raises(SeedError, match="worktree_setup.symlink_dirs"):
+            parse_seed(seed_file)
+
+    def test_non_string_setup_command_raises(self, seed_file: Path) -> None:
+        seed_file.write_text('goal: "T"\nworktree_setup:\n  setup_command: 42\n')
+        with pytest.raises(SeedError, match="worktree_setup.setup_command must be a string"):
+            parse_seed(seed_file)
+
+
+# ---------------------------------------------------------------------------
 # seed_to_initial_task
 # ---------------------------------------------------------------------------
 

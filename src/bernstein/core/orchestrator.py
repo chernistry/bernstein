@@ -33,6 +33,7 @@ from bernstein.core.agent_lifecycle import (
     refresh_agent_states,
     send_shutdown_signals,
 )
+from bernstein.core.token_monitor import check_token_growth
 from bernstein.core.agent_signals import AgentSignalManager
 from bernstein.core.approval import ApprovalGate, ApprovalMode
 from bernstein.core.bulletin import BulletinBoard, BulletinMessage
@@ -59,6 +60,7 @@ from bernstein.core.models import (
     TaskType,
 )
 from bernstein.core.notifications import NotificationManager, NotificationPayload
+from bernstein.core.file_locks import FileLockManager
 from bernstein.core.quarantine import QuarantineStore
 from bernstein.core.retrospective import generate_retrospective
 from bernstein.core.router import TierAwareRouter, load_providers_from_yaml
@@ -83,6 +85,7 @@ from bernstein.core.tick_pipeline import (
     fetch_all_tasks,
     group_by_role,
     parse_backlog_file,
+    prioritize_starving_roles,
 )
 from bernstein.core.tick_pipeline import (
     compute_total_spent as compute_total_spent,
@@ -170,7 +173,8 @@ class Orchestrator:
             headers=_headers,
         )
         self._agents: dict[str, AgentSession] = {}
-        self._file_ownership: dict[str, str] = {}  # filepath -> agent_id
+        self._lock_manager = FileLockManager(workdir)
+        self._file_ownership: dict[str, str] = {}  # filepath -> agent_id (legacy alias; use _lock_manager)
         self._task_to_session: dict[str, str] = {}  # task_id -> agent_id (reverse index)
         self._processed_done_tasks: set[str] = set()  # avoid re-processing done tasks
         self._retried_task_ids: set[str] = set()  # tasks that already have a retry queued
@@ -496,6 +500,14 @@ class Orchestrator:
         alive_count = sum(1 for a in self._agents.values() if a.status != "dead")
         result.active_agents = alive_count
 
+        # 3a. Rebalance: move starving-role batches (0 alive agents) to the front
+        # so they are guaranteed a slot before well-served roles consume remaining capacity.
+        _alive_per_role: dict[str, int] = {}
+        for _agent in self._agents.values():
+            if _agent.status != "dead":
+                _alive_per_role[_agent.role] = _alive_per_role.get(_agent.role, 0) + 1
+        batches = prioritize_starving_roles(batches, _alive_per_role)
+
         # Track which task IDs are already assigned to active agents
         assigned_task_ids: set[str] = set()
         for agent in self._agents.values():
@@ -566,6 +578,9 @@ class Orchestrator:
 
         # 4d. Check progress-snapshot-based stalls; send WAKEUP/SHUTDOWN/kill
         check_stalled_tasks(self)
+
+        # 4d-ii. Token growth monitor: alert on quadratic growth, kill runaway agents
+        check_token_growth(self)
 
         # 4e. Recycle idle agents (task already resolved but process still alive,
         #     or no heartbeat for idle threshold). SHUTDOWN → 30s grace → SIGKILL.
@@ -771,9 +786,10 @@ class Orchestrator:
 
     def _release_file_ownership(self, agent_id: str) -> None:
         """Release all files owned by the given agent."""
-        to_remove = [fp for fp, owner in self._file_ownership.items() if owner == agent_id]
-        for fp in to_remove:
-            del self._file_ownership[fp]
+        released = self._lock_manager.release(agent_id)
+        # Keep legacy dict in sync
+        for fp in released:
+            self._file_ownership.pop(fp, None)
 
     def _release_task_to_session(self, task_ids: list[str]) -> None:
         """Remove reverse-index entries for the given task IDs."""
@@ -917,8 +933,19 @@ class Orchestrator:
         )
 
     def _check_file_overlap(self, batch: list[Task]) -> bool:
-        """Delegate to task_lifecycle.check_file_overlap."""
-        return check_file_overlap(batch, self._file_ownership, self._agents)
+        """Return True if any file in *batch* is currently locked by another agent."""
+        all_files = [f for task in batch for f in task.owned_files]
+        conflicts = self._lock_manager.check_conflicts(all_files)
+        if conflicts:
+            for fpath, lock in conflicts:
+                logger.debug(
+                    "File %s locked by agent %s (task %s), deferring batch",
+                    fpath,
+                    lock.agent_id,
+                    lock.task_id,
+                )
+            return True
+        return False
 
     def _should_auto_decompose(self, task: Task) -> bool:
         """Delegate to task_lifecycle.should_auto_decompose."""
@@ -2020,6 +2047,8 @@ if __name__ == "__main__":
             mcp_manager=mcp_manager,
             agency_catalog=agency_catalog,
             catalog=catalog_registry,
+            use_worktrees=seed.worktree_setup is not None if seed else False,
+            worktree_setup_config=seed.worktree_setup if seed else None,
         )
         budget_usd = 0.0
         dry_run = False

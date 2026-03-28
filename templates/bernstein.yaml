@@ -72,6 +72,32 @@ catalogs:
 #     args: ["-y", "@modelcontextprotocol/server-filesystem", "."]
 
 # ---------------------------------------------------------------------------
+# Worktree environment setup (applied after each git worktree is created)
+# ---------------------------------------------------------------------------
+# When set, each agent gets its own git worktree.  The options below run
+# immediately after `git worktree add` so the agent finds a provisioned tree.
+#
+# worktree_setup:
+#   # Symlink large shared directories into each worktree (fast, shared I/O).
+#   # Use for build artefacts like node_modules or .venv that are expensive
+#   # to recreate.  All agents share the same directory on disk.
+#   symlink_dirs:
+#     - node_modules
+#     - .venv
+#
+#   # Copy files from the repo root into each worktree (independent copies).
+#   # Use for .env files so each agent can write its own port / secret overrides
+#   # without affecting other agents.
+#   copy_files:
+#     - .env
+#     - .env.local
+#
+#   # Optional shell command to run inside the worktree after symlinking and
+#   # copying.  Useful when symlinks are not enough (e.g. "uv sync" to install
+#   # any worktree-local dependencies, or "npm run build:deps").
+#   # setup_command: "uv sync"
+
+# ---------------------------------------------------------------------------
 # Webhook notifications
 # ---------------------------------------------------------------------------
 # notify:

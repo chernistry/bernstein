@@ -2154,6 +2154,13 @@ class Orchestrator:
             retry_count = int(m.group(1))
 
         if retry_count >= self._config.max_task_retries:
+            base_title = re.sub(r"^\[RETRY \d+\] ", "", task.title)
+            self._quarantine.record_failure(base_title, "Max retries exhausted")
+            logger.warning(
+                "Task %r exhausted %d retries — recorded cross-run failure in quarantine",
+                base_title,
+                self._config.max_task_retries,
+            )
             return False
 
         next_retry = retry_count + 1
@@ -2538,6 +2545,24 @@ class Orchestrator:
                     [t.id for t in batch],
                     fail_count,
                 )
+                continue
+
+            # Cross-run quarantine: skip tasks that have repeatedly failed across runs.
+            # action="skip" → skip entirely; action="decompose" → auto-decompose first.
+            quarantined_tasks = [t for t in batch if self._quarantine.is_quarantined(t.title)]
+            if quarantined_tasks:
+                for task in quarantined_tasks:
+                    entry = self._quarantine.get_entry(task.title)
+                    action = entry.action if entry else "skip"
+                    logger.warning(
+                        "Skipping quarantined task %s (title=%r, fail_count=%d, action=%s)",
+                        task.id,
+                        task.title,
+                        entry.fail_count if entry else 0,
+                        action,
+                    )
+                    if action == "decompose" and len(batch) == 1:
+                        self._auto_decompose_task(task)
                 continue
 
             # Pre-flight: auto-decompose large tasks before claiming.

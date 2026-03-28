@@ -1527,7 +1527,7 @@ def create_app(
         return _task_to_response(task)
 
     @application.post("/tasks/{task_id}/block", response_model=TaskResponse)
-    async def block_task(task_id: str, body: TaskBlockRequest) -> TaskResponse:
+    async def block_task(task_id: str, body: TaskBlockRequest) -> TaskResponse:  # pyright: ignore[reportUnusedFunction]
         """Mark a task as blocked — requires human intervention to unblock."""
         try:
             task = await store.block(task_id, body.reason)

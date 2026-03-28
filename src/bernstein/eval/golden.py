@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import yaml
 
@@ -91,21 +91,22 @@ def _parse_golden_file(path: Path, tier: Tier) -> GoldenTask | None:
         logger.warning("Golden task frontmatter is not a dict: %s", path)
         return None
 
+    m: dict[str, Any] = dict(meta)
     body = parts[2].strip()
-    task_id: str = str(meta.get("id", path.stem))
+    task_id: str = str(m.get("id", path.stem))
 
     return GoldenTask(
         id=task_id,
         tier=tier,
-        title=str(meta.get("title", path.stem)),
-        description=body or str(meta.get("description", "")),
-        role=str(meta.get("role", "backend")),
-        expected_files_modified=list(meta.get("expected_files_modified", [])),
-        expected_test_outcomes=dict(meta.get("expected_test_outcomes", {})),
-        completion_signals=list(meta.get("completion_signals", [])),
-        max_cost_usd=float(meta.get("max_cost_usd", 1.0)),
-        max_duration_s=int(meta.get("max_duration_s", 300)),
-        owned_files=list(meta.get("owned_files", [])),
+        title=str(m.get("title", path.stem)),
+        description=body or str(m.get("description", "")),
+        role=str(m.get("role", "backend")),
+        expected_files_modified=[str(x) for x in m.get("expected_files_modified", [])],
+        expected_test_outcomes={str(k): bool(v) for k, v in m.get("expected_test_outcomes", {}).items()},
+        completion_signals=[str(x) for x in m.get("completion_signals", [])],
+        max_cost_usd=float(m.get("max_cost_usd", 1.0)),
+        max_duration_s=int(m.get("max_duration_s", 300)),
+        owned_files=[str(x) for x in m.get("owned_files", [])],
     )
 
 

@@ -128,7 +128,7 @@ def parse_telemetry(raw: dict[str, object]) -> AgentTelemetry:
     def _str_list(key: str) -> list[str]:
         v = raw.get(key, [])
         if isinstance(v, list):
-            return [str(x) for x in v]
+            return [str(item) for item in v]
         return []
 
     return AgentTelemetry(

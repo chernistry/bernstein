@@ -2,27 +2,6 @@
 
 No decisions recorded yet.
 
-## [2026-03-28 19:14] 414 — Modern git integration: branches, PRs, smart commits, context from history (65b7f8518913)
-Completed: 414 — Modern git integration. All completion signals verified: git_ops.py has conventional_commit (L246), safe_push (L318), bisect_regression (L665); git_context.py has blame_summary (L81), hot_files (L151); orchestrator.py has zero subprocess.run git calls; 76 tests pass in test_git_ops.py; 28 tests pass in test_git_context.py.
-
-## [2026-03-28 19:15] 415 — Creative evolution: visionary → analyst → production pipeline (5d29f54c0327)
-Completed: 415 — Creative evolution: visionary → analyst → production pipeline. All completion signals verified: 20/20 tests pass, CreativePipeline/VisionaryProposal/AnalystVerdict classes present, visionary and analyst role templates exist, creative_vision focus in evolution loop, bernstein ideate CLI command wired.
-
-## [2026-03-28 19:15] 416 — Zero-to-running in 60 seconds: bernstein demo command (4f0fc6c9a2aa)
-Completed: 416 — Zero-to-running in 60 seconds: bernstein demo command
-
-## [2026-03-28 19:19] 501 — Fix critical UX blockers: broken aliases, missing pre-flight checks (609d10124b56)
-Completed: 501 — Fix critical UX blockers: broken aliases, missing pre-flight checks
-
-## [2026-03-28 19:19] 701 — Benchmark: Single Agent vs Bernstein Multi-Agent (5e13221c36a6)
-Completed: 701 — Benchmark: Single Agent vs Bernstein Multi-Agent
-
-## [2026-03-28 19:19] [RETRY 1] 725 — Fast Session Resume (Skip Re-Planning) (ab20978c4f9f)
-Completed: [RETRY 1] 725 — Fast Session Resume (Skip Re-Planning)
-
-## [2026-03-28 19:19] 516 — Eval-gated evolution: only apply changes that improve eval scores (a78f7c6f9af0)
-Completed: 516 — Eval-gated evolution: only apply changes that improve eval scores
-
 ## [2026-03-28 19:19] 703 — Slack/Discord/Telegram Notifications (979234f7c3b1)
 Completed: 703 — Slack/Discord/Telegram Notifications
 
@@ -46,3 +25,24 @@ Completed: 730 — Output Guardrails: Secret Detection + Scope Enforcement
 
 ## [2026-03-28 19:25] 725 — Fast Session Resume (Skip Re-Planning) (e2e617d0e110)
 Completed: 725 — Fast Session Resume (Skip Re-Planning). All components already implemented: session.py with SessionState/save_session/load_session/check_resume_session, orchestrator._save_session_state() called on cleanup, bootstrap_from_seed/bootstrap_from_goal both detect prior sessions and skip manager re-planning, --fresh CLI flag, SessionConfig in seed.yaml, comprehensive tests in test_session_resume.py (19 tests all passing).
+
+## [2026-03-28 19:33] 338 — HN Show Launch Package (3b04aca12fa5)
+Completed: 338 — HN Show Launch Package
+
+## [2026-03-28 19:34] 339 — Technical Content Strategy (9b1d340c8b8e)
+Completed: 339 — Technical Content Strategy. All 5 content pieces verified: 2 Twitter threads (47-seconds benchmark, deterministic orchestration), architecture blog post (zero-llm-coordination), Reddit r/LocalLLaMA post, and Show HN post with response strategy. Content calendar covers Week 1 launch burst through Month 2 with platform strategy for Twitter, HN, Reddit, Dev.to/Hashnode, and YouTube.
+
+## [2026-03-28 19:34] 340 — Benchmark vs GitHub Agent HQ (5661c8a1ffae)
+Completed: 340 — Benchmark vs GitHub Agent HQ
+
+## [2026-03-28 19:35] 341 — SWE-Bench Evaluation with Scaffolding Thesis (c13f82ea5e4b)
+Completed: 341 — SWE-Bench Evaluation with Scaffolding Thesis
+
+## [2026-03-28 19:35] 337a — Killer Demo GIF + Video (a8ea1f95da4b)
+Completed: 337a — Killer Demo GIF + Video
+
+## [2026-03-28 19:35] 337b — Benchmark: Single Agent vs Bernstein Multi-Agent (6690b0ece4a8)
+Completed: 337b — Benchmark: Single Agent vs Bernstein Multi-Agent
+
+## [2026-03-28 19:36] 334 — Agent Signal Files (WAKEUP / SHUTDOWN / HEARTBEAT) (9fae67070859)
+Completed: 334 — Agent Signal Files (WAKEUP / SHUTDOWN / HEARTBEAT)

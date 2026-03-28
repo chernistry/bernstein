@@ -5222,3 +5222,93 @@ def completions(shell: str) -> None:
         "fish": "_BERNSTEIN_COMPLETE=fish_source bernstein | source",
     }
     click.echo(shell_map[shell])
+
+
+# ---------------------------------------------------------------------------
+# quarantine — manage cross-run task quarantine
+# ---------------------------------------------------------------------------
+
+
+@cli.group("quarantine")
+def quarantine_group() -> None:
+    """Manage the cross-run task quarantine.
+
+    Tasks that fail repeatedly (3+ times across runs) are quarantined
+    so Bernstein stops re-attempting known-bad work.
+    """
+
+
+@quarantine_group.command("list")
+@click.option(
+    "--workdir",
+    default=".",
+    show_default=True,
+    help="Bernstein project directory.",
+)
+@click.option("--all", "show_all", is_flag=True, default=False, help="Include expired entries.")
+def quarantine_list(workdir: str, show_all: bool) -> None:
+    """List quarantined tasks.
+
+    By default shows only active (non-expired) entries.
+    Use --all to include expired entries older than 7 days.
+    """
+    from pathlib import Path
+
+    from bernstein.core.quarantine import QuarantineStore
+
+    store = QuarantineStore(Path(workdir) / ".sdd" / "runtime" / "quarantine.json")
+    entries = store.load() if show_all else store.get_all()
+
+    if not entries:
+        console.print("[dim]No quarantined tasks.[/dim]")
+        return
+
+    from rich.table import Table
+
+    table = Table(title="Quarantined Tasks", show_header=True, header_style="bold red")
+    table.add_column("Title", style="white", no_wrap=False)
+    table.add_column("Fails", style="red", justify="right")
+    table.add_column("Last Failure", style="yellow")
+    table.add_column("Action", style="cyan")
+    table.add_column("Reason", style="dim")
+
+    for entry in entries:
+        table.add_row(
+            entry.task_title,
+            str(entry.fail_count),
+            entry.last_failure,
+            entry.action,
+            entry.reason,
+        )
+
+    console.print(table)
+
+
+@quarantine_group.command("clear")
+@click.argument("title", required=False, default=None)
+@click.option(
+    "--workdir",
+    default=".",
+    show_default=True,
+    help="Bernstein project directory.",
+)
+def quarantine_clear(title: str | None, workdir: str) -> None:
+    """Remove a task from quarantine.
+
+    \b
+    Remove a specific task:
+      bernstein quarantine clear "519 — Distributed cluster mode"
+
+    Remove all quarantined tasks:
+      bernstein quarantine clear
+    """
+    from pathlib import Path
+
+    from bernstein.core.quarantine import QuarantineStore
+
+    store = QuarantineStore(Path(workdir) / ".sdd" / "runtime" / "quarantine.json")
+    store.clear(title)
+    if title:
+        console.print(f"[green]Cleared quarantine entry for:[/green] {title}")
+    else:
+        console.print("[green]Cleared all quarantine entries.[/green]")

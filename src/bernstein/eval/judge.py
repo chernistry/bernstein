@@ -10,7 +10,7 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
 
@@ -121,8 +121,8 @@ def _parse_verdict(raw: str) -> JudgeVerdict:
     verdict_raw = data.get("verdict", "FAIL")
     verdict: Literal["PASS", "FAIL"] = "PASS" if str(verdict_raw).upper() == "PASS" else "FAIL"
 
-    issues_raw = data.get("issues", [])
-    issues: list[str] = [str(i) for i in issues_raw] if isinstance(issues_raw, list) else []
+    issues_raw: Any = data.get("issues", [])
+    issues: list[str] = [str(item) for item in issues_raw] if isinstance(issues_raw, list) else []
 
     return JudgeVerdict(
         correctness=_clamp(data.get("correctness", 0)),

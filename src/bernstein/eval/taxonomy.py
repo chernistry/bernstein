@@ -51,7 +51,7 @@ class FailureTaxonomy:
         failures: All failure records from the run.
     """
 
-    failures: list[FailureRecord] = field(default_factory=list[str])
+    failures: list[FailureRecord] = field(default_factory=list)
 
     def add(self, record: FailureRecord) -> None:
         """Add a failure record."""

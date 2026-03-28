@@ -135,18 +135,18 @@ class EvalResult:
     """
 
     score: float
-    components: dict[str, float] = field(default_factory=dict[str, Any])
+    components: dict[str, float] = field(default_factory=dict)
     tier: str = "smoke"
     tasks_evaluated: int = 0
     duration_seconds: float = 0.0
     timestamp: float = field(default_factory=time.time)
-    details: list[dict[str, Any]] = field(default_factory=list[str])
+    details: list[dict[str, Any]] = field(default_factory=list)
 
     # New multiplicative scoring fields
     multiplicative_components: EvalScoreComponents | None = None
     per_tier: TierScores | None = None
-    failures: list[FailureRecord] = field(default_factory=list[str])
-    task_results: list[TaskEvalResult] = field(default_factory=list[str])
+    failures: list[FailureRecord] = field(default_factory=list)
+    task_results: list[TaskEvalResult] = field(default_factory=list)
     cost_total: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:

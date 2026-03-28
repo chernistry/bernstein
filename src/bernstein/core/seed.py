@@ -96,7 +96,7 @@ class SeedConfig:
     goal: str
     budget_usd: float | None = None
     team: Literal["auto"] | list[str] = "auto"
-    cli: Literal["claude", "codex", "gemini", "qwen"] = "claude"
+    cli: Literal["claude", "codex", "gemini", "qwen", "auto"] = "claude"
     max_agents: int = 6
     model: str | None = None
     constraints: tuple[str, ...] = ()

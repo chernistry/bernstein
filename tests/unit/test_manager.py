@@ -27,6 +27,7 @@ from bernstein.core.manager import (
     _extract_json,
     _format_existing_tasks,
     _format_roles,
+    _parse_completion_signal,
     _parse_upgrade_details,
     _resolve_depends_on,
     parse_review_response,
@@ -35,6 +36,7 @@ from bernstein.core.manager import (
     render_plan_prompt,
     render_review_prompt,
 )
+from bernstein.core.upgrade_executor import FileChange, UpgradeType
 
 
 # ---------------------------------------------------------------------------
@@ -652,3 +654,383 @@ class TestManagerAgentReview:
         assert result.verdict == "request_changes"
         assert len(result.follow_up_tasks) == 1
         assert result.follow_up_tasks[0].title == "Add input validation"
+
+
+# ---------------------------------------------------------------------------
+# _parse_completion_signal
+# ---------------------------------------------------------------------------
+
+class TestParseCompletionSignal:
+    """Tests for completion signal parsing."""
+
+    def test_valid_path_exists(self) -> None:
+        sig = _parse_completion_signal({"type": "path_exists", "value": "src/foo.py"})
+        assert sig.type == "path_exists"
+        assert sig.value == "src/foo.py"
+
+    def test_valid_glob_exists(self) -> None:
+        sig = _parse_completion_signal({"type": "glob_exists", "value": "tests/**/*.py"})
+        assert sig.type == "glob_exists"
+        assert sig.value == "tests/**/*.py"
+
+    def test_valid_test_passes(self) -> None:
+        sig = _parse_completion_signal({"type": "test_passes", "value": "pytest tests/"})
+        assert sig.type == "test_passes"
+
+    def test_valid_file_contains(self) -> None:
+        sig = _parse_completion_signal({"type": "file_contains", "value": "def my_func"})
+        assert sig.type == "file_contains"
+
+    def test_valid_llm_review(self) -> None:
+        sig = _parse_completion_signal({"type": "llm_review", "value": "Check quality"})
+        assert sig.type == "llm_review"
+
+    def test_invalid_type_raises(self) -> None:
+        with pytest.raises(ValueError, match="Invalid completion signal type"):
+            _parse_completion_signal({"type": "nonexistent_type", "value": "foo"})
+
+    def test_empty_type_raises(self) -> None:
+        with pytest.raises(ValueError, match="Invalid completion signal type"):
+            _parse_completion_signal({"type": "", "value": "foo"})
+
+    def test_empty_value_raises(self) -> None:
+        with pytest.raises(ValueError, match="value cannot be empty"):
+            _parse_completion_signal({"type": "path_exists", "value": ""})
+
+    def test_missing_value_raises(self) -> None:
+        with pytest.raises(ValueError, match="value cannot be empty"):
+            _parse_completion_signal({"type": "path_exists"})
+
+
+# ---------------------------------------------------------------------------
+# ManagerAgent._parse_upgrade_changes
+# ---------------------------------------------------------------------------
+
+@pytest.fixture()
+def manager_agent(tmp_path: Path) -> ManagerAgent:
+    """A ManagerAgent instance for unit testing instance methods."""
+    return ManagerAgent(
+        server_url="http://localhost:9999",
+        workdir=tmp_path,
+        templates_dir=tmp_path,
+    )
+
+
+class TestParseUpgradeChanges:
+    """Tests for ManagerAgent._parse_upgrade_changes."""
+
+    def test_valid_json_array(self, manager_agent: ManagerAgent) -> None:
+        response = json.dumps([
+            {"path": "src/foo.py", "operation": "modify", "new_content": "# updated"},
+            {"path": "src/bar.py", "operation": "create", "new_content": "# new file"},
+        ])
+        changes = manager_agent._parse_upgrade_changes(response)
+        assert len(changes) == 2
+        assert changes[0].path == "src/foo.py"
+        assert changes[0].operation == "modify"
+        assert changes[0].new_content == "# updated"
+        assert changes[1].path == "src/bar.py"
+        assert changes[1].operation == "create"
+
+    def test_json_in_markdown_fences(self, manager_agent: ManagerAgent) -> None:
+        data = [{"path": "a.py", "operation": "delete"}]
+        response = f"```json\n{json.dumps(data)}\n```"
+        changes = manager_agent._parse_upgrade_changes(response)
+        assert len(changes) == 1
+        assert changes[0].path == "a.py"
+        assert changes[0].operation == "delete"
+
+    def test_json_in_plain_fences(self, manager_agent: ManagerAgent) -> None:
+        data = [{"path": "b.py", "operation": "create", "new_content": "pass"}]
+        response = f"```\n{json.dumps(data)}\n```"
+        changes = manager_agent._parse_upgrade_changes(response)
+        assert len(changes) == 1
+
+    def test_invalid_json_returns_empty(self, manager_agent: ManagerAgent) -> None:
+        changes = manager_agent._parse_upgrade_changes("this is not json at all")
+        assert changes == []
+
+    def test_missing_keys_use_defaults(self, manager_agent: ManagerAgent) -> None:
+        # path and operation missing — item.get() returns ""/"modify"
+        response = json.dumps([{"new_content": "only content"}])
+        changes = manager_agent._parse_upgrade_changes(response)
+        assert len(changes) == 1
+        assert changes[0].path == ""
+        assert changes[0].operation == "modify"
+        assert changes[0].new_content == "only content"
+        assert changes[0].old_content is None
+
+    def test_old_content_parsed(self, manager_agent: ManagerAgent) -> None:
+        response = json.dumps([
+            {"path": "x.py", "operation": "modify", "old_content": "old", "new_content": "new"},
+        ])
+        changes = manager_agent._parse_upgrade_changes(response)
+        assert changes[0].old_content == "old"
+        assert changes[0].new_content == "new"
+
+
+# ---------------------------------------------------------------------------
+# ManagerAgent._determine_upgrade_type
+# ---------------------------------------------------------------------------
+
+def _make_task_with_proposed(proposed: str) -> Task:
+    """Helper to build a task with a specific proposed_change."""
+    from bernstein.core.models import RiskAssessment, RollbackPlan, UpgradeProposalDetails
+    details = UpgradeProposalDetails(
+        current_state="current",
+        proposed_change=proposed,
+        benefits=[],
+        risk_assessment=RiskAssessment(level="low", breaking_changes=False, affected_components=[], mitigation=""),
+        rollback_plan=RollbackPlan(steps=[], estimated_rollback_minutes=5),
+        cost_estimate_usd=0.0,
+        performance_impact="",
+    )
+    return Task(
+        id="t-001",
+        title="Test upgrade",
+        description="desc",
+        role="backend",
+        task_type=TaskType.UPGRADE_PROPOSAL,
+        upgrade_details=details,
+    )
+
+
+class TestDetermineUpgradeType:
+    """Tests for ManagerAgent._determine_upgrade_type."""
+
+    def test_template_keyword(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Update the template for plan generation")
+        assert manager_agent._determine_upgrade_type(task) == UpgradeType.TEMPLATE_UPDATE
+
+    def test_prompt_keyword(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Rewrite the prompt to be more concise")
+        assert manager_agent._determine_upgrade_type(task) == UpgradeType.TEMPLATE_UPDATE
+
+    def test_config_keyword(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Change config timeout setting")
+        assert manager_agent._determine_upgrade_type(task) == UpgradeType.CONFIG_ADJUSTMENT
+
+    def test_setting_keyword(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Adjust the setting for retries")
+        assert manager_agent._determine_upgrade_type(task) == UpgradeType.CONFIG_ADJUSTMENT
+
+    def test_policy_keyword(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Update the retry policy for failures")
+        assert manager_agent._determine_upgrade_type(task) == UpgradeType.POLICY_UPDATE
+
+    def test_rule_keyword(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Add a new rule for rate limiting")
+        assert manager_agent._determine_upgrade_type(task) == UpgradeType.POLICY_UPDATE
+
+    def test_router_keyword(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Update the router to select cheaper models")
+        assert manager_agent._determine_upgrade_type(task) == UpgradeType.ROUTING_RULE_CHANGE
+
+    def test_routing_keyword(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Improve routing logic for high-priority tasks")
+        assert manager_agent._determine_upgrade_type(task) == UpgradeType.ROUTING_RULE_CHANGE
+
+    def test_role_keyword(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Add a new role for security auditing")
+        assert manager_agent._determine_upgrade_type(task) == UpgradeType.NEW_AGENT_ROLE
+
+    def test_agent_keyword(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Introduce an agent for performance testing")
+        assert manager_agent._determine_upgrade_type(task) == UpgradeType.NEW_AGENT_ROLE
+
+    def test_generic_text_returns_code_modification(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Refactor the spawner to be more efficient")
+        assert manager_agent._determine_upgrade_type(task) == UpgradeType.CODE_MODIFICATION
+
+    def test_no_upgrade_details_returns_code_modification(self, manager_agent: ManagerAgent) -> None:
+        task = Task(id="t-001", title="Plain task", description="desc", role="backend")
+        assert manager_agent._determine_upgrade_type(task) == UpgradeType.CODE_MODIFICATION
+
+
+# ---------------------------------------------------------------------------
+# raw_dicts_to_tasks — additional branch coverage
+# ---------------------------------------------------------------------------
+
+class TestRawDictsToTasksBranches:
+    """Additional branch tests for raw_dicts_to_tasks."""
+
+    def test_depends_on_not_a_list_defaults_to_empty(self) -> None:
+        """depends_on that is not a list should be replaced with []."""
+        raw = [{"title": "Task", "depends_on": "some string instead of list"}]
+        tasks = raw_dicts_to_tasks(raw)
+        assert len(tasks) == 1
+        assert tasks[0].depends_on == []
+
+    def test_invalid_scope_skips_task(self) -> None:
+        """A bad scope value triggers a ValueError and the task is skipped."""
+        raw = [{"title": "Bad scope task", "scope": "INVALID_SCOPE_VALUE"}]
+        tasks = raw_dicts_to_tasks(raw)
+        assert tasks == []
+
+    def test_upgrade_details_parse_error_yields_none_details(self) -> None:
+        """If upgrade_details raises during parsing, task still created with None details."""
+        from unittest.mock import patch
+        raw = [{
+            "title": "Upgrade task",
+            "task_type": "upgrade_proposal",
+            "upgrade_details": {"bad": "data"},
+        }]
+        # Force _parse_upgrade_details to raise
+        with patch("bernstein.core.manager._parse_upgrade_details", side_effect=ValueError("bad")):
+            tasks = raw_dicts_to_tasks(raw)
+        assert len(tasks) == 1
+        assert tasks[0].upgrade_details is None
+
+
+# ---------------------------------------------------------------------------
+# parse_review_response — non-dict branch
+# ---------------------------------------------------------------------------
+
+class TestParseReviewResponseBranches:
+    """Additional branch tests for parse_review_response."""
+
+    def test_json_array_raises(self) -> None:
+        """A JSON array (not object) should raise ValueError."""
+        with pytest.raises(ValueError, match="Expected a JSON object"):
+            parse_review_response("[1, 2, 3]")
+
+
+# ---------------------------------------------------------------------------
+# ManagerAgent.review — LLM failure
+# ---------------------------------------------------------------------------
+
+class TestManagerAgentReviewFailure:
+    """Tests for review() LLM failure path."""
+
+    @pytest.mark.asyncio()
+    async def test_review_raises_on_llm_failure(self, templates_dir: Path, tmp_path: Path, sample_task: Task) -> None:
+        workdir = tmp_path / "project"
+        workdir.mkdir()
+
+        manager = ManagerAgent(
+            server_url="http://localhost:9999",
+            workdir=workdir,
+            templates_dir=templates_dir,
+        )
+
+        with patch("bernstein.core.manager.call_llm", new_callable=AsyncMock, side_effect=RuntimeError("LLM down")):
+            with pytest.raises(RuntimeError, match="LLM review call failed"):
+                await manager.review(sample_task)
+
+
+# ---------------------------------------------------------------------------
+# ManagerAgent.execute_upgrade
+# ---------------------------------------------------------------------------
+
+class TestExecuteUpgrade:
+    """Tests for ManagerAgent.execute_upgrade."""
+
+    @pytest.mark.asyncio()
+    async def test_returns_none_for_non_upgrade_task(self, manager_agent: ManagerAgent) -> None:
+        task = Task(id="t-001", title="Plain task", description="desc", role="backend")
+        result = await manager_agent.execute_upgrade(task)
+        assert result is None
+
+    @pytest.mark.asyncio()
+    async def test_returns_none_for_upgrade_without_details(self, manager_agent: ManagerAgent) -> None:
+        task = Task(
+            id="t-001", title="Upgrade", description="desc", role="backend",
+            task_type=TaskType.UPGRADE_PROPOSAL,
+            upgrade_details=None,
+        )
+        result = await manager_agent.execute_upgrade(task)
+        assert result is None
+
+    @pytest.mark.asyncio()
+    async def test_returns_none_on_exception(self, manager_agent: ManagerAgent) -> None:
+        """If _generate_upgrade_changes raises, execute_upgrade returns None."""
+        task = _make_task_with_proposed("Update some code")
+        with patch.object(manager_agent, "_generate_upgrade_changes", new_callable=AsyncMock, side_effect=RuntimeError("boom")):
+            result = await manager_agent.execute_upgrade(task)
+        assert result is None
+
+    @pytest.mark.asyncio()
+    async def test_returns_none_when_no_changes_generated(self, manager_agent: ManagerAgent) -> None:
+        """Empty changes list causes ValueError inside, returns None."""
+        task = _make_task_with_proposed("Modify core module")
+        with patch.object(manager_agent, "_generate_upgrade_changes", new_callable=AsyncMock, return_value=[]):
+            result = await manager_agent.execute_upgrade(task)
+        assert result is None
+
+    @pytest.mark.asyncio()
+    async def test_successful_upgrade_returns_transaction(self, manager_agent: ManagerAgent) -> None:
+        """Successful upgrade execution returns an UpgradeTransaction."""
+        from bernstein.core.upgrade_executor import UpgradeStatus, UpgradeTransaction
+        task = _make_task_with_proposed("Modify config setting")
+        changes = [FileChange(path="config.py", operation="modify", new_content="x = 1")]
+
+        mock_transaction = MagicMock()
+        mock_transaction.status = UpgradeStatus.COMPLETED
+
+        with patch.object(manager_agent, "_generate_upgrade_changes", new_callable=AsyncMock, return_value=changes):
+            with patch("bernstein.core.manager.UpgradeExecutor") as mock_executor_cls:
+                mock_executor = AsyncMock()
+                mock_executor.submit_upgrade = AsyncMock(return_value=mock_transaction)
+                mock_executor_cls.return_value = mock_executor
+
+                result = await manager_agent.execute_upgrade(task)
+
+        assert result is mock_transaction
+
+
+# ---------------------------------------------------------------------------
+# ManagerAgent._generate_upgrade_changes
+# ---------------------------------------------------------------------------
+
+class TestGenerateUpgradeChanges:
+    """Tests for ManagerAgent._generate_upgrade_changes."""
+
+    @pytest.mark.asyncio()
+    async def test_returns_empty_for_task_without_details(self, manager_agent: ManagerAgent) -> None:
+        task = Task(id="t-001", title="Plain", description="d", role="backend")
+        result = await manager_agent._generate_upgrade_changes(task)
+        assert result == []
+
+    @pytest.mark.asyncio()
+    async def test_returns_file_changes_on_success(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Add new feature")
+        llm_response = json.dumps([
+            {"path": "src/feature.py", "operation": "create", "new_content": "def feature(): pass"},
+        ])
+        with patch("bernstein.core.manager.call_llm", new_callable=AsyncMock, return_value=llm_response):
+            result = await manager_agent._generate_upgrade_changes(task)
+        assert len(result) == 1
+        assert result[0].path == "src/feature.py"
+
+    @pytest.mark.asyncio()
+    async def test_returns_empty_on_llm_failure(self, manager_agent: ManagerAgent) -> None:
+        task = _make_task_with_proposed("Do something")
+        with patch("bernstein.core.manager.call_llm", new_callable=AsyncMock, side_effect=RuntimeError("LLM down")):
+            result = await manager_agent._generate_upgrade_changes(task)
+        assert result == []
+
+
+# ---------------------------------------------------------------------------
+# ManagerAgent.replan
+# ---------------------------------------------------------------------------
+
+class TestManagerAgentReplan:
+    """Tests for ManagerAgent.replan."""
+
+    @pytest.mark.asyncio()
+    async def test_replan_calls_plan_with_progress_summary(self, manager_agent: ManagerAgent) -> None:
+        completed = [Task(id="t-001", title="Setup DB", description="d", role="backend")]
+        failed = [Task(id="t-002", title="Deploy", description="d", role="backend", result_summary="timeout")]
+        remaining = [Task(id="t-003", title="Write tests", description="d", role="qa")]
+
+        new_tasks = [Task(id="t-004", title="Fix deploy", description="d", role="backend")]
+
+        with patch.object(manager_agent, "plan", new_callable=AsyncMock, return_value=new_tasks) as mock_plan:
+            result = await manager_agent.replan(completed, failed, remaining, goal="Build API")
+
+        assert result == new_tasks
+        call_args = mock_plan.call_args[0][0]
+        assert "Setup DB" in call_args
+        assert "Deploy" in call_args
+        assert "Write tests" in call_args
+        assert "Build API" in call_args

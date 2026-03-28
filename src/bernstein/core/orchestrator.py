@@ -303,7 +303,7 @@ class Orchestrator:
         # 0. Ingest any new backlog files before fetching tasks
         try:
             self.ingest_backlog()
-        except Exception as exc:
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
             logger.warning("ingest_backlog failed: %s", exc)
 
         # 1. Fetch open tasks
@@ -344,167 +344,11 @@ class Orchestrator:
             if agent.status != "dead":
                 assigned_task_ids.update(agent.task_ids)
 
-        for batch in batches:
-            if alive_count >= self._config.max_agents:
-                break
-
-            # Skip batches where any task is already assigned to an active agent
-            if any(t.id in assigned_task_ids for t in batch):
-                continue
-
-            # Feature 2: skip if any owned files overlap with active agents
-            if self._check_file_overlap(batch):
-                continue
-
-            # Check spawn backoff: skip batches that recently failed
-            batch_key = frozenset(t.id for t in batch)
-            fail_count, last_fail_ts = self._spawn_failures.get(batch_key, (0, 0.0))
-            if fail_count > 0 and (time.time() - last_fail_ts) < self._SPAWN_BACKOFF_S:
-                logger.warning(
-                    "Skipping batch %s: in backoff after %d consecutive spawn failure(s)",
-                    [t.id for t in batch],
-                    fail_count,
-                )
-                continue
-
-            # Claim tasks BEFORE spawning to prevent duplicate agents.
-            # Abort on server errors (5xx) or transport failures (unreachable).
-            # 4xx responses are treated as best-effort (claim may not be implemented).
-            claim_failed = False
-            for task in batch:
-                try:
-                    resp = self._client.post(f"{base}/tasks/{task.id}/claim")
-                    if resp.status_code >= 500:
-                        logger.error(
-                            "Server error %d claiming task %s — aborting spawn",
-                            resp.status_code,
-                            task.id,
-                        )
-                        result.errors.append(
-                            f"claim:{task.id}: server error {resp.status_code}"
-                        )
-                        claim_failed = True
-                        break
-                except httpx.TransportError as exc:
-                    logger.error(
-                        "Server unreachable claiming task %s: %s — aborting spawn",
-                        task.id,
-                        exc,
-                    )
-                    result.errors.append(f"claim:{task.id}: {exc}")
-                    claim_failed = True
-                    break
-            if claim_failed:
-                continue
-
-            try:
-                session = self._spawner.spawn_for_tasks(batch)
-                self._agents[session.id] = session
-                # Claim file ownership for the spawned agent
-                self._claim_file_ownership(session.id, batch)
-                alive_count += 1
-                result.spawned.append(session.id)
-                assigned_task_ids.update(t.id for t in batch)
-                # Set heartbeat_ts so stale reaper can timeout hung agents
-                session.heartbeat_ts = time.time()
-                # Clear any prior failure count on success
-                self._spawn_failures.pop(batch_key, None)
-
-                logger.info(
-                    "Spawned %s for %d tasks: %s",
-                    session.id,
-                    len(batch),
-                    [t.id for t in batch],
-                )
-                # Record agent spawn metrics
-                collector = get_collector()
-                collector.start_agent(
-                    agent_id=session.id,
-                    role=session.role,
-                    model=session.model_config.model,
-                    provider=session.provider or "default",
-                    agent_source=session.agent_source,
-                )
-                logger.info(
-                    "Agent '%s' using prompt source: %s",
-                    session.id,
-                    session.agent_source,
-                )
-            except Exception as exc:
-                logger.error("Spawn failed for batch %s: %s", [t.id for t in batch], exc)
-                result.errors.append(f"spawn: {exc}")
-                # Record spawn failure
-                collector = get_collector()
-                collector.record_error("agent_spawn_failed", "default", role=batch[0].role if batch else None)
-                # Track failure count for backoff and eventual task escalation
-                new_count = fail_count + 1
-                self._spawn_failures[batch_key] = (new_count, time.time())
-                if new_count >= self._MAX_SPAWN_FAILURES:
-                    for task in batch:
-                        try:
-                            _fail_task(
-                                self._client,
-                                base,
-                                task.id,
-                                f"Spawn failed {new_count} consecutive times: {exc}",
-                            )
-                        except Exception as fail_exc:
-                            logger.warning(
-                                "Could not mark task %s as failed: %s", task.id, fail_exc
-                            )
-                    self._spawn_failures.pop(batch_key, None)
+        # 3b. Claim tasks and spawn agents for ready batches
+        self._claim_and_spawn_batches(batches, alive_count, assigned_task_ids, done_ids, result)
 
         # 4. Check done tasks, run janitor, record evolution metrics
-        for task in done_tasks:
-            # Skip tasks we already processed
-            if task.id in self._processed_done_tasks:
-                continue
-            self._processed_done_tasks.add(task.id)
-
-            janitor_passed = True
-            if task.completion_signals:
-                passed, failed_signals = verify_task(task, self._workdir)
-                janitor_passed = passed
-                if passed:
-                    result.verified.append(task.id)
-                else:
-                    result.verification_failures.append(
-                        (task.id, failed_signals)
-                    )
-
-            # Record provider health feedback for done tasks
-            session = self._find_session_for_task(task.id)
-            if session is not None:
-                self._record_provider_health(session, success=janitor_passed)
-
-            # Sync backlog: move matching .md file from open/ to closed/
-            self._sync_backlog_file(task)
-
-            # Capture decision/findings in knowledge base for future agents
-            if task.result_summary:
-                try:
-                    append_decision(
-                        self._workdir, task.id, task.title, task.result_summary,
-                    )
-                except Exception as exc:
-                    logger.warning("append_decision failed for task %s: %s", task.id, exc)
-
-            # Record task completion in evolution coordinator with real data
-            if self._evolution is not None:
-                model = session.model_config.model if session else None
-                provider = session.provider if session else None
-                duration = time.time() - session.spawn_ts if session and session.spawn_ts > 0 else 0.0
-                try:
-                    self._evolution.record_task_completion(
-                        task=task,
-                        duration_seconds=round(duration, 2),
-                        cost_usd=0.0,
-                        janitor_passed=janitor_passed,
-                        model=model,
-                        provider=provider,
-                    )
-                except Exception as exc:
-                    logger.warning("Evolution record_task_completion failed: %s", exc)
+        self._process_completed_tasks(done_tasks, result)
 
         # 4b. Fetch failed tasks and maybe retry with escalation
         try:
@@ -516,8 +360,8 @@ class Orchestrator:
             if self._maybe_retry_task(task):
                 result.retried.append(task.id)
 
-        # 5. Reap stale agents
-        self._reap_stale(result)
+        # 5. Reap dead/stale agents and fail their tasks
+        self._reap_dead_agents(result)
 
         # 6. Run evolution analysis cycle every N ticks
         if self._evolution is not None and self._tick_count % self._config.evolution_tick_interval == 0:
@@ -938,7 +782,7 @@ class Orchestrator:
             research_context = format_research_context(report)
             if research_context:
                 logger.info("Evolve: research produced %d bytes of context", len(research_context))
-        except Exception as exc:
+        except (ImportError, OSError, RuntimeError) as exc:
             logger.debug("Evolve: research unavailable: %s", exc)
 
         focus_instructions = {
@@ -1554,7 +1398,190 @@ class Orchestrator:
         else:
             _fail_task(self._client, base, task_id, f"Max retries exceeded: {reason}")
 
-    def _reap_stale(self, result: TickResult) -> None:
+    def _claim_and_spawn_batches(
+        self,
+        batches: list[list[Task]],
+        alive_count: int,
+        assigned_task_ids: set[str],
+        done_ids: set[str],  # noqa: ARG002 — passed for interface consistency
+        result: TickResult,
+    ) -> None:
+        """Claim tasks and spawn agents for each ready batch.
+
+        Iterates over role-grouped batches, enforces capacity/overlap/backoff
+        guards, claims tasks on the server, spawns an agent, and records metrics.
+        Batches that fail to spawn are tracked for backoff and eventually failed.
+
+        Args:
+            batches: Role-grouped task batches from group_by_role.
+            alive_count: Current number of alive agents (used to enforce max_agents cap).
+            assigned_task_ids: Task IDs already owned by active agents (mutated in-place).
+            done_ids: IDs of already-completed tasks (reserved for future guard use).
+            result: TickResult accumulator for spawned/error lists.
+        """
+        base = self._config.server_url
+        for batch in batches:
+            if alive_count >= self._config.max_agents:
+                break
+
+            # Skip batches where any task is already assigned to an active agent
+            if any(t.id in assigned_task_ids for t in batch):
+                continue
+
+            # Skip if any owned files overlap with active agents
+            if self._check_file_overlap(batch):
+                continue
+
+            # Check spawn backoff: skip batches that recently failed
+            batch_key = frozenset(t.id for t in batch)
+            fail_count, last_fail_ts = self._spawn_failures.get(batch_key, (0, 0.0))
+            if fail_count > 0 and (time.time() - last_fail_ts) < self._SPAWN_BACKOFF_S:
+                logger.warning(
+                    "Skipping batch %s: in backoff after %d consecutive spawn failure(s)",
+                    [t.id for t in batch],
+                    fail_count,
+                )
+                continue
+
+            # Claim tasks BEFORE spawning to prevent duplicate agents.
+            # Abort on server errors (5xx) or transport failures (unreachable).
+            # 4xx responses are treated as best-effort (claim may not be implemented).
+            claim_failed = False
+            for task in batch:
+                try:
+                    resp = self._client.post(f"{base}/tasks/{task.id}/claim")
+                    if resp.status_code >= 500:
+                        logger.error(
+                            "Server error %d claiming task %s — aborting spawn",
+                            resp.status_code,
+                            task.id,
+                        )
+                        result.errors.append(
+                            f"claim:{task.id}: server error {resp.status_code}"
+                        )
+                        claim_failed = True
+                        break
+                except httpx.TransportError as exc:
+                    logger.error(
+                        "Server unreachable claiming task %s: %s — aborting spawn",
+                        task.id,
+                        exc,
+                    )
+                    result.errors.append(f"claim:{task.id}: {exc}")
+                    claim_failed = True
+                    break
+            if claim_failed:
+                continue
+
+            try:
+                session = self._spawner.spawn_for_tasks(batch)
+                self._agents[session.id] = session
+                self._claim_file_ownership(session.id, batch)
+                alive_count += 1
+                result.spawned.append(session.id)
+                assigned_task_ids.update(t.id for t in batch)
+                session.heartbeat_ts = time.time()
+                self._spawn_failures.pop(batch_key, None)
+
+                logger.info(
+                    "Spawned %s for %d tasks: %s",
+                    session.id,
+                    len(batch),
+                    [t.id for t in batch],
+                )
+                collector = get_collector()
+                collector.start_agent(
+                    agent_id=session.id,
+                    role=session.role,
+                    model=session.model_config.model,
+                    provider=session.provider or "default",
+                    agent_source=session.agent_source,
+                )
+                logger.info(
+                    "Agent '%s' using prompt source: %s",
+                    session.id,
+                    session.agent_source,
+                )
+            except (OSError, RuntimeError, ValueError) as exc:
+                logger.error("Spawn failed for batch %s: %s", [t.id for t in batch], exc)
+                result.errors.append(f"spawn: {exc}")
+                collector = get_collector()
+                collector.record_error(
+                    "agent_spawn_failed", "default", role=batch[0].role if batch else None
+                )
+                new_count = fail_count + 1
+                self._spawn_failures[batch_key] = (new_count, time.time())
+                if new_count >= self._MAX_SPAWN_FAILURES:
+                    for task in batch:
+                        try:
+                            _fail_task(
+                                self._client,
+                                base,
+                                task.id,
+                                f"Spawn failed {new_count} consecutive times: {exc}",
+                            )
+                        except Exception as fail_exc:
+                            logger.warning(
+                                "Could not mark task %s as failed: %s", task.id, fail_exc
+                            )
+                    self._spawn_failures.pop(batch_key, None)
+
+    def _process_completed_tasks(self, done_tasks: list[Task], result: TickResult) -> None:
+        """Run janitor verification and record evolution metrics for done tasks.
+
+        Skips tasks already processed in a prior tick. For each new done task,
+        verifies completion signals, syncs the backlog file, appends the result
+        to the knowledge base, and feeds the outcome to the evolution coordinator.
+
+        Args:
+            done_tasks: Tasks with status "done" fetched from the server.
+            result: TickResult accumulator for verified/verification_failures lists.
+        """
+        for task in done_tasks:
+            if task.id in self._processed_done_tasks:
+                continue
+            self._processed_done_tasks.add(task.id)
+
+            janitor_passed = True
+            if task.completion_signals:
+                passed, failed_signals = verify_task(task, self._workdir)
+                janitor_passed = passed
+                if passed:
+                    result.verified.append(task.id)
+                else:
+                    result.verification_failures.append((task.id, failed_signals))
+
+            session = self._find_session_for_task(task.id)
+            if session is not None:
+                self._record_provider_health(session, success=janitor_passed)
+
+            self._sync_backlog_file(task)
+
+            if task.result_summary:
+                try:
+                    append_decision(
+                        self._workdir, task.id, task.title, task.result_summary,
+                    )
+                except Exception as exc:
+                    logger.warning("append_decision failed for task %s: %s", task.id, exc)
+
+            if self._evolution is not None:
+                model = session.model_config.model if session else None
+                provider = session.provider if session else None
+                duration = time.time() - session.spawn_ts if session and session.spawn_ts > 0 else 0.0
+                try:
+                    self._evolution.record_task_completion(
+                        task=task,
+                        duration_seconds=round(duration, 2),
+                        cost_usd=0.0,
+                        janitor_passed=janitor_passed,
+                        model=model,
+                        provider=provider,
+                    )
+                except Exception as exc:
+                    logger.warning("Evolution record_task_completion failed: %s", exc)
+
+    def _reap_dead_agents(self, result: TickResult) -> None:
         """Kill agents that exceeded heartbeat or wall-clock timeout.
 
         Also fails any tasks owned by reaped agents.

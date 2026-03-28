@@ -5,7 +5,7 @@
 ### One command. Multiple AI agents. Your codebase moves forward while you sleep.
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
-[![Tests](https://img.shields.io/badge/tests-1471+-2ea44f)]()
+[![Tests](https://img.shields.io/badge/tests-1592-2ea44f)]()
 [![License](https://img.shields.io/badge/license-PolyForm_NC-f89820)](LICENSE)
 
 </div>
@@ -91,6 +91,8 @@ bernstein                      # live dashboard
 bernstein --headless           # no UI (CI, overnight runs)
 bernstein --evolve             # continuous self-improvement mode
 bernstein stop                 # graceful shutdown
+bernstein cancel <task_id>     # cancel a queued or running task
+bernstein cost                 # show cost summary
 ```
 
 ## Supports your existing tools
@@ -140,6 +142,11 @@ Agents are **short-lived** (1-3 tasks, then exit). This is by design: no context
 | `architect` | System design, refactoring |
 | `devops` | CI/CD, infrastructure |
 | `reviewer` | Code review, quality gates |
+| `docs` | Documentation, READMEs, API references |
+| `ml-engineer` | ML pipelines, model integration |
+| `prompt-engineer` | Prompt design and optimization |
+| `retrieval` | Search, RAG, vector stores |
+| `vp` | High-level planning and prioritization |
 
 ## Self-evolution
 

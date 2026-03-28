@@ -1822,6 +1822,44 @@ def live(interval: float) -> None:
 
 
 # ---------------------------------------------------------------------------
+# web dashboard
+# ---------------------------------------------------------------------------
+
+
+@cli.command("dashboard")
+@click.option("--port", default=8052, show_default=True, help="Server port.")
+@click.option("--no-open", is_flag=True, default=False, help="Do not open browser.")
+def dashboard(port: int, no_open: bool) -> None:
+    """Open the web dashboard in your browser.
+
+    Requires the Bernstein server to be running. If it is not,
+    prints instructions on how to start it.
+    """
+    import webbrowser
+
+    url = f"http://localhost:{port}/dashboard"
+    # Check if server is alive
+    try:
+        resp = httpx.get(f"http://localhost:{port}/health", timeout=2.0)
+        if resp.status_code != 200:
+            console.print(
+                f"[red]Server returned {resp.status_code}.[/red]\nStart the server first: [cyan]bernstein run[/cyan]"
+            )
+            sys.exit(1)
+    except httpx.ConnectError:
+        console.print(
+            "[red]Cannot connect to Bernstein server.[/red]\n"
+            f"Start the server first: [cyan]bernstein run[/cyan]\n"
+            f"Then open: [link={url}]{url}[/link]"
+        )
+        sys.exit(1)
+
+    console.print(f"[green]Dashboard:[/green] [link={url}]{url}[/link]")
+    if not no_open:
+        webbrowser.open(url)
+
+
+# ---------------------------------------------------------------------------
 # benchmark
 # ---------------------------------------------------------------------------
 

@@ -1,0 +1,143 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }] } },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Total Tasks",
+      "type": "stat",
+      "targets": [{ "expr": "bernstein_tasks_total", "legendFormat": "total" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "fixedColor": "green", "mode": "fixed" }, "thresholds": { "steps": [{ "color": "green", "value": null }] } },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Done",
+      "type": "stat",
+      "targets": [{ "expr": "bernstein_tasks_done", "legendFormat": "done" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "fixedColor": "yellow", "mode": "fixed" }, "thresholds": { "steps": [{ "color": "yellow", "value": null }] } },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "In Progress",
+      "type": "stat",
+      "targets": [{ "expr": "bernstein_tasks_claimed", "legendFormat": "in_progress" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "fixedColor": "red", "mode": "fixed" }, "thresholds": { "steps": [{ "color": "red", "value": null }] } },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "id": 4,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Failed",
+      "type": "stat",
+      "targets": [{ "expr": "bernstein_tasks_failed", "legendFormat": "failed" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "fixedColor": "blue", "mode": "fixed" }, "thresholds": { "steps": [{ "color": "blue", "value": null }] } },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "id": 5,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Active Agents",
+      "type": "stat",
+      "targets": [{ "expr": "bernstein_agents_active", "legendFormat": "agents" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "color": { "fixedColor": "green", "mode": "fixed" }, "unit": "currencyUSD", "thresholds": { "steps": [{ "color": "green", "value": null }] } },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "id": 6,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "title": "Total Cost",
+      "type": "stat",
+      "targets": [{ "expr": "bernstein_cost_total_usd", "legendFormat": "cost" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 1, "fillOpacity": 20, "showPoints": "never" } },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 7,
+      "title": "Task Status Over Time",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "bernstein_tasks_done", "legendFormat": "done" },
+        { "expr": "bernstein_tasks_claimed", "legendFormat": "in_progress" },
+        { "expr": "bernstein_tasks_failed", "legendFormat": "failed" },
+        { "expr": "bernstein_tasks_open", "legendFormat": "open" }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": { "custom": { "lineWidth": 1, "fillOpacity": 20, "showPoints": "never" } },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 8,
+      "title": "Cost Over Time (USD)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "bernstein_cost_total_usd", "legendFormat": "total" },
+        { "expr": "bernstein_cost_by_role", "legendFormat": "{{ role }}" }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["bernstein", "orchestration"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" },
+        "hide": 0,
+        "includeAll": false,
+        "name": "DS_PROMETHEUS",
+        "options": [],
+        "query": "prometheus",
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Bernstein Orchestrator",
+  "uid": "bernstein-main",
+  "version": 1
+}

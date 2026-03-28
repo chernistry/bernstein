@@ -19,9 +19,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import StreamingResponse
 
 from bernstein.core.a2a import A2AHandler
 from bernstein.core.bulletin import BulletinBoard, BulletinMessage, MessageType
@@ -53,7 +54,17 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 # Paths that are always accessible without auth (health checks, agent card)
-_PUBLIC_PATHS = frozenset({"/health", "/.well-known/agent.json", "/docs", "/openapi.json", "/webhooks/github"})
+_PUBLIC_PATHS = frozenset(
+    {
+        "/health",
+        "/.well-known/agent.json",
+        "/docs",
+        "/openapi.json",
+        "/dashboard",
+        "/dashboard/data",
+        "/events",
+    }
+)
 
 
 class BearerAuthMiddleware(BaseHTTPMiddleware):
@@ -122,7 +133,6 @@ class TaskRecord(TypedDict):
     assigned_agent: str | None
     result_summary: str | None
     cell_id: str | None
-    repo: str | None
     version: int
 
 
@@ -175,7 +185,6 @@ class TaskCreate(BaseModel):
     depends_on: list[str] = Field(default_factory=list)
     owned_files: list[str] = Field(default_factory=list)
     cell_id: str | None = None
-    repo: str | None = None  # Target repo in a multi-repo workspace
     task_type: str = "standard"
     upgrade_details: dict[str, Any] | None = None
     model: str | None = None  # Manager hint: "opus", "sonnet", "haiku"
@@ -200,7 +209,6 @@ class TaskResponse(BaseModel):
     assigned_agent: str | None
     result_summary: str | None
     cell_id: str | None
-    repo: str | None
     task_type: str
     upgrade_details: dict[str, Any] | None
     model: str | None
@@ -360,24 +368,6 @@ class ClusterStatusResponse(BaseModel):
     available_slots: int
     active_agents: int
     nodes: list[NodeResponse]
-
-
-class WorkspaceRepoStatusResponse(BaseModel):
-    """Status of a single repo in the workspace."""
-
-    name: str
-    path: str
-    branch: str
-    clean: bool
-    ahead: int
-    behind: int
-
-
-class WorkspaceStatusResponse(BaseModel):
-    """Response for GET /workspace."""
-
-    root: str
-    repos: list[WorkspaceRepoStatusResponse]
 
 
 class BulletinMessageResponse(BaseModel):
@@ -613,7 +603,6 @@ class TaskStore:
             "assigned_agent": task.assigned_agent,
             "result_summary": task.result_summary,
             "cell_id": task.cell_id,
-            "repo": task.repo,
             "version": task.version,
         }
 
@@ -681,7 +670,6 @@ class TaskStore:
             depends_on=req.depends_on,
             owned_files=req.owned_files,
             cell_id=req.cell_id,
-            repo=req.repo,
             task_type=TaskType(req.task_type),
             upgrade_details=_parse_upgrade_dict(req.upgrade_details),
             model=req.model,
@@ -1121,9 +1109,18 @@ class TaskStore:
         return records
 
     @property
+    def agents(self) -> dict[str, AgentSession]:
+        """All known agent sessions."""
+        return self._agents
+
+    @property
     def agent_count(self) -> int:
         """Number of known agents."""
         return len(self._agents)
+
+    def cost_by_role(self) -> dict[str, float]:
+        """Return cost_usd summed per role (public accessor)."""
+        return self._read_cost_by_role()
 
     @property
     def start_ts(self) -> float:
@@ -1212,7 +1209,6 @@ def _task_to_response(task: Task) -> TaskResponse:
         assigned_agent=task.assigned_agent,
         result_summary=task.result_summary,
         cell_id=task.cell_id,
-        repo=task.repo,
         task_type=task.task_type.value,
         upgrade_details=asdict(task.upgrade_details) if task.upgrade_details else None,
         model=task.model,
@@ -1222,6 +1218,45 @@ def _task_to_response(task: Task) -> TaskResponse:
         progress_log=list(cast("list[ProgressEntry]", task.progress_log)),  # type: ignore[reportUnknownMemberType]
         version=task.version,
     )
+
+
+# ---------------------------------------------------------------------------
+# SSE event bus — fan-out to all connected dashboard clients
+# ---------------------------------------------------------------------------
+
+
+class SSEBus:
+    """Fan-out event bus for Server-Sent Events.
+
+    Each connected client gets its own asyncio.Queue.  Publishing an event
+    pushes it to every queue.  Disconnected clients are cleaned up lazily.
+    """
+
+    def __init__(self) -> None:
+        self._subscribers: list[asyncio.Queue[str]] = []
+
+    def subscribe(self) -> asyncio.Queue[str]:
+        """Create a new subscriber queue."""
+        queue: asyncio.Queue[str] = asyncio.Queue(maxsize=64)
+        self._subscribers.append(queue)
+        return queue
+
+    def unsubscribe(self, queue: asyncio.Queue[str]) -> None:
+        """Remove a subscriber queue."""
+        with contextlib.suppress(ValueError):
+            self._subscribers.remove(queue)
+
+    @property
+    def subscriber_count(self) -> int:
+        """Number of active subscribers."""
+        return len(self._subscribers)
+
+    def publish(self, event_type: str, data: str = "{}") -> None:
+        """Push an event to all subscribers (non-blocking)."""
+        message = f"event: {event_type}\ndata: {data}\n\n"
+        for queue in list(self._subscribers):
+            with contextlib.suppress(asyncio.QueueFull):
+                queue.put_nowait(message)
 
 
 # ---------------------------------------------------------------------------
@@ -1243,6 +1278,13 @@ async def _node_reaper_loop(registry: NodeRegistry, interval_s: float = 15.0) ->
         registry.mark_stale()
 
 
+async def _sse_heartbeat_loop(bus: SSEBus, interval_s: float = 15.0) -> None:
+    """Send periodic heartbeat events to keep SSE connections alive."""
+    while True:
+        await asyncio.sleep(interval_s)
+        bus.publish("heartbeat", json.dumps({"ts": time.time()}))
+
+
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
@@ -1255,7 +1297,6 @@ def create_app(
     metrics_jsonl_path: Path | None = None,
     auth_token: str | None = None,
     cluster_config: ClusterConfig | None = None,
-    workspace: Any | None = None,
 ) -> FastAPI:
     """Build and return the FastAPI application.
 
@@ -1267,7 +1308,6 @@ def create_app(
             ``Authorization: Bearer <token>`` header.
         cluster_config: Cluster mode configuration. If provided and
             enabled, node registration and cluster endpoints are active.
-        workspace: Optional Workspace instance for multi-repo orchestration.
 
     Returns:
         Configured FastAPI app with all routes registered.
@@ -1280,6 +1320,7 @@ def create_app(
     node_registry = NodeRegistry(effective_cluster)
 
     store = TaskStore(jsonl_path, metrics_jsonl_path=metrics_jsonl_path)
+    sse_bus = SSEBus()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -1287,6 +1328,8 @@ def create_app(
         store.replay_jsonl()
         # Launch the stale-agent reaper
         reaper = asyncio.create_task(_reaper_loop(store))
+        # Launch SSE heartbeat loop
+        sse_heartbeat = asyncio.create_task(_sse_heartbeat_loop(sse_bus))
         # Launch node-stale reaper if cluster mode is on
         node_reaper: asyncio.Task[None] | None = None
         if effective_cluster.enabled:
@@ -1296,8 +1339,11 @@ def create_app(
         yield
         # Shutdown
         reaper.cancel()
+        sse_heartbeat.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await reaper
+        with contextlib.suppress(asyncio.CancelledError):
+            await sse_heartbeat
         if node_reaper is not None:
             node_reaper.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -1315,6 +1361,7 @@ def create_app(
     async def create_task(body: TaskCreate) -> TaskResponse:
         """Create a new task."""
         task = await store.create(body)
+        sse_bus.publish("task_update", json.dumps({"id": task.id, "status": task.status.value}))
         return _task_to_response(task)
 
     @application.get("/tasks/next/{role}", response_model=TaskResponse)
@@ -1353,6 +1400,7 @@ def create_app(
             task = await store.complete(task_id, body.result_summary)
         except KeyError:
             raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
+        sse_bus.publish("task_update", json.dumps({"id": task.id, "status": "done"}))
         return _task_to_response(task)
 
     @application.post("/tasks/{task_id}/fail", response_model=TaskResponse)
@@ -1362,6 +1410,7 @@ def create_app(
             task = await store.fail(task_id, body.reason)
         except KeyError:
             raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
+        sse_bus.publish("task_update", json.dumps({"id": task.id, "status": "failed"}))
         return _task_to_response(task)
 
     @application.post("/tasks/{task_id}/cancel", response_model=TaskResponse)
@@ -1414,6 +1463,7 @@ def create_app(
     async def agent_heartbeat(agent_id: str, body: HeartbeatRequest) -> HeartbeatResponse:
         """Register an agent heartbeat."""
         ts = store.heartbeat(agent_id, body.role, body.status)
+        sse_bus.publish("agent_update", json.dumps({"agent_id": agent_id, "status": body.status}))
         return HeartbeatResponse(agent_id=agent_id, acknowledged=True, server_ts=ts)
 
     @application.get("/health", response_model=HealthResponse)
@@ -1441,30 +1491,221 @@ def create_app(
             media_type="text/plain; version=0.0.4; charset=utf-8",
         )
 
-    # -- workspace route -------------------------------------------------------
+    # -- dashboard routes -------------------------------------------------------
 
-    @application.get("/workspace", response_model=WorkspaceStatusResponse)
-    async def workspace_status() -> WorkspaceStatusResponse:  # type: ignore[reportUnusedFunction]
-        """Return workspace status with per-repo git info."""
-        if workspace is None:
-            raise HTTPException(status_code=404, detail="No workspace configured")
+    @application.get("/dashboard", response_class=HTMLResponse)
+    async def dashboard_page() -> HTMLResponse:
+        """Serve the single-page web dashboard."""
+        from bernstein.dashboard import TEMPLATE_DIR
 
-        ws = workspace
-        repo_statuses: dict[str, Any] = ws.status()
-        repos: list[WorkspaceRepoStatusResponse] = []
-        for repo_cfg in ws.repos:
-            rs = repo_statuses.get(repo_cfg.name)
-            repos.append(
-                WorkspaceRepoStatusResponse(
-                    name=repo_cfg.name,
-                    path=str(repo_cfg.path),
-                    branch=rs.branch if rs else "unknown",
-                    clean=rs.clean if rs else False,
-                    ahead=rs.ahead if rs else 0,
-                    behind=rs.behind if rs else 0,
-                )
+        html_path = TEMPLATE_DIR / "index.html"
+        html = html_path.read_text(encoding="utf-8")
+        return HTMLResponse(content=html)
+
+    @application.get("/dashboard/data")
+    async def dashboard_data() -> JSONResponse:
+        """Return all dashboard data as JSON for HTMX partial updates.
+
+        The response embeds pre-rendered HTML fragments that HTMX swaps
+        directly into the page, alongside raw JSON for stats.
+        """
+        summary = store.status_summary()
+        tasks = store.list_tasks()
+        agents = store.agents
+
+        # Build task rows as HTML for HTMX swap
+        status_colors: dict[str, str] = {
+            "done": "bg-green-900/50 text-green-400",
+            "in_progress": "bg-yellow-900/50 text-yellow-400",
+            "failed": "bg-red-900/50 text-red-400",
+            "claimed": "bg-cyan-900/50 text-cyan-400",
+            "open": "bg-gray-800 text-white",
+            "blocked": "bg-purple-900/50 text-purple-400",
+            "cancelled": "bg-red-900/50 text-red-400",
+        }
+
+        def _task_row(t: Task) -> str:
+            badge_cls = status_colors.get(t.status.value, "bg-gray-800 text-white")
+            agent_display = t.assigned_agent or "-"
+            title_display = t.title[:60] + "..." if len(t.title) > 60 else t.title
+            return (
+                f'<tr data-task-id="{t.id}" data-id="{t.id}" data-title="{t.title}" '
+                f'data-role="{t.role}" data-status="{t.status.value}" '
+                f'data-priority="{t.priority}" data-agent="{agent_display}">'
+                f'<td class="px-4 py-2 font-mono text-xs text-muted">{t.id}</td>'
+                f'<td class="px-4 py-2 text-text">{title_display}</td>'
+                f'<td class="px-4 py-2"><span class="text-accent">{t.role}</span></td>'
+                f'<td class="px-4 py-2"><span class="px-2 py-0.5 rounded text-xs font-medium {badge_cls}">'
+                f"{t.status.value}</span></td>"
+                f'<td class="px-4 py-2 font-mono">{t.priority}</td>'
+                f'<td class="px-4 py-2 font-mono text-xs text-muted">{agent_display}</td>'
+                f"</tr>"
             )
-        return WorkspaceStatusResponse(root=str(ws.root), repos=repos)
+
+        task_rows_html = (
+            "\n".join(_task_row(t) for t in tasks)
+            if tasks
+            else ('<tr><td colspan="6" class="px-4 py-8 text-center text-muted">No tasks yet</td></tr>')
+        )
+
+        # Build agent cards HTML
+        alive_agents = [a for a in agents.values() if a.status != "dead"]
+        if alive_agents:
+            agent_cards: list[str] = []
+            for a in alive_agents:
+                runtime_s = int(time.time() - a.spawn_ts)
+                runtime_m = runtime_s // 60
+                model_name = a.model_config.model if hasattr(a.model_config, "model") else "sonnet"
+                agent_cards.append(
+                    f'<div class="bg-bg border border-border rounded-lg p-3">'
+                    f'<div class="flex items-center gap-2 mb-1">'
+                    f'<span class="inline-block w-2 h-2 rounded-full bg-green-500 pulse-dot"></span>'
+                    f'<span class="font-mono text-xs text-text">{a.id[:12]}</span>'
+                    f"</div>"
+                    f'<div class="text-xs text-muted space-y-0.5">'
+                    f'<div>Role: <span class="text-accent">{a.role}</span></div>'
+                    f'<div>Model: <span class="text-text">{model_name}</span></div>'
+                    f'<div>Status: <span class="text-text">{a.status}</span></div>'
+                    f'<div>Runtime: <span class="text-text">{runtime_m}m</span></div>'
+                    f"</div></div>"
+                )
+            agents_html = "\n".join(agent_cards)
+        else:
+            agents_html = '<p class="text-sm text-muted">No active agents</p>'
+
+        # Build cost breakdown HTML
+        cost_by_role = store.cost_by_role()
+        total_cost = sum(cost_by_role.values())
+        if cost_by_role:
+            cost_rows: list[str] = []
+            cost_rows.append(
+                f'<div class="flex justify-between text-sm font-semibold border-b border-border pb-2 mb-2">'
+                f'<span class="text-text">Total</span>'
+                f'<span class="text-green-400">${total_cost:.2f}</span>'
+                f"</div>"
+            )
+            for role, cost in sorted(cost_by_role.items()):
+                cost_rows.append(
+                    f'<div class="flex justify-between text-xs">'
+                    f'<span class="text-muted">{role}</span>'
+                    f'<span class="text-text font-mono">${cost:.2f}</span>'
+                    f"</div>"
+                )
+            cost_html = "\n".join(cost_rows)
+        else:
+            cost_html = '<p class="text-sm text-muted">No cost data</p>'
+
+        # Build the full HTML response with all fragments
+        # HTMX uses hx-select to pick the right fragments
+        agent_count = len(alive_agents)
+        html = (
+            f'<div id="stats-inner" class="bg-surface border-b border-border px-6 py-3">'
+            f'<div class="flex items-center gap-6 flex-wrap">'
+            f'<div class="flex items-center gap-2">'
+            f'<span class="text-xs text-muted uppercase tracking-wider">Total</span>'
+            f'<span class="text-lg font-semibold font-mono text-text" id="stat-total">{summary.total}</span>'
+            f"</div>"
+            f'<div class="flex items-center gap-2">'
+            f'<span class="inline-block w-2 h-2 rounded-full bg-green-500"></span>'
+            f'<span class="text-xs text-muted">Done</span>'
+            f'<span class="text-lg font-semibold font-mono text-green-400" id="stat-done">{summary.done}</span>'
+            f"</div>"
+            f'<div class="flex items-center gap-2">'
+            f'<span class="inline-block w-2 h-2 rounded-full bg-yellow-500"></span>'
+            f'<span class="text-xs text-muted">In Progress</span>'
+            f'<span class="text-lg font-semibold font-mono text-yellow-400" id="stat-claimed">{summary.claimed}</span>'
+            f"</div>"
+            f'<div class="flex items-center gap-2">'
+            f'<span class="inline-block w-2 h-2 rounded-full bg-red-500"></span>'
+            f'<span class="text-xs text-muted">Failed</span>'
+            f'<span class="text-lg font-semibold font-mono text-red-400" id="stat-failed">{summary.failed}</span>'
+            f"</div>"
+            f'<div class="flex items-center gap-2">'
+            f'<span class="inline-block w-2 h-2 rounded-full bg-white"></span>'
+            f'<span class="text-xs text-muted">Open</span>'
+            f'<span class="text-lg font-semibold font-mono text-white" id="stat-open">{summary.open}</span>'
+            f"</div>"
+            f'<div class="border-l border-border h-6 mx-2"></div>'
+            f'<div class="flex items-center gap-2">'
+            f'<span class="text-xs text-muted">Agents</span>'
+            f'<span class="text-lg font-semibold font-mono text-accent"'
+            f' id="stat-agents">{agent_count}</span>'
+            f"</div>"
+            f'<div class="border-l border-border h-6 mx-2"></div>'
+            f'<div class="flex items-center gap-2">'
+            f'<span class="text-xs text-muted">Cost</span>'
+            f'<span class="text-lg font-semibold font-mono text-green-400"'
+            f' id="stat-cost">${total_cost:.2f}</span>'
+            f"</div>"
+            f"</div></div>"
+            f'<tbody id="task-table-content" class="divide-y divide-border">{task_rows_html}</tbody>'
+            f'<div id="agents-content" class="space-y-3">{agents_html}</div>'
+            f'<div id="cost-content" class="space-y-2">{cost_html}</div>'
+        )
+
+        return JSONResponse(
+            content={
+                "stats": {
+                    "total": summary.total,
+                    "open": summary.open,
+                    "claimed": summary.claimed,
+                    "done": summary.done,
+                    "failed": summary.failed,
+                    "agents": agent_count,
+                    "cost_usd": round(total_cost, 4),
+                },
+                "tasks": [
+                    {
+                        "id": t.id,
+                        "title": t.title,
+                        "role": t.role,
+                        "status": t.status.value,
+                        "priority": t.priority,
+                        "assigned_agent": t.assigned_agent,
+                    }
+                    for t in tasks
+                ],
+                "agents": [
+                    {
+                        "id": a.id,
+                        "role": a.role,
+                        "status": a.status,
+                        "spawn_ts": a.spawn_ts,
+                    }
+                    for a in alive_agents
+                ],
+                "cost_by_role": cost_by_role,
+                "_html": html,
+            },
+            headers={"Content-Type": "application/json"},
+        )
+
+    @application.get("/events")
+    async def sse_events() -> StreamingResponse:
+        """Server-Sent Events stream for real-time dashboard updates."""
+        queue = sse_bus.subscribe()
+
+        async def event_generator() -> AsyncGenerator[str, None]:
+            try:
+                # Send initial connection event
+                yield 'event: heartbeat\ndata: {"connected": true}\n\n'
+                while True:
+                    message = await queue.get()
+                    yield message
+            except asyncio.CancelledError:
+                return
+            finally:
+                sse_bus.unsubscribe(queue)
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     # -- bulletin board routes -------------------------------------------------
 
@@ -1644,78 +1885,6 @@ def create_app(
             nodes=[NodeResponse(**n) for n in summary["nodes"]],
         )
 
-    # -- GitHub webhook route ---------------------------------------------------
-
-    _gh_webhook_secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
-
-    @application.post("/webhooks/github", status_code=200)
-    async def github_webhook(request: Request) -> JSONResponse:
-        """Receive a GitHub App webhook, verify signature, and create tasks.
-
-        Reads ``GITHUB_WEBHOOK_SECRET`` from environment for HMAC verification.
-        Returns 200 on success, 401 on bad/missing signature, 400 on parse error.
-        """
-        from bernstein.github_app.mapper import (
-            issue_to_tasks,
-            label_to_action,
-            pr_review_to_task,
-            push_to_tasks,
-        )
-        from bernstein.github_app.webhooks import parse_webhook, verify_signature
-
-        body = await request.body()
-
-        # Verify HMAC signature if a webhook secret is configured
-        if _gh_webhook_secret:
-            signature = request.headers.get("x-hub-signature-256", "")
-            if not signature or not verify_signature(body, signature, _gh_webhook_secret):
-                return JSONResponse(
-                    status_code=401,
-                    content={"detail": "Invalid webhook signature"},
-                )
-
-        # Parse the webhook event
-        headers = dict(request.headers)
-        try:
-            event = parse_webhook(headers, body)
-        except ValueError as exc:
-            return JSONResponse(
-                status_code=400,
-                content={"detail": f"Bad webhook payload: {exc}"},
-            )
-
-        # Map event to tasks based on event type
-        task_payloads: list[dict[str, Any]] = []
-
-        if event.event_type == "issues" and event.action == "opened":
-            task_payloads.extend(issue_to_tasks(event))
-        elif event.event_type == "issues" and event.action == "labeled":
-            action_task = label_to_action(event)
-            if action_task is not None:
-                task_payloads.append(action_task)
-        elif event.event_type in ("pull_request_review_comment", "issue_comment"):
-            review_task = pr_review_to_task(event)
-            if review_task is not None:
-                task_payloads.append(review_task)
-        elif event.event_type == "push":
-            task_payloads.extend(push_to_tasks(event))
-
-        # Create tasks in the store
-        created_ids: list[str] = []
-        for payload in task_payloads:
-            task = await store.create(TaskCreate(**payload))
-            created_ids.append(task.id)
-
-        return JSONResponse(
-            status_code=200,
-            content={
-                "event_type": event.event_type,
-                "action": event.action,
-                "tasks_created": len(created_ids),
-                "task_ids": created_ids,
-            },
-        )
-
     # Attach store, bulletin, and cluster registry for testing access.
     # FastAPI's `state` is a plain object with no predefined attributes;
     # type: ignore[attr-defined] is the standard pattern here.
@@ -1723,6 +1892,7 @@ def create_app(
     application.state.bulletin = bulletin  # type: ignore[attr-defined]
     application.state.a2a_handler = a2a_handler  # type: ignore[attr-defined]
     application.state.node_registry = node_registry  # type: ignore[attr-defined]
+    application.state.sse_bus = sse_bus  # type: ignore[attr-defined]
 
     # Reference all route handlers so pyright does not flag them as unused.
     # They are registered with FastAPI via decorators above.
@@ -1742,6 +1912,9 @@ def create_app(
         agent_heartbeat,
         health_check,
         metrics_endpoint,
+        dashboard_page,
+        dashboard_data,
+        sse_events,
         post_bulletin,
         get_bulletin,
         agent_card,
@@ -1753,7 +1926,6 @@ def create_app(
         unregister_node,
         list_nodes,
         cluster_status,
-        github_webhook,
     )
     del _routes
 

@@ -1425,6 +1425,7 @@ def create_app(
             raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from None
+        sse_bus.publish("task_update", json.dumps({"id": task.id, "status": "claimed"}))
         return _task_to_response(task)
 
     @application.post("/tasks/{task_id}/complete", response_model=TaskResponse)
@@ -1465,6 +1466,10 @@ def create_app(
             task = await store.add_progress(task_id, body.message, body.percent)
         except KeyError:
             raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
+        sse_bus.publish(
+            "task_progress",
+            json.dumps({"id": task.id, "message": body.message, "percent": body.percent}),
+        )
         return _task_to_response(task)
 
     @application.get("/tasks", response_model=list[TaskResponse])
@@ -2045,6 +2050,10 @@ def create_app(
         _runtime_dir.mkdir(parents=True, exist_ok=True)
         kill_path = _runtime_dir / f"{session_id}.kill"
         kill_path.write_text(str(time.time()))
+        sse_bus.publish(
+            "session_kill",
+            json.dumps({"session_id": session_id}),
+        )
         return JSONResponse(
             content={
                 "session_id": session_id,

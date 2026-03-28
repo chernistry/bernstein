@@ -426,6 +426,8 @@ class AgentSpawner:
         )
         session.pid = result.pid
         session.status = "working"
+        if result.log_path:
+            session.log_path = str(result.log_path)
         if result.proc is not None:
             self._procs[session_id] = result.proc  # type: ignore[assignment]
 

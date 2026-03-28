@@ -277,6 +277,7 @@ class JanitorResult:
     signal_results: list[tuple[str, bool, str]]  # (signal_desc, passed, detail)
     fix_tasks_created: list[str] = field(default_factory=list[str])  # IDs of created fix tasks
     judge_verdict: JudgeVerdict | None = None  # Set when llm_judge signal was evaluated
+    pr_url: str | None = None  # PR URL if created after successful verification
 
 
 @dataclass(frozen=True)
@@ -347,6 +348,9 @@ class OrchestratorConfig:
     budget_usd: float = 0.0  # Stop spawning when cumulative cost reaches this (0 = unlimited)
     dry_run: bool = False  # Preview planned spawns without actually spawning agents
     auth_token: str | None = None  # Bearer token for authenticated API calls
+    merge_strategy: str = "pr"  # "pr" | "direct" — how agent work reaches the main branch
+    auto_merge: bool = True  # Auto-merge PR after code review passes (requires gh CLI)
+    pr_labels: list[str] = field(default_factory=lambda: ["bernstein", "auto-generated"])
 
 
 # ---------------------------------------------------------------------------

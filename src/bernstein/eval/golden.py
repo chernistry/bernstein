@@ -102,7 +102,7 @@ def _parse_golden_file(path: Path, tier: Tier) -> GoldenTask | None:
         description=body or str(m.get("description", "")),
         role=str(m.get("role", "backend")),
         expected_files_modified=[str(x) for x in m.get("expected_files_modified", [])],
-        expected_test_outcomes={str(k): bool(v) for k, v in m.get("expected_test_outcomes", {}).items()},
+        expected_test_outcomes=dict({str(k): bool(v) for k, v in dict(m.get("expected_test_outcomes", {})).items()}),
         completion_signals=[str(x) for x in m.get("completion_signals", [])],
         max_cost_usd=float(m.get("max_cost_usd", 1.0)),
         max_duration_s=int(m.get("max_duration_s", 300)),

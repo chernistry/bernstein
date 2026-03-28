@@ -333,12 +333,12 @@ class TestOrchestratorTick:
     def test_respects_max_agents(self, tmp_path: Path) -> None:
         # 6 tasks across 3 roles -- but max_agents=2
         tasks = [
-            _make_task(id="T-1", role="backend"),
-            _make_task(id="T-2", role="backend"),
-            _make_task(id="T-3", role="qa"),
-            _make_task(id="T-4", role="qa"),
-            _make_task(id="T-5", role="devops"),
-            _make_task(id="T-6", role="devops"),
+            _make_task(id="T-1", role="backend", title="Backend task 1"),
+            _make_task(id="T-2", role="backend", title="Backend task 2"),
+            _make_task(id="T-3", role="qa", title="QA task 1"),
+            _make_task(id="T-4", role="qa", title="QA task 2"),
+            _make_task(id="T-5", role="devops", title="Devops task 1"),
+            _make_task(id="T-6", role="devops", title="Devops task 2"),
         ]
         transport = _mock_transport(
             {

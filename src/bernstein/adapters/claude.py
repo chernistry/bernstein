@@ -150,13 +150,22 @@ class ClaudeCodeAdapter(CLIAdapter):
 
         log_file = log_path.open("w")
         # Pipe: claude --stream-json | python wrapper > log_file
-        claude_proc = subprocess.Popen(
-            cmd,
-            cwd=workdir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
+        try:
+            claude_proc = subprocess.Popen(
+                cmd,
+                cwd=workdir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except FileNotFoundError as exc:
+            log_file.close()
+            raise RuntimeError(
+                "claude not found in PATH. Install Claude Code: https://claude.ai/code"
+            ) from exc
+        except PermissionError as exc:
+            log_file.close()
+            raise RuntimeError(f"Permission denied executing claude: {exc}") from exc
         proc = subprocess.Popen(
             [sys.executable, "-c", wrapper_script],
             stdin=claude_proc.stdout,

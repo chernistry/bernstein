@@ -59,13 +59,18 @@ class GenericAdapter(CLIAdapter):
         cmd.extend([self._prompt_flag, prompt])
 
         with log_path.open("w") as log_file:
-            proc = subprocess.Popen(
-                cmd,
-                cwd=workdir,
-                stdout=log_file,
-                stderr=subprocess.STDOUT,
-                start_new_session=True,
-            )
+            try:
+                proc = subprocess.Popen(
+                    cmd,
+                    cwd=workdir,
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+            except FileNotFoundError as exc:
+                raise RuntimeError(f"{self._cli_command!r} not found in PATH") from exc
+            except PermissionError as exc:
+                raise RuntimeError(f"Permission denied executing {self._cli_command!r}: {exc}") from exc
 
         return SpawnResult(pid=proc.pid, log_path=log_path)
 

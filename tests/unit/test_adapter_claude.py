@@ -497,3 +497,40 @@ class TestResolveEnvVars:
         assert _resolve_env_vars(42) == 42
         assert _resolve_env_vars(True) is True
         assert _resolve_env_vars(None) is None
+
+
+# ---------------------------------------------------------------------------
+# spawn() — missing CLI binary / PermissionError
+# ---------------------------------------------------------------------------
+
+
+class TestSpawnMissingBinary:
+    """ClaudeCodeAdapter.spawn() raises RuntimeError when 'claude' binary is missing."""
+
+    def test_file_not_found_raises_runtime_error(self, tmp_path: Path) -> None:
+        adapter = ClaudeCodeAdapter()
+        with patch(
+            "bernstein.adapters.claude.subprocess.Popen",
+            side_effect=FileNotFoundError("No such file or directory: 'claude'"),
+        ):
+            with pytest.raises(RuntimeError, match="not found in PATH"):
+                adapter.spawn(
+                    prompt="hello",
+                    workdir=tmp_path,
+                    model_config=ModelConfig(model="sonnet", effort="high"),
+                    session_id="claude-missing",
+                )
+
+    def test_permission_error_raises_runtime_error(self, tmp_path: Path) -> None:
+        adapter = ClaudeCodeAdapter()
+        with patch(
+            "bernstein.adapters.claude.subprocess.Popen",
+            side_effect=PermissionError("Permission denied"),
+        ):
+            with pytest.raises(RuntimeError, match="[Pp]ermission"):
+                adapter.spawn(
+                    prompt="hello",
+                    workdir=tmp_path,
+                    model_config=ModelConfig(model="sonnet", effort="high"),
+                    session_id="claude-perm",
+                )

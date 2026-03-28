@@ -459,6 +459,123 @@ class TestOrchestratorTick:
         assert len(result.spawned) == 0
 
 
+# --- Spawn resilience: claim-before-spawn, backoff, and failure escalation ---
+
+
+class TestSpawnResiliency:
+    """Server outage and spawn failure scenarios."""
+
+    def test_claim_500_aborts_spawn(self, tmp_path: Path) -> None:
+        """Server 500 on task claim aborts spawn — agent must not be launched."""
+        task = _make_task(id="T-claim-500")
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            url = request.url
+            key = f"{request.method} {url.path}"
+            if url.query:
+                key += f"?{url.query.decode()}"
+            if key == "GET /tasks?status=open":
+                return httpx.Response(200, json=[_task_as_dict(task)])
+            if key == "GET /tasks?status=done":
+                return httpx.Response(200, json=[])
+            if key == "POST /tasks/T-claim-500/claim":
+                return httpx.Response(500, json={"detail": "internal server error"})
+            return httpx.Response(404)
+
+        adapter = _mock_adapter()
+        orch = _build_orchestrator(tmp_path, httpx.MockTransport(handler), adapter=adapter)
+
+        result = orch.tick()
+
+        adapter.spawn.assert_not_called()
+        assert len(result.spawned) == 0
+        assert any("claim" in e for e in result.errors)
+
+    def test_claim_connection_error_aborts_spawn(self, tmp_path: Path) -> None:
+        """Server unreachable during claim aborts spawn without crashing."""
+        task = _make_task(id="T-claim-conn")
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            url = request.url
+            key = f"{request.method} {url.path}"
+            if url.query:
+                key += f"?{url.query.decode()}"
+            if key == "GET /tasks?status=open":
+                return httpx.Response(200, json=[_task_as_dict(task)])
+            if key == "GET /tasks?status=done":
+                return httpx.Response(200, json=[])
+            if key == "POST /tasks/T-claim-conn/claim":
+                raise httpx.ConnectError("Connection refused")
+            return httpx.Response(404)
+
+        adapter = _mock_adapter()
+        orch = _build_orchestrator(tmp_path, httpx.MockTransport(handler), adapter=adapter)
+
+        result = orch.tick()
+
+        adapter.spawn.assert_not_called()
+        assert len(result.spawned) == 0
+        assert any("claim" in e for e in result.errors)
+
+    def test_spawn_failure_not_retried_within_backoff_window(self, tmp_path: Path) -> None:
+        """A batch that failed to spawn is not retried until the backoff window expires."""
+        task = _make_task(id="T-backoff")
+        transport = _mock_transport({
+            "GET /tasks?status=open": httpx.Response(200, json=[_task_as_dict(task)]),
+            "GET /tasks?status=done": httpx.Response(200, json=[]),
+        })
+        adapter = _mock_adapter()
+        adapter.spawn.side_effect = RuntimeError("subprocess died")
+        orch = _build_orchestrator(tmp_path, transport, adapter=adapter)
+
+        # Tick 1: spawn attempt fails, failure is recorded
+        r1 = orch.tick()
+        assert adapter.spawn.call_count == 1
+        assert any("spawn" in e for e in r1.errors)
+
+        # Tick 2: immediately after — still within backoff window, batch must be skipped
+        r2 = orch.tick()
+        assert len(r2.spawned) == 0
+        assert adapter.spawn.call_count == 1  # not retried
+
+    def test_consecutive_spawn_failures_mark_tasks_failed(self, tmp_path: Path) -> None:
+        """After MAX_SPAWN_FAILURES consecutive failures, tasks are marked failed on the server."""
+        task = _make_task(id="T-maxfail")
+
+        fail_called = False
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal fail_called
+            url = request.url
+            key = f"{request.method} {url.path}"
+            if url.query:
+                key += f"?{url.query.decode()}"
+            if key == "GET /tasks?status=open":
+                return httpx.Response(200, json=[_task_as_dict(task)])
+            if key == "GET /tasks?status=done":
+                return httpx.Response(200, json=[])
+            if key == "POST /tasks/T-maxfail/fail":
+                fail_called = True
+                return httpx.Response(200, json={"status": "failed"})
+            return httpx.Response(404)
+
+        adapter = _mock_adapter()
+        adapter.spawn.side_effect = RuntimeError("always fails")
+        orch = _build_orchestrator(tmp_path, httpx.MockTransport(handler), adapter=adapter)
+
+        # Pre-seed failure count at (max - 1) with an expired backoff timestamp
+        batch_key = frozenset(["T-maxfail"])
+        max_failures = orch._MAX_SPAWN_FAILURES
+        orch._spawn_failures[batch_key] = (max_failures - 1, 0.0)
+
+        # This tick hits the limit and should mark the task as failed
+        orch.tick()
+
+        assert fail_called
+        # Failure tracking is cleared after escalation
+        assert batch_key not in orch._spawn_failures
+
+
 # --- Reaping stale agents ---
 
 

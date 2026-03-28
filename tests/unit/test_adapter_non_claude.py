@@ -641,3 +641,90 @@ class TestKill:
             patch(f"{module}.os.killpg", side_effect=OSError("no process")),
         ):
             adapter.kill(556)  # must not raise
+
+
+# ---------------------------------------------------------------------------
+# spawn() — missing CLI binary / PermissionError
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "adapter_factory,popen_path",
+    [
+        (lambda: CodexAdapter(), "bernstein.adapters.codex.subprocess.Popen"),
+        (lambda: GeminiAdapter(), "bernstein.adapters.gemini.subprocess.Popen"),
+        (
+            lambda: GenericAdapter(cli_command="notarealthing"),
+            "bernstein.adapters.generic.subprocess.Popen",
+        ),
+    ],
+    ids=["codex", "gemini", "generic"],
+)
+class TestSpawnMissingBinary:
+    """spawn() raises RuntimeError with a clear message when binary is missing."""
+
+    def test_file_not_found_raises_runtime_error(
+        self, adapter_factory: object, popen_path: str, tmp_path: Path
+    ) -> None:
+        adapter = adapter_factory()  # type: ignore[operator]
+        with patch(popen_path, side_effect=FileNotFoundError("No such file")):
+            with pytest.raises(RuntimeError, match="not found in PATH"):
+                adapter.spawn(
+                    prompt="hello",
+                    workdir=tmp_path,
+                    model_config=ModelConfig(model="gpt-4o", effort="high"),
+                    session_id="missing-bin",
+                )
+
+    def test_permission_error_raises_runtime_error(
+        self, adapter_factory: object, popen_path: str, tmp_path: Path
+    ) -> None:
+        adapter = adapter_factory()  # type: ignore[operator]
+        with patch(popen_path, side_effect=PermissionError("Permission denied")):
+            with pytest.raises(RuntimeError, match="[Pp]ermission"):
+                adapter.spawn(
+                    prompt="hello",
+                    workdir=tmp_path,
+                    model_config=ModelConfig(model="gpt-4o", effort="high"),
+                    session_id="perm-denied",
+                )
+
+
+class TestQwenSpawnMissingBinary:
+    """QwenAdapter.spawn() raises RuntimeError when binary is missing."""
+
+    def test_file_not_found_raises_runtime_error(self, tmp_path: Path) -> None:
+        adapter = QwenAdapter()
+        settings_mock = _make_llm_settings()
+        with (
+            patch("bernstein.adapters.qwen.LLMSettings", return_value=settings_mock),
+            patch(
+                "bernstein.adapters.qwen.subprocess.Popen",
+                side_effect=FileNotFoundError("No such file"),
+            ),
+        ):
+            with pytest.raises(RuntimeError, match="not found in PATH"):
+                adapter.spawn(
+                    prompt="hello",
+                    workdir=tmp_path,
+                    model_config=ModelConfig(model="sonnet", effort="high"),
+                    session_id="qwen-missing",
+                )
+
+    def test_permission_error_raises_runtime_error(self, tmp_path: Path) -> None:
+        adapter = QwenAdapter()
+        settings_mock = _make_llm_settings()
+        with (
+            patch("bernstein.adapters.qwen.LLMSettings", return_value=settings_mock),
+            patch(
+                "bernstein.adapters.qwen.subprocess.Popen",
+                side_effect=PermissionError("Permission denied"),
+            ),
+        ):
+            with pytest.raises(RuntimeError, match="[Pp]ermission"):
+                adapter.spawn(
+                    prompt="hello",
+                    workdir=tmp_path,
+                    model_config=ModelConfig(model="sonnet", effort="high"),
+                    session_id="qwen-perm",
+                )

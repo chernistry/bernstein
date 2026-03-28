@@ -164,6 +164,9 @@ class Orchestrator:
         client: httpx client for server communication (injectable for testing).
     """
 
+    _SPAWN_BACKOFF_S: float = 60.0   # seconds before retrying a failed batch
+    _MAX_SPAWN_FAILURES: int = 3     # consecutive failures before marking tasks failed
+
     def __init__(
         self,
         config: OrchestratorConfig,
@@ -182,6 +185,8 @@ class Orchestrator:
         self._processed_done_tasks: set[str] = set()  # avoid re-processing done tasks
         self._running = False
         self._tick_count = 0
+        # Track spawn failures per batch for backoff: task_ids → (fail_count, last_fail_ts)
+        self._spawn_failures: dict[frozenset[str], tuple[int, float]] = {}
 
         # Provider-aware routing and health tracking
         self._router = router
@@ -272,6 +277,47 @@ class Orchestrator:
             if self._check_file_overlap(batch):
                 continue
 
+            # Check spawn backoff: skip batches that recently failed
+            batch_key = frozenset(t.id for t in batch)
+            fail_count, last_fail_ts = self._spawn_failures.get(batch_key, (0, 0.0))
+            if fail_count > 0 and (time.time() - last_fail_ts) < self._SPAWN_BACKOFF_S:
+                logger.warning(
+                    "Skipping batch %s: in backoff after %d consecutive spawn failure(s)",
+                    [t.id for t in batch],
+                    fail_count,
+                )
+                continue
+
+            # Claim tasks BEFORE spawning to prevent duplicate agents.
+            # Abort on server errors (5xx) or transport failures (unreachable).
+            # 4xx responses are treated as best-effort (claim may not be implemented).
+            claim_failed = False
+            for task in batch:
+                try:
+                    resp = self._client.post(f"{base}/tasks/{task.id}/claim")
+                    if resp.status_code >= 500:
+                        logger.error(
+                            "Server error %d claiming task %s — aborting spawn",
+                            resp.status_code,
+                            task.id,
+                        )
+                        result.errors.append(
+                            f"claim:{task.id}: server error {resp.status_code}"
+                        )
+                        claim_failed = True
+                        break
+                except httpx.TransportError as exc:
+                    logger.error(
+                        "Server unreachable claiming task %s: %s — aborting spawn",
+                        task.id,
+                        exc,
+                    )
+                    result.errors.append(f"claim:{task.id}: {exc}")
+                    claim_failed = True
+                    break
+            if claim_failed:
+                continue
+
             try:
                 session = self._spawner.spawn_for_tasks(batch)
                 self._agents[session.id] = session
@@ -280,16 +326,10 @@ class Orchestrator:
                 alive_count += 1
                 result.spawned.append(session.id)
                 assigned_task_ids.update(t.id for t in batch)
-
-                # Claim specific tasks on the server so they're not re-spawned
-                for task in batch:
-                    try:
-                        self._client.post(f"{base}/tasks/{task.id}/claim")
-                    except httpx.HTTPError:
-                        pass  # Best effort
-
                 # Set heartbeat_ts so stale reaper can timeout hung agents
                 session.heartbeat_ts = time.time()
+                # Clear any prior failure count on success
+                self._spawn_failures.pop(batch_key, None)
 
                 logger.info(
                     "Spawned %s for %d tasks: %s",
@@ -311,6 +351,23 @@ class Orchestrator:
                 # Record spawn failure
                 collector = get_collector()
                 collector.record_error("agent_spawn_failed", "default", role=batch[0].role if batch else None)
+                # Track failure count for backoff and eventual task escalation
+                new_count = fail_count + 1
+                self._spawn_failures[batch_key] = (new_count, time.time())
+                if new_count >= self._MAX_SPAWN_FAILURES:
+                    for task in batch:
+                        try:
+                            _fail_task(
+                                self._client,
+                                base,
+                                task.id,
+                                f"Spawn failed {new_count} consecutive times: {exc}",
+                            )
+                        except Exception as fail_exc:
+                            logger.warning(
+                                "Could not mark task %s as failed: %s", task.id, fail_exc
+                            )
+                    self._spawn_failures.pop(batch_key, None)
 
         # 4. Check done tasks, run janitor, record evolution metrics
         for task in done_tasks:

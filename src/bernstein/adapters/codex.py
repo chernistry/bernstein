@@ -35,13 +35,18 @@ class CodexAdapter(CLIAdapter):
         ]
 
         with log_path.open("w") as log_file:
-            proc = subprocess.Popen(
-                cmd,
-                cwd=workdir,
-                stdout=log_file,
-                stderr=subprocess.STDOUT,
-                start_new_session=True,
-            )
+            try:
+                proc = subprocess.Popen(
+                    cmd,
+                    cwd=workdir,
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+            except FileNotFoundError as exc:
+                raise RuntimeError("codex not found in PATH. Install it with: npm install -g @openai/codex") from exc
+            except PermissionError as exc:
+                raise RuntimeError(f"Permission denied executing codex: {exc}") from exc
 
         return SpawnResult(pid=proc.pid, log_path=log_path)
 

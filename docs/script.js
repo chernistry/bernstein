@@ -30,6 +30,11 @@
   applyTheme(isDark());
 
   document.addEventListener('DOMContentLoaded', function () {
+    // Initialize Lucide icons
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+
     // Theme toggle
     var btn = document.getElementById('theme-toggle');
     if (btn) {

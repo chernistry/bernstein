@@ -338,7 +338,7 @@ class BernsteinApp(App):
                 yield DataTable(id="tasks-table")
         with Vertical(id="activity-bar"):
             yield Static("ACTIVITY", classes="col-header")
-            yield RichLog(id="activity-log", wrap=True, markup=True, auto_scroll=True, can_focus=False)
+            yield RichLog(id="activity-log", wrap=True, markup=True, auto_scroll=True)
         with Vertical(id="bottom-bar"):
             yield BigStats(id="stats-row")
             with Horizontal(id="spark-row"):

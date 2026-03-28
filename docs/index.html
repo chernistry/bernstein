@@ -7,6 +7,7 @@
   <meta name="description" content="Bernstein orchestrates short-lived Claude Code, Codex, and Gemini agents around a central task server. Describe a goal — Bernstein hires the team and ships the code." />
   <link rel="stylesheet" href="style.css" />
   <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
   <script src="script.js"></script>
 </head>
 <body>
@@ -40,7 +41,7 @@
   <div class="container">
     <div class="hero-inner">
       <div>
-        <div class="hero-badge hero-enter">⚡ Open-source · Python 3.12+</div>
+        <div class="hero-badge hero-enter"><i data-lucide="zap" style="width:14px;height:14px;display:inline-block;vertical-align:-2px"></i> Open-source · Python 3.12+</div>
         <h1 class="hero-enter">Multi-agent orchestration that actually ships code</h1>
         <p class="hero-sub hero-enter-late">
           Describe a goal. Bernstein decomposes it, hires a team of short-lived coding agents, and drives them to completion — with built-in verification, model routing, and self-evolution.
@@ -200,32 +201,32 @@
     </div>
     <div class="card-grid card-grid-3 stagger animate">
       <div class="card">
-        <div class="feature-icon">⚡</div>
+        <div class="feature-icon"><i data-lucide="zap"></i></div>
         <h3>Parallel agents</h3>
         <p>Up to 6 agents run simultaneously on independent tasks. Dependency-blocked tasks wait automatically — no manual coordination.</p>
       </div>
       <div class="card">
-        <div class="feature-icon">🔄</div>
+        <div class="feature-icon"><i data-lucide="refresh-cw"></i></div>
         <h3>Self-evolution</h3>
         <p>Run <code>bernstein --evolve</code> and Bernstein analyses its own metrics, proposes improvements, validates them in a sandbox, and applies low-risk ones automatically.</p>
       </div>
       <div class="card">
-        <div class="feature-icon">🗂️</div>
+        <div class="feature-icon"><i data-lucide="folder-open"></i></div>
         <h3>Agent catalogs</h3>
         <p>Load specialist agents from YAML/Markdown catalogs. Sync from remote marketplaces. Each agent brings its own role prompt and model preferences.</p>
       </div>
       <div class="card">
-        <div class="feature-icon">✅</div>
+        <div class="feature-icon"><i data-lucide="shield-check"></i></div>
         <h3>Built-in verification</h3>
         <p>Tasks define completion signals (<code>path_exists</code>, <code>test_passes</code>, <code>api_responds</code>). The janitor checks them before closing — agents can't self-report done.</p>
       </div>
       <div class="card">
-        <div class="feature-icon">🧠</div>
+        <div class="feature-icon"><i data-lucide="brain"></i></div>
         <h3>Smart model routing</h3>
         <p>Opus for architecture and security review. Sonnet for implementation. The router decides based on task scope, complexity, and role — not a flat config.</p>
       </div>
       <div class="card">
-        <div class="feature-icon">🔌</div>
+        <div class="feature-icon"><i data-lucide="plug"></i></div>
         <h3>Any CLI agent</h3>
         <p>Claude Code, Codex, Gemini CLI, Qwen-Coder — all supported via thin adapters. The orchestrator is model-agnostic; adapters handle the CLI differences.</p>
       </div>

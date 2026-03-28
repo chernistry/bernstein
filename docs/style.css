@@ -263,6 +263,10 @@ section { position: relative; padding: 80px 0; }
   width: 44px; height: 44px; border-radius: 12px;
   background: var(--accent-bg); display: flex; align-items: center;
   justify-content: center; font-size: 1.25rem; margin-bottom: 16px;
+  color: var(--accent);
+}
+.feature-icon svg {
+  width: 22px; height: 22px; stroke-width: 1.75;
 }
 .persona-who {
   font-size: 0.75rem; font-weight: 600; color: var(--accent);

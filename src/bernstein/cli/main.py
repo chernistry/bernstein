@@ -3188,19 +3188,27 @@ def doctor(as_json: bool) -> None:
             f"Install {adapter_name} CLI — see docs" if not found else "",
         )
 
-    # 3. API keys
+    # 3. API keys (Claude Code supports OAuth — API key optional)
     key_vars = ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY"]
     any_key = False
     for var in key_vars:
         set_val = bool(os.environ.get(var))
         if set_val:
             any_key = True
-        _check(
-            f"Env: {var}",
-            set_val,
-            "set" if set_val else "not set",
-            f"export {var}=your-key" if not set_val else "",
-        )
+        hint = ""
+        status = "set" if set_val else "not set"
+        if var == "ANTHROPIC_API_KEY" and not set_val:
+            # Check for OAuth session
+            from bernstein.core.bootstrap import _claude_has_oauth_session
+            if _claude_has_oauth_session():
+                status = "not set (OAuth active — OK)"
+                any_key = True
+                set_val = True
+            else:
+                hint = "export ANTHROPIC_API_KEY=key or: claude login"
+        elif not set_val:
+            hint = f"export {var}=your-key"
+        _check(f"Env: {var}", set_val, status, hint)
 
     # 4. Port 8052 availability
     port = 8052

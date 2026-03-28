@@ -85,8 +85,26 @@ def _check_binary(cli: str) -> None:
         raise SystemExit(1)
 
 
+def _claude_has_oauth_session() -> bool:
+    """Check if Claude Code has an active OAuth session (no API key needed)."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["claude", "--version"],
+            capture_output=True, text=True, timeout=5,
+        )
+        # If claude --version works, the binary is functional.
+        # Claude Code with OAuth doesn't need ANTHROPIC_API_KEY.
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
 def _check_api_key(cli: str) -> None:
     """Exit with an actionable message if the required API key is not set.
+
+    For Claude Code: skips the check if an OAuth session is active (no API key
+    needed when using `claude` CLI with built-in auth).
 
     Args:
         cli: Adapter name (e.g. "claude", "codex", "gemini", "qwen").
@@ -101,6 +119,16 @@ def _check_api_key(cli: str) -> None:
             )
             console.print(
                 "Set one of: " + ", ".join(_QWEN_API_KEY_VARS)
+            )
+            raise SystemExit(1)
+    elif cli == "claude":
+        # Claude Code supports OAuth — API key not required if OAuth session active
+        if not os.environ.get("ANTHROPIC_API_KEY") and not _claude_has_oauth_session():
+            console.print(
+                "[bold red]Error:[/bold red] No Claude authentication found."
+            )
+            console.print(
+                "Either set ANTHROPIC_API_KEY or log in via: claude login"
             )
             raise SystemExit(1)
     else:

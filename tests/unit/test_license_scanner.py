@@ -9,6 +9,7 @@ from bernstein.core.license_scanner import check_license_obligations, _scan_diff
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _added(content: str, filepath: str = "src/foo.py") -> str:
     """Build a minimal diff with one added line."""
     return (
@@ -225,17 +226,15 @@ class TestCleanDiff:
 
 class TestSeverityPrecedence:
     def test_strong_beats_weak_in_same_diff(self) -> None:
-        diff = (
-            _added("# SPDX-License-Identifier: LGPL-2.1", "src/lib.py")
-            + _added("# SPDX-License-Identifier: GPL-3.0", "src/core.py")
+        diff = _added("# SPDX-License-Identifier: LGPL-2.1", "src/lib.py") + _added(
+            "# SPDX-License-Identifier: GPL-3.0", "src/core.py"
         )
         results = check_license_obligations(diff)
         assert results[0].blocked  # hard block because GPL present
 
     def test_multiple_files_reported_in_files_list(self) -> None:
-        diff = (
-            _added("# SPDX-License-Identifier: GPL-3.0", "src/a.py")
-            + _added("# SPDX-License-Identifier: GPL-2.0", "src/b.py")
+        diff = _added("# SPDX-License-Identifier: GPL-3.0", "src/a.py") + _added(
+            "# SPDX-License-Identifier: GPL-2.0", "src/b.py"
         )
         results = check_license_obligations(diff)
         assert "src/a.py" in results[0].files

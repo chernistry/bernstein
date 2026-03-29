@@ -54,6 +54,7 @@ from bernstein.core.models import (
     AgentSession,
     ClusterConfig,
     ClusterTopology,
+    ContainerIsolationConfig,
     NodeCapacity,
     OrchestratorConfig,
     ProgressSnapshot,
@@ -109,11 +110,69 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
+    from bernstein.core.container import ContainerConfig
     from bernstein.core.quality_gates import QualityGatesConfig
     from bernstein.core.spawner import AgentSpawner
     from bernstein.evolution.loop import EvolutionLoop
 
 logger = logging.getLogger(__name__)
+
+
+def _build_container_config(iso: ContainerIsolationConfig) -> ContainerConfig | None:
+    """Build a ContainerConfig from OrchestratorConfig container_isolation settings.
+
+    Args:
+        iso: Container isolation settings from OrchestratorConfig.
+
+    Returns:
+        ContainerConfig ready for AgentSpawner, or None if isolation is disabled.
+    """
+    if not iso.enabled:
+        return None
+
+    from bernstein.core.container import (
+        ContainerConfig,
+        ContainerRuntime,
+        NetworkMode,
+        ResourceLimits,
+        SecurityProfile,
+        TwoPhaseSandboxConfig,
+    )
+
+    two_phase: TwoPhaseSandboxConfig | None = None
+    if iso.two_phase_sandbox:
+        two_phase = TwoPhaseSandboxConfig(
+            setup_commands=iso.sandbox_setup_commands,
+        )
+
+    try:
+        runtime = ContainerRuntime(iso.runtime)
+    except ValueError:
+        logger.warning("Unknown container runtime %r, falling back to docker", iso.runtime)
+        runtime = ContainerRuntime.DOCKER
+
+    try:
+        network = NetworkMode(iso.network_mode)
+    except ValueError:
+        logger.warning("Unknown network mode %r, falling back to host", iso.network_mode)
+        network = NetworkMode.HOST
+
+    return ContainerConfig(
+        runtime=runtime,
+        image=iso.image,
+        resource_limits=ResourceLimits(
+            cpu_cores=iso.cpu_cores,
+            memory_mb=iso.memory_mb,
+            pids_limit=iso.pids_limit,
+            read_only_rootfs=iso.read_only_rootfs,
+        ),
+        security=SecurityProfile(
+            drop_capabilities=tuple(iso.drop_capabilities),
+        ),
+        network_mode=network,
+        two_phase_sandbox=two_phase,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Backward-compatible aliases so external code that does
@@ -2392,6 +2451,24 @@ if __name__ == "__main__":
             mcp_registry = MCPRegistry(config_path=mcp_registry_path)
             logger.info("Loaded MCP auto-discovery registry from %s", mcp_registry_path)
 
+        # Container isolation: env vars take precedence over defaults.
+        # BERNSTEIN_CONTAINER=1 enables container isolation.
+        # BERNSTEIN_TWO_PHASE_SANDBOX=1 enables Codex-style two-phase execution.
+        # BERNSTEIN_CONTAINER_IMAGE=<image> overrides the container image.
+        _container_enabled = os.environ.get("BERNSTEIN_CONTAINER", "0").strip() in ("1", "true", "yes")
+        _container_image = os.environ.get("BERNSTEIN_CONTAINER_IMAGE", "bernstein-agent:latest")
+        _two_phase = os.environ.get("BERNSTEIN_TWO_PHASE_SANDBOX", "0").strip() in ("1", "true", "yes")
+        _container_iso = ContainerIsolationConfig(
+            enabled=_container_enabled,
+            image=_container_image,
+            two_phase_sandbox=_two_phase,
+        )
+        container_config = _build_container_config(_container_iso)
+        if container_config is not None and _container_iso.auto_build_image:
+            from bernstein.core.container import ensure_agent_image
+
+            ensure_agent_image(_container_iso.runtime, _container_iso.image)
+
         spawner = AgentSpawner(
             adapter=adapter_inst,
             templates_dir=get_templates_dir(workdir),
@@ -2405,6 +2482,7 @@ if __name__ == "__main__":
             use_worktrees=True,  # Always use worktrees for isolation + auto-commit
             worktree_setup_config=seed.worktree_setup if seed else None,
             enable_caching=True,
+            container_config=container_config,
         )
         budget_usd = 0.0
         dry_run = False

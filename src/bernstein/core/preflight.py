@@ -281,13 +281,16 @@ def preflight_checks(cli: str, port: int) -> None:
     3. The server port is not already occupied.
 
     Args:
-        cli: Adapter name (e.g. "claude", "codex", "gemini", "qwen").
+        cli: Adapter name (e.g. "claude", "codex", "gemini", "qwen", "mock").
         port: TCP port the server will bind to.
 
     Raises:
         SystemExit: On any pre-flight failure, with an actionable message.
     """
-    if cli == "auto":
+    if cli == "mock":
+        # Mock adapter: no binary or API key needed (built-in simulation)
+        console.print("[green]✓[/green] Mock adapter ready (no API key needed)")
+    elif cli == "auto":
         # Auto mode: use agent_discovery for rich detection with auth + model info
         from bernstein.core.agent_discovery import discover_agents_cached, short_model
 

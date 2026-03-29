@@ -241,6 +241,85 @@ def config_list(project_dir: str) -> None:
     console.print(table)
 
 
+@config_group.command("validate")
+def config_validate() -> None:
+    """Validate project configuration (model policy, providers, etc.).
+
+    Checks:
+    - Model policy consistency (allow/deny conflicts, preferred provider not in allow list, etc.)
+    - Provider registration and availability
+    - At least one provider available per tier after policy constraints
+
+    Example: bernstein config validate
+    """
+    import sys
+
+    from bernstein.core.router import TierAwareRouter, load_model_policy_from_yaml, load_providers_from_yaml
+    from bernstein.core.seed import SeedError, parse_seed
+
+    # Find seed file
+    seed_path = find_seed_file()
+    if seed_path is None:
+        console.print("[red]Error:[/red] No bernstein.yaml found in current directory or parents")
+        sys.exit(1)
+
+    # Parse seed
+    try:
+        _cfg = parse_seed(seed_path)
+    except SeedError as exc:
+        from bernstein.cli.errors import seed_parse_error
+
+        seed_parse_error(exc).print()
+        sys.exit(1)
+
+    # Initialize router and load configurations
+    router = TierAwareRouter()
+    project_dir = seed_path.parent
+    sdd_dir = project_dir / ".sdd"
+
+    # Load provider configs
+    providers_path = sdd_dir / "config" / "providers.yaml"
+    if providers_path.exists():
+        load_providers_from_yaml(providers_path, router)
+
+    # Load model policy
+    model_policy_path = sdd_dir / "config" / "model_policy.yaml"
+    if model_policy_path.exists():
+        load_model_policy_from_yaml(model_policy_path, router)
+    else:
+        # Try to load from bernstein.yaml
+        load_model_policy_from_yaml(seed_path, router)
+
+    # Validate router configuration
+    issues = router.validate_policy()
+
+    if issues:
+        console.print("[red]Configuration issues found:[/red]")
+        for issue in issues:
+            console.print(f"  [red]•[/red] {issue}")
+        sys.exit(1)
+    else:
+        console.print("[green]✓[/green] Configuration is valid")
+
+        # Show provider summary
+        summary = router.get_provider_summary()
+        if summary:
+            from rich.table import Table
+
+            table = Table(title="Providers", show_header=True, header_style="bold cyan")
+            table.add_column("Provider")
+            table.add_column("Tier")
+            table.add_column("Status")
+            table.add_column("Policy Allowed")
+
+            for name, info in sorted(summary.items()):
+                allowed_style = "green" if info["policy_allowed"] else "red"
+                allowed_text = f"[{allowed_style}]{'yes' if info['policy_allowed'] else 'no'}[/{allowed_style}]"
+                table.add_row(name, info["tier"], info["health"], allowed_text)
+
+            console.print(table)
+
+
 @click.command("plan")
 @click.option(
     "--export",

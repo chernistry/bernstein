@@ -23,6 +23,103 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class ModelPolicy:
+    """Policy constraints for provider selection (allow/deny/prefer).
+
+    Provides CISO-level control over where code and data can be sent:
+    - Enterprise requirement: "Code never leaves Anthropic" or similar
+    - Compliance requirement: "No cloud APIs except SOC2 certified"
+    - Cost requirement: "Use only free tier providers"
+    """
+
+    allowed_providers: list[str] | None = None  # Explicit allow-list (if set, only these are available)
+    denied_providers: list[str] | None = None  # Explicit deny-list (these are never used)
+    prefer: str | None = None  # Preferred provider if available
+
+    def is_provider_allowed(self, provider_name: str) -> bool:
+        """Check if a provider is allowed by the policy.
+
+        Args:
+            provider_name: Name of the provider (e.g., "anthropic", "openai", "ollama").
+
+        Returns:
+            True if the provider is allowed, False otherwise.
+        """
+        # If denied list exists, check that first
+        if self.denied_providers and provider_name in self.denied_providers:
+            return False
+
+        # If allowed list exists, only those providers are allowed
+        return not (self.allowed_providers and provider_name not in self.allowed_providers)
+
+    def validate(self) -> list[str]:
+        """Validate policy consistency.
+
+        Returns:
+            List of validation issues (empty if valid).
+        """
+        issues: list[str] = []
+
+        # Check for conflicting allow/deny
+        if self.allowed_providers and self.denied_providers:
+            overlap = set(self.allowed_providers) & set(self.denied_providers)
+            if overlap:
+                issues.append(f"Provider(s) in both allow and deny lists: {', '.join(sorted(overlap))}")
+
+        # Check that preferred provider is not denied
+        if self.prefer:
+            if self.denied_providers and self.prefer in self.denied_providers:
+                issues.append(f"Preferred provider '{self.prefer}' is in deny list")
+
+            if self.allowed_providers and self.prefer not in self.allowed_providers:
+                issues.append(f"Preferred provider '{self.prefer}' is not in allow list")
+
+        return issues
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any] | None) -> ModelPolicy:
+        """Load policy from dictionary (e.g., from YAML).
+
+        Args:
+            data: Dictionary with 'allowed_providers', 'denied_providers', 'prefer' keys.
+
+        Returns:
+            ModelPolicy instance.
+        """
+        if not data:
+            return cls()
+
+        return cls(
+            allowed_providers=data.get("allowed_providers"),
+            denied_providers=data.get("denied_providers"),
+            prefer=data.get("prefer"),
+        )
+
+
+@dataclass
+class PolicyFilter:
+    """Filters providers based on ModelPolicy before routing.
+
+    The PolicyFilter sits between provider registration and routing decisions,
+    ensuring that denied providers are never offered to any routing algorithm
+    (static or bandit).
+    """
+
+    policy: ModelPolicy
+
+    def filter_providers(self, providers: list[ProviderConfig]) -> list[ProviderConfig]:
+        """Filter providers to only those allowed by the policy.
+
+        Args:
+            providers: List of available providers.
+
+        Returns:
+            Filtered list (only allowed providers).
+        """
+        return [p for p in providers if self.policy.is_provider_allowed(p.name)]
+
+
 class Tier(Enum):
     """API pricing tier for model access."""
 
@@ -188,6 +285,9 @@ class RouterState:
     # Active-agent counts per provider for load-spreading (updated by RateLimitTracker)
     active_agent_counts: dict[str, int] = field(default_factory=dict[str, int])
 
+    # Model policy (CISO-level provider constraints)
+    model_policy: ModelPolicy = field(default_factory=ModelPolicy)
+
 
 class TierAwareRouter:
     """
@@ -198,15 +298,17 @@ class TierAwareRouter:
     - Cost tracking and optimization
     - Free tier awareness with quota management
     - Intelligent routing based on task complexity
+    - Model policy enforcement (CISO-level provider constraints)
 
     Preference order:
-    1. Healthy free tier providers with available quota
-    2. Standard tier providers with good health
-    3. Premium tier (last resort for complex tasks)
+    1. Healthy free tier providers with available quota (if allowed by policy)
+    2. Standard tier providers with good health (if allowed by policy)
+    3. Premium tier (last resort for complex tasks, if allowed by policy)
     """
 
     def __init__(self, state: RouterState | None = None) -> None:
         self.state = state or RouterState()
+        self.policy_filter = PolicyFilter(policy=self.state.model_policy)
 
     def register_provider(self, config: ProviderConfig) -> None:
         """Register a provider with the router."""
@@ -265,12 +367,14 @@ class TierAwareRouter:
     ) -> list[ProviderConfig]:
         """Get all available providers, optionally filtered by tier.
 
+        Applies model policy filtering to ensure no denied providers are returned.
+
         Args:
             tier: Optional tier filter.
             require_healthy: If True, exclude unhealthy providers.
 
         Returns:
-            List of providers sorted by score (best first).
+            List of providers sorted by score (best first), respecting model policy.
         """
         providers = [p for p in self.state.providers.values() if p.available and (tier is None or p.tier == tier)]
 
@@ -287,6 +391,9 @@ class TierAwareRouter:
                 )
                 and p.health.success_rate >= self.state.min_health_score
             ]
+
+        # Apply model policy filter — denied providers are never returned
+        providers = self.policy_filter.filter_providers(providers)
 
         # Sort by score (health * cost efficiency)
         return sorted(providers, key=self._calculate_provider_score, reverse=True)
@@ -533,8 +640,50 @@ class TierAwareRouter:
                 "free_tier_limit": provider.free_tier_limit,
                 "is_free_tier_exhausted": provider.is_free_tier_exhausted(),
                 "available": provider.available,
+                "policy_allowed": self.state.model_policy.is_provider_allowed(name),
             }
         return summary
+
+    def validate_policy(self) -> list[str]:
+        """Validate model policy and provider configuration consistency.
+
+        Checks:
+        - Policy syntax and conflicts (allow/deny overlap, preferred not in allow list, etc.)
+        - That at least one provider is available for each tier (warn if not)
+        - That denied providers are actually registered (warn if not)
+
+        Returns:
+            List of validation issues (empty if valid).
+        """
+        issues: list[str] = []
+
+        # Check policy syntax
+        policy_issues = self.state.model_policy.validate()
+        issues.extend(policy_issues)
+
+        # Check that denied providers are registered (warn if not)
+        if self.state.model_policy.denied_providers:
+            for denied in self.state.model_policy.denied_providers:
+                if denied not in self.state.providers:
+                    issues.append(f"Denied provider '{denied}' is not registered")
+
+        # Check that allowed providers are registered (warn if not)
+        if self.state.model_policy.allowed_providers:
+            for allowed in self.state.model_policy.allowed_providers:
+                if allowed not in self.state.providers:
+                    issues.append(f"Allowed provider '{allowed}' is not registered")
+
+        # Check that at least one provider remains available for each tier
+        for tier in Tier:
+            available_for_tier = [
+                p
+                for p in self.state.providers.values()
+                if p.tier == tier and self.state.model_policy.is_provider_allowed(p.name)
+            ]
+            if not available_for_tier:
+                issues.append(f"No available providers for tier '{tier.value}' after policy constraints")
+
+        return issues
 
 
 class RouterError(Exception):
@@ -634,6 +783,52 @@ def _select_model_config(task: Task, bandit_metrics_dir: Path | None = None) -> 
         return ModelConfig(model="sonnet", effort="high")
 
     return ModelConfig(model="sonnet", effort="high")
+
+
+def load_model_policy_from_yaml(path: Path, router: TierAwareRouter) -> None:
+    """Load model policy from a YAML file and apply to router.
+
+    Reads `.sdd/config/model_policy.yaml` or `bernstein.yaml` (model_policy section)
+    and applies the policy to *router*. Silently skips on parse errors so that
+    a missing or malformed file never crashes the orchestrator.
+
+    Args:
+        path: Path to the YAML file (or file with model_policy section).
+        router: TierAwareRouter instance to apply policy to.
+    """
+    import yaml
+
+    try:
+        data_raw: object = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning("Failed to load model policy from %s: %s", path, exc)
+        return
+
+    if not isinstance(data_raw, dict):
+        logger.warning("model_policy YAML at %s is not a dict, skipping", path)
+        return
+
+    data: dict[str, Any] = cast("dict[str, Any]", data_raw)
+
+    policy_data = data.get("model_policy", data)
+
+    if not isinstance(policy_data, dict):
+        logger.warning("model_policy section at %s is not a dict, skipping", path)
+        return
+
+    try:
+        policy = ModelPolicy.from_dict(policy_data)
+        router.state.model_policy = policy
+        router.policy_filter = PolicyFilter(policy=policy)
+        logger.info("Loaded model policy from %s", path)
+
+        # Validate on load
+        issues = policy.validate()
+        if issues:
+            for issue in issues:
+                logger.warning("Model policy validation: %s", issue)
+    except Exception as exc:
+        logger.warning("Failed to parse model policy from %s: %s", path, exc)
 
 
 def load_providers_from_yaml(path: Path, router: TierAwareRouter) -> None:

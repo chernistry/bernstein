@@ -156,14 +156,18 @@ def test_task_complete_cycle_via_api(tmp_path: Path) -> None:
         result = orchestrator.tick()
         assert len(result.spawned) == 1
 
-        # 3. Simulate agent completing the task (as a real agent would do)
+        # 3. Claim the task (lifecycle governance: OPEN → CLAIMED before completion)
+        claim_resp = client.post(f"/tasks/{task_id}/claim")
+        assert claim_resp.status_code in (200, 409)  # 409 if tick already claimed it
+
+        # 4. Simulate agent completing the task (as a real agent would do)
         complete_resp = client.post(
             f"/tasks/{task_id}/complete",
             json={"result_summary": "Created hello_world.py with print statement"},
         )
         assert complete_resp.status_code == 200
 
-        # 4. Verify the task is now done
+        # 5. Verify the task is now done
         task_resp = client.get(f"/tasks/{task_id}")
         assert task_resp.status_code == 200
         assert task_resp.json()["status"] == "done"

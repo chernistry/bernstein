@@ -24,6 +24,8 @@ SDD_DIRS = [
     ".sdd/runtime",
     ".sdd/docs",
     ".sdd/decisions",
+    ".sdd/audit",
+    ".sdd/audit/merkle",
 ]
 SDD_PID_SERVER = ".sdd/runtime/server.pid"
 SDD_PID_SPAWNER = ".sdd/runtime/spawner.pid"

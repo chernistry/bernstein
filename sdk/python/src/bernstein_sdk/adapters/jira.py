@@ -84,7 +84,7 @@ class JiraIssueRef:
     assignee_email: str | None
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> "JiraIssueRef":
+    def from_api_response(cls, data: dict[str, Any]) -> JiraIssueRef:
         """Parse a Jira ``GET /rest/api/3/issue/{key}`` response."""
         fields: dict[str, Any] = data.get("fields", {})
         desc_raw = fields.get("description") or {}
@@ -105,7 +105,7 @@ class JiraIssueRef:
         )
 
     @classmethod
-    def from_webhook_payload(cls, payload: dict[str, Any]) -> "JiraIssueRef | None":
+    def from_webhook_payload(cls, payload: dict[str, Any]) -> JiraIssueRef | None:
         """Parse a Jira webhook ``issue_created`` / ``issue_updated`` payload.
 
         Returns ``None`` if the payload doesn't contain an issue.
@@ -141,7 +141,7 @@ class JiraAdapter:
         self._project_key_to_role = project_key_to_role or {}
 
     @classmethod
-    def from_env(cls, default_role: str = "backend") -> "JiraAdapter":
+    def from_env(cls, default_role: str = "backend") -> JiraAdapter:
         """Construct from environment variables.
 
         Reads ``JIRA_BASE_URL``, ``JIRA_EMAIL``, and ``JIRA_API_TOKEN``.

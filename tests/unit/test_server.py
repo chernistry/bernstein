@@ -255,6 +255,7 @@ async def test_complete_task(client: AsyncClient) -> None:
     create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
     task_id = create_resp.json()["id"]
 
+    await client.post(f"/tasks/{task_id}/claim")
     resp = await client.post(
         f"/tasks/{task_id}/complete",
         json={"result_summary": "All good"},
@@ -284,6 +285,7 @@ async def test_fail_task(client: AsyncClient) -> None:
     create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
     task_id = create_resp.json()["id"]
 
+    await client.post(f"/tasks/{task_id}/claim")
     resp = await client.post(
         f"/tasks/{task_id}/fail",
         json={"reason": "Timed out"},
@@ -340,6 +342,7 @@ async def test_cancel_done_task_returns_409(client: AsyncClient) -> None:
     """POST /tasks/{id}/cancel returns 409 if task is already done."""
     create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
     task_id = create_resp.json()["id"]
+    await client.post(f"/tasks/{task_id}/claim")
     await client.post(f"/tasks/{task_id}/complete", json={"result_summary": "done"})
 
     resp = await client.post(f"/tasks/{task_id}/cancel", json={"reason": "too late"})
@@ -383,6 +386,7 @@ async def test_list_tasks_with_status_filter(client: AsyncClient) -> None:
     """GET /tasks?status=open filters correctly."""
     create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
     task_id = create_resp.json()["id"]
+    await client.post(f"/tasks/{task_id}/claim")
     await client.post(f"/tasks/{task_id}/complete", json={"result_summary": "ok"})
 
     await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Still open"})
@@ -417,7 +421,9 @@ async def test_status_counts(client: AsyncClient) -> None:
     await client.post("/tasks", json={**TASK_PAYLOAD, "title": "T3", "role": "qa"})
 
     # Complete one, fail another
+    await client.post(f"/tasks/{r1.json()['id']}/claim")
     await client.post(f"/tasks/{r1.json()['id']}/complete", json={"result_summary": "ok"})
+    await client.post(f"/tasks/{r2.json()['id']}/claim")
     await client.post(f"/tasks/{r2.json()['id']}/fail", json={"reason": "bad"})
 
     resp = await client.get("/status")
@@ -730,6 +736,7 @@ async def test_completion_signals_preserved_after_complete(client: AsyncClient) 
     create_resp = await client.post("/tasks", json=payload)
     task_id = create_resp.json()["id"]
 
+    await client.post(f"/tasks/{task_id}/claim")
     complete_resp = await client.post(
         f"/tasks/{task_id}/complete",
         json={"result_summary": "done"},
@@ -768,6 +775,7 @@ async def test_complete_task_writes_archive(client: AsyncClient, tmp_path: Path)
     create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
     task_id = create_resp.json()["id"]
 
+    await client.post(f"/tasks/{task_id}/claim")
     await client.post(
         f"/tasks/{task_id}/complete",
         json={"result_summary": "All done"},
@@ -796,6 +804,7 @@ async def test_fail_task_writes_archive(client: AsyncClient, tmp_path: Path) -> 
     create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
     task_id = create_resp.json()["id"]
 
+    await client.post(f"/tasks/{task_id}/claim")
     await client.post(f"/tasks/{task_id}/fail", json={"reason": "Timed out"})
 
     lines = [l for l in archive_path.read_text().splitlines() if l.strip()]
@@ -815,7 +824,9 @@ async def test_archive_endpoint_returns_records(client: AsyncClient, tmp_path: P
 
     r1 = await client.post("/tasks", json=TASK_PAYLOAD)
     r2 = await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Task 2"})
+    await client.post(f"/tasks/{r1.json()['id']}/claim")
     await client.post(f"/tasks/{r1.json()['id']}/complete", json={"result_summary": "ok"})
+    await client.post(f"/tasks/{r2.json()['id']}/claim")
     await client.post(f"/tasks/{r2.json()['id']}/fail", json={"reason": "bad"})
 
     resp = await client.get("/tasks/archive")
@@ -836,6 +847,7 @@ async def test_archive_endpoint_limit(client: AsyncClient, tmp_path: Path) -> No
 
     for i in range(3):
         r = await client.post("/tasks", json={**TASK_PAYLOAD, "title": f"T{i}"})
+        await client.post(f"/tasks/{r.json()['id']}/claim")
         await client.post(f"/tasks/{r.json()['id']}/complete", json={"result_summary": "ok"})
 
     resp = await client.get("/tasks/archive", params={"limit": 1})
@@ -1383,28 +1395,28 @@ async def test_create_task_with_invalid_complexity(client: AsyncClient) -> None:
 
 @pytest.mark.anyio
 async def test_complete_already_completed_task(client: AsyncClient) -> None:
-    """Completing an already-done task is idempotent — returns 200 with status=done."""
+    """Completing an already-done task returns 409 — DONE->DONE is illegal."""
     create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
     task_id = create_resp.json()["id"]
 
+    await client.post(f"/tasks/{task_id}/claim")
     await client.post(f"/tasks/{task_id}/complete", json={"result_summary": "First"})
     resp = await client.post(f"/tasks/{task_id}/complete", json={"result_summary": "Second"})
 
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "done"
+    assert resp.status_code == 409
 
 
 @pytest.mark.anyio
 async def test_fail_already_failed_task(client: AsyncClient) -> None:
-    """Failing an already-failed task is idempotent — returns 200 with status=failed."""
+    """Failing an already-failed task returns 409 — FAILED->FAILED is illegal."""
     create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
     task_id = create_resp.json()["id"]
 
+    await client.post(f"/tasks/{task_id}/claim")
     await client.post(f"/tasks/{task_id}/fail", json={"reason": "First"})
     resp = await client.post(f"/tasks/{task_id}/fail", json={"reason": "Second"})
 
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "failed"
+    assert resp.status_code == 409
 
 
 @pytest.mark.anyio
@@ -1436,6 +1448,7 @@ async def test_claim_next_skips_tasks_with_unmet_deps(client: AsyncClient) -> No
     assert blocked_id not in open_ids, "dep-blocked task should be hidden while dep is open"
 
     # Complete the dep — now blocked task's dep is satisfied
+    await client.post(f"/tasks/{dep_id}/claim")
     await client.post(f"/tasks/{dep_id}/complete", json={"result_summary": "done"})
 
     # After dep is done: task should be claimable via next-task endpoint
@@ -1504,6 +1517,7 @@ async def test_dependency_blocks_open_listing(client: AsyncClient) -> None:
     assert task_b_id not in open_ids
 
     # Mark A as done
+    await client.post(f"/tasks/{task_a_id}/claim")
     complete_resp = await client.post(
         f"/tasks/{task_a_id}/complete",
         json={"result_summary": "done"},

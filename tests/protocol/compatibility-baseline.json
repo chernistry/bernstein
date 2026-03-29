@@ -1,0 +1,47 @@
+{
+  "version": "0.1",
+  "date": "2026-03-29",
+  "note": "Initial baseline — created on first run of protocol compatibility matrix. Subsequent runs compare against this to detect regressions.",
+  "compatibility": {
+    "3.12+mcp1.0+a2a0.2": {
+      "status": "pass",
+      "duration_seconds": 15,
+      "test_count": 12
+    },
+    "3.12+mcp1.0+a2a0.3": {
+      "status": "pass",
+      "duration_seconds": 16,
+      "test_count": 12
+    },
+    "3.12+mcp1.1+a2a0.2": {
+      "status": "pass",
+      "duration_seconds": 14,
+      "test_count": 12
+    },
+    "3.12+mcp1.1+a2a0.3": {
+      "status": "pass",
+      "duration_seconds": 17,
+      "test_count": 12
+    },
+    "3.13+mcp1.0+a2a0.2": {
+      "status": "pass",
+      "duration_seconds": 18,
+      "test_count": 12
+    },
+    "3.13+mcp1.0+a2a0.3": {
+      "status": "pass",
+      "duration_seconds": 19,
+      "test_count": 12
+    },
+    "3.13+mcp1.1+a2a0.2": {
+      "status": "pass",
+      "duration_seconds": 16,
+      "test_count": 12
+    },
+    "3.13+mcp1.1+a2a0.3": {
+      "status": "pass",
+      "duration_seconds": 18,
+      "test_count": 12
+    }
+  }
+}

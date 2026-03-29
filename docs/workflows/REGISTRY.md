@@ -1,6 +1,6 @@
 # Workflow Registry — Bernstein
 
-**Last updated**: 2026-03-29 (Added Mandatory Self-Review Before PR workflow — 511b; enhanced cross-model verifier to 5-dimension review)
+**Last updated**: 2026-03-29 (Extension Publishing and UX specs approved; duplicate draft specs deprecated)
 **Maintainer**: Workflow Architect
 
 ---
@@ -9,12 +9,13 @@
 
 | Workflow | Spec file | Status | Trigger | Primary actor | Last reviewed |
 |---|---|---|---|---|---|
-| Extension Publishing Pipeline | WORKFLOW-extension-publish.md | Draft | git tag ext-v* | GitHub Actions | 2026-03-29 |
-| Extension UX Polish | WORKFLOW-extension-ux-polish.md | Draft | Developer starts implementation | Frontend dev | 2026-03-29 |
+| Protocol Compatibility Matrix | WORKFLOW-protocol-compatibility-matrix.md | Approved | GitHub push to main / PR | GitHub Actions CI | 2026-03-29 |
+| VS Code Extension Publishing | WORKFLOW-extension-publishing.md | Approved | Git tag `ext-v*` | GitHub Actions | 2026-03-29 |
+| VS Code Extension UX Interactions | WORKFLOW-extension-ux.md | Approved | Extension activation / user clicks | User / VS Code | 2026-03-29 |
 | Event-Driven Agent Triggers | WORKFLOW-event-driven-triggers.md | Review | Git push, CI failure, Slack msg, cron, file watch, webhook | TriggerManager | 2026-03-29 |
-| VS Code Extension Publishing | WORKFLOW-extension-publishing.md | Review | Git tag `ext-v*` | GitHub Actions | 2026-03-29 |
-| VS Code Extension UX Interactions | WORKFLOW-extension-ux.md | Review | Extension activation / user clicks | User / VS Code | 2026-03-29 |
 | Mandatory Self-Review Before PR | WORKFLOW-self-review-before-pr.md | Draft | `process_completed_tasks()` — after quality gates, before approval | CrossModelVerifier | 2026-03-29 |
+| Extension Publishing Pipeline | WORKFLOW-extension-publish.md | Deprecated | — | — | 2026-03-29 |
+| Extension UX Polish | WORKFLOW-extension-ux-polish.md | Deprecated | — | — | 2026-03-29 |
 | CI Failure Auto-Routing | WORKFLOW-ci-failure-routing.md | Approved | GitHub Actions `workflow_run` webhook | Webhook handler | 2026-03-28 |
 | Rate-Limit-Aware Scheduling | WORKFLOW-rate-limit-aware-scheduling.md | Draft | Agent death / orchestrator tick | RateLimitTracker + TierAwareRouter | 2026-03-28 |
 | Env Var Isolation for Agents | WORKFLOW-env-var-isolation.md | Approved | `adapter.spawn()` call | CLI Adapter + `build_filtered_env()` | 2026-03-28 |

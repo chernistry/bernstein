@@ -1,0 +1,34 @@
+goal: >
+  Example project demonstrating model policy constraints.
+  Model policy allows CISOs to enforce provider constraints:
+  - "Code never leaves Anthropic"
+  - "Use only free tier"
+  - "No cloud APIs"
+
+cli: auto
+
+# Model Policy — CISO-level provider constraints
+model_policy:
+  # Explicit allow-list: only these providers are available
+  allowed_providers:
+    - anthropic
+    - ollama
+
+  # Explicit deny-list: these providers are never used
+  # (ignored if allowed_providers is set)
+  # denied_providers:
+  #   - openai
+  #   - cohere
+
+  # Preferred provider (must be in allowed list or not denied)
+  prefer: anthropic
+
+# Standard configuration below
+routing:
+  backend: claude-sonnet
+  frontend: claude-sonnet
+  qa: claude-sonnet
+
+quality_gates:
+  enabled: true
+  lint: true

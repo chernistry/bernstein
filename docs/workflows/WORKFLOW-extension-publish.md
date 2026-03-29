@@ -3,8 +3,12 @@
 **Version**: 0.1
 **Date**: 2026-03-29
 **Author**: Workflow Architect
-**Status**: Draft
+**Status**: Deprecated
 **Implements**: Task 340c — Extension Publish Pipeline + UX Polish
+
+> **DEPRECATED**: This is an early draft spec superseded by the approved canonical spec.
+> **Use instead**: `WORKFLOW-extension-publishing.md` (v0.4, Approved)
+> This file is kept for historical reference only. Do not use for implementation.
 
 ---
 

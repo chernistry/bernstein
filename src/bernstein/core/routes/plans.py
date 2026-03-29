@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
+from bernstein.core.lifecycle import transition_task
 from bernstein.core.models import PlanStatus, TaskStatus
 
 if TYPE_CHECKING:
@@ -94,7 +95,7 @@ async def approve_plan(request: Request, plan_id: str, body: PlanDecisionRequest
         task = task_store._tasks.get(estimate.task_id)  # pyright: ignore[reportPrivateUsage]
         if task and task.status == TaskStatus.PLANNED:
             task_store._index_remove(task)  # pyright: ignore[reportPrivateUsage]
-            task.status = TaskStatus.OPEN
+            transition_task(task, TaskStatus.OPEN, actor="plan_approval", reason=f"plan {plan_id} approved")
             task_store._index_add(task)  # pyright: ignore[reportPrivateUsage]
             promoted.append(estimate.task_id)
 
@@ -131,7 +132,7 @@ async def reject_plan(request: Request, plan_id: str, body: PlanDecisionRequest 
         task = task_store._tasks.get(estimate.task_id)  # pyright: ignore[reportPrivateUsage]
         if task and task.status == TaskStatus.PLANNED:
             task_store._index_remove(task)  # pyright: ignore[reportPrivateUsage]
-            task.status = TaskStatus.CANCELLED
+            transition_task(task, TaskStatus.CANCELLED, actor="plan_rejection", reason=f"plan {plan_id} rejected")
             task_store._index_add(task)  # pyright: ignore[reportPrivateUsage]
             cancelled.append(estimate.task_id)
 

@@ -296,6 +296,27 @@ class Orchestrator:
         # a MergeResult reports conflicting_files.
         self._merge_queue = MergeQueue()
 
+        # Governed workflow mode: when config.workflow is set (e.g. "governed"),
+        # the executor drives the run through deterministic phases, filtering
+        # tasks and blocking advancement until guards pass.
+        self._workflow_executor: WorkflowExecutor | None = None
+        if config.workflow:
+            defn = load_workflow(config.workflow)
+            if defn is not None:
+                self._workflow_executor = WorkflowExecutor(
+                    definition=defn,
+                    run_id=run_id,
+                    sdd_dir=workdir / ".sdd",
+                )
+                logger.info(
+                    "Governed workflow active: %s (hash=%s, phases=%s)",
+                    defn.name,
+                    self._workflow_executor.definition_hash[:16] + "...",
+                    defn.phase_names(),
+                )
+            else:
+                logger.warning("Unknown workflow %r — running in adaptive mode", config.workflow)
+
         # Progress-snapshot stall detection state (see check_stalled_tasks).
         # Tracks how many consecutive identical snapshots each task has had.
         self._stall_counts: dict[str, int] = {}  # task_id -> consecutive identical count

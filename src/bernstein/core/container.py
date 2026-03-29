@@ -118,6 +118,61 @@ class MountSpec:
 
 
 @dataclass(frozen=True)
+class TwoPhaseSandboxConfig:
+    """Codex-style two-phase sandboxed execution configuration.
+
+    Phase 1 runs with network access to install dependencies (setup phase).
+    Phase 2 runs the actual agent with network completely disabled (execution
+    phase).  This is an industry-standard security pattern that prevents agents
+    from exfiltrating data or making unexpected external calls at runtime.
+
+    Attributes:
+        setup_commands: Shell commands to run in Phase 1.  An empty tuple
+            triggers auto-detection from the workspace (uv.lock, package.json,
+            requirements.txt, etc.).
+        phase1_timeout_s: Maximum wall-clock time allowed for Phase 1 setup.
+        phase1_network_mode: Network mode for Phase 1 (needs internet access).
+        phase2_network_mode: Network mode for Phase 2 (agent execution); should
+            be NONE for full isolation.
+    """
+
+    setup_commands: tuple[str, ...] = ()
+    phase1_timeout_s: int = 300
+    phase1_network_mode: NetworkMode = NetworkMode.BRIDGE
+    phase2_network_mode: NetworkMode = NetworkMode.NONE
+
+
+def _detect_setup_commands(workspace: Path) -> list[str]:
+    """Auto-detect dependency-install commands from workspace project files.
+
+    Checks for common lock files and manifests in priority order.  Returns
+    the first matching set of commands.
+
+    Args:
+        workspace: Root directory of the project.
+
+    Returns:
+        List of shell commands to run in Phase 1, or empty list if none detected.
+    """
+    checks: list[tuple[str, str]] = [
+        # File to check           # Command to run
+        ("uv.lock", "uv sync --frozen"),
+        ("requirements.txt", "pip install -r requirements.txt"),
+        ("yarn.lock", "yarn install --frozen-lockfile"),
+        ("package-lock.json", "npm ci"),
+        ("package.json", "npm install"),
+        ("Gemfile.lock", "bundle install"),
+        ("go.sum", "go mod download"),
+        ("Cargo.lock", "cargo fetch"),
+    ]
+    for filename, cmd in checks:
+        if (workspace / filename).exists():
+            logger.debug("Auto-detected setup command for %s: %s", filename, cmd)
+            return [cmd]
+    return []
+
+
+@dataclass(frozen=True)
 class ContainerConfig:
     """Full container isolation configuration.
 
@@ -131,6 +186,8 @@ class ContainerConfig:
         labels: Metadata labels applied to the container.
         env_allowlist: Environment variables to pass through to the container.
         extra_hosts: Extra /etc/hosts entries (e.g. for task server access).
+        two_phase_sandbox: If set, enables Codex-style two-phase execution:
+            Phase 1 installs deps with network; Phase 2 runs agent without it.
     """
 
     runtime: ContainerRuntime = ContainerRuntime.DOCKER
@@ -142,6 +199,7 @@ class ContainerConfig:
     labels: dict[str, str] = field(default_factory=lambda: dict[str, str]())
     env_allowlist: tuple[str, ...] = ()
     extra_hosts: tuple[str, ...] = ()
+    two_phase_sandbox: TwoPhaseSandboxConfig | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -511,6 +569,7 @@ class ContainerManager:
         env: dict[str, str] | None = None,
         workspace_override: Path | None = None,
         log_path: Path | None = None,
+        network_mode_override: NetworkMode | None = None,
     ) -> ContainerHandle:
         """Create, start, and exec a command in a single call.
 
@@ -523,6 +582,9 @@ class ContainerManager:
             env: Environment variables for the container.
             workspace_override: Override workspace path.
             log_path: Path to write container logs to.
+            network_mode_override: Override the configured network mode.  Used
+                by two-phase sandbox to enforce ``NetworkMode.NONE`` in Phase 2
+                regardless of the base config's network_mode.
 
         Returns:
             ContainerHandle with the running container.
@@ -537,9 +599,16 @@ class ContainerManager:
         container_name = f"bernstein-{session_id}"
         run_args: list[str] = [self._runtime_cmd, "run", "-d", "--name", container_name]
 
+        # Build a config with the network override applied when requested
+        effective_config = self._config
+        if network_mode_override is not None and network_mode_override != self._config.network_mode:
+            import dataclasses
+
+            effective_config = dataclasses.replace(self._config, network_mode=network_mode_override)
+
         # Apply same args as create (resource limits, security, mounts)
         create_args = _build_create_args(
-            self._config,
+            effective_config,
             session_id,
             workspace_override or self._workdir,
             env or {},
@@ -549,7 +618,7 @@ class ContainerManager:
         # Skip: [runtime, "create", "--name", container_name, ...flags..., image]
         flag_args = create_args[4:-1]  # Skip runtime, create, --name, name; drop image
         run_args.extend(flag_args)
-        run_args.append(self._config.image)
+        run_args.append(effective_config.image)
         run_args.extend(cmd)
 
         # Remove the created-but-not-started container first
@@ -773,6 +842,138 @@ class ContainerManager:
             ContainerHandle or None if not tracked.
         """
         return self._handles.get(session_id)
+
+    def run_phase1_setup(
+        self,
+        session_id: str,
+        setup_cmds: list[str],
+        *,
+        env: dict[str, str] | None = None,
+        workspace_override: Path | None = None,
+        timeout_s: int = 300,
+    ) -> bool:
+        """Run Phase 1 setup in a short-lived container with network access.
+
+        Creates a temporary container using ``phase1_network_mode`` (default
+        ``bridge``), runs each setup command sequentially, then removes the
+        container.  The workspace is bind-mounted so any installed artefacts
+        (virtualenvs, node_modules, etc.) persist for Phase 2.
+
+        Args:
+            session_id: Agent session ID (used to name the setup container).
+            setup_cmds: Shell commands to execute, e.g. ``["uv sync --frozen"]``.
+            env: Environment variables to pass into the container.
+            workspace_override: Override workspace path.
+            timeout_s: Maximum seconds to wait for all setup commands.
+
+        Returns:
+            True if all commands succeeded, False if any failed or timed out.
+        """
+        if not setup_cmds:
+            return True
+
+        workspace = workspace_override or self._workdir
+        container_env = env or {}
+
+        # Build a temporary config that overrides network mode to allow internet
+        # access during setup.
+        phase1_network = NetworkMode.BRIDGE
+        if self._config.two_phase_sandbox is not None:
+            phase1_network = self._config.two_phase_sandbox.phase1_network_mode
+
+        # Build run args for the Phase 1 container
+        setup_session_id = f"{session_id}-setup"
+        container_name = f"bernstein-{setup_session_id}"
+
+        # Construct a combined shell command that runs all setup steps
+        shell_script = " && ".join(setup_cmds)
+        run_args: list[str] = [self._runtime_cmd, "run", "--rm", "--name", container_name]
+
+        # Resource limits (reuse from config, but relax for setup)
+        limits = self._config.resource_limits
+        if limits.cpu_cores is not None:
+            run_args.extend(["--cpus", str(limits.cpu_cores)])
+        if limits.memory_mb is not None:
+            run_args.extend(["--memory", f"{limits.memory_mb}m"])
+
+        # Security profile
+        sec = self._config.security
+        if sec.drop_capabilities:
+            for cap in sec.drop_capabilities:
+                run_args.extend(["--cap-drop", cap])
+        if sec.no_new_privileges:
+            run_args.append("--security-opt=no-new-privileges")
+        if sec.user:
+            run_args.extend(["--user", sec.user])
+
+        # Network — Phase 1 needs internet access
+        run_args.extend(["--network", phase1_network.value])
+
+        # Workspace mount
+        run_args.extend(["--volume", f"{workspace.resolve()}:/workspace:rw"])
+
+        # .sdd state mount
+        sdd_path = workspace / ".sdd"
+        if sdd_path.exists():
+            run_args.extend(["--volume", f"{sdd_path.resolve()}:/workspace/.sdd:rw"])
+
+        # Environment variables
+        for key, value in sorted(container_env.items()):
+            run_args.extend(["--env", f"{key}={value}"])
+
+        # Labels
+        run_args.extend(
+            [
+                "--label",
+                f"bernstein.session={setup_session_id}",
+                "--label",
+                "bernstein.phase=setup",
+                "--label",
+                "bernstein.managed=true",
+            ]
+        )
+
+        run_args.extend(["--workdir", "/workspace"])
+        run_args.append(self._config.image)
+        run_args.extend(["sh", "-c", shell_script])
+
+        logger.info(
+            "Phase 1 setup for session %s: running %r (timeout=%ds)",
+            session_id,
+            shell_script,
+            timeout_s,
+        )
+
+        try:
+            result = subprocess.run(
+                run_args,
+                capture_output=True,
+                text=True,
+                timeout=timeout_s,
+            )
+        except subprocess.TimeoutExpired:
+            logger.warning(
+                "Phase 1 setup timed out after %ds for session %s",
+                timeout_s,
+                session_id,
+            )
+            return False
+        except OSError as exc:
+            logger.warning("Phase 1 setup failed to launch for session %s: %s", session_id, exc)
+            return False
+
+        if result.returncode != 0:
+            logger.warning(
+                "Phase 1 setup exited with code %d for session %s.\nstdout: %s\nstderr: %s",
+                result.returncode,
+                session_id,
+                result.stdout[-500:] if result.stdout else "",
+                result.stderr[-500:] if result.stderr else "",
+            )
+            return False
+
+        logger.info("Phase 1 setup completed successfully for session %s", session_id)
+        return True
 
     # ------------------------------------------------------------------
     # Private helpers

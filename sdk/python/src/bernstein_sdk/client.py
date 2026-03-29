@@ -30,10 +30,10 @@ import httpx
 
 from bernstein_sdk.models import (
     StatusSummary,
+    TaskComplexity,
     TaskCreate,
     TaskResponse,
     TaskScope,
-    TaskComplexity,
     TaskStatus,
 )
 
@@ -74,7 +74,7 @@ class BernsteinClient:
     # Context manager
     # ------------------------------------------------------------------
 
-    def __enter__(self) -> "BernsteinClient":
+    def __enter__(self) -> BernsteinClient:
         return self
 
     def __exit__(self, *_: object) -> None:
@@ -237,7 +237,7 @@ class AsyncBernsteinClient:
             else httpx.Timeout(timeout),
         )
 
-    async def __aenter__(self) -> "AsyncBernsteinClient":
+    async def __aenter__(self) -> AsyncBernsteinClient:
         return self
 
     async def __aexit__(self, *_: object) -> None:

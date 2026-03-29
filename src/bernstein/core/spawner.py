@@ -791,6 +791,31 @@ class AgentSpawner:
         log_dir.mkdir(parents=True, exist_ok=True)
         log_path = log_dir / f"{session_id}.log"
 
+        # --- Two-phase sandbox (Codex-style) ---
+        # Phase 1: run dependency installation with network access.
+        # Phase 2: run the agent with network disabled.
+        from bernstein.core.container import NetworkMode, _detect_setup_commands
+
+        two_phase_cfg = self._container_mgr.config.two_phase_sandbox
+        phase2_network_override: NetworkMode | None = None
+
+        if two_phase_cfg is not None:
+            setup_cmds = list(two_phase_cfg.setup_commands) or _detect_setup_commands(spawn_cwd)
+            if setup_cmds:
+                ok = self._container_mgr.run_phase1_setup(
+                    session_id=session_id,
+                    setup_cmds=setup_cmds,
+                    env=container_env,
+                    workspace_override=spawn_cwd,
+                    timeout_s=two_phase_cfg.phase1_timeout_s,
+                )
+                if not ok:
+                    logger.warning(
+                        "Phase 1 setup failed for %s — proceeding to Phase 2 anyway",
+                        session_id,
+                    )
+            phase2_network_override = two_phase_cfg.phase2_network_mode
+
         try:
             handle = self._container_mgr.spawn_in_container(
                 session_id=session_id,
@@ -803,6 +828,7 @@ class AgentSpawner:
                 env=container_env,
                 workspace_override=spawn_cwd,
                 log_path=log_path,
+                network_mode_override=phase2_network_override,
             )
             session.container_id = handle.container_id
             session.isolation = IsolationMode.CONTAINER.value

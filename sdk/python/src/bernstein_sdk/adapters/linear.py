@@ -76,7 +76,7 @@ class LinearIssueRef:
     assignee_email: str | None
 
     @classmethod
-    def from_webhook_payload(cls, payload: dict[str, Any]) -> "LinearIssueRef | None":
+    def from_webhook_payload(cls, payload: dict[str, Any]) -> LinearIssueRef | None:
         """Parse a Linear webhook payload.
 
         Linear webhook bodies have the shape::
@@ -97,12 +97,12 @@ class LinearIssueRef:
         return cls._from_data(data)
 
     @classmethod
-    def from_graphql_response(cls, data: dict[str, Any]) -> "LinearIssueRef":
+    def from_graphql_response(cls, data: dict[str, Any]) -> LinearIssueRef:
         """Parse an issue node from a Linear GraphQL response."""
         return cls._from_data(data)
 
     @classmethod
-    def _from_data(cls, data: dict[str, Any]) -> "LinearIssueRef":
+    def _from_data(cls, data: dict[str, Any]) -> LinearIssueRef:
         state: dict[str, Any] = data.get("state") or {}
         assignee: dict[str, Any] = data.get("assignee") or {}
         team: dict[str, Any] = data.get("team") or {}
@@ -146,7 +146,7 @@ class LinearAdapter:
         )
 
     @classmethod
-    def from_env(cls, default_role: str = "backend") -> "LinearAdapter":
+    def from_env(cls, default_role: str = "backend") -> LinearAdapter:
         """Construct from ``LINEAR_API_KEY`` environment variable.
 
         Raises:
@@ -160,7 +160,7 @@ class LinearAdapter:
     def close(self) -> None:
         self._http.close()
 
-    def __enter__(self) -> "LinearAdapter":
+    def __enter__(self) -> LinearAdapter:
         return self
 
     def __exit__(self, *_: object) -> None:

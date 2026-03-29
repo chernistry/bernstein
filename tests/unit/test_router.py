@@ -6,6 +6,8 @@ import pytest
 
 from bernstein.core.models import Complexity, ModelConfig, Scope, Task
 from bernstein.core.router import (
+    ModelPolicy,
+    PolicyFilter,
     ProviderConfig,
     RouterError,
     RouterState,
@@ -622,3 +624,160 @@ class TestRoutingWithMockedTierStates:
 
         assert decision.provider == "standard-available"
         assert decision.tier == Tier.STANDARD
+
+
+# --- Model Policy & Provider Filtering ---
+
+
+class TestModelPolicy:
+    def test_allow_list_only_permits_listed_providers(self) -> None:
+        from bernstein.core.router import ModelPolicy
+
+        policy = ModelPolicy(allowed_providers=["anthropic", "ollama"])
+
+        assert policy.is_provider_allowed("anthropic") is True
+        assert policy.is_provider_allowed("ollama") is True
+        assert policy.is_provider_allowed("openai") is False
+        assert policy.is_provider_allowed("google") is False
+
+    def test_deny_list_blocks_denied_providers(self) -> None:
+        from bernstein.core.router import ModelPolicy
+
+        policy = ModelPolicy(denied_providers=["openai", "cohere"])
+
+        assert policy.is_provider_allowed("anthropic") is True
+        assert policy.is_provider_allowed("ollama") is True
+        assert policy.is_provider_allowed("openai") is False
+        assert policy.is_provider_allowed("cohere") is False
+
+    def test_allow_and_deny_empty_allows_all(self) -> None:
+        from bernstein.core.router import ModelPolicy
+
+        policy = ModelPolicy()
+
+        assert policy.is_provider_allowed("anthropic") is True
+        assert policy.is_provider_allowed("openai") is True
+        assert policy.is_provider_allowed("any-provider") is True
+
+    def test_validation_detects_allow_deny_overlap(self) -> None:
+        from bernstein.core.router import ModelPolicy
+
+        policy = ModelPolicy(
+            allowed_providers=["anthropic", "openai"],
+            denied_providers=["openai", "cohere"],
+        )
+
+        issues = policy.validate()
+        assert any("allow and deny" in issue.lower() for issue in issues)
+
+    def test_validation_detects_preferred_in_deny_list(self) -> None:
+        from bernstein.core.router import ModelPolicy
+
+        policy = ModelPolicy(
+            denied_providers=["anthropic"],
+            prefer="anthropic",
+        )
+
+        issues = policy.validate()
+        assert any("preferred provider" in issue.lower() and "deny" in issue.lower() for issue in issues)
+
+    def test_validation_detects_preferred_not_in_allow_list(self) -> None:
+        from bernstein.core.router import ModelPolicy
+
+        policy = ModelPolicy(
+            allowed_providers=["openai", "google"],
+            prefer="anthropic",
+        )
+
+        issues = policy.validate()
+        assert any("preferred provider" in issue.lower() and "allow" in issue.lower() for issue in issues)
+
+    def test_from_dict_loads_policy_correctly(self) -> None:
+        from bernstein.core.router import ModelPolicy
+
+        data = {
+            "allowed_providers": ["anthropic"],
+            "denied_providers": [],
+            "prefer": "anthropic",
+        }
+
+        policy = ModelPolicy.from_dict(data)
+
+        assert policy.allowed_providers == ["anthropic"]
+        assert policy.prefer == "anthropic"
+
+
+class TestPolicyFilter:
+    def test_filter_providers_respects_allow_list(self) -> None:
+        from bernstein.core.router import ModelPolicy, PolicyFilter
+
+        policy = ModelPolicy(allowed_providers=["anthropic", "ollama"])
+        filter_obj = PolicyFilter(policy=policy)
+
+        providers = [
+            _make_provider(name="anthropic", tier=Tier.STANDARD),
+            _make_provider(name="ollama", tier=Tier.FREE),
+            _make_provider(name="openai", tier=Tier.PREMIUM),
+        ]
+
+        filtered = filter_obj.filter_providers(providers)
+
+        assert len(filtered) == 2
+        assert set(p.name for p in filtered) == {"anthropic", "ollama"}
+
+    def test_filter_providers_respects_deny_list(self) -> None:
+        from bernstein.core.router import ModelPolicy, PolicyFilter
+
+        policy = ModelPolicy(denied_providers=["openai"])
+        filter_obj = PolicyFilter(policy=policy)
+
+        providers = [
+            _make_provider(name="anthropic", tier=Tier.STANDARD),
+            _make_provider(name="ollama", tier=Tier.FREE),
+            _make_provider(name="openai", tier=Tier.PREMIUM),
+        ]
+
+        filtered = filter_obj.filter_providers(providers)
+
+        assert len(filtered) == 2
+        assert set(p.name for p in filtered) == {"anthropic", "ollama"}
+
+    def test_policy_filter_integrated_in_router(self) -> None:
+        """Test that router respects model policy when selecting providers."""
+        router = TierAwareRouter()
+
+        # Register multiple providers
+        router.register_provider(_make_provider(name="anthropic", tier=Tier.STANDARD))
+        router.register_provider(_make_provider(name="openai", tier=Tier.STANDARD))
+        router.register_provider(_make_provider(name="ollama", tier=Tier.FREE))
+
+        # Apply policy that denies openai
+        from bernstein.core.router import ModelPolicy
+
+        policy = ModelPolicy(denied_providers=["openai"])
+        router.state.model_policy = policy
+        router.policy_filter = type(router.policy_filter)(policy=policy)  # Update filter
+
+        # Get available providers - openai should be filtered out
+        available = router.get_available_providers()
+
+        assert len(available) == 2
+        assert all(p.name != "openai" for p in available)
+
+    def test_validate_policy_detects_no_available_providers(self) -> None:
+        """Test that validate_policy warns when no providers available for a tier."""
+        router = TierAwareRouter()
+
+        # Register only free tier provider
+        router.register_provider(_make_provider(name="free-only", tier=Tier.FREE))
+
+        # Apply policy that denies the free provider
+        from bernstein.core.router import ModelPolicy
+
+        policy = ModelPolicy(denied_providers=["free-only"])
+        router.state.model_policy = policy
+        router.policy_filter = type(router.policy_filter)(policy=policy)
+
+        issues = router.validate_policy()
+
+        assert any("no available providers" in issue.lower() for issue in issues)

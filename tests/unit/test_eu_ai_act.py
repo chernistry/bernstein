@@ -157,14 +157,20 @@ class TestClassification:
     def test_classification_hash_differs_on_change(self) -> None:
         engine = ComplianceEngine()
         d1 = SystemDescriptor(
-            name="HRSelector", version="2.0.0",
-            description="CV screening", intended_use="Hiring",
-            deployment_context="HR platform", used_in_employment=True,
+            name="HRSelector",
+            version="2.0.0",
+            description="CV screening",
+            intended_use="Hiring",
+            deployment_context="HR platform",
+            used_in_employment=True,
         )
         d2 = SystemDescriptor(
-            name="HRSelector", version="3.0.0",
-            description="CV screening", intended_use="Hiring",
-            deployment_context="HR platform", used_in_employment=True,
+            name="HRSelector",
+            version="3.0.0",
+            description="CV screening",
+            intended_use="Hiring",
+            deployment_context="HR platform",
+            used_in_employment=True,
         )
         r1 = engine.classify(d1)
         r2 = engine.classify(d2)
@@ -419,6 +425,7 @@ class TestComplianceEngineRun:
     def test_full_round_trip_serialisable(self) -> None:
         """Report must be JSON-serialisable for audit export."""
         import json
+
         engine = ComplianceEngine()
         report = engine.run(high_risk_descriptor())
         # Should not raise

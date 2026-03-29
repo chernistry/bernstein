@@ -101,11 +101,13 @@ class TestBuildMerkleTree:
         assert tree.root.hash == expected
 
     def test_three_leaves_odd_padding(self) -> None:
-        tree = build_merkle_tree([
-            ("a.jsonl", "aaa"),
-            ("b.jsonl", "bbb"),
-            ("c.jsonl", "ccc"),
-        ])
+        tree = build_merkle_tree(
+            [
+                ("a.jsonl", "aaa"),
+                ("b.jsonl", "bbb"),
+                ("c.jsonl", "ccc"),
+            ]
+        )
         assert tree.leaf_count == 3
         # Level 1: combine(aaa, bbb), combine(ccc, ccc)  (odd -> duplicate last)
         left = _combine_hashes("aaa", "bbb")
@@ -114,12 +116,14 @@ class TestBuildMerkleTree:
         assert tree.root.hash == expected
 
     def test_four_leaves(self) -> None:
-        tree = build_merkle_tree([
-            ("a.jsonl", "a1"),
-            ("b.jsonl", "b2"),
-            ("c.jsonl", "c3"),
-            ("d.jsonl", "d4"),
-        ])
+        tree = build_merkle_tree(
+            [
+                ("a.jsonl", "a1"),
+                ("b.jsonl", "b2"),
+                ("c.jsonl", "c3"),
+                ("d.jsonl", "d4"),
+            ]
+        )
         assert tree.leaf_count == 4
         left = _combine_hashes("a1", "b2")
         right = _combine_hashes("c3", "d4")

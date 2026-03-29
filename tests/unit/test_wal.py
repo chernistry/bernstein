@@ -114,17 +114,12 @@ class TestWALWriter:
             "actor": entry.actor,
             "committed": entry.committed,
         }
-        expected_hash = hashlib.sha256(
-            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest()
+        expected_hash = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         assert entry.entry_hash == expected_hash
 
     def test_sequence_numbers_increment(self, tmp_path: Path) -> None:
         writer = WALWriter(run_id="run-001", sdd_dir=tmp_path)
-        entries = [
-            writer.append(decision_type=f"event_{i}", inputs={}, output={}, actor="orc")
-            for i in range(5)
-        ]
+        entries = [writer.append(decision_type=f"event_{i}", inputs={}, output={}, actor="orc") for i in range(5)]
         assert [e.seq for e in entries] == [0, 1, 2, 3, 4]
 
     def test_wal_is_jsonl_format(self, tmp_path: Path) -> None:

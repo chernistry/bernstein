@@ -433,6 +433,9 @@ def cli(
         workflow=workflow_mode,
         routing=None,
         compliance=None,
+        container=False,
+        container_image=None,
+        two_phase_sandbox=False,
     )
 
 

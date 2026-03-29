@@ -633,19 +633,29 @@ def _print_demo_summary(project_dir: Path, server_url: str) -> None:
     help="Show the demo plan without spawning any agents.",
 )
 @click.option(
+    "--real",
+    is_flag=True,
+    default=False,
+    help="Use real agents (requires API key) instead of mock agents.",
+)
+@click.option(
     "--adapter",
     default=None,
     metavar="NAME",
-    help="CLI adapter to use (auto-detected by default).  Choices: claude, codex, gemini, qwen.",
+    help="CLI adapter to use (auto-detected by default for --real, mock for demo).",
 )
 @click.option(
     "--timeout",
-    default=120,
+    default=60,
     show_default=True,
     help="Maximum seconds to wait for tasks to complete.",
 )
-def demo(dry_run: bool, adapter: str | None, timeout: int) -> None:
+def demo(dry_run: bool, real: bool, adapter: str | None, timeout: int) -> None:
     """Zero-to-running demo: spin up a Flask app and ship 3 tasks.
+
+    \b
+    By default, runs in mock mode (no API key needed, completes in ~30 seconds).
+    Use --real to run with actual agents (requires API key, costs ~$0.15).
 
     \b
     Creates a temporary project directory with a Flask hello-world starter,
@@ -653,27 +663,33 @@ def demo(dry_run: bool, adapter: str | None, timeout: int) -> None:
     then runs agents to complete them while showing live progress.
 
     \b
-      bernstein demo              # run the full demo
+      bernstein demo              # run with mock agents (no API key needed)
+      bernstein demo --real       # run with real agents (requires API key)
       bernstein demo --dry-run    # preview the plan without spawning agents
-      bernstein demo --timeout 60 # cap run time at 60 seconds
+      bernstein demo --real --timeout 120 # use real agents with 2min timeout
     """
     import tempfile
 
     print_banner()
 
-    # Resolve adapter
-    detected = adapter or detect_available_adapter()
-    if detected is None:
-        from bernstein.cli.errors import no_cli_agent_found
+    # Resolve adapter: mock by default, or real CLI if --real is specified
+    if real:
+        detected = adapter or detect_available_adapter()
+        if detected is None:
+            from bernstein.cli.errors import no_cli_agent_found
 
-        no_cli_agent_found().print()
-        raise SystemExit(1)
+            no_cli_agent_found().print()
+            raise SystemExit(1)
+        cost_estimate = "~$0.15 in API credits"
+    else:
+        detected = "mock"
+        cost_estimate = "[green]free[/green] (simulated agents, no API calls)"
 
     # Always print cost estimate before doing anything
     console.print(
-        "\n[bold yellow]Cost estimate:[/bold yellow] "
-        "~$0.15 in API credits (3 small tasks, sonnet model)\n"
-        f"[dim]Adapter: {detected}  |  Tasks: 3  |  Timeout: {timeout}s[/dim]"
+        f"\n[bold yellow]Cost estimate:[/bold yellow] "
+        f"{cost_estimate} (3 small tasks)\n"
+        f"[dim]Adapter: {detected}  |  Mode: {'real' if real else 'demo'}  |  Timeout: {timeout}s[/dim]"
     )
 
     if dry_run:

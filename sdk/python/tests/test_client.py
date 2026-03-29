@@ -9,7 +9,6 @@ import respx
 from bernstein_sdk.client import AsyncBernsteinClient, BernsteinClient
 from bernstein_sdk.models import TaskResponse, TaskStatus
 
-
 BASE = "http://127.0.0.1:8052"
 
 TASK_PAYLOAD = {

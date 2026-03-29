@@ -74,6 +74,7 @@ def _make_mock_spawner(
     )
     mock_spawner.spawn_for_tasks.return_value = session
     mock_spawner.check_alive.return_value = True
+    mock_spawner.get_worktree_path.return_value = None
     return mock_spawner
 
 
@@ -127,6 +128,7 @@ def test_lifecycle_spawn_execute_complete(tmp_path: Path) -> None:
 
     mock_spawner.spawn_for_tasks.side_effect = _spawn_side_effect
     mock_spawner.check_alive.return_value = True
+    mock_spawner.get_worktree_path.return_value = None
 
     with TestClient(app) as client:
         # 1. Create 3 tasks
@@ -168,28 +170,34 @@ def test_lifecycle_spawn_execute_complete(tmp_path: Path) -> None:
             assert session.model_config.model, "Session must have a model"
             assert session.model_config.effort, "Session must have an effort level"
 
-        # 4. Simulate agent completion: mark all tasks done via the API
+        # 4. Claim any tasks still in OPEN status (lifecycle governance:
+        #    OPEN → CLAIMED required before completion). Tick may have already
+        #    claimed some tasks, so 409 is acceptable.
+        for task_id in task_ids:
+            claim_resp = client.post(f"/tasks/{task_id}/claim")
+            assert claim_resp.status_code in (200, 409), (
+                f"Unexpected status {claim_resp.status_code} claiming task {task_id}: {claim_resp.text}"
+            )
+
+        # 5. Simulate agent completion: mark all tasks done via the API
         for task_id in task_ids:
             resp = client.post(
                 f"/tasks/{task_id}/complete",
                 json={"result_summary": f"Task {task_id} completed successfully"},
             )
-            # 200 = completed now; 409/422 = already in wrong state (e.g. still open)
-            # The claim step during tick may have moved tasks to "claimed" status,
-            # so the complete call should succeed from any non-terminal state.
-            assert resp.status_code in (200, 409, 422), (
+            assert resp.status_code == 200, (
                 f"Unexpected status {resp.status_code} completing task {task_id}: {resp.text}"
             )
 
-        # Verify all tasks are in a terminal state
+        # Verify all tasks are done
         for task_id in task_ids:
             task_resp = client.get(f"/tasks/{task_id}")
             assert task_resp.status_code == 200
-            assert task_resp.json()["status"] in ("done", "claimed", "in_progress"), (
+            assert task_resp.json()["status"] == "done", (
                 f"Task {task_id} in unexpected status: {task_resp.json()['status']}"
             )
 
-        # 5. Tick 2: simulate agents dying so orchestrator detects completion
+        # 6. Tick 2: simulate agents dying so orchestrator detects completion
         mock_spawner.check_alive.return_value = False
 
         result2 = orchestrator.tick()
@@ -203,7 +211,7 @@ def test_lifecycle_spawn_execute_complete(tmp_path: Path) -> None:
         # open_tasks should be 0 since all tasks are done
         assert result2.open_tasks == 0, f"Expected 0 open tasks after completion, got {result2.open_tasks}"
 
-        # 6. Verify summary.md was written with correct counts
+        # 7. Verify summary.md was written with correct counts
         summary_path = tmp_path / ".sdd" / "runtime" / "summary.md"
         assert summary_path.exists(), "Expected .sdd/runtime/summary.md to be written after all tasks complete"
 
@@ -304,6 +312,11 @@ def test_lifecycle_orchestrator_detects_completion_state(tmp_path: Path) -> None
         result1 = orchestrator.tick()
         assert len(result1.spawned) == 1
         assert result1.spawned[0] == "agent-x"
+
+        # Claim the task if tick didn't already (lifecycle governance:
+        # OPEN → CLAIMED required before completion)
+        claim_resp = client.post(f"/tasks/{task_id}/claim")
+        assert claim_resp.status_code in (200, 409)  # 409 if tick already claimed
 
         # Complete the task (direct API call as a real agent would do)
         complete_resp = client.post(

@@ -50,7 +50,7 @@ class TeamsAdapter:
             )
 
     @classmethod
-    def from_env(cls) -> "TeamsAdapter":
+    def from_env(cls) -> TeamsAdapter:
         """Construct from the ``TEAMS_WEBHOOK_URL`` environment variable."""
         return cls(webhook_url=os.getenv("TEAMS_WEBHOOK_URL", ""))
 

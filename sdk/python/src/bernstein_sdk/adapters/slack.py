@@ -69,7 +69,7 @@ class SlackAdapter:
         self._mention_on_failure = mention_on_failure
 
     @classmethod
-    def from_env(cls) -> "SlackAdapter":
+    def from_env(cls) -> SlackAdapter:
         """Construct from environment variables.
 
         Reads ``SLACK_WEBHOOK_URL`` and/or ``SLACK_BOT_TOKEN`` /

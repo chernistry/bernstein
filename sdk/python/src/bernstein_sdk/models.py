@@ -138,7 +138,7 @@ class TaskResponse:
     created_at: float = 0.0
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> "TaskResponse":
+    def from_api_response(cls, data: dict[str, Any]) -> TaskResponse:
         """Deserialize from a raw API response dict."""
         return cls(
             id=data["id"],
@@ -170,7 +170,7 @@ class StatusSummary:
     cost_usd: float
 
     @classmethod
-    def from_api_response(cls, data: dict[str, Any]) -> "StatusSummary":
+    def from_api_response(cls, data: dict[str, Any]) -> StatusSummary:
         return cls(
             total=data.get("total", 0),
             open=data.get("open", 0),

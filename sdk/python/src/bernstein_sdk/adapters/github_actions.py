@@ -77,7 +77,7 @@ class CIRunInfo:
         return self.branch.removeprefix("refs/heads/")
 
     @classmethod
-    def from_workflow_webhook(cls, payload: dict[str, Any]) -> "CIRunInfo | None":
+    def from_workflow_webhook(cls, payload: dict[str, Any]) -> CIRunInfo | None:
         """Parse a GitHub ``workflow_run`` webhook payload.
 
         Returns ``None`` if the event is not a failure/cancellation.
@@ -99,7 +99,7 @@ class CIRunInfo:
         )
 
     @classmethod
-    def from_check_run_webhook(cls, payload: dict[str, Any]) -> "CIRunInfo | None":
+    def from_check_run_webhook(cls, payload: dict[str, Any]) -> CIRunInfo | None:
         """Parse a GitHub ``check_run`` webhook payload.
 
         Returns ``None`` if the check run did not fail.
@@ -121,7 +121,7 @@ class CIRunInfo:
         )
 
     @classmethod
-    def from_env(cls) -> "CIRunInfo":
+    def from_env(cls) -> CIRunInfo:
         """Build from GitHub Actions environment variables.
 
         Reads: ``GITHUB_WORKFLOW``, ``GITHUB_RUN_ID``, ``GITHUB_REPOSITORY``,

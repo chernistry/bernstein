@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from starlette.responses import StreamingResponse
 
 from bernstein.core.bulletin import BulletinBoard, BulletinMessage
+from bernstein.core.lifecycle import IllegalTransitionError
 from bernstein.core.models import NodeCapacity, NodeInfo, NodeStatus
 
 # Import Pydantic models from server — this works because server.py's
@@ -147,6 +148,8 @@ async def complete_task(task_id: str, body: TaskCompleteRequest, request: Reques
         task = await store.complete(task_id, body.result_summary)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
+    except IllegalTransitionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
     sse_bus.publish("task_update", json.dumps({"id": task.id, "status": "done"}))
     get_plugin_manager().fire_task_completed(task_id=task.id, role=task.role, result_summary=body.result_summary)
     return task_to_response(task)
@@ -161,6 +164,8 @@ async def fail_task(task_id: str, body: TaskFailRequest, request: Request) -> Ta
         task = await store.fail(task_id, body.reason)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
+    except IllegalTransitionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
     sse_bus.publish("task_update", json.dumps({"id": task.id, "status": "failed"}))
     get_plugin_manager().fire_task_failed(task_id=task.id, role=task.role, error=body.reason)
     return task_to_response(task)
@@ -188,6 +193,8 @@ async def block_task(task_id: str, body: TaskBlockRequest, request: Request) -> 
         task = await store.block(task_id, body.reason)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
+    except IllegalTransitionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from None
     sse_bus.publish("task_update", json.dumps({"id": task.id, "status": "blocked"}))
     return task_to_response(task)
 

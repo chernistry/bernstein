@@ -606,6 +606,11 @@ class ContainerIsolationConfig:
         drop_capabilities: Linux capabilities to drop.
         read_only_rootfs: Mount root filesystem as read-only.
         auto_build_image: Build agent image if not found.
+        two_phase_sandbox: Enable Codex-style two-phase execution.  Phase 1
+            runs with network access to install deps; Phase 2 runs the agent
+            with the network fully disabled.
+        sandbox_setup_commands: Override auto-detected Phase 1 commands.
+            Empty tuple (default) triggers auto-detection from the workspace.
     """
 
     enabled: bool = False
@@ -623,6 +628,8 @@ class ContainerIsolationConfig:
     )
     read_only_rootfs: bool = False
     auto_build_image: bool = True
+    two_phase_sandbox: bool = False
+    sandbox_setup_commands: tuple[str, ...] = ()
 
 
 @dataclass
@@ -675,6 +682,7 @@ class OrchestratorConfig:
     cross_model_verify: Any | None = None  # CrossModelVerifierConfig | None
     force_parallel: bool = False  # Skip complexity advisor — always decompose/parallelize
     plan_mode: bool = False  # When True, tasks start as PLANNED and require approval before execution
+    workflow: str | None = None  # "governed" activates governed workflow mode; None = adaptive (default)
     container_isolation: ContainerIsolationConfig = field(
         default_factory=ContainerIsolationConfig,
     )  # Container-based agent isolation settings
@@ -940,3 +948,56 @@ class TriggerFireRecord:
     task_id: str
     dedup_key: str
     event_summary: str = ""
+
+
+@dataclass(frozen=True)
+class LifecycleEvent:
+    """Typed event emitted on every task or agent status transition.
+
+    This is the single source of truth for replay, audit, and metrics.
+    Every status change — task or agent — produces exactly one event.
+
+    Attributes:
+        timestamp: Unix epoch when the transition occurred.
+        entity_type: "task" or "agent".
+        entity_id: ID of the task or agent session.
+        from_status: Status before the transition.
+        to_status: Status after the transition.
+        actor: Who/what triggered the transition (e.g. "task_store", "spawner").
+        reason: Human-readable explanation of why the transition happened.
+    """
+
+    timestamp: float
+    entity_type: Literal["task", "agent"]
+    entity_id: str
+    from_status: str
+    to_status: str
+    actor: str = ""
+    reason: str = ""
+
+
+@dataclass(frozen=True)
+class WorkflowPhaseEvent:
+    """Event emitted on workflow phase transitions in governed mode.
+
+    Extends the lifecycle event concept for workflow-level state changes.
+    The full sequence of LifecycleEvent + WorkflowPhaseEvent records is
+    sufficient to replay any governed run.
+
+    Attributes:
+        timestamp: Unix epoch when the phase transition occurred.
+        workflow_hash: SHA-256 hash of the workflow definition.
+        run_id: Orchestration run identifier.
+        from_phase: Phase before the transition (empty string for initial phase).
+        to_phase: Phase after the transition.
+        reason: Human-readable explanation (e.g. "all phase tasks completed").
+        tasks_completed: Task IDs that completed to trigger this transition.
+    """
+
+    timestamp: float
+    workflow_hash: str
+    run_id: str
+    from_phase: str
+    to_phase: str
+    reason: str = ""
+    tasks_completed: tuple[str, ...] = ()

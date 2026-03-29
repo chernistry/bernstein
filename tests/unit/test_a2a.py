@@ -242,7 +242,8 @@ async def test_a2a_get_task_syncs_status(client: AsyncClient) -> None:
     )
     a2a_id = send_resp.json()["id"]
     bt_id = send_resp.json()["bernstein_task_id"]
-    # Complete the underlying Bernstein task.
+    # Claim then complete the underlying Bernstein task.
+    await client.post(f"/tasks/{bt_id}/claim")
     await client.post(f"/tasks/{bt_id}/complete", json={"result_summary": "Done"})
     # A2A task should now reflect completed status.
     resp = await client.get(f"/a2a/tasks/{a2a_id}")

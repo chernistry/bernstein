@@ -1,0 +1,7 @@
+{
+  "python_versions": ["3.12", "3.13"],
+  "mcp_versions": ["1.0", "1.1"],
+  "a2a_versions": ["0.2", "0.3"],
+  "acp_versions": ["latest"],
+  "notes": "Matrix dimensions for protocol compatibility testing. Update when new versions are released."
+}

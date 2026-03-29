@@ -264,6 +264,26 @@ def _show_run_summary() -> None:
         "'regulated' = + signed WAL + data residency + SBOM + evidence bundle."
     ),
 )
+@click.option(
+    "--container/--no-container",
+    default=False,
+    help="Run agents inside containers for kernel-level isolation (requires Docker or Podman).",
+)
+@click.option(
+    "--container-image",
+    default=None,
+    help="Container image for agent execution (default: bernstein-agent:latest). Requires --container.",
+)
+@click.option(
+    "--two-phase-sandbox/--no-two-phase-sandbox",
+    default=False,
+    help=(
+        "Codex-style two-phase sandboxed execution: "
+        "Phase 1 installs dependencies with network access, "
+        "Phase 2 runs the agent with the network fully disabled. "
+        "Requires --container."
+    ),
+)
 def run(
     goal: str | None,
     seed_file: str | None,
@@ -275,6 +295,9 @@ def run(
     workflow: str | None,
     routing: str | None,
     compliance: str | None,
+    container: bool,
+    container_image: str | None,
+    two_phase_sandbox: bool,
 ) -> None:
     """Parse seed, init workspace, start server, launch agents.
 
@@ -289,6 +312,8 @@ def run(
       bernstein conduct --workflow governed    # governed workflow mode
       bernstein conduct --routing bandit       # contextual bandit routing (learns over time)
       bernstein conduct --compliance standard  # compliance mode (development/standard/regulated)
+      bernstein conduct --container            # run agents in containers
+      bernstein conduct --container --two-phase-sandbox  # two-phase sandboxed execution
     """
     print_banner()
 
@@ -314,6 +339,14 @@ def run(
     # Propagate compliance preset so the orchestrator subprocess picks it up
     if compliance:
         os.environ["BERNSTEIN_COMPLIANCE"] = compliance
+
+    # Propagate container isolation settings to the orchestrator subprocess
+    if container:
+        os.environ["BERNSTEIN_CONTAINER"] = "1"
+    if container_image:
+        os.environ["BERNSTEIN_CONTAINER_IMAGE"] = container_image
+    if two_phase_sandbox:
+        os.environ["BERNSTEIN_TWO_PHASE_SANDBOX"] = "1"
 
     workdir = Path.cwd()
 

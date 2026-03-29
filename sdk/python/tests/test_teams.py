@@ -35,6 +35,7 @@ class TestTeamsAdapter:
             mock_open.return_value.__exit__ = lambda s, *a: None
             adapter.notify_task_completed("t1", "Fix bug", "backend", "done")
             import time
+
             time.sleep(0.1)
         mock_open.assert_called_once()
 
@@ -45,6 +46,7 @@ class TestTeamsAdapter:
             mock_open.return_value.__exit__ = lambda s, *a: None
             adapter.notify_task_failed("t2", "Crash", "qa", "OOM")
             import time
+
             time.sleep(0.1)
         mock_open.assert_called_once()
 
@@ -55,6 +57,7 @@ class TestTeamsAdapter:
             mock_open.return_value.__exit__ = lambda s, *a: None
             adapter.notify_task_created("t3", "New task", "backend", priority=1)
             import time
+
             time.sleep(0.1)
         mock_open.assert_called_once()
 
@@ -65,6 +68,7 @@ class TestTeamsAdapter:
             mock_open.return_value.__exit__ = lambda s, *a: None
             adapter.post_message("Hello from Bernstein")
             import time
+
             time.sleep(0.1)
         mock_open.assert_called_once()
 
@@ -74,6 +78,7 @@ class TestTeamsAdapter:
         with patch("bernstein_sdk.adapters.teams.urllib.request.urlopen") as mock_open:
             adapter._post_async({"type": "message"})
             import time
+
             time.sleep(0.05)
         mock_open.assert_not_called()
 
@@ -86,6 +91,7 @@ class TestTeamsAdapter:
             # Should not raise — exception is caught in daemon thread
             adapter.notify_task_completed("t1", "Title", "backend")
             import time
+
             time.sleep(0.1)
 
 

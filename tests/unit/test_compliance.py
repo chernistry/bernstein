@@ -119,11 +119,7 @@ class TestFromPreset:
         reg = ComplianceConfig.from_preset(CompliancePreset.REGULATED)
 
         def _true_fields(cfg: ComplianceConfig) -> set[str]:
-            return {
-                k
-                for k, v in cfg.to_dict().items()
-                if v is True
-            }
+            return {k for k, v in cfg.to_dict().items() if v is True}
 
         dev_fields = _true_fields(dev)
         std_fields = _true_fields(std)
@@ -158,10 +154,12 @@ class TestFromDict:
         assert cfg.governed_workflow is False
 
     def test_from_dict_override_label_format(self) -> None:
-        cfg = ComplianceConfig.from_dict({
-            "preset": "development",
-            "ai_label_format": "# AI-generated (custom)",
-        })
+        cfg = ComplianceConfig.from_dict(
+            {
+                "preset": "development",
+                "ai_label_format": "# AI-generated (custom)",
+            }
+        )
         assert cfg.ai_label_format == "# AI-generated (custom)"
 
 

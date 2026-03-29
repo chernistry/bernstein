@@ -38,6 +38,7 @@ class TestSlackAdapter:
 
     def test_no_config_logs_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         import logging
+
         adapter = SlackAdapter()
         with caplog.at_level(logging.WARNING, logger="bernstein_sdk.adapters.slack"):
             adapter.notify_task_completed("t1", "Title", "backend")
@@ -52,6 +53,7 @@ class TestSlackAdapter:
             )
             # Wait briefly for daemon thread
             import time
+
             time.sleep(0.1)
         mock_post.assert_called_once()
         call_kwargs = mock_post.call_args
@@ -62,6 +64,7 @@ class TestSlackAdapter:
         with patch("bernstein_sdk.adapters.slack._post_webhook") as mock_post:
             adapter.notify_task_failed("t2", "Broken pipe", "qa", error="OOM")
             import time
+
             time.sleep(0.1)
         mock_post.assert_called_once()
 
@@ -70,6 +73,7 @@ class TestSlackAdapter:
         with patch("bernstein_sdk.adapters.slack._post_webhook") as mock_post:
             adapter.notify_task_created("t3", "New feature", "backend", priority=1)
             import time
+
             time.sleep(0.1)
         mock_post.assert_called_once()
 
@@ -78,6 +82,7 @@ class TestSlackAdapter:
         with patch("bernstein_sdk.adapters.slack._post_web_api") as mock_api:
             adapter.post_message("Hello from Bernstein")
             import time
+
             time.sleep(0.1)
         mock_api.assert_called_once()
 
@@ -86,6 +91,7 @@ class TestSlackAdapter:
         with patch("bernstein_sdk.adapters.slack._post_web_api") as mock_api:
             adapter.post_message("Hello")
             import time
+
             time.sleep(0.1)
         mock_api.assert_not_called()
 

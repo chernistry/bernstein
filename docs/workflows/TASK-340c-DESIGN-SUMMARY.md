@@ -103,7 +103,7 @@ I have completed the **workflow discovery and design phase** for Task #340c (VS 
 
 **File**: `docs/workflows/REGISTRY.md`
 
-Added two new VS Code extension workflows to the master registry (was 8 workflows, now 10).
+Added two new VS Code extension workflows to the main registry (was 8 workflows, now 10).
 
 **Current coverage**:
 - Specced: 5 workflows (CI Failure Auto-Routing, Env Var Isolation, VS Code Extension Publishing, VS Code Extension UX)
@@ -192,7 +192,7 @@ Added two new VS Code extension workflows to the master registry (was 8 workflow
 |---|---|---|---|
 | Publishing workflow spec | WORKFLOW-extension-publishing.md | 450+ | Complete CI/CD pipeline from tag to marketplace + fallback |
 | UX workflow spec | WORKFLOW-extension-ux.md | 500+ | All user interactions, offline handling, reconnection |
-| Registry update | REGISTRY.md | Updated | Added 2 new extension workflows to master registry |
+| Registry update | REGISTRY.md | Updated | Added 2 new extension workflows to main registry |
 | This summary | TASK-340c-DESIGN-SUMMARY.md | — | Executive overview for stakeholders |
 
 ---

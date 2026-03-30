@@ -180,6 +180,7 @@ Analyzes metrics, proposes changes to prompts and routing rules, sandboxes them,
 | [Codex CLI](https://github.com/openai/codex) | OpenAI | gpt-5.4, o3, o4-mini | `--cli codex` | `npm install -g @openai/codex` |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Google | gemini-3-pro, 3-flash | `--cli gemini` | `npm install -g @google/gemini-cli` |
 | [Qwen](https://github.com/QwenLM/Qwen-Agent) | Alibaba / OpenRouter | qwen3-coder, qwen-max | `--cli qwen` | `npm install -g qwen-code` |
+| [Roo Code](https://github.com/RooVetGit/Roo-Code) | Anthropic / OpenAI / any | opus 4.6, sonnet 4.6, gpt-4o | `--cli roo-code` | VS Code extension (headless CLI) |
 | Any CLI agent | Yours | pass-through | `--cli generic` | Provide `--cli-command` and `--prompt-flag` |
 
 Mix and match in a single run — the orchestrator doesn't care which agent handles which task:
@@ -234,7 +235,7 @@ Any tool, CI pipeline, Slack bot, or custom UI can create tasks and read status.
 | Execution WAL | Yes (crash-safe, fingerprinted) | No | No | No | No |
 | CI autofix | Yes (`bernstein ci fix`) | No | No | No | No |
 | Self-evolution | Yes (risk-gated) | No | No | No | Yes |
-| CLI agents | Claude/Codex/Gemini/Qwen | API-only | API-only | API-only | Claude-only |
+| CLI agents | Claude/Codex/Gemini/Qwen/Amp/Roo/Aider | API-only | API-only | API-only | Claude-only |
 | Model lock-in | **None** | Soft (LiteLLM) | Soft (LiteLLM) | Soft (LiteLLM) | **Claude-only** |
 | Agent catalogs | Yes (Agency + custom) | No | No | No | No |
 

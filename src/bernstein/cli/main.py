@@ -54,6 +54,7 @@ from bernstein.cli.eval_benchmark_cmd import (
     eval_group,
 )
 from bernstein.cli.evolve_cmd import evolve
+from bernstein.cli.gateway_cmd import gateway_group
 from bernstein.cli.manifest_cmd import manifest_group
 from bernstein.cli.task_cmd import (
     add_task,
@@ -67,7 +68,6 @@ from bernstein.cli.task_cmd import (
     review_cmd,
     sync,
 )
-from bernstein.cli.gateway_cmd import gateway_group
 from bernstein.cli.verify_cmd import verify_cmd
 from bernstein.cli.workspace_cmd import config_group, workspace_group
 from bernstein.cli.wrap_up_cmd import wrap_up

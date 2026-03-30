@@ -1,4 +1,4 @@
-"""Automated quality gates: lint, type-check, test, and mutation testing gates.
+"""Automated quality gates: lint, type-check, test, mutation, and intent verification gates.
 
 Runs configurable code quality checks after a task agent finishes but before
 the approval gate evaluates the work. Hard-blocks merge when enabled gates fail.
@@ -7,13 +7,15 @@ Records results to .sdd/metrics/quality_gates.jsonl for trend analysis.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
 import logging
 import re
 import subprocess
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -21,6 +23,76 @@ if TYPE_CHECKING:
     from bernstein.core.models import Task
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Intent verification constants
+# ---------------------------------------------------------------------------
+
+_INTENT_MAX_DIFF_CHARS = 8_000
+_INTENT_MAX_TOKENS = 256
+_INTENT_DEFAULT_MODEL = "google/gemini-flash-1.5"
+_INTENT_PROVIDER = "openrouter"
+
+_INTENT_PROMPT_TEMPLATE = """\
+You are an intent verifier. A task was given to an AI agent. Compare the \
+original task description with what the agent actually produced.
+
+## Original Task
+**Title:** {title}
+**Description:**
+{description}
+
+## Agent Output (git diff)
+```diff
+{diff}
+```
+
+## Agent's Result Summary
+{result_summary}
+
+## Instructions
+Determine whether the agent's output satisfies the original task's intent.
+
+- **yes**: The output clearly addresses what was asked. Minor deviations are fine.
+- **partially**: The output addresses some of what was asked but misses key \
+requirements or diverges in scope.
+- **no**: The output does not satisfy the task intent. It either did the wrong \
+thing or failed to address the core requirement.
+
+Output a JSON object with exactly these fields:
+{{
+  "verdict": "yes | partially | no",
+  "reason": "One sentence explaining the verdict"
+}}
+
+Output ONLY the JSON. No markdown fences. No extra text.
+"""
+
+
+@dataclass(frozen=True)
+class IntentVerificationConfig:
+    """Configuration for the intent verification quality gate.
+
+    Asks a cheap LLM: "Task asked for X. Agent produced Y. Does Y satisfy X?"
+    and blocks merge when the verdict is "no" (and optionally "partially").
+
+    Attributes:
+        enabled: Master switch — when False, the gate does not run.
+        model: OpenRouter model for verification (cheap model recommended).
+        provider: LLM provider key passed to call_llm.
+        max_diff_chars: Truncate diff at this length for cost control.
+        max_tokens: Token cap for the LLM response.
+        block_on_no: Block merge when verdict is "no" (default True).
+        block_on_partial: Block merge when verdict is "partially" (default False).
+    """
+
+    enabled: bool = False
+    model: str = _INTENT_DEFAULT_MODEL
+    provider: str = _INTENT_PROVIDER
+    max_diff_chars: int = _INTENT_MAX_DIFF_CHARS
+    max_tokens: int = _INTENT_MAX_TOKENS
+    block_on_no: bool = True
+    block_on_partial: bool = False
 
 
 @dataclass(frozen=True)
@@ -40,6 +112,7 @@ class QualityGatesConfig:
         mutation_command: Shell command that runs mutation tests and prints results.
         mutation_threshold: Minimum required mutation score (0.0-1.0). Blocks if below.
         mutation_timeout_s: Timeout for mutation testing (longer than other gates).
+        intent_verification: Config for the LLM-based intent verification gate.
     """
 
     enabled: bool = True
@@ -54,6 +127,7 @@ class QualityGatesConfig:
     mutation_command: str = "uv run mutmut run"
     mutation_threshold: float = 0.50
     mutation_timeout_s: int = 600
+    intent_verification: IntentVerificationConfig = field(default_factory=IntentVerificationConfig)
 
 
 @dataclass
@@ -86,6 +160,164 @@ class QualityGatesResult:
     task_id: str
     passed: bool
     gate_results: list[QualityGateCheckResult] = field(default_factory=list[QualityGateCheckResult])
+
+
+# ---------------------------------------------------------------------------
+# Intent verification
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class IntentVerdict:
+    """Result of an LLM-based intent verification check.
+
+    Attributes:
+        verdict: "yes", "partially", or "no".
+        reason: One-sentence explanation from the LLM.
+        model: Model that performed the check.
+    """
+
+    verdict: Literal["yes", "partially", "no"]
+    reason: str
+    model: str = ""
+
+
+def _get_intent_diff(worktree_path: Path, owned_files: list[str]) -> str:
+    """Return the git diff for intent verification (HEAD~1 or staged)."""
+    try:
+        cmd = ["git", "diff", "HEAD~1", "--"]
+        if owned_files:
+            cmd.extend(owned_files)
+        result = subprocess.run(cmd, cwd=worktree_path, capture_output=True, text=True, timeout=30)
+        diff = result.stdout.strip()
+        if not diff:
+            result = subprocess.run(
+                ["git", "diff", "HEAD", "--"],
+                cwd=worktree_path,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            diff = result.stdout.strip()
+        return diff or "(no diff available)"
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        logger.warning("intent_verification: git diff failed: %s", exc)
+        return "(failed to get git diff)"
+
+
+def _parse_intent_response(raw: str, model: str) -> IntentVerdict:
+    """Parse the LLM response into an IntentVerdict.
+
+    Defaults to "yes" when the response cannot be parsed so a model outage
+    never permanently blocks the pipeline.
+    """
+    text = raw.strip()
+    if text.startswith("```"):
+        text = "\n".join(line for line in text.splitlines() if not line.strip().startswith("```")).strip()
+
+    data: dict[str, object] = {}
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start >= 0 and end > start:
+            with contextlib.suppress(json.JSONDecodeError):
+                data = json.loads(text[start:end])
+
+    if not data:
+        logger.warning("intent_verification: unparseable response — defaulting to yes: %.200s", text)
+        return IntentVerdict(
+            verdict="yes",
+            reason="Verifier returned unparseable response — defaulting to yes",
+            model=model,
+        )
+
+    raw_verdict = str(data.get("verdict", "yes")).lower().strip()
+    verdict: Literal["yes", "partially", "no"]
+    if raw_verdict == "no":
+        verdict = "no"
+    elif raw_verdict == "partially":
+        verdict = "partially"
+    else:
+        verdict = "yes"
+
+    return IntentVerdict(
+        verdict=verdict,
+        reason=str(data.get("reason", "")),
+        model=model,
+    )
+
+
+async def _verify_intent_async(task: Task, worktree_path: Path, config: IntentVerificationConfig) -> IntentVerdict:
+    """Async core for intent verification — call the LLM and return a verdict."""
+    from bernstein.core.llm import call_llm
+
+    diff = _get_intent_diff(worktree_path, task.owned_files)
+    if len(diff) > config.max_diff_chars:
+        diff = diff[: config.max_diff_chars] + "\n... (truncated)"
+
+    result_summary = task.result_summary or "(no result summary provided)"
+
+    prompt = _INTENT_PROMPT_TEMPLATE.format(
+        title=task.title,
+        description=task.description[:2000],
+        diff=diff,
+        result_summary=result_summary[:500],
+    )
+
+    logger.info(
+        "intent_verification: task=%s model=%s diff_chars=%d",
+        task.id,
+        config.model,
+        len(diff),
+    )
+
+    try:
+        raw = await call_llm(
+            prompt=prompt,
+            model=config.model,
+            provider=config.provider,
+            max_tokens=config.max_tokens,
+            temperature=0.0,
+        )
+    except RuntimeError as exc:
+        logger.warning(
+            "intent_verification: LLM call failed for task %s: %s — defaulting to yes",
+            task.id,
+            exc,
+        )
+        return IntentVerdict(
+            verdict="yes",
+            reason=f"Verifier call failed: {exc} — defaulting to yes",
+            model=config.model,
+        )
+
+    result = _parse_intent_response(raw, config.model)
+    logger.info("intent_verification: task=%s verdict=%s reason=%s", task.id, result.verdict, result.reason)
+    return result
+
+
+def _run_intent_gate(
+    task: Task,
+    worktree_path: Path,
+    config: IntentVerificationConfig,
+) -> tuple[IntentVerdict, bool]:
+    """Run intent verification synchronously; return (verdict, blocked).
+
+    Args:
+        task: The completed task.
+        worktree_path: Path to the agent worktree for git diff.
+        config: Intent verification configuration.
+
+    Returns:
+        Tuple of (IntentVerdict, blocked_bool).
+    """
+    verdict = asyncio.run(_verify_intent_async(task, worktree_path, config))
+    blocked = (verdict.verdict == "no" and config.block_on_no) or (
+        verdict.verdict == "partially" and config.block_on_partial
+    )
+    return verdict, blocked
 
 
 # ---------------------------------------------------------------------------
@@ -300,6 +532,29 @@ def run_quality_gates(
                 task.id,
                 detail[:200],
             )
+
+    iv_cfg = config.intent_verification
+    if iv_cfg.enabled:
+        verdict, blocked = _run_intent_gate(task, run_dir, iv_cfg)
+        passed_flag = not blocked
+        detail = f"Intent verdict: {verdict.verdict} — {verdict.reason}"
+        check = QualityGateCheckResult(
+            gate="intent_verification",
+            passed=passed_flag,
+            blocked=blocked,
+            detail=detail,
+        )
+        results.append(check)
+        intent_extra: dict[str, Any] = {"verdict": verdict.verdict, "model": verdict.model}
+        _record_gate_event(task.id, "intent_verification", _result_str(check), workdir, extra=intent_extra)
+        if blocked:
+            logger.warning(
+                "Quality gate [intent_verification] blocked task %s: %s",
+                task.id,
+                detail[:200],
+            )
+        else:
+            logger.info("Quality gate [intent_verification] task=%s verdict=%s", task.id, verdict.verdict)
 
     overall_passed = all(not r.blocked for r in results)
     return QualityGatesResult(task_id=task.id, passed=overall_passed, gate_results=results)

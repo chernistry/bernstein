@@ -1,4 +1,4 @@
-"""Tests for automated quality gates: lint, type-check, and test gates."""
+"""Tests for automated quality gates: lint, type-check, test, and intent verification gates."""
 
 from __future__ import annotations
 
@@ -10,7 +10,11 @@ import pytest
 
 from bernstein.core.models import Complexity, Scope, Task
 from bernstein.core.quality_gates import (
+    IntentVerdict,
+    IntentVerificationConfig,
     QualityGatesConfig,
+    _get_intent_diff,
+    _parse_intent_response,
     _run_command,
     get_quality_gate_stats,
     run_quality_gates,
@@ -305,3 +309,186 @@ class TestSeedQualityGatesParsing:
         seed_file.write_text("goal: test\nquality_gates: not_a_dict\n", encoding="utf-8")
         with pytest.raises(SeedError, match="quality_gates must be a mapping"):
             parse_seed(seed_file)
+
+
+# ---------------------------------------------------------------------------
+# Intent verification: _parse_intent_response
+# ---------------------------------------------------------------------------
+
+
+class TestParseIntentResponse:
+    def test_parses_yes_verdict(self) -> None:
+        raw = '{"verdict": "yes", "reason": "Matches intent."}'
+        result = _parse_intent_response(raw, "test-model")
+        assert result.verdict == "yes"
+        assert result.reason == "Matches intent."
+        assert result.model == "test-model"
+
+    def test_parses_no_verdict(self) -> None:
+        raw = '{"verdict": "no", "reason": "Wrong file changed."}'
+        result = _parse_intent_response(raw, "m")
+        assert result.verdict == "no"
+        assert result.reason == "Wrong file changed."
+
+    def test_parses_partially_verdict(self) -> None:
+        raw = '{"verdict": "partially", "reason": "Missing one requirement."}'
+        result = _parse_intent_response(raw, "m")
+        assert result.verdict == "partially"
+
+    def test_strips_markdown_fences(self) -> None:
+        raw = '```json\n{"verdict": "yes", "reason": "ok"}\n```'
+        result = _parse_intent_response(raw, "m")
+        assert result.verdict == "yes"
+
+    def test_extracts_json_from_prose(self) -> None:
+        raw = 'Some preamble {"verdict": "no", "reason": "Nope"} trailing text'
+        result = _parse_intent_response(raw, "m")
+        assert result.verdict == "no"
+
+    def test_unparseable_defaults_to_yes(self) -> None:
+        result = _parse_intent_response("not json at all", "m")
+        assert result.verdict == "yes"
+        assert "defaulting to yes" in result.reason
+
+    def test_unknown_verdict_defaults_to_yes(self) -> None:
+        raw = '{"verdict": "maybe", "reason": "who knows"}'
+        result = _parse_intent_response(raw, "m")
+        assert result.verdict == "yes"
+
+
+# ---------------------------------------------------------------------------
+# Intent verification: _get_intent_diff
+# ---------------------------------------------------------------------------
+
+
+class TestGetIntentDiff:
+    def test_returns_string_on_subprocess_failure(self, tmp_path: Path) -> None:
+        # Not a git repo — subprocess will fail
+        diff = _get_intent_diff(tmp_path, [])
+        assert isinstance(diff, str)
+        assert len(diff) > 0
+
+
+# ---------------------------------------------------------------------------
+# Intent verification: run_quality_gates integration
+# ---------------------------------------------------------------------------
+
+
+class TestIntentVerificationGate:
+    def _make_task_with_summary(self, *, summary: str | None = "Added the feature.") -> Task:
+        return Task(
+            id="T-intent-1",
+            title="Add login feature",
+            description="Implement user login with email and password.",
+            role="backend",
+            scope=Scope.MEDIUM,
+            complexity=Complexity.MEDIUM,
+            result_summary=summary,
+        )
+
+    def test_disabled_by_default(self, tmp_path: Path) -> None:
+        """Intent verification gate is off by default — no LLM calls made."""
+        config = QualityGatesConfig(enabled=True, lint=False, type_check=False, tests=False)
+        task = self._make_task_with_summary()
+        with patch("bernstein.core.quality_gates._run_intent_gate") as mock_gate:
+            run_quality_gates(task, tmp_path, tmp_path, config)
+            mock_gate.assert_not_called()
+
+    def test_enabled_yes_verdict_passes(self, tmp_path: Path) -> None:
+        """verdict=yes → gate passes, not blocked."""
+        iv_cfg = IntentVerificationConfig(enabled=True)
+        config = QualityGatesConfig(enabled=True, lint=False, type_check=False, tests=False, intent_verification=iv_cfg)
+        task = self._make_task_with_summary()
+        mock_verdict = IntentVerdict(verdict="yes", reason="Matches.", model="test-model")
+        with patch("bernstein.core.quality_gates._run_intent_gate", return_value=(mock_verdict, False)):
+            result = run_quality_gates(task, tmp_path, tmp_path, config)
+        assert result.passed
+        iv_result = next(r for r in result.gate_results if r.gate == "intent_verification")
+        assert iv_result.passed
+        assert not iv_result.blocked
+
+    def test_enabled_no_verdict_blocks(self, tmp_path: Path) -> None:
+        """verdict=no with block_on_no=True → gate blocks."""
+        iv_cfg = IntentVerificationConfig(enabled=True, block_on_no=True)
+        config = QualityGatesConfig(enabled=True, lint=False, type_check=False, tests=False, intent_verification=iv_cfg)
+        task = self._make_task_with_summary()
+        mock_verdict = IntentVerdict(verdict="no", reason="Wrong thing.", model="test-model")
+        with patch("bernstein.core.quality_gates._run_intent_gate", return_value=(mock_verdict, True)):
+            result = run_quality_gates(task, tmp_path, tmp_path, config)
+        assert not result.passed
+        iv_result = next(r for r in result.gate_results if r.gate == "intent_verification")
+        assert iv_result.blocked
+
+    def test_enabled_partial_verdict_passes_when_not_blocking(self, tmp_path: Path) -> None:
+        """verdict=partially with block_on_partial=False → passes (warn only)."""
+        iv_cfg = IntentVerificationConfig(enabled=True, block_on_partial=False)
+        config = QualityGatesConfig(enabled=True, lint=False, type_check=False, tests=False, intent_verification=iv_cfg)
+        task = self._make_task_with_summary()
+        mock_verdict = IntentVerdict(verdict="partially", reason="Missing one part.", model="test-model")
+        with patch("bernstein.core.quality_gates._run_intent_gate", return_value=(mock_verdict, False)):
+            result = run_quality_gates(task, tmp_path, tmp_path, config)
+        assert result.passed
+        iv_result = next(r for r in result.gate_results if r.gate == "intent_verification")
+        assert iv_result.passed
+        assert not iv_result.blocked
+
+    def test_enabled_partial_verdict_blocks_when_configured(self, tmp_path: Path) -> None:
+        """verdict=partially with block_on_partial=True → blocks."""
+        iv_cfg = IntentVerificationConfig(enabled=True, block_on_partial=True)
+        config = QualityGatesConfig(enabled=True, lint=False, type_check=False, tests=False, intent_verification=iv_cfg)
+        task = self._make_task_with_summary()
+        mock_verdict = IntentVerdict(verdict="partially", reason="Missing one part.", model="test-model")
+        with patch("bernstein.core.quality_gates._run_intent_gate", return_value=(mock_verdict, True)):
+            result = run_quality_gates(task, tmp_path, tmp_path, config)
+        assert not result.passed
+
+    def test_records_intent_metric(self, tmp_path: Path) -> None:
+        """Intent verification result is written to the metrics file."""
+        iv_cfg = IntentVerificationConfig(enabled=True)
+        config = QualityGatesConfig(enabled=True, lint=False, type_check=False, tests=False, intent_verification=iv_cfg)
+        task = self._make_task_with_summary()
+        mock_verdict = IntentVerdict(verdict="yes", reason="Good.", model="test-model")
+        with patch("bernstein.core.quality_gates._run_intent_gate", return_value=(mock_verdict, False)):
+            run_quality_gates(task, tmp_path, tmp_path, config)
+        metrics_file = tmp_path / ".sdd" / "metrics" / "quality_gates.jsonl"
+        assert metrics_file.exists()
+        events = [json.loads(line) for line in metrics_file.read_text().splitlines() if line.strip()]
+        intent_events = [e for e in events if e["gate"] == "intent_verification"]
+        assert len(intent_events) == 1
+        assert intent_events[0]["verdict"] == "yes"
+        assert intent_events[0]["model"] == "test-model"
+
+    def test_intent_gate_detail_contains_verdict_and_reason(self, tmp_path: Path) -> None:
+        """Gate detail string includes verdict and reason for operator visibility."""
+        iv_cfg = IntentVerificationConfig(enabled=True)
+        config = QualityGatesConfig(enabled=True, lint=False, type_check=False, tests=False, intent_verification=iv_cfg)
+        task = self._make_task_with_summary()
+        mock_verdict = IntentVerdict(verdict="no", reason="Completely wrong.", model="m")
+        with patch("bernstein.core.quality_gates._run_intent_gate", return_value=(mock_verdict, True)):
+            result = run_quality_gates(task, tmp_path, tmp_path, config)
+        iv_result = next(r for r in result.gate_results if r.gate == "intent_verification")
+        assert "no" in iv_result.detail
+        assert "Completely wrong." in iv_result.detail
+
+
+# ---------------------------------------------------------------------------
+# IntentVerificationConfig defaults
+# ---------------------------------------------------------------------------
+
+
+class TestIntentVerificationConfig:
+    def test_disabled_by_default(self) -> None:
+        cfg = IntentVerificationConfig()
+        assert not cfg.enabled
+
+    def test_block_on_no_default_true(self) -> None:
+        cfg = IntentVerificationConfig()
+        assert cfg.block_on_no
+
+    def test_block_on_partial_default_false(self) -> None:
+        cfg = IntentVerificationConfig()
+        assert not cfg.block_on_partial
+
+    def test_default_model_is_cheap(self) -> None:
+        cfg = IntentVerificationConfig()
+        assert "flash" in cfg.model or "haiku" in cfg.model

@@ -1,0 +1,12 @@
+# Default: repo owner reviews everything
+* @chernistry
+
+# Core orchestration
+/src/bernstein/core/ @chernistry
+/src/bernstein/evolution/ @chernistry
+
+# Adapters
+/src/bernstein/adapters/ @chernistry
+
+# CI/CD
+/.github/ @chernistry

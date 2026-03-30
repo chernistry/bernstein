@@ -456,6 +456,12 @@ def parse_seed(path: Path) -> SeedConfig:
                 raise SeedError(f"quality_gates.{key} must be an integer, got: {type(val).__name__}")
             return val
 
+        # PII scan paths default
+        pii_scan_paths_raw = qg_dict.get("pii_scan_paths", ["src/"])
+        if not isinstance(pii_scan_paths_raw, list):
+            raise SeedError(f"quality_gates.pii_scan_paths must be a list, got: {type(pii_scan_paths_raw).__name__}")
+        pii_scan_paths = [str(p) for p in pii_scan_paths_raw]
+
         quality_gates = QualityGatesConfig(
             enabled=_qg_bool("enabled", True),
             lint=_qg_bool("lint", True),
@@ -465,6 +471,8 @@ def parse_seed(path: Path) -> SeedConfig:
             tests=_qg_bool("tests", False),
             test_command=_qg_str("test_command", "uv run python scripts/run_tests.py -x"),
             timeout_s=_qg_int("timeout_s", 120),
+            pii_scan=_qg_bool("pii_scan", True),
+            pii_scan_paths=pii_scan_paths,
         )
 
     formal_verification_raw: object = data.get("formal_verification")

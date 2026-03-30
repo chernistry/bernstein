@@ -449,7 +449,7 @@ def cli(
     try:
         _open_dir = workdir / ".sdd" / "backlog" / "open"
         if _open_dir.exists():
-            _task_count = sum(1 for f in _open_dir.iterdir() if f.suffix == ".md")
+            _task_count = sum(1 for f in _open_dir.iterdir() if f.suffix in (".yaml", ".yml", ".md"))
     except Exception:
         pass
 

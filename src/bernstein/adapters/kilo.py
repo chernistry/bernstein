@@ -8,7 +8,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from bernstein.adapters.base import CLIAdapter, SpawnResult, build_worker_cmd
+from bernstein.adapters.base import DEFAULT_TIMEOUT_SECONDS, CLIAdapter, SpawnResult, build_worker_cmd
 from bernstein.adapters.env_isolation import build_filtered_env
 from bernstein.core.models import ApiTier, ApiTierInfo, ModelConfig, ProviderType, RateLimit
 
@@ -28,7 +28,7 @@ class KiloAdapter(CLIAdapter):
         model_config: ModelConfig,
         session_id: str,
         mcp_config: dict[str, Any] | None = None,
-        timeout_seconds: int = 1800,
+        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> SpawnResult:
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -65,7 +65,6 @@ class KiloAdapter(CLIAdapter):
                     wrapped_cmd,
                     cwd=workdir,
                     env=env,
-                    stdin=subprocess.PIPE,
                     stdout=log_file,
                     stderr=subprocess.STDOUT,
                     start_new_session=True,
@@ -75,8 +74,10 @@ class KiloAdapter(CLIAdapter):
             except PermissionError as exc:
                 raise RuntimeError(f"Permission denied executing kilo: {exc}") from exc
 
-        timer = self._start_watchdog(proc, timeout_seconds=timeout_seconds, workdir=workdir, session_id=session_id)
-        return SpawnResult(pid=proc.pid, log_path=log_path, proc=proc, timer=timer)
+        result = SpawnResult(pid=proc.pid, log_path=log_path)
+        if timeout_seconds > 0:
+            result.timeout_timer = self._start_timeout_watchdog(proc.pid, timeout_seconds, session_id)
+        return result
 
     def name(self) -> str:
         return "Kilo"

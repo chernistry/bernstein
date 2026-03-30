@@ -6,11 +6,11 @@ import contextlib
 import logging
 import os
 import signal
-import subprocess
 import sys
 import threading
+import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -18,7 +18,13 @@ if TYPE_CHECKING:
 
     from bernstein.core.models import ApiTierInfo, ModelConfig
 
-_log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
+# Default timeout for spawned agent processes (30 minutes).
+DEFAULT_TIMEOUT_SECONDS: int = 1800
+
+# Grace period between SIGTERM and SIGKILL (seconds).
+_SIGTERM_GRACE_SECONDS: int = 30
 
 
 @dataclass
@@ -28,7 +34,7 @@ class SpawnResult:
     pid: int
     log_path: Path
     proc: object | None = None  # subprocess.Popen, kept for poll()-based alive check
-    timer: threading.Timer | None = None  # watchdog; cancel on normal process exit
+    timeout_timer: threading.Timer | None = field(default=None, repr=False)
 
 
 def build_worker_cmd(
@@ -86,80 +92,71 @@ class CLIAdapter(ABC):
         model_config: ModelConfig,
         session_id: str,
         mcp_config: dict[str, Any] | None = None,
-        timeout_seconds: int = 1800,
+        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> SpawnResult:
         """Launch an agent process with the given prompt."""
         ...
 
-    def _start_watchdog(
+    def _start_timeout_watchdog(
         self,
-        proc: subprocess.Popen[bytes],
-        *,
+        pid: int,
         timeout_seconds: int,
-        workdir: Path,
         session_id: str,
     ) -> threading.Timer:
-        """Start a watchdog timer that kills proc after timeout_seconds.
+        """Start a watchdog timer that kills the process on timeout.
 
-        On timeout: commits partial work, sends SIGTERM, waits 30 s, then SIGKILL.
-        The returned timer should be cancelled when the process exits normally.
+        Sends SIGTERM first, waits 30s for graceful shutdown, then SIGKILL.
 
         Args:
-            proc: The subprocess to watch.
-            timeout_seconds: Seconds before the watchdog fires.
-            workdir: Agent working directory (used for git commit of partial work).
-            session_id: Session identifier, included in log messages.
+            pid: Process ID to monitor.
+            timeout_seconds: Seconds before triggering timeout.
+            session_id: Session identifier for structured logging.
 
         Returns:
-            The started threading.Timer (daemon, so it won't block interpreter exit).
+            The started Timer — caller should store it for cancellation.
         """
 
-        def _on_timeout() -> None:
-            if proc.poll() is not None:
-                return  # already exited normally
-
-            _log.warning(
-                "Agent timed out — killing",
-                extra={
-                    "session_id": session_id,
-                    "timeout_seconds": timeout_seconds,
-                    "reason": "timeout",
-                },
+        def _kill_on_timeout() -> None:
+            logger.warning(
+                "Timeout after %ds: pid=%d session=%s — sending SIGTERM",
+                timeout_seconds,
+                pid,
+                session_id,
             )
+            try:
+                os.killpg(os.getpgid(pid), signal.SIGTERM)
+            except OSError:
+                return  # Already dead
 
-            # Preserve partial work before sending signals
-            with contextlib.suppress(Exception):
-                subprocess.run(
-                    ["git", "add", "-A"],
-                    cwd=workdir,
-                    capture_output=True,
-                    timeout=10,
-                )
-                subprocess.run(
-                    ["git", "commit", "-m", f"[WIP] timeout: {session_id}"],
-                    cwd=workdir,
-                    capture_output=True,
-                    timeout=10,
-                )
+            # Grace period for agent to commit partial work
+            deadline = time.monotonic() + _SIGTERM_GRACE_SECONDS
+            while time.monotonic() < deadline:
+                try:
+                    os.kill(pid, 0)
+                except OSError:
+                    return  # Exited cleanly after SIGTERM
+                time.sleep(1)
 
-            # SIGTERM first
+            logger.warning(
+                "Agent did not exit after SIGTERM grace period: pid=%d session=%s — sending SIGKILL",
+                pid,
+                session_id,
+            )
             with contextlib.suppress(OSError):
-                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+                os.killpg(os.getpgid(pid), signal.SIGKILL)
 
-            # SIGKILL after 30 s if still alive
-            def _force_kill() -> None:
-                if proc.poll() is None:
-                    with contextlib.suppress(OSError):
-                        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-
-            force_timer = threading.Timer(30.0, _force_kill)
-            force_timer.daemon = True
-            force_timer.start()
-
-        timer = threading.Timer(float(timeout_seconds), _on_timeout)
+        timer = threading.Timer(timeout_seconds, _kill_on_timeout)
         timer.daemon = True
+        timer.name = f"timeout-watchdog-{session_id}"
         timer.start()
         return timer
+
+    @staticmethod
+    def cancel_timeout(result: SpawnResult) -> None:
+        """Cancel the timeout watchdog for a completed process."""
+        if result.timeout_timer is not None:
+            result.timeout_timer.cancel()
+            result.timeout_timer = None
 
     def is_alive(self, pid: int) -> bool:
         """Check if the agent process is still running."""

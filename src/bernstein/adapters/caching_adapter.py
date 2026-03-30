@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from bernstein.adapters.base import CLIAdapter, SpawnResult
+from bernstein.adapters.base import DEFAULT_TIMEOUT_SECONDS, CLIAdapter, SpawnResult
 from bernstein.core.prompt_caching import PromptCachingManager
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ class CachingAdapter(CLIAdapter):
         model_config: ModelConfig,
         session_id: str,
         mcp_config: dict[str, Any] | None = None,
-        timeout_seconds: int = 1800,
+        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> SpawnResult:
         """Spawn agent with caching: process prompt then delegate to inner adapter.
 
@@ -53,7 +53,7 @@ class CachingAdapter(CLIAdapter):
             model_config: Model configuration.
             session_id: Session ID for the agent.
             mcp_config: Optional MCP configuration.
-            timeout_seconds: Watchdog timeout; passed through to inner adapter.
+            timeout_seconds: Timeout before killing the agent process.
 
         Returns:
             SpawnResult from the inner adapter.

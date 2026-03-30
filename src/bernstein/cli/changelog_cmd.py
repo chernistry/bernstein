@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import click
@@ -94,10 +94,7 @@ def _commits_since(cwd: Path, since_ref: str | None, until_ref: str) -> list[Com
     records separated by ASCII record-separator (\\x1e).
     """
     fmt = "%H\x1f%s\x1f%an\x1f%ad\x1f%b\x1e"
-    if since_ref:
-        rev_range = f"{since_ref}..{until_ref}"
-    else:
-        rev_range = until_ref
+    rev_range = f"{since_ref}..{until_ref}" if since_ref else until_ref
 
     raw = _run_git(
         ["log", rev_range, f"--pretty=format:{fmt}", "--date=short", "--no-merges"],

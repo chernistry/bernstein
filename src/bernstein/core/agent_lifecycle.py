@@ -240,9 +240,7 @@ def handle_orphaned_task(
                 orch._cascade_manager = _cascade  # type: ignore[attr-defined]
 
             # Collect all currently throttled providers
-            _throttled = frozenset(
-                p for p in _rl_tracker.throttle_summary() if _rl_tracker.is_throttled(p)
-            )
+            _throttled = frozenset(p for p in _rl_tracker.throttle_summary() if _rl_tracker.is_throttled(p))
             _decision = _cascade.find_fallback(task.complexity, _throttled)
 
             if isinstance(_decision, CascadeDecision):

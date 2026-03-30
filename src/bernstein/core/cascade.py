@@ -30,9 +30,9 @@ _STRENGTH_ORDER: dict[str, int] = {
 # Minimum reasoning strength required per task complexity.
 # This is a HARD constraint — never violated, even if all capable agents are down.
 CAPABILITY_FLOOR: dict[Complexity, int] = {
-    Complexity.HIGH: _STRENGTH_ORDER["high"],       # only high or very_high
-    Complexity.MEDIUM: _STRENGTH_ORDER["medium"],    # medium, high, very_high
-    Complexity.LOW: _STRENGTH_ORDER["low"],          # any agent
+    Complexity.HIGH: _STRENGTH_ORDER["high"],  # only high or very_high
+    Complexity.MEDIUM: _STRENGTH_ORDER["medium"],  # medium, high, very_high
+    Complexity.LOW: _STRENGTH_ORDER["low"],  # any agent
 }
 
 # Cost tier ordering (cheapest → most expensive)
@@ -155,7 +155,7 @@ class CascadeFallbackManager:
         # Sort candidates: free first, then by reasoning strength (strongest first)
         candidates.sort(
             key=lambda a: (
-                _COST_ORDER.get(a.cost_tier, 2),        # cheapest first
+                _COST_ORDER.get(a.cost_tier, 2),  # cheapest first
                 -_STRENGTH_ORDER.get(a.reasoning_strength, 0),  # strongest first within cost tier
             ),
         )

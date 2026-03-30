@@ -971,8 +971,8 @@ class BernsteinApp(App[None]):
         status_colors: dict[str, str] = {
             "done": "green",
             "failed": "red",
-            "claimed": "yellow",
-            "in_progress": "cyan",
+            "claimed": "bright_green",
+            "in_progress": "bright_green",
             "open": "dim",
             "cancelled": "dim",
         }

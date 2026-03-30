@@ -670,10 +670,7 @@ async def steal_tasks(body: TaskStealRequest, request: Request) -> TaskStealResp
         # The task store's list_tasks is sync; filter by cell_id or
         # assigned_agent that maps to the donor node.
         claimed = store.list_tasks(status="claimed")
-        donor_tasks = [
-            t for t in claimed
-            if getattr(t, "assigned_node", None) == donor_id
-        ][:count]
+        donor_tasks = [t for t in claimed if getattr(t, "assigned_node", None) == donor_id][:count]
 
         # If no tasks tagged with assigned_node, fall back to taking the
         # oldest claimed tasks (best-effort redistribution).
@@ -689,11 +686,13 @@ async def steal_tasks(body: TaskStealRequest, request: Request) -> TaskStealResp
                 continue
 
         if stolen_ids:
-            actions.append(TaskStealAction(
-                donor_node_id=donor_id,
-                receiver_node_id=receiver_id,
-                task_ids=stolen_ids,
-            ))
+            actions.append(
+                TaskStealAction(
+                    donor_node_id=donor_id,
+                    receiver_node_id=receiver_id,
+                    task_ids=stolen_ids,
+                )
+            )
             total_stolen += len(stolen_ids)
 
     return TaskStealResponse(actions=actions, total_stolen=total_stolen)

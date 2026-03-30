@@ -199,7 +199,9 @@ async def shutdown_server(request: Request) -> JSONResponse:
         pass
 
     logger = logging.getLogger("bernstein.server")
-    logger.info("Shutdown requested via /shutdown endpoint (reason=%s)", reason)
+    from bernstein.core.sanitize import sanitize_log
+
+    logger.info("Shutdown requested via /shutdown endpoint (reason=%s)", sanitize_log(str(reason)))
 
     # Schedule SIGTERM to self after a short delay so the HTTP response
     # is delivered before the process starts tearing down.

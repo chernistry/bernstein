@@ -93,6 +93,7 @@ def _make_mock_spawner(
     )
     mock_spawner.spawn_for_tasks.return_value = session
     mock_spawner.check_alive.return_value = True
+    mock_spawner.get_worktree_path.return_value = None
     return mock_spawner
 
 

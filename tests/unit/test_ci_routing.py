@@ -285,7 +285,7 @@ class TestBuildCiRoutingPayload:
             "CI",
             run_url="https://github.com/o/r/actions/runs/1",
         )
-        assert "https://github.com" in payload["description"]
+        assert "https://github.com/o/r/actions/runs/1" in payload["description"]
 
     def test_retry_note_in_description(self) -> None:
         from bernstein.github_app.ci_router import build_ci_routing_payload

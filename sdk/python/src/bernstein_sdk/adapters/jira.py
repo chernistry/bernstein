@@ -140,6 +140,14 @@ class JiraAdapter:
         self._default_role = default_role
         self._project_key_to_role = project_key_to_role or {}
 
+    @staticmethod
+    def _validate_issue_key(key: str) -> str:
+        """Validate that an issue key matches the expected Jira format."""
+        import re
+        if not re.match(r"^[A-Z][A-Z0-9_]+-\d+$", key):
+            raise ValueError(f"Invalid Jira issue key format: {key!r}")
+        return key
+
     @classmethod
     def from_env(cls, default_role: str = "backend") -> JiraAdapter:
         """Construct from environment variables.
@@ -259,6 +267,11 @@ class JiraAdapter:
             requests.HTTPError: On API error.
         """
         requests = _import_requests()
+
+        def _s(v: object) -> str:
+            return str(v).replace("\n", "\\n").replace("\r", "\\r")
+
+        issue_key = self._validate_issue_key(issue_key)
         transitions_url = f"{self._base_url}/rest/api/3/issue/{issue_key}/transitions"
         resp = requests.get(
             transitions_url,
@@ -280,8 +293,8 @@ class JiraAdapter:
         if transition_id is None:
             log.warning(
                 "JiraAdapter: no transition to %r found for %s (available: %s)",
-                target_status_name,
-                issue_key,
+                _s(target_status_name),
+                _s(issue_key),
                 [t.get("name") for t in transitions],
             )
             return False
@@ -294,7 +307,11 @@ class JiraAdapter:
             timeout=10,
         )
         resp.raise_for_status()
-        log.info("JiraAdapter: transitioned %s → %r", issue_key, target_status_name)
+        log.info(
+            "JiraAdapter: transitioned %s → %r",
+            _s(issue_key),
+            _s(target_status_name),
+        )
         return True
 
     def sync_task_to_jira(self, task: TaskResponse) -> bool:

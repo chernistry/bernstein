@@ -1003,11 +1003,13 @@ class TaskStore:
                 try:
                     transition_agent(agent, status, actor="heartbeat", reason=f"agent {agent_id} self-report")
                 except IllegalTransitionError:
+                    from bernstein.core.sanitize import sanitize_log
+
                     logger.warning(
                         "Ignoring illegal heartbeat transition %s -> %s for %s",
-                        agent.status,
-                        status,
-                        agent_id,
+                        sanitize_log(str(agent.status)),
+                        sanitize_log(str(status)),
+                        sanitize_log(str(agent_id)),
                     )
         else:
             self._agents[agent_id] = AgentSession(

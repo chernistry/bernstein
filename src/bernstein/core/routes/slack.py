@@ -76,12 +76,14 @@ async def slack_slash_command(request: Request) -> JSONResponse:
             content={"detail": f"Bad slash command payload: {exc}"},
         )
 
+    from bernstein.core.sanitize import sanitize_log
+
     logger.info(
         "Slack slash command received: command=%r user=%r channel=%r text=%r",
-        payload["command"],
-        payload["user_id"],
-        payload["channel_id"],
-        payload["text"],
+        sanitize_log(payload["command"]),
+        sanitize_log(payload["user_id"]),
+        sanitize_log(payload["channel_id"]),
+        sanitize_log(payload["text"]),
     )
 
     # Create a task from the slash command text
@@ -105,7 +107,7 @@ async def slack_slash_command(request: Request) -> JSONResponse:
             slack_context=slack_context,
         )
         task = await store.create(task_create)
-        logger.info("Created task %s from Slack command: %r", task.id, text[:60])
+        logger.info("Created task %s from Slack command: %r", task.id, sanitize_log(text[:60]))
         ack_text = f"Task `{task.id}` created: {text[:60]}"
     else:
         ack_text = f"Received `{payload['command']}` — no task text provided."
@@ -214,12 +216,14 @@ async def slack_events(request: Request) -> JSONResponse:
             slack_context=slack_context,
         )
         task = await store.create(task_create)
+        from bernstein.core.sanitize import sanitize_log as _sl
+
         logger.info(
             "Created task %s from Slack message event: channel=%r user=%r text=%r",
             task.id,
-            slack_context["channel"],
-            slack_context["user"],
-            clean_text[:60],
+            _sl(slack_context["channel"]),
+            _sl(slack_context["user"]),
+            _sl(clean_text[:60]),
         )
 
     return JSONResponse(status_code=200, content={"ok": True})

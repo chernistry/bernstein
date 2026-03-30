@@ -339,13 +339,15 @@ class GraduationEvaluator:
         if to_stage.value not in record.stage_metrics:
             record.stage_metrics[to_stage.value] = StageMetrics(stage=to_stage, started_at=now)
 
+        from bernstein.core.sanitize import sanitize_log
+
         logger.info(
             "session %s graduated %s → %s (reason=%s, by=%s)",
-            record.session_id,
+            sanitize_log(record.session_id),
             from_stage.value,
             to_stage.value,
-            reason,
-            promoted_by,
+            sanitize_log(reason),
+            sanitize_log(promoted_by),
         )
         return record
 

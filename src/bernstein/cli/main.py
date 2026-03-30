@@ -45,11 +45,11 @@ from bernstein.cli.advanced_cmd import (
 # Subcommand imports from modules
 from bernstein.cli.agents_cmd import agents_group
 from bernstein.cli.audit_cmd import audit_group
+from bernstein.cli.changelog_cmd import changelog_cmd
 from bernstein.cli.chaos_cmd import chaos_group
 from bernstein.cli.checkpoint_cmd import checkpoint_cmd
 from bernstein.cli.ci_cmd import ci_group
 from bernstein.cli.cost import cost_cmd
-from bernstein.cli.changelog_cmd import changelog_cmd
 from bernstein.cli.diff_cmd import diff_cmd
 from bernstein.cli.eval_benchmark_cmd import (
     benchmark_group,
@@ -89,7 +89,6 @@ from bernstein.cli.wrap_up_cmd import wrap_up
 # Explicit __all__ so pyright knows these are intentional re-exports.
 __all__ = [
     "BANNER",
-    "changelog_cmd",
     "DEMO_TASKS",
     "SDD_DIRS",
     "SDD_PID_SERVER",
@@ -104,6 +103,7 @@ __all__ = [
     # Groups and commands from advanced_cmd
     "benchmark_group",
     "cancel",
+    "changelog_cmd",
     "chaos_group",
     "checkpoint_cmd",
     "completions",

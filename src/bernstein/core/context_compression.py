@@ -622,8 +622,7 @@ class PromptCompressor:
 
         # Compute per-section token estimates and priorities
         annotated: list[tuple[str, str, int, int]] = [
-            (name, content, self._estimate_tokens(content), _section_priority(name))
-            for name, content in sections
+            (name, content, self._estimate_tokens(content), _section_priority(name)) for name, content in sections
         ]
 
         original_tokens = sum(t for _, _, t, _ in annotated)
@@ -665,9 +664,7 @@ class PromptCompressor:
         Returns:
             CompressionResult with token counts and kept/dropped section names.
         """
-        compressed_prompt, original_tokens, compressed_tokens, dropped_names = (
-            self.compress_sections(sections)
-        )
+        compressed_prompt, original_tokens, compressed_tokens, dropped_names = self.compress_sections(sections)
         _ = compressed_prompt  # caller extracts text via compress_sections if needed
 
         ratio = compressed_tokens / max(1, original_tokens)

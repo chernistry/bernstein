@@ -74,6 +74,7 @@ from bernstein.cli.verify_cmd import verify_cmd
 from bernstein.cli.voice_cmd import listen_cmd
 from bernstein.cli.watch_cmd import watch_cmd
 from bernstein.cli.workflow_cmd import workflow_group
+from bernstein.cli.worker_cmd import worker
 from bernstein.cli.workspace_cmd import config_group, workspace_group
 from bernstein.cli.wrap_up_cmd import wrap_up
 
@@ -151,6 +152,7 @@ __all__ = [
     "sync",
     "trace_cmd",
     "watch_cmd",
+    "worker",
     "workspace_group",
     "wrap_up",
     "write_pid",
@@ -271,6 +273,7 @@ def print_rich_help() -> None:
                 ("agents list", "Available agents and capabilities"),
                 ("agents sync", "Pull latest agent catalog"),
                 ("agents discover", "Auto-detect installed CLI agents"),
+                ("worker", "Join a cluster as a remote worker node"),
                 ("evolve", "Self-improvement proposals"),
                 ("demo", "Zero-to-running demo in 60 seconds"),
                 ("quickstart", "Zero-config demo: 3 tasks on a Flask TODO API"),
@@ -585,3 +588,4 @@ cli.add_command(quickstart_cmd, "quickstart")
 cli.add_command(watch_cmd, "watch")
 cli.add_command(listen_cmd, "listen")
 cli.add_command(self_update_cmd, "self-update")
+cli.add_command(worker, "worker")

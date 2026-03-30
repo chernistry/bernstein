@@ -101,6 +101,28 @@ jobs:
             -v --timeout=240
         timeout-minutes: 10
 
+  # Auto-close ci-fix issues when CI passes
+  close-ci-issues:
+    name: Close resolved CI issues
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test]
+    if: >
+      success() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push'
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Close ci-fix issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUES=$(gh issue list --label ci-fix --state open --json number --jq '.[].number' 2>/dev/null || echo "")
+          for NUM in $ISSUES; do
+            gh issue close "$NUM" --comment "CI is green again (commit \`${{ github.sha }}\`)." || true
+          done
+
   # Self-healing: open a GitHub Issue on main when CI fails
   self-heal:
     name: Self-heal
@@ -123,5 +145,5 @@ jobs:
           BODY="CI failure on commit \`${{ github.sha }}\`. Run: $RUN_URL"
           OPEN=$(gh issue list --label ci-fix --state open --json number --jq length 2>/dev/null || echo 0)
           if [ "$OPEN" = "0" ]; then
-            gh issue create --title "$TITLE" --body "$BODY" --label "bug" || true
+            gh issue create --title "$TITLE" --body "$BODY" --label "bug,ci-fix" || true
           fi

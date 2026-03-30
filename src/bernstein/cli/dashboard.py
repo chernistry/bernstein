@@ -757,10 +757,11 @@ class BernsteinApp(App[None]):
         Binding("s", "stop_bernstein", "Stop"),
         Binding("l", "toggle_activity", "Activity"),
         Binding("c", "focus_chat", "Chat"),
+        Binding("enter", "inspect_task", "Inspect"),
+        Binding("x", "cancel_task", "Cancel"),
+        Binding("p", "prioritize_task", "P0"),
+        Binding("t", "retry_task", "Retry"),
         Binding("i", "inspect_task", "Inspect", show=False),
-        Binding("x", "cancel_task", "Cancel", show=False),
-        Binding("p", "prioritize_task", "Priority", show=False),
-        Binding("t", "retry_task", "Retry", show=False),
     ]
 
     def __init__(self, **kw: Any) -> None:
@@ -811,6 +812,7 @@ class BernsteinApp(App[None]):
         t.add_columns("", "ROLE", "TASK")
         t.cursor_type = "row"
         t.zebra_stripes = True
+        t.focus()  # Arrow keys work immediately without clicking
 
         evolve_p = Path(".sdd/runtime/evolve.json")
         if evolve_p.exists():
@@ -1110,6 +1112,22 @@ class BernsteinApp(App[None]):
 
     # -- Actions --
 
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        """Expand task details when Enter is pressed on a row."""
+        task_id = str(event.row_key.value) if event.row_key.value else ""
+        if not task_id:
+            return
+        log = self.query_one("#activity-log", RichLog)
+        data = _get(f"/tasks/{task_id}")
+        if data and isinstance(data, dict):
+            log.write(f"[bold cyan]▶ Task {task_id}[/bold cyan]")
+            log.write(f"  Title:  {data.get('title', '?')}")
+            log.write(f"  Role:   {data.get('role', '?')}")
+            log.write(f"  Status: {data.get('status', '?')}")
+            desc = data.get("description", "")
+            if desc:
+                log.write(f"  Desc:   {desc[:200]}")
+
     def action_inspect_task(self) -> None:
         """Show details of selected task in activity log."""
         table = self.query_one("#tasks-table", DataTable)
@@ -1124,13 +1142,13 @@ class BernsteinApp(App[None]):
         # Fetch task details from server
         data = _get(f"/tasks/{task_id}")
         if data and isinstance(data, dict):
-            log.write(f"[bold cyan]Task {task_id}[/bold cyan]")
-            log.write(f"  Title: {data.get('title', '?')}")
-            log.write(f"  Role: {data.get('role', '?')}")
+            log.write(f"[bold cyan]▶ Task {task_id}[/bold cyan]")
+            log.write(f"  Title:  {data.get('title', '?')}")
+            log.write(f"  Role:   {data.get('role', '?')}")
             log.write(f"  Status: {data.get('status', '?')}")
             desc = data.get("description", "")
             if desc:
-                log.write(f"  Description: {desc[:200]}")
+                log.write(f"  Desc:   {desc[:200]}")
 
     def action_cancel_task(self) -> None:
         """Cancel the selected task."""

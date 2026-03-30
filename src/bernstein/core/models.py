@@ -96,6 +96,7 @@ class TaskStatus(Enum):
     BLOCKED = "blocked"
     CANCELLED = "cancelled"
     ORPHANED = "orphaned"  # Agent crashed mid-task; pending crash recovery
+    PENDING_APPROVAL = "pending_approval"  # Completed; awaiting human approval before taking effect
 
 
 class TaskType(Enum):
@@ -200,6 +201,7 @@ class Task:
     mcp_servers: list[str] = field(default_factory=list[str])  # MCP server names for this task
     slack_context: dict[str, Any] | None = None  # Slack slash command or event metadata
     batch_eligible: bool = False  # Non-urgent: eligible for provider batch APIs at ~50% cost
+    approval_required: bool = False  # Pause after completion until explicitly approved
     created_at: float = field(default_factory=time.time)
     progress_log: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])  # [{timestamp, message, percent}]
     version: int = 1  # Optimistic locking: incremented on every status change
@@ -266,6 +268,7 @@ class Task:
             effort=raw.get("effort"),
             mcp_servers=list(raw.get("mcp_servers", [])),
             batch_eligible=bool(raw.get("batch_eligible", False)),
+            approval_required=bool(raw.get("approval_required", False)),
             created_at=raw.get("created_at", time.time()),
             progress_log=list(raw.get("progress_log", [])),
             version=raw.get("version", 1),

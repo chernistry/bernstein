@@ -78,16 +78,12 @@ class _Config:
         self.jira_base_url: str = os.environ.get("JIRA_BASE_URL", "")
         self.jira_email: str = os.environ.get("JIRA_EMAIL", "")
         self.jira_api_token: str = os.environ.get("JIRA_API_TOKEN", "")
-        self.bernstein_url: str = os.environ.get(
-            "BERNSTEIN_URL", "http://127.0.0.1:8052"
-        )
+        self.bernstein_url: str = os.environ.get("BERNSTEIN_URL", "http://127.0.0.1:8052")
         self.webhook_secret: str = os.environ.get("JIRA_WEBHOOK_SECRET", "")
         self.default_role: str = os.environ.get("JIRA_DEFAULT_ROLE", "backend")
 
         project_raw = os.environ.get("JIRA_PROJECT_FILTER", "")
-        self.project_filter: frozenset[str] = frozenset(
-            k.strip().upper() for k in project_raw.split(",") if k.strip()
-        )
+        self.project_filter: frozenset[str] = frozenset(k.strip().upper() for k in project_raw.split(",") if k.strip())
 
         label_raw = os.environ.get("JIRA_LABEL_FILTER", "")
         self.label_filter: frozenset[str] = frozenset(

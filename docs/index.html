@@ -86,6 +86,23 @@
   </div>
 </section>
 
+<!-- ── Dashboard gallery ── -->
+<section id="dashboard-gallery" style="padding:2rem 0 1rem;">
+  <div class="container">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;max-width:900px;margin:0 auto;">
+      <a href="assets/tui.svg" target="_blank" style="display:block;border-radius:8px;overflow:hidden;border:1px solid var(--border,#2a2a2a);transition:transform 150ms ease,box-shadow 150ms ease;" onmouseover="this.style.transform='scale(1.015)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <img src="assets/tui.svg" alt="TUI dashboard" style="width:100%;display:block;" />
+        <div style="padding:0.4rem 0.6rem;font-size:0.7rem;color:var(--text-muted,#888);background:var(--bg-card,#1a1a1a);">TUI — terminal dashboard</div>
+      </a>
+      <a href="assets/web-dashboard.png" target="_blank" style="display:block;border-radius:8px;overflow:hidden;border:1px solid var(--border,#2a2a2a);transition:transform 150ms ease,box-shadow 150ms ease;" onmouseover="this.style.transform='scale(1.015)';this.style.boxShadow='0 8px 24px rgba(0,0,0,0.3)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <img src="assets/web-dashboard.png" alt="Web dashboard" style="width:100%;display:block;" />
+        <div style="padding:0.4rem 0.6rem;font-size:0.7rem;color:var(--text-muted,#888);background:var(--bg-card,#1a1a1a);">Web — browser dashboard</div>
+      </a>
+    </div>
+    <p style="text-align:center;margin-top:0.5rem;font-size:0.65rem;color:var(--text-muted,#666);">Click to enlarge</p>
+  </div>
+</section>
+
 <!-- ── Who it's for ── -->
 <section class="section-alt">
   <div class="container">
@@ -267,11 +284,7 @@
           </div>
           <div class="feature-item">
             <h4>Live dashboard</h4>
-            <p>Real-time TUI shows agent status, task progress, activity feed, sparkline, and cost tracking. Chat input lets you add tasks mid-run without leaving the terminal.</p>
-            <div style="margin-top:1rem;display:flex;flex-direction:column;gap:0.75rem;">
-              <img src="assets/tui.svg" alt="Bernstein TUI dashboard" style="width:100%;border-radius:6px;border:1px solid var(--border, #333);" />
-              <img src="assets/web-dashboard.png" alt="Bernstein web dashboard" style="width:100%;border-radius:6px;border:1px solid var(--border, #333);" />
-            </div>
+            <p>Real-time TUI shows agent status, task progress, activity feed, sparkline, and cost tracking. Chat input lets you add tasks mid-run without leaving the terminal. <a href="#dashboard-gallery" style="font-size:0.85em;">See screenshots &uarr;</a></p>
           </div>
           <div class="feature-item">
             <h4>Comparative benchmarks</h4>

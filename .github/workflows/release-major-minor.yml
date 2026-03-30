@@ -1,0 +1,150 @@
+name: Major/Minor Release
+
+# Manual trigger for significant releases (x.0.0 or x.y.0)
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - minor
+          - major
+      changelog:
+        description: "Release highlights (markdown)"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run (don't publish)"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    name: "${{ inputs.bump }} release"
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/bernstein
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      # Read and bump version
+      - name: Bump version
+        id: bump
+        run: |
+          VERSION=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          if [ "${{ inputs.bump }}" = "major" ]; then
+            NEW="$((MAJOR + 1)).0.0"
+          else
+            NEW="${MAJOR}.$((MINOR + 1)).0"
+          fi
+
+          echo "old=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "new=$NEW" >> "$GITHUB_OUTPUT"
+          echo "Bumping $VERSION → $NEW (${{ inputs.bump }})"
+
+      # Verify CI passed on current commit
+      - name: Verify CI green
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          STATUS=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/status --jq '.state')
+          if [ "$STATUS" != "success" ]; then
+            echo "::error::CI is not green (status: $STATUS). Fix CI before releasing."
+            exit 1
+          fi
+
+      # Run tests as safety check
+      - name: Run tests
+        run: uv run python scripts/run_tests.py -x
+
+      # Apply version bump
+      - name: Update pyproject.toml
+        if: inputs.dry_run == false
+        run: |
+          sed -i "s/^version = \"${{ steps.bump.outputs.old }}\"/version = \"${{ steps.bump.outputs.new }}\"/" pyproject.toml
+
+      # Generate changelog section
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            COMMITS=$(git log --oneline "$PREV_TAG"..HEAD | head -30)
+          else
+            COMMITS=$(git log --oneline -20)
+          fi
+          echo "commits<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$COMMITS" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      # Commit, tag, build, publish
+      - name: Commit and tag
+        if: inputs.dry_run == false
+        run: |
+          git config user.name "bernstein[bot]"
+          git config user.email "bernstein-bot@users.noreply.github.com"
+          git add pyproject.toml
+          git commit -m "release: v${{ steps.bump.outputs.new }}"
+          git tag "v${{ steps.bump.outputs.new }}"
+          git push
+          git push origin "v${{ steps.bump.outputs.new }}"
+
+      - name: Build
+        run: uv build
+
+      - name: Publish to PyPI
+        if: inputs.dry_run == false
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true
+
+      - name: GitHub Release
+        if: inputs.dry_run == false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.bump.outputs.new }}" dist/* \
+            --title "v${{ steps.bump.outputs.new }}" \
+            --notes "$(cat <<'NOTES'
+          ## Bernstein v${{ steps.bump.outputs.new }}
+
+          ${{ inputs.changelog }}
+
+          ### Changes since v${{ steps.bump.outputs.old }}
+
+          ${{ steps.changelog.outputs.commits }}
+
+          ---
+          Full changelog: https://github.com/${{ github.repository }}/compare/v${{ steps.bump.outputs.old }}...v${{ steps.bump.outputs.new }}
+          NOTES
+          )"
+
+      - name: Dry run summary
+        if: inputs.dry_run == true
+        run: |
+          echo "## Dry Run Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Bump**: ${{ inputs.bump }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Version**: ${{ steps.bump.outputs.old }} → ${{ steps.bump.outputs.new }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Changelog**: ${{ inputs.changelog }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Commits since last tag**:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.changelog.outputs.commits }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

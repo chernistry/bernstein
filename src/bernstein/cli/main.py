@@ -73,8 +73,8 @@ from bernstein.cli.task_cmd import (
 from bernstein.cli.verify_cmd import verify_cmd
 from bernstein.cli.voice_cmd import listen_cmd
 from bernstein.cli.watch_cmd import watch_cmd
-from bernstein.cli.workflow_cmd import workflow_group
 from bernstein.cli.worker_cmd import worker
+from bernstein.cli.workflow_cmd import workflow_group
 from bernstein.cli.workspace_cmd import config_group, workspace_group
 from bernstein.cli.wrap_up_cmd import wrap_up
 

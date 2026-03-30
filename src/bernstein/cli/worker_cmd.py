@@ -297,8 +297,7 @@ class WorkerLoop:
                             if pid is not None:
                                 self._active_tasks[task_id] = pid
                                 console.print(
-                                    f"  [green]Claimed[/green] {task_id}: "
-                                    f"{task.get('title', '')[:50]} (pid={pid})"
+                                    f"  [green]Claimed[/green] {task_id}: {task.get('title', '')[:50]} (pid={pid})"
                                 )
 
                 time.sleep(self._poll_interval)

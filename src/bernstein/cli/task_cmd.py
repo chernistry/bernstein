@@ -264,7 +264,7 @@ def _render_graph() -> None:
         server_unreachable().print()
         raise SystemExit(1)
 
-    data: dict[str, Any] = cast("dict[str, Any]", raw) if isinstance(raw, dict) else {}
+    data: dict[str, Any] = raw if isinstance(raw, dict) else {}  # type: ignore[assignment]
     nodes: list[dict[str, Any]] = data.get("nodes", [])
     edges: list[dict[str, Any]] = data.get("edges", [])
     critical_path: list[str] = data.get("critical_path", [])

@@ -58,6 +58,7 @@ from bernstein.cli.eval_benchmark_cmd import (
 from bernstein.cli.evolve_cmd import evolve
 from bernstein.cli.gateway_cmd import gateway_group
 from bernstein.cli.manifest_cmd import manifest_group
+from bernstein.cli.prompts_cmd import prompts_group
 from bernstein.cli.quickstart_cmd import quickstart_cmd
 from bernstein.cli.self_update_cmd import self_update_cmd
 from bernstein.cli.task_cmd import (
@@ -586,6 +587,7 @@ cli.add_command(audit_group, "audit")
 cli.add_command(verify_cmd, "verify")
 cli.add_command(chaos_group, "chaos")
 cli.add_command(manifest_group, "manifest")
+cli.add_command(prompts_group, "prompts")
 cli.add_command(ci_group, "ci")
 cli.add_command(gateway_group, "gateway")
 cli.add_command(workflow_group, "workflow")

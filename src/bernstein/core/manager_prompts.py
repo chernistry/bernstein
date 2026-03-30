@@ -2,10 +2,14 @@
 
 Loads template files from templates/prompts/ and renders them with
 context data for the LLM planning, review, and queue review tasks.
+
+Supports versioned prompts via the PromptRegistry when ``.sdd/prompts/``
+contains versioned variants.  Falls back to static templates.
 """
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -13,20 +17,51 @@ if TYPE_CHECKING:
 
     from bernstein.core.models import Task
 
+logger = logging.getLogger(__name__)
 
-def _load_template(templates_dir: Path, name: str) -> str:
-    """Load a prompt template from templates/prompts/.
+
+def _load_template(
+    templates_dir: Path,
+    name: str,
+    *,
+    sdd_dir: Path | None = None,
+    task_id: str = "",
+) -> str:
+    """Load a prompt template, preferring versioned prompts when available.
+
+    If *sdd_dir* is provided and the prompt is registered in the
+    PromptRegistry, the active (or A/B-selected) version is returned.
+    Otherwise falls back to the static file in ``templates/prompts/``.
 
     Args:
         templates_dir: Root templates/ directory (parent of prompts/).
         name: Template filename (e.g. 'plan.md').
+        sdd_dir: Path to ``.sdd/`` directory for versioned lookup.
+        task_id: Task ID for deterministic A/B assignment.
 
     Returns:
         Template content as a string.
 
     Raises:
-        FileNotFoundError: If the template does not exist.
+        FileNotFoundError: If the template does not exist anywhere.
     """
+    # Try versioned prompt first
+    if sdd_dir is not None:
+        try:
+            from bernstein.core.prompt_versioning import PromptRegistry
+
+            registry = PromptRegistry(sdd_dir)
+            stem = name.removesuffix(".md")
+            version = registry.select_version(stem, task_id=task_id)
+            if version is not None:
+                pv = registry.get_version(stem, version)
+                if pv and pv.content:
+                    logger.debug("Using versioned prompt %r v%d", stem, version)
+                    return pv.content
+        except Exception:
+            logger.debug("Versioned prompt lookup failed for %r, falling back", name)
+
+    # Fallback: static template
     path = templates_dir / "prompts" / name
     if not path.is_file():
         raise FileNotFoundError(f"Prompt template not found: {path}")
@@ -71,6 +106,9 @@ def render_plan_prompt(
     roles: list[str],
     existing_tasks: list[Task],
     templates_dir: Path,
+    *,
+    sdd_dir: Path | None = None,
+    task_id: str = "",
 ) -> str:
     """Build the full planning prompt from the template.
 
@@ -80,11 +118,13 @@ def render_plan_prompt(
         roles: Available specialist role names.
         existing_tasks: Tasks already in the server.
         templates_dir: Root templates/ directory.
+        sdd_dir: Path to ``.sdd/`` for versioned prompt lookup.
+        task_id: Task ID for deterministic A/B assignment.
 
     Returns:
         Fully rendered prompt ready for the LLM.
     """
-    template = _load_template(templates_dir, "plan.md")
+    template = _load_template(templates_dir, "plan.md", sdd_dir=sdd_dir, task_id=task_id)
     return (
         template.replace("{{GOAL}}", goal)
         .replace("{{CONTEXT}}", context)
@@ -173,6 +213,8 @@ def render_review_prompt(
     task: Task,
     context: str,
     templates_dir: Path,
+    *,
+    sdd_dir: Path | None = None,
 ) -> str:
     """Build the review prompt from the template.
 
@@ -180,11 +222,12 @@ def render_review_prompt(
         task: Completed task to review.
         context: Project context string.
         templates_dir: Root templates/ directory.
+        sdd_dir: Path to ``.sdd/`` for versioned prompt lookup.
 
     Returns:
         Fully rendered review prompt.
     """
-    template = _load_template(templates_dir, "review.md")
+    template = _load_template(templates_dir, "review.md", sdd_dir=sdd_dir, task_id=task.id)
 
     signals_str = "(none)"
     if task.completion_signals:

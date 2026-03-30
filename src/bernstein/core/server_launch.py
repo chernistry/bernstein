@@ -441,11 +441,50 @@ def _resolve_auth_token() -> str | None:
     return os.environ.get("BERNSTEIN_AUTH_TOKEN")
 
 
+def _detect_project_type(workdir: Path) -> str:
+    """Detect project type from common config files.
+
+    Args:
+        workdir: Project root directory.
+
+    Returns:
+        One of: "python", "node", "go", "rust", "generic".
+    """
+    if (workdir / "pyproject.toml").exists() or (workdir / "setup.py").exists():
+        return "python"
+    if (workdir / "package.json").exists():
+        return "node"
+    if (workdir / "go.mod").exists():
+        return "go"
+    if (workdir / "Cargo.toml").exists():
+        return "rust"
+    return "generic"
+
+
+def _constraints_for_project_type(project_type: str) -> list[str]:
+    """Return default constraints for a detected project type.
+
+    Args:
+        project_type: One of the types returned by ``_detect_project_type``.
+
+    Returns:
+        List of constraint strings (empty for "generic").
+    """
+    mapping: dict[str, list[str]] = {
+        "python": ["Python 3.12+", "pytest for tests", "ruff for linting"],
+        "node": ["Node.js", "TypeScript preferred", "vitest or jest for tests"],
+        "go": ["Go modules", "go test for tests"],
+        "rust": ["Cargo for builds", "cargo test for tests"],
+    }
+    return mapping.get(project_type, [])
+
+
 def auto_write_bernstein_yaml(workdir: Path) -> None:
     """Write a minimal bernstein.yaml with auto-routing to the project root.
 
     Called on first ``bernstein -g`` when no bernstein.yaml exists so users
-    have a starting point they can customise later.
+    have a starting point they can customise later.  Detects project type
+    automatically and includes appropriate constraints.
 
     Args:
         workdir: Project root directory.
@@ -462,14 +501,25 @@ def auto_write_bernstein_yaml(workdir: Path) -> None:
     else:
         cli_line = "cli: auto"
 
-    content = (
-        "# Bernstein orchestration config — auto-generated\n"
-        "# Uncomment 'goal' to run from this file: bernstein (without -g)\n"
-        '# goal: "Describe what you want to build"\n'
-        "\n"
-        f"{cli_line}\n"
-        "team: auto\n"
-        'budget: "$10"\n'
-    )
-    (workdir / "bernstein.yaml").write_text(content)
-    console.print("[green]✓[/green] Created bernstein.yaml")
+    project_type = _detect_project_type(workdir)
+    constraints = _constraints_for_project_type(project_type)
+
+    lines = [
+        "# Bernstein orchestration config — auto-generated",
+        "# Uncomment 'goal' to run from this file: bernstein (without -g)",
+        '# goal: "Describe what you want to build"',
+        "",
+        cli_line,
+        "team: auto",
+        'budget: "$10"',
+    ]
+    if constraints:
+        lines.append("")
+        lines.append("constraints:")
+        for c in constraints:
+            lines.append(f'  - "{c}"')
+    lines.append("")
+
+    (workdir / "bernstein.yaml").write_text("\n".join(lines))
+    type_note = f" ({project_type})" if project_type != "generic" else ""
+    console.print(f"[green]✓[/green] Created bernstein.yaml{type_note}")

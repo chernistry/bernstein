@@ -467,7 +467,21 @@ def bootstrap_from_goal(
     # Detect first run: no .sdd/ and no bernstein.yaml yet
     first_run = not (workdir / ".sdd").exists() and not (workdir / "bernstein.yaml").exists()
     if first_run and cli == "auto":
-        console.print("[dim]No project setup found. Auto-detecting...[/dim]")
+        from bernstein.core.agent_discovery import discover_agents_cached
+        from bernstein.core.server_launch import _detect_project_type
+
+        disc = discover_agents_cached()
+        project_type = _detect_project_type(workdir)
+        agent_names = [a.name for a in disc.agents if a.logged_in] or [a.name for a in disc.agents]
+
+        type_note = f"[cyan]{project_type}[/cyan] project" if project_type != "generic" else "project"
+        if agent_names:
+            agents_note = f"  agents: [green]{', '.join(agent_names)}[/green]"
+        else:
+            agents_note = "  [yellow]No agents found — install claude, codex, or gemini[/yellow]"
+
+        console.print(f"[bold]First run detected[/bold] — auto-configuring for {type_note}")
+        console.print(agents_note)
 
     console.print(f"[green]→[/green] Goal: [bold]{goal[:80]}[/bold]")
 

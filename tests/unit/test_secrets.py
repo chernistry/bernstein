@@ -127,12 +127,14 @@ class TestFallbackFromEnv:
 
 class TestVaultProvider:
     def test_fetch_parses_kv2_response(self) -> None:
-        kv2_body = json.dumps({
-            "data": {
-                "data": {"ANTHROPIC_API_KEY": "sk-vault", "OTHER": "val"},
-                "metadata": {"version": 1},
+        kv2_body = json.dumps(
+            {
+                "data": {
+                    "data": {"ANTHROPIC_API_KEY": "sk-vault", "OTHER": "val"},
+                    "metadata": {"version": 1},
+                }
             }
-        }).encode()
+        ).encode()
 
         provider = VaultSecretsProvider()
         provider._addr = "http://vault.test:8200"
@@ -238,14 +240,16 @@ class TestAwsProvider:
 
 class TestOnePasswordProvider:
     def test_fetch_parses_fields(self) -> None:
-        item_json = json.dumps({
-            "id": "abc123",
-            "fields": [
-                {"label": "API_KEY", "value": "sk-1p"},
-                {"label": "SECRET", "value": "s3cret"},
-                {"label": "", "value": "ignored"},
-            ],
-        })
+        item_json = json.dumps(
+            {
+                "id": "abc123",
+                "fields": [
+                    {"label": "API_KEY", "value": "sk-1p"},
+                    {"label": "SECRET", "value": "s3cret"},
+                    {"label": "", "value": "ignored"},
+                ],
+            }
+        )
 
         provider = OnePasswordSecretsProvider()
         with patch("subprocess.run") as mock_run:
@@ -507,10 +511,7 @@ class TestSeedSecretsParsing:
 
         seed_yaml = tmp_path / "bernstein.yaml"
         seed_yaml.write_text(
-            "goal: test\n"
-            "secrets:\n"
-            "  provider: aws\n"
-            "  path: arn:aws:secretsmanager:us-east-1:123:secret:keys\n"
+            "goal: test\nsecrets:\n  provider: aws\n  path: arn:aws:secretsmanager:us-east-1:123:secret:keys\n"
         )
 
         cfg = parse_seed(seed_yaml)
@@ -531,12 +532,7 @@ class TestSeedSecretsParsing:
         from bernstein.core.seed import SeedError, parse_seed
 
         seed_yaml = tmp_path / "bernstein.yaml"
-        seed_yaml.write_text(
-            "goal: test\n"
-            "secrets:\n"
-            "  provider: invalid\n"
-            "  path: foo\n"
-        )
+        seed_yaml.write_text("goal: test\nsecrets:\n  provider: invalid\n  path: foo\n")
 
         with pytest.raises(SeedError, match=r"secrets\.provider"):
             parse_seed(seed_yaml)
@@ -545,11 +541,7 @@ class TestSeedSecretsParsing:
         from bernstein.core.seed import SeedError, parse_seed
 
         seed_yaml = tmp_path / "bernstein.yaml"
-        seed_yaml.write_text(
-            "goal: test\n"
-            "secrets:\n"
-            "  provider: vault\n"
-        )
+        seed_yaml.write_text("goal: test\nsecrets:\n  provider: vault\n")
 
         with pytest.raises(SeedError, match=r"secrets\.path"):
             parse_seed(seed_yaml)

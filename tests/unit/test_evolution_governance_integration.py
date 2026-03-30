@@ -286,7 +286,6 @@ def test_fast_track_skips_sandbox(tmp_path: Path) -> None:
 
     sandbox_called = []
 
-
     def mock_validate(**kwargs: object) -> TypesSandboxResult:
         sandbox_called.append(True)
         return _make_sandbox_result()

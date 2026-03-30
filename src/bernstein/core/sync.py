@@ -74,6 +74,7 @@ def parse_backlog_file(path: Path) -> BacklogTask | None:
         source_file=parsed.source_file,
     )
 
+
 # ---------------------------------------------------------------------------
 # Deduplication helpers
 # ---------------------------------------------------------------------------

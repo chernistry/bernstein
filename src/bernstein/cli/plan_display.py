@@ -316,8 +316,7 @@ class _PlanRenderer:
         budget_usd = getattr(plan, "budget_usd", 0.0)
         if budget_usd > 0 and plan.total_estimated_cost_usd > budget_usd:
             warning = (
-                f"Estimated cost (${plan.total_estimated_cost_usd:.2f}) exceeds "
-                f"configured budget (${budget_usd:.2f})."
+                f"Estimated cost (${plan.total_estimated_cost_usd:.2f}) exceeds configured budget (${budget_usd:.2f})."
             )
             self._add(_box_row(f"[bold {C_ERR}]⚠ BUDGET WARNING[/{C_ERR}]", self.width))
             self._add(_box_row(f"[{C_ERR}]{_truncate(warning, self.width - 6)}[/{C_ERR}]", self.width))

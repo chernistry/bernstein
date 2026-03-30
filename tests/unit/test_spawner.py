@@ -383,9 +383,7 @@ class TestSpawnerWithRouter:
         assert failing_adapter.spawn.call_count == 1
         assert backup_adapter.spawn.call_count == 1
 
-    def test_role_model_policy_pins_provider_and_model(
-        self, tmp_path: Path, make_task, mock_adapter_factory
-    ) -> None:
+    def test_role_model_policy_pins_provider_and_model(self, tmp_path: Path, make_task, mock_adapter_factory) -> None:
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
 

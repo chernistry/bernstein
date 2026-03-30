@@ -123,6 +123,7 @@ def test_rate_limited_orphan_force_claims_task_on_server(tmp_path: Path) -> None
         tracker = MagicMock()
         tracker.detect_failure_type.return_value = "rate_limit"
         tracker.throttle_summary.return_value = {"claude": {"until": 999}}
+
         def _is_throttled(provider: str) -> bool:
             return provider == "claude"
 

@@ -956,11 +956,10 @@ class BernsteinApp(App[None]):
             str(t.get("id", "")): int(p) for t in tasks if isinstance((p := t.get("progress", 0)), (int, float))
         }
 
-        table.clear()
+        # Update in-place to preserve cursor and scroll position (never call .clear())
         order: dict[str, int] = {"claimed": 0, "in_progress": 0, "open": 1, "done": 2, "failed": 3}
         tasks.sort(key=lambda t: order.get(t.get("status", "open"), 9))
 
-        # UX-010: Plain icons for Text objects (no markup -- style is applied separately)
         plain_icons: dict[str, str] = {
             "open": "\u25cb",
             "claimed": "\u25c9",
@@ -969,25 +968,39 @@ class BernsteinApp(App[None]):
             "failed": "\u2717",
             "cancelled": "\u2298",
         }
+        status_colors: dict[str, str] = {
+            "done": "green",
+            "failed": "red",
+            "claimed": "yellow",
+            "in_progress": "cyan",
+            "open": "dim",
+            "cancelled": "dim",
+        }
+
+        incoming_ids = {str(t.get("id", "")) for t in tasks}
+        existing_ids: set[str] = set(table.rows)
+
+        # Remove rows no longer present
+        for key in existing_ids - incoming_ids:
+            table.remove_row(key)
+
+        columns = ("", "ROLE", "TASK")
         for t in tasks:
             st: str = t.get("status", "open")
             icon = plain_icons.get(st, "\u25cb")
-            status_colors = {
-                "done": "green",
-                "failed": "red",
-                "claimed": "yellow",
-                "in_progress": "cyan",
-                "open": "dim",
-                "cancelled": "dim",
-            }
             color = status_colors.get(st, "white")
             tid = str(t.get("id", ""))
-            table.add_row(
+            cells = (
                 Text(f" {icon}", style=f"bold {color}"),
                 Text(str(t.get("role", "-")).upper().ljust(9), style=color),
                 Text(str(t.get("title", "-")), style=color if st != "open" else ""),
-                key=tid,
             )
+            if tid in existing_ids:
+                for col_label, cell_value in zip(columns, cells, strict=True):
+                    with contextlib.suppress(Exception):
+                        table.update_cell(tid, col_label, cell_value)
+            else:
+                table.add_row(*cells, key=tid)
 
     # -- Stats --
 

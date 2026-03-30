@@ -176,7 +176,7 @@ class TestPipInstall:
 
 class TestSelfUpdateCmd:
     def _runner(self) -> CliRunner:
-        return CliRunner(mix_stderr=False)
+        return CliRunner()
 
     def test_check_only_shows_versions(self) -> None:
         runner = self._runner()
@@ -264,7 +264,7 @@ class TestSelfUpdateCmd:
 
 class TestRollbackCmd:
     def _runner(self) -> CliRunner:
-        return CliRunner(mix_stderr=False)
+        return CliRunner()
 
     def test_rollback_no_previous_version(self, tmp_path: Path) -> None:
         prev_file = tmp_path / "previous-version"

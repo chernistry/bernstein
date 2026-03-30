@@ -89,7 +89,7 @@ class TestBuildTaskPayload:
     def test_run_url_in_description(self) -> None:
         failures = parse_failures("E501 Line too long\n  --> src/x.py:1", "lint")
         payload = build_task_payload(failures, run_url="https://github.com/foo/bar/actions/runs/1")
-        assert "https://github.com" in payload["description"]
+        assert "https://github.com/foo/bar/actions/runs/1" in payload["description"]
 
 
 class TestWriteCiFixTask:

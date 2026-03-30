@@ -343,7 +343,9 @@ class CostTracker:
                 tracker._spent_usd += usage.cost_usd
             return tracker
         except Exception as exc:
-            logger.warning("Failed to load cost tracker for run %s: %s", run_id, exc)
+            from bernstein.core.sanitize import sanitize_log
+
+            logger.warning("Failed to load cost tracker for run %s: %s", sanitize_log(run_id), exc)
             return None
 
     # ---- reporting --------------------------------------------------------

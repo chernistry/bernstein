@@ -216,7 +216,7 @@ async def receive_jira_webhook(
     webhook_event: str = payload.get("webhookEvent", "")
 
     if webhook_event not in ("jira:issue_created", "jira:issue_updated"):
-        log.debug("Ignoring unsupported webhook event: %s", webhook_event)
+        log.debug("Ignoring unsupported webhook event: %s", webhook_event.replace("\n", "\\n").replace("\r", "\\r"))
         return JSONResponse({"status": "ignored", "reason": "unsupported_event"})
 
     # ------------------------------------------------------------------
@@ -309,12 +309,15 @@ async def receive_task_update(request: Request) -> JSONResponse:
 
     transitioned = adapter.transition_issue(issue_key, target_jira_status)
 
+    def _sanitize(s: object) -> str:
+        return str(s).replace("\n", "\\n").replace("\r", "\\r")
+
     log.info(
         "Synced task %s (status=%s) → Jira %s target=%r: %s",
-        task_id,
-        task_status_raw,
-        issue_key,
-        target_jira_status,
+        _sanitize(task_id),
+        _sanitize(task_status_raw),
+        _sanitize(issue_key),
+        _sanitize(target_jira_status),
         "transitioned" if transitioned else "no_matching_transition",
     )
     return JSONResponse(

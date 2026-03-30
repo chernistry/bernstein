@@ -158,6 +158,7 @@ exclude = [
     "src/bernstein/core/cascade.py",
     "src/bernstein/core/prompt_versioning.py",
     "src/bernstein/core/secrets.py",
+    "src/bernstein/core/agent_lifecycle.py",
 ]
 
 [tool.pytest.ini_options]

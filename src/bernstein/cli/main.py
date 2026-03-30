@@ -416,7 +416,7 @@ def cli(
     if ctx.invoked_subcommand is not None:
         return
 
-    from bernstein.cli.splash import splash
+    from bernstein.cli.splash_screen import splash
 
     seed_path = find_seed_file()
     workdir = Path.cwd()

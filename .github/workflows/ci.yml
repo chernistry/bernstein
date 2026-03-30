@@ -74,7 +74,7 @@ jobs:
         with:
           enable-cache: true
       - run: uv tool install vulture
-      - run: vulture src/ --min-confidence 80 --exclude "tests,docs"
+      - run: vulture src/ vulture_whitelist.py --min-confidence 80 --exclude "tests,docs"
 
   actionlint:
     name: Workflow lint

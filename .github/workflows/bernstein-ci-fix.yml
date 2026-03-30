@@ -21,7 +21,11 @@ jobs:
   fix:
     name: Auto-fix with Bernstein
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    # Only run if CI failed AND the ANTHROPIC_API_KEY secret is available.
+    # Skip if only lint failed — the autofix job in ci.yml handles that.
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      vars.BERNSTEIN_CI_FIX_ENABLED == 'true'
     steps:
       - uses: actions/checkout@v6
         with:

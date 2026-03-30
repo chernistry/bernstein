@@ -844,11 +844,21 @@ class BernsteinApp(App[None]):
         data: dict[str, Any] | None = worker.result
         if not isinstance(data, dict):
             return
+        # Save focus + cursor state before data update
         focused = self.focused
+        table = self.query_one("#tasks-table", DataTable)
+        saved_cursor = table.cursor_coordinate
+
         self._apply_data(data)
+
+        # Restore focus and cursor position after update
         if focused is not None and self.focused is not focused:
             with contextlib.suppress(Exception):
                 focused.focus()
+        # Restore table cursor (prevents jump to top on refresh)
+        with contextlib.suppress(Exception):
+            if saved_cursor.row < table.row_count:
+                table.move_cursor(row=saved_cursor.row, column=saved_cursor.column)
 
     def _apply_data(self, data: dict[str, Any]) -> None:
         """Apply fetched data to widgets (main thread, non-blocking)."""

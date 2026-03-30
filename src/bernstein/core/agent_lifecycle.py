@@ -12,7 +12,8 @@ import json
 import logging
 import time
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -34,9 +35,6 @@ from bernstein.core.tick_pipeline import (
     complete_task,
 )
 from bernstein.evolution.types import MetricsRecord
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +219,16 @@ def handle_orphaned_task(
     # Then attempt cascade fallback to another installed agent.
     _rl_tracker = getattr(orch, "_rate_limit_tracker", None)
     if _rl_tracker is not None and session.provider:
-        _log_path = orch._workdir / ".sdd" / "runtime" / f"{session.id}.log"
+        # Use session's log_path if available, else check standard locations
+        _session_lp = getattr(session, "log_path", "")
+        if _session_lp and Path(_session_lp).exists():
+            _log_path = Path(_session_lp)
+        else:
+            _log_path = orch._workdir / ".sdd" / "runtime" / f"{session.id}.log"
+            if not _log_path.exists():
+                _wt_log = orch._workdir / ".sdd" / "worktrees" / session.id / ".sdd" / "runtime" / f"{session.id}.log"
+                if _wt_log.exists():
+                    _log_path = _wt_log
         if _rl_tracker.scan_log_for_429(_log_path):
             _rl_tracker.throttle_provider(session.provider, getattr(orch, "_router", None))
             logger.warning(

@@ -285,8 +285,10 @@ class Orchestrator:
             for issue in policy_issues:
                 logger.warning("Model policy: %s", issue)
 
-        # Rate-limit-aware scheduling: tracks per-provider throttle state.
-        self._rate_limit_tracker = RateLimitTracker()
+        # Rate-limit-aware scheduling: detects 429s and throttles providers
+        from bernstein.core.rate_limit_tracker import RateLimitTracker as _RLTracker
+
+        self._rate_limit_tracker = _RLTracker()
 
         # Self-evolution feedback loop
         if config.evolution_enabled:
@@ -329,6 +331,10 @@ class Orchestrator:
 
         # Cross-run task quarantine: skip repeatedly-failing tasks
         self._quarantine = QuarantineStore(workdir / ".sdd" / "runtime" / "quarantine.json")
+
+        # Rate-limit tracker: detects 429s in agent logs and throttles providers
+
+        self._rate_limit_tracker = RateLimitTracker()
 
         # Semantic response cache: reuse completed agent results for
         # functionally identical tasks (cosine >= 0.95 skips spawn).

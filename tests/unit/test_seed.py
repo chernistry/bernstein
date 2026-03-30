@@ -116,9 +116,7 @@ class TestParseSeedValid:
             "    effort: high\n"
         )
         cfg = parse_seed(seed_file)
-        assert cfg.role_model_policy == {
-            "backend": {"provider": "codex", "model": "gpt-5.4-mini", "effort": "high"}
-        }
+        assert cfg.role_model_policy == {"backend": {"provider": "codex", "model": "gpt-5.4-mini", "effort": "high"}}
 
 
 # ---------------------------------------------------------------------------

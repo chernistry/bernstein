@@ -366,9 +366,7 @@ class TestPromptMeta:
 
 
 class TestManagerPromptsIntegration:
-    def test_load_template_with_versioned_prompt(
-        self, sdd_dir: Path, templates_dir: Path
-    ) -> None:
+    def test_load_template_with_versioned_prompt(self, sdd_dir: Path, templates_dir: Path) -> None:
         """Versioned prompt should be preferred over static template."""
         from bernstein.core.manager_prompts import _load_template
 

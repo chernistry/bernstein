@@ -185,7 +185,9 @@ class TestDependencyFiltering:
             tmp_path,
             httpx.MockTransport(handler),
             config=OrchestratorConfig(
-                max_agents=6, poll_interval_s=1, max_tasks_per_agent=1,
+                max_agents=6,
+                poll_interval_s=1,
+                max_tasks_per_agent=1,
                 server_url="http://testserver",
             ),
         )
@@ -215,7 +217,9 @@ class TestDependencyFiltering:
             tmp_path,
             httpx.MockTransport(handler),
             config=OrchestratorConfig(
-                max_agents=6, poll_interval_s=1, max_tasks_per_agent=1,
+                max_agents=6,
+                poll_interval_s=1,
+                max_tasks_per_agent=1,
                 server_url="http://testserver",
             ),
         )
@@ -246,9 +250,12 @@ class TestDependencyFiltering:
             return httpx.Response(200, json={})
 
         orch = _build_orchestrator(
-            tmp_path, httpx.MockTransport(handler),
+            tmp_path,
+            httpx.MockTransport(handler),
             config=OrchestratorConfig(
-                max_agents=6, poll_interval_s=1, max_tasks_per_agent=1,
+                max_agents=6,
+                poll_interval_s=1,
+                max_tasks_per_agent=1,
                 server_url="http://testserver",
             ),
         )
@@ -289,7 +296,10 @@ class TestTaskStateTransitions:
     def test_illegal_agent_transition_raises(self) -> None:
         """dead -> working is not allowed."""
         session = AgentSession(
-            id="A-dead", role="backend", pid=1, task_ids=["T-1"],
+            id="A-dead",
+            role="backend",
+            pid=1,
+            task_ids=["T-1"],
             status="dead",
             model_config=RouterModelConfig(model="sonnet", effort="normal"),
             spawn_ts=time.time(),
@@ -304,7 +314,10 @@ class TestTaskStateTransitions:
     )
     def test_allowed_agent_transition(self, from_status: str, to_status: str) -> None:
         session = AgentSession(
-            id="A-fsm", role="qa", pid=1, task_ids=["T-1"],
+            id="A-fsm",
+            role="qa",
+            pid=1,
+            task_ids=["T-1"],
             status=from_status,
             model_config=RouterModelConfig(model="sonnet", effort="normal"),
             spawn_ts=time.time(),
@@ -347,8 +360,11 @@ class TestRetryEscalation:
     def test_second_retry_escalates_model(self) -> None:
         """Second retry escalates model (sonnet -> opus)."""
         task = _make_task(
-            id="T-fail2", title="[RETRY 1] Fix bug",
-            status="failed", model="sonnet", effort="max",
+            id="T-fail2",
+            title="[RETRY 1] Fix bug",
+            status="failed",
+            model="sonnet",
+            effort="max",
         )
         retried: set[str] = set()
         client = MagicMock(spec=httpx.Client)
@@ -373,7 +389,8 @@ class TestRetryEscalation:
     def test_max_retries_exhausted_no_retry(self) -> None:
         """No retry created when max retries reached."""
         task = _make_task(
-            id="T-exhausted", title="[RETRY 2] Fix bug",
+            id="T-exhausted",
+            title="[RETRY 2] Fix bug",
             status="failed",
         )
         retried: set[str] = set()
@@ -393,8 +410,11 @@ class TestRetryEscalation:
     def test_high_stakes_role_gets_opus_max(self) -> None:
         """Architect/security roles always get opus/max on any retry."""
         task = _make_task(
-            id="T-sec", role="security", status="failed",
-            model="sonnet", effort="medium",
+            id="T-sec",
+            role="security",
+            status="failed",
+            model="sonnet",
+            effort="medium",
         )
         retried: set[str] = set()
         client = MagicMock(spec=httpx.Client)
@@ -423,7 +443,10 @@ class TestFileOverlapDetection:
     def test_overlap_detected_with_active_agent(self) -> None:
         task = _make_task(id="T-ov", owned_files=["src/main.py"])
         session = AgentSession(
-            id="A-owner", role="backend", pid=1, task_ids=["T-x"],
+            id="A-owner",
+            role="backend",
+            pid=1,
+            task_ids=["T-x"],
             status="working",
             model_config=RouterModelConfig(model="sonnet", effort="normal"),
             spawn_ts=time.time(),
@@ -436,7 +459,10 @@ class TestFileOverlapDetection:
     def test_no_overlap_with_dead_agent(self) -> None:
         task = _make_task(id="T-safe", owned_files=["src/main.py"])
         session = AgentSession(
-            id="A-dead", role="backend", pid=1, task_ids=["T-x"],
+            id="A-dead",
+            role="backend",
+            pid=1,
+            task_ids=["T-x"],
             status="dead",
             model_config=RouterModelConfig(model="sonnet", effort="normal"),
             spawn_ts=time.time(),
@@ -456,7 +482,10 @@ class TestCompletionDataExtraction:
 
     def test_extracts_modified_files_from_log(self, tmp_path: Path) -> None:
         session = AgentSession(
-            id="A-log", role="backend", pid=1, task_ids=["T-1"],
+            id="A-log",
+            role="backend",
+            pid=1,
+            task_ids=["T-1"],
             status="working",
             model_config=RouterModelConfig(model="sonnet", effort="normal"),
             spawn_ts=time.time(),
@@ -473,7 +502,10 @@ class TestCompletionDataExtraction:
 
     def test_handles_missing_log_file(self, tmp_path: Path) -> None:
         session = AgentSession(
-            id="A-nolog", role="backend", pid=1, task_ids=["T-1"],
+            id="A-nolog",
+            role="backend",
+            pid=1,
+            task_ids=["T-1"],
             status="working",
             model_config=RouterModelConfig(model="sonnet", effort="normal"),
             spawn_ts=time.time(),
@@ -548,8 +580,11 @@ class TestCostTrackerBudgetEnforcement:
             return httpx.Response(200, json={})
 
         cfg = OrchestratorConfig(
-            max_agents=6, poll_interval_s=1, max_tasks_per_agent=1,
-            server_url="http://testserver", budget_usd=1.0,
+            max_agents=6,
+            poll_interval_s=1,
+            max_tasks_per_agent=1,
+            server_url="http://testserver",
+            budget_usd=1.0,
         )
         orch = _build_orchestrator(tmp_path, httpx.MockTransport(handler), config=cfg)
 
@@ -566,8 +601,13 @@ class TestTokenUsageSerialization:
 
     def test_token_usage_round_trip(self) -> None:
         usage = TokenUsage(
-            input_tokens=1000, output_tokens=500, model="sonnet",
-            cost_usd=0.05, agent_id="A-1", task_id="T-1", timestamp=1000.0,
+            input_tokens=1000,
+            output_tokens=500,
+            model="sonnet",
+            cost_usd=0.05,
+            agent_id="A-1",
+            task_id="T-1",
+            timestamp=1000.0,
         )
         d = usage.to_dict()
         restored = TokenUsage.from_dict(d)
@@ -578,9 +618,13 @@ class TestTokenUsageSerialization:
 
     def test_budget_status_serialization(self) -> None:
         status = BudgetStatus(
-            run_id="r-1", budget_usd=10.0, spent_usd=8.5,
-            remaining_usd=1.5, percentage_used=0.85,
-            should_warn=True, should_stop=False,
+            run_id="r-1",
+            budget_usd=10.0,
+            spent_usd=8.5,
+            remaining_usd=1.5,
+            percentage_used=0.85,
+            should_warn=True,
+            should_stop=False,
         )
         d = status.to_dict()
         assert d["should_warn"] is True
@@ -689,6 +733,7 @@ class TestSchedulerFairness:
     def test_no_role_starvation_random_distributions(self) -> None:
         """Over many random task distributions, every role gets at least one batch."""
         import random
+
         rng = random.Random(42)  # deterministic seed
         roles = ["backend", "qa", "frontend", "docs", "security"]
 
@@ -712,6 +757,7 @@ class TestSchedulerFairness:
     def test_starving_role_always_first_under_competition(self) -> None:
         """When alive_per_role marks one role as over-served, starving roles lead."""
         import random
+
         rng = random.Random(99)
 
         for trial in range(50):
@@ -731,32 +777,29 @@ class TestSchedulerFairness:
             # First batch should always be the starving role
             if result:
                 first_role = result[0][0].role
-                assert first_role == "qa", (
-                    f"Trial {trial}: starving qa should be first, got {first_role}"
-                )
+                assert first_role == "qa", f"Trial {trial}: starving qa should be first, got {first_role}"
 
     def test_priority_ordering_preserved_within_role(self) -> None:
         """Within each role, tasks are always sorted by priority (lower number = higher priority)."""
         import random
+
         rng = random.Random(77)
 
         for trial in range(100):
             n_tasks = rng.randint(3, 10)
             tasks = [
-                _make_task(id=f"T-{trial}-{i}", role="backend", priority=rng.randint(1, 3))
-                for i in range(n_tasks)
+                _make_task(id=f"T-{trial}-{i}", role="backend", priority=rng.randint(1, 3)) for i in range(n_tasks)
             ]
             batches = group_by_role(tasks, max_per_batch=10)
 
             for batch in batches:
                 priorities = [t.priority for t in batch]
-                assert priorities == sorted(priorities), (
-                    f"Trial {trial}: priorities not sorted: {priorities}"
-                )
+                assert priorities == sorted(priorities), f"Trial {trial}: priorities not sorted: {priorities}"
 
     def test_batch_homogeneity_invariant(self) -> None:
         """Every batch produced by group_by_role contains tasks of exactly one role."""
         import random
+
         rng = random.Random(55)
         roles = ["backend", "qa", "frontend", "docs"]
 
@@ -771,32 +814,24 @@ class TestSchedulerFairness:
 
             for batch_idx, batch in enumerate(batches):
                 roles_in_batch = {t.role for t in batch}
-                assert len(roles_in_batch) == 1, (
-                    f"Trial {trial}, batch {batch_idx}: mixed roles {roles_in_batch}"
-                )
-                assert len(batch) <= max_per, (
-                    f"Trial {trial}, batch {batch_idx}: {len(batch)} > max {max_per}"
-                )
+                assert len(roles_in_batch) == 1, f"Trial {trial}, batch {batch_idx}: mixed roles {roles_in_batch}"
+                assert len(batch) <= max_per, f"Trial {trial}, batch {batch_idx}: {len(batch)} > max {max_per}"
 
     def test_total_tasks_preserved(self) -> None:
         """Batching never duplicates or drops tasks."""
         import random
+
         rng = random.Random(33)
         roles = ["backend", "qa", "frontend"]
 
         for trial in range(100):
             n_tasks = rng.randint(1, 20)
-            tasks = [
-                _make_task(id=f"T-{trial}-{i}", role=rng.choice(roles))
-                for i in range(n_tasks)
-            ]
+            tasks = [_make_task(id=f"T-{trial}-{i}", role=rng.choice(roles)) for i in range(n_tasks)]
             batches = group_by_role(tasks, max_per_batch=rng.randint(1, 5))
 
             all_ids = sorted(t.id for batch in batches for t in batch)
             original_ids = sorted(t.id for t in tasks)
-            assert all_ids == original_ids, (
-                f"Trial {trial}: task count mismatch: {len(all_ids)} vs {len(original_ids)}"
-            )
+            assert all_ids == original_ids, f"Trial {trial}: task count mismatch: {len(all_ids)} vs {len(original_ids)}"
 
 
 # ===========================================================================
@@ -836,8 +871,11 @@ class TestAgentCrashMidTask:
 
         adapter = _mock_adapter(pid=9999)
         cfg = OrchestratorConfig(
-            max_agents=6, poll_interval_s=1, max_tasks_per_agent=1,
-            server_url="http://testserver", max_task_retries=0,
+            max_agents=6,
+            poll_interval_s=1,
+            max_tasks_per_agent=1,
+            server_url="http://testserver",
+            max_task_retries=0,
         )
         orch = _build_orchestrator(tmp_path, httpx.MockTransport(handler), adapter=adapter, config=cfg)
 
@@ -875,8 +913,11 @@ class TestAgentCrashMidTask:
 
         adapter = _mock_adapter(pid=8888)
         cfg = OrchestratorConfig(
-            max_agents=6, poll_interval_s=1, max_tasks_per_agent=1,
-            server_url="http://testserver", recovery="resume",
+            max_agents=6,
+            poll_interval_s=1,
+            max_tasks_per_agent=1,
+            server_url="http://testserver",
+            recovery="resume",
             max_crash_retries=2,
         )
         orch = _build_orchestrator(tmp_path, httpx.MockTransport(handler), adapter=adapter, config=cfg)
@@ -929,9 +970,12 @@ class TestServerCommunicationFailure:
             return httpx.Response(200, json={})
 
         orch = _build_orchestrator(
-            tmp_path, httpx.MockTransport(handler),
+            tmp_path,
+            httpx.MockTransport(handler),
             config=OrchestratorConfig(
-                max_agents=6, poll_interval_s=1, max_tasks_per_agent=1,
+                max_agents=6,
+                poll_interval_s=1,
+                max_tasks_per_agent=1,
                 server_url="http://testserver",
             ),
         )
@@ -1020,7 +1064,10 @@ class TestDeadAgentPurge:
         # Add more dead agents than the max
         for i in range(Orchestrator._MAX_DEAD_AGENTS_KEPT + 10):
             session = AgentSession(
-                id=f"dead-{i}", role="backend", pid=None, task_ids=[f"T-{i}"],
+                id=f"dead-{i}",
+                role="backend",
+                pid=None,
+                task_ids=[f"T-{i}"],
                 status="dead",
                 model_config=RouterModelConfig(model="sonnet", effort="normal"),
                 spawn_ts=time.time(),
@@ -1030,6 +1077,7 @@ class TestDeadAgentPurge:
 
         # Purge should happen during tick
         from bernstein.core.agent_lifecycle import purge_dead_agents
+
         purge_dead_agents(orch)
 
         dead_count = sum(1 for a in orch._agents.values() if a.status == "dead")
@@ -1041,7 +1089,10 @@ class TestDeadAgentPurge:
 
         for i in range(n):
             session = AgentSession(
-                id=f"dead-{i}", role="backend", pid=None, task_ids=[f"T-{i}"],
+                id=f"dead-{i}",
+                role="backend",
+                pid=None,
+                task_ids=[f"T-{i}"],
                 status="dead",
                 model_config=RouterModelConfig(model="sonnet", effort="normal"),
                 spawn_ts=time.time(),
@@ -1050,6 +1101,7 @@ class TestDeadAgentPurge:
             orch._agents[session.id] = session
 
         from bernstein.core.agent_lifecycle import purge_dead_agents
+
         purge_dead_agents(orch)
 
         # The oldest agents (lowest heartbeat_ts) should have been removed
@@ -1071,8 +1123,11 @@ class TestDryRunMode:
             return httpx.Response(200, json={})
 
         cfg = OrchestratorConfig(
-            max_agents=6, poll_interval_s=1, max_tasks_per_agent=1,
-            server_url="http://testserver", dry_run=True,
+            max_agents=6,
+            poll_interval_s=1,
+            max_tasks_per_agent=1,
+            server_url="http://testserver",
+            dry_run=True,
         )
         orch = _build_orchestrator(tmp_path, httpx.MockTransport(handler), config=cfg)
         result = orch.tick()
@@ -1121,7 +1176,9 @@ class TestFullTickCycle:
             return httpx.Response(200, json={})
 
         cfg = OrchestratorConfig(
-            max_agents=6, poll_interval_s=1, max_tasks_per_agent=1,
+            max_agents=6,
+            poll_interval_s=1,
+            max_tasks_per_agent=1,
             server_url="http://testserver",
         )
         orch = _build_orchestrator(tmp_path, httpx.MockTransport(handler), config=cfg)
@@ -1153,15 +1210,15 @@ class TestFullTickCycle:
             return httpx.Response(200, json={})
 
         cfg = OrchestratorConfig(
-            max_agents=3, poll_interval_s=1, max_tasks_per_agent=1,
+            max_agents=3,
+            poll_interval_s=1,
+            max_tasks_per_agent=1,
             server_url="http://testserver",
         )
         orch = _build_orchestrator(tmp_path, httpx.MockTransport(handler), config=cfg)
         result = orch.tick()
 
-        assert result.active_agents <= 3, (
-            f"Should not exceed max_agents=3, got {result.active_agents}"
-        )
+        assert result.active_agents <= 3, f"Should not exceed max_agents=3, got {result.active_agents}"
 
     def test_tick_count_increments(self, tmp_path: Path) -> None:
         orch = _build_orchestrator(tmp_path, _empty_transport())
@@ -1195,11 +1252,16 @@ class TestBacklogIngestion:
         backlog_dir = tmp_path / ".sdd" / "backlog" / "open"
         backlog_dir.mkdir(parents=True, exist_ok=True)
         backlog_file = backlog_dir / "test.backlog.jsonl"
-        backlog_file.write_text(json.dumps({
-            "title": "Backlog task",
-            "description": "From backlog",
-            "role": "backend",
-        }) + "\n")
+        backlog_file.write_text(
+            json.dumps(
+                {
+                    "title": "Backlog task",
+                    "description": "From backlog",
+                    "role": "backend",
+                }
+            )
+            + "\n"
+        )
 
         orch.tick()
 

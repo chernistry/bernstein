@@ -100,20 +100,18 @@ class TestDefaultCascadeOrder:
 
 @patch("bernstein.core.cascade.discover_agents_cached", return_value=MOCK_AGENTS)
 class TestChainBasedFallback:
-    def test_walks_chain_from_current_entry(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_walks_chain_from_current_entry(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """When current_entry='opus', should find codex (next viable in chain)."""
         result = cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         assert isinstance(result, CascadeDecision)
         # "sonnet" maps to "claude" which is excluded, so next is "codex"
         assert result.fallback_provider == "codex"
 
-    def test_skips_excluded_providers_in_chain(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_skips_excluded_providers_in_chain(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """Excluded providers are skipped even in chain order."""
         result = cascade.find_fallback(
             Complexity.MEDIUM,
@@ -134,9 +132,7 @@ class TestChainBasedFallback:
         )
         assert isinstance(result, CascadeExhausted)
 
-    def test_respects_capability_floor_in_chain(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_respects_capability_floor_in_chain(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """HIGH tasks skip qwen (medium reasoning) even in chain order."""
         result = cascade.find_fallback(
             Complexity.HIGH,
@@ -146,9 +142,7 @@ class TestChainBasedFallback:
         assert isinstance(result, CascadeDecision)
         assert result.fallback_provider == "gemini"  # very_high reasoning
 
-    def test_high_complexity_skips_weak_in_chain(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_high_complexity_skips_weak_in_chain(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """HIGH task with only qwen left should exhaust."""
         result = cascade.find_fallback(
             Complexity.HIGH,
@@ -170,12 +164,13 @@ class TestChainBasedFallback:
         # Should find codex (first non-claude in chain after opus/sonnet)
         assert result.fallback_provider == "codex"
 
-    def test_trigger_type_passed_through(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_trigger_type_passed_through(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """Trigger type is passed to metrics."""
         cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus", trigger="timeout",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
+            trigger="timeout",
         )
         assert cascade.metrics.trigger_counts.get("timeout", 0) == 1
 
@@ -187,39 +182,39 @@ class TestChainBasedFallback:
 
 @patch("bernstein.core.cascade.discover_agents_cached", return_value=MOCK_AGENTS)
 class TestStickyFallback:
-    def test_sticky_activated_on_cascade(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_sticky_activated_on_cascade(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """A cascade should activate a sticky fallback."""
         cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         sticky = cascade.get_sticky_fallback()
         assert sticky is not None
         assert sticky.provider == "codex"
 
-    def test_sticky_reused_on_subsequent_call(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_sticky_reused_on_subsequent_call(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """Subsequent fallback lookups reuse the sticky fallback."""
         # First call sets sticky
         result1 = cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         assert isinstance(result1, CascadeDecision)
         fallback1 = result1.fallback_provider
 
         # Second call should reuse sticky
         result2 = cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         assert isinstance(result2, CascadeDecision)
         assert result2.fallback_provider == fallback1
         assert "sticky" in result2.reason
 
-    def test_sticky_expires_after_duration(
-        self, _mock_disc: object, tracker: RateLimitTracker
-    ) -> None:
+    def test_sticky_expires_after_duration(self, _mock_disc: object, tracker: RateLimitTracker) -> None:
         """Sticky fallback expires after the configured duration."""
         mgr = CascadeFallbackManager(
             rate_limit_tracker=tracker,
@@ -227,18 +222,20 @@ class TestStickyFallback:
             sticky_duration_s=0.05,  # 50ms for test
         )
         mgr.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         assert mgr.get_sticky_fallback() is not None
         time.sleep(0.1)
         assert mgr.get_sticky_fallback() is None
 
-    def test_sticky_skipped_when_provider_excluded(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_sticky_skipped_when_provider_excluded(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """If sticky provider is excluded, cascade continues past it."""
         cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         sticky = cascade.get_sticky_fallback()
         assert sticky is not None
@@ -257,7 +254,9 @@ class TestStickyFallback:
     ) -> None:
         """If sticky provider gets throttled, cascade continues past it."""
         cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         sticky = cascade.get_sticky_fallback()
         assert sticky is not None
@@ -265,25 +264,25 @@ class TestStickyFallback:
         # Throttle the sticky provider
         tracker.throttle_provider(sticky.provider)
         result = cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         assert isinstance(result, CascadeDecision)
         assert result.fallback_provider != sticky.provider
 
-    def test_clear_sticky(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_clear_sticky(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """clear_sticky_fallback removes the active sticky."""
         cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         assert cascade.get_sticky_fallback() is not None
         cascade.clear_sticky_fallback()
         assert cascade.get_sticky_fallback() is None
 
-    def test_sticky_also_set_in_best_available_mode(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_sticky_also_set_in_best_available_mode(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """v1-style best-available fallback also sets a sticky."""
         cascade.find_fallback(Complexity.MEDIUM, frozenset({"claude"}))
         assert cascade.get_sticky_fallback() is not None
@@ -296,54 +295,58 @@ class TestStickyFallback:
 
 @patch("bernstein.core.cascade.discover_agents_cached", return_value=MOCK_AGENTS)
 class TestCascadeMetrics:
-    def test_cascade_count_increments(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_cascade_count_increments(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """Each cascade event increments cascade_count."""
         assert cascade.metrics.cascade_count == 0
         cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         assert cascade.metrics.cascade_count == 1
 
         # Clear sticky to get a fresh cascade (not reuse)
         cascade.clear_sticky_fallback()
         cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         assert cascade.metrics.cascade_count == 2
 
-    def test_fallback_model_usage_tracked(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_fallback_model_usage_tracked(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """fallback_model_usage records which cascade entries were used."""
         cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         assert cascade.metrics.fallback_model_usage.get("codex", 0) >= 1
 
-    def test_trigger_counts_tracked(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_trigger_counts_tracked(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """trigger_counts records what caused each cascade."""
         cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
             trigger="rate_limit",
         )
         cascade.clear_sticky_fallback()
         cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
             trigger="timeout",
         )
         assert cascade.metrics.trigger_counts["rate_limit"] == 1
         assert cascade.metrics.trigger_counts["timeout"] == 1
 
-    def test_metrics_to_dict(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_metrics_to_dict(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """CascadeMetrics.to_dict() produces expected structure."""
         cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
             trigger="api_error",
         )
         d = cascade.metrics.to_dict()
@@ -352,16 +355,16 @@ class TestCascadeMetrics:
         assert "trigger_counts" in d
         assert d["cascade_count"] == 1
 
-    def test_save_metrics(
-        self, _mock_disc: object, cascade: CascadeFallbackManager, tmp_path: object
-    ) -> None:
+    def test_save_metrics(self, _mock_disc: object, cascade: CascadeFallbackManager, tmp_path: object) -> None:
         """save_metrics writes a JSON file to the metrics directory."""
         import json
         from pathlib import Path
 
         metrics_dir = Path(str(tmp_path)) / "metrics"
         cascade.find_fallback(
-            Complexity.MEDIUM, frozenset({"claude"}), current_entry="opus",
+            Complexity.MEDIUM,
+            frozenset({"claude"}),
+            current_entry="opus",
         )
         cascade.save_metrics(metrics_dir)
 
@@ -370,9 +373,7 @@ class TestCascadeMetrics:
         data = json.loads(metrics_file.read_text())
         assert data["cascade_count"] == 1
 
-    def test_no_metrics_on_exhausted(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_no_metrics_on_exhausted(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """CascadeExhausted does not increment metrics."""
         cascade.find_fallback(
             Complexity.HIGH,
@@ -421,25 +422,19 @@ class TestEntryResolution:
 
 @patch("bernstein.core.cascade.discover_agents_cached", return_value=MOCK_AGENTS)
 class TestBackwardCompatibility:
-    def test_v1_fallback_still_works(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_v1_fallback_still_works(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """find_fallback without current_entry uses best-available (v1) logic."""
         result = cascade.find_fallback(Complexity.MEDIUM, frozenset({"claude"}))
         assert isinstance(result, CascadeDecision)
         assert result.fallback_provider != "claude"
 
-    def test_v1_prefers_free_tier(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_v1_prefers_free_tier(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """v1 mode prefers free agents over paid."""
         result = cascade.find_fallback(Complexity.MEDIUM, frozenset({"claude"}))
         assert isinstance(result, CascadeDecision)
         assert result.fallback_provider == "gemini"
 
-    def test_v1_exhausted_when_all_excluded(
-        self, _mock_disc: object, cascade: CascadeFallbackManager
-    ) -> None:
+    def test_v1_exhausted_when_all_excluded(self, _mock_disc: object, cascade: CascadeFallbackManager) -> None:
         """v1 mode returns CascadeExhausted when all agents excluded."""
         result = cascade.find_fallback(
             Complexity.LOW,
@@ -451,8 +446,6 @@ class TestBackwardCompatibility:
 # ---------------------------------------------------------------------------
 # Expanded error detection (rate_limit_tracker)
 # ---------------------------------------------------------------------------
-
-
 
 
 class TestExpandedErrorDetection:

@@ -300,6 +300,7 @@ class Orchestrator:
 
         # Telemetry
         from bernstein.core.telemetry import init_telemetry
+
         init_telemetry(config.telemetry.otlp_endpoint if hasattr(config, "telemetry") else None)
 
         # Self-evolution feedback loop

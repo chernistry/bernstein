@@ -111,11 +111,7 @@ class SemanticCacheEntry:
             last_used_at=data.get("last_used_at"),
             verified=bool(data.get("verified", False)),
             git_diff_lines=int(data.get("git_diff_lines", 0) or 0),
-            source_task_id=(
-                str(data["source_task_id"])
-                if data.get("source_task_id") is not None
-                else None
-            ),
+            source_task_id=(str(data["source_task_id"]) if data.get("source_task_id") is not None else None),
         )
 
 
@@ -533,11 +529,7 @@ class ResponseCacheManager:
         """
         if unverified_only:
             removed = sum(1 for entry in self._manifest.entries.values() if not entry.verified)
-            self._manifest.entries = {
-                key: entry
-                for key, entry in self._manifest.entries.items()
-                if entry.verified
-            }
+            self._manifest.entries = {key: entry for key, entry in self._manifest.entries.items() if entry.verified}
         else:
             removed = len(self._manifest.entries)
             self._manifest.entries.clear()

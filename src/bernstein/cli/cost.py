@@ -258,18 +258,20 @@ def estimate_cmd(goal: str, role: str, scope: str, complexity: str, metrics_dir:
 
     est_cost = predict_task_cost(task, metrics_dir=Path(metrics_dir))
 
-    console.print(Panel(
-        f"[bold]Cost Prediction[/bold]\n\n"
-        f"Goal:       [cyan]{goal}[/cyan]\n"
-        f"Role:       {role}\n"
-        f"Scope:      {scope}\n"
-        f"Complexity: {complexity}\n\n"
-        f"Estimated total: [bold green]${est_cost:.4f}[/bold green] (±20%)\n\n"
-        f"[dim]Note: Predictions use historical data when available and assume\n"
-        f"average token consumption for the given scope/complexity.[/dim]",
-        border_style="green",
-        expand=False,
-    ))
+    console.print(
+        Panel(
+            f"[bold]Cost Prediction[/bold]\n\n"
+            f"Goal:       [cyan]{goal}[/cyan]\n"
+            f"Role:       {role}\n"
+            f"Scope:      {scope}\n"
+            f"Complexity: {complexity}\n\n"
+            f"Estimated total: [bold green]${est_cost:.4f}[/bold green] (±20%)\n\n"
+            f"[dim]Note: Predictions use historical data when available and assume\n"
+            f"average token consumption for the given scope/complexity.[/dim]",
+            border_style="green",
+            expand=False,
+        )
+    )
 
 
 # ---------------------------------------------------------------------------

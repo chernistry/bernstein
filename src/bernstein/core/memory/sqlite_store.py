@@ -178,7 +178,7 @@ class SQLiteMemoryStore:
         query = f"""
             SELECT id, type, content, tags, importance, task_id, created_at
             FROM memory
-            WHERE {' OR '.join(tag_clauses)}
+            WHERE {" OR ".join(tag_clauses)}
             ORDER BY importance DESC, created_at DESC
             LIMIT ?
         """

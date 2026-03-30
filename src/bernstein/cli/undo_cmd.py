@@ -52,11 +52,13 @@ def undo_cmd(task_id: str | None, revert_all: bool, yes: bool) -> None:
         return
 
     # Show preview
-    console.print(Panel(
-        "\n".join([f"- [cyan]{h[:8]}[/cyan] {s}" for h, s in commits_to_revert]),
-        title="Commits to REVERT",
-        border_style="yellow",
-    ))
+    console.print(
+        Panel(
+            "\n".join([f"- [cyan]{h[:8]}[/cyan] {s}" for h, s in commits_to_revert]),
+            title="Commits to REVERT",
+            border_style="yellow",
+        )
+    )
 
     if not yes and not click.confirm("\nProceed with revert?", default=False):
         console.print("[dim]Cancelled.[/dim]")
@@ -82,6 +84,7 @@ def undo_cmd(task_id: str | None, revert_all: bool, yes: bool) -> None:
         # Audit trail
         try:
             from bernstein.core.lifecycle import get_audit_log
+
             audit = get_audit_log()
             if audit:
                 audit.log(
@@ -94,7 +97,7 @@ def undo_cmd(task_id: str | None, revert_all: bool, yes: bool) -> None:
                         "commit_count": success_count,
                         "task_id": task_id,
                         "revert_all": revert_all,
-                    }
+                    },
                 )
         except Exception:
             pass

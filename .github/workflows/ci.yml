@@ -73,7 +73,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
-      - run: uv pip install vulture --system
+      - run: uv tool install vulture
       - run: vulture src/ --min-confidence 80 --exclude "tests,docs"
 
   actionlint:

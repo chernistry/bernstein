@@ -26,3 +26,6 @@ extend-exclude = [
 ser = "ser"
 numer = "numer"
 crate = "crate"
+ba = "ba"
+mis = "mis"
+unparseable = "unparseable"

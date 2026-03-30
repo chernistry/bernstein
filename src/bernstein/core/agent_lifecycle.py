@@ -13,7 +13,7 @@ import logging
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -558,12 +558,13 @@ def check_stalled_tasks(orch: Any) -> None:
             try:
                 resp = orch._client.get(f"{base}/tasks/{task_id}/snapshots")
                 resp.raise_for_status()
-                snapshots_data: list[dict[str, Any]] = resp.json()
+                snapshots_raw: Any = resp.json()
             except Exception:
                 continue  # Server unavailable or task not found — skip
 
-            if not snapshots_data or not isinstance(snapshots_data, list):
+            if not isinstance(snapshots_raw, list) or not snapshots_raw:
                 continue  # No snapshots yet or unexpected format
+            snapshots_data = cast("list[dict[str, Any]]", snapshots_raw)
 
             # Parse the latest snapshot
             latest_raw = snapshots_data[-1]

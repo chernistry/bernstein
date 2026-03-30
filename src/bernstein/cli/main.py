@@ -49,6 +49,7 @@ from bernstein.cli.chaos_cmd import chaos_group
 from bernstein.cli.checkpoint_cmd import checkpoint_cmd
 from bernstein.cli.ci_cmd import ci_group
 from bernstein.cli.cost import cost_cmd
+from bernstein.cli.diff_cmd import diff_cmd
 from bernstein.cli.eval_benchmark_cmd import (
     benchmark_group,
     eval_group,
@@ -70,7 +71,6 @@ from bernstein.cli.task_cmd import (
     review_cmd,
     sync,
 )
-from bernstein.cli.diff_cmd import diff_cmd
 from bernstein.cli.verify_cmd import verify_cmd
 from bernstein.cli.voice_cmd import listen_cmd
 from bernstein.cli.watch_cmd import watch_cmd

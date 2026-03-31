@@ -11,6 +11,8 @@ Covers:
 - Integration with quality gates via _run_pii_gate
 """
 
+# pyright: reportPrivateUsage=false
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -130,6 +132,16 @@ class TestScanTextPii:
         secrets = [f for f in findings if f.rule == "generic_api_key"]
         assert secrets and secrets[0].severity == "high"
 
+    def test_credit_card_detected(self) -> None:
+        text = "card = '4111 1111 1111 1111'"
+        findings = scan_text(text)
+        assert any(f.rule == "credit_card_number" for f in findings)
+
+    def test_high_entropy_secret_detected(self) -> None:
+        text = 'secret_token = "AbCdEf1234567890GhIjKlMnOpQr"'
+        findings = scan_text(text)
+        assert any(f.rule in {"high_entropy_assignment", "generic_api_key"} for f in findings)
+
 
 # ---------------------------------------------------------------------------
 # scan_text: allowlist filtering
@@ -171,6 +183,16 @@ class TestAllowlist:
         text = 'api_key = "dummy_key_for_testing"'
         findings = scan_text(text)
         assert not any(f.rule == "generic_api_key" for f in findings)
+
+    def test_test_prefix_allowed(self) -> None:
+        text = 'api_key = "TEST_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"'
+        findings = scan_text(text)
+        assert findings == []
+
+    def test_example_prefix_allowed(self) -> None:
+        text = 'secret_token = "EXAMPLE_AbCdEf1234567890GhIjKlMn"'
+        findings = scan_text(text)
+        assert findings == []
 
 
 # ---------------------------------------------------------------------------
@@ -340,6 +362,20 @@ class TestPiiQualityGate:
         result = _run_pii_gate(config, tmp_path)
         assert result.passed
 
+    def test_ignore_paths_skip_fixture_dirs(self, tmp_path: Path) -> None:
+        from bernstein.core.quality_gates import QualityGatesConfig, _run_pii_gate
+
+        fixtures = tmp_path / "fixtures"
+        fixtures.mkdir()
+        (fixtures / "secrets.txt").write_text('api_key = "AKIAIOSFODNN7EXAMPLE"\n', encoding="utf-8")
+        config = QualityGatesConfig(
+            pii_scan=True,
+            pii_scan_paths=["fixtures/"],
+            pii_ignore_paths=["fixtures/*"],
+        )
+        result = _run_pii_gate(config, tmp_path)
+        assert result.passed
+
     def test_pii_gate_in_run_quality_gates(self, tmp_path: Path) -> None:
         from bernstein.core.models import Complexity, Scope, Task
         from bernstein.core.quality_gates import QualityGatesConfig, run_quality_gates
@@ -394,3 +430,31 @@ class TestPiiQualityGate:
         assert result.passed
         gate_names = [r.gate for r in result.gate_results]
         assert "pii_scan" not in gate_names
+
+    def test_pii_gate_scans_only_changed_files_in_runner_path(self, tmp_path: Path) -> None:
+        from bernstein.core.models import Complexity, Scope, Task
+        from bernstein.core.quality_gates import QualityGatesConfig, run_quality_gates
+
+        src = tmp_path / "src"
+        src.mkdir()
+        (src / "clean.py").write_text("VALUE = 42\n", encoding="utf-8")
+        (src / "leak.py").write_text('SECRET = "AKIAIOSFODNN7EXAMPLE"\n', encoding="utf-8")
+        config = QualityGatesConfig(
+            enabled=True,
+            lint=False,
+            type_check=False,
+            tests=False,
+            pii_scan=True,
+            pii_scan_paths=["src/"],
+        )
+        task = Task(
+            id="T-pii-3",
+            title="Test task",
+            description="Test",
+            role="backend",
+            scope=Scope.SMALL,
+            complexity=Complexity.LOW,
+            owned_files=["src/clean.py"],
+        )
+        result = run_quality_gates(task, tmp_path, tmp_path, config)
+        assert result.passed

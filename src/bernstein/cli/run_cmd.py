@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import contextlib
 import datetime
+import io
 import json
 import os
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -23,8 +26,10 @@ from bernstein.cli.helpers import (
 )
 from bernstein.cli.run import render_run_summary_from_dict
 from bernstein.cli.ui import make_console
+from bernstein.core.cost import estimate_run_cost
 from bernstein.core.manager_parsing import _resolve_depends_on  # pyright: ignore[reportPrivateUsage]
 from bernstein.core.plan_loader import load_plan_from_yaml
+from bernstein.core.runtime_state import directory_size_bytes
 
 # ---------------------------------------------------------------------------
 # Plan helpers
@@ -282,6 +287,188 @@ def _show_run_summary() -> None:
     render_run_summary_from_dict(data, console=con)
 
 
+@dataclass(frozen=True)
+class RunCostEstimate:
+    """Preflight cost estimate for a pending run."""
+
+    task_count: int
+    model: str
+    low_usd: float
+    high_usd: float
+
+
+def _estimate_run_preview(
+    *,
+    workdir: Path,
+    plan_file: Path | None,
+    goal: str | None,
+    seed_file: str | None,
+    model_override: str | None,
+) -> RunCostEstimate:
+    """Estimate run cost before bootstrapping the orchestrator.
+
+    Args:
+        workdir: Repository root.
+        plan_file: Optional explicit YAML plan file.
+        goal: Optional inline goal.
+        seed_file: Optional seed path override.
+        model_override: Optional CLI ``--model`` override.
+
+    Returns:
+        Cost estimate using the best available task count and model hint.
+    """
+    est_task_count = 5
+    if plan_file is not None:
+        try:
+            est_task_count = max(1, len(load_plan_from_yaml(plan_file)))
+        except Exception:
+            est_task_count = 5
+    elif goal is None:
+        backlog_dir = workdir / ".sdd" / "backlog" / "open"
+        if backlog_dir.exists():
+            est_task_count = max(1, len(list(backlog_dir.glob("*.md"))))
+
+    est_model = model_override or "sonnet"
+    seed_path = Path(seed_file) if seed_file is not None else find_seed_file()
+    if model_override is None and seed_path is not None and seed_path.exists():
+        try:
+            from bernstein.core.seed import parse_seed
+
+            seed = parse_seed(seed_path)
+            if seed.model:
+                est_model = seed.model
+        except Exception:
+            est_model = "sonnet"
+
+    low_usd, high_usd = estimate_run_cost(est_task_count, est_model)
+    return RunCostEstimate(
+        task_count=est_task_count,
+        model=est_model,
+        low_usd=low_usd,
+        high_usd=high_usd,
+    )
+
+
+def _emit_preflight_runtime_warnings(
+    *,
+    workdir: Path,
+    estimate: RunCostEstimate,
+    auto_approve: bool,
+    quiet: bool,
+) -> None:
+    """Show startup cost and disk-usage warnings before execution.
+
+    Args:
+        workdir: Repository root.
+        estimate: Cost estimate computed from local context.
+        auto_approve: Whether confirmation prompts are disabled.
+        quiet: Whether normal startup output is suppressed.
+
+    Raises:
+        SystemExit: When the operator declines a high-cost run.
+    """
+    sdd_dir = workdir / ".sdd"
+    disk_usage_gb = directory_size_bytes(sdd_dir) / (1024**3)
+    if not quiet:
+        console.print(
+            "[bold yellow]Estimated cost:[/bold yellow] "
+            f"${estimate.low_usd:.2f}-${estimate.high_usd:.2f} "
+            f"based on {estimate.task_count} task(s) at {estimate.model} pricing"
+        )
+        if disk_usage_gb >= 1.0:
+            console.print(
+                "[yellow]Warning:[/yellow] "
+                f".sdd/ is using {disk_usage_gb:.2f} GB. "
+                "Run [bold]bernstein cleanup[/bold] if stale worktrees or logs are accumulating."
+            )
+
+    if estimate.high_usd > 10.0 and not auto_approve:
+        if not click.confirm(
+            f"Warning: estimated cost may reach ${estimate.high_usd:.2f}. Continue?",
+            default=True,
+        ):
+            raise SystemExit(1)
+
+
+@contextlib.contextmanager
+def _quiet_bootstrap_console(enabled: bool) -> Any:
+    """Suppress bootstrap Rich output while leaving the final summary visible.
+
+    Args:
+        enabled: When True, redirects bootstrap console writes to an in-memory buffer.
+
+    Yields:
+        ``None`` while the bootstrap module uses a muted console.
+    """
+    if not enabled:
+        yield
+        return
+
+    import bernstein.core.bootstrap as bootstrap_module
+    from rich.console import Console
+
+    original_console = bootstrap_module.console
+    bootstrap_module.console = Console(file=io.StringIO(), force_terminal=False, color_system=None)
+    try:
+        yield
+    finally:
+        bootstrap_module.console = original_console
+
+
+def _wait_for_run_completion(
+    *,
+    poll_interval_s: float = 2.0,
+    timeout_s: float = 3600.0,
+) -> dict[str, Any] | None:
+    """Poll the server until the run becomes quiescent.
+
+    Args:
+        poll_interval_s: Delay between status polls.
+        timeout_s: Maximum total time to wait.
+
+    Returns:
+        Final ``/status`` payload when quiescent, else the last observed payload.
+    """
+    deadline = time.time() + timeout_s
+    last_status: dict[str, Any] | None = None
+    while time.time() < deadline:
+        status_payload = server_get("/status")
+        health_payload = server_get("/health")
+        if isinstance(status_payload, dict):
+            last_status = status_payload
+        if isinstance(status_payload, dict) and isinstance(health_payload, dict):
+            total = int(status_payload.get("total", 0) or 0)
+            open_count = int(status_payload.get("open", 0) or 0)
+            claimed_count = int(status_payload.get("claimed", 0) or 0)
+            agent_count = int(health_payload.get("agent_count", 0) or 0)
+            if total > 0 and open_count == 0 and claimed_count == 0 and agent_count == 0:
+                return status_payload
+        time.sleep(poll_interval_s)
+    return last_status
+
+
+def _finalize_run_output(*, quiet: bool) -> None:
+    """Render either the interactive dashboard or the final summary.
+
+    Args:
+        quiet: When True, wait for quiescence and print only the terminal summary.
+    """
+    if quiet:
+        _wait_for_run_completion()
+        _show_run_summary()
+        return
+
+    if sys.stdout.isatty():
+        try:
+            from bernstein.cli.dashboard import BernsteinApp as DashboardApp
+
+            DashboardApp().run()
+        except Exception:
+            _show_run_summary()
+    else:
+        _show_run_summary()
+
+
 def _configure_quality_gate_bypass(
     *,
     goal: str | None,
@@ -329,6 +516,12 @@ def _configure_quality_gate_bypass(
 
 
 @click.command("conduct", hidden=True)
+@click.argument(
+    "plan_file",
+    required=False,
+    default=None,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
 @click.option(
     "--goal",
     default=None,
@@ -437,7 +630,7 @@ def _configure_quality_gate_bypass(
     "--quiet",
     is_flag=True,
     default=False,
-    help="Suppress the end-of-run summary card.",
+    help="Suppress startup/TUI output and print only the final summary.",
 )
 @click.option(
     "--skip-gate",
@@ -546,7 +739,7 @@ def run(
     if two_phase_sandbox:
         os.environ["BERNSTEIN_TWO_PHASE_SANDBOX"] = "1"
 
-    # Propagate quiet flag so the orchestrator suppresses the summary card
+    # Propagate quiet flag so the orchestrator suppresses the live summary card
     if quiet:
         os.environ["BERNSTEIN_QUIET"] = "1"
 
@@ -562,6 +755,20 @@ def run(
         os.environ["BERNSTEIN_AUDIT"] = "1"
 
     workdir = Path.cwd()
+    if not plan_only:
+        estimate = _estimate_run_preview(
+            workdir=workdir,
+            plan_file=plan_file,
+            goal=goal,
+            seed_file=seed_file,
+            model_override=model,
+        )
+        _emit_preflight_runtime_warnings(
+            workdir=workdir,
+            estimate=estimate,
+            auto_approve=auto_approve,
+            quiet=quiet,
+        )
 
     # --plan_file: loadable YAML plan (stages + steps)
     if plan_file is not None:
@@ -581,28 +788,19 @@ def run(
             console.print(f"[dim]Plan name:[/dim] {goal}")
             loaded_goal = goal or str(plan_file)
 
-            bootstrap_from_goal(
-                goal=loaded_goal,
-                workdir=workdir,
-                port=port,
-                cells=cells,
-                cli=cli or "auto",
-                model=model,
-                tasks=tasks,
-                ab_test=ab_test,
-            )
+            with _quiet_bootstrap_console(quiet):
+                bootstrap_from_goal(
+                    goal=loaded_goal,
+                    workdir=workdir,
+                    port=port,
+                    cells=cells,
+                    cli=cli or "auto",
+                    model=model,
+                    tasks=tasks,
+                    ab_test=ab_test,
+                )
 
-            import sys as _sys
-
-            if _sys.stdout.isatty():
-                try:
-                    from bernstein.cli.dashboard import BernsteinApp as DashboardApp
-
-                    DashboardApp().run()
-                except Exception:
-                    _show_run_summary()
-            else:
-                _show_run_summary()
+            _finalize_run_output(quiet=quiet)
             return
         except Exception as exc:
             console.print(f"[red]Failed to load plan file:[/red] {exc}")
@@ -705,30 +903,21 @@ def run(
     if goal is not None:
         # Inline goal mode -- no YAML needed
         try:
-            bootstrap_from_goal(
-                goal=goal,
-                workdir=workdir,
-                port=port,
-                cells=cells,
-                cli=cli or "auto",  # Default to "auto" if not specified
-                model=model,
-            )
+            with _quiet_bootstrap_console(quiet):
+                bootstrap_from_goal(
+                    goal=goal,
+                    workdir=workdir,
+                    port=port,
+                    cells=cells,
+                    cli=cli or "auto",  # Default to "auto" if not specified
+                    model=model,
+                )
         except RuntimeError as exc:
             from bernstein.cli.errors import bootstrap_failed
 
             bootstrap_failed(exc).print()
             raise SystemExit(1) from exc
-        import sys as _sys
-
-        if _sys.stdout.isatty():
-            try:
-                from bernstein.cli.dashboard import BernsteinApp as DashboardApp
-
-                DashboardApp().run()
-            except Exception:
-                _show_run_summary()
-        else:
-            _show_run_summary()
+        _finalize_run_output(quiet=quiet)
         return
 
     # Seed file mode
@@ -744,19 +933,21 @@ def run(
             no_seed_or_goal().print()
             raise SystemExit(1)
 
-    console.print(f"[dim]Using seed file:[/dim] {path}")
+    if not quiet:
+        console.print(f"[dim]Using seed file:[/dim] {path}")
     try:
         # CLI --cells overrides seed file value when explicitly set (cells > 1)
         cli_cells: int | None = cells if cells > 1 else None
-        bootstrap_from_seed(
-            seed_path=path,
-            workdir=workdir,
-            port=port,
-            cells=cli_cells,
-            remote=remote,
-            cli=cli,
-            model=model,
-        )
+        with _quiet_bootstrap_console(quiet):
+            bootstrap_from_seed(
+                seed_path=path,
+                workdir=workdir,
+                port=port,
+                cells=cli_cells,
+                remote=remote,
+                cli=cli,
+                model=model,
+            )
     except SeedError as exc:
         from bernstein.cli.errors import seed_parse_error
 
@@ -768,19 +959,7 @@ def run(
         bootstrap_failed(exc).print()
         raise SystemExit(1) from exc
 
-    # Launch interactive TUI dashboard if running in a terminal
-    import sys as _sys
-
-    if _sys.stdout.isatty():
-        try:
-            from bernstein.cli.dashboard import BernsteinApp as DashboardApp
-
-            app = DashboardApp()
-            app.run()
-        except Exception:
-            _show_run_summary()
-    else:
-        _show_run_summary()
+    _finalize_run_output(quiet=quiet)
 
 
 # ---------------------------------------------------------------------------

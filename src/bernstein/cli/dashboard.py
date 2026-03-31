@@ -11,6 +11,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 import time
 from collections import deque
 from pathlib import Path
@@ -161,6 +162,126 @@ def _load_cache_stats() -> dict[str, Any]:
         return {"hits": 0, "misses": 0, "hit_rate": 0.0}
 
 
+def _gate_status_color(status: str) -> str:
+    """Return the Rich color for a gate status label."""
+    return {
+        "pass": "green",
+        "fail": "red",
+        "timeout": "yellow",
+        "bypassed": "yellow",
+        "skipped": "grey50",
+    }.get(status, "white")
+
+
+def _format_gate_report_lines(gates_data: dict[str, Any]) -> list[str]:
+    """Render a compact gate report for the activity log."""
+    lines: list[str] = []
+    lines.append(
+        "  Gates: "
+        f"{'PASS' if gates_data.get('overall_pass') else 'BLOCKED'} "
+        f"({gates_data.get('total_duration_ms', 0)} ms, cache hits={gates_data.get('cache_hits', 0)})"
+    )
+    changed_files = gates_data.get("changed_files", [])
+    if isinstance(changed_files, list) and changed_files:
+        lines.append(f"  Changed: {', '.join(str(path) for path in changed_files[:4])}")
+    results = gates_data.get("results", [])
+    if isinstance(results, list):
+        for raw_result in results:
+            if not isinstance(raw_result, dict):
+                continue
+            status = str(raw_result.get("status", "unknown"))
+            gate = str(raw_result.get("name", "?"))
+            duration_ms = int(raw_result.get("duration_ms", 0))
+            cached = bool(raw_result.get("cached", False))
+            cache_suffix = " cached" if cached else ""
+            color = _gate_status_color(status)
+            detail = str(raw_result.get("details", "")).strip()
+            lines.append(f"  [{color}]{gate}: {status}[/{color}] ({duration_ms} ms{cache_suffix})")
+            if detail:
+                lines.append(f"    {detail[:180]}")
+    return lines
+
+
+_RETRY_PATTERNS = (
+    re.compile(r"\[RETRY (\d+)\]"),
+    re.compile(r"\[retry:(\d+)\]"),
+)
+
+
+def _task_retry_count(task: dict[str, Any]) -> int:
+    """Extract the retry count encoded in a task title or description."""
+    for field in ("title", "description"):
+        value = str(task.get(field, ""))
+        for pattern in _RETRY_PATTERNS:
+            match = pattern.search(value)
+            if match is not None:
+                return int(match.group(1))
+    return 0
+
+
+def _format_elapsed_label(elapsed_s: int) -> str:
+    """Format elapsed runtime for the header subtitle."""
+    minutes, seconds = divmod(max(0, elapsed_s), 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h {minutes:02d}m"
+    if minutes:
+        return f"{minutes}m {seconds:02d}s"
+    return f"{seconds}s"
+
+
+def _format_relative_age(seconds_ago: float) -> str:
+    """Format a short relative age string."""
+    delta_s = max(0, int(seconds_ago))
+    if delta_s < 60:
+        return f"{delta_s}s ago"
+    if delta_s < 3600:
+        return f"{delta_s // 60}m ago"
+    if delta_s < 86_400:
+        return f"{delta_s // 3600}h ago"
+    return f"{delta_s // 86_400}d ago"
+
+
+def _build_runtime_subtitle(
+    *,
+    git_branch: str,
+    elapsed_s: int,
+    done: int,
+    total: int,
+    worktrees: int,
+    restart_count: int,
+) -> str:
+    """Build the compact runtime subtitle shown in the TUI header."""
+    progress_pct = int(done / total * 100) if total > 0 else 0
+    parts = [f"Running for {_format_elapsed_label(elapsed_s)}"]
+    if git_branch:
+        parts.append(f"branch {git_branch}")
+    if total > 0:
+        parts.append(f"{done}/{total} tasks ({progress_pct}%)")
+    parts.append(f"{worktrees} worktrees")
+    if restart_count > 0:
+        parts.append(f"{restart_count} restarts")
+    return " | ".join(parts)
+
+
+def _summarize_agent_errors(agents: list[dict[str, Any]]) -> tuple[int, list[str]]:
+    """Summarize dead or non-zero-exit agents for the agent panel."""
+    lines: list[str] = []
+    for agent in agents:
+        exit_code = agent.get("exit_code")
+        status = str(agent.get("status", ""))
+        if status != "dead" and (not isinstance(exit_code, int) or exit_code == 0):
+            continue
+        role = str(agent.get("role", "?")).upper()
+        reason = f"exit {exit_code}" if isinstance(exit_code, int) and exit_code != 0 else "dead"
+        task_ids = agent.get("task_ids", [])
+        task_fragment = ""
+        if isinstance(task_ids, list) and task_ids:
+            task_fragment = f" [{str(task_ids[0])[:8]}]"
+        lines.append(f"{role}: {reason}{task_fragment}")
+    return len(lines), lines[:3]
+
+
 # -- UX-010: Visual premium status icons --
 
 STATUS_ICONS: dict[str, str] = {
@@ -300,6 +421,13 @@ class BigStats(Static):
     pending_approval = reactive(0)
     cache_hit_rate = reactive(0.0)
     burn_rate = reactive(0.0)
+    git_branch = reactive("")
+    active_worktrees = reactive(0)
+    restart_count = reactive(0)
+    avg_cost_per_task = reactive(0.0)
+    last_completed_label = reactive("")
+    retry_count = reactive(0)
+    agent_error_count = reactive(0)
 
     def render(self) -> Text:
         pct = int(self.done / self.total * 100) if self.total > 0 else 0
@@ -377,7 +505,17 @@ class BigStats(Static):
             or self.pending_approval > 0
             or self.cache_hit_rate > 0
         )
-        if has_indicators:
+        runtime_parts: list[tuple[str, str]] = []
+        if self.git_branch:
+            runtime_parts.append((f"\ue0a0 {self.git_branch}", "bold bright_cyan"))
+        if self.active_worktrees > 0:
+            runtime_parts.append((f"\u2398 {self.active_worktrees} worktrees", "dim"))
+        if self.restart_count > 0:
+            runtime_parts.append((f"\u21bb {self.restart_count} restarts", "dim"))
+        if self.avg_cost_per_task > 0:
+            runtime_parts.append((f"avg/task ${self.avg_cost_per_task:.4f}", "dim"))
+
+        if has_indicators or runtime_parts:
             t.append("\n")
             # Quarantine
             if self.quarantine_count > 0:
@@ -399,6 +537,23 @@ class BigStats(Static):
                     f"\u29c2 cache {self.cache_hit_rate * 100:.0f}%",
                     style=f"bold {cache_color}",
                 )
+                t.append("  ", style="")
+            for label, style in runtime_parts:
+                t.append(label, style=style)
+                t.append("  ", style="")
+
+        footer_parts: list[tuple[str, str]] = []
+        if self.last_completed_label:
+            footer_parts.append((f"last {self.last_completed_label}", "dim"))
+        if self.retry_count > 0:
+            footer_parts.append((f"{self.retry_count} retries", "bold bright_yellow"))
+        if self.agent_error_count > 0:
+            footer_parts.append((f"{self.agent_error_count} agent errors", "bold bright_red"))
+        if footer_parts:
+            t.append("\n")
+            for label, style in footer_parts:
+                t.append(label, style=style)
+                t.append("  ", style="")
 
         return t
 
@@ -895,6 +1050,7 @@ class BernsteinApp(App[None]):
         self._prev_alive = alive  # type: ignore[attr-defined]
 
         self._update_tasks(data.get("tasks"))
+        tasks = data.get("tasks", [])
         costs: dict[str, Any] = data.get("costs") or {}
         self._update_agents(data.get("agents", []), costs)
         monitoring = {
@@ -903,7 +1059,7 @@ class BernsteinApp(App[None]):
             "cache_stats": data.get("cache_stats", {}),
             "pending_approval": data.get("pending_approval", 0),
         }
-        self._update_stats(data.get("status"), data.get("agents", []), costs, monitoring)
+        self._update_stats(data.get("status"), tasks, data.get("agents", []), costs, monitoring)
         self._update_activity(data.get("agents", []))
 
     # -- Agents --
@@ -945,6 +1101,22 @@ class BernsteinApp(App[None]):
                     widget = AgentWidget(a, self._task_titles, self._task_progress)
                     widget.agent_cost = per_agent.get(a.get("id", ""), 0.0)
                     col.mount(widget)
+
+        error_count, error_lines = _summarize_agent_errors(agents)
+        summary_widget = next(iter(col.query("Static#agent-errors")), None)
+        if error_count == 0:
+            if isinstance(summary_widget, Static):
+                summary_widget.remove()
+            return
+
+        summary_text = "[bold bright_red]Errors this session[/bold bright_red]"
+        for line in error_lines:
+            summary_text += f"\n[dim]{line}[/dim]"
+
+        if isinstance(summary_widget, Static):
+            summary_widget.update(summary_text)
+        else:
+            col.mount(Static(summary_text, id="agent-errors"))
 
     # -- Tasks --
 
@@ -1001,10 +1173,14 @@ class BernsteinApp(App[None]):
             icon = plain_icons.get(st, "\u25cb")
             color = status_colors.get(st, "white")
             tid = str(t.get("id", ""))
+            retry_count = _task_retry_count(t)
+            title = str(t.get("title", "-"))
+            if retry_count > 0:
+                title = f"{title} ({retry_count} retries)"
             cells = (
                 Text(f" {icon}", style=f"bold {color}"),
                 Text(str(t.get("role", "-")).upper().ljust(9), style=color),
-                Text(str(t.get("title", "-")), style=color if st != "open" else ""),
+                Text(title, style=color if st != "open" else ""),
             )
             if tid in existing_ids:
                 for col_label, cell_value in zip(columns, cells, strict=True):
@@ -1018,6 +1194,7 @@ class BernsteinApp(App[None]):
     def _update_stats(
         self,
         sd: Any,
+        tasks: list[dict[str, Any]],
         agents: list[dict[str, Any]],
         costs: dict[str, Any] | None = None,
         monitoring: dict[str, Any] | None = None,
@@ -1033,10 +1210,33 @@ class BernsteinApp(App[None]):
             done = sd.get("done", 0)
             total = sd.get("total", 0)
             self.title = f"bernstein: {done}/{total} done"
+            runtime = sd.get("runtime", {}) if isinstance(sd.get("runtime", {}), dict) else {}
+            bar.git_branch = str(runtime.get("git_branch", ""))
+            bar.active_worktrees = int(runtime.get("active_worktrees", 0) or 0)
+            bar.restart_count = int(runtime.get("restart_count", 0) or 0)
+            last_completed = runtime.get("last_completed", {})
+            if isinstance(last_completed, dict) and last_completed:
+                seconds_ago = float(last_completed.get("seconds_ago", 0.0) or 0.0)
+                title = str(last_completed.get("title", "")).strip()
+                assigned_agent = str(last_completed.get("assigned_agent", "") or "").strip()
+                suffix = f" — {title[:32]}" if title else ""
+                if assigned_agent:
+                    suffix += f" ({assigned_agent[:12]})"
+                bar.last_completed_label = f"{_format_relative_age(seconds_ago)}{suffix}"
+            else:
+                bar.last_completed_label = ""
 
         bar.agents = sum(1 for a in agents if a.get("status") not in ("dead", None))
         bar.elapsed = int(time.time() - self._start_ts)
         bar.evolve = self._evolve
+        self.sub_title = _build_runtime_subtitle(
+            git_branch=bar.git_branch,
+            elapsed_s=bar.elapsed,
+            done=bar.done,
+            total=bar.total,
+            worktrees=bar.active_worktrees,
+            restart_count=bar.restart_count,
+        )
 
         # Cost data
         if costs:
@@ -1047,6 +1247,8 @@ class BernsteinApp(App[None]):
             bar.budget_usd = budget
             bar.budget_pct = pct * 100
             bar.per_model = costs.get("per_model", {})
+            terminal_tasks = max(1, bar.done + bar.failed) if (bar.done + bar.failed) > 0 else 0
+            bar.avg_cost_per_task = spent / terminal_tasks if terminal_tasks else 0.0
 
             # Budget threshold alerts (fire once per level)
             self._check_budget_alerts(pct, spent, budget)
@@ -1063,6 +1265,9 @@ class BernsteinApp(App[None]):
 
             cache_stats: dict[str, Any] = monitoring.get("cache_stats", {})
             bar.cache_hit_rate = float(cache_stats.get("hit_rate", 0.0))
+
+        bar.retry_count = sum(_task_retry_count(task) for task in tasks if isinstance(task, dict))
+        bar.agent_error_count = _summarize_agent_errors(agents)[0]
 
         spark = self.query_one("#spark", Sparkline)
         spark.data = list(self._history) if self._history else [0.0]
@@ -1161,6 +1366,10 @@ class BernsteinApp(App[None]):
             desc = data.get("description", "")
             if desc:
                 log.write(f"  Desc:   {desc[:200]}")
+            gates = _get(f"/tasks/{task_id}/gates")
+            if isinstance(gates, dict):
+                for line in _format_gate_report_lines(gates):
+                    log.write(line)
 
     def action_inspect_task(self) -> None:
         """Show details of selected task in activity log."""
@@ -1183,6 +1392,10 @@ class BernsteinApp(App[None]):
             desc = data.get("description", "")
             if desc:
                 log.write(f"  Desc:   {desc[:200]}")
+            gates = _get(f"/tasks/{task_id}/gates")
+            if isinstance(gates, dict):
+                for line in _format_gate_report_lines(gates):
+                    log.write(line)
 
     def action_cancel_task(self) -> None:
         """Cancel the selected task."""

@@ -13,6 +13,7 @@ All commands and groups are registered with the main CLI group in main.py.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import sys
 from pathlib import Path
@@ -28,6 +29,7 @@ from bernstein.cli.helpers import (
     server_get,
     server_post,
 )
+from bernstein.core.runtime_state import read_session_replay_metadata
 
 # ---------------------------------------------------------------------------
 # live
@@ -616,13 +618,24 @@ def replay_cmd(run_id: str, sdd_dir: str, as_json: bool, limit: int | None) -> N
 
         table = Table(title="Available Runs", show_header=True, header_style="bold cyan")
         table.add_column("Run ID")
+        table.add_column("Started")
+        table.add_column("Branch")
+        table.add_column("SHA")
         table.add_column("Events", justify="right")
         table.add_column("Size", justify="right")
         for d in run_dirs:
             replay_file = d / "replay.jsonl"
             event_count = sum(1 for line in replay_file.read_text().splitlines() if line.strip())
             size_kb = replay_file.stat().st_size / 1024
-            table.add_row(d.name, str(event_count), f"{size_kb:.1f} KB")
+            metadata = read_session_replay_metadata(d)
+            started = "—"
+            branch = "—"
+            sha = "—"
+            if metadata is not None:
+                started = dt.datetime.fromtimestamp(metadata.started_at).strftime("%Y-%m-%d %H:%M")
+                branch = metadata.git_branch or "—"
+                sha = metadata.git_sha[:8] if metadata.git_sha else "—"
+            table.add_row(d.name, started, branch, sha, str(event_count), f"{size_kb:.1f} KB")
         console.print(table)
         return
 
@@ -654,10 +667,13 @@ def replay_cmd(run_id: str, sdd_dir: str, as_json: bool, limit: int | None) -> N
     if not events:
         console.print("[yellow]Replay log is empty.[/yellow]")
         return
+    metadata = read_session_replay_metadata(replay_path.parent)
 
     if as_json:
-        for ev in events[:limit]:
-            console.print_json(json.dumps(ev))
+        payload: dict[str, Any] = {"run_id": run_id, "events": events[:limit]}
+        if metadata is not None:
+            payload["metadata"] = metadata.to_dict()
+        console.print_json(json.dumps(payload))
         return
 
     # Compute fingerprint
@@ -673,12 +689,22 @@ def replay_cmd(run_id: str, sdd_dir: str, as_json: bool, limit: int | None) -> N
     duration_s = last_ts - first_ts
     duration_m, duration_s_rem = divmod(int(duration_s), 60)
 
-    header_text = (
+    header_parts = [
         f"Run: [bold cyan]{run_id}[/bold cyan]  "
         f"Events: [bold]{len(events)}[/bold]  "
         f"Duration: [bold]{duration_m}m{duration_s_rem:02d}s[/bold]  "
         f"Fingerprint: [dim]{fingerprint[:16]}...[/dim]"
-    )
+    ]
+    if metadata is not None:
+        started = dt.datetime.fromtimestamp(metadata.started_at).strftime("%Y-%m-%d %H:%M:%S")
+        header_parts.append(f"Started: [bold]{started}[/bold]")
+        if metadata.git_branch:
+            header_parts.append(f"Branch: [bold]{metadata.git_branch}[/bold]")
+        if metadata.git_sha:
+            header_parts.append(f"SHA: [bold]{metadata.git_sha[:12]}[/bold]")
+        if metadata.config_hash:
+            header_parts.append(f"Config: [dim]{metadata.config_hash[:12]}...[/dim]")
+    header_text = "  ".join(header_parts)
     console.print(Panel(header_text, title="Deterministic Replay", border_style="cyan"))
 
     # Event table

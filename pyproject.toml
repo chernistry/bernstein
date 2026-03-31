@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bernstein"
-version = "1.3.13"
+version = "1.4.0"
 description = "Declarative agent orchestration for engineering teams"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -80,6 +80,7 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "TCH", "RUF"]
 "src/bernstein/core/license_scanner.py" = ["E501"]
 "src/bernstein/core/memory_integrity.py" = ["E501", "RUF003"]
 "src/bernstein/core/server_supervisor.py" = ["TC003"]
+"src/bernstein/core/runtime_state.py" = ["TC003"]
 "benchmarks/run_benchmark.py" = ["E501", "RUF002"]
 "scripts/generate_roadmap_tickets.py" = ["E501", "RUF001"]
 "sdk/python/src/bernstein_sdk/adapters/github_actions.py" = ["E501"]
@@ -169,6 +170,8 @@ exclude = [
     "src/bernstein/core/secrets.py",
     "src/bernstein/core/agent_lifecycle.py",
     "src/bernstein/core/backlog_parser.py",
+    "src/bernstein/core/plan_loader.py",
+    "src/bernstein/core/runtime_state.py",
     "src/bernstein/core/agent_identity.py",
     "src/bernstein/core/command_policy.py",
     "src/bernstein/core/key_rotation.py",

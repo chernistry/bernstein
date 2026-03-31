@@ -11,6 +11,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import os
 import re
 import subprocess
 from dataclasses import dataclass, field
@@ -20,6 +21,7 @@ from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from bernstein.core.gate_runner import GatePipelineStep, GateReport
     from bernstein.core.models import Task
 
 logger = logging.getLogger(__name__)
@@ -108,6 +110,11 @@ class QualityGatesConfig:
         tests: Run test gate.
         test_command: Shell command for running tests.
         timeout_s: Per-gate command timeout in seconds.
+        pipeline: Optional explicit gate pipeline. When omitted, a default
+            pipeline is synthesized from the legacy booleans.
+        allow_bypass: Whether CLI-driven gate bypass is allowed.
+        cache_enabled: Whether gate results can be reused from cache.
+        base_ref: Git base ref used for incremental diff fallback.
         mutation_testing: Run mutation testing gate (mutmut by default).
         mutation_command: Shell command that runs mutation tests and prints results.
         mutation_threshold: Minimum required mutation score (0.0-1.0). Blocks if below.
@@ -123,6 +130,10 @@ class QualityGatesConfig:
     tests: bool = False
     test_command: str = "uv run python scripts/run_tests.py -x"
     timeout_s: int = 120
+    pipeline: list[GatePipelineStep] | None = None
+    allow_bypass: bool = False
+    cache_enabled: bool = True
+    base_ref: str = "main"
     mutation_testing: bool = False
     mutation_command: str = "uv run mutmut run"
     mutation_threshold: float = 0.50
@@ -130,6 +141,14 @@ class QualityGatesConfig:
     intent_verification: IntentVerificationConfig = field(default_factory=IntentVerificationConfig)
     pii_scan: bool = True
     pii_scan_paths: list[str] = field(default_factory=lambda: ["src/"])
+    pii_ignore_paths: list[str] = field(default_factory=list[str])
+    pii_allowlist_prefixes: list[str] = field(
+        default_factory=lambda: ["FAKE", "TEST", "EXAMPLE", "DUMMY", "PLACEHOLDER", "LOCALHOST"]
+    )
+    security_scan_command: str | None = None
+    coverage_delta_command: str | None = None
+    complexity_check_command: str | None = None
+    import_cycle_command: str | None = None
 
 
 @dataclass
@@ -322,6 +341,15 @@ def _run_intent_gate(
     return verdict, blocked
 
 
+def run_intent_gate_sync(
+    task: Task,
+    worktree_path: Path,
+    config: IntentVerificationConfig,
+) -> tuple[IntentVerdict, bool]:
+    """Public sync wrapper used by the async gate runner."""
+    return _run_intent_gate(task, worktree_path, config)
+
+
 # ---------------------------------------------------------------------------
 # Command runner
 # ---------------------------------------------------------------------------
@@ -357,6 +385,11 @@ def _run_command(command: str, cwd: Path, timeout_s: int) -> tuple[bool, str]:
         return False, f"Timed out after {timeout_s}s"
     except OSError as exc:
         return False, f"Command error: {exc}"
+
+
+def run_command_sync(command: str, cwd: Path, timeout_s: int) -> tuple[bool, str]:
+    """Public sync wrapper used by the async gate runner."""
+    return _run_command(command, cwd, timeout_s)
 
 
 # ---------------------------------------------------------------------------
@@ -434,13 +467,22 @@ def _run_mutation_gate(config: QualityGatesConfig, run_dir: Path) -> tuple[bool,
     return passed, detail, None
 
 
+def run_mutation_gate_sync(config: QualityGatesConfig, run_dir: Path) -> tuple[bool, str, float | None]:
+    """Public sync wrapper used by the async gate runner."""
+    return _run_mutation_gate(config, run_dir)
+
+
 # ---------------------------------------------------------------------------
 # PII / secret scan gate
 # ---------------------------------------------------------------------------
 
 
-def _run_pii_gate(config: QualityGatesConfig, run_dir: Path) -> QualityGateCheckResult:
-    """Scan files in configured paths for secrets and PII.
+def _run_pii_gate(
+    config: QualityGatesConfig,
+    run_dir: Path,
+    changed_files: list[str] | None = None,
+) -> QualityGateCheckResult:
+    """Scan files in configured paths or the changed-file set for secrets and PII.
 
     Imports ``pii_output_gate`` and scans each file under ``config.pii_scan_paths``
     for leaked secrets.  Any high-severity finding blocks merge.
@@ -448,6 +490,8 @@ def _run_pii_gate(config: QualityGatesConfig, run_dir: Path) -> QualityGateCheck
     Args:
         config: Quality gates configuration (uses ``pii_scan_paths``).
         run_dir: Working directory (agent worktree root).
+        changed_files: Optional changed-file set. When provided, only these
+            files are scanned.
 
     Returns:
         QualityGateCheckResult with ``blocked=True`` if any high-severity
@@ -458,43 +502,53 @@ def _run_pii_gate(config: QualityGatesConfig, run_dir: Path) -> QualityGateCheck
     from bernstein.core.pii_output_gate import format_findings, scan_text
 
     all_findings: list[Any] = []
+    scan_targets: list[_Path]
+    if changed_files is not None:
+        scan_targets = [(_Path(run_dir) / rel_path) for rel_path in changed_files]
+    else:
+        scan_targets = []
+        for scan_path in config.pii_scan_paths:
+            target = _Path(run_dir) / scan_path
+            if not target.exists():
+                continue
+            scan_targets.extend([target] if target.is_file() else sorted(target.rglob("*")))
 
-    for scan_path in config.pii_scan_paths:
-        target = _Path(run_dir) / scan_path
-        if not target.exists():
+    for fpath in scan_targets:
+        if not fpath.is_file():
             continue
-        files = [target] if target.is_file() else sorted(target.rglob("*"))
+        # Skip binary / non-text files
+        _skip = {
+            ".pyc",
+            ".pyo",
+            ".so",
+            ".dylib",
+            ".whl",
+            ".egg",
+            ".gz",
+            ".zip",
+            ".tar",
+            ".png",
+            ".jpg",
+            ".gif",
+            ".ico",
+            ".pdf",
+        }
+        if fpath.suffix in _skip:
+            continue
+        try:
+            content = fpath.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
 
-        for fpath in files:
-            if not fpath.is_file():
-                continue
-            # Skip binary / non-text files
-            _skip = {
-                ".pyc",
-                ".pyo",
-                ".so",
-                ".dylib",
-                ".whl",
-                ".egg",
-                ".gz",
-                ".zip",
-                ".tar",
-                ".png",
-                ".jpg",
-                ".gif",
-                ".ico",
-            }
-            if fpath.suffix in _skip:
-                continue
-            try:
-                content = fpath.read_text(encoding="utf-8", errors="ignore")
-            except OSError:
-                continue
-
-            findings = scan_text(content)
-            for f in findings:
-                # Annotate finding with file path for the report
-                all_findings.append((str(fpath.relative_to(run_dir)), f))
+        findings = scan_text(
+            content,
+            path=fpath.relative_to(run_dir).as_posix(),
+            ignore_paths=config.pii_ignore_paths,
+            allowlist_prefixes=config.pii_allowlist_prefixes,
+        )
+        for f in findings:
+            # Annotate finding with file path for the report
+            all_findings.append((str(fpath.relative_to(run_dir)), f))
 
     if not all_findings:
         return QualityGateCheckResult(
@@ -526,6 +580,15 @@ def _run_pii_gate(config: QualityGatesConfig, run_dir: Path) -> QualityGateCheck
     )
 
 
+def run_pii_gate_sync(
+    config: QualityGatesConfig,
+    run_dir: Path,
+    changed_files: list[str] | None = None,
+) -> QualityGateCheckResult:
+    """Public sync wrapper used by the async gate runner."""
+    return _run_pii_gate(config, run_dir, changed_files)
+
+
 # ---------------------------------------------------------------------------
 # Main entrypoint
 # ---------------------------------------------------------------------------
@@ -536,122 +599,60 @@ def run_quality_gates(
     run_dir: Path,
     workdir: Path,
     config: QualityGatesConfig,
+    *,
+    skip_gates: list[str] | None = None,
+    bypass_reason: str | None = None,
 ) -> QualityGatesResult:
     """Run all enabled quality gates on a completed task's changes.
-
-    Gates run in order: lint -> type_check -> tests. All enabled gates run
-    even if an earlier gate fails, so the caller gets a full picture.
-    A gate that is enabled and fails sets ``blocked=True`` on its result and
-    causes the overall ``passed=False``.
 
     Args:
         task: The completed task being validated.
         run_dir: Directory to run gate commands in (agent worktree or workdir).
         workdir: Project root for writing metrics to .sdd/metrics/.
         config: Which gates to run and their command/timeout configuration.
+        skip_gates: Optional gate names to bypass for this run.
+        bypass_reason: Optional human-readable bypass reason.
 
     Returns:
         QualityGatesResult with per-gate outcomes and overall passed flag.
     """
+    from bernstein.core.gate_runner import GateRunner
+
     if not config.enabled:
         return QualityGatesResult(task_id=task.id, passed=True)
 
-    results: list[QualityGateCheckResult] = []
-
-    if config.lint:
-        ok, detail = _run_command(config.lint_command, run_dir, config.timeout_s)
-        check = QualityGateCheckResult(
-            gate="lint",
-            passed=ok,
-            blocked=not ok,
-            detail="no lint violations" if ok else detail,
+    explicit_skip_gates = skip_gates if skip_gates is not None else _env_skip_gates()
+    explicit_bypass_reason = bypass_reason if bypass_reason is not None else _env_bypass_reason()
+    runner = GateRunner(config, workdir, base_ref=config.base_ref)
+    report = asyncio.run(
+        runner.run_all(
+            task,
+            run_dir,
+            skip_gates=explicit_skip_gates,
+            bypass_reason=explicit_bypass_reason,
         )
-        results.append(check)
-        _record_gate_event(task.id, "lint", _result_str(check), workdir)
-        if not ok:
-            logger.warning(
-                "Quality gate [lint] failed for task %s: %s",
-                task.id,
-                detail[:200],
-            )
-
-    if config.type_check:
-        ok, detail = _run_command(config.type_check_command, run_dir, config.timeout_s)
-        check = QualityGateCheckResult(
-            gate="type_check",
-            passed=ok,
-            blocked=not ok,
-            detail="no type errors" if ok else detail,
+    )
+    result = _legacy_result_from_report(report)
+    for gate_result in report.results:
+        _record_gate_event(
+            task.id,
+            gate_result.name,
+            _result_str_from_status(gate_result.status, gate_result.blocked),
+            workdir,
+            status=gate_result.status,
+            duration_ms=gate_result.duration_ms,
+            cached=gate_result.cached,
+            required=gate_result.required,
+            extra=gate_result.metadata or None,
         )
-        results.append(check)
-        _record_gate_event(task.id, "type_check", _result_str(check), workdir)
-        if not ok:
+        if gate_result.blocked:
             logger.warning(
-                "Quality gate [type_check] failed for task %s: %s",
+                "Quality gate [%s] blocked task %s: %s",
+                gate_result.name,
                 task.id,
-                detail[:200],
+                gate_result.details[:200],
             )
-
-    if config.tests:
-        ok, detail = _run_command(config.test_command, run_dir, config.timeout_s)
-        check = QualityGateCheckResult(
-            gate="tests",
-            passed=ok,
-            blocked=not ok,
-            detail="all tests passing" if ok else detail,
-        )
-        results.append(check)
-        _record_gate_event(task.id, "tests", _result_str(check), workdir)
-        if not ok:
-            logger.warning(
-                "Quality gate [tests] failed for task %s: %s",
-                task.id,
-                detail[:200],
-            )
-
-    if config.mutation_testing:
-        ok, detail, score = _run_mutation_gate(config, run_dir)
-        check = QualityGateCheckResult(
-            gate="mutation_testing",
-            passed=ok,
-            blocked=not ok,
-            detail=detail,
-        )
-        results.append(check)
-        extra: dict[str, Any] | None = {"mutation_score": round(score, 4)} if score is not None else None
-        _record_gate_event(task.id, "mutation_testing", _result_str(check), workdir, extra=extra)
-        if not ok:
-            logger.warning(
-                "Quality gate [mutation_testing] failed for task %s: %s",
-                task.id,
-                detail[:200],
-            )
-
-    iv_cfg = config.intent_verification
-    if iv_cfg.enabled:
-        verdict, blocked = _run_intent_gate(task, run_dir, iv_cfg)
-        passed_flag = not blocked
-        detail = f"Intent verdict: {verdict.verdict} — {verdict.reason}"
-        check = QualityGateCheckResult(
-            gate="intent_verification",
-            passed=passed_flag,
-            blocked=blocked,
-            detail=detail,
-        )
-        results.append(check)
-        intent_extra: dict[str, Any] = {"verdict": verdict.verdict, "model": verdict.model}
-        _record_gate_event(task.id, "intent_verification", _result_str(check), workdir, extra=intent_extra)
-        if blocked:
-            logger.warning(
-                "Quality gate [intent_verification] blocked task %s: %s",
-                task.id,
-                detail[:200],
-            )
-        else:
-            logger.info("Quality gate [intent_verification] task=%s verdict=%s", task.id, verdict.verdict)
-
-    overall_passed = all(not r.blocked for r in results)
-    return QualityGatesResult(task_id=task.id, passed=overall_passed, gate_results=results)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -668,11 +669,25 @@ def _result_str(check: QualityGateCheckResult) -> str:
     return "flagged"
 
 
+def _result_str_from_status(status: str, blocked: bool) -> str:
+    """Translate a detailed gate status to the legacy metrics result string."""
+    if status in {"pass", "skipped"}:
+        return "pass"
+    if blocked:
+        return "blocked"
+    return "flagged"
+
+
 def _record_gate_event(
     task_id: str,
     gate: str,
     result: str,
     workdir: Path,
+    *,
+    status: str | None = None,
+    duration_ms: int | None = None,
+    cached: bool | None = None,
+    required: bool | None = None,
     extra: dict[str, Any] | None = None,
 ) -> None:
     """Append a quality gate event to .sdd/metrics/quality_gates.jsonl.
@@ -692,6 +707,14 @@ def _record_gate_event(
         "gate": gate,
         "result": result,
     }
+    if status is not None:
+        event["status"] = status
+    if duration_ms is not None:
+        event["duration_ms"] = duration_ms
+    if cached is not None:
+        event["cached"] = cached
+    if required is not None:
+        event["required"] = required
     if extra:
         event.update(extra)
     try:
@@ -738,3 +761,32 @@ def get_quality_gate_stats(workdir: Path) -> dict[str, Any]:
         counts[result_val] = counts.get(result_val, 0) + 1
 
     return {"total": total, "blocked": blocked, "by_gate": by_gate}
+
+
+def _legacy_result_from_report(report: GateReport) -> QualityGatesResult:
+    """Convert a detailed gate report back to the legacy wrapper result."""
+    return QualityGatesResult(
+        task_id=report.task_id,
+        passed=report.overall_pass,
+        gate_results=[
+            QualityGateCheckResult(
+                gate=result.name,
+                passed=result.status in {"pass", "skipped", "bypassed"},
+                blocked=result.blocked,
+                detail=result.details,
+            )
+            for result in report.results
+        ],
+    )
+
+
+def _env_skip_gates() -> list[str] | None:
+    raw = os.getenv("BERNSTEIN_SKIP_GATES", "").strip()
+    if not raw:
+        return None
+    return [gate.strip() for gate in raw.split(",") if gate.strip()]
+
+
+def _env_bypass_reason() -> str | None:
+    raw = os.getenv("BERNSTEIN_SKIP_GATE_REASON", "").strip()
+    return raw or None

@@ -1,5 +1,7 @@
 """Tests for automated quality gates: lint, type-check, test, and intent verification gates."""
 
+# pyright: reportPrivateUsage=false
+
 from __future__ import annotations
 
 import json
@@ -8,6 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
+from bernstein.core.gate_runner import GatePipelineStep
 from bernstein.core.models import Complexity, Scope, Task
 from bernstein.core.quality_gates import (
     IntentVerdict,
@@ -88,6 +91,12 @@ class TestRunQualityGatesDisabled:
         with patch("bernstein.core.quality_gates._run_command") as mock_run:
             run_quality_gates(task, tmp_path, tmp_path, config)
             mock_run.assert_not_called()
+
+    def test_bypass_rejected_when_disabled_in_config(self, tmp_path: Path) -> None:
+        config = QualityGatesConfig(enabled=True, allow_bypass=False)
+        task = _make_task()
+        with pytest.raises(ValueError, match="bypass is disabled"):
+            run_quality_gates(task, tmp_path, tmp_path, config, skip_gates=["lint"])
 
 
 # ---------------------------------------------------------------------------
@@ -253,6 +262,50 @@ class TestMetricsRecording:
         line = json.loads(metrics_file.read_text().strip())
         assert line["result"] == "blocked"
 
+    def test_records_rich_gate_fields(self, tmp_path: Path) -> None:
+        config = QualityGatesConfig(
+            enabled=True,
+            lint=True,
+            lint_command="exit 0",
+            type_check=False,
+            tests=False,
+            pii_scan=False,
+            cache_enabled=False,
+        )
+        task = _make_task(id="T-metrics-rich")
+        run_quality_gates(task, tmp_path, tmp_path, config)
+
+        metrics_file = tmp_path / ".sdd" / "metrics" / "quality_gates.jsonl"
+        line = json.loads(metrics_file.read_text().strip())
+        assert line["status"] == "pass"
+        assert isinstance(line["duration_ms"], int)
+        assert line["cached"] is False
+        assert line["required"] is True
+
+    def test_records_bypass_metadata(self, tmp_path: Path) -> None:
+        config = QualityGatesConfig(
+            enabled=True,
+            allow_bypass=True,
+            pipeline=[GatePipelineStep(name="lint", required=True, condition="always")],
+            cache_enabled=False,
+        )
+        task = _make_task(id="T-bypass")
+        run_quality_gates(
+            task,
+            tmp_path,
+            tmp_path,
+            config,
+            skip_gates=["lint"],
+            bypass_reason="operator override",
+        )
+
+        metrics_file = tmp_path / ".sdd" / "metrics" / "quality_gates.jsonl"
+        line = json.loads(metrics_file.read_text().strip())
+        assert line["status"] == "bypassed"
+        assert line["result"] == "flagged"
+        assert line["reason"] == "operator override"
+        assert line["actor"] == "cli"
+
     def test_get_quality_gate_stats_empty(self, tmp_path: Path) -> None:
         stats = get_quality_gate_stats(tmp_path)
         assert stats == {"total": 0, "blocked": 0, "by_gate": {}}
@@ -312,6 +365,35 @@ class TestSeedQualityGatesParsing:
         assert cfg.quality_gates.tests
         assert cfg.quality_gates.test_command == "pytest"
 
+    def test_parse_quality_gates_pipeline_and_bypass(self, tmp_path: Path) -> None:
+        from bernstein.core.seed import parse_seed
+
+        seed_file = tmp_path / "bernstein.yaml"
+        seed_file.write_text(
+            (
+                "goal: test\n"
+                "quality_gates:\n"
+                "  allow_bypass: true\n"
+                "  cache_enabled: false\n"
+                "  base_ref: develop\n"
+                "  pipeline:\n"
+                "    - name: lint\n"
+                "      required: true\n"
+                "      condition: always\n"
+                "    - name: pii_scan\n"
+                "      required: false\n"
+                "      condition: changed_files.any('.py')\n"
+            ),
+            encoding="utf-8",
+        )
+        cfg = parse_seed(seed_file)
+        assert cfg.quality_gates is not None
+        assert cfg.quality_gates.allow_bypass
+        assert not cfg.quality_gates.cache_enabled
+        assert cfg.quality_gates.base_ref == "develop"
+        assert cfg.quality_gates.pipeline is not None
+        assert cfg.quality_gates.pipeline[1].condition == "python_changed"
+
     def test_parse_no_quality_gates_returns_none(self, tmp_path: Path) -> None:
         from bernstein.core.seed import parse_seed
 
@@ -326,6 +408,24 @@ class TestSeedQualityGatesParsing:
         seed_file = tmp_path / "bernstein.yaml"
         seed_file.write_text("goal: test\nquality_gates: not_a_dict\n", encoding="utf-8")
         with pytest.raises(SeedError, match="quality_gates must be a mapping"):
+            parse_seed(seed_file)
+
+    def test_parse_quality_gates_invalid_pipeline_condition_raises(self, tmp_path: Path) -> None:
+        from bernstein.core.seed import SeedError, parse_seed
+
+        seed_file = tmp_path / "bernstein.yaml"
+        seed_file.write_text(
+            (
+                "goal: test\n"
+                "quality_gates:\n"
+                "  pipeline:\n"
+                "    - name: lint\n"
+                "      required: true\n"
+                "      condition: impossible\n"
+            ),
+            encoding="utf-8",
+        )
+        with pytest.raises(SeedError, match="Unsupported gate condition"):
             parse_seed(seed_file)
 
 

@@ -61,6 +61,7 @@ from bernstein.cli.eval_benchmark_cmd import (
 from bernstein.cli.evolve_cmd import evolve
 from bernstein.cli.gateway_cmd import gateway_group
 from bernstein.cli.manifest_cmd import manifest_group
+from bernstein.cli.maintenance_cmd import cleanup_cmd, history_cmd
 from bernstein.cli.memory_cmd import memory_group
 from bernstein.cli.merge_cmd import merge_cmd
 from bernstein.cli.prompts_cmd import prompts_group
@@ -114,6 +115,7 @@ __all__ = [
     "changelog_cmd",
     "chaos_group",
     "checkpoint_cmd",
+    "cleanup_cmd",
     "completions",
     # Groups and commands from workspace_cmd
     "config_group",
@@ -128,6 +130,7 @@ __all__ = [
     "github_group",
     "hard_stop",
     "help_all",
+    "history_cmd",
     "ideate",
     "install_hooks",
     "is_alive",
@@ -244,6 +247,7 @@ def print_rich_help() -> None:
     c.print("\n  [bold cyan]Quick start[/bold cyan]")
     c.print('  [dim]$[/dim] bernstein -g [green]"Add JWT auth with tests"[/green]     [dim]# inline goal[/dim]')
     c.print("  [dim]$[/dim] bernstein                                    [dim]# from bernstein.yaml[/dim]")
+    c.print("  [dim]$[/dim] bernstein run plan.yaml                      [dim]# execute a plan file[/dim]")
     c.print("  [dim]$[/dim] bernstein init                               [dim]# set up a new project[/dim]")
     c.print()
 
@@ -253,6 +257,7 @@ def print_rich_help() -> None:
             [
                 ("bernstein -g [dim]GOAL[/dim]", "Orchestrate agents for an inline goal"),
                 ("bernstein", "Run from bernstein.yaml or backlog"),
+                ("run [dim]plan.yaml[/dim]", "Execute a plan file (stages + steps)"),
                 ("init", "Initialize project (.sdd/ + bernstein.yaml)"),
                 ("stop", "Graceful stop (agents save work first)"),
                 ("stop --force", "Hard stop (kill immediately)"),
@@ -520,6 +525,7 @@ def cli(
     # Main orchestration flow — call run's callback directly with mapped params
     assert run.callback is not None
     run.callback(
+        plan_file=None,
         goal=goal,
         seed_file=str(seed_path) if seed_path else None,
         port=port,
@@ -581,6 +587,8 @@ cli.add_command(doctor)
 cli.add_command(recap)
 cli.add_command(retro)
 cli.add_command(help_all, "help-all")
+cli.add_command(cleanup_cmd, "cleanup")
+cli.add_command(history_cmd, "history")
 
 # Already registered elsewhere
 cli.add_command(agents_group)
@@ -591,6 +599,7 @@ cli.add_command(status)
 cli.add_command(ps_cmd, "ps")
 cli.add_command(stop)
 cli.add_command(test_adapter, "test-adapter")
+cli.add_command(run, "run")  # visible: `bernstein run [plan.yaml]`
 cli.add_command(init)
 cli.add_command(run, "run")
 cli.add_command(start)

@@ -7,9 +7,10 @@ import json
 import logging
 import os
 import signal
+import subprocess
 import time
 from datetime import UTC
-from pathlib import Path  # noqa: TC003 — used at runtime in dashboard_data
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import APIRouter, Request
@@ -17,11 +18,19 @@ from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from starlette.responses import StreamingResponse
 
 from bernstein.core.prometheus import generate_latest, registry, update_metrics_from_status
+from bernstein.core.runtime_state import (
+    current_git_branch,
+    directory_size_bytes,
+    memory_usage_mb,
+    read_config_state,
+    read_supervisor_state,
+)
 from bernstein.core.server import (
     HealthResponse,
     SSEBus,
     TaskStore,
 )
+from bernstein.core.worktree import WorktreeManager
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -37,6 +46,17 @@ def _get_store(request: Request) -> TaskStore:
 
 def _get_sse_bus(request: Request) -> SSEBus:
     return request.app.state.sse_bus  # type: ignore[no-any-return]
+
+
+def _get_workdir(request: Request) -> Path:
+    """Return the best-known repository root for runtime metadata."""
+    workdir = getattr(request.app.state, "workdir", None)
+    if isinstance(workdir, Path):
+        return workdir
+    sdd_dir = getattr(request.app.state, "sdd_dir", None)
+    if isinstance(sdd_dir, Path) and sdd_dir.name == ".sdd":
+        return sdd_dir.parent
+    return Path.cwd()
 
 
 def _read_provider_status(request: Request) -> dict[str, Any] | None:
@@ -55,6 +75,70 @@ def _read_provider_status(request: Request) -> dict[str, Any] | None:
         return None
 
 
+def _active_worktree_count(request: Request) -> int:
+    """Return the number of active Bernstein worktrees."""
+    sdd_dir = getattr(request.app.state, "sdd_dir", None)
+    workdir = _get_workdir(request)
+    if not isinstance(sdd_dir, Path):
+        return 0
+    worktrees_dir = sdd_dir / "worktrees"
+    if not worktrees_dir.exists():
+        return 0
+    try:
+        if (workdir / ".git").exists():
+            return len(WorktreeManager(workdir).list_active())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return sum(1 for entry in worktrees_dir.iterdir() if entry.is_dir())
+
+
+def _last_completion(store: TaskStore) -> dict[str, Any] | None:
+    """Return the latest archive record in a dashboard-friendly shape."""
+    latest = store.read_archive(limit=1)
+    if not latest:
+        return None
+    record = latest[-1]
+    completed_at = float(record.get("completed_at", 0.0) or 0.0)
+    if completed_at <= 0:
+        return None
+    return {
+        "task_id": str(record.get("task_id", "")),
+        "title": str(record.get("title", "")),
+        "assigned_agent": record.get("assigned_agent"),
+        "completed_at": completed_at,
+        "seconds_ago": max(0, round(time.time() - completed_at, 1)),
+        "status": str(record.get("status", "")),
+    }
+
+
+def _runtime_summary(request: Request, store: TaskStore) -> dict[str, Any]:
+    """Build runtime operational metadata for status and TUI consumers."""
+    sdd_dir = getattr(request.app.state, "sdd_dir", None)
+    workdir = _get_workdir(request)
+    restart_count = 0
+    if isinstance(sdd_dir, Path):
+        snapshot = read_supervisor_state(sdd_dir)
+        if snapshot is not None:
+            restart_count = snapshot.restart_count
+        disk_usage_bytes = directory_size_bytes(sdd_dir)
+        config_state = read_config_state(sdd_dir)
+    else:
+        disk_usage_bytes = 0
+        config_state = None
+    return {
+        "git_branch": current_git_branch(workdir),
+        "restart_count": restart_count,
+        "memory_mb": memory_usage_mb(),
+        "active_worktrees": _active_worktree_count(request),
+        "disk_usage_mb": round(disk_usage_bytes / (1024 * 1024), 2),
+        "last_completed": _last_completion(store),
+        "config_reloaded_at": float(config_state["reloaded_at"])
+        if config_state and config_state.get("reloaded_at")
+        else 0.0,
+        "config_hash": str(config_state.get("config_hash", "")) if config_state else "",
+    }
+
+
 # ---------------------------------------------------------------------------
 # Status & health
 # ---------------------------------------------------------------------------
@@ -65,6 +149,7 @@ async def status_dashboard(request: Request) -> JSONResponse:
     """Dashboard summary of task counts."""
     store = _get_store(request)
     payload = store.status_summary()
+    payload["runtime"] = _runtime_summary(request, store)
     provider_status = _read_provider_status(request)
     if provider_status is not None:
         payload["provider_status"] = provider_status
@@ -196,12 +281,15 @@ async def health_check(request: Request) -> HealthResponse:
     store = _get_store(request)
     is_readonly: bool = getattr(request.app.state, "readonly", False)
     summary = store.status_summary()
+    runtime = _runtime_summary(request, store)
     return HealthResponse(
         status="ok",
         uptime_s=round(time.time() - store.start_ts, 2),
         task_count=len(store.list_tasks()),
         agent_count=store.agent_count,
         task_queue_depth=summary.get("open", 0),
+        memory_mb=float(runtime.get("memory_mb", 0.0)),
+        restart_count=int(runtime.get("restart_count", 0)),
         is_readonly=is_readonly,
     )
 

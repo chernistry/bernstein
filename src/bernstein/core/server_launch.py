@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 from bernstein.core.router import TierAwareRouter, load_providers_from_yaml
+from bernstein.core.runtime_state import rotate_log_file
 from bernstein.core.seed import SeedConfig, seed_to_initial_task
 
 if TYPE_CHECKING:
@@ -64,9 +65,9 @@ def _clean_stale_runtime(workdir: Path) -> None:
         if pid is None or not _is_alive(pid):
             pid_file.unlink(missing_ok=True)
 
-    # Clear old log files (they'll be recreated)
-    for log_file in runtime_dir.glob("*.log"):
-        log_file.unlink(missing_ok=True)
+    # Preserve logs across runs, but rotate oversized ones.
+    for log_name in ("server.log", "spawner.log"):
+        rotate_log_file(runtime_dir / log_name)
 
     # Clear stale tasks.jsonl to start fresh
     jsonl = runtime_dir / "tasks.jsonl"
@@ -281,9 +282,10 @@ def _start_server(
         server_cmd.extend(["--reload", "--reload-dir", src_dir])
 
     log_path = workdir / ".sdd" / "runtime" / "server.log"
+    rotate_log_file(log_path)
     # Keep the log file open — child inherits the fd via fork().
     # Closing it prematurely can cause the child's stdout to break.
-    log_fh = log_path.open("w")
+    log_fh = log_path.open("a")
     proc = subprocess.Popen(
         server_cmd,
         env=env,
@@ -353,6 +355,8 @@ def _inject_manager_task(
         "priority": 1,
         "scope": "large",
         "complexity": "high",
+        "model": "opus",
+        "effort": "max",
     }
 
     base = server_url or f"http://127.0.0.1:{port}"
@@ -385,6 +389,7 @@ def _start_spawner(
     """Launch the spawner process in the background."""
     pid_path = workdir / ".sdd" / "runtime" / "spawner.pid"
     log_path = workdir / ".sdd" / "runtime" / "spawner.log"
+    rotate_log_file(log_path)
 
     # Pass cluster-related env vars to the spawner subprocess so the
     # orchestrator's __main__ block can build ClusterConfig from them.
@@ -398,7 +403,7 @@ def _start_spawner(
     if ab_test:
         env["BERNSTEIN_AB_TEST"] = "1"
 
-    log_fh = log_path.open("w")
+    log_fh = log_path.open("a")
     proc = subprocess.Popen(
         [
             sys.executable,

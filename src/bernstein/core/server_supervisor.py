@@ -25,6 +25,8 @@ import threading
 import time
 from pathlib import Path
 
+from bernstein.core.runtime_state import SupervisorStateSnapshot, rotate_log_file, write_supervisor_state
+
 logger = logging.getLogger(__name__)
 
 # Restart policy
@@ -62,6 +64,7 @@ def supervised_server(
     # Start initial server
     pid = _launch_server(state)
     state.current_pid = pid
+    write_supervisor_state(workdir, state.snapshot())
 
     # Start supervisor thread (monitors + restarts)
     supervisor = threading.Thread(
@@ -109,6 +112,17 @@ class _SupervisorState:
         self.stopped: bool = False
         self.lock = threading.Lock()
         self.consecutive_health_failures: int = 0
+        self.started_at: float = time.time()
+
+    def snapshot(self) -> SupervisorStateSnapshot:
+        """Build the persisted supervisor state snapshot."""
+        last_restart_at = self.restart_timestamps[-1] if self.restart_timestamps else None
+        return SupervisorStateSnapshot(
+            started_at=self.started_at,
+            restart_count=self.restart_count,
+            current_pid=self.current_pid,
+            last_restart_at=last_restart_at,
+        )
 
 
 def _launch_server(state: _SupervisorState) -> int:
@@ -144,6 +158,7 @@ def _launch_server(state: _SupervisorState) -> int:
         server_cmd.extend(["--reload", "--reload-dir", src_dir])
 
     log_path = workdir / ".sdd" / "runtime" / "server.log"
+    rotate_log_file(log_path)
     log_fh = log_path.open("a")  # Append on restart, don't overwrite
     proc = subprocess.Popen(
         server_cmd,
@@ -155,6 +170,8 @@ def _launch_server(state: _SupervisorState) -> int:
     )
     log_fh.close()
     pid_path.write_text(str(proc.pid))
+    state.current_pid = proc.pid
+    write_supervisor_state(workdir, state.snapshot())
     return proc.pid
 
 
@@ -216,6 +233,7 @@ def _supervisor_loop(state: _SupervisorState) -> None:
             with state.lock:
                 state.current_pid = new_pid
                 state.consecutive_health_failures = 0
+                write_supervisor_state(state.workdir, state.snapshot())
             logger.info("Server restarted successfully (PID %d)", new_pid)
         except Exception:
             logger.exception("Failed to restart server")

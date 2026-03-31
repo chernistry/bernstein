@@ -108,7 +108,7 @@ def _emit_for_spec(
 def _write_ticket(backlog_open: Path, spec: RoadmapSpec, scenario: ScenarioRecipe, task_idx: int) -> Path | None:
     tpl = scenario.tasks[task_idx]
     slug = _slugify(tpl.title)
-    filename = f"{spec.roadmap_id}-{scenario.scenario_id}-{task_idx + 1:02d}-{slug}.md"
+    filename = f"{spec.roadmap_id}-{scenario.scenario_id}-{task_idx + 1:02d}-{slug}.yaml"
     path = backlog_open / filename
     if path.exists():
         return None

@@ -26,6 +26,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
+from fnmatch import fnmatch
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ _SECRET_RULES: list[tuple[str, re.Pattern[str], str, str]] = [
     ),
     (
         "stripe_key",
-        re.compile(r"\b[sr]k_(live|test)_[A-Za-z0-9]{20,255}\b"),
+        re.compile(r"\b[sr]k_(live|test)_[A-Za-z0-9]{16,255}\b"),
         "high",
         "Stripe API key",
     ),
@@ -114,6 +115,21 @@ _SECRET_RULES: list[tuple[str, re.Pattern[str], str, str]] = [
         ),
         "high",
         "Generic API key or secret token assignment",
+    ),
+    (
+        "high_entropy_assignment",
+        re.compile(
+            r"""(?ix)
+            (?:secret|token|key|credential|password)[a-z0-9_\-]*
+            \s*[=:]\s*["']
+            (?=[A-Za-z0-9+/=_\-]{24,})
+            (?=.*[A-Z])(?=.*[a-z])(?=.*\d)
+            [A-Za-z0-9+/=_\-]{24,}
+            ["']
+            """
+        ),
+        "high",
+        "High-entropy secret-like assignment",
     ),
     (
         "password_assignment",
@@ -158,16 +174,23 @@ _SECRET_RULES: list[tuple[str, re.Pattern[str], str, str]] = [
         "medium",
         "US Social Security Number",
     ),
+    (
+        "credit_card_number",
+        re.compile(r"\b(?:\d[ -]*?){13,19}\b"),
+        "medium",
+        "Credit card number",
+    ),
 ]
 
 # Lines matching these patterns are whitelisted (example values, test fixtures).
 _ALLOWLIST_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"(?i)example\.com|example\.org|example\.net"),
     re.compile(r"(?i)test@|user@|admin@|noreply@|no-reply@"),
-    re.compile(r"(?i)placeholder|changeme|your[-_]?api[-_]?key|xxxx|dummy|fake"),
+    re.compile(r"(?i)placeholder|changeme|your[-_]?api[-_]?key|xxxx"),
     re.compile(r"(?i)localhost|127\.0\.0\.1|0\.0\.0\.0"),
     re.compile(r"(?i)password.*=.*['\"](?:test|password|changeme|secret|admin)['\"]"),
 ]
+_DEFAULT_ALLOWLIST_PREFIXES: tuple[str, ...] = ("FAKE", "TEST", "EXAMPLE", "DUMMY", "PLACEHOLDER", "LOCALHOST")
 
 
 # ---------------------------------------------------------------------------
@@ -175,25 +198,79 @@ _ALLOWLIST_PATTERNS: list[re.Pattern[str]] = [
 # ---------------------------------------------------------------------------
 
 
-def _is_allowlisted(line: str) -> bool:
+def _matches_ignore_path(path: str | None, ignore_paths: list[str] | None) -> bool:
+    """Return True when *path* matches any configured ignore glob."""
+    if path is None or not ignore_paths:
+        return False
+    normalized = path.replace("\\", "/")
+    return any(fnmatch(normalized, pattern) or normalized.startswith(pattern.rstrip("/")) for pattern in ignore_paths)
+
+
+def _contains_allowlist_prefix(line: str, allowlist_prefixes: list[str] | None) -> bool:
+    """Return True when the line contains a known fake/test placeholder prefix."""
+    prefixes = allowlist_prefixes or list(_DEFAULT_ALLOWLIST_PREFIXES)
+    prefix_pattern = "|".join(re.escape(prefix) for prefix in prefixes)
+    return bool(
+        re.search(
+            rf"""(?ix)
+            (?:["']|=|:)\s*
+            (?:{prefix_pattern})
+            (?:[_:\-A-Za-z0-9./]*)?
+            (?:["']|$)
+            """,
+            line,
+        )
+    )
+
+
+def _looks_like_credit_card(match_text: str) -> bool:
+    """Return True if a candidate number passes a Luhn checksum."""
+    digits = [int(char) for char in match_text if char.isdigit()]
+    if len(digits) < 13 or len(digits) > 19:
+        return False
+    checksum = 0
+    parity = len(digits) % 2
+    for index, digit in enumerate(digits):
+        value = digit
+        if index % 2 == parity:
+            value *= 2
+            if value > 9:
+                value -= 9
+        checksum += value
+    return checksum % 10 == 0
+
+
+def _is_allowlisted(line: str, allowlist_prefixes: list[str] | None = None) -> bool:
     """Return True if the line matches a known false-positive pattern."""
-    return any(p.search(line) for p in _ALLOWLIST_PATTERNS)
+    return any(p.search(line) for p in _ALLOWLIST_PATTERNS) or _contains_allowlist_prefix(line, allowlist_prefixes)
 
 
-def scan_text(text: str) -> list[SecretFinding]:
+def scan_text(
+    text: str,
+    *,
+    path: str | None = None,
+    ignore_paths: list[str] | None = None,
+    allowlist_prefixes: list[str] | None = None,
+) -> list[SecretFinding]:
     """Scan arbitrary text for secrets and PII.
 
     Args:
         text: Content to scan (file content, commit message, etc.).
+        path: Optional source path. Used for ignore-path filtering.
+        ignore_paths: Optional glob-like path ignore list.
+        allowlist_prefixes: Optional fake/test/example prefixes.
 
     Returns:
         List of SecretFinding objects, one per detection.
     """
+    if _matches_ignore_path(path, ignore_paths):
+        return []
+
     findings: list[SecretFinding] = []
     seen_rules: set[str] = set()
 
     for line_num, line in enumerate(text.splitlines(), start=1):
-        if _is_allowlisted(line):
+        if _is_allowlisted(line, allowlist_prefixes):
             continue
 
         for rule_label, pattern, severity, description in _SECRET_RULES:
@@ -202,6 +279,8 @@ def scan_text(text: str) -> list[SecretFinding]:
 
             m = pattern.search(line)
             if m:
+                if rule_label == "credit_card_number" and not _looks_like_credit_card(m.group(0)):
+                    continue
                 # Build redacted excerpt — never store raw secrets
                 start = max(0, m.start() - 10)
                 end = min(len(line), m.end() + 10)
@@ -226,7 +305,11 @@ def scan_text(text: str) -> list[SecretFinding]:
     return findings
 
 
-def scan_diff(diff_text: str) -> list[SecretFinding]:
+def scan_diff(
+    diff_text: str,
+    *,
+    allowlist_prefixes: list[str] | None = None,
+) -> list[SecretFinding]:
     """Scan a unified diff for secrets and PII in added lines only.
 
     Only lines starting with ``+`` (additions) are checked.  Removed lines
@@ -255,7 +338,7 @@ def scan_diff(diff_text: str) -> list[SecretFinding]:
 
         line = raw_line[1:]  # strip the leading "+"
 
-        if _is_allowlisted(line):
+        if _is_allowlisted(line, allowlist_prefixes):
             continue
 
         for rule_label, pattern, severity, description in _SECRET_RULES:
@@ -264,6 +347,8 @@ def scan_diff(diff_text: str) -> list[SecretFinding]:
 
             m = pattern.search(line)
             if m:
+                if rule_label == "credit_card_number" and not _looks_like_credit_card(m.group(0)):
+                    continue
                 start = max(0, m.start() - 10)
                 end = min(len(line), m.end() + 10)
                 raw_excerpt = line[start:end]

@@ -49,14 +49,14 @@ def test_emit_roadmap_wave_emits_bounded_batch(tmp_path: Path) -> None:
 
     assert len(first) == 1
     assert len(second) == 1
-    backlog_files = list((tmp_path / ".sdd" / "backlog" / "open").glob("*.md"))
+    backlog_files = list((tmp_path / ".sdd" / "backlog" / "open").glob("*.yaml"))
     assert len(backlog_files) == 2
 
 
 def test_emit_roadmap_wave_respects_open_ticket_cap(tmp_path: Path) -> None:
     backlog_open = tmp_path / ".sdd" / "backlog" / "open"
     backlog_open.mkdir(parents=True, exist_ok=True)
-    (backlog_open / "existing.md").write_text("# Existing\n", encoding="utf-8")
+    (backlog_open / "existing.yaml").write_text("---\nid: existing\ntitle: Existing\n---\n", encoding="utf-8")
     _seed_scenario(tmp_path)
     _seed_roadmap(tmp_path)
 

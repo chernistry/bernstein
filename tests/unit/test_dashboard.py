@@ -1,5 +1,7 @@
 """Tests for the Bernstein web dashboard."""
 
+# pyright: reportPrivateUsage=false
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -7,6 +9,13 @@ from typing import TYPE_CHECKING
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from bernstein.cli.dashboard import _format_gate_report_lines, _gate_status_color
+from bernstein.cli.dashboard import (
+    _build_runtime_subtitle,
+    _format_relative_age,
+    _summarize_agent_errors,
+    _task_retry_count,
+)
 from bernstein.core.server import create_app
 
 if TYPE_CHECKING:
@@ -173,3 +182,106 @@ async def test_dashboard_data_with_agent(client: AsyncClient) -> None:
     assert data["stats"]["agents"] == 1
     assert len(data["agents"]) == 1
     assert data["agents"][0]["id"] == "agent-001"
+
+
+@pytest.mark.anyio
+async def test_task_gate_report_endpoint_returns_saved_report(client: AsyncClient, jsonl_path: Path) -> None:
+    """GET /tasks/{id}/gates returns the saved runtime gate report."""
+    created = await client.post("/tasks", json=TASK_PAYLOAD)
+    task_id = created.json()["id"]
+    gates_dir = jsonl_path.parent / "gates"
+    gates_dir.mkdir(parents=True, exist_ok=True)
+    (gates_dir / f"{task_id}.json").write_text(
+        f'{{"task_id":"{task_id}","overall_pass":true,"total_duration_ms":12,"gates_run":["lint"],'
+        '"changed_files":["src/app.py"],"cache_hits":0,'
+        '"results":[{"name":"lint","status":"pass","required":true,"blocked":false,"cached":false,'
+        '"duration_ms":12,"details":"ok","metadata":{}}]}',
+        encoding="utf-8",
+    )
+
+    resp = await client.get(f"/tasks/{task_id}/gates")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["task_id"] == task_id
+    assert data["results"][0]["status"] == "pass"
+
+
+@pytest.mark.anyio
+async def test_task_gate_report_endpoint_missing_report_returns_404(client: AsyncClient) -> None:
+    """GET /tasks/{id}/gates returns 404 when the report is missing."""
+    created = await client.post("/tasks", json=TASK_PAYLOAD)
+    task_id = created.json()["id"]
+    resp = await client.get(f"/tasks/{task_id}/gates")
+    assert resp.status_code == 404
+
+
+def test_gate_status_color_mapping() -> None:
+    assert _gate_status_color("pass") == "green"
+    assert _gate_status_color("fail") == "red"
+    assert _gate_status_color("timeout") == "yellow"
+    assert _gate_status_color("bypassed") == "yellow"
+    assert _gate_status_color("skipped") == "grey50"
+
+
+def test_format_gate_report_lines() -> None:
+    lines = _format_gate_report_lines(
+        {
+            "overall_pass": False,
+            "total_duration_ms": 125,
+            "cache_hits": 1,
+            "changed_files": ["src/app.py"],
+            "results": [
+                {
+                    "name": "lint",
+                    "status": "fail",
+                    "duration_ms": 120,
+                    "cached": False,
+                    "details": "ruff found 2 issues",
+                }
+            ],
+        }
+    )
+    assert any("BLOCKED" in line for line in lines)
+    assert any("lint: fail" in line for line in lines)
+    assert any("ruff found 2 issues" in line for line in lines)
+
+
+def test_task_retry_count_from_title_and_description() -> None:
+    assert _task_retry_count({"title": "[RETRY 2] Fix auth", "description": ""}) == 2
+    assert _task_retry_count({"title": "Fix auth", "description": "[retry:3] retried"}) == 3
+    assert _task_retry_count({"title": "Fix auth", "description": "plain"}) == 0
+
+
+def test_build_runtime_subtitle_includes_branch_progress_and_restarts() -> None:
+    subtitle = _build_runtime_subtitle(
+        git_branch="main",
+        elapsed_s=390,
+        done=12,
+        total=45,
+        worktrees=5,
+        restart_count=2,
+    )
+    assert "Running for 6m 30s" in subtitle
+    assert "branch main" in subtitle
+    assert "12/45 tasks (26%)" in subtitle
+    assert "5 worktrees" in subtitle
+    assert "2 restarts" in subtitle
+
+
+def test_format_relative_age() -> None:
+    assert _format_relative_age(12) == "12s ago"
+    assert _format_relative_age(120) == "2m ago"
+    assert _format_relative_age(7200) == "2h ago"
+
+
+def test_summarize_agent_errors_uses_dead_and_nonzero_exit_code() -> None:
+    count, lines = _summarize_agent_errors(
+        [
+            {"role": "backend", "status": "dead", "task_ids": ["task-12345678"]},
+            {"role": "qa", "status": "working", "exit_code": 2, "task_ids": ["task-abcdef12"]},
+            {"role": "docs", "status": "working", "exit_code": 0, "task_ids": ["task-ignore"]},
+        ]
+    )
+    assert count == 2
+    assert lines[0].startswith("BACKEND: dead")
+    assert "QA: exit 2" in lines[1]

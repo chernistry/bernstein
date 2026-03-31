@@ -51,8 +51,11 @@ class AdaptiveParallelism:
     _low_error_since: float | None = None
     _last_adjustment_reason: str = "initial"
 
+    _created_at: float = field(default_factory=time.time)
+
     def __post_init__(self) -> None:
         self._current_max = self.configured_max
+        self._created_at = time.time()
 
     def record_outcome(self, success: bool) -> None:
         """Record a task completion outcome for error rate tracking.
@@ -112,7 +115,9 @@ class AdaptiveParallelism:
         prev = self._current_max
 
         # Rule 4: CPU overload → pause spawning entirely
-        if cpu_pct > _CPU_PAUSE_THRESHOLD:
+        # Grace period: ignore CPU spikes in first 2 minutes (startup indexing/ingestion)
+        startup_grace = (now - self._created_at) < 120
+        if cpu_pct > _CPU_PAUSE_THRESHOLD and not startup_grace:
             self._current_max = 0
             self._low_error_since = None
             if prev != 0:

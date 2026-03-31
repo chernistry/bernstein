@@ -235,15 +235,18 @@ def handle_orphaned_task(
             task = Task.from_dict(resp.json())
             logger.debug("handle_orphaned_task %s: fetched live (not in snapshot)", task_id)
         except httpx.HTTPError as exc:
-            logger.error("Failed to fetch orphaned task %s: %s", task_id, exc)
-            error_type = "fetch_failed"
+            # 404 = task from a previous session — not a real error, just stale
+            if "404" in str(exc):
+                logger.info("Orphaned task %s from previous session (404), skipping", task_id)
+            else:
+                logger.error("Failed to fetch orphaned task %s: %s", task_id, exc)
             emit_orphan_metrics(
                 orch._workdir,
                 task_id,
                 session,
                 start_ts,
                 success=False,
-                error_type=error_type,
+                error_type="stale_session" if "404" in str(exc) else "fetch_failed",
             )
             return
 

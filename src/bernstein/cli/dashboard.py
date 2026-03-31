@@ -936,18 +936,18 @@ class BernsteinApp(App[None]):
     """
 
     BINDINGS: ClassVar[list[BindingType]] = [
-        Binding("q", "graceful_quit", "Exit TUI (agents keep running)"),
-        Binding("s", "stop_bernstein", "Stop ALL (kill agents + server)"),
-        Binding("r", "hot_restart", "Hot Restart (reload UI, keep agents)"),
-        Binding("enter", "inspect_task", "Inspect"),
-        Binding("x", "cancel_task", "Cancel Task"),
-        Binding("p", "prioritize_task", "Boost P0"),
+        Binding("q", "graceful_quit", "Exit"),
+        Binding("s", "stop_bernstein", "Stop All"),
+        Binding("r", "hot_restart", "Restart"),
+        Binding("enter", "inspect_task", "Open"),
+        Binding("x", "cancel_task", "Cancel"),
+        Binding("p", "prioritize_task", "P0"),
         Binding("t", "retry_task", "Retry"),
         Binding("l", "toggle_activity", "Logs"),
         Binding("c", "focus_chat", "Chat"),
-        Binding("d", "compare_task", "Compare"),
-        Binding("v", "compare_task", "Compare", show=False),
-        Binding("i", "inspect_task", "Inspect", show=False),
+        Binding("d", "compare_task", "Diff"),
+        Binding("v", "compare_task", "Diff", show=False),
+        Binding("i", "inspect_task", "Open", show=False),
     ]
 
     def __init__(self, **kw: Any) -> None:

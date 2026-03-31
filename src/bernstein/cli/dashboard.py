@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 
 import httpx
 from rich.text import Text
+
+from bernstein.cli.icons import get_agent_icon, get_icons, get_status_icon
 from textual.app import App, ComposeResult
 from textual.binding import Binding, BindingType
 from textual.containers import Horizontal, Vertical
@@ -46,7 +48,7 @@ SERVER_URL = "http://127.0.0.1:8052"
 
 def _get(path: str) -> Any:
     try:
-        return httpx.get(f"{SERVER_URL}{path}", timeout=2.0).json()
+        return httpx.get(f"{SERVER_URL}{path}", timeout=10.0).json()
     except Exception as exc:
         logger.warning("Dashboard GET %s failed: %s", path, exc)
         return None
@@ -61,22 +63,37 @@ def _post(path: str, body: dict[str, Any] | None = None) -> Any:
 
 
 def _fetch_all() -> dict[str, Any]:
-    """Fetch all dashboard data in one blocking call (run in thread)."""
+    """Fetch all dashboard data in one blocking call (run in thread).
+
+    Agent data comes from local files (instant). Task data from HTTP
+    (can be slow with 400+ tasks). We fetch agents first so the TUI
+    shows activity even while tasks are loading.
+    """
+    # Fast path: local files (instant, no HTTP)
+    agents = _load_agents()
+    quarantine = _load_quarantine()
+    guardrails = _load_guardrail_violations()
+    cache_stats = _load_cache_stats()
+
+    # Slow path: HTTP to task server (may take 1-3s with many tasks)
+    status = _get("/status")
+    costs = _get("/costs")
+    quality = _get("/quality")
+    # Use /status for task counts instead of fetching all 400+ task objects
     tasks = _get("/tasks")
-    # Count pending_approval tasks from the tasks list
     pending_approval = 0
     if isinstance(tasks, list):
         task_dicts = cast("list[dict[str, Any]]", tasks)
         pending_approval = sum(1 for td in task_dicts if td.get("status") == "pending_approval")
     return {
         "tasks": tasks,
-        "status": _get("/status"),
-        "agents": _load_agents(),
-        "costs": _get("/costs"),
-        "quality": _get("/quality"),
-        "quarantine": _load_quarantine(),
-        "guardrails": _load_guardrail_violations(),
-        "cache_stats": _load_cache_stats(),
+        "status": status,
+        "agents": agents,
+        "costs": costs,
+        "quality": quality,
+        "quarantine": quarantine,
+        "guardrails": guardrails,
+        "cache_stats": cache_stats,
         "pending_approval": pending_approval,
     }
 
@@ -282,16 +299,23 @@ def _summarize_agent_errors(agents: list[dict[str, Any]]) -> tuple[int, list[str
     return len(lines), lines[:3]
 
 
-# -- UX-010: Visual premium status icons --
+# -- UX-010: Visual premium status icons (via icons module, Nerd Font aware) --
 
-STATUS_ICONS: dict[str, str] = {
-    "open": "\u25cb",
-    "claimed": "\u25c9",
-    "in_progress": "\u25cf",
-    "done": "[green]\u2713[/green]",
-    "failed": "[red]\u2717[/red]",
-    "cancelled": "[dim]\u2298[/dim]",
-}
+def _build_status_icons() -> dict[str, str]:
+    """Build status icon map using the active icon set (Nerd Font or Unicode)."""
+    _ic = get_icons()
+    return {
+        "open": "\u25cb",
+        "claimed": "\u25c9",
+        "in_progress": "\u25cf",
+        "done": f"[green]{_ic.status_done}[/green]",
+        "failed": f"[red]{_ic.status_failed}[/red]",
+        "cancelled": f"[dim]\u2298[/dim]",
+        "blocked": f"[yellow]{_ic.status_blocked}[/yellow]",
+    }
+
+
+STATUS_ICONS: dict[str, str] = _build_status_icons()
 
 AGENT_STATUS: dict[str, str] = {
     "working": "[bold green]\u25cf[/bold green]",
@@ -357,7 +381,9 @@ class AgentWidget(Static):
         color = {"working": "bright_green", "starting": "bright_yellow", "dead": "bright_red"}.get(
             status, "bright_green"
         )
-        dot = {"working": "\u25c9", "starting": "\u25ce", "dead": "\u25cc"}.get(status, "\u25cf")
+        dot = {"working": get_status_icon("running"), "starting": "\u25ce", "dead": "\u25cc"}.get(
+            status, "\u25cf"
+        )
 
         agent_source = a.get("agent_source", "built-in")
         # Show catalog agent ID when not built-in, e.g. "(agency:code-reviewer)"
@@ -365,8 +391,12 @@ class AgentWidget(Static):
         if agent_source and agent_source not in ("built-in", "builtin", ""):
             source_suffix = f" ({agent_source})"
 
+        adapter = str(a.get("adapter", a.get("model", ""))).lower()
+        agent_icon = get_agent_icon(adapter)
+
         t = Text()
         t.append(f" {dot} ", style=f"bold {color}")
+        t.append(f"{agent_icon} ", style=f"bold {color}")
         t.append(f"{role.upper()}", style=f"bold {color}")
         if source_suffix:
             t.append(source_suffix, style=f"italic {color}")
@@ -984,7 +1014,16 @@ class BernsteinApp(App[None]):
         log = self.query_one("#activity-log", RichLog)
         log.write("[bold]Bernstein starting...[/bold]")
         log.write("[dim]Connecting to task server on :8052[/dim]")
-        log.write("[dim]Waiting for manager to plan tasks...[/dim]")
+
+        # Immediate agent display from local file (no HTTP wait)
+        agents = _load_agents()
+        if agents:
+            alive = sum(1 for a in agents if a.get("status") != "dead")
+            log.write(f"[green]{alive} agent(s) active[/green]")
+            costs: dict[str, Any] = {}
+            self._update_agents(agents, costs)
+        else:
+            log.write("[dim]Spawning agents...[/dim]")
 
         self.set_interval(1.0, self._schedule_poll)
         self._schedule_poll()
@@ -1135,15 +1174,16 @@ class BernsteinApp(App[None]):
         order: dict[str, int] = {"claimed": 0, "in_progress": 0, "open": 1, "done": 2, "failed": 3}
         tasks.sort(key=lambda t: order.get(t.get("status", "open"), 9))
 
+        _ic = get_icons()
         plain_icons: dict[str, str] = {
             "open": "\u25cb",
             "planned": "\u25cb",
             "claimed": "\u25b6",
             "in_progress": "\u25b6",
-            "done": "\u2713",
-            "failed": "\u2717",
+            "done": _ic.status_done,
+            "failed": _ic.status_failed,
             "cancelled": "\u2298",
-            "blocked": "\u29bb",
+            "blocked": _ic.status_blocked,
             "orphaned": "\u26a0",
             "pending_approval": "\u2714",
         }

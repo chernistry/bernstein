@@ -203,8 +203,7 @@ class KeyRotationManager:
         self._keys: dict[str, ManagedKey] = {}
         self._lock = threading.Lock()
         self._leak_patterns = [
-            re.compile(p)
-            for p in (config.leak_patterns if config.leak_patterns else _DEFAULT_LEAK_PATTERNS)
+            re.compile(p) for p in (config.leak_patterns if config.leak_patterns else _DEFAULT_LEAK_PATTERNS)
         ]
         self._state_path = Path(config.state_dir) / "state.json"
         self._load_state()
@@ -308,16 +307,14 @@ class KeyRotationManager:
         if new_value is None and self._secrets_config.field_map:
             # Try field_map reverse lookup
             for secret_field, mapped_var in self._secrets_config.field_map.items():
-                    if mapped_var == key.env_var and secret_field in new_secrets:
-                        new_value = new_secrets[secret_field]
-                        break
+                if mapped_var == key.env_var and secret_field in new_secrets:
+                    new_value = new_secrets[secret_field]
+                    break
 
         if new_value is None:
             with self._lock:
                 key.state = KeyState.ACTIVE
-            raise SecretsError(
-                f"Rotation failed: {key.env_var} not found in secrets provider response"
-            )
+            raise SecretsError(f"Rotation failed: {key.env_var} not found in secrets provider response")
 
         now = time.time()
         new_fp = _fingerprint(new_value)

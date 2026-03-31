@@ -97,29 +97,33 @@ def _make_sdd(tmp_path: Path) -> Path:
     audit = sdd / "audit"
     audit.mkdir(parents=True)
     (audit / "2026-01-15.jsonl").write_text(
-        json.dumps({
-            "timestamp": "2026-01-15T10:00:00.000000Z",
-            "event_type": "task.created",
-            "actor": "orchestrator",
-            "resource_type": "task",
-            "resource_id": "t-001",
-            "details": {},
-            "prev_hmac": "0" * 64,
-            "hmac": "a" * 64,
-        })
+        json.dumps(
+            {
+                "timestamp": "2026-01-15T10:00:00.000000Z",
+                "event_type": "task.created",
+                "actor": "orchestrator",
+                "resource_type": "task",
+                "resource_id": "t-001",
+                "details": {},
+                "prev_hmac": "0" * 64,
+                "hmac": "a" * 64,
+            }
+        )
         + "\n"
     )
     (audit / "2026-04-01.jsonl").write_text(
-        json.dumps({
-            "timestamp": "2026-04-01T10:00:00.000000Z",
-            "event_type": "task.created",
-            "actor": "orchestrator",
-            "resource_type": "task",
-            "resource_id": "t-002",
-            "details": {},
-            "prev_hmac": "a" * 64,
-            "hmac": "b" * 64,
-        })
+        json.dumps(
+            {
+                "timestamp": "2026-04-01T10:00:00.000000Z",
+                "event_type": "task.created",
+                "actor": "orchestrator",
+                "resource_type": "task",
+                "resource_id": "t-002",
+                "details": {},
+                "prev_hmac": "a" * 64,
+                "hmac": "b" * 64,
+            }
+        )
         + "\n"
     )
 
@@ -145,9 +149,7 @@ def _make_sdd(tmp_path: Path) -> Path:
     # SBOM
     sbom = sdd / "sbom"
     sbom.mkdir(parents=True)
-    (sbom / "sbom-run-001.cdx.json").write_text(
-        json.dumps({"bomFormat": "CycloneDX", "components": []})
-    )
+    (sbom / "sbom-run-001.cdx.json").write_text(json.dumps({"bomFormat": "CycloneDX", "components": []}))
 
     return sdd
 

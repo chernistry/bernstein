@@ -458,6 +458,12 @@ def parse_seed(path: Path) -> SeedConfig:
                 raise SeedError(f"quality_gates.{key} must be an integer, got: {type(val).__name__}")
             return val
 
+        # PII scan paths default
+        pii_scan_paths_raw = qg_dict.get("pii_scan_paths", ["src/"])
+        if not isinstance(pii_scan_paths_raw, list):
+            raise SeedError(f"quality_gates.pii_scan_paths must be a list, got: {type(pii_scan_paths_raw).__name__}")
+        pii_scan_paths = [str(p) for p in pii_scan_paths_raw]
+
         quality_gates = QualityGatesConfig(
             enabled=_qg_bool("enabled", True),
             lint=_qg_bool("lint", True),
@@ -467,6 +473,8 @@ def parse_seed(path: Path) -> SeedConfig:
             tests=_qg_bool("tests", False),
             test_command=_qg_str("test_command", "uv run python scripts/run_tests.py -x"),
             timeout_s=_qg_int("timeout_s", 120),
+            pii_scan=_qg_bool("pii_scan", True),
+            pii_scan_paths=pii_scan_paths,
         )
 
     formal_verification_raw: object = data.get("formal_verification")
@@ -572,18 +580,14 @@ def parse_seed(path: Path) -> SeedConfig:
             if isinstance(kr_interval_raw, (str, int)):
                 kr_interval = _parse_interval(kr_interval_raw)
             else:
-                raise SeedError(
-                    f"key_rotation.interval must be a string or int, got: {type(kr_interval_raw).__name__}"
-                )
+                raise SeedError(f"key_rotation.interval must be a string or int, got: {type(kr_interval_raw).__name__}")
         except ValueError as exc:
             raise SeedError(f"key_rotation.interval: {exc}") from exc
 
         kr_on_leak_raw: object = kr_dict.get("on_leak", "revoke_immediately")
         _valid_policies = ("revoke_immediately", "revoke_after_rotation", "alert_only")
         if not isinstance(kr_on_leak_raw, str) or kr_on_leak_raw not in _valid_policies:
-            raise SeedError(
-                f"key_rotation.on_leak must be one of {list(_valid_policies)}, got: {kr_on_leak_raw!r}"
-            )
+            raise SeedError(f"key_rotation.on_leak must be one of {list(_valid_policies)}, got: {kr_on_leak_raw!r}")
 
         kr_provider_raw: object = kr_dict.get("secrets_provider")
         kr_provider: str | None = None
@@ -603,9 +607,7 @@ def parse_seed(path: Path) -> SeedConfig:
         kr_patterns: list[str] = []
         if kr_patterns_raw is not None:
             if not isinstance(kr_patterns_raw, list):
-                raise SeedError(
-                    f"key_rotation.leak_patterns must be a list, got: {type(kr_patterns_raw).__name__}"
-                )
+                raise SeedError(f"key_rotation.leak_patterns must be a list, got: {type(kr_patterns_raw).__name__}")
             kr_patterns = [str(p) for p in kr_patterns_raw]
 
         key_rotation = KeyRotationConfig(

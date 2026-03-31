@@ -39,7 +39,7 @@ def test_load_plan_valid(tmp_path: Path) -> None:
 
     tasks = load_plan_from_yaml(plan_file)
     assert len(tasks) == 3
-    
+
     # Task titles
     titles = [t.title for t in tasks]
     assert "Setup DB" in titles
@@ -73,11 +73,7 @@ def test_load_plan_missing_stages(tmp_path: Path) -> None:
 
 def test_load_plan_stage_missing_name(tmp_path: Path) -> None:
     plan_file = tmp_path / "no_name.yaml"
-    plan_content = {
-        "stages": [
-            {"steps": [{"goal": "Step"}]}
-        ]
-    }
+    plan_content = {"stages": [{"steps": [{"goal": "Step"}]}]}
     plan_file.write_text(yaml.dump(plan_content))
     with pytest.raises(PlanLoadError, match="Stage 0 is missing a name"):
         load_plan_from_yaml(plan_file)

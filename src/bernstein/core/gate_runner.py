@@ -12,7 +12,7 @@ import threading
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -40,6 +40,11 @@ VALID_GATE_NAMES = frozenset(
 )
 VALID_GATE_CONDITIONS = frozenset({"always", "python_changed", "tests_changed", "any_changed"})
 LEGACY_PYTHON_CONDITION = "changed_files.any('.py')"
+
+
+def _empty_metadata() -> dict[str, Any]:
+    """Return a typed empty metadata mapping."""
+    return {}
 
 
 def normalize_gate_condition(condition: str) -> str:
@@ -80,7 +85,7 @@ class GateResult:
     cached: bool
     duration_ms: int
     details: str
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=_empty_metadata)
 
 
 @dataclass
@@ -98,16 +103,19 @@ class GateReport:
 
 def build_default_pipeline(config: QualityGatesConfig) -> list[GatePipelineStep]:
     """Build the implicit pipeline used when the seed file omits one."""
-    pipeline = [
-        GatePipelineStep(name="lint", required=True, condition="always"),
-        GatePipelineStep(name="type_check", required=config.type_check, condition="python_changed"),
-        GatePipelineStep(name="tests", required=config.tests, condition="python_changed"),
-        GatePipelineStep(name="pii_scan", required=config.pii_scan, condition="any_changed"),
-    ]
+    pipeline: list[GatePipelineStep] = []
+    if config.lint:
+        pipeline.append(GatePipelineStep(name="lint", required=True, condition="always"))
+    if config.type_check:
+        pipeline.append(GatePipelineStep(name="type_check", required=True, condition="python_changed"))
+    if config.tests:
+        pipeline.append(GatePipelineStep(name="tests", required=True, condition="python_changed"))
+    if config.pii_scan:
+        pipeline.append(GatePipelineStep(name="pii_scan", required=True, condition="any_changed"))
     if config.mutation_testing:
         pipeline.append(GatePipelineStep(name="mutation_testing", required=True, condition="python_changed"))
     if config.intent_verification.enabled:
-        pipeline.append(GatePipelineStep(name="intent_verification", required=False, condition="any_changed"))
+        pipeline.append(GatePipelineStep(name="intent_verification", required=True, condition="any_changed"))
     return pipeline
 
 
@@ -243,23 +251,41 @@ class GateRunner:
             command = self._lint_command(step, changed_files)
             if command is None:
                 return self._skipped(step, "No Python files changed.")
-            return await self._run_command_gate(step, command, run_dir, self._config.timeout_s, pass_detail="no lint violations")
+            return await self._run_command_gate(
+                step,
+                command,
+                run_dir,
+                self._config.timeout_s,
+                pass_detail="no lint violations",
+            )
 
         if step.name == "type_check":
             command = self._type_check_command(step, changed_files)
             if command is None:
                 return self._skipped(step, "No Python files changed.")
-            return await self._run_command_gate(step, command, run_dir, self._config.timeout_s, pass_detail="no type errors")
+            return await self._run_command_gate(
+                step,
+                command,
+                run_dir,
+                self._config.timeout_s,
+                pass_detail="no type errors",
+            )
 
         if step.name == "tests":
             command = self._tests_command(step, run_dir, changed_files)
             if command is None:
                 return self._skipped(step, "No impacted tests detected.")
-            return await self._run_command_gate(step, command, run_dir, self._config.timeout_s, pass_detail="all tests passing")
+            return await self._run_command_gate(
+                step,
+                command,
+                run_dir,
+                self._config.timeout_s,
+                pass_detail="all tests passing",
+            )
 
         if step.name == "pii_scan":
             pii_result = await asyncio.to_thread(
-                qg._run_pii_gate,
+                qg.run_pii_gate_sync,
                 self._config,
                 run_dir,
                 changed_files if self._changed_files_resolved else None,
@@ -277,7 +303,7 @@ class GateRunner:
             )
 
         if step.name == "mutation_testing":
-            ok, detail, score = await asyncio.to_thread(qg._run_mutation_gate, self._config, run_dir)
+            ok, detail, score = await asyncio.to_thread(qg.run_mutation_gate_sync, self._config, run_dir)
             return GateResult(
                 name="mutation_testing",
                 status="pass" if ok else "fail",
@@ -290,7 +316,12 @@ class GateRunner:
             )
 
         if step.name == "intent_verification":
-            verdict, blocked = await asyncio.to_thread(qg._run_intent_gate, task, run_dir, self._config.intent_verification)
+            verdict, blocked = await asyncio.to_thread(
+                qg.run_intent_gate_sync,
+                task,
+                run_dir,
+                self._config.intent_verification,
+            )
             return GateResult(
                 name="intent_verification",
                 status="fail" if blocked else "pass",
@@ -321,7 +352,7 @@ class GateRunner:
     ) -> GateResult:
         from bernstein.core import quality_gates as qg
 
-        ok, detail = await asyncio.to_thread(qg._run_command, command, run_dir, timeout_s)
+        ok, detail = await asyncio.to_thread(qg.run_command_sync, command, run_dir, timeout_s)
         status: GateStatus
         blocked = False
         normalized_detail = detail
@@ -430,7 +461,11 @@ class GateRunner:
                         impacted.add(candidate.relative_to(run_dir).as_posix())
 
             parent = (run_dir / rel_path).parent
-            for candidate_dir in [parent / "tests", *(ancestor / "tests" for ancestor in parent.parents if ancestor != run_dir.parent)]:
+            candidate_dirs = [
+                parent / "tests",
+                *(ancestor / "tests" for ancestor in parent.parents if ancestor != run_dir.parent),
+            ]
+            for candidate_dir in candidate_dirs:
                 if not candidate_dir.exists() or not candidate_dir.is_dir():
                     continue
                 try:
@@ -508,7 +543,9 @@ class GateRunner:
             "pii_allowlist_prefixes": self._config.pii_allowlist_prefixes if step.name == "pii_scan" else None,
             "security_scan_command": self._config.security_scan_command if step.name == "security_scan" else None,
             "coverage_delta_command": self._config.coverage_delta_command if step.name == "coverage_delta" else None,
-            "complexity_check_command": self._config.complexity_check_command if step.name == "complexity_check" else None,
+            "complexity_check_command": (
+                self._config.complexity_check_command if step.name == "complexity_check" else None
+            ),
             "import_cycle_command": self._config.import_cycle_command if step.name == "import_cycle" else None,
         }
         payload = {"step": relevant_config, "files": hashed_files}
@@ -558,9 +595,17 @@ class GateRunner:
             cache_path = self._workdir / ".sdd" / "caching" / "gate_cache.json"
             if cache_path.exists():
                 try:
-                    data = json.loads(cache_path.read_text(encoding="utf-8"))
-                    if isinstance(data, dict):
-                        self._cache_entries = {str(key): value for key, value in data.items() if isinstance(value, dict)}
+                    raw_data: object = json.loads(cache_path.read_text(encoding="utf-8"))
+                    if isinstance(raw_data, dict):
+                        raw_entries = cast("dict[object, object]", raw_data)
+                        entries: dict[str, dict[str, Any]] = {}
+                        for key, value in raw_entries.items():
+                            if isinstance(value, dict):
+                                raw_value = cast("dict[object, Any]", value)
+                                entries[str(key)] = {
+                                    str(item_key): item_value for item_key, item_value in raw_value.items()
+                                }
+                        self._cache_entries = entries
                 except (OSError, json.JSONDecodeError):
                     logger.warning("Failed to load gate cache from %s", cache_path)
             self._cache_loaded = True
@@ -585,4 +630,8 @@ class GateRunner:
 
     def _is_test_path(self, path: str) -> bool:
         candidate = Path(path)
-        return candidate.parts[:1] == ("tests",) or candidate.name.startswith("test_") or candidate.name.endswith("_test.py")
+        return (
+            candidate.parts[:1] == ("tests",)
+            or candidate.name.startswith("test_")
+            or candidate.name.endswith("_test.py")
+        )

@@ -159,9 +159,7 @@ def detect_merge_conflicts(branch: str, base: str, cwd: Path) -> ConflictCheckRe
             branch,
             base_r.stderr.strip(),
         )
-        return ConflictCheckResult(
-            has_conflicts=False, conflicting_files=[], branch=branch, base=base
-        )
+        return ConflictCheckResult(has_conflicts=False, conflicting_files=[], branch=branch, base=base)
 
     merge_base = base_r.stdout.strip()
 

@@ -15,6 +15,7 @@ import yaml
 from bernstein.agents.catalog import CatalogRegistry
 from bernstein.core.compliance import ComplianceConfig, CompliancePreset
 from bernstein.core.formal_verification import FormalProperty, FormalVerificationConfig
+from bernstein.core.gate_runner import VALID_GATE_NAMES, GatePipelineStep, normalize_gate_condition
 from bernstein.core.key_rotation import KeyRotationConfig, _parse_interval
 from bernstein.core.models import ClusterConfig, ClusterTopology, Complexity, Scope, Task, TaskStatus
 from bernstein.core.quality_gates import QualityGatesConfig
@@ -458,6 +459,58 @@ def parse_seed(path: Path) -> SeedConfig:
                 raise SeedError(f"quality_gates.{key} must be an integer, got: {type(val).__name__}")
             return val
 
+        def _qg_optional_str(key: str) -> str | None:
+            val = qg_dict.get(key)
+            if val is None:
+                return None
+            if not isinstance(val, str):
+                raise SeedError(f"quality_gates.{key} must be a string, got: {type(val).__name__}")
+            return val
+
+        def _qg_str_list(key: str, default: list[str]) -> list[str]:
+            raw = qg_dict.get(key, default)
+            if not isinstance(raw, list):
+                raise SeedError(f"quality_gates.{key} must be a list, got: {type(raw).__name__}")
+            if not all(isinstance(item, str) for item in raw):
+                raise SeedError(f"quality_gates.{key} must contain only strings")
+            return [str(item) for item in raw]
+
+        pipeline_raw = qg_dict.get("pipeline")
+        pipeline: list[GatePipelineStep] | None = None
+        if pipeline_raw is not None:
+            if not isinstance(pipeline_raw, list):
+                raise SeedError(f"quality_gates.pipeline must be a list, got: {type(pipeline_raw).__name__}")
+            pipeline = []
+            for index, entry in enumerate(pipeline_raw):
+                if not isinstance(entry, dict):
+                    raise SeedError(f"quality_gates.pipeline[{index}] must be a mapping")
+                name = entry.get("name")
+                if not isinstance(name, str):
+                    raise SeedError(f"quality_gates.pipeline[{index}].name must be a string")
+                if name not in VALID_GATE_NAMES:
+                    raise SeedError(f"quality_gates.pipeline[{index}].name is unsupported: {name!r}")
+                required = entry.get("required", True)
+                if not isinstance(required, bool):
+                    raise SeedError(f"quality_gates.pipeline[{index}].required must be a bool")
+                condition_raw = entry.get("condition", "always")
+                if not isinstance(condition_raw, str):
+                    raise SeedError(f"quality_gates.pipeline[{index}].condition must be a string")
+                command_override = entry.get("command_override")
+                if command_override is not None and not isinstance(command_override, str):
+                    raise SeedError(f"quality_gates.pipeline[{index}].command_override must be a string")
+                try:
+                    condition = normalize_gate_condition(condition_raw)
+                except ValueError as exc:
+                    raise SeedError(str(exc)) from exc
+                pipeline.append(
+                    GatePipelineStep(
+                        name=name,
+                        required=required,
+                        condition=condition,
+                        command_override=command_override,
+                    )
+                )
+
         # PII scan paths default
         pii_scan_paths_raw = qg_dict.get("pii_scan_paths", ["src/"])
         if not isinstance(pii_scan_paths_raw, list):
@@ -473,8 +526,21 @@ def parse_seed(path: Path) -> SeedConfig:
             tests=_qg_bool("tests", False),
             test_command=_qg_str("test_command", "uv run python scripts/run_tests.py -x"),
             timeout_s=_qg_int("timeout_s", 120),
+            pipeline=pipeline,
+            allow_bypass=_qg_bool("allow_bypass", False),
+            cache_enabled=_qg_bool("cache_enabled", True),
+            base_ref=_qg_str("base_ref", "main"),
             pii_scan=_qg_bool("pii_scan", True),
             pii_scan_paths=pii_scan_paths,
+            pii_ignore_paths=_qg_str_list("pii_ignore_paths", []),
+            pii_allowlist_prefixes=_qg_str_list(
+                "pii_allowlist_prefixes",
+                ["FAKE", "TEST", "EXAMPLE", "DUMMY", "PLACEHOLDER", "LOCALHOST"],
+            ),
+            security_scan_command=_qg_optional_str("security_scan_command"),
+            coverage_delta_command=_qg_optional_str("coverage_delta_command"),
+            complexity_check_command=_qg_optional_str("complexity_check_command"),
+            import_cycle_command=_qg_optional_str("import_cycle_command"),
         )
 
     formal_verification_raw: object = data.get("formal_verification")

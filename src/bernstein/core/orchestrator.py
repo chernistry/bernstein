@@ -72,6 +72,13 @@ from bernstein.core.recorder import RunRecorder
 from bernstein.core.retrospective import generate_retrospective
 from bernstein.core.router import TierAwareRouter, load_model_policy_from_yaml, load_providers_from_yaml
 from bernstein.core.runbooks import RunbookEngine
+from bernstein.core.runtime_state import (
+    SessionReplayMetadata,
+    current_git_branch,
+    current_git_sha,
+    hash_file,
+    write_session_replay_metadata,
+)
 from bernstein.core.semantic_cache import ResponseCacheManager
 from bernstein.core.signals import read_unresolved_pivots
 from bernstein.core.slo import SLOTracker
@@ -380,6 +387,16 @@ class Orchestrator:
         # Deterministic replay recorder: appends events to
         # .sdd/runs/{run_id}/replay.jsonl for post-hoc debugging.
         self._recorder = RunRecorder(run_id=run_id, sdd_dir=workdir / ".sdd")
+        _seed_path = workdir / "bernstein.yaml"
+        self._replay_metadata = SessionReplayMetadata(
+            run_id=run_id,
+            started_at=time.time(),
+            git_sha=current_git_sha(workdir),
+            git_branch=current_git_branch(workdir),
+            config_hash=hash_file(_seed_path if _seed_path.exists() else None),
+            seed_path=str(_seed_path) if _seed_path.exists() else None,
+        )
+        write_session_replay_metadata(workdir / ".sdd", self._replay_metadata)
 
         # Write-Ahead Log: hash-chained JSONL for crash-safe durability
         # and execution fingerprinting. WAL entries are written before
@@ -1071,11 +1088,14 @@ class Orchestrator:
             run_id=self._run_id,
             max_agents=self._config.max_agents,
             budget_usd=self._config.budget_usd,
+            git_sha=self._replay_metadata.git_sha,
+            git_branch=self._replay_metadata.git_branch,
+            config_hash=self._replay_metadata.config_hash,
             **_run_started_extra,
         )
         consecutive_failures = 0
         max_consecutive_failures = 10
-        while self._running:
+        while self._running or self._has_active_agents():
             tick_result: TickResult | None = None
             try:
                 tick_result = self.tick()
@@ -1137,6 +1157,13 @@ class Orchestrator:
             self._recorder.path,
             self._recorder.fingerprint()[:16] + "...",
         )
+
+    def _has_active_agents(self) -> bool:
+        """Return True if any agents are still alive (not dead)."""
+        alive = sum(1 for s in self._agents.values() if s.status != "dead")
+        if alive > 0 and not self._running:
+            logger.info("Orchestrator draining: %d agent(s) still active", alive)
+        return alive > 0
 
     def stop(self) -> None:
         """Signal the run loop to exit after the current tick.
@@ -2561,6 +2588,7 @@ class Orchestrator:
                 "id": s.id,
                 "role": s.role,
                 "status": s.status,
+                "exit_code": s.exit_code,
                 "model": s.model_config.model if s.model_config else None,
                 "task_ids": s.task_ids,
                 "pid": s.pid,

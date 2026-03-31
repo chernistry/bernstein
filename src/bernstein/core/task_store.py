@@ -76,6 +76,8 @@ class ArchiveRecord(TypedDict):
     duration_seconds: float
     result_summary: str | None
     cost_usd: float | None
+    assigned_agent: str | None
+    owned_files: list[str]
 
 
 class ProgressEntry(TypedDict):
@@ -408,6 +410,8 @@ class TaskStore:
             "duration_seconds": round(completed_at - task.created_at, 3),
             "result_summary": task.result_summary,
             "cost_usd": None,
+            "assigned_agent": task.assigned_agent,
+            "owned_files": list(task.owned_files),
         }
         line = json.dumps(record, default=str) + "\n"
 
@@ -1135,3 +1139,8 @@ class TaskStore:
     def metrics_jsonl_path(self) -> Path:
         """Path to the metrics JSONL file (for dashboard cost history)."""
         return self._metrics_jsonl_path
+
+    @property
+    def archive_path(self) -> Path:
+        """Path to the append-only archive JSONL file."""
+        return self._archive_path

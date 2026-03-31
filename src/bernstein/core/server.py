@@ -10,6 +10,8 @@ import asyncio
 import contextlib
 import json
 import os
+import signal
+import threading
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict
@@ -330,6 +332,8 @@ class HealthResponse(BaseModel):
     task_count: int
     agent_count: int
     task_queue_depth: int = 0
+    memory_mb: float = 0.0
+    restart_count: int = 0
     is_readonly: bool = False
 
 
@@ -761,11 +765,53 @@ def create_app(
 
     store = TaskStore(jsonl_path, metrics_jsonl_path=metrics_jsonl_path)
     sse_bus = SSEBus()
+    workdir = (
+        jsonl_path.parent.parent.parent
+        if jsonl_path.parent.name == "runtime" and jsonl_path.parent.parent.name == ".sdd"
+        else Path.cwd()
+    )
+
+    def _reload_seed_config() -> dict[str, Any]:
+        """Reload and persist bernstein.yaml metadata without restarting."""
+        from bernstein.core.runtime_state import hash_file, write_config_state
+        from bernstein.core.seed import SeedError, parse_seed
+
+        seed_path = workdir / "bernstein.yaml"
+        config_hash = hash_file(seed_path if seed_path.exists() else None)
+        payload: dict[str, Any] = {
+            "seed_path": str(seed_path) if seed_path.exists() else None,
+            "config_hash": config_hash,
+            "reloaded_at": time.time(),
+            "loaded": False,
+        }
+        if seed_path.exists():
+            try:
+                application.state.seed_config = parse_seed(seed_path)  # type: ignore[attr-defined]
+                payload["loaded"] = True
+            except SeedError as exc:
+                payload["error"] = str(exc)
+        else:
+            application.state.seed_config = None  # type: ignore[attr-defined]
+        write_config_state(
+            jsonl_path.parent.parent,
+            config_hash=config_hash,
+            seed_path=payload["seed_path"],
+            reloaded_at=float(payload["reloaded_at"]),
+        )
+        return payload
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # Startup: replay persisted state
         store.replay_jsonl()
+        _reload_seed_config()
+        previous_sighup = signal.getsignal(signal.SIGHUP) if hasattr(signal, "SIGHUP") else None
+        if hasattr(signal, "SIGHUP") and threading.current_thread() is threading.main_thread():
+
+            def _handle_sighup(_signum: int, _frame: object | None) -> None:
+                _reload_seed_config()
+
+            signal.signal(signal.SIGHUP, _handle_sighup)
         # Launch the stale-agent reaper
         reaper = asyncio.create_task(_reaper_loop(store))
         # Launch SSE heartbeat loop
@@ -788,6 +834,12 @@ def create_app(
             node_reaper.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await node_reaper
+        if (
+            hasattr(signal, "SIGHUP")
+            and previous_sighup is not None
+            and threading.current_thread() is threading.main_thread()
+        ):
+            signal.signal(signal.SIGHUP, previous_sighup)
         await store.flush_buffer()
 
     application = FastAPI(title="Bernstein Task Server", version="0.1.0", lifespan=lifespan)
@@ -817,6 +869,8 @@ def create_app(
     application.state.sse_bus = sse_bus  # type: ignore[attr-defined]
     application.state.runtime_dir = jsonl_path.parent  # type: ignore[attr-defined]  # .sdd/runtime/
     application.state.sdd_dir = jsonl_path.parent.parent  # type: ignore[attr-defined]  # .sdd/
+    application.state.workdir = workdir  # type: ignore[attr-defined]
+    application.state.reload_seed_config = _reload_seed_config  # type: ignore[attr-defined]
     application.state.readonly = readonly  # type: ignore[attr-defined]
     application.state.slack_signing_secret = (  # type: ignore[attr-defined]
         slack_signing_secret or os.environ.get("SLACK_SIGNING_SECRET") or ""

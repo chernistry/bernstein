@@ -89,6 +89,10 @@ def _get_runtime_dir(request: Request) -> Path:
     return request.app.state.runtime_dir  # type: ignore[no-any-return]
 
 
+def _get_gate_report_path(request: Request, task_id: str) -> Path:
+    return _get_runtime_dir(request) / "gates" / f"{task_id}.json"
+
+
 # ---------------------------------------------------------------------------
 # Task CRUD
 # ---------------------------------------------------------------------------
@@ -299,6 +303,24 @@ async def get_task(task_id: str, request: Request) -> TaskResponse:
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
     return task_to_response(task)
+
+
+@router.get("/tasks/{task_id}/gates")
+async def get_task_gates(task_id: str, request: Request) -> JSONResponse:
+    """Return the persisted quality-gate report for a task."""
+    store = _get_store(request)
+    task = store.get_task(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
+
+    report_path = _get_gate_report_path(request, task_id)
+    if not report_path.exists():
+        raise HTTPException(status_code=404, detail=f"Gate report for task '{task_id}' not found")
+    try:
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=500, detail=f"Gate report for task '{task_id}' is unreadable") from exc
+    return JSONResponse(content=payload)
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskResponse)

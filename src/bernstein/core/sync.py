@@ -254,7 +254,7 @@ def sync_backlog_to_server(
             result.errors.append("Cannot connect to task server — is it running?")
             return result
 
-        md_files = sorted(backlog_open.glob("*.yaml"))
+        md_files = sorted([*backlog_open.glob("*.yaml"), *backlog_open.glob("*.md")])
 
         # --- Step 1: create new tasks ---
         for md_file in md_files:
@@ -297,7 +297,7 @@ def sync_backlog_to_server(
             normalise_title(t.get("title", "")) for t in _get_tasks_by_status(_client, server_url, "done")
         }
 
-        for md_file in sorted(backlog_open.glob("*.yaml")):
+        for md_file in sorted([*backlog_open.glob("*.yaml"), *backlog_open.glob("*.md")]):
             task = parse_backlog_file(md_file)
             if task is None:
                 continue

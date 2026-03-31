@@ -105,9 +105,7 @@ def _history_rows(workdir: Path, file_path: Path, *, limit: int) -> list[History
     store = _load_task_store(workdir)
     matches: list[HistoryRow] = []
     for record in reversed(store.read_archive(limit=max(limit * 20, 1000))):
-        record_path_matches = {
-            _normalize_repo_path(workdir, path) for path in record.get("owned_files", [])
-        }
+        record_path_matches = {_normalize_repo_path(workdir, path) for path in record.get("owned_files", [])}
         if normalized_path not in record_path_matches:
             continue
         matches.append(
@@ -117,9 +115,7 @@ def _history_rows(workdir: Path, file_path: Path, *, limit: int) -> list[History
                 "role": str(record.get("role", "")),
                 "status": str(record.get("status", "")),
                 "completed_at": float(record.get("completed_at", 0.0) or 0.0),
-                "assigned_agent": (
-                    str(record["assigned_agent"]) if record.get("assigned_agent") else None
-                ),
+                "assigned_agent": (str(record["assigned_agent"]) if record.get("assigned_agent") else None),
             }
         )
         if len(matches) >= limit:
@@ -226,9 +222,7 @@ def history_cmd(file_path: Path, workdir: Path, limit: int, as_json: bool) -> No
         return
 
     if not rows:
-        console.print(
-            f"[dim]No archived tasks recorded for {_normalize_repo_path(resolved_workdir, file_path)}.[/dim]"
-        )
+        console.print(f"[dim]No archived tasks recorded for {_normalize_repo_path(resolved_workdir, file_path)}.[/dim]")
         return
 
     table = Table(title=f"Task History: {_normalize_repo_path(resolved_workdir, file_path)}", header_style="bold cyan")

@@ -134,6 +134,30 @@ class ReadOnlyMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class CrashGuardMiddleware(BaseHTTPMiddleware):
+    """Catch unhandled exceptions so they return 500 instead of crashing uvicorn.
+
+    Without this, a single bad request (e.g. OOM in a route handler,
+    unexpected None, missing key) can kill the entire server process.
+    """
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Any],
+    ) -> StarletteResponse:
+        try:
+            return await call_next(request)
+        except Exception:
+            import logging as _logging
+
+            _logging.getLogger(__name__).exception("Unhandled exception in %s %s", request.method, request.url.path)
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "Internal server error (crash guard caught)"},
+            )
+
+
 # TypedDicts and related types are now imported from task_store module
 
 
@@ -767,6 +791,9 @@ def create_app(
         await store.flush_buffer()
 
     application = FastAPI(title="Bernstein Task Server", version="0.1.0", lifespan=lifespan)
+
+    # Crash guard — outermost middleware, catches unhandled exceptions
+    application.add_middleware(CrashGuardMiddleware)
 
     # Read-only mode — blocks all writes before auth is even checked
     if readonly:

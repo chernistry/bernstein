@@ -711,7 +711,8 @@ class Orchestrator:
             elif self._consecutive_server_failures >= 3:
                 logger.warning(
                     "Server unreachable for %d ticks (%s). Supervisor should restart it.",
-                    self._consecutive_server_failures, exc,
+                    self._consecutive_server_failures,
+                    exc,
                 )
             else:
                 logger.error("Failed to fetch tasks: %s", exc)
@@ -1095,11 +1096,17 @@ class Orchestrator:
             if self._config.dry_run:
                 break
             # Adaptive backoff: double sleep when idle, reset when work is found.
-            if tick_result is not None and (tick_result.spawned or tick_result.verified or tick_result.retried):
+            # On server failure: sleep longer to give supervisor time to restart.
+            server_failures = getattr(self, "_consecutive_server_failures", 0)
+            if server_failures > 0:
+                # Backoff: 5s, 10s, 15s, 20s, 30s (capped)
+                time.sleep(min(5.0 * server_failures, 30.0))
+            elif tick_result is not None and (tick_result.spawned or tick_result.verified or tick_result.retried):
                 self._idle_multiplier = 1
+                time.sleep(self._config.poll_interval_s)
             else:
                 self._idle_multiplier = min(self._idle_multiplier * 2, 1024)
-            time.sleep(min(self._config.poll_interval_s * self._idle_multiplier, 30.0))
+                time.sleep(min(self._config.poll_interval_s * self._idle_multiplier, 30.0))
 
             # Check if a restart was requested (own source code changed)
             restart_flag = self._workdir / ".sdd" / "runtime" / "restart_requested"

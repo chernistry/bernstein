@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from bernstein.core.models import Task
 
 # Import from sub-modules (facade re-exports)
+from bernstein.core.log_redact import install_pii_filter
 from bernstein.core.preflight import (
     _claude_has_oauth_session,
     _codex_has_auth,
@@ -57,6 +58,10 @@ from bernstein.core.server_launch import (
 from bernstein.core.server_supervisor import supervised_server
 
 logger = logging.getLogger(__name__)
+
+# Install PII redaction on the root logger so all handlers receive sanitised
+# messages — no email, phone, SSN, or credit-card number reaches disk/stdout.
+install_pii_filter()
 console = Console()
 
 # Constants — re-export for backward compat

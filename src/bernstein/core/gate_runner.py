@@ -41,6 +41,7 @@ VALID_GATE_NAMES = frozenset(
         "dead_code",
         "import_cycle",
         "merge_conflict",
+        "benchmark",
     }
 )
 VALID_GATE_CONDITIONS = frozenset({"always", "python_changed", "tests_changed", "any_changed"})
@@ -163,6 +164,8 @@ def build_default_pipeline(config: QualityGatesConfig) -> list[GatePipelineStep]
         pipeline.append(GatePipelineStep(name="mutation_testing", required=True, condition="python_changed"))
     if config.intent_verification.enabled:
         pipeline.append(GatePipelineStep(name="intent_verification", required=True, condition="any_changed"))
+    if config.benchmark.enabled:
+        pipeline.append(GatePipelineStep(name="benchmark", required=True, condition="always"))
     return pipeline
 
 
@@ -399,6 +402,9 @@ class GateRunner:
         if step.name == "merge_conflict":
             return await asyncio.to_thread(self._run_merge_conflict_gate_sync, step, run_dir, changed_files)
 
+        if step.name == "benchmark":
+            return await asyncio.to_thread(self._run_benchmark_gate_sync, step, run_dir)
+
         plugin = self._plugin_registry().get(step.name)
         if plugin is not None:
             try:
@@ -517,8 +523,7 @@ class GateRunner:
                         status = "warn"
                         blocked = False
                         details = (
-                            "all tests passing"
-                            f"; newly detected flaky tests: {', '.join(flaky_result.newly_detected)}"
+                            f"all tests passing; newly detected flaky tests: {', '.join(flaky_result.newly_detected)}"
                         )
 
         return GateResult(
@@ -730,6 +735,51 @@ class GateRunner:
                 "baseline_pct": evaluation.baseline_pct,
                 "current_pct": evaluation.current_pct,
                 "delta_pct": evaluation.delta_pct,
+            },
+        )
+
+    def _run_benchmark_gate_sync(
+        self,
+        step: GatePipelineStep,
+        run_dir: Path,
+    ) -> GateResult:
+        """Run the benchmark regression gate."""
+        from bernstein.core.benchmark_gate import BenchmarkGate
+
+        cfg = self._config.benchmark
+        command = step.command_override or cfg.command
+        try:
+            evaluation = BenchmarkGate(
+                self._workdir,
+                run_dir,
+                base_ref=self._base_ref,
+                benchmark_command=command,
+                threshold=cfg.threshold,
+            ).evaluate()
+        except Exception as exc:
+            return GateResult(
+                name=step.name,
+                status="fail",
+                required=step.required,
+                blocked=step.required,
+                cached=False,
+                duration_ms=0,
+                details=str(exc),
+                metadata={},
+            )
+        regression_names = [r.name for r in evaluation.regressions]
+        return GateResult(
+            name=step.name,
+            status="pass" if evaluation.passed else "fail",
+            required=step.required,
+            blocked=step.required and not evaluation.passed,
+            cached=False,
+            duration_ms=0,
+            details=evaluation.detail,
+            metadata={
+                "threshold": cfg.threshold,
+                "regressions": regression_names,
+                "benchmark_count": len(evaluation.current_metrics),
             },
         )
 

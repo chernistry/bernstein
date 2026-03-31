@@ -111,10 +111,7 @@ class ITerm2Renderer(BaseRenderer):
         img.save(buf, format="PNG")
         b64 = base64.b64encode(buf.getvalue()).decode("ascii")
         # OSC 1337 … BEL
-        return (
-            f"\033]1337;File=inline=1;width={width};height={height};"
-            f"preserveAspectRatio=0:{b64}\a"
-        )
+        return f"\033]1337;File=inline=1;width={width};height={height};preserveAspectRatio=0:{b64}\a"
 
 
 # ── Sixel DCS ──────────────────────────────────────────────────────────────
@@ -248,12 +245,10 @@ class HalfBlockRenderer(BaseRenderer):
         for y in range(0, pixel_h, 2):
             row: list[str] = []
             for x in range(width):
-                r1, g1, b1 = pixels[x, y]      # top pixel → background
+                r1, g1, b1 = pixels[x, y]  # top pixel → background
                 r2, g2, b2 = pixels[x, y + 1]  # bottom pixel → foreground
                 row.append(
-                    f"\033[48;2;{r1};{g1};{b1}m"
-                    f"\033[38;2;{r2};{g2};{b2}m"
-                    "\u2584"  # ▄
+                    f"\033[48;2;{r1};{g1};{b1}m\033[38;2;{r2};{g2};{b2}m\u2584"  # ▄
                 )
             lines.append("".join(row) + "\033[0m")  # reset at end of line
 

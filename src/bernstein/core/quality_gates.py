@@ -128,6 +128,8 @@ class QualityGatesConfig:
     mutation_threshold: float = 0.50
     mutation_timeout_s: int = 600
     intent_verification: IntentVerificationConfig = field(default_factory=IntentVerificationConfig)
+    pii_scan: bool = True
+    pii_scan_paths: list[str] = field(default_factory=lambda: ["src/"])
 
 
 @dataclass

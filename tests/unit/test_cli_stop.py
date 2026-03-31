@@ -87,14 +87,14 @@ class TestReturnClaimedToOpen:
         open_dir = tmp_path / ".sdd" / "backlog" / "open"
         claimed.mkdir(parents=True)
         open_dir.mkdir(parents=True)
-        (claimed / "100-some-task.md").write_text("# Task")
-        (claimed / "101-other-task.md").write_text("# Task 2")
+        (claimed / "100-some-task.yaml").write_text("# Task")
+        (claimed / "101-other-task.yaml").write_text("# Task 2")
 
         count = return_claimed_to_open()
 
         assert count == 2
-        assert (open_dir / "100-some-task.md").exists()
-        assert (open_dir / "101-other-task.md").exists()
+        assert (open_dir / "100-some-task.yaml").exists()
+        assert (open_dir / "101-other-task.yaml").exists()
         assert not list(claimed.glob("*.md"))
 
     def test_removes_duplicates_in_closed(self, tmp_path: Path) -> None:
@@ -107,14 +107,14 @@ class TestReturnClaimedToOpen:
         open_dir.mkdir(parents=True)
         closed.mkdir(parents=True)
 
-        (claimed / "100-task.md").write_text("# claimed")
-        (closed / "100-task.md").write_text("# done")
+        (claimed / "100-task.yaml").write_text("# claimed")
+        (closed / "100-task.yaml").write_text("# done")
 
         count = return_claimed_to_open()
 
         assert count == 0
-        assert not (claimed / "100-task.md").exists()  # deleted
-        assert not (open_dir / "100-task.md").exists()  # not moved
+        assert not (claimed / "100-task.yaml").exists()  # deleted
+        assert not (open_dir / "100-task.yaml").exists()  # not moved
 
     def test_removes_duplicates_in_done(self, tmp_path: Path) -> None:
         """Files whose number exists in done/ are deleted, not moved."""
@@ -126,13 +126,13 @@ class TestReturnClaimedToOpen:
         open_dir.mkdir(parents=True)
         done.mkdir(parents=True)
 
-        (claimed / "200-build-api.md").write_text("# claimed")
-        (done / "200-build-api.md").write_text("# completed")
+        (claimed / "200-build-api.yaml").write_text("# claimed")
+        (done / "200-build-api.yaml").write_text("# completed")
 
         count = return_claimed_to_open()
 
         assert count == 0
-        assert not (claimed / "200-build-api.md").exists()
+        assert not (claimed / "200-build-api.yaml").exists()
 
     def test_returns_zero_when_no_claimed_dir(self, tmp_path: Path) -> None:
         """Returns 0 when claimed/ directory doesn't exist."""
@@ -145,12 +145,12 @@ class TestReturnClaimedToOpen:
         os.chdir(tmp_path)
         claimed = tmp_path / ".sdd" / "backlog" / "claimed"
         claimed.mkdir(parents=True)
-        (claimed / "300-new-task.md").write_text("# Task")
+        (claimed / "300-new-task.yaml").write_text("# Task")
 
         count = return_claimed_to_open()
 
         assert count == 1
-        assert (tmp_path / ".sdd" / "backlog" / "open" / "300-new-task.md").exists()
+        assert (tmp_path / ".sdd" / "backlog" / "open" / "300-new-task.yaml").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -164,8 +164,8 @@ class TestSaveSessionOnStop:
         sdd = tmp_path / ".sdd"
         (sdd / "backlog" / "open").mkdir(parents=True)
         (sdd / "backlog" / "claimed").mkdir(parents=True)
-        (sdd / "backlog" / "open" / "1-task.md").write_text("# T")
-        (sdd / "backlog" / "claimed" / "2-task.md").write_text("# T2")
+        (sdd / "backlog" / "open" / "1-task.yaml").write_text("# T")
+        (sdd / "backlog" / "claimed" / "2-task.yaml").write_text("# T2")
 
         # Mock httpx to force fallback path (no running server)
         with patch("bernstein.cli.stop_cmd.auth_headers", return_value={}):

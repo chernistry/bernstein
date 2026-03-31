@@ -6,7 +6,7 @@ import json
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -3166,10 +3166,10 @@ class TestDeadAgentFileOwnershipEdgeCases:
 class TestStaleHeartbeatReapingDefault:
     """An agent whose heartbeat exceeds the configured timeout is reaped and its tasks failed."""
 
-    def test_stale_heartbeat_reaps_agent(self, tmp_path: Path) -> None:
+    @patch("bernstein.core.agent_lifecycle._is_process_alive", return_value=False)
+    def test_stale_heartbeat_reaps_agent(self, _mock_alive: MagicMock, tmp_path: Path) -> None:
         """Heartbeat older than heartbeat_timeout_s triggers reaping and task failure."""
         adapter = _mock_adapter()
-        adapter.is_alive.return_value = True  # process alive but heartbeat is stale
         config = OrchestratorConfig(
             heartbeat_timeout_s=600,
             server_url="http://testserver",
@@ -3211,7 +3211,7 @@ class TestStaleHeartbeatReapingDefault:
         result = orch.tick()
 
         assert "backend-stale-hb" in result.reaped
-        assert stale_session.status != "working"  # reaped but not necessarily "dead" yet
+        assert stale_session.status != "working"
         assert fail_called
         adapter.kill.assert_called()
 

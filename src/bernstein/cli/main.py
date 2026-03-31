@@ -60,8 +60,8 @@ from bernstein.cli.eval_benchmark_cmd import (
 )
 from bernstein.cli.evolve_cmd import evolve
 from bernstein.cli.gateway_cmd import gateway_group
-from bernstein.cli.manifest_cmd import manifest_group
 from bernstein.cli.maintenance_cmd import cleanup_cmd, history_cmd
+from bernstein.cli.manifest_cmd import manifest_group
 from bernstein.cli.memory_cmd import memory_group
 from bernstein.cli.merge_cmd import merge_cmd
 from bernstein.cli.prompts_cmd import prompts_group

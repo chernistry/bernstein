@@ -382,12 +382,15 @@ def _emit_preflight_runtime_warnings(
                 "Run [bold]bernstein cleanup[/bold] if stale worktrees or logs are accumulating."
             )
 
-    if estimate.high_usd > 10.0 and not auto_approve:
-        if not click.confirm(
+    if (
+        estimate.high_usd > 10.0
+        and not auto_approve
+        and not click.confirm(
             f"Warning: estimated cost may reach ${estimate.high_usd:.2f}. Continue?",
             default=True,
-        ):
-            raise SystemExit(1)
+        )
+    ):
+        raise SystemExit(1)
 
 
 @contextlib.contextmanager
@@ -404,8 +407,9 @@ def _quiet_bootstrap_console(enabled: bool) -> Any:
         yield
         return
 
-    import bernstein.core.bootstrap as bootstrap_module
     from rich.console import Console
+
+    import bernstein.core.bootstrap as bootstrap_module
 
     original_console = bootstrap_module.console
     bootstrap_module.console = Console(file=io.StringIO(), force_terminal=False, color_system=None)

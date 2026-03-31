@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 
     import httpx
 
+    from bernstein.core.agent_log_aggregator import AgentLogSummary
+
 logger = logging.getLogger(__name__)
 
 
@@ -50,11 +52,12 @@ class TestResults(TypedDict, total=False):
     summary: str
 
 
-class CompletionData(TypedDict):
+class CompletionData(TypedDict, total=False):
     """Structured data extracted from an agent's runtime log after task completion."""
 
     files_modified: list[str]
     test_results: TestResults
+    log_summary: AgentLogSummary | None
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +181,10 @@ def prioritize_starving_roles(
 
 
 def group_by_role(
-    tasks: list[Task], max_per_batch: int, alive_per_role: dict[str, int] | None = None
+    tasks: list[Task],
+    max_per_batch: int,
+    alive_per_role: dict[str, int] | None = None,
+    priority_overrides: dict[str, int] | None = None,
 ) -> list[list[Task]]:
     """Group open tasks by role into batches of up to max_per_batch.
 
@@ -204,6 +210,9 @@ def group_by_role(
         max_per_batch: Maximum tasks per batch (typically 1-3).
         alive_per_role: Optional map of role -> alive agent count. If provided,
             batches are reordered to prioritize starving roles.
+        priority_overrides: Optional per-task effective priority overrides.
+            Used by the orchestrator for temporary critical-path promotion
+            without mutating persisted task priority.
 
     Returns:
         List of batches, each a list of same-role tasks, round-robin interleaved.
@@ -217,6 +226,8 @@ def group_by_role(
         # Priority boost for upgrade proposals: subtract 1 from priority value
         # (lower = higher priority). Second element is original priority for ties.
         priority_boost = t.priority - 1 if t.task_type == TaskType.UPGRADE_PROPOSAL else t.priority
+        if priority_overrides is not None and t.id in priority_overrides:
+            priority_boost = priority_overrides[t.id]
         return (priority_boost, t.priority)
 
     # Build per-role batch queues, sorted by priority within each role

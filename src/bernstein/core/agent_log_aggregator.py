@@ -5,8 +5,10 @@ from __future__ import annotations
 import re
 from collections import Counter
 from dataclasses import dataclass
-from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -77,7 +79,10 @@ class AgentLogAggregator:
         log_path = self._resolve_log_path(session_id)
         if log_path is None:
             return self._empty_summary(session_id)
-        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        try:
+            lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            return self._empty_summary(session_id)
         return self._summarize(session_id, lines)
 
     def parse_log_tail(self, session_id: str, last_line: int = 0) -> list[AgentLogEvent]:
@@ -85,7 +90,10 @@ class AgentLogAggregator:
         log_path = self._resolve_log_path(session_id)
         if log_path is None:
             return []
-        lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        try:
+            lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            return []
         events: list[AgentLogEvent] = []
         for line_no, raw_line in enumerate(lines, start=1):
             if line_no <= last_line:
@@ -94,6 +102,11 @@ class AgentLogAggregator:
             if event is not None:
                 events.append(event)
         return events
+
+    def log_exists(self, session_id: str) -> bool:
+        """Return whether the session log exists on disk."""
+        log_path = self._resolve_log_path(session_id)
+        return log_path is not None and log_path.exists()
 
     def failure_context_for_retry(self, session_id: str) -> str:
         """Build a concise retry-context summary from a failed session log."""

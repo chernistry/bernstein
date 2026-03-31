@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import yaml
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -28,7 +30,7 @@ class Recommendation:
 class RecommendationEngine:
     """Build and serve context recommendations for agent prompts."""
 
-    _SEVERITY_ORDER = {"critical": 0, "important": 1, "suggestion": 2}
+    _SEVERITY_ORDER: ClassVar[dict[str, int]] = {"critical": 0, "important": 1, "suggestion": 2}
 
     def __init__(self, workdir: Path) -> None:
         self._workdir = workdir
@@ -56,6 +58,12 @@ class RecommendationEngine:
             applicable,
             key=lambda rec: (self._SEVERITY_ORDER.get(rec.severity, 3), rec.category, rec.id),
         )
+
+    def all_recommendations(self) -> list[Recommendation]:
+        """Return all built recommendations in deterministic order."""
+        if not self._built:
+            self.build()
+        return list(self._recommendations)
 
     def render_for_prompt(self, role: str, max_chars: int = 2000) -> str:
         """Render recommendations as a prompt section."""
@@ -238,17 +246,24 @@ class RecommendationEngine:
         raw_data: object = yaml.safe_load(path.read_text(encoding="utf-8"))
         if not isinstance(raw_data, dict):
             return
-        raw_items = raw_data.get("recommendations", [])
+        raw_mapping = cast("dict[str, Any]", raw_data)
+        raw_items = raw_mapping.get("recommendations", [])
         if not isinstance(raw_items, list):
             return
-        for item in raw_items:
-            if not isinstance(item, dict):
+        raw_items_list = cast("list[object]", raw_items)
+        for raw_item in raw_items_list:
+            if not isinstance(raw_item, dict):
                 continue
+            item = cast("dict[str, Any]", raw_item)
             text = str(item.get("text", "")).strip()
             if not text:
                 continue
             applies_to_raw = item.get("applies_to", item.get("applies_to_roles", []))
-            applies_to = [str(role) for role in applies_to_raw] if isinstance(applies_to_raw, list) else []
+            applies_to = (
+                [str(role) for role in cast("list[object]", applies_to_raw)]
+                if isinstance(applies_to_raw, list)
+                else []
+            )
             self._recommendations.append(
                 Recommendation(
                     id=str(item.get("id", self._make_id("yaml", text))),
@@ -307,7 +322,13 @@ class RecommendationEngine:
         mapping = {
             "lint": "Recent lint failures suggest running `uv run ruff check` before completing the task.",
             "type_check": "Recent type-check failures suggest running `uv run pyright` before completing the task.",
-            "tests": "Recent test failures suggest running targeted `uv run pytest ... -x -q` before completing the task.",
-            "coverage_delta": "Recent coverage regressions suggest running the coverage command locally before completion.",
+            "tests": (
+                "Recent test failures suggest running targeted "
+                "`uv run pytest ... -x -q` before completing the task."
+            ),
+            "coverage_delta": (
+                "Recent coverage regressions suggest running the coverage command "
+                "locally before completion."
+            ),
         }
         return mapping.get(gate, "")

@@ -19,6 +19,7 @@ from typing import Literal
 import httpx
 
 from bernstein import _BUNDLED_TEMPLATES_DIR  # type: ignore[reportPrivateUsage]
+from bernstein.core.completion_budget import CompletionBudget
 from bernstein.core.guardrails import GuardrailsConfig, run_guardrails
 from bernstein.core.llm import call_llm
 from bernstein.core.models import (
@@ -212,6 +213,7 @@ async def run_janitor(
                         judge_verdict,
                         retry_count,
                         server_url,
+                        workdir=workdir,
                     )
                 else:
                     logger.warning(
@@ -220,7 +222,7 @@ async def run_janitor(
                         MAX_JUDGE_RETRIES,
                     )
             else:
-                fix_task_ids = await create_fix_tasks(task, failed_descs, server_url)
+                fix_task_ids = await create_fix_tasks(task, failed_descs, server_url, workdir=workdir)
 
         results.append(
             JanitorResult(
@@ -275,6 +277,8 @@ async def create_fix_tasks(
     task: Task,
     failed_signals: list[str],
     server_url: str,
+    *,
+    workdir: Path | None = None,
 ) -> list[str]:
     """Create fix tasks for failed signals and POST them to the task server.
 
@@ -282,12 +286,20 @@ async def create_fix_tasks(
         task: The original task that failed verification.
         failed_signals: Human-readable descriptions of which signals failed.
         server_url: Base URL of the task server (e.g. "http://localhost:8052").
+        workdir: Optional repo root for completion-budget enforcement.
 
     Returns:
         List of task IDs created on the server.
     """
     created_ids: list[str] = []
     url = f"{server_url.rstrip('/')}/tasks"
+    budget: CompletionBudget | None = None
+    if workdir is not None:
+        budget = CompletionBudget(workdir)
+        should_create, reason = budget.should_create_fix_task(task)
+        if not should_create:
+            logger.warning("Task %s: not creating janitor fix task — %s", task.id, reason)
+            return []
 
     bullet_list = "\n".join(f"  - {s}" for s in failed_signals)
     body = {
@@ -313,6 +325,8 @@ async def create_fix_tasks(
             data = resp.json()
             created_id: str = data.get("id", uuid.uuid4().hex[:12])
             created_ids.append(created_id)
+            if budget is not None:
+                budget.record_attempt(task, is_fix=True)
             logger.info("Created fix task %s for failed task %s", created_id, task.id)
     except (httpx.HTTPError, KeyError) as exc:
         logger.warning("Failed to create fix task for %s: %s", task.id, exc)
@@ -483,6 +497,8 @@ async def _create_judge_fix_task(
     verdict: JudgeVerdict,
     retry_count: int,
     server_url: str,
+    *,
+    workdir: Path | None = None,
 ) -> list[str]:
     """Create a fix task from a judge RETRY verdict with feedback.
 
@@ -494,6 +510,7 @@ async def _create_judge_fix_task(
         verdict: The JudgeVerdict with feedback.
         retry_count: Current retry count (0-based).
         server_url: Base URL of the task server.
+        workdir: Optional repo root for completion-budget enforcement.
 
     Returns:
         List of created task IDs (0 or 1).
@@ -501,6 +518,13 @@ async def _create_judge_fix_task(
     next_retry = retry_count + 1
     created_ids: list[str] = []
     url = f"{server_url.rstrip('/')}/tasks"
+    budget: CompletionBudget | None = None
+    if workdir is not None:
+        budget = CompletionBudget(workdir)
+        should_create, reason = budget.should_create_fix_task(task)
+        if not should_create:
+            logger.warning("Task %s: not creating judge fix task — %s", task.id, reason)
+            return []
 
     body = {
         "title": f"Fix: {task.title} (judge retry {next_retry})",
@@ -527,6 +551,8 @@ async def _create_judge_fix_task(
             data = resp.json()
             created_id: str = data.get("id", uuid.uuid4().hex[:12])
             created_ids.append(created_id)
+            if budget is not None:
+                budget.record_attempt(task, is_fix=True)
             logger.info(
                 "Created judge fix task %s (retry %d) for task %s",
                 created_id,

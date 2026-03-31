@@ -5,10 +5,12 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
-from bernstein.core.models import Task
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from bernstein.core.models import Task
 
 
 @dataclass(frozen=True)
@@ -127,7 +129,7 @@ class CompletionBudget:
             raw = json.loads(self._budget_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return {}
-        return raw if isinstance(raw, dict) else {}
+        return cast("dict[str, dict[str, Any]]", raw) if isinstance(raw, dict) else {}
 
     def _write(self, data: dict[str, dict[str, Any]]) -> None:
         """Persist budget state to disk."""

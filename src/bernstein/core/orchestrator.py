@@ -41,7 +41,9 @@ from bernstein.core.bandit_router import BanditRouter
 from bernstein.core.bulletin import BulletinBoard, BulletinMessage
 from bernstein.core.cluster import NodeHeartbeatClient
 from bernstein.core.context import refresh_knowledge_base
+from bernstein.core.context_recommendations import RecommendationEngine
 from bernstein.core.cost_tracker import CostTracker
+from bernstein.core.dep_validator import DependencyValidator
 from bernstein.core.evolution import EvolutionCoordinator, UpgradeStatus
 from bernstein.core.fast_path import (
     FastPathStats,
@@ -266,6 +268,8 @@ class Orchestrator:
         self._tick_count = 0
         # Track spawn failures per batch for backoff: task_ids -> (fail_count, last_fail_ts)
         self._spawn_failures: dict[frozenset[str], tuple[int, float]] = {}
+        self._spawn_failure_history: dict[frozenset[str], list[Any]] = {}
+        self._latest_tasks_by_id: dict[str, Task] = {}
         # Track last backlog replenishment timestamp
         self._last_replenish_ts: float = 0.0
         # Run completion summary state
@@ -351,6 +355,10 @@ class Orchestrator:
 
         # Cross-run task quarantine: skip repeatedly-failing tasks
         self._quarantine = QuarantineStore(workdir / ".sdd" / "runtime" / "quarantine.json")
+        try:
+            RecommendationEngine(workdir).ensure_seed_file()
+        except Exception as exc:
+            logger.debug("Recommendation seed bootstrap skipped: %s", exc)
 
         # Rate-limit tracker: detects 429s in agent logs and throttles providers
 
@@ -790,8 +798,23 @@ class Orchestrator:
 
         # 1c. Build task graph and compute optimal parallelism
         all_tasks = [t for status_tasks in tasks_by_status.values() for t in status_tasks]
+        self._latest_tasks_by_id = {task.id: task for task in all_tasks}
         task_graph = TaskGraph(all_tasks)
         analysis = task_graph.analyse()
+        dep_validator = DependencyValidator()
+        dep_validation = dep_validator.validate(all_tasks)
+        for cycle in dep_validation.cycles:
+            logger.error("Dependency cycle detected: %s", " -> ".join(cycle))
+        for task_id, dep_id, dep_status in dep_validation.stuck_deps:
+            logger.warning(
+                "Task %s depends on %s which is %s — task remains blocked",
+                task_id,
+                dep_id,
+                dep_status,
+            )
+        for warning in dep_validation.warnings:
+            logger.warning("Dependency validation: %s", warning)
+        critical_path_ids = set(dep_validator.critical_path(all_tasks))
 
         if analysis.parallel_width < self._config.max_agents and analysis.parallel_width > 0:
             logger.debug(
@@ -834,7 +857,15 @@ class Orchestrator:
                 _alive_per_role[_agent.role] = _alive_per_role.get(_agent.role, 0) + 1
 
         # 2. Group into batches with starving-role prioritization wired in
-        batches = group_by_role(ready_tasks, self._config.max_tasks_per_agent, alive_per_role=_alive_per_role)
+        priority_overrides = {
+            task.id: max(1, task.priority - 1) for task in ready_tasks if task.id in critical_path_ids
+        }
+        batches = group_by_role(
+            ready_tasks,
+            self._config.max_tasks_per_agent,
+            alive_per_role=_alive_per_role,
+            priority_overrides=priority_overrides,
+        )
 
         # Track which task IDs are already assigned to active agents
         assigned_task_ids: set[str] = set()
@@ -1226,6 +1257,7 @@ class Orchestrator:
 
     def _maybe_retry_task(self, task: Task) -> bool:
         """Delegate to task_lifecycle.maybe_retry_task."""
+        session = self._find_session_for_task(task.id)
         return maybe_retry_task(
             task,
             retried_task_ids=self._retried_task_ids,
@@ -1233,6 +1265,8 @@ class Orchestrator:
             client=self._client,
             server_url=self._config.server_url,
             quarantine=self._quarantine,
+            workdir=self._workdir,
+            session_id=session.id if session is not None else None,
         )
 
     def _record_live_costs(self) -> None:

@@ -12,7 +12,10 @@ from bernstein.adapters.registry import get_adapter
 from bernstein.agents.registry import AgentRegistry, get_registry
 from bernstein.core.container import ContainerConfig, ContainerError, ContainerManager
 from bernstein.core.context import TaskContextBuilder
+from bernstein.core.context_recommendations import RecommendationEngine
+from bernstein.core.effectiveness import EffectivenessScorer
 from bernstein.core.git_ops import MergeResult, merge_with_conflict_detection
+from bernstein.core.heartbeat import HeartbeatMonitor
 from bernstein.core.lessons import gather_lessons_for_context
 from bernstein.core.lifecycle import transition_agent
 from bernstein.core.models import AgentSession, IsolationMode, ModelConfig, Task
@@ -440,6 +443,14 @@ def _render_prompt(
             f"If you need to create a shared utility, check if it already exists first.\n"
             f"If you define an API endpoint, use consistent naming with existing endpoints.\n"
         )
+    try:
+        rec_engine = RecommendationEngine(workdir)
+        rec_engine.build()
+        rec_section = rec_engine.render_for_prompt(role, max_chars=2000)
+        if rec_section:
+            sections.append(f"\n{rec_section}\n")
+    except Exception as exc:
+        logger.debug("Recommendation rendering failed: %s", exc)
     if project_context:
         sections.append(f"\n## Project context\n{project_context}\n")
     if token_budget > 0:
@@ -455,6 +466,16 @@ def _render_prompt(
             f"focus on the task, avoid unnecessary exploration, and wrap up promptly.\n"
         )
     sections.append(f"\n## Instructions\n{instructions}\n")
+    if session_id:
+        try:
+            heartbeat_instructions = HeartbeatMonitor(workdir).inject_heartbeat_instructions(session_id)
+            sections.append(
+                "\n## Heartbeat (background)\n"
+                "Run this in the background to report progress:\n"
+                f"```bash\n{heartbeat_instructions}\n```\n"
+            )
+        except Exception as exc:
+            logger.debug("Heartbeat instructions unavailable: %s", exc)
     if session_id:
         sections.append(_render_signal_check(session_id))
 
@@ -672,6 +693,25 @@ class AgentSpawner:
                 max_tokens=base_config.max_tokens,
                 is_batch=base_config.is_batch,
             )
+        elif model_override is None and not tasks[0].model and not tasks[0].effort and not role_policy:
+            try:
+                best = EffectivenessScorer(self._workdir).best_config_for_role(tasks[0].role)
+            except Exception as exc:
+                logger.debug("Effectiveness lookup failed for role %s: %s", tasks[0].role, exc)
+                best = None
+            if best is not None:
+                model_config = ModelConfig(
+                    model=best[0],
+                    effort=best[1],
+                    max_tokens=base_config.max_tokens,
+                    is_batch=base_config.is_batch,
+                )
+                logger.info(
+                    "Effectiveness data suggests %s/%s for role %s",
+                    best[0],
+                    best[1],
+                    tasks[0].role,
+                )
 
         if self._router is not None and self._router.state.providers:
             try:

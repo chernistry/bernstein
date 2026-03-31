@@ -6,13 +6,15 @@ import json
 import re
 import time
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
-from bernstein.core.agent_log_aggregator import AgentLogSummary
 from bernstein.core.models import AgentSession, Scope, Task, TaskStatus
+
+if TYPE_CHECKING:
+    from bernstein.core.agent_log_aggregator import AgentLogSummary
 
 
 @dataclass(frozen=True)
@@ -99,7 +101,7 @@ class EffectivenessScorer:
             + (score.retry_score * EFFECTIVENESS_WEIGHTS["retry"])
             + (score.completion_score * EFFECTIVENESS_WEIGHTS["completion"])
         )
-        return EffectivenessScore(**{**asdict(score), "total": total, "grade": self._grade(total)})
+        return replace(score, total=total, grade=self._grade(total))
 
     def record(self, score: EffectivenessScore) -> None:
         """Append one effectiveness record to JSONL history."""
@@ -148,9 +150,12 @@ class EffectivenessScorer:
             if not raw_line:
                 continue
             try:
-                data = json.loads(raw_line)
+                raw_data = json.loads(raw_line)
             except json.JSONDecodeError:
                 continue
+            if not isinstance(raw_data, dict):
+                continue
+            data = cast("dict[str, Any]", raw_data)
             try:
                 records.append(
                     EffectivenessScore(
@@ -194,7 +199,7 @@ class EffectivenessScorer:
         if ratio <= 2.0:
             return 75
         if ratio <= 3.0:
-            return 60
+            return 50
         return 40
 
     def _efficiency_score(self, tokens_used: int, scope: Scope) -> int:
@@ -205,7 +210,7 @@ class EffectivenessScorer:
             Scope.LARGE: 200_000,
         }[scope]
         if tokens_used <= 0:
-            return 100
+            return 50
         ratio = tokens_used / float(budget)
         if ratio <= 0.5:
             return 100
@@ -232,23 +237,29 @@ class EffectivenessScorer:
         if gate_report is None:
             return (0.0, 50)
 
-        if hasattr(gate_report, "quality_score") and getattr(gate_report, "quality_score") is not None:
-            quality_score = getattr(gate_report, "quality_score")
+        report = cast("Any", gate_report)
+
+        if hasattr(report, "quality_score") and report.quality_score is not None:
+            quality_score = report.quality_score
             total = int(getattr(quality_score, "total", 50))
-        elif hasattr(gate_report, "overall_pass"):
-            total = 100 if bool(getattr(gate_report, "overall_pass")) else 0
-        elif hasattr(gate_report, "passed"):
-            total = 100 if bool(getattr(gate_report, "passed")) else 0
+        elif hasattr(report, "overall_pass"):
+            total = 100 if bool(report.overall_pass) else 0
+        elif hasattr(report, "passed"):
+            total = 100 if bool(report.passed) else 0
         else:
             total = 50
 
-        results = []
-        if hasattr(gate_report, "results"):
-            results = list(getattr(gate_report, "results"))
-            passes = sum(1 for result in results if str(getattr(result, "status", "")) in {"pass", "skipped", "bypassed"})
+        results: list[Any] = []
+        if hasattr(report, "results"):
+            results = list(cast("list[Any]", report.results))
+            passes = sum(
+                1
+                for result in results
+                if str(getattr(result, "status", "")) in {"pass", "skipped", "bypassed"}
+            )
             return ((passes / len(results)) if results else 0.0, total)
-        if hasattr(gate_report, "gate_results"):
-            results = list(getattr(gate_report, "gate_results"))
+        if hasattr(report, "gate_results"):
+            results = list(cast("list[Any]", report.gate_results))
             passes = sum(1 for result in results if bool(getattr(result, "passed", False)))
             return ((passes / len(results)) if results else 0.0, total)
         return (1.0 if total == 100 else 0.0, total)

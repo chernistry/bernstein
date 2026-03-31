@@ -750,6 +750,7 @@ def create_app(
     from bernstein.core.routes.agents import router as agents_router
     from bernstein.core.routes.costs import router as costs_router
     from bernstein.core.routes.dashboard import router as dashboard_router
+    from bernstein.core.routes.observability import router as observability_router
     from bernstein.core.routes.quality import router as quality_router
     from bernstein.core.routes.slack import router as slack_router
     from bernstein.core.routes.status import router as status_router
@@ -898,6 +899,7 @@ def create_app(
     application.include_router(slack_router)
     application.include_router(costs_router)
     application.include_router(dashboard_router)
+    application.include_router(observability_router)
     application.include_router(quality_router)
 
     # Graceful drain routes — freeze/unfreeze claim acceptance

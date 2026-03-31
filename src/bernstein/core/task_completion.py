@@ -15,11 +15,14 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from bernstein.core.agent_log_aggregator import AgentLogAggregator
+from bernstein.core.completion_budget import CompletionBudget
 from bernstein.core.context import append_decision
 from bernstein.core.cross_model_verifier import (
     CrossModelVerifierConfig,
     run_cross_model_verification_sync,
 )
+from bernstein.core.effectiveness import EffectivenessScorer
 from bernstein.core.formal_verification import FormalVerificationConfig, run_formal_verification
 from bernstein.core.janitor import verify_task
 from bernstein.core.lifecycle import transition_agent
@@ -52,42 +55,25 @@ logger = logging.getLogger(__name__)
 def collect_completion_data(workdir: Path, session: AgentSession) -> CompletionData:
     """Read agent log file and extract structured completion data.
 
-    Parses the agent's runtime log for files_modified and test_results.
+    Parses the agent's runtime log into a backward-compatible completion payload.
 
     Args:
         workdir: Project working directory.
         session: Agent session whose log to parse.
 
     Returns:
-        Dict with files_modified and test_results keys.
+        Dict with files_modified, test_results, and optional log_summary keys.
     """
-    data: CompletionData = {"files_modified": [], "test_results": {}}
-    log_path = workdir / ".sdd" / "runtime" / f"{session.id}.log"
-    if not log_path.exists():
-        return data
-
-    try:
-        log_content = log_path.read_text(encoding="utf-8", errors="replace")
-        lines = log_content.splitlines()
-        # Extract file modifications (lines like "Modified: path/to/file")
-        files_modified: list[str] = []
-        for line in lines:
-            stripped = line.strip()
-            if stripped.startswith("Modified: ") or stripped.startswith("Created: "):
-                fpath = stripped.split(": ", 1)[1].strip()
-                if fpath and fpath not in files_modified:
-                    files_modified.append(fpath)
-        data["files_modified"] = files_modified
-
-        # Extract test results (look for pytest-style summary)
-        for line in reversed(lines):
-            stripped = line.strip()
-            if "passed" in stripped or "failed" in stripped:
-                data["test_results"] = {"summary": stripped}
-                break
-    except OSError as exc:
-        logger.debug("Could not read agent log %s: %s", log_path, exc)
-
+    aggregator = AgentLogAggregator(workdir)
+    summary = aggregator.parse_log(session.id)
+    data: CompletionData = {
+        "files_modified": list(summary.files_modified),
+        "test_results": {},
+    }
+    if aggregator.log_exists(session.id) and summary.total_lines > 0:
+        data["log_summary"] = summary
+    if summary.test_summary:
+        data["test_results"] = {"summary": summary.test_summary}
     return data
 
 
@@ -104,6 +90,8 @@ def maybe_retry_task(
     client: httpx.Client,
     server_url: str,
     quarantine: Any,
+    workdir: Path | None = None,
+    session_id: str | None = None,
 ) -> bool:
     """Queue a retry for a failed task with model/effort escalation.
 
@@ -117,6 +105,8 @@ def maybe_retry_task(
         client: httpx client.
         server_url: Task server base URL.
         quarantine: QuarantineStore instance.
+        workdir: Optional repo root used to inspect the failed agent log.
+        session_id: Optional failed session ID for failure-context extraction.
 
     Returns:
         True if a retry task was created, False otherwise.
@@ -173,7 +163,29 @@ def maybe_retry_task(
 
     base_title = re.sub(r"^\[RETRY \d+\] ", "", task.title)
     new_title = f"[RETRY {next_retry}] {base_title}"
+    failure_context = ""
+    if workdir is not None and session_id:
+        aggregator = AgentLogAggregator(workdir)
+        failure_context = aggregator.failure_context_for_retry(session_id)
+        summary = aggregator.parse_log(session_id)
+        if summary.dominant_failure_category:
+            try:
+                get_collector(workdir / ".sdd" / "metrics").record_error(
+                    summary.dominant_failure_category,
+                    "retry",
+                    role=task.role,
+                )
+            except Exception as exc:
+                logger.debug("Failed to record retry failure category metric: %s", exc)
+
     new_description = f"[RETRY {next_retry}] {task.description}"
+    if failure_context:
+        new_description = (
+            f"[RETRY {next_retry}] {task.description}\n\n"
+            "## Previous attempt failed\n"
+            f"{failure_context}\n\n"
+            "Avoid the same mistakes. If you hit the same error, try a different approach."
+        )
 
     # Progressive timeout: each retry multiplies estimated_minutes by (retry_count + 2)
     progressive_minutes = task.estimated_minutes * (retry_count + 2)
@@ -372,6 +384,7 @@ def process_completed_tasks(
 
     # Fan-in: collect results then run sequential post-verification steps.
     for task in new_tasks:
+        _qg_result: Any = None
         if task.id in verify_futures:
             passed, failed_signals = verify_futures[task.id].result()
             janitor_passed = passed
@@ -387,6 +400,7 @@ def process_completed_tasks(
         # agent-lifetime metrics are recorded exactly once per agent even when
         # an agent owns multiple tasks that all complete in the same tick.
         _agent_just_reaped = session is not None and session.status != "dead"
+        completion_data = collect_completion_data(orch._workdir, session) if session is not None else None
         if session is not None:
             # Quality gates: lint/type/test checks run after janitor, before approval.
             _qg_config = getattr(orch, "_quality_gate_config", None)
@@ -493,7 +507,7 @@ def process_completed_tasks(
                 _fv_config: FormalVerificationConfig | None = getattr(orch, "_formal_verification_config", None)
                 if _fv_config is not None and _fv_config.enabled and _fv_config.properties:
                     # Gather files_modified count from completion data for context
-                    _fv_completion = collect_completion_data(orch._workdir, session)
+                    _fv_completion = completion_data or {"files_modified": [], "test_results": {}}
                     _fv_files_modified = len(_fv_completion.get("files_modified", []))
                     _fv_test_summary = _fv_completion.get("test_results", {}).get("summary", "")
                     _fv_test_passed = "failed" not in _fv_test_summary.lower() if _fv_test_summary else True
@@ -549,7 +563,7 @@ def process_completed_tasks(
                         _pr_collector = get_collector(orch._workdir / ".sdd" / "metrics")
                         _pr_task_m = _pr_collector.task_metrics.get(task.id)
                         _pr_cost_usd = _pr_task_m.cost_usd if _pr_task_m else 0.0
-                        _pr_completion = collect_completion_data(orch._workdir, session)
+                        _pr_completion = completion_data or {"files_modified": [], "test_results": {}}
                         _pr_test_summary = _pr_completion.get("test_results", {}).get("summary", "")
                         _pr_url = orch._approval_gate.create_pr(
                             task,
@@ -624,12 +638,38 @@ def process_completed_tasks(
             logger.warning("Failed to persist cost tracker: %s", exc)
 
         _collector.complete_task(task.id, success=janitor_passed, janitor_passed=janitor_passed, cost_usd=_cost_usd)
+        try:
+            _budget = CompletionBudget(orch._workdir)
+            _budget.record_attempt(
+                task,
+                is_fix=("fix:" in task.title.lower()) or ("judge retry" in task.title.lower()),
+                cost_usd=_cost_usd,
+            )
+        except Exception as exc:
+            logger.debug("Completion budget update failed for task %s: %s", task.id, exc)
         if session is not None:
             # complete_agent_task must be called before end_agent so that
             # end_agent() has non-zero task counts and writes the AGENT_SUCCESS
             # metric to the JSONL file.
             _collector.complete_agent_task(session.id, success=janitor_passed)
             _collector.end_agent(session.id)
+            try:
+                _scorer = EffectivenessScorer(orch._workdir)
+                _score = _scorer.score(
+                    session,
+                    task,
+                    _qg_result,
+                    completion_data.get("log_summary") if completion_data is not None else None,
+                )
+                _scorer.record(_score)
+                logger.info(
+                    "Agent effectiveness: %s grade=%s total=%d",
+                    session.id,
+                    _score.grade,
+                    _score.total,
+                )
+            except Exception as exc:
+                logger.debug("Effectiveness scoring failed for %s: %s", task.id, exc)
             # Record agent lifetime to evolution collector (once per agent).
             if orch._evolution is not None and _agent_just_reaped:
                 try:

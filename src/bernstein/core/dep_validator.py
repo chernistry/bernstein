@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass
 
 from bernstein.core.graph import TaskGraph
@@ -91,7 +90,7 @@ class DependencyValidator:
                     _visit(dep)
                 elif dep in on_stack:
                     idx = stack.index(dep)
-                    cycle = stack[idx:] + [dep]
+                    cycle = [*stack[idx:], dep]
                     if cycle not in cycles:
                         cycles.append(cycle)
             stack.pop()
@@ -106,16 +105,22 @@ class DependencyValidator:
         """Compute dependency-chain depth per task."""
         task_map = {task.id: task for task in tasks}
         memo: dict[str, int] = {}
+        visiting: set[str] = set()
 
         def _depth(task_id: str) -> int:
             if task_id in memo:
                 return memo[task_id]
+            if task_id in visiting:
+                return 0
+            visiting.add(task_id)
             task = task_map[task_id]
             if not task.depends_on:
                 memo[task_id] = 1
+                visiting.discard(task_id)
                 return 1
             value = 1 + max((_depth(dep_id) for dep_id in task.depends_on if dep_id in task_map), default=0)
             memo[task_id] = value
+            visiting.discard(task_id)
             return value
 
         for task in tasks:

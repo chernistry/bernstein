@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from bernstein.adapters.base import RateLimitError, SpawnError
 from bernstein.core.container import ContainerError
-from bernstein.core.models import Task
 from bernstein.core.worktree import WorktreeError
+
+if TYPE_CHECKING:
+    from bernstein.core.models import Task
 
 
 @dataclass(frozen=True)
@@ -50,12 +53,12 @@ class SpawnAnalyzer:
         if any(not failure.is_transient for failure in failure_history):
             return (False, 0.0)
 
+        delay = max(failure.recommended_delay_s for failure in failure_history)
         repeated = {
             error_type: sum(1 for failure in failure_history if failure.error_type == error_type)
             for error_type in {failure.error_type for failure in failure_history}
         }
         if any(count >= max_retries for count in repeated.values()):
-            return (False, 0.0)
+            return (False, delay)
 
-        delay = max(failure.recommended_delay_s for failure in failure_history)
         return (len(failure_history) < max_retries, delay)

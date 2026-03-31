@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from bernstein.core.context_recommendations import RecommendationEngine
+from bernstein.core.heartbeat import HeartbeatMonitor
 from bernstein.core.lessons import gather_lessons_for_context
 from bernstein.templates.renderer import TemplateError, render_role_prompt
 
@@ -358,9 +360,30 @@ def _render_prompt(
                 f"If you define an API endpoint, use consistent naming with existing endpoints.\n",
             )
         )
+    try:
+        rec_engine = RecommendationEngine(workdir)
+        rec_engine.build()
+        rec_section = rec_engine.render_for_prompt(role, max_chars=2000)
+        if rec_section:
+            named_sections.append(("recommendations", f"\n{rec_section}\n"))
+    except Exception as exc:
+        logger.debug("Recommendation rendering failed: %s", exc)
     if project_context:
         named_sections.append(("project", f"\n## Project context\n{project_context}\n"))
     named_sections.append(("instructions", f"\n## Instructions\n{instructions}\n"))
+    if session_id:
+        try:
+            heartbeat_instructions = HeartbeatMonitor(workdir).inject_heartbeat_instructions(session_id)
+            named_sections.append(
+                (
+                    "heartbeat",
+                    "\n## Heartbeat (background)\n"
+                    "Run this in the background to report progress:\n"
+                    f"```bash\n{heartbeat_instructions}\n```\n",
+                )
+            )
+        except Exception as exc:
+            logger.debug("Heartbeat instructions unavailable: %s", exc)
     if session_id:
         named_sections.append(("signal", _render_signal_check(session_id)))
 
@@ -383,6 +406,31 @@ def _render_prompt(
     except Exception as exc:
         logger.debug("PromptCompressor failed, using uncompressed prompt: %s", exc)
         return "".join(content for _, content in named_sections)
+
+
+def render_prompt(
+    tasks: list[Task],
+    templates_dir: Path,
+    workdir: Path,
+    agency_catalog: dict[str, AgencyAgent] | None = None,
+    catalog_system_prompt: str | None = None,
+    context_builder: TaskContextBuilder | None = None,
+    session_id: str = "",
+    bulletin_summary: str = "",
+    task_graph: TaskGraph | None = None,
+) -> str:
+    """Public wrapper for compatibility-safe prompt rendering."""
+    return _render_prompt(
+        tasks,
+        templates_dir,
+        workdir,
+        agency_catalog=agency_catalog,
+        catalog_system_prompt=catalog_system_prompt,
+        context_builder=context_builder,
+        session_id=session_id,
+        bulletin_summary=bulletin_summary,
+        task_graph=task_graph,
+    )
 
 
 def _render_fallback(

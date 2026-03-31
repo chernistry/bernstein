@@ -584,27 +584,30 @@ class DrainCoordinator:
         worktrees_removed = 0
         branches_deleted = 0
 
-        # Remove agent worktrees.
-        for agent in self._agents:
-            if not agent.worktree_path:
-                continue
-            wt = Path(agent.worktree_path)
-            if not wt.exists():
-                continue
-            result = _run_git(
-                ["worktree", "remove", "--force", str(wt)], cwd=self._workdir
-            )
-            if result.returncode == 0:
-                worktrees_removed += 1
-                logger.info("Removed worktree %s", wt)
-            else:
-                # Fall back to shutil if git worktree remove fails.
-                try:
-                    shutil.rmtree(wt)
+        # Remove ALL agent worktrees from .sdd/worktrees/ — not just
+        # those in self._agents (which may be empty after a restart).
+        wt_dir = self._workdir / ".sdd" / "worktrees"
+        if wt_dir.is_dir():
+            for entry in sorted(wt_dir.iterdir()):
+                if not entry.is_dir():
+                    continue
+                result = _run_git(
+                    ["worktree", "remove", "--force", str(entry)],
+                    cwd=self._workdir,
+                )
+                if result.returncode == 0:
                     worktrees_removed += 1
-                    logger.info("Removed worktree directory %s via shutil", wt)
-                except OSError as exc:
-                    logger.warning("Failed to remove worktree %s: %s", wt, exc)
+                else:
+                    # Fallback: rm -rf then prune.
+                    try:
+                        shutil.rmtree(entry)
+                        worktrees_removed += 1
+                    except OSError as exc:
+                        logger.warning("Failed to remove worktree %s: %s", entry, exc)
+
+        # Prune worktree registry BEFORE deleting branches — this
+        # unregisters removed worktrees so branch -D succeeds.
+        _run_git(["worktree", "prune"], cwd=self._workdir)
 
         # Delete agent/* branches.
         branch_result = _run_git(
@@ -620,16 +623,12 @@ class DrainCoordinator:
                 )
                 if del_result.returncode == 0:
                     branches_deleted += 1
-                    logger.info("Deleted branch %s", branch_name)
                 else:
                     logger.warning(
                         "Failed to delete branch %s: %s",
                         branch_name,
                         del_result.stderr.strip(),
                     )
-
-        # Prune worktree registry.
-        _run_git(["worktree", "prune"], cwd=self._workdir)
 
         # Move ticket files.
         self._move_tickets()

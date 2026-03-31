@@ -253,23 +253,72 @@ def _check_api_key(cli: str) -> None:
 
 
 def _check_port_free(port: int) -> None:
-    """Exit with an actionable message if the port is already in use.
+    """Ensure the port is free, killing a stale Bernstein server if needed.
+
+    If a previous Bernstein server is still occupying the port (common after
+    crashes or force-quit), this function kills it automatically instead of
+    failing with an error.  Non-Bernstein processes are NOT killed.
 
     Args:
         port: TCP port to check.
 
     Raises:
-        SystemExit: If the port is occupied.
+        SystemExit: If the port is occupied by a non-Bernstein process.
     """
+    import subprocess
+
     from bernstein.cli.errors import port_in_use
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             sock.bind(("127.0.0.1", port))
+            return  # Port is free.
         except OSError:
-            port_in_use(port).print()
-            raise SystemExit(1) from None
+            pass
+
+    # Port is occupied — try to identify and kill a stale Bernstein server.
+    try:
+        result = subprocess.run(
+            ["lsof", "-ti", f":{port}"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        pids = [int(p) for p in result.stdout.strip().split() if p.isdigit()]
+    except Exception:
+        pids = []
+
+    if not pids:
+        port_in_use(port).print()
+        raise SystemExit(1)
+
+    # Only kill processes that look like Bernstein (uvicorn server).
+    killed = False
+    for pid in pids:
+        try:
+            proc_result = subprocess.run(
+                ["ps", "-p", str(pid), "-o", "command="],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            cmd = proc_result.stdout.strip()
+            if "bernstein" in cmd or "uvicorn" in cmd:
+                os.kill(pid, 9)
+                killed = True
+                logger.info("Killed stale Bernstein process %d on port %d", pid, port)
+        except (ProcessLookupError, PermissionError, OSError):
+            continue
+
+    if killed:
+        import time
+
+        time.sleep(0.5)  # Brief wait for port to release.
+        return
+
+    port_in_use(port).print()
+    raise SystemExit(1)
 
 
 def preflight_checks(cli: str, port: int) -> None:

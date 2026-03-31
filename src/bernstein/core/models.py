@@ -693,6 +693,36 @@ class RAGConfig:
 
 
 @dataclass
+class CostAnomalyConfig:
+    """Configuration for cost anomaly detection.
+
+    Args:
+        enabled: Whether cost anomaly detection is active.
+        per_task_multiplier: Alert when task cost exceeds this multiple of tier median.
+        per_task_critical_multiplier: Kill agent when cost exceeds this multiple.
+        budget_warn_pct: Log warning when spend exceeds this % of budget.
+        budget_stop_pct: Stop spawning when spend exceeds this %.
+        token_ratio_max: Flag when output/input token ratio exceeds this.
+        token_ratio_min_tokens: Minimum total tokens before ratio check applies.
+        retry_cost_multiplier: Stop retrying when cumulative retry cost exceeds
+            this multiple of the original attempt.
+        baseline_window: Number of recent tasks to keep for baseline statistics.
+        baseline_min_samples: Minimum samples per tier before ceiling checks activate.
+    """
+
+    enabled: bool = True
+    per_task_multiplier: float = 3.0
+    per_task_critical_multiplier: float = 6.0
+    budget_warn_pct: float = 60.0
+    budget_stop_pct: float = 90.0
+    token_ratio_max: float = 5.0
+    token_ratio_min_tokens: int = 5000
+    retry_cost_multiplier: float = 2.0
+    baseline_window: int = 50
+    baseline_min_samples: int = 5
+
+
+@dataclass
 class OrchestratorConfig:
     """Configuration for the orchestrator main loop.
 
@@ -712,9 +742,9 @@ class OrchestratorConfig:
 
     max_agents: int = 6
     poll_interval_s: int = 3
-    heartbeat_timeout_s: int = 120
+    heartbeat_timeout_s: int = 900  # 15 min — generous until agents implement heartbeat writes
     heartbeat_enabled: bool = True
-    max_agent_runtime_s: int = 600  # 10 min wall-clock kill
+    max_agent_runtime_s: int = 1800  # 30 min wall-clock kill (agents need time for complex tasks)
     max_tasks_per_agent: int = 1  # one task per agent = focused, fast
     server_url: str = "http://localhost:8052"
     evolution_enabled: bool = True
@@ -744,6 +774,7 @@ class OrchestratorConfig:
     telemetry: TelemetryConfig = field(default_factory=TelemetryConfig)
     ab_test: bool = False
     rag: RAGConfig = field(default_factory=RAGConfig)
+    cost_anomaly: CostAnomalyConfig = field(default_factory=CostAnomalyConfig)
 
 
 # ---------------------------------------------------------------------------

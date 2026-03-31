@@ -673,6 +673,22 @@ def reap_dead_agents(
                 handle_orphaned_task(orch, task_id, session, tasks_snapshot)
             continue
 
+        # Heartbeat proxy: if the agent process is alive, refresh heartbeat_ts.
+        # Agents don't write HEARTBEAT files, so we use process liveness and
+        # log file growth as proxy signals.  This prevents premature reaping
+        # of agents that are legitimately working (Claude Code sessions can
+        # take 5+ minutes for complex tasks).
+        if orch._spawner.is_alive(session.pid):
+            session.heartbeat_ts = now
+        else:
+            # Process is dead — check if log file grew recently.
+            _log_path = orch._workdir / ".sdd" / "worktrees" / session.id / ".sdd" / "runtime" / f"{session.id}.log"
+            try:
+                if _log_path.exists() and (now - _log_path.stat().st_mtime) < 30:
+                    session.heartbeat_ts = now
+            except OSError:
+                pass
+
         # Heartbeat timeout
         age = now - session.heartbeat_ts
         if session.heartbeat_ts > 0 and age > orch._config.heartbeat_timeout_s:

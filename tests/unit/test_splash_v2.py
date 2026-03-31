@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from rich.console import Console
 
 from bernstein.cli.splash_v2 import SplashContext, SplashRenderer, render_startup_splash
@@ -29,12 +31,14 @@ def _caps(
     )
 
 
+@patch.dict("os.environ", {}, clear=True)
 def test_select_tier_prefers_tier1_for_image_terminals() -> None:
     renderer = SplashRenderer(Console(record=True), caps=_caps(kitty=True), config=VisualConfig(splash_tier="auto"))
 
     assert renderer._select_tier() == "tier1"
 
 
+@patch.dict("os.environ", {}, clear=True)
 def test_select_tier_prefers_tier2_for_truecolor_terminal() -> None:
     renderer = SplashRenderer(Console(record=True), caps=_caps(truecolor=True), config=VisualConfig(splash_tier="auto"))
 
@@ -47,6 +51,7 @@ def test_select_tier_returns_tier3_for_non_tty() -> None:
     assert renderer._select_tier() == "tier3"
 
 
+@patch.dict("os.environ", {}, clear=True)
 def test_render_dispatches_to_selected_tier(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     calls: list[str] = []
     renderer = SplashRenderer(Console(record=True), caps=_caps(kitty=True), config=VisualConfig(splash_tier="auto"))

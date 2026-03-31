@@ -23,17 +23,20 @@ from bernstein.cli.text_effects import logo_reveal, typing_effect
 from bernstein.cli.visual_theme import PALETTE
 from bernstein.core.visual_config import VisualConfig
 
-# Custom block-art logo using Unicode half/quarter block characters.
-# fmt: off
-_LOGO_LINES: list[str] = [
-    "    \u2584\u2584\u2584",
-    "   \u2588\u2588\u2580\u2580\u2588\u2584                        \u2588\u2584",
-    "   \u2588\u2588 \u2584\u2588\u2580       \u2584    \u2584          \u2584\u2588\u2588\u2584      \u2580\u2580 \u2584",  # noqa: E501
-    "   \u2588\u2588\u2580\u2580\u2588\u2584 \u2584\u2588\u2580\u2588\u2584 \u2588\u2588\u2588\u2588\u2584\u2588\u2588\u2588\u2588\u2584 \u2584\u2588\u2588\u2580\u2588 \u2588\u2588 \u2584\u2588\u2580\u2588\u2584 \u2588\u2588 \u2588\u2588\u2588\u2588\u2584",  # noqa: E501
-    " \u2584 \u2588\u2588  \u2584\u2588 \u2588\u2588\u2584\u2588\u2580 \u2588\u2588   \u2588\u2588 \u2588\u2588 \u2580\u2588\u2588\u2588\u2584 \u2588\u2588 \u2588\u2588\u2584\u2588\u2580 \u2588\u2588 \u2588\u2588 \u2588\u2588",  # noqa: E501
-    " \u2580\u2588\u2588\u2588\u2588\u2588\u2588\u2580\u2584\u2580\u2588\u2584\u2584\u2584\u2588\u2580  \u2584\u2588\u2588 \u2580\u2588\u2588\u2584\u2584\u2588\u2588\u2580\u2584\u2588\u2588\u2584\u2580\u2588\u2584\u2584\u2584\u2588\u2588\u2584\u2588\u2588 \u2580\u2588",  # noqa: E501
-]
-# fmt: on
+# Custom block-art logo loaded from bundled asset file.
+_LOGO_LINES: list[str] = []
+
+
+def _load_logo() -> list[str]:
+    """Load logo from docs/assets/ascii_logo.md, stripping empty lines."""
+    from pathlib import Path
+
+    asset = Path(__file__).resolve().parent.parent.parent.parent / "docs" / "assets" / "ascii_logo.md"
+    if not asset.exists():
+        return ["  BERNSTEIN"]
+    lines = asset.read_text(encoding="utf-8").splitlines()
+    # Keep non-empty lines (the logo itself).
+    return [line for line in lines if line.strip()]
 
 
 def _empty_agents() -> list[dict[str, object]]:
@@ -135,7 +138,7 @@ class SplashRenderer:
         bg_lines = bg.splitlines()
 
         # Custom block-art logo (Unicode half/quarter blocks for sub-cell detail).
-        logo_lines = list(_LOGO_LINES)
+        logo_lines = _load_logo()
 
         # Gradient colors for logo lines (ANSI escape codes, not Rich markup).
         logo_colors = _sample_ansi_gradient(len(logo_lines), BERNSTEIN_COLORS)

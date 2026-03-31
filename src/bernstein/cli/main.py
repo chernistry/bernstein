@@ -500,7 +500,10 @@ def cli(
         task_count=0,
     )
 
-    # Collect background results (should be done by now — splash took 2-3 seconds).
+    # Show immediate feedback while background finishes — no black screen.
+    console.print("[dim]Preparing...[/dim]", end="\r")
+
+    # Collect background results (should be done by now — splash took 3.5 seconds).
     _bg = _splash_future.result(timeout=10)
     executor.shutdown(wait=False)
     _splash_agents = list(_bg.get("agents", []))  # type: ignore[arg-type]

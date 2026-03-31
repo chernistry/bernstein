@@ -131,9 +131,7 @@ def _compile_pattern(pattern: str) -> re.Pattern[str]:
     return re.compile(rf"(?:^|[\s/'\"`;|&(]){escaped}(?:[\s/'\"`;|&)]|$)")
 
 
-def _matches_any(
-    command: str, patterns: list[str], compiled: list[re.Pattern[str]]
-) -> tuple[bool, str]:
+def _matches_any(command: str, patterns: list[str], compiled: list[re.Pattern[str]]) -> tuple[bool, str]:
     """Check if *command* matches any of the given patterns.
 
     Args:
@@ -193,9 +191,7 @@ def load_command_policies(sdd_dir: Path) -> CommandPoliciesConfig | None:
     # Global deny patterns
     raw_global_deny: object = data.get("global_deny", [])
     global_deny: list[str] = (
-        [str(p) for p in cast("list[object]", raw_global_deny)]
-        if isinstance(raw_global_deny, list)
-        else []
+        [str(p) for p in cast("list[object]", raw_global_deny)] if isinstance(raw_global_deny, list) else []
     )
 
     # Per-role policies
@@ -209,18 +205,10 @@ def load_command_policies(sdd_dir: Path) -> CommandPoliciesConfig | None:
             rc = cast("dict[str, Any]", role_cfg)
 
             raw_allow: object = rc.get("allow", [])
-            allow = (
-                [str(p) for p in cast("list[object]", raw_allow)]
-                if isinstance(raw_allow, list)
-                else []
-            )
+            allow = [str(p) for p in cast("list[object]", raw_allow)] if isinstance(raw_allow, list) else []
 
             raw_deny: object = rc.get("deny", [])
-            deny = (
-                [str(p) for p in cast("list[object]", raw_deny)]
-                if isinstance(raw_deny, list)
-                else []
-            )
+            deny = [str(p) for p in cast("list[object]", raw_deny)] if isinstance(raw_deny, list) else []
 
             # Optional per-pattern deny messages
             raw_msgs: object = rc.get("deny_messages", {})
@@ -350,10 +338,7 @@ def check_command(
                 command=command,
                 role=role,
                 matched_pattern="",
-                reason=(
-                    f"Command not in allowlist for role '{role}'. "
-                    f"Allowed: {', '.join(role_policy.allow)}"
-                ),
+                reason=(f"Command not in allowlist for role '{role}'. Allowed: {', '.join(role_policy.allow)}"),
                 source="role_allow",
             )
 

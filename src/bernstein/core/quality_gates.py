@@ -433,6 +433,98 @@ def _run_mutation_gate(config: QualityGatesConfig, run_dir: Path) -> tuple[bool,
 
 
 # ---------------------------------------------------------------------------
+# PII / secret scan gate
+# ---------------------------------------------------------------------------
+
+
+def _run_pii_gate(config: QualityGatesConfig, run_dir: Path) -> QualityGateCheckResult:
+    """Scan files in configured paths for secrets and PII.
+
+    Imports ``pii_output_gate`` and scans each file under ``config.pii_scan_paths``
+    for leaked secrets.  Any high-severity finding blocks merge.
+
+    Args:
+        config: Quality gates configuration (uses ``pii_scan_paths``).
+        run_dir: Working directory (agent worktree root).
+
+    Returns:
+        QualityGateCheckResult with ``blocked=True`` if any high-severity
+        finding is detected.
+    """
+    from pathlib import Path as _Path
+
+    from bernstein.core.pii_output_gate import format_findings, scan_text
+
+    all_findings: list[Any] = []
+
+    for scan_path in config.pii_scan_paths:
+        target = _Path(run_dir) / scan_path
+        if not target.exists():
+            continue
+        files = [target] if target.is_file() else sorted(target.rglob("*"))
+
+        for fpath in files:
+            if not fpath.is_file():
+                continue
+            # Skip binary / non-text files
+            _skip = {
+                ".pyc",
+                ".pyo",
+                ".so",
+                ".dylib",
+                ".whl",
+                ".egg",
+                ".gz",
+                ".zip",
+                ".tar",
+                ".png",
+                ".jpg",
+                ".gif",
+                ".ico",
+            }
+            if fpath.suffix in _skip:
+                continue
+            try:
+                content = fpath.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+
+            findings = scan_text(content)
+            for f in findings:
+                # Annotate finding with file path for the report
+                all_findings.append((str(fpath.relative_to(run_dir)), f))
+
+    if not all_findings:
+        return QualityGateCheckResult(
+            gate="pii_scan",
+            passed=True,
+            blocked=False,
+            detail="No secrets or PII detected in agent output.",
+        )
+
+    # Any high-severity finding blocks merge
+    has_high = any(f.severity == "high" for _, f in all_findings)
+    finding_objs = [f for _, f in all_findings]
+    detail = format_findings(finding_objs)
+
+    # Prepend file paths to detail
+    file_lines: list[str] = []
+    for fpath_str, f in all_findings:
+        file_lines.append(f"  {fpath_str}:{f.line_number} [{f.severity.upper()}] {f.rule}")
+    detail = detail + "\n\nFiles:\n" + "\n".join(file_lines)
+
+    if len(detail) > 2000:
+        detail = detail[:2000] + "\n... (truncated)"
+
+    return QualityGateCheckResult(
+        gate="pii_scan",
+        passed=not has_high,
+        blocked=has_high,
+        detail=detail,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Main entrypoint
 # ---------------------------------------------------------------------------
 

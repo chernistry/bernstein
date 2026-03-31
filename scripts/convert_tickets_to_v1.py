@@ -10,6 +10,9 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+=======
+
+>>>>>>> agent/security-3fc83110
 BACKLOG = Path(".sdd/backlog/open")
 
 # Map ticket ID prefix to default tags
@@ -193,6 +196,7 @@ def convert_ticket(path: Path) -> None:
             if next_section > 0:
                 summary = text[body_start:next_section].strip()
             else:
+<<<<<<< HEAD
                 summary = text[body_start : body_start + 500].strip()
 
     dod = sections.get("Acceptance Criteria", sections.get("Objective & Definition of Done", ""))

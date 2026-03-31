@@ -516,12 +516,14 @@ def export_soc2_package(
                 shutil.copy2(jsonl_file, dest / jsonl_file.name)
         copied = list(dest.iterdir())
         if copied:
-            artifacts_collected.append({
-                "type": "audit_logs",
-                "description": "HMAC-chained audit event logs",
-                "file_count": len(copied),
-                "period_filter": f"{start_date} to {end_date}",
-            })
+            artifacts_collected.append(
+                {
+                    "type": "audit_logs",
+                    "description": "HMAC-chained audit event logs",
+                    "file_count": len(copied),
+                    "period_filter": f"{start_date} to {end_date}",
+                }
+            )
 
     # --- 2. HMAC chain verification ----------------------------------------
     verification: dict[str, Any] = {"hmac_chain": None, "merkle": None}
@@ -548,11 +550,13 @@ def export_soc2_package(
             shutil.copy2(seal_file, dest / seal_file.name)
         copied = list(dest.iterdir())
         if copied:
-            artifacts_collected.append({
-                "type": "merkle_seals",
-                "description": "Merkle tree integrity seals",
-                "file_count": len(copied),
-            })
+            artifacts_collected.append(
+                {
+                    "type": "merkle_seals",
+                    "description": "Merkle tree integrity seals",
+                    "file_count": len(copied),
+                }
+            )
 
     # --- 4. Compliance configuration ---------------------------------------
     config_dir = sdd_dir / "config"
@@ -564,11 +568,13 @@ def export_soc2_package(
                 shutil.copy2(cfg_file, dest / cfg_file.name)
         copied = list(dest.iterdir())
         if copied:
-            artifacts_collected.append({
-                "type": "compliance_config",
-                "description": "Compliance and policy configuration",
-                "file_count": len(copied),
-            })
+            artifacts_collected.append(
+                {
+                    "type": "compliance_config",
+                    "description": "Compliance and policy configuration",
+                    "file_count": len(copied),
+                }
+            )
 
     # --- 5. WAL (write-ahead log) ------------------------------------------
     wal_dir = sdd_dir / "runtime" / "wal"
@@ -580,11 +586,13 @@ def export_soc2_package(
                 shutil.copy2(wal_file, dest / wal_file.name)
         copied = list(dest.iterdir())
         if copied:
-            artifacts_collected.append({
-                "type": "wal",
-                "description": "Write-ahead log entries",
-                "file_count": len(copied),
-            })
+            artifacts_collected.append(
+                {
+                    "type": "wal",
+                    "description": "Write-ahead log entries",
+                    "file_count": len(copied),
+                }
+            )
 
     # --- 6. SBOM -----------------------------------------------------------
     sbom_dir = sdd_dir / "sbom"
@@ -595,11 +603,13 @@ def export_soc2_package(
             shutil.copy2(sbom_file, dest / sbom_file.name)
         copied = list(dest.iterdir())
         if copied:
-            artifacts_collected.append({
-                "type": "sbom",
-                "description": "Software Bill of Materials (CycloneDX)",
-                "file_count": len(copied),
-            })
+            artifacts_collected.append(
+                {
+                    "type": "sbom",
+                    "description": "Software Bill of Materials (CycloneDX)",
+                    "file_count": len(copied),
+                }
+            )
 
     # --- 7. Write verification results -------------------------------------
     (bundle_dir / "verification.json").write_text(json.dumps(verification, indent=2))

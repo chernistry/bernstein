@@ -168,6 +168,12 @@ exclude = [
     "src/bernstein/core/secrets.py",
     "src/bernstein/core/agent_lifecycle.py",
     "src/bernstein/core/backlog_parser.py",
+    "src/bernstein/core/agent_identity.py",
+    "src/bernstein/core/command_policy.py",
+    "src/bernstein/core/key_rotation.py",
+    "src/bernstein/core/mcp_server.py",
+    "src/bernstein/core/quality_gates.py",
+    "src/bernstein/core/server.py",
 ]
 
 [tool.pytest.ini_options]

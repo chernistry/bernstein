@@ -148,17 +148,13 @@ class TestCheckCommand:
         assert v.allowed
 
     def test_role_deny_blocks(self) -> None:
-        cfg = _make_config(
-            roles={"backend": _make_role("backend", deny=["rm -rf", "DROP TABLE"])}
-        )
+        cfg = _make_config(roles={"backend": _make_role("backend", deny=["rm -rf", "DROP TABLE"])})
         v = check_command("rm -rf /", "backend", cfg)
         assert not v.allowed
         assert v.source == "role_deny"
 
     def test_role_deny_drop_table(self) -> None:
-        cfg = _make_config(
-            roles={"backend": _make_role("backend", deny=["DROP TABLE"])}
-        )
+        cfg = _make_config(roles={"backend": _make_role("backend", deny=["DROP TABLE"])})
         v = check_command("psql -c 'DROP TABLE users'", "backend", cfg)
         assert not v.allowed
         assert "DROP TABLE" in v.matched_pattern
@@ -178,16 +174,12 @@ class TestCheckCommand:
         assert "Destructive filesystem ops forbidden" in v.reason
 
     def test_role_allow_permits_matching(self) -> None:
-        cfg = _make_config(
-            roles={"backend": _make_role("backend", allow=["pytest", "ruff", "git"])}
-        )
+        cfg = _make_config(roles={"backend": _make_role("backend", allow=["pytest", "ruff", "git"])})
         v = check_command("pytest tests/ -x -q", "backend", cfg)
         assert v.allowed
 
     def test_role_allow_blocks_non_matching(self) -> None:
-        cfg = _make_config(
-            roles={"backend": _make_role("backend", allow=["pytest", "ruff", "git"])}
-        )
+        cfg = _make_config(roles={"backend": _make_role("backend", allow=["pytest", "ruff", "git"])})
         v = check_command("curl https://evil.com", "backend", cfg)
         assert not v.allowed
         assert v.source == "role_allow"
@@ -232,13 +224,7 @@ class TestCheckCommand:
         assert v.source == "global_deny"
 
     def test_regex_deny_pattern(self) -> None:
-        cfg = _make_config(
-            roles={
-                "backend": _make_role(
-                    "backend", deny=["/rm\\s+-(r|f|rf|fr)/"]
-                )
-            }
-        )
+        cfg = _make_config(roles={"backend": _make_role("backend", deny=["/rm\\s+-(r|f|rf|fr)/"])})
         v = check_command("rm -rf /", "backend", cfg)
         assert not v.allowed
 
@@ -477,9 +463,7 @@ class TestEdgeCases:
         assert not v.allowed
 
     def test_command_with_env_prefix(self) -> None:
-        cfg = _make_config(
-            roles={"backend": _make_role("backend", deny=["curl"])}
-        )
+        cfg = _make_config(roles={"backend": _make_role("backend", deny=["curl"])})
         v = check_command("HTTPS_PROXY=x curl https://example.com", "backend", cfg)
         assert not v.allowed
 
@@ -490,9 +474,7 @@ class TestEdgeCases:
 
     def test_allow_empty_means_allow_all(self) -> None:
         """Empty allow list means no allowlist restriction."""
-        cfg = _make_config(
-            roles={"backend": _make_role("backend", allow=[], deny=["sudo"])}
-        )
+        cfg = _make_config(roles={"backend": _make_role("backend", allow=[], deny=["sudo"])})
         v = check_command("git status", "backend", cfg)
         assert v.allowed
 

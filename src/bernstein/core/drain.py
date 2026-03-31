@@ -637,6 +637,16 @@ class DrainCoordinator:
         # Clean runtime state.
         self._clean_runtime()
 
+        # Cancel drain mode on the server so claims work again on next run.
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(f"{self._server_url}/drain/cancel")
+                logger.info("Drain mode cancelled on server")
+        except Exception:
+            # Server may already be down — that's fine, draining is
+            # an in-memory flag that resets on server restart.
+            logger.debug("Could not cancel drain on server (may be already stopped)")
+
         phase.detail = (
             f"{worktrees_removed} worktree{'s' if worktrees_removed != 1 else ''} removed, "
             f"{branches_deleted} branch{'es' if branches_deleted != 1 else ''} deleted"

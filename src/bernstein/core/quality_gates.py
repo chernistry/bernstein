@@ -99,6 +99,24 @@ class IntentVerificationConfig:
 
 
 @dataclass(frozen=True)
+class BenchmarkConfig:
+    """Configuration for the benchmark regression quality gate.
+
+    Attributes:
+        enabled: Whether to run the benchmark regression gate.
+        command: Shell command that runs benchmarks and writes results to
+            ``.benchmark_results.json`` (pytest-benchmark JSON format).
+        threshold: Maximum allowed regression ratio (0.0-1.0). A value of
+            0.15 means a 15% degradation in response time, throughput, or
+            memory blocks merge.
+    """
+
+    enabled: bool = False
+    command: str = "uv run pytest benchmarks/ --benchmark-json=.benchmark_results.json -q"
+    threshold: float = 0.15
+
+
+@dataclass(frozen=True)
 class QualityGatesConfig:
     """Configuration for automated quality gates.
 
@@ -121,6 +139,7 @@ class QualityGatesConfig:
         mutation_threshold: Minimum required mutation score (0.0-1.0). Blocks if below.
         mutation_timeout_s: Timeout for mutation testing (longer than other gates).
         intent_verification: Config for the LLM-based intent verification gate.
+        benchmark: Config for the performance benchmark regression gate.
     """
 
     enabled: bool = True
@@ -162,6 +181,7 @@ class QualityGatesConfig:
     flaky_detection: bool = False
     flaky_min_runs: int = 5
     flaky_threshold: float = 0.15
+    benchmark: BenchmarkConfig = field(default_factory=BenchmarkConfig)
 
 
 @dataclass

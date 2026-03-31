@@ -597,6 +597,94 @@ def emit_orphan_metrics(
 
 
 # ---------------------------------------------------------------------------
+# Loop and deadlock detection
+# ---------------------------------------------------------------------------
+
+
+def check_loops_and_deadlocks(orch: Any) -> None:
+    """Detect and recover from agent edit loops and file-lock deadlocks.
+
+    **Loop detection** — polls modification times of files currently locked by
+    active agents.  When a file's mtime advances since the last poll, the edit
+    is recorded.  If the same agent edits the same file more than
+    :data:`~bernstein.core.loop_detector.LOOP_EDIT_THRESHOLD` times within the
+    detection window, the agent is killed so the task can be retried.
+
+    **Deadlock detection** — builds a wait-for graph from the
+    :class:`~bernstein.core.file_locks.FileLockManager` and any pending
+    lock-wait entries recorded via
+    :meth:`~bernstein.core.loop_detector.LoopDetector.record_lock_wait`.
+    When a cycle is found, the lock held by the *oldest* agent in the cycle is
+    released to break the deadlock.
+
+    This function is a no-op when the orchestrator has no ``_loop_detector``
+    attribute (e.g. in tests that do not set it up).
+
+    Args:
+        orch: Orchestrator instance.
+    """
+    from bernstein.core.loop_detector import LoopDetector  # noqa: TC001
+
+    detector: LoopDetector | None = getattr(orch, "_loop_detector", None)
+    if detector is None:
+        return
+
+    lock_mgr = getattr(orch, "_lock_manager", None)
+
+    # ---- 1. Poll file modification times for loop detection ----------------
+    if lock_mgr is not None:
+        file_mtime_cache: dict[str, float] = getattr(orch, "_loop_mtime_cache", {})
+        if not hasattr(orch, "_loop_mtime_cache"):
+            orch._loop_mtime_cache = file_mtime_cache  # type: ignore[attr-defined]
+
+        for lock in lock_mgr.all_locks():
+            # Resolve path relative to workdir; fall back to absolute
+            candidate = orch._workdir / lock.file_path
+            if not candidate.exists():
+                candidate = Path(lock.file_path)
+            try:
+                mtime = candidate.stat().st_mtime
+            except OSError:
+                continue
+
+            last = file_mtime_cache.get(lock.file_path, 0.0)
+            if mtime > last:
+                detector.record_edit(lock.agent_id, lock.file_path, mtime)
+                file_mtime_cache[lock.file_path] = mtime
+
+    # ---- 2. Loop recovery --------------------------------------------------
+    for loop in detector.detect_loops():
+        session = orch._agents.get(loop.agent_id)
+        if session is None or session.status == "dead":
+            continue
+        logger.warning(
+            "Loop detected: agent %s edited '%s' %d times in %.0fs — killing agent",
+            loop.agent_id,
+            loop.file_path,
+            loop.edit_count,
+            loop.window_seconds,
+        )
+        with contextlib.suppress(Exception):
+            orch._spawner.kill(session)
+        detector.clear_wait(loop.agent_id)
+        if lock_mgr is not None:
+            lock_mgr.release(loop.agent_id)
+
+    # ---- 3. Deadlock recovery ----------------------------------------------
+    if lock_mgr is None:
+        return
+
+    for deadlock in detector.detect_deadlocks(lock_mgr):
+        logger.warning(
+            "%s — releasing locks for victim agent %s",
+            deadlock.description,
+            deadlock.victim_agent_id,
+        )
+        lock_mgr.release(deadlock.victim_agent_id)
+        detector.clear_wait(deadlock.victim_agent_id)
+
+
+# ---------------------------------------------------------------------------
 # Stale agent detection
 # ---------------------------------------------------------------------------
 

@@ -637,6 +637,17 @@ def process_completed_tasks(
         except OSError as exc:
             logger.warning("Failed to persist cost tracker: %s", exc)
 
+        # Cost anomaly checks: per-task ceiling, token ratio, retry spiral.
+        _complexity = getattr(task, "complexity", "medium") or "medium"
+        for _sig in orch._anomaly_detector.check_task_completion(
+            task_id=task.id,
+            complexity=_complexity,
+            cost_usd=_cost_usd,
+            tokens_in=_tokens_in,
+            tokens_out=_tokens_out,
+        ):
+            orch._handle_anomaly_signal(_sig)
+
         _collector.complete_task(task.id, success=janitor_passed, janitor_passed=janitor_passed, cost_usd=_cost_usd)
         try:
             _budget = CompletionBudget(orch._workdir)

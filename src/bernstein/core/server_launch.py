@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_SERVER_READY_TIMEOUT_S = 10.0
+_SERVER_READY_TIMEOUT_S = 30.0
 _SERVER_POLL_INTERVAL_S = 0.25
 
 

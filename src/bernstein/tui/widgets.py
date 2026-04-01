@@ -10,6 +10,41 @@ from typing import Any
 from rich.text import Text
 from textual.widgets import DataTable, RichLog, Static
 
+# Sparkline characters for cost trend visualization
+SPARKLINE_CHARS = "▁▂▃▄▅▆▇█"
+
+
+def generate_sparkline(values: list[float], width: int = 10) -> str:
+    """Generate a sparkline from a list of values.
+    
+    Args:
+        values: List of numeric values.
+        width: Width of sparkline in characters.
+        
+    Returns:
+        Sparkline string.
+    """
+    if not values:
+        return " " * width
+
+    # Take last N values
+    recent = values[-width:] if len(values) > width else values
+
+    # Normalize to 0-1 range
+    min_val = min(recent)
+    max_val = max(recent)
+    range_val = max_val - min_val if max_val > min_val else 1
+
+    # Generate sparkline
+    sparkline = []
+    for val in recent:
+        normalized = (val - min_val) / range_val
+        char_index = int(normalized * (len(SPARKLINE_CHARS) - 1))
+        sparkline.append(SPARKLINE_CHARS[char_index])
+
+    return "".join(sparkline)
+
+
 # ---------------------------------------------------------------------------
 # Colour mapping for task statuses
 # ---------------------------------------------------------------------------
@@ -241,6 +276,7 @@ class StatusBar(Static):
         tasks_total: int = 0,
         tasks_failed: int = 0,
         cost_usd: float = 0.0,
+        cost_history: list[float] | None = None,
         elapsed_seconds: float = 0.0,
         server_online: bool = True,
     ) -> None:
@@ -252,6 +288,7 @@ class StatusBar(Static):
             tasks_total: Total number of tasks.
             tasks_failed: Number of failed tasks.
             cost_usd: Total cost in USD.
+            cost_history: List of historical cost values for sparkline.
             elapsed_seconds: Elapsed wall-clock seconds.
             server_online: Whether the task server is reachable.
         """
@@ -265,6 +302,12 @@ class StatusBar(Static):
             )
             return
 
+        # Generate cost sparkline
+        sparkline = ""
+        if cost_history and len(cost_history) > 1:
+            sparkline = generate_sparkline(cost_history, width=8)
+            sparkline = f" [dim]{sparkline}[/dim]"
+
         left_parts: list[str] = [
             "[bold]bernstein[/bold]",
             f"{agents_active} agents",
@@ -272,7 +315,7 @@ class StatusBar(Static):
         ]
         if tasks_failed:
             left_parts.append(f"[red]{tasks_failed} failed[/red]")
-        left_parts.append(f"${cost_usd:.2f}")
+        left_parts.append(f"${cost_usd:.2f}{sparkline}")
         left_parts.append(elapsed_str)
 
         left = " [dim]\u2500[/dim] ".join(left_parts)

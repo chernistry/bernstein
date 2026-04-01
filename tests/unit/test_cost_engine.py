@@ -451,3 +451,41 @@ class TestEstimateRunCost:
         low, high = estimate_run_cost(0)
         assert low == 0.0
         assert high == 0.0
+
+
+# ---------------------------------------------------------------------------
+# compute_savings_vs_manual
+# ---------------------------------------------------------------------------
+
+class TestComputeSavingsVsManual:
+    def test_no_savings_when_no_records(self) -> None:
+        from bernstein.core.cost import compute_savings_vs_manual
+        res = compute_savings_vs_manual([])
+        assert res["savings_usd"] == 0.0
+        assert res["manual_hours"] == 0.0
+
+    def test_savings_with_explicit_hours(self) -> None:
+        from bernstein.core.cost import compute_savings_vs_manual
+        records = [
+            {"cost_usd": 1.0, "estimated_manual_hours": 2.0},
+        ]
+        res = compute_savings_vs_manual(records, hourly_rate=50.0)
+        assert res["manual_hours"] == 2.0
+        assert res["manual_cost_usd"] == 100.0
+        assert res["api_cost_usd"] == 1.0
+        assert res["savings_usd"] == 99.0
+
+    def test_savings_with_implicit_scope(self) -> None:
+        from bernstein.core.cost import compute_savings_vs_manual
+        records = [
+            {"cost_usd": 0.5, "scope": "small"},   # 0.5 hr
+            {"cost_usd": 1.0, "scope": "medium"},  # 1.5 hr
+            {"cost_usd": 2.0, "scope": "large"},   # 4.0 hr
+            {"cost_usd": 0.5},                     # default medium = 1.5 hr
+        ]
+        res = compute_savings_vs_manual(records, hourly_rate=100.0)
+        # total hours = 0.5 + 1.5 + 4.0 + 1.5 = 7.5
+        assert res["manual_hours"] == 7.5
+        assert res["manual_cost_usd"] == 750.0
+        assert res["api_cost_usd"] == 4.0
+        assert res["savings_usd"] == 746.0

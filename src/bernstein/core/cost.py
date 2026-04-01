@@ -373,6 +373,44 @@ def compute_savings_vs_opus(records: list[dict[str, Any]]) -> float:
     return savings
 
 
+def compute_savings_vs_manual(records: list[dict[str, Any]], hourly_rate: float = 100.0) -> dict[str, float]:
+    """Estimate savings vs manual coding.
+
+    Calculates: estimated_manual_hours * hourly_rate - api_cost.
+
+    Args:
+        records: Task metric records from tasks.jsonl.
+        hourly_rate: Hourly rate for manual coding in USD.
+
+    Returns:
+        Dict with manual_hours, manual_cost_usd, api_cost_usd, and savings_usd.
+    """
+    manual_hours = 0.0
+    api_cost = 0.0
+    for rec in records:
+        api_cost += float(rec.get("cost_usd", 0.0) or 0.0)
+        # Check if explicitly recorded, otherwise estimate based on scope
+        recorded_hours = float(rec.get("estimated_manual_hours", 0.0) or 0.0)
+        if recorded_hours <= 0:
+            scope = str(rec.get("scope", "medium")).lower()
+            if scope == "small":
+                recorded_hours = 0.5  # 30 mins
+            elif scope == "large":
+                recorded_hours = 4.0  # 4 hours
+            else:
+                recorded_hours = 1.5  # 1.5 hours
+        manual_hours += recorded_hours
+
+    manual_cost = manual_hours * hourly_rate
+    savings = max(0.0, manual_cost - api_cost)
+    return {
+        "manual_hours": round(manual_hours, 1),
+        "manual_cost_usd": round(manual_cost, 2),
+        "api_cost_usd": round(api_cost, 4),
+        "savings_usd": round(savings, 2),
+    }
+
+
 def compute_daily_cost(records: list[dict[str, Any]], days: int = 7) -> list[dict[str, Any]]:
     """Compute per-day cost totals for the last N days.
 

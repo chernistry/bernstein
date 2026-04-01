@@ -558,6 +558,7 @@ def process_completed_tasks(
                     mode_str = mapping.get(risk, "auto")
 
                     from bernstein.core.approval import ApprovalMode
+
                     _override_mode = ApprovalMode(mode_str)
                     _timeout_s = float(wf.timeout_hours * 3600)
 

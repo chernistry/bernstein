@@ -148,6 +148,7 @@ class ApprovalGate:
         self._workdir = workdir
         self._auto_merge = auto_merge
         self._pr_labels: list[str] = pr_labels if pr_labels is not None else ["bernstein", "auto-generated"]
+
         def _default_poll(
             task_id: str,
             approvals_dir: Path,

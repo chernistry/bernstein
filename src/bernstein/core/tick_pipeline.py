@@ -11,6 +11,7 @@ import logging
 import os
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any
+
 from typing_extensions import TypedDict
 
 from bernstein.core.backlog_parser import parse_backlog_text

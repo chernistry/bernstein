@@ -492,3 +492,73 @@ async def compare_model_costs(request: Request) -> JSONResponse:
             "total_models_used": len(comparison),
         }
     )
+
+
+@router.get("/costs/cache-stats")
+async def cache_stats(request: Request) -> JSONResponse:
+    """Return prompt cache hit rate statistics.
+
+    Shows cache hits/misses and savings by model.
+    """
+    from bernstein.core.cost_tracker import CostTracker
+
+    sdd_dir = _get_sdd_dir(request)
+    costs_dir = sdd_dir / "runtime" / "costs"
+
+    total_calls = 0
+    cache_hits = 0
+    total_cached_tokens = 0
+    by_model: dict[str, dict[str, Any]] = {}
+
+    if costs_dir.exists():
+        cost_files = sorted(costs_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
+        for cost_file in cost_files:
+            tracker = CostTracker.load(sdd_dir, cost_file.stem)
+            if tracker is None:
+                continue
+            for u in tracker.usages:
+                total_calls += 1
+                model = u.model
+
+                if model not in by_model:
+                    by_model[model] = {
+                        "calls": 0,
+                        "cache_hits": 0,
+                        "cached_tokens": 0,
+                        "total_tokens": 0,
+                    }
+
+                by_model[model]["calls"] += 1
+                by_model[model]["total_tokens"] += u.input_tokens + u.output_tokens
+
+                if u.cache_hit:
+                    cache_hits += 1
+                    by_model[model]["cache_hits"] += 1
+                    total_cached_tokens += u.cached_tokens
+                    by_model[model]["cached_tokens"] += u.cached_tokens
+
+    # Calculate hit rates
+    hit_rate = (cache_hits / max(1, total_calls)) * 100
+    model_stats: list[dict[str, str | int | float]] = []
+    for model, stats in sorted(by_model.items()):
+        model_hit_rate = (stats["cache_hits"] / max(1, stats["calls"])) * 100
+        model_stats.append({
+            "model": model,
+            "calls": stats["calls"],
+            "cache_hits": stats["cache_hits"],
+            "hit_rate_pct": round(model_hit_rate, 1),
+            "cached_tokens": stats["cached_tokens"],
+            "total_tokens": stats["total_tokens"],
+        })
+
+    return JSONResponse(
+        content={
+            "summary": {
+                "total_calls": total_calls,
+                "cache_hits": cache_hits,
+                "hit_rate_pct": round(hit_rate, 1),
+                "total_cached_tokens": total_cached_tokens,
+            },
+            "by_model": model_stats,
+        }
+    )

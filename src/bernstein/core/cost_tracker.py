@@ -68,6 +68,8 @@ class TokenUsage:
     agent_id: str
     task_id: str
     timestamp: float = field(default_factory=time.time)
+    cache_hit: bool = False  # Prompt cache hit tracking
+    cached_tokens: int = 0  # Tokens served from cache
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise to a JSON-safe dict."""
@@ -79,6 +81,8 @@ class TokenUsage:
             "agent_id": self.agent_id,
             "task_id": self.task_id,
             "timestamp": self.timestamp,
+            "cache_hit": self.cache_hit,
+            "cached_tokens": self.cached_tokens,
         }
 
     @classmethod
@@ -92,6 +96,8 @@ class TokenUsage:
             agent_id=str(d["agent_id"]),
             task_id=str(d["task_id"]),
             timestamp=float(d.get("timestamp", 0.0)),
+            cache_hit=bool(d.get("cache_hit", False)),
+            cached_tokens=int(d.get("cached_tokens", 0)),
         )
 
 

@@ -5820,9 +5820,7 @@ def test_build_notification_manager_includes_seed_webhooks() -> None:
 
     seed = SimpleNamespace(
         notify=SimpleNamespace(webhook_url="https://legacy.example/hook", on_complete=True, on_failure=False),
-        webhooks=(
-            SimpleNamespace(url="https://events.example/hook", events=("task.completed", "task.failed")),
-        ),
+        webhooks=(SimpleNamespace(url="https://events.example/hook", events=("task.completed", "task.failed")),),
     )
     manager = _build_notification_manager(seed)
     assert manager is not None
@@ -5830,7 +5828,5 @@ def test_build_notification_manager_includes_seed_webhooks() -> None:
     assert len(targets) == 2
     assert any(t.url == "https://legacy.example/hook" and t.events == ["run.completed"] for t in targets)
     assert any(
-        t.url == "https://events.example/hook"
-        and t.events == ["task.completed", "task.failed"]
-        for t in targets
+        t.url == "https://events.example/hook" and t.events == ["task.completed", "task.failed"] for t in targets
     )

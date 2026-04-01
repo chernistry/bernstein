@@ -420,9 +420,7 @@ class UpgradeExecutor:
 
             # Commit
             commit_msg = (
-                f"feat(upgrade): {transaction.title[:72]}\n\n"
-                f"Upgrade: {transaction.id}\n\n"
-                f"{transaction.description}"
+                f"feat(upgrade): {transaction.title[:72]}\n\nUpgrade: {transaction.id}\n\n{transaction.description}"
             )
             result = git_commit(self._workdir, commit_msg, enforce_conventional=True)
 

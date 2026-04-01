@@ -11,9 +11,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_CONVENTIONAL_COMMIT_RE = re.compile(
-    r"^(feat|fix|chore|docs|test|refactor)(\([a-z0-9._/-]+\))?: .+"
-)
+_CONVENTIONAL_COMMIT_RE = re.compile(r"^(feat|fix|chore|docs|test|refactor)(\([a-z0-9._/-]+\))?: .+")
 
 # Paths that must NEVER be staged, even via explicit add.
 _NEVER_STAGE: frozenset[str] = frozenset(

@@ -131,10 +131,7 @@ class TestParseSeedValid:
 
     def test_webhooks_parse_and_normalize_aliases(self, seed_file: Path) -> None:
         seed_file.write_text(
-            'goal: "T"\n'
-            "webhooks:\n"
-            '  - url: "https://example.com/hook"\n'
-            "    events: [task.done, task.failed]\n"
+            'goal: "T"\nwebhooks:\n  - url: "https://example.com/hook"\n    events: [task.done, task.failed]\n'
         )
         cfg = parse_seed(seed_file)
         assert len(cfg.webhooks) == 1
@@ -143,11 +140,7 @@ class TestParseSeedValid:
 
     def test_test_agent_config_parsed(self, seed_file: Path) -> None:
         seed_file.write_text(
-            'goal: "T"\n'
-            "test_agent:\n"
-            "  always_spawn: true\n"
-            "  model: gpt-5.4-mini\n"
-            "  trigger: on_task_complete\n"
+            'goal: "T"\ntest_agent:\n  always_spawn: true\n  model: gpt-5.4-mini\n  trigger: on_task_complete\n'
         )
         cfg = parse_seed(seed_file)
         assert cfg.test_agent.always_spawn is True
@@ -218,12 +211,7 @@ class TestParseSeedInvalid:
             parse_seed(seed_file)
 
     def test_invalid_webhook_event_raises(self, seed_file: Path) -> None:
-        seed_file.write_text(
-            'goal: "T"\n'
-            "webhooks:\n"
-            '  - url: "https://example.com/hook"\n'
-            "    events: [task.unknown]\n"
-        )
+        seed_file.write_text('goal: "T"\nwebhooks:\n  - url: "https://example.com/hook"\n    events: [task.unknown]\n')
         with pytest.raises(SeedError, match="unsupported event"):
             parse_seed(seed_file)
 

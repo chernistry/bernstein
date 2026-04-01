@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import subprocess
 from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -16,6 +17,7 @@ from bernstein.core.context_recommendations import RecommendationEngine
 from bernstein.core.dep_validator import DependencyValidator
 from bernstein.core.effectiveness import EffectivenessScorer
 from bernstein.core.heartbeat import HeartbeatMonitor, compute_stall_profile
+from bernstein.core.models import TaskStatus
 
 if TYPE_CHECKING:
     from bernstein.core.task_store import TaskStore
@@ -205,3 +207,285 @@ async def observability_deps(request: Request) -> dict[str, Any]:
         "critical_path": validator.critical_path(tasks),
         "ready_tasks": [task.id for task in validator.ready_tasks(tasks)],
     }
+
+
+@router.get("/recap")
+async def recap(request: Request) -> dict[str, Any]:
+    """Return post-run summary with diff stats, quality scores, and cost breakdown.
+
+    Reads completed tasks from the archive and computes:
+    - Task completion statistics
+    - Git diff statistics (files changed, additions, deletions)
+    - Quality score distribution
+    - Cost breakdown by model and role
+    """
+    workdir = _get_workdir(request)
+    store = _get_store(request)
+
+    # Get all tasks from the store
+    all_tasks = list(store.list_tasks())
+
+    # Compute basic stats
+    total = len(all_tasks)
+    done_tasks = [t for t in all_tasks if t.status == TaskStatus.DONE]
+    failed_tasks = [t for t in all_tasks if t.status == TaskStatus.FAILED]
+    n_done = len(done_tasks)
+    n_failed = len(failed_tasks)
+    success_rate = round((n_done / total * 100), 1) if total > 0 else 0.0
+
+    # Compute git diff stats
+    diff_stats = _get_git_diff_stats(workdir, done_tasks)
+
+    # Compute quality score distribution
+    quality_scores = _get_quality_score_distribution(workdir, done_tasks)
+
+    # Compute cost breakdown
+    cost_breakdown = _get_cost_breakdown(workdir)
+
+    return {
+        "tasks": [
+            {
+                "id": t.id,
+                "title": t.title,
+                "status": t.status.value,
+                "role": t.role,
+                "complexity": t.complexity.value if t.complexity else None,
+            }
+            for t in all_tasks
+        ],
+        "summary": {
+            "total": total,
+            "completed": n_done,
+            "failed": n_failed,
+            "success_rate": success_rate,
+        },
+        "diff_stats": diff_stats,
+        "quality_scores": quality_scores,
+        "cost_breakdown": cost_breakdown,
+    }
+
+
+def _get_git_diff_stats(workdir: Path, done_tasks: list[Any]) -> dict[str, Any]:
+    """Get git diff statistics for completed tasks.
+
+    Args:
+        workdir: Repository root directory.
+        done_tasks: List of completed tasks.
+
+    Returns:
+        Dictionary with files_changed, additions, deletions, and changed_files list.
+    """
+    if not done_tasks:
+        return {
+            "files_changed": 0,
+            "additions": 0,
+            "deletions": 0,
+            "changed_files": [],
+        }
+
+    try:
+        # Get diff stats for all changes since the run started
+        # We use git diff HEAD~N where N is the number of commits made during the run
+        result = subprocess.run(
+            ["git", "diff", "--stat", "--numstat"],
+            cwd=workdir,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+
+        if result.returncode != 0:
+            logger.warning("Failed to get git diff stats: %s", result.stderr)
+            return {
+                "files_changed": 0,
+                "additions": 0,
+                "deletions": 0,
+                "changed_files": [],
+            }
+
+        lines = result.stdout.strip().splitlines()
+        files_changed = 0
+        additions = 0
+        deletions = 0
+        changed_files: list[str] = []
+
+        for line in lines:
+            if not line.strip():
+                continue
+            parts = line.split()
+            if len(parts) >= 3:
+                # numstat format: additions<tab>deletions<tab>filename
+                try:
+                    add_count = int(parts[0]) if parts[0] != "-" else 0
+                    del_count = int(parts[1]) if parts[1] != "-" else 0
+                    filename = parts[2]
+                    files_changed += 1
+                    additions += add_count
+                    deletions += del_count
+                    changed_files.append(filename)
+                except ValueError:
+                    continue
+
+        return {
+            "files_changed": files_changed,
+            "additions": additions,
+            "deletions": deletions,
+            "changed_files": changed_files[:20],  # Limit to first 20 files
+        }
+
+    except (subprocess.TimeoutExpired, OSError) as e:
+        logger.warning("Error getting git diff stats: %s", e)
+        return {
+            "files_changed": 0,
+            "additions": 0,
+            "deletions": 0,
+            "changed_files": [],
+        }
+
+
+def _get_quality_score_distribution(workdir: Path, done_tasks: list[Any]) -> dict[str, Any]:
+    """Get quality score distribution for completed tasks.
+
+    Args:
+        workdir: Repository root directory.
+        done_tasks: List of completed tasks.
+
+    Returns:
+        Dictionary with average score, grade distribution, and recent scores.
+    """
+    quality_scores_path = workdir / ".sdd" / "metrics" / "quality_scores.jsonl"
+
+    if not quality_scores_path.exists():
+        return {
+            "average_score": 0,
+            "grade_distribution": {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0},
+            "recent_scores": [],
+            "lint_score": 0,
+            "tests_score": 0,
+        }
+
+    scores: list[int] = []
+    grades: dict[str, int] = {"A": 0, "B": 0, "C": 0, "D": 0, "F": 0}
+    recent_scores: list[int] = []
+    gate_scores: dict[str, list[int]] = {
+        "lint": [],
+        "tests": [],
+        "type_check": [],
+        "security_scan": [],
+        "coverage_delta": [],
+    }
+
+    try:
+        for line in quality_scores_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                data = json.loads(line)
+                total = data.get("total", 0)
+                if isinstance(total, int):
+                    scores.append(total)
+                    recent_scores.append(total)
+
+                    # Grade distribution
+                    if total >= 90:
+                        grades["A"] += 1
+                    elif total >= 80:
+                        grades["B"] += 1
+                    elif total >= 70:
+                        grades["C"] += 1
+                    elif total >= 60:
+                        grades["D"] += 1
+                    else:
+                        grades["F"] += 1
+
+                    # Gate breakdown
+                    breakdown = data.get("breakdown", {})
+                    for gate_name in gate_scores:
+                        if gate_name in breakdown:
+                            gate_scores[gate_name].append(breakdown[gate_name])
+
+            except json.JSONDecodeError:
+                continue
+    except OSError:
+        pass
+
+    # Keep only last 10 recent scores
+    recent_scores = recent_scores[-10:]
+
+    # Calculate average gate scores
+    avg_gate_scores: dict[str, float] = {}
+    for gate_name, gate_vals in gate_scores.items():
+        if gate_vals:
+            avg_gate_scores[gate_name] = round(sum(gate_vals) / len(gate_vals), 1)
+
+    return {
+        "average_score": round(sum(scores) / len(scores), 1) if scores else 0,
+        "grade_distribution": grades,
+        "recent_scores": recent_scores,
+        "lint_score": avg_gate_scores.get("lint", 0.0),
+        "tests_score": avg_gate_scores.get("tests", 0.0),
+        "type_check_score": avg_gate_scores.get("type_check", 0.0),
+        "security_score": avg_gate_scores.get("security_scan", 0.0),
+    }
+
+
+def _get_cost_breakdown(workdir: Path) -> dict[str, Any]:
+    """Get cost breakdown from metrics.
+
+    Args:
+        workdir: Repository root directory.
+
+    Returns:
+        Dictionary with total cost, per-model breakdown, and per-role breakdown.
+    """
+    costs_path = workdir / ".sdd" / "metrics"
+    cost_files = list(costs_path.glob("costs_*.json")) if costs_path.exists() else []
+
+    if not cost_files:
+        return {
+            "total_cost_usd": 0.0,
+            "per_model": [],  # type: ignore[return-value]
+            "per_role": {},
+        }
+
+    # Read the most recent cost file
+    latest_cost_file = max(cost_files, key=lambda p: p.stat().st_mtime)
+
+    try:
+        data = cast("dict[str, Any]", json.loads(latest_cost_file.read_text(encoding="utf-8")))
+        total_cost = cast("float", data.get("total_spent_usd", 0.0))
+
+        # Per-model breakdown
+        per_model = cast("list[dict[str, Any]]", data.get("per_model", []))
+        model_summary = [
+            {
+                "model": m.get("model", "unknown"),
+                "cost_usd": round(m.get("total_cost_usd", 0.0), 4),
+                "tokens": m.get("total_tokens", 0),
+                "invocations": m.get("invocation_count", 0),
+            }
+            for m in per_model
+        ]
+
+        # Per-role breakdown (from per_agent)
+        per_role: dict[str, float] = {}
+        per_agent = cast("list[dict[str, Any]]", data.get("per_agent", []))
+        for agent in per_agent:
+            role = cast("str", agent.get("agent_id", "unknown"))
+            role_cost = cast("float", agent.get("total_cost_usd", 0.0))
+            per_role[role] = round(per_role.get(role, 0.0) + role_cost, 4)
+
+        return {
+            "total_cost_usd": round(total_cost, 4),
+            "per_model": model_summary,
+            "per_role": per_role,
+        }
+
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("Error reading cost data: %s", e)
+        return {
+            "total_cost_usd": 0.0,
+            "per_model": [],
+            "per_role": {},
+        }

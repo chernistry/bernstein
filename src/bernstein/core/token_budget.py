@@ -36,6 +36,7 @@ class TokenBudget:
         remaining_tokens: Tokens remaining.
         complexity: Task complexity level.
     """
+
     task_id: str
     budget_tokens: int
     used_tokens: int = 0
@@ -86,6 +87,7 @@ class TokenGrowthMonitor:
         growth_rate: Current growth rate.
         intervention_triggered: Whether intervention was triggered.
     """
+
     session_id: str
     token_history: list[int] = field(default_factory=list[int])
     growth_rate: float = 0.0
@@ -235,7 +237,6 @@ class TokenBudgetManager:
                 for task_id, b in self._task_budgets.items()
             },
             "growth_monitors": {
-                session_id: monitor.get_summary()
-                for session_id, monitor in self._growth_monitors.items()
+                session_id: monitor.get_summary() for session_id, monitor in self._growth_monitors.items()
             },
         }

@@ -542,14 +542,16 @@ async def cache_stats(request: Request) -> JSONResponse:
     model_stats: list[dict[str, str | int | float]] = []
     for model, stats in sorted(by_model.items()):
         model_hit_rate = (stats["cache_hits"] / max(1, stats["calls"])) * 100
-        model_stats.append({
-            "model": model,
-            "calls": stats["calls"],
-            "cache_hits": stats["cache_hits"],
-            "hit_rate_pct": round(model_hit_rate, 1),
-            "cached_tokens": stats["cached_tokens"],
-            "total_tokens": stats["total_tokens"],
-        })
+        model_stats.append(
+            {
+                "model": model,
+                "calls": stats["calls"],
+                "cache_hits": stats["cache_hits"],
+                "hit_rate_pct": round(model_hit_rate, 1),
+                "cached_tokens": stats["cached_tokens"],
+                "total_tokens": stats["total_tokens"],
+            }
+        )
 
     return JSONResponse(
         content={

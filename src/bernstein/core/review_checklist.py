@@ -4,13 +4,22 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+ChecklistCategory = Literal["naming", "error_handling", "logging", "tests", "security", "performance", "documentation"]
+_DEFAULT_CATEGORY: ChecklistCategory = "naming"
+
+
+def _empty_checklist_items() -> list[ChecklistItem]:
+    """Return a typed empty checklist item list."""
+    return []
 
 
 @dataclass
@@ -18,7 +27,7 @@ class ChecklistItem:
     """A single checklist item for code review."""
 
     id: str
-    category: Literal["naming", "error_handling", "logging", "tests", "security", "performance", "documentation"]
+    category: ChecklistCategory
     description: str
     required: bool = True
     auto_check: bool = False  # Can be automatically verified
@@ -28,7 +37,7 @@ class ChecklistItem:
 class ReviewChecklist:
     """Configurable review checklist for pre-merge validation."""
 
-    items: list[ChecklistItem] = field(default_factory=list)
+    items: list[ChecklistItem] = field(default_factory=_empty_checklist_items)
 
     @classmethod
     def default(cls) -> ReviewChecklist:
@@ -133,15 +142,22 @@ class ReviewChecklist:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ReviewChecklist:
         """Deserialize checklist from dictionary."""
-        items = []
-        for item_data in data.get("items", []):
+        raw_items = data.get("items", [])
+        if not isinstance(raw_items, list):
+            return cls()
+
+        items: list[ChecklistItem] = []
+        for raw_item in cast("list[object]", raw_items):
+            if not isinstance(raw_item, Mapping):
+                continue
+            item_data = cast("Mapping[str, object]", raw_item)
             items.append(
                 ChecklistItem(
-                    id=item_data.get("id", ""),
-                    category=item_data.get("category", "naming"),
-                    description=item_data.get("description", ""),
-                    required=item_data.get("required", True),
-                    auto_check=item_data.get("auto_check", False),
+                    id=str(item_data.get("id", "")),
+                    category=_parse_category(item_data.get("category")),
+                    description=str(item_data.get("description", "")),
+                    required=bool(item_data.get("required", True)),
+                    auto_check=bool(item_data.get("auto_check", False)),
                 )
             )
         return cls(items=items)
@@ -236,6 +252,21 @@ def run_review_checklist(
             )
 
     return results
+
+
+def _parse_category(value: object) -> ChecklistCategory:
+    """Normalize a serialized checklist category value."""
+    if value in {
+        "naming",
+        "error_handling",
+        "logging",
+        "tests",
+        "security",
+        "performance",
+        "documentation",
+    }:
+        return cast(ChecklistCategory, value)
+    return _DEFAULT_CATEGORY
 
 
 def _auto_check_item(

@@ -374,7 +374,7 @@ def check_stalled_tasks(orch: Any) -> None:
 def detect_idle_agents(
     workdir: Path,
     agents: dict[str, Any],
-    max_idle_seconds: int = IDLE_LOG_AGE_THRESHOLD_SECONDS,
+    _max_idle_seconds: int = IDLE_LOG_AGE_THRESHOLD_SECONDS,
 ) -> list[str]:
     """Detect agents that are idle and should be killed to save cost.
 

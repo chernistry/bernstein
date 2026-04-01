@@ -77,7 +77,7 @@ def detect_duplicates(
 def merge_duplicate_tasks(
     task1: Task,
     task2: Task,
-    similarity_score: float,
+    _similarity_score: float,
 ) -> Task:
     """Merge two duplicate tasks into one.
 

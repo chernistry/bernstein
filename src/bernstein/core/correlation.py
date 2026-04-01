@@ -17,6 +17,11 @@ _current_correlation_id: ContextVar[str | None] = ContextVar(
 )
 
 
+def _empty_metadata() -> dict[str, Any]:
+    """Return a typed empty metadata mapping."""
+    return {}
+
+
 @dataclass
 class CorrelationContext:
     """Correlation context for tracing workflow execution.
@@ -34,7 +39,7 @@ class CorrelationContext:
     agent_id: str | None = None
     gate_name: str | None = None
     stage: str = "task"  # task, agent, gate, merge
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=_empty_metadata)  # pyright: ignore[reportUnknownVariableType]
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""

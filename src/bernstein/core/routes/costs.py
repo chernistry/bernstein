@@ -11,7 +11,7 @@ import io
 import json
 import time
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
@@ -24,6 +24,13 @@ if TYPE_CHECKING:
     from bernstein.core.server import SSEBus
 
 router = APIRouter()
+
+
+class _EfficiencyStats(TypedDict):
+    total_tokens: int
+    total_cost_usd: float
+    invocations: int
+    lines_changed: int
 
 
 def _get_sse_bus(request: Request) -> SSEBus:
@@ -577,7 +584,7 @@ async def token_efficiency(request: Request) -> JSONResponse:
     sdd_dir = _get_sdd_dir(request)
     costs_dir = sdd_dir / "runtime" / "costs"
 
-    model_stats: dict[str, dict[str, Any]] = {}
+    model_stats: dict[str, _EfficiencyStats] = {}
 
     if costs_dir.exists():
         cost_files = sorted(costs_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
@@ -601,7 +608,7 @@ async def token_efficiency(request: Request) -> JSONResponse:
                 model_stats[model]["lines_changed"] += getattr(u, "lines_changed", 0)
 
     # Calculate efficiency metrics
-    efficiency_ranking = []
+    efficiency_ranking: list[dict[str, Any]] = []
     for model, stats in model_stats.items():
         lines = max(1, stats["lines_changed"])
         efficiency_ranking.append(

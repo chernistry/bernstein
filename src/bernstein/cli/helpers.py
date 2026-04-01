@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import signal
+import time
 from pathlib import Path
 from typing import Any
 
@@ -138,11 +139,43 @@ def kill_pid(path: str, label: str) -> None:
     Path(path).unlink(missing_ok=True)
 
 
+def wait_for_death(pid: int, timeout: float = 2.0) -> bool:
+    """Poll until *pid* is no longer alive, up to *timeout* seconds.
+
+    Returns True if the process died, False if it's still alive.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not is_alive(pid):
+            return True
+        time.sleep(0.05)
+    return not is_alive(pid)
+
+
+def sigkill_pid(pid: int) -> bool:
+    """Send SIGKILL to *pid* and its process group, then wait for death.
+
+    Returns True if the process was killed (or was already dead).
+    """
+    if not is_alive(pid):
+        return True
+    try:
+        try:
+            pgid = os.getpgid(pid)
+            os.killpg(pgid, signal.SIGKILL)
+        except (OSError, ProcessLookupError):
+            os.kill(pid, signal.SIGKILL)
+    except OSError:
+        return not is_alive(pid)
+    return wait_for_death(pid)
+
+
 def kill_pid_hard(path: str, label: str) -> None:
     """Kill a process by PID file using SIGKILL (no grace period).
 
-    Unlike :func:`kill_pid` which sends SIGTERM, this sends SIGKILL to
-    the entire process group for an immediate, non-catchable kill.
+    Sends SIGKILL to the entire process group, waits for the process to
+    die, then removes the PID file.  Unlike :func:`kill_pid` which
+    sends SIGTERM.
 
     Args:
         path: Path to the PID file.
@@ -152,15 +185,11 @@ def kill_pid_hard(path: str, label: str) -> None:
     if pid is None:
         return
     if is_alive(pid):
-        try:
-            try:
-                pgid = os.getpgid(pid)
-                os.killpg(pgid, signal.SIGKILL)
-            except (OSError, ProcessLookupError):
-                os.kill(pid, signal.SIGKILL)
+        killed = sigkill_pid(pid)
+        if killed:
             console.print(f"[red]Killed {label} (PID {pid}) with SIGKILL.[/red]")
-        except OSError:
-            pass
+        else:
+            console.print(f"[yellow]{label} (PID {pid}) resisted SIGKILL — may need manual cleanup.[/yellow]")
     Path(path).unlink(missing_ok=True)
 
 

@@ -1521,8 +1521,7 @@ def cook(
 
     selected_cli = cli or plan_config.cli or "auto"
     console.print(
-        f"[bold cyan]Executing recipe[/bold cyan] {recipe} "
-        f"[dim](cli={selected_cli}, cells={cells}, port={port})[/dim]"
+        f"[bold cyan]Executing recipe[/bold cyan] {recipe} [dim](cli={selected_cli}, cells={cells}, port={port})[/dim]"
     )
 
     from bernstein.core.bootstrap import bootstrap_from_goal  # pyright: ignore[reportUnknownVariableType]
@@ -1545,9 +1544,7 @@ def cook(
         done = int(final_status.get("done", 0) or 0)
         failed = int(final_status.get("failed", 0) or 0)
         spent = float(final_status.get("total_cost_usd", 0.0) or 0.0)
-        console.print(
-            f"[bold green]Recipe finished:[/bold green] done={done}, failed={failed}, spent=${spent:.2f}"
-        )
+        console.print(f"[bold green]Recipe finished:[/bold green] done={done}, failed={failed}, spent=${spent:.2f}")
     else:
         console.print("[yellow]Recipe monitor timed out before a final status snapshot was available.[/yellow]")
 

@@ -58,6 +58,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_SCOPE_TIMEOUT_SECONDS = {
+    "small": 15 * 60,
+    "medium": 30 * 60,
+    "large": 60 * 60,
+}
+_XL_TIMEOUT_SECONDS = 120 * 60
+_XL_ROLES = frozenset({"architect", "security", "manager"})
+
 
 # ---------------------------------------------------------------------------
 # Completion data extraction
@@ -123,6 +131,20 @@ def check_file_overlap(
                     )
                     return True
     return False
+
+
+def _batch_timeout_seconds(batch: list[Task]) -> int:
+    """Return the spawn timeout bucket for a task batch.
+
+    The timeout contract is intentionally coarse-grained so operators can reason
+    about behavior without reconstructing adaptive multipliers:
+    small=15m, medium=30m, large=60m, xl=120m.
+    """
+    bucket_seconds = max(_SCOPE_TIMEOUT_SECONDS.get(task.scope.value, 30 * 60) for task in batch)
+    xl_batch = any(task.role in _XL_ROLES for task in batch) or any(
+        task.scope.value == "large" and task.complexity.value == "high" for task in batch
+    )
+    return _XL_TIMEOUT_SECONDS if xl_batch else bucket_seconds
 
 
 # ---------------------------------------------------------------------------
@@ -987,16 +1009,7 @@ def claim_and_spawn_batches(
                         result.errors.append(f"batch:{batch[0].id}: {_batch_result.reason}")
                     continue
 
-        # Adaptive timeout: scale by task complexity/role
-        # Architect/security tasks need 3x base, large tasks 2x, etc.
-        _SCOPE_MULTIPLIER = {"small": 1.0, "medium": 1.5, "large": 2.5}
-        _ROLE_MULTIPLIER = {"architect": 3.0, "security": 2.5, "manager": 2.0}
-        max_estimated_s = max((t.estimated_minutes for t in batch), default=30) * 60
-        scope_mult = max(_SCOPE_MULTIPLIER.get(t.scope.value, 1.0) for t in batch)
-        role_mult = max(_ROLE_MULTIPLIER.get(t.role, 1.0) for t in batch)
-        complexity_mult = max(scope_mult, role_mult)
-        max_runtime = orch._config.max_agent_runtime_s * complexity_mult
-        batch_timeout_s = int(max(120, min(int(max_estimated_s * complexity_mult), max_runtime)))
+        batch_timeout_s = _batch_timeout_seconds(batch)
 
         try:
             # Check if any task in this batch has a preserved worktree for resume

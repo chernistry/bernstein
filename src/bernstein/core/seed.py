@@ -97,6 +97,16 @@ class WebhookConfig:
 
 
 @dataclass(frozen=True)
+class NetworkConfig:
+    """Network security configuration.
+
+    Attributes:
+        allowed_ips: List of allowed IP ranges in CIDR notation.
+    """
+    allowed_ips: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class SeedConfig:
     """Validated configuration from bernstein.yaml.
 
@@ -152,6 +162,7 @@ class SeedConfig:
     webhooks: tuple[WebhookConfig, ...] = ()
     test_agent: TestAgentConfig = field(default_factory=TestAgentConfig)
     smtp: SmtpConfig | None = None
+    network: NetworkConfig | None = None
 
 
 _BUDGET_RE = re.compile(r"^\$(\d+(?:\.\d+)?)$")
@@ -868,6 +879,16 @@ def parse_seed(path: Path) -> SeedConfig:
         except ValueError as exc:
             raise SeedError(str(exc)) from exc
 
+    # Parse network config
+    network: NetworkConfig | None = None
+    network_raw = data.get("network")
+    if network_raw is not None:
+        try:
+            allowed_ips = tuple(network_raw.get("allowed_ips", ()))
+            network = NetworkConfig(allowed_ips=allowed_ips)
+        except (AttributeError, TypeError):
+            pass  # Skip invalid network config
+
     return SeedConfig(
         goal=goal,
         budget_usd=budget_usd,
@@ -900,6 +921,7 @@ def parse_seed(path: Path) -> SeedConfig:
         batch=batch,
         test_agent=test_agent,
         smtp=_parse_smtp(data.get("smtp")),
+        network=network,
     )
 
 

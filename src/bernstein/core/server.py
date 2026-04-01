@@ -165,6 +165,69 @@ class CrashGuardMiddleware(BaseHTTPMiddleware):
             )
 
 
+class IPAllowlistMiddleware(BaseHTTPMiddleware):
+    """Restrict task server access to allowed IP ranges.
+
+    When ``allowed_ips`` is set, all requests must originate from
+    an allowed IP range (CIDR notation). Localhost (127.0.0.1) is
+    always allowed. Health and discovery endpoints are exempt.
+
+    Args:
+        app: FastAPI application.
+        allowed_ips: List of allowed IP ranges in CIDR notation (e.g., ["10.0.0.0/8"]).
+    """
+
+    def __init__(self, app: Any, allowed_ips: list[str] | None = None) -> None:
+        super().__init__(app)
+        self._allowed_ips = allowed_ips
+        self._allowed_networks: list[Any] = []
+        if allowed_ips:
+            import ipaddress
+            from contextlib import suppress
+            for ip_range in allowed_ips:
+                with suppress(ValueError):
+                    self._allowed_networks.append(ipaddress.ip_network(ip_range, strict=False))
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Any],
+    ) -> StarletteResponse:
+        # If no allowlist configured, pass through
+        if not self._allowed_networks:
+            response: StarletteResponse = await call_next(request)
+            return response
+
+        path = request.url.path
+        client_ip = request.client.host if request.client else "unknown"
+
+        # Localhost always allowed
+        if client_ip in ("127.0.0.1", "::1", "localhost"):
+            response = await call_next(request)
+            return response
+
+        # Public paths always allowed
+        if path in _PUBLIC_PATHS:
+            response = await call_next(request)
+            return response
+
+        # Check if client IP is in allowed ranges
+        try:
+            import ipaddress
+            client_addr = ipaddress.ip_address(client_ip)
+            if any(client_addr in network for network in self._allowed_networks):
+                response = await call_next(request)
+                return response
+        except ValueError:
+            pass  # Invalid IP format, deny access
+
+        # IP not in allowlist
+        return JSONResponse(
+            status_code=403,
+            content={"detail": f"IP {client_ip} not in allowed list"},
+        )
+
+
 # TypedDicts and related types are now imported from task_store module
 
 

@@ -23,7 +23,12 @@
     }
 
     var icon = document.getElementById('theme-icon');
-    if (icon) icon.textContent = dark ? '\u2600' : '\u25D1';
+    if (icon) {
+      icon.setAttribute('data-lucide', dark ? 'sun' : 'moon-star');
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+      }
+    }
   }
 
   // Apply before paint to avoid flash
@@ -76,7 +81,13 @@
     if (navToggle && navLinks) {
       navToggle.addEventListener('click', function () {
         navLinks.classList.toggle('open');
-        navToggle.textContent = navLinks.classList.contains('open') ? '✕' : '☰';
+        var navIcon = document.getElementById('nav-toggle-icon');
+        if (navIcon) {
+          navIcon.setAttribute('data-lucide', navLinks.classList.contains('open') ? 'x' : 'menu');
+          if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+          }
+        }
       });
     }
 

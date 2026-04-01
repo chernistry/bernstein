@@ -43,6 +43,7 @@ from bernstein.cli.visual_theme import PALETTE, budget_color, model_color, role_
 logger = logging.getLogger(__name__)
 
 SERVER_URL = "http://127.0.0.1:8052"
+_SPARK_CHARS = "▁▂▃▄▅▆▇█"
 
 # -- Data fetching (sync -- called via run_worker in a thread) -----
 
@@ -309,6 +310,23 @@ def _gradient_text(text: str) -> Text:
     return rendered
 
 
+def _mini_cost_sparkline(values: list[float], *, width: int = 10) -> str:
+    """Render a compact sparkline string for recent cost samples."""
+    if width <= 0:
+        return ""
+    if not values:
+        return _SPARK_CHARS[0] * width
+    data = values[-width:]
+    lo = min(data)
+    hi = max(data)
+    span = hi - lo if hi != lo else 1.0
+    chars: list[str] = []
+    for value in data:
+        idx = int((value - lo) / span * (len(_SPARK_CHARS) - 1))
+        chars.append(_SPARK_CHARS[max(0, min(idx, len(_SPARK_CHARS) - 1))])
+    return "".join(chars)
+
+
 def _role_glyph(role: str) -> str:
     """Return a best-fit icon for a task role."""
     icons = get_icons()
@@ -406,6 +424,7 @@ class DashboardHeader(Static):
     spent_usd = reactive(0.0)
     budget_usd = reactive(0.0)
     elapsed = reactive(0)
+    cost_trend = reactive("")
 
     def render(self) -> Table:
         left = Text()
@@ -419,6 +438,9 @@ class DashboardHeader(Static):
             right.append("  ", style="")
         right.append(time.strftime("%H:%M:%S"), style=f"bold {PALETTE.text_dim}")
         right.append("  ", style="")
+        if self.cost_trend:
+            right.append(self.cost_trend, style=f"bold {PALETTE.glow}")
+            right.append("  ", style="")
         if self.budget_usd > 0:
             ratio = self.spent_usd / self.budget_usd if self.budget_usd > 0 else 0.0
             right.append(f"${self.spent_usd:.2f}/${self.budget_usd:.2f}", style=f"bold {budget_color(ratio)}")
@@ -1030,6 +1052,7 @@ class BernsteinApp(App[None]):
         super().__init__(**kw)
         self._start_ts = time.time()
         self._history: deque[float] = deque(maxlen=60)
+        self._cost_history: deque[float] = deque(maxlen=10)
         self._evolve = False
         self._activity_visible = True
         self._task_titles: dict[str, str] = {}
@@ -1497,6 +1520,7 @@ class BernsteinApp(App[None]):
             bar.per_model = costs.get("per_model", {})
             terminal_tasks = max(1, bar.done + bar.failed) if (bar.done + bar.failed) > 0 else 0
             bar.avg_cost_per_task = spent / terminal_tasks if terminal_tasks else 0.0
+            self._cost_history.append(spent)
 
             # Budget threshold alerts (fire once per level)
             self._check_budget_alerts(pct, spent, budget)
@@ -1520,6 +1544,7 @@ class BernsteinApp(App[None]):
         header.spent_usd = bar.spent_usd
         header.budget_usd = bar.budget_usd
         header.elapsed = bar.elapsed
+        header.cost_trend = _mini_cost_sparkline(list(self._cost_history))
 
         spark = self.query_one("#spark", Sparkline)
         spark.data = list(self._history) if self._history else [0.0]

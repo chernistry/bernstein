@@ -14,6 +14,7 @@ from bernstein.cli.dashboard import (
     _format_gate_report_lines,
     _format_relative_age,
     _gate_status_color,
+    _mini_cost_sparkline,
     _summarize_agent_errors,
     _task_retry_count,
 )
@@ -218,6 +219,17 @@ async def test_task_gate_report_endpoint_missing_report_returns_404(client: Asyn
 
 def test_gate_status_color_mapping() -> None:
     assert _gate_status_color("pass") == "green"
+
+
+def test_mini_cost_sparkline_uses_recent_ten_points() -> None:
+    spark = _mini_cost_sparkline([float(v) for v in range(15)], width=10)
+    assert len(spark) == 10
+    assert spark[0] == "▁"
+    assert spark[-1] == "█"
+
+
+def test_mini_cost_sparkline_handles_empty_series() -> None:
+    assert _mini_cost_sparkline([], width=5) == "▁" * 5
     assert _gate_status_color("fail") == "red"
     assert _gate_status_color("timeout") == "yellow"
     assert _gate_status_color("bypassed") == "yellow"

@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 
-from bernstein.core.models import AgentSession, ModelConfig, Scope, TaskStatus
+from bernstein.core.models import AgentSession, Complexity, ModelConfig, Scope, TaskStatus
 from bernstein.core.orchestrator import TickResult
 from bernstein.core.task_lifecycle import (
     _enqueue_paired_test_task,
@@ -229,6 +229,74 @@ def test_claim_and_spawn_batches_submits_provider_batch_without_spawning(tmp_pat
     orch._batch_api.try_submit.assert_called_once()
     orch._spawner.spawn_for_tasks.assert_not_called()
     assert result.spawned == ["batch-T-batch"]
+
+
+def test_claim_and_spawn_batches_sets_small_timeout_bucket(tmp_path: Path, make_task: Any) -> None:
+    """Small-scope work gets the fixed 15-minute timeout bucket."""
+    orch = _claim_orch(tmp_path)
+    task = make_task(id="T-small", scope=Scope.SMALL)
+    task.estimated_minutes = 5
+    session = AgentSession(id="A-small", role="backend", task_ids=[task.id], model_config=ModelConfig("sonnet", "high"))
+    orch._spawner.spawn_for_tasks.return_value = session
+    result = TickResult()
+
+    claim_and_spawn_batches(orch, [[task]], alive_count=0, assigned_task_ids=set(), done_ids=set(), result=result)
+
+    assert session.timeout_s == 15 * 60
+
+
+def test_claim_and_spawn_batches_sets_medium_timeout_bucket(tmp_path: Path, make_task: Any) -> None:
+    """Medium-scope work gets the fixed 30-minute timeout bucket."""
+    orch = _claim_orch(tmp_path)
+    task = make_task(id="T-medium", scope=Scope.MEDIUM)
+    task.estimated_minutes = 10
+    session = AgentSession(
+        id="A-medium",
+        role="backend",
+        task_ids=[task.id],
+        model_config=ModelConfig("sonnet", "high"),
+    )
+    orch._spawner.spawn_for_tasks.return_value = session
+    result = TickResult()
+
+    claim_and_spawn_batches(orch, [[task]], alive_count=0, assigned_task_ids=set(), done_ids=set(), result=result)
+
+    assert session.timeout_s == 30 * 60
+
+
+def test_claim_and_spawn_batches_sets_large_timeout_bucket(tmp_path: Path, make_task: Any) -> None:
+    """Large-scope work gets the fixed 60-minute timeout bucket."""
+    orch = _claim_orch(tmp_path)
+    task = make_task(id="T-large-timeout", scope=Scope.LARGE)
+    task.estimated_minutes = 20
+    session = AgentSession(id="A-large", role="backend", task_ids=[task.id], model_config=ModelConfig("sonnet", "high"))
+    orch._spawner.spawn_for_tasks.return_value = session
+    result = TickResult()
+
+    with patch("bernstein.core.task_lifecycle.should_auto_decompose", return_value=False):
+        claim_and_spawn_batches(orch, [[task]], alive_count=0, assigned_task_ids=set(), done_ids=set(), result=result)
+
+    assert session.timeout_s == 60 * 60
+
+
+def test_claim_and_spawn_batches_sets_xl_timeout_bucket_for_high_risk_batch(tmp_path: Path, make_task: Any) -> None:
+    """Large/high or architect/security/manager work gets the fixed 120-minute timeout bucket."""
+    orch = _claim_orch(tmp_path)
+    task = make_task(
+        id="T-xl",
+        role="backend",
+        scope=Scope.LARGE,
+    )
+    task.complexity = Complexity.HIGH
+    task.estimated_minutes = 45
+    session = AgentSession(id="A-xl", role="backend", task_ids=[task.id], model_config=ModelConfig("sonnet", "high"))
+    orch._spawner.spawn_for_tasks.return_value = session
+    result = TickResult()
+
+    with patch("bernstein.core.task_lifecycle.should_auto_decompose", return_value=False):
+        claim_and_spawn_batches(orch, [[task]], alive_count=0, assigned_task_ids=set(), done_ids=set(), result=result)
+
+    assert session.timeout_s == 120 * 60
 
 
 def test_process_completed_tasks_moves_ticket_and_caches_verified_result(tmp_path: Path, make_task: Any) -> None:

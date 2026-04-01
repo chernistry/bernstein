@@ -22,6 +22,7 @@ from bernstein.cli.helpers import (
     is_alive,
     kill_pid_hard,
     print_banner,
+    sigkill_pid,
 )
 
 # ---------------------------------------------------------------------------
@@ -228,80 +229,138 @@ def soft_stop(timeout: int) -> None:
 
 
 def _kill_agent_pid(pid: int, label: str, killed: set[int]) -> None:
-    """SIGKILL an agent process group, tracking killed PIDs."""
-    try:
-        pgid = os.getpgid(pid)
-        os.killpg(pgid, signal.SIGKILL)
-    except (OSError, ProcessLookupError):
-        with contextlib.suppress(OSError):
-            os.kill(pid, signal.SIGKILL)
+    """SIGKILL an agent process, verify death, and track the PID."""
+    if pid in killed or not is_alive(pid):
+        killed.add(pid)
+        return
+    dead = sigkill_pid(pid)
     killed.add(pid)
-    console.print(f"[red]Killed agent {label} (PID {pid}) with SIGKILL[/red]")
+    if dead:
+        console.print(f"[red]Killed agent {label} (PID {pid}).[/red]")
+    else:
+        console.print(f"[yellow]Agent {label} (PID {pid}) resisted SIGKILL.[/yellow]")
+
+
+def _collect_pids_from_agents_json(killed: set[int]) -> None:
+    """Source A: kill agent PIDs from agents.json."""
+    agents_json = Path(".sdd/runtime/agents.json")
+    if not agents_json.exists():
+        return
+    try:
+        agent_data = json.loads(agents_json.read_text())
+        for agent in agent_data.get("agents", []):
+            pid = agent.get("pid")
+            if pid and is_alive(pid):
+                _kill_agent_pid(pid, agent.get("id", "?"), killed)
+    except (OSError, ValueError):
+        pass
+
+
+def _collect_pids_from_metadata(killed: set[int]) -> None:
+    """Source B: kill worker + child PIDs from .sdd/runtime/pids/*.json."""
+    pids_dir = Path(".sdd/runtime/pids")
+    if not pids_dir.is_dir():
+        return
+    for pid_file in pids_dir.glob("*.json"):
+        try:
+            meta = json.loads(pid_file.read_text())
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+        label = meta.get("session", pid_file.stem)
+        for key in ("worker_pid", "child_pid", "pid"):
+            raw = meta.get(key)
+            if raw is None:
+                continue
+            try:
+                pid = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if pid and pid not in killed and is_alive(pid):
+                _kill_agent_pid(pid, label, killed)
+        pid_file.unlink(missing_ok=True)
+
+
+_ORPHAN_PATTERNS: list[str] = [
+    "bernstein.core.worker",
+    "bernstein-worker",
+    "claude.*--dangerously-skip-permissions",
+    "codex.*--full-auto",
+    "gemini.*-p",
+    "kiro.*--trust",
+]
+
+
+def _collect_orphan_pids(killed: set[int]) -> None:
+    """Source C: scan for orphan agent processes via pgrep."""
+    import subprocess as _sp
+
+    my_pid = os.getpid()
+    for pattern in _ORPHAN_PATTERNS:
+        try:
+            result = _sp.run(
+                ["pgrep", "-f", pattern],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            for line in result.stdout.strip().splitlines():
+                line = line.strip()
+                if not line.isdigit():
+                    continue
+                pid = int(line)
+                if pid == my_pid or pid in killed:
+                    continue
+                _kill_agent_pid(pid, f"orphan-{pid}", killed)
+        except Exception:
+            continue
+
+
+def _cleanup_runtime_artifacts() -> None:
+    """Remove stale PID files and agents.json so the next stop is clean."""
+    for path in (
+        Path(".sdd/runtime/agents.json"),
+        Path(SDD_PID_SERVER),
+        Path(SDD_PID_SPAWNER),
+        Path(SDD_PID_WATCHDOG),
+    ):
+        path.unlink(missing_ok=True)
+    pids_dir = Path(".sdd/runtime/pids")
+    if pids_dir.is_dir():
+        for f in pids_dir.glob("*.json"):
+            f.unlink(missing_ok=True)
 
 
 def hard_stop() -> None:
     """Hard stop: SIGKILL everything, best-effort save, return tickets."""
-    # 1. Kill watchdog immediately
-    kill_pid_hard(SDD_PID_WATCHDOG, "Watchdog")
-
-    # 2. Kill spawner immediately
-    kill_pid_hard(SDD_PID_SPAWNER, "Spawner")
-
-    # 3. Kill all spawned agents with SIGKILL.
-    #    Try multiple sources: agents.json, PID files, and process scan.
-    killed_pids: set[int] = set()
-
-    # Source A: agents.json
-    agents_json = Path(".sdd/runtime/agents.json")
-    if agents_json.exists():
-        try:
-            agent_data = json.loads(agents_json.read_text())
-            for agent in agent_data.get("agents", []):
-                pid = agent.get("pid")
-                if pid and is_alive(pid):
-                    _kill_agent_pid(pid, agent.get("id", "?"), killed_pids)
-        except (OSError, ValueError):
-            pass
-
-    # Source B: PID metadata files
-    pids_dir = Path(".sdd/runtime/pids")
-    if pids_dir.is_dir():
-        for pid_file in pids_dir.glob("*.json"):
-            try:
-                meta = json.loads(pid_file.read_text())
-                pid = int(meta.get("pid", 0))
-                if pid and pid not in killed_pids and is_alive(pid):
-                    _kill_agent_pid(pid, meta.get("session_id", pid_file.stem), killed_pids)
-            except (OSError, ValueError, json.JSONDecodeError):
-                continue
-
-    # Source C: scan for claude agent processes (catches anything missed above)
-    import subprocess as _sp
-
-    try:
-        result = _sp.run(
-            ["pgrep", "-f", "claude.*--dangerously-skip-permissions"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        for line in result.stdout.strip().split():
-            if line.isdigit():
-                pid = int(line)
-                if pid not in killed_pids:
-                    _kill_agent_pid(pid, f"orphan-{pid}", killed_pids)
-    except Exception:
-        pass
-
-    # 4. Kill server immediately
-    kill_pid_hard(SDD_PID_SERVER, "Task server")
-
-    # 5. Best-effort session save
+    # 1. Best-effort session save while server is still alive
     try:
         save_session_on_stop(Path.cwd())
         console.print("[dim]Session state saved (best-effort).[/dim]")
     except OSError:
         console.print("[yellow]Could not save session state.[/yellow]")
+
+    # 2. Kill infrastructure: watchdog, spawner, server
+    kill_pid_hard(SDD_PID_WATCHDOG, "Watchdog")
+    kill_pid_hard(SDD_PID_SPAWNER, "Spawner")
+    kill_pid_hard(SDD_PID_SERVER, "Task server")
+
+    # 3. Kill all spawned agents via three sources
+    killed_pids: set[int] = set()
+    _collect_pids_from_agents_json(killed_pids)
+    _collect_pids_from_metadata(killed_pids)
+    _collect_orphan_pids(killed_pids)
+
+    # 4. Verification sweep — re-scan and retry anything still alive
+    time.sleep(0.1)
+    survivors: list[int] = [p for p in killed_pids if is_alive(p)]
+    if survivors:
+        console.print(f"[yellow]Retrying {len(survivors)} survivor(s)…[/yellow]")
+        for pid in survivors:
+            _kill_agent_pid(pid, f"survivor-{pid}", killed_pids)
+    _collect_orphan_pids(killed_pids)
+
+    # 5. Clean up stale runtime artifacts
+    _cleanup_runtime_artifacts()
 
     # 6. Return claimed tickets to open
     try:
@@ -311,7 +370,11 @@ def hard_stop() -> None:
     except OSError:
         console.print("[yellow]Could not return claimed tickets.[/yellow]")
 
-    console.print("\n[red]Bernstein stopped (hard).[/red]")
+    total = len(killed_pids)
+    if total:
+        console.print(f"\n[red]Bernstein stopped (hard) — killed {total} process(es).[/red]")
+    else:
+        console.print("\n[red]Bernstein stopped (hard) — no processes were running.[/red]")
 
 
 # ---------------------------------------------------------------------------

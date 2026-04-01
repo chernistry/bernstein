@@ -9,6 +9,7 @@ from typing import Any, Literal
 @dataclass
 class RecipeStep:
     """A single step in a recipe."""
+
     id: str
     title: str
     description: str
@@ -24,6 +25,7 @@ class RecipeStep:
 @dataclass
 class Recipe:
     """A shareable recipe - a collection of tasks to achieve a goal."""
+
     id: str
     title: str
     description: str
@@ -73,22 +75,22 @@ class Recipe:
         for step_data in data.get("steps", []):
             complexity_raw = str(step_data.get("complexity", "medium"))
             complexity: Literal["low", "medium", "high"] = (
-                "low" if complexity_raw == "low"
-                else "high" if complexity_raw == "high"
-                else "medium"
+                "low" if complexity_raw == "low" else "high" if complexity_raw == "high" else "medium"
             )
-            steps.append(RecipeStep(
-                id=str(step_data.get("id", "")),
-                title=str(step_data.get("title", "")),
-                description=str(step_data.get("description", "")),
-                role=str(step_data.get("role", "backend")),
-                priority=int(step_data.get("priority", 2)),
-                complexity=complexity,
-                estimated_minutes=int(step_data.get("estimated_minutes", 30)),
-                depends_on=[str(d) for d in step_data.get("depends_on", [])],
-                model=step_data.get("model"),
-                effort=step_data.get("effort"),
-            ))
+            steps.append(
+                RecipeStep(
+                    id=str(step_data.get("id", "")),
+                    title=str(step_data.get("title", "")),
+                    description=str(step_data.get("description", "")),
+                    role=str(step_data.get("role", "backend")),
+                    priority=int(step_data.get("priority", 2)),
+                    complexity=complexity,
+                    estimated_minutes=int(step_data.get("estimated_minutes", 30)),
+                    depends_on=[str(d) for d in step_data.get("depends_on", [])],
+                    model=step_data.get("model"),
+                    effort=step_data.get("effort"),
+                )
+            )
 
         return cls(
             id=str(data.get("id", "")),

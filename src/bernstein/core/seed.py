@@ -103,6 +103,7 @@ class NetworkConfig:
     Attributes:
         allowed_ips: List of allowed IP ranges in CIDR notation.
     """
+
     allowed_ips: tuple[str, ...] = ()
 
 

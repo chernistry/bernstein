@@ -184,6 +184,7 @@ class IPAllowlistMiddleware(BaseHTTPMiddleware):
         if allowed_ips:
             import ipaddress
             from contextlib import suppress
+
             for ip_range in allowed_ips:
                 with suppress(ValueError):
                     self._allowed_networks.append(ipaddress.ip_network(ip_range, strict=False))
@@ -214,6 +215,7 @@ class IPAllowlistMiddleware(BaseHTTPMiddleware):
         # Check if client IP is in allowed ranges
         try:
             import ipaddress
+
             client_addr = ipaddress.ip_address(client_ip)
             if any(client_addr in network for network in self._allowed_networks):
                 response = await call_next(request)

@@ -1143,15 +1143,10 @@ def get_free_tier_providers(providers: list[ProviderConfig]) -> list[ProviderCon
     """
     free_tier_order = {"gemini": 0, "codex": 1, "qwen": 2}
 
-    free_providers = [
-        p for p in providers
-        if p.tier == Tier.FREE or (p.quota_remaining and p.quota_remaining > 0)
-    ]
+    free_providers = [p for p in providers if p.tier == Tier.FREE or (p.quota_remaining and p.quota_remaining > 0)]
 
     # Sort by free tier preference
-    free_providers.sort(
-        key=lambda p: free_tier_order.get(p.name, 99)
-    )
+    free_providers.sort(key=lambda p: free_tier_order.get(p.name, 99))
 
     return free_providers
 

@@ -56,7 +56,7 @@ def detect_duplicates(
     # Compare tasks within each role
     for role_tasks in by_role.values():
         for i, task1 in enumerate(role_tasks):
-            for task2 in role_tasks[i+1:]:
+            for task2 in role_tasks[i + 1 :]:
                 # Compare titles
                 title_sim = compute_word_overlap(task1.title, task2.title)
 

@@ -570,10 +570,17 @@ def recap(archive: str, as_json: bool) -> None:
     from rich.table import Table
 
     tasks = data.get("tasks", [])
-    total = len(tasks)
-    done = sum(1 for t in tasks if t.get("status") == "done")
-    failed = sum(1 for t in tasks if t.get("status") == "failed")
+    summary = data.get("summary", {})
+    diff_stats = data.get("diff_stats", {})
+    quality_scores = data.get("quality_scores", {})
+    cost_breakdown = data.get("cost_breakdown", {})
 
+    total = summary.get("total", len(tasks))
+    done = summary.get("completed", 0)
+    failed = summary.get("failed", 0)
+    success_rate = summary.get("success_rate", 0.0)
+
+    # Main recap table
     table = Table(title="Recap", show_header=True, header_style="bold cyan")
     table.add_column("Metric")
     table.add_column("Value")
@@ -581,9 +588,56 @@ def recap(archive: str, as_json: bool) -> None:
     table.add_row("Total tasks", str(total))
     table.add_row("Completed", f"[green]{done}[/green]")
     table.add_row("Failed", f"[red]{failed}[/red]")
-    table.add_row("Success rate", f"{(done / total * 100):.1f}%" if total > 0 else "N/A")
+    table.add_row("Success rate", f"{success_rate:.1f}%" if total > 0 else "N/A")
 
     console.print(table)
+    console.print()
+
+    # Git diff stats
+    diff_table = Table(title="Git Diff Stats", show_header=True, header_style="bold green")
+    diff_table.add_column("Metric")
+    diff_table.add_column("Value")
+    diff_table.add_row("Files changed", str(diff_stats.get("files_changed", 0)))
+    diff_table.add_row("Additions", f"[green]{diff_stats.get('additions', 0)}[/green]")
+    diff_table.add_row("Deletions", f"[red]{diff_stats.get('deletions', 0)}[/red]")
+
+    console.print(diff_table)
+    console.print()
+
+    # Quality scores
+    quality_table = Table(title="Quality Scores", show_header=True, header_style="bold yellow")
+    quality_table.add_column("Metric")
+    quality_table.add_column("Value")
+    quality_table.add_row("Average score", str(quality_scores.get("average_score", 0)))
+    quality_table.add_row("Lint score", str(quality_scores.get("lint_score", 0)))
+    quality_table.add_row("Tests score", str(quality_scores.get("tests_score", 0)))
+    quality_table.add_row("Type check score", str(quality_scores.get("type_check_score", 0)))
+
+    grade_dist = quality_scores.get("grade_distribution", {})
+    grades_str = ", ".join(f"{k}: {v}" for k, v in grade_dist.items())
+    quality_table.add_row("Grade distribution", grades_str)
+
+    console.print(quality_table)
+    console.print()
+
+    # Cost breakdown
+    cost_table = Table(title="Cost Breakdown", show_header=True, header_style="bold magenta")
+    cost_table.add_column("Model")
+    cost_table.add_column("Cost (USD)")
+    cost_table.add_column("Tokens")
+    cost_table.add_column("Invocations")
+
+    total_cost = cost_breakdown.get("total_cost_usd", 0.0)
+    for model_data in cost_breakdown.get("per_model", []):
+        model = model_data.get("model", "unknown")
+        cost = model_data.get("cost_usd", 0.0)
+        tokens = model_data.get("tokens", 0)
+        invocations = model_data.get("invocations", 0)
+        cost_table.add_row(model, f"${cost:.4f}", str(tokens), str(invocations))
+
+    cost_table.add_row("TOTAL", f"${total_cost:.4f}", "", "")
+
+    console.print(cost_table)
 
 
 # ---------------------------------------------------------------------------

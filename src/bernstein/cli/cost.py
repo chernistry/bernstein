@@ -336,11 +336,13 @@ def cost_cmd(metrics_dir: str, as_json: bool, share: bool) -> None:
 
     from bernstein.core.cost import (
         compute_daily_cost,
+        compute_savings_vs_manual,
         compute_savings_vs_opus,
         project_monthly_cost,
     )
 
     savings_vs_opus = compute_savings_vs_opus(task_records)
+    savings_vs_manual = compute_savings_vs_manual(task_records)
     daily_costs = compute_daily_cost(task_records, days=7)
     projected_monthly = project_monthly_cost(task_records, window_days=7)
 
@@ -365,6 +367,7 @@ def cost_cmd(metrics_dir: str, as_json: bool, share: bool) -> None:
             "totals": totals,
             "fast_path": fast_path_savings,
             "savings_vs_opus_usd": round(savings_vs_opus, 6),
+            "savings_vs_manual": savings_vs_manual,
             "daily_costs": daily_costs,
             "projected_monthly_usd": round(projected_monthly, 4),
             "tasks_done": tasks_done,
@@ -435,6 +438,14 @@ def cost_cmd(metrics_dir: str, as_json: bool, share: bool) -> None:
         console.print(
             f"\n[bold green]Fast-path:[/bold green] Saved ~${sv:.2f} by "
             f"bypassing LLM for {bp} task(s) ({', '.join(action_parts)})"
+        )
+
+    # Manual coding savings
+    if savings_vs_manual["manual_hours"] > 0:
+        console.print(
+            f"\n[bold green]Manual Coding Savings:[/bold green] "
+            f"Saved ~${savings_vs_manual['savings_usd']:.2f} compared to manual coding "
+            f"({savings_vs_manual['manual_hours']} hrs @ $100/hr)"
         )
 
     # ASCII bar chart: Bernstein vs single-agent baseline

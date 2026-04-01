@@ -564,3 +564,62 @@ async def cache_stats(request: Request) -> JSONResponse:
             "by_model": model_stats,
         }
     )
+
+
+@router.get("/costs/token-efficiency")
+async def token_efficiency(request: Request) -> JSONResponse:
+    """Compare token efficiency across models and tasks.
+
+    Ranks models by tokens per useful line of code.
+    """
+    from bernstein.core.cost_tracker import CostTracker
+
+    sdd_dir = _get_sdd_dir(request)
+    costs_dir = sdd_dir / "runtime" / "costs"
+
+    model_stats: dict[str, dict[str, Any]] = {}
+
+    if costs_dir.exists():
+        cost_files = sorted(costs_dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
+        for cost_file in cost_files:
+            tracker = CostTracker.load(sdd_dir, cost_file.stem)
+            if tracker is None:
+                continue
+            for u in tracker.usages:
+                model = u.model
+                if model not in model_stats:
+                    model_stats[model] = {
+                        "total_tokens": 0,
+                        "total_cost_usd": 0.0,
+                        "invocations": 0,
+                        "lines_changed": 0,
+                    }
+
+                model_stats[model]["total_tokens"] += u.input_tokens + u.output_tokens
+                model_stats[model]["total_cost_usd"] += u.cost_usd
+                model_stats[model]["invocations"] += 1
+                model_stats[model]["lines_changed"] += getattr(u, "lines_changed", 0)
+
+    # Calculate efficiency metrics
+    efficiency_ranking = []
+    for model, stats in model_stats.items():
+        lines = max(1, stats["lines_changed"])
+        efficiency_ranking.append({
+            "model": model,
+            "total_tokens": stats["total_tokens"],
+            "total_cost_usd": round(stats["total_cost_usd"], 4),
+            "invocations": stats["invocations"],
+            "tokens_per_line": round(stats["total_tokens"] / lines, 1),
+            "cost_per_line": round(stats["total_cost_usd"] / lines, 6),
+            "lines_changed": stats["lines_changed"],
+        })
+
+    # Rank by tokens per line (lower is better)
+    efficiency_ranking.sort(key=lambda x: x["tokens_per_line"])
+
+    return JSONResponse(
+        content={
+            "efficiency_ranking": efficiency_ranking,
+            "most_efficient_model": efficiency_ranking[0]["model"] if efficiency_ranking else None,
+        }
+    )

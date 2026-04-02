@@ -167,11 +167,11 @@ jobs:
           if [ -n "$TRACKED" ]; then
             echo "$TRACKED" | xargs git rm --cached --
           fi
-      - name: Remove merge conflict markers from Python files
+      - name: Check for merge conflict markers in Python files
         run: |
           for f in $(git diff --cached --name-only --diff-filter=ACMR -- '*.py' 2>/dev/null) \
                    $(git ls-files -- '*.py'); do
-            if grep -qE '^(<{7}|={7}|>{7})' "$f" 2>/dev/null; then
+            if grep -qE '^(<{7} |>{7} )' "$f" 2>/dev/null; then
               echo "::warning::Merge conflict markers found in $f"
             fi
           done

@@ -26,6 +26,66 @@ MessageType = Literal["alert", "blocker", "finding", "status", "dependency"]
 
 
 # ---------------------------------------------------------------------------
+# Task/notification protocol for agent terminal status reports
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class AgentStatusNotification:
+    """Structured terminal status report from an agent.
+
+    Posted when an agent reaches a terminal state (completed, failed, killed)
+    so the orchestrator lifecycle and observability layers stay consistent.
+
+    Attributes:
+        agent_id: Unique agent session identifier.
+        task_id: Task the agent was working on.
+        status: Terminal status — "completed", "failed", or "killed".
+        summary: Human-readable outcome text.
+        result: Optional machine-readable result payload (JSON serialisable).
+        usage_tokens: Total tokens consumed during the run.
+        usage_cost_usd: Estimated cost in USD.
+        timestamp: Unix seconds when the notification was posted.
+    """
+
+    agent_id: str
+    task_id: str
+    status: str
+    summary: str = ""
+    result: dict[str, object] | None = None
+    usage_tokens: int = 0
+    usage_cost_usd: float = 0.0
+    timestamp: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, object]:
+        """Serialise to a JSON-safe dict."""
+        return {
+            "agent_id": self.agent_id,
+            "task_id": self.task_id,
+            "status": self.status,
+            "summary": self.summary,
+            "result": self.result,
+            "usage_tokens": self.usage_tokens,
+            "usage_cost_usd": self.usage_cost_usd,
+            "timestamp": self.timestamp,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, object]) -> AgentStatusNotification:
+        """Deserialise from a dict."""
+        return cls(
+            agent_id=str(d.get("agent_id", "")),
+            task_id=str(d.get("task_id", "")),
+            status=str(d.get("status", "")),
+            summary=str(d.get("summary", "")),
+            result=cast("dict[str, object] | None", d.get("result")),
+            usage_tokens=int(d.get("usage_tokens", 0) or 0),
+            usage_cost_usd=float(d.get("usage_cost_usd", 0.0) or 0.0),
+            timestamp=float(d.get("timestamp", 0.0) or 0.0),
+        )
+
+
+# ---------------------------------------------------------------------------
 # Agent-to-agent delegation
 # ---------------------------------------------------------------------------
 
@@ -121,6 +181,7 @@ class MessageBoard:
     def __init__(self) -> None:
         self._delegations: dict[str, Delegation] = {}  # id -> Delegation
         self._by_role: dict[str, list[str]] = {}  # role -> [delegation_ids]
+        self._status_notifications: list[AgentStatusNotification] = []
         self._lock = threading.Lock()
 
     def post_delegation(
@@ -340,6 +401,7 @@ class BulletinBoard:
 
     _messages: list[BulletinMessage] = field(default_factory=list)  # type: ignore[reportUnknownVariableType]
     _lock: threading.Lock = field(default_factory=threading.Lock)
+    _status_notifications: list[AgentStatusNotification] = field(default_factory=list)
 
     def post(self, msg: BulletinMessage) -> BulletinMessage:
         """Append a message to the board.
@@ -532,3 +594,26 @@ class BulletinBoard:
             existing_ts.add(ts)
             loaded += 1
         return loaded
+
+    # -- Agent status notifications --------------------------------------------
+
+    def post_status_notification(self, notification: AgentStatusNotification) -> None:
+        """Record a structured terminal status report from an agent.
+
+        Args:
+            notification: The typed status notification from the agent.
+        """
+        with self._lock:
+            self._status_notifications.append(notification)
+
+    def consume_status_notifications(self) -> list[AgentStatusNotification]:
+        """Drain all pending status notifications.
+
+        Returns:
+            List of AgentStatusNotification objects (FIFO).
+            The internal list is cleared after this call.
+        """
+        with self._lock:
+            result = list(self._status_notifications)
+            self._status_notifications.clear()
+        return result

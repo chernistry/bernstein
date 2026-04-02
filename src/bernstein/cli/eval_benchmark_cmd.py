@@ -10,7 +10,7 @@ All commands and groups are registered with the main CLI group in main.py.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, cast
 
 import click
 
@@ -27,37 +27,30 @@ def benchmark_group() -> None:
     """Run the tiered golden benchmark suite."""
 
 
-@benchmark_group.command("swe-bench")
-@click.option("--lite", "mode", flag_value="lite", default=True, help="Run SWE-Bench Lite (300 instances).")
-@click.option("--sample", "sample", type=int, default=None, help="Evaluate a random sample of N instances.")
-@click.option("--instance", "instance_id", default=None, help="Evaluate a single instance by ID.")
-@click.option("--dataset", "dataset_path", default=None, help="Path to local JSONL dataset file.")
-@click.option(
-    "--save/--no-save",
-    default=True,
-    show_default=True,
-    help="Persist results to .sdd/benchmark/swe_bench_results.json.",
-)
-def benchmark_swe_bench(
-    mode: str,
+def _run_swe_bench_command(
+    *,
+    subset: str,
     sample: int | None,
     instance_id: str | None,
     dataset_path: str | None,
     save: bool,
 ) -> None:
-    """Run Bernstein against SWE-Bench instances and report resolve rate.
+    """Run the SWE-Bench harness and print a report.
 
-    \b
-      bernstein benchmark swe-bench --lite              # all 300 Lite instances
-      bernstein benchmark swe-bench --sample 20         # random 20-instance eval
-      bernstein benchmark swe-bench --instance django__django-11905
+    Args:
+        subset: Dataset subset name (for example ``"lite"``).
+        sample: Optional number of instances to sample.
+        instance_id: Optional single instance to evaluate.
+        dataset_path: Optional local JSONL path.
+        save: Whether to persist the results under ``.sdd/``.
     """
     from rich.table import Table
 
     from bernstein.benchmark.swe_bench import InstanceResult, SWEBenchRunner, compute_report, save_results
 
     workdir = Path(".")
-    runner = SWEBenchRunner(workdir=workdir, sample=sample, instance_id=instance_id)
+    subset_literal = cast("Literal['lite', 'full']", subset)
+    runner = SWEBenchRunner(workdir=workdir, sample=sample, instance_id=instance_id, subset=subset_literal)
 
     dpath = Path(dataset_path) if dataset_path else None
     instances = runner.load_dataset(dpath)
@@ -68,10 +61,11 @@ def benchmark_swe_bench(
         )
         raise SystemExit(1)
 
-    console.print(f"[bold]SWE-Bench evaluation[/bold] — {len(instances)} instance(s)")
+    console.print(f"[bold]SWE-Bench evaluation[/bold] — subset={subset} • {len(instances)} instance(s)")
 
     table = Table(title="SWE-Bench Results", header_style="bold cyan", show_lines=False)
     table.add_column("Instance", style="dim", min_width=30)
+    table.add_column("Model", min_width=14)
     table.add_column("Resolved", min_width=10)
     table.add_column("Cost (USD)", justify="right", min_width=12)
     table.add_column("Time (s)", justify="right", min_width=10)
@@ -86,6 +80,7 @@ def benchmark_swe_bench(
         console.print(f" {status_icon}")
         table.add_row(
             inst.instance_id,
+            result.model_name,
             "[green]YES[/green]" if result.resolved else "[red]NO[/red]",
             f"${result.cost_usd:.4f}",
             f"{result.duration_seconds:.1f}",
@@ -97,14 +92,75 @@ def benchmark_swe_bench(
     console.print(
         f"\n[bold]Resolve rate:[/bold] {report.resolve_rate:.1%} "
         f"({report.resolved}/{report.total})  "
-        f"[dim]median cost ${report.median_cost_usd:.4f}  "
-        f"median time {report.median_duration_seconds:.0f}s[/dim]"
+        f"[dim]cost/task ${report.cost_per_task:.4f}  "
+        f"time/task {report.time_per_task:.0f}s[/dim]"
     )
+
+    if report.per_model_breakdown:
+        model_table = Table(title="Per-Model Breakdown", header_style="bold magenta", show_lines=False)
+        model_table.add_column("Model", min_width=16)
+        model_table.add_column("Resolved", min_width=12)
+        model_table.add_column("Resolve Rate", justify="right", min_width=12)
+        model_table.add_column("Cost/Task", justify="right", min_width=12)
+        model_table.add_column("Time/Task", justify="right", min_width=12)
+        for breakdown in report.per_model_breakdown:
+            model_table.add_row(
+                breakdown.model_name,
+                f"{breakdown.resolved}/{breakdown.total}",
+                f"{breakdown.resolve_rate:.1%}",
+                f"${breakdown.cost_per_task:.4f}",
+                f"{breakdown.time_per_task:.1f}s",
+            )
+        console.print(model_table)
 
     if save:
         sdd_dir = Path(".sdd")
-        out = save_results(report, sdd_dir)
-        console.print(f"[dim]Results saved → {out}[/dim]")
+        save_results(report, sdd_dir)
+        console.print(f"[dim]Results saved → {sdd_dir / 'metrics' / 'swe_bench_results.jsonl'}[/dim]")
+
+
+@benchmark_group.command("swe-bench")
+@click.option(
+    "--subset",
+    type=click.Choice(["lite", "full"]),
+    default="lite",
+    show_default=True,
+    help="Which SWE-Bench subset to evaluate.",
+)
+@click.option("--lite", "force_lite", is_flag=True, default=False, help="Deprecated alias for --subset lite.")
+@click.option("--sample", "sample", type=int, default=None, help="Evaluate a random sample of N instances.")
+@click.option("--instance", "instance_id", default=None, help="Evaluate a single instance by ID.")
+@click.option("--dataset", "dataset_path", default=None, help="Path to local JSONL dataset file.")
+@click.option(
+    "--save/--no-save",
+    default=True,
+    show_default=True,
+    help="Persist results to .sdd/metrics/swe_bench_results.jsonl.",
+)
+def benchmark_swe_bench(
+    subset: str,
+    force_lite: bool,
+    sample: int | None,
+    instance_id: str | None,
+    dataset_path: str | None,
+    save: bool,
+) -> None:
+    """Run Bernstein against SWE-Bench instances and report resolve rate.
+
+    \b
+      bernstein benchmark swe-bench --subset lite       # all Lite instances
+      bernstein benchmark swe-bench --sample 20         # random 20-instance eval
+      bernstein benchmark swe-bench --instance django__django-11905
+    """
+    if force_lite:
+        subset = "lite"
+    _run_swe_bench_command(
+        subset=subset,
+        sample=sample,
+        instance_id=instance_id,
+        dataset_path=dataset_path,
+        save=save,
+    )
 
 
 @benchmark_group.command("run")
@@ -249,6 +305,40 @@ def benchmark_compare(tasks_dir: str, modes: tuple[str, ...]) -> None:
 @click.group("eval")
 def eval_group() -> None:
     """Evaluation harness with multiplicative scoring."""
+
+
+@eval_group.command("swe-bench")
+@click.option(
+    "--subset",
+    type=click.Choice(["lite", "full"]),
+    default="lite",
+    show_default=True,
+    help="Which SWE-Bench subset to evaluate.",
+)
+@click.option("--sample", "sample", type=int, default=None, help="Evaluate a random sample of N instances.")
+@click.option("--instance", "instance_id", default=None, help="Evaluate a single instance by ID.")
+@click.option("--dataset", "dataset_path", default=None, help="Path to local JSONL dataset file.")
+@click.option(
+    "--save/--no-save",
+    default=True,
+    show_default=True,
+    help="Persist results to .sdd/metrics/swe_bench_results.jsonl.",
+)
+def eval_swe_bench(
+    subset: str,
+    sample: int | None,
+    instance_id: str | None,
+    dataset_path: str | None,
+    save: bool,
+) -> None:
+    """Run Bernstein against SWE-Bench from the eval command group."""
+    _run_swe_bench_command(
+        subset=subset,
+        sample=sample,
+        instance_id=instance_id,
+        dataset_path=dataset_path,
+        save=save,
+    )
 
 
 @eval_group.command("run")

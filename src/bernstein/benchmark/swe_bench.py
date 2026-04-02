@@ -18,9 +18,10 @@ import json
 import random
 import statistics
 import time
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -128,6 +129,7 @@ class InstanceResult:
         agent_count: Number of agents spawned.
         retries: Number of retry attempts.
         error: Error message if the run failed, else None.
+        model_name: Primary model used for the run, if observable.
     """
 
     instance_id: str
@@ -137,6 +139,7 @@ class InstanceResult:
     agent_count: int
     retries: int
     error: str | None
+    model_name: str = "unknown"
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise to a plain dict for JSON export.
@@ -152,6 +155,43 @@ class InstanceResult:
             "agent_count": self.agent_count,
             "retries": self.retries,
             "error": self.error,
+            "model_name": self.model_name,
+        }
+
+
+@dataclass
+class ModelBreakdown:
+    """Aggregate SWE-Bench metrics for a single model.
+
+    Args:
+        model_name: Name of the model used for the grouped runs.
+        total: Total instances evaluated with this model.
+        resolved: Number of resolved instances.
+        resolve_rate: Fraction resolved for this model.
+        cost_per_task: Mean cost per task for this model.
+        time_per_task: Mean duration per task for this model.
+    """
+
+    model_name: str
+    total: int
+    resolved: int
+    resolve_rate: float
+    cost_per_task: float
+    time_per_task: float
+
+    def to_dict(self) -> dict[str, float | int | str]:
+        """Serialise the breakdown for JSON output.
+
+        Returns:
+            Plain JSON-compatible mapping.
+        """
+        return {
+            "model_name": self.model_name,
+            "total": self.total,
+            "resolved": self.resolved,
+            "resolve_rate": self.resolve_rate,
+            "cost_per_task": self.cost_per_task,
+            "time_per_task": self.time_per_task,
         }
 
 
@@ -163,6 +203,9 @@ class BenchmarkReport:
         total: Total number of instances evaluated.
         resolved: Number of instances resolved.
         resolve_rate: Fraction resolved (0.0-1.0).
+        cost_per_task: Mean cost across all instances.
+        time_per_task: Mean wall-clock time across all instances.
+        per_model_breakdown: Per-model aggregate metrics.
         median_cost_usd: Median cost across all instances.
         median_duration_seconds: Median wall-clock time across all instances.
         cost_effectiveness_ratio: resolved / total_cost_usd.
@@ -173,6 +216,9 @@ class BenchmarkReport:
     total: int
     resolved: int
     resolve_rate: float
+    cost_per_task: float
+    time_per_task: float
+    per_model_breakdown: list[ModelBreakdown]
     median_cost_usd: float
     median_duration_seconds: float
     cost_effectiveness_ratio: float
@@ -191,6 +237,33 @@ def _median(values: list[float]) -> float:
     return statistics.median(values)
 
 
+def _mean(values: list[float]) -> float:
+    if not values:
+        return 0.0
+    return statistics.fmean(values)
+
+
+def _compute_model_breakdown(results: list[InstanceResult]) -> list[ModelBreakdown]:
+    grouped: dict[str, list[InstanceResult]] = defaultdict(list)
+    for result in results:
+        grouped[result.model_name or "unknown"].append(result)
+
+    breakdown: list[ModelBreakdown] = []
+    for model_name, model_results in sorted(grouped.items()):
+        resolved = sum(1 for result in model_results if result.resolved)
+        breakdown.append(
+            ModelBreakdown(
+                model_name=model_name,
+                total=len(model_results),
+                resolved=resolved,
+                resolve_rate=resolved / len(model_results),
+                cost_per_task=_mean([result.cost_usd for result in model_results]),
+                time_per_task=_mean([result.duration_seconds for result in model_results]),
+            )
+        )
+    return breakdown
+
+
 def compute_report(results: list[InstanceResult]) -> BenchmarkReport:
     """Compute aggregate metrics from a list of instance results.
 
@@ -205,6 +278,9 @@ def compute_report(results: list[InstanceResult]) -> BenchmarkReport:
             total=0,
             resolved=0,
             resolve_rate=0.0,
+            cost_per_task=0.0,
+            time_per_task=0.0,
+            per_model_breakdown=[],
             median_cost_usd=0.0,
             median_duration_seconds=0.0,
             cost_effectiveness_ratio=0.0,
@@ -219,6 +295,9 @@ def compute_report(results: list[InstanceResult]) -> BenchmarkReport:
         total=len(results),
         resolved=resolved_count,
         resolve_rate=resolved_count / len(results),
+        cost_per_task=_mean([r.cost_usd for r in results]),
+        time_per_task=_mean([r.duration_seconds for r in results]),
+        per_model_breakdown=_compute_model_breakdown(results),
         median_cost_usd=_median([r.cost_usd for r in results]),
         median_duration_seconds=_median([r.duration_seconds for r in results]),
         cost_effectiveness_ratio=cost_effectiveness,
@@ -231,33 +310,53 @@ def compute_report(results: list[InstanceResult]) -> BenchmarkReport:
 # ---------------------------------------------------------------------------
 
 
+def _metrics_results_path(sdd_dir: Path) -> Path:
+    """Return the canonical JSONL metrics path for SWE-Bench runs.
+
+    Args:
+        sdd_dir: Project ``.sdd/`` directory (or any root directory).
+
+    Returns:
+        Canonical JSONL metrics path.
+    """
+    return sdd_dir / "metrics" / "swe_bench_results.jsonl"
+
+
 def save_results(report: BenchmarkReport, sdd_dir: Path) -> Path:
-    """Write benchmark results to ``<sdd_dir>/benchmark/swe_bench_results.json``.
+    """Persist benchmark results to metrics JSONL plus a legacy JSON snapshot.
 
     Args:
         report: The aggregate report to persist.
         sdd_dir: Project ``.sdd/`` directory (or any root directory).
 
     Returns:
-        Path to the written JSON file.
+        Path to the legacy JSON snapshot for backward compatibility.
     """
-    out_dir = sdd_dir / "benchmark"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / "swe_bench_results.json"
-
     data: dict[str, Any] = {
         "run_at": report.run_at,
         "total": report.total,
         "resolved": report.resolved,
         "resolve_rate": report.resolve_rate,
+        "cost_per_task": report.cost_per_task,
+        "time_per_task": report.time_per_task,
+        "per_model_breakdown": [entry.to_dict() for entry in report.per_model_breakdown],
         "median_cost_usd": report.median_cost_usd,
         "median_duration_seconds": report.median_duration_seconds,
         "cost_effectiveness_ratio": report.cost_effectiveness_ratio,
         "instance_results": [r.to_dict() for r in report.instance_results],
     }
 
-    out_path.write_text(json.dumps(data, indent=2))
-    return out_path
+    metrics_path = _metrics_results_path(sdd_dir)
+    metrics_path.parent.mkdir(parents=True, exist_ok=True)
+    with metrics_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(data, sort_keys=True))
+        handle.write("\n")
+
+    out_dir = sdd_dir / "benchmark"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_path = out_dir / "swe_bench_results.json"
+    snapshot_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    return snapshot_path
 
 
 # ---------------------------------------------------------------------------
@@ -272,6 +371,7 @@ class SWEBenchRunner:
         workdir: Project working directory (where Bernstein will operate).
         sample: If set, evaluate a random sample of this many instances.
         instance_id: If set, evaluate only this single instance.
+        subset: Which benchmark subset to use when lazily downloading.
         seed: Random seed for reproducible sampling.
     """
 
@@ -280,11 +380,13 @@ class SWEBenchRunner:
         workdir: Path,
         sample: int | None = None,
         instance_id: str | None = None,
+        subset: Literal["lite", "full"] = "lite",
         seed: int = 42,
     ) -> None:
         self.workdir = workdir
         self.sample = sample
         self.instance_id = instance_id
+        self.subset = subset
         self._seed = seed
 
     # ------------------------------------------------------------------
@@ -323,7 +425,8 @@ class SWEBenchRunner:
         try:
             from datasets import load_dataset as hf_load  # type: ignore[import-untyped]
 
-            raw_dataset: list[Any] = cast("list[Any]", hf_load("princeton-nlp/SWE-bench_Lite", split="test"))
+            dataset_name = "princeton-nlp/SWE-bench_Lite" if self.subset == "lite" else "princeton-nlp/SWE-bench"
+            raw_dataset: list[Any] = cast("list[Any]", hf_load(dataset_name, split="test"))
             instances = [SWEInstance.from_dict(dict(row)) for row in raw_dataset]
             return self.filter_instances(instances)
         except ImportError:
@@ -393,7 +496,10 @@ class SWEBenchRunner:
     # Internal: spawn Bernstein
     # ------------------------------------------------------------------
 
-    def _spawn_bernstein(self, instance: SWEInstance) -> tuple[str, float, float, int]:
+    def _spawn_bernstein(
+        self,
+        instance: SWEInstance,
+    ) -> tuple[str, float, float, int] | tuple[str, float, float, int, str]:
         """Run Bernstein on a single instance and return raw outputs.
 
         This method is intended to be mocked in tests.  In production it
@@ -405,7 +511,8 @@ class SWEBenchRunner:
             instance: The SWE-Bench instance to solve.
 
         Returns:
-            Tuple of (patch_text, cost_usd, duration_seconds, agent_count).
+            Tuple of ``(patch_text, cost_usd, duration_seconds, agent_count)``
+            or ``(patch_text, cost_usd, duration_seconds, agent_count, model_name)``.
 
         Raises:
             RuntimeError: If the subprocess fails or times out.
@@ -438,7 +545,8 @@ class SWEBenchRunner:
         # Count agents from runtime logs
         agent_count = self._count_agents()
 
-        return patch_text, cost_usd, duration, agent_count
+        model_name = self._read_primary_model()
+        return patch_text, cost_usd, duration, agent_count, model_name
 
     def _read_run_cost(self) -> float:
         """Read total cost of the last Bernstein run from metrics JSONL files."""
@@ -462,6 +570,31 @@ class SWEBenchRunner:
             return 0
         return sum(1 for p in agents_dir.iterdir() if p.is_dir())
 
+    def _read_primary_model(self) -> str:
+        """Read the primary model from the latest runtime agent snapshot.
+
+        Returns:
+            The first non-empty model from ``agents.json``, or ``"unknown"``.
+        """
+        agents_path = self.workdir / ".sdd" / "runtime" / "agents.json"
+        if not agents_path.exists():
+            return "unknown"
+        try:
+            raw = json.loads(agents_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return "unknown"
+        if not isinstance(raw, dict):
+            return "unknown"
+        agents = raw.get("agents")
+        if not isinstance(agents, list):
+            return "unknown"
+        for agent in agents:
+            if isinstance(agent, dict):
+                model_name = agent.get("model")
+                if isinstance(model_name, str) and model_name.strip():
+                    return model_name.strip()
+        return "unknown"
+
     # ------------------------------------------------------------------
     # Public: run a single instance
     # ------------------------------------------------------------------
@@ -476,7 +609,12 @@ class SWEBenchRunner:
             :class:`InstanceResult` with outcome metrics.
         """
         try:
-            patch_text, cost_usd, duration_seconds, agent_count = self._spawn_bernstein(instance)
+            raw_spawn_result = self._spawn_bernstein(instance)
+            if len(raw_spawn_result) == 4:
+                patch_text, cost_usd, duration_seconds, agent_count = raw_spawn_result
+                model_name = "unknown"
+            else:
+                patch_text, cost_usd, duration_seconds, agent_count, model_name = raw_spawn_result
         except Exception as exc:
             return InstanceResult(
                 instance_id=instance.instance_id,
@@ -486,6 +624,7 @@ class SWEBenchRunner:
                 agent_count=0,
                 retries=0,
                 error=str(exc),
+                model_name="unknown",
             )
 
         resolved = self.evaluate_patch(instance, patch_text)
@@ -497,6 +636,7 @@ class SWEBenchRunner:
             agent_count=agent_count,
             retries=0,
             error=None if resolved else "Patch did not resolve failing tests",
+            model_name=model_name,
         )
 
     # ------------------------------------------------------------------

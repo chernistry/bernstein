@@ -74,8 +74,29 @@ async def test_create_task_defaults(client: AsyncClient) -> None:
     assert data["priority"] == 2
     assert data["scope"] == "medium"
     assert data["complexity"] == "medium"
-    assert data["estimated_minutes"] == 30
+    # "A bare-minimum task" is trivial -> 10 mins
+    assert data["estimated_minutes"] == 10
     assert data["depends_on"] == []
+
+
+@pytest.mark.anyio
+async def test_create_task_auto_estimate(client: AsyncClient) -> None:
+    """POST /tasks auto-estimates difficulty from description."""
+    # Complex task description
+    resp = await client.post(
+        "/tasks",
+        json={
+            "title": "Complex",
+            "description": "We need to refactor the security module and architect a new database migration. func() func() func()",
+            "role": "backend",
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    # keywords: refactor, architect, security, database, migrate = 5 * 2 = 10
+    # 3 func calls = 3
+    # raw = 13+ -> high or critical
+    assert data["estimated_minutes"] >= 90
 
 
 # -- GET /tasks/next/{role} -------------------------------------------------

@@ -31,13 +31,13 @@ def hookspec(
     if func is not None:
         # Called as @hookspec
         res = marker(func)
-        setattr(res, "bernstein_background", background)
+        setattr(res, "bernstein_background", background)  # noqa: B010
         return res
 
     def decorator(f: Callable[..., Any]) -> Any:
         # Called as @hookspec(firstresult=True, ...)
         res = marker(firstresult=firstresult, historic=historic)(f)
-        setattr(res, "bernstein_background", background)
+        setattr(res, "bernstein_background", background)  # noqa: B010
         return res
 
     return decorator

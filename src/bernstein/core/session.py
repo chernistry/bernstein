@@ -378,3 +378,110 @@ def load_latched_flags(workdir: Path) -> dict[str, object]:
         return dict(flags) if isinstance(flags, dict) else {}  # type: ignore[reportUnknownVariableType]
     except (json.JSONDecodeError, OSError):
         return {}
+
+
+# ---------------------------------------------------------------------------
+# Remote bridge / direct-connect lineage (T549, T550, T551)
+# ---------------------------------------------------------------------------
+
+_BRIDGE_LINEAGE_FILE = Path(".sdd") / "runtime" / "bridge_lineage.jsonl"
+
+
+class BridgeRebuildReason(str):
+    """Typed constant for bridge transport rebuild reasons (T551)."""
+
+    CREDENTIAL_REFRESH = "credential_refresh"
+    TIMEOUT = "timeout"
+    NETWORK_ERROR = "network_error"
+    EXPLICIT_RECONNECT = "explicit_reconnect"
+    UNKNOWN = "unknown"
+
+
+@dataclass
+class BridgeTransportEvent:
+    """A single bridge transport lifecycle event for lineage recording.
+
+    Attributes:
+        session_id: Agent session this event belongs to.
+        event_type: One of ``"connect"``, ``"disconnect"``, ``"rebuild"``,
+            ``"credential_refresh"``.
+        reason: Human-readable reason (see :class:`BridgeRebuildReason`).
+        ts: Unix timestamp of the event.
+        remote_url: Remote endpoint URL, if applicable.
+        credential_expiry: Unix timestamp when the credential expires, if known.
+        gap_seconds: Seconds of connectivity gap before reconnect, if applicable.
+    """
+
+    session_id: str
+    event_type: str
+    reason: str = BridgeRebuildReason.UNKNOWN
+    ts: float = field(default_factory=time.time)
+    remote_url: str = ""
+    credential_expiry: float | None = None
+    gap_seconds: float | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        """Serialise to a JSON-compatible dict."""
+        return {
+            "session_id": self.session_id,
+            "event_type": self.event_type,
+            "reason": self.reason,
+            "ts": self.ts,
+            "remote_url": self.remote_url,
+            "credential_expiry": self.credential_expiry,
+            "gap_seconds": self.gap_seconds,
+        }
+
+
+def record_bridge_event(workdir: Path, event: BridgeTransportEvent) -> None:
+    """Append a bridge transport event to the lineage JSONL file (T549, T550, T551).
+
+    Args:
+        workdir: Project root directory.
+        event: Event to record.
+    """
+    lineage_path = workdir / _BRIDGE_LINEAGE_FILE
+    lineage_path.parent.mkdir(parents=True, exist_ok=True)
+    with lineage_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(event.to_dict()) + "\n")
+
+
+def load_bridge_lineage(workdir: Path, session_id: str | None = None) -> list[BridgeTransportEvent]:
+    """Load bridge transport events from the lineage file.
+
+    Args:
+        workdir: Project root directory.
+        session_id: If provided, filter to events for this session only.
+
+    Returns:
+        List of :class:`BridgeTransportEvent` objects in chronological order.
+    """
+    lineage_path = workdir / _BRIDGE_LINEAGE_FILE
+    if not lineage_path.exists():
+        return []
+    events: list[BridgeTransportEvent] = []
+    try:
+        for line in lineage_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if session_id is not None and d.get("session_id") != session_id:
+                continue
+            events.append(
+                BridgeTransportEvent(
+                    session_id=str(d.get("session_id", "")),
+                    event_type=str(d.get("event_type", "")),
+                    reason=str(d.get("reason", BridgeRebuildReason.UNKNOWN)),
+                    ts=float(d.get("ts", 0.0)),
+                    remote_url=str(d.get("remote_url", "")),
+                    credential_expiry=d.get("credential_expiry"),
+                    gap_seconds=d.get("gap_seconds"),
+                )
+            )
+    except OSError:
+        pass
+    return events

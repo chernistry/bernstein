@@ -19,23 +19,31 @@ from bernstein.core.server import (
     task_to_response,
 )
 from bernstein.core.tenanting import request_tenant_id
+from bernstein.core.webhook_signatures import verify_hmac_sha256
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 _GENERIC_WEBHOOK_SECRET_ENV = "BERNSTEIN_WEBHOOK_SECRET"
 _GENERIC_WEBHOOK_SECRET_HEADER = "x-bernstein-webhook-secret"
+_GENERIC_WEBHOOK_SIGNATURE_HEADER = "x-bernstein-webhook-signature-256"
 
 
 def _get_store(request: Request) -> TaskStore:
     return request.app.state.store  # type: ignore[no-any-return]
 
 
-def _verify_generic_webhook_secret(request: Request) -> JSONResponse | None:
-    """Validate the optional shared secret for POST /webhook."""
+def _verify_generic_webhook_secret(request: Request, body: bytes) -> JSONResponse | None:
+    """Validate the optional shared secret or HMAC for POST /webhook."""
+
     configured_secret = os.environ.get(_GENERIC_WEBHOOK_SECRET_ENV, "")
     if not configured_secret:
         return None
+    provided_signature = request.headers.get(_GENERIC_WEBHOOK_SIGNATURE_HEADER, "")
+    if provided_signature:
+        if verify_hmac_sha256(body, provided_signature, configured_secret, prefix="sha256="):
+            return None
+        return JSONResponse(status_code=401, content={"detail": "Invalid webhook signature"})
     provided_secret = request.headers.get(_GENERIC_WEBHOOK_SECRET_HEADER, "")
     if provided_secret and hmac.compare_digest(provided_secret, configured_secret):
         return None
@@ -82,7 +90,8 @@ async def generic_webhook(body: WebhookTaskCreate, request: Request) -> WebhookT
     When ``BERNSTEIN_WEBHOOK_SECRET`` is configured, callers must also send
     the same value in ``X-Bernstein-Webhook-Secret``.
     """
-    denied = _verify_generic_webhook_secret(request)
+    raw_body = await request.body()
+    denied = _verify_generic_webhook_secret(request, raw_body)
     if denied is not None:
         return denied
 

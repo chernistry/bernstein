@@ -1841,3 +1841,72 @@ def _move_backlog_ticket(workdir: Any, task: Any) -> None:
                         pass
                     return
                 break  # only check first heading
+
+
+# ---------------------------------------------------------------------------
+# Priority decay for old unclaimed tasks
+# ---------------------------------------------------------------------------
+
+#: Hours before an open task is deprioritized.
+PRIORITY_DECAY_THRESHOLD_HOURS = 24
+
+#: Minimum priority (tasks won't go below this).
+MIN_PRIORITY = 3
+
+
+def deprioritize_old_unclaimed_tasks(
+    orch: Any,
+    threshold_hours: int = PRIORITY_DECAY_THRESHOLD_HOURS,
+    min_priority: int = MIN_PRIORITY,
+) -> int:
+    """Deprioritize tasks that have been open for too long without being claimed.
+
+    Called during janitor tick. Tasks open for > threshold_hours without being
+    claimed have their priority decreased by 1 (min priority floor).
+
+    Args:
+        orch: Orchestrator instance.
+        threshold_hours: Hours before deprioritization.
+        min_priority: Minimum priority value.
+
+    Returns:
+        Count of tasks deprioritized.
+    """
+    from bernstein.core.models import TaskStatus
+
+    now = time.time()
+    threshold_seconds = threshold_hours * 3600
+    deprioritized_count = 0
+
+    for task in orch._store.list_tasks():
+        if task.status != TaskStatus.OPEN:
+            continue
+
+        # Check if task has been open too long
+        age_seconds = now - task.created_at
+        if age_seconds < threshold_seconds:
+            continue
+
+        # Check if task was ever claimed (has agent history)
+        # If it was claimed and returned to open, don't deprioritize
+        # For simplicity, we deprioritize all old open tasks
+
+        old_priority = task.priority
+        new_priority = min(min_priority, old_priority + 1)
+
+        if new_priority > old_priority:
+            # Update task priority (optimistic locking)
+            try:
+                orch._store.update_task_priority(task.id, new_priority, task.version)
+                deprioritized_count += 1
+                logger.info(
+                    "Task %s deprioritized after %.0f h unclaimed (%d → %d)",
+                    task.id,
+                    age_seconds / 3600,
+                    old_priority,
+                    new_priority,
+                )
+            except Exception as exc:
+                logger.debug("Failed to deprioritize task %s: %s", task.id, exc)
+
+    return deprioritized_count

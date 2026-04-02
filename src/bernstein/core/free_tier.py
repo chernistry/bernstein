@@ -112,12 +112,12 @@ class FreeTierMaximizer:
             for provider, status_data in data.get("providers", {}).items():
                 self._statuses[provider] = FreeTierStatus(
                     provider=provider,
-                    remaining_today=status_data.get("remaining_today", 0),
-                    limit_today=status_data.get("limit_today", 0),
-                    remaining_minute=status_data.get("remaining_minute", 0),
-                    limit_minute=status_data.get("limit_minute", 0),
+                    remaining_today=int(status_data.get("remaining_today", 0)),
+                    limit_today=int(status_data.get("limit_today", 0)),
+                    remaining_minute=int(status_data.get("remaining_minute", 0)),
+                    limit_minute=int(status_data.get("limit_minute", 0)),
                     reset_time=status_data.get("reset_time"),
-                    last_updated=status_data.get("last_updated", time.time()),
+                    last_updated=float(status_data.get("last_updated", time.time())),
                 )
             logger.info("Loaded free tier state from %s", self._state_path)
         except Exception as exc:

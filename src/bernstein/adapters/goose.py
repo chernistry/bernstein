@@ -11,12 +11,26 @@ import logging
 import subprocess
 from typing import TYPE_CHECKING, Any
 
-from bernstein.adapters.base import CLIAdapter, SpawnResult
+from bernstein.adapters.base import (
+    DEFAULT_TIMEOUT_SECONDS,
+    CLIAdapter,
+    SpawnResult,
+    build_worker_cmd,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from bernstein.core.models import ModelConfig
+
 logger = logging.getLogger(__name__)
+
+# Model mapping: Bernstein logical names → Goose model IDs
+_MODEL_MAP: dict[str, str] = {
+    "opus": "claude-opus-4-5",
+    "sonnet": "claude-sonnet-4-5",
+    "haiku": "claude-haiku-3-5",
+}
 
 
 class GooseAdapter(CLIAdapter):
@@ -24,179 +38,80 @@ class GooseAdapter(CLIAdapter):
 
     Integrates with Block's Goose CLI agent.
     GitHub: https://github.com/block/goose
-
-    Args:
-        workdir: Project working directory.
-        session_id: Unique agent session identifier.
-        **kwargs: Additional adapter configuration.
     """
-
-    name = "goose"
-
-    def __init__(
-        self,
-        workdir: Path,
-        session_id: str,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(workdir, session_id, **kwargs)
-        self._cli_path = kwargs.get("cli_path", "goose")
-        self._model = kwargs.get("model", "default")
 
     def spawn(
         self,
-        task_description: str,
-        files: list[str] | None = None,
-        model: str | None = None,
-        effort: str | None = None,
-        timeout: int | None = None,
+        *,
+        prompt: str,
+        workdir: Path,
+        model_config: ModelConfig,
+        session_id: str,
+        mcp_config: dict[str, Any] | None = None,
+        timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
     ) -> SpawnResult:
-        """Spawn Goose agent for a task.
+        """Launch a Goose agent process.
 
         Args:
-            task_description: Task description to execute.
-            files: Optional list of files to include in context.
-            model: Optional model override.
-            effort: Optional effort level override.
-            timeout: Optional timeout in seconds.
+            prompt: Task description passed to the agent.
+            workdir: Working directory (project root).
+            model_config: Model and effort settings chosen by the orchestrator.
+            session_id: Unique identifier for this agent session.
+            mcp_config: Optional MCP server configuration (ignored by Goose).
+            timeout_seconds: Hard kill timeout in seconds.
 
         Returns:
-            SpawnResult with agent output.
+            SpawnResult with the process PID and log file path.
+
+        Raises:
+            RuntimeError: If the Goose binary is not found.
         """
-        # Build Goose command
-        # Goose uses: goose run --instruction "<task>"
-        cmd = [self._cli_path, "run"]
+        log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
+        log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Add instruction
-        cmd.extend(["--instruction", task_description])
+        model_id = _MODEL_MAP.get(model_config.model, model_config.model)
 
-        # Add model if specified
-        goose_model = model or self._model
-        if goose_model and goose_model != "default":
-            cmd.extend(["--model", goose_model])
+        cmd = ["goose", "run", "--instruction", prompt]
+        if model_id:
+            cmd += ["--model", model_id]
 
-        # Add files if specified
-        if files:
-            for f in files:
-                cmd.extend(["--file", f])
+        pid_dir = workdir / ".sdd" / "runtime" / "pids"
+        wrapped_cmd = build_worker_cmd(
+            cmd,
+            role=session_id.rsplit("-", 1)[0],
+            session_id=session_id,
+            pid_dir=pid_dir,
+            model=model_id,
+        )
 
-        # Set timeout (Goose has built-in timeout)
-        if timeout is None:
-            timeout = self._default_timeout
+        with log_path.open("w") as log_file:
+            try:
+                proc = subprocess.Popen(
+                    wrapped_cmd,
+                    cwd=workdir,
+                    stdout=log_file,
+                    stderr=subprocess.STDOUT,
+                    start_new_session=True,
+                )
+            except FileNotFoundError as exc:
+                raise RuntimeError(
+                    "goose not found in PATH. Install: https://github.com/block/goose"
+                ) from exc
+            except PermissionError as exc:
+                raise RuntimeError(f"Permission denied executing goose: {exc}") from exc
 
-        logger.info("Spawning Goose agent for task")
-        logger.debug("Command: %s", " ".join(cmd))
+        timer = self._start_timeout_watchdog(proc.pid, timeout_seconds, session_id)
+        return SpawnResult(pid=proc.pid, log_path=log_path, proc=proc, timeout_timer=timer)
 
-        try:
-            result = subprocess.run(
-                cmd,
-                cwd=self._workdir,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=False,
-            )
-
-            success = result.returncode == 0
-
-            if success:
-                logger.info("Goose agent completed successfully")
-            else:
-                logger.warning("Goose agent failed: %s", result.stderr[:200] if result.stderr else "Unknown error")
-
-            return SpawnResult(
-                success=success,
-                pid=None,  # Goose manages its own process
-                output=result.stdout,
-                error=result.stderr,
-            )
-
-        except subprocess.TimeoutExpired:
-            logger.warning("Goose agent timed out after %ds", timeout)
-            return SpawnResult(
-                success=False,
-                pid=None,
-                output="",
-                error=f"Timeout after {timeout}s",
-            )
-        except FileNotFoundError:
-            logger.error("Goose CLI not found at: %s", self._cli_path)
-            return SpawnResult(
-                success=False,
-                pid=None,
-                output="",
-                error=f"Goose CLI not found at: {self._cli_path}",
-            )
-        except Exception as exc:
-            logger.error("Goose agent spawn failed: %s", exc)
-            return SpawnResult(
-                success=False,
-                pid=None,
-                output="",
-                error=str(exc),
-            )
-
-    def detect_tier(self) -> Any | None:
-        """Detect the pricing tier for Goose.
-
-        Goose can use various backends (Anthropic, OpenAI, etc.).
-        Tier depends on the configured backend.
-
-        Returns:
-            Tier information or None if unavailable.
-        """
-        # Try to get Goose configuration
-        try:
-            # Goose stores config in ~/.config/goose/config.yaml
-            from pathlib import Path as P
-
-            config_path = P.home() / ".config" / "goose" / "config.yaml"
-            if config_path.exists():
-                import yaml
-
-                config = yaml.safe_load(config_path.read_text())
-
-                # Check provider
-                provider = config.get("provider", "unknown")
-
-                # Map to Bernstein tier
-                from bernstein.core.router import Tier
-
-                if provider in ("anthropic", "openai"):
-                    return type(
-                        "TierInfo",
-                        (),
-                        {
-                            "tier": Tier.STANDARD,
-                            "is_active": True,
-                            "rate_limit": None,
-                        },
-                    )()
-                elif provider in ("ollama", "local"):
-                    return type(
-                        "TierInfo",
-                        (),
-                        {
-                            "tier": Tier.FREE,
-                            "is_active": True,
-                            "rate_limit": None,
-                        },
-                    )()
-
-        except Exception as exc:
-            logger.debug("Failed to detect Goose tier: %s", exc)
-
-        return None
+    def name(self) -> str:
+        """Human-readable adapter name shown in bernstein ps and logs."""
+        return "goose"
 
     def get_version(self) -> str | None:
-        """Get Goose CLI version.
-
-        Returns:
-            Version string or None if unavailable.
-        """
+        """Return the Goose CLI version string, or None if unavailable."""
         try:
             result = subprocess.run(
-                [self._cli_path, "--version"],
+                ["goose", "--version"],
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -209,14 +124,10 @@ class GooseAdapter(CLIAdapter):
         return None
 
     def is_available(self) -> bool:
-        """Check if Goose CLI is available.
-
-        Returns:
-            True if Goose is installed and accessible.
-        """
+        """Return True if the Goose CLI is installed and accessible."""
         try:
             result = subprocess.run(
-                [self._cli_path, "--help"],
+                ["goose", "--help"],
                 capture_output=True,
                 timeout=10,
                 check=False,

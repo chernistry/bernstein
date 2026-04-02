@@ -19,7 +19,7 @@ def estimate_difficulty(description: str) -> DifficultyScore:
     """Estimate task difficulty from its description."""
     word_count = len(description.split())
 
-    backtick_matches = len(re.findall(r"`", description))
+    backtick_matches = len(re.findall(r"`[^`]+`", description))
     func_matches = len(re.findall(r"\b[a-zA-Z_]\w*\s*\(", description))
     code_ref_count = backtick_matches + func_matches
 

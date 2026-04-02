@@ -334,25 +334,21 @@ def eval_golden(workdir: str) -> None:
 
     for res in summary["tasks"]:
         status = "[green]PASS[/green]" if res["passed"] else "[red]FAIL[/red]"
-        table.add_row(
-            res["task_id"],
-            res["title"],
-            status,
-            f"${res['cost_usd']:.4f}",
-            f"{res['duration_s']}s"
-        )
+        table.add_row(res["task_id"], res["title"], status, f"${res['cost_usd']:.4f}", f"{res['duration_s']}s")
 
     console.print(table)
 
     passed = summary["passed"]
     total = summary["total_tasks"]
-    console.print(f"\n[bold]Score:[/bold] {passed}/{total} ({passed/total:.1%})")
+    console.print(f"\n[bold]Score:[/bold] {passed}/{total} ({passed / total:.1%})")
     cost_str = f"${summary['total_cost_usd']:.4f}"
     dur_str = f"{summary['duration_s']:.1f}s"
     console.print(f"[dim]Total cost: {cost_str}  Total duration: {dur_str}[/dim]")
 
     if summary["failed"] > 0:
         raise SystemExit(1)
+
+
 @click.option(
     "--subset",
     type=click.Choice(["lite", "full"]),

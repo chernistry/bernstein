@@ -23,6 +23,30 @@ jobs:
             printf '%s\n' "$TRACKED"
             exit 1
           fi
+      - name: Check for merge conflict markers in source files
+        run: |
+          CONFLICTS=""
+          for f in $(git ls-files -- '*.py' '*.yaml' '*.yml' '*.md' '*.toml'); do
+            if grep -qE '^(<{7} |>{7} )' "$f" 2>/dev/null; then
+              CONFLICTS="$CONFLICTS $f"
+              echo "::error file=$f::Unresolved merge conflict markers in $f"
+            fi
+          done
+          if [ -n "$CONFLICTS" ]; then
+            exit 1
+          fi
+      - name: Check Python syntax in scripts/
+        run: |
+          ERRORS=""
+          for f in scripts/*.py; do
+            if ! python3 -m py_compile "$f" 2>/dev/null; then
+              ERRORS="$ERRORS $f"
+              echo "::error file=$f::Syntax error in $f"
+            fi
+          done
+          if [ -n "$ERRORS" ]; then
+            exit 1
+          fi
 
   lint:
     name: Lint
@@ -124,7 +148,7 @@ jobs:
   autofix:
     name: Auto-fix lint
     runs-on: ubuntu-latest
-    needs: [lint]
+    needs: [lint, repo-hygiene]
     if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
@@ -137,12 +161,26 @@ jobs:
         run: |
           uv run ruff check src/ --fix --unsafe-fixes || true
           uv run ruff format src/
+      - name: Purge tracked .sdd files
+        run: |
+          TRACKED="$(git ls-files '.sdd')"
+          if [ -n "$TRACKED" ]; then
+            echo "$TRACKED" | xargs git rm --cached --
+          fi
+      - name: Remove merge conflict markers from Python files
+        run: |
+          for f in $(git diff --cached --name-only --diff-filter=ACMR -- '*.py' 2>/dev/null) \
+                   $(git ls-files -- '*.py'); do
+            if grep -qE '^(<{7}|={7}|>{7})' "$f" 2>/dev/null; then
+              echo "::warning::Merge conflict markers found in $f"
+            fi
+          done
       - name: Commit and push fixes
         run: |
-          git diff --quiet && echo "Nothing to fix" && exit 0
+          git add src/ tests/ scripts/
+          git diff --cached --quiet && echo "Nothing to fix" && exit 0
           git config user.name "bernstein[bot]"
           git config user.email "bernstein-bot@users.noreply.github.com"
-          git add -A
           git commit -m "style: auto-fix ruff lint and format"
           git push
 

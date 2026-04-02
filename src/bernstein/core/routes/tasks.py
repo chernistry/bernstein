@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from starlette.responses import StreamingResponse
 
 from bernstein.core.bulletin import BulletinBoard, BulletinMessage
+from bernstein.core.difficulty_estimator import estimate_difficulty, minutes_for_level
 from bernstein.core.lifecycle import IllegalTransitionError
 from bernstein.core.models import NodeCapacity, NodeInfo, NodeStatus
 
@@ -106,6 +107,12 @@ async def create_task(body: TaskCreate, request: Request) -> TaskResponse:
     store = _get_store(request)
     sse_bus = _get_sse_bus(request)
     effective_body = body.model_copy(update={"tenant_id": request_tenant_id(request)})
+
+    # Auto-estimate difficulty if minutes not provided
+    if effective_body.estimated_minutes is None:
+        score = estimate_difficulty(effective_body.description)
+        effective_body.estimated_minutes = minutes_for_level(score.level)
+
     with start_span("task.create", {"task.role": effective_body.role, "task.title": effective_body.title}):
         task = await store.create(effective_body)
         sse_bus.publish("task_update", json.dumps({"id": task.id, "status": task.status.value}))

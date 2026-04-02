@@ -96,14 +96,13 @@ class FreeTierMaximizer:
         import json
 
         if not self._state_path.exists():
-            # Initialize with default limits
             for provider, limits in FREE_TIER_LIMITS.items():
                 self._statuses[provider] = FreeTierStatus(
                     provider=provider,
-                    remaining_today=limits["requests_per_day"],
-                    limit_today=limits["requests_per_day"],
-                    remaining_minute=limits["requests_per_minute"],
-                    limit_minute=limits["requests_per_minute"],
+                    remaining_today=int(limits["requests_per_day"]),
+                    limit_today=int(limits["requests_per_day"]),
+                    remaining_minute=int(limits["requests_per_minute"]),
+                    limit_minute=int(limits["requests_per_minute"]),
                 )
             return
 

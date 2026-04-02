@@ -1018,6 +1018,30 @@ class TaskStore:
         """Look up a single task by id."""
         return self._tasks.get(task_id)
 
+    def update_task_priority(self, task_id: str, new_priority: int, version: int) -> Task | None:
+        """Update task priority with optimistic locking.
+
+        Args:
+            task_id: Task identifier.
+            new_priority: New priority value.
+            version: Expected version for optimistic locking.
+
+        Returns:
+            Updated Task, or None if not found or version mismatch.
+        """
+        task = self._tasks.get(task_id)
+        if task is None:
+            return None
+
+        if task.version != version:
+            return None
+
+        task.priority = new_priority
+        task.version += 1
+        self._index_add(task)
+
+        return task
+
     # -- agents / heartbeats ------------------------------------------------
 
     def heartbeat(self, agent_id: str, role: str, status: Literal["starting", "working", "idle", "dead"]) -> float:

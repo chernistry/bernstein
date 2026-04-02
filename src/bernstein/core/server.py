@@ -259,7 +259,7 @@ class TaskCreate(BaseModel):
     scope: str = "medium"
     complexity: str = "medium"
     risk_level: str = "low"
-    estimated_minutes: int = 30
+    estimated_minutes: int | None = None
     depends_on: list[str] = Field(default_factory=list)
     owned_files: list[str] = Field(default_factory=list)
     cell_id: str | None = None

@@ -25,11 +25,12 @@ class _CollectorStub:
         self.task_metrics: dict[str, Any] = {}
         self.agent_metrics: dict[str, Any] = {}
 
-    def start_agent(self, agent_id: str, role: str, model: str, provider: str, agent_source: str = "built-in") -> None:
-        del role, model, provider, agent_source
+    def start_agent(self, agent_id: str, role: str, model: str, provider: str, agent_source: str = "built-in", tenant_id: str | None = None) -> None:
+        del role, model, provider, agent_source, tenant_id
         self.agent_metrics[agent_id] = SimpleNamespace(tasks_completed=0)
 
-    def start_task(self, task_id: str, role: str, model: str, provider: str) -> None:
+    def start_task(self, task_id: str, role: str, model: str, provider: str, tenant_id: str | None = None) -> None:
+        del tenant_id
         self.task_metrics[task_id] = SimpleNamespace(
             task_id=task_id,
             role=role,

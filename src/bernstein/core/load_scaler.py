@@ -6,6 +6,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +204,7 @@ class LoadBasedAgentScaler:
         """
         return list(self._history)
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """Get scaler summary.
 
         Returns:

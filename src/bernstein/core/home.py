@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
 import yaml
 
@@ -114,6 +114,11 @@ class BernsteinHome:
         except Exception:
             return {}
 
+    def load_raw(self) -> dict[str, object]:
+        """Return raw persisted global settings without default expansion."""
+        data = self._load()
+        return {str(key): value for key, value in data.items()}
+
     def _save(self, data: dict[str, Any]) -> None:
         """Persist data to config.yaml, creating home dir if needed."""
         self.ensure()
@@ -217,7 +222,10 @@ def _load_project_config(project_dir: Path) -> dict[str, object]:
         data = yaml.safe_load(sdd_config.read_text(encoding="utf-8"))
     except Exception:
         return {}
-    return data if isinstance(data, dict) else {}
+    if not isinstance(data, dict):
+        return {}
+    typed_data = cast("dict[object, object]", data)
+    return {str(key): value for key, value in typed_data.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -251,7 +259,7 @@ def resolve_config(
         full ``source_chain`` in descending-precedence order.
     """
     project_config = _load_project_config(project_dir)
-    global_data = home._load()
+    global_data = home.load_raw()
     combined_session_overrides = {**_session_overrides_from_env(), **dict(session_overrides or {})}
 
     layers: list[ConfigProvenanceLayer] = []

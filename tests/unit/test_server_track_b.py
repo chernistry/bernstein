@@ -10,6 +10,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+import bernstein.core.routes.status as status_routes
 from bernstein.core.server import create_app
 
 
@@ -87,6 +88,8 @@ async def test_status_includes_runtime_summary_block(tmp_path: Path) -> None:
 
 @pytest.mark.anyio
 async def test_status_includes_config_provenance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(status_routes, "_runtime_cache", {})
+    monkeypatch.setattr(status_routes, "_runtime_cache_ts", 0.0)
     monkeypatch.setenv("BERNSTEIN_CLI", "qwen")
     app = _make_app(tmp_path)
     app_state = cast(Any, app.state)

@@ -121,6 +121,82 @@ class UsageQuota:
     percentage_used: float = 0.0
 
 
+class PercentileTracker:
+    """Track and compute percentiles (p50/p95/p99) over a sliding window.
+
+    Uses a sorted deque for efficient insertion and percentile computation.
+
+    Args:
+        window: Maximum number of values to retain (default 1000).
+    """
+
+    def __init__(self, window: int = 1000) -> None:
+        self._window = window
+        self._values: list[float] = []
+
+    def add(self, value: float) -> None:
+        """Add a value to the tracker.
+
+        Args:
+            value: Numeric value to track.
+        """
+        self._values.append(value)
+        # Maintain window size
+        if len(self._values) > self._window:
+            self._values.pop(0)
+
+    def p50(self) -> float:
+        """Compute 50th percentile (median).
+
+        Returns:
+            50th percentile value, or 0.0 if no data.
+        """
+        return self._percentile(0.50)
+
+    def p95(self) -> float:
+        """Compute 95th percentile.
+
+        Returns:
+            95th percentile value, or 0.0 if no data.
+        """
+        return self._percentile(0.95)
+
+    def p99(self) -> float:
+        """Compute 99th percentile.
+
+        Returns:
+            99th percentile value, or 0.0 if no data.
+        """
+        return self._percentile(0.99)
+
+    def _percentile(self, p: float) -> float:
+        """Compute arbitrary percentile.
+
+        Args:
+            p: Percentile as fraction (0.0-1.0).
+
+        Returns:
+            Percentile value, or 0.0 if no data.
+        """
+        if not self._values:
+            return 0.0
+        sorted_vals = sorted(self._values)
+        idx = int(p * (len(sorted_vals) - 1))
+        return sorted_vals[min(idx, len(sorted_vals) - 1)]
+
+    def count(self) -> int:
+        """Get number of values in window.
+
+        Returns:
+            Number of tracked values.
+        """
+        return len(self._values)
+
+    def clear(self) -> None:
+        """Clear all tracked values."""
+        self._values.clear()
+
+
 class MetricsCollector:
     """Collects and stores performance metrics.
 

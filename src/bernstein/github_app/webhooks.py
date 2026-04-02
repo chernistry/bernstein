@@ -7,12 +7,12 @@ signature and parses the JSON payload into a typed ``WebhookEvent``.
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import json
 import logging
 from dataclasses import dataclass, field
 from typing import Any
+
+from bernstein.core.webhook_signatures import verify_hmac_sha256
 
 logger = logging.getLogger(__name__)
 
@@ -49,15 +49,7 @@ def verify_signature(body: bytes, signature: str, secret: str) -> bool:
     Returns:
         ``True`` if the signature is valid, ``False`` otherwise.
     """
-    if not signature.startswith("sha256="):
-        return False
-    expected = hmac.new(
-        secret.encode("utf-8"),
-        body,
-        hashlib.sha256,
-    ).hexdigest()
-    provided = signature[7:]  # Strip "sha256=" prefix
-    return hmac.compare_digest(expected, provided)
+    return verify_hmac_sha256(body, signature, secret, prefix="sha256=")
 
 
 def parse_webhook(headers: dict[str, str], body: bytes) -> WebhookEvent:

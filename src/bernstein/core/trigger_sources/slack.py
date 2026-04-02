@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import time
 from typing import Any
 
 from bernstein.core.models import TriggerEvent
+from bernstein.core.webhook_signatures import verify_hmac_sha256
 
 
 def verify_slack_signature(body: bytes, timestamp: str, signature: str, signing_secret: str) -> bool:
@@ -30,16 +29,8 @@ def verify_slack_signature(body: bytes, timestamp: str, signature: str, signing_
     if abs(time.time() - ts) > 300:
         return False
 
-    sig_basestring = f"v0:{timestamp}:{body.decode('utf-8')}"
-    computed = (
-        "v0="
-        + hmac.new(
-            signing_secret.encode("utf-8"),
-            sig_basestring.encode("utf-8"),
-            hashlib.sha256,
-        ).hexdigest()
-    )
-    return hmac.compare_digest(computed, signature)
+    sig_basestring = f"v0:{timestamp}:{body.decode('utf-8')}".encode()
+    return verify_hmac_sha256(sig_basestring, signature, signing_secret, prefix="v0=")
 
 
 def normalize_slack_message(payload: dict[str, Any]) -> TriggerEvent:

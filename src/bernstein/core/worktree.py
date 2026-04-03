@@ -28,6 +28,7 @@ from bernstein.core.git_ops import branch_delete, worktree_add, worktree_list, w
 
 if TYPE_CHECKING:
     import threading
+    from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,9 @@ class WorktreeSetupConfig:
         copy_files: File names (relative to repo root) to copy into the
             worktree.  Suitable for ``.env`` files that should not be shared
             via symlink (each agent may write its own port/secret overrides).
+        sparse_paths: Paths to include when using git sparse-checkout for
+            the worktree.  When provided, only the listed paths are checked
+            out, reducing disk usage for large monorepos (T481).
         setup_command: Optional shell command to run *inside* the worktree
             after symlinking and copying.  Examples: ``"npm install"``,
             ``"uv sync"``, ``"make setup"``.
@@ -56,7 +60,50 @@ class WorktreeSetupConfig:
 
     symlink_dirs: tuple[str, ...] = field(default_factory=tuple)
     copy_files: tuple[str, ...] = field(default_factory=tuple)
+    sparse_paths: tuple[str, ...] = field(default_factory=tuple)
     setup_command: str | None = None
+
+
+def _apply_sparse_checkout(worktree_path: Path, sparse_paths: Sequence[str]) -> bool:
+    """Enable git sparse-checkout on a worktree.
+
+    Args:
+        worktree_path: Path to the worktree directory.
+        sparse_paths: Paths to include in the sparse checkout.
+
+    Returns:
+        True if sparse checkout was applied successfully.
+    """
+    if not sparse_paths:
+        return False
+    try:
+        result = subprocess.run(
+            ["git", "sparse-checkout", "init", "--cone"],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            logger.warning("git sparse-checkout init failed: %s", result.stderr.strip())
+            return False
+
+        result = subprocess.run(
+            ["git", "sparse-checkout", "set", *sparse_paths],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            logger.warning("git sparse-checkout set failed: %s", result.stderr.strip())
+            return False
+
+        logger.info("Applied sparse checkout to worktree %s: %s", worktree_path, sparse_paths)
+        return True
+    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
+        logger.warning("Sparse checkout failed for %s: %s", worktree_path, exc)
+        return False
 
 
 def setup_worktree_env(
@@ -70,7 +117,8 @@ def setup_worktree_env(
        reinstall dependencies.
     2. Copies per-worktree files (e.g. ``.env``) so each agent has its
        own editable copy.
-    3. Optionally runs a setup command (e.g. ``npm install``) inside the
+    3. Applies sparse checkout if configured.
+    4. Optionally runs a setup command (e.g. ``npm install``) inside the
        worktree when symlinks are insufficient.
 
     Failures are logged as warnings but never propagate — a partially-set-up
@@ -108,12 +156,18 @@ def setup_worktree_env(
             logger.debug("Skipping copy of %r: target already exists", file_name)
             continue
         try:
-            # Ensure parent directory exists (for nested paths like .env.d/local)
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
             logger.info("Copied %s into worktree", file_name)
         except OSError as exc:
             logger.warning("Failed to copy %r into worktree: %s", file_name, exc)
+
+    # --- Apply sparse checkout ------------------------------------------------
+    if config.sparse_paths:
+        if _apply_sparse_checkout(worktree_path, config.sparse_paths):
+            logger.info("Sparse checkout applied to worktree: %s", config.sparse_paths)
+        else:
+            logger.warning("Sparse checkout failed for worktree %s", worktree_path)
 
     # --- Run optional setup command -------------------------------------------
     if config.setup_command:
@@ -121,9 +175,7 @@ def setup_worktree_env(
         try:
             result = subprocess.run(
                 config.setup_command,
-                shell=True,  # SECURITY: shell=True required because worktree setup
-                # commands are admin-configured shell strings that may use
-                # pipes or redirects; not user input
+                shell=True,  # SECURITY: worktree setup commands are admin-configured
                 cwd=worktree_path,
                 capture_output=True,
                 text=True,
@@ -214,7 +266,8 @@ class WorktreeManager:
             stderr = result.stderr.strip()
             if "already exists" in stderr:
                 raise WorktreeError(
-                    f"Branch '{branch_name}' already exists. Delete it manually or call cleanup() first. Git: {stderr}"
+                    f"Branch '{branch_name}' already exists. "
+                    "Delete it manually or call cleanup() first. Git: {stderr}"
                 )
             raise WorktreeError(f"git worktree add failed for session '{session_id}': {stderr}")
 
@@ -385,407 +438,3 @@ def validate_worktree_slug(slug: str) -> str:
     if not _SLUG_PATTERN.match(slug):
         raise WorktreeError(f"Worktree slug contains invalid characters (allowed: a-z A-Z 0-9 - _ .): {slug!r}")
     return slug
-
-
-# ---------------------------------------------------------------------------
-# Sparse checkout for agent worktrees (T573)
-# ---------------------------------------------------------------------------
-
-
-def apply_sparse_checkout(
-    worktree_path: Path,
-    sparse_paths: list[str],
-    *,
-    timeout: int = 30,
-) -> bool:
-    """Apply sparse checkout to a worktree (T573).
-
-    Enables ``git sparse-checkout`` in cone mode and sets the given paths.
-    Falls back gracefully if the git version does not support sparse checkout.
-
-    Args:
-        worktree_path: Path to the worktree directory.
-        sparse_paths: List of paths/patterns to include in the sparse checkout.
-        timeout: Command timeout in seconds.
-
-    Returns:
-        True if sparse checkout was applied, False if unsupported or skipped.
-    """
-    if not sparse_paths:
-        return False
-
-    try:
-        # Enable sparse checkout
-        result = subprocess.run(
-            ["git", "sparse-checkout", "init", "--cone"],
-            cwd=worktree_path,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-        if result.returncode != 0:
-            logger.warning(
-                "git sparse-checkout init failed for %s: %s",
-                worktree_path,
-                result.stderr.strip(),
-            )
-            return False
-
-        # Set the paths
-        result = subprocess.run(
-            ["git", "sparse-checkout", "set", *sparse_paths],
-            cwd=worktree_path,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-        if result.returncode != 0:
-            logger.warning(
-                "git sparse-checkout set failed for %s: %s",
-                worktree_path,
-                result.stderr.strip(),
-            )
-            return False
-
-        logger.info("Applied sparse checkout to %s: %s", worktree_path, sparse_paths)
-        return True
-
-    except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
-        logger.warning("Sparse checkout failed for %s: %s", worktree_path, exc)
-        return False
-
-
-# ---------------------------------------------------------------------------
-# Worktree lock file protocol (T580)
-# ---------------------------------------------------------------------------
-
-_WORKTREE_LOCK_DIR = ".sdd/worktrees/.locks"
-
-
-def write_worktree_lock(repo_root: Path, session_id: str, pid: int) -> Path:
-    """Write a PID-based lock file for an active worktree (T580).
-
-    Args:
-        repo_root: Repository root directory.
-        session_id: Agent session identifier.
-        pid: Worker process PID.
-
-    Returns:
-        Path to the written lock file.
-    """
-    lock_dir = repo_root / _WORKTREE_LOCK_DIR
-    lock_dir.mkdir(parents=True, exist_ok=True)
-    lock_path = lock_dir / f"{session_id}.lock"
-    payload = {
-        "session_id": session_id,
-        "pid": pid,
-        "created_at": __import__("time").time(),
-    }
-    lock_path.write_text(json.dumps(payload), encoding="utf-8")
-    return lock_path
-
-
-def remove_worktree_lock(repo_root: Path, session_id: str) -> None:
-    """Remove the lock file for a worktree session (T580).
-
-    Args:
-        repo_root: Repository root directory.
-        session_id: Agent session identifier.
-    """
-    lock_path = repo_root / _WORKTREE_LOCK_DIR / f"{session_id}.lock"
-    try:
-        lock_path.unlink(missing_ok=True)
-    except OSError as exc:
-        logger.warning("Failed to remove worktree lock for %s: %s", session_id, exc)
-
-
-def is_worktree_lock_stale(repo_root: Path, session_id: str) -> bool:
-    """Return True if the worktree lock is stale (process no longer alive) (T580).
-
-    Args:
-        repo_root: Repository root directory.
-        session_id: Agent session identifier.
-
-    Returns:
-        True if the lock file is absent or the recorded PID is dead.
-    """
-    lock_path = repo_root / _WORKTREE_LOCK_DIR / f"{session_id}.lock"
-    if not lock_path.exists():
-        return True
-    try:
-        data = json.loads(lock_path.read_text(encoding="utf-8"))
-        pid = int(data.get("pid", 0))
-    except (json.JSONDecodeError, OSError, ValueError):
-        return True
-    if pid <= 0:
-        return True
-    try:
-        os.kill(pid, 0)
-        return False  # process is alive
-    except OSError:
-        return True  # process is dead
-
-
-# ---------------------------------------------------------------------------
-# Slug validation for worktree names (T572)
-# ---------------------------------------------------------------------------
-
-import re as _re
-
-
-def validate_worktree_slug(name: str) -> tuple[bool, str | None]:
-    """
-    Validate worktree name as a valid slug (T572).
-
-    Args:
-        name: Worktree name to validate
-
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    if not name:
-        return False, "Worktree name cannot be empty"
-
-    # Check length
-    if len(name) < 3:
-        return False, "Worktree name must be at least 3 characters"
-
-    if len(name) > 50:
-        return False, "Worktree name must be 50 characters or less"
-
-    # Check for valid characters (alphanumeric and hyphens only)
-    if not _re.match(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$", name):
-        return (
-            False,
-            "Worktree name can only contain lowercase letters, numbers, and hyphens, must start and end with alphanumeric",
-        )
-
-    # Check for reserved names
-    reserved_names = {"main", "master", "head", "worktree", "worktrees", "git", "refs"}
-    if name in reserved_names:
-        return False, f"Worktree name '{name}' is reserved"
-
-    # Check for common invalid patterns
-    if name.startswith(".") or name.endswith("."):
-        return False, "Worktree name cannot start or end with a dot"
-
-    if "--" in name:
-        return False, "Worktree name cannot contain consecutive hyphens"
-
-    if name.startswith("-") or name.endswith("-"):
-        return False, "Worktree name cannot start or end with a hyphen"
-
-    return True, None
-
-
-def sanitize_worktree_name(name: str) -> str:
-    """
-    Sanitize a worktree name to be slug-compliant.
-
-    Args:
-        name: Input worktree name
-
-    Returns:
-        Sanitized worktree name
-    """
-    # Convert to lowercase
-    sanitized = name.lower()
-
-    # Replace spaces and underscores with hyphens
-    sanitized = _re.sub(r"[\s_]+", "-", sanitized)
-
-    # Remove any non-alphanumeric characters except hyphens
-    sanitized = _re.sub(r"[^a-z0-9-]", "", sanitized)
-
-    # Remove leading/trailing hyphens
-    sanitized = sanitized.strip("-")
-
-    # Remove consecutive hyphens
-    sanitized = _re.sub(r"-+", "-", sanitized)
-
-    # Ensure it's not empty
-    if not sanitized:
-        sanitized = "worktree"
-
-    # Ensure it starts and ends with alphanumeric
-    sanitized = _re.sub(r"^-+", "", sanitized)
-    sanitized = _re.sub(r"-+$", "", sanitized)
-
-    # Ensure it's not empty after sanitization
-    if not sanitized:
-        sanitized = "worktree"
-
-    return sanitized
-
-
-def generate_worktree_slug(base_name: str, existing_names: set) -> str:
-    """
-    Generate a unique worktree slug from a base name.
-
-    Args:
-        base_name: Base name for the worktree
-        existing_names: Set of existing worktree names
-
-    Returns:
-        Unique worktree slug
-    """
-    # First, sanitize the base name
-    base_slug = sanitize_worktree_name(base_name)
-
-    # If the sanitized name is empty, use a default
-    if not base_slug:
-        base_slug = "worktree"
-
-    # If the base slug is already unique, use it
-    if base_slug not in existing_names:
-        return base_slug
-
-    # Otherwise, find a unique name by appending a number
-    counter = 1
-    while True:
-        candidate = f"{base_slug}-{counter}"
-        if candidate not in existing_names:
-            return candidate
-        counter += 1
-
-
-# ---------------------------------------------------------------------------
-# Sparse checkout for agent worktrees (T573)
-# ---------------------------------------------------------------------------
-
-import subprocess as _subprocess
-
-
-def enable_sparse_checkout(worktree_path: Path, patterns: list[str], *, core_sparse_checkout: bool = True) -> bool:
-    """
-    Enable sparse checkout for a worktree (T573).
-
-    Args:
-        worktree_path: Path to the worktree
-        patterns: List of sparse checkout patterns
-        core_sparse_checkout: Whether to use core.sparseCheckout
-
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        # Enable sparse checkout
-        if core_sparse_checkout:
-            _subprocess.run(
-                ["git", "config", "core.sparseCheckout", "true"], cwd=worktree_path, check=True, capture_output=True
-            )
-
-        # Create sparse-checkout file
-        sparse_file = worktree_path / ".git" / "info" / "sparse-checkout"
-        sparse_file.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(sparse_file, "w") as f:
-            for pattern in patterns:
-                f.write(f"{pattern}\n")
-
-        # Read sparse-checkout file
-        _subprocess.run(["git", "sparse-checkout", "reapply"], cwd=worktree_path, check=True, capture_output=True)
-
-        logger.info(f"Sparse checkout enabled for {worktree_path} with {len(patterns)} patterns")
-        return True
-
-    except _subprocess.CalledProcessError as e:
-        logger.error(f"Failed to enable sparse checkout: {e}")
-        return False
-    except Exception as e:
-        logger.error(f"Error enabling sparse checkout: {e}")
-        return False
-
-
-def disable_sparse_checkout(worktree_path: Path) -> bool:
-    """
-    Disable sparse checkout for a worktree.
-
-    Args:
-        worktree_path: Path to the worktree
-
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        # Disable sparse checkout
-        _subprocess.run(
-            ["git", "config", "--unset", "core.sparseCheckout"], cwd=worktree_path, check=False, capture_output=True
-        )
-
-        # Remove sparse-checkout file
-        sparse_file = worktree_path / ".git" / "info" / "sparse-checkout"
-        if sparse_file.exists():
-            sparse_file.unlink()
-
-        logger.info(f"Sparse checkout disabled for {worktree_path}")
-        return True
-
-    except Exception as e:
-        logger.error(f"Error disabling sparse checkout: {e}")
-        return False
-
-
-def get_sparse_checkout_patterns(worktree_path: Path) -> list[str] | None:
-    """
-    Get current sparse checkout patterns for a worktree.
-
-    Args:
-        worktree_path: Path to the worktree
-
-    Returns:
-        List of patterns or None if not enabled
-    """
-    sparse_file = worktree_path / ".git" / "info" / "sparse-checkout"
-
-    if not sparse_file.exists():
-        return None
-
-    try:
-        with open(sparse_file) as f:
-            patterns = [line.strip() for line in f if line.strip()]
-        return patterns
-    except Exception as e:
-        logger.error(f"Error reading sparse checkout patterns: {e}")
-        return None
-
-
-def update_sparse_checkout_patterns(worktree_path: Path, patterns: list[str]) -> bool:
-    """
-    Update sparse checkout patterns for a worktree.
-
-    Args:
-        worktree_path: Path to the worktree
-        patterns: New list of sparse checkout patterns
-
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        # Get current patterns to check if we need to update
-        current_patterns = get_sparse_checkout_patterns(worktree_path)
-
-        # If patterns haven't changed, no need to update
-        if current_patterns == patterns:
-            return True
-
-        # Update sparse-checkout file
-        sparse_file = worktree_path / ".git" / "info" / "sparse-checkout"
-        sparse_file.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(sparse_file, "w") as f:
-            for pattern in patterns:
-                f.write(f"{pattern}\n")
-
-        # Reapply sparse checkout
-        _subprocess.run(["git", "sparse-checkout", "reapply"], cwd=worktree_path, check=True, capture_output=True)
-
-        logger.info(f"Sparse checkout patterns updated for {worktree_path}")
-        return True
-
-    except _subprocess.CalledProcessError as e:
-        logger.error(f"Failed to update sparse checkout patterns: {e}")
-        return False
-    except Exception as e:
-        logger.error(f"Error updating sparse checkout patterns: {e}")
-        return False

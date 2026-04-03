@@ -772,3 +772,189 @@ class ScratchpadViewer(DataTable):
         if self.cursor_row < len(filtered):
             return filtered[self.cursor_row]
         return None
+
+
+# ---------------------------------------------------------------------------
+# Cost tier visualization per model (T411)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ModelTierEntry:
+    """Per-model cost tier entry for the TUI panel."""
+
+    model: str
+    input_usd_per_1m: float
+    output_usd_per_1m: float
+    cache_read_usd_per_1m: float | None
+    cache_write_usd_per_1m: float | None
+    total_usd_per_1m: float  # blended estimate (input + output) / 2
+
+    @property
+    def cache_info(self) -> str:
+        """Cache pricing summary for display."""
+        if self.cache_read_usd_per_1m is None:
+            return "not configured"
+        cr = self.cache_read_usd_per_1m
+        cw = self.cache_write_usd_per_1m
+        cw_str = f"${cw:.2f}/M" if cw is not None else "N/A"
+        return f"read ${cr:.2f}/M, write {cw_str}"
+
+
+def build_model_tier_entries() -> list[ModelTierEntry]:
+    """Build per-model cost tier entries from cost.py pricing data.
+
+    Returns:
+        Sorted list of entries by total cost (cheapest first).
+    """
+    from bernstein.core.cost import MODEL_COSTS_PER_1M_TOKENS
+
+    entries: list[ModelTierEntry] = []
+    for name, pricing in MODEL_COSTS_PER_1M_TOKENS.items():
+        inp = pricing.get("input", 0.0)
+        out = pricing.get("output", 0.0)
+        cache_r = pricing.get("cache_read")
+        cache_w = pricing.get("cache_write")
+        total = (inp + out) / 2.0
+        entries.append(
+            ModelTierEntry(
+                model=name,
+                input_usd_per_1m=inp,
+                output_usd_per_1m=out,
+                cache_read_usd_per_1m=cache_r,
+                cache_write_usd_per_1m=cache_w,
+                total_usd_per_1m=total,
+            ),
+        )
+    entries.sort(key=lambda e: e.total_usd_per_1m)
+    return entries
+
+
+def render_model_tier_table() -> list[tuple[str, str]]:
+    """Render cost tier data for the TUI as (label, value) tuples.
+
+    Returns:
+        List of (model label, pricing details) tuples for display.
+    """
+    entries = build_model_tier_entries()
+    rows: list[tuple[str, str]] = []
+    for entry in entries:
+        model_label = f"{entry.model} (${entry.total_usd_per_1m:.2f}/1M blended)"
+        cache_detail = entry.cache_info
+        detail = (
+            f"input ${entry.input_usd_per_1m:.2f}/M, "
+            f"output ${entry.output_usd_per_1m:.2f}/M; "
+            f"cache {cache_detail}"
+        )
+        rows.append((model_label, detail))
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# Coordinator mode dashboard (T406)
+# ---------------------------------------------------------------------------
+
+# Coordinator mode role sets
+ROLE_COORDINATOR = {"coordinator", "manager", "lead"}
+ROLE_WORKER = {
+    "backend", "frontend", "qa", "security", "devops", "worker",
+    "backend-engineer", "frontend-engineer",
+}
+
+
+@dataclass
+class CoordinatorRow:
+    """One row in the coordinator dashboard table."""
+
+    role: str
+    task_id: str
+    title: str
+    status: str
+    elapsed: str
+
+
+def classify_role(role: str) -> str:
+    """Return 'coordinator', 'worker', or 'other' for a role label.
+
+    Args:
+        role: Role string to classify.
+
+    Returns:
+        Classification label.
+    """
+    r = role.lower().strip()
+    if r in ROLE_COORDINATOR:
+        return "coordinator"
+    if r in ROLE_WORKER:
+        return "worker"
+    return "other"
+
+
+def build_coordinator_summary(tasks: list[CoordinatorRow]) -> str:
+    """Build a one-line summary of coordinator-worker relationships.
+
+    Args:
+        tasks: All tasks to analyze.
+
+    Returns:
+        Human-readable summary string.
+    """
+    coordinators = [t for t in tasks if classify_role(t.role) == "coordinator"]
+    workers = [t for t in tasks if classify_role(t.role) == "worker"]
+    coord_active = sum(1 for c in coordinators if c.status == "in_progress")
+    worker_active = sum(1 for w in workers if w.status == "in_progress")
+    worker_done = sum(1 for w in workers if w.status == "done")
+    worker_failed = sum(1 for w in workers if w.status == "failed")
+    parts: list[str] = []
+    if coordinators:
+        parts.append(f"{len(coordinators)} coord{'s' if len(coordinators) != 1 else ''}")
+        if coord_active:
+            parts.append(f"{coord_active} running")
+    if workers:
+        parts.append(f"{len(workers)} worker{'s' if len(workers) != 1 else ''}")
+        if worker_active:
+            parts.append(f"{worker_active} active")
+        if worker_done:
+            parts.append(f"{worker_done} done")
+        if worker_failed:
+            parts.append(f"{worker_failed} failed")
+    if not parts:
+        return "No coordinator-mode tasks detected"
+    return "; ".join(parts)
+
+
+class CoordinatorDashboard(DataTable[Text]):
+    """Coordinator mode dashboard showing coordinator↔worker assignments."""
+
+    DEFAULT_CSS = """
+    CoordinatorDashboard {
+        height: 60%;
+        min-height: 12;
+    }
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._all_rows: list[CoordinatorRow] = []
+
+    def on_mount(self) -> None:
+        """Set up table columns."""
+        self.add_columns("Type", "Task", "Title", "Status", "Elapsed")
+        self.cursor_type = "row"
+        self.zebra_stripes = True
+
+    def refresh_data(self, rows: list[CoordinatorRow]) -> None:  # type: ignore[reportIncompatibleVariableOverride]
+        """Refresh the dashboard with new data."""
+        self._all_rows = rows
+        self.clear()
+        for row in rows:
+            typ = classify_role(row.role)
+            role_label = "coordinator" if typ == "coordinator" else "worker" if typ == "worker" else "other"
+            self.add_row(
+                Text(role_label),
+                Text(row.task_id, style="cyan"),
+                Text(row.title[:50], style="dim"),
+                Text(row.status),
+                Text(row.elapsed, style="dim"),
+                key=row.task_id,
+            )

@@ -186,6 +186,10 @@ class AdaptiveParallelism:
                 self._current_max,
             )
 
+        # Rule 0: SLO error-budget hard cap takes precedence over all adaptive rules
+        if self._slo_constrained_max is not None:
+            self._current_max = min(self._current_max, self._slo_constrained_max)
+
         return self._current_max
 
     def status(self) -> AdaptiveParallelismStatus:

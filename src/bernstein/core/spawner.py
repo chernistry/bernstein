@@ -1018,143 +1018,201 @@ class AgentSpawner:
         # Spawn via adapter with runtime provider/adapter failover.
         # This is critical for real-world rate-limit handling where a chosen
         # provider may fail at process-start time.
+        #
+        # In unattended mode, wrap the spawn with persistent retry
+        # (exponential backoff + heartbeats) for rate-limit errors.
+        from bernstein.core.rate_limit_tracker import (
+            UnattendedRetryPolicy,
+            is_unattended_mode,
+        )
+
+        _unattended_policy: UnattendedRetryPolicy | None = None
+        if is_unattended_mode():
+            _unattended_policy = UnattendedRetryPolicy()
+            logger.info("Unattended mode: retry rate-limit errors with backoff")
+
+        _unattended_max = _unattended_policy.max_retries if _unattended_policy is not None else 1
+        _unattended_attempt = 0
         result: SpawnResult | None = None
-        if not remote_spawned:
-            attempt_errors: list[str] = []
-            disabled_providers: dict[str, bool] = {}
-            attempted: set[tuple[str | None, str, str]] = set()
-            max_attempts = max(1, len(self._router.state.providers) if self._router is not None else 1) + 2
-            while len(attempted) < max_attempts:
-                adapter_name = self._infer_adapter_name_for_provider(provider_name, model_config.model)
-                attempt_key = (provider_name, adapter_name, model_config.model)
-                if attempt_key in attempted:
-                    break
-                attempted.add(attempt_key)
 
-                try:
-                    target_adapter = self._get_adapter_by_name(adapter_name)
-                except Exception as exc:
-                    attempt_errors.append(f"{adapter_name}: {exc}")
-                    break
+        while _unattended_attempt < _unattended_max:
+            if not remote_spawned:
+                attempt_errors: list[str] = []
+                disabled_providers: dict[str, bool] = {}
+                attempted: set[tuple[str | None, str, str]] = set()
+                max_attempts = max(1, len(self._router.state.providers) if self._router is not None else 1) + 2
+                while len(attempted) < max_attempts:
+                    adapter_name = self._infer_adapter_name_for_provider(provider_name, model_config.model)
+                    attempt_key = (provider_name, adapter_name, model_config.model)
+                    if attempt_key in attempted:
+                        break
+                    attempted.add(attempt_key)
 
-                try:
-                    spawn_start = time.perf_counter()
-                    if self._sandbox is not None:
-                        result = self._spawn_in_sandbox(
-                            session_id=session_id,
-                            prompt=prompt,
-                            spawn_cwd=spawn_cwd,
-                            model_config=model_config,
-                            mcp_config=effective_mcp,
-                            session=session,
-                            adapter=target_adapter,
-                        )
-                    elif self._container_mgr is not None:
-                        result = self._spawn_in_container(
-                            session_id=session_id,
-                            prompt=prompt,
-                            spawn_cwd=spawn_cwd,
-                            model_config=model_config,
-                            mcp_config=effective_mcp,
-                            session=session,
-                            adapter=target_adapter,
-                        )
-                    else:
-                        result = target_adapter.spawn(
-                            prompt=prompt,
-                            workdir=spawn_cwd,
-                            model_config=model_config,
-                            session_id=session_id,
-                            mcp_config=effective_mcp,
-                        )
-                    spawn_duration = time.perf_counter() - spawn_start
-                    agent_spawn_duration.labels(adapter=provider_name or adapter_name).observe(spawn_duration)
-                    session.provider = (
-                        provider_name
-                        if provider_name is not None
-                        else (adapter_name if (self._router and self._router.state.providers) else None)
-                    )
-                    session.model_config = model_config
-                    break
-                except RateLimitError as exc:
-                    attempt_errors.append(f"{adapter_name}: {exc}")
-                    logger.warning(
-                        "Rate-limit detected for provider=%s adapter=%s; retrying with alternate provider",
-                        provider_name or adapter_name,
-                        adapter_name,
-                    )
-                    if self._router is None or provider_name is None:
-                        continue
-                    provider_cfg = self._router.state.providers.get(provider_name)
-                    if provider_cfg is not None:
-                        provider_cfg.health.status = ProviderHealthStatus.RATE_LIMITED
-                        if provider_name not in disabled_providers:
-                            disabled_providers[provider_name] = provider_cfg.available
-                        provider_cfg.available = False
+
                     try:
-                        decision = self._router.select_provider_for_task(tasks[0], base_config=model_config)
-                        provider_name = decision.provider
-                        model_config = decision.model_config
-                    except RouterError:
-                        provider_name = None
-                except (SpawnError, Exception) as exc:
-                    attempt_errors.append(f"{adapter_name}: {exc}")
+                        target_adapter = self._get_adapter_by_name(adapter_name)
+                    except Exception as exc:
+                        attempt_errors.append(f"{adapter_name}: {exc}")
+                        break
 
-                    # Check for auth error (T499)
-                    is_auth_error = False
-                    log_path = spawn_cwd / ".sdd" / "logs" / f"{session_id}.log"
-                    if (
-                        log_path.exists()
-                        and self._rate_limit_tracker is not None
-                        and self._rate_limit_tracker.scan_log_for_auth_error(log_path)
-                    ):
+
+                    try:
+                        spawn_start = time.perf_counter()
+                        if self._sandbox is not None:
+                            result = self._spawn_in_sandbox(
+                                session_id=session_id,
+                                prompt=prompt,
+                                spawn_cwd=spawn_cwd,
+                                model_config=model_config,
+                                mcp_config=effective_mcp,
+                                session=session,
+                                adapter=target_adapter,
+                            )
+                        elif self._container_mgr is not None:
+                            result = self._spawn_in_container(
+                                session_id=session_id,
+                                prompt=prompt,
+                                spawn_cwd=spawn_cwd,
+                                model_config=model_config,
+                                mcp_config=effective_mcp,
+                                session=session,
+                                adapter=target_adapter,
+                            )
+                        else:
+                            result = target_adapter.spawn(
+                                prompt=prompt,
+                                workdir=spawn_cwd,
+                                model_config=model_config,
+                                session_id=session_id,
+                                mcp_config=effective_mcp,
+                            )
+                        spawn_duration = time.perf_counter() - spawn_start
+                        agent_spawn_duration.labels(adapter=provider_name or adapter_name).observe(spawn_duration)
+                        session.provider = (
+                            provider_name
+                            if provider_name is not None
+                            else (adapter_name if (self._router and self._router.state.providers) else None)
+                        )
+                        session.model_config = model_config
+                        break
+                    except RateLimitError as exc:
+                        attempt_errors.append(f"{adapter_name}: {exc}")
                         logger.warning(
-                            "Auth error detected for provider=%s adapter=%s",
+                            "Rate-limit detected for provider=%s adapter=%s; retrying with alternate provider",
                             provider_name or adapter_name,
                             adapter_name,
                         )
-                        is_auth_error = True
+                        if self._router is None or provider_name is None:
+                            continue
+                        provider_cfg = self._router.state.providers.get(provider_name)
+                        if provider_cfg is not None:
+                            provider_cfg.health.status = ProviderHealthStatus.RATE_LIMITED
+                            if provider_name not in disabled_providers:
+                                disabled_providers[provider_name] = provider_cfg.available
+                            provider_cfg.available = False
+                        try:
+                            decision = self._router.select_provider_for_task(tasks[0], base_config=model_config)
+                            provider_name = decision.provider
+                            model_config = decision.model_config
+                        except RouterError:
+                            provider_name = None
+                    except (SpawnError, Exception) as exc:
+                        attempt_errors.append(f"{adapter_name}: {exc}")
 
-                    if is_auth_error and target_adapter.supports_auth_refresh():
-                        refresh_key = (provider_name, "auth_refresh")
-                        if refresh_key not in attempted:
-                            attempted.add(refresh_key)
-                            logger.info("Attempting auth refresh for %s", adapter_name)
-                            if target_adapter.refresh_auth(spawn_cwd):
-                                # Re-try same provider once after refresh
-                                attempted.remove(attempt_key)
-                                continue
 
-                    logger.warning(
-                        "Agent spawn failed (session=%s provider=%s adapter=%s): %s",
-                        session_id,
-                        provider_name,
-                        adapter_name,
-                        exc,
-                    )
-                    if self._router is None or provider_name is None:
-                        continue
-                    provider_cfg = self._router.state.providers.get(provider_name)
+                        # Check for auth error (T499)
+                        is_auth_error = False
+                        log_path = spawn_cwd / ".sdd" / "logs" / f"{session_id}.log"
+                        if (
+                            log_path.exists()
+                            and self._rate_limit_tracker is not None
+                            and self._rate_limit_tracker.scan_log_for_auth_error(log_path)
+                        ):
+                            logger.warning(
+                                "Auth error detected for provider=%s adapter=%s",
+                                provider_name or adapter_name,
+                                adapter_name,
+                            )
+                            is_auth_error = True
+
+
+                        if is_auth_error and target_adapter.supports_auth_refresh():
+                            refresh_key = (provider_name, "auth_refresh")
+                            if refresh_key not in attempted:
+                                attempted.add(refresh_key)
+                                logger.info("Attempting auth refresh for %s", adapter_name)
+                                if target_adapter.refresh_auth(spawn_cwd):
+                                    # Re-try same provider once after refresh
+                                    attempted.remove(attempt_key)
+                                    continue
+
+
+                        logger.warning(
+                            "Agent spawn failed (session=%s provider=%s adapter=%s): %s",
+                            session_id,
+                            provider_name,
+                            adapter_name,
+                            exc,
+                        )
+                        if self._router is None or provider_name is None:
+                            continue
+                        provider_cfg = self._router.state.providers.get(provider_name)
+                        if provider_cfg is not None:
+                            self._router.update_provider_health(provider_name, success=False)
+                            if provider_name not in disabled_providers:
+                                disabled_providers[provider_name] = provider_cfg.available
+                            provider_cfg.available = False
+                        try:
+                            decision = self._router.select_provider_for_task(tasks[0], base_config=model_config)
+                            provider_name = decision.provider
+                            model_config = decision.model_config
+                        except RouterError:
+                            provider_name = None
+
+
+                for prov, was_available in disabled_providers.items():
+                    provider_cfg = self._router.state.providers.get(prov) if self._router is not None else None
                     if provider_cfg is not None:
-                        self._router.update_provider_health(provider_name, success=False)
-                        if provider_name not in disabled_providers:
-                            disabled_providers[provider_name] = provider_cfg.available
-                        provider_cfg.available = False
-                    try:
-                        decision = self._router.select_provider_for_task(tasks[0], base_config=model_config)
-                        provider_name = decision.provider
-                        model_config = decision.model_config
-                    except RouterError:
-                        provider_name = None
+                        provider_cfg.available = was_available
 
-            for prov, was_available in disabled_providers.items():
-                provider_cfg = self._router.state.providers.get(prov) if self._router is not None else None
-                if provider_cfg is not None:
-                    provider_cfg.available = was_available
 
-            if result is None:
-                error_text = "; ".join(attempt_errors) or "no viable spawn attempts"
-                raise RuntimeError(f"All spawn attempts failed for session {session_id}: {error_text}")
+                if result is None:
+                    error_text = "; ".join(attempt_errors) or "no viable spawn attempts"
+                    if _unattended_policy is not None:
+                        _unattended_attempt += 1
+                        if _unattended_attempt < _unattended_max:
+                            delay = _unattended_policy.next_delay(_unattended_attempt)
+                            signals_dir = spawn_cwd / ".sdd" / "runtime" / "signals"
+                            logger.warning(
+                                "Unattended retry: cycle %d/%d, sleeping %.0fs",
+                                _unattended_attempt, _unattended_max, delay,
+                            )
+                            _unattended_policy.wait_with_heartbeats(
+                                session_id,
+                                _unattended_attempt,
+                                f"429 rate limit ({error_text})",
+                                signals_dir=signals_dir,
+                            )
+                            # Reset provider availability for the retry
+                            if self._router is not None:
+                                for _p, _was_available in disabled_providers.items():
+                                    _pcfg = self._router.state.providers.get(_p)
+                                    if _pcfg is not None:
+                                        _pcfg.available = _was_available
+                            # Re-select provider for the retry
+                            if self._router is not None and self._router.state.providers:
+                                try:
+                                    _decision = self._router.select_provider_for_task(
+                                        tasks[0], base_config=model_config
+                                    )
+                                    provider_name = _decision.provider
+                                    model_config = _decision.model_config
+                                except RouterError:
+                                    pass
+                            continue
+                    raise RuntimeError(f"All spawn attempts failed for session {session_id}: {error_text}")
+                break
+            logger.debug("DEBUG: result=%r, result.pid=%r", result, result.pid if result is not None else "N/A")
             session.pid = result.pid
             session.abort_reason = result.abort_reason
             session.abort_detail = result.abort_detail
@@ -1175,6 +1233,7 @@ class AgentSpawner:
                     from bernstein.core.agent_ipc import register_stdin_pipe
 
                     register_stdin_pipe(session_id, proc_stdin)
+            break
 
         # Create and persist the initial trace
         # Serialize task fields to JSON-safe types (convert Enums to their values)

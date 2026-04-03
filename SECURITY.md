@@ -18,6 +18,9 @@ Bernstein orchestrates AI coding agents that execute code on your machine. By de
 
 ## Supported Versions
 
-| Version | Supported |
-|---------|-----------|
-| 0.1.x   | Yes       |
+| Version | Supported          |
+|---------|--------------------|
+| 1.4.x   | Yes                |
+| < 1.0   | No                 |
+
+We recommend always running the latest release. Security patches are applied to the current minor version only.

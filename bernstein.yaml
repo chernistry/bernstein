@@ -9,43 +9,40 @@ cli: auto  # auto-detect: claude + qwen
 
 max_agents: 6  # 3 Claude Code + 3 Qwen (free tier)
 
-# Route tasks to two agents: Claude Code (primary) + Qwen (secondary, free).
-# Claude handles complex tasks (manager, architect, security, backend).
-# Qwen handles simpler tasks (qa, docs, frontend) — qwen3.6-plus is free.
-routing:
-  manager: claude-opus         # planning — strongest reasoning
-  architect: claude-opus       # design decisions
-  security: claude-opus        # deep analysis
-  backend: claude-sonnet       # bulk implementation
-  frontend: qwen               # UI work (qwen3.6-plus, free)
-  qa: qwen                     # test writing (qwen3.6-plus, free)
-  reviewer: qwen               # cross-model review (different model catches different bugs)
-  docs: qwen                   # documentation (free)
-
 # Runtime-enforced provider/model pins.
+# "provider" controls which CLI adapter spawns the agent.
+# Claude handles complex tasks; Qwen handles simpler ones (free tier).
 role_model_policy:
   manager:
+    provider: claude
     model: opus
     effort: max
   architect:
+    provider: claude
     model: opus
     effort: max
   security:
+    provider: claude
     model: opus
     effort: max
   backend:
+    provider: claude
     model: sonnet
     effort: high
   frontend:
+    provider: qwen
     model: sonnet
     effort: high
   qa:
+    provider: qwen
     model: sonnet
     effort: high
   reviewer:
+    provider: qwen
     model: sonnet
     effort: high
   docs:
+    provider: qwen
     model: sonnet
     effort: high
 

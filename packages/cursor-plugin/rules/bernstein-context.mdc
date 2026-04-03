@@ -1,0 +1,34 @@
+---
+description: Bernstein orchestrator context — always active when working in a Bernstein-managed project
+alwaysApply: true
+---
+
+# Bernstein Orchestrator Context
+
+You are working in a project managed by **Bernstein**, a multi-agent orchestration system.
+Bernstein runs at `http://127.0.0.1:8052` and coordinates parallel AI coding agents.
+
+## Key concepts
+
+- **Tasks** have states: `open` → `claimed` → `in_progress` → `done` | `failed` | `cancelled` | `blocked`
+- **Agents** are short-lived (1-3 tasks each), spawned per task, isolated in git worktrees
+- **Roles**: backend, frontend, qa, security, devops, docs — each agent specializes
+- **Quality gates**: every task goes through lint, type-check, and test verification before completion
+- **Cost tracking**: real-time per-model, per-agent spend with budget enforcement
+
+## State lives in files
+
+- `.sdd/` directory contains all orchestrator state (backlog, runtime, metrics, config)
+- `.sdd/backlog/` has task YAML files
+- Agents are spawned fresh per task — no persistent memory
+
+## When you see Bernstein-related requests
+
+Use the `/bernstein-status`, `/bernstein-create-task`, `/bernstein-approve`, or `/bernstein-cost` skills
+to interact with the orchestrator API at `http://127.0.0.1:8052`.
+
+## API base URL
+
+The Bernstein API runs at `http://127.0.0.1:8052` by default.
+Set the `BERNSTEIN_API_URL` environment variable to override.
+Set `BERNSTEIN_API_TOKEN` for authenticated setups.

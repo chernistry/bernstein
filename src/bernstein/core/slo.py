@@ -82,10 +82,14 @@ class ErrorBudget:
 
     @property
     def budget_total(self) -> int:
-        """Total allowed failures given current task count."""
+        """Total allowed failures given current task count.
+
+        Always allows at least 3 failures to avoid false depletion when
+        only a few tasks have completed (e.g. 2 * 0.10 rounds to 0).
+        """
         if self.total_tasks == 0:
             return 0
-        return max(0, round(self.total_tasks * (1.0 - self.slo_target)))
+        return max(3, round(self.total_tasks * (1.0 - self.slo_target)))
 
     @property
     def budget_remaining(self) -> int:

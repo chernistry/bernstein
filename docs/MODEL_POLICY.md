@@ -164,12 +164,11 @@ model_policy:
 ```yaml
 model_policy:
   allowed_providers:
-    - ollama-free
-    - anthropic-free
-  prefer: ollama-free
+    - ollama
+  prefer: ollama
 ```
 
-**Effect**: Prefer local Ollama, fallback to Anthropic's free tier. Premium providers unavailable.
+**Effect**: Only local Ollama models. No cloud API calls at all.
 
 ### Example 3: Compliance — Block Specific Providers
 

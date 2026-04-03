@@ -159,9 +159,9 @@ bridges:
     workspace_mode: shared_workspace
     fallback_to_local: true
     connect_timeout_s: 10
-    request_timeout_s: 900
-    session_prefix: bernstein
-    max_log_bytes: 262144
+    request_timeout_s: 30.0
+    session_prefix: bernstein-
+    max_log_bytes: 1048576
     model_override: null
 ```
 

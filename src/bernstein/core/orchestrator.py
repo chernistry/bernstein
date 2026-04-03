@@ -94,7 +94,7 @@ from bernstein.core.runtime_state import (
 )
 from bernstein.core.semantic_cache import ResponseCacheManager
 from bernstein.core.signals import read_unresolved_pivots
-from bernstein.core.slo import SLOTracker
+from bernstein.core.slo import SLOTracker, apply_error_budget_adjustments
 from bernstein.core.task_grouping import compact_small_tasks
 from bernstein.core.task_lifecycle import (
     auto_decompose_task,
@@ -1139,6 +1139,14 @@ class Orchestrator:
             collector = get_collector()
             self._slo_tracker.update_from_collector(collector)
             self._slo_tracker.save(self._workdir / ".sdd" / "metrics")
+
+            # Apply error-budget-driven throttling adjustments
+            adjusted_max, _ = apply_error_budget_adjustments(
+                self._config.max_agents, self._slo_tracker
+            )
+            self._adaptive_parallelism.set_slo_constraint(
+                adjusted_max if adjusted_max != self._config.max_agents else None
+            )
 
             # Track consecutive failures for incident detection
             if result.verified:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from bernstein.core.compaction_pipeline import strip_media_blocks
 from bernstein.core.context_recommendations import RecommendationEngine
 from bernstein.core.heartbeat import HeartbeatMonitor
 from bernstein.core.lessons import gather_lessons_for_context

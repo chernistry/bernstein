@@ -1083,3 +1083,172 @@ class ApprovalAction:
     approved: bool
     task_id: str
     reason: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Waterfall trace view (T412)
+# ---------------------------------------------------------------------------
+
+#: Step-type display labels used in waterfall rows.
+_WATERFALL_TYPE_LABELS: dict[str, str] = {
+    "spawn": "spawn",
+    "orient": "read",
+    "plan": "plan",
+    "edit": "write",
+    "verify": "exec",
+    "complete": "done",
+    "fail": "fail",
+    "compact": "cmpct",
+}
+
+#: Rich colour names for each step type in the waterfall.
+_WATERFALL_TYPE_COLORS: dict[str, str] = {
+    "spawn": "cyan",
+    "orient": "blue",
+    "plan": "dim",
+    "edit": "green",
+    "verify": "yellow",
+    "complete": "bright_green",
+    "fail": "red",
+    "compact": "magenta",
+}
+
+
+def _waterfall_type_label(step_type: str) -> str:
+    return _WATERFALL_TYPE_LABELS.get(step_type, step_type[:5])
+
+
+def _waterfall_type_color(step_type: str) -> str:
+    return _WATERFALL_TYPE_COLORS.get(step_type, "white")
+
+
+def render_waterfall_batches(
+    batches: list[Any],
+    *,
+    bar_width: int = 48,
+    label_width: int = 18,
+) -> Text:
+    """Render waterfall tool batches as a Rich Text object (T412).
+
+    Each batch occupies one or more rows (one per step type in concurrent
+    batches).  Timing bars are drawn proportional to the total trace
+    duration.  Abort batches are highlighted in red with a back-reference
+    to the triggering batch.
+
+    Args:
+        batches: List of ToolBatch objects (from
+            ``group_trace_steps_into_batches``).
+        bar_width: Characters available for the horizontal timing bar.
+        label_width: Characters reserved for the left-hand label column.
+
+    Returns:
+        Rich Text suitable for rendering in a Textual ``Static`` widget.
+    """
+    text = Text()
+    if not batches:
+        text.append("No trace batches to display.", style="dim")
+        return text
+
+    total_start = min(b.start_ts for b in batches)
+    total_end = max(b.end_ts for b in batches)
+    duration = max(total_end - total_start, 1.0)
+
+    for batch in batches:
+        is_abort = bool(batch.abort_reason)
+        row_color = "red" if is_abort else None
+
+        # --- Label column ---
+        batch_label = f"B{batch.batch_id:<2}"
+        if batch.is_concurrent:
+            batch_label += " \u21c9"  # concurrent indicator ⇉
+        else:
+            batch_label += "  "
+
+        text.append(f"{batch_label:<6}", style="bold" if is_abort else "dim")
+
+        # Type tags
+        seen_types: list[str] = []
+        for step in batch.steps:
+            t = step.type
+            if t not in seen_types:
+                seen_types.append(t)
+        type_str = ",".join(_waterfall_type_label(t) for t in seen_types)
+        type_str = f"[{type_str}]"
+        padded = f"{type_str:<{label_width}}"
+        text.append(padded, style=row_color or "cyan")
+
+        # --- Timing bar ---
+        start_off = int(((batch.start_ts - total_start) / duration) * bar_width)
+        bar_len = max(1, int(((batch.end_ts - batch.start_ts) / duration) * bar_width))
+        start_off = max(0, min(start_off, bar_width - 1))
+        bar_len = min(bar_len, bar_width - start_off)
+
+        text.append(" " * start_off)
+        bar_char = "\u2593" if batch.is_concurrent else "\u2588"  # ▓ or █
+        bar_style = row_color or _waterfall_type_color(seen_types[0] if seen_types else "plan")
+        text.append(bar_char * bar_len, style=bar_style)
+
+        # Duration annotation
+        batch_dur_ms = int((batch.end_ts - batch.start_ts) * 1000)
+        if batch_dur_ms >= 1000:
+            dur_str = f" {batch_dur_ms / 1000:.1f}s"
+        else:
+            dur_str = f" {batch_dur_ms}ms"
+        text.append(dur_str, style="dim")
+
+        text.append("\n")
+
+        # --- Abort annotation row ---
+        if is_abort:
+            indent = " " * 8
+            reason_short = batch.abort_reason[:60] + ("\u2026" if len(batch.abort_reason) > 60 else "")
+            trig = (
+                f" \u2190 triggered by B{batch.triggering_batch_id}"
+                if batch.triggering_batch_id is not None
+                else ""
+            )
+            text.append(f"{indent}\u2717 {reason_short}{trig}\n", style="red")
+
+    return text
+
+
+class WaterfallWidget(Static):
+    """Waterfall trace view showing tool batches and timing (T412).
+
+    Renders serial and concurrent tool batches as horizontal timing bars.
+    Abort/fail batches are highlighted in red and linked back to the
+    batch that triggered the early exit.
+
+    Usage::
+
+        widget = WaterfallWidget(id="waterfall")
+        widget.update_batches(group_trace_steps_into_batches(trace.steps))
+    """
+
+    DEFAULT_CSS = """
+    WaterfallWidget {
+        height: auto;
+        max-height: 60%;
+        border: tall $primary 30%;
+        padding: 0 1;
+    }
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._batches: list[Any] = []
+
+    def update_batches(self, batches: list[Any]) -> None:
+        """Replace the current batch list and refresh the display.
+
+        Args:
+            batches: Ordered list of ToolBatch objects.
+        """
+        self._batches = batches
+        self.refresh()
+
+    def render(self) -> Text:
+        """Render all batches as a Rich waterfall diagram."""
+        width = max(self.size.width - 4, 20)
+        bar_w = max(width - 30, 20)
+        return render_waterfall_batches(self._batches, bar_width=bar_w)

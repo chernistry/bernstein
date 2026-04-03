@@ -11,8 +11,13 @@
 
 [![CI](https://github.com/chernistry/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/chernistry/bernstein/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/chernistry/bernstein/graph/badge.svg)](https://codecov.io/gh/chernistry/bernstein)
+[![PyPI](https://img.shields.io/pypi/v/bernstein)](https://pypi.org/project/bernstein/)
+[![npm](https://img.shields.io/npm/v/bernstein-orchestrator)](https://www.npmjs.com/package/bernstein-orchestrator)
+[![VS Marketplace](https://img.shields.io/visual-studio-marketplace/v/alex-chernysh.bernstein)](https://marketplace.visualstudio.com/items?itemName=alex-chernysh.bernstein)
+[![Open VSX](https://img.shields.io/open-vsx/v/alex-chernysh/bernstein)](https://open-vsx.org/extension/alex-chernysh/bernstein)
+[![COPR](https://img.shields.io/badge/copr-alexchernysh%2Fbernstein-blue)](https://copr.fedorainfracloud.org/coprs/alexchernysh/bernstein/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
-[![License](https://img.shields.io/badge/license-Apache_2.0-blue)](LICENSE)
+[![License](https://img.shields.io/github/license/chernistry/bernstein)](LICENSE)
 [![MCP Compatible](https://img.shields.io/badge/MCP-1.0%2C%201.1-blue)](docs/compatibility.md)
 [![A2A Compatible](https://img.shields.io/badge/A2A-0.2%2C%200.3-blue)](docs/compatibility.md)
 [![Sponsor](https://img.shields.io/badge/sponsor-GitHub%20%2F%20OpenCollective-ff69b4?logo=github&logoColor=white)](https://github.com/sponsors/chernistry)
@@ -30,11 +35,15 @@ If you're running one agent at a time, you're leaving performance on the table. 
 ```bash
 pip install bernstein                    # any platform
 # or
-brew tap chernistry/tap && brew install bernstein  # macOS / Linux
-# or
 pipx install bernstein                   # isolated install
 # or
 uv tool install bernstein                # fastest (Rust-based)
+# or
+brew tap chernistry/bernstein && brew install bernstein  # macOS / Linux
+# or
+sudo dnf copr enable alexchernysh/bernstein && sudo dnf install bernstein  # Fedora / RHEL
+# or
+npx bernstein-orchestrator               # npm wrapper (requires Python 3.12+)
 
 # Run:
 bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
@@ -49,7 +58,7 @@ Bernstein is a deterministic orchestrator for CLI coding agents. It schedules ta
 ## 5-minute setup
 
 ```bash
-# 1. Install (pick one)
+# 1. Install (pick one — full list in the install block above)
 pipx install bernstein
 
 # 2. Init your project (creates .sdd/ workspace + bernstein.yaml)
@@ -106,6 +115,34 @@ Only capabilities that ship with v1.4.11. Full matrix at [FEATURE_MATRIX.md](doc
 - **Cluster mode** — central server + remote worker nodes for distributed execution.
 - **MCP server mode** — run Bernstein as an MCP tool server for other agents.
 - **12 agent adapters** — Claude, Codex, Cursor, Gemini, Aider, Amp, Roo Code, Kiro, Kilo, OpenCode, Qwen, Goose, plus a generic catch-all.
+
+## Install
+
+All methods install the same `bernstein` CLI.
+
+| Method | Command |
+|--------|---------|
+| **pip** | `pip install bernstein` |
+| **pipx** | `pipx install bernstein` |
+| **uv** | `uv tool install bernstein` |
+| **Homebrew** | `brew tap chernistry/bernstein && brew install bernstein` |
+| **Fedora / RHEL** | `sudo dnf copr enable alexchernysh/bernstein && sudo dnf install bernstein` |
+| **npm** (thin wrapper) | `npx bernstein-orchestrator` or `npm i -g bernstein-orchestrator` |
+
+The npm wrapper requires Python 3.12+ on the system -- it delegates to `pipx`/`uvx`/`python` under the hood.
+
+COPR targets: Fedora 41, 42 (x86_64, aarch64), EPEL 9, 10.
+
+## Editor extensions
+
+| Editor | Install |
+|--------|---------|
+| **VS Code** | `code --install-extension alex-chernysh.bernstein` or search "Bernstein" in Extensions |
+| **Cursor** | Search "Bernstein" in Extensions, or install from [Open VSX](https://open-vsx.org/extension/alex-chernysh/bernstein) |
+| **Cursor (skills)** | 8 built-in skills in `packages/cursor-plugin/` |
+
+- [VS Marketplace](https://marketplace.visualstudio.com/items?itemName=alex-chernysh.bernstein)
+- [Open VSX](https://open-vsx.org/extension/alex-chernysh/bernstein)
 
 ## Monitoring and diagnostics
 

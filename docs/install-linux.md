@@ -41,7 +41,18 @@ bernstein --version
 
 ---
 
-## RHEL / Fedora / CentOS (YUM / DNF)
+## Fedora / RHEL via COPR (recommended)
+
+The easiest way to install on Fedora or RHEL. Targets: Fedora 41, 42 (x86_64, aarch64), EPEL 9, 10.
+
+```bash
+sudo dnf copr enable alexchernysh/bernstein
+sudo dnf install bernstein
+```
+
+COPR repository: https://copr.fedorainfracloud.org/coprs/alexchernysh/bernstein/
+
+## RHEL / Fedora / CentOS — manual RPM repo (alternative)
 
 ```bash
 # Add repository
@@ -103,6 +114,7 @@ rpm -K bernstein-*.rpm
 | pipx   | `pipx install bernstein` |
 | uv     | `uv tool install bernstein` |
 | pip    | `pip install bernstein` |
+| npm    | `npx bernstein-orchestrator` (requires Python 3.12+) |
 | Docker | `docker run ghcr.io/chernistry/bernstein` |
 
 ---

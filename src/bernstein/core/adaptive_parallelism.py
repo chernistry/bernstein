@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 _ERROR_RATE_HIGH: float = 0.20
 _ERROR_RATE_LOW: float = 0.05
 _LOW_ERROR_SUSTAIN_S: float = 600.0  # 10 minutes
-_CPU_PAUSE_THRESHOLD: float = 80.0
+_CPU_PAUSE_THRESHOLD: float = 95.0
 _WINDOW_S: float = 600.0  # sliding window for error rate calculation
 
 

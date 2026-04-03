@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
+
+import pytest
 
 from bernstein.tui.agent_duration import format_agent_duration, get_duration_color
 from bernstein.tui.worktree_status import WorktreeStatus, format_worktree_display, get_worktree_status
@@ -445,3 +448,221 @@ def test_render_model_tier_table() -> None:
         assert "input" in detail
         assert "output" in detail
         assert "cache" in detail
+
+
+# ---------------------------------------------------------------------------
+# Waterfall trace view tests (T412)
+# ---------------------------------------------------------------------------
+
+
+def _make_step(
+    step_type: str,
+    timestamp: float,
+    duration_ms: int = 0,
+    detail: str = "",
+) -> "Any":
+    """Create a TraceStep for testing."""
+    from bernstein.core.traces import TraceStep
+
+    return TraceStep(type=step_type, timestamp=timestamp, duration_ms=duration_ms, detail=detail)
+
+
+class TestGroupTraceStepsIntoBatches:
+    """Tests for group_trace_steps_into_batches."""
+
+    def test_empty_steps_returns_empty(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+
+        assert group_trace_steps_into_batches([]) == []
+
+    def test_single_step_makes_one_batch(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+
+        steps = [_make_step("orient", 1000.0)]
+        batches = group_trace_steps_into_batches(steps)
+
+        assert len(batches) == 1
+        assert batches[0].batch_id == 0
+        assert not batches[0].is_concurrent
+        assert len(batches[0].steps) == 1
+
+    def test_close_steps_grouped_as_concurrent(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+
+        steps = [
+            _make_step("orient", 1000.0),
+            _make_step("edit", 1000.2),  # 0.2s gap — within default 0.5s threshold
+        ]
+        batches = group_trace_steps_into_batches(steps)
+
+        assert len(batches) == 1
+        assert batches[0].is_concurrent
+        assert len(batches[0].steps) == 2
+
+    def test_distant_steps_become_serial_batches(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+
+        steps = [
+            _make_step("orient", 1000.0),
+            _make_step("edit", 1002.0),  # 2s gap — beyond default 0.5s threshold
+        ]
+        batches = group_trace_steps_into_batches(steps)
+
+        assert len(batches) == 2
+        assert batches[0].batch_id == 0
+        assert batches[1].batch_id == 1
+        assert not batches[0].is_concurrent
+        assert not batches[1].is_concurrent
+
+    def test_batch_timestamps_correct(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+
+        steps = [
+            _make_step("orient", 1000.0, duration_ms=500),
+            _make_step("edit", 1002.0, duration_ms=300),
+        ]
+        batches = group_trace_steps_into_batches(steps)
+
+        assert batches[0].start_ts == 1000.0
+        assert batches[0].end_ts == pytest.approx(1000.5)
+        assert batches[1].start_ts == 1002.0
+        assert batches[1].end_ts == pytest.approx(1002.3)
+
+    def test_fail_step_produces_abort_batch(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+
+        steps = [
+            _make_step("verify", 1000.0),
+            _make_step("fail", 1002.0, detail="tests failed"),
+        ]
+        batches = group_trace_steps_into_batches(steps)
+
+        abort_batch = batches[-1]
+        assert abort_batch.abort_reason == "tests failed"
+
+    def test_abort_batch_links_to_trigger(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+
+        steps = [
+            _make_step("orient", 1000.0),
+            _make_step("verify", 1002.0),
+            _make_step("fail", 1005.0, detail="exit 1"),
+        ]
+        batches = group_trace_steps_into_batches(steps)
+
+        abort_batch = next(b for b in batches if b.abort_reason)
+        assert abort_batch.triggering_batch_id is not None
+        # The trigger should be the verify batch (last non-terminal before fail)
+        trigger = batches[abort_batch.triggering_batch_id]
+        assert any(s.type == "verify" for s in trigger.steps)
+
+    def test_custom_threshold(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+
+        steps = [
+            _make_step("orient", 1000.0),
+            _make_step("edit", 1000.8),  # 0.8s gap
+        ]
+        # With 0.3s threshold → 2 batches
+        batches_strict = group_trace_steps_into_batches(steps, concurrency_threshold_s=0.3)
+        assert len(batches_strict) == 2
+
+        # With 1.0s threshold → 1 concurrent batch
+        batches_loose = group_trace_steps_into_batches(steps, concurrency_threshold_s=1.0)
+        assert len(batches_loose) == 1
+        assert batches_loose[0].is_concurrent
+
+    def test_no_abort_link_for_success(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+
+        steps = [
+            _make_step("orient", 1000.0),
+            _make_step("edit", 1002.0),
+            _make_step("complete", 1005.0),
+        ]
+        batches = group_trace_steps_into_batches(steps)
+
+        for batch in batches:
+            assert batch.abort_reason == ""
+            assert batch.triggering_batch_id is None
+
+
+class TestRenderWaterfallBatches:
+    """Tests for render_waterfall_batches."""
+
+    def test_empty_batches_returns_placeholder(self) -> None:
+        from bernstein.tui.widgets import render_waterfall_batches
+
+        result = render_waterfall_batches([])
+        assert "No trace" in result.plain
+
+    def test_single_batch_renders_bar(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+        from bernstein.tui.widgets import render_waterfall_batches
+
+        steps = [_make_step("orient", 1000.0, duration_ms=2000)]
+        batches = group_trace_steps_into_batches(steps)
+        result = render_waterfall_batches(batches, bar_width=20)
+
+        plain = result.plain
+        assert "B0" in plain
+        assert "read" in plain  # orient → read label
+
+    def test_concurrent_batch_shows_indicator(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+        from bernstein.tui.widgets import render_waterfall_batches
+
+        steps = [
+            _make_step("orient", 1000.0),
+            _make_step("edit", 1000.1),
+        ]
+        batches = group_trace_steps_into_batches(steps)
+        result = render_waterfall_batches(batches, bar_width=20)
+
+        # Concurrent indicator ⇉ should appear
+        assert "\u21c9" in result.plain
+
+    def test_abort_batch_shows_reason(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+        from bernstein.tui.widgets import render_waterfall_batches
+
+        steps = [
+            _make_step("verify", 1000.0),
+            _make_step("fail", 1002.0, detail="build failed"),
+        ]
+        batches = group_trace_steps_into_batches(steps)
+        result = render_waterfall_batches(batches, bar_width=20)
+
+        assert "build failed" in result.plain
+        assert "\u2717" in result.plain  # ✗ abort marker
+
+    def test_abort_batch_shows_trigger_link(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+        from bernstein.tui.widgets import render_waterfall_batches
+
+        steps = [
+            _make_step("verify", 1000.0),
+            _make_step("fail", 1003.0, detail="exit 1"),
+        ]
+        batches = group_trace_steps_into_batches(steps)
+        result = render_waterfall_batches(batches, bar_width=20)
+
+        # Abort row should reference the triggering batch
+        assert "triggered by B" in result.plain
+
+    def test_serial_batches_render_multiple_rows(self) -> None:
+        from bernstein.core.traces import group_trace_steps_into_batches
+        from bernstein.tui.widgets import render_waterfall_batches
+
+        steps = [
+            _make_step("orient", 1000.0, duration_ms=500),
+            _make_step("edit", 1002.0, duration_ms=500),
+            _make_step("verify", 1005.0, duration_ms=500),
+        ]
+        batches = group_trace_steps_into_batches(steps)
+        result = render_waterfall_batches(batches, bar_width=30)
+
+        plain = result.plain
+        assert "B0" in plain
+        assert "B1" in plain
+        assert "B2" in plain

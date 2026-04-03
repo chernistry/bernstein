@@ -88,8 +88,8 @@ Click to open the dashboard.
 ## For Cursor Users
 
 Bernstein works seamlessly in Cursor. Install from the Open VSX registry:
-- Search for "bernstein" in Cursor's extensions panel
-- Or install manually: `code --install-extension chernistry.bernstein`
+- Search for "Bernstein" in Cursor's extensions panel
+- Or install manually: `code --install-extension alex-chernysh.bernstein`
 
 ## Privacy & Data
 

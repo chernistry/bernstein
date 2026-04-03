@@ -27,6 +27,7 @@ from bernstein.tui.widgets import (
     StatusBar,
     TaskListWidget,
     TaskRow,
+    WaterfallWidget,
     classify_role,
 )
 
@@ -114,6 +115,7 @@ class BernsteinApp(App[None]):
         Binding("x", "cancel_task", "Cancel task", show=False),
         Binding("t", "retry_task", "Retry task", show=False),
         Binding("v", "toggle_timeline", "Timeline", show=True),
+        Binding("f", "toggle_waterfall", "Waterfall", show=True),
         Binding("c", "toggle_scratchpad", "Scratchpad", show=True),
         Binding("w", "toggle_coordinator", "Coordinator", show=True),
         Binding("a", "toggle_approvals", "Approvals", show=True),
@@ -146,6 +148,7 @@ class BernsteinApp(App[None]):
         with Vertical(id="main-body"):
             yield TaskListWidget(id="task-list")
             yield TaskTimeline(id="task-timeline")
+            yield WaterfallWidget(id="waterfall-view")
             yield ScratchpadViewer(id="scratchpad-viewer")
             yield CoordinatorDashboard(id="coordinator-dashboard")
             yield ApprovalPanel(id="approval-panel")
@@ -155,9 +158,10 @@ class BernsteinApp(App[None]):
 
     def on_mount(self) -> None:
         """Start the periodic poll timer after mounting."""
-        # Hide action bar, timeline, and scratchpad initially.
+        # Hide action bar, timeline, scratchpad, waterfall, and others initially.
         self.query_one("#action-bar", ActionBar).display = False
         self.query_one("#task-timeline", TaskTimeline).display = False
+        self.query_one("#waterfall-view", WaterfallWidget).display = False
         self.query_one("#scratchpad-viewer", ScratchpadViewer).display = False
         self.query_one("#coordinator-dashboard", CoordinatorDashboard).display = False
         self.query_one("#approval-panel", ApprovalPanel).display = False
@@ -215,6 +219,27 @@ class BernsteinApp(App[None]):
                 for e in data.get("entries", [])
             ]
             self.query_one("#task-timeline", TaskTimeline).update_data(entries)
+
+    def action_toggle_waterfall(self) -> None:
+        """Show/hide the waterfall trace view."""
+        waterfall = self.query_one("#waterfall-view", WaterfallWidget)
+        waterfall.display = not waterfall.display
+        if waterfall.display:
+            self.run_worker(self._refresh_waterfall())
+            waterfall.focus()
+
+    async def _refresh_waterfall(self) -> None:
+        """Fetch the most recent trace and render it as waterfall batches."""
+        from bernstein.core.traces import TraceStore, group_trace_steps_into_batches
+
+        traces_dir = Path(".sdd/traces")
+        store = TraceStore(traces_dir)
+        traces = store.list_traces(limit=1)
+        if not traces:
+            return
+        latest = traces[0]
+        batches = group_trace_steps_into_batches(latest.steps)
+        self.query_one("#waterfall-view", WaterfallWidget).update_batches(batches)
 
     def action_toggle_scratchpad(self) -> None:
         """Show/hide the scratchpad viewer."""

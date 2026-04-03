@@ -1,0 +1,15 @@
+{
+  "name": "bernstein",
+  "description": "Orchestrate parallel AI coding agents from Cursor. Monitor tasks, agents, costs, approve plans — all without leaving your editor.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Alex Chernysh",
+    "url": "https://github.com/chernistry/bernstein"
+  },
+  "license": "Apache-2.0",
+  "repository": "https://github.com/chernistry/bernstein",
+  "keywords": ["ai", "agents", "orchestration", "multi-agent", "bernstein"],
+  "compatibility": {
+    "cursor": ">=2.4.0"
+  }
+}

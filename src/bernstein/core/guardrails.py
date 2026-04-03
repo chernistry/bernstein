@@ -452,9 +452,7 @@ def run_guardrails(
     return results
 
 
-def _decision_to_result(
-    task_id: str, check_name: str, d: PermissionDecision, bypass_enabled: bool
-) -> GuardrailResult:
+def _decision_to_result(task_id: str, check_name: str, d: PermissionDecision, bypass_enabled: bool) -> GuardrailResult:
     """Translate a PermissionDecision to a legacy GuardrailResult."""
     passed = d.type == DecisionType.ALLOW
     # These types are considered "blocked" if not allowed

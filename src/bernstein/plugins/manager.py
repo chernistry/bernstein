@@ -378,4 +378,3 @@ def get_plugin_manager(workdir: Path | None = None, reload: bool = False) -> Plu
         _manager = PluginManager()
         _manager.load_from_workdir(workdir)
     return _manager
-

@@ -30,6 +30,12 @@ logger = logging.getLogger("bernstein-worker")
 
 _BASH_ERROR_RE = re.compile(r"\[(Bash|shell)\]\s+.*exited\s+with\s+code\s+([1-9]\d*)")
 
+# Valid tool-abort policy values (used by --tool-abort-policy CLI arg).
+# contain  → write TOOL_ABORT signal only; agent session continues.
+# sibling  → write TOOL_ABORT + send SHUTDOWN to sibling agents.
+# session  → write TOOL_ABORT + kill this agent session immediately.
+_TOOL_ABORT_POLICIES = ("contain", "sibling", "session")
+
 
 def _set_proctitle(title: str) -> None:
     """Set the process title for ps / Activity Monitor."""
@@ -49,8 +55,33 @@ def _write_pid_file(pid_dir: Path, session: str, info: dict[str, object]) -> Pat
     return pid_file
 
 
-def _monitor_logs(log_path: Path, session_id: str, child: subprocess.Popen[bytes], workdir: Path) -> None:
-    """Scan the agent log for tool errors and trigger aborts if needed."""
+def _monitor_logs(
+    log_path: Path,
+    session_id: str,
+    child: subprocess.Popen[bytes],
+    workdir: Path,
+    *,
+    tool_abort_policy: str = "session",
+) -> None:
+    """Scan the agent log for tool errors and apply the per-tool abort policy.
+
+    Three policy levels control what happens when a tool failure is detected:
+
+    * ``"contain"`` — Write a ``TOOL_ABORT`` signal and let the agent decide
+      whether to retry or skip; the session process is *not* killed.
+    * ``"sibling"`` — Write a ``TOOL_ABORT`` signal *and* send ``SHUTDOWN`` to
+      sibling agents (agents that share the same parent in the abort chain)
+      without killing this session.
+    * ``"session"`` — Write a ``TOOL_ABORT`` signal *and* kill this agent
+      session immediately (legacy behaviour, the default).
+
+    Args:
+        log_path: Path to the agent's log file.
+        session_id: This session's ID (used for signal file paths).
+        child: The spawned agent subprocess to optionally kill.
+        workdir: Project root for plugin manager initialisation.
+        tool_abort_policy: One of ``"contain"``, ``"sibling"``, or ``"session"``.
+    """
     if not log_path.exists():
         # Wait up to 5s for log to appear
         for _ in range(50):
@@ -60,9 +91,22 @@ def _monitor_logs(log_path: Path, session_id: str, child: subprocess.Popen[bytes
         else:
             return
 
+    from bernstein.core.abort_chain import AbortChain, AbortPolicy, AbortScope
     from bernstein.plugins.manager import get_plugin_manager
 
     pm = get_plugin_manager(workdir)
+    signals_dir = workdir / ".sdd" / "runtime" / "signals"
+    abort_chain = AbortChain(signals_dir=signals_dir)
+
+    # Build policy from the requested level.
+    if tool_abort_policy == "sibling":
+        policy = AbortPolicy(tool_to_sibling=True, sibling_to_session=False)
+    elif tool_abort_policy == "session":
+        # tool_to_sibling=False; session kill is handled explicitly below.
+        policy = AbortPolicy(tool_to_sibling=False, sibling_to_session=False)
+    else:  # "contain"
+        policy = AbortPolicy(tool_to_sibling=False, sibling_to_session=False)
+
     last_size = 0
 
     while child.poll() is None:
@@ -76,17 +120,47 @@ def _monitor_logs(log_path: Path, session_id: str, child: subprocess.Popen[bytes
                         match = _BASH_ERROR_RE.search(line)
                         if match:
                             tool = match.group(1)
-                            exit_code = match.group(2)
-                            error_msg = f"Tool {tool} failed with exit code {exit_code}"
-                            logger.warning("Sibling abort triggered: %s", error_msg)
+                            exit_code_str = match.group(2)
+                            error_msg = f"Tool {tool} failed with exit code {exit_code_str}"
+                            logger.warning(
+                                "Tool error detected (policy=%s): %s",
+                                tool_abort_policy,
+                                error_msg,
+                            )
 
-                            # Fire hook
+                            # Fire plugin hook regardless of scope.
                             pm.fire_tool_error(session_id, tool, error_msg)
 
-                            # Kill child process immediately to prevent sibling conflicts
-                            logger.error("Killing agent %s due to Bash error in batch", session_id)
-                            child.kill()
-                            return
+                            # Write TOOL_ABORT signal (always) and cascade per policy.
+                            cascaded = abort_chain.abort_tool(
+                                session_id,
+                                tool,
+                                error_msg,
+                                policy=policy if tool_abort_policy == "sibling" else None,
+                            )
+                            if cascaded:
+                                logger.info(
+                                    "Sibling abort: sent SHUTDOWN to %d sibling(s): %s",
+                                    len(cascaded),
+                                    ", ".join(cascaded),
+                                )
+
+                            if tool_abort_policy == "session":
+                                # Escalate to session level — kill the child.
+                                logger.error(
+                                    "Session abort: killing agent %s due to tool error (scope=%s)",
+                                    session_id,
+                                    AbortScope.SESSION,
+                                )
+                                child.kill()
+                                return
+
+                            # contain / sibling: leave session running.
+                            logger.info(
+                                "Tool abort contained at scope=%s for session %s",
+                                tool_abort_policy,
+                                session_id,
+                            )
                 last_size = current_size
         except Exception as exc:
             logger.debug("Log monitor error: %s", exc)
@@ -104,6 +178,17 @@ def main() -> None:
     parser.add_argument("--workdir", default=".", help="Project root directory")
     parser.add_argument("--log-path", help="Path to the agent log file")
     parser.add_argument("--model", default="", help="Model name for metadata")
+    parser.add_argument(
+        "--tool-abort-policy",
+        default="session",
+        choices=_TOOL_ABORT_POLICIES,
+        help=(
+            "Per-tool abort scope: 'contain' (write TOOL_ABORT only), "
+            "'sibling' (write TOOL_ABORT + abort siblings), "
+            "'session' (write TOOL_ABORT + kill this session). "
+            "Default: session."
+        ),
+    )
     parser.add_argument("command", nargs=argparse.REMAINDER, help="CLI command to wrap")
     args = parser.parse_args()
 
@@ -153,13 +238,14 @@ def main() -> None:
     except OSError:
         pass
 
-    # 4. Start log monitor for sibling abort (T439)
+    # 4. Start log monitor for hierarchical abort (T442)
     if args.log_path:
         log_path = Path(args.log_path)
         workdir = Path(args.workdir)
         monitor_thread = threading.Thread(
             target=_monitor_logs,
             args=(log_path, args.session, child, workdir),
+            kwargs={"tool_abort_policy": args.tool_abort_policy},
             daemon=True,
             name="log-monitor",
         )

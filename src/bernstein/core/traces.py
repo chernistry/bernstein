@@ -871,6 +871,123 @@ def preview_edit_conflict(
 
 
 # ---------------------------------------------------------------------------
+# Waterfall batch grouping (T412)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ToolBatch:
+    """A group of tool-call steps in a trace, possibly concurrent.
+
+    Attributes:
+        batch_id: Sequential batch number (0-based).
+        steps: TraceStep objects belonging to this batch.
+        start_ts: Unix timestamp of the earliest step in the batch.
+        end_ts: Estimated Unix timestamp when the batch completes.
+        is_concurrent: True when the batch holds 2+ overlapping steps.
+        abort_reason: Non-empty when this batch caused an abort/fail.
+        triggering_batch_id: The batch_id that triggered this abort, or None.
+    """
+
+    batch_id: int
+    steps: list[TraceStep]
+    start_ts: float
+    end_ts: float
+    is_concurrent: bool
+    abort_reason: str = ""
+    triggering_batch_id: int | None = None
+
+
+def _flush_tool_batch(
+    steps: list[TraceStep],
+    out: list[ToolBatch],
+    threshold_s: float,
+) -> None:
+    """Create one ToolBatch from *steps* and append it to *out*.
+
+    Args:
+        steps: Accumulated steps for this batch.
+        out: Destination list to append the batch to.
+        threshold_s: Concurrency window size in seconds (used as min duration).
+    """
+    if not steps:
+        return
+    batch_id = len(out)
+    start_ts = min(s.timestamp for s in steps)
+    end_ts = max(
+        s.timestamp + (s.duration_ms / 1000.0 if s.duration_ms else threshold_s)
+        for s in steps
+    )
+    is_concurrent = len(steps) > 1
+    fail_steps = [s for s in steps if s.type == "fail"]
+    abort_reason = fail_steps[0].detail if fail_steps else ""
+    out.append(
+        ToolBatch(
+            batch_id=batch_id,
+            steps=steps[:],
+            start_ts=start_ts,
+            end_ts=end_ts,
+            is_concurrent=is_concurrent,
+            abort_reason=abort_reason,
+            triggering_batch_id=None,
+        )
+    )
+
+
+def group_trace_steps_into_batches(
+    steps: list[TraceStep],
+    *,
+    concurrency_threshold_s: float = 0.5,
+) -> list[ToolBatch]:
+    """Group trace steps into waterfall batches.
+
+    Steps that start within *concurrency_threshold_s* of each other are
+    grouped into a single concurrent batch.  Steps further apart each
+    become their own serial batch.  Abort/fail batches are linked back to
+    the immediately preceding non-terminal batch via ``triggering_batch_id``.
+
+    Args:
+        steps: Ordered TraceStep list from an AgentTrace.
+        concurrency_threshold_s: Maximum gap (seconds) that still counts as
+            concurrent execution.
+
+    Returns:
+        Ordered list of ToolBatch objects ready for waterfall rendering.
+    """
+    if not steps:
+        return []
+
+    batches: list[ToolBatch] = []
+    current: list[TraceStep] = [steps[0]]
+    window_start = steps[0].timestamp
+
+    for step in steps[1:]:
+        if step.timestamp - window_start <= concurrency_threshold_s:
+            current.append(step)
+        else:
+            _flush_tool_batch(current, batches, concurrency_threshold_s)
+            current = [step]
+            window_start = step.timestamp
+
+    if current:
+        _flush_tool_batch(current, batches, concurrency_threshold_s)
+
+    # Link abort batches to their trigger (nearest preceding active batch).
+    for i, batch in enumerate(batches):
+        if not batch.abort_reason:
+            continue
+        for j in range(i - 1, -1, -1):
+            prev = batches[j]
+            if not prev.abort_reason and any(
+                s.type not in ("complete", "fail") for s in prev.steps
+            ):
+                batch.triggering_batch_id = prev.batch_id
+                break
+
+    return batches
+
+
+# ---------------------------------------------------------------------------
 # Crash bundle export (T585)
 # ---------------------------------------------------------------------------
 

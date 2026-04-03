@@ -35,16 +35,39 @@ from bernstein.core.tick_pipeline import (
 from bernstein.evolution.types import MetricsRecord
 
 if TYPE_CHECKING:
-    from bernstein.core.abort_chain import AbortChain
+    from bernstein.core.abort_chain import AbortChain, AbortPolicy, AbortScope
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Abort chain helpers — three-level hierarchy
+# ---------------------------------------------------------------------------
+# The abort chain enforces a strict containment hierarchy:
+#
+#   TOOL  < SIBLING  < SESSION
+#
+# * TOOL   — a single tool invocation is aborted; the agent session continues.
+#            Written as a TOOL_ABORT signal file in the session's signals dir.
+# * SIBLING — sibling agents (same parent) receive SHUTDOWN; the parent and
+#             this session are unaffected unless policy escalates further.
+# * SESSION — the full agent session is torn down and SHUTDOWN cascades to
+#             all descendants via ``propagate_abort``.
+#
+# Escalation between levels is opt-in via ``AbortPolicy``.  By default each
+# level contains its failure and does not propagate upward.
+# ---------------------------------------------------------------------------
+
 
 def _propagate_abort_to_children(orch: Any, session_id: str) -> None:
-    """Cascade abort signals to all children of the given session, if chained.
+    """Cascade SESSION-scope abort signals to all children of the given session.
 
     Looks for ``_abort_chain`` on the orchestrator.  When present,
-    calls ``propagate_abort`` followed by ``cleanup`` for the session.
+    calls :meth:`~abort_chain.AbortChain.propagate_abort` (SESSION scope)
+    followed by :meth:`~abort_chain.AbortChain.cleanup` for the session.
+
+    This is the most destructive level of the abort hierarchy.  For
+    finer-grained containment use :func:`_abort_siblings` (SIBLING scope) or
+    leave tool-level aborts to the worker process (TOOL scope).
 
     Args:
         orch: Orchestrator instance.
@@ -57,6 +80,41 @@ def _propagate_abort_to_children(orch: Any, session_id: str) -> None:
         chain.propagate_abort(session_id)
     finally:
         chain.cleanup(session_id)
+
+
+def _abort_siblings(
+    orch: Any,
+    session_id: str,
+    *,
+    reason: str = "sibling_failure",
+    policy: AbortPolicy | None = None,
+) -> list[str]:
+    """Send SHUTDOWN to sibling agents of *session_id* (SIBLING scope).
+
+    Looks for ``_abort_chain`` on the orchestrator.  When present, calls
+    :meth:`~abort_chain.AbortChain.abort_siblings`.  The parent session is
+    *not* stopped unless *policy.sibling_to_session* is ``True``.
+
+    Args:
+        orch: Orchestrator instance.
+        session_id: The session whose siblings should receive SHUTDOWN.
+        reason: Human-readable reason for the sibling abort.
+        policy: Optional escalation policy.  When ``None`` the sibling abort
+            is contained (no cascade to the parent session).
+
+    Returns:
+        List of session IDs that received a SHUTDOWN signal.  Empty list when
+        the chain is not configured or the session has no siblings.
+    """
+    chain: AbortChain | None = getattr(orch, "_abort_chain", None)
+    if chain is None:
+        return []
+    return chain.abort_siblings(
+        session_id,
+        triggering_session_id=session_id,
+        reason=reason,
+        policy=policy,
+    )
 
 
 def classify_agent_abort_reason(session: AgentSession) -> tuple[AbortReason, str]:
@@ -876,10 +934,13 @@ def reap_dead_agents(
             session.heartbeat_ts = now
         else:
             _heartbeat_refreshed = False
-            # Check heartbeat file written by the agent's background loop
+            # Check heartbeat file written by the agent's background loop.
+            # Use a generous freshness window — agents may take time to start
+            # writing heartbeats, especially qwen which boots slowly.
+            _hb_freshness_s = _IDLE_HEARTBEAT_THRESHOLD_S * 0.8
             _hb_path = orch._workdir / ".sdd" / "runtime" / "heartbeats" / f"{session.id}.json"
             try:
-                if _hb_path.exists() and (now - _hb_path.stat().st_mtime) < 60:
+                if _hb_path.exists() and (now - _hb_path.stat().st_mtime) < _hb_freshness_s:
                     session.heartbeat_ts = now
                     _heartbeat_refreshed = True
             except OSError:
@@ -888,7 +949,7 @@ def reap_dead_agents(
             if not _heartbeat_refreshed:
                 _log_path = orch._workdir / ".sdd" / "worktrees" / session.id / ".sdd" / "runtime" / f"{session.id}.log"
                 try:
-                    if _log_path.exists() and (now - _log_path.stat().st_mtime) < 60:
+                    if _log_path.exists() and (now - _log_path.stat().st_mtime) < _hb_freshness_s:
                         session.heartbeat_ts = now
                 except OSError:
                     pass
@@ -959,10 +1020,12 @@ def reap_dead_agents(
 _IDLE_GRACE_S: float = 30.0
 
 #: Default no-heartbeat idle threshold (seconds).
-_IDLE_HEARTBEAT_THRESHOLD_S: float = 90.0
+#: CLI agents (claude, qwen) need time to boot, read context, and start
+#: producing heartbeats — 90s was too aggressive and caused a death spiral.
+_IDLE_HEARTBEAT_THRESHOLD_S: float = 300.0
 
 #: Aggressive idle threshold used when evolve mode is active.
-_IDLE_HEARTBEAT_THRESHOLD_EVOLVE_S: float = 60.0
+_IDLE_HEARTBEAT_THRESHOLD_EVOLVE_S: float = 120.0
 
 
 def recycle_idle_agents(

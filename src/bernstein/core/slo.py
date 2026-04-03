@@ -158,10 +158,10 @@ class ErrorBudget:
 class ErrorBudgetPolicy:
     """Policy for what happens when error budget is depleted."""
 
-    reduce_max_agents_to: int = 2
+    reduce_max_agents_to: int = 4
     upgrade_model: str = "opus"
     increase_review: bool = True
-    cooldown_seconds: int = 300  # Wait before restoring normal ops
+    cooldown_seconds: int = 120  # Wait before restoring normal ops
 
     def get_actions(self, budget: ErrorBudget) -> list[ErrorBudgetAction]:
         """Determine which actions to take based on budget state."""

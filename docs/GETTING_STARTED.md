@@ -37,11 +37,20 @@ uv tool install bernstein
 # Or any of these
 pip install bernstein
 pipx install bernstein
-brew tap chernistry/tap && brew install bernstein
+brew tap chernistry/bernstein && brew install bernstein
+
+# Fedora / RHEL
+sudo dnf copr enable alexchernysh/bernstein
+sudo dnf install bernstein
+
+# npm wrapper (requires Python 3.12+)
+npx bernstein-orchestrator
 
 # Verify
 bernstein --version
 ```
+
+**Editor extensions:** search "Bernstein" in VS Code or Cursor, or run `code --install-extension alex-chernysh.bernstein`.
 
 ### Development install
 

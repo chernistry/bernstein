@@ -1,164 +1,181 @@
-"""Tests for settings_snapshot — trace settings capture and serialization."""
+"""Tests for settings_snapshot — settings capture and serialization."""
 
 from __future__ import annotations
 
 import json
+from datetime import UTC
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 from bernstein.settings_snapshot import (
     SettingsSnapshot,
     SettingValue,
-    _coerce_type,
-    capture_settings,
+    _read_config_file,
+    capture_settings_snapshot,
+    format_snapshot,
+    save_settings_snapshot,
 )
 
-# --- Fixtures ---
+
+@pytest.fixture()
+def settings_snapshot() -> SettingsSnapshot:
+    """Create a sample settings snapshot."""
+    from datetime import datetime
+
+    return SettingsSnapshot(
+        captured_at=datetime(2025, 1, 1, tzinfo=UTC),
+        settings={
+            "model": SettingValue(key="model", value="sonnet", source="env", source_detail="BERNSTEIN_MODEL"),
+            "effort": SettingValue(key="effort", value="high", source="config", source_detail=".bernstein/config.yaml"),
+            "timeout": SettingValue(key="timeout", value=300, source="default"),
+        },
+        env_vars={"BERNSTEIN_MODEL": "sonnet"},
+        config_paths=[".bernstein/config.yaml"],
+    )
 
 
 @pytest.fixture()
-def project_with_config(tmp_path: Path) -> Path:
-    """Create a project dir with bernstein.yaml settings."""
-    (tmp_path / "bernstein.yaml").write_text(
-        "model: sonnet\n"
-        "effort: high\n"
-        "parallelism: 3\n"
-        "approval_mode: review\n"
-    )
-    return tmp_path
+def config_yaml(tmp_path: Path) -> Path:
+    """Create a YAML config file."""
+    f = tmp_path / "config.yaml"
+    f.write_text("model: sonnet\neffort: high\ntimeout: 600\n", encoding="utf-8")
+    return f
 
 
 @pytest.fixture()
-def project_with_sdd_config(tmp_path: Path) -> Path:
-    """Create a project dir with .sdd/config.yaml settings."""
-    sdd = tmp_path / ".sdd"
-    sdd.mkdir()
-    (sdd / "config.yaml").write_text(
-        "model: opus\n"
-        "effort: max\n"
-        "max_tokens: 50000\n"
-    )
-    return tmp_path
+def config_json(tmp_path: Path) -> Path:
+    """Create a JSON config file."""
+    f = tmp_path / "config.json"
+    f.write_text(json.dumps({"model": "opus", "effort": "max"}), encoding="utf-8")
+    return f
 
 
 # --- TestSettingValue ---
 
 
 class TestSettingValue:
-    def test_to_dict(self) -> None:
-        sv = SettingValue(name="model", value="sonnet", source="config")
-        d = sv.to_dict()
-        assert d["name"] == "model"
-        assert d["value"] == "sonnet"
-        assert d["source"] == "config"
+    def test_defaults(self) -> None:
+        sv = SettingValue(key="model", value="sonnet", source="env")
+        assert sv.key == "model"
+        assert sv.value == "sonnet"
+        assert sv.source == "env"
+        assert sv.source_detail == ""
 
 
 # --- TestSettingsSnapshot ---
 
 
 class TestSettingsSnapshot:
-    def test_to_dict(self) -> None:
-        snap = SettingsSnapshot(
-            capture_ts=1000.0,
-            workdir="/test",
-            settings=[SettingValue(name="model", value="opus", source="env")],
-        )
-        d = snap.to_dict()
-        assert d["capture_ts"] == 1000.0
-        assert d["workdir"] == "/test"
-        assert len(d["settings"]) == 1
+    def test_to_dict(self, settings_snapshot: SettingsSnapshot) -> None:
+        d = settings_snapshot.to_dict()
+        assert "captured_at" in d
+        assert "settings" in d
+        assert "env_vars" in d
+        assert "config_paths" in d
 
-    def test_save_writes_file(self, tmp_path: Path) -> None:
+    def test_get_existing(self, settings_snapshot: SettingsSnapshot) -> None:
+        assert settings_snapshot.get("model") == "sonnet"
+
+    def test_get_missing(self, settings_snapshot: SettingsSnapshot) -> None:
+        assert settings_snapshot.get("missing", "default") == "default"
+
+    def test_get_missing_no_default(self, settings_snapshot: SettingsSnapshot) -> None:
+        assert settings_snapshot.get("missing") is None
+
+
+# --- TestReadConfigFile ---
+
+
+class TestReadConfigFile:
+    def test_reads_json(self, config_json: Path) -> None:
+        data = _read_config_file(config_json)
+        assert data["model"] == "opus"
+        assert data["effort"] == "max"
+
+    def test_missing_file(self, tmp_path: Path) -> None:
+        data = _read_config_file(tmp_path / "missing.json")
+        assert data == {}
+
+    def test_invalid_json(self, tmp_path: Path) -> None:
+        f = tmp_path / "bad.json"
+        f.write_text("not json {{{", encoding="utf-8")
+        data = _read_config_file(f)
+        assert data == {}
+
+
+# --- TestCaptureSettingsSnapshot ---
+
+
+class TestCaptureSettingsSnapshot:
+    def test_captures_defaults(self) -> None:
+        snapshot = capture_settings_snapshot()
+        assert snapshot.get("model") == "auto"
+        assert snapshot.get("effort") == "normal"
+        assert snapshot.get("timeout") == 300
+
+    def test_env_overrides(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("BERNSTEIN_MODEL", "claude-3")
+        snapshot = capture_settings_snapshot()
+        model_setting = snapshot.settings.get("model")
+        assert model_setting is not None
+        assert model_setting.value == "claude-3"
+        assert model_setting.source == "env"
+
+    def test_extra_overrides(self) -> None:
+        snapshot = capture_settings_snapshot(extra_env={"model": "custom"})
+        model_setting = snapshot.settings.get("model")
+        assert model_setting is not None
+        assert model_setting.value == "custom"
+        assert model_setting.source == "cli"
+
+    def test_env_vars_collected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("BERNSTEIN_MODEL", "sonnet")
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-123")
+        snapshot = capture_settings_snapshot()
+        assert "BERNSTEIN_MODEL" in snapshot.env_vars
+        assert "ANTHROPIC_API_KEY" in snapshot.env_vars
+
+    def test_captured_at_set(self) -> None:
+        snapshot = capture_settings_snapshot()
+        assert snapshot.captured_at is not None
+
+
+# --- TestSaveSettingsSnapshot ---
+
+
+class TestSaveSettingsSnapshot:
+    def test_saves_file(self, settings_snapshot: SettingsSnapshot, tmp_path: Path) -> None:
         traces_dir = tmp_path / "traces"
-        traces_dir.mkdir()
-        snap = SettingsSnapshot(capture_ts=1000.0, workdir="/p")
-        snap.settings.append(SettingValue(name="model", value="sonnet", source="default"))
-        path = snap.save(traces_dir)
+        path = save_settings_snapshot(settings_snapshot, traces_dir)
         assert path.exists()
+        assert path.suffix == ".json"
+
         data = json.loads(path.read_text())
-        assert data["capture_ts"] == 1000.0
-        assert len(data["settings"]) == 1
+        assert "settings" in data
+        assert data["settings"]["model"]["value"] == "sonnet"
+
+    def test_custom_filename(self, settings_snapshot: SettingsSnapshot, tmp_path: Path) -> None:
+        traces_dir = tmp_path / "traces"
+        path = save_settings_snapshot(settings_snapshot, traces_dir, filename="test.json")
+        assert path.name == "test.json"
 
 
-# --- TestCoerceType ---
+# --- TestFormatSnapshot ---
 
 
-class TestCoerceType:
-    def test_bool_true(self) -> None:
-        assert _coerce_type("true") is True
-        assert _coerce_type("True") is True
-        assert _coerce_type("1") is True
-        assert _coerce_type("yes") is True
+class TestFormatSnapshot:
+    def test_format(self, settings_snapshot: SettingsSnapshot) -> None:
+        output = format_snapshot(settings_snapshot)
+        assert "Settings Snapshot" in output
+        assert "model" in output
+        assert "sonnet" in output
 
-    def test_bool_false(self) -> None:
-        assert _coerce_type("false") is False
-        assert _coerce_type("False") is False
-        assert _coerce_type("0") is False
-        assert _coerce_type("no") is False
-
-    def test_int(self) -> None:
-        assert _coerce_type("42") == 42
-        assert _coerce_type("-3") == -3
-
-    def test_float(self) -> None:
-        assert _coerce_type("3.14") == 3.14
-
-    def test_string_passthrough(self) -> None:
-        assert _coerce_type("sonnet") == "sonnet"
-        assert _coerce_type("sonnet") != 42
-
-
-# --- TestCaptureSettings ---
-
-
-class TestCaptureSettings:
-    def test_reads_from_env(self, tmp_path: Path) -> None:
-        env = {
-            "BERNSTEIN_MODEL": "opus",
-            "BERNSTEIN_EFFORT": "max",
-        }
-        with patch.dict("os.environ", env, clear=False):
-            snap = capture_settings(tmp_path)
-        model_sv = next(s for s in snap.settings if s.name == "model")
-        assert model_sv.value is True or model_sv.value == "opus"
-        assert model_sv.source == "env"
-
-    def test_reads_from_config(self, project_with_config: Path) -> None:
-        with patch.dict("os.environ", {}, clear=True):
-            snap = capture_settings(project_with_config)
-        model_sv = next(s for s in snap.settings if s.name == "model")
-        assert model_sv.value == "sonnet"
-        assert model_sv.source == "config"
-
-    def test_env_overrides_config(self, project_with_config: Path) -> None:
-        with patch.dict("os.environ", {"BERNSTEIN_MODEL": "opus"}):
-            snap = capture_settings(project_with_config)
-        model_sv = next(s for s in snap.settings if s.name == "model")
-        assert model_sv.source == "env"
-        assert model_sv.raw_value == "opus"
-
-    def test_sdd_config_overrides_root(self, project_with_config: Path) -> None:
-        # Create .sdd/config.yaml that overrides bernstein.yaml
-        sdd_cfg = project_with_config / ".sdd" / "config.yaml"
-        sdd_cfg.parent.mkdir(parents=True, exist_ok=True)
-        sdd_cfg.write_text("model: haiku\n")
-        with patch.dict("os.environ", {}, clear=True):
-            snap = capture_settings(project_with_config)
-        model_sv = next(s for s in snap.settings if s.name == "model")
-        assert model_sv.value == "haiku"
-        assert model_sv.source == "config"
-
-    def test_defaults_when_not_set(self, tmp_path: Path) -> None:
-        with patch.dict("os.environ", {}, clear=True):
-            snap = capture_settings(tmp_path)
-        defaults = [s for s in snap.settings if s.source == "default"]
-        assert len(defaults) > 0
-        for d in defaults:
-            assert d.value is None
-
-    def test_timestamp_is_set(self, tmp_path: Path) -> None:
-        with patch.dict("os.environ", {}, clear=True):
-            snap = capture_settings(tmp_path)
-        assert snap.capture_ts > 0
+    def test_masks_sensitive_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-1234567890abcdef")
+        snapshot = capture_settings_snapshot()
+        output = format_snapshot(snapshot)
+        assert "ANTHROPIC_API_KEY" in output
+        # Should be masked
+        assert "sk-12345..." in output
+        assert "sk-1234567890abcdef" not in output

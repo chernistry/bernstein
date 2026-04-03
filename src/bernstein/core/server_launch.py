@@ -312,10 +312,10 @@ def _wait_for_server(port: int, server_url: str | None = None) -> bool:
     url = f"{base}/health"
     while time.monotonic() < deadline:
         try:
-            resp = httpx.get(url, timeout=2.0)
+            resp = httpx.get(url, timeout=5.0)
             if resp.status_code == 200:
                 return True
-        except httpx.ConnectError:
+        except (httpx.ConnectError, httpx.ReadTimeout, httpx.TimeoutException):
             pass
         time.sleep(_SERVER_POLL_INTERVAL_S)
     return False

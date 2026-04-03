@@ -1,0 +1,5 @@
+[default]
+extend-ignore-re = [
+    # Test intentionally checks for substring "truncat"
+    '"truncat" in content',
+]

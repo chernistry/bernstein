@@ -21,10 +21,7 @@ Reference values (from empirical tokenizer measurements):
 
 from __future__ import annotations
 
-import os
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Union
 
 # ---------------------------------------------------------------------------
 # Constants — bytes per token by file category
@@ -43,7 +40,7 @@ TEXT_BYTES_PER_TOKEN: float = 3.0
 MINIFIED_BYTES_PER_TOKEN: float = 1.0
 
 #: Fallback for unknown file extensions.
-DEFAULT_BYTES_PER_TOKEN: float = DEFAULT_BYTES_PER_TOKEN = 3.5
+DEFAULT_BYTES_PER_TOKEN: float = 3.5
 
 # Binary extensions — no meaningful token representation for LLM context.
 _BINARY_EXTENSIONS: frozenset[str] = frozenset(
@@ -188,7 +185,7 @@ _SPECIAL_NAMES: frozenset[str] = frozenset(
 # Internal lookup table for quick resolution
 # -----------------------------------------------------------------------
 
-_CATEGORY_BPT: Mapping[str, float] = {
+_CATEGORY_BPT: dict[str, float] = {
     "json": JSON_BYTES_PER_TOKEN,
     "code": CODE_BYTES_PER_TOKEN,
     "text": TEXT_BYTES_PER_TOKEN,
@@ -204,7 +201,7 @@ _CATEGORY_BPT: Mapping[str, float] = {
 # -----------------------------------------------------------------------
 
 
-def bytes_per_token_for_file_type(file_path: Union[str, Path]) -> float | None:
+def bytes_per_token_for_file_type(file_path: str | Path) -> float | None:
     """Return the estimated bytes-per-token ratio for a given file.
 
     Inspects the file extension (or full name for extension-less special
@@ -250,7 +247,7 @@ def bytes_per_token_for_file_type(file_path: Union[str, Path]) -> float | None:
     return DEFAULT_BYTES_PER_TOKEN
 
 
-def estimate_tokens_for_file_size(file_path: Union[str, Path], size_bytes: int) -> int:
+def estimate_tokens_for_file_size(file_path: str | Path, size_bytes: int) -> int:
     """Estimate token count from file size and type.
 
     Returns ``0`` for binary files (not suitable for LLM context).
@@ -291,3 +288,24 @@ def estimate_tokens_for_text(text: str, assumed_type: str = "code") -> int:
         return 0
     byte_len = len(text.encode("utf-8"))
     return int(byte_len / bpt)
+
+
+def estimate_tokens_for_file(file_path: str | Path, content: bytes | str) -> int:
+    """Estimate token count for actual file content by type.
+
+    Combines :func:`bytes_per_token_for_file_type` with the real byte length
+    of *content*.  Binary files (where no meaningful ratio exists) return ``0``.
+
+    Args:
+        file_path: File path as a string or ``pathlib.Path`` (used for type
+            detection only).
+        content: Raw file content as ``bytes`` or decoded ``str``.
+
+    Returns:
+        Estimated token count (integer, floor division).
+    """
+    bpt = bytes_per_token_for_file_type(file_path)
+    if bpt is None or bpt == 0.0:
+        return 0
+    size_bytes = len(content) if isinstance(content, bytes) else len(content.encode("utf-8"))
+    return int(size_bytes / bpt)

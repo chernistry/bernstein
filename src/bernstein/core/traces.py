@@ -1048,6 +1048,297 @@ def build_crash_bundle(
 
 
 # ---------------------------------------------------------------------------
+# Diagnostic delta capture around edits
+# ---------------------------------------------------------------------------
+
+_MAX_DELTA_BYTES: int = 65_536  # 64 KB per side — avoids bloating trace storage
+
+
+@dataclass
+class FileEditDelta:
+    """Structured before/after snapshot for a single file edit.
+
+    Captures full content on both sides and a unified diff so debugging and
+    replay consumers have exact knowledge of what changed.  Content is capped
+    at ``_MAX_DELTA_BYTES`` per side so trace storage stays bounded.
+
+    Attributes:
+        file_path: Path to the edited file.
+        before_content: File content immediately before the edit.
+        after_content: File content immediately after the edit.
+        unified_diff: Unified-diff string (empty when before == after).
+        lines_added: Number of lines added by the edit.
+        lines_removed: Number of lines removed by the edit.
+        timestamp: Unix timestamp when the delta was captured.
+        session_id: Agent session that performed the edit.
+        task_id: Task ID the edit was part of.
+        truncated: True if either side was clipped to ``_MAX_DELTA_BYTES``.
+    """
+
+    file_path: str
+    before_content: str
+    after_content: str
+    unified_diff: str
+    lines_added: int
+    lines_removed: int
+    timestamp: float
+    session_id: str = ""
+    task_id: str = ""
+    truncated: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise to a JSON-compatible dict."""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> FileEditDelta:
+        """Deserialise from a dict (missing optional fields default to safe values)."""
+        return cls(
+            file_path=d["file_path"],
+            before_content=d.get("before_content", ""),
+            after_content=d.get("after_content", ""),
+            unified_diff=d.get("unified_diff", ""),
+            lines_added=cast("int", d.get("lines_added", 0)),
+            lines_removed=cast("int", d.get("lines_removed", 0)),
+            timestamp=cast("float", d.get("timestamp", 0.0)),
+            session_id=d.get("session_id", ""),
+            task_id=d.get("task_id", ""),
+            truncated=cast("bool", d.get("truncated", False)),
+        )
+
+
+def capture_edit_delta(
+    file_path: str,
+    before: str,
+    after: str,
+    *,
+    session_id: str = "",
+    task_id: str = "",
+    max_bytes: int = _MAX_DELTA_BYTES,
+) -> FileEditDelta:
+    """Compute a :class:`FileEditDelta` from before/after file content.
+
+    Generates a unified diff, counts added/removed lines, and caps each
+    content side at *max_bytes* to prevent trace bloat.
+
+    Args:
+        file_path: Path label for the edited file.
+        before: File content before the edit (empty string for new files).
+        after: File content after the edit (empty string for deletions).
+        session_id: Agent session that performed the edit.
+        task_id: Task ID the edit belongs to.
+        max_bytes: Per-side content cap in bytes.
+
+    Returns:
+        :class:`FileEditDelta` with diff metadata and (possibly truncated) content.
+    """
+    truncated = False
+    if len(before) > max_bytes:
+        before = before[:max_bytes]
+        truncated = True
+    if len(after) > max_bytes:
+        after = after[:max_bytes]
+        truncated = True
+
+    before_lines = before.splitlines(keepends=True)
+    after_lines = after.splitlines(keepends=True)
+
+    diff_lines = list(
+        difflib.unified_diff(
+            before_lines,
+            after_lines,
+            fromfile=f"{file_path} (before)",
+            tofile=f"{file_path} (after)",
+            lineterm="",
+        )
+    )
+    unified_diff = "\n".join(diff_lines)
+
+    lines_added = sum(1 for ln in diff_lines if ln.startswith("+") and not ln.startswith("+++"))
+    lines_removed = sum(1 for ln in diff_lines if ln.startswith("-") and not ln.startswith("---"))
+
+    return FileEditDelta(
+        file_path=file_path,
+        before_content=before,
+        after_content=after,
+        unified_diff=unified_diff,
+        lines_added=lines_added,
+        lines_removed=lines_removed,
+        timestamp=time.time(),
+        session_id=session_id,
+        task_id=task_id,
+        truncated=truncated,
+    )
+
+
+# ---------------------------------------------------------------------------
+# File-edit fallback replay artifact
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class EditReplayArtifact:
+    """Pre-edit state preserved for fallback replay of a failed file edit.
+
+    When an edit cannot be applied cleanly — patch mismatch, write error, or
+    a low-confidence AI transform — this artifact saves the last-known-good
+    content and enough context to retry the edit deterministically.
+
+    Attributes:
+        artifact_id: Unique opaque ID for this artifact.
+        file_path: Path to the file that was being edited.
+        pre_edit_content: File content immediately before the attempted edit.
+        edit_intent: Human-readable description of what the edit aimed to do.
+        failure_reason: Why the edit failed or why a fallback was requested.
+        timestamp: Unix timestamp when the artifact was created.
+        session_id: Agent session that triggered the artifact.
+        task_id: Task ID the edit was part of.
+        truncated: True if ``pre_edit_content`` was clipped to ``_MAX_DELTA_BYTES``.
+    """
+
+    artifact_id: str
+    file_path: str
+    pre_edit_content: str
+    edit_intent: str
+    failure_reason: str
+    timestamp: float
+    session_id: str = ""
+    task_id: str = ""
+    truncated: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise to a JSON-compatible dict."""
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> EditReplayArtifact:
+        """Deserialise from a dict (missing optional fields default to safe values)."""
+        return cls(
+            artifact_id=d["artifact_id"],
+            file_path=d["file_path"],
+            pre_edit_content=d.get("pre_edit_content", ""),
+            edit_intent=d.get("edit_intent", ""),
+            failure_reason=d.get("failure_reason", ""),
+            timestamp=cast("float", d.get("timestamp", 0.0)),
+            session_id=d.get("session_id", ""),
+            task_id=d.get("task_id", ""),
+            truncated=cast("bool", d.get("truncated", False)),
+        )
+
+
+def create_edit_replay_artifact(
+    file_path: str,
+    pre_edit_content: str,
+    edit_intent: str,
+    failure_reason: str,
+    *,
+    session_id: str = "",
+    task_id: str = "",
+    max_bytes: int = _MAX_DELTA_BYTES,
+) -> EditReplayArtifact:
+    """Create a replay artifact from a failed or quarantined file edit.
+
+    Caps *pre_edit_content* at *max_bytes* and marks ``truncated=True``
+    when content is cut.  The artifact can be persisted via
+    :class:`EditReplayStore` and reloaded to retry the edit.
+
+    Args:
+        file_path: Path to the file that was being edited.
+        pre_edit_content: File content before the attempted edit.
+        edit_intent: What the edit was supposed to accomplish.
+        failure_reason: Why the edit failed (e.g. ``"patch_mismatch"``).
+        session_id: Agent session that triggered the artifact.
+        task_id: Task ID the edit was part of.
+        max_bytes: Maximum bytes to store for pre-edit content.
+
+    Returns:
+        :class:`EditReplayArtifact` ready for storage or retry.
+    """
+    truncated = False
+    if len(pre_edit_content) > max_bytes:
+        pre_edit_content = pre_edit_content[:max_bytes]
+        truncated = True
+
+    return EditReplayArtifact(
+        artifact_id=uuid.uuid4().hex[:16],
+        file_path=file_path,
+        pre_edit_content=pre_edit_content,
+        edit_intent=edit_intent,
+        failure_reason=failure_reason,
+        timestamp=time.time(),
+        session_id=session_id,
+        task_id=task_id,
+        truncated=truncated,
+    )
+
+
+class EditReplayStore:
+    """Persist and retrieve :class:`EditReplayArtifact` objects.
+
+    Artifacts are stored as individual JSON files under *artifacts_dir*,
+    named ``{artifact_id}.json``.  The directory is created lazily.
+
+    Args:
+        artifacts_dir: Path to the artifact storage directory
+            (typically ``.sdd/edit_artifacts/``).
+    """
+
+    def __init__(self, artifacts_dir: Path) -> None:
+        self._dir = artifacts_dir
+
+    def _ensure_dir(self) -> None:
+        self._dir.mkdir(parents=True, exist_ok=True)
+
+    def write(self, artifact: EditReplayArtifact) -> None:
+        """Persist *artifact* to disk (overwrites if same ID exists).
+
+        Args:
+            artifact: The artifact to store.
+        """
+        self._ensure_dir()
+        path = self._dir / f"{artifact.artifact_id}.json"
+        path.write_text(json.dumps(artifact.to_dict()))
+
+    def read(self, artifact_id: str) -> EditReplayArtifact | None:
+        """Load an artifact by ID.
+
+        Args:
+            artifact_id: Unique artifact ID to look up.
+
+        Returns:
+            :class:`EditReplayArtifact`, or ``None`` if not found or unreadable.
+        """
+        path = self._dir / f"{artifact_id}.json"
+        if not path.exists():
+            return None
+        try:
+            return EditReplayArtifact.from_dict(json.loads(path.read_text()))
+        except (json.JSONDecodeError, KeyError):
+            return None
+
+    def list_for_task(self, task_id: str) -> list[EditReplayArtifact]:
+        """Return all artifacts associated with *task_id*, oldest first.
+
+        Args:
+            task_id: Task ID to filter by.
+
+        Returns:
+            Sorted list of :class:`EditReplayArtifact` objects (may be empty).
+        """
+        if not self._dir.exists():
+            return []
+        results: list[EditReplayArtifact] = []
+        for f in self._dir.glob("*.json"):
+            try:
+                artifact = EditReplayArtifact.from_dict(json.loads(f.read_text()))
+                if artifact.task_id == task_id:
+                    results.append(artifact)
+            except (json.JSONDecodeError, KeyError):
+                continue
+        return sorted(results, key=lambda a: a.timestamp)
+
+
+# ---------------------------------------------------------------------------
 # Max output tokens escalation signal (T565)
 # ---------------------------------------------------------------------------
 

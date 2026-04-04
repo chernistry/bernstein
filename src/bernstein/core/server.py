@@ -1042,6 +1042,7 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # Startup: replay persisted state
         store.replay_jsonl()
+        store.recover_stale_claimed_tasks()
         _reload_seed_config()
         previous_sighup = signal.getsignal(signal.SIGHUP) if hasattr(signal, "SIGHUP") else None
         if hasattr(signal, "SIGHUP") and threading.current_thread() is threading.main_thread():

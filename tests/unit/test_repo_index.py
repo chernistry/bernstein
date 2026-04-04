@@ -15,8 +15,10 @@ from bernstein.core.repo_index import (
     _path_to_module,
     extract_subgraph,
     format_subgraph_context,
+    fuzzy_score,
     load_repo_graph,
     save_repo_graph,
+    search_nodes,
 )
 
 if TYPE_CHECKING:
@@ -334,3 +336,106 @@ class TestBuildContext:
         builder = TaskContextBuilder(workdir=tmp_path)
         result = builder.file_context("src/bernstein/core/router.py")
         assert "router.py" in result
+
+
+# ---------------------------------------------------------------------------
+# Fuzzy search
+# ---------------------------------------------------------------------------
+
+
+class TestFuzzyScore:
+    def test_exact_match_scores_high(self) -> None:
+        score = fuzzy_score("api", "api.py")
+        assert score is not None
+        assert score > 0
+
+    def test_no_match_returns_none(self) -> None:
+        assert fuzzy_score("xyz", "api.py") is None
+
+    def test_empty_query_returns_zero(self) -> None:
+        assert fuzzy_score("", "anything") == 0
+
+    def test_boundary_bonus_beats_mid_match(self) -> None:
+        # "api" at start of "api_helper.py" should score higher than
+        # mid-string match in "map_index.py"
+        start_score = fuzzy_score("api", "api_helper.py")
+        mid_score = fuzzy_score("api", "map_index.py")
+        assert start_score is not None
+        assert mid_score is not None
+        assert start_score > mid_score
+
+    def test_consecutive_bonus(self) -> None:
+        # "sp" consecutive in "spawner.py" beats "s...p" in "src_map.py"
+        consec = fuzzy_score("sp", "spawner.py")
+        spaced = fuzzy_score("sp", "src_map.py")
+        assert consec is not None
+        assert spaced is not None
+        assert consec > spaced
+
+    def test_camelcase_boundary_bonus(self) -> None:
+        # "R" at camelCase boundary in "RouteRunner" should score higher
+        # than "r" in the middle of "foobar_xry"
+        camel = fuzzy_score("R", "RouteRunner")
+        assert camel is not None
+        assert camel > 1  # Boundary bonus applied
+
+    def test_path_separator_triggers_boundary(self) -> None:
+        score = fuzzy_score("s", "src/spawner.py")
+        assert score is not None
+        # 's' at position 0 (start) should get boundary bonus
+        assert score >= 4  # base 1 + boundary 3
+
+    def test_case_insensitive(self) -> None:
+        lower = fuzzy_score("api", "api.py")
+        upper = fuzzy_score("API", "api.py")
+        assert lower == upper
+
+    def test_partial_match_stem(self) -> None:
+        # "spawn" should match "spawner"
+        assert fuzzy_score("spawn", "spawner") is not None
+
+    def test_query_longer_than_candidate_no_match(self) -> None:
+        assert fuzzy_score("abcdefgh", "abc") is None
+
+
+class TestSearchNodes:
+    def test_returns_matching_nodes(self) -> None:
+        g = _build_sample_graph()
+        results = search_nodes(g, "api")
+        names = [node.id for node, _ in results]
+        assert "src/api.py" in names
+
+    def test_excludes_non_matching_nodes(self) -> None:
+        g = _build_sample_graph()
+        results = search_nodes(g, "zzz")
+        assert results == []
+
+    def test_results_sorted_by_score_descending(self) -> None:
+        g = _build_sample_graph()
+        results = search_nodes(g, "api")
+        if len(results) > 1:
+            scores = [score for _, score in results]
+            assert scores == sorted(scores, reverse=True)
+
+    def test_exact_filename_stem_ranks_first(self) -> None:
+        g = _build_sample_graph()
+        # "db" should put src/db.py at or near the top
+        results = search_nodes(g, "db")
+        assert results[0][0].id == "src/db.py"
+
+    def test_max_results_respected(self) -> None:
+        g = _build_sample_graph()
+        # Query "a" matches many nodes; max_results=2 limits it
+        results = search_nodes(g, "a", max_results=2)
+        assert len(results) <= 2
+
+    def test_partial_path_match(self) -> None:
+        g = _build_sample_graph()
+        # "ut" partial match should find "src/utils.py"
+        results = search_nodes(g, "ut")
+        ids = [n.id for n, _ in results]
+        assert "src/utils.py" in ids
+
+    def test_empty_graph_returns_empty(self) -> None:
+        g = RepoGraph()
+        assert search_nodes(g, "anything") == []

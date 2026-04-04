@@ -115,8 +115,8 @@ def find_orphaned_tool_uses(
                     continue
                 b = cast("dict[str, Any]", block)
                 if b.get("type") == "tool_use":
-                    tool_id = cast(str, b.get("id", ""))
-                    tool_name = cast(str, b.get("name", "unknown_tool"))
+                    tool_id = cast("str", b.get("id", ""))
+                    tool_name = cast("str", b.get("name", "unknown_tool"))
                     if tool_id:
                         pending.append((idx, tool_id, tool_name))
 
@@ -126,7 +126,7 @@ def find_orphaned_tool_uses(
                     continue
                 b = cast("dict[str, Any]", block)
                 if b.get("type") == "tool_result":
-                    tid = cast(str, b.get("tool_use_id", ""))
+                    tid = cast("str", b.get("tool_use_id", ""))
                     if tid:
                         resolved_ids.add(tid)
 

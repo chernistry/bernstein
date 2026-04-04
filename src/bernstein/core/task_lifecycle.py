@@ -949,11 +949,16 @@ def claim_and_spawn_batches(
         # Pre-flight: auto-decompose large tasks before claiming.
         # Creates a lightweight manager task that breaks the large task into
         # 3-5 atomic subtasks; the original stays open until subtasks complete.
-        if len(batch) == 1 and should_auto_decompose(
-            batch[0],
-            orch._decomposed_task_ids,
-            workdir=orch._workdir,
-            force_parallel=orch._config.force_parallel,
+        # Respects auto_decompose config — disabled by default.
+        if (
+            getattr(orch._config, "auto_decompose", False)
+            and len(batch) == 1
+            and should_auto_decompose(
+                batch[0],
+                orch._decomposed_task_ids,
+                workdir=orch._workdir,
+                force_parallel=orch._config.force_parallel,
+            )
         ):
             auto_decompose_task(
                 batch[0],

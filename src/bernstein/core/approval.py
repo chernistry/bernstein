@@ -256,6 +256,27 @@ class ApprovalGate:
         push_fn: _PushBranchFn = self._push_branch_fn or push_head_as
         create_fn = self._create_pr_fn or create_github_pr
 
+        # Check if the worktree has any commits beyond base before pushing.
+        # Prevents "No commits between main and branch" GitHub API errors.
+        import subprocess
+
+        try:
+            diff_check = subprocess.run(
+                ["git", "diff", "--quiet", f"{base_branch}...HEAD"],
+                cwd=str(worktree_path),
+                capture_output=True,
+                timeout=10,
+            )
+            if diff_check.returncode == 0:
+                logger.info(
+                    "Approval gate: no diff vs %s for task %s — skipping PR (agent made no changes)",
+                    base_branch,
+                    task.id,
+                )
+                return ""
+        except (subprocess.TimeoutExpired, OSError):
+            pass  # Proceed with push attempt if check fails
+
         push_result = push_fn(worktree_path, pr_branch)
         if not getattr(push_result, "ok", True):
             logger.warning("Approval gate: push failed for task %s: %s", task.id, getattr(push_result, "stderr", ""))

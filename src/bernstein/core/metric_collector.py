@@ -891,8 +891,7 @@ class MetricsCollector:
                     tenant_dir.mkdir(parents=True, exist_ok=True)
                     self._buffer.append((tenant_dir / filename, json.dumps(point)))
                 should_flush = (
-                    len(self._buffer) >= self._buffer_limit
-                    or (time.time() - self._last_flush) >= self._flush_interval
+                    len(self._buffer) >= self._buffer_limit or (time.time() - self._last_flush) >= self._flush_interval
                 )
             if should_flush:
                 self._flush_buffer()

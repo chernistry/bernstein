@@ -37,7 +37,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -62,9 +62,9 @@ class PluginPolicy:
         managed: Admin-provided plugin names that are always allowed.
     """
 
-    allowlist: frozenset[str] = field(default_factory=frozenset)
-    blocklist: frozenset[str] = field(default_factory=frozenset)
-    managed: frozenset[str] = field(default_factory=frozenset)
+    allowlist: frozenset[str] = field(default_factory=frozenset[str])
+    blocklist: frozenset[str] = field(default_factory=frozenset[str])
+    managed: frozenset[str] = field(default_factory=frozenset[str])
 
     @property
     def is_empty(self) -> bool:
@@ -126,17 +126,19 @@ def load_plugin_policy(workdir: Path) -> PluginPolicy:
         log.warning("Plugin policy %s must be a YAML mapping — using permit-all policy", policy_path)
         return PluginPolicy()
 
+    policy_dict: dict[str, Any] = cast("dict[str, Any]", raw)
+
     def _coerce_list(value: Any, field_name: str) -> frozenset[str]:
         if value is None:
             return frozenset()
         if not isinstance(value, list):
             log.warning("Plugin policy field %r must be a list — ignoring", field_name)
             return frozenset()
-        return frozenset(str(item) for item in value if item)
+        return frozenset(str(item) for item in cast("list[object]", value) if item)
 
-    allowlist = _coerce_list(raw.get("allowlist"), "allowlist")
-    blocklist = _coerce_list(raw.get("blocklist"), "blocklist")
-    managed = _coerce_list(raw.get("managed"), "managed")
+    allowlist = _coerce_list(policy_dict.get("allowlist"), "allowlist")
+    blocklist = _coerce_list(policy_dict.get("blocklist"), "blocklist")
+    managed = _coerce_list(policy_dict.get("managed"), "managed")
 
     policy = PluginPolicy(allowlist=allowlist, blocklist=blocklist, managed=managed)
     log.debug(

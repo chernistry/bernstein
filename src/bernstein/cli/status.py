@@ -267,8 +267,9 @@ def render_status(
         con.print(Text.assemble(("Security: ", "bold"), (dependency_scan_line, "dim")))
 
     # Verification nudge alert
-    nudge_data = data.get("verification_nudge")
-    if isinstance(nudge_data, dict) and nudge_data.get("unverified_count", 0) > 0:
+    raw_nudge = data.get("verification_nudge")
+    nudge_data: dict[str, Any] = cast("dict[str, Any]", raw_nudge) if isinstance(raw_nudge, dict) else {}
+    if nudge_data.get("unverified_count", 0) > 0:
         con.print()
         unverified = int(nudge_data.get("unverified_count", 0))
         total_comp = int(nudge_data.get("total_completions", 0))

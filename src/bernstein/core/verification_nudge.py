@@ -149,7 +149,7 @@ class VerificationNudgeTracker:
 
     metrics_dir: Path
     nudge_threshold: float = DEFAULT_NUDGE_THRESHOLD
-    records: list[VerificationRecord] = field(default_factory=list)
+    records: list[VerificationRecord] = field(default_factory=list[VerificationRecord])
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def __post_init__(self) -> None:

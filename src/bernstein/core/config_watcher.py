@@ -83,7 +83,7 @@ class DriftReport:
     """
 
     drifted: bool
-    events: list[DriftEvent] = field(default_factory=list)
+    events: list[DriftEvent] = field(default_factory=list[DriftEvent])
     checked_at: float = 0.0
     snapshot_at: float = 0.0
 
@@ -188,9 +188,9 @@ class ConfigWatcher:
     """
 
     workdir: Path
-    baseline: list[FileChecksum] = field(default_factory=list)
+    baseline: list[FileChecksum] = field(default_factory=list[FileChecksum])
     snapshot_at: float = 0.0
-    acknowledged: dict[str, str] = field(default_factory=dict)
+    acknowledged: dict[str, str] = field(default_factory=dict[str, str])
 
     # ------------------------------------------------------------------
     # Factory

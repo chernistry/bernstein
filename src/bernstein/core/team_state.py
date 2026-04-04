@@ -51,7 +51,7 @@ class TeamMember:
     model: str = ""
     status: str = "starting"
     is_active: bool = True
-    task_ids: list[str] = field(default_factory=list)
+    task_ids: list[str] = field(default_factory=list[str])
     spawned_at: float = 0.0
     finished_at: float = 0.0
     provider: str = ""

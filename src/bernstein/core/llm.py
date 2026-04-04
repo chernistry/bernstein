@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio as _asyncio
 import logging
+import subprocess
 import time
 import urllib.request as _urllib_request
 from typing import TYPE_CHECKING
@@ -127,8 +128,6 @@ async def call_llm(
     if provider == "claude":
         logger.debug("Calling Claude Code CLI: model=%s", model)
         try:
-            import subprocess
-
             result = subprocess.run(
                 [
                     "claude",

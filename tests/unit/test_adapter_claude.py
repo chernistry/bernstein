@@ -22,8 +22,10 @@ from bernstein.adapters.claude import (
 )
 from bernstein.core.models import ModelConfig
 
+from pathlib import Path
+
 if TYPE_CHECKING:
-    from pathlib import Path
+    pass
 
 # ---------------------------------------------------------------------------
 # Helpers / fixtures
@@ -715,37 +717,42 @@ class TestBuildCommandSystemAddendum:
             system_addendum=system_addendum,
         )
 
-    def test_append_system_prompt_present_when_addendum_provided(self) -> None:
+    def test_append_system_prompt_file_present_when_addendum_provided(self) -> None:
         cmd = self._build(system_addendum="Check signals every 60s")
-        assert "--append-system-prompt" in cmd
-        idx = cmd.index("--append-system-prompt")
-        assert cmd[idx + 1] == "Check signals every 60s"
+        assert "--append-system-prompt-file" in cmd
+        idx = cmd.index("--append-system-prompt-file")
+        addendum_path = cmd[idx + 1]
+        assert Path(addendum_path).read_text() == "Check signals every 60s"
+        Path(addendum_path).unlink(missing_ok=True)
 
-    def test_append_system_prompt_absent_when_addendum_empty(self) -> None:
+    def test_append_system_prompt_file_absent_when_addendum_empty(self) -> None:
         cmd = self._build(system_addendum="")
-        assert "--append-system-prompt" not in cmd
+        assert "--append-system-prompt-file" not in cmd
 
-    def test_append_system_prompt_absent_by_default(self) -> None:
+    def test_append_system_prompt_file_absent_by_default(self) -> None:
         adapter = ClaudeCodeAdapter()
         cmd = adapter._build_command(
             ModelConfig(model="sonnet", effort="high"),
             None,
             "some prompt",
         )
-        assert "--append-system-prompt" not in cmd
+        assert "--append-system-prompt-file" not in cmd
 
-    def test_append_system_prompt_before_user_prompt(self) -> None:
-        """--append-system-prompt must appear before -p in the command."""
+    def test_append_system_prompt_file_before_user_prompt(self) -> None:
+        """--append-system-prompt-file must appear before -p in the command."""
         cmd = self._build(system_addendum="orchestration context", prompt="task goal")
-        asp_idx = cmd.index("--append-system-prompt")
+        asp_idx = cmd.index("--append-system-prompt-file")
         p_idx = cmd.index("-p")
-        assert asp_idx < p_idx, "--append-system-prompt should precede -p"
+        assert asp_idx < p_idx, "--append-system-prompt-file should precede -p"
+        Path(cmd[asp_idx + 1]).unlink(missing_ok=True)
 
     def test_user_prompt_unchanged_when_addendum_provided(self) -> None:
         """The -p prompt must not be contaminated by the system addendum."""
         cmd = self._build(system_addendum="signals and heartbeat", prompt="fix the bug")
         p_idx = cmd.index("-p")
         assert cmd[p_idx + 1] == "fix the bug"
+        asp_idx = cmd.index("--append-system-prompt-file")
+        Path(cmd[asp_idx + 1]).unlink(missing_ok=True)
 
     def test_multiline_addendum_preserved(self) -> None:
         """Multi-line orchestration instructions should be passed verbatim."""
@@ -754,8 +761,9 @@ class TestBuildCommandSystemAddendum:
             "## Completion protocol\ncurl -X POST ...\n"
         )
         cmd = self._build(system_addendum=addendum)
-        idx = cmd.index("--append-system-prompt")
-        assert cmd[idx + 1] == addendum
+        idx = cmd.index("--append-system-prompt-file")
+        assert Path(cmd[idx + 1]).read_text() == addendum
+        Path(cmd[idx + 1]).unlink(missing_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -781,9 +789,11 @@ class TestSpawnSystemAddendum:
             )
             cmd: list[str] = popen.call_args_list[0].args[0]
 
-        assert "--append-system-prompt" in cmd
-        idx = cmd.index("--append-system-prompt")
-        assert cmd[idx + 1] == "## Signals\nCheck .sdd/runtime/signals/ every 60s"
+        assert "--append-system-prompt-file" in cmd
+        idx = cmd.index("--append-system-prompt-file")
+        addendum_path = Path(cmd[idx + 1])
+        assert addendum_path.read_text() == "## Signals\nCheck .sdd/runtime/signals/ every 60s"
+        addendum_path.unlink(missing_ok=True)
 
     def test_no_system_addendum_by_default(self, tmp_path: Path) -> None:
         adapter = ClaudeCodeAdapter()
@@ -799,7 +809,7 @@ class TestSpawnSystemAddendum:
             )
             cmd: list[str] = popen.call_args_list[0].args[0]
 
-        assert "--append-system-prompt" not in cmd
+        assert "--append-system-prompt-file" not in cmd
 
     def test_empty_system_addendum_omitted(self, tmp_path: Path) -> None:
         adapter = ClaudeCodeAdapter()
@@ -816,4 +826,4 @@ class TestSpawnSystemAddendum:
             )
             cmd: list[str] = popen.call_args_list[0].args[0]
 
-        assert "--append-system-prompt" not in cmd
+        assert "--append-system-prompt-file" not in cmd

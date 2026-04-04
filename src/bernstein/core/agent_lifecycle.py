@@ -1017,18 +1017,21 @@ def handle_orphaned_task(
                 logger.error("Failed to complete orphaned task %s: %s", task_id, exc)
                 error_type = "complete_failed"
         elif clean_exit:
-            # Agent exited with code 0 — treat clean exit as success
-            # even without file modifications or git commits.
+            # Agent exited with code 0 but produced no diff — treat as
+            # "no changes needed" rather than failure.  This covers tasks
+            # like documentation review, validation, or investigation where
+            # the correct outcome is confirming no changes are required.
             try:
                 complete_task(
                     orch._client,
                     base,
                     task_id,
-                    f"Auto-completed: agent {session.id} exited cleanly (exit code 0, no signals to verify)",
+                    f"Auto-completed (no changes needed): agent {session.id} "
+                    f"exited cleanly with empty diff (exit code 0, no signals to verify)",
                 )
                 success = True
                 logger.info(
-                    "Orphaned task %s auto-completed (clean exit code 0, no signals) after agent %s died",
+                    "Orphaned task %s auto-completed (no changes needed, clean exit) after agent %s died",
                     task_id,
                     session.id,
                 )

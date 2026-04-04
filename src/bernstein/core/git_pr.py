@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import py_compile
 import subprocess
 import time
 from dataclasses import dataclass
@@ -50,6 +51,43 @@ class PullRequestResult:
 
 
 # ------------------------------------------------------------------
+# Pre-merge syntax validation
+# ------------------------------------------------------------------
+
+
+def _check_python_syntax(cwd: Path) -> list[str]:
+    """Verify that all staged .py files have valid Python syntax.
+
+    Uses ``py_compile.compile`` with ``doraise=True`` to catch syntax
+    errors before a merge commit is created.  Returns a list of
+    human-readable error strings (empty on success).
+
+    Args:
+        cwd: Repository root where the merge is staged.
+
+    Returns:
+        List of error descriptions, one per file with a syntax error.
+    """
+    from pathlib import Path as _Path
+
+    # Get the list of files modified in the staged merge
+    names_result = run_git(["diff", "--cached", "--name-only", "--diff-filter=ACMR"], cwd, timeout=15)
+    errors: list[str] = []
+    for raw_name in names_result.stdout.strip().splitlines():
+        name = raw_name.strip()
+        if not name.endswith(".py"):
+            continue
+        filepath = _Path(cwd) / name
+        if not filepath.is_file():
+            continue
+        try:
+            py_compile.compile(str(filepath), doraise=True)
+        except py_compile.PyCompileError as exc:
+            errors.append(f"{name}: {exc.msg}")
+    return errors
+
+
+# ------------------------------------------------------------------
 # Branching
 # ------------------------------------------------------------------
 
@@ -90,6 +128,10 @@ def merge_with_conflict_detection(
 ) -> MergeResult:
     """Merge a branch with explicit conflict detection and safe abort on failure.
 
+    First attempts to rebase the *branch* onto HEAD to produce a clean
+    fast-forward history.  If the rebase fails (conflicts), it aborts and
+    falls back to the original merge-with-conflict-detection path.
+
     Performs ``git merge --no-commit --no-ff`` to stage the merge without
     committing.  If conflicts are detected, aborts the merge cleanly and
     returns the list of conflicting files so a resolver agent can act on them.
@@ -102,6 +144,21 @@ def merge_with_conflict_detection(
     Returns:
         MergeResult indicating success or listing conflicting files.
     """
+    # 0. Try to rebase the agent branch onto HEAD for cleaner history.
+    #    This fast-forwards the branch so the merge is trivial.
+    #    On failure (conflicts), abort and fall through to the merge path.
+    current_head = run_git(["rev-parse", "HEAD"], cwd, timeout=10).stdout.strip()
+    rebase_r = run_git(["rebase", current_head, branch], cwd, timeout=120)
+    if rebase_r.ok:
+        logger.info("Rebased %s onto %s before merge", branch, current_head[:12])
+    else:
+        run_git(["rebase", "--abort"], cwd, timeout=10)
+        logger.info(
+            "Rebase of %s onto HEAD failed, falling back to merge: %s",
+            branch,
+            rebase_r.stderr.strip()[:120],
+        )
+
     with start_span("task.merge_with_conflict_detection", {"branch": branch}):
         # 1. Attempt the merge without committing
         merge_r = run_git(
@@ -111,6 +168,18 @@ def merge_with_conflict_detection(
         )
 
     if merge_r.ok:
+        # Pre-commit syntax check: verify all modified .py files compile.
+        syntax_errors = _check_python_syntax(cwd)
+        if syntax_errors:
+            run_git(["merge", "--abort"], cwd, timeout=10)
+            error_summary = "; ".join(syntax_errors)
+            logger.warning("Syntax check failed before merge commit: %s", error_summary)
+            return MergeResult(
+                success=False,
+                conflicting_files=[],
+                error=f"Python syntax errors blocked merge: {error_summary}",
+            )
+
         # Clean merge — commit it
         msg = message or f"Merge {branch}"
         commit_r = run_git(["commit", "-m", msg], cwd, timeout=30)

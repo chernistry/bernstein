@@ -319,17 +319,33 @@ def fetch(cwd: Path, remote: str = "origin") -> GitResult:
     return run_git(["fetch", remote], cwd, timeout=60)
 
 
-def safe_push(cwd: Path, branch: str, remote: str = "origin") -> GitResult:
-    """Fetch, rebase if behind, then push.
+def safe_push(
+    cwd: Path,
+    branch: str,
+    remote: str = "origin",
+    *,
+    max_retries: int = 3,
+    retry_delay: float = 2.0,
+) -> GitResult:
+    """Fetch, rebase if behind, then push with retry on transient errors.
+
+    Retries the push up to *max_retries* times with a fixed delay between
+    attempts.  Only transient errors (network, auth timeout, remote
+    unavailable) are retried; persistent failures like rejected non-fast-
+    forward pushes fail immediately.
 
     Args:
         cwd: Repository root.
         branch: Branch name to push (``"master"`` is auto-corrected to ``"main"``).
         remote: Remote name (default "origin").
+        max_retries: Number of push retry attempts on transient errors.
+        retry_delay: Seconds to wait between push retries.
 
     Returns:
         GitResult from the push command.
     """
+    import time as _time
+
     # Guardrail: never push to "master" — auto-correct to "main".
     if branch == "master":
         logger.info("safe_push: correcting branch 'master' -> 'main'")
@@ -356,8 +372,39 @@ def safe_push(cwd: Path, branch: str, remote: str = "origin") -> GitResult:
                 logger.error("Merge fallback also failed: %s", merge_r.stderr)
                 return merge_r
 
-    # 4. Push
-    return run_git(["push", remote, branch], cwd, timeout=60)
+    # 4. Push with retry on transient errors
+    _transient_markers = (
+        "unable to access",
+        "could not read",
+        "connection",
+        "timed out",
+        "timeout",
+        "reset by peer",
+    )
+    push_result = GitResult(returncode=1, stdout="", stderr="no push attempted")
+    for attempt in range(max_retries + 1):
+        push_result = run_git(["push", remote, branch], cwd, timeout=60)
+        if push_result.ok:
+            return push_result
+        stderr_lower = push_result.stderr.lower()
+        is_transient = any(marker in stderr_lower for marker in _transient_markers)
+        if not is_transient or attempt >= max_retries:
+            if attempt > 0:
+                logger.error(
+                    "git push failed after %d attempts: %s",
+                    attempt + 1,
+                    push_result.stderr,
+                )
+            return push_result
+        logger.warning(
+            "git push attempt %d/%d failed (transient): %s -- retrying in %.0fs",
+            attempt + 1,
+            max_retries + 1,
+            push_result.stderr.strip(),
+            retry_delay,
+        )
+        _time.sleep(retry_delay)
+    return push_result
 
 
 # ------------------------------------------------------------------

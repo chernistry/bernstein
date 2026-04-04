@@ -65,6 +65,77 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Singleton PID lock
+# ---------------------------------------------------------------------------
+
+
+def _acquire_pid_lock(workdir: Path) -> None:
+    """Ensure only one Bernstein instance runs per working directory.
+
+    Writes the current PID to ``.sdd/runtime/bernstein.pid``.  If the file
+    already exists and the recorded PID is still alive, raises
+    ``RuntimeError`` to prevent data corruption from concurrent instances.
+
+    The PID file is removed on clean shutdown via :func:`_release_pid_lock`.
+
+    Args:
+        workdir: Project root directory.
+
+    Raises:
+        RuntimeError: If another live instance owns the PID file.
+    """
+    runtime_dir = workdir / ".sdd" / "runtime"
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    pid_path = runtime_dir / "bernstein.pid"
+
+    if pid_path.exists():
+        try:
+            existing_pid = int(pid_path.read_text().strip())
+        except (ValueError, OSError):
+            existing_pid = -1
+
+        if existing_pid > 0:
+            try:
+                os.kill(existing_pid, 0)
+                # Process is alive — refuse to start
+                raise RuntimeError(
+                    f"Another Bernstein instance is running (PID {existing_pid}). "
+                    f"Stop it first with 'bernstein stop' or remove {pid_path}"
+                )
+            except ProcessLookupError:
+                pass  # Stale PID file — previous instance crashed
+            except PermissionError:
+                # Process exists but we lack permission to signal it
+                raise RuntimeError(
+                    f"Another Bernstein instance is running (PID {existing_pid}). "
+                    f"Stop it first with 'bernstein stop' or remove {pid_path}"
+                ) from None
+
+    pid_path.write_text(str(os.getpid()))
+
+    import atexit
+
+    atexit.register(_release_pid_lock, workdir)
+
+
+def _release_pid_lock(workdir: Path) -> None:
+    """Remove the PID lock file on clean shutdown.
+
+    Only removes the file if it still contains our PID (guards against a
+    race where a new instance has already replaced the file).
+
+    Args:
+        workdir: Project root directory.
+    """
+    pid_path = workdir / ".sdd" / "runtime" / "bernstein.pid"
+    try:
+        if pid_path.exists() and int(pid_path.read_text().strip()) == os.getpid():
+            pid_path.unlink(missing_ok=True)
+    except (ValueError, OSError):
+        pass
+
+
+# ---------------------------------------------------------------------------
 # MCP auto-discovery helpers
 # ---------------------------------------------------------------------------
 
@@ -201,8 +272,12 @@ def bootstrap_from_seed(
 
     Raises:
         bernstein.core.seed.SeedError: If the seed file is invalid.
-        RuntimeError: If the server fails to start or respond.
+        RuntimeError: If the server fails to start or respond, or if another
+            Bernstein instance is already running in this directory.
     """
+    # Singleton guard: prevent two instances on the same workdir
+    _acquire_pid_lock(workdir)
+
     # Resolve cluster-aware settings
     bind_host = "0.0.0.0" if remote else _resolve_bind_host()
     auth_token = _resolve_auth_token()
@@ -530,6 +605,9 @@ def bootstrap_from_goal(
     Returns:
         BootstrapResult with PIDs and task ID.
     """
+    # Singleton guard: prevent two instances on the same workdir
+    _acquire_pid_lock(workdir)
+
     seed = SeedConfig(goal=goal, cli=cli, model=model)  # type: ignore[arg-type]
 
     # Detect first run: no .sdd/ and no bernstein.yaml yet

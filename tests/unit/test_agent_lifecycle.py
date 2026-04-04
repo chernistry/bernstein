@@ -248,7 +248,8 @@ def test_orphaned_task_completes_on_clean_exit(tmp_path: Path) -> None:
         orch._client,
         "http://server",
         task.id,
-        f"Auto-completed: agent {session.id} exited cleanly (exit code 0, no signals to verify)",
+        f"Auto-completed (no changes needed): agent {session.id} "
+        f"exited cleanly with empty diff (exit code 0, no signals to verify)",
     )
     mock_retry.assert_not_called()
 

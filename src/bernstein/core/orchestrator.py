@@ -243,6 +243,7 @@ class Orchestrator:
     _MAX_PROCESSED_DONE: int = 500  # cap _processed_done_tasks set size
     _MANAGER_REVIEW_COMPLETION_THRESHOLD: int = 7  # trigger review after this many completions
     _MANAGER_REVIEW_STALL_S: float = 900.0  # trigger review after 15 min of no progress
+    _STALE_CLAIM_TIMEOUT_S: float = 600.0  # 10 minutes — release claimed tasks older than this
 
     def __init__(
         self,
@@ -301,6 +302,7 @@ class Orchestrator:
         self._preserved_worktrees: dict[str, Path] = {}  # task_id -> worktree to reuse
         self._running = False
         self._tick_count = 0
+        self._consecutive_server_failures: int = 0
         self._cached_critical_path_ids: set[str] = set()
         self._dependency_scanner = DependencyVulnerabilityScanner(workdir)
         # Track spawn failures per batch for backoff: task_ids -> (fail_count, last_fail_ts)
@@ -498,6 +500,11 @@ class Orchestrator:
         # detect when agents modify its own code and restart in-place.
         self._source_mtime: float = time.time()
 
+        # Config hot-reload: track bernstein.yaml mtime so mutable config
+        # fields (max_agents, budget_usd) are picked up without restart.
+        self._config_path: Path = workdir / "bernstein.yaml"
+        self._config_mtime: float = self._config_path.stat().st_mtime if self._config_path.exists() else 0.0
+
         # Memory leak detection: sampled every few ticks
         self._memory_guard = MemoryGuard()
 
@@ -693,6 +700,48 @@ class Orchestrator:
                 continue
         return False
 
+    def _maybe_reload_config(self) -> bool:
+        """Hot-reload mutable fields from bernstein.yaml when the file changes.
+
+        Only safe-to-reload fields (max_agents, budget_usd) are updated.
+        Structural changes (cli adapter, team composition) still require a
+        full restart.
+
+        Returns:
+            True if config was reloaded, False otherwise.
+        """
+        try:
+            if not self._config_path.exists():
+                return False
+            current_mtime = self._config_path.stat().st_mtime
+            if current_mtime <= self._config_mtime:
+                return False
+        except OSError:
+            return False
+
+        from bernstein.core.seed import parse_seed
+
+        try:
+            seed = parse_seed(self._config_path)
+        except Exception as exc:
+            logger.warning("Config hot-reload: failed to parse %s: %s", self._config_path, exc)
+            self._config_mtime = current_mtime  # avoid retry every tick
+            return False
+
+        changed: list[str] = []
+        if seed.max_agents != self._config.max_agents:
+            changed.append(f"max_agents {self._config.max_agents} -> {seed.max_agents}")
+            self._config.max_agents = seed.max_agents
+        if seed.budget_usd is not None and seed.budget_usd != self._config.budget_usd:
+            changed.append(f"budget_usd {self._config.budget_usd} -> {seed.budget_usd}")
+            self._config.budget_usd = seed.budget_usd
+            self._cost_tracker.budget_usd = seed.budget_usd
+
+        self._config_mtime = current_mtime
+        if changed:
+            logger.info("Config hot-reload: %s", ", ".join(changed))
+        return bool(changed)
+
     def _current_capacity(self) -> NodeCapacity:
         """Build a NodeCapacity snapshot reflecting current agent usage."""
         alive = sum(1 for a in self._agents.values() if a.status != "dead")
@@ -819,8 +868,13 @@ class Orchestrator:
         """Execute one orchestrator cycle."""
         from bernstein.core.telemetry import start_span
 
+        tick_start = time.monotonic()
         with start_span("orchestrator.tick", attributes={"tick": self._tick_count + 1}):
-            return self._tick_internal()
+            result = self._tick_internal()
+        tick_duration = time.monotonic() - tick_start
+        if tick_duration > 30.0:
+            logger.warning("Tick took %.1fs (threshold 30s)", tick_duration)
+        return result
 
     def _tick_internal(self) -> TickResult:
         """Actual tick implementation (previously tick())."""
@@ -856,6 +910,13 @@ class Orchestrator:
             )
         except OSError:
             logger.debug("WAL write failed for tick_start %d", self._tick_count)
+
+        # 0-pre. Proactive server health check (every normal tick).
+        # Detects server crashes early so the watchdog can restart it
+        # before we waste time attempting task fetches / spawns.
+        if _run_normal and not self._check_server_health():
+            result.errors.append("server_health_check_failed")
+            return result
 
         # 0. Ingest any new backlog files before fetching tasks.
         #    Rate-limited to 10 files/tick with title dedup to prevent
@@ -948,6 +1009,13 @@ class Orchestrator:
             )
         except Exception as exc:
             logger.warning("Deadline check failed: %s", exc)
+
+        # 1b-i.5. Release claimed tasks stuck without a live agent (every normal tick)
+        if _run_normal:
+            try:
+                self._release_stale_claims(tasks_by_status.get("claimed", []))
+            except Exception as exc:
+                logger.warning("Stale claim release failed: %s", exc)
 
         # 1b-ii. Governed workflow: filter tasks to current phase only
         if self._workflow_executor is not None and not self._workflow_executor.is_completed:
@@ -1409,6 +1477,9 @@ class Orchestrator:
                 self._idle_multiplier = min(self._idle_multiplier * 2, 1024)
                 time.sleep(min(self._config.poll_interval_s * self._idle_multiplier, 30.0))
 
+            # Hot-reload bernstein.yaml config (mutable fields only)
+            self._maybe_reload_config()
+
             # Check if a restart was requested (own source code changed)
             restart_flag = self._workdir / ".sdd" / "runtime" / "restart_requested"
             needs_restart = False
@@ -1770,6 +1841,34 @@ class Orchestrator:
         for tid in task_ids:
             self._task_to_session.pop(tid, None)
 
+    def _check_server_health(self) -> bool:
+        """Ping the task server health endpoint with a short timeout.
+
+        Updates ``_consecutive_server_failures`` and logs CRITICAL after 3
+        consecutive failures so the external watchdog (or operator) knows
+        the server needs attention.
+
+        Returns:
+            True if the server responded successfully.
+        """
+        try:
+            resp = self._client.get(
+                f"{self._config.server_url}/status",
+                timeout=5.0,
+            )
+            resp.raise_for_status()
+            self._consecutive_server_failures = 0
+            return True
+        except (httpx.HTTPError, httpx.TimeoutException):
+            self._consecutive_server_failures += 1
+            if self._consecutive_server_failures >= 3:
+                logger.critical(
+                    "Task server health check failed %d consecutive times — "
+                    "server may have crashed (watchdog should restart it)",
+                    self._consecutive_server_failures,
+                )
+            return False
+
     def _reconcile_claimed_tasks(self) -> int:
         """Unclaim orphaned tasks from previous orchestrator runs.
 
@@ -1811,6 +1910,57 @@ class Orchestrator:
                 unclaimed,
             )
         return unclaimed
+
+    def _release_stale_claims(self, claimed_tasks: list[Task]) -> int:
+        """Fail claimed tasks that have been stuck longer than the timeout.
+
+        When an agent dies silently (no crash signal, no heartbeat timeout),
+        its claimed tasks stay in "claimed" forever.  This method detects
+        tasks with no matching live agent that have exceeded
+        ``_STALE_CLAIM_TIMEOUT_S`` and marks them failed so they can be
+        retried.
+
+        Args:
+            claimed_tasks: Tasks with status "claimed" from the current tick.
+
+        Returns:
+            Number of tasks released.
+        """
+        now = time.time()
+        released = 0
+        for task in claimed_tasks:
+            # Skip tasks that have a known live agent in this session
+            if task.id in self._task_to_session:
+                agent_id = self._task_to_session[task.id]
+                agent = self._agents.get(agent_id)
+                if agent is not None and agent.status != "dead":
+                    continue
+
+            # Use created_at as lower-bound proxy (task model has no claimed_at)
+            age_s = now - task.created_at
+            if age_s < self._STALE_CLAIM_TIMEOUT_S:
+                continue
+
+            try:
+                fail_task(
+                    self._client,
+                    self._config.server_url,
+                    task.id,
+                    reason=f"Stale claim: task stuck in claimed state for {age_s / 60:.0f}m with no live agent",
+                )
+                released += 1
+                logger.warning(
+                    "Released stale claimed task %s (%s) — stuck for %.0fm",
+                    task.id,
+                    task.title,
+                    age_s / 60,
+                )
+            except Exception:
+                logger.debug("Failed to release stale task %s", task.id, exc_info=True)
+
+        if released:
+            logger.warning("Released %d stale claimed task(s)", released)
+        return released
 
     def _collect_completion_data(self, session: AgentSession) -> CompletionData:
         """Delegate to task_lifecycle.collect_completion_data."""
@@ -1889,9 +2039,56 @@ class Orchestrator:
                 return
 
             base = self._config.server_url
+
+            # Pre-validate corrections against actual server state so the
+            # LLM cannot cancel non-existent tasks, re-route to invalid
+            # roles, or operate on tasks in terminal states.
+            task_states: dict[str, str] = {}
+            try:
+                resp = self._client.get(f"{base}/tasks")
+                resp.raise_for_status()
+                for t in resp.json():
+                    task_states[t["id"]] = t.get("status", "unknown")
+            except httpx.HTTPError as exc:
+                logger.warning(
+                    "Manager review: failed to fetch task states for validation: %s",
+                    exc,
+                )
+                # Proceed without validation rather than silently dropping all corrections
+
+            valid_roles: set[str] | None = None
+            _cancellable_states = {"open", "claimed", "in_progress"}
+
             for correction in result.corrections:
                 try:
+                    # Validate task_id exists in server state (skip add_task which has no task_id)
+                    if (
+                        correction.action != "add_task"
+                        and correction.task_id
+                        and task_states
+                        and correction.task_id not in task_states
+                    ):
+                        logger.warning(
+                            "Manager review: skipping %s for non-existent task %s",
+                            correction.action,
+                            correction.task_id,
+                        )
+                        continue
+
                     if correction.action == "reassign" and correction.task_id and correction.new_role:
+                        # Validate target role exists
+                        if valid_roles is None:
+                            from bernstein import get_templates_dir
+                            from bernstein.core.context import available_roles
+
+                            valid_roles = set(available_roles(get_templates_dir(self._workdir) / "roles"))
+                        if correction.new_role not in valid_roles:
+                            logger.warning(
+                                "Manager review: skipping reassign to invalid role %r (valid: %s)",
+                                correction.new_role,
+                                ", ".join(sorted(valid_roles)),
+                            )
+                            continue
                         self._client.patch(
                             f"{base}/tasks/{correction.task_id}",
                             json={"role": correction.new_role},
@@ -1914,6 +2111,15 @@ class Orchestrator:
                             correction.reason,
                         )
                     elif correction.action == "cancel" and correction.task_id:
+                        # Validate task is in a cancellable state
+                        status = task_states.get(correction.task_id)
+                        if status and status not in _cancellable_states:
+                            logger.warning(
+                                "Manager review: skipping cancel for task %s in non-cancellable state %r",
+                                correction.task_id,
+                                status,
+                            )
+                            continue
                         self._client.post(
                             f"{base}/tasks/{correction.task_id}/cancel",
                             json={"reason": correction.reason or "manager review"},
@@ -2004,7 +2210,11 @@ class Orchestrator:
         """Delegate to task_lifecycle.should_auto_decompose."""
         if not self._config.auto_decompose:
             return False
-        return should_auto_decompose(task, self._decomposed_task_ids)
+        return should_auto_decompose(
+            task,
+            self._decomposed_task_ids,
+            force_parallel=self._config.force_parallel or self._config.auto_decompose,
+        )
 
     def _auto_decompose_task(self, task: Task) -> None:
         """Delegate to task_lifecycle.auto_decompose_task."""

@@ -103,13 +103,20 @@ class TestCheckScope:
         assert len(results) == 1
         assert results[0].type == DecisionType.ALLOW
 
-    def test_passes_when_no_owned_files(self) -> None:
+    def test_flags_outside_default_scope_when_no_owned_files(self) -> None:
         task = _make_task(owned_files=[])
         diff = "diff --git a/anything.py b/anything.py\n"
         results = check_scope(diff, task)
         assert len(results) == 1
+        assert results[0].type == DecisionType.ASK
+        assert "default scope" in results[0].reason.lower()
+
+    def test_passes_within_default_scope_when_no_owned_files(self) -> None:
+        task = _make_task(owned_files=[])
+        diff = "diff --git a/src/bernstein/core/foo.py b/src/bernstein/core/foo.py\n"
+        results = check_scope(diff, task)
+        assert len(results) == 1
         assert results[0].type == DecisionType.ALLOW
-        assert "no scope" in results[0].reason.lower()
 
     def test_collects_all_out_of_scope_files(self) -> None:
         task = _make_task(owned_files=["src/bernstein/core/janitor.py"])

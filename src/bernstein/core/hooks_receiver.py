@@ -172,9 +172,9 @@ def touch_heartbeat(session_id: str, workdir: Path) -> None:
         workdir: Project working directory.
     """
     heartbeat_dir = workdir / ".sdd" / "runtime" / "heartbeats"
-    heartbeat_dir.mkdir(parents=True, exist_ok=True)
-    hb_path = heartbeat_dir / f"{session_id}.json"
     try:
+        heartbeat_dir.mkdir(parents=True, exist_ok=True)
+        hb_path = heartbeat_dir / f"{session_id}.json"
         hb_path.write_text(str(int(time.time())), encoding="utf-8")
     except OSError:
         logger.debug("Failed to touch heartbeat for session %s", session_id)

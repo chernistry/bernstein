@@ -77,6 +77,10 @@ _PUBLIC_PATHS = frozenset(
     }
 )
 
+# Path prefixes that are always accessible without auth.
+# Used for routes with path parameters (e.g. /hooks/{session_id}).
+_PUBLIC_PATH_PREFIXES = ("/hooks/",)
+
 
 class BearerAuthMiddleware(BaseHTTPMiddleware):
     """Validate Bearer token on all requests when auth is configured.
@@ -100,7 +104,7 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
             return response
 
         path = request.url.path
-        if path in _PUBLIC_PATHS:
+        if path in _PUBLIC_PATHS or path.startswith(_PUBLIC_PATH_PREFIXES):
             response = await call_next(request)
             return response
 
@@ -338,7 +342,6 @@ class TaskResponse(BaseModel):
     deadline: float | None = None
     progress_log: list[ProgressEntry] = Field(default_factory=lambda: list[ProgressEntry]())
     version: int = 1
-    claimed_by_session: str | None = None
 
 
 class WebhookTaskResponse(BaseModel):
@@ -402,7 +405,6 @@ class BatchClaimRequest(BaseModel):
 
     task_ids: list[str]
     agent_id: str
-    claimed_by_session: str | None = None
 
 
 class BatchClaimResponse(BaseModel):
@@ -806,7 +808,6 @@ def task_to_response(task: Task) -> TaskResponse:
         created_at=task.created_at,
         progress_log=list(cast("list[ProgressEntry]", task.progress_log)),  # type: ignore[reportUnknownMemberType]
         version=task.version,
-        claimed_by_session=task.claimed_by_session,
     )
 
 
@@ -1194,10 +1195,10 @@ def create_app(
 
     application.include_router(slo_router)
 
-    # Team state — read-only roster for CLI/TUI consumers
-    from bernstein.core.routes.team import router as team_router
+    # Claude Code hook receiver — real-time tool-use and lifecycle events
+    from bernstein.core.routes.hooks import router as hooks_router
 
-    application.include_router(team_router)
+    application.include_router(hooks_router)
 
     return application
 

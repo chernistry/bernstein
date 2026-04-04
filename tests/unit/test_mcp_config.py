@@ -261,7 +261,8 @@ class TestClaudeAdapterMcpFlag:
             assert "mcpServers" in mcp_json
             assert "tavily" in mcp_json["mcpServers"]
 
-    def test_no_mcp_flag_when_none(self, tmp_path: Path) -> None:
+    def test_bernstein_bridge_injected_when_no_user_mcp(self, tmp_path: Path) -> None:
+        """Even with mcp_config=None, the bernstein bridge MCP server is injected."""
         adapter = ClaudeCodeAdapter()
 
         with patch("bernstein.adapters.claude.subprocess.Popen") as mock_popen:
@@ -278,4 +279,8 @@ class TestClaudeAdapterMcpFlag:
             )
 
             cmd = mock_popen.call_args_list[0].args[0]
-            assert "--mcp-config" not in cmd
+            assert "--mcp-config" in cmd
+            import json
+
+            parsed = json.loads(cmd[cmd.index("--mcp-config") + 1])
+            assert "bernstein" in parsed["mcpServers"]

@@ -108,6 +108,7 @@ def _mock_adapter(pid: int = 42) -> CLIAdapter:
     adapter = MagicMock(spec=CLIAdapter)
     adapter.spawn.return_value = SpawnResult(pid=pid, log_path=Path("/tmp/test.log"))
     adapter.is_alive.return_value = True
+    adapter.is_rate_limited.return_value = False
     adapter.kill.return_value = None
     adapter.name.return_value = "MockCLI"
     return adapter
@@ -152,7 +153,60 @@ def _mock_transport(responses: dict[str, httpx.Response]) -> httpx.MockTransport
                     aggregated.extend(resp.json())
             if aggregated or any(k.startswith("GET /tasks?status=") for k in responses):
                 return httpx.Response(200, json=aggregated)
+        # Paginated fetch: "GET /tasks?limit=N&offset=M" → wrap bulk result ──
+        if request.method == "GET" and url.path == "/tasks" and "limit" in url.params:
+            bulk_key = "GET /tasks"
+            if bulk_key in responses:
+                bulk_resp = responses[bulk_key]
+                if bulk_resp.status_code == 200:
+                    all_tasks = bulk_resp.json()
+                    offset_val = int(url.params.get("offset", "0"))
+                    limit_val = int(url.params.get("limit", "100"))
+                    page = all_tasks[offset_val : offset_val + limit_val]
+                    return httpx.Response(200, json={"tasks": page, "total": len(all_tasks), "limit": limit_val, "offset": offset_val})
+            # Also try aggregating from status-specific entries
+            aggregated_p: list[object] = []
+            for resp_key, resp in responses.items():
+                if resp_key.startswith("GET /tasks?status=") and resp.status_code == 200:
+                    aggregated_p.extend(resp.json())
+            if aggregated_p or any(k.startswith("GET /tasks?status=") for k in responses):
+                return httpx.Response(200, json={"tasks": aggregated_p, "total": len(aggregated_p), "limit": 100, "offset": 0})
         return httpx.Response(404, json={"detail": f"No mock for {key}"})
+
+    return httpx.MockTransport(handler)
+
+
+def _paginated_transport(inner: httpx.MockTransport) -> httpx.MockTransport:
+    """Wrap a mock transport to handle paginated /tasks requests.
+
+    The orchestrator now fetches /tasks?limit=N&offset=M and expects a paginated
+    response ``{"tasks": [...], "total": N, ...}``.  Most test transports return
+    a plain list for ``GET /tasks``.  This wrapper intercepts paginated requests,
+    forwards them as plain ``GET /tasks`` to the inner transport, and wraps the
+    response in the paginated envelope.
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = request.url
+        if request.method == "GET" and url.path == "/tasks" and "limit" in url.params:
+            # Strip pagination params and forward to inner transport
+            plain_params = {k: v for k, v in url.params.items() if k not in ("limit", "offset")}
+            plain_url = url.copy_with(params=plain_params) if plain_params else url.copy_with(params={})
+            plain = httpx.Request(request.method, plain_url, headers=request.headers)
+            resp = inner.handle_request(plain)
+            if resp.status_code == 200:
+                body = resp.json()
+                # Already paginated?
+                if isinstance(body, dict) and "tasks" in body:
+                    return resp
+                # Wrap plain list
+                tasks_list = body if isinstance(body, list) else []
+                offset_val = int(url.params.get("offset", "0"))
+                limit_val = int(url.params.get("limit", "100"))
+                page = tasks_list[offset_val : offset_val + limit_val]
+                return httpx.Response(200, json={"tasks": page, "total": len(tasks_list), "limit": limit_val, "offset": offset_val})
+            return resp
+        return inner.handle_request(request)
 
     return httpx.MockTransport(handler)
 
@@ -175,7 +229,7 @@ def _build_orchestrator(
     templates_dir = tmp_path / "templates" / "roles"
     templates_dir.mkdir(parents=True)
     spawner = AgentSpawner(adp, templates_dir, tmp_path)
-    client = httpx.Client(transport=transport, base_url="http://testserver")
+    client = httpx.Client(transport=_paginated_transport(transport), base_url="http://testserver")
     return Orchestrator(cfg, spawner, tmp_path, client=client)
 
 
@@ -5119,7 +5173,7 @@ class TestEvolutionAgentLifetimeRecording:
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
         spawner = AgentSpawner(adp, templates_dir, tmp_path)
-        client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://testserver")
+        client = httpx.Client(transport=_paginated_transport(httpx.MockTransport(handler)), base_url="http://testserver")
         orch = Orchestrator(cfg, spawner, tmp_path, client=client, evolution=evolution)
 
         session = AgentSession(
@@ -5128,7 +5182,7 @@ class TestEvolutionAgentLifetimeRecording:
             pid=55,
             task_ids=["T-wlt"],
             spawn_ts=time.time() - 200,  # exceeds 60s limit
-            heartbeat_ts=time.time(),
+            heartbeat_ts=time.time() - 130,  # >120s so extension logic doesn't kick in
             status="working",
         )
         orch._agents["sess-wlt"] = session
@@ -5533,7 +5587,7 @@ class TestShouldTriggerManagerReview:
 
     def test_triggers_when_completions_reach_threshold(self, tmp_path: Path) -> None:
         orch = self._make_orch(tmp_path)
-        orch._completions_since_review = 3  # == THRESHOLD
+        orch._completions_since_review = orch._MANAGER_REVIEW_COMPLETION_THRESHOLD  # == THRESHOLD
         assert orch._should_trigger_manager_review(failed_count=0) is True
 
     def test_triggers_when_completions_exceed_threshold(self, tmp_path: Path) -> None:
@@ -5554,8 +5608,8 @@ class TestShouldTriggerManagerReview:
     def test_triggers_on_stall_after_previous_review(self, tmp_path: Path) -> None:
         orch = self._make_orch(tmp_path)
         orch._completions_since_review = 0
-        # Simulate a review that happened 6 minutes ago
-        orch._last_review_ts = time.time() - 360
+        # Simulate a review that happened long enough ago to exceed the stall guard
+        orch._last_review_ts = time.time() - (orch._MANAGER_REVIEW_STALL_S + 60)
         assert orch._should_trigger_manager_review(failed_count=0) is True
 
     def test_does_not_trigger_stall_when_no_prior_review(self, tmp_path: Path) -> None:

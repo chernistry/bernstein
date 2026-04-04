@@ -21,6 +21,7 @@ def mock_inner() -> MagicMock:
     inner = MagicMock(spec=CLIAdapter)
     inner.name.return_value = "mock-adapter"
     inner.spawn.return_value = SpawnResult(pid=1234, log_path=Path("/tmp/agent.log"))
+    inner.is_rate_limited.return_value = False
     return inner
 
 

@@ -66,6 +66,7 @@ def _mock_adapter(pid: int = 42) -> CLIAdapter:
     adapter = MagicMock(spec=CLIAdapter)
     adapter.spawn.return_value = SpawnResult(pid=pid, log_path=Path("/tmp/test.log"))
     adapter.is_alive.return_value = True
+    adapter.is_rate_limited.return_value = False
     adapter.kill.return_value = None
     return adapter
 

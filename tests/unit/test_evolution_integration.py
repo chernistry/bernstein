@@ -277,6 +277,7 @@ class TestEvolutionEndToEnd:
         )
         adapter = MagicMock(spec=CLIAdapter)
         adapter.spawn.return_value = SpawnResult(pid=1, log_path=Path("/tmp/t.log"))
+        adapter.is_rate_limited.return_value = False
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
         spawner = AgentSpawner(adapter, templates_dir, tmp_path)

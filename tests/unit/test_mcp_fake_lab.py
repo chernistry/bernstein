@@ -202,16 +202,18 @@ class TestBernsteinApprove:
         lab.assert_called("POST", "/tasks/T-102/complete")
 
     @pytest.mark.asyncio
-    async def test_approve_missing_task_raises(self, lab: McpFakeLab) -> None:
-        """bernstein_approve raises when the task does not exist in the fake server.
+    async def test_approve_missing_task_returns_error(self, lab: McpFakeLab) -> None:
+        """bernstein_approve returns an error JSON (not exception) for missing tasks.
 
-        FastMCP wraps underlying exceptions in ToolError; the 404 message is
-        present in the error string.
+        The MCP server catches HTTP errors and returns a JSON error response
+        to keep the server alive on stdio transport.
         """
-        from mcp.server.fastmcp.exceptions import ToolError
+        import json
 
-        with pytest.raises(ToolError, match="404"):
-            await lab.call_tool("bernstein_approve", {"task_id": "no-such-task"})
+        result = await lab.call_tool("bernstein_approve", {"task_id": "no-such-task"})
+        parsed = json.loads(result)
+        assert "error" in parsed
+        assert "404" in parsed["error"]
 
 
 # ---------------------------------------------------------------------------

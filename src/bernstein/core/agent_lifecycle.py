@@ -890,15 +890,32 @@ def reap_dead_agents(
         if session.status == "dead":
             continue
 
-        # Wall-clock timeout: use per-session timeout if set, else global config
+        # Wall-clock timeout: use per-session timeout if set, else global config.
+        # Heartbeat-aware: if the agent heartbeated within the last 120s, extend
+        # the deadline by 10 minutes (up to a hard cap of 90 minutes).  This
+        # prevents killing agents that are actively making progress.
         timeout_s = session.timeout_s if session.timeout_s is not None else orch._config.max_agent_runtime_s
         runtime = now - session.spawn_ts
+        _time_since_heartbeat = now - session.heartbeat_ts if session.heartbeat_ts > 0 else runtime
+        _hard_cap_s = 5400  # 90 minutes absolute maximum
+        if runtime > timeout_s and _time_since_heartbeat < 120 and timeout_s < _hard_cap_s:
+            # Agent is still actively working — extend timeout by 10 minutes
+            session.timeout_s = min(timeout_s + 600, _hard_cap_s)
+            logger.info(
+                "Agent %s exceeded %.0fs timeout but heartbeated %.0fs ago — extending to %.0fs",
+                session.id,
+                timeout_s,
+                _time_since_heartbeat,
+                session.timeout_s,
+            )
+            continue
         if runtime > timeout_s:
             logger.warning(
-                "Reaping agent %s (exceeded timeout %.0fs, runtime %.0fs)",
+                "Reaping agent %s (exceeded timeout %.0fs, runtime %.0fs, last heartbeat %.0fs ago)",
                 session.id,
                 timeout_s,
                 runtime,
+                _time_since_heartbeat,
             )
             orch._spawner.kill(session)
             _propagate_abort_to_children(orch, session.id)

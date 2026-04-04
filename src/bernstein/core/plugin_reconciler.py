@@ -75,9 +75,9 @@ class ReconcileResult:
         errors: Non-fatal error messages from failed removal attempts.
     """
 
-    removed: list[str] = field(default_factory=list)
-    kept: list[str] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
+    removed: list[str] = field(default_factory=list[str])
+    kept: list[str] = field(default_factory=list[str])
+    errors: list[str] = field(default_factory=list[str])
 
 
 # ---------------------------------------------------------------------------
@@ -133,9 +133,10 @@ def load_marketplace(marketplace_path: Path) -> list[MarketplaceEntry]:
             if name:
                 entries.append(MarketplaceEntry(name=name))
         elif isinstance(item, dict):
-            name = str(item.get("name", "")).strip()
+            entry: dict[str, Any] = cast("dict[str, Any]", item)
+            name = str(entry.get("name", "")).strip()
             if name:
-                entries.append(MarketplaceEntry(name=name, version=str(item.get("version", ""))))
+                entries.append(MarketplaceEntry(name=name, version=str(entry.get("version", ""))))
     return entries
 
 

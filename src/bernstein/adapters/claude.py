@@ -228,6 +228,7 @@ class ClaudeCodeAdapter(CLIAdapter):
             str(max_turns),
             "--output-format",
             "stream-json",
+            "--verbose",
         ]
         if fallback_model:
             cmd.extend(["--fallback-model", fallback_model])

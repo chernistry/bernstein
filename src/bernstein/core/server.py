@@ -298,6 +298,7 @@ class TaskCreate(BaseModel):
     batch_eligible: bool = False  # Non-urgent: eligible for provider batch APIs at ~50% cost
     completion_signals: list[CompletionSignalSchema] = Field(default_factory=lambda: list[CompletionSignalSchema]())
     slack_context: dict[str, Any] | None = None  # Slack slash command metadata
+    metadata: dict[str, Any] = Field(default_factory=dict)  # Trigger-source metadata (e.g. issue_number)
     deadline: float | None = None  # Epoch timestamp when task must be complete
     parent_session_id: str | None = None  # Coordinator session that owns this task (namespace scope)
 
@@ -339,6 +340,7 @@ class TaskResponse(BaseModel):
     batch_eligible: bool = False
     completion_signals: list[dict[str, str]] = Field(default_factory=lambda: list[dict[str, str]]())
     slack_context: dict[str, Any] | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: float
     deadline: float | None = None
     progress_log: list[ProgressEntry] = Field(default_factory=lambda: list[ProgressEntry]())
@@ -808,6 +810,7 @@ def task_to_response(task: Task) -> TaskResponse:
         batch_eligible=task.batch_eligible,
         completion_signals=[{"type": s.type, "value": s.value} for s in task.completion_signals],
         slack_context=task.slack_context,
+        metadata=task.metadata,
         created_at=task.created_at,
         progress_log=list(cast("list[ProgressEntry]", task.progress_log)),  # type: ignore[reportUnknownMemberType]
         version=task.version,

@@ -688,6 +688,7 @@ class TaskStore:
             risk_level=getattr(req, "risk_level", "low"),
             completion_signals=[CompletionSignal(type=s.type, value=s.value) for s in req.completion_signals],
             slack_context=req.slack_context,
+            metadata=getattr(req, "metadata", None) or {},
             parent_session_id=getattr(req, "parent_session_id", None),
         )
         async with self._lock:

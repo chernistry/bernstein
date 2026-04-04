@@ -908,6 +908,20 @@ def process_completed_tasks(
                 task_id=task.id,
                 role=task.role,
             )
+            # Close the linked GitHub issue if the task was created from one.
+            _issue_number = task.metadata.get("issue_number") if task.metadata else None
+            if _issue_number:
+                try:
+                    from bernstein.core.github import GitHubClient
+
+                    _gh = GitHubClient()
+                    _gh.close_issue(
+                        int(_issue_number),
+                        comment=f"Closed by Bernstein task {task.id}",
+                    )
+                    logger.info("Closed GitHub issue #%s for task %s", _issue_number, task.id)
+                except Exception as exc:
+                    logger.warning("Failed to close GitHub issue #%s for task %s: %s", _issue_number, task.id, exc)
         else:
             orch._post_bulletin(
                 "alert",

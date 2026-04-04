@@ -259,7 +259,11 @@ class PlanStore:
         plan.decided_at = time.time()
         plan.decision_reason = reason
         self._save(plan)
-        logger.info("Plan %s approved: %s", plan_id.replace("\n", "\\n").replace("\r", "\\r"), (reason or "(no reason)").replace("\n", "\\n").replace("\r", "\\r"))
+        logger.info(
+            "Plan %s approved: %s",
+            plan_id.replace("\n", "\\n").replace("\r", "\\r"),
+            (reason or "(no reason)").replace("\n", "\\n").replace("\r", "\\r"),
+        )
         return plan
 
     def reject_plan(self, plan_id: str, reason: str = "") -> TaskPlan | None:
@@ -274,5 +278,9 @@ class PlanStore:
         plan.decided_at = time.time()
         plan.decision_reason = reason
         self._save(plan)
-        logger.info("Plan %s rejected: %s", plan_id.replace("\n", "\\n").replace("\r", "\\r"), (reason or "(no reason)").replace("\n", "\\n").replace("\r", "\\r"))
+        logger.info(
+            "Plan %s rejected: %s",
+            plan_id.replace("\n", "\\n").replace("\r", "\\r"),
+            (reason or "(no reason)").replace("\n", "\\n").replace("\r", "\\r"),
+        )
         return plan

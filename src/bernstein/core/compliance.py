@@ -422,10 +422,7 @@ def parse_period(period: str) -> tuple[str, str]:
         start_month = (quarter - 1) * 3 + 1
         end_month = quarter * 3
         # Last day of the end month
-        if end_month in (4, 6, 9, 11):
-            end_day = 30
-        else:
-            end_day = 31
+        end_day = 30 if end_month in (4, 6, 9, 11) else 31
         return f"{year}-{start_month:02d}-01", f"{year}-{end_month:02d}-{end_day:02d}"
 
     # Month: 2026-03

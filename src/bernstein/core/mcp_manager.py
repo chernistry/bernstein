@@ -318,6 +318,38 @@ class MCPManager:
             return None
         return {"mcpServers": mcp_servers}
 
+    def build_mcp_config_with_allowlist(
+        self,
+        allowlist: MCPRunAllowlist | None = None,
+        server_names: list[str] | None = None,
+    ) -> dict[str, Any] | None:
+        """Build MCP config filtered through a strict run allowlist.
+
+        Only alive servers that also pass the allowlist are included.
+        Blocked servers are logged at DEBUG level so operators can trace
+        what was filtered out.
+
+        Args:
+            allowlist: Run-level allowlist to enforce. When ``None``, all alive
+                servers are included (same behaviour as :meth:`build_mcp_config`).
+            server_names: Subset of server names to consider. Defaults to all.
+
+        Returns:
+            Dict with ``{"mcpServers": {...}}`` structure, or None if empty.
+        """
+        targets = server_names if server_names is not None else self.server_names
+        if allowlist is not None:
+            allowed, blocked = allowlist.filter_server_names(targets)
+            for name in blocked:
+                logger.debug(
+                    "MCP server '%s' blocked by run allowlist (mode=%s, allowed=%s)",
+                    name,
+                    allowlist.mode,
+                    sorted(allowlist.allowed_names),
+                )
+            targets = allowed
+        return self.build_mcp_config(server_names=targets)
+
     def build_mcp_config_for_task(
         self,
         task_mcp_servers: list[str] | None,
@@ -350,6 +382,65 @@ class MCPManager:
         merged_servers = dict(base_config.get("mcpServers", {}))
         merged_servers.update(task_config.get("mcpServers", {}))
         return {"mcpServers": merged_servers}
+
+
+# ---------------------------------------------------------------------------
+# MCP run allowlist — strict server whitelist per run (T535)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class MCPRunAllowlist:
+    """Strict allowlist controlling which MCP servers may be used in a run.
+
+    When ``mode`` is ``'strict'`` (the default), any MCP server not in
+    ``allowed_names`` is blocked from being included in agent configs.
+    ``'permissive'`` mode allows all servers through, useful for dev.
+
+    Attributes:
+        allowed_names: Frozenset of permitted server names for this run.
+        mode: ``'strict'`` — block unlisted servers; ``'permissive'`` — allow all.
+    """
+
+    allowed_names: frozenset[str]
+    mode: Literal["strict", "permissive"] = "strict"
+
+    def is_allowed(self, server_name: str) -> bool:
+        """Return True if *server_name* is permitted by this allowlist.
+
+        Args:
+            server_name: MCP server name to check.
+
+        Returns:
+            True when the server is allowed (either explicitly listed or
+            the allowlist is in permissive mode).
+        """
+        if self.mode == "permissive":
+            return True
+        return server_name in self.allowed_names
+
+    def filter_server_names(
+        self,
+        server_names: list[str],
+    ) -> tuple[list[str], list[str]]:
+        """Partition *server_names* into (allowed, blocked) lists.
+
+        Args:
+            server_names: Server names to partition.
+
+        Returns:
+            Tuple of ``(allowed_names, blocked_names)``.
+        """
+        allowed = [n for n in server_names if self.is_allowed(n)]
+        blocked = [n for n in server_names if not self.is_allowed(n)]
+        return allowed, blocked
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise to a JSON-compatible dict."""
+        return {
+            "allowed_names": sorted(self.allowed_names),
+            "mode": self.mode,
+        }
 
 
 def _merge_env(extra: dict[str, str]) -> dict[str, str]:

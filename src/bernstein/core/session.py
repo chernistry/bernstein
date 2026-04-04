@@ -12,10 +12,11 @@ import json
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 DEFAULT_STALE_MINUTES: int = 30
 _SESSION_FILE = Path(".sdd") / "runtime" / "session.json"
+_STARTUP_GATES_FILE = Path(".sdd") / "runtime" / "startup_gates.json"
 
 
 @dataclass
@@ -588,3 +589,216 @@ def load_task_notifications(
     except OSError:
         pass
     return notifications
+
+
+# ---------------------------------------------------------------------------
+# Startup gate checkpoints (T507)
+# ---------------------------------------------------------------------------
+
+GateProvenance = Literal["seed", "default", "env"]
+GateStartupStatus = Literal["enabled", "disabled", "cached"]
+
+
+@dataclass
+class StartupGateCheckpoint:
+    """Typed checkpoint for one quality gate captured at startup time.
+
+    Records whether the gate was enabled, disabled, or served from cache —
+    plus where the config came from.  Persisted to disk so operators can
+    diff gate state between restarts and diagnose stale-cache issues.
+
+    Attributes:
+        captured_at: Unix timestamp when the checkpoint was taken.
+        gate_name: Gate identifier (e.g. ``'lint'``, ``'type_check'``).
+        status: Gate status at startup — ``'enabled'``, ``'disabled'``,
+            or ``'cached'`` (result loaded from prior run cache).
+        cached: Whether the gate result was loaded from cache.
+        cache_age_seconds: Age of the cached result in seconds, if applicable.
+        provenance: Config source — ``'seed'`` (bernstein.yaml),
+            ``'env'`` (environment variable override), or ``'default'``.
+        config_hash: Hash of the gate's resolved config, for change detection.
+    """
+
+    captured_at: float
+    gate_name: str
+    status: GateStartupStatus
+    cached: bool = False
+    cache_age_seconds: float | None = None
+    provenance: GateProvenance = "default"
+    config_hash: str = ""
+
+    def is_stale_cache(self, max_age_seconds: float = 3600.0) -> bool:
+        """Return True if the cached gate result is older than *max_age_seconds*.
+
+        Args:
+            max_age_seconds: Cache TTL in seconds (default 1 hour).
+
+        Returns:
+            True when cached and the cache age exceeds the threshold.
+        """
+        if not self.cached or self.cache_age_seconds is None:
+            return False
+        return self.cache_age_seconds > max_age_seconds
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise to a JSON-compatible dict."""
+        return {
+            "captured_at": self.captured_at,
+            "gate_name": self.gate_name,
+            "status": self.status,
+            "cached": self.cached,
+            "cache_age_seconds": self.cache_age_seconds,
+            "provenance": self.provenance,
+            "config_hash": self.config_hash,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> StartupGateCheckpoint:
+        """Deserialise from a JSON-parsed dict.
+
+        Args:
+            data: Dict with at least ``captured_at`` and ``gate_name`` keys.
+
+        Returns:
+            Populated :class:`StartupGateCheckpoint`.
+
+        Raises:
+            KeyError: If required keys are absent.
+            ValueError: If ``captured_at`` cannot be cast to float.
+        """
+        status_raw = str(data.get("status", "enabled"))
+        if status_raw not in ("enabled", "disabled", "cached"):
+            status_raw = "enabled"
+        provenance_raw = str(data.get("provenance", "default"))
+        if provenance_raw not in ("seed", "default", "env"):
+            provenance_raw = "default"
+        cache_age_raw = data.get("cache_age_seconds")
+        return cls(
+            captured_at=float(data["captured_at"]),
+            gate_name=str(data["gate_name"]),
+            status=status_raw,  # type: ignore[arg-type]
+            cached=bool(data.get("cached", False)),
+            cache_age_seconds=float(cache_age_raw) if cache_age_raw is not None else None,
+            provenance=provenance_raw,  # type: ignore[arg-type]
+            config_hash=str(data.get("config_hash", "")),
+        )
+
+
+def save_startup_gate_checkpoints(
+    workdir: Path,
+    checkpoints: list[StartupGateCheckpoint],
+) -> None:
+    """Persist startup gate checkpoints to ``.sdd/runtime/startup_gates.json``.
+
+    Overwrites any previous checkpoints.  Creates parent directories if needed.
+
+    Args:
+        workdir: Project root directory.
+        checkpoints: Gate checkpoints captured at startup.
+    """
+    path = workdir / _STARTUP_GATES_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps([c.to_dict() for c in checkpoints], indent=2),
+        encoding="utf-8",
+    )
+
+
+def load_startup_gate_checkpoints(workdir: Path) -> list[StartupGateCheckpoint]:
+    """Load startup gate checkpoints from disk.
+
+    Returns an empty list when the file is missing, corrupt, or unreadable.
+
+    Args:
+        workdir: Project root directory.
+
+    Returns:
+        List of :class:`StartupGateCheckpoint` in the order they were saved.
+    """
+    path = workdir / _STARTUP_GATES_FILE
+    if not path.exists():
+        return []
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, list):
+            return []
+        raw_list: list[Any] = cast("list[Any]", raw)
+        result: list[StartupGateCheckpoint] = []
+        for item in raw_list:
+            if isinstance(item, dict):
+                typed_item: dict[str, Any] = cast("dict[str, Any]", item)
+                try:
+                    result.append(StartupGateCheckpoint.from_dict(typed_item))
+                except (KeyError, ValueError):
+                    continue
+        return result
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def build_startup_gate_checkpoints(
+    gate_names: list[str],
+    *,
+    enabled_gates: set[str] | None = None,
+    cached_gates: dict[str, float] | None = None,
+    seed_gates: set[str] | None = None,
+    env_gates: set[str] | None = None,
+    config_hashes: dict[str, str] | None = None,
+) -> list[StartupGateCheckpoint]:
+    """Build startup checkpoints for a set of gate names.
+
+    Determines provenance (seed → env → default) and cache status for each
+    gate and assembles typed :class:`StartupGateCheckpoint` objects.
+
+    Precedence (highest first): ``env_gates`` → ``seed_gates`` → ``default``.
+
+    Args:
+        gate_names: All known gate identifiers to checkpoint.
+        enabled_gates: Set of gate names that are currently enabled.
+            Defaults to all gates being enabled when ``None``.
+        cached_gates: Mapping of gate name → cache age in seconds for gates
+            whose last result was loaded from cache.
+        seed_gates: Gates explicitly configured in bernstein.yaml.
+        env_gates: Gates overridden via environment variables.
+        config_hashes: Mapping of gate name → config hash for change detection.
+
+    Returns:
+        Ordered list of :class:`StartupGateCheckpoint` objects.
+    """
+    now = time.time()
+    enabled_set = enabled_gates if enabled_gates is not None else set(gate_names)
+    cached_map = cached_gates or {}
+    seed_set = seed_gates or set()
+    env_set = env_gates or set()
+    hash_map = config_hashes or {}
+    checkpoints: list[StartupGateCheckpoint] = []
+
+    for gate in gate_names:
+        if gate in env_set:
+            provenance: GateProvenance = "env"
+        elif gate in seed_set:
+            provenance = "seed"
+        else:
+            provenance = "default"
+
+        is_cached = gate in cached_map
+        if is_cached:
+            status: GateStartupStatus = "cached"
+        elif gate in enabled_set:
+            status = "enabled"
+        else:
+            status = "disabled"
+
+        checkpoints.append(
+            StartupGateCheckpoint(
+                captured_at=now,
+                gate_name=gate,
+                status=status,
+                cached=is_cached,
+                cache_age_seconds=cached_map.get(gate),
+                provenance=provenance,
+                config_hash=hash_map.get(gate, ""),
+            )
+        )
+
+    return checkpoints

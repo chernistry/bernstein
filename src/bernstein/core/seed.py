@@ -171,6 +171,11 @@ class SeedConfig:
         catalogs: Catalog registry built from the ``catalogs`` section of the
             seed file.  Defaults to Agency-only remote mode when absent.
         mcp_servers: MCP server definitions to pass to spawned agents.
+        mcp_allowlist: Explicit allowlist of MCP server names permitted for
+            this run.  When set, only servers whose names appear in this list
+            are included in agent configs; all others are silently blocked.
+            ``None`` (the default) means no restriction — all configured
+            servers are allowed.
         notify: Optional webhook notification configuration.
         cells: Number of parallel orchestration cells (1 = single-cell).
         quality_gates: Optional quality gate configuration. When set, lint/type/test
@@ -190,6 +195,7 @@ class SeedConfig:
     agent_catalog: str | None = None
     catalogs: CatalogRegistry | None = None
     mcp_servers: dict[str, dict[str, Any]] | None = None
+    mcp_allowlist: tuple[str, ...] | None = None
     notify: NotifyConfig | None = None
     storage: StorageConfig | None = None
     cells: int = 1
@@ -696,6 +702,11 @@ def parse_seed(path: Path) -> SeedConfig:
     mcp_servers_raw: object = data.get("mcp_servers")
     if mcp_servers_raw is not None and not isinstance(mcp_servers_raw, dict):
         raise SeedError(f"mcp_servers must be a mapping, got: {type(mcp_servers_raw).__name__}")
+
+    mcp_allowlist_raw: object = data.get("mcp_allowlist")
+    mcp_allowlist: tuple[str, ...] | None = (
+        None if mcp_allowlist_raw is None else _parse_string_list(mcp_allowlist_raw, "mcp_allowlist")
+    )
 
     catalogs_raw: object = data.get("catalogs")
     catalogs: CatalogRegistry | None = None
@@ -1223,6 +1234,7 @@ def parse_seed(path: Path) -> SeedConfig:
         agent_catalog=agent_catalog_raw,
         catalogs=catalogs,
         mcp_servers=cast("dict[str, dict[str, Any]] | None", mcp_servers_raw),
+        mcp_allowlist=mcp_allowlist if mcp_allowlist is not None else None,
         notify=notify,
         webhooks=webhooks,
         storage=storage,

@@ -321,7 +321,7 @@ class ClaudeCodeAdapter(CLIAdapter):
             "args": ["-m", "bernstein.mcp.server"],
         }
         effective_mcp: dict[str, Any] = {}
-        if mcp_config and isinstance(mcp_config, dict):
+        if mcp_config:
             if "mcpServers" in mcp_config:
                 effective_mcp = {**mcp_config}
                 effective_mcp["mcpServers"] = {**mcp_config["mcpServers"], "bernstein": bridge_server}

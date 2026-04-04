@@ -272,7 +272,7 @@ class SSHBackend:
             SSHError: If the SSH process cannot be started.
         """
         remote_cmd = self._wrap_remote_cmd(cmd)
-        full_cmd = self._ssh_cmd() + [self._config.ssh_target(), remote_cmd]
+        full_cmd = [*self._ssh_cmd(), self._config.ssh_target(), remote_cmd]
 
         stdout: int | None = None
         stderr: int | None = None
@@ -306,7 +306,7 @@ class SSHBackend:
 
         This is a best-effort operation; errors are logged but not raised.
         """
-        cmd = self._ssh_cmd() + ["rm", "-rf", self._remote_session_dir]
+        cmd = [*self._ssh_cmd(), "rm", "-rf", self._remote_session_dir]
         try:
             self._run(cmd, desc="cleanup remote dir")
         except SSHError:

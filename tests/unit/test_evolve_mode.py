@@ -54,6 +54,7 @@ def _make_spawner(tmp_path: Path) -> AgentSpawner:
     adapter = MagicMock(spec=CLIAdapter)
     adapter.spawn.return_value = SpawnResult(pid=42, log_path=tmp_path / "test.log")
     adapter.is_alive.return_value = False
+    adapter.is_rate_limited.return_value = False
     adapter.name.return_value = "MockCLI"
     templates_dir = tmp_path / "templates" / "roles"
     templates_dir.mkdir(parents=True, exist_ok=True)

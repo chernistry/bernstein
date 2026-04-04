@@ -387,6 +387,7 @@ class TestSpawnerSkipMerge:
         from bernstein.core.spawner import AgentSpawner
 
         mock_adapter = MagicMock(spec=CLIAdapter)
+        mock_adapter.is_rate_limited.return_value = False
 
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
@@ -415,6 +416,7 @@ class TestSpawnerSkipMerge:
         from bernstein.core.spawner import AgentSpawner
 
         mock_adapter = MagicMock(spec=CLIAdapter)
+        mock_adapter.is_rate_limited.return_value = False
 
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
@@ -580,6 +582,7 @@ class TestSpawnerGetWorktreePath:
         from bernstein.core.spawner import AgentSpawner
 
         mock_adapter = MagicMock(spec=CLIAdapter)
+        mock_adapter.is_rate_limited.return_value = False
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
         spawner = AgentSpawner(mock_adapter, templates_dir, tmp_path, use_worktrees=False)
@@ -591,6 +594,7 @@ class TestSpawnerGetWorktreePath:
         from bernstein.core.spawner import AgentSpawner
 
         mock_adapter = MagicMock(spec=CLIAdapter)
+        mock_adapter.is_rate_limited.return_value = False
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
         spawner = AgentSpawner(mock_adapter, templates_dir, tmp_path, use_worktrees=True)

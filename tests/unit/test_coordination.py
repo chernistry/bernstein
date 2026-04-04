@@ -168,6 +168,7 @@ def test_spawn_prompt_includes_bulletin_summary(tmp_path: Path):
 
     adapter = MagicMock(spec=CLIAdapter)
     adapter.spawn.return_value = SpawnResult(pid=12345, log_path=tmp_path / "agent.log")
+    adapter.is_rate_limited.return_value = False
 
     templates_dir = tmp_path / "templates" / "roles"
     templates_dir.mkdir(parents=True)
@@ -195,6 +196,7 @@ def test_spawn_prompt_no_bulletin_section_without_board(tmp_path: Path):
 
     adapter = MagicMock(spec=CLIAdapter)
     adapter.spawn.return_value = SpawnResult(pid=12345, log_path=tmp_path / "agent.log")
+    adapter.is_rate_limited.return_value = False
 
     templates_dir = tmp_path / "templates" / "roles"
     templates_dir.mkdir(parents=True)
@@ -221,6 +223,7 @@ def test_spawn_prompt_no_bulletin_section_with_empty_board(tmp_path: Path):
 
     adapter = MagicMock(spec=CLIAdapter)
     adapter.spawn.return_value = SpawnResult(pid=12345, log_path=tmp_path / "agent.log")
+    adapter.is_rate_limited.return_value = False
 
     templates_dir = tmp_path / "templates" / "roles"
     templates_dir.mkdir(parents=True)
@@ -251,6 +254,7 @@ def _make_orchestrator(tmp_path: Path) -> Orchestrator:
 
     adapter = MagicMock(spec=CLIAdapter)
     adapter.spawn.return_value = SpawnResult(pid=999, log_path=tmp_path / "agent.log")
+    adapter.is_rate_limited.return_value = False
 
     templates_dir = tmp_path / "templates" / "roles"
     templates_dir.mkdir(parents=True)

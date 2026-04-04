@@ -931,20 +931,22 @@ class PluginManager:
                 raw_servers: object = plugin.provide_mcp_servers()
                 if not raw_servers or not isinstance(raw_servers, list):
                     continue
+                typed_servers = cast("list[object]", raw_servers)
                 entries: list[MCPServerEntry] = []
-                for raw in raw_servers:
+                for raw in typed_servers:
                     if isinstance(raw, MCPServerEntry):
                         entries.append(raw)
                     elif isinstance(raw, dict):
+                        d: dict[str, Any] = cast("dict[str, Any]", raw)
                         entries.append(
                             MCPServerEntry(
-                                name=str(raw["name"]),
-                                package=str(raw.get("package", "")),
-                                capabilities=tuple(str(c) for c in raw.get("capabilities", [])),
-                                keywords=tuple(str(k) for k in raw.get("keywords", [])),
-                                env_required=tuple(str(e) for e in raw.get("env_required", [])),
-                                command=str(raw.get("command", "npx")),
-                                args=tuple(str(a) for a in raw["args"]) if "args" in raw else None,
+                                name=str(d["name"]),
+                                package=str(d.get("package", "")),
+                                capabilities=tuple(str(c) for c in cast("list[object]", d.get("capabilities", []))),
+                                keywords=tuple(str(k) for k in cast("list[object]", d.get("keywords", []))),
+                                env_required=tuple(str(e) for e in cast("list[object]", d.get("env_required", []))),
+                                command=str(d.get("command", "npx")),
+                                args=tuple(str(a) for a in cast("list[object]", d["args"])) if "args" in d else None,
                             )
                         )
                 if entries:

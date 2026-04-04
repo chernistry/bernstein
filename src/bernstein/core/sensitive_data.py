@@ -32,7 +32,7 @@ Wrap sensitive field values in ``SensitiveData`` to prevent accidental logging::
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import Any, cast
 
 __all__ = [
     "SensitiveData",
@@ -116,7 +116,7 @@ def strip_sensitive_fields(obj: Any) -> dict[str, Any]:
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
         source: dict[str, Any] = {f.name: getattr(obj, f.name) for f in dataclasses.fields(obj)}
     elif isinstance(obj, dict):
-        source = dict(obj)
+        source = cast("dict[str, Any]", obj)
     else:
         raise TypeError(f"strip_sensitive_fields expects a dataclass or dict, got {type(obj).__name__!r}")
 

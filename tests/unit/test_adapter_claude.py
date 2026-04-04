@@ -778,11 +778,9 @@ class TestSpawnSystemAddendum:
             )
             cmd: list[str] = popen.call_args_list[0].args[0]
 
-        assert "--append-system-prompt-file" in cmd
-        idx = cmd.index("--append-system-prompt-file")
-        addendum_path = Path(cmd[idx + 1])
-        assert addendum_path.read_text() == "## Signals\nCheck .sdd/runtime/signals/ every 60s"
-        addendum_path.unlink(missing_ok=True)
+        assert "--append-system-prompt" in cmd
+        idx = cmd.index("--append-system-prompt")
+        assert cmd[idx + 1] == "## Signals\nCheck .sdd/runtime/signals/ every 60s"
 
     def test_no_system_addendum_by_default(self, tmp_path: Path) -> None:
         adapter = ClaudeCodeAdapter()
@@ -798,7 +796,7 @@ class TestSpawnSystemAddendum:
             )
             cmd: list[str] = popen.call_args_list[0].args[0]
 
-        assert "--append-system-prompt-file" not in cmd
+        assert "--append-system-prompt" not in cmd
 
     def test_empty_system_addendum_omitted(self, tmp_path: Path) -> None:
         adapter = ClaudeCodeAdapter()
@@ -815,4 +813,4 @@ class TestSpawnSystemAddendum:
             )
             cmd: list[str] = popen.call_args_list[0].args[0]
 
-        assert "--append-system-prompt-file" not in cmd
+        assert "--append-system-prompt" not in cmd

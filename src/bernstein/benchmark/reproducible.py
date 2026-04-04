@@ -145,7 +145,7 @@ class QualityMetrics:
     """Quality measurements for a benchmark run.
 
     Args:
-        pass_rate: Fraction of tasks that passed (0.0–1.0).
+        pass_rate: Fraction of tasks that passed (0.0-1.0).
         verification_rate: Fraction of tasks that passed verification.
         total_tasks: Total number of tasks attempted.
         passed: Number of tasks that passed.

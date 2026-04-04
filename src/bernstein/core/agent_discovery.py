@@ -19,6 +19,26 @@ from typing import Final, cast
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Model name constants (avoid duplicating magic strings across detectors)
+# ---------------------------------------------------------------------------
+
+# Bare model names (used by native CLIs)
+MODEL_CLAUDE_SONNET: str = "claude-sonnet-4-6"
+MODEL_CLAUDE_OPUS: str = "claude-opus-4-6"
+MODEL_CLAUDE_HAIKU: str = "claude-haiku-4-5-20251001"
+MODEL_GPT_5_4: str = "gpt-5.4"
+MODEL_GPT_5_4_MINI: str = "gpt-5.4-mini"
+MODEL_GEMINI_25_PRO: str = "gemini-2.5-pro"
+MODEL_GEMINI_25_FLASH: str = "gemini-2.5-flash"
+
+# OpenRouter-prefixed model names (used by multi-provider CLIs)
+MODEL_OR_CLAUDE_SONNET: str = "anthropic/claude-sonnet-4-6"
+MODEL_OR_GPT_5_4: str = "openai/gpt-5.4"
+MODEL_OR_GPT_5_4_MINI: str = "openai/gpt-5.4-mini"
+MODEL_OR_GEMINI_25_PRO: str = "google/gemini-2.5-pro"
+MODEL_OR_GEMINI_25_FLASH: str = "google/gemini-2.5-flash"
+
 # Maximum time (seconds) for any single subprocess probe.
 _PROBE_TIMEOUT_S: Final[float] = 3.0
 
@@ -176,8 +196,8 @@ def _detect_codex() -> tuple[AgentCapabilities | None, list[str]]:
         version=version,
         logged_in=logged_in,
         login_method=login_method,
-        available_models=["gpt-5.4", "gpt-5.4-mini", "o3", "o4-mini"],
-        default_model="gpt-5.4",
+        available_models=[MODEL_GPT_5_4, MODEL_GPT_5_4_MINI, "o3", "o4-mini"],
+        default_model=MODEL_GPT_5_4,
         supports_headless=True,
         supports_sandbox=True,
         supports_mcp=True,
@@ -214,7 +234,7 @@ def _detect_gemini() -> tuple[AgentCapabilities | None, list[str]]:
         version=version,
         logged_in=logged_in,
         login_method=login_method,
-        available_models=["gemini-3-pro", "gemini-3-flash", "gemini-2.5-pro"],
+        available_models=["gemini-3-pro", "gemini-3-flash", MODEL_GEMINI_25_PRO],
         default_model="gemini-3-pro",
         supports_headless=True,
         supports_sandbox=True,
@@ -263,8 +283,8 @@ def _detect_claude() -> tuple[AgentCapabilities | None, list[str]]:
         version=version,
         logged_in=logged_in,
         login_method=login_method,
-        available_models=["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001"],
-        default_model="claude-sonnet-4-6",
+        available_models=[MODEL_CLAUDE_SONNET, MODEL_CLAUDE_OPUS, MODEL_CLAUDE_HAIKU],
+        default_model=MODEL_CLAUDE_SONNET,
         supports_headless=True,
         supports_sandbox=False,
         supports_mcp=True,
@@ -350,8 +370,8 @@ def _detect_cursor() -> tuple[AgentCapabilities | None, list[str]]:
         version=version,
         logged_in=logged_in,
         login_method=login_method,
-        available_models=["claude-sonnet-4-6", "claude-opus-4-6", "gpt-5.4", "cursor-small"],
-        default_model="claude-sonnet-4-6",
+        available_models=[MODEL_CLAUDE_SONNET, MODEL_CLAUDE_OPUS, MODEL_GPT_5_4, "cursor-small"],
+        default_model=MODEL_CLAUDE_SONNET,
         supports_headless=True,
         supports_sandbox=False,
         supports_mcp=True,  # --add-mcp flag
@@ -393,8 +413,8 @@ def _detect_kilo() -> tuple[AgentCapabilities | None, list[str]]:
         version=version,
         logged_in=logged_in,
         login_method=login_method,
-        available_models=["anthropic/claude-sonnet-4-6", "openai/gpt-5.4", "google/gemini-2.5-pro"],
-        default_model="anthropic/claude-sonnet-4-6",
+        available_models=[MODEL_OR_CLAUDE_SONNET, MODEL_OR_GPT_5_4, MODEL_OR_GEMINI_25_PRO],
+        default_model=MODEL_OR_CLAUDE_SONNET,
         supports_headless=True,
         supports_sandbox=False,
         supports_mcp=True,  # --mcp flag
@@ -438,9 +458,9 @@ def _detect_kiro() -> tuple[AgentCapabilities | None, list[str]]:
     models = _extract_model_names(_run_probe([binary_name, "chat", "--list-models", "--format", "json"]))
     if not models:
         models = [
-            "anthropic/claude-sonnet-4-6",
-            "openai/gpt-5.4",
-            "google/gemini-2.5-pro",
+            MODEL_OR_CLAUDE_SONNET,
+            MODEL_OR_GPT_5_4,
+            MODEL_OR_GEMINI_25_PRO,
         ]
 
     if binary and not logged_in:
@@ -500,9 +520,9 @@ def _detect_opencode() -> tuple[AgentCapabilities | None, list[str]]:
     models = _extract_model_names(_run_probe(["opencode", "models"]))
     if not models:
         models = [
-            "openai/gpt-5.4-mini",
-            "anthropic/claude-sonnet-4-6",
-            "google/gemini-2.5-flash",
+            MODEL_OR_GPT_5_4_MINI,
+            MODEL_OR_CLAUDE_SONNET,
+            MODEL_OR_GEMINI_25_FLASH,
         ]
 
     if binary and not logged_in:
@@ -695,38 +715,38 @@ def detect_auth_status() -> dict[str, tuple[bool, bool]]:
 # - Gemini 2.5-pro: SWE-bench ~76%, 1M context, free tier (1000 req/day)
 # - Gemini 2.5-flash: fast, free tier, good for UI/docs/simple tasks
 _ROLE_PREFERENCES: dict[str, list[tuple[str, str]]] = {
-    "manager": [("claude", "claude-opus-4-6"), ("codex", "o3"), ("gemini", "gemini-2.5-pro")],
-    "architect": [("claude", "claude-opus-4-6"), ("codex", "o3"), ("gemini", "gemini-2.5-pro")],
+    "manager": [("claude", MODEL_CLAUDE_OPUS), ("codex", "o3"), ("gemini", MODEL_GEMINI_25_PRO)],
+    "architect": [("claude", MODEL_CLAUDE_OPUS), ("codex", "o3"), ("gemini", MODEL_GEMINI_25_PRO)],
     "backend": [
-        ("claude", "claude-sonnet-4-6"),
+        ("claude", MODEL_CLAUDE_SONNET),
         ("codex", "o4-mini"),
-        ("opencode", "openai/gpt-5.4-mini"),
-        ("gemini", "gemini-2.5-flash"),
+        ("opencode", MODEL_OR_GPT_5_4_MINI),
+        ("gemini", MODEL_GEMINI_25_FLASH),
     ],
     "frontend": [
-        ("gemini", "gemini-2.5-flash"),
-        ("kiro", "anthropic/claude-sonnet-4-6"),
-        ("claude", "claude-sonnet-4-6"),
+        ("gemini", MODEL_GEMINI_25_FLASH),
+        ("kiro", MODEL_OR_CLAUDE_SONNET),
+        ("claude", MODEL_CLAUDE_SONNET),
         ("codex", "o4-mini"),
     ],
     "qa": [
         ("codex", "o4-mini"),
-        ("opencode", "openai/gpt-5.4-mini"),
-        ("gemini", "gemini-2.5-flash"),
-        ("claude", "claude-sonnet-4-6"),
+        ("opencode", MODEL_OR_GPT_5_4_MINI),
+        ("gemini", MODEL_GEMINI_25_FLASH),
+        ("claude", MODEL_CLAUDE_SONNET),
     ],
-    "security": [("claude", "claude-opus-4-6"), ("codex", "o3"), ("gemini", "gemini-2.5-pro")],
-    "docs": [("gemini", "gemini-2.5-flash"), ("claude", "claude-haiku-4-5-20251001"), ("codex", "o4-mini")],
+    "security": [("claude", MODEL_CLAUDE_OPUS), ("codex", "o3"), ("gemini", MODEL_GEMINI_25_PRO)],
+    "docs": [("gemini", MODEL_GEMINI_25_FLASH), ("claude", MODEL_CLAUDE_HAIKU), ("codex", "o4-mini")],
     "devops": [
-        ("opencode", "openai/gpt-5.4-mini"),
+        ("opencode", MODEL_OR_GPT_5_4_MINI),
         ("codex", "o4-mini"),
-        ("claude", "claude-sonnet-4-6"),
-        ("gemini", "gemini-2.5-flash"),
+        ("claude", MODEL_CLAUDE_SONNET),
+        ("gemini", MODEL_GEMINI_25_FLASH),
     ],
     "resolver": [
-        ("gemini", "gemini-2.5-flash"),
+        ("gemini", MODEL_GEMINI_25_FLASH),
         ("codex", "o4-mini"),
-        ("claude", "claude-haiku-4-5-20251001"),
+        ("claude", MODEL_CLAUDE_HAIKU),
     ],
 }
 
@@ -833,12 +853,12 @@ def generate_auto_routing_yaml(discovery: DiscoveryResult | None = None) -> str:
 def short_model(model: str) -> str:
     """Convert full model ID to a short display name."""
     mapping: dict[str, str] = {
-        "claude-opus-4-6": "opus",
-        "claude-sonnet-4-6": "sonnet",
+        MODEL_CLAUDE_OPUS: "opus",
+        MODEL_CLAUDE_SONNET: "sonnet",
         "claude-haiku-4-5": "haiku",
-        "claude-haiku-4-5-20251001": "haiku",
-        "gemini-2.5-pro": "2.5-pro",
-        "gemini-2.5-flash": "2.5-flash",
+        MODEL_CLAUDE_HAIKU: "haiku",
+        MODEL_GEMINI_25_PRO: "2.5-pro",
+        MODEL_GEMINI_25_FLASH: "2.5-flash",
         "gemini-2.0-flash": "2.0-flash",
         "o4-mini": "o4-mini",
         "o3": "o3",

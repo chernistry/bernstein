@@ -519,32 +519,31 @@ def version_from_commits(cwd: Path, tag_prefix: str = "v") -> str:
             timeout=10,
         )
 
-    if not log_r.ok or not log_r.stdout.strip():
-        # No new commits — return current version as-is
-        return f"{major}.{minor}.{patch_v}"
+    has_commits = log_r.ok and bool(log_r.stdout.strip())
+    subjects = log_r.stdout.strip().splitlines() if has_commits else []
 
-    subjects = log_r.stdout.strip().splitlines()
+    # Only bump when there are new commits since the last tag
+    if subjects:
+        bump_major = False
+        bump_minor = False
 
-    bump_major = False
-    bump_minor = False
+        for subj in subjects:
+            lower = subj.lower()
+            if "breaking change" in lower or "!:" in subj:
+                bump_major = True
+                break
+            if lower.startswith("feat"):
+                bump_minor = True
 
-    for subj in subjects:
-        lower = subj.lower()
-        if "breaking change" in lower or "!:" in subj:
-            bump_major = True
-            break
-        if lower.startswith("feat"):
-            bump_minor = True
-
-    if bump_major:
-        major += 1
-        minor = 0
-        patch_v = 0
-    elif bump_minor:
-        minor += 1
-        patch_v = 0
-    else:
-        patch_v += 1
+        if bump_major:
+            major += 1
+            minor = 0
+            patch_v = 0
+        elif bump_minor:
+            minor += 1
+            patch_v = 0
+        else:
+            patch_v += 1
 
     return f"{major}.{minor}.{patch_v}"
 

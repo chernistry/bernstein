@@ -37,7 +37,7 @@ import random
 import subprocess
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -97,8 +97,8 @@ class RunSession:
     session_id: str
     goal: str
     run_seed: int
-    tasks: list[dict[str, Any]] = field(default_factory=list)
-    routing_decisions: dict[str, str] = field(default_factory=dict)
+    tasks: list[dict[str, Any]] = field(default_factory=lambda: [])
+    routing_decisions: dict[str, str] = field(default_factory=lambda: {})
     git_sha: str = ""
     created_at: str = ""
     bernstein_version: str = ""
@@ -148,7 +148,7 @@ class RunSession:
         serialised: list[dict[str, Any]] = []
         for task in tasks:
             if isinstance(task, dict):
-                serialised.append(task)
+                serialised.append(cast("dict[str, Any]", task))
             else:
                 # Dataclass — convert enums to their values
                 try:
@@ -214,10 +214,10 @@ class RunSession:
                     scope=_scope_map.get(d.get("scope", "medium"), Scope.MEDIUM),
                     complexity=_complexity_map.get(d.get("complexity", "medium"), Complexity.MEDIUM),
                     status=_status_map.get(d.get("status", "open"), TaskStatus.OPEN),
-                    estimated_minutes=d.get("estimated_minutes"),
+                    estimated_minutes=int(d.get("estimated_minutes", 30)),
                     depends_on=d.get("depends_on") or [],
                     owned_files=d.get("owned_files") or [],
-                    task_type=_type_map.get(d.get("task_type", "feature"), TaskType.FEATURE),
+                    task_type=_type_map.get(d.get("task_type", "standard"), TaskType.STANDARD),
                 )
             )
         return result  # type: ignore[return-value]

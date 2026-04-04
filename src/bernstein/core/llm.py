@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio as _asyncio
 import logging
-import subprocess
 import time
 import urllib.request as _urllib_request
 from typing import TYPE_CHECKING
@@ -138,30 +137,30 @@ async def call_llm(
     if provider == "claude":
         logger.debug("Calling Claude Code CLI: model=%s", model)
         try:
-            result = subprocess.run(
-                [
-                    "claude",
-                    "--print",
-                    "--model",
-                    model,
-                    "--output-format",
-                    "text",
-                    "--max-turns",
-                    "1",
-                    "-p",
-                    prompt,
-                ],
-                capture_output=True,
-                text=True,
-                timeout=120,
+            proc = await _asyncio.create_subprocess_exec(
+                "claude",
+                "--print",
+                "--model",
+                model,
+                "--output-format",
+                "text",
+                "--max-turns",
+                "1",
+                "-p",
+                prompt,
+                stdout=_asyncio.subprocess.PIPE,
+                stderr=_asyncio.subprocess.PIPE,
             )
-            if result.returncode != 0:
-                raise RuntimeError(f"claude CLI exited {result.returncode}: {result.stderr[:200]}")
-            _text = result.stdout.strip()
+            stdout_bytes, stderr_bytes = await _asyncio.wait_for(proc.communicate(), timeout=120)
+            _stdout = stdout_bytes.decode() if stdout_bytes else ""
+            _stderr = stderr_bytes.decode() if stderr_bytes else ""
+            if proc.returncode != 0:
+                raise RuntimeError(f"claude CLI exited {proc.returncode}: {_stderr[:200]}")
+            _text = _stdout.strip()
             if _store is not None:
                 _store.record(prompt, model, _text)
             return _text
-        except subprocess.TimeoutExpired as exc:
+        except TimeoutError as exc:
             raise RuntimeError("Claude CLI timed out after 120s") from exc
         except FileNotFoundError as exc:
             raise RuntimeError("claude CLI not found — install Claude Code") from exc

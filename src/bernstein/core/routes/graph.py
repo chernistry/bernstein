@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
@@ -21,10 +22,10 @@ class ImpactResponse(BaseModel):
     built_at: str
 
 
-@router.get("/graph/impact", response_model=ImpactResponse)
+@router.get("/graph/impact")
 def graph_impact(
     request: Request,
-    file: str = Query(..., min_length=1),
+    file: Annotated[str, Query(..., min_length=1)],
 ) -> ImpactResponse:
     """Return downstream files impacted by changing the given file."""
     workdir = getattr(request.app.state, "workdir", Path.cwd())

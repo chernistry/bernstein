@@ -778,7 +778,7 @@ class TestCreateUpgradeFromTask:
             status=TaskStatus.OPEN,
             task_type=TaskType.STANDARD,
         )
-        result = asyncio.run(create_upgrade_from_task(task, tmp_path))
+        result = create_upgrade_from_task(task, tmp_path)
         assert result is None
 
     def test_returns_none_for_upgrade_task_without_details(self, tmp_path: Path) -> None:
@@ -790,5 +790,5 @@ class TestCreateUpgradeFromTask:
             status=TaskStatus.OPEN,
             task_type=TaskType.UPGRADE_PROPOSAL,
         )
-        result = asyncio.run(create_upgrade_from_task(task, tmp_path))
+        result = create_upgrade_from_task(task, tmp_path)
         assert result is None

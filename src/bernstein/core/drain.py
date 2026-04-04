@@ -410,14 +410,14 @@ class DrainCoordinator:
         workdir_str = str(self._workdir)
         known_pids = {a.pid for a in self._agents}
         try:
-            ps_result = subprocess.run(
-                ["ps", "-ax", "-o", "pid=,command="],
-                capture_output=True,
-                text=True,
-                timeout=5,
+            ps_proc = await asyncio.create_subprocess_exec(
+                "ps", "-ax", "-o", "pid=,command=",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
-            if ps_result.returncode == 0:
-                for line in ps_result.stdout.splitlines():
+            ps_stdout, _ = await asyncio.wait_for(ps_proc.communicate(), timeout=5)
+            if ps_proc.returncode == 0:
+                for line in ps_stdout.decode().splitlines():
                     parts = line.strip().split(maxsplit=1)
                     if len(parts) != 2:
                         continue
@@ -441,7 +441,7 @@ class DrainCoordinator:
                                 worktree_path="",
                             )
                         )
-        except (OSError, subprocess.SubprocessError):
+        except (TimeoutError, OSError):
             pass
 
         # Write SHUTDOWN signals for discovered agents.

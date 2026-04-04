@@ -144,7 +144,7 @@ def _get_current_user(request: Request) -> Any:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/providers", response_model=AuthProvidersResponse)
+@router.get("/providers")
 async def auth_providers(request: Request) -> AuthProvidersResponse:
     """List available authentication providers."""
     svc = getattr(request.app.state, "auth_service", None)
@@ -306,7 +306,7 @@ async def saml_metadata(request: Request) -> Response:
 # ---------------------------------------------------------------------------
 
 
-@router.post("/cli/device", response_model=DeviceCodeResponse)
+@router.post("/cli/device")
 async def device_code_request(request: Request, body: DeviceCodeRequest) -> DeviceCodeResponse:
     """Initiate device authorization flow for CLI login.
 
@@ -327,7 +327,7 @@ async def device_code_request(request: Request, body: DeviceCodeRequest) -> Devi
     )
 
 
-@router.post("/cli/token", response_model=DevicePollResponse)
+@router.post("/cli/token")
 async def device_token_poll(request: Request, body: DevicePollRequest) -> DevicePollResponse:
     """Poll for device authorization status.
 
@@ -374,7 +374,7 @@ async def device_authorize(request: Request, body: DeviceAuthorizeRequest) -> JS
 # ---------------------------------------------------------------------------
 
 
-@router.get("/me", response_model=UserProfileResponse)
+@router.get("/me")
 async def get_profile(request: Request) -> UserProfileResponse:
     """Get the current authenticated user's profile."""
     user = _get_current_user(request)
@@ -412,7 +412,7 @@ async def logout(request: Request) -> JSONResponse:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/group-mappings", response_model=GroupMappingsResponse)
+@router.get("/group-mappings")
 async def get_group_mappings(request: Request) -> GroupMappingsResponse:
     """Get current SSO group → role mappings."""
     svc = _get_auth_service(request)

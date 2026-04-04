@@ -80,11 +80,11 @@ class ABTestRecord:
             task_title=str(d["task_title"]),
             model=str(d["model"]),
             session_id=str(d["session_id"]),
-            tokens_used=int(d["tokens_used"]),
-            files_changed=int(d["files_changed"]),
+            tokens_used=int(str(d["tokens_used"])),
+            files_changed=int(str(d["files_changed"])),
             status=str(d["status"]),
-            duration_s=float(d["duration_s"]),
-            recorded_at=float(d.get("recorded_at", 0.0)),
+            duration_s=float(str(d["duration_s"])),
+            recorded_at=float(str(d.get("recorded_at", 0.0))),
         )
 
 

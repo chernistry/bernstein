@@ -36,7 +36,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 from string import Template
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -86,7 +86,7 @@ class SSHHostConfig:
     key: str = ""
     remote_dir: str = "~/bernstein-workdir"
     rsync_excludes: tuple[str, ...] = ()
-    env: dict[str, str] = field(default_factory=dict)
+    env: dict[str, str] = field(default_factory=lambda: {})
     connect_timeout: int = 15
 
     def ssh_target(self) -> str:
@@ -131,37 +131,39 @@ def parse_ssh_config(raw: object | None) -> SSHHostConfig | None:
     if not isinstance(raw, dict):
         raise ValueError("remote: must be a mapping")
 
-    host = raw.get("host")
+    cfg = cast("dict[str, Any]", raw)
+
+    host = cfg.get("host")
     if not isinstance(host, str) or not host.strip():
         raise ValueError("remote.host is required and must be a non-empty string")
 
-    user_raw = raw.get("user", "")
+    user_raw = cfg.get("user", "")
     if not isinstance(user_raw, str):
         raise ValueError("remote.user must be a string")
 
-    port_raw = raw.get("port", 22)
+    port_raw = cfg.get("port", 22)
     if not isinstance(port_raw, int):
         raise ValueError("remote.port must be an integer")
 
-    key_raw = raw.get("key", "")
+    key_raw = cfg.get("key", "")
     if not isinstance(key_raw, str):
         raise ValueError("remote.key must be a string path")
 
-    remote_dir_raw = raw.get("remote_dir", "~/bernstein-workdir")
+    remote_dir_raw = cfg.get("remote_dir", "~/bernstein-workdir")
     if not isinstance(remote_dir_raw, str):
         raise ValueError("remote.remote_dir must be a string")
 
-    excludes_raw = raw.get("rsync_excludes") or []
+    excludes_raw: Any = cfg.get("rsync_excludes") or []
     if not isinstance(excludes_raw, list):
         raise ValueError("remote.rsync_excludes must be a list")
-    excludes: tuple[str, ...] = tuple(str(e) for e in excludes_raw)
+    excludes: tuple[str, ...] = tuple(str(e) for e in cast("list[object]", excludes_raw))
 
-    env_raw = raw.get("env") or {}
+    env_raw: Any = cfg.get("env") or {}
     if not isinstance(env_raw, dict):
         raise ValueError("remote.env must be a mapping")
-    env: dict[str, str] = {str(k): str(v) for k, v in env_raw.items()}
+    env: dict[str, str] = {str(k): str(v) for k, v in cast("dict[str, object]", env_raw).items()}
 
-    timeout_raw = raw.get("connect_timeout", 15)
+    timeout_raw = cfg.get("connect_timeout", 15)
     if not isinstance(timeout_raw, int):
         raise ValueError("remote.connect_timeout must be an integer")
 
@@ -461,4 +463,4 @@ def run_agent_over_ssh(
     if cleanup_after:
         backend.cleanup_remote()
 
-    return exit_code if exit_code is not None else -1
+    return exit_code

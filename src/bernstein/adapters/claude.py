@@ -484,7 +484,6 @@ class ClaudeCodeAdapter(CLIAdapter):
         session_id: str,
         mcp_config: dict[str, Any] | None = None,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
-        system_addendum: str = "",
     ) -> SpawnResult:
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -527,7 +526,6 @@ class ClaudeCodeAdapter(CLIAdapter):
             role=role,
             workdir=workdir,
             agents_json=agents_json,
-            system_addendum=system_addendum,
             batch_mode=batch_mode,
         )
 

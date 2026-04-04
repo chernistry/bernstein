@@ -55,7 +55,7 @@ class TokenBreakdown:
     def percentages(self) -> dict[str, float]:
         """Return breakdown as percentages of total."""
         if self.total == 0:
-            return {k: 0.0 for k in self.to_dict()}
+            return dict.fromkeys(self.to_dict(), 0.0)
         return {k: round(v / self.total * 100, 1) for k, v in self.to_dict().items()}
 
     def category_names(self) -> list[str]:

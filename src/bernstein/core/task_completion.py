@@ -304,7 +304,11 @@ def retry_or_fail_task(
     base_description = marker_re.sub("", task.description)
 
     if retry_count < max_retries:
-        new_description = f"[retry:{retry_count + 1}] {base_description}"
+        failure_note = (
+            f"\n\n## Previous attempt failed\nReason: {reason}\n"
+            "Avoid the same mistake. If you hit the same error, try a different approach."
+        )
+        new_description = f"[retry:{retry_count + 1}] {base_description}{failure_note}"
         # Escalate model on retry: large/architect/security always opus/max;
         # other roles: sonnet->opus on 2nd retry, effort->high on 1st retry.
         from bernstein.core.models import Scope as _Scope

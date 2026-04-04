@@ -24,9 +24,11 @@ _WARMUP_TTL_SECONDS: float = 5 * 60  # 5 minutes
 _WARMUP_TIMEOUT_SECONDS: float = 10.0
 
 # Base URL -> provider mapping used by get_client().
+_OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+
 _PROVIDER_BASE_URLS: dict[str, str] = {
-    "openrouter": "https://openrouter.ai/api/v1",
-    "openrouter_free": "https://openrouter.ai/api/v1",
+    "openrouter": _OPENROUTER_BASE_URL,
+    "openrouter_free": _OPENROUTER_BASE_URL,
     "oxen": "https://hub.oxen.ai/api",
     "together": "https://api.together.xyz/v1",
     "g4f": "https://g4f.space/v1",
@@ -57,7 +59,7 @@ def _is_local_or_proxy(base_url: str) -> bool:
 def _get_provider_base_url(provider: str, settings: LLMSettings) -> str:
     """Return the base API URL for the given provider name."""
     if provider in ("openrouter", "openrouter_free"):
-        return "https://openrouter.ai/api/v1"
+        return _OPENROUTER_BASE_URL
     if provider == "oxen":
         return settings.oxen_base_url
     if provider == "together":

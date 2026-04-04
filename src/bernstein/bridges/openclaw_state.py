@@ -6,7 +6,7 @@ import json
 import time
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from bernstein.bridges.base import AgentState, BridgeError
 
@@ -135,7 +135,7 @@ class OpenClawRunStore:
         """Delete a run record after a pre-accept failure."""
         self.run_path(agent_id).unlink(missing_ok=True)
 
-    def update(self, agent_id: str, **changes: object) -> OpenClawRunRecord:
+    def update(self, agent_id: str, **changes: Any) -> OpenClawRunRecord:
         """Load, mutate, and persist a run record."""
         record = self.load(agent_id)
         if record is None:

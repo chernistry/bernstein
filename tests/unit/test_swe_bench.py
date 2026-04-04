@@ -29,8 +29,6 @@ def _instance(instance_id: str) -> SWEInstance:
         version="1.0",
         created_at="2024-01-01T00:00:00Z",
         repo_version="1.0",
-        FAIL_TO_PASS=["tests.test_demo"],
-        PASS_TO_PASS=["tests.test_keep"],
     )
 
 

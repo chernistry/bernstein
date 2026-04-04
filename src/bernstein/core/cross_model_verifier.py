@@ -29,15 +29,17 @@ logger = logging.getLogger(__name__)
 _MAX_DIFF_CHARS = 12_000
 _MAX_TOKENS = 512
 _PROVIDER = "openrouter"
-_DEFAULT_REVIEWER = "google/gemini-flash-1.5"
+_REVIEWER_GEMINI_FLASH = "google/gemini-flash-1.5"
+_REVIEWER_CLAUDE_HAIKU = "anthropic/claude-haiku-3-5"
+_DEFAULT_REVIEWER = _REVIEWER_GEMINI_FLASH
 
-# Model family → cheap reviewer from a different provider
+# Model family -> cheap reviewer from a different provider
 _WRITER_TO_REVIEWER: dict[str, str] = {
-    "claude": "google/gemini-flash-1.5",
-    "gemini": "anthropic/claude-haiku-3-5",
-    "gpt": "google/gemini-flash-1.5",
-    "codex": "anthropic/claude-haiku-3-5",
-    "qwen": "anthropic/claude-haiku-3-5",
+    "claude": _REVIEWER_GEMINI_FLASH,
+    "gemini": _REVIEWER_CLAUDE_HAIKU,
+    "gpt": _REVIEWER_GEMINI_FLASH,
+    "codex": _REVIEWER_CLAUDE_HAIKU,
+    "qwen": _REVIEWER_CLAUDE_HAIKU,
 }
 
 _REVIEW_PROMPT_TEMPLATE = """\

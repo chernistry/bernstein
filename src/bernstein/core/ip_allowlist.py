@@ -72,7 +72,7 @@ class IPAllowlistMiddleware(BaseHTTPMiddleware):
         )
         self._cached_dynamic_allowed_ips: tuple[str, ...] = ()
         self._cached_dynamic_networks: tuple[_Network, ...] = ()
-        self._public_paths = frozenset(public_paths or self._PUBLIC_PATHS)
+        self._active_public_paths = frozenset(public_paths or self._PUBLIC_PATHS)
 
     async def dispatch(
         self,
@@ -91,7 +91,7 @@ class IPAllowlistMiddleware(BaseHTTPMiddleware):
         path = request.url.path
 
         # Public paths always allowed
-        if path in self._public_paths:
+        if path in self._active_public_paths:
             return await call_next(request)
 
         allowed_networks = self._resolve_allowed_networks(request)

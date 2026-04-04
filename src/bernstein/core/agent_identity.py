@@ -45,67 +45,79 @@ class AgentIdentityStatus(StrEnum):
 # Scoped permissions for agents
 # ---------------------------------------------------------------------------
 
+# Permission string constants.
+PERM_TASKS_READ: str = "tasks:read"
+PERM_TASKS_WRITE: str = "tasks:write"
+PERM_TASKS_CLAIM: str = "tasks:claim"
+PERM_AGENTS_READ: str = "agents:read"
+PERM_AGENTS_SPAWN: str = "agents:spawn"
+PERM_STATUS_READ: str = "status:read"
+PERM_FILES_READ: str = "files:read"
+PERM_FILES_WRITE: str = "files:write"
+PERM_TESTS_RUN: str = "tests:run"
+PERM_CONFIG_READ: str = "config:read"
+
 # Default permission sets by role, scoped to what agents need (not user RBAC).
 AGENT_ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "manager": frozenset(
         {
-            "tasks:read",
-            "tasks:write",
-            "agents:read",
-            "agents:spawn",
-            "status:read",
-            "files:read",
-            "files:write",
+            PERM_TASKS_READ,
+            PERM_TASKS_WRITE,
+            PERM_AGENTS_READ,
+            PERM_AGENTS_SPAWN,
+            PERM_STATUS_READ,
+            PERM_FILES_READ,
+            PERM_FILES_WRITE,
         }
     ),
     "backend": frozenset(
         {
-            "tasks:read",
-            "tasks:claim",
-            "files:read",
-            "files:write",
-            "tests:run",
-            "status:read",
+            PERM_TASKS_READ,
+            PERM_TASKS_CLAIM,
+            PERM_FILES_READ,
+            PERM_FILES_WRITE,
+            PERM_TESTS_RUN,
+            PERM_STATUS_READ,
         }
     ),
     "frontend": frozenset(
         {
-            "tasks:read",
-            "tasks:claim",
-            "files:read",
-            "files:write",
-            "tests:run",
-            "status:read",
+            PERM_TASKS_READ,
+            PERM_TASKS_CLAIM,
+            PERM_FILES_READ,
+            PERM_FILES_WRITE,
+            PERM_TESTS_RUN,
+            PERM_STATUS_READ,
         }
     ),
     "qa": frozenset(
         {
-            "tasks:read",
-            "tasks:claim",
-            "files:read",
-            "tests:run",
-            "status:read",
+            PERM_TASKS_READ,
+            PERM_TASKS_CLAIM,
+            PERM_FILES_READ,
+            PERM_TESTS_RUN,
+            PERM_STATUS_READ,
         }
     ),
     "security": frozenset(
         {
-            "tasks:read",
-            "tasks:claim",
-            "files:read",
-            "files:write",
-            "tests:run",
-            "status:read",
+            PERM_TASKS_READ,
+            PERM_TASKS_CLAIM,
+            PERM_FILES_READ,
+            PERM_FILES_WRITE,
+            PERM_TESTS_RUN,
+            PERM_STATUS_READ,
         }
     ),
     "devops": frozenset(
         {
-            "tasks:read",
-            "tasks:claim",
-            "files:read",
-            "files:write",
-            "tests:run",
-            "status:read",
-            "config:read",
+            PERM_TASKS_READ,
+            PERM_TASKS_CLAIM,
+            PERM_FILES_READ,
+            PERM_FILES_WRITE,
+            PERM_TESTS_RUN,
+            PERM_STATUS_READ,
+            PERM_CONFIG_READ,
         }
     ),
 }
@@ -113,11 +125,11 @@ AGENT_ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
 # Fallback for roles not listed above.
 _DEFAULT_PERMISSIONS: frozenset[str] = frozenset(
     {
-        "tasks:read",
-        "tasks:claim",
-        "files:read",
-        "files:write",
-        "status:read",
+        PERM_TASKS_READ,
+        PERM_TASKS_CLAIM,
+        PERM_FILES_READ,
+        PERM_FILES_WRITE,
+        PERM_STATUS_READ,
     }
 )
 

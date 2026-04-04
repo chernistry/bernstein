@@ -699,7 +699,7 @@ def _wait_for_run_completion(
     return last_status
 
 
-def _make_profile_ctx(profile: bool, workdir: Path) -> contextlib.AbstractContextManager[None]:
+def _make_profile_ctx(profile: bool, workdir: Path) -> contextlib.AbstractContextManager[Any]:
     """Return a ProfilerSession context manager, or a no-op if profiling is disabled.
 
     Args:

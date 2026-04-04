@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 AGENT_DEFINITIONS_DIR = Path(".sdd/agents/definitions")
 
+# Glob patterns for YAML agent definition files.
+_YAML_GLOB = "*.yaml"
+_YML_GLOB = "*.yml"
+
 
 @dataclass(frozen=True)
 class AgentDefinition:
@@ -204,7 +208,7 @@ class AgentRegistry:
             logger.debug("Agent definitions directory does not exist: %s", definitions_path)
             return loaded
 
-        yaml_files = list(definitions_path.glob("*.yaml")) + list(definitions_path.glob("*.yml"))
+        yaml_files = list(definitions_path.glob(_YAML_GLOB)) + list(definitions_path.glob(_YML_GLOB))
 
         for yaml_file in yaml_files:
             try:
@@ -231,7 +235,7 @@ class AgentRegistry:
         if not definitions_path.exists():
             return [], []
 
-        yaml_files = list(definitions_path.glob("*.yaml")) + list(definitions_path.glob("*.yml"))
+        yaml_files = list(definitions_path.glob(_YAML_GLOB)) + list(definitions_path.glob(_YML_GLOB))
         current_files = {f.name for f in yaml_files}
 
         # Remove definitions for deleted files
@@ -273,7 +277,7 @@ class AgentRegistry:
         if not definitions_path.exists():
             return
 
-        yaml_files = list(definitions_path.glob("*.yaml")) + list(definitions_path.glob("*.yml"))
+        yaml_files = list(definitions_path.glob(_YAML_GLOB)) + list(definitions_path.glob(_YML_GLOB))
 
         needs_reload = False
         for yaml_file in yaml_files:

@@ -1092,8 +1092,6 @@ class ChatInput(Input):
 
 
 class BernsteinApp(App[None]):
-    TITLE = "BERNSTEIN"
-    SUB_TITLE = "Agent Orchestra"
 
     CSS = """
     Screen {
@@ -1247,6 +1245,8 @@ class BernsteinApp(App[None]):
 
     def __init__(self, **kw: Any) -> None:
         super().__init__(**kw)
+        self.title = "BERNSTEIN"
+        self.sub_title = "Agent Orchestra"
         self._start_ts = time.time()
         self._history: deque[float] = deque(maxlen=60)
         self._cost_history: deque[float] = deque(maxlen=10)

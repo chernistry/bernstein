@@ -49,8 +49,6 @@ class SWEInstance:
         version: Repository version string.
         created_at: ISO-8601 timestamp when the issue was created.
         repo_version: Repository version used in evaluation.
-        FAIL_TO_PASS: Alias for ``fail_to_pass`` (raw dataset field name).
-        PASS_TO_PASS: Alias for ``pass_to_pass`` (raw dataset field name).
     """
 
     instance_id: str
@@ -66,8 +64,6 @@ class SWEInstance:
     version: str
     created_at: str
     repo_version: str
-    FAIL_TO_PASS: list[str]
-    PASS_TO_PASS: list[str]
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> SWEInstance:
@@ -112,8 +108,6 @@ class SWEInstance:
             version=str(raw.get("version", "")),
             created_at=str(raw.get("created_at", "")),
             repo_version=str(raw.get("repo_version", raw.get("version", ""))),
-            FAIL_TO_PASS=ftp,
-            PASS_TO_PASS=ptp,
         )
 
 

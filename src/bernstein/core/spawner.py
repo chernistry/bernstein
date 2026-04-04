@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from bernstein.adapters.base import RateLimitError, SpawnError, SpawnResult
 from bernstein.adapters.registry import get_adapter
+from bernstein.adapters.skills_injector import inject_skills
 from bernstein.agents.registry import AgentRegistry, get_registry
 from bernstein.bridges.base import AgentState, BridgeError, RuntimeBridge, SpawnRequest
 from bernstein.core.container import ContainerConfig, ContainerError, ContainerManager
@@ -1057,6 +1058,17 @@ class AgentSpawner:
         log_dir = spawn_cwd / ".sdd" / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
         preferred_log_path = log_dir / f"{session_id}.log"
+
+        # Inject role-specific skills into the worktree before spawn so the
+        # agent picks up orchestration protocol and role-specific instructions.
+        # Skills survive context compaction and reduce prompt boilerplate.
+        inject_skills(
+            workdir=spawn_cwd,
+            role=role,
+            tasks=tasks,
+            session_id=session_id,
+            templates_dir=self._templates_dir,
+        )
 
         remote_spawned = False
         if self._runtime_bridge is not None:

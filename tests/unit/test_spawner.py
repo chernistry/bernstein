@@ -134,6 +134,35 @@ class TestSpawnForTasks:
         call_kwargs = adapter.spawn.call_args.kwargs
         assert call_kwargs["workdir"] == tmp_path
 
+    def test_injects_skills_before_spawn(self, tmp_path: Path, make_task, mock_adapter_factory) -> None:
+        """Skills are written to workdir/.claude/skills/ before adapter.spawn() is called."""
+        adapter = mock_adapter_factory()
+        templates_dir = tmp_path / "templates" / "roles"
+        templates_dir.mkdir(parents=True)
+
+        # Create minimal skills templates so injection can succeed
+        skills_dir = tmp_path / "templates" / "skills"
+        skills_dir.mkdir(parents=True)
+        (skills_dir / "bernstein-completion-protocol.md").write_text(
+            "---\nname: bernstein-completion-protocol\n"
+            "description: Complete tasks\n"
+            "whenToUse: When done\n---\n{{COMPLETE_CMDS}}\n"
+        )
+        (skills_dir / "bernstein-signal-check.md").write_text(
+            "---\nname: bernstein-signal-check\n"
+            "description: Check signals\n"
+            "whenToUse: Periodically\n---\n{{SESSION_ID}}\n"
+        )
+
+        spawner = AgentSpawner(adapter, templates_dir, tmp_path)
+        task = make_task(role="backend")
+        spawner.spawn_for_tasks([task])
+
+        skills_dest = tmp_path / ".claude" / "skills"
+        assert skills_dest.is_dir()
+        assert (skills_dest / "bernstein-completion-protocol.md").exists()
+        assert (skills_dest / "bernstein-signal-check.md").exists()
+
 
 # --- check_alive / kill ---
 

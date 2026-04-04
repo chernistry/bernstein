@@ -126,7 +126,7 @@ from bernstein.core.tick_pipeline import (
     total_spent_cache as total_spent_cache,
 )
 from bernstein.core.token_monitor import check_token_growth
-from bernstein.core.wal import WALWriter
+from bernstein.core.wal import WALRecovery, WALWriter
 from bernstein.core.watchdog import WatchdogManager, collect_watchdog_findings
 from bernstein.core.workflow import WorkflowExecutor, load_workflow
 from bernstein.evolution.governance import AdaptiveGovernor, GovernanceEntry, ProjectContext
@@ -1454,6 +1454,13 @@ class Orchestrator:
             config_hash=self._replay_metadata.config_hash,
             **_run_started_extra,
         )
+        # WAL recovery: detect uncommitted entries from crashed previous runs.
+        # Must run after WAL writer is initialized (in __init__) so that
+        # acknowledgement entries are written to the current run's WAL.
+        try:
+            self._recover_from_wal()
+        except Exception:
+            logger.exception("WAL recovery failed (non-fatal) — continuing startup")
         consecutive_failures = 0
         max_consecutive_failures = 10
         while self._running or self._has_active_agents():
@@ -1528,6 +1535,65 @@ class Orchestrator:
         if alive > 0 and not self._running:
             logger.info("Orchestrator draining: %d agent(s) still active", alive)
         return alive > 0
+
+    def _recover_from_wal(self) -> list[tuple[str, Any]]:
+        """Check WAL files from previous runs for uncommitted entries.
+
+        Scans all WAL files in ``.sdd/runtime/wal/`` (excluding the current
+        run) for entries written with ``committed=False`` — these represent
+        task claims where the agent was never successfully spawned (crash
+        between claim and spawn).
+
+        Each uncommitted entry is logged for operator awareness and an
+        acknowledgement entry is written to the current run's WAL so the
+        recovery is itself auditable.
+
+        Returns:
+            List of (run_id, WALEntry) tuples for all uncommitted entries found.
+        """
+        sdd_dir = self._workdir / ".sdd"
+        uncommitted = WALRecovery.scan_all_uncommitted(
+            sdd_dir,
+            exclude_run_id=self._run_id,
+        )
+        if not uncommitted:
+            return []
+
+        logger.warning(
+            "WAL recovery: found %d uncommitted entries from previous run(s)",
+            len(uncommitted),
+        )
+        for run_id, entry in uncommitted:
+            logger.info(
+                "WAL uncommitted [run=%s seq=%d]: %s %s",
+                run_id,
+                entry.seq,
+                entry.decision_type,
+                entry.inputs,
+            )
+            # Record acknowledgement in current run's WAL for auditability
+            try:
+                self._wal_writer.write_entry(
+                    decision_type="wal_recovery_ack",
+                    inputs={
+                        "original_run_id": run_id,
+                        "original_seq": entry.seq,
+                        "original_decision_type": entry.decision_type,
+                        "original_inputs": entry.inputs,
+                    },
+                    output={"action": "acknowledged"},
+                    actor="orchestrator",
+                    committed=True,
+                )
+            except OSError:
+                logger.debug("WAL write failed for recovery ack (run=%s seq=%d)", run_id, entry.seq)
+
+        self._recorder.record(
+            "wal_recovery",
+            uncommitted_count=len(uncommitted),
+            run_ids=sorted({r for r, _ in uncommitted}),
+        )
+        return uncommitted
 
     def stop(self) -> None:
         """Signal the run loop to exit after the current tick.

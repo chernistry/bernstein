@@ -1150,7 +1150,10 @@ def claim_and_spawn_batches(
         if claim_failed:
             continue
 
-        # WAL: record task claim decisions
+        # WAL: record pre-execution intent (committed=False).
+        # The matching committed=True entry is written after successful spawn.
+        # On crash recovery, uncommitted entries indicate tasks that were
+        # claimed on the server but whose agent was never spawned.
         _wal: WALWriter | None = getattr(orch, "_wal_writer", None)
         if _wal is not None:
             for task in batch:
@@ -1160,6 +1163,7 @@ def claim_and_spawn_batches(
                         inputs={"task_id": task.id, "role": task.role, "title": task.title},
                         output={"batch_size": len(batch)},
                         actor="task_lifecycle",
+                        committed=False,
                     )
                 except OSError:
                     logger.debug("WAL write failed for task_claimed %s", task.id)
@@ -1353,6 +1357,20 @@ def claim_and_spawn_batches(
                 len(batch),
                 [t.id for t in batch],
             )
+            # WAL: commit the claim — agent was successfully spawned.
+            # This pairs with the committed=False entry written before spawn.
+            if _wal is not None:
+                for _t in batch:
+                    try:
+                        _wal.write_entry(
+                            decision_type="task_spawn_confirmed",
+                            inputs={"task_id": _t.id, "agent_id": session.id},
+                            output={"role": session.role},
+                            actor="task_lifecycle",
+                            committed=True,
+                        )
+                    except OSError:
+                        logger.debug("WAL write failed for task_spawn_confirmed %s", _t.id)
             try:
                 rec_engine = RecommendationEngine(orch._workdir)
                 rec_engine.build()

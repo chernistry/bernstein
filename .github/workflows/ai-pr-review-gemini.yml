@@ -1,4 +1,4 @@
-name: AI PR Review (Gemini CLI)
+name: AI PR Review (Gemini)
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   gemini-review:
-    name: Gemini CLI review
+    name: Gemini review
     runs-on: ubuntu-latest
     if: >
       !github.event.pull_request.draft &&
@@ -38,30 +38,39 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
-        if: steps.check.outputs.skip == 'false'
-        with:
-          node-version: "22"
-
-      - name: Install Gemini CLI
-        if: steps.check.outputs.skip == 'false'
-        run: npm install -g @google/gemini-cli
-
       - name: Generate AI review
         if: steps.check.outputs.skip == 'false'
         id: review
         run: |
           git fetch origin ${{ github.base_ref }}
-          git diff --unified=3 origin/${{ github.base_ref }}...HEAD > pr.diff
+          DIFF=$(git diff --unified=3 origin/${{ github.base_ref }}...HEAD | head -c 80000)
 
-          RESPONSE=$(gemini \
-            -p "You are a senior Python library maintainer. Review the following PR diff for Bernstein (Python 3.12+ multi-agent CLI orchestrator). Focus on correctness, backward compatibility, security, and missing tests. Return a concise markdown report with sections: Summary, Risk Assessment, and Actionable Recommendations (max 5 items).
+          PROMPT="You are a senior Python library maintainer. Review the following PR diff for Bernstein (Python 3.12+ multi-agent CLI orchestrator). Focus on correctness, backward compatibility, security, and missing tests. Return a concise markdown report with sections: Summary, Risk Assessment, and Actionable Recommendations (max 5 items).
 
           Diff:
-          $(head -c 80000 pr.diff)" \
-            --output-format json 2>/dev/null || echo '{"response":"Gemini review could not be generated."}')
+          $DIFF"
 
-          BODY=$(echo "$RESPONSE" | jq -r '.response // .text // "Review unavailable."')
+          # Use Gemini REST API directly (the CLI requires OAuth, not API keys)
+          PAYLOAD=$(jq -n --arg prompt "$PROMPT" '{
+            "contents": [{"parts": [{"text": $prompt}]}],
+            "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048}
+          }')
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" 2>/dev/null)
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY_RAW=$(echo "$RESPONSE" | sed '$d')
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Gemini API returned HTTP $HTTP_CODE"
+            BODY="Gemini review could not be generated (HTTP $HTTP_CODE)."
+          else
+            BODY=$(echo "$BODY_RAW" | jq -r '.candidates[0].content.parts[0].text // "Review unavailable."')
+          fi
+
           {
             echo "body<<REVIEW_EOF"
             echo "$BODY"
@@ -74,7 +83,7 @@ jobs:
         with:
           script: |
             const marker = '<!-- ai-review-gemini -->';
-            const body = `${marker}\n### AI Review (Gemini CLI)\n\n${{ steps.review.outputs.body }}`;
+            const body = `${marker}\n### AI Review (Gemini)\n\n${{ steps.review.outputs.body }}`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,

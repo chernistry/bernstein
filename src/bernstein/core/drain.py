@@ -411,7 +411,10 @@ class DrainCoordinator:
         known_pids = {a.pid for a in self._agents}
         try:
             ps_proc = await asyncio.create_subprocess_exec(
-                "ps", "-ax", "-o", "pid=,command=",
+                "ps",
+                "-ax",
+                "-o",
+                "pid=,command=",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )

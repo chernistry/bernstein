@@ -1092,7 +1092,6 @@ class ChatInput(Input):
 
 
 class BernsteinApp(App[None]):
-
     CSS = """
     Screen {
         background: $background;

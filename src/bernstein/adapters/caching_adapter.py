@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from bernstein.adapters.base import DEFAULT_TIMEOUT_SECONDS, CLIAdapter, SpawnResult
 from bernstein.core.prompt_caching import (
+    CacheBreakCorrelator,
     CacheBreakEvent,
     CacheBreakReason,
     PromptCachingManager,
@@ -21,29 +22,50 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Shared correlator for all CachingAdapter instances in the same process.
+# Cross-agent systemic detection requires a single shared buffer so that
+# breaks from different agents are correlated against each other.
+_CORRELATOR: CacheBreakCorrelator = CacheBreakCorrelator()
+
 
 class CachingAdapter(CLIAdapter):
     """Wraps a CLIAdapter to enable prompt caching and response reuse.
 
     Intercepts spawn calls to:
     - Extract and deduplicate system prompt prefixes
-    - Track cache break events
+    - Track cache break events with cross-agent systemic correlation
     - Skip spawn if a verified response hit is found (Cosine >= 0.95)
 
     Args:
         inner_adapter: The underlying CLIAdapter to wrap.
         workdir: Project working directory for cache storage.
-        ttl: Time-to-live for response cache entries in seconds.
+        ttl_seconds: Time-to-live for response cache entries in seconds.
+        correlator: Optional CacheBreakCorrelator; defaults to the module-level
+            shared instance.  Pass an explicit instance in tests to avoid
+            cross-test state bleed.
     """
 
-    def __init__(self, inner_adapter: CLIAdapter, workdir: Path, ttl_seconds: int = 3600) -> None:
+    def __init__(
+        self,
+        inner_adapter: CLIAdapter,
+        workdir: Path,
+        ttl_seconds: int = 3600,
+        *,
+        correlator: CacheBreakCorrelator | None = None,
+    ) -> None:
         self._inner = inner_adapter
         self._caching_mgr = PromptCachingManager(workdir)
         self._cache_break_path = workdir / ".sdd" / "metrics" / "cache_breaks.jsonl"
         self._response_cache = ResponseCacheManager(workdir, ttl_seconds=float(ttl_seconds))
+        self._correlator = correlator if correlator is not None else _CORRELATOR
 
     def _record_cache_break(self, event: CacheBreakEvent) -> None:
-        """Append a cache break event to the JSONL file.
+        """Append a cache break event to the JSONL file and correlate across agents.
+
+        Writes the event to ``.sdd/metrics/cache_breaks.jsonl`` then passes it
+        to the shared :class:`CacheBreakCorrelator`.  If two or more agents
+        share the same ``component_fingerprint`` within the correlation window,
+        the group is labelled *systemic* in structured logs.
 
         Args:
             event: The cache break event to record.
@@ -51,11 +73,21 @@ class CachingAdapter(CLIAdapter):
         self._cache_break_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self._cache_break_path, "a") as f:
             f.write(event.to_json_line() + "\n")
+
+        correlation = self._correlator.add_event(event)
         logger.info(
-            "Cache break: reason=%s, key=%s, delta_tokens=%s",
+            "Cache break: reason=%s, key=%s, delta_tokens=%s, break_label=%s",
             event.reason.value,
             event.new_cache_key[:8],
             event.estimated_token_delta,
+            correlation.label,
+            extra={
+                "break_label": correlation.label,
+                "fingerprint": correlation.fingerprint,
+                "agent_count": len(correlation.agent_ids),
+                "is_systemic": correlation.is_systemic,
+                "reason_class": event.reason.value,
+            },
         )
 
     def spawn(

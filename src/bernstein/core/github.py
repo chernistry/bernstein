@@ -39,8 +39,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import subprocess
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, cast
 
 logger = logging.getLogger(__name__)
@@ -699,3 +701,179 @@ def _label_color(name: str) -> str:
     if name.startswith(_HASH_LABEL_PREFIX):
         return "d4edda"  # light green — dedup key
     return "ededed"
+
+
+# ---------------------------------------------------------------------------
+# GitHub Issues -> backlog sync
+# ---------------------------------------------------------------------------
+
+# Label -> priority mapping (mirrors github_app/mapper.py)
+_ISSUE_LABEL_PRIORITY: dict[str, int] = {
+    "bug": 1,
+    "critical": 1,
+    "security": 1,
+    "agent-fix": 1,
+    "enhancement": 2,
+    "feature": 2,
+    "docs": 3,
+    "documentation": 3,
+    "chore": 3,
+}
+
+# Label -> role mapping (mirrors github_app/mapper.py)
+_ISSUE_LABEL_ROLE: dict[str, str] = {
+    "backend": "backend",
+    "frontend": "frontend",
+    "qa": "qa",
+    "security": "security",
+    "docs": "docs",
+    "documentation": "docs",
+    "infra": "backend",
+    "devops": "backend",
+}
+
+
+def _priority_from_labels(labels: list[str]) -> int:
+    """Determine task priority from GitHub issue labels.
+
+    Args:
+        labels: Lowercase label name strings.
+
+    Returns:
+        Priority integer (1=critical, 2=normal, 3=nice-to-have).
+    """
+    for label in labels:
+        if label in _ISSUE_LABEL_PRIORITY:
+            return _ISSUE_LABEL_PRIORITY[label]
+    return 2
+
+
+def _role_from_labels(labels: list[str]) -> str:
+    """Determine agent role from GitHub issue labels.
+
+    Args:
+        labels: Lowercase label name strings.
+
+    Returns:
+        Role string (e.g. ``"backend"``, ``"qa"``).
+    """
+    for label in labels:
+        if label in _ISSUE_LABEL_ROLE:
+            return _ISSUE_LABEL_ROLE[label]
+    return "backend"
+
+
+def sync_github_issues_to_backlog(workdir: Path) -> int:
+    """Fetch open GitHub Issues and create backlog YAML files for new ones.
+
+    Runs ``gh issue list --state open`` and, for each issue that does not
+    already have a corresponding ``.sdd/backlog/open/gh-{number}-*.yaml``
+    file, writes a YAML-frontmatter backlog file that the orchestrator's
+    ``ingest_backlog()`` / ``sync_backlog_to_server()`` will pick up.
+
+    This is intentionally cheap: one ``gh`` call, pure file I/O, no server
+    dependency.  Safe to call on every startup.
+
+    Args:
+        workdir: Project root directory (parent of ``.sdd/``).
+
+    Returns:
+        Number of new backlog files created.
+    """
+    backlog_open = workdir / ".sdd" / "backlog" / "open"
+    backlog_open.mkdir(parents=True, exist_ok=True)
+
+    # Fetch open issues via gh CLI
+    try:
+        result = subprocess.run(
+            [
+                "gh", "issue", "list",
+                "--state", "open",
+                "--json", "number,title,body,labels",
+                "--limit", "100",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=str(workdir),
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError) as exc:
+        logger.debug("gh issue list failed: %s", exc)
+        return 0
+
+    if result.returncode != 0:
+        logger.debug(
+            "gh issue list returned rc=%d: %s",
+            result.returncode,
+            result.stderr.strip(),
+        )
+        return 0
+
+    try:
+        issues: list[dict[str, Any]] = json.loads(result.stdout)
+    except (json.JSONDecodeError, ValueError):
+        logger.warning("Failed to parse gh issue list JSON output")
+        return 0
+
+    # Build set of issue numbers that already have backlog files.
+    # Files are named  gh-{number}-{slug}.yaml
+    existing_numbers: set[int] = set()
+    for path in backlog_open.glob("gh-*-*.yaml"):
+        m = re.match(r"gh-(\d+)-", path.name)
+        if m:
+            existing_numbers.add(int(m.group(1)))
+    # Also check claimed/ and done/ so we don't re-create finished work
+    for subdir in ("claimed", "done", "closed"):
+        check_dir = workdir / ".sdd" / "backlog" / subdir
+        if not check_dir.is_dir():
+            continue
+        for path in check_dir.glob("gh-*-*.yaml"):
+            m = re.match(r"gh-(\d+)-", path.name)
+            if m:
+                existing_numbers.add(int(m.group(1)))
+
+    created = 0
+    for issue in issues:
+        number: int = issue.get("number", 0)
+        if not number or number in existing_numbers:
+            continue
+
+        title: str = issue.get("title", "Untitled issue")
+        body: str = (issue.get("body") or "")[:500]
+        labels_raw: list[dict[str, Any]] = issue.get("labels", [])
+        labels: list[str] = [
+            str(lbl.get("name", "")).lower()
+            for lbl in labels_raw
+            if lbl.get("name")
+        ]
+
+        priority = _priority_from_labels(labels)
+        role = _role_from_labels(labels)
+
+        # Build a filename slug from the title
+        slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:60]
+        filename = f"gh-{number}-{slug}.yaml"
+
+        # Write YAML-frontmatter format (parsed by backlog_parser._parse_yaml_frontmatter)
+        content = (
+            f"---\n"
+            f"id: gh-{number}\n"
+            f"title: \"[GH#{number}] {title}\"\n"
+            f"role: {role}\n"
+            f"priority: {priority}\n"
+            f"scope: medium\n"
+            f"complexity: medium\n"
+            f"type: feature\n"
+            f"metadata:\n"
+            f"  issue_number: {number}\n"
+            f"---\n\n"
+            f"# [GH#{number}] {title}\n\n"
+            f"{body}\n"
+        )
+
+        file_path = backlog_open / filename
+        file_path.write_text(content, encoding="utf-8")
+        created += 1
+        logger.info("Synced GitHub issue #%d to backlog: %s", number, filename)
+
+    return created

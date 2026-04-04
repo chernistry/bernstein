@@ -327,6 +327,17 @@ def bootstrap_from_seed(
     from bernstein.core.session import check_resume_session
     from bernstein.core.sync import sync_backlog_to_server
 
+    # Sync open GitHub Issues into .sdd/backlog/open/ before server sync.
+    # Non-fatal: if gh is missing or unauthenticated, we just skip.
+    try:
+        from bernstein.core.github import sync_github_issues_to_backlog
+
+        gh_count = sync_github_issues_to_backlog(workdir)
+        if gh_count > 0:
+            console.print(f"  [dim]github[/dim]  synced {gh_count} issue(s) to backlog")
+    except Exception as exc:
+        logger.debug("GitHub issue sync skipped: %s", exc)
+
     _resume = seed.session.resume
     _stale_minutes = seed.session.stale_after_minutes
     prior_session = check_resume_session(
@@ -620,6 +631,17 @@ def bootstrap_from_goal(
     # Sync backlog first; only use manager if backlog is empty and no prior session
     from bernstein.core.session import check_resume_session
     from bernstein.core.sync import sync_backlog_to_server
+
+    # Sync open GitHub Issues into .sdd/backlog/open/ before server sync.
+    # Non-fatal: if gh is missing or unauthenticated, we just skip.
+    try:
+        from bernstein.core.github import sync_github_issues_to_backlog
+
+        gh_count = sync_github_issues_to_backlog(workdir)
+        if gh_count > 0:
+            console.print(f"[green]\u2192[/green] Synced {gh_count} GitHub issue(s) to backlog")
+    except Exception as exc:
+        logger.debug("GitHub issue sync skipped: %s", exc)
 
     prior_session = check_resume_session(workdir, force_fresh=force_fresh)
 

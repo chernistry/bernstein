@@ -301,3 +301,136 @@ def test_prompt_stats_are_logged(tmp_path: Path, make_task: Any, caplog: Any) ->
     assert "backend" in msg
     assert "chars" in msg
     assert "sections" in msg
+
+
+# ---------------------------------------------------------------------------
+# Bidirectional bulletin board: team coordination + file ownership warnings
+# ---------------------------------------------------------------------------
+
+
+def test_team_coordination_section_included_with_session_id(tmp_path: Path, make_task: Any) -> None:
+    """When session_id is provided, prompt includes team coordination curl instructions."""
+    _lesson_cache.clear()
+    task = make_task(id="T-1", role="backend", title="Build it", description="Do it.")
+    templates_dir = tmp_path / "templates"
+    templates_dir.mkdir()
+
+    with (
+        patch("bernstein.core.spawn_prompt.render_role_prompt", return_value="You are a backend specialist."),
+        patch("bernstein.core.spawn_prompt.gather_lessons_for_context", return_value=""),
+        patch("bernstein.core.spawn_prompt._list_subdirs_cached", return_value=["backend"]),
+    ):
+        prompt = _render_prompt(
+            [task],
+            templates_dir=templates_dir,
+            workdir=tmp_path,
+            session_id="backend-abc123",
+        )
+
+    assert "## Team coordination" in prompt
+    assert "POST http://127.0.0.1:8052/bulletin" in prompt
+    assert "backend-abc123" in prompt
+    assert '"type": "finding"' in prompt
+
+
+def test_team_coordination_section_absent_without_session_id(tmp_path: Path, make_task: Any) -> None:
+    """Without session_id, team coordination section is not included."""
+    _lesson_cache.clear()
+    task = make_task(id="T-1", role="backend", title="Build it", description="Do it.")
+    templates_dir = tmp_path / "templates"
+    templates_dir.mkdir()
+
+    with (
+        patch("bernstein.core.spawn_prompt.render_role_prompt", return_value="You are a backend specialist."),
+        patch("bernstein.core.spawn_prompt.gather_lessons_for_context", return_value=""),
+        patch("bernstein.core.spawn_prompt._list_subdirs_cached", return_value=["backend"]),
+    ):
+        prompt = _render_prompt(
+            [task],
+            templates_dir=templates_dir,
+            workdir=tmp_path,
+            session_id="",
+        )
+
+    assert "## Team coordination" not in prompt
+
+
+def test_file_ownership_warnings_show_other_agents_files(tmp_path: Path, make_task: Any) -> None:
+    """File ownership section lists files owned by other agents."""
+    _lesson_cache.clear()
+    task = make_task(id="T-1", role="backend", title="Build it", description="Do it.")
+    templates_dir = tmp_path / "templates"
+    templates_dir.mkdir()
+
+    ownership = {
+        "src/bernstein/core/orchestrator.py": "backend-abc123",
+        "src/bernstein/core/models.py": "architect-def456",
+        "src/bernstein/core/task_store.py": "backend-me001",
+    }
+
+    with (
+        patch("bernstein.core.spawn_prompt.render_role_prompt", return_value="You are a backend specialist."),
+        patch("bernstein.core.spawn_prompt.gather_lessons_for_context", return_value=""),
+        patch("bernstein.core.spawn_prompt._list_subdirs_cached", return_value=["backend"]),
+    ):
+        prompt = _render_prompt(
+            [task],
+            templates_dir=templates_dir,
+            workdir=tmp_path,
+            session_id="backend-me001",
+            file_ownership=ownership,
+        )
+
+    assert "## Files currently being edited by other agents" in prompt
+    assert "src/bernstein/core/orchestrator.py (by backend-abc123)" in prompt
+    assert "src/bernstein/core/models.py (by architect-def456)" in prompt
+    # Current agent's own files should NOT be listed
+    assert "src/bernstein/core/task_store.py (by backend-me001)" not in prompt
+
+
+def test_file_ownership_empty_when_all_owned_by_self(tmp_path: Path, make_task: Any) -> None:
+    """When all files are owned by the current agent, no ownership section appears."""
+    _lesson_cache.clear()
+    task = make_task(id="T-1", role="backend", title="Build it", description="Do it.")
+    templates_dir = tmp_path / "templates"
+    templates_dir.mkdir()
+
+    ownership = {"src/main.py": "backend-me001"}
+
+    with (
+        patch("bernstein.core.spawn_prompt.render_role_prompt", return_value="You are a backend specialist."),
+        patch("bernstein.core.spawn_prompt.gather_lessons_for_context", return_value=""),
+        patch("bernstein.core.spawn_prompt._list_subdirs_cached", return_value=["backend"]),
+    ):
+        prompt = _render_prompt(
+            [task],
+            templates_dir=templates_dir,
+            workdir=tmp_path,
+            session_id="backend-me001",
+            file_ownership=ownership,
+        )
+
+    assert "## Files currently being edited" not in prompt
+
+
+def test_file_ownership_none_produces_no_section(tmp_path: Path, make_task: Any) -> None:
+    """When file_ownership is None, no ownership section appears."""
+    _lesson_cache.clear()
+    task = make_task(id="T-1", role="backend", title="Build it", description="Do it.")
+    templates_dir = tmp_path / "templates"
+    templates_dir.mkdir()
+
+    with (
+        patch("bernstein.core.spawn_prompt.render_role_prompt", return_value="You are a backend specialist."),
+        patch("bernstein.core.spawn_prompt.gather_lessons_for_context", return_value=""),
+        patch("bernstein.core.spawn_prompt._list_subdirs_cached", return_value=["backend"]),
+    ):
+        prompt = _render_prompt(
+            [task],
+            templates_dir=templates_dir,
+            workdir=tmp_path,
+            session_id="backend-me001",
+            file_ownership=None,
+        )
+
+    assert "## Files currently being edited" not in prompt

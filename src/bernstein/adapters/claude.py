@@ -164,6 +164,7 @@ class ClaudeCodeAdapter(CLIAdapter):
         *,
         role: str = "",
         workdir: Path | None = None,
+        system_addendum: str = "",
     ) -> list[str]:
         """Build the claude CLI command with effort mapping.
 
@@ -178,6 +179,10 @@ class ClaudeCodeAdapter(CLIAdapter):
             prompt: The task prompt.
             role: Agent role (used for tool allowlisting).
             workdir: Project working directory (used for CLAUDE.md context dirs).
+            system_addendum: Orchestration context to inject via
+                ``--append-system-prompt``.  Keeps signal-check instructions,
+                completion protocol, heartbeat commands, etc. out of the user
+                prompt so the agent focuses on the task goal.
         """
         model_id = _MODEL_MAP.get(model_config.model, model_config.model)
         effort = getattr(model_config, "effort", "high")
@@ -225,6 +230,8 @@ class ClaudeCodeAdapter(CLIAdapter):
 
         if mcp_config:
             cmd.extend(["--mcp-config", json.dumps(mcp_config)])
+        if system_addendum:
+            cmd.extend(["--append-system-prompt", system_addendum])
         cmd.extend(["-p", prompt])
         return cmd
 
@@ -388,6 +395,7 @@ class ClaudeCodeAdapter(CLIAdapter):
         session_id: str,
         mcp_config: dict[str, Any] | None = None,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
+        system_addendum: str = "",
     ) -> SpawnResult:
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -411,7 +419,9 @@ class ClaudeCodeAdapter(CLIAdapter):
         else:
             effective_mcp = {"mcpServers": {"bernstein": bridge_server}}
 
-        cmd = self._build_command(model_config, effective_mcp, prompt, role=role, workdir=workdir)
+        cmd = self._build_command(
+            model_config, effective_mcp, prompt, role=role, workdir=workdir, system_addendum=system_addendum
+        )
 
         # Wrap with bernstein-worker for process visibility
         pid_dir = workdir / ".sdd" / "runtime" / "pids"

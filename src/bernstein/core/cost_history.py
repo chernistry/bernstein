@@ -256,7 +256,7 @@ def load_history(sdd_dir: Path, days: int = _HISTORY_DAYS) -> list[DailyCostSnap
                 if date.fromisoformat(snap.date_str) >= cutoff:
                     snapshots.append(snap)
             except Exception as exc:
-                logger.warning("Skipping malformed cost_history line: %s — %s", line[:80], exc)
+                logger.warning("Skipping malformed cost_history line: %s — %s", line[:80].replace("\n", "\\n").replace("\r", "\\r"), exc)
     except OSError as exc:
         logger.warning("Could not read cost history: %s", exc)
 

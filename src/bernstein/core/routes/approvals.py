@@ -154,7 +154,7 @@ async def approve_task(task_id: str, body: ApprovalDecisionRequest) -> dict[str,
     # Remove pending file
     pending_path.unlink(missing_ok=True)
 
-    logger.info("Approval routes: task %r approved via TUI/API", task_id)
+    logger.info("Approval routes: task %r approved via TUI/API", task_id.replace("\n", "\\n").replace("\r", "\\r"))
     return {"status": "approved", "task_id": task_id}
 
 
@@ -189,5 +189,5 @@ async def reject_task(task_id: str, body: ApprovalDecisionRequest) -> dict[str, 
     # Remove pending file
     pending_path.unlink(missing_ok=True)
 
-    logger.info("Approval routes: task %r rejected via TUI/API", task_id)
+    logger.info("Approval routes: task %r rejected via TUI/API", task_id.replace("\n", "\\n").replace("\r", "\\r"))
     return {"status": "rejected", "task_id": task_id}

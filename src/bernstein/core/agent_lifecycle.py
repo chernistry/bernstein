@@ -732,8 +732,12 @@ def handle_orphaned_task(
         # to count it as a failure (the death event was recorded elsewhere
         # without checking task status), creating a death spiral.
         emit_orphan_metrics(
-            orch._workdir, task_id, session, start_ts,
-            success=True, error_type="already_resolved",
+            orch._workdir,
+            task_id,
+            session,
+            start_ts,
+            success=True,
+            error_type="already_resolved",
         )
         return
 

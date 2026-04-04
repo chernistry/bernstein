@@ -1281,7 +1281,9 @@ def process_completed_tasks(
             else:
                 result.verification_failures.append((task.id, failed_signals))
         else:
+            # No completion_signals defined — auto-pass and count as verified.
             janitor_passed = True
+            result.verified.append(task.id)
 
         # WAL: record task completion/failure decision
         _wal_c: WALWriter | None = getattr(orch, "_wal_writer", None)

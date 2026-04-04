@@ -826,20 +826,34 @@ class Orchestrator:
         except OSError:
             logger.debug("WAL write failed for tick_start %d", self._tick_count)
 
-        # 0. Ingest any new backlog files before fetching tasks
-        try:
-            from bernstein.core.roadmap_runtime import emit_roadmap_wave
+        # 0. Ingest any new backlog files before fetching tasks.
+        #    WIP limit: skip ingestion when open+claimed tasks exceed
+        #    max_agents * 3 to prevent unbounded backlog inflation.
+        _wip_limit = self._config.max_agents * 3
+        _skip_ingest = False
+        if hasattr(self, "_last_open_count") and self._last_open_count >= _wip_limit:
+            _skip_ingest = True
+            if self._tick_count % 10 == 0:  # log every 10 ticks
+                logger.info(
+                    "WIP limit (%d) reached — skipping backlog ingestion (open=%d)",
+                    _wip_limit,
+                    self._last_open_count,
+                )
 
-            emitted = emit_roadmap_wave(self._workdir)
-            if emitted:
-                logger.info("Emitted %d roadmap ticket(s) into backlog/open", len(emitted))
-        except (OSError, json.JSONDecodeError, ValueError) as exc:
-            logger.warning("roadmap wave emission failed: %s", exc)
+        if not _skip_ingest:
+            try:
+                from bernstein.core.roadmap_runtime import emit_roadmap_wave
 
-        try:
-            self.ingest_backlog()
-        except (OSError, json.JSONDecodeError, ValueError) as exc:
-            logger.warning("ingest_backlog failed: %s", exc)
+                emitted = emit_roadmap_wave(self._workdir)
+                if emitted:
+                    logger.info("Emitted %d roadmap ticket(s) into backlog/open", len(emitted))
+            except (OSError, json.JSONDecodeError, ValueError) as exc:
+                logger.warning("roadmap wave emission failed: %s", exc)
+
+            try:
+                self.ingest_backlog()
+            except (OSError, json.JSONDecodeError, ValueError) as exc:
+                logger.warning("ingest_backlog failed: %s", exc)
 
         if self._running:
             self._run_scheduled_dependency_scan()
@@ -1239,10 +1253,13 @@ class Orchestrator:
         ):
             self._generate_run_summary(tasks_by_status["done"], tasks_by_status["failed"])
 
-        # 9. Log summary
+        # 9. Save open count for WIP limit check on next tick
+        self._last_open_count = result.open_tasks
+
+        # 10. Log summary
         self._log_summary(result)
 
-        # 10. Record replay events for deterministic replay
+        # 11. Record replay events for deterministic replay
         self._record_tick_events(result, tasks_by_status)
 
         return result

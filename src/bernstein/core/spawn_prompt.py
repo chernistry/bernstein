@@ -341,6 +341,7 @@ def _render_prompt(
     bulletin_summary: str = "",
     task_graph: TaskGraph | None = None,
     meta_messages: list[str] | None = None,
+    file_ownership: dict[str, str] | None = None,
 ) -> str:
     """Build the full agent prompt from role template + tasks + context.
 
@@ -364,6 +365,8 @@ def _render_prompt(
             team-awareness section. Empty string means no section is added.
         task_graph: Optional task graph for context retrieval.
         meta_messages: Optional list of operational nudges/hints (T423).
+        file_ownership: Optional mapping of filepath -> agent_id for files
+            currently being edited by other agents.
 
     Returns:
         Complete prompt string ready for the CLI adapter.
@@ -507,6 +510,40 @@ def _render_prompt(
                 ),
             )
         )
+    # File ownership warnings: tell agents which files are locked by others
+    if file_ownership:
+        # Exclude files owned by the current agent
+        other_files = {fp: owner for fp, owner in file_ownership.items() if owner != session_id}
+        if other_files:
+            lines = ["\n## Files currently being edited by other agents (do NOT modify):"]
+            for fpath, owner in sorted(other_files.items()):
+                lines.append(f"- {fpath} (by {owner})")
+            lines.append(
+                "\nIf you need changes in these files, post a bulletin requesting the owning agent to make them.\n"
+            )
+            named_sections.append(("file ownership", "\n".join(lines)))
+    # Team coordination: instruct agents to post discoveries back
+    if session_id:
+        agent_id = session_id
+        named_sections.append(
+            (
+                "team coordination",
+                deduplicate_section(
+                    "\n## Team coordination\n"
+                    "When you create a new file, define an API, or discover something other agents should know:\n"
+                    "```bash\n"
+                    "curl -s -X POST http://127.0.0.1:8052/bulletin "
+                    '-H "Content-Type: application/json" \\\n'
+                    "  -d '{\"agent_id\": \"" + agent_id + "\", \"type\": \"finding\", "
+                    "\"content\": \"<describe what you created or discovered>\"}'\n"
+                    "```\n"
+                    "Examples of what to post:\n"
+                    "- Created a new module: `Created src/foo/bar.py with FooClass`\n"
+                    "- Defined an API endpoint: `Added POST /tasks/{id}/retry`\n"
+                    "- Found a bug or gotcha: `Config loader silently ignores missing keys`\n",
+                ),
+            )
+        )
     try:
         rec_engine = RecommendationEngine(workdir)
         rec_engine.build()
@@ -623,6 +660,7 @@ def render_prompt(
     bulletin_summary: str = "",
     task_graph: TaskGraph | None = None,
     meta_messages: list[str] | None = None,
+    file_ownership: dict[str, str] | None = None,
 ) -> str:
     """Public wrapper for compatibility-safe prompt rendering."""
     return _render_prompt(
@@ -636,6 +674,7 @@ def render_prompt(
         bulletin_summary=bulletin_summary,
         task_graph=task_graph,
         meta_messages=meta_messages,
+        file_ownership=file_ownership,
     )
 
 

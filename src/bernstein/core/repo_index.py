@@ -659,3 +659,107 @@ def _short(path: str) -> str:
     if len(p.parts) > 2:
         return str(Path(*p.parts[-2:]))
     return path
+
+
+# ---------------------------------------------------------------------------
+# Fuzzy file search
+# ---------------------------------------------------------------------------
+
+
+def fuzzy_score(query: str, candidate: str) -> int | None:
+    """Compute a fuzzy match score for *query* against *candidate*.
+
+    All query characters must appear in *candidate* in order (case-insensitive)
+    for a non-``None`` score to be returned.  Scoring bonuses reward matches
+    that are more likely to be what the user meant:
+
+    - **Boundary** (+3): matched character is at the start of a path segment
+      or word (i.e. position 0, or the preceding character is ``/``, ``\\``,
+      ``_``, ``.``, or ``-``).
+    - **camelCase** (+2): matched character is an uppercase letter immediately
+      following a lowercase letter in the *original* (un-lowercased) string.
+    - **Consecutive** (+2): matched character immediately follows the previous
+      matched character.
+
+    Args:
+        query: Search string (case-insensitive).
+        candidate: String to match against (e.g. a file path or symbol name).
+
+    Returns:
+        Integer score ≥ 0 (higher = better match), or ``None`` if not all
+        query characters can be found in *candidate* in order.
+    """
+    if not query:
+        return 0
+
+    q = query.lower()
+    c_lower = candidate.lower()
+    n = len(candidate)
+
+    qi = 0  # current position in query
+    prev_ci = -2  # last matched position in candidate
+    score = 0
+
+    for ci in range(n):
+        if qi >= len(q):
+            break
+        if c_lower[ci] != q[qi]:
+            continue
+
+        char_score = 1
+
+        # Boundary bonus
+        if ci == 0 or candidate[ci - 1] in r"/\_.-":
+            char_score += 3
+        # camelCase boundary bonus (only when not already a separator boundary)
+        elif ci > 0 and candidate[ci].isupper() and candidate[ci - 1].islower():
+            char_score += 2
+
+        # Consecutive bonus
+        if ci == prev_ci + 1:
+            char_score += 2
+
+        score += char_score
+        prev_ci = ci
+        qi += 1
+
+    if qi < len(q):
+        return None  # not all query chars found
+    return score
+
+
+def search_nodes(
+    graph: RepoGraph,
+    query: str,
+    *,
+    max_results: int = 10,
+) -> list[tuple[GraphNode, int]]:
+    """Search graph nodes by file path using fuzzy scoring.
+
+    Scores each node against both the full file path and the bare filename stem
+    (without directory or extension) and keeps the higher score.  This ensures
+    that ``spawn`` ranks ``src/bernstein/core/spawner.py`` highly even though
+    the full path contains many other characters.
+
+    Args:
+        graph: Repository graph to search.
+        query: Search query string (case-insensitive fuzzy match).
+        max_results: Maximum number of results to return.
+
+    Returns:
+        List of ``(node, score)`` pairs sorted by score descending.  Nodes that
+        do not match *query* at all are excluded.
+    """
+    results: list[tuple[GraphNode, int]] = []
+    for node in graph.nodes.values():
+        path_score = fuzzy_score(query, node.id)
+        stem_score = fuzzy_score(query, Path(node.id).stem)
+        best = max(
+            path_score if path_score is not None else -1,
+            stem_score if stem_score is not None else -1,
+        )
+        if best >= 0:
+            results.append((node, best))
+
+    results.sort(key=lambda x: x[1], reverse=True)
+    return results[:max_results]

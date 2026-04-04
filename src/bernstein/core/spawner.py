@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import json
 import logging
 import time
 import uuid
@@ -134,6 +135,80 @@ def _render_signal_check(session_id: str) -> str:
         "```\n"
         "If **WAKEUP** exists: read it, address the concern, then continue working.\n"
     )
+
+
+def _health_check_interval(tasks: list[Task]) -> int:
+    """Derive health-check cron interval (minutes) from task batch duration.
+
+    Maps estimated_minutes to a polling frequency:
+
+    - ``< 15`` min (simple tasks): check every **3** minutes
+    - ``> 60`` min (complex tasks): check every **10** minutes
+    - Otherwise: check every **5** minutes
+
+    Args:
+        tasks: Batch of tasks assigned to the agent.
+
+    Returns:
+        Cron interval in minutes.
+    """
+    if not tasks:
+        return 5
+    max_est = max((t.estimated_minutes for t in tasks), default=30)
+    if max_est > 60:
+        return 10
+    if max_est < 15:
+        return 3
+    return 5
+
+
+def _inject_scheduled_tasks(
+    workdir: Path,
+    session_id: str,
+    health_interval_minutes: int = 5,
+) -> None:
+    """Write ``.claude/scheduled_tasks.json`` with a recurring health-check cron task.
+
+    Claude Code's scheduled-task system fires the cron prompt on the given
+    interval inside a running agent session.  This enables agent-internal
+    monitoring: the agent self-evaluates its progress and reports via MCP
+    rather than the orchestrator guessing from external heartbeat signals.
+
+    The cron task survives context compaction — Claude Code re-fires it even
+    after the context window is compressed.
+
+    Args:
+        workdir: Working directory for the agent (worktree root).
+        session_id: Agent session identifier (used as the cron task ID prefix).
+        health_interval_minutes: Cron interval in minutes (1-59).
+    """
+    tasks_path = workdir / ".claude" / "scheduled_tasks.json"
+    tasks_path.parent.mkdir(parents=True, exist_ok=True)
+
+    payload = {
+        "tasks": [
+            {
+                "id": f"hc-{session_id[:8]}",
+                "cron": f"*/{health_interval_minutes} * * * *",
+                "prompt": (
+                    "Self-check: Are you making progress on your assigned tasks? "
+                    "If stuck for >2 minutes, use the bernstein MCP tool to report your status. "
+                    "If token budget is >80% consumed, commit your work and wrap up."
+                ),
+                "createdAt": int(time.time() * 1000),
+                "recurring": True,
+            }
+        ]
+    }
+    try:
+        tasks_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        logger.debug(
+            "Injected scheduled health-check task (interval=%dm) → %s",
+            health_interval_minutes,
+            tasks_path,
+        )
+    except OSError as exc:
+        logger.debug("Failed to write scheduled_tasks.json for %s: %s", session_id, exc)
 
 
 def _extract_tags_from_tasks(tasks: list[Task]) -> list[str]:
@@ -1069,6 +1144,11 @@ class AgentSpawner:
             tasks=tasks,
             session_id=session_id,
             templates_dir=self._templates_dir,
+        )
+        _inject_scheduled_tasks(
+            workdir=spawn_cwd,
+            session_id=session_id,
+            health_interval_minutes=_health_check_interval(tasks),
         )
 
         remote_spawned = False

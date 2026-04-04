@@ -78,7 +78,7 @@ class HookEvent:
     tool_name: str = ""
     tool_input: str = ""
     timestamp: float = field(default_factory=time.time)
-    payload: dict[str, Any] = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict[str, Any])
 
 
 def parse_hook_event(session_id: str, body: dict[str, Any]) -> HookEvent:

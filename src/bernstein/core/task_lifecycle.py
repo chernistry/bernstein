@@ -577,11 +577,10 @@ def should_auto_decompose(
     # Manager-created decompose tasks should never be re-decomposed
     if task.title.startswith("[DECOMPOSE]"):
         return False
-    # Tasks that have failed 2+ times should be decomposed regardless of scope --
-    # they've proven too large for a single agent session.
-    retry_match = re.match(r"^\[RETRY (\d+)\]", task.title)
-    if retry_match:
-        return int(retry_match.group(1)) >= 2
+    # Tasks that have failed 2+ times COULD be decomposed, but only when
+    # auto_decompose is enabled in config.  This check is intentionally
+    # left here (returns False) so the caller's config gate controls it.
+    # Previously this returned True unconditionally, bypassing the config.
     # Fresh tasks: only decompose scope=LARGE
     if task.scope != Scope.LARGE:
         return False

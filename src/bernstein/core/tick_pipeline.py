@@ -169,20 +169,61 @@ def block_task(client: httpx.Client, base_url: str, task_id: str, reason: str) -
     resp.raise_for_status()
 
 
-def complete_task(client: httpx.Client, base_url: str, task_id: str, result_summary: str) -> None:
+def complete_task(
+    client: httpx.Client,
+    base_url: str,
+    task_id: str,
+    result_summary: str,
+    *,
+    max_retries: int = 3,
+) -> None:
     """POST /tasks/{task_id}/complete to mark a task as done.
+
+    Retries with exponential backoff (1s, 2s, 4s) when the task server is
+    temporarily unreachable, so a transient outage does not silently lose
+    completion events.
 
     Args:
         client: httpx client.
         base_url: Server base URL.
         task_id: ID of the task to complete.
         result_summary: Human-readable summary of what was accomplished.
+        max_retries: Number of retry attempts on transient errors (default 3).
+
+    Raises:
+        httpx.HTTPStatusError: If the request fails after all retries.
+        httpx.TransportError: If the server is unreachable after all retries.
     """
-    resp = client.post(
-        f"{base_url}/tasks/{task_id}/complete",
-        json={"result_summary": result_summary},
-    )
-    resp.raise_for_status()
+    import httpx as _httpx
+
+    for attempt in range(max_retries + 1):
+        try:
+            resp = client.post(
+                f"{base_url}/tasks/{task_id}/complete",
+                json={"result_summary": result_summary},
+            )
+            resp.raise_for_status()
+            return
+        except (_httpx.TransportError, _httpx.TimeoutException) as exc:
+            if attempt < max_retries:
+                delay = 2**attempt  # 1s, 2s, 4s
+                logger.warning(
+                    "complete_task %s attempt %d/%d failed (server unreachable): %s — retrying in %ds",
+                    task_id,
+                    attempt + 1,
+                    max_retries + 1,
+                    exc,
+                    delay,
+                )
+                time.sleep(delay)
+            else:
+                logger.error(
+                    "complete_task %s failed after %d attempts: %s",
+                    task_id,
+                    max_retries + 1,
+                    exc,
+                )
+                raise
 
 
 def prioritize_starving_roles(

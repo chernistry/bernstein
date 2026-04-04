@@ -6,6 +6,7 @@ import asyncio
 import concurrent.futures
 import json
 import logging
+import shutil
 import time
 import uuid
 from pathlib import Path
@@ -417,9 +418,11 @@ def _render_prompt(
 
     # Completion instructions with concrete curl commands and retry logic.
     # The server may briefly restart during hot-reload (evolve mode), so
-    # agents must retry on transient connection errors.
+    # agents must retry on transient connection errors (--retry-connrefused).
+    # Do NOT use --retry-all-errors: it retries 4xx (e.g. 409 Conflict),
+    # causing infinite loops when task state has changed.
     completion_cmds = "\n".join(
-        f"curl -s --retry 3 --retry-delay 2 --retry-all-errors "
+        f"curl -s -w '\\n%{{http_code}}' --retry 3 --retry-delay 2 --retry-connrefused "
         f"-X POST http://127.0.0.1:8052/tasks/{t.id}/complete "
         f'-H "Content-Type: application/json" '
         f'-d \'{{"result_summary": "Completed: {t.title}"}}\''
@@ -433,8 +436,9 @@ def _render_prompt(
         f"```\n\n"
         f"**Step 2: Mark tasks complete on the task server**\n"
         f"```bash\n{completion_cmds}\n```\n\n"
-        f"**Note:** If a curl request fails with a connection error, retry up to 3 times "
-        f"with a 2-second delay. The server may briefly restart during code updates.\n\n"
+        f"**Important:** Only retry on connection refused / network errors. "
+        f"If the server returns HTTP 409 or any other 4xx error, do NOT retry — "
+        f"the task state has changed and retrying will not help. Just exit.\n\n"
         f"**Step 3: Exit**"
     )
 
@@ -903,6 +907,17 @@ class AgentSpawner:
         """Actual spawn implementation."""
         if self._shutdown_event is not None and self._shutdown_event.is_set():
             raise ShutdownInProgress("Orchestrator shutting down — refusing new spawn")
+
+        # Disk space check: refuse to spawn if less than 1 GB free.
+        # Worktree creation + agent output can consume significant disk.
+        try:
+            usage = shutil.disk_usage(self._workdir)
+            free_gb = usage.free / (1024**3)
+            if free_gb < 1.0:
+                logger.error("Disk space critical: %.1f GB free, skipping spawn", free_gb)
+                raise SpawnError(f"Disk space critical: {free_gb:.1f} GB free (need >= 1 GB)")
+        except OSError as exc:
+            logger.warning("Could not check disk space: %s", exc)
 
         # 5min cooldown check
         now = time.time()

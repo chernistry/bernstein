@@ -170,15 +170,16 @@ class TestCpuOverload:
         ap._created_at -= 300  # move past the 2-min startup grace period
 
         result = ap.effective_max_agents()
-        assert result == 0
+        # CPU overload degrades to 1 agent (never fully stops)
+        assert result == 1
 
     @patch("bernstein.core.adaptive_parallelism.AdaptiveParallelism._get_cpu_percent")
     def test_restore_when_cpu_drops(self, mock_cpu: object) -> None:
-        # First: CPU high → pause
+        # First: CPU high → degrade to 1
         mock_cpu.return_value = 96.0  # type: ignore[union-attr]
         ap = AdaptiveParallelism(configured_max=6)
         ap._created_at -= 300  # move past the 2-min startup grace period
-        assert ap.effective_max_agents() == 0
+        assert ap.effective_max_agents() == 1
 
         # Then: CPU drops → restore
         mock_cpu.return_value = 50.0  # type: ignore[union-attr]
@@ -281,8 +282,8 @@ class TestRulePriority:
         for _ in range(5):
             ap.record_outcome(success=False)
 
-        # CPU rule takes priority → 0, not just reduced by 1
-        assert ap.effective_max_agents() == 0
+        # CPU rule takes priority → 1 (never fully stops), not just reduced by 1
+        assert ap.effective_max_agents() == 1
 
     @patch("bernstein.core.adaptive_parallelism.AdaptiveParallelism._get_cpu_percent")
     def test_no_outcomes_defaults_to_configured_max(self, mock_cpu: object) -> None:

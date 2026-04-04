@@ -197,20 +197,35 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v7
+        with:
+          fetch-depth: 5
+      - name: Check for autofix loop
+        id: loop_check
+        run: |
+          RECENT=$(git log --oneline -3 --format='%s' | grep -c "style: auto-fix" || true)
+          if [ "$RECENT" -ge 3 ]; then
+            echo "::warning::Autofix loop detected — last 3 commits are all auto-fix. Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+      - if: steps.loop_check.outputs.skip != 'true'
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - name: Auto-fix ruff
+        if: steps.loop_check.outputs.skip != 'true'
         run: |
           uv run ruff check src/ --fix --unsafe-fixes || true
           uv run ruff format src/
       - name: Purge tracked .sdd files
+        if: steps.loop_check.outputs.skip != 'true'
         run: |
           TRACKED="$(git ls-files '.sdd')"
           if [ -n "$TRACKED" ]; then
             echo "$TRACKED" | xargs git rm --cached --
           fi
       - name: Check for merge conflict markers in Python files
+        if: steps.loop_check.outputs.skip != 'true'
         run: |
           for f in $(git diff --cached --name-only --diff-filter=ACMR -- '*.py' 2>/dev/null) \
                    $(git ls-files -- '*.py'); do
@@ -219,6 +234,7 @@ jobs:
             fi
           done
       - name: Commit and push fixes
+        if: steps.loop_check.outputs.skip != 'true'
         run: |
           git add src/ tests/ scripts/
           git diff --cached --quiet && echo "Nothing to fix" && exit 0

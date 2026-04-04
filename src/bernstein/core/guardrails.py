@@ -191,6 +191,7 @@ _CRITICAL_FILENAMES: frozenset[str] = frozenset(
         "README.md",
         "README.rst",
         "README",
+        "CLAUDE.md",
         "LICENSE",
         "LICENSE.md",
         "LICENSE.txt",
@@ -200,6 +201,19 @@ _CRITICAL_FILENAMES: frozenset[str] = frozenset(
         "Makefile",
         "Dockerfile",
         ".dockerignore",
+    }
+)
+
+# Subset of critical files that automated agents must NEVER modify
+# without explicit human approval (blocked, not just flagged).
+_AUTOMATED_BLOCK_FILENAMES: frozenset[str] = frozenset(
+    {
+        "README.md",
+        "CLAUDE.md",
+        "LICENSE",
+        "LICENSE.md",
+        "LICENSE.txt",
+        "pyproject.toml",
     }
 )
 
@@ -235,6 +249,32 @@ def _parse_diff_files(diff: str) -> list[str]:
                     path = path[2:]
                 files.append(path)
     return files
+
+
+def _parse_new_files(diff: str) -> list[str]:
+    """Extract file paths that are newly created in a git diff.
+
+    Detects the ``new file mode`` header that git emits for added files.
+
+    Args:
+        diff: Git diff output string.
+
+    Returns:
+        List of newly created file paths.
+    """
+    new_files: list[str] = []
+    current_file: str | None = None
+    for line in diff.splitlines():
+        if line.startswith("diff --git "):
+            parts = line.split(" ", 3)
+            if len(parts) >= 3:
+                path = parts[2]
+                current_file = path[2:] if path.startswith("a/") else path
+            else:
+                current_file = None
+        elif line.startswith("new file mode") and current_file is not None:
+            new_files.append(current_file)
+    return new_files
 
 
 def _is_file_deleted(diff: str, filepath: str) -> bool:
@@ -343,10 +383,33 @@ def check_immune_paths(diff: str) -> list[PermissionDecision]:
     return [PermissionDecision(type=DecisionType.ALLOW, reason="No immune path violations")]
 
 
-def check_scope(diff: str, task: Task) -> list[PermissionDecision]:
-    """Check that all modified files are within the task's owned_files scope.
+def _infer_scope_dirs(task: Task) -> list[str]:
+    """Infer allowed directories from a task's owned_files or fall back to ``src/``.
 
-    If the task has no owned_files, scope enforcement is skipped (passes).
+    When a task has explicit ``owned_files``, those are returned as-is.
+    Otherwise the function returns ``["src/"]`` as a conservative default so
+    that any modification outside ``src/`` is flagged for review.
+
+    Args:
+        task: The task whose scope to infer.
+
+    Returns:
+        List of directory/file prefixes that define the allowed scope.
+    """
+    if task.owned_files:
+        return list(task.owned_files)
+    return ["src/"]
+
+
+def check_scope(diff: str, task: Task) -> list[PermissionDecision]:
+    """Check that all modified/new files are within the task's scope.
+
+    Scope is determined by ``task.owned_files`` when present.  When
+    ``owned_files`` is empty the function falls back to ``src/`` as the
+    allowed scope and flags any modification outside it as suspicious
+    (DecisionType.ASK).
+
+    Both modified and newly created files are validated against the scope.
 
     Args:
         diff: Git diff output string.
@@ -355,25 +418,31 @@ def check_scope(diff: str, task: Task) -> list[PermissionDecision]:
     Returns:
         List with one PermissionDecision for the "scope_enforcement" check.
     """
-    if not task.owned_files:
-        return [PermissionDecision(type=DecisionType.ALLOW, reason="No scope defined — skipping")]
+    scope_dirs = _infer_scope_dirs(task)
 
     changed_files = _parse_diff_files(diff)
+    new_files = _parse_new_files(diff)
+    all_files = list(dict.fromkeys(changed_files + new_files))  # deduplicated, order-preserving
+
     out_of_scope = [
-        f
-        for f in changed_files
-        if not any(f == owned or f.startswith(owned.rstrip("/") + "/") for owned in task.owned_files)
+        f for f in all_files if not any(f == owned or f.startswith(owned.rstrip("/") + "/") for owned in scope_dirs)
     ]
 
     if out_of_scope:
+        has_explicit_scope = bool(task.owned_files)
+        reason_prefix = (
+            f"{len(out_of_scope)} file(s) outside task scope"
+            if has_explicit_scope
+            else f"{len(out_of_scope)} file(s) outside default scope (src/)"
+        )
         return [
             PermissionDecision(
                 type=DecisionType.ASK,
-                reason=f"{len(out_of_scope)} file(s) modified outside task scope",
+                reason=reason_prefix,
                 files=tuple(out_of_scope),
             )
         ]
-    return [PermissionDecision(type=DecisionType.ALLOW, reason="All modified files within scope")]
+    return [PermissionDecision(type=DecisionType.ALLOW, reason="All files within scope")]
 
 
 def check_dangerous_operations(
@@ -422,6 +491,57 @@ def check_dangerous_operations(
             )
         ]
     return [PermissionDecision(type=DecisionType.ALLOW, reason="No dangerous operations detected")]
+
+
+def check_critical_file_modifications(
+    diff: str,
+    *,
+    automated: bool = True,
+) -> list[PermissionDecision]:
+    """Block modifications to critical project files by automated agents.
+
+    For automated agents, modifications to files in ``_AUTOMATED_BLOCK_FILENAMES``
+    (README.md, CLAUDE.md, LICENSE, pyproject.toml) are hard-blocked.  For
+    human-driven sessions, modifications to any ``_CRITICAL_FILENAMES`` file
+    are flagged (ASK) but not blocked.
+
+    Args:
+        diff: Git diff output string.
+        automated: True when the caller is an automated agent (not a human).
+            Defaults to True because Bernstein agents are automated by default.
+
+    Returns:
+        List with one PermissionDecision for the "critical_file_modification" check.
+    """
+    changed_files = _parse_diff_files(diff)
+    blocked_files: list[str] = []
+    flagged_files: list[str] = []
+
+    for filepath in changed_files:
+        filename = Path(filepath).name
+        if automated and filename in _AUTOMATED_BLOCK_FILENAMES:
+            blocked_files.append(filepath)
+        elif filename in _CRITICAL_FILENAMES:
+            flagged_files.append(filepath)
+
+    if blocked_files:
+        return [
+            PermissionDecision(
+                type=DecisionType.DENY,
+                reason=(f"Automated agent blocked from modifying critical file(s): {', '.join(blocked_files)}"),
+                bypass_immune=True,
+                files=tuple(blocked_files),
+            )
+        ]
+    if flagged_files:
+        return [
+            PermissionDecision(
+                type=DecisionType.ASK,
+                reason=f"Critical file(s) modified: {', '.join(flagged_files)}",
+                files=tuple(flagged_files),
+            )
+        ]
+    return [PermissionDecision(type=DecisionType.ALLOW, reason="No critical file modifications")]
 
 
 # ---------------------------------------------------------------------------
@@ -668,6 +788,10 @@ def run_guardrails(
         )
 
     decisions["dangerous_operations"] = check_dangerous_operations(diff, config)
+
+    # Critical file modification check — always runs.
+    # Bernstein agents are automated; a human session would set automated=False.
+    decisions["critical_file_modification"] = check_critical_file_modifications(diff, automated=True)
 
     if config.license_scan:
         decisions["license_obligations"] = check_license_obligations(diff)

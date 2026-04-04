@@ -1111,12 +1111,32 @@ class CacheBreakCorrelator:
             window_start=window_start,
             window_end=window_end,
         )
+        reason_classes = list({r.value for r in reasons})
         if is_systemic:
             logger.warning(
                 "Systemic cache break detected: fingerprint=%s agents=%s reason_classes=%s",
                 fingerprint[:16],
                 agent_ids,
-                list({r.value for r in reasons}),
+                reason_classes,
+                extra={
+                    "break_label": "systemic",
+                    "fingerprint": fingerprint[:16],
+                    "agent_count": len(agent_ids),
+                    "reason_classes": reason_classes,
+                },
+            )
+        else:
+            logger.debug(
+                "Local cache break: fingerprint=%s agent=%s reason_classes=%s",
+                fingerprint[:16],
+                agent_ids,
+                reason_classes,
+                extra={
+                    "break_label": "local",
+                    "fingerprint": fingerprint[:16],
+                    "agent_count": len(agent_ids),
+                    "reason_classes": reason_classes,
+                },
             )
         return correlation
 

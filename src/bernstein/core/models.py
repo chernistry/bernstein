@@ -250,6 +250,7 @@ class Task:
     effort: str | None = None  # "max", "high", "medium", "low"
     mcp_servers: list[str] = field(default_factory=list[str])  # MCP server names for this task
     slack_context: dict[str, Any] | None = None  # Slack slash command or event metadata
+    metadata: dict[str, Any] = field(default_factory=dict)  # Trigger-source metadata (e.g. issue_number)
     batch_eligible: bool | None = None  # Non-urgent: None=auto-detect, True=explicit batch, False=explicit realtime
     eu_ai_act_risk: Literal["minimal", "limited", "high", "unacceptable"] = "minimal"
     approval_required: bool = False  # Pause after completion until explicitly approved

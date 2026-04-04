@@ -347,6 +347,8 @@ def render_task_payload(
         payload["model"] = model
     if effort:
         payload["effort"] = effort
+    if event.metadata:
+        payload["metadata"] = dict(event.metadata)
 
     return payload
 

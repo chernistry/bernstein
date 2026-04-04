@@ -531,3 +531,124 @@ class TestWALWriterEdgeCases:
         entry = writer2.append("d_after_corruption", {}, {}, "a")
         assert entry.seq == 2
         assert entry.decision_type == "d_after_corruption"
+
+
+# ---------------------------------------------------------------------------
+# TestWALRecoveryScanAll
+# ---------------------------------------------------------------------------
+
+
+class TestWALRecoveryScanAll:
+    """Tests for WALRecovery.scan_all_uncommitted across multiple WAL files."""
+
+    def test_no_wal_directory_returns_empty(self, tmp_path: Path) -> None:
+        """Fresh project with no .sdd/runtime/wal/ returns empty list."""
+        sdd = tmp_path / ".sdd"
+        sdd.mkdir()
+        result = WALRecovery.scan_all_uncommitted(sdd)
+        assert result == []
+
+    def test_empty_wal_directory_returns_empty(self, tmp_path: Path) -> None:
+        """WAL directory exists but has no files."""
+        wal_dir = tmp_path / ".sdd" / "runtime" / "wal"
+        wal_dir.mkdir(parents=True)
+        result = WALRecovery.scan_all_uncommitted(tmp_path / ".sdd")
+        assert result == []
+
+    def test_all_committed_returns_empty(self, tmp_path: Path) -> None:
+        """All entries in all WAL files are committed."""
+        sdd = tmp_path / ".sdd"
+        sdd.mkdir()
+        w1 = WALWriter(run_id="run-1", sdd_dir=sdd)
+        w1.append("d0", {}, {}, "a", committed=True)
+        w1.append("d1", {}, {}, "a", committed=True)
+
+        w2 = WALWriter(run_id="run-2", sdd_dir=sdd)
+        w2.append("d0", {}, {}, "a", committed=True)
+
+        result = WALRecovery.scan_all_uncommitted(sdd)
+        assert result == []
+
+    def test_finds_uncommitted_across_runs(self, tmp_path: Path) -> None:
+        """Uncommitted entries from multiple WAL files are found."""
+        sdd = tmp_path / ".sdd"
+        sdd.mkdir()
+
+        w1 = WALWriter(run_id="run-1", sdd_dir=sdd)
+        w1.append("committed_action", {}, {}, "a", committed=True)
+        w1.append("task_claimed", {"task_id": "T-1"}, {}, "a", committed=False)
+
+        w2 = WALWriter(run_id="run-2", sdd_dir=sdd)
+        w2.append("task_claimed", {"task_id": "T-2"}, {}, "a", committed=False)
+        w2.append("task_spawn_confirmed", {"task_id": "T-2"}, {}, "a", committed=True)
+        w2.append("task_claimed", {"task_id": "T-3"}, {}, "a", committed=False)
+
+        result = WALRecovery.scan_all_uncommitted(sdd)
+        # T-1: uncommitted; T-2: claim is uncommitted (committed=False), but
+        # has a matching spawn_confirmed; T-3: uncommitted with no match.
+        # scan_all_uncommitted returns ALL entries with committed=False.
+        assert len(result) == 3
+        run_ids = [r for r, _ in result]
+        assert "run-1" in run_ids
+        assert "run-2" in run_ids
+        # Verify the actual uncommitted entries
+        entries_by_task = {e.inputs.get("task_id"): (r, e) for r, e in result}
+        assert "T-1" in entries_by_task
+        assert "T-2" in entries_by_task
+        assert "T-3" in entries_by_task
+
+    def test_excludes_current_run(self, tmp_path: Path) -> None:
+        """The exclude_run_id parameter skips the in-progress run."""
+        sdd = tmp_path / ".sdd"
+        sdd.mkdir()
+
+        # Old run with uncommitted entries
+        w_old = WALWriter(run_id="old-run", sdd_dir=sdd)
+        w_old.append("task_claimed", {"task_id": "T-1"}, {}, "a", committed=False)
+
+        # Current run with uncommitted entries (should be skipped)
+        w_current = WALWriter(run_id="current-run", sdd_dir=sdd)
+        w_current.append("task_claimed", {"task_id": "T-2"}, {}, "a", committed=False)
+
+        result = WALRecovery.scan_all_uncommitted(sdd, exclude_run_id="current-run")
+        assert len(result) == 1
+        assert result[0][0] == "old-run"
+        assert result[0][1].inputs["task_id"] == "T-1"
+
+    def test_returns_sorted_by_wal_file(self, tmp_path: Path) -> None:
+        """WAL files are processed in sorted order for determinism."""
+        sdd = tmp_path / ".sdd"
+        sdd.mkdir()
+
+        # Create WAL files in reverse alphabetical order
+        for name in ["run-c", "run-a", "run-b"]:
+            w = WALWriter(run_id=name, sdd_dir=sdd)
+            w.append("task_claimed", {"task_id": f"T-{name}"}, {}, "a", committed=False)
+
+        result = WALRecovery.scan_all_uncommitted(sdd)
+        assert len(result) == 3
+        run_ids = [r for r, _ in result]
+        assert run_ids == ["run-a", "run-b", "run-c"]
+
+    def test_pre_execution_intent_pattern(self, tmp_path: Path) -> None:
+        """Simulates crash between claim and spawn: only uncommitted claims appear."""
+        sdd = tmp_path / ".sdd"
+        sdd.mkdir()
+
+        w = WALWriter(run_id="crashed-run", sdd_dir=sdd)
+        # Tick 1: successful claim+spawn cycle
+        w.append("task_claimed", {"task_id": "T-1"}, {}, "lifecycle", committed=False)
+        w.append("task_spawn_confirmed", {"task_id": "T-1"}, {}, "lifecycle", committed=True)
+        # Tick 2: crash after claim, before spawn
+        w.append("task_claimed", {"task_id": "T-2"}, {}, "lifecycle", committed=False)
+        # (process crashes here — no committed=True follow-up)
+
+        result = WALRecovery.scan_all_uncommitted(sdd)
+        # T-1's claim is uncommitted but has a matching commit; T-2 has no commit.
+        # scan_all_uncommitted returns ALL entries with committed=False,
+        # not just those without a matching commit. The orchestrator decides
+        # what to do with each entry.
+        assert len(result) == 2  # both task_claimed entries have committed=False
+        task_ids = [e.inputs["task_id"] for _, e in result]
+        assert "T-1" in task_ids
+        assert "T-2" in task_ids

@@ -309,6 +309,42 @@ class WALRecovery:
         except FileNotFoundError:
             return []
 
+    @staticmethod
+    def scan_all_uncommitted(
+        sdd_dir: Path,
+        *,
+        exclude_run_id: str | None = None,
+    ) -> list[tuple[str, WALEntry]]:
+        """Scan all WAL files for uncommitted entries from previous runs.
+
+        Iterates over every ``*.wal.jsonl`` file in the WAL directory, skipping
+        *exclude_run_id* (typically the current run). Returns a flat list of
+        ``(run_id, WALEntry)`` pairs for every entry with ``committed=False``.
+
+        Returns an empty list when the WAL directory does not exist (fresh
+        project with no prior runs).
+
+        Args:
+            sdd_dir: The ``.sdd`` directory root.
+            exclude_run_id: Run ID to skip (the in-progress run).
+
+        Returns:
+            List of (run_id, uncommitted_entry) tuples.
+        """
+        wal_dir = sdd_dir / "runtime" / "wal"
+        if not wal_dir.is_dir():
+            return []
+
+        results: list[tuple[str, WALEntry]] = []
+        for wal_file in sorted(wal_dir.glob("*.wal.jsonl")):
+            run_id = wal_file.name.removesuffix(".wal.jsonl")
+            if run_id == exclude_run_id:
+                continue
+            recovery = WALRecovery(run_id=run_id, sdd_dir=sdd_dir)
+            for entry in recovery.get_uncommitted_entries():
+                results.append((run_id, entry))
+        return results
+
 
 # ---------------------------------------------------------------------------
 # ExecutionFingerprint

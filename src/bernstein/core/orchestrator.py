@@ -91,6 +91,7 @@ from bernstein.core.runtime_state import (
     current_git_branch,
     current_git_sha,
     hash_file,
+    rotate_log_file,
     write_session_replay_metadata,
 )
 from bernstein.core.semantic_cache import ResponseCacheManager
@@ -3087,6 +3088,7 @@ class Orchestrator:
             f"spawned={len(result.spawned)} reaped={len(result.reaped)} "
             f"verified={len(result.verified)} errors={len(result.errors)}{fp_tag}\n"
         )
+        rotate_log_file(log_path)
         with log_path.open("a") as f:
             f.write(line)
 
@@ -3230,12 +3232,18 @@ if __name__ == "__main__":
     setup_json_logging()
 
     if not any(isinstance(h, logging.StreamHandler) for h in logging.getLogger().handlers):
+        from logging.handlers import RotatingFileHandler
+
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s %(levelname)s %(name)s: %(message)s",
             handlers=[
                 logging.StreamHandler(sys.stderr),
-                logging.FileHandler(log_dir / "orchestrator-debug.log"),
+                RotatingFileHandler(
+                    log_dir / "orchestrator-debug.log",
+                    maxBytes=10 * 1024 * 1024,
+                    backupCount=1,
+                ),
             ],
         )
 

@@ -3,6 +3,9 @@
 Methods extracted from the Orchestrator class that deal with agent state
 management: refreshing statuses, handling orphaned tasks, reaping timed-out
 agents, and emitting metrics for dead agents.
+
+Includes ``_save_partial_work()`` which commits and merges uncommitted agent
+work before worktree destruction — preventing data loss on timeout kills.
 """
 
 from __future__ import annotations
@@ -150,6 +153,56 @@ def classify_agent_abort_reason(session: AgentSession) -> tuple[AbortReason, str
 
 
 # ---------------------------------------------------------------------------
+# Partial work preservation
+# ---------------------------------------------------------------------------
+
+
+def _save_partial_work(spawner: Any, session: Any) -> bool:
+    """Commit and merge uncommitted agent work before worktree destruction.
+
+    Called before ``cleanup_worktree()`` to prevent data loss on timeout
+    kills and agent crashes.  Stages all changes, creates a ``[WIP]``
+    commit, then attempts to merge the branch back to main via
+    ``reap_completed_agent()``.
+
+    All errors are suppressed so the cleanup path is never interrupted.
+
+    Returns:
+        True if a WIP commit was created, False otherwise.
+    """
+    worktree_path = spawner.get_worktree_path(session.id)
+    if worktree_path is None or not Path(worktree_path).is_dir():
+        return False
+
+    wt = str(worktree_path)
+    committed = False
+    try:
+        subprocess.run(
+            ["git", "add", "-A"],
+            cwd=wt,
+            capture_output=True,
+            timeout=10,
+        )
+        result = subprocess.run(
+            ["git", "commit", "-m", f"[WIP] {session.id} partial work"],
+            cwd=wt,
+            capture_output=True,
+            timeout=10,
+        )
+        committed = result.returncode == 0
+    except (subprocess.TimeoutExpired, OSError, Exception):
+        pass
+
+    # Try to merge the branch before cleanup
+    with contextlib.suppress(Exception):
+        spawner.reap_completed_agent(session, skip_merge=False)
+
+    if committed:
+        logger.info("Saved partial work for agent %s", session.id)
+    return committed
+
+
+# ---------------------------------------------------------------------------
 # Agent state refresh
 # ---------------------------------------------------------------------------
 
@@ -206,6 +259,8 @@ def refresh_agent_states(orch: Any, tasks_snapshot: dict[str, list[Task]]) -> No
                 orch._crash_counts[task_id] = orch._crash_counts.get(task_id, 0) + 1
                 _maybe_preserve_worktree(orch, session, task_id)
                 handle_orphaned_task(orch, task_id, session, tasks_snapshot)
+            # Save uncommitted work before destroying the worktree
+            _save_partial_work(orch._spawner, session)
             # Clean up worktree unless preserved for crash-resume
             _preserved = getattr(orch, "_preserved_worktrees", {})
             _session_preserved = any(
@@ -1015,6 +1070,8 @@ def reap_dead_agents(
                 orch._signal_mgr.clear_signals(session.id)
             for task_id in session.task_ids:
                 handle_orphaned_task(orch, task_id, session, tasks_snapshot)
+            # Save uncommitted work before destroying the worktree
+            _save_partial_work(orch._spawner, session)
             # Clean up worktree unless preserved for crash-resume
             _preserved = getattr(orch, "_preserved_worktrees", {})
             _session_preserved = any(

@@ -197,6 +197,10 @@ class CLIAdapter(ABC):
             "too many requests",
             "429",
             "overloaded",
+            "you've hit your limit",
+            "hit your limit",
+            "limit exceeded",
+            "resets",  # "resets Apr 5 at 10pm" pattern from Claude Code
         )
         return any(needle in text for needle in needles)
 
@@ -206,7 +210,7 @@ class CLIAdapter(ABC):
         log_path: Path,
         *,
         provider_name: str,
-        timeout_seconds: float = 5.0,
+        timeout_seconds: float = 8.0,
     ) -> None:
         """Treat early non-zero exits as spawn failures instead of live sessions.
 

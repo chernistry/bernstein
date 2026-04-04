@@ -544,7 +544,7 @@ class UpgradeExecutor:
 
 
 # Integration with task system
-async def create_upgrade_from_task(
+def create_upgrade_from_task(
     task: Task,
     workdir: Path,
 ) -> UpgradeTransaction | None:

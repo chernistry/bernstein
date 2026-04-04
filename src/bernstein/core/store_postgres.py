@@ -282,7 +282,7 @@ class PostgresTaskStore(BaseTaskStore):
     async def _pool_acquire(self) -> asyncpg.Connection:  # type: ignore[name-defined]
         if self._pool is None:
             raise RuntimeError("PostgresTaskStore.startup() has not been called")
-        return self._pool.acquire()  # type: ignore[union-attr]
+        return await self._pool.acquire()  # type: ignore[union-attr]
 
     def _task_params(self, task: Task) -> tuple[Any, ...]:
         """Return an asyncpg parameter tuple for full task insertion."""

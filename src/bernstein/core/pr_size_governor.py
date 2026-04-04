@@ -224,7 +224,7 @@ def build_dependency_order(files: list[str], cwd: Path) -> list[str]:
                 deps[filepath].add(dep_file)
 
     # Kahn's topological sort
-    in_degree: dict[str, int] = {f: 0 for f in files}
+    in_degree: dict[str, int] = dict.fromkeys(files, 0)
     for f, dep_set in deps.items():
         in_degree[f] += len(dep_set)
 

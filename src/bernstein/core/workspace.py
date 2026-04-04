@@ -228,7 +228,7 @@ class Workspace:
         repo_names = [repo.name for repo in self.repos]
         repo_set = set(repo_names)
         adjacency: dict[str, set[str]] = {name: set() for name in repo_names}
-        indegree: dict[str, int] = {name: 0 for name in repo_names}
+        indegree: dict[str, int] = dict.fromkeys(repo_names, 0)
 
         for task in tasks:
             if not task.repo or not task.depends_on_repo:

@@ -51,7 +51,7 @@ def _load_workspace_from_request(request: Request) -> Workspace | None:
     return seed.workspace
 
 
-@router.get("/workspace", response_model=WorkspaceResponse)
+@router.get("/workspace")
 def workspace_status(request: Request) -> WorkspaceResponse:
     """Return repository status for the configured workspace."""
     workspace = _load_workspace_from_request(request)
@@ -73,7 +73,7 @@ def workspace_status(request: Request) -> WorkspaceResponse:
     return WorkspaceResponse(repos=repos)
 
 
-@router.post("/workspace/merge-order", response_model=MergeOrderResponse)
+@router.post("/workspace/merge-order")
 def workspace_merge_order(request: Request) -> MergeOrderResponse:
     """Return the repo merge order derived from current cross-repo task dependencies."""
     workspace = _load_workspace_from_request(request)

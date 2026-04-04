@@ -40,8 +40,6 @@ def sample_instance() -> SWEInstance:
         version="3.0",
         created_at="2019-11-01T00:00:00Z",
         repo_version="3.0",
-        FAIL_TO_PASS=["tests.queryset.tests.QuerysetTests.test_annotation"],
-        PASS_TO_PASS=["tests.queryset.tests.QuerysetTests.test_basic"],
     )
 
 
@@ -289,7 +287,7 @@ def test_filter_instances_returns_all_when_no_filter(tmp_path: Path, sample_inst
     runner = SWEBenchRunner(workdir=tmp_path)
     instances = [
         sample_instance,
-        SWEInstance("b__b-1", "b/b", "x", "bug", "", "", "", [], [], "x", "1", "2020", "1", [], []),
+        SWEInstance("b__b-1", "b/b", "x", "bug", "", "", "", [], [], "x", "1", "2020", "1"),
     ]
     filtered = runner.filter_instances(instances)
     assert len(filtered) == 2
@@ -297,7 +295,7 @@ def test_filter_instances_returns_all_when_no_filter(tmp_path: Path, sample_inst
 
 def test_filter_instances_by_instance_id(tmp_path: Path, sample_instance: SWEInstance) -> None:
     runner = SWEBenchRunner(workdir=tmp_path, instance_id="django__django-11905")
-    other = SWEInstance("b__b-1", "b/b", "x", "bug", "", "", "", [], [], "x", "1", "2020", "1", [], [])
+    other = SWEInstance("b__b-1", "b/b", "x", "bug", "", "", "", [], [], "x", "1", "2020", "1")
     filtered = runner.filter_instances([sample_instance, other])
     assert len(filtered) == 1
     assert filtered[0].instance_id == "django__django-11905"
@@ -307,8 +305,8 @@ def test_filter_instances_by_sample(tmp_path: Path, sample_instance: SWEInstance
     runner = SWEBenchRunner(workdir=tmp_path, sample=1)
     instances = [
         sample_instance,
-        SWEInstance("b__b-1", "b/b", "x", "bug", "", "", "", [], [], "x", "1", "2020", "1", [], []),
-        SWEInstance("c__c-2", "c/c", "y", "fix", "", "", "", [], [], "y", "2", "2021", "2", [], []),
+        SWEInstance("b__b-1", "b/b", "x", "bug", "", "", "", [], [], "x", "1", "2020", "1"),
+        SWEInstance("c__c-2", "c/c", "y", "fix", "", "", "", [], [], "y", "2", "2021", "2"),
     ]
     filtered = runner.filter_instances(instances)
     assert len(filtered) == 1

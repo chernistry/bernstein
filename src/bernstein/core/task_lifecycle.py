@@ -408,9 +408,16 @@ def retry_or_fail_task(
         "503",
         "transient",
         "connection error",
+        "connection refused",
         "502",
         "504",
+        "429",
         "too many requests",
+        "service unavailable",
+        "overloaded",
+        "temporary failure",
+        "network error",
+        "internal server error",
     )
     # Only treat agent-process-level fatal errors as truly fatal (0 retries).
     # Python exception type names (TypeError, ValueError, etc.) appear routinely
@@ -463,7 +470,11 @@ def retry_or_fail_task(
     base_description = marker_re.sub("", task.description)
 
     if retry_count < max_retries:
-        new_description = f"[retry:{retry_count + 1}] {base_description}"
+        failure_note = (
+            f"\n\n## Previous attempt failed\nReason: {reason}\n"
+            "Avoid the same mistake. If you hit the same error, try a different approach."
+        )
+        new_description = f"[retry:{retry_count + 1}] {base_description}{failure_note}"
         # Escalate model on retry: large/architect/security always opus/max;
         # other roles: sonnet->opus on 2nd retry, effort->high on 1st retry.
         from bernstein.core.models import Scope as _Scope
@@ -1691,6 +1702,7 @@ def process_completed_tasks(
             if getattr(orch._config, "ab_test", False):
                 _ab_tracker = getattr(orch, "_ab_split_tracker", None)
                 if isinstance(_ab_tracker, dict) and task.id in _ab_tracker:
+                    _ab_model_map = cast("dict[str, str]", _ab_tracker)
                     try:
                         from bernstein.core.ab_test_results import record_ab_outcome
 
@@ -1699,7 +1711,7 @@ def process_completed_tasks(
                             orch._workdir,
                             task_id=task.id,
                             task_title=task.title,
-                            model=_ab_tracker[task.id],
+                            model=_ab_model_map[task.id],
                             session_id=session.id,
                             tokens_used=session.tokens_used,
                             files_changed=session.files_changed,

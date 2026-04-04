@@ -233,7 +233,7 @@ class TaskGraph:
 
     def topological_order(self) -> list[str]:
         """Kahn's algorithm — returns [] if cycle detected."""
-        in_degree: dict[str, int] = {tid: 0 for tid in self._tasks}
+        in_degree: dict[str, int] = dict.fromkeys(self._tasks, 0)
         for tid in self._tasks:
             for dep in self._forward.get(tid, []):
                 if dep in in_degree:

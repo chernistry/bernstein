@@ -115,7 +115,7 @@ def classify_role(description: str) -> str:
     }
 
     # Count matches per role
-    scores: dict[str, int] = {role: 0 for role in keyword_map}
+    scores: dict[str, int] = dict.fromkeys(keyword_map, 0)
     for role, keywords in keyword_map.items():
         for kw in keywords:
             # Use word boundaries for short keywords to avoid substrings like 'dom' in 'random'

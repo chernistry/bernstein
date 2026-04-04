@@ -170,7 +170,7 @@ def _request_client_id(request: Request) -> str:
 _auth_limiter = AuthRateLimiter()
 
 
-async def check_auth_rate_limit(request: Request) -> None:
+def check_auth_rate_limit(request: Request) -> None:
     """FastAPI dependency that enforces the auth rate limit."""
     ip = request.client.host if request.client else "unknown"
     retry_after = _auth_limiter.check(ip)

@@ -47,6 +47,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# Event name constants
+# ---------------------------------------------------------------------------
+
+EVENT_RUN_STARTED = "run.started"
+EVENT_TASK_COMPLETED = "task.completed"
+EVENT_TASK_FAILED = "task.failed"
+EVENT_RUN_COMPLETED = "run.completed"
+EVENT_BUDGET_WARNING = "budget.warning"
+EVENT_BUDGET_EXHAUSTED = "budget.exhausted"
+EVENT_APPROVAL_NEEDED = "approval.needed"
+EVENT_INCIDENT_CRITICAL = "incident.critical"
+EVENT_TASK_DEADLINE_WARNING = "task.deadline_warning"
+EVENT_TASK_DEADLINE_EXCEEDED = "task.deadline_exceeded"
+
+# ---------------------------------------------------------------------------
 # Types
 # ---------------------------------------------------------------------------
 
@@ -65,16 +80,16 @@ NotificationEvent = Literal[
 
 # PagerDuty severity mapping per event
 _PD_SEVERITY: dict[str, str] = {
-    "run.started": "info",
-    "task.completed": "info",
-    "task.failed": "warning",
-    "run.completed": "info",
-    "budget.warning": "warning",
-    "budget.exhausted": "critical",
-    "approval.needed": "warning",
-    "incident.critical": "critical",
-    "task.deadline_warning": "warning",
-    "task.deadline_exceeded": "critical",
+    EVENT_RUN_STARTED: "info",
+    EVENT_TASK_COMPLETED: "info",
+    EVENT_TASK_FAILED: "warning",
+    EVENT_RUN_COMPLETED: "info",
+    EVENT_BUDGET_WARNING: "warning",
+    EVENT_BUDGET_EXHAUSTED: "critical",
+    EVENT_APPROVAL_NEEDED: "warning",
+    EVENT_INCIDENT_CRITICAL: "critical",
+    EVENT_TASK_DEADLINE_WARNING: "warning",
+    EVENT_TASK_DEADLINE_EXCEEDED: "critical",
 }
 
 # Discord / Slack color codes per event
@@ -84,14 +99,14 @@ _BLUE = 0x0088FF
 _ORANGE = 0xFFAA00
 
 _EVENT_COLOR: dict[str, int] = {
-    "run.started": _BLUE,
-    "task.completed": _GREEN,
-    "task.failed": _RED,
-    "run.completed": _BLUE,
-    "budget.warning": _ORANGE,
-    "budget.exhausted": _RED,
-    "approval.needed": _ORANGE,
-    "incident.critical": _RED,
+    EVENT_RUN_STARTED: _BLUE,
+    EVENT_TASK_COMPLETED: _GREEN,
+    EVENT_TASK_FAILED: _RED,
+    EVENT_RUN_COMPLETED: _BLUE,
+    EVENT_BUDGET_WARNING: _ORANGE,
+    EVENT_BUDGET_EXHAUSTED: _RED,
+    EVENT_APPROVAL_NEEDED: _ORANGE,
+    EVENT_INCIDENT_CRITICAL: _RED,
 }
 
 

@@ -731,7 +731,7 @@ def _check_cycles(dag: WorkflowDAG) -> list[str]:
 
     # Build adjacency for unconditional edges only.
     forward: dict[str, list[str]] = defaultdict(list)
-    in_degree: dict[str, int] = {nid: 0 for nid in node_ids}
+    in_degree: dict[str, int] = dict.fromkeys(node_ids, 0)
     for edge in dag.edges:
         if edge.condition is not None:
             continue

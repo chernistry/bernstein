@@ -485,7 +485,7 @@ async def bandit_routing_stats(request: Request) -> JSONResponse:
         )
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.get("/health")
 async def health_check(request: Request) -> HealthResponse:
     """Liveness check with component-level status."""
     store = _get_store(request)

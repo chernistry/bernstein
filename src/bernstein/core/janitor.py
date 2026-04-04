@@ -162,7 +162,7 @@ async def run_janitor(
 
         # Special handling for upgrade proposals
         if task.task_type == TaskType.UPGRADE_PROPOSAL:
-            all_passed, failed_descs = await verify_upgrade_task(task, workdir)
+            all_passed, failed_descs = verify_upgrade_task(task, workdir)
             if all_passed:
                 signal_results = [("upgrade:verified", True, "")]
             else:
@@ -247,7 +247,7 @@ async def run_janitor(
     return results
 
 
-async def verify_upgrade_task(task: Task, workdir: Path) -> tuple[bool, list[str]]:
+def verify_upgrade_task(task: Task, workdir: Path) -> tuple[bool, list[str]]:
     """Verify an upgrade task was executed correctly.
 
     Checks:

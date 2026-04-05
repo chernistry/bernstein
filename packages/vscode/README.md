@@ -2,8 +2,6 @@
 
 VS Code extension for monitoring and controlling [Bernstein](https://github.com/chernistry/bernstein), a multi-agent orchestration system that runs parallel AI coding agents. Gives you real-time visibility into tasks, agents, and costs without leaving your editor.
 
-![Dashboard](media/screenshot-dashboard.png)
-
 ## Features
 
 - **Sidebar views** — dedicated activity bar panel with Agents, Tasks, and Overview views

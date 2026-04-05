@@ -103,14 +103,10 @@ class TestStartupGateCheckpoint:
 
     def test_from_dict_invalid_captured_at_raises(self) -> None:
         with pytest.raises(ValueError):
-            StartupGateCheckpoint.from_dict(
-                {"captured_at": "bad", "gate_name": "lint", "status": "enabled"}
-            )
+            StartupGateCheckpoint.from_dict({"captured_at": "bad", "gate_name": "lint", "status": "enabled"})
 
     def test_from_dict_unknown_status_falls_back_to_enabled(self) -> None:
-        cp = StartupGateCheckpoint.from_dict(
-            {"captured_at": 1.0, "gate_name": "lint", "status": "unknown_value"}
-        )
+        cp = StartupGateCheckpoint.from_dict({"captured_at": 1.0, "gate_name": "lint", "status": "unknown_value"})
         assert cp.status == "enabled"
 
     def test_from_dict_unknown_provenance_falls_back_to_default(self) -> None:
@@ -263,9 +259,7 @@ class TestSaveLoadStartupGateCheckpoints:
 
     def test_save_creates_parent_dirs(self, tmp_path: Path) -> None:
         # .sdd/runtime doesn't exist yet
-        checkpoints = [
-            StartupGateCheckpoint(captured_at=1.0, gate_name="lint", status="enabled")
-        ]
+        checkpoints = [StartupGateCheckpoint(captured_at=1.0, gate_name="lint", status="enabled")]
         save_startup_gate_checkpoints(tmp_path, checkpoints)
         assert (tmp_path / ".sdd" / "runtime" / "startup_gates.json").exists()
 

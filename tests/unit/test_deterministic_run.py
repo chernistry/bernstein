@@ -77,9 +77,7 @@ class TestSameTasksSameOrder:
         for i in range(9):
             result = group_by_role(tasks, max_per_batch=2)
             result_ids = [[t.id for t in batch] for batch in result]
-            assert result_ids == reference_ids, (
-                f"Run {i + 2} produced different order: {result_ids} vs {reference_ids}"
-            )
+            assert result_ids == reference_ids, f"Run {i + 2} produced different order: {result_ids} vs {reference_ids}"
 
     def test_same_order_with_alive_per_role(self) -> None:
         """Starving-role reordering is also deterministic."""
@@ -153,9 +151,7 @@ class TestDependencyResolutionDeterministic:
 
         for i in range(9):
             order = TaskGraph(tasks).topological_order()
-            assert order == reference, (
-                f"Run {i + 2}: {order} != {reference}"
-            )
+            assert order == reference, f"Run {i + 2}: {order} != {reference}"
 
     def test_wide_dag_stable_tiebreak(self) -> None:
         """Many independent tasks should produce a stable ordering."""
@@ -165,9 +161,7 @@ class TestDependencyResolutionDeterministic:
 
         for i in range(9):
             order = TaskGraph(tasks).topological_order()
-            assert order == reference, (
-                f"Run {i + 2} wide DAG order diverged"
-            )
+            assert order == reference, f"Run {i + 2} wide DAG order diverged"
 
     def test_complex_dag(self) -> None:
         """Multi-layer DAG with mixed fan-in/fan-out is deterministic."""
@@ -187,9 +181,7 @@ class TestDependencyResolutionDeterministic:
 
         for i in range(9):
             order = TaskGraph(tasks).topological_order()
-            assert order == reference, (
-                f"Run {i + 2} complex DAG order diverged"
-            )
+            assert order == reference, f"Run {i + 2} complex DAG order diverged"
 
     def test_ready_tasks_deterministic(self) -> None:
         """ready_tasks() returns the same set in the same order every time."""
@@ -206,9 +198,7 @@ class TestDependencyResolutionDeterministic:
 
         for i in range(9):
             ready = TaskGraph(tasks).ready_tasks()
-            assert ready == reference, (
-                f"Run {i + 2}: ready_tasks diverged: {ready} vs {reference}"
-            )
+            assert ready == reference, f"Run {i + 2}: ready_tasks diverged: {ready} vs {reference}"
 
 
 # ---------------------------------------------------------------------------
@@ -236,9 +226,7 @@ class TestRoleAssignmentDeterministic:
         for i in range(9):
             result = group_by_role(tasks, max_per_batch=1)
             result_roles = [(b[0].role, b[0].id) for b in result]
-            assert result_roles == ref_roles, (
-                f"Run {i + 2} role grouping diverged: {result_roles} vs {ref_roles}"
-            )
+            assert result_roles == ref_roles, f"Run {i + 2} role grouping diverged: {result_roles} vs {ref_roles}"
 
     def test_role_round_robin_deterministic(self) -> None:
         """Round-robin interleaving across roles is stable.
@@ -260,9 +248,7 @@ class TestRoleAssignmentDeterministic:
         for i in range(9):
             result = group_by_role(tasks, max_per_batch=1)
             result_seq = [(b[0].role, b[0].id) for b in result]
-            assert result_seq == ref_seq, (
-                f"Run {i + 2} round-robin diverged: {result_seq} vs {ref_seq}"
-            )
+            assert result_seq == ref_seq, f"Run {i + 2} round-robin diverged: {result_seq} vs {ref_seq}"
 
 
 # ---------------------------------------------------------------------------
@@ -344,6 +330,4 @@ class TestModelSelectionDeterministic:
 
         for run in range(9):
             configs = [(route_task(t).model, route_task(t).effort) for t in tasks]
-            assert configs == reference, (
-                f"Run {run + 2}: model configs diverged: {configs} vs {reference}"
-            )
+            assert configs == reference, f"Run {run + 2}: model configs diverged: {configs} vs {reference}"

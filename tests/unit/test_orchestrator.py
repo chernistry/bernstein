@@ -163,14 +163,18 @@ def _mock_transport(responses: dict[str, httpx.Response]) -> httpx.MockTransport
                     offset_val = int(url.params.get("offset", "0"))
                     limit_val = int(url.params.get("limit", "100"))
                     page = all_tasks[offset_val : offset_val + limit_val]
-                    return httpx.Response(200, json={"tasks": page, "total": len(all_tasks), "limit": limit_val, "offset": offset_val})
+                    return httpx.Response(
+                        200, json={"tasks": page, "total": len(all_tasks), "limit": limit_val, "offset": offset_val}
+                    )
             # Also try aggregating from status-specific entries
             aggregated_p: list[object] = []
             for resp_key, resp in responses.items():
                 if resp_key.startswith("GET /tasks?status=") and resp.status_code == 200:
                     aggregated_p.extend(resp.json())
             if aggregated_p or any(k.startswith("GET /tasks?status=") for k in responses):
-                return httpx.Response(200, json={"tasks": aggregated_p, "total": len(aggregated_p), "limit": 100, "offset": 0})
+                return httpx.Response(
+                    200, json={"tasks": aggregated_p, "total": len(aggregated_p), "limit": 100, "offset": 0}
+                )
         return httpx.Response(404, json={"detail": f"No mock for {key}"})
 
     return httpx.MockTransport(handler)
@@ -204,7 +208,9 @@ def _paginated_transport(inner: httpx.MockTransport) -> httpx.MockTransport:
                 offset_val = int(url.params.get("offset", "0"))
                 limit_val = int(url.params.get("limit", "100"))
                 page = tasks_list[offset_val : offset_val + limit_val]
-                return httpx.Response(200, json={"tasks": page, "total": len(tasks_list), "limit": limit_val, "offset": offset_val})
+                return httpx.Response(
+                    200, json={"tasks": page, "total": len(tasks_list), "limit": limit_val, "offset": offset_val}
+                )
             return resp
         return inner.handle_request(request)
 
@@ -5178,7 +5184,9 @@ class TestEvolutionAgentLifetimeRecording:
         templates_dir = tmp_path / "templates" / "roles"
         templates_dir.mkdir(parents=True)
         spawner = AgentSpawner(adp, templates_dir, tmp_path)
-        client = httpx.Client(transport=_paginated_transport(httpx.MockTransport(handler)), base_url="http://testserver")
+        client = httpx.Client(
+            transport=_paginated_transport(httpx.MockTransport(handler)), base_url="http://testserver"
+        )
         orch = Orchestrator(cfg, spawner, tmp_path, client=client, evolution=evolution)
 
         session = AgentSession(

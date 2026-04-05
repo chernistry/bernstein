@@ -127,7 +127,7 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         # Hidden aliases (backward compat — documented in README "Command aliases" table)
         "overture",  # alias for init
         "downbeat",  # alias for start
-        "score",     # alias for status
+        "score",  # alias for status
     }
 )
 

@@ -560,14 +560,16 @@ class TestWrapperScriptCompletionMarker:
             completion_path=str(marker_path),
         )
 
-        result_json = json.dumps({
-            "type": "result",
-            "result": "All tasks done",
-            "subtype": "success",
-            "total_cost_usd": 0.12,
-            "num_turns": 5,
-            "duration_ms": 3200,
-        })
+        result_json = json.dumps(
+            {
+                "type": "result",
+                "result": "All tasks done",
+                "subtype": "success",
+                "total_cost_usd": 0.12,
+                "num_turns": 5,
+                "duration_ms": 3200,
+            }
+        )
         proc = subprocess.run(
             [sys.executable, "-c", script],
             input=result_json + "\n",
@@ -594,10 +596,12 @@ class TestWrapperScriptCompletionMarker:
             completion_path=str(marker_path),
         )
 
-        assistant_json = json.dumps({
-            "type": "assistant",
-            "message": {"content": [{"type": "text", "text": "working..."}]},
-        })
+        assistant_json = json.dumps(
+            {
+                "type": "assistant",
+                "message": {"content": [{"type": "text", "text": "working..."}]},
+            }
+        )
         subprocess.run(
             [sys.executable, "-c", script],
             input=assistant_json + "\n",
@@ -617,7 +621,9 @@ class TestIsRateLimited:
     """ClaudeCodeAdapter.is_rate_limited() probes for provider throttling."""
 
     def _make_run_result(self, *, stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-        return subprocess.CompletedProcess(args=["claude", "--version"], returncode=returncode, stdout="", stderr=stderr)
+        return subprocess.CompletedProcess(
+            args=["claude", "--version"], returncode=returncode, stdout="", stderr=stderr
+        )
 
     def test_not_rate_limited_when_probe_returns_clean(self) -> None:
         adapter = ClaudeCodeAdapter()
@@ -758,12 +764,7 @@ class TestBuildCommandSystemAddendum:
 
     def test_multiline_addendum_preserved(self) -> None:
         """Multi-line orchestration instructions should be passed verbatim."""
-        addendum = (
-            "## Signal files\nCheck every 60s.\n"
-            "## Completion protocol\ncurl -X POST ...\n"
-        )
+        addendum = "## Signal files\nCheck every 60s.\n## Completion protocol\ncurl -X POST ...\n"
         cmd = self._build(system_addendum=addendum)
         idx = cmd.index("--append-system-prompt")
         assert cmd[idx + 1] == addendum
-
-

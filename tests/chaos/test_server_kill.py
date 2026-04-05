@@ -83,10 +83,7 @@ def test_server_restart_preserves_tasks(tmp_path: Path) -> None:
     jsonl_path = runtime / "tasks.jsonl"
 
     # Simulate "first life" -- write 5 tasks to the JSONL
-    records = [
-        _make_task_record(f"task-{i}", title=f"Task {i}", status="open")
-        for i in range(5)
-    ]
+    records = [_make_task_record(f"task-{i}", title=f"Task {i}", status="open") for i in range(5)]
     _write_records(jsonl_path, records)
 
     # "First store" loads and verifies

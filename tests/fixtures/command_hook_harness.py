@@ -246,8 +246,5 @@ class CommandHookHarness:
             )
         capture_path = self._capture_paths[key]
         if not capture_path.exists():
-            raise FileNotFoundError(
-                f"Capture file {capture_path} does not exist. "
-                f"Was fire({hook_name!r}, ...) called?"
-            )
+            raise FileNotFoundError(f"Capture file {capture_path} does not exist. Was fire({hook_name!r}, ...) called?")
         return dict(json.loads(capture_path.read_text(encoding="utf-8")))

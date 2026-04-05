@@ -292,9 +292,7 @@ def connect(port: int, host: str) -> None: ...
         report = check_compatibility(old, new, "mod.py")
         assert not report.is_compatible
         # Both parameters moved, so two breaking changes
-        position_changes = [
-            bc for bc in report.breaking_changes if bc.change_type == ChangeType.CHANGED_PARAM_POSITION
-        ]
+        position_changes = [bc for bc in report.breaking_changes if bc.change_type == ChangeType.CHANGED_PARAM_POSITION]
         assert len(position_changes) == 2
 
 

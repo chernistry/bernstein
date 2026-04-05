@@ -65,9 +65,7 @@ def test_unregister_removes_bernstein_entry(tmp_path: Path) -> None:
     """unregister removes only the bernstein entry, leaving others intact."""
     mcp_path = tmp_path / ".claude" / "mcp.json"
     mcp_path.parent.mkdir(parents=True)
-    mcp_path.write_text(
-        json.dumps({"mcpServers": {"bernstein": {"command": "x"}, "other": {"command": "y"}}})
-    )
+    mcp_path.write_text(json.dumps({"mcpServers": {"bernstein": {"command": "x"}, "other": {"command": "y"}}}))
 
     _unregister_mcp_discovery(tmp_path)
 

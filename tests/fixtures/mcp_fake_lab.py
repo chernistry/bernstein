@@ -301,9 +301,7 @@ class McpFakeLab:
         Raises:
             AssertionError: If no matching request was found.
         """
-        matches = [
-            r for r in self._requests if r.method == method and r.url.path == path
-        ]
+        matches = [r for r in self._requests if r.method == method and r.url.path == path]
         if not matches:
             made = [(r.method, r.url.path) for r in self._requests]
             msg = f"Expected {method} {path} but requests were: {made}"
@@ -319,9 +317,7 @@ class McpFakeLab:
         Raises:
             AssertionError: If a matching request was found.
         """
-        matches = [
-            r for r in self._requests if r.method == method and r.url.path == path
-        ]
+        matches = [r for r in self._requests if r.method == method and r.url.path == path]
         if matches:
             msg = f"Expected no {method} {path} but found {len(matches)} request(s)"
             raise AssertionError(msg)

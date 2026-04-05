@@ -121,11 +121,7 @@ class TestSplitBatchResult:
     """Parse combined result back into per-task summaries."""
 
     def test_parses_sections(self) -> None:
-        result_text = (
-            "All done.\n"
-            "## Result: t-0\nFixed the widget.\n"
-            "## Result: t-1\nUpdated the config.\n"
-        )
+        result_text = "All done.\n## Result: t-0\nFixed the widget.\n## Result: t-1\nUpdated the config.\n"
         results = split_batch_result(result_text, ["t-0", "t-1"])
         assert results["t-0"] == "Fixed the widget."
         assert results["t-1"] == "Updated the config."

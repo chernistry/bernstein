@@ -253,18 +253,14 @@ class TestRegressionGuards:
         )
 
     @pytest.mark.asyncio
-    async def test_harness_assert_called_raises_on_missing_request(
-        self, lab: McpFakeLab
-    ) -> None:
+    async def test_harness_assert_called_raises_on_missing_request(self, lab: McpFakeLab) -> None:
         """The harness itself raises AssertionError when an expected call never happens."""
         # Don't make any calls — assert_called should detect the absence
         with pytest.raises(AssertionError, match="Expected POST /tasks"):
             lab.assert_called("POST", "/tasks")
 
     @pytest.mark.asyncio
-    async def test_harness_assert_not_called_raises_on_unexpected_request(
-        self, lab: McpFakeLab
-    ) -> None:
+    async def test_harness_assert_not_called_raises_on_unexpected_request(self, lab: McpFakeLab) -> None:
         """The harness raises AssertionError when a forbidden call was made."""
         await lab.call_tool("bernstein_status", {})
         with pytest.raises(AssertionError, match="Expected no GET /status"):

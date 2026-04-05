@@ -88,48 +88,28 @@ class TestSectionIsRelevant:
 
     def test_unlisted_section_always_relevant(self) -> None:
         """Sections not in the rules table are always included (critical)."""
-        assert section_is_relevant(
-            "role", role="backend", scope="medium", owned_files=[], session_id=""
-        )
+        assert section_is_relevant("role", role="backend", scope="medium", owned_files=[], session_id="")
 
     def test_specialists_only_for_manager(self) -> None:
-        assert section_is_relevant(
-            "specialists", role="manager", scope="medium", owned_files=[], session_id=""
-        )
-        assert not section_is_relevant(
-            "specialists", role="backend", scope="medium", owned_files=[], session_id=""
-        )
+        assert section_is_relevant("specialists", role="manager", scope="medium", owned_files=[], session_id="")
+        assert not section_is_relevant("specialists", role="backend", scope="medium", owned_files=[], session_id="")
 
     def test_team_awareness_excluded_for_docs(self) -> None:
-        assert not section_is_relevant(
-            "team awareness", role="docs", scope="medium", owned_files=[], session_id="s1"
-        )
+        assert not section_is_relevant("team awareness", role="docs", scope="medium", owned_files=[], session_id="s1")
 
     def test_team_awareness_included_for_backend_with_session(self) -> None:
-        assert section_is_relevant(
-            "team awareness", role="backend", scope="medium", owned_files=[], session_id="s1"
-        )
+        assert section_is_relevant("team awareness", role="backend", scope="medium", owned_files=[], session_id="s1")
 
     def test_team_awareness_excluded_without_session(self) -> None:
-        assert not section_is_relevant(
-            "team awareness", role="backend", scope="medium", owned_files=[], session_id=""
-        )
+        assert not section_is_relevant("team awareness", role="backend", scope="medium", owned_files=[], session_id="")
 
     def test_heartbeat_requires_medium_scope(self) -> None:
-        assert not section_is_relevant(
-            "heartbeat", role="backend", scope="small", owned_files=[], session_id="s1"
-        )
-        assert section_is_relevant(
-            "heartbeat", role="backend", scope="medium", owned_files=[], session_id="s1"
-        )
-        assert section_is_relevant(
-            "heartbeat", role="backend", scope="large", owned_files=[], session_id="s1"
-        )
+        assert not section_is_relevant("heartbeat", role="backend", scope="small", owned_files=[], session_id="s1")
+        assert section_is_relevant("heartbeat", role="backend", scope="medium", owned_files=[], session_id="s1")
+        assert section_is_relevant("heartbeat", role="backend", scope="large", owned_files=[], session_id="s1")
 
     def test_heartbeat_requires_session(self) -> None:
-        assert not section_is_relevant(
-            "heartbeat", role="backend", scope="large", owned_files=[], session_id=""
-        )
+        assert not section_is_relevant("heartbeat", role="backend", scope="large", owned_files=[], session_id="")
 
     def test_file_ownership_excluded_for_manager(self) -> None:
         assert not section_is_relevant(
@@ -137,19 +117,13 @@ class TestSectionIsRelevant:
         )
 
     def test_file_ownership_included_for_backend(self) -> None:
-        assert section_is_relevant(
-            "file ownership", role="backend", scope="medium", owned_files=[], session_id="s1"
-        )
+        assert section_is_relevant("file ownership", role="backend", scope="medium", owned_files=[], session_id="s1")
 
     def test_recommendations_excluded_for_manager(self) -> None:
-        assert not section_is_relevant(
-            "recommendations", role="manager", scope="medium", owned_files=[], session_id=""
-        )
+        assert not section_is_relevant("recommendations", role="manager", scope="medium", owned_files=[], session_id="")
 
     def test_recommendations_included_for_qa(self) -> None:
-        assert section_is_relevant(
-            "recommendations", role="qa", scope="medium", owned_files=[], session_id=""
-        )
+        assert section_is_relevant("recommendations", role="qa", scope="medium", owned_files=[], session_id="")
 
     def test_custom_rule_with_file_patterns(self) -> None:
         """Custom rules with file_patterns only activate on matching files."""
@@ -174,14 +148,10 @@ class TestSectionIsRelevant:
         )
 
     def test_lessons_excluded_for_visionary(self) -> None:
-        assert not section_is_relevant(
-            "lessons", role="visionary", scope="medium", owned_files=[], session_id=""
-        )
+        assert not section_is_relevant("lessons", role="visionary", scope="medium", owned_files=[], session_id="")
 
     def test_lessons_included_for_backend(self) -> None:
-        assert section_is_relevant(
-            "lessons", role="backend", scope="medium", owned_files=[], session_id=""
-        )
+        assert section_is_relevant("lessons", role="backend", scope="medium", owned_files=[], session_id="")
 
 
 # ---------------------------------------------------------------------------
@@ -200,9 +170,7 @@ class TestFilterSections:
             ("tasks", "Task 1: ..."),
             ("instructions", "Complete these tasks."),
         ]
-        result = filter_sections(
-            sections, role="backend", scope="medium", owned_files=[], session_id=""
-        )
+        result = filter_sections(sections, role="backend", scope="medium", owned_files=[], session_id="")
         assert len(result) == 4
         assert [name for name, _ in result] == ["role", "git_safety", "tasks", "instructions"]
 
@@ -212,9 +180,7 @@ class TestFilterSections:
             ("specialists", "Agency agents..."),
             ("tasks", "Task 1: ..."),
         ]
-        result = filter_sections(
-            sections, role="backend", scope="medium", owned_files=[], session_id=""
-        )
+        result = filter_sections(sections, role="backend", scope="medium", owned_files=[], session_id="")
         names = [name for name, _ in result]
         assert "specialists" not in names
 
@@ -224,9 +190,7 @@ class TestFilterSections:
             ("specialists", "Agency agents..."),
             ("tasks", "Task 1: ..."),
         ]
-        result = filter_sections(
-            sections, role="manager", scope="medium", owned_files=[], session_id=""
-        )
+        result = filter_sections(sections, role="manager", scope="medium", owned_files=[], session_id="")
         names = [name for name, _ in result]
         assert "specialists" in names
 
@@ -236,9 +200,7 @@ class TestFilterSections:
             ("tasks", "Tasks."),
             ("heartbeat", "Heartbeat instructions."),
         ]
-        result = filter_sections(
-            sections, role="backend", scope="small", owned_files=[], session_id="s1"
-        )
+        result = filter_sections(sections, role="backend", scope="small", owned_files=[], session_id="s1")
         names = [name for name, _ in result]
         assert "heartbeat" not in names
 
@@ -248,9 +210,7 @@ class TestFilterSections:
             ("tasks", "Tasks."),
             ("heartbeat", "Heartbeat instructions."),
         ]
-        result = filter_sections(
-            sections, role="backend", scope="large", owned_files=[], session_id="s1"
-        )
+        result = filter_sections(sections, role="backend", scope="large", owned_files=[], session_id="s1")
         names = [name for name, _ in result]
         assert "heartbeat" in names
 
@@ -266,9 +226,7 @@ class TestFilterSections:
             ("recommendations", "Recommendations."),
             ("instructions", "Complete these."),
         ]
-        result = filter_sections(
-            sections, role="docs", scope="medium", owned_files=[], session_id="s1"
-        )
+        result = filter_sections(sections, role="docs", scope="medium", owned_files=[], session_id="s1")
         names = [name for name, _ in result]
         assert "team awareness" not in names
         assert "team coordination" not in names
@@ -361,9 +319,7 @@ def test_render_prompt_drops_heartbeat_for_small_scope(tmp_path: Path, make_task
     from bernstein.core.models import Scope
 
     _lesson_cache.clear()
-    task = make_task(
-        id="T-1", role="backend", title="Fix typo", description="Fix it.", scope=Scope.SMALL
-    )
+    task = make_task(id="T-1", role="backend", title="Fix typo", description="Fix it.", scope=Scope.SMALL)
     templates_dir = tmp_path / "templates"
     templates_dir.mkdir()
 
@@ -387,9 +343,7 @@ def test_render_prompt_keeps_heartbeat_for_large_scope(tmp_path: Path, make_task
     from bernstein.core.models import Scope
 
     _lesson_cache.clear()
-    task = make_task(
-        id="T-1", role="backend", title="Refactor engine", description="Big refactor.", scope=Scope.LARGE
-    )
+    task = make_task(id="T-1", role="backend", title="Refactor engine", description="Big refactor.", scope=Scope.LARGE)
     templates_dir = tmp_path / "templates"
     templates_dir.mkdir()
 
@@ -411,9 +365,7 @@ def test_render_prompt_keeps_heartbeat_for_large_scope(tmp_path: Path, make_task
     assert "Signal files" in prompt
 
 
-def test_render_prompt_backend_context_activates_for_src_files(
-    tmp_path: Path, make_task: Any
-) -> None:
+def test_render_prompt_backend_context_activates_for_src_files(tmp_path: Path, make_task: Any) -> None:
     """Backend context activates when owned_files match src/ patterns (acceptance criterion)."""
     _lesson_cache.clear()
     task = make_task(

@@ -346,8 +346,7 @@ class TestFullEscalationChain:
 
         # Contain at sibling level.
         policy_sibling_contain = AbortPolicy(sibling_to_session=False)
-        chain.abort_siblings("child-a", triggering_session_id="child-a", reason="fail",
-                             policy=policy_sibling_contain)
+        chain.abort_siblings("child-a", triggering_session_id="child-a", reason="fail", policy=policy_sibling_contain)
 
         # parent and grandparent must remain unaffected.
         assert not (signals_dir / "parent" / "SHUTDOWN").exists()

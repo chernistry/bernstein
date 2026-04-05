@@ -378,8 +378,7 @@ class TestLoadNudgeSummary:
     def test_loads_from_existing_ledger(self, tmp_path: Path) -> None:
         ledger = tmp_path / "verification_nudges.jsonl"
         records = [
-            {"task_id": f"t{i}", "session_id": f"s{i}", "timestamp": float(i), "verified": i % 2 == 0}
-            for i in range(6)
+            {"task_id": f"t{i}", "session_id": f"s{i}", "timestamp": float(i), "verified": i % 2 == 0} for i in range(6)
         ]
         ledger.write_text("\n".join(json.dumps(r) for r in records) + "\n")
 
@@ -484,14 +483,16 @@ class TestTaskVerificationFields:
     def test_task_from_dict_with_values(self) -> None:
         from bernstein.core.models import Task
 
-        task = Task.from_dict({
-            "id": "t1",
-            "title": "t",
-            "description": "d",
-            "role": "r",
-            "verification_count": 2,
-            "flagged_unverified": True,
-        })
+        task = Task.from_dict(
+            {
+                "id": "t1",
+                "title": "t",
+                "description": "d",
+                "role": "r",
+                "verification_count": 2,
+                "flagged_unverified": True,
+            }
+        )
         assert task.verification_count == 2
         assert task.flagged_unverified is True
 

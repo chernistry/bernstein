@@ -720,11 +720,7 @@ class TestRenderWaterfallBatches:
         from bernstein.tui.widgets import render_waterfall_batches
 
         log_file = tmp_path / "agent.log"
-        log_file.write_text(
-            "[Read] /src/app.py\n"
-            "[Edit] /src/app.py\n"
-            "[Bash] pytest\n"
-        )
+        log_file.write_text("[Read] /src/app.py\n[Edit] /src/app.py\n[Bash] pytest\n")
 
         steps = parse_agent_log(log_file)
         assert len(steps) >= 1

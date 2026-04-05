@@ -213,9 +213,7 @@ class TestLargeFileGate:
 
     def test_nonexistent_file_skipped_gracefully(self, tmp_path: Path) -> None:
         runner = _runner(tmp_path, large_file_threshold=500)
-        result = runner._run_large_file_gate_sync(
-            _step("large_file", required=False), tmp_path, ["nonexistent.py"]
-        )
+        result = runner._run_large_file_gate_sync(_step("large_file", required=False), tmp_path, ["nonexistent.py"])
         assert result.status == "pass"
 
     def test_custom_threshold(self, tmp_path: Path) -> None:

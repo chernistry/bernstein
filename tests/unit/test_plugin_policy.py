@@ -132,9 +132,7 @@ class TestLoadPluginPolicy:
         policy_dir = tmp_path / ".bernstein"
         policy_dir.mkdir()
         (policy_dir / "plugins-policy.yaml").write_text(
-            "allowlist:\n  - approved\n"
-            "blocklist:\n  - blocked\n"
-            "managed:\n  - audit-logger\n",
+            "allowlist:\n  - approved\nblocklist:\n  - blocked\nmanaged:\n  - audit-logger\n",
             encoding="utf-8",
         )
         policy = load_plugin_policy(tmp_path)
@@ -261,8 +259,7 @@ class TestPluginManagerPolicy:
         policy_dir = tmp_path / ".bernstein"
         policy_dir.mkdir()
         (policy_dir / "plugins-policy.yaml").write_text(
-            "allowlist:\n  - approved\n"
-            "managed:\n  - audit-logger\n",
+            "allowlist:\n  - approved\nmanaged:\n  - audit-logger\n",
             encoding="utf-8",
         )
 

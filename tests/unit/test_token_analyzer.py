@@ -192,10 +192,7 @@ def test_model_spend_aggregation(tmp_path: Path) -> None:
 def test_top5_sorted_by_total_tokens(tmp_path: Path) -> None:
     """Top 5 hungry tasks are sorted by total token count descending."""
     analyzer = TokenUsageAnalyzer(tmp_path)
-    records = [
-        _make_record(f"t{i}", tokens_prompt=i * 1000, tokens_completion=i * 100)
-        for i in range(1, 8)
-    ]
+    records = [_make_record(f"t{i}", tokens_prompt=i * 1000, tokens_completion=i * 100) for i in range(1, 8)]
     result = analyzer.analyze(records)
 
     assert len(result.top_5_hungry) == 5

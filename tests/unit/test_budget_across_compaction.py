@@ -148,8 +148,8 @@ class TestReconcilePostCompaction:
 
     def test_remaining_reflects_pre_compact_spend(self) -> None:
         b = _make_budget(budget=25_000)
-        b.record_pre_compaction(10_000)   # spent 10K before compaction
-        b.reconcile_post_compaction()      # compaction happened; current window resets
+        b.record_pre_compaction(10_000)  # spent 10K before compaction
+        b.reconcile_post_compaction()  # compaction happened; current window resets
         # Effective remaining = 25K - 10K (pre) - 0 (current) = 15K
         assert b.effective_remaining() == 15_000
 

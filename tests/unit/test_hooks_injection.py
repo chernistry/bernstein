@@ -43,9 +43,7 @@ class TestInjectHooksConfig:
         for event_name, entries in data["hooks"].items():
             for entry in entries:
                 for hook in entry["hooks"]:
-                    assert "my-session-42" in hook["command"], (
-                        f"Session ID missing from {event_name} hook command"
-                    )
+                    assert "my-session-42" in hook["command"], f"Session ID missing from {event_name} hook command"
 
     def test_custom_server_url(self, tmp_path: Path) -> None:
         """Custom server URL is used in hook commands."""

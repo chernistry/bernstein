@@ -292,9 +292,7 @@ class TestIntegrationWithFailureDetection:
             "PromptTooLongError: input exceeds limit\n",
         ],
     )
-    def test_should_compact_agrees_with_detect_failure_type(
-        self, tmp_path: Path, log_content: str
-    ) -> None:
+    def test_should_compact_agrees_with_detect_failure_type(self, tmp_path: Path, log_content: str) -> None:
         log = tmp_path / "agent.log"
         log.write_text(log_content)
         tracker = RateLimitTracker()

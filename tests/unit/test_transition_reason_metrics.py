@@ -192,9 +192,7 @@ class TestKillSwitch:
             set_prometheus_enabled,
         )
 
-        before = agent_transition_reasons_total.labels(
-            reason="aborted", role="killswitch_test"
-        )._value.get()
+        before = agent_transition_reasons_total.labels(reason="aborted", role="killswitch_test")._value.get()
 
         set_prometheus_enabled(False)
         try:
@@ -202,9 +200,7 @@ class TestKillSwitch:
         finally:
             set_prometheus_enabled(True)
 
-        after = agent_transition_reasons_total.labels(
-            reason="aborted", role="killswitch_test"
-        )._value.get()
+        after = agent_transition_reasons_total.labels(reason="aborted", role="killswitch_test")._value.get()
 
         assert after == before  # no increment
 
@@ -219,13 +215,9 @@ class TestAllTransitionReasonsRecordable:
         )
 
         for reason in TransitionReason:
-            before = agent_transition_reasons_total.labels(
-                reason=reason.value, role="test_all"
-            )._value.get()
+            before = agent_transition_reasons_total.labels(reason=reason.value, role="test_all")._value.get()
             record_transition_reason(reason.value, "test_all", entity_type="agent")
-            after = agent_transition_reasons_total.labels(
-                reason=reason.value, role="test_all"
-            )._value.get()
+            after = agent_transition_reasons_total.labels(reason=reason.value, role="test_all")._value.get()
             assert after == before + 1, f"Failed for reason={reason.value}"
 
     def test_all_reasons_record_for_task(self) -> None:
@@ -235,13 +227,9 @@ class TestAllTransitionReasonsRecordable:
         )
 
         for reason in TransitionReason:
-            before = task_transition_reasons_total.labels(
-                reason=reason.value, role="test_all"
-            )._value.get()
+            before = task_transition_reasons_total.labels(reason=reason.value, role="test_all")._value.get()
             record_transition_reason(reason.value, "test_all", entity_type="task")
-            after = task_transition_reasons_total.labels(
-                reason=reason.value, role="test_all"
-            )._value.get()
+            after = task_transition_reasons_total.labels(reason=reason.value, role="test_all")._value.get()
             assert after == before + 1, f"Failed for reason={reason.value}"
 
 

@@ -19,10 +19,7 @@ def _make_parent_prompt(role: str = "backend") -> str:
         "## Git Safety Protocol\n"
         "Never force-push. Always use your worktree branch.\n"
     )
-    tasks = (
-        "### Task 1: Implement feature X (id=abc123)\n"
-        "Add the new feature X to the system.\n"
-    )
+    tasks = "### Task 1: Implement feature X (id=abc123)\nAdd the new feature X to the system.\n"
     return f"{prefix}{_FORK_DIRECTIVE_MARKER}{tasks}"
 
 

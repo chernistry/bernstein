@@ -162,9 +162,7 @@ class TestWriteToDisk:
         candidates = list(tmp_path.rglob("nodisk-1.json"))
         assert not candidates
 
-    def test_disk_file_reflects_active_session(
-        self, tmp_path: Path, activity_dir: Path, board: BulletinBoard
-    ) -> None:
+    def test_disk_file_reflects_active_session(self, tmp_path: Path, activity_dir: Path, board: BulletinBoard) -> None:
         session = ActivitySession(activity_dir)
         session.start_activity("coding", "Write feature")
         sdd_dir = tmp_path / ".sdd"
@@ -176,9 +174,7 @@ class TestWriteToDisk:
         data = json.loads(out.read_text())
         assert data["summary"] == "coding in progress"
 
-    def test_disk_file_overwritten_on_next_poll(
-        self, tmp_path: Path, activity_dir: Path, board: BulletinBoard
-    ) -> None:
+    def test_disk_file_overwritten_on_next_poll(self, tmp_path: Path, activity_dir: Path, board: BulletinBoard) -> None:
         session = ActivitySession(activity_dir)
         sdd_dir = tmp_path / ".sdd"
         poller = ActivitySummaryPoller(agent_id="disk-3", session=session, board=board, sdd_dir=sdd_dir)

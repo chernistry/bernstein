@@ -44,9 +44,9 @@ class TestGenerateCodeVerifier:
 class TestGenerateCodeChallenge:
     def test_s256_derivation(self) -> None:
         verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-        expected = base64.urlsafe_b64encode(
-            hashlib.sha256(verifier.encode("ascii")).digest()
-        ).rstrip(b"=").decode("ascii")
+        expected = (
+            base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest()).rstrip(b"=").decode("ascii")
+        )
         assert generate_code_challenge(verifier) == expected
 
     def test_no_padding(self) -> None:
@@ -143,9 +143,7 @@ class TestPKCEFlowExchangeCode:
     @pytest.mark.asyncio
     @respx.mock
     async def test_successful_exchange_returns_tokens(self) -> None:
-        respx.post(TOKEN_ENDPOINT).mock(
-            return_value=httpx.Response(200, json=TOKEN_RESPONSE)
-        )
+        respx.post(TOKEN_ENDPOINT).mock(return_value=httpx.Response(200, json=TOKEN_RESPONSE))
         flow = _make_flow()
         flow.start()
         tokens = await flow.exchange_code("auth-code-123")
@@ -158,9 +156,7 @@ class TestPKCEFlowExchangeCode:
     @pytest.mark.asyncio
     @respx.mock
     async def test_code_verifier_sent_in_request(self) -> None:
-        route = respx.post(TOKEN_ENDPOINT).mock(
-            return_value=httpx.Response(200, json=TOKEN_RESPONSE)
-        )
+        route = respx.post(TOKEN_ENDPOINT).mock(return_value=httpx.Response(200, json=TOKEN_RESPONSE))
         flow = _make_flow()
         flow.start()
         verifier = flow._code_verifier
@@ -173,9 +169,7 @@ class TestPKCEFlowExchangeCode:
     @pytest.mark.asyncio
     @respx.mock
     async def test_raises_oauth_error_on_http_failure(self) -> None:
-        respx.post(TOKEN_ENDPOINT).mock(
-            return_value=httpx.Response(400, json={"error": "invalid_grant"})
-        )
+        respx.post(TOKEN_ENDPOINT).mock(return_value=httpx.Response(400, json={"error": "invalid_grant"}))
         flow = _make_flow()
         flow.start()
 
@@ -191,9 +185,7 @@ class TestPKCEFlowExchangeCode:
     @pytest.mark.asyncio
     @respx.mock
     async def test_raises_oauth_error_if_access_token_missing(self) -> None:
-        respx.post(TOKEN_ENDPOINT).mock(
-            return_value=httpx.Response(200, json={"token_type": "Bearer"})
-        )
+        respx.post(TOKEN_ENDPOINT).mock(return_value=httpx.Response(200, json={"token_type": "Bearer"}))
         flow = _make_flow()
         flow.start()
 
@@ -205,9 +197,7 @@ class TestPKCEFlowManualMode:
     @pytest.mark.asyncio
     @respx.mock
     async def test_run_manual_returns_tokens(self) -> None:
-        respx.post(TOKEN_ENDPOINT).mock(
-            return_value=httpx.Response(200, json=TOKEN_RESPONSE)
-        )
+        respx.post(TOKEN_ENDPOINT).mock(return_value=httpx.Response(200, json=TOKEN_RESPONSE))
         flow = _make_flow()
         flow.start()
         tokens = await flow.run_manual("manual-code-abc")
@@ -217,9 +207,7 @@ class TestPKCEFlowManualMode:
     @pytest.mark.asyncio
     @respx.mock
     async def test_run_manual_starts_flow_if_not_started(self) -> None:
-        respx.post(TOKEN_ENDPOINT).mock(
-            return_value=httpx.Response(200, json=TOKEN_RESPONSE)
-        )
+        respx.post(TOKEN_ENDPOINT).mock(return_value=httpx.Response(200, json=TOKEN_RESPONSE))
         flow = _make_flow()
         # No explicit start()
         tokens = await flow.run_manual("manual-code-xyz")
@@ -230,9 +218,7 @@ class TestPKCEFlowAutomaticMode:
     @pytest.mark.asyncio
     @respx.mock
     async def test_run_automatic_exchanges_captured_code(self) -> None:
-        respx.post(TOKEN_ENDPOINT).mock(
-            return_value=httpx.Response(200, json=TOKEN_RESPONSE)
-        )
+        respx.post(TOKEN_ENDPOINT).mock(return_value=httpx.Response(200, json=TOKEN_RESPONSE))
         flow = _make_flow()
 
         with patch("bernstein.core.oauth_pkce._wait_for_callback", return_value="auto-code-000"):

@@ -26,10 +26,7 @@ from bernstein.core.token_waste_report import (
 
 class TestParseTokenRecords:
     def test_parses_valid_records(self) -> None:
-        raw = (
-            '{"ts": 1.0, "in": 100, "out": 10}\n'
-            '{"ts": 2.0, "in": 200, "out": 20}\n'
-        )
+        raw = '{"ts": 1.0, "in": 100, "out": 10}\n{"ts": 2.0, "in": 200, "out": 20}\n'
         records = _parse_token_records(raw)
         assert len(records) == 2
         assert records[0].input_tokens == 100
@@ -192,10 +189,7 @@ class TestGenerateSessionWasteReport:
     def test_reads_sidecar_and_returns_report(self, tmp_path: Path) -> None:
         sidecar = tmp_path / ".sdd" / "runtime" / "sess-x1.tokens"
         sidecar.parent.mkdir(parents=True)
-        sidecar.write_text(
-            '{"ts": 1.0, "in": 100, "out": 10}\n'
-            '{"ts": 2.0, "in": 200, "out": 20}\n'
-        )
+        sidecar.write_text('{"ts": 1.0, "in": 100, "out": 10}\n{"ts": 2.0, "in": 200, "out": 20}\n')
         report = generate_session_waste_report("sess-x1", tmp_path, save=False)
         assert report.total_tokens == 330
         assert report.session_id == "sess-x1"

@@ -115,10 +115,7 @@ class TestValidatePlan:
                 "stages": [
                     {
                         "name": "Wide Stage",
-                        "steps": [
-                            {"title": f"Task {i}", "role": "backend"}
-                            for i in range(5)
-                        ],
+                        "steps": [{"title": f"Task {i}", "role": "backend"} for i in range(5)],
                     },
                 ],
             },

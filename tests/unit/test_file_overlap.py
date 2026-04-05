@@ -55,10 +55,7 @@ class TestInferAffectedPaths:
     def test_multiple_paths(self, make_task: Any) -> None:
         """Extracts multiple paths from a single description."""
         task = make_task(
-            description=(
-                "Refactor src/bernstein/core/models.py and "
-                "src/bernstein/core/spawner.py for consistency."
-            ),
+            description=("Refactor src/bernstein/core/models.py and src/bernstein/core/spawner.py for consistency."),
         )
         paths = infer_affected_paths(task)
         assert "src/bernstein/core/models.py" in paths

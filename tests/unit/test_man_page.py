@@ -71,9 +71,7 @@ class TestGenerateManPage:
         assert ".SH SUBCOMMANDS" not in page
 
     def test_synopsis_shows_options_hint(self) -> None:
-        page = generate_man_page(
-            "run", "Start.", options=[("--budget", "Budget.")]
-        )
+        page = generate_man_page("run", "Start.", options=[("--budget", "Budget.")])
         assert "[\\fIOPTIONS\\fR]" in page
 
     def test_synopsis_shows_command_hint_for_groups(self) -> None:

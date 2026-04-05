@@ -132,7 +132,9 @@ class TestCoalescence:
         config = QualityGatesConfig(enabled=False)
         call_log: list[str] = []
 
-        def fake_run_qg(task: Task, run_dir: Path, workdir: Path, cfg: QualityGatesConfig, **kw: object) -> QualityGatesResult:
+        def fake_run_qg(
+            task: Task, run_dir: Path, workdir: Path, cfg: QualityGatesConfig, **kw: object
+        ) -> QualityGatesResult:
             call_log.append(task.id)
             return _pass_result(task.id)
 
@@ -140,9 +142,11 @@ class TestCoalescence:
         barrier = threading.Barrier(2)
         first_run_released = threading.Event()
 
-        def slow_run_qg(task: Task, run_dir: Path, workdir: Path, cfg: QualityGatesConfig, **kw: object) -> QualityGatesResult:
+        def slow_run_qg(
+            task: Task, run_dir: Path, workdir: Path, cfg: QualityGatesConfig, **kw: object
+        ) -> QualityGatesResult:
             call_log.append(task.id)
-            barrier.wait(timeout=5)     # signal: first run started
+            barrier.wait(timeout=5)  # signal: first run started
             first_run_released.wait(timeout=5)  # wait: coalesced tasks queued
             return _pass_result(task.id)
 
@@ -182,7 +186,9 @@ class TestCoalescence:
         barrier = threading.Barrier(2)
         released = threading.Event()
 
-        def slow_run(task: Task, run_dir: Path, workdir: Path, cfg: QualityGatesConfig, **kw: object) -> QualityGatesResult:
+        def slow_run(
+            task: Task, run_dir: Path, workdir: Path, cfg: QualityGatesConfig, **kw: object
+        ) -> QualityGatesResult:
             calls.append(task.id)
             if task.id == "T-first":
                 barrier.wait(timeout=5)

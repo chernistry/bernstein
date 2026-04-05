@@ -130,27 +130,33 @@ def test_query_filter_by_role(tmp_path: Path) -> None:
     """Role filter returns only matching memories."""
     extractor = MemoryExtractor(tmp_path)
 
-    extractor.save(AgentMemory(
-        session_id="s1",
-        task_title="task A",
-        role="backend",
-        learnings=["learn A"],
-        timestamp=1.0,
-    ))
-    extractor.save(AgentMemory(
-        session_id="s2",
-        task_title="task B",
-        role="qa",
-        learnings=["learn B"],
-        timestamp=2.0,
-    ))
-    extractor.save(AgentMemory(
-        session_id="s3",
-        task_title="task C",
-        role="backend",
-        learnings=["learn C"],
-        timestamp=3.0,
-    ))
+    extractor.save(
+        AgentMemory(
+            session_id="s1",
+            task_title="task A",
+            role="backend",
+            learnings=["learn A"],
+            timestamp=1.0,
+        )
+    )
+    extractor.save(
+        AgentMemory(
+            session_id="s2",
+            task_title="task B",
+            role="qa",
+            learnings=["learn B"],
+            timestamp=2.0,
+        )
+    )
+    extractor.save(
+        AgentMemory(
+            session_id="s3",
+            task_title="task C",
+            role="backend",
+            learnings=["learn C"],
+            timestamp=3.0,
+        )
+    )
 
     backend_only = extractor.query(role="backend")
     assert len(backend_only) == 2
@@ -167,20 +173,24 @@ def test_query_filter_by_file_pattern(tmp_path: Path) -> None:
     """File pattern filter matches against modified files."""
     extractor = MemoryExtractor(tmp_path)
 
-    extractor.save(AgentMemory(
-        session_id="s1",
-        task_title="task A",
-        role="backend",
-        files_modified=["src/bernstein/core/router.py", "src/bernstein/core/models.py"],
-        timestamp=1.0,
-    ))
-    extractor.save(AgentMemory(
-        session_id="s2",
-        task_title="task B",
-        role="qa",
-        files_modified=["tests/unit/test_router.py"],
-        timestamp=2.0,
-    ))
+    extractor.save(
+        AgentMemory(
+            session_id="s1",
+            task_title="task A",
+            role="backend",
+            files_modified=["src/bernstein/core/router.py", "src/bernstein/core/models.py"],
+            timestamp=1.0,
+        )
+    )
+    extractor.save(
+        AgentMemory(
+            session_id="s2",
+            task_title="task B",
+            role="qa",
+            files_modified=["tests/unit/test_router.py"],
+            timestamp=2.0,
+        )
+    )
 
     router_memories = extractor.query(file_pattern="router")
     assert len(router_memories) == 2

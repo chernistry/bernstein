@@ -128,9 +128,7 @@ class TestCountTokensCascading:
         """skip_api=True skips the API tier entirely."""
         monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
 
-        with patch(
-            "bernstein.core.cascading_token_counter._count_tokens_via_api"
-        ) as mock_api:
+        with patch("bernstein.core.cascading_token_counter._count_tokens_via_api") as mock_api:
             result = asyncio.run(count_tokens_cascading("text", skip_api=True, skip_cheap_model=True))
         mock_api.assert_not_called()
         assert result > 0
@@ -139,16 +137,12 @@ class TestCountTokensCascading:
         """skip_cheap_model=True skips tier 2."""
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
-        with patch(
-            "bernstein.core.cascading_token_counter._count_tokens_via_cheap_model"
-        ) as mock_cheap:
+        with patch("bernstein.core.cascading_token_counter._count_tokens_via_cheap_model") as mock_cheap:
             result = asyncio.run(count_tokens_cascading("text", skip_cheap_model=True))
         mock_cheap.assert_not_called()
         assert result > 0
 
-    def test_cheap_model_used_when_api_unavailable(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_cheap_model_used_when_api_unavailable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Tier 2 (cheap model) is tried when tier 1 (API) is unavailable."""
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
@@ -162,9 +156,7 @@ class TestCountTokensCascading:
             result = asyncio.run(count_tokens_cascading("hello"))
         assert result == 77
 
-    def test_bytes_fallback_when_all_tiers_fail(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_bytes_fallback_when_all_tiers_fail(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Bytes/4 estimate used when both API and cheap model fail."""
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
@@ -178,9 +170,7 @@ class TestCountTokensCascading:
             result = asyncio.run(count_tokens_cascading("a" * 400))
         assert result == 100  # 400 bytes / 4 = 100 tokens
 
-    def test_cascade_ordering_api_before_cheap_model(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_cascade_ordering_api_before_cheap_model(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Verify cascade order: API→cheap model→bytes (order matters)."""
         import json
 

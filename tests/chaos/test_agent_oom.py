@@ -44,11 +44,7 @@ async def test_oom_agent_slot_reclaimed(
     Verify the agent slot is released and available for new agents.
     """
     # Create a task whose mock script exits immediately with code 137
-    desc = (
-        "```python\n# INTEGRATION-MOCK\nimport sys\n"
-        "print('Simulating OOM kill')\n"
-        "sys.exit(137)\n```"
-    )
+    desc = "```python\n# INTEGRATION-MOCK\nimport sys\nprint('Simulating OOM kill')\nsys.exit(137)\n```"
     resp = test_client.post(
         "/tasks",
         json={"title": "OOM Task Slot", "description": desc, "role": "backend"},
@@ -87,9 +83,7 @@ async def test_oom_agent_slot_reclaimed(
 
         # The slot should be reclaimed: active (non-dead) agents should be 0
         active_agents = [s for s in orch._agents.values() if s.status != "dead"]
-        assert len(active_agents) == 0, (
-            f"Expected 0 active agents after OOM, got {len(active_agents)}"
-        )
+        assert len(active_agents) == 0, f"Expected 0 active agents after OOM, got {len(active_agents)}"
 
 
 @pytest.mark.asyncio
@@ -105,9 +99,7 @@ async def test_oom_agent_task_requeued(
     marked FAILED. With retries > 0, it would go back to OPEN.
     """
     desc = (
-        "```python\n# INTEGRATION-MOCK\nimport sys\n"
-        "print('Simulating OOM kill for requeue test')\n"
-        "sys.exit(137)\n```"
+        "```python\n# INTEGRATION-MOCK\nimport sys\nprint('Simulating OOM kill for requeue test')\nsys.exit(137)\n```"
     )
     resp = test_client.post(
         "/tasks",
@@ -212,8 +204,7 @@ async def test_oom_agent_worktree_preserved(
 
         # With recovery='resume', the worktree should be preserved
         assert task_id in orch._preserved_worktrees, (
-            f"Expected worktree to be preserved for task {task_id} "
-            f"in recovery='resume' mode"
+            f"Expected worktree to be preserved for task {task_id} in recovery='resume' mode"
         )
         # The crash count should have been incremented
         assert orch._crash_counts.get(task_id, 0) >= 1
@@ -227,11 +218,7 @@ async def test_oom_agent_metrics_recorded(
     monkeypatch,
 ):
     """Verify the metric collector records the OOM as a failure with OOM abort reason."""
-    desc = (
-        "```python\n# INTEGRATION-MOCK\nimport sys\n"
-        "print('OOM for metrics test')\n"
-        "sys.exit(137)\n```"
-    )
+    desc = "```python\n# INTEGRATION-MOCK\nimport sys\nprint('OOM for metrics test')\nsys.exit(137)\n```"
     resp = test_client.post(
         "/tasks",
         json={"title": "OOM Metrics", "description": desc, "role": "backend"},
@@ -268,9 +255,7 @@ async def test_oom_agent_metrics_recorded(
         # Verify the abort reason was classified as OOM
         from bernstein.core.models import AbortReason
 
-        assert session.abort_reason == AbortReason.OOM, (
-            f"Expected abort_reason=OOM, got {session.abort_reason}"
-        )
+        assert session.abort_reason == AbortReason.OOM, f"Expected abort_reason=OOM, got {session.abort_reason}"
 
         # Check that metrics were written to the daily JSONL
         metrics_dir = integration_sdd / "metrics"
@@ -288,6 +273,5 @@ async def test_oom_agent_metrics_recorded(
                 # At least one metric entry should record failure
                 has_failure = any(not m.get("success", True) for m in task_metrics)
                 assert has_failure, (
-                    f"Expected at least one failure metric for task {task_id}, "
-                    f"but all metrics show success"
+                    f"Expected at least one failure metric for task {task_id}, but all metrics show success"
                 )

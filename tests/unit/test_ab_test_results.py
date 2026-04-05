@@ -142,7 +142,7 @@ class TestABTestStore:
         results_file = tmp_path / ".sdd" / "metrics" / "ab_test_results.jsonl"
         results_file.parent.mkdir(parents=True, exist_ok=True)
         results_file.write_text(
-            'not valid json\n'
+            "not valid json\n"
             '{"task_id":"t1","task_title":"T","model":"sonnet","session_id":"s1",'
             '"tokens_used":100,"files_changed":1,"status":"completed","duration_s":10.0}\n'
         )

@@ -178,10 +178,7 @@ class CommandHookHarness:
         """
         captured = self.get_captured_stdin(hook_name, script_name)
         missing = [k for k in expected_keys if k not in captured]
-        assert not missing, (
-            f"Hook {hook_name!r} stdin JSON missing keys {missing!r}. "
-            f"Got keys: {sorted(captured)!r}"
-        )
+        assert not missing, f"Hook {hook_name!r} stdin JSON missing keys {missing!r}. Got keys: {sorted(captured)!r}"
 
     def assert_stdin_value(
         self,
@@ -203,13 +200,9 @@ class CommandHookHarness:
             AssertionError: If the key is absent or has a different value.
         """
         captured = self.get_captured_stdin(hook_name, script_name)
-        assert key in captured, (
-            f"Hook {hook_name!r} stdin JSON has no key {key!r}. "
-            f"Got keys: {sorted(captured)!r}"
-        )
+        assert key in captured, f"Hook {hook_name!r} stdin JSON has no key {key!r}. Got keys: {sorted(captured)!r}"
         assert str(captured[key]) == expected_value, (
-            f"Hook {hook_name!r} stdin JSON key {key!r}: "
-            f"expected {expected_value!r}, got {captured[key]!r}"
+            f"Hook {hook_name!r} stdin JSON key {key!r}: expected {expected_value!r}, got {captured[key]!r}"
         )
 
 

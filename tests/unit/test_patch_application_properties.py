@@ -199,6 +199,4 @@ def test_extract_patch_fenced_diff_keyword_required() -> None:
     for lang in ("patch", "text", ""):
         block = f"```{lang}\n{diff_content}\n```"
         result = extract_patch(block)
-        assert result == "", (
-            f"Block labelled {lang!r} should not be extracted, but got {result!r}"
-        )
+        assert result == "", f"Block labelled {lang!r} should not be extracted, but got {result!r}"

@@ -52,9 +52,7 @@ def _make_run(name: str, conclusion: str = "success", status: str = "completed")
 @patch("bernstein.core.release_train.subprocess.run")
 def test_gh_check_runs_parses_jq_output(mock_run) -> None:
     mock_run.return_value.returncode = 0
-    mock_run.return_value.stdout = "\n".join(
-        [_make_run("test", "success"), _make_run("lint", "success")]
-    )
+    mock_run.return_value.stdout = "\n".join([_make_run("test", "success"), _make_run("lint", "success")])
     mock_run.return_value.stderr = ""
 
     runs = _gh_check_runs("owner/repo", "main")

@@ -173,15 +173,11 @@ class TestIsAllowedSync:
         assert is_allowed_sync("allow_product_feedback", snapshot=None) is False
 
     def test_feature_present_enabled(self) -> None:
-        snapshot = PolicyLimitsSnapshot(
-            limits={"f": PolicyLimitEntry(feature="f", enabled=True)}
-        )
+        snapshot = PolicyLimitsSnapshot(limits={"f": PolicyLimitEntry(feature="f", enabled=True)})
         assert is_allowed_sync("f", snapshot=snapshot) is True
 
     def test_feature_present_disabled(self) -> None:
-        snapshot = PolicyLimitsSnapshot(
-            limits={"f": PolicyLimitEntry(feature="f", enabled=False)}
-        )
+        snapshot = PolicyLimitsSnapshot(limits={"f": PolicyLimitEntry(feature="f", enabled=False)})
         assert is_allowed_sync("f", snapshot=snapshot) is False
 
     def test_feature_absent_fail_open(self) -> None:
@@ -223,17 +219,13 @@ class TestPolicyLimitsClient:
     def test_is_allowed_returns_policy_value(self) -> None:
         client = PolicyLimitsClient()
         client._snapshot = PolicyLimitsSnapshot(
-            limits={"allow_product_feedback": PolicyLimitEntry(
-                feature="allow_product_feedback", enabled=True
-            )}
+            limits={"allow_product_feedback": PolicyLimitEntry(feature="allow_product_feedback", enabled=True)}
         )
         assert client.is_allowed("allow_product_feedback") is True
 
     def test_is_allowed_respects_disabled_entry(self) -> None:
         client = PolicyLimitsClient()
-        client._snapshot = PolicyLimitsSnapshot(
-            limits={"x": PolicyLimitEntry(feature="x", enabled=False)}
-        )
+        client._snapshot = PolicyLimitsSnapshot(limits={"x": PolicyLimitEntry(feature="x", enabled=False)})
         assert client.is_allowed("x") is False
 
     @pytest.mark.asyncio
@@ -258,9 +250,7 @@ class TestPolicyLimitsClient:
 
     @pytest.mark.asyncio
     async def test_initialize_fetches_fresh_data(self, tmp_path: Path) -> None:
-        payload: dict[str, Any] = {
-            "limits": [{"feature": "new_feature", "enabled": False}]
-        }
+        payload: dict[str, Any] = {"limits": [{"feature": "new_feature", "enabled": False}]}
         with patch(
             "bernstein.core.policy_limits._fetch_limits_from_api",
             new=AsyncMock(return_value=(payload, '"fresh-etag"')),
@@ -398,9 +388,7 @@ class TestPolicyLimitsClient:
 class TestManagedPolicyLimits:
     @pytest.mark.asyncio
     async def test_basic_usage(self, tmp_path: Path) -> None:
-        payload: dict[str, Any] = {
-            "limits": [{"feature": "managed_feat", "enabled": False}]
-        }
+        payload: dict[str, Any] = {"limits": [{"feature": "managed_feat", "enabled": False}]}
         with patch(
             "bernstein.core.policy_limits._fetch_limits_from_api",
             new=AsyncMock(return_value=(payload, '"etag"')),
@@ -414,9 +402,7 @@ class TestManagedPolicyLimits:
             "bernstein.core.policy_limits._fetch_limits_from_api",
             new=AsyncMock(return_value=({"limits": []}, '"e"')),
         ):
-            async with managed_policy_limits(
-                cache_dir=tmp_path, poll=True
-            ) as client:
+            async with managed_policy_limits(cache_dir=tmp_path, poll=True) as client:
                 task = client._poll_task
 
         # After exit the client no longer holds a reference to the task.

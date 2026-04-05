@@ -254,7 +254,14 @@ def test_taskstore_replay_tolerates_corrupt_line(tmp_path: Path) -> None:
     jsonl = tmp_path / "runtime" / "tasks.jsonl"
     jsonl.parent.mkdir(parents=True, exist_ok=True)
 
-    valid_task = {"id": "task-valid-001", "title": "ok-task", "description": "", "role": "qa", "priority": 5, "status": "open"}
+    valid_task = {
+        "id": "task-valid-001",
+        "title": "ok-task",
+        "description": "",
+        "role": "qa",
+        "priority": 5,
+        "status": "open",
+    }
     jsonl.write_text(json.dumps(valid_task) + "\n" + "NOT_JSON_AT_ALL\n")
 
     store = TaskStore(jsonl)

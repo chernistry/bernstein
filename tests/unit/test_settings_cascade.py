@@ -455,9 +455,7 @@ class TestMdmSystemPaths:
         expected_fallback = tmp_path / ".sdd" / "config" / "managed_settings.json"
         assert paths[-1] == expected_fallback
 
-    def test_env_path_prepended_before_system_paths(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_path_prepended_before_system_paths(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         custom = tmp_path / "mdm.json"
         monkeypatch.setenv("BERNSTEIN_MANAGED_SETTINGS_PATH", str(custom))
         paths = SettingsCascade._mdm_system_paths(tmp_path)
@@ -473,9 +471,7 @@ class TestMdmManagedSettingsLoading:
         wd.mkdir()
         return wd
 
-    def test_env_var_managed_settings_loaded(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_var_managed_settings_loaded(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """$BERNSTEIN_MANAGED_SETTINGS_PATH is read and loaded as MANAGED layer."""
         wd = self._make_workdir(tmp_path)
         managed_file = tmp_path / "mdm.json"
@@ -495,9 +491,7 @@ class TestMdmManagedSettingsLoading:
         finally:
             sc_mod.Path.home = orig_home  # type: ignore[reportAttributeAccessIssue]
 
-    def test_managed_overrides_user_setting(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_managed_overrides_user_setting(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """MANAGED layer setting overrides USER layer setting (highest priority)."""
         wd = self._make_workdir(tmp_path)
         managed_file = tmp_path / "mdm.json"
@@ -523,9 +517,7 @@ class TestMdmManagedSettingsLoading:
         finally:
             sc_mod.Path.home = orig_home  # type: ignore[reportAttributeAccessIssue]
 
-    def test_workdir_fallback_managed_settings(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_workdir_fallback_managed_settings(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Workdir .sdd/config/managed_settings.json is used as fallback."""
         monkeypatch.delenv("BERNSTEIN_MANAGED_SETTINGS_PATH", raising=False)
         wd = self._make_workdir(tmp_path)
@@ -546,9 +538,7 @@ class TestMdmManagedSettingsLoading:
         finally:
             sc_mod.Path.home = orig_home  # type: ignore[reportAttributeAccessIssue]
 
-    def test_first_existing_managed_path_wins(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_first_existing_managed_path_wins(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """When env path exists it takes precedence over workdir fallback."""
         wd = self._make_workdir(tmp_path)
         # Write both env path and workdir fallback with different values.

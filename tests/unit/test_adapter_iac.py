@@ -64,12 +64,17 @@ class TestIaCAdapterInit:
 class TestIaCIsAvailable:
     def test_true_when_terraform_present(self) -> None:
         adapter = IaCAdapter()
-        with patch("bernstein.adapters.iac.shutil.which", side_effect=lambda x: "/usr/bin/terraform" if x == "terraform" else None):
+        with patch(
+            "bernstein.adapters.iac.shutil.which",
+            side_effect=lambda x: "/usr/bin/terraform" if x == "terraform" else None,
+        ):
             assert adapter.is_available() is True
 
     def test_true_when_pulumi_present(self) -> None:
         adapter = IaCAdapter()
-        with patch("bernstein.adapters.iac.shutil.which", side_effect=lambda x: "/usr/bin/pulumi" if x == "pulumi" else None):
+        with patch(
+            "bernstein.adapters.iac.shutil.which", side_effect=lambda x: "/usr/bin/pulumi" if x == "pulumi" else None
+        ):
             assert adapter.is_available() is True
 
     def test_false_when_neither_present(self) -> None:

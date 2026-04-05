@@ -91,25 +91,19 @@ class TestGlobToRegex:
 
 class TestPermissionRuleMatching:
     def test_tool_only_match(self) -> None:
-        engine = PermissionRuleEngine(
-            rules=[PermissionRule(id="allow-read", action=RuleAction.ALLOW, tool="Read")]
-        )
+        engine = PermissionRuleEngine(rules=[PermissionRule(id="allow-read", action=RuleAction.ALLOW, tool="Read")])
         result = engine.evaluate("Read", {})
         assert result.matched
         assert result.action == RuleAction.ALLOW
         assert result.rule_id == "allow-read"
 
     def test_tool_glob_match(self) -> None:
-        engine = PermissionRuleEngine(
-            rules=[PermissionRule(id="allow-all", action=RuleAction.ALLOW, tool="*")]
-        )
+        engine = PermissionRuleEngine(rules=[PermissionRule(id="allow-all", action=RuleAction.ALLOW, tool="*")])
         result = engine.evaluate("AnyTool", {"command": "anything"})
         assert result.matched
 
     def test_tool_case_insensitive(self) -> None:
-        engine = PermissionRuleEngine(
-            rules=[PermissionRule(id="allow-bash", action=RuleAction.ALLOW, tool="bash")]
-        )
+        engine = PermissionRuleEngine(rules=[PermissionRule(id="allow-bash", action=RuleAction.ALLOW, tool="bash")])
         result = engine.evaluate("Bash", {"command": "ls"})
         assert result.matched
 
@@ -160,9 +154,7 @@ class TestPermissionRuleMatching:
         assert not engine.evaluate("Write", {"file_path": "tests/test.py"}).matched
 
     def test_no_match_returns_unmatched(self) -> None:
-        engine = PermissionRuleEngine(
-            rules=[PermissionRule(id="only-read", action=RuleAction.ALLOW, tool="Read")]
-        )
+        engine = PermissionRuleEngine(rules=[PermissionRule(id="only-read", action=RuleAction.ALLOW, tool="Read")])
         result = engine.evaluate("Write", {"file_path": "foo.py"})
         assert not result.matched
         assert result.rule_id is None
@@ -275,25 +267,19 @@ class TestFirstMatchWins:
 
 class TestEvaluateToDecision:
     def test_deny_produces_deny_decision(self) -> None:
-        engine = PermissionRuleEngine(
-            rules=[PermissionRule(id="d", action=RuleAction.DENY, tool="*")]
-        )
+        engine = PermissionRuleEngine(rules=[PermissionRule(id="d", action=RuleAction.DENY, tool="*")])
         decision = engine.evaluate_to_decision("Write", {})
         assert decision is not None
         assert decision.type == DecisionType.DENY
 
     def test_ask_produces_ask_decision(self) -> None:
-        engine = PermissionRuleEngine(
-            rules=[PermissionRule(id="a", action=RuleAction.ASK, tool="*")]
-        )
+        engine = PermissionRuleEngine(rules=[PermissionRule(id="a", action=RuleAction.ASK, tool="*")])
         decision = engine.evaluate_to_decision("Write", {})
         assert decision is not None
         assert decision.type == DecisionType.ASK
 
     def test_allow_produces_allow_decision(self) -> None:
-        engine = PermissionRuleEngine(
-            rules=[PermissionRule(id="a", action=RuleAction.ALLOW, tool="*")]
-        )
+        engine = PermissionRuleEngine(rules=[PermissionRule(id="a", action=RuleAction.ALLOW, tool="*")])
         decision = engine.evaluate_to_decision("Read", {})
         assert decision is not None
         assert decision.type == DecisionType.ALLOW
@@ -391,9 +377,7 @@ permission_rules:
     def test_malformed_yaml_returns_empty(self, tmp_path: Path) -> None:
         rules_dir = tmp_path / ".bernstein"
         rules_dir.mkdir()
-        (rules_dir / "rules.yaml").write_text(
-            "just a string\n", encoding="utf-8"
-        )
+        (rules_dir / "rules.yaml").write_text("just a string\n", encoding="utf-8")
         engine = load_permission_rules(tmp_path)
         assert engine.rules == []
 
@@ -432,20 +416,12 @@ permission_rules:
 
 class TestEdgeCases:
     def test_empty_tool_input(self) -> None:
-        engine = PermissionRuleEngine(
-            rules=[PermissionRule(id="a", action=RuleAction.ALLOW, tool="*")]
-        )
+        engine = PermissionRuleEngine(rules=[PermissionRule(id="a", action=RuleAction.ALLOW, tool="*")])
         assert engine.evaluate("Read", {}).matched
 
     def test_path_field_alternatives(self) -> None:
         """Test that path, file_path, and filepath are all checked."""
-        engine = PermissionRuleEngine(
-            rules=[
-                PermissionRule(
-                    id="a", action=RuleAction.ALLOW, tool="*", path="src/*"
-                )
-            ]
-        )
+        engine = PermissionRuleEngine(rules=[PermissionRule(id="a", action=RuleAction.ALLOW, tool="*", path="src/*")])
         assert engine.evaluate("X", {"path": "src/a.py"}).matched
         assert engine.evaluate("X", {"file_path": "src/b.py"}).matched
         assert engine.evaluate("X", {"filepath": "src/c.py"}).matched
@@ -465,17 +441,11 @@ class TestEdgeCases:
             ]
         )
         # Both match
-        assert engine.evaluate(
-            "Bash", {"file_path": "src/x.py", "command": "rm foo"}
-        ).matched
+        assert engine.evaluate("Bash", {"file_path": "src/x.py", "command": "rm foo"}).matched
         # Only command matches
-        assert not engine.evaluate(
-            "Bash", {"file_path": "tests/x.py", "command": "rm foo"}
-        ).matched
+        assert not engine.evaluate("Bash", {"file_path": "tests/x.py", "command": "rm foo"}).matched
         # Only path matches
-        assert not engine.evaluate(
-            "Bash", {"file_path": "src/x.py", "command": "ls"}
-        ).matched
+        assert not engine.evaluate("Bash", {"file_path": "src/x.py", "command": "ls"}).matched
 
     def test_description_in_reason(self) -> None:
         engine = PermissionRuleEngine(

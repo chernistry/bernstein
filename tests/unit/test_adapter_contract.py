@@ -134,18 +134,18 @@ class TestAdapterContract:
 
     def test_is_alive_returns_bool(self, name: str, factory: Any) -> None:
         adapter = factory()
-        with patch("bernstein.adapters.base.os.kill", return_value=None):
+        with patch("bernstein.adapters.base.process_alive", return_value=True):
             result = adapter.is_alive(99999)
         assert isinstance(result, bool)
 
     def test_kill_does_not_raise(self, name: str, factory: Any) -> None:
         adapter = factory()
-        with patch("bernstein.adapters.base.os.killpg"):
+        with patch("bernstein.adapters.base.kill_process_group"):
             adapter.kill(999)  # must not raise
 
     def test_kill_suppresses_oserror(self, name: str, factory: Any) -> None:
         adapter = factory()
-        with patch("bernstein.adapters.base.os.killpg", side_effect=OSError("no such process")):
+        with patch("bernstein.adapters.base.kill_process_group", return_value=False):
             adapter.kill(99999)  # must not raise
 
     def test_detect_tier_returns_none_or_api_tier_info(self, name: str, factory: Any) -> None:

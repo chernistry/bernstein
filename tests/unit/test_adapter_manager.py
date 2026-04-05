@@ -142,21 +142,21 @@ class TestSpawn:
 
 
 class TestIsAlive:
-    def test_true_when_os_kill_succeeds(self) -> None:
+    def test_true_when_process_alive(self) -> None:
         adapter = ManagerAdapter()
-        with patch("bernstein.adapters.manager.os.kill", return_value=None):
+        with patch("bernstein.adapters.manager.process_alive", return_value=True):
             assert adapter.is_alive(1234) is True
 
-    def test_false_when_os_kill_raises_oserror(self) -> None:
+    def test_false_when_process_not_alive(self) -> None:
         adapter = ManagerAdapter()
-        with patch("bernstein.adapters.manager.os.kill", side_effect=OSError("no such process")):
+        with patch("bernstein.adapters.manager.process_alive", return_value=False):
             assert adapter.is_alive(1234) is False
 
-    def test_os_kill_called_with_signal_zero(self) -> None:
+    def test_process_alive_called_with_pid(self) -> None:
         adapter = ManagerAdapter()
-        with patch("bernstein.adapters.manager.os.kill") as mock_kill:
+        with patch("bernstein.adapters.manager.process_alive") as mock_alive:
             adapter.is_alive(5678)
-        mock_kill.assert_called_once_with(5678, 0)
+        mock_alive.assert_called_once_with(5678)
 
 
 # ---------------------------------------------------------------------------
@@ -165,29 +165,17 @@ class TestIsAlive:
 
 
 class TestKill:
-    def test_calls_killpg_with_sigterm(self) -> None:
+    def test_calls_kill_process_group_with_sigterm(self) -> None:
         adapter = ManagerAdapter()
-        with (
-            patch("bernstein.adapters.manager.os.getpgid", return_value=200) as mock_getpgid,
-            patch("bernstein.adapters.manager.os.killpg") as mock_killpg,
-        ):
+        with patch("bernstein.adapters.manager.kill_process_group") as mock_kpg:
             adapter.kill(100)
 
-        mock_getpgid.assert_called_once_with(100)
-        mock_killpg.assert_called_once_with(200, signal.SIGTERM)
+        mock_kpg.assert_called_once_with(100, sig=15)
 
-    def test_suppresses_oserror_from_killpg(self) -> None:
+    def test_suppresses_failed_kill(self) -> None:
         adapter = ManagerAdapter()
-        with (
-            patch("bernstein.adapters.manager.os.getpgid", return_value=300),
-            patch("bernstein.adapters.manager.os.killpg", side_effect=OSError("already dead")),
-        ):
+        with patch("bernstein.adapters.manager.kill_process_group", return_value=False):
             adapter.kill(150)  # must not raise
-
-    def test_suppresses_oserror_from_getpgid(self) -> None:
-        adapter = ManagerAdapter()
-        with patch("bernstein.adapters.manager.os.getpgid", side_effect=OSError("no such process")):
-            adapter.kill(999)  # must not raise
 
 
 # ---------------------------------------------------------------------------

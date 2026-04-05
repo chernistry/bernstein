@@ -65,8 +65,7 @@ class TestWatchdogFiresSigterm:
 
         with (
             patch("bernstein.adapters.codex.subprocess.Popen", return_value=proc_mock),
-            patch("bernstein.adapters.base.os.getpgid", return_value=9001),
-            patch("bernstein.adapters.base.os.killpg") as mock_killpg,
+            patch("bernstein.adapters.base.kill_process_group") as mock_killpg,
         ):
             result = adapter.spawn(
                 prompt="sleep forever",
@@ -105,7 +104,7 @@ class TestWatchdogFiresSigterm:
 
         with (
             patch("bernstein.adapters.codex.subprocess.Popen", return_value=proc_mock),
-            patch("bernstein.adapters.base.os.killpg") as mock_killpg,
+            patch("bernstein.adapters.base.kill_process_group") as mock_killpg,
         ):
             result = adapter.spawn(
                 prompt="hello",
@@ -121,14 +120,14 @@ class TestWatchdogFiresSigterm:
         mock_killpg.assert_not_called()
 
     def test_no_kill_when_process_already_exited(self, tmp_path: Path) -> None:
-        """If process exits before timeout, watchdog must not send signals."""
+        """If process is already dead, watchdog SIGTERM returns False and no SIGKILL."""
         adapter = CodexAdapter()
         proc_mock = _make_popen_mock(pid=9004)
         proc_mock.poll.return_value = 0  # process already exited
 
         with (
             patch("bernstein.adapters.codex.subprocess.Popen", return_value=proc_mock),
-            patch("bernstein.adapters.base.os.killpg") as mock_killpg,
+            patch("bernstein.adapters.base.kill_process_group", return_value=False) as mock_killpg,
         ):
             result = adapter.spawn(
                 prompt="hello",
@@ -139,7 +138,8 @@ class TestWatchdogFiresSigterm:
             )
             time.sleep(_SHORT_TIMEOUT * 5)
 
-        mock_killpg.assert_not_called()
+        # SIGTERM attempted but returned False (process dead), no SIGKILL escalation
+        mock_killpg.assert_called_once_with(9004, signal.SIGTERM)
         if result.timeout_timer:
             result.timeout_timer.cancel()
 

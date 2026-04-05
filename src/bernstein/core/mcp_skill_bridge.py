@@ -132,7 +132,7 @@ def build_skills_from_mcp_server(mcp_server: FastMCP) -> list[MCPToolInfo]:  # t
         List of :class:`MCPToolInfo` objects, one per registered tool.
     """
     server_name: str = getattr(mcp_server, "name", "unknown")
-    tools = mcp_server._tool_manager.list_tools()
+    tools = mcp_server._tool_manager.list_tools()  # pyright: ignore[reportPrivateUsage]
     infos: list[MCPToolInfo] = []
     for tool in tools:
         name: str = tool.name or ""

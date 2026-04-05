@@ -23,7 +23,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class PolicyLimitEntry:
 
     feature: str
     enabled: bool
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise to a JSON-safe dict."""
@@ -69,10 +69,11 @@ class PolicyLimitEntry:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PolicyLimitEntry:
         """Deserialise from a cached dict."""
+        raw_metadata: dict[str, Any] = dict(data.get("metadata") or {})
         return cls(
             feature=str(data["feature"]),
             enabled=bool(data.get("enabled", True)),
-            metadata=dict(data.get("metadata") or {}),
+            metadata=raw_metadata,
         )
 
 
@@ -80,7 +81,7 @@ class PolicyLimitEntry:
 class PolicyLimitsSnapshot:
     """The full set of policy limits at a point in time."""
 
-    limits: dict[str, PolicyLimitEntry] = field(default_factory=dict)
+    limits: dict[str, PolicyLimitEntry] = field(default_factory=lambda: dict[str, PolicyLimitEntry]())
     etag: str | None = None
     fetched_at: datetime | None = None
 
@@ -135,7 +136,7 @@ def _read_cache(cache_path: Path) -> PolicyLimitsSnapshot | None:
         raw: object = json.loads(cache_path.read_text(encoding="utf-8"))
         if not isinstance(raw, dict):
             return None
-        return PolicyLimitsSnapshot.from_dict(raw)
+        return PolicyLimitsSnapshot.from_dict(cast("dict[str, Any]", raw))
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         logger.debug("Could not read policy limits cache %s: %s", cache_path, exc)
         return None
@@ -170,9 +171,9 @@ async def _fetch_limits_from_api(
         network error, and *etag* is the new ETag (or the old one on 304).
     """
     try:
-        import aiohttp
+        import httpx as _httpx
     except ImportError:
-        logger.debug("aiohttp not available; skipping policy limits fetch")
+        logger.debug("httpx not available; skipping policy limits fetch")
         return None, etag
 
     headers: dict[str, str] = {}
@@ -180,25 +181,20 @@ async def _fetch_limits_from_api(
         headers["If-None-Match"] = etag
 
     try:
-        async with (
-            aiohttp.ClientSession() as session,
-            session.get(
-                api_url,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=timeout),
-            ) as resp,
-        ):
-            if resp.status == 304:
+        async with _httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.get(api_url, headers=headers)
+
+            if resp.status_code == 304:
                 # Not Modified — reuse existing snapshot
                 logger.debug("Policy limits not modified (ETag match)")
                 return None, etag
 
-            if resp.status != 200:
-                logger.warning("Policy limits API returned %d; will fail-open", resp.status)
+            if resp.status_code != 200:
+                logger.warning("Policy limits API returned %d; will fail-open", resp.status_code)
                 return None, etag
 
             new_etag: str | None = resp.headers.get("ETag")
-            payload = await resp.json(content_type=None)
+            payload: dict[str, Any] = resp.json()
             logger.debug("Fetched policy limits (etag=%s)", new_etag)
             return payload, new_etag
 
@@ -214,11 +210,12 @@ def _parse_payload(payload: dict[str, Any]) -> dict[str, PolicyLimitEntry]:
     for item in raw_limits:
         if not isinstance(item, dict):
             continue
+        item_dict = cast("dict[str, Any]", item)
         try:
-            entry = PolicyLimitEntry.from_dict(item)
+            entry = PolicyLimitEntry.from_dict(item_dict)
             result[entry.feature] = entry
         except (KeyError, TypeError) as exc:
-            logger.debug("Skipping malformed policy limit entry: %s — %s", item, exc)
+            logger.debug("Skipping malformed policy limit entry: %s — %s", item_dict, exc)
     return result
 
 

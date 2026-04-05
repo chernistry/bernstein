@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+Sitemap: https://chernistry.github.io/bernstein/sitemap.xml
+Host: https://chernistry.github.io/bernstein/

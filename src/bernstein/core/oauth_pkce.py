@@ -37,7 +37,6 @@ import logging
 import secrets
 import threading
 import urllib.parse
-import urllib.request
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
@@ -112,7 +111,7 @@ class _CallbackHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def log_message(self, *args: Any) -> None:
+    def log_message(self, format: str, *args: Any) -> None:
         pass  # silence default access log
 
 
@@ -159,7 +158,7 @@ class PKCETokens:
     refresh_token: str | None = None
     id_token: str | None = None
     scope: str | None = None
-    raw: dict[str, Any] = field(default_factory=dict)
+    raw: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())
 
     @classmethod
     def from_response(cls, data: dict[str, Any]) -> PKCETokens:

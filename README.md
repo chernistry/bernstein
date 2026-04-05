@@ -68,6 +68,7 @@ cd your-project
 bernstein init                    # creates .sdd/ workspace + bernstein.yaml
 bernstein -g "Add rate limiting"  # agents spawn, work in parallel, verify, exit
 bernstein live                    # watch progress in the TUI dashboard
+bernstein stop                    # graceful shutdown with drain
 ```
 
 For multi-stage projects, define a YAML plan:

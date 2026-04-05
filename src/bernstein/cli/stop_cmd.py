@@ -31,6 +31,10 @@ from bernstein.cli.helpers import (
 from bernstein.core.process_utils import process_cwd
 from bernstein.core.runtime_state import read_supervisor_state
 
+_LABEL_TASK_SERVER = "Task server"
+_AGENTS_JSON_PATH = ".sdd/runtime/agents.json"
+_YAML_GLOB = "*.yaml"
+
 # ---------------------------------------------------------------------------
 # Shared helpers used by stop and the main CLI group
 # ---------------------------------------------------------------------------
@@ -75,7 +79,7 @@ def write_shutdown_signals(reason: str = "User requested stop") -> list[str]:
         List of session IDs that were signaled.
     """
     signals_dir = Path(".sdd/runtime/signals")
-    agents_json = Path(".sdd/runtime/agents.json")
+    agents_json = Path(_AGENTS_JSON_PATH)
     signaled: list[str] = []
     if not agents_json.exists():
         return signaled
@@ -116,14 +120,14 @@ def return_claimed_to_open() -> int:
     closed_nums: set[str] = set()
     closed_dir = Path(".sdd/backlog/closed")
     if closed_dir.exists():
-        closed_nums = {f.name.split("-")[0] for f in [*closed_dir.glob("*.yaml"), *closed_dir.glob("*.md")]}
+        closed_nums = {f.name.split("-")[0] for f in [*closed_dir.glob(_YAML_GLOB), *closed_dir.glob("*.md")]}
     # Also check backlog/done/ which some codepaths use
     done_dir = Path(".sdd/backlog/done")
     if done_dir.exists():
-        closed_nums |= {f.name.split("-")[0] for f in [*done_dir.glob("*.yaml"), *done_dir.glob("*.md")]}
+        closed_nums |= {f.name.split("-")[0] for f in [*done_dir.glob(_YAML_GLOB), *done_dir.glob("*.md")]}
 
     count = 0
-    for f in [*claimed_dir.glob("*.yaml"), *claimed_dir.glob("*.md")]:
+    for f in [*claimed_dir.glob(_YAML_GLOB), *claimed_dir.glob("*.md")]:
         if not f.exists():
             continue
         num = f.name.split("-")[0]
@@ -183,10 +187,10 @@ def save_session_on_stop(workdir: Path) -> None:
         runtime_dir.mkdir(parents=True, exist_ok=True)
         fallback: dict[str, Any] = {
             "stopped_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "open_tasks": sum(1 for _ in (workdir / ".sdd" / "backlog" / "open").glob("*.yaml"))
+            "open_tasks": sum(1 for _ in (workdir / ".sdd" / "backlog" / "open").glob(_YAML_GLOB))
             if (workdir / ".sdd" / "backlog" / "open").exists()
             else 0,
-            "claimed_tasks": sum(1 for _ in (workdir / ".sdd" / "backlog" / "claimed").glob("*.yaml"))
+            "claimed_tasks": sum(1 for _ in (workdir / ".sdd" / "backlog" / "claimed").glob(_YAML_GLOB))
             if (workdir / ".sdd" / "backlog" / "claimed").exists()
             else 0,
         }
@@ -251,15 +255,39 @@ def soft_stop(timeout: int) -> None:
     config = DrainConfig(wait_timeout_s=timeout)
     coordinator = DrainCoordinator(workdir, config=config)
 
+    _last_phase: dict[str, int] = {"number": 0}
+
     def on_update(phase: object, agents: object) -> None:
-        # Print progress to stdout.
-        name = getattr(phase, "name", "")
         number = getattr(phase, "number", 0)
+        name = getattr(phase, "name", "")
         detail = getattr(phase, "detail", "")
-        print(f"\r  Phase {number}/6: {name} -- {detail}    ", end="", flush=True)
+        status = getattr(phase, "status", "")
+
+        # Print phase header on transition
+        if number != _last_phase["number"]:
+            if _last_phase["number"] > 0:
+                print()  # newline after previous phase
+            icon = "⏳" if status == "running" else "✓" if status == "done" else "✗"
+            print(f"  {icon} Phase {number}/6: {name}", flush=True)
+            _last_phase["number"] = number
+
+        # Show live detail (agents waiting, etc.)
+        if detail:
+            print(f"\r    {detail}    ", end="", flush=True)
+
+        # Show per-agent status during wait phase
+        if name == "wait" and isinstance(agents, list) and agents:
+            agent_lines: list[str] = []
+            for a_obj in cast("list[object]", agents):
+                sid: str = getattr(a_obj, "session_id", "?")
+                st: str = getattr(a_obj, "status", "?")
+                sym = {"running": "⏳", "exited": "✓", "killed": "✗", "committing": "📝"}.get(st, "?")
+                agent_lines.append(f"{sym} {sid}")
+            if agent_lines:
+                print(f"\r    {' | '.join(agent_lines)}    ", end="", flush=True)
 
     report = asyncio.run(coordinator.run(callback=on_update))
-    print()  # newline after carriage returns
+    print()  # final newline
 
     # Print summary.
     merged_count = sum(1 for m in report.merges if m.action == "merged")
@@ -306,7 +334,7 @@ def _kill_pid_file(path: str, label: str, killed: set[int]) -> None:
 
 def _collect_pids_from_agents_json(killed: set[int]) -> None:
     """Source A: kill agent PIDs from agents.json."""
-    agents_json = Path(".sdd/runtime/agents.json")
+    agents_json = Path(_AGENTS_JSON_PATH)
     if not agents_json.exists():
         return
     try:
@@ -327,7 +355,7 @@ def _collect_pids_from_metadata(killed: set[int]) -> None:
     for pid_file in pids_dir.glob("*.json"):
         try:
             meta = json.loads(pid_file.read_text())
-        except (OSError, ValueError, json.JSONDecodeError):
+        except (OSError, ValueError):
             continue
         label = meta.get("session", pid_file.stem)
         for key in ("worker_pid", "child_pid", "pid"):
@@ -349,7 +377,7 @@ def _collect_pids_from_supervisor_state(killed: set[int]) -> None:
     if snapshot is None or snapshot.current_pid <= 0:
         return
     if snapshot.current_pid not in killed and is_alive(snapshot.current_pid):
-        _kill_named_pid(snapshot.current_pid, "Task server", killed)
+        _kill_named_pid(snapshot.current_pid, _LABEL_TASK_SERVER, killed)
 
 
 @dataclass(frozen=True)
@@ -423,7 +451,7 @@ def _collect_repo_processes(killed: set[int]) -> None:
             continue
 
         if "uvicorn bernstein.core.server:app" in command and process_cwd(snapshot.pid) == workdir:
-            _kill_named_pid(snapshot.pid, "Task server", killed)
+            _kill_named_pid(snapshot.pid, _LABEL_TASK_SERVER, killed)
 
 
 def _kill_port_holder(port: int, killed: set[int]) -> None:
@@ -446,7 +474,7 @@ def _kill_port_holder(port: int, killed: set[int]) -> None:
 def _cleanup_runtime_artifacts() -> None:
     """Remove stale PID files and agents.json so the next stop is clean."""
     for path in (
-        Path(".sdd/runtime/agents.json"),
+        Path(_AGENTS_JSON_PATH),
         Path(".sdd/runtime/draining"),
         Path(".sdd/runtime/supervisor_state.json"),
         Path(".sdd/runtime/watchdog_state.json"),
@@ -478,7 +506,7 @@ def hard_stop() -> None:
     killed_pids: set[int] = set()
     _kill_pid_file(SDD_PID_WATCHDOG, "Watchdog", killed_pids)
     _kill_pid_file(SDD_PID_SPAWNER, "Spawner", killed_pids)
-    _kill_pid_file(SDD_PID_SERVER, "Task server", killed_pids)
+    _kill_pid_file(SDD_PID_SERVER, _LABEL_TASK_SERVER, killed_pids)
     _collect_pids_from_supervisor_state(killed_pids)
     _kill_port_holder(8052, killed_pids)  # last resort: kill whatever holds the port
 

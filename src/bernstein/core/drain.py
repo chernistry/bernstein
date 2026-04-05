@@ -229,6 +229,7 @@ class DrainCoordinator:
             A ``DrainReport`` summarising everything that happened.
         """
         start = time.monotonic()
+        self._callback = callback
         report = DrainReport(phases=self._phases, agents=self._agents)
 
         phase_methods: list[Callable[[], Coroutine[None, None, None]]] = [
@@ -374,7 +375,7 @@ class DrainCoordinator:
                                     worktree_path=str(wt) if wt.exists() else "",
                                 )
                             )
-                except (json.JSONDecodeError, OSError, ValueError):
+                except (OSError, ValueError):
                     continue
 
         # Source 3: agents.json (legacy fallback).
@@ -444,7 +445,7 @@ class DrainCoordinator:
                                 worktree_path="",
                             )
                         )
-        except (TimeoutError, OSError):
+        except OSError:
             pass
 
         # Write SHUTDOWN signals for discovered agents.
@@ -487,12 +488,15 @@ class DrainCoordinator:
                             agent.status = "committing"
 
             remaining = [a for a in self._agents if a.status == "running"]
+            exited = [a for a in self._agents if a.status == "exited"]
             elapsed = self._config.wait_timeout_s - (deadline - time.monotonic())
             phase.detail = (
-                f"Waiting: {len(remaining)} agent"
-                f"{'s' if len(remaining) != 1 else ''}"
-                f" still running ({int(elapsed)}s elapsed)"
+                f"{len(exited)} exited, {len(remaining)} waiting"
+                f" ({int(elapsed)}s/{self._config.wait_timeout_s}s)"
             )
+            # Update UI each poll so the user sees live progress
+            if self._callback is not None:
+                self._callback(phase, self._agents)
             if remaining:
                 await asyncio.sleep(_POLL_INTERVAL_S)
 

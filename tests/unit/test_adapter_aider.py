@@ -367,13 +367,12 @@ class TestAiderSpawnMissingBinary:
 class TestAiderIsAlive:
     def test_true_when_process_exists(self) -> None:
         adapter = AiderAdapter()
-        with patch("bernstein.adapters.base.os.kill", return_value=None) as mock_kill:
+        with patch("bernstein.adapters.base.process_alive", return_value=True):
             assert adapter.is_alive(1234) is True
-        mock_kill.assert_called_once_with(1234, 0)
 
     def test_false_when_oserror(self) -> None:
         adapter = AiderAdapter()
-        with patch("bernstein.adapters.base.os.kill", side_effect=OSError("no such process")):
+        with patch("bernstein.adapters.base.process_alive", return_value=False):
             assert adapter.is_alive(9999) is False
 
 
@@ -381,13 +380,13 @@ class TestAiderKill:
     def test_calls_killpg_with_pid_as_pgid(self) -> None:
         """kill() uses pid directly as pgid (start_new_session=True)."""
         adapter = AiderAdapter()
-        with patch("bernstein.adapters.base.os.killpg") as mock_killpg:
+        with patch("bernstein.adapters.base.kill_process_group") as mock_kill:
             adapter.kill(555)
-        mock_killpg.assert_called_once_with(555, signal.SIGTERM)
+        mock_kill.assert_called_once_with(555, signal.SIGTERM)
 
     def test_does_not_raise_on_oserror(self) -> None:
         adapter = AiderAdapter()
-        with patch("bernstein.adapters.base.os.killpg", side_effect=OSError("no process")):
+        with patch("bernstein.adapters.base.kill_process_group", return_value=False):
             adapter.kill(556)  # must not raise
 
 

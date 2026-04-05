@@ -127,10 +127,9 @@ class TestWatchdogKillSequence:
 
         # Use a very short timeout so the test finishes quickly
         with (
-            patch("bernstein.adapters.base.os.getpgid", return_value=42),
-            patch("bernstein.adapters.base.os.killpg") as mock_killpg,
-            # os.kill(pid, 0) succeeds (process alive) for first checks, then dies
-            patch("bernstein.adapters.base.os.kill") as mock_kill,
+            patch("bernstein.adapters.base.kill_process_group") as mock_killpg,
+            # process_alive returns True (process still running) for grace period checks
+            patch("bernstein.adapters.base.process_alive", return_value=True),
             # Shorten the grace period to 1 second for test speed
             patch("bernstein.adapters.base._SIGTERM_GRACE_SECONDS", 1),
             patch("bernstein.adapters.base.time.sleep"),
@@ -139,8 +138,8 @@ class TestWatchdogKillSequence:
             # Simulate time progression: start=0, first check=0.5 (within grace),
             # second check=2.0 (past grace of 1s)
             mock_monotonic.side_effect = [0.0, 0.5, 2.0]
-            # Process stays alive after SIGTERM
-            mock_kill.return_value = None
+            # kill_process_group returns True (signal sent successfully)
+            mock_killpg.return_value = True
 
             timer = adapter._start_timeout_watchdog(pid=42, timeout_seconds=0, session_id="test-kill")
             # Timer fires immediately with timeout=0; wait for it
@@ -156,12 +155,13 @@ class TestWatchdogKillSequence:
         adapter = CodexAdapter()
 
         with (
-            patch("bernstein.adapters.base.os.getpgid", return_value=99),
-            patch("bernstein.adapters.base.os.killpg") as mock_killpg,
-            patch("bernstein.adapters.base.os.kill", side_effect=OSError("no such process")),
+            patch("bernstein.adapters.base.kill_process_group") as mock_killpg,
+            patch("bernstein.adapters.base.process_alive", return_value=False),
             patch("bernstein.adapters.base.time.sleep"),
             patch("bernstein.adapters.base.time.monotonic", return_value=0.0),
         ):
+            mock_killpg.return_value = True
+
             timer = adapter._start_timeout_watchdog(pid=99, timeout_seconds=0, session_id="test-exit")
             timer.join(timeout=5)
 
@@ -173,8 +173,7 @@ class TestWatchdogKillSequence:
         adapter = GeminiAdapter()
 
         with (
-            patch("bernstein.adapters.base.os.getpgid", return_value=777),
-            patch("bernstein.adapters.base.os.killpg", side_effect=OSError("no such process")),
+            patch("bernstein.adapters.base.kill_process_group", return_value=False),
         ):
             timer = adapter._start_timeout_watchdog(pid=777, timeout_seconds=0, session_id="test-dead")
             timer.join(timeout=5)  # must not raise
@@ -197,9 +196,8 @@ class TestWatchdogLogging:
             logged.append((msg, args))
 
         with (
-            patch("bernstein.adapters.base.os.getpgid", return_value=50),
-            patch("bernstein.adapters.base.os.killpg"),
-            patch("bernstein.adapters.base.os.kill", side_effect=OSError),
+            patch("bernstein.adapters.base.kill_process_group", return_value=True),
+            patch("bernstein.adapters.base.process_alive", return_value=False),
             patch("bernstein.adapters.base.time.sleep"),
             patch("bernstein.adapters.base.time.monotonic", return_value=0.0),
             patch.object(

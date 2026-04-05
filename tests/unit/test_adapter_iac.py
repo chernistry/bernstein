@@ -289,19 +289,19 @@ class TestIaCAdapterName:
 class TestIaCIsAlive:
     def test_true_when_process_exists(self) -> None:
         adapter = IaCAdapter()
-        with patch("bernstein.adapters.base.os.kill", return_value=None):
+        with patch("bernstein.adapters.base.process_alive", return_value=True):
             assert adapter.is_alive(1234) is True
 
     def test_false_when_oserror(self) -> None:
         adapter = IaCAdapter()
-        with patch("bernstein.adapters.base.os.kill", side_effect=OSError("no such process")):
+        with patch("bernstein.adapters.base.process_alive", return_value=False):
             assert adapter.is_alive(9999) is False
 
 
 class TestIaCKill:
     def test_calls_killpg_with_pid_as_pgid(self) -> None:
         adapter = IaCAdapter()
-        with patch("bernstein.adapters.base.os.killpg") as mock_killpg:
+        with patch("bernstein.adapters.base.kill_process_group") as mock_killpg:
             adapter.kill(555)
         mock_killpg.assert_called_once_with(555, signal.SIGTERM)
 

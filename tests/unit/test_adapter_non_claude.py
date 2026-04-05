@@ -626,18 +626,17 @@ class TestGenericAdapterName:
     ids=["codex", "gemini", "qwen", "generic"],
 )
 class TestIsAlive:
-    """is_alive() returns True/False based on os.kill(pid, 0)."""
+    """is_alive() returns True/False based on process_alive(pid)."""
 
     def test_true_when_process_exists(self, adapter_factory: object) -> None:
         adapter = adapter_factory()  # type: ignore[operator]
-        with patch("bernstein.adapters.base.os.kill") as mock_kill:
-            mock_kill.return_value = None
+        with patch("bernstein.adapters.base.process_alive", return_value=True) as mock_alive:
             assert adapter.is_alive(1234) is True
-        mock_kill.assert_called_once_with(1234, 0)
+        mock_alive.assert_called_once_with(1234)
 
     def test_false_when_oserror(self, adapter_factory: object) -> None:
         adapter = adapter_factory()  # type: ignore[operator]
-        with patch("bernstein.adapters.base.os.kill", side_effect=OSError("no such process")):
+        with patch("bernstein.adapters.base.process_alive", return_value=False):
             assert adapter.is_alive(9999) is False
 
 
@@ -657,18 +656,18 @@ class TestIsAlive:
     ids=["codex", "gemini", "qwen", "generic"],
 )
 class TestKill:
-    """kill() calls os.killpg with SIGTERM and handles OSError gracefully."""
+    """kill() calls kill_process_group with SIGTERM and handles failure gracefully."""
 
     def test_calls_killpg(self, adapter_factory: object) -> None:
         adapter = adapter_factory()  # type: ignore[operator]
-        with patch("bernstein.adapters.base.os.killpg") as mock_killpg:
+        with patch("bernstein.adapters.base.kill_process_group") as mock_killpg:
             adapter.kill(555)
         # PID is used directly as PGID (start_new_session=True)
         mock_killpg.assert_called_once_with(555, signal.SIGTERM)
 
     def test_does_not_raise_on_oserror(self, adapter_factory: object) -> None:
         adapter = adapter_factory()  # type: ignore[operator]
-        with patch("bernstein.adapters.base.os.killpg", side_effect=OSError("no process")):
+        with patch("bernstein.adapters.base.kill_process_group", return_value=False):
             adapter.kill(556)  # must not raise
 
 

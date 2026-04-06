@@ -76,8 +76,10 @@ def resolve_and_validate_path(
     """
     root = Path.cwd() if project_root is None else Path(project_root).resolve()
 
-    # Strip leading ./ for normalization
-    cleaned = filepath.lstrip("./")
+    # Strip leading ./ but preserve absolute paths
+    cleaned = filepath
+    while cleaned.startswith("./"):
+        cleaned = cleaned[2:]
 
     # Build absolute path
     abs_path = Path(os.path.realpath(cleaned)) if os.path.isabs(cleaned) else Path(os.path.realpath(root / cleaned))

@@ -3910,11 +3910,11 @@ class TestReplenishBacklog:
             orch._replenish_backlog(result)
             elapsed = time.monotonic() - start
 
-        assert elapsed < 1.0, f"_replenish_backlog blocked for {elapsed:.2f}s; expected < 1s"
-        # Future should be pending (submitted to thread pool, not yet complete)
-        assert orch._pending_ruff_future is not None
-        # Clean up — wait for the background thread so it doesn't leak
-        orch._pending_ruff_future.result()
+            assert elapsed < 1.0, f"_replenish_backlog blocked for {elapsed:.2f}s; expected < 1s"
+            # Future should be pending (submitted to thread pool, not yet complete)
+            assert orch._pending_ruff_future is not None
+            # Clean up inside the patch block so the thread sees the mock
+            orch._pending_ruff_future.result()
 
 
 # --- Per-task timeout calculation ---

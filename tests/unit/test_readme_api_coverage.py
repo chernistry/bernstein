@@ -108,7 +108,12 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "profile",
         "report",
         # Utilities
+        "aliases",
         "completions",
+        "config-path",
+        "dry-run",
+        "explain",
+        "init-wizard",
         "ideate",
         "install-hooks",
         "help-all",

@@ -130,6 +130,11 @@ bernstein cost       # spend by model/task
 bernstein doctor     # pre-flight checks
 bernstein recap      # post-run summary
 bernstein trace <ID> # agent decision trace
+bernstein explain <cmd>  # detailed help with examples
+bernstein dry-run    # preview tasks without executing
+bernstein aliases    # show command shortcuts
+bernstein config-path    # show config file locations
+bernstein init-wizard    # interactive project setup
 ```
 
 ## Install

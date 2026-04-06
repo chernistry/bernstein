@@ -9,20 +9,21 @@ from __future__ import annotations
 
 import math
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from rich.color import Color
 from rich.style import Style
 from rich.text import Text
-from textual.timer import Timer
 from textual.widgets import Static
 
 from bernstein.cli.terminal_caps import TerminalCaps, detect_capabilities
 from bernstein.tui.accessibility import (
     AccessibilityConfig,
-    AccessibilityLevel,
     detect_accessibility,
 )
+
+if TYPE_CHECKING:
+    from textual.timer import Timer
 
 # ---------------------------------------------------------------------------
 # Precomputed 256-entry sine lookup table
@@ -124,10 +125,7 @@ def _build_hsv_lut(palette: PaletteMode) -> list[tuple[int, int, int]]:
             sat, val = 0.8, 0.7
         else:  # ACID
             # green-cyan (90-180) + purple (270-330), split at midpoint
-            if t < 0.5:
-                hue = 90.0 + t * 2.0 * 90.0  # 90-180
-            else:
-                hue = 270.0 + (t - 0.5) * 2.0 * 60.0  # 270-330
+            hue = 90.0 + t * 2.0 * 90.0 if t < 0.5 else 270.0 + (t - 0.5) * 2.0 * 60.0
             sat, val = 0.85, 0.75
         lut.append(_hsv_to_rgb(hue, sat, val))
     return lut

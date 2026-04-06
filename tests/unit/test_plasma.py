@@ -3,20 +3,15 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 from rich.text import Text
 
 from bernstein.tui.plasma import (
+    _SIN_LUT,
     PaletteMode,
     PlasmaCanvas,
-    _SIN_LUT,
-    _build_hsv_lut,
     _hsv_to_rgb,
-    _sin_lut,
 )
-
 
 # ── Sine LUT tests ───────────────────────────────────────────────────────
 

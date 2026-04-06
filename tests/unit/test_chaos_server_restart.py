@@ -11,7 +11,6 @@ import json
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -28,12 +27,10 @@ from bernstein.core.models import (
 )
 from bernstein.core.wal import (
     GENESIS_HASH,
-    WALEntry,
     WALReader,
     WALRecovery,
     WALWriter,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -127,7 +124,7 @@ class TestWALCrashRecovery:
             )
 
         reader = WALReader(run_id="partial-001", sdd_dir=sdd)
-        ok, errors = reader.verify_chain()
+        ok, _errors = reader.verify_chain()
         assert ok is True
 
     def test_recovery_from_empty_wal(self, tmp_path: Path) -> None:

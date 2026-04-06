@@ -41,14 +41,14 @@ class TestCompactPromptReducesSize:
     def test_reduces_prompt_with_large_code_block(self) -> None:
         code_lines = "\n".join(f"    line {i}" for i in range(200))
         prompt = f"Task: implement feature\n\n```python\n{code_lines}\n```\n\nDo it."
-        compacted, result = compact_prompt(prompt)
+        _compacted, result = compact_prompt(prompt)
         assert result.compacted_tokens < result.original_tokens
         assert "truncate_code_blocks" in result.strategy_used
 
     def test_reduces_prompt_with_duplicates(self) -> None:
         section = "This is a duplicated context section with important info.\nIt spans multiple lines."
         prompt = f"{section}\n\n{section}\n\n{section}\n\nTask: do something."
-        compacted, result = compact_prompt(prompt)
+        _compacted, result = compact_prompt(prompt)
         assert result.compacted_tokens < result.original_tokens
         assert "remove_duplicates" in result.strategy_used
 
@@ -92,7 +92,7 @@ class TestCodeBlockTruncation:
     def test_preserves_exactly_100_lines(self) -> None:
         lines = "\n".join(f"line {i}" for i in range(_CODE_BLOCK_MAX_LINES))
         text = f"```\n{lines}\n```"
-        result, changed = _truncate_large_code_blocks(text)
+        _result, changed = _truncate_large_code_blocks(text)
         assert changed is False
 
     def test_keeps_first_10_lines_of_truncated_block(self) -> None:
@@ -133,7 +133,7 @@ class TestDuplicateSectionRemoval:
 
     def test_no_change_without_duplicates(self) -> None:
         text = "Section A.\n\nSection B.\n\nSection C."
-        result, changed = _remove_duplicate_sections(text)
+        _result, changed = _remove_duplicate_sections(text)
         assert changed is False
 
     def test_removes_multiple_duplicates(self) -> None:
@@ -162,7 +162,7 @@ class TestFileListingTruncation:
     def test_preserves_short_listing(self) -> None:
         listing = "\n".join(f"./src/module_{i}.py" for i in range(10))
         text = f"Files:\n{listing}\n\nDone."
-        result, changed = _truncate_file_listings(text)
+        _result, changed = _truncate_file_listings(text)
         assert changed is False
 
     def test_keeps_first_50_entries(self) -> None:
@@ -210,12 +210,12 @@ class TestTracebackStripping:
             "    raise RuntimeError('oops')\n"
             "RuntimeError: oops"
         )
-        result, changed = _strip_verbose_tracebacks(tb)
+        _result, changed = _strip_verbose_tracebacks(tb)
         assert changed is False
 
     def test_no_change_without_traceback(self) -> None:
         text = "Everything is fine.\nNo errors here."
-        result, changed = _strip_verbose_tracebacks(text)
+        _result, changed = _strip_verbose_tracebacks(text)
         assert changed is False
 
 

@@ -11,7 +11,6 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -22,14 +21,12 @@ from bernstein.adapters.base import (
     SpawnResult,
 )
 from bernstein.core.models import (
-    AgentSession,
     Complexity,
     ModelConfig,
     Scope,
     Task,
     TaskStatus,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

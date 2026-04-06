@@ -6,7 +6,6 @@ import time
 
 from bernstein.core.shutdown_sequence import (
     ShutdownPhaseResult,
-    ShutdownResult,
     ShutdownSequence,
     build_default_shutdown_sequence,
 )
@@ -61,7 +60,7 @@ class TestShutdownSequence:
         # Phase A might execute (it's fast), but phase B should be skipped
         result = seq.execute()
         # At least one phase should be marked skipped due to zero timeout
-        skipped = [p for p in result.phases if p.skipped]
+        [p for p in result.phases if p.skipped]
         # With zero timeout, all phases may be skipped, or just later ones
         assert result.timed_out is True or all(p.success for p in result.phases)
 

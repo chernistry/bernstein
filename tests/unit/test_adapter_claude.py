@@ -387,9 +387,7 @@ class TestKill:
 
         # kill_process_group succeeds for main pid (90), fails for wrapper (91)
         def _kpg_side_effect(pgid: int, sig: int) -> bool:
-            if pgid == 91:
-                return False
-            return True
+            return pgid != 91
 
         with patch("bernstein.adapters.claude.kill_process_group", side_effect=_kpg_side_effect):
             adapter.kill(90)  # must not raise

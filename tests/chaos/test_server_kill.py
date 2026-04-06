@@ -9,9 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
-from bernstein.core.models import Task, TaskStatus
+from bernstein.core.models import TaskStatus
 from bernstein.core.task_store import TaskStore
 from bernstein.core.wal import WALRecovery, WALWriter
 

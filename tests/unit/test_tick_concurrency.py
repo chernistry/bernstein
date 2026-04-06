@@ -6,19 +6,14 @@ ConcurrencyGuard to verify thread-safety and generation-based stale detection.
 
 from __future__ import annotations
 
-import asyncio
-import json
 import threading
 import time
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 from bernstein.core.concurrency_guard import ConcurrencyGuard, GuardState
 from bernstein.core.wal import GENESIS_HASH, WALEntry, WALReader, WALWriter
-
 
 # ---------------------------------------------------------------------------
 # TEST-003a: ConcurrencyGuard basic semantics
@@ -157,7 +152,7 @@ class TestWALConcurrentWrites:
         assert entry3.prev_hash == last_entry.entry_hash
 
         reader = WALReader(run_id="test-003", sdd_dir=sdd)
-        ok, errors = reader.verify_chain()
+        ok, _errors = reader.verify_chain()
         assert ok is True
 
 
@@ -250,7 +245,7 @@ class TestConcurrencyGuardThreaded:
         guard.finish()
 
         # Start a "worker" for gen1 (which is now stale)
-        gen2 = guard.start()
+        guard.start()
 
         t = threading.Thread(target=worker, args=(gen1,))
         t.start()

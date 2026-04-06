@@ -68,7 +68,7 @@ class TestAdaptiveTicker:
 
     def test_history_window_trimmed(self) -> None:
         ticker = AdaptiveTicker(activity_window=5)
-        for i in range(20):
+        for _i in range(20):
             ticker.record_activity(spawned=1)
         assert len(ticker._history) == 5
 

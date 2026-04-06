@@ -8,7 +8,6 @@ import pytest
 
 from bernstein.core.telemetry import (
     BUILTIN_PRESETS,
-    ExporterPreset,
     get_meter,
     get_preset,
     get_tracer,

@@ -304,4 +304,4 @@ class TestResponseCacheManagerDefaultThreshold:
     def test_default_threshold_is_0_95(self, tmp_path: Path) -> None:
         mgr = ResponseCacheManager(tmp_path)
         assert mgr.get_stats()["threshold"] == RESPONSE_CACHE_SIMILARITY_THRESHOLD
-        assert RESPONSE_CACHE_SIMILARITY_THRESHOLD == pytest.approx(0.95)
+        assert pytest.approx(0.95) == RESPONSE_CACHE_SIMILARITY_THRESHOLD

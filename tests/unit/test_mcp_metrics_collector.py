@@ -8,9 +8,7 @@ from bernstein.core.mcp_metrics import (
     AvailabilityRecord,
     MCPMetricsCollector,
     MCPServerMetrics,
-    ToolCallRecord,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

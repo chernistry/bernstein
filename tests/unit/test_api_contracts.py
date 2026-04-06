@@ -8,7 +8,7 @@ required vs optional fields for every public endpoint schema.
 from __future__ import annotations
 
 import json
-from typing import Any, get_type_hints
+from typing import Any
 
 import pytest
 from pydantic import BaseModel, ValidationError
@@ -16,18 +16,12 @@ from pydantic import BaseModel, ValidationError
 from bernstein.core.server import (
     BatchClaimRequest,
     BatchClaimResponse,
-    BulletinMessageResponse,
     BulletinPostRequest,
     ClusterStatusResponse,
     HealthResponse,
     HeartbeatRequest,
     HeartbeatResponse,
-    NodeCapacitySchema,
-    NodeHeartbeatRequest,
-    NodeRegisterRequest,
-    NodeResponse,
     PaginatedTasksResponse,
-    RoleCounts,
     StatusResponse,
     TaskBlockRequest,
     TaskCancelRequest,
@@ -38,9 +32,6 @@ from bernstein.core.server import (
     TaskPatchRequest,
     TaskProgressRequest,
     TaskResponse,
-    TaskStealRequest,
-    TaskStealResponse,
-    TaskWaitForSubtasksRequest,
 )
 
 # ---------------------------------------------------------------------------

@@ -9,20 +9,14 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock, patch
-
-import pytest
 
 from bernstein.core.models import Task, TaskStatus
 from bernstein.core.quality_gates import (
     QualityGateCheckResult,
     QualityGatesConfig,
-    QualityGatesResult,
     _parse_mutation_score,
     _run_command,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -68,14 +62,14 @@ class TestLintGateNegative:
             lint_command="ruff check bad_module.py",
             timeout_s=30,
         )
-        ok, output = _run_command(config.lint_command, tmp_path, config.timeout_s)
+        ok, _output = _run_command(config.lint_command, tmp_path, config.timeout_s)
         assert ok is False  # ruff should flag unused imports
 
     def test_lint_passes_on_clean_code(self, tmp_path: Path) -> None:
         clean = tmp_path / "clean.py"
         clean.write_text('"""Clean module."""\n\nX = 1\n')
         config = QualityGatesConfig(lint_command="ruff check clean.py", timeout_s=30)
-        ok, output = _run_command(config.lint_command, tmp_path, config.timeout_s)
+        ok, _output = _run_command(config.lint_command, tmp_path, config.timeout_s)
         assert ok is True
 
 
@@ -93,7 +87,7 @@ class TestCommandTimeoutGate:
         assert "Timed out" in output
 
     def test_fast_command_succeeds(self, tmp_path: Path) -> None:
-        ok, output = _run_command("echo pass", tmp_path, timeout_s=10)
+        ok, _output = _run_command("echo pass", tmp_path, timeout_s=10)
         assert ok is True
 
 

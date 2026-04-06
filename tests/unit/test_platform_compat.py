@@ -6,7 +6,6 @@ import os
 import signal
 import subprocess
 import sys
-import time
 from unittest.mock import patch
 
 import pytest
@@ -259,4 +258,4 @@ class TestIsWindows:
 
     def test_matches_sys_platform(self) -> None:
         """IS_WINDOWS should reflect the actual sys.platform."""
-        assert IS_WINDOWS == (sys.platform == "win32")
+        assert (sys.platform == "win32") == IS_WINDOWS

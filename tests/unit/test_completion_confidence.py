@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import pytest
+
 from bernstein.core.completion_confidence import (
     ConfidenceWeights,
     compute_batch_confidence,
     compute_confidence,
 )
-
 from bernstein.core.models import GuardrailResult, JanitorResult, JudgeVerdict
 
 

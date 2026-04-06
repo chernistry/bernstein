@@ -92,7 +92,7 @@ def measure_coverage(module: str, threshold: int) -> CoverageResult:
         "--override-ini=addopts=",
     ]
 
-    result = subprocess.run(
+    subprocess.run(
         cmd,
         capture_output=True,
         text=True,
@@ -157,11 +157,10 @@ def main() -> int:
         ], indent=2))
     else:
         print("\n--- Coverage Threshold Report ---\n")
-        any_fail = False
         for r in results:
             status = "PASS" if r.passed else "FAIL"
             if not r.passed:
-                any_fail = True
+                pass
             print(f"  [{status}] {r.module}: {r.percent:.1f}% (threshold: {r.threshold}%)")
         print()
 

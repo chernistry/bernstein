@@ -101,9 +101,6 @@ on:
       - "scripts/gen_roadmap_*.py"
       - "scripts/generate_benchmark_docs.py"
 
-permissions:
-  contents: read
-
 # Single concurrency group: new push cancels in-progress run.
 # Combined with path-ignore and fast-fail (test needs lint), this keeps
 # CI minutes low while always testing the latest code.
@@ -117,6 +114,8 @@ jobs:
   repo-hygiene:
     name: Repo hygiene
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - name: Assert .sdd is not tracked
@@ -156,6 +155,8 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
@@ -168,6 +169,8 @@ jobs:
     name: Spelling (typos)
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: crate-ci/typos@v1
@@ -176,6 +179,8 @@ jobs:
     name: Workflow lint
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: reviewdog/action-actionlint@v1
@@ -189,6 +194,8 @@ jobs:
     needs: [lint]  # only run if lint passes (fast-fail)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
@@ -200,6 +207,8 @@ jobs:
     name: Dead code (Vulture)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
@@ -212,6 +221,8 @@ jobs:
     name: Package size check
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v7
@@ -237,6 +248,8 @@ jobs:
     needs: [lint]  # fast-fail: don't waste 45min if lint fails
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -301,6 +314,8 @@ jobs:
     needs: [test]
     if: github.repository_owner == 'chernistry'
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v6
         with:
@@ -373,6 +388,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push'
     permissions:
+      contents: read
       issues: write
     steps:
       - uses: actions/checkout@v6
@@ -394,6 +410,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push'
     permissions:
+      contents: read
       issues: write
     steps:
       - uses: actions/checkout@v6

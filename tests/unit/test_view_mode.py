@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from bernstein.core.view_mode import ViewConfig, ViewMode, get_view_config, load_view_mode, save_view_mode
+from bernstein.core.view_mode import ViewMode, get_view_config, load_view_mode, save_view_mode
 
 # ---------------------------------------------------------------------------
 # ViewConfig flag correctness per mode

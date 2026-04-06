@@ -131,7 +131,7 @@ class TestGenerateAllManPages:
             """Agent management."""
 
         @agents.command()
-        def list_agents() -> None:  # noqa: ARG001
+        def list_agents() -> None:
             """List available agents."""
 
         return cli

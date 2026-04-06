@@ -18,7 +18,7 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from bernstein.core.lifecycle import TASK_TRANSITIONS, IllegalTransitionError, transition_task
-from bernstein.core.models import Task, TaskStatus, TaskType
+from bernstein.core.models import Task, TaskStatus
 from bernstein.core.task_store import TaskStore
 
 

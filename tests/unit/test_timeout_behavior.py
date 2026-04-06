@@ -7,30 +7,19 @@ behaviour. Forces timeout conditions and verifies graceful degradation.
 from __future__ import annotations
 
 import json
-import subprocess
 import threading
 import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from bernstein.adapters.base import CLIAdapter, SpawnResult
 from bernstein.core.heartbeat import (
-    IDLE_LOG_AGE_THRESHOLD_SECONDS,
     HeartbeatMonitor,
     HeartbeatStatus,
-    StallProfile,
     compute_stall_profile,
 )
-from bernstein.core.models import (
-    AgentHeartbeat,
-    ModelConfig,
-    Task,
-)
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -339,7 +328,7 @@ class TestCommandTimeout:
     def test_nonexistent_command(self, tmp_path: Path) -> None:
         from bernstein.core.quality_gates import _run_command
 
-        ok, output = _run_command(
+        ok, _output = _run_command(
             "definitely_not_a_real_command_12345",
             tmp_path,
             timeout_s=10,

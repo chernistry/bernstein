@@ -190,10 +190,7 @@ class CRTShader:
         self.mode = mode
 
         # Precompute sine LUT for bloom falloff.
-        self._sin_lut: list[float] = [
-            math.sin(i * 2.0 * math.pi / _SIN_LUT_SIZE)
-            for i in range(_SIN_LUT_SIZE)
-        ]
+        self._sin_lut: list[float] = [math.sin(i * 2.0 * math.pi / _SIN_LUT_SIZE) for i in range(_SIN_LUT_SIZE)]
 
         # Precompute monochrome palette LUTs (256 brightness levels -> RGB).
         self._palette_luts: dict[CRTMode, list[tuple[int, int, int]]] = {}
@@ -436,9 +433,7 @@ class CRTShader:
 
         return result
 
-    def apply_to_text(
-        self, text: Text, row: int, total_width: int
-    ) -> Text:
+    def apply_to_text(self, text: Text, row: int, total_width: int) -> Text:
         """Apply all CRT effects to a line of Rich Text.
 
         Processing order: monochrome -> scanline -> bloom -> aberration.
@@ -460,9 +455,7 @@ class CRTShader:
 
         # Decompose text into per-character styles via public API.
         n = len(plain)
-        char_styles: list[Style] = [
-            text.get_style_at_offset(_CONSOLE, i) for i in range(n)
-        ]
+        char_styles: list[Style] = [text.get_style_at_offset(_CONSOLE, i) for i in range(n)]
 
         # 1. Monochrome mapping.
         char_styles = [self.apply_monochrome(s) for s in char_styles]

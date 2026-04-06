@@ -969,8 +969,7 @@ class TaskStore:
         # TASK-004: guard — completion requires non-empty data
         if not result_summary or not result_summary.strip():
             raise ValueError(
-                f"Cannot complete task {task_id!r}: "
-                "result_summary must be non-empty (provide diff or log reference)"
+                f"Cannot complete task {task_id!r}: result_summary must be non-empty (provide diff or log reference)"
             )
         async with self._lock:
             task = self._tasks.get(task_id)
@@ -1289,10 +1288,7 @@ class TaskStore:
                 other_files = set(other.owned_files)
                 overlap = task_files & other_files
                 if overlap:
-                    return (
-                        f"File ownership conflict: {', '.join(sorted(overlap))} "
-                        f"already claimed by task {other.id!r}"
-                    )
+                    return f"File ownership conflict: {', '.join(sorted(overlap))} already claimed by task {other.id!r}"
         return None
 
     # -- TASK-005: Cascading cancellation for subtasks ----------------------

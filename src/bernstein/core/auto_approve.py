@@ -127,11 +127,13 @@ def _decode_octal_escapes(cmd: str) -> str:
 
 def _expand_ansi_c_quoting(cmd: str) -> str:
     r"""Expand ANSI-C $'...' quoting: $'\x72\x6d' -> rm."""
+
     def _expand(m: re.Match[str]) -> str:
         inner = m.group(1)
         inner = _decode_hex_escapes(inner)
         inner = _decode_octal_escapes(inner)
         return inner
+
     return _ANSI_C_RE.sub(_expand, cmd)
 
 

@@ -74,19 +74,13 @@ def resolve_and_validate_path(
         Tuple of (normalized_relative_path, is_safe).  ``is_safe`` is
         ``False`` when the resolved path escapes the project root.
     """
-    if project_root is None:
-        root = Path.cwd()
-    else:
-        root = Path(project_root).resolve()
+    root = Path.cwd() if project_root is None else Path(project_root).resolve()
 
     # Strip leading ./ for normalization
     cleaned = filepath.lstrip("./")
 
     # Build absolute path
-    if os.path.isabs(cleaned):
-        abs_path = Path(os.path.realpath(cleaned))
-    else:
-        abs_path = Path(os.path.realpath(root / cleaned))
+    abs_path = Path(os.path.realpath(cleaned)) if os.path.isabs(cleaned) else Path(os.path.realpath(root / cleaned))
 
     # Check containment: resolved path must be under root
     try:
@@ -130,10 +124,7 @@ def has_path_traversal(filepath: str) -> bool:
 
     # URL-encoded traversal (%2e%2e or %2f)
     lower = filepath.lower()
-    if "%2e%2e" in lower or "%2f" in lower:
-        return True
-
-    return False
+    return bool("%2e%2e" in lower or "%2f" in lower)
 
 
 # ---------------------------------------------------------------------------

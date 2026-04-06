@@ -71,7 +71,7 @@ def _load_user_aliases() -> dict[str, str]:
 
 def _merge_aliases() -> None:
     """Merge user aliases into the global registry (user overrides built-in)."""
-    global _user_aliases  # noqa: PLW0603
+    global _user_aliases
     _user_aliases = _load_user_aliases()
     ALIASES.update(_user_aliases)
 

@@ -65,6 +65,7 @@ def _load_user_aliases() -> dict[str, str]:
         if not isinstance(raw, dict):
             return {}
         from typing import cast
+
         entries = cast("dict[str, object]", raw)
         return {k: str(v) for k, v in entries.items() if isinstance(v, str)}
     except Exception:

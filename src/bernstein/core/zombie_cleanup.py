@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import re
 import signal
 import time
 from dataclasses import dataclass, field
@@ -22,6 +23,15 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Pattern for sanitizing user-controlled strings before logging.
+_SAFE_LOG_RE = re.compile(r"[^a-zA-Z0-9._\-]")
+
+
+def _sanitize_for_log(value: str, max_len: int = 128) -> str:
+    """Sanitize a user-controlled string for safe logging."""
+    return _SAFE_LOG_RE.sub("_", value[:max_len])
+
 
 #: Grace period between SIGTERM and SIGKILL for orphaned agents (seconds).
 DEFAULT_SIGTERM_GRACE_S: int = 10
@@ -227,9 +237,9 @@ def scan_and_cleanup_zombies(
         for alive_pid in alive_pids:
             logger.warning(
                 "Orphaned agent process: session=%s pid=%d role=%s",
-                session_id,
+                _sanitize_for_log(session_id),
                 alive_pid,
-                role,
+                _sanitize_for_log(role),
             )
 
             if dry_run:

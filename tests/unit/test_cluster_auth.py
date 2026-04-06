@@ -21,7 +21,7 @@ from bernstein.core.models import NodeCapacity, NodeInfo, NodeStatus
 
 @pytest.fixture()
 def auth_config() -> ClusterAuthConfig:
-    return ClusterAuthConfig(secret="test-secret-key-for-cluster-auth")
+    return ClusterAuthConfig(secret="test-secret-key-for-cluster-auth")  # NOSONAR
 
 
 @pytest.fixture()

@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 from bernstein.core.degraded_mode import (
     DegradedModeConfig,
     DegradedModeManager,
@@ -23,8 +25,8 @@ class TestDegradedModeConfig:
         config = DegradedModeConfig()
         assert config.enter_after_failures == 3
         assert config.exit_after_successes == 2
-        assert config.probe_base_delay_s == 5.0
-        assert config.probe_max_delay_s == 60.0
+        assert config.probe_base_delay_s == pytest.approx(5.0)
+        assert config.probe_max_delay_s == pytest.approx(60.0)
         assert config.max_degraded_ticks == 0
 
 

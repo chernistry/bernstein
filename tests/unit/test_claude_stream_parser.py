@@ -258,7 +258,7 @@ class TestStreamParserState:
         assert state.tool_results == []
         assert state.thinking_blocks == []
         assert state.result is None
-        assert state.total_cost_usd == 0.0
+        assert state.total_cost_usd == pytest.approx(0.0)
         assert state.num_turns == 0
         assert state.duration_ms == 0
         assert state.subtype == ""

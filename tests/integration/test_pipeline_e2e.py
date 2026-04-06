@@ -304,9 +304,9 @@ class TestSpawnExecuteVerifyPipeline:
         )
 
         # Wait for the subprocess to complete
-        assert result.proc is not None, "Expected adapter to return a process handle"
-        proc = result.proc
-        proc.wait(timeout=10)
+        if result.proc is None:
+            pytest.fail("Expected adapter to return a process handle")
+        result.proc.wait(timeout=10)
 
         # Verify the agent produced the expected file
         assert (tmp_path / "feature.py").exists()
@@ -330,9 +330,9 @@ class TestSpawnExecuteVerifyPipeline:
             model_config=ModelConfig(model="mock", effort="high"),
             session_id="sess-002",
         )
-        assert result.proc is not None, "Expected adapter to return a process handle"
-        proc = result.proc
-        proc.wait(timeout=10)
+        if result.proc is None:
+            pytest.fail("Expected adapter to return a process handle")
+        result.proc.wait(timeout=10)
 
         task = _make_task(
             signals=[CompletionSignal(type="path_exists", value="wrong_file.py")],

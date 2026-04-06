@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import signal
 import subprocess
 import sys
 from typing import TYPE_CHECKING

@@ -7,8 +7,6 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from bernstein.core.cross_model_verifier import CrossModelVerifierConfig
 from bernstein.core.formal_verification import FormalProperty, FormalVerificationConfig
 from bernstein.core.models import AgentSession, ModelConfig, TaskStatus

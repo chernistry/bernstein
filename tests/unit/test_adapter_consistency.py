@@ -12,7 +12,6 @@ from __future__ import annotations
 import inspect
 import subprocess
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -20,7 +19,6 @@ import pytest
 from bernstein.adapters.base import CLIAdapter, SpawnResult
 from bernstein.adapters.registry import _ADAPTERS, get_adapter
 from bernstein.core.models import ModelConfig
-
 
 # ---------------------------------------------------------------------------
 # Adapter factories — enumerate every known adapter

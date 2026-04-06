@@ -9,7 +9,6 @@ import pytest
 from bernstein.core.ab_test_results import (
     ABTestRecord,
     ABTestStore,
-    ModelStats,
     generate_ab_report,
     model_for_task,
     record_ab_outcome,

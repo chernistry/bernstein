@@ -10,12 +10,9 @@ import time
 import uuid
 from typing import Any
 
-import pytest
-
 from bernstein.core.models import (
-    AgentSession,
-    Complexity,
     CompletionSignal,
+    Complexity,
     RiskAssessment,
     RollbackPlan,
     Scope,

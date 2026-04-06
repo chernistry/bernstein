@@ -7,9 +7,7 @@ skipping, and the import flow against a mocked task server.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 from bernstein.core.workflow_importer import (
     detect_workflow_files,

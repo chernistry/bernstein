@@ -188,7 +188,7 @@ class TestBlockingHookRunnerTimeout:
         assert "timed out" in result.reason
 
     def test_default_timeout_is_5s(self) -> None:
-        assert BLOCKING_HOOK_TIMEOUT_S == pytest.approx(5.0)
+        assert pytest.approx(5.0) == BLOCKING_HOOK_TIMEOUT_S
 
     def test_runner_uses_default_timeout(self) -> None:
         runner = BlockingHookRunner()

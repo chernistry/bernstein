@@ -22,7 +22,6 @@ from bernstein.tui.widgets import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-    import pytest
 
 
 class TestStatusColors:

@@ -448,7 +448,7 @@ class TestEvalTier:
 
 class TestConstants:
     def test_regression_tolerance(self) -> None:
-        assert EVAL_REGRESSION_TOLERANCE == pytest.approx(0.02)
+        assert pytest.approx(0.02) == EVAL_REGRESSION_TOLERANCE
 
     def test_promotion_threshold(self) -> None:
-        assert EVAL_PROMOTION_THRESHOLD == pytest.approx(0.05)
+        assert pytest.approx(0.05) == EVAL_PROMOTION_THRESHOLD

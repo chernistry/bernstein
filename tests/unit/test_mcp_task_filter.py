@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bernstein.core.mcp_task_filter import (
     FilterResult,
     RoleServerRule,
     TaskMCPFilter,
 )
 from bernstein.core.models import Task
-
 
 # ---------------------------------------------------------------------------
 # Helpers

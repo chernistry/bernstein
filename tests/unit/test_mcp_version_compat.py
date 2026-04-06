@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bernstein.core.mcp_version_compat import (
     CompatLevel,
     CompatResult,
     ParsedVersion,
     VersionChecker,
 )
-
 
 # ---------------------------------------------------------------------------
 # Tests — ParsedVersion

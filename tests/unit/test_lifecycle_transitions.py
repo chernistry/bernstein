@@ -6,7 +6,6 @@ as allowed or rejected according to TASK_TRANSITIONS and AGENT_TRANSITIONS.
 
 from __future__ import annotations
 
-import time
 from typing import Literal
 
 import pytest
@@ -25,7 +24,6 @@ from bernstein.core.models import (
     Task,
     TaskStatus,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

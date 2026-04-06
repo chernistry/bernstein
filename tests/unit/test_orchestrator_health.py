@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from bernstein.core.orchestrator_health import (
-    ComponentHealth,
     HealthGrade,
-    HealthScoreResult,
     OrchestratorHealthScorer,
     _classify_grade,
     _memory_score,
@@ -51,7 +49,7 @@ class TestOrchestratorHealthScorer:
         )
         assert result.score < 100
         # Circuit breaker should be flagged
-        cb = [c for c in result.components if c.name == "circuit_breaker"][0]
+        cb = next(c for c in result.components if c.name == "circuit_breaker")
         assert not cb.healthy
 
     def test_high_memory(self) -> None:
@@ -65,7 +63,7 @@ class TestOrchestratorHealthScorer:
         )
         assert result.score < 100
         # Memory component should be marked unhealthy
-        mem = [c for c in result.components if c.name == "memory"][0]
+        mem = next(c for c in result.components if c.name == "memory")
         assert not mem.healthy
 
     def test_everything_broken(self) -> None:

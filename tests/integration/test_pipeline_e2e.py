@@ -8,10 +8,8 @@ from __future__ import annotations
 
 import asyncio
 import subprocess
-import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -23,9 +21,7 @@ from bernstein.core.models import (
     ModelConfig,
     Task,
     TaskStatus,
-    TaskType,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -101,7 +97,7 @@ class TestSignalEvaluation:
         (tmp_path / "src").mkdir()
         (tmp_path / "src" / "module.py").write_text("# code\n")
         signal = CompletionSignal(type="glob_exists", value="src/*.py")
-        passed, detail = evaluate_signal(signal, tmp_path)
+        passed, _detail = evaluate_signal(signal, tmp_path)
         assert passed is True
 
     def test_glob_exists_fails_with_no_matches(self, tmp_path: Path) -> None:
@@ -113,7 +109,7 @@ class TestSignalEvaluation:
         target = tmp_path / "data.txt"
         target.write_text("Hello World\n")
         signal = CompletionSignal(type="file_contains", value="data.txt :: Hello")
-        passed, detail = evaluate_signal(signal, tmp_path)
+        passed, _detail = evaluate_signal(signal, tmp_path)
         assert passed is True
 
     def test_file_contains_fails_when_string_missing(self, tmp_path: Path) -> None:

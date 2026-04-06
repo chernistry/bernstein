@@ -5,7 +5,6 @@ from __future__ import annotations
 from bernstein.core.graduated_memory_guard import (
     GraduatedMemoryGuard,
     MemoryAction,
-    MemoryGuardResponse,
     MemoryPressureLevel,
     MemoryStatus,
     _level_severity,

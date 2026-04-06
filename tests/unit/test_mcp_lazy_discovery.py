@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
-
 import pytest
 
 from bernstein.core.mcp_lazy_discovery import (
@@ -12,7 +10,6 @@ from bernstein.core.mcp_lazy_discovery import (
     ServerState,
 )
 from bernstein.core.mcp_manager import MCPManager, MCPServerConfig
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

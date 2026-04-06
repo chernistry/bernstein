@@ -352,13 +352,13 @@ class TestConstants:
     def test_probe_interval(self) -> None:
         from bernstein.core.mcp_health_monitor import DEFAULT_PROBE_INTERVAL
 
-        assert DEFAULT_PROBE_INTERVAL == pytest.approx(30.0)
+        assert pytest.approx(30.0) == DEFAULT_PROBE_INTERVAL
 
     def test_initial_backoff(self) -> None:
-        assert DEFAULT_INITIAL_BACKOFF == pytest.approx(1.0)
+        assert pytest.approx(1.0) == DEFAULT_INITIAL_BACKOFF
 
     def test_max_backoff(self) -> None:
-        assert DEFAULT_MAX_BACKOFF == pytest.approx(30.0)
+        assert pytest.approx(30.0) == DEFAULT_MAX_BACKOFF
 
     def test_backoff_multiplier(self) -> None:
-        assert BACKOFF_MULTIPLIER == pytest.approx(2.0)
+        assert pytest.approx(2.0) == BACKOFF_MULTIPLIER

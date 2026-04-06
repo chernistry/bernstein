@@ -6,12 +6,10 @@ and verifies platform-specific code paths work correctly.
 
 from __future__ import annotations
 
-import os
 import platform
 import sys
 from pathlib import Path
 
-import pytest
 import yaml
 
 # ---------------------------------------------------------------------------

@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import httpx
 
 from bernstein.core.startup_selftest import (
-    CheckResult,
     CheckStatus,
     SelfTestReport,
     _check_adapter,

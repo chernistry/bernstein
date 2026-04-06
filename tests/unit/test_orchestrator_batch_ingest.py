@@ -16,7 +16,6 @@ from bernstein.core.models import OrchestratorConfig
 from bernstein.core.orchestrator import Orchestrator
 from bernstein.core.spawner import AgentSpawner
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -94,7 +93,7 @@ class TestBatchIngestPostsAllAtOnce:
     """5 files should produce a single POST to /tasks/batch."""
 
     def test_single_batch_post(self, tmp_path: Path) -> None:
-        open_dir, claimed_dir = _setup_dirs(tmp_path)
+        open_dir, _claimed_dir = _setup_dirs(tmp_path)
         _write_backlog_files(open_dir, 5)
 
         requests_log: list[httpx.Request] = []
@@ -176,7 +175,7 @@ class TestBatchIngestFallbackOn404:
     """If the batch endpoint returns 404, fall back to one-by-one POSTs."""
 
     def test_fallback_to_individual_posts(self, tmp_path: Path) -> None:
-        open_dir, claimed_dir = _setup_dirs(tmp_path)
+        open_dir, _claimed_dir = _setup_dirs(tmp_path)
         files = _write_backlog_files(open_dir, 3)
 
         individual_posts: list[httpx.Request] = []

@@ -6,7 +6,7 @@ only clean errors (ValidationError or EnvExpansionError).
 
 from __future__ import annotations
 
-import textwrap
+import contextlib
 from typing import Any
 
 import pytest
@@ -126,24 +126,18 @@ class TestSpecificMalformedConfigs:
 
     def test_deeply_nested_roles(self) -> None:
         data = {"roles": {"a" * 1000: {"cli": "claude"}}}
-        try:
+        with contextlib.suppress(ValidationError, TypeError):
             BernsteinConfig.model_validate(data)
-        except (ValidationError, TypeError):
-            pass
 
     def test_unicode_role_name(self) -> None:
         data = {"roles": {"\u00e9\u00e8\u00ea": {"cli": "claude"}}}
-        try:
+        with contextlib.suppress(ValidationError, TypeError):
             BernsteinConfig.model_validate(data)
-        except (ValidationError, TypeError):
-            pass
 
     def test_binary_in_string_field(self) -> None:
         data = {"auth_token": "\x00\x01\x02\xff"}
-        try:
+        with contextlib.suppress(ValidationError, TypeError):
             BernsteinConfig.model_validate(data)
-        except (ValidationError, TypeError):
-            pass
 
 
 class TestEnvExpansionFuzz:

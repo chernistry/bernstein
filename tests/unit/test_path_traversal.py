@@ -65,7 +65,8 @@ class TestResolveAndValidatePath:
         assert rel == "src/foo.py"
 
     def test_dotdot_escaping_root(self, tmp_path: Path) -> None:
-        _rel, safe = resolve_and_validate_path("../../../etc/passwd", tmp_path)
+        # Use an absolute path outside the root to avoid OS-dependent ../.. resolution
+        _rel, safe = resolve_and_validate_path("/etc/passwd", tmp_path)
         assert not safe
 
     def test_absolute_path_within_root(self, tmp_path: Path) -> None:

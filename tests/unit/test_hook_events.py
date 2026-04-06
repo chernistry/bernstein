@@ -265,8 +265,8 @@ class TestBudgetPayload:
             percent=85.0,
         )
         d = p.to_dict()
-        assert d["current_spend_usd"] == 8.50
-        assert d["percent"] == 85.0
+        assert d["current_spend_usd"] == pytest.approx(8.50)
+        assert d["percent"] == pytest.approx(85.0)
 
 
 class TestConfigDriftPayload:

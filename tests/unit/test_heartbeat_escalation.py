@@ -5,6 +5,8 @@ from __future__ import annotations
 import signal
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from bernstein.core.heartbeat_escalation import (
     EscalationAction,
     EscalationThresholds,
@@ -40,10 +42,10 @@ class TestEscalationThresholds:
 
     def test_defaults(self) -> None:
         t = EscalationThresholds()
-        assert t.warn_s == 60.0
-        assert t.sigusr1_s == 90.0
-        assert t.sigterm_s == 120.0
-        assert t.sigkill_s == 150.0
+        assert t.warn_s == pytest.approx(60.0)
+        assert t.sigusr1_s == pytest.approx(90.0)
+        assert t.sigterm_s == pytest.approx(120.0)
+        assert t.sigkill_s == pytest.approx(150.0)
 
     def test_custom_thresholds(self) -> None:
         t = EscalationThresholds(
@@ -52,8 +54,8 @@ class TestEscalationThresholds:
             sigterm_s=90.0,
             sigkill_s=120.0,
         )
-        assert t.warn_s == 30.0
-        assert t.sigkill_s == 120.0
+        assert t.warn_s == pytest.approx(30.0)
+        assert t.sigkill_s == pytest.approx(120.0)
 
     def test_validation_passes(self) -> None:
         t = EscalationThresholds()

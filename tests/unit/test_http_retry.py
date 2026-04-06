@@ -28,8 +28,8 @@ class TestComputeBackoff:
         d0 = compute_backoff(0, 1.0, 60.0, jitter=False)
         d1 = compute_backoff(1, 1.0, 60.0, jitter=False)
         d2 = compute_backoff(2, 1.0, 60.0, jitter=False)
-        assert d0 == 1.0
-        assert d1 == 2.0
+        assert d0 == pytest.approx(1.0)
+        assert d1 == pytest.approx(2.0)
         assert d2 == 4.0
 
     def test_capped_at_max_delay(self) -> None:

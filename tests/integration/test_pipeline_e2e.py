@@ -6,6 +6,7 @@ Tests the full pipeline: create task -> spawn (mock adapter) -> agent output
 
 from __future__ import annotations
 
+import asyncio
 import subprocess
 import time
 from pathlib import Path
@@ -183,8 +184,9 @@ class TestJanitorPipeline:
     async def test_janitor_passes_on_satisfied_signals(self, tmp_path: Path) -> None:
         _init_git_repo(tmp_path)
         (tmp_path / "output.txt").write_text("result\n")
-        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
-        subprocess.run(
+        await asyncio.to_thread(subprocess.run, ["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+        await asyncio.to_thread(
+            subprocess.run,
             ["git", "commit", "-m", "add output"],
             cwd=tmp_path,
             check=True,
@@ -302,8 +304,9 @@ class TestSpawnExecuteVerifyPipeline:
         )
 
         # Wait for the subprocess to complete
-        assert result.proc is not None
-        result.proc.wait(timeout=10)  # type: ignore[union-attr]
+        if result.proc is None:
+            pytest.fail("Expected adapter to return a process handle")
+        result.proc.wait(timeout=10)
 
         # Verify the agent produced the expected file
         assert (tmp_path / "feature.py").exists()
@@ -327,8 +330,9 @@ class TestSpawnExecuteVerifyPipeline:
             model_config=ModelConfig(model="mock", effort="high"),
             session_id="sess-002",
         )
-        assert result.proc is not None
-        result.proc.wait(timeout=10)  # type: ignore[union-attr]
+        if result.proc is None:
+            pytest.fail("Expected adapter to return a process handle")
+        result.proc.wait(timeout=10)
 
         task = _make_task(
             signals=[CompletionSignal(type="path_exists", value="wrong_file.py")],

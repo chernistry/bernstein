@@ -453,7 +453,7 @@ class TestDashboardAuth:
         """Login should succeed when no password is configured."""
         resp = await client.post(
             "/dashboard/auth/login",
-            json={"password": "anything"},
+            json={"password": "anything"},  # NOSONAR
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -473,7 +473,7 @@ class TestDashboardAuth:
 
         result = _parse_dashboard_auth(
             {
-                "password": "my-secret",
+                "password": "my-secret",  # NOSONAR
                 "session_timeout_seconds": 7200,
             }
         )
@@ -504,7 +504,7 @@ class TestDashboardAuth:
     @pytest.mark.anyio
     async def test_dashboard_with_password_blocks_access(self, jsonl_path: Path) -> None:
         """Dashboard should require auth when password is set."""
-        with patch.dict("os.environ", {"BERNSTEIN_DASHBOARD_PASSWORD": "test-pw"}):
+        with patch.dict("os.environ", {"BERNSTEIN_DASHBOARD_PASSWORD": "test-pw"}):  # NOSONAR
             test_app = create_app(jsonl_path=jsonl_path)
             transport = ASGITransport(app=test_app)
             async with AsyncClient(transport=transport, base_url="http://test") as c:
@@ -514,13 +514,13 @@ class TestDashboardAuth:
     @pytest.mark.anyio
     async def test_dashboard_login_with_correct_password(self, jsonl_path: Path) -> None:
         """Login with correct password should return session token."""
-        with patch.dict("os.environ", {"BERNSTEIN_DASHBOARD_PASSWORD": "test-pw"}):
+        with patch.dict("os.environ", {"BERNSTEIN_DASHBOARD_PASSWORD": "test-pw"}):  # NOSONAR
             test_app = create_app(jsonl_path=jsonl_path)
             transport = ASGITransport(app=test_app)
             async with AsyncClient(transport=transport, base_url="http://test") as c:
                 resp = await c.post(
                     "/dashboard/auth/login",
-                    json={"password": "test-pw"},
+                    json={"password": "test-pw"},  # NOSONAR
                 )
                 assert resp.status_code == 200
                 data = resp.json()
@@ -530,27 +530,27 @@ class TestDashboardAuth:
     @pytest.mark.anyio
     async def test_dashboard_login_with_wrong_password(self, jsonl_path: Path) -> None:
         """Login with wrong password should fail."""
-        with patch.dict("os.environ", {"BERNSTEIN_DASHBOARD_PASSWORD": "test-pw"}):
+        with patch.dict("os.environ", {"BERNSTEIN_DASHBOARD_PASSWORD": "test-pw"}):  # NOSONAR
             test_app = create_app(jsonl_path=jsonl_path)
             transport = ASGITransport(app=test_app)
             async with AsyncClient(transport=transport, base_url="http://test") as c:
                 resp = await c.post(
                     "/dashboard/auth/login",
-                    json={"password": "wrong"},
+                    json={"password": "wrong"},  # NOSONAR
                 )
                 assert resp.status_code == 401
 
     @pytest.mark.anyio
     async def test_dashboard_access_with_session_token(self, jsonl_path: Path) -> None:
         """Authenticated session should grant access to dashboard data."""
-        with patch.dict("os.environ", {"BERNSTEIN_DASHBOARD_PASSWORD": "test-pw"}):
+        with patch.dict("os.environ", {"BERNSTEIN_DASHBOARD_PASSWORD": "test-pw"}):  # NOSONAR
             test_app = create_app(jsonl_path=jsonl_path)
             transport = ASGITransport(app=test_app)
             async with AsyncClient(transport=transport, base_url="http://test") as c:
                 # Login
                 login_resp = await c.post(
                     "/dashboard/auth/login",
-                    json={"password": "test-pw"},
+                    json={"password": "test-pw"},  # NOSONAR
                 )
                 token = login_resp.json()["token"]
 

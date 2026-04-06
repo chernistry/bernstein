@@ -18,7 +18,7 @@ def _load_current_config() -> dict[str, object]:
             with open(p) as f:
                 raw = yaml.safe_load(f)
             if isinstance(raw, dict):
-                return dict(raw)
+                return dict(raw)  # type: ignore[arg-type]
             return {}
     return {}
 

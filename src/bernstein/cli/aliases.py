@@ -62,8 +62,11 @@ def _load_user_aliases() -> dict[str, str]:
     try:
         with open(_USER_ALIASES_PATH) as f:
             raw: object = yaml.safe_load(f) or {}
-        data = raw if isinstance(raw, dict) else {}
-        return {k: str(v) for k, v in data.items() if isinstance(k, str) and isinstance(v, str)}
+        if not isinstance(raw, dict):
+            return {}
+        from typing import cast
+        entries = cast("dict[str, object]", raw)
+        return {k: str(v) for k, v in entries.items() if isinstance(v, str)}
     except Exception:
         logger.debug("Failed to load user aliases from %s", _USER_ALIASES_PATH, exc_info=True)
         return {}

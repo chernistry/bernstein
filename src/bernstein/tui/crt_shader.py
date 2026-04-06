@@ -12,8 +12,12 @@ import math
 from enum import Enum
 
 from rich.color import Color
+from rich.console import Console
 from rich.style import Style
 from rich.text import Text
+
+# Lightweight Console used only for resolving per-character styles.
+_CONSOLE = Console()
 
 
 class CRTMode(Enum):
@@ -150,7 +154,7 @@ def _blend_rgb(
     )
 
 
-def _to_monochrome(
+def _to_monochrome(  # pyright: ignore[reportUnusedFunction]
     r: int, g: int, b: int, palette: CRTMode
 ) -> tuple[int, int, int]:
     """Map an RGB color to a CRT phosphor monochrome color.
@@ -454,16 +458,11 @@ class CRTShader:
         if not plain:
             return text
 
-        # Decompose text into per-character styles.
-        # We build a flat list by walking spans.
+        # Decompose text into per-character styles via public API.
         n = len(plain)
-        base_style = text.style or Style.null()
-        char_styles: list[Style] = [base_style] * n
-
-        # Apply span styles on top of base.
-        for span in text._spans:
-            for i in range(max(0, span.start), min(n, span.end)):
-                char_styles[i] = char_styles[i] + span.style
+        char_styles: list[Style] = [
+            text.get_style_at_offset(_CONSOLE, i) for i in range(n)
+        ]
 
         # 1. Monochrome mapping.
         char_styles = [self.apply_monochrome(s) for s in char_styles]

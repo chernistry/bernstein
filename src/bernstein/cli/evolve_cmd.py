@@ -181,8 +181,7 @@ def evolve_run(
         f"  Window:     {window} ({window_seconds}s)\n"
         f"  Max props:  {max_proposals}\n"
         f"  Cycle:      {cycle}s\n"
-        f"  State dir:  {state_dir}\n"
-        + github_line
+        f"  State dir:  {state_dir}\n" + github_line
     )
 
     loop = EvolutionLoop(

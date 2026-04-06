@@ -11,7 +11,6 @@ from bernstein.tui.tracker_view import (
     task_id_to_note,
 )
 
-
 # --- Note mapping ---
 
 

@@ -304,7 +304,7 @@ class TrackerView(Static):
 
         # --- Data rows ---
         for row_idx in range(self._max_visible_rows):
-            for ch_idx, ch in enumerate(self._channels[:n_channels]):
+            for _ch_idx, ch in enumerate(self._channels[:n_channels]):
                 sep = "|" if ascii_mode else "\u2502"
                 text.append(sep, style=border_style)
 

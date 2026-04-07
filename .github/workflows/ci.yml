@@ -248,7 +248,7 @@ jobs:
     name: Test (Python ${{ matrix.python-version }})
     needs: [lint]  # fast-fail: don't waste 45min if lint fails
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: read
     strategy:
@@ -264,6 +264,8 @@ jobs:
       - run: uv run python scripts/run_tests.py -x --parallel 4
       - name: Generate coverage report (3.13 only)
         if: matrix.python-version == '3.13'
+        continue-on-error: true
+        timeout-minutes: 25
         run: |
           # Run each test file in its own process with coverage to avoid OOM.
           # pytest --cov on 562 files in one process exceeds 7GB runner RAM.

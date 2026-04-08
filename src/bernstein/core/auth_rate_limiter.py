@@ -181,6 +181,12 @@ class RequestRateLimitMiddleware(BaseHTTPMiddleware):
             finally:
                 self._sse_connections = max(0, self._sse_connections - 1)
 
+        # Exempt loopback clients (orchestrator, spawner, agents) from rate
+        # limiting — they are internal components, not external callers.
+        direct_ip = request.client.host if request.client else "unknown"
+        if direct_ip in _LOOPBACK_HOSTS and not request.headers.get("X-Forwarded-For"):
+            return await call_next(request)
+
         # Try seed_config buckets first
         seed_config = getattr(request.app.state, "seed_config", None)
         rate_limit = getattr(seed_config, "rate_limit", None)

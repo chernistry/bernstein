@@ -505,6 +505,8 @@ class TestLessonSpawnerIntegration:
         task.owned_files = []
         task.id = "task_001"
         task.mcp_servers = []
+        task.parent_context = None
+        task.depends_on = []
 
         workdir = temp_sdd_dir.parent
         templates_dir = workdir / "templates" / "roles"
@@ -543,6 +545,8 @@ class TestLessonSpawnerIntegration:
         task.owned_files = []
         task.id = "task_002"
         task.mcp_servers = []
+        task.parent_context = None
+        task.depends_on = []
 
         workdir = temp_sdd_dir.parent
         templates_dir = workdir / "templates" / "roles"

@@ -609,14 +609,32 @@ def export_soc2_package(
     # --- 7. Write verification results -------------------------------------
     (bundle_dir / "verification.json").write_text(json.dumps(verification, indent=2))
 
-    # --- 8. Compute package checksum ---------------------------------------
+    # --- 8. Generate structured SOC 2 compliance report ---------------------
+    try:
+        from bernstein.core.soc2_report import generate_soc2_report, save_soc2_report
+
+        report = generate_soc2_report(sdd_dir, period, start_date, end_date)
+        save_soc2_report(report, bundle_dir)
+        artifacts_collected.append(
+            {
+                "type": "soc2_report",
+                "description": "Structured SOC 2 compliance report with control mappings",
+                "overall_status": report.overall_status,
+                "controls_count": len(report.controls),
+                "evidence_count": len(report.evidence),
+            }
+        )
+    except Exception as exc:
+        logger.warning("SOC 2 report generation failed: %s", exc)
+
+    # --- 9. Compute package checksum ---------------------------------------
     file_checksums: dict[str, str] = {}
     for path in sorted(bundle_dir.rglob("*")):
         if path.is_file() and path.name != _MANIFEST_JSON:
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
             file_checksums[str(path.relative_to(bundle_dir))] = digest
 
-    # --- 9. Write manifest -------------------------------------------------
+    # --- 11. Write manifest ------------------------------------------------
     manifest = {
         "package_type": "soc2-evidence",
         "period": period,
@@ -629,7 +647,7 @@ def export_soc2_package(
     }
     (bundle_dir / _MANIFEST_JSON).write_text(json.dumps(manifest, indent=2))
 
-    # --- 10. Optionally zip ------------------------------------------------
+    # --- 12. Optionally zip ------------------------------------------------
     if fmt == "zip":
         zip_path = output_path / f"{bundle_name}.zip"
         shutil.make_archive(str(output_path / bundle_name), "zip", output_path, bundle_name)

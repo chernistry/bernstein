@@ -24,6 +24,8 @@ Last updated: 2026-04-04
 | Permission mode hierarchy | `WORKFLOW-permission-mode-hierarchy.md` | Shipped | bypass→plan→auto→default mode hierarchy with severity relaxation + hook resolution |
 | Verification nudge | `WORKFLOW-verification-nudge.md` | Shipped | Tracks unverified task completions and alerts when threshold exceeded |
 | Event-sourced task transitions (CQRS) | `WORKFLOW-event-sourced-task-transitions.md` | Draft | Append-only event log per task; state derived by replaying events, not mutable status field |
+| Audit integrity on startup (ENT-003) | `WORKFLOW-audit-integrity-on-startup.md` | Shipped | HMAC chain verification of last N entries on orchestrator startup; non-blocking warnings |
+| SOC 2 compliance reporting (ENT-004) | `WORKFLOW-soc2-compliance-reporting.md` | Shipped | Structured SOC 2 evidence package with control mappings, Merkle attestation, compliance report |
 
 Archived/deprecated reference docs remain under `docs/workflows/archive/`.
 
@@ -76,6 +78,15 @@ Trigger config path: `.sdd/config/triggers.yaml`
 - `src/bernstein/core/permission_rules.py` — rule engine with severity-based evaluation
 - `src/bernstein/core/permission_matrix.py` — hook-permission resolution matrix
 - `src/bernstein/core/verification_nudge.py` — unverified-completion tracking and alerts
+
+### Audit and compliance workflows
+
+- `src/bernstein/core/audit.py` — HMAC-chained audit log (write, verify, archive, query)
+- `src/bernstein/core/audit_integrity.py` — startup HMAC chain verification (ENT-003)
+- `src/bernstein/core/compliance.py` — compliance presets, evidence bundle, SOC 2 export
+- `src/bernstein/core/soc2_report.py` — structured SOC 2 report with control mappings (ENT-004)
+- `src/bernstein/core/merkle.py` — Merkle tree integrity seals
+- `src/bernstein/cli/audit_cmd.py` — CLI for audit show/seal/verify/export
 
 ### Review and quality workflows
 

@@ -291,7 +291,13 @@ class TestEdgeCases:
         result = export_soc2_package(sdd, "Q1-2026", fmt="dir")
         assert result.is_dir()
         manifest = json.loads((result / "manifest.json").read_text())
-        assert manifest["artifacts"] == []
+        # Only the SOC 2 report artifact is present (no raw evidence)
+        raw_artifacts = [a for a in manifest["artifacts"] if a["type"] != "soc2_report"]
+        assert raw_artifacts == []
+        # SOC 2 report is always generated even with no evidence
+        soc2_artifacts = [a for a in manifest["artifacts"] if a["type"] == "soc2_report"]
+        assert len(soc2_artifacts) == 1
+        assert soc2_artifacts[0]["overall_status"] == "non_compliant"
 
     def test_overwrites_existing_bundle(self, tmp_path: Path) -> None:
         sdd = _make_sdd(tmp_path)

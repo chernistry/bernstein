@@ -1463,6 +1463,21 @@ class Orchestrator:
             self._recover_from_wal()
         except Exception:
             logger.exception("WAL recovery failed (non-fatal) — continuing startup")
+
+        # ENT-003: Verify audit log HMAC chain integrity on startup.
+        # Non-blocking — logs warnings if tampering is detected.
+        try:
+            from bernstein.core.audit_integrity import verify_on_startup
+
+            sdd_dir = self._workdir / ".sdd"
+            integrity = verify_on_startup(sdd_dir)
+            if not integrity.valid:
+                logger.warning(
+                    "Audit integrity check found %d error(s) — review with 'bernstein audit verify'",
+                    len(integrity.errors),
+                )
+        except Exception:
+            logger.exception("Audit integrity check failed (non-fatal) — continuing startup")
         consecutive_failures = 0
         max_consecutive_failures = 10
         while self._running or self._has_active_agents():

@@ -5479,13 +5479,13 @@ class TestAdaptivePollingBackoff:
         monkeypatch.setattr(orch, "_cleanup", lambda: None)
         orch.run()
 
-        # After each idle tick, sleep doubles: 6, 12, 24, 30 (cap), 30 (cap)
+        # After each idle tick, sleep doubles: 6, 12, 24, 24 (cap at 8x), 24
         assert len(sleep_calls) > 0
         assert sleep_calls[0] == pytest.approx(6.0)
         assert sleep_calls[1] == pytest.approx(12.0)
         assert sleep_calls[2] == pytest.approx(24.0)
-        assert sleep_calls[3] == pytest.approx(30.0)
-        assert sleep_calls[4] == pytest.approx(30.0)
+        assert sleep_calls[3] == pytest.approx(24.0)
+        assert sleep_calls[4] == pytest.approx(24.0)
 
     def test_active_tick_resets_sleep_to_poll_interval(self, tmp_path: Path, monkeypatch: object) -> None:
         orch = self._make_orch(tmp_path, poll_interval_s=3)

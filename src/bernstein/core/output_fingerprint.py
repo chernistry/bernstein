@@ -4,14 +4,31 @@ Detects when agent output is likely copied verbatim from training data
 (license risk). Uses MinHash/LSH similarity to compare output against
 known code patterns. Flags matches above a configurable threshold for
 human review.
+
+Typical usage::
+
+    # Build an index from known OSS code
+    config = FingerprintConfig(enabled=True, threshold=0.8)
+    index = CorpusIndex(config)
+    index.add_directory(Path("known_oss/"), glob="**/*.py")
+    index.save(Path(".sdd/fingerprint_index.json"))
+
+    # Check agent-generated code
+    index = CorpusIndex.load(Path(".sdd/fingerprint_index.json"), config)
+    result = check_fingerprint(agent_code, index, config)
+    if not result.passed:
+        print(result.detail)
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +137,19 @@ class MinHash:
 
     __slots__ = ("_hashvalues", "_num_perm")
 
+    @property
+    def signature(self) -> list[int]:
+        """Return a copy of the hash values (for serialisation)."""
+        return list(self._hashvalues)
+
+    @classmethod
+    def from_signature(cls, values: list[int]) -> MinHash:
+        """Reconstruct a MinHash from a previously serialised signature."""
+        obj = cls.__new__(cls)
+        obj._num_perm = len(values)
+        obj._hashvalues = list(values)
+        return obj
+
     def __init__(self, num_perm: int = _DEFAULT_NUM_PERM) -> None:
         self._num_perm = num_perm
         self._hashvalues = [_MAX_HASH] * num_perm
@@ -185,6 +215,96 @@ class CorpusIndex:
             shingle_type=self._config.shingle_type,
         )
         self._entries.append((label, mh))
+
+    def add_directory(
+        self,
+        directory: Path,
+        glob: str = "**/*.py",
+        max_files: int = 5_000,
+    ) -> int:
+        """Recursively add all matching files in *directory* to the index.
+
+        Args:
+            directory: Root directory to scan.
+            glob: Glob pattern relative to *directory* (default ``**/*.py``).
+            max_files: Maximum number of files to index.
+
+        Returns:
+            Number of files successfully indexed.
+        """
+        indexed = 0
+        for p in sorted(directory.glob(glob)):
+            if indexed >= max_files:
+                logger.warning(
+                    "output_fingerprint: hit max_files=%d limit while indexing %s",
+                    max_files,
+                    directory,
+                )
+                break
+            try:
+                code = p.read_text(encoding="utf-8", errors="replace")
+            except OSError as exc:
+                logger.debug("output_fingerprint: cannot read %s: %s", p, exc)
+                continue
+            self.add(str(p), code)
+            indexed += 1
+        return indexed
+
+    def save(self, path: Path) -> None:
+        """Serialise the index to a JSON file.
+
+        Args:
+            path: Destination file path.
+        """
+        data: dict[str, Any] = {
+            "version": 1,
+            "num_perm": self._config.num_perm,
+            "ngram_size": self._config.ngram_size,
+            "shingle_type": self._config.shingle_type,
+            "entries": [
+                {"label": label, "sig": mh.signature}
+                for label, mh in self._entries
+            ],
+        }
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+
+    @classmethod
+    def load(cls, path: Path, config: FingerprintConfig) -> CorpusIndex:
+        """Deserialise a :class:`CorpusIndex` from a JSON file.
+
+        Args:
+            path: Path to the saved index file.
+            config: Configuration to use for new queries (``threshold``,
+                ``block_on_match``, etc.).  The ``num_perm``, ``ngram_size``
+                and ``shingle_type`` values are taken from the file.
+
+        Returns:
+            A :class:`CorpusIndex` populated with the stored entries.
+
+        Raises:
+            ValueError: If the file uses an incompatible format.
+        """
+        raw: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+        if raw.get("version") != 1:
+            raise ValueError(
+                f"Unsupported fingerprint index version: {raw.get('version')}"
+            )
+        # Merge stored encoding params into the caller-supplied config.
+        merged = FingerprintConfig(
+            enabled=config.enabled,
+            threshold=config.threshold,
+            num_perm=int(raw.get("num_perm", config.num_perm)),
+            ngram_size=int(raw.get("ngram_size", config.ngram_size)),
+            shingle_type=str(raw.get("shingle_type", config.shingle_type)),
+            block_on_match=config.block_on_match,
+            corpus_paths=config.corpus_paths,
+        )
+        index = cls(merged)
+        for entry in raw.get("entries", []):
+            mh = MinHash.from_signature(list(entry["sig"]))
+            index._entries.append((entry["label"], mh))  # noqa: SLF001
+        return index
 
     def query(self, text: str) -> list[FingerprintMatch]:
         """Query the index for matches against the given text."""

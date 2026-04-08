@@ -1,12 +1,14 @@
 """Compliance presets for regulated industries.
 
-Three named presets bundle enterprise safety features into a single flag:
+Four named presets bundle enterprise safety features into a single flag:
 
 - **DEVELOPMENT** — audit logging + WAL + AI content labels.
 - **STANDARD** — adds HMAC audit chain, governed workflow, approval gates,
   execution fingerprint.
 - **REGULATED** — adds signed WAL, data residency, SBOM generation,
   mandatory human review, evidence bundle export.
+- **HIPAA** — PHI detection, file access controls, encryption at rest,
+  HMAC audit chain, governed workflow, BAA-ready evidence bundle.
 
 Each sub-feature can also be enabled independently outside of presets.
 
@@ -44,6 +46,7 @@ class CompliancePreset(Enum):
     DEVELOPMENT = "development"
     STANDARD = "standard"
     REGULATED = "regulated"
+    HIPAA = "hipaa"
 
 
 @dataclass
@@ -66,6 +69,11 @@ class ComplianceConfig:
         data_residency_region: Region identifier (e.g. "eu").
         sbom_enabled: Generate CycloneDX SBOM after each task.
         evidence_bundle: Auto-export execution evidence on run completion.
+        hipaa_mode: Enable comprehensive HIPAA compliance mode.
+        phi_detection: Enable PHI detection in agent inputs/outputs.
+        phi_file_patterns: Additional glob patterns blocking PHI file access.
+        encrypt_state_at_rest: Encrypt .sdd/ state files with AES-256-GCM.
+        baa_contact: Name/email of the BAA signatory for compliance reports.
     """
 
     preset: CompliancePreset | None = None
@@ -83,6 +91,12 @@ class ComplianceConfig:
     data_residency_region: str = ""
     sbom_enabled: bool = False
     evidence_bundle: bool = False
+    # HIPAA-specific controls
+    hipaa_mode: bool = False
+    phi_detection: bool = False
+    phi_file_patterns: list[str] = dataclasses.field(default_factory=list)
+    encrypt_state_at_rest: bool = False
+    baa_contact: str = ""
 
     @classmethod
     def from_preset(cls, preset: CompliancePreset) -> ComplianceConfig:
@@ -112,6 +126,26 @@ class ComplianceConfig:
                 governed_workflow=True,
                 approval_gates=True,
                 execution_fingerprint=True,
+            )
+
+        if preset == CompliancePreset.HIPAA:
+            return cls(
+                preset=preset,
+                audit_logging=True,
+                audit_hmac_chain=True,
+                wal_enabled=True,
+                wal_signed=True,
+                ai_content_labels=False,
+                governed_workflow=True,
+                approval_gates=True,
+                mandatory_human_review=False,
+                execution_fingerprint=True,
+                data_residency=False,
+                sbom_enabled=False,
+                evidence_bundle=True,
+                hipaa_mode=True,
+                phi_detection=True,
+                encrypt_state_at_rest=True,
             )
 
         # REGULATED
@@ -193,6 +227,18 @@ class ComplianceConfig:
         if self.evidence_bundle and not self.audit_logging:
             warnings.append("Evidence bundle export requires audit_logging to be enabled")
 
+        if self.hipaa_mode and not self.phi_detection:
+            warnings.append("HIPAA mode requires phi_detection to be enabled")
+
+        if self.hipaa_mode and not self.audit_hmac_chain:
+            warnings.append("HIPAA mode requires audit_hmac_chain for tamper-evident logging")
+
+        if self.phi_detection and not self.hipaa_mode:
+            warnings.append("phi_detection is intended for use with hipaa_mode")
+
+        if self.encrypt_state_at_rest and not self.hipaa_mode:
+            warnings.append("encrypt_state_at_rest is most useful when hipaa_mode is enabled")
+
         return warnings
 
     def to_dict(self) -> dict[str, Any]:
@@ -213,6 +259,11 @@ class ComplianceConfig:
             "data_residency_region": self.data_residency_region,
             "sbom_enabled": self.sbom_enabled,
             "evidence_bundle": self.evidence_bundle,
+            "hipaa_mode": self.hipaa_mode,
+            "phi_detection": self.phi_detection,
+            "phi_file_patterns": self.phi_file_patterns,
+            "encrypt_state_at_rest": self.encrypt_state_at_rest,
+            "baa_contact": self.baa_contact,
         }
 
 

@@ -9,14 +9,20 @@ Scaling policy:
 - Scale down when queue depth per node drops below the low watermark
 - Respect cooldown periods to avoid flapping
 - Enforce min/max node count boundaries
+
+Also provides scaling backends that execute the decisions:
+- KubernetesHPABackend: patches a Kubernetes HPA replica count
+- NoOpBackend: logs decisions without acting (dry-run / testing)
 """
 
 from __future__ import annotations
 
 import logging
 import time
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -270,3 +276,265 @@ class ClusterAutoscaler:
     def reset_cooldown(self) -> None:
         """Reset the cooldown timer."""
         self._last_scale_time = 0.0
+
+
+# ---------------------------------------------------------------------------
+# Scaling backends
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ScaleResult:
+    """Result of executing a scaling action.
+
+    Attributes:
+        success: Whether the scaling action succeeded.
+        previous_count: Node count before the action.
+        new_count: Node count after the action.
+        backend: Name of the backend that executed the action.
+        error: Error message if the action failed.
+        timestamp: When the action was executed.
+    """
+
+    success: bool = True
+    previous_count: int = 0
+    new_count: int = 0
+    backend: str = ""
+    error: str = ""
+    timestamp: float = field(default_factory=time.time)
+
+
+class ScalingBackend(ABC):
+    """Abstract backend that executes scaling decisions.
+
+    Subclasses implement the actual infrastructure-level scaling (e.g.
+    patching a Kubernetes HPA, calling a cloud API, etc.).
+    """
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Human-readable backend name."""
+
+    @abstractmethod
+    def current_node_count(self) -> int:
+        """Return the current number of active worker nodes."""
+
+    @abstractmethod
+    def scale_to(self, target_count: int) -> ScaleResult:
+        """Scale the cluster to the target node count.
+
+        Args:
+            target_count: Desired number of worker nodes.
+
+        Returns:
+            ScaleResult with the outcome.
+        """
+
+
+class NoOpBackend(ScalingBackend):
+    """Dry-run backend that logs decisions without acting.
+
+    Useful for testing, local development, and validating autoscaler
+    logic before connecting real infrastructure.
+    """
+
+    def __init__(self, simulated_count: int = 1) -> None:
+        self._count = simulated_count
+        self._actions: list[dict[str, Any]] = []
+
+    @property
+    def name(self) -> str:
+        return "noop"
+
+    @property
+    def actions(self) -> list[dict[str, Any]]:
+        """Return the log of simulated scaling actions."""
+        return list(self._actions)
+
+    def current_node_count(self) -> int:
+        return self._count
+
+    def scale_to(self, target_count: int) -> ScaleResult:
+        previous = self._count
+        self._count = target_count
+        self._actions.append(
+            {"from": previous, "to": target_count, "timestamp": time.time()},
+        )
+        logger.info("[noop] Simulated scale %d -> %d", previous, target_count)
+        return ScaleResult(
+            success=True,
+            previous_count=previous,
+            new_count=target_count,
+            backend="noop",
+        )
+
+
+class KubernetesHPABackend(ScalingBackend):
+    """Scale cluster via Kubernetes HPA replica count.
+
+    Uses ``kubectl`` or the Kubernetes Python client to patch the
+    minReplicas/maxReplicas on a target HPA resource.  Falls back
+    gracefully if the cluster is unreachable.
+
+    Args:
+        namespace: Kubernetes namespace.
+        hpa_name: Name of the HorizontalPodAutoscaler resource.
+        kubeconfig_path: Optional path to kubeconfig file.
+    """
+
+    def __init__(
+        self,
+        namespace: str = "default",
+        hpa_name: str = "bernstein-workers",
+        kubeconfig_path: str | None = None,
+    ) -> None:
+        self._namespace = namespace
+        self._hpa_name = hpa_name
+        self._kubeconfig_path = kubeconfig_path
+        self._last_known_count: int = 0
+
+    @property
+    def name(self) -> str:
+        return "kubernetes-hpa"
+
+    def current_node_count(self) -> int:
+        """Query the current HPA replica count.
+
+        Returns 0 if the cluster is unreachable, allowing the autoscaler
+        to trigger a scale-up to minimum.
+        """
+        import subprocess  # noqa: PLC0415
+
+        cmd = [
+            "kubectl", "get", "hpa", self._hpa_name,
+            "-n", self._namespace,
+            "-o", "jsonpath={.status.currentReplicas}",
+        ]
+        if self._kubeconfig_path:
+            cmd.extend(["--kubeconfig", self._kubeconfig_path])
+        try:
+            result = subprocess.run(  # noqa: S603
+                cmd, capture_output=True, text=True, timeout=10,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                count = int(result.stdout.strip())
+                self._last_known_count = count
+                return count
+        except (subprocess.TimeoutExpired, ValueError, OSError) as exc:
+            logger.warning("Failed to query HPA replicas: %s", exc)
+        return self._last_known_count
+
+    def scale_to(self, target_count: int) -> ScaleResult:
+        """Patch the HPA minReplicas to the target count.
+
+        Args:
+            target_count: Desired replica count.
+
+        Returns:
+            ScaleResult with outcome.
+        """
+        import subprocess  # noqa: PLC0415
+
+        previous = self.current_node_count()
+        patch = f'{{"spec":{{"minReplicas":{target_count}}}}}'
+        cmd = [
+            "kubectl", "patch", "hpa", self._hpa_name,
+            "-n", self._namespace,
+            "--type=merge", "-p", patch,
+        ]
+        if self._kubeconfig_path:
+            cmd.extend(["--kubeconfig", self._kubeconfig_path])
+        try:
+            result = subprocess.run(  # noqa: S603
+                cmd, capture_output=True, text=True, timeout=15,
+            )
+            if result.returncode == 0:
+                logger.info(
+                    "Scaled HPA %s/%s: %d -> %d",
+                    self._namespace, self._hpa_name, previous, target_count,
+                )
+                self._last_known_count = target_count
+                return ScaleResult(
+                    success=True,
+                    previous_count=previous,
+                    new_count=target_count,
+                    backend="kubernetes-hpa",
+                )
+            error_msg = result.stderr.strip() or result.stdout.strip()
+            logger.error("kubectl patch failed: %s", error_msg)
+            return ScaleResult(
+                success=False,
+                previous_count=previous,
+                new_count=previous,
+                backend="kubernetes-hpa",
+                error=error_msg,
+            )
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            logger.error("kubectl patch error: %s", exc)
+            return ScaleResult(
+                success=False,
+                previous_count=previous,
+                new_count=previous,
+                backend="kubernetes-hpa",
+                error=str(exc),
+            )
+
+
+# ---------------------------------------------------------------------------
+# Autoscale executor — ties decisions to backends
+# ---------------------------------------------------------------------------
+
+
+class AutoscaleExecutor:
+    """Combines the autoscaler engine with a scaling backend.
+
+    Evaluates a queue snapshot, and if the decision requires a change,
+    executes it through the configured backend.
+
+    Args:
+        autoscaler: The decision engine.
+        backend: The infrastructure backend.
+    """
+
+    def __init__(
+        self,
+        autoscaler: ClusterAutoscaler,
+        backend: ScalingBackend,
+    ) -> None:
+        self._autoscaler = autoscaler
+        self._backend = backend
+        self._results: list[ScaleResult] = []
+
+    @property
+    def autoscaler(self) -> ClusterAutoscaler:
+        """Return the autoscaler engine."""
+        return self._autoscaler
+
+    @property
+    def backend(self) -> ScalingBackend:
+        """Return the scaling backend."""
+        return self._backend
+
+    @property
+    def results(self) -> list[ScaleResult]:
+        """Return past execution results."""
+        return list(self._results)
+
+    def tick(self, snapshot: QueueSnapshot) -> tuple[ScaleDecision, ScaleResult | None]:
+        """Run one evaluation-and-execute cycle.
+
+        Args:
+            snapshot: Current queue state.
+
+        Returns:
+            Tuple of (decision, result).  ``result`` is None when no
+            scaling action was needed.
+        """
+        decision = self._autoscaler.evaluate(snapshot)
+        if decision.direction == ScaleDirection.NONE:
+            return decision, None
+
+        result = self._backend.scale_to(decision.recommended_nodes)
+        self._results.append(result)
+        return decision, result

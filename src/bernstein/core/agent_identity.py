@@ -160,12 +160,22 @@ class AgentCredential:
     algorithm: str = "HS256"
     jti: str = ""
     tenant_id: str = "default"
+    # Zero-trust: task scope — the task IDs this credential is authorised to act on.
+    # An empty list means no task-scope restriction (legacy / manager tokens).
+    task_ids: list[str] = field(default_factory=list)
+    # Zero-trust: file scope — glob patterns for files this credential may write.
+    # An empty list means no file-scope restriction.
+    allowed_files: list[str] = field(default_factory=list)
 
     @property
     def is_valid(self) -> bool:
         if self.revoked:
             return False
         return not (self.expires_at > 0 and time.time() > self.expires_at)
+
+    def is_task_allowed(self, task_id: str) -> bool:
+        """Return True if this credential is scoped to *task_id* (or has no scope)."""
+        return not self.task_ids or task_id in self.task_ids
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -177,6 +187,8 @@ class AgentCredential:
             "algorithm": self.algorithm,
             "jti": self.jti,
             "tenant_id": self.tenant_id,
+            "task_ids": list(self.task_ids),
+            "allowed_files": list(self.allowed_files),
         }
 
     @classmethod
@@ -190,6 +202,8 @@ class AgentCredential:
             algorithm=str(d.get("algorithm", "HS256")),
             jti=str(d.get("jti", "")),
             tenant_id=normalize_tenant_id(str(d.get("tenant_id", "default") or "default")),
+            task_ids=[str(t) for t in d.get("task_ids", [])],
+            allowed_files=[str(f) for f in d.get("allowed_files", [])],
         )
 
 
@@ -232,6 +246,11 @@ class AgentIdentity:
     credential: AgentCredential | None = None
     parent_identity_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    # Zero-trust task scope — tasks this identity is allowed to report on.
+    # Empty means unrestricted (manager / orchestrator tokens).
+    task_ids: list[str] = field(default_factory=list)
+    # Zero-trust file scope — glob patterns for files this identity may write.
+    allowed_files: list[str] = field(default_factory=list)
 
     @property
     def is_active(self) -> bool:
@@ -240,6 +259,10 @@ class AgentIdentity:
     def has_permission(self, permission: str) -> bool:
         """Check if this identity grants a specific permission."""
         return self.is_active and permission in self.permissions
+
+    def is_task_allowed(self, task_id: str) -> bool:
+        """Return True if this identity is scoped to *task_id* (or has no scope)."""
+        return not self.task_ids or task_id in self.task_ids
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -255,6 +278,8 @@ class AgentIdentity:
             "credential": self.credential.to_dict() if self.credential else None,
             "parent_identity_id": self.parent_identity_id,
             "metadata": self.metadata,
+            "task_ids": list(self.task_ids),
+            "allowed_files": list(self.allowed_files),
         }
 
     @classmethod
@@ -273,6 +298,8 @@ class AgentIdentity:
             credential=AgentCredential.from_dict(cred_data) if cred_data else None,
             parent_identity_id=d.get("parent_identity_id"),
             metadata=dict(d.get("metadata", {})),
+            task_ids=[str(t) for t in d.get("task_ids", [])],
+            allowed_files=[str(f) for f in d.get("allowed_files", [])],
         )
 
 
@@ -403,18 +430,45 @@ class AgentIdentityStore:
         extra_permissions: frozenset[str] | None = None,
         metadata: dict[str, Any] | None = None,
         token_expiry_s: float = 0.0,
+        task_ids: list[str] | None = None,
+        allowed_files: list[str] | None = None,
     ) -> tuple[AgentIdentity, str]:
-        """Create a new agent identity with a JWT bearer token.
+        """Create a new agent identity with a short-lived, task-scoped JWT.
 
-        Returns the identity and the raw bearer token (shown only once).
+        Each agent receives a JWT that is scoped to its assigned task IDs and
+        (optionally) a list of file glob patterns it may write.  The task server
+        enforces these scopes on every incoming request so that a compromised
+        agent cannot modify tasks outside its own scope.
+
+        Args:
+            session_id: Unique agent session identifier.
+            role: Agent role (backend, qa, security, etc.).
+            parent_identity_id: ID of the spawning agent's identity.
+            extra_permissions: Additional permissions beyond the role defaults.
+            metadata: Arbitrary metadata (cell_id, provider, model, tenant_id).
+            token_expiry_s: Seconds until the token expires.  Defaults to 4 h for
+                task-scoped tokens or 24 h for unrestricted manager tokens.
+            task_ids: Task IDs this identity is authorised to act on.  An empty
+                list means no restriction (orchestrator / manager role).
+            allowed_files: File glob patterns this identity may write to.  An
+                empty list means no restriction.
+
+        Returns:
+            Tuple of ``(AgentIdentity, raw_token)`` — the raw bearer token is
+            returned exactly once and must be passed to the agent securely.
         """
         identity_id = session_id  # 1:1 mapping with agent session
         permissions = permissions_for_role(role)
         if extra_permissions:
             permissions = permissions | extra_permissions
 
+        scoped_task_ids: list[str] = list(task_ids) if task_ids else []
+        scoped_files: list[str] = list(allowed_files) if allowed_files else []
+
         now = time.time()
-        expiry_s = int(token_expiry_s if token_expiry_s > 0 else 86400)
+        # Use shorter expiry (4 h) for task-scoped tokens to limit blast radius.
+        default_expiry = 14400 if scoped_task_ids else 86400
+        expiry_s = int(token_expiry_s if token_expiry_s > 0 else default_expiry)
         tenant_id = normalize_tenant_id(str((metadata or {}).get("tenant_id", "default")))
         raw_token = create_jwt(
             claims={
@@ -423,6 +477,8 @@ class AgentIdentityStore:
                 "role": role,
                 "scopes": sorted(permissions),
                 "tenant_id": tenant_id,
+                "task_ids": scoped_task_ids,
+                "allowed_files": scoped_files,
             },
             secret=self._jwt_secret,
             expiry_seconds=expiry_s,
@@ -441,6 +497,8 @@ class AgentIdentityStore:
             algorithm="HS256",
             jti=str(claims.get("jti", "")),
             tenant_id=tenant_id,
+            task_ids=scoped_task_ids,
+            allowed_files=scoped_files,
         )
 
         identity = AgentIdentity(
@@ -453,6 +511,8 @@ class AgentIdentityStore:
             credential=credential,
             parent_identity_id=parent_identity_id,
             metadata=metadata or {},
+            task_ids=scoped_task_ids,
+            allowed_files=scoped_files,
         )
 
         self._save(identity)
@@ -469,11 +529,18 @@ class AgentIdentityStore:
                     "permissions": sorted(permissions),
                     "parent_identity_id": parent_identity_id,
                     "token_type": credential.token_type,
+                    "task_ids": scoped_task_ids,
+                    "has_file_scope": bool(scoped_files),
                 },
             )
         )
 
-        logger.info("Created agent identity %s (role=%s)", identity_id, role)
+        logger.info(
+            "Created agent identity %s (role=%s, tasks=%s)",
+            identity_id,
+            role,
+            scoped_task_ids or "unrestricted",
+        )
         return identity, raw_token
 
     def authenticate(self, token: str) -> AgentIdentity | None:
@@ -558,6 +625,15 @@ class AgentIdentityStore:
         claim_scopes = claims.get("scopes", [])
         if not isinstance(claim_scopes, list) or set(map(str, claim_scopes)) != set(identity.permissions):
             return None
+        # Verify task-scope and file-scope claims match the stored credential
+        # (prevents claim-substitution attacks where an attacker tampers with
+        # the token payload to expand their scope).
+        claim_task_ids = claims.get("task_ids", [])
+        if not isinstance(claim_task_ids, list) or sorted(map(str, claim_task_ids)) != sorted(identity.credential.task_ids):
+            return None
+        claim_files = claims.get("allowed_files", [])
+        if not isinstance(claim_files, list) or sorted(map(str, claim_files)) != sorted(identity.credential.allowed_files):
+            return None
 
         if not identity.is_active:
             self._append_audit(
@@ -614,6 +690,44 @@ class AgentIdentityStore:
             )
         )
         return granted
+
+    def validate_task_access(self, identity_id: str, task_id: str) -> bool:
+        """Return True if *identity_id* is permitted to act on *task_id*.
+
+        An identity with no task scope (``task_ids == []``) is unrestricted and
+        always passes.  An identity with an explicit task list only passes when
+        *task_id* is in that list.
+
+        This check is enforced by the task server middleware on every
+        task-mutating request so that a compromised agent cannot affect tasks
+        outside its scope.
+
+        Args:
+            identity_id: The agent identity to check.
+            task_id: The task being acted on.
+
+        Returns:
+            True if access is permitted, False otherwise.
+        """
+        identity = self._load(identity_id)
+        if identity is None or not identity.is_active:
+            return False
+        allowed = identity.is_task_allowed(task_id)
+        if not allowed:
+            self._append_audit(
+                IdentityAuditEvent(
+                    timestamp=time.time(),
+                    identity_id=identity_id,
+                    action="denied",
+                    actor="task-scope",
+                    details={
+                        "task_id": task_id,
+                        "reason": "task not in identity scope",
+                        "allowed_tasks": identity.task_ids,
+                    },
+                )
+            )
+        return allowed
 
     def revoke(self, identity_id: str, *, reason: str = "", actor: str = "admin") -> bool:
         """Revoke an agent identity. Returns True if the identity was found."""

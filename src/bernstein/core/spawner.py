@@ -138,6 +138,36 @@ def _render_signal_check(session_id: str) -> str:
     )
 
 
+def _render_auth_section(token_path: Path) -> str:
+    """Return authentication instructions to inject into every agent's prompt.
+
+    The token file path is referenced by path rather than embedding the raw
+    token so that credentials do not appear in prompt logs.
+
+    Args:
+        token_path: Path to the session-scoped JWT token file (mode 0600).
+
+    Returns:
+        Markdown block instructing the agent to authenticate all requests.
+    """
+    return (
+        "\n## Task Server Authentication\n"
+        "Your agent token is stored at (do NOT print or log its contents):\n"
+        f"```\n{token_path}\n```\n"
+        "Include this header in **all** task server requests:\n"
+        "```bash\n"
+        f'-H "Authorization: Bearer $(cat {token_path})"\n'
+        "```\n"
+        "Example — marking a task complete:\n"
+        "```bash\n"
+        f'curl -s -X POST http://127.0.0.1:8052/tasks/<TASK_ID>/complete \\\n'
+        f'  -H "Authorization: Bearer $(cat {token_path})" \\\n'
+        '  -H "Content-Type: application/json" \\\n'
+        "  -d '{\"result_summary\": \"Done\"}'\n"
+        "```\n"
+    )
+
+
 def _health_check_interval(tasks: list[Task]) -> int:
     """Derive health-check cron interval (minutes) from task batch duration.
 
@@ -773,6 +803,78 @@ class AgentSpawner:
             self._in_process = InProcessAgent(adapter, workdir, pid_dir=pid_dir)
             logger.info("In-process agent backend enabled (wrapping %s)", adapter.name())
 
+        # Zero-trust: lazy agent identity store — loaded on first use.
+        # Stored as a cached property so the auth directory is not created
+        # until the first agent is spawned.
+        self._identity_store_instance: Any = None
+        # Map session_id → token file path for cleanup on reap.
+        self._agent_token_files: dict[str, Path] = {}
+
+    @property
+    def _identity_store(self) -> Any:
+        """Return the AgentIdentityStore, creating it on first access."""
+        if self._identity_store_instance is None:
+            from bernstein.core.agent_identity import AgentIdentityStore
+
+            auth_dir = self._workdir / ".sdd" / "auth"
+            self._identity_store_instance = AgentIdentityStore(auth_dir)
+        return self._identity_store_instance
+
+    def _issue_agent_token(self, session_id: str, role: str, task_ids: list[str]) -> Path:
+        """Issue a short-lived task-scoped JWT and write it to a 0600 token file.
+
+        The token file path is recorded in ``_agent_token_files`` for cleanup
+        when the agent is reaped.
+
+        Args:
+            session_id: The agent session ID (used as identity ID).
+            role: The agent's role.
+            task_ids: Task IDs the agent is authorised to act on.
+
+        Returns:
+            Path to the written token file.
+        """
+        import os
+
+        _, raw_token = self._identity_store.create_identity(
+            session_id,
+            role,
+            task_ids=task_ids,
+            metadata={"source": "spawner"},
+        )
+
+        tokens_dir = self._workdir / ".sdd" / "runtime" / "agent_tokens"
+        tokens_dir.mkdir(parents=True, exist_ok=True)
+        token_path = tokens_dir / f"{session_id}.token"
+
+        fd = os.open(str(token_path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        try:
+            os.write(fd, raw_token.encode("utf-8"))
+        finally:
+            os.close(fd)
+
+        self._agent_token_files[session_id] = token_path
+        logger.info("Issued zero-trust token for session %s (tasks=%s)", session_id, task_ids or "unrestricted")
+        return token_path
+
+    def _revoke_agent_token(self, session_id: str) -> None:
+        """Revoke the agent identity and delete the token file on reap.
+
+        Args:
+            session_id: The agent session ID whose token should be revoked.
+        """
+        try:
+            self._identity_store.revoke(session_id, reason="agent reaped", actor="spawner")
+        except Exception as exc:
+            logger.debug("Could not revoke identity %s: %s", session_id, exc)
+
+        token_path = self._agent_token_files.pop(session_id, None)
+        if token_path is not None and token_path.exists():
+            try:
+                token_path.unlink()
+            except OSError as exc:
+                logger.debug("Could not delete token file %s: %s", token_path, exc)
+
     def set_shutdown_event(self, shutdown_event: threading.Event | None) -> None:
         """Attach the orchestrator shutdown event for spawn/worktree guards."""
         self._shutdown_event = shutdown_event
@@ -1087,6 +1189,17 @@ class AgentSpawner:
             token_budget=task_token_budget,
             meta_messages=meta_messages,
         )
+
+        # Zero-trust: issue a short-lived, task-scoped JWT for this agent.
+        # The token is written to a 0600 file and its path is injected into
+        # the prompt so the agent can include it in task server requests.
+        # We wrap in try/except so auth failures never block spawning.
+        try:
+            task_ids_for_scope = [t.id for t in tasks]
+            _token_path = self._issue_agent_token(session_id, role, task_ids_for_scope)
+            prompt = prompt + _render_auth_section(_token_path)
+        except Exception as _token_exc:
+            logger.warning("Zero-trust token issuance failed for %s: %s", session_id, _token_exc)
 
         # Determine working directory: repo-specific > worktree > shared workdir
         spawn_cwd = self._workdir

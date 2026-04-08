@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from bernstein.core.output_fingerprint import (
@@ -342,3 +345,88 @@ class TestDataclasses:
         r = FingerprintResult(passed=True, blocked=False, detail="ok")
         assert r.matches == []
         assert r.errors == []
+
+
+# ---------------------------------------------------------------------------
+# MinHash.signature / from_signature (new persistence helpers)
+# ---------------------------------------------------------------------------
+
+
+class TestMinHashPersistence:
+    def test_signature_property_length(self) -> None:
+        mh = MinHash(num_perm=64)
+        mh.update({"abc", "bcd"})
+        sig = mh.signature
+        assert len(sig) == 64
+
+    def test_from_signature_roundtrip(self) -> None:
+        mh = compute_minhash("hello world")
+        restored = MinHash.from_signature(mh.signature)
+        assert mh.signature == restored.signature
+
+    def test_roundtripped_minhash_compares_equal(self) -> None:
+        code = "def add(a, b): return a + b"
+        mh = compute_minhash(code)
+        restored = MinHash.from_signature(mh.signature)
+        assert mh.jaccard(restored) == pytest.approx(1.0)
+
+
+# ---------------------------------------------------------------------------
+# CorpusIndex.add_directory / save / load
+# ---------------------------------------------------------------------------
+
+
+class TestCorpusIndexPersistence:
+    _SAMPLE = "def greet(name): return f'Hello {name}'"
+    _OTHER = "class DataProcessor: pass"
+
+    def test_add_directory_counts_files(self, tmp_path: Path) -> None:
+        (tmp_path / "a.py").write_text(self._SAMPLE)
+        (tmp_path / "b.py").write_text(self._OTHER)
+        (tmp_path / "notes.txt").write_text("not python")
+        cfg = FingerprintConfig(enabled=True)
+        idx = CorpusIndex(cfg)
+        count = idx.add_directory(tmp_path, glob="*.py")
+        assert count == 2
+        assert idx.size == 2
+
+    def test_add_directory_max_files_respected(self, tmp_path: Path) -> None:
+        for i in range(6):
+            (tmp_path / f"f{i}.py").write_text(self._SAMPLE)
+        cfg = FingerprintConfig(enabled=True)
+        idx = CorpusIndex(cfg)
+        count = idx.add_directory(tmp_path, glob="*.py", max_files=4)
+        assert count == 4
+        assert idx.size == 4
+
+    def test_save_creates_file(self, tmp_path: Path) -> None:
+        cfg = FingerprintConfig(enabled=True)
+        idx = CorpusIndex(cfg)
+        idx.add("sample.py", self._SAMPLE)
+        out = tmp_path / "idx.json"
+        idx.save(out)
+        assert out.exists()
+        raw = json.loads(out.read_text())
+        assert raw["version"] == 1
+        assert len(raw["entries"]) == 1
+
+    def test_load_roundtrip_preserves_matches(self, tmp_path: Path) -> None:
+        cfg = FingerprintConfig(enabled=True, threshold=0.5)
+        idx = CorpusIndex(cfg)
+        idx.add("sample.py", self._SAMPLE)
+        out = tmp_path / "idx.json"
+        idx.save(out)
+
+        loaded = CorpusIndex.load(out, cfg)
+        assert loaded.size == 1
+        matches = loaded.query(self._SAMPLE)
+        flagged = [m for m in matches if m.flagged]
+        assert len(flagged) == 1
+        assert flagged[0].source_label == "sample.py"
+
+    def test_load_bad_version_raises(self, tmp_path: Path) -> None:
+        bad = tmp_path / "bad.json"
+        bad.write_text(json.dumps({"version": 99, "entries": []}))
+        cfg = FingerprintConfig(enabled=True)
+        with pytest.raises(ValueError, match="version"):
+            CorpusIndex.load(bad, cfg)

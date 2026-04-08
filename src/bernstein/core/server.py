@@ -1208,11 +1208,20 @@ def create_app(
     if readonly:
         application.add_middleware(ReadOnlyMiddleware)
 
-    # Auth middleware — supports SSO JWTs plus legacy bearer tokens.
+    # Auth middleware — supports SSO JWTs, agent identity JWTs (zero-trust),
+    # and legacy bearer tokens.  The agent identity store is shared with
+    # application state so spawned agents can authenticate per-request.
+    from bernstein.core.agent_identity import AgentIdentityStore
+
+    _auth_dir = sdd_dir / "auth"
+    _agent_identity_store = AgentIdentityStore(_auth_dir)
+    application.state.identity_store = _agent_identity_store  # type: ignore[attr-defined]
+
     application.add_middleware(
         SSOAuthMiddleware,
         auth_service=auth_service,
         legacy_token=legacy_auth_token,
+        agent_identity_store=_agent_identity_store,
     )
 
     # Per-endpoint request rate limiting — reads buckets from app.state.seed_config.

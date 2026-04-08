@@ -2,7 +2,7 @@
 
 This registry maps workflow specs in `docs/workflows/` to current implementation status in the codebase.
 
-Last updated: 2026-04-04
+Last updated: 2026-04-08
 
 ---
 
@@ -24,6 +24,8 @@ Last updated: 2026-04-04
 | Permission mode hierarchy | `WORKFLOW-permission-mode-hierarchy.md` | Shipped | bypass→plan→auto→default mode hierarchy with severity relaxation + hook resolution |
 | Verification nudge | `WORKFLOW-verification-nudge.md` | Shipped | Tracks unverified task completions and alerts when threshold exceeded |
 | Event-sourced task transitions (CQRS) | `WORKFLOW-event-sourced-task-transitions.md` | Draft | Append-only event log per task; state derived by replaying events, not mutable status field |
+| Multi-tenant task isolation (ENT-001) | `WORKFLOW-multi-tenant-task-isolation.md` | Review | Tenant-scoped task CRUD, backlog, metrics, quotas — WAL/audit dirs provisioned but unused |
+| Cluster node auth hardening (ENT-002) | `WORKFLOW-cluster-node-auth.md` | Review | JWT-based auth for node registration/heartbeats — revocation is in-memory only |
 
 Archived/deprecated reference docs remain under `docs/workflows/archive/`.
 
@@ -76,6 +78,28 @@ Trigger config path: `.sdd/config/triggers.yaml`
 - `src/bernstein/core/permission_rules.py` — rule engine with severity-based evaluation
 - `src/bernstein/core/permission_matrix.py` — hook-permission resolution matrix
 - `src/bernstein/core/verification_nudge.py` — unverified-completion tracking and alerts
+
+### Multi-tenant isolation workflows
+
+- `src/bernstein/core/tenanting.py`
+- `src/bernstein/core/tenant_isolation.py`
+- `src/bernstein/core/tenant_rate_limiter.py`
+- `src/bernstein/core/task_store.py` (tenant-scoped backlog/archive mirroring)
+- `src/bernstein/core/routes/tasks.py` (tenant scope resolution, quota checks)
+- `src/bernstein/core/routes/costs.py` (tenant-scoped cost queries)
+- `src/bernstein/core/metric_collector.py` (tenant metrics mirroring)
+
+Tenant config path: `bernstein.yaml` → `tenants:` section
+Tenant data path: `.sdd/{tenant_id}/`
+
+### Cluster auth and node registration workflows
+
+- `src/bernstein/core/cluster.py`
+- `src/bernstein/core/cluster_auth.py`
+- `src/bernstein/core/jwt_tokens.py`
+- `src/bernstein/core/routes/tasks.py` (cluster endpoints: /cluster/nodes/*)
+
+Cluster config path: `ClusterAuthConfig` (code-level config, no file)
 
 ### Review and quality workflows
 

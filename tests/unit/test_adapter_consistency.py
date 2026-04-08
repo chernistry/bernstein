@@ -3,8 +3,11 @@
 Parametrized test instantiating every adapter, verifying protocol compliance:
 - All adapters are CLIAdapter subclasses
 - All have spawn() with the correct signature
-- All have name() method returning a string
+- All have name() method returning a non-empty string
 - spawn() returns SpawnResult with required fields
+- detect_tier() returns ApiTierInfo or None — never raises
+- is_installed() is callable and returns bool (when present)
+- build_command() / _build_command() returns a list of strings (when present)
 """
 
 from __future__ import annotations
@@ -12,13 +15,14 @@ from __future__ import annotations
 import inspect
 import subprocess
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from bernstein.adapters.base import CLIAdapter, SpawnResult
 from bernstein.adapters.registry import _ADAPTERS, get_adapter
-from bernstein.core.models import ModelConfig
+from bernstein.core.models import ApiTierInfo, ModelConfig
 
 # ---------------------------------------------------------------------------
 # Adapter factories — enumerate every known adapter
@@ -96,6 +100,7 @@ def _make_popen_mock(pid: int = 42) -> MagicMock:
     m = MagicMock(spec=subprocess.Popen)
     m.pid = pid
     m.stdout = MagicMock()
+    # Return 0 so _probe_fast_exit treats it as a clean exit (not a spawn failure)
     m.wait.return_value = 0
     m.poll.return_value = None
     return m
@@ -125,23 +130,137 @@ class TestAdapterSpawnResult:
 
         model_config = ModelConfig(model="sonnet", effort="high")
 
-        with patch(f"{mod}.subprocess.Popen", return_value=popen_mock):
+        # Patch subprocess.Popen at the adapter's module level and also patch
+        # shutil.which globally so IaCAdapter can resolve its tool binary.
+        with (
+            patch(f"{mod}.subprocess.Popen", return_value=popen_mock),
+            patch("shutil.which", return_value="/usr/bin/fake-tool"),
+        ):
             try:
                 result = adapter.spawn(
                     prompt="Test prompt",
                     workdir=tmp_path,
                     model_config=model_config,
                     session_id="test-sess-001",
-                    timeout_seconds=300,
+                    timeout_seconds=0,
                 )
             except Exception:
-                # Some adapters check for binaries (shutil.which) or env vars
+                # Some adapters check for binaries or env vars at runtime
                 pytest.skip(f"{adapter_name} needs external binary/config")
                 return
 
+        # Cancel any lingering watchdog timers
+        if result.timeout_timer is not None:
+            result.timeout_timer.cancel()
+
         assert isinstance(result, SpawnResult), f"{adapter_name}.spawn() returned {type(result)}, expected SpawnResult"
         assert isinstance(result.pid, int), f"{adapter_name}: pid must be int"
-        assert result.log_path is not None, f"{adapter_name}: log_path must be set"
+        assert result.pid > 0, f"{adapter_name}: pid must be positive, got {result.pid}"
+        assert isinstance(result.log_path, Path), f"{adapter_name}: log_path must be a Path"
+
+
+# ---------------------------------------------------------------------------
+# TEST-006b-extra: detect_tier() contract
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "adapter_name,adapter",
+    _TESTABLE_ADAPTERS,
+    ids=[t[0] for t in _TESTABLE_ADAPTERS],
+)
+class TestAdapterDetectTier:
+    """detect_tier() must return ApiTierInfo or None without raising."""
+
+    def test_detect_tier_returns_valid_type(
+        self,
+        adapter_name: str,
+        adapter: CLIAdapter,
+    ) -> None:
+        result = adapter.detect_tier()
+        assert result is None or isinstance(result, ApiTierInfo), (
+            f"{adapter_name}: detect_tier() returned {type(result).__name__}, "
+            "expected ApiTierInfo or None"
+        )
+
+
+# ---------------------------------------------------------------------------
+# TEST-006b-extra: is_installed() optional contract
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "adapter_name,adapter",
+    _TESTABLE_ADAPTERS,
+    ids=[t[0] for t in _TESTABLE_ADAPTERS],
+)
+class TestAdapterIsInstalled:
+    """If the adapter exposes is_installed(), it must return bool."""
+
+    def test_is_installed_callable_and_returns_bool(
+        self,
+        adapter_name: str,
+        adapter: CLIAdapter,
+    ) -> None:
+        if not hasattr(adapter, "is_installed"):
+            pytest.skip(f"{adapter_name!r} does not implement is_installed()")
+        fn = adapter.is_installed  # type: ignore[attr-defined]
+        assert callable(fn), f"{adapter_name}: is_installed is not callable"
+        with patch("shutil.which", return_value=None):
+            result = fn()
+        assert isinstance(result, bool), (
+            f"{adapter_name}: is_installed() returned {type(result).__name__}, expected bool"
+        )
+
+
+# ---------------------------------------------------------------------------
+# TEST-006b-extra: build_command() / _build_command() optional contract
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "adapter_name,adapter",
+    _TESTABLE_ADAPTERS,
+    ids=[t[0] for t in _TESTABLE_ADAPTERS],
+)
+class TestAdapterBuildCommand:
+    """If the adapter exposes build_command() or _build_command(), it must return list[str]."""
+
+    def test_build_command_returns_list_of_strings(
+        self,
+        adapter_name: str,
+        adapter: CLIAdapter,
+        tmp_path: Path,
+    ) -> None:
+        fn_name: str | None = None
+        if hasattr(adapter, "build_command"):
+            fn_name = "build_command"
+        elif hasattr(adapter, "_build_command"):
+            fn_name = "_build_command"
+
+        if fn_name is None:
+            pytest.skip(f"{adapter_name!r} does not expose build_command() or _build_command()")
+
+        fn = getattr(adapter, fn_name)
+        assert callable(fn), f"{adapter_name}: {fn_name} is not callable"
+
+        try:
+            result: Any = fn(
+                ModelConfig(model="sonnet", effort="low"),
+                None,  # mcp_config
+                "test prompt",
+            )
+        except (TypeError, AttributeError):
+            # Accept adapters with different _build_command signatures — just
+            # verify the method exists and is callable, which we already did.
+            return
+
+        assert isinstance(result, list), (
+            f"{adapter_name}: {fn_name}() returned {type(result).__name__}, expected list"
+        )
+        assert all(isinstance(item, str) for item in result), (
+            f"{adapter_name}: {fn_name}() returned non-string items in list"
+        )
 
 
 # ---------------------------------------------------------------------------

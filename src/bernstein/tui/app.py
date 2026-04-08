@@ -41,10 +41,8 @@ def _build_app_bindings() -> list[BindingType]:
     User overrides from ~/.bernstein/keybindings.yaml and keybindings.json
     are applied automatically.
     """
-    return [
-        Binding(e.key, e.action, e.description, show=e.show, priority=e.priority)
-        for e in _resolve_all_bindings()
-    ]
+    return [Binding(e.key, e.action, e.description, show=e.show, priority=e.priority) for e in _resolve_all_bindings()]
+
 
 # ---------------------------------------------------------------------------
 # Constants

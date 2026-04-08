@@ -27,6 +27,17 @@ from bernstein.core.models import (
     Task,
     TaskStatus,
 )
+from bernstein.core.spawn_errors import (
+    AdapterNotInstalledError,
+    CategorizedSpawnError,
+    ModelNotAvailableError,
+    PermissionDeniedError,
+    PromptTooLongError,
+    ResourceExhaustedError,
+    RetryStrategy,
+    WorktreeCreationError,
+    classify_spawn_error,
+)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -316,3 +327,146 @@ class TestSequentialFailures:
                     model_config=ModelConfig(model="sonnet", effort="high"),
                     session_id="sess-multi",
                 )
+
+
+# ---------------------------------------------------------------------------
+# TEST-005h: Failure injection matrix — each error path → correct category + strategy
+# ---------------------------------------------------------------------------
+
+
+# (raw_exception, expected_category_type, expected_retry_strategy)
+_CLASSIFY_CASES: list[tuple[Exception, type[CategorizedSpawnError], RetryStrategy]] = [
+    (
+        FileNotFoundError("claude: not found"),
+        AdapterNotInstalledError,
+        RetryStrategy.NO_RETRY,
+    ),
+    (
+        RuntimeError("Model not available: opus-3 deprecated"),
+        ModelNotAvailableError,
+        RetryStrategy.RETRY_FALLBACK,
+    ),
+    (
+        ValueError("Prompt too long, exceeds context window"),
+        PromptTooLongError,
+        RetryStrategy.RETRY_FALLBACK,
+    ),
+    (
+        RuntimeError("git worktree add failed: stale lock"),
+        WorktreeCreationError,
+        RetryStrategy.RETRY_AFTER_FIX,
+    ),
+    (
+        PermissionError("Permission denied: /var/run/agent.sock"),
+        PermissionDeniedError,
+        RetryStrategy.RETRY_AFTER_FIX,
+    ),
+    (
+        OSError("No space left on device"),
+        ResourceExhaustedError,
+        RetryStrategy.RETRY_SAME,
+    ),
+    (
+        MemoryError("Out of memory"),
+        ResourceExhaustedError,
+        RetryStrategy.RETRY_SAME,
+    ),
+    (
+        RuntimeError("HTTP 403 Forbidden"),
+        PermissionDeniedError,
+        RetryStrategy.RETRY_AFTER_FIX,
+    ),
+    (
+        OSError("Too many open files"),
+        ResourceExhaustedError,
+        RetryStrategy.RETRY_SAME,
+    ),
+]
+
+
+class TestFailureInjectionMatrix:
+    """TEST-005h: Parametrized failure injection across all error categories.
+
+    Verifies that each error path produces the correct CategorizedSpawnError
+    subclass (failure category) with the correct RetryStrategy attached.
+    """
+
+    @pytest.mark.parametrize(
+        "raw_error,expected_type,expected_strategy",
+        _CLASSIFY_CASES,
+        ids=[type(c[0]).__name__ + "/" + c[1].__name__ for c in _CLASSIFY_CASES],
+    )
+    def test_classify_yields_correct_category_and_strategy(
+        self,
+        raw_error: Exception,
+        expected_type: type[CategorizedSpawnError],
+        expected_strategy: RetryStrategy,
+    ) -> None:
+        """classify_spawn_error maps each raw error to the right category + strategy."""
+        classified = classify_spawn_error(raw_error)
+        assert isinstance(classified, expected_type), (
+            f"Expected {expected_type.__name__}, got {type(classified).__name__}: {classified}"
+        )
+        assert classified.retry_strategy == expected_strategy, (
+            f"Expected {expected_strategy}, got {classified.retry_strategy}"
+        )
+
+    @pytest.mark.parametrize(
+        "pre_categorized,expected_strategy",
+        [
+            (AdapterNotInstalledError("not installed"), RetryStrategy.NO_RETRY),
+            (ModelNotAvailableError("model gone"), RetryStrategy.RETRY_FALLBACK),
+            (PromptTooLongError("too long"), RetryStrategy.RETRY_FALLBACK),
+            (WorktreeCreationError("stale lock"), RetryStrategy.RETRY_AFTER_FIX),
+            (PermissionDeniedError("bad key"), RetryStrategy.RETRY_AFTER_FIX),
+            (ResourceExhaustedError("disk full"), RetryStrategy.RETRY_SAME),
+        ],
+        ids=[
+            "adapter-not-installed",
+            "model-not-available",
+            "prompt-too-long",
+            "worktree-creation",
+            "permission-denied",
+            "resource-exhausted",
+        ],
+    )
+    def test_adapter_injection_propagates_category_and_strategy(
+        self,
+        pre_categorized: CategorizedSpawnError,
+        expected_strategy: RetryStrategy,
+        tmp_path: Path,
+    ) -> None:
+        """Errors injected via _FailingAdapter propagate with correct type and strategy."""
+        adapter = _FailingAdapter(pre_categorized)
+        with pytest.raises(type(pre_categorized)) as exc_info:
+            adapter.spawn(
+                prompt="failure injection test",
+                workdir=tmp_path,
+                model_config=ModelConfig(model="sonnet", effort="high"),
+                session_id="sess-matrix",
+            )
+        raised = exc_info.value
+        assert isinstance(raised, CategorizedSpawnError)
+        assert raised.retry_strategy == expected_strategy
+
+    def test_passthrough_preserves_identity(self) -> None:
+        """classify_spawn_error returns the same object for already-categorized errors."""
+        original = WorktreeCreationError("stale .git/worktrees lock")
+        result = classify_spawn_error(original)
+        assert result is original
+
+    def test_unknown_error_gets_no_retry(self) -> None:
+        """Unrecognized errors default to NO_RETRY base category."""
+        raw = RuntimeError("something completely unexpected happened")
+        classified = classify_spawn_error(raw)
+        assert isinstance(classified, CategorizedSpawnError)
+        assert classified.retry_strategy == RetryStrategy.NO_RETRY
+
+    def test_to_dict_captures_category_metadata(self) -> None:
+        """to_dict() exposes error type, strategy, provider, and detail for telemetry."""
+        err = ModelNotAvailableError("opus deprecated", provider="anthropic", detail="HTTP 404")
+        d = err.to_dict()
+        assert d["error_type"] == "ModelNotAvailableError"
+        assert d["retry_strategy"] == RetryStrategy.RETRY_FALLBACK
+        assert d["provider"] == "anthropic"
+        assert "404" in d["detail"]

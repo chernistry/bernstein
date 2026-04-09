@@ -205,7 +205,7 @@ def _make_orch_with_budget(tmp_path: Path) -> SimpleNamespace:
 
     orch = SimpleNamespace()
     orch._config = SimpleNamespace(
-        server_url="http://server",
+        server_url="https://server",
         max_task_retries=3,
         recovery="restart",
         max_crash_retries=3,

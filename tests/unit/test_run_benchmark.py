@@ -20,11 +20,11 @@ def _import_harness():  # type: ignore[return]
     spec = importlib.util.spec_from_file_location("run_benchmark", _HARNESS)
     if spec is None or spec.loader is None:
         pytest.skip("benchmarks/run_benchmark.py not found")
+    loader = spec.loader
     mod = importlib.util.module_from_spec(spec)
     # Register in sys.modules so dataclass field type resolution works
     sys.modules["run_benchmark"] = mod
-    assert spec.loader is not None
-    spec.loader.exec_module(mod)
+    loader.exec_module(mod)
     return mod
 
 

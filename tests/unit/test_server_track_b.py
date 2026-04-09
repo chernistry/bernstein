@@ -39,7 +39,7 @@ async def test_health_reports_restart_count_and_memory(tmp_path: Path) -> None:
     )
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="https://test") as client:
         response = await client.get("/health")
 
     assert response.status_code == 200
@@ -76,7 +76,7 @@ async def test_status_includes_runtime_summary_block(tmp_path: Path) -> None:
     app_state.store._archive_path = archive_path  # pyright: ignore[reportPrivateUsage]
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="https://test") as client:
         response = await client.get("/status")
 
     assert response.status_code == 200
@@ -104,7 +104,7 @@ async def test_status_includes_config_provenance(tmp_path: Path, monkeypatch: py
     sdd_config.write_text("cli: gemini\nmax_agents: 8\n", encoding="utf-8")
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="https://test") as client:
         response = await client.get("/status")
 
     assert response.status_code == 200
@@ -128,7 +128,7 @@ async def test_routing_bandit_invalid_state_returns_generic_error(tmp_path: Path
     (routing_dir / "bandit_state.json").write_text("{", encoding="utf-8")
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="https://test") as client:
         response = await client.get("/routing/bandit")
 
     assert response.status_code == 500
@@ -173,7 +173,7 @@ async def test_routing_bandit_exposes_linucb_shadow_and_exploration_stats(tmp_pa
     (routing_dir / "policy.json").write_text(json.dumps({"total_updates": 12}), encoding="utf-8")
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="https://test") as client:
         response = await client.get("/routing/bandit")
 
     assert response.status_code == 200
@@ -194,7 +194,7 @@ async def test_cache_stats_invalid_manifest_hides_parse_details(tmp_path: Path) 
     (caching_dir / "manifest.jsonl").write_text("{", encoding="utf-8")
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="https://test") as client:
         response = await client.get("/cache-stats")
 
     assert response.status_code == 500
@@ -210,7 +210,7 @@ async def test_memory_audit_invalid_json_hides_parse_details(tmp_path: Path) -> 
     (memory_dir / "lessons.jsonl").write_text("{", encoding="utf-8")
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="https://test") as client:
         response = await client.get("/memory/audit")
 
     assert response.status_code == 200

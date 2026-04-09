@@ -55,13 +55,13 @@ def _task(task_id: str, *, description: str = "Split me", estimated_minutes: int
 
 
 def test_should_split_when_estimate_exceeds_one_hour() -> None:
-    splitter = TaskSplitter(client=MagicMock(), server_url="http://server")
+    splitter = TaskSplitter(client=MagicMock(), server_url="https://server")
 
     assert splitter.should_split(_task("parent", estimated_minutes=61)) is True
 
 
 def test_should_split_when_description_is_very_long() -> None:
-    splitter = TaskSplitter(client=MagicMock(), server_url="http://server")
+    splitter = TaskSplitter(client=MagicMock(), server_url="https://server")
     description = "word " * 205
 
     assert splitter.should_split(_task("parent", description=description, estimated_minutes=30)) is True
@@ -84,14 +84,14 @@ def test_split_creates_subtasks_and_marks_parent_waiting() -> None:
         SimpleNamespace(raise_for_status=lambda: None, json=lambda: {"id": "parent"}),
     ]
 
-    created = TaskSplitter(client=client, server_url="http://server").split(parent, manager)
+    created = TaskSplitter(client=client, server_url="https://server").split(parent, manager)
 
     assert created == ["sub-1", "sub-2"]
     create_body = client.post.call_args_list[0].kwargs["json"]
     assert create_body["parent_task_id"] == "parent"
     assert "[subtask of parent]" in create_body["description"]
     wait_call = client.post.call_args_list[-1]
-    assert wait_call.args[0] == "http://server/tasks/parent/wait-for-subtasks"
+    assert wait_call.args[0] == "https://server/tasks/parent/wait-for-subtasks"
     assert wait_call.kwargs["json"] == {"subtask_count": 2}
 
 
@@ -159,7 +159,7 @@ class TestBuildParentContext:
     """_build_parent_context extracts goal, description, progress, and files."""
 
     def _splitter(self) -> TaskSplitter:
-        return TaskSplitter(client=MagicMock(), server_url="http://server")
+        return TaskSplitter(client=MagicMock(), server_url="https://server")
 
     def test_includes_parent_goal(self) -> None:
         task = _make_task("p1", title="Add authentication to the API")
@@ -226,7 +226,7 @@ class TestSplitPassesParentContext:
             SimpleNamespace(raise_for_status=lambda: None, json=lambda: {"id": "parent-1"}),
         ]
 
-        TaskSplitter(client=client, server_url="http://server").split(parent, manager)
+        TaskSplitter(client=client, server_url="https://server").split(parent, manager)
 
         # Both subtask POST bodies must include parent_context
         for call in client.post.call_args_list[:2]:
@@ -259,7 +259,7 @@ class TestSplitPassesParentContext:
             SimpleNamespace(raise_for_status=lambda: None, json=lambda: {"id": "bare"}),
         ]
 
-        TaskSplitter(client=client, server_url="http://server").split(parent, manager)
+        TaskSplitter(client=client, server_url="https://server").split(parent, manager)
 
         # Even with minimal parent, the goal line is always included, so parent_context is set
         for call in client.post.call_args_list[:2]:

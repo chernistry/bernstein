@@ -270,12 +270,7 @@ class TestBanditPolicy:
         identity = _identity(len(x))
         updated = _sherman_morrison_update(identity, x)
 
-        expected = _inv(
-            [
-                [identity[row][col] + (x[row] * x[col]) for col in range(len(x))]
-                for row in range(len(x))
-            ]
-        )
+        expected = _inv([[identity[row][col] + (x[row] * x[col]) for col in range(len(x))] for row in range(len(x))])
         for row_index, row in enumerate(updated):
             for col_index, value in enumerate(row):
                 assert value == pytest.approx(expected[row_index][col_index], abs=1e-8)
@@ -503,7 +498,9 @@ class TestBanditRouter:
             executed_effort="low",
         )
 
-        router.record_outcome(task=task, model="haiku", effort="low", cost_usd=0.2, quality_score=1.0, budget_ceiling=1.0)
+        router.record_outcome(
+            task=task, model="haiku", effort="low", cost_usd=0.2, quality_score=1.0, budget_ceiling=1.0
+        )
         router.save()
 
         shadow_stats = router.summary()["shadow_stats"]

@@ -369,7 +369,7 @@ def test_anthropic_batch_client_poll_fetches_results_url() -> None:
         model="claude-3-7-sonnet-20250219",
         effort="high",
         external_id="msgbatch_123",
-        worktree_path="/tmp/worktree",
+        worktree_path="/var/lib/bernstein/worktree",
         status=BatchJobStatus.SUBMITTED,
         task_payload={"id": "T-123"},
     )

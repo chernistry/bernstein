@@ -463,7 +463,13 @@ class TestFullSpawnExecuteVerifyMergePipeline:
         await asyncio.to_thread(result.proc.wait, 10)
 
         # Commit the agent's output (simulating agent commit step)
-        subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
+        await asyncio.to_thread(
+            subprocess.run,
+            ["git", "add", "."],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+        )
         await asyncio.to_thread(
             subprocess.run,
             ["git", "commit", "-m", "agent: create result.py"],

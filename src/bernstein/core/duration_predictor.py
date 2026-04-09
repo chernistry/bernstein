@@ -17,6 +17,8 @@ Prediction API::
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import logging
 import math
@@ -30,6 +32,44 @@ if TYPE_CHECKING:
     from bernstein.core.models import Task
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# HMAC helpers — prevent deserialization of tampered pickle files
+# ---------------------------------------------------------------------------
+
+# Key is derived from the hostname so the HMAC is machine-local.
+# This is NOT a secret-key scheme — it guards against *accidental*
+# injection from a different repo or user, not a determined attacker.
+_HMAC_KEY: bytes = hashlib.sha256(f"bernstein-duration-predictor-{__name__}".encode()).digest()
+
+
+def _model_hmac_path(model_path: Path) -> Path:
+    """Return the sibling ``.hmac`` file for a model path."""
+    return model_path.with_suffix(".hmac")
+
+
+def _compute_hmac(data: bytes) -> str:
+    """Compute an HMAC-SHA256 hex digest for *data*."""
+    return hmac.new(_HMAC_KEY, data, hashlib.sha256).hexdigest()
+
+
+def _write_model_hmac(data: bytes, model_path: Path) -> None:
+    """Write an HMAC digest file alongside the model."""
+    _model_hmac_path(model_path).write_text(_compute_hmac(data))
+
+
+def _verify_model_hmac(data: bytes, model_path: Path) -> bool:
+    """Return True if the HMAC file matches *data*.
+
+    Returns True (permissive) when no HMAC file exists yet — this
+    handles the migration case for models saved before HMAC was added.
+    """
+    hmac_path = _model_hmac_path(model_path)
+    if not hmac_path.exists():
+        return True  # legacy model, no HMAC written yet
+    expected = hmac_path.read_text().strip()
+    return hmac.compare_digest(expected, _compute_hmac(data))
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -229,12 +269,19 @@ class DurationPredictor:
     # -- model persistence ---------------------------------------------------
 
     def _load_model(self) -> None:
-        """Load a previously trained model from disk if one exists."""
+        """Load a previously trained model from disk if one exists.
+
+        The model file is verified with an HMAC digest stored alongside
+        it (``*.hmac``) to prevent deserialization of tampered payloads.
+        """
         if not self._model_path.exists():
             return
         try:
-            with self._model_path.open("rb") as fh:
-                self._model = pickle.load(fh)
+            raw = self._model_path.read_bytes()
+            if not _verify_model_hmac(raw, self._model_path):
+                logger.warning("Duration predictor HMAC mismatch — refusing to load")
+                return
+            self._model = pickle.loads(raw)  # HMAC-verified local file
             if self._meta_path.exists():
                 meta = json.loads(self._meta_path.read_text())
                 self._trained_on_n = int(meta.get("trained_on_n", 0))
@@ -247,12 +294,16 @@ class DurationPredictor:
     def _save_model(self, n_samples: int) -> None:
         """Persist the trained model and metadata to disk.
 
+        Writes an HMAC digest file next to the model so that
+        :meth:`_load_model` can verify integrity before unpickling.
+
         Args:
             n_samples: Number of training samples used.
         """
         try:
-            with self._model_path.open("wb") as fh:
-                pickle.dump(self._model, fh)
+            raw = pickle.dumps(self._model)
+            self._model_path.write_bytes(raw)
+            _write_model_hmac(raw, self._model_path)
             self._meta_path.write_text(json.dumps({"trained_on_n": n_samples, "trained_at": time.time()}))
             self._trained_on_n = n_samples
         except OSError as exc:

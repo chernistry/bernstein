@@ -33,7 +33,7 @@ class AnalyzerCacheData(TypedDict):
 
 def _file_hash(path: Path) -> str:
     """Return a short content hash for a file."""
-    return hashlib.sha1(path.read_bytes()).hexdigest()[:16]
+    return hashlib.sha1(path.read_bytes(), usedforsecurity=False).hexdigest()[:16]
 
 
 def _iter_project_packages(src_root: Path) -> set[str]:

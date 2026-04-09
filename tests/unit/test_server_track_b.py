@@ -140,6 +140,52 @@ async def test_routing_bandit_invalid_state_returns_generic_error(tmp_path: Path
 
 
 @pytest.mark.anyio
+async def test_routing_bandit_exposes_linucb_shadow_and_exploration_stats(tmp_path: Path) -> None:
+    app = _make_app(tmp_path)
+    app_state = cast(Any, app.state)
+    routing_dir = Path(app_state.store.jsonl_path).parent.parent / "routing"
+    routing_dir.mkdir(parents=True, exist_ok=True)
+    (routing_dir / "bandit_state.json").write_text(
+        json.dumps(
+            {
+                "mode": "bandit",
+                "total_completions": 12,
+                "warmup_min": 5,
+                "exploration_rate": 0.0866,
+                "selection_counts": {"haiku": 3, "sonnet": 9},
+                "exploration_stats": {
+                    "haiku": {"samples": 3, "last": 0.12, "mean": 0.11, "variance": 0.001},
+                    "sonnet": {"samples": 9, "last": 0.04, "mean": 0.05, "variance": 0.0004},
+                },
+                "shadow_stats": {
+                    "total_decisions": 4,
+                    "matched_outcomes": 3,
+                    "pending_outcomes": 1,
+                    "agreement_rate": 0.666667,
+                    "disagreement_count": 1,
+                    "avg_executed_reward_when_agree": 0.91,
+                    "avg_executed_reward_when_disagree": 0.62,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    (routing_dir / "policy.json").write_text(json.dumps({"total_updates": 12}), encoding="utf-8")
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/routing/bandit")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["active"] is True
+    assert payload["total_policy_updates"] == 12
+    assert payload["selection_frequency"]["sonnet"] == 9
+    assert payload["exploration_stats"]["haiku"]["samples"] == 3
+    assert payload["shadow_stats"]["pending_outcomes"] == 1
+
+
+@pytest.mark.anyio
 async def test_cache_stats_invalid_manifest_hides_parse_details(tmp_path: Path) -> None:
     app = _make_app(tmp_path)
     app_state = cast(Any, app.state)

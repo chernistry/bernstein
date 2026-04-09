@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -130,8 +131,7 @@ class CoverageGate:
     def _run_measurement(self, cwd: Path) -> float:
         """Execute the coverage command in ``cwd`` and parse ``coverage.json``."""
         result = subprocess.run(
-            self._coverage_command,
-            shell=True,
+            shlex.split(self._coverage_command),
             cwd=cwd,
             capture_output=True,
             text=True,

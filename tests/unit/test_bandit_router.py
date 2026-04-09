@@ -262,6 +262,55 @@ class TestBanditPolicy:
         assert loaded.total_updates == 0
         assert loaded.alpha == pytest.approx(0.3)
 
+    def test_sherman_morrison_matches_full_inverse_update(self) -> None:
+        from bernstein.core.bandit_router import TaskContext, _identity, _inv, _sherman_morrison_update
+
+        ctx = TaskContext.from_task(_task())
+        x = ctx.to_vector()
+        identity = _identity(len(x))
+        updated = _sherman_morrison_update(identity, x)
+
+        expected = _inv(
+            [
+                [identity[row][col] + (x[row] * x[col]) for col in range(len(x))]
+                for row in range(len(x))
+            ]
+        )
+        for row_index, row in enumerate(updated):
+            for col_index, value in enumerate(row):
+                assert value == pytest.approx(expected[row_index][col_index], abs=1e-8)
+
+    def test_load_converts_legacy_a_matrix_and_rewrites_new_format(self, tmp_path: Path) -> None:
+        import json
+
+        from bernstein.core.bandit_router import FEATURE_DIM, BanditPolicy
+
+        identity = [[1.0 if i == j else 0.0 for j in range(FEATURE_DIM)] for i in range(FEATURE_DIM)]
+        vector = [0.0] * FEATURE_DIM
+        policy_file = tmp_path / "policy.json"
+        policy_file.write_text(
+            json.dumps(
+                {
+                    "arms": ["haiku"],
+                    "alpha": 0.3,
+                    "feature_schema_version": 2,
+                    "feature_dim": FEATURE_DIM,
+                    "total_updates": 3,
+                    "A": {"haiku": identity},
+                    "b": {"haiku": vector},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        loaded = BanditPolicy.load(policy_file, arms=["haiku"])
+
+        assert loaded.total_updates == 3
+        rewritten = json.loads(policy_file.read_text(encoding="utf-8"))
+        assert rewritten["matrix_storage"] == "A_inv"
+        assert "A_inv" in rewritten
+        assert "A" not in rewritten
+
 
 # ---------------------------------------------------------------------------
 # BanditRouter
@@ -379,6 +428,8 @@ class TestBanditRouter:
         assert "warmup_min" in summary
         assert "exploration_rate" in summary
         assert "selection_frequency" in summary
+        assert "exploration_stats" in summary
+        assert "shadow_stats" in summary
 
     def test_high_stakes_task_routes_to_sonnet_or_above(self) -> None:
         """High-stakes tasks must never be routed to haiku during cold-start."""
@@ -419,6 +470,53 @@ class TestBanditRouter:
         router.record_outcome(task=task, model="sonnet", effort="high", cost_usd=0.0, quality_score=1.0)
         selections = [router.select(task).model for _ in range(5)]
         assert len(set(selections)) == 1
+
+    def test_exploration_stats_window_is_bounded(self) -> None:
+        from bernstein.core.bandit_router import BanditRouter
+
+        router = BanditRouter(warmup_min=1)
+        task = _task()
+        router.record_outcome(task=task, model="haiku", effort="low", cost_usd=0.01, quality_score=1.0)
+
+        for _ in range(130):
+            router.select(task)
+
+        stats = router.summary()["exploration_stats"]
+        assert stats["haiku"]["samples"] <= 100
+
+    def test_shadow_outcomes_aggregate_observed_reward_only(self, tmp_path: Path) -> None:
+        import json
+
+        from bernstein.core.bandit_router import BanditRouter, BanditRoutingDecision, compute_reward
+
+        router = BanditRouter(warmup_min=0, policy_dir=tmp_path)
+        task = _task()
+        router.record_shadow_decision(
+            task=task,
+            decision=BanditRoutingDecision(
+                model="sonnet",
+                effort="high",
+                from_bandit=True,
+                reason="test shadow",
+            ),
+            executed_model="haiku",
+            executed_effort="low",
+        )
+
+        router.record_outcome(task=task, model="haiku", effort="low", cost_usd=0.2, quality_score=1.0, budget_ceiling=1.0)
+        router.save()
+
+        shadow_stats = router.summary()["shadow_stats"]
+        expected_reward = compute_reward(quality_score=1.0, cost_usd=0.2, budget_ceiling=1.0)
+        assert shadow_stats["matched_outcomes"] == 1
+        assert shadow_stats["disagreement_count"] == 1
+        assert shadow_stats["avg_executed_reward_when_disagree"] == pytest.approx(expected_reward)
+        assert shadow_stats["pending_outcomes"] == 0
+
+        outcome_path = tmp_path / "shadow_outcomes.jsonl"
+        payload = json.loads(outcome_path.read_text(encoding="utf-8").splitlines()[0])
+        assert payload["observed_reward"] == pytest.approx(expected_reward, abs=1e-6)
+        assert "uplift" not in payload
 
     def test_budget_ceiling_affects_reward(self) -> None:
         """Passing different budget ceilings should produce different rewards."""

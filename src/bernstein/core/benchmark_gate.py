@@ -6,6 +6,7 @@ import contextlib
 import hashlib
 import json
 import logging
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -183,8 +184,7 @@ class BenchmarkGate:
     def _run_measurement(self, cwd: Path) -> dict[str, BenchmarkMetrics]:
         """Execute the benchmark command in ``cwd`` and parse results."""
         result = subprocess.run(
-            self._benchmark_command,
-            shell=True,
+            shlex.split(self._benchmark_command),
             cwd=cwd,
             capture_output=True,
             text=True,

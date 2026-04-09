@@ -12,6 +12,7 @@ from httpx import ASGITransport, AsyncClient
 
 from bernstein.cli.dashboard import (
     AgentWidget,
+    ExpertBanditPanel,
     _build_runtime_subtitle,
     _format_gate_report_lines,
     _format_relative_age,
@@ -81,6 +82,17 @@ async def test_dashboard_contains_script(client: AsyncClient) -> None:
     resp = await client.get("/dashboard")
     html = resp.text
     assert "<script" in html.lower()
+
+
+@pytest.mark.anyio
+async def test_dashboard_contains_cost_analytics_sections(client: AsyncClient) -> None:
+    """Dashboard HTML exposes the cost analytics view required by WEB-016."""
+    resp = await client.get("/dashboard")
+    html = resp.text
+    assert "Cost by Model" in html
+    assert "Cost Over Time" in html
+    assert "By Agent" in html
+    assert "budget" in html.lower()
 
 
 # -- GET /events (SSE) ------------------------------------------------------
@@ -321,6 +333,33 @@ def test_agent_widget_renders_context_window_utilization() -> None:
 
     rendered = widget.render().plain
     assert "CTX 84.5%/200k" in rendered
+
+
+def test_expert_bandit_panel_renders_linucb_exploration_and_shadow_metrics() -> None:
+    panel = ExpertBanditPanel()
+    panel.bandit = {
+        "active": True,
+        "mode": "bandit",
+        "total_completions": 14,
+        "exploration_rate": 0.08,
+        "selection_frequency": {"haiku": 4, "sonnet": 10},
+        "exploration_stats": {
+            "haiku": {"mean": 0.21, "last": 0.18},
+            "sonnet": {"mean": 0.05, "last": 0.03},
+        },
+        "shadow_stats": {
+            "matched_outcomes": 5,
+            "agreement_rate": 0.8,
+            "disagreement_count": 1,
+            "pending_outcomes": 2,
+        },
+    }
+
+    rendered = panel.render().plain
+    assert "14 completions" in rendered
+    assert "haiku" in rendered.lower()
+    assert "μ=0.210" in rendered
+    assert "agree=80%" in rendered
 
 
 def test_task_retry_count_from_title_and_description() -> None:

@@ -22,14 +22,16 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 ALIASES: dict[str, str] = {
-    "s": "score",  # status (hidden name: score)
+    "s": "score",
     "r": "run",
     "d": "doctor",
     "l": "live",
     "p": "plan",
     "c": "cost",
     "w": "watch",
-    "i": "overture",  # init (hidden name: overture)
+    "i": "init-wizard",
+    "st": "stop",
+    "rc": "recap",
 }
 
 # Track which aliases are user-defined (populated at load time)
@@ -145,6 +147,9 @@ def aliases_cmd() -> None:
         "c": "Spend breakdown",
         "w": "Watch for file changes",
         "i": "Initialize workspace",
+        "st": "Graceful shutdown",
+        "ps": "Running agent processes",
+        "rc": "Post-run summary",
     }
 
     for alias, command in sorted(ALIASES.items()):

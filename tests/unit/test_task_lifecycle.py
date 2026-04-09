@@ -417,7 +417,9 @@ def test_claim_and_spawn_batches_records_bandit_shadow_without_overriding(tmp_pa
     assert result.spawned == [session.id]
 
 
-def test_prepare_speculative_warm_pool_prewarms_near_ready_tasks_without_spawning(tmp_path: Path, make_task: Any) -> None:
+def test_prepare_speculative_warm_pool_prewarms_near_ready_tasks_without_spawning(
+    tmp_path: Path, make_task: Any
+) -> None:
     """Near-ready blocked tasks should prepare worktree capacity without claiming or spawning."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()

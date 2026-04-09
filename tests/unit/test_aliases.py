@@ -67,7 +67,7 @@ class TestAliasResolution:
     def test_s_resolves_to_score_help(self) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, ["s", "--help"])
-        # Should resolve to score (status) command help
+        # Should resolve to score (score) command help
         assert result.exit_code == 0
 
     def test_d_resolves_to_doctor_help(self) -> None:

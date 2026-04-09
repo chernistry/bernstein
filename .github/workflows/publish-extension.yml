@@ -17,9 +17,9 @@ jobs:
       OPEN_VSX_TOKEN: ${{ secrets.OPEN_VSX_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -71,7 +71,7 @@ jobs:
       # Publish to VS Code Marketplace (requires VS_MARKETPLACE_TOKEN secret)
       - name: Publish to VS Code Marketplace
         if: env.VS_MARKETPLACE_TOKEN != ''
-        uses: HaaLeo/publish-vscode-extension@v2
+        uses: HaaLeo/publish-vscode-extension@4004fc217b5ac892b15a1c3cbe6458de97242dde # v2
         with:
           pat: ${{ secrets.VS_MARKETPLACE_TOKEN }}
           registryUrl: https://marketplace.visualstudio.com
@@ -80,7 +80,7 @@ jobs:
       # Publish to Open VSX — used by Cursor, VSCodium, Gitpod (requires OPEN_VSX_TOKEN secret)
       - name: Publish to Open VSX
         if: env.OPEN_VSX_TOKEN != ''
-        uses: HaaLeo/publish-vscode-extension@v2
+        uses: HaaLeo/publish-vscode-extension@4004fc217b5ac892b15a1c3cbe6458de97242dde # v2
         with:
           pat: ${{ secrets.OPEN_VSX_TOKEN }}
           registryUrl: https://open-vsx.org

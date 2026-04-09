@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import re
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -76,8 +77,7 @@ def _execute_shell_commands(template: str) -> str:
         cmd = match.group(1).strip()
         try:
             result = subprocess.run(
-                cmd,
-                shell=True,
+                shlex.split(cmd),
                 capture_output=True,
                 text=True,
                 timeout=10,

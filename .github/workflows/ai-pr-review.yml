@@ -21,7 +21,7 @@ jobs:
       !github.event.pull_request.draft &&
       !contains(github.event.pull_request.labels.*.name, 'skip-ai')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -41,7 +41,7 @@ jobs:
 
       - name: Analyze with GitHub Models
         id: ai
-        uses: actions/ai-inference@v2
+        uses: actions/ai-inference@e09e65981758de8b2fdab13c2bfb7c7d5493b0b6 # v2
         with:
           model: openai/gpt-4o-mini
           system-prompt: >-
@@ -59,7 +59,7 @@ jobs:
             ```
 
       - name: Post review comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           AI_RESPONSE: ${{ steps.ai.outputs.response }}
         with:

@@ -6,7 +6,13 @@ import os
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
-from bernstein.core.mcp_registry import MCPRegistry, MCPServerEntry
+from bernstein.core.mcp_registry import (
+    MCPRegistry,
+    MCPServerEntry,
+    load_catalog_entries,
+    save_catalog_entries,
+    upsert_catalog_entry,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -111,6 +117,36 @@ class TestMCPRegistryLoading:
         entry = registry.servers[0]
         assert entry.command == "node"
         assert entry.args == ("server.js", "--port", "3000")
+
+    def test_save_and_load_catalog_entries_round_trip(self, tmp_path: Path) -> None:
+        catalog = tmp_path / "mcp_servers.yaml"
+        servers = [
+            MCPServerEntry(
+                name="filesystem",
+                package="@modelcontextprotocol/server-filesystem",
+                capabilities=("filesystem",),
+                args=("-y", "@modelcontextprotocol/server-filesystem", "."),
+            )
+        ]
+
+        save_catalog_entries(catalog, servers)
+        loaded = load_catalog_entries(catalog)
+
+        assert loaded == servers
+
+    def test_upsert_catalog_entry_is_idempotent_by_name(self, tmp_path: Path) -> None:
+        catalog = tmp_path / "mcp_servers.yaml"
+        entry = MCPServerEntry(name="fetch", package="mcp-server-fetch")
+
+        _, created = upsert_catalog_entry(catalog, entry)
+        loaded_once = load_catalog_entries(catalog)
+        _, created_again = upsert_catalog_entry(catalog, entry)
+        loaded_twice = load_catalog_entries(catalog)
+
+        assert created is True
+        assert created_again is False
+        assert loaded_once == [entry]
+        assert loaded_twice == [entry]
 
 
 # ---------------------------------------------------------------------------

@@ -11,6 +11,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from bernstein.core.batch_api import (
+    AnthropicBatchClient,
+    BatchJobRecord,
+    BatchJobStatus,
     BatchPollResult,
     BatchProviderRequest,
     BatchProviderSubmission,
@@ -285,3 +288,96 @@ def test_poll_failure_marks_task_for_realtime_fallback(tmp_path: Path, make_task
     retry = manager.try_submit(orch, task)
     assert retry.handled is False
     assert retry.submitted is False
+
+
+def test_try_submit_uses_anthropic_provider_for_claude_batch_task(tmp_path: Path, make_task: Any) -> None:
+    """Claude-model non-urgent work should submit through the Anthropic batch path."""
+    router = _RouterStub(provider="anthropic")
+    provider_client = _ProviderClientStub()
+    manager = ProviderBatchManager(
+        tmp_path,
+        BatchConfig(enabled=True, eligible=["docs"]),
+        provider_clients={"anthropic": provider_client},
+    )
+    manager._trace_store = MagicMock()
+    collector = _CollectorStub()
+    orch = _make_orch(tmp_path, router)
+    task = make_task(id="T-claude-batch", title="Update docs", description="Refresh Claude docs.")
+
+    with patch("bernstein.core.batch_api.get_collector", return_value=collector):
+        result = manager.try_submit(orch, task)
+
+    assert result.handled is True
+    assert result.submitted is True
+    assert provider_client.submissions[0].task_id == "T-claude-batch"
+    assert "T-claude-batch" in orch._task_to_session
+
+
+def test_anthropic_batch_client_submit_posts_message_batch_request(tmp_path: Path) -> None:
+    """Anthropic client should submit a message-batch payload and return the external id."""
+    response = MagicMock()
+    response.json.return_value = {"id": "msgbatch_123"}
+    response.raise_for_status.return_value = None
+    http_client = MagicMock()
+    http_client.post.return_value = response
+
+    client = AnthropicBatchClient(api_key="test-key", client=http_client)
+    request = BatchProviderRequest(
+        job_id="batch-T-123",
+        task_id="T-123",
+        model="claude-3-7-sonnet-20250219",
+        system_prompt="system",
+        user_prompt="user",
+        max_tokens=2048,
+        input_path=tmp_path / "payload.jsonl",
+    )
+
+    submission = client.submit(request)
+
+    assert submission.external_id == "msgbatch_123"
+    http_client.post.assert_called_once()
+    called_json = http_client.post.call_args.kwargs["json"]
+    assert called_json["requests"][0]["custom_id"] == "batch-T-123"
+    assert called_json["requests"][0]["params"]["model"] == "claude-3-7-sonnet-20250219"
+
+
+def test_anthropic_batch_client_poll_fetches_results_url() -> None:
+    """Anthropic client should resolve results_url once the batch has ended."""
+    status_response = MagicMock()
+    status_response.json.return_value = {
+        "processing_status": "ended",
+        "results_url": "https://example.test/results",
+    }
+    status_response.raise_for_status.return_value = None
+
+    results_response = MagicMock()
+    results_response.text = (
+        '{"custom_id":"batch-T-123","result":{"type":"succeeded","message":{"content":[{"type":"text","text":"'
+        'diff --git a/README.md b/README.md\\n+hello\\n"}],"usage":{"input_tokens":50,"output_tokens":25}}}}\n'
+    )
+    results_response.raise_for_status.return_value = None
+
+    http_client = MagicMock()
+    http_client.get.side_effect = [status_response, results_response]
+    client = AnthropicBatchClient(api_key="test-key", client=http_client)
+    job = BatchJobRecord(
+        job_id="batch-T-123",
+        task_id="T-123",
+        session_id="session-1",
+        provider_name="anthropic",
+        provider_kind="anthropic",
+        model="claude-3-7-sonnet-20250219",
+        effort="high",
+        external_id="msgbatch_123",
+        worktree_path="/tmp/worktree",
+        status=BatchJobStatus.SUBMITTED,
+        task_payload={"id": "T-123"},
+    )
+
+    result = client.poll(job)
+
+    assert result.done is True
+    assert result.failed is False
+    assert "diff --git" in result.output_text
+    assert result.input_tokens == 50
+    assert result.output_tokens == 25

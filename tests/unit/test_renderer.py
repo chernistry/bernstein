@@ -202,7 +202,8 @@ class TestShellCommandEmbedding:
 
     def test_shell_command_failed(self, tmp_path: Path) -> None:
         p = tmp_path / "tmpl.md"
-        p.write_text(f"Out: !{'`exit 1`'}")
+        # Use `false` (a real executable) instead of shell builtin `exit 1`
+        p.write_text(f"Out: !{'`false`'}")
         result = _execute_shell_commands(p.read_text())
         assert "[shell command failed:" in result
 

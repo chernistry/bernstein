@@ -327,7 +327,10 @@ class VcrFixture:
                 VcrMapping(
                     placeholder,
                     original,
-                    {"type": "hex_id", "hash": hashlib.sha1(original.encode("utf-8")).hexdigest()[:8]},
+                    {
+                        "type": "hex_id",
+                        "hash": hashlib.sha1(original.encode("utf-8"), usedforsecurity=False).hexdigest()[:8],
+                    },
                 )
             )
             return placeholder

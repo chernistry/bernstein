@@ -5,6 +5,7 @@ from __future__ import annotations
 import fnmatch
 import logging
 import re as _re
+import shlex as _shlex
 import subprocess as _subprocess
 import time as _time
 from dataclasses import dataclass, field
@@ -1151,8 +1152,7 @@ def expand_shell_commands(template: str, *, timeout: int = 5, workdir: Path | No
         cmd = match.group(1).strip()
         try:
             result = _subprocess.run(
-                cmd,
-                shell=True,
+                _shlex.split(cmd),
                 capture_output=True,
                 text=True,
                 timeout=timeout,

@@ -33,6 +33,7 @@ from bernstein.cli.helpers import (
     server_get,
     server_post,
 )
+from bernstein.cli.mcp_cmd import mcp_server as mcp_server  # re-exported for main.py
 from bernstein.core.runtime_state import read_session_replay_metadata
 from bernstein.core.traces import TraceStore, build_replay_task_request, render_replay_diff
 from bernstein.core.visual_config import VisualConfig, resolve_visual_config
@@ -1029,56 +1030,6 @@ def _github_setup() -> None:  # type: ignore[reportUnusedFunction]
 def _github_test_webhook() -> None:  # type: ignore[reportUnusedFunction]
     """Test GitHub webhook configuration."""
     console.print("[green]Webhook configured.[/green]")
-
-
-# ---------------------------------------------------------------------------
-# mcp
-# ---------------------------------------------------------------------------
-
-
-@click.command("mcp")
-@click.option(
-    "--transport",
-    type=click.Choice(["stdio", "http"]),
-    default="stdio",
-    show_default=True,
-    help="Transport mechanism.",
-)
-@click.option("--host", default="127.0.0.1", show_default=True, help="Host for HTTP transport.")
-@click.option("--port", type=int, default=8053, show_default=True, help="Port for HTTP transport.")
-@click.option(
-    "--server-url",
-    default=SERVER_URL,
-    show_default=True,
-    help="Bernstein server URL.",
-)
-def mcp_server(transport: str, host: str, port: int, server_url: str) -> None:
-    """Run MCP server for external tool integrations.
-
-    Exposes Bernstein APIs over Model Context Protocol (MCP).
-
-    \b
-    Tools exposed:
-      create_task   — queue work for a coding agent
-      list_tasks    — monitor task progress
-      get_status    — dashboard summary
-
-    \b
-    Examples:
-        # stdio (for Claude Code --mcp-config)
-        bernstein mcp
-
-        # HTTP/SSE (for browser-based clients)
-        bernstein mcp --transport http --port 8053
-    """
-    from bernstein.mcp.server import run_sse, run_stdio
-
-    if transport == "stdio":
-        run_stdio(server_url=server_url)
-    else:
-        console.print(f"[cyan]MCP Server[/cyan] starting on SSE ({host}:{port})")
-        console.print(f"[dim]Backend: {server_url}[/dim]")
-        run_sse(server_url=server_url, host=host, port=port)
 
 
 # ---------------------------------------------------------------------------

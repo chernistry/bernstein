@@ -404,7 +404,7 @@ class PromptRegistry:
 
         # Deterministic split: hash task_id to get consistent assignment
         if task_id:
-            hash_val = int(hashlib.md5(task_id.encode()).hexdigest(), 16)
+            hash_val = int(hashlib.md5(task_id.encode(), usedforsecurity=False).hexdigest(), 16)
             fraction = (hash_val % 10000) / 10000.0
         else:
             fraction = random.random()

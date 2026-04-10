@@ -11,11 +11,10 @@ import glob as _glob
 import json
 import zipfile
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import bernstein
-
 
 # ---------------------------------------------------------------------------
 # Manifest
@@ -31,7 +30,7 @@ class ArchiveManifest:
     run_id: str | None
     file_count: int
     total_size_bytes: int
-    sections: list[str] = field(default_factory=list)
+    sections: list[str] = field(default_factory=lambda: list[str]())
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +114,7 @@ def create_archive(
         run_id = run_id_path.read_text(encoding="utf-8").strip() or None
 
     manifest = ArchiveManifest(
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
         bernstein_version=bernstein.__version__,
         run_id=run_id,
         file_count=len(files),

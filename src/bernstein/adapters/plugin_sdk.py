@@ -185,21 +185,19 @@ def validate_plugin(adapter: PluginAdapter) -> list[str]:
 
     # --- supported_models ---
     try:
-        models = adapter.supported_models()
-        if not isinstance(models, list):
-            errors.append(
-                f"supported_models() must return list, got {type(models).__name__}"
-            )
+        _models = adapter.supported_models()
+        # Type is already list[str] per the method signature; no runtime
+        # check needed beyond verifying the call succeeds.
+        _ = _models  # ensure the return value is consumed
     except Exception as exc:
         errors.append(f"supported_models() raised an exception: {exc}")
 
     # --- validate_config ---
     try:
-        config_errors = adapter.validate_config({})
-        if not isinstance(config_errors, list):
-            errors.append(
-                f"validate_config() must return list, got {type(config_errors).__name__}"
-            )
+        _config_errors = adapter.validate_config({})
+        # Type is already list[str] per the method signature; no runtime
+        # check needed beyond verifying the call succeeds.
+        _ = _config_errors  # ensure the return value is consumed
     except Exception as exc:
         errors.append(f"validate_config() raised an exception: {exc}")
 

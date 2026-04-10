@@ -251,7 +251,7 @@ def generate_example_plan(template: LanguageTemplate) -> str:
             f"      - goal: \"{task['goal']}\"",
             f"        role: {role}",
             f"        priority: {i}",
-            f"        complexity: normal",
+            "        complexity: normal",
         ])
 
     return "\n".join(lines) + "\n"

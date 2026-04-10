@@ -13,9 +13,11 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, cast
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +61,7 @@ class ConversationExport:
     task_id: str
     agent_role: str
     model: str
-    messages: list[ConversationMessage] = field(default_factory=list)
+    messages: list[ConversationMessage] = field(default_factory=lambda: list[ConversationMessage]())
     total_tokens: int = 0
     cost_usd: float = 0.0
     outcome: str = ""
@@ -262,7 +264,7 @@ def export_conversation(
         total_tokens=tokens,
         cost_usd=cost,
         outcome=outcome,
-        exported_at=datetime.now(tz=timezone.utc).isoformat(),
+        exported_at=datetime.now(tz=UTC).isoformat(),
     )
 
 

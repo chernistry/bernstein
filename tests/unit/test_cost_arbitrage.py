@@ -2,133 +2,284 @@
 
 from __future__ import annotations
 
-from bernstein.core.cost_arbitrage import CostArbitrageEngine, ProviderQuote
+import pytest
+
+from bernstein.core.cost_arbitrage import (
+    PROVIDER_CATALOG,
+    ArbitrageConfig,
+    ArbitrageResult,
+    ProviderPricing,
+    estimate_task_cost_for_provider,
+    format_arbitrage_comparison,
+    select_cheapest,
+)
+
+# ---------------------------------------------------------------------------
+# ProviderPricing dataclass
+# ---------------------------------------------------------------------------
 
 
-def _make_quotes() -> list[ProviderQuote]:
-    """Build a standard set of test quotes."""
-    return [
-        ProviderQuote("anthropic", "haiku", 0.0005, 200, True),
-        ProviderQuote("anthropic", "sonnet", 0.005, 500, True),
-        ProviderQuote("openai", "gpt-4o-mini", 0.001, 300, True),
-        ProviderQuote("openai", "gpt-4o", 0.02, 800, True),
-        ProviderQuote("google", "flash", 0.0003, 150, True),
-    ]
+class TestProviderPricing:
+    """ProviderPricing is frozen and stores all expected fields."""
+
+    def test_frozen(self) -> None:
+        p = ProviderPricing("a", "m", 1.0, 2.0, 0.9, 500, 100)
+        with pytest.raises(AttributeError):
+            p.provider = "b"  # type: ignore[misc]
+
+    def test_fields(self) -> None:
+        p = ProviderPricing(
+            provider="anthropic",
+            model="opus",
+            input_cost_per_mtok=15.0,
+            output_cost_per_mtok=75.0,
+            quality_score=0.97,
+            latency_ms=8000,
+            rate_limit_rpm=200,
+        )
+        assert p.provider == "anthropic"
+        assert p.model == "opus"
+        assert p.input_cost_per_mtok == 15.0
+        assert p.output_cost_per_mtok == 75.0
+        assert p.quality_score == 0.97
+        assert p.latency_ms == 8000
+        assert p.rate_limit_rpm == 200
 
 
-def test_cheapest_default_quality() -> None:
-    """cheapest returns the cheapest provider meeting medium quality."""
-    engine = CostArbitrageEngine(_make_quotes())
-    result = engine.cheapest(min_quality="medium")
-    assert result is not None
-    # gpt-4o-mini at 0.001 is the cheapest >= 0.001 threshold
-    assert result.model == "gpt-4o-mini"
+# ---------------------------------------------------------------------------
+# ArbitrageConfig dataclass
+# ---------------------------------------------------------------------------
 
 
-def test_cheapest_low_quality() -> None:
-    """cheapest with low quality returns the absolute cheapest."""
-    engine = CostArbitrageEngine(_make_quotes())
-    result = engine.cheapest(min_quality="low")
-    assert result is not None
-    assert result.model == "flash"
+class TestArbitrageConfig:
+    """ArbitrageConfig defaults and immutability."""
+
+    def test_defaults(self) -> None:
+        cfg = ArbitrageConfig()
+        assert cfg.min_quality == 0.7
+        assert cfg.max_latency_ms == 30_000
+        assert cfg.prefer_cheapest is True
+
+    def test_frozen(self) -> None:
+        cfg = ArbitrageConfig()
+        with pytest.raises(AttributeError):
+            cfg.min_quality = 0.5  # type: ignore[misc]
+
+    def test_custom(self) -> None:
+        cfg = ArbitrageConfig(min_quality=0.9, max_latency_ms=5000, prefer_cheapest=False)
+        assert cfg.min_quality == 0.9
+        assert cfg.max_latency_ms == 5000
+        assert cfg.prefer_cheapest is False
 
 
-def test_cheapest_high_quality() -> None:
-    """cheapest with high quality filters to expensive models."""
-    engine = CostArbitrageEngine(_make_quotes())
-    result = engine.cheapest(min_quality="high")
-    assert result is not None
-    assert result.model == "gpt-4o"
+# ---------------------------------------------------------------------------
+# ArbitrageResult dataclass
+# ---------------------------------------------------------------------------
 
 
-def test_fastest_no_budget() -> None:
-    """fastest without budget constraint returns the fastest available."""
-    engine = CostArbitrageEngine(_make_quotes())
-    result = engine.fastest()
-    assert result is not None
-    assert result.model == "flash"  # 150ms
+class TestArbitrageResult:
+    """ArbitrageResult stores selection details."""
+
+    def test_frozen(self) -> None:
+        p = ProviderPricing("a", "m", 1.0, 2.0, 0.9, 500, 100)
+        r = ArbitrageResult(selected=p, candidates=[p], estimated_cost_usd=0.01, savings_vs_default_pct=50.0)
+        with pytest.raises(AttributeError):
+            r.estimated_cost_usd = 0.0  # type: ignore[misc]
+
+    def test_fields(self) -> None:
+        p = ProviderPricing("a", "m", 1.0, 2.0, 0.9, 500, 100)
+        r = ArbitrageResult(selected=p, candidates=[p], estimated_cost_usd=0.01, savings_vs_default_pct=42.0)
+        assert r.selected is p
+        assert r.candidates == [p]
+        assert r.estimated_cost_usd == 0.01
+        assert r.savings_vs_default_pct == 42.0
 
 
-def test_fastest_with_budget() -> None:
-    """fastest with a tight budget filters expensive providers."""
-    engine = CostArbitrageEngine(_make_quotes())
-    result = engine.fastest(max_cost=0.002)
-    assert result is not None
-    # flash (150ms) is fastest under $0.002
-    assert result.model == "flash"
+# ---------------------------------------------------------------------------
+# PROVIDER_CATALOG
+# ---------------------------------------------------------------------------
 
 
-def test_fastest_budget_too_low() -> None:
-    """fastest returns None when no provider fits the budget."""
-    engine = CostArbitrageEngine(_make_quotes())
-    result = engine.fastest(max_cost=0.0001)
-    assert result is None
+class TestProviderCatalog:
+    """Catalog contains at least 10 entries with expected providers."""
+
+    def test_at_least_10_entries(self) -> None:
+        assert len(PROVIDER_CATALOG) >= 10
+
+    def test_all_entries_are_provider_pricing(self) -> None:
+        for entry in PROVIDER_CATALOG:
+            assert isinstance(entry, ProviderPricing)
+
+    def test_expected_providers_present(self) -> None:
+        providers = {(p.provider, p.model) for p in PROVIDER_CATALOG}
+        expected = {
+            ("anthropic", "opus"),
+            ("anthropic", "sonnet"),
+            ("anthropic", "haiku"),
+            ("openai", "gpt-4o"),
+            ("openai", "gpt-4o-mini"),
+            ("google", "gemini-pro"),
+            ("google", "gemini-flash"),
+            ("mistral", "large"),
+            ("deepseek", "v3"),
+            ("ollama", "llama3"),
+        }
+        assert expected.issubset(providers)
+
+    def test_quality_scores_in_range(self) -> None:
+        for p in PROVIDER_CATALOG:
+            assert 0.0 <= p.quality_score <= 1.0, f"{p.provider}/{p.model} quality out of range"
+
+    def test_costs_non_negative(self) -> None:
+        for p in PROVIDER_CATALOG:
+            assert p.input_cost_per_mtok >= 0.0
+            assert p.output_cost_per_mtok >= 0.0
 
 
-def test_optimal_default_weights() -> None:
-    """optimal returns a reasonable choice with default weights."""
-    engine = CostArbitrageEngine(_make_quotes())
-    result = engine.optimal()
-    assert result is not None
-    # Should prefer low cost (weight 0.7) with decent speed
-    assert result.provider in ("anthropic", "google", "openai")
+# ---------------------------------------------------------------------------
+# estimate_task_cost_for_provider
+# ---------------------------------------------------------------------------
 
 
-def test_optimal_speed_heavy() -> None:
-    """optimal with high speed weight favors faster providers."""
-    engine = CostArbitrageEngine(_make_quotes())
-    result = engine.optimal(weight_cost=0.1, weight_speed=0.9)
-    assert result is not None
-    assert result.model == "flash"  # fastest
+class TestEstimateTaskCost:
+    """Cost estimation arithmetic."""
+
+    def test_zero_tokens(self) -> None:
+        p = ProviderPricing("x", "y", 10.0, 20.0, 0.9, 500, 100)
+        assert estimate_task_cost_for_provider(p, 0, 0) == 0.0
+
+    def test_known_values(self) -> None:
+        p = ProviderPricing("x", "y", 10.0, 20.0, 0.9, 500, 100)
+        # 1M input tokens => $10, 500K output tokens => $10 => total $20
+        cost = estimate_task_cost_for_provider(p, 1_000_000, 500_000)
+        assert cost == pytest.approx(20.0)
+
+    def test_free_provider(self) -> None:
+        p = ProviderPricing("ollama", "llama3", 0.0, 0.0, 0.7, 5000, 60)
+        assert estimate_task_cost_for_provider(p, 50_000, 25_000) == 0.0
+
+    def test_small_token_count(self) -> None:
+        p = ProviderPricing("anthropic", "haiku", 0.25, 1.25, 0.80, 1000, 1000)
+        # 2000 input = 0.25 * 2000/1M = 0.0005
+        # 1000 output = 1.25 * 1000/1M = 0.00125
+        cost = estimate_task_cost_for_provider(p, 2000, 1000)
+        assert cost == pytest.approx(0.00175)
 
 
-def test_optimal_single_provider() -> None:
-    """optimal with one provider returns that provider."""
-    quotes = [ProviderQuote("solo", "model-x", 0.01, 400, True)]
-    engine = CostArbitrageEngine(quotes)
-    result = engine.optimal()
-    assert result is not None
-    assert result.provider == "solo"
+# ---------------------------------------------------------------------------
+# select_cheapest
+# ---------------------------------------------------------------------------
 
 
-def test_compare_sorted_by_cost() -> None:
-    """compare returns all providers sorted by cost."""
-    engine = CostArbitrageEngine(_make_quotes())
-    table = engine.compare()
-    assert len(table) == 5
-    costs = [row["estimated_cost"] for row in table]
-    assert costs == sorted(costs)
+class TestSelectCheapest:
+    """Selection logic for cheapest provider."""
+
+    def test_default_catalog_returns_result(self) -> None:
+        result = select_cheapest("medium")
+        assert isinstance(result, ArbitrageResult)
+        assert result.selected is not None
+        assert len(result.candidates) > 0
+
+    def test_prefers_cheapest_by_default(self) -> None:
+        result = select_cheapest("medium")
+        # The selected provider should have the lowest cost among candidates
+        selected_cost = result.estimated_cost_usd
+        for c in result.candidates:
+            c_cost = estimate_task_cost_for_provider(c, 8000, 4000)
+            assert selected_cost <= c_cost + 1e-12
+
+    def test_free_provider_wins_when_quality_allows(self) -> None:
+        cfg = ArbitrageConfig(min_quality=0.7, max_latency_ms=30_000)
+        result = select_cheapest("small", config=cfg)
+        # ollama/llama3 is free and meets 0.7 quality
+        assert result.selected.provider == "ollama"
+        assert result.estimated_cost_usd == 0.0
+
+    def test_high_quality_excludes_cheap_models(self) -> None:
+        cfg = ArbitrageConfig(min_quality=0.95)
+        result = select_cheapest("medium", config=cfg)
+        assert result.selected.quality_score >= 0.95
+
+    def test_low_latency_excludes_slow_models(self) -> None:
+        cfg = ArbitrageConfig(max_latency_ms=2000)
+        result = select_cheapest("small", config=cfg)
+        assert result.selected.latency_ms <= 2000
+
+    def test_no_matching_provider_raises(self) -> None:
+        cfg = ArbitrageConfig(min_quality=0.99, max_latency_ms=100)
+        with pytest.raises(ValueError, match="No provider meets constraints"):
+            select_cheapest("medium", config=cfg)
+
+    def test_savings_vs_default(self) -> None:
+        result = select_cheapest("medium")
+        # Savings should be positive when a cheaper provider is selected
+        if result.selected is not PROVIDER_CATALOG[0]:
+            assert result.savings_vs_default_pct > 0
+
+    def test_estimated_tokens_override(self) -> None:
+        # Larger token count should yield higher cost (for a non-free provider)
+        cfg = ArbitrageConfig(min_quality=0.9)
+        r1 = select_cheapest("medium", estimated_tokens=10_000, config=cfg)
+        r2 = select_cheapest("medium", estimated_tokens=100_000, config=cfg)
+        assert r2.estimated_cost_usd > r1.estimated_cost_usd
+
+    def test_custom_catalog(self) -> None:
+        custom = [
+            ProviderPricing("custom", "fast", 0.5, 1.0, 0.8, 500, 100),
+            ProviderPricing("custom", "slow", 0.1, 0.2, 0.75, 1000, 50),
+        ]
+        result = select_cheapest("small", catalog=custom)
+        assert result.selected.model == "slow"  # cheaper
+
+    def test_prefer_cheapest_false_balances_quality(self) -> None:
+        cfg = ArbitrageConfig(prefer_cheapest=False, min_quality=0.7)
+        result = select_cheapest("medium", config=cfg)
+        # Should still return a valid result
+        assert isinstance(result, ArbitrageResult)
+        assert result.selected.quality_score >= 0.7
+
+    def test_all_complexity_tiers(self) -> None:
+        for tier in ("trivial", "small", "medium", "large", "complex"):
+            result = select_cheapest(tier)
+            assert isinstance(result, ArbitrageResult)
+
+    def test_unknown_complexity_uses_medium_default(self) -> None:
+        result = select_cheapest("unknown_tier")
+        assert isinstance(result, ArbitrageResult)
 
 
-def test_empty_providers() -> None:
-    """All methods return None/empty for no providers."""
-    engine = CostArbitrageEngine([])
-    assert engine.cheapest() is None
-    assert engine.fastest() is None
-    assert engine.optimal() is None
-    assert engine.compare() == []
+# ---------------------------------------------------------------------------
+# format_arbitrage_comparison
+# ---------------------------------------------------------------------------
 
 
-def test_all_unavailable() -> None:
-    """All selection methods return None when no provider is available."""
-    quotes = [
-        ProviderQuote("a", "m1", 0.01, 200, False),
-        ProviderQuote("b", "m2", 0.02, 300, False),
-    ]
-    engine = CostArbitrageEngine(quotes)
-    assert engine.cheapest() is None
-    assert engine.fastest() is None
-    assert engine.optimal() is None
+class TestFormatArbitrageComparison:
+    """Human-readable output formatting."""
 
+    def test_returns_string(self) -> None:
+        result = select_cheapest("medium")
+        output = format_arbitrage_comparison(result)
+        assert isinstance(output, str)
 
-def test_compare_includes_unavailable() -> None:
-    """compare includes unavailable providers in the listing."""
-    quotes = [
-        ProviderQuote("a", "m1", 0.01, 200, False),
-        ProviderQuote("b", "m2", 0.005, 300, True),
-    ]
-    engine = CostArbitrageEngine(quotes)
-    table = engine.compare()
-    assert len(table) == 2
-    assert table[0]["available"] is True  # cheaper one first
-    assert table[1]["available"] is False
+    def test_contains_selected_provider(self) -> None:
+        result = select_cheapest("medium")
+        output = format_arbitrage_comparison(result)
+        assert result.selected.provider in output
+        assert result.selected.model in output
+
+    def test_contains_selected_marker(self) -> None:
+        result = select_cheapest("medium")
+        output = format_arbitrage_comparison(result)
+        assert "Selected:" in output
+
+    def test_contains_savings(self) -> None:
+        result = select_cheapest("medium")
+        output = format_arbitrage_comparison(result)
+        assert "vs default" in output
+
+    def test_multiline_output(self) -> None:
+        result = select_cheapest("medium")
+        output = format_arbitrage_comparison(result)
+        lines = output.strip().split("\n")
+        # Header + separator + candidates + separator + summary
+        assert len(lines) >= 4

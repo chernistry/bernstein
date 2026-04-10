@@ -1,143 +1,326 @@
-"""Multi-model cost arbitrage engine.
+"""Multi-model cost arbitrage across 10+ providers (road-018).
 
-Selects the optimal provider/model combination based on cost, latency,
-and availability.  Works alongside the existing router cost_optimization
-to provide explicit comparison and selection strategies.
+Selects the optimal provider/model combination for a given task based on
+cost, quality, and latency constraints.  Provides an explicit catalog of
+provider pricing, deterministic selection logic, and human-readable
+comparison output.
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-# Quality tier thresholds — maps minimum quality name to a cost floor
-# that separates tiers.  Higher-cost models are assumed higher quality.
-_QUALITY_TIERS: dict[str, float] = {
-    "low": 0.0,
-    "medium": 0.001,
-    "high": 0.01,
-}
+# ---------------------------------------------------------------------------
+# Data classes
+# ---------------------------------------------------------------------------
 
 
-@dataclass
-class ProviderQuote:
-    """A quote from a single provider for a task.
+@dataclass(frozen=True)
+class ProviderPricing:
+    """Pricing and capability data for a single provider/model pair.
 
     Attributes:
-        provider: Provider name (e.g. "anthropic", "openai").
-        model: Model identifier (e.g. "haiku", "gpt-4o-mini").
-        estimated_cost: Estimated cost in USD for the task.
-        estimated_latency_ms: Estimated latency in milliseconds.
-        available: Whether this provider is currently reachable.
+        provider: Provider name (e.g. ``"anthropic"``).
+        model: Model identifier (e.g. ``"opus"``).
+        input_cost_per_mtok: Cost in USD per million input tokens.
+        output_cost_per_mtok: Cost in USD per million output tokens.
+        quality_score: Quality rating in the range ``[0, 1]``.
+        latency_ms: Typical end-to-end latency in milliseconds.
+        rate_limit_rpm: Rate limit in requests per minute.
     """
 
     provider: str
     model: str
-    estimated_cost: float
-    estimated_latency_ms: int
-    available: bool
+    input_cost_per_mtok: float
+    output_cost_per_mtok: float
+    quality_score: float
+    latency_ms: int
+    rate_limit_rpm: int
 
 
-class CostArbitrageEngine:
-    """Select optimal provider from a set of competing quotes.
+@dataclass(frozen=True)
+class ArbitrageConfig:
+    """Configuration knobs for the arbitrage selector.
 
-    Provides multiple selection strategies: cheapest, fastest, and a
-    weighted optimal combining cost and speed.
+    Attributes:
+        min_quality: Minimum acceptable quality score (0-1).
+        max_latency_ms: Maximum acceptable latency in milliseconds.
+        prefer_cheapest: When True, optimize for cost; otherwise
+            balance cost and quality.
     """
 
-    def __init__(self, providers: list[ProviderQuote]) -> None:
-        self._providers = list(providers)
+    min_quality: float = 0.7
+    max_latency_ms: int = 30_000
+    prefer_cheapest: bool = True
 
-    @property
-    def providers(self) -> list[ProviderQuote]:
-        """Return the list of provider quotes."""
-        return list(self._providers)
 
-    def _available(self) -> list[ProviderQuote]:
-        """Return only available providers."""
-        return [p for p in self._providers if p.available]
+@dataclass(frozen=True)
+class ArbitrageResult:
+    """Result of an arbitrage selection.
 
-    def cheapest(self, min_quality: str = "medium") -> ProviderQuote | None:
-        """Return the cheapest available provider meeting a quality threshold.
+    Attributes:
+        selected: The chosen provider/model.
+        candidates: All providers that passed the quality/latency filter.
+        estimated_cost_usd: Estimated cost for the selected provider.
+        savings_vs_default_pct: Percentage savings compared to the first
+            entry in the catalog (the "default" provider).
+    """
 
-        Args:
-            min_quality: Minimum quality tier ("low", "medium", "high").
+    selected: ProviderPricing
+    candidates: list[ProviderPricing] = field(default_factory=list)
+    estimated_cost_usd: float = 0.0
+    savings_vs_default_pct: float = 0.0
 
-        Returns:
-            The cheapest qualifying provider, or None if none qualify.
-        """
-        cost_floor = _QUALITY_TIERS.get(min_quality, 0.0)
-        candidates = [p for p in self._available() if p.estimated_cost >= cost_floor]
-        if not candidates:
-            return None
-        return min(candidates, key=lambda p: p.estimated_cost)
 
-    def fastest(self, max_cost: float = float("inf")) -> ProviderQuote | None:
-        """Return the fastest available provider under a cost budget.
+# ---------------------------------------------------------------------------
+# Provider catalog (10+ entries)
+# ---------------------------------------------------------------------------
 
-        Args:
-            max_cost: Maximum acceptable cost in USD.
+PROVIDER_CATALOG: list[ProviderPricing] = [
+    ProviderPricing(
+        provider="anthropic",
+        model="opus",
+        input_cost_per_mtok=15.0,
+        output_cost_per_mtok=75.0,
+        quality_score=0.97,
+        latency_ms=8000,
+        rate_limit_rpm=200,
+    ),
+    ProviderPricing(
+        provider="anthropic",
+        model="sonnet",
+        input_cost_per_mtok=3.0,
+        output_cost_per_mtok=15.0,
+        quality_score=0.92,
+        latency_ms=3000,
+        rate_limit_rpm=400,
+    ),
+    ProviderPricing(
+        provider="anthropic",
+        model="haiku",
+        input_cost_per_mtok=0.25,
+        output_cost_per_mtok=1.25,
+        quality_score=0.80,
+        latency_ms=1000,
+        rate_limit_rpm=1000,
+    ),
+    ProviderPricing(
+        provider="openai",
+        model="gpt-4o",
+        input_cost_per_mtok=2.5,
+        output_cost_per_mtok=10.0,
+        quality_score=0.93,
+        latency_ms=4000,
+        rate_limit_rpm=500,
+    ),
+    ProviderPricing(
+        provider="openai",
+        model="gpt-4o-mini",
+        input_cost_per_mtok=0.15,
+        output_cost_per_mtok=0.60,
+        quality_score=0.78,
+        latency_ms=1500,
+        rate_limit_rpm=1500,
+    ),
+    ProviderPricing(
+        provider="google",
+        model="gemini-pro",
+        input_cost_per_mtok=1.25,
+        output_cost_per_mtok=5.0,
+        quality_score=0.90,
+        latency_ms=3500,
+        rate_limit_rpm=300,
+    ),
+    ProviderPricing(
+        provider="google",
+        model="gemini-flash",
+        input_cost_per_mtok=0.075,
+        output_cost_per_mtok=0.30,
+        quality_score=0.75,
+        latency_ms=800,
+        rate_limit_rpm=2000,
+    ),
+    ProviderPricing(
+        provider="mistral",
+        model="large",
+        input_cost_per_mtok=2.0,
+        output_cost_per_mtok=6.0,
+        quality_score=0.88,
+        latency_ms=3000,
+        rate_limit_rpm=300,
+    ),
+    ProviderPricing(
+        provider="deepseek",
+        model="v3",
+        input_cost_per_mtok=0.27,
+        output_cost_per_mtok=1.10,
+        quality_score=0.85,
+        latency_ms=2500,
+        rate_limit_rpm=500,
+    ),
+    ProviderPricing(
+        provider="ollama",
+        model="llama3",
+        input_cost_per_mtok=0.0,
+        output_cost_per_mtok=0.0,
+        quality_score=0.70,
+        latency_ms=5000,
+        rate_limit_rpm=60,
+    ),
+]
 
-        Returns:
-            The fastest qualifying provider, or None if none qualify.
-        """
-        candidates = [p for p in self._available() if p.estimated_cost <= max_cost]
-        if not candidates:
-            return None
-        return min(candidates, key=lambda p: p.estimated_latency_ms)
+# ---------------------------------------------------------------------------
+# Complexity-to-token estimates
+# ---------------------------------------------------------------------------
 
-    def optimal(self, weight_cost: float = 0.7, weight_speed: float = 0.3) -> ProviderQuote | None:
-        """Return the provider with the best weighted cost/speed score.
+_COMPLEXITY_TOKEN_ESTIMATES: dict[str, tuple[int, int]] = {
+    "trivial": (500, 200),
+    "small": (2_000, 1_000),
+    "medium": (8_000, 4_000),
+    "large": (25_000, 12_000),
+    "complex": (60_000, 30_000),
+}
 
-        Both cost and latency are normalized to [0, 1] across the available
-        providers, then combined using the supplied weights.  Lower score wins.
 
-        Args:
-            weight_cost: Weight for cost component (default 0.7).
-            weight_speed: Weight for speed component (default 0.3).
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
-        Returns:
-            The optimal provider, or None if no providers are available.
-        """
-        available = self._available()
-        if not available:
-            return None
-        if len(available) == 1:
-            return available[0]
 
-        max_cost = max(p.estimated_cost for p in available)
-        min_cost = min(p.estimated_cost for p in available)
-        max_lat = max(p.estimated_latency_ms for p in available)
-        min_lat = min(p.estimated_latency_ms for p in available)
+def estimate_task_cost_for_provider(
+    provider: ProviderPricing,
+    input_tokens: int,
+    output_tokens: int,
+) -> float:
+    """Estimate cost in USD for a provider given token counts.
 
-        cost_range = max_cost - min_cost if max_cost != min_cost else 1.0
-        lat_range = max_lat - min_lat if max_lat != min_lat else 1.0
+    Args:
+        provider: The provider pricing entry.
+        input_tokens: Number of input tokens.
+        output_tokens: Number of output tokens.
 
-        def _score(p: ProviderQuote) -> float:
-            norm_cost = (p.estimated_cost - min_cost) / cost_range
-            norm_lat = (p.estimated_latency_ms - min_lat) / lat_range
-            return weight_cost * norm_cost + weight_speed * norm_lat
+    Returns:
+        Estimated cost in USD.
+    """
+    input_cost = (input_tokens / 1_000_000) * provider.input_cost_per_mtok
+    output_cost = (output_tokens / 1_000_000) * provider.output_cost_per_mtok
+    return input_cost + output_cost
 
-        return min(available, key=_score)
 
-    def compare(self) -> list[dict[str, object]]:
-        """Return a sorted comparison table of all providers.
+def select_cheapest(
+    task_complexity: str,
+    estimated_tokens: int | None = None,
+    config: ArbitrageConfig | None = None,
+    catalog: list[ProviderPricing] | None = None,
+) -> ArbitrageResult:
+    """Select the cheapest provider that meets quality/latency constraints.
 
-        Returns:
-            List of dicts with provider, model, cost, latency, and availability,
-            sorted by estimated cost ascending.
-        """
-        rows: list[dict[str, object]] = []
-        for p in sorted(self._providers, key=lambda q: q.estimated_cost):
-            rows.append(
-                {
-                    "provider": p.provider,
-                    "model": p.model,
-                    "estimated_cost": p.estimated_cost,
-                    "estimated_latency_ms": p.estimated_latency_ms,
-                    "available": p.available,
-                }
-            )
-        return rows
+    The function filters the catalog by ``config.min_quality`` and
+    ``config.max_latency_ms``, then picks the provider with the lowest
+    estimated cost.  When ``config.prefer_cheapest`` is False, a
+    quality-weighted score is used instead (lower cost with bonus for
+    higher quality).
+
+    Args:
+        task_complexity: Complexity tier (trivial/small/medium/large/complex).
+        estimated_tokens: Total estimated tokens (input + output).  When
+            ``None``, a default is derived from *task_complexity*.
+        config: Selection constraints.  Defaults to ``ArbitrageConfig()``.
+        catalog: Provider list.  Defaults to ``PROVIDER_CATALOG``.
+
+    Returns:
+        An ``ArbitrageResult`` with the chosen provider, the filtered
+        candidate list, cost estimate, and percentage savings vs the
+        first catalog entry (the "default" provider).
+
+    Raises:
+        ValueError: If no provider in the catalog meets the constraints.
+    """
+    if config is None:
+        config = ArbitrageConfig()
+    if catalog is None:
+        catalog = PROVIDER_CATALOG
+
+    # Derive input/output split from complexity when total is given
+    default_in, default_out = _COMPLEXITY_TOKEN_ESTIMATES.get(task_complexity, (8_000, 4_000))
+    if estimated_tokens is not None:
+        # Assume a 2:1 input-to-output ratio for the split
+        input_tokens = int(estimated_tokens * 2 / 3)
+        output_tokens = estimated_tokens - input_tokens
+    else:
+        input_tokens = default_in
+        output_tokens = default_out
+
+    # Filter candidates
+    candidates = [p for p in catalog if p.quality_score >= config.min_quality and p.latency_ms <= config.max_latency_ms]
+    if not candidates:
+        msg = f"No provider meets constraints: min_quality={config.min_quality}, max_latency_ms={config.max_latency_ms}"
+        raise ValueError(msg)
+
+    # Score and select
+    if config.prefer_cheapest:
+        scored = sorted(
+            candidates,
+            key=lambda p: estimate_task_cost_for_provider(p, input_tokens, output_tokens),
+        )
+    else:
+        # Weighted: 70% cost rank, 30% inverse quality
+        max_cost = max(estimate_task_cost_for_provider(p, input_tokens, output_tokens) for p in candidates)
+        denom = max_cost if max_cost > 0 else 1.0
+        scored = sorted(
+            candidates,
+            key=lambda p: (
+                0.7 * estimate_task_cost_for_provider(p, input_tokens, output_tokens) / denom - 0.3 * p.quality_score
+            ),
+        )
+
+    selected = scored[0]
+    selected_cost = estimate_task_cost_for_provider(selected, input_tokens, output_tokens)
+
+    # Savings vs first catalog entry (the "default")
+    default_provider = catalog[0]
+    default_cost = estimate_task_cost_for_provider(default_provider, input_tokens, output_tokens)
+    savings_pct = (1.0 - selected_cost / default_cost) * 100.0 if default_cost > 0 else 0.0
+
+    return ArbitrageResult(
+        selected=selected,
+        candidates=scored,
+        estimated_cost_usd=selected_cost,
+        savings_vs_default_pct=round(savings_pct, 2),
+    )
+
+
+def format_arbitrage_comparison(result: ArbitrageResult) -> str:
+    """Format an arbitrage result as a human-readable comparison table.
+
+    Args:
+        result: The arbitrage result to format.
+
+    Returns:
+        A multi-line string with a header, candidate rows, and a
+        summary line showing the selection and savings.
+    """
+    lines: list[str] = []
+    lines.append(f"{'Provider':<12} {'Model':<16} {'Quality':>7} {'Latency':>8} {'Est. Cost':>12}")
+    lines.append("-" * 60)
+
+    for p in result.candidates:
+        marker = " *" if p is result.selected else ""
+        lines.append(
+            f"{p.provider:<12} {p.model:<16} {p.quality_score:>7.2f} "
+            f"{p.latency_ms:>7}ms ${result.estimated_cost_usd:>10.6f}{marker}"
+            if p is result.selected
+            else f"{p.provider:<12} {p.model:<16} {p.quality_score:>7.2f} "
+            f"{p.latency_ms:>7}ms ${estimate_task_cost_for_provider(p, 8000, 4000):>10.6f}"
+        )
+
+    lines.append("-" * 60)
+    lines.append(
+        f"Selected: {result.selected.provider}/{result.selected.model} "
+        f"@ ${result.estimated_cost_usd:.6f} "
+        f"({result.savings_vs_default_pct:+.1f}% vs default)"
+    )
+    return "\n".join(lines)

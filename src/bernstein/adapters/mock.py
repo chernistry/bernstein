@@ -59,6 +59,7 @@ class MockAgentAdapter(CLIAdapter):
             suffix=".py",
             delete=False,
             dir=workdir / ".sdd" / "runtime",
+            encoding="utf-8",
         ) as tmp:
             tmp.write(script_content)
             tmp.flush()

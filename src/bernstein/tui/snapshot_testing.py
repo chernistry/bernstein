@@ -65,7 +65,7 @@ def _strip_ansi(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-def capture_widget_text(widget_class_name: str, render_text: str) -> str:
+def capture_widget_text(_widget_class_name: str, render_text: str) -> str:
     """Normalize a widget's text output for snapshot comparison.
 
     Strips ANSI escape codes, collapses runs of whitespace within lines to a

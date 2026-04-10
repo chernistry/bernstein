@@ -13,6 +13,7 @@ ded = "ded"          # injection_ded = injection deduction (memory_sanitizer.py)
 ehr = "ehr"          # Electronic Health Record (HIPAA compliance)
 mis = "mis"          # false positive on partial words
 smal = "smal"        # intentional typo in test_plan_autocorrect.py test fixture
+Aktive = "Aktive"    # correct German word for "Active" (i18n.py)
 
 # Technical terms used consistently in the codebase
 unparseable = "unparseable"

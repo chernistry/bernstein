@@ -5,7 +5,6 @@ from __future__ import annotations
 import gc
 import os
 import platform
-import resource
 import subprocess
 import sys
 
@@ -79,6 +78,8 @@ _SPAWNER_TMP_REPO_TESTS = {
 }
 
 if platform.system() != "Windows":
+    import resource
+
     try:
         _soft, _hard = resource.getrlimit(resource.RLIMIT_AS)
         resource.setrlimit(resource.RLIMIT_AS, (_MAX_RSS_BYTES, _hard))
@@ -93,6 +94,8 @@ def _memory_guard():
     # Aggressive garbage collection to prevent accumulation
     gc.collect()
     if platform.system() == "Darwin":
+        import resource
+
         usage = resource.getrusage(resource.RUSAGE_SELF)
         rss_bytes = usage.ru_maxrss  # macOS reports bytes
         if rss_bytes > _MAX_RSS_BYTES:

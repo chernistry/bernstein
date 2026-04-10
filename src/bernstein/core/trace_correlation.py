@@ -25,8 +25,11 @@ import json
 import re
 import secrets
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # W3C traceparent: version-traceid-parentid-traceflags
 # version   = 2HEXDIG (currently "00")
@@ -219,5 +222,5 @@ def create_correlation_record(
         agent_session_id=agent_session_id,
         task_id=task_id,
         traceparent=format_traceparent(ctx),
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
     )

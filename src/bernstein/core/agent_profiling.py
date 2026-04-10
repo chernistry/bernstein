@@ -96,10 +96,7 @@ def compute_profile(
     total_completion_s = max(0.0, end_ts - spawn_ts)
 
     # Compute tokens per minute; avoid division by zero.
-    if total_completion_s > 0.0:
-        tokens_per_minute = (total_tokens / total_completion_s) * 60.0
-    else:
-        tokens_per_minute = 0.0
+    tokens_per_minute = total_tokens / total_completion_s * 60.0 if total_completion_s > 0.0 else 0.0
 
     return AgentProfile(
         agent_id=agent_id,

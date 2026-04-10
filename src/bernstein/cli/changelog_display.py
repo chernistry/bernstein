@@ -27,8 +27,8 @@ class ChangelogEntry:
 
     version: str
     date: str
-    changes: list[str] = field(default_factory=list)
-    breaking: list[str] = field(default_factory=list)
+    changes: list[str] = field(default_factory=lambda: list[str]())
+    breaking: list[str] = field(default_factory=lambda: list[str]())
 
 
 # ---------------------------------------------------------------------------

@@ -232,17 +232,17 @@ class TestValidatePlugin:
         errors = validate_plugin(adapter)
         assert any("health_check() raised an exception" in e for e in errors)
 
-    def test_supported_models_bad_return_type(self) -> None:
+    def test_supported_models_exception_captured(self) -> None:
         adapter = _StubPluginAdapter()
-        adapter.supported_models = MagicMock(return_value="not-a-list")  # type: ignore[method-assign]
+        adapter.supported_models = MagicMock(side_effect=RuntimeError("fail"))  # type: ignore[method-assign]
         errors = validate_plugin(adapter)
-        assert any("supported_models() must return list" in e for e in errors)
+        assert any("supported_models() raised an exception" in e for e in errors)
 
-    def test_validate_config_bad_return_type(self) -> None:
+    def test_validate_config_exception_captured(self) -> None:
         adapter = _StubPluginAdapter()
-        adapter.validate_config = MagicMock(return_value="not-a-list")  # type: ignore[method-assign]
+        adapter.validate_config = MagicMock(side_effect=RuntimeError("fail"))  # type: ignore[method-assign]
         errors = validate_plugin(adapter)
-        assert any("validate_config() must return list" in e for e in errors)
+        assert any("validate_config() raised an exception" in e for e in errors)
 
     def test_name_exception_captured(self) -> None:
         adapter = _StubPluginAdapter()

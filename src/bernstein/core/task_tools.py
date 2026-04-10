@@ -28,7 +28,7 @@ from __future__ import annotations
 import logging
 import shlex
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ class TaskToolDefinition:
     name: str
     description: str
     command: str
-    args_schema: dict[str, Any] = field(default_factory=dict)
+    args_schema: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())
     working_dir: str | None = None
 
 
@@ -81,26 +81,27 @@ def load_task_tools(task_data: dict[str, Any]) -> TaskToolConfig | None:
         return None
 
     definitions: list[TaskToolDefinition] = []
-    for idx, entry in enumerate(raw_tools):
+    typed_tools = cast("list[Any]", raw_tools)
+    for idx, entry in enumerate(typed_tools):
         if not isinstance(entry, dict):
             logger.warning("Task %s: tools[%d] is not a dict, skipping", task_id, idx)
             continue
 
-        name = str(entry.get("name", "")).strip()
+        tool_entry = cast("dict[str, Any]", entry)
+        name = str(tool_entry.get("name", "")).strip()
         if not name:
             logger.warning("Task %s: tools[%d] has no name, skipping", task_id, idx)
             continue
 
-        command = str(entry.get("command", "")).strip()
+        command = str(tool_entry.get("command", "")).strip()
         if not command:
             logger.warning("Task %s: tool '%s' has no command, skipping", task_id, name)
             continue
 
-        description = str(entry.get("description", ""))
-        args_schema = entry.get("args_schema", {})
-        if not isinstance(args_schema, dict):
-            args_schema = {}
-        working_dir = entry.get("working_dir")
+        description = str(tool_entry.get("description", ""))
+        raw_schema: Any = tool_entry.get("args_schema", {})
+        args_schema: dict[str, Any] = cast("dict[str, Any]", raw_schema) if isinstance(raw_schema, dict) else {}
+        working_dir: str | None = tool_entry.get("working_dir")
         if working_dir is not None:
             working_dir = str(working_dir)
 

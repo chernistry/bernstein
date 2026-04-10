@@ -79,7 +79,7 @@ def _resolve_path(data: dict[str, Any], path: str) -> tuple[Any, str]:
     current: Any = data
     for part in parts[:-1]:
         if isinstance(current, list):
-            current = cast(Any, current[int(part)])
+            current = cast("Any", current[int(part)])
         else:
             current = current[part]  # type: ignore[index]
     final_key: str = parts[-1]
@@ -90,7 +90,7 @@ def _get_value(data: dict[str, Any], path: str) -> Any:
     """Return the value at *path* inside *data*."""
     parent, key = _resolve_path(data, path)
     if isinstance(parent, list):
-        return cast(Any, parent[int(key)])
+        return cast("Any", parent[int(key)])
     return parent[key]  # type: ignore[index]
 
 

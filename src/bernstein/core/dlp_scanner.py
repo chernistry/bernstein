@@ -190,7 +190,7 @@ def _build_license_violation_rules() -> list[_RuleEntry]:
             "all_rights_reserved",
             re.compile(r"(?i)All\s+rights\s+reserved"),
             "high",
-            "\"All rights reserved\" notice — indicates proprietary source being introduced",
+            '"All rights reserved" notice — indicates proprietary source being introduced',
             True,
         ),
         # GPL/AGPL license boilerplate text.
@@ -214,9 +214,7 @@ def _build_regulated_data_rules() -> list[_RuleEntry]:
         (
             "regulated_data",
             "npi_number",
-            re.compile(
-                r"""(?i)(?:npi|national_provider_id(?:entifier)?)\s*[=:]\s*["']?\b\d{10}\b["']?"""
-            ),
+            re.compile(r"""(?i)(?:npi|national_provider_id(?:entifier)?)\s*[=:]\s*["']?\b\d{10}\b["']?"""),
             "high",
             "National Provider Identifier (NPI) — HIPAA-regulated healthcare entity ID",
             True,
@@ -225,9 +223,7 @@ def _build_regulated_data_rules() -> list[_RuleEntry]:
         (
             "regulated_data",
             "icd10_code",
-            re.compile(
-                r"""(?i)(?:icd[-_]?10|diagnosis_code|diag_code)\s*[=:]\s*["']?[A-Z]\d{2}(?:\.\d{1,4})?["']?"""
-            ),
+            re.compile(r"""(?i)(?:icd[-_]?10|diagnosis_code|diag_code)\s*[=:]\s*["']?[A-Z]\d{2}(?:\.\d{1,4})?["']?"""),
             "high",
             "ICD-10 diagnosis code — HIPAA-protected health information",
             True,
@@ -247,9 +243,7 @@ def _build_regulated_data_rules() -> list[_RuleEntry]:
         (
             "regulated_data",
             "dea_number",
-            re.compile(
-                r"""(?i)(?:dea_number|dea_reg|dea_registration)\s*[=:]\s*["']?[A-Z]{2}\d{7}["']?"""
-            ),
+            re.compile(r"""(?i)(?:dea_number|dea_reg|dea_registration)\s*[=:]\s*["']?[A-Z]{2}\d{7}["']?"""),
             "high",
             "DEA drug enforcement registration number — federally regulated",
             True,
@@ -269,9 +263,7 @@ def _build_regulated_data_rules() -> list[_RuleEntry]:
         (
             "regulated_data",
             "date_of_birth",
-            re.compile(
-                r"""(?i)(?:date_of_birth|dob|birth_date)\s*[=:]\s*["']?\d{4}[-/]\d{2}[-/]\d{2}["']?"""
-            ),
+            re.compile(r"""(?i)(?:date_of_birth|dob|birth_date)\s*[=:]\s*["']?\d{4}[-/]\d{2}[-/]\d{2}["']?"""),
             "medium",
             "Date of birth — HIPAA PHI when combined with other health data",
             True,

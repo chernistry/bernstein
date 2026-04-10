@@ -741,8 +741,20 @@ def _run_dlp_gate(
     scanner = DLPScanner(dlp_config)
 
     _skip_extensions = {
-        ".pyc", ".pyo", ".so", ".dylib", ".whl", ".egg",
-        ".gz", ".zip", ".tar", ".png", ".jpg", ".gif", ".ico", ".pdf",
+        ".pyc",
+        ".pyo",
+        ".so",
+        ".dylib",
+        ".whl",
+        ".egg",
+        ".gz",
+        ".zip",
+        ".tar",
+        ".png",
+        ".jpg",
+        ".gif",
+        ".ico",
+        ".pdf",
     }
 
     scan_targets: list[_Path]
@@ -760,10 +772,7 @@ def _run_dlp_gate(
             continue
         # Check ignore paths
         rel = str(fpath.relative_to(run_dir))
-        if any(
-            rel.startswith(ig.rstrip("/")) or fnmatch(rel, ig)
-            for ig in config.dlp_ignore_paths
-        ):
+        if any(rel.startswith(ig.rstrip("/")) or fnmatch(rel, ig) for ig in config.dlp_ignore_paths):
             continue
         try:
             content = fpath.read_text(encoding="utf-8", errors="ignore")

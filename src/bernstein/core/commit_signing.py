@@ -374,7 +374,7 @@ def read_commit_provenance(cwd: Path, commit_ref: str = "HEAD") -> dict[str, str
     prefix = f"{_TRAILER_PREFIX}-"
     for line in result.stdout.splitlines():
         if line.startswith(prefix):
-            rest = line[len(prefix):]
+            rest = line[len(prefix) :]
             if ": " in rest:
                 key, _, value = rest.partition(": ")
                 provenance[key.strip()] = value.strip()

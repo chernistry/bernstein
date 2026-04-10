@@ -63,7 +63,7 @@ def parse_graphql_query(query: str) -> ParsedQuery:
     inner = query.strip().strip("{").strip("}").strip()
 
     # Extract operation name, optional args, and field block
-    match = re.match(r"(\w+)\s*(?:\(([^)]*)\))?\s*\{([^}]*)\}", inner)
+    match = re.match(r"(\w+)\s{0,10}(?:\(([^)]*)\))?\s{0,10}\{([^}]*)\}", inner)
     if not match:
         return ParsedQuery()
 
@@ -73,7 +73,7 @@ def parse_graphql_query(query: str) -> ParsedQuery:
 
     # Parse args: key: "value" pairs
     args: dict[str, str] = {}
-    for arg_match in re.finditer(r'(\w+)\s*:\s*"([^"]*)"', args_str):
+    for arg_match in re.finditer(r'(\w+)\s{0,10}:\s{0,10}"([^"]*)"', args_str):
         args[arg_match.group(1)] = arg_match.group(2)
 
     # Parse fields (top-level names only; nested sub-selections are ignored)

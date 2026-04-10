@@ -7,7 +7,6 @@ as explicit arguments so the Orchestrator methods can delegate to them.
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import logging
 import math
@@ -229,12 +228,25 @@ def prepare_speculative_warm_pool(orch: Any, task_graph: Any, tasks: list[Task])
     if not candidates:
         return
 
-    desired_idle = min(warm_pool.config.pool_size, len({task.role for task in candidates}))
-    if desired_idle <= 0 or warm_pool.available >= desired_idle:
+    desired_idle = min(warm_pool.config.max_slots, len({task.role for task in candidates}))
+    current_ready = warm_pool.stats().get("ready", 0)
+    if desired_idle <= 0 or current_ready >= desired_idle:
         return
 
+    from bernstein.core.warm_pool import PoolSlot
+
+    created = 0
     try:
-        created = asyncio.run(warm_pool.fill(target_idle=desired_idle))
+        for candidate in candidates[: desired_idle - current_ready]:
+            warm_pool.add_slot(
+                PoolSlot(
+                    slot_id=f"spec-{candidate.id}",
+                    role=candidate.role,
+                    worktree_path="",
+                    created_at=0.0,
+                )
+            )
+            created += 1
     except RuntimeError as exc:
         logger.debug("Speculative warm-pool preparation skipped: %s", exc)
         return

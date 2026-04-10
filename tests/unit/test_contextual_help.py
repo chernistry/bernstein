@@ -89,7 +89,7 @@ class TestFormatHelpSuggestion:
     def test_format_contains_base_url(self) -> None:
         link = HELP_LINKS[0]
         result = format_help_suggestion(link)
-        assert "bernstein.readthedocs.io" in result
+        assert "https://bernstein.readthedocs.io" in result
 
 
 class TestEnrichErrorMessage:

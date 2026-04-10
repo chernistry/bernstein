@@ -10,7 +10,7 @@ Architecture:
 - create_gateway_sse_app: FastAPI SSE server for MCP SSE transport
 
 WAL decision_type: "mcp_tool_call"
-WAL inputs:  {method, tool_name, arguments, request_id}
+WAL inputs:  {method, server_name, tool_name, arguments, request_id}
 WAL output:  {result, error, latency_ms}
 """
 
@@ -157,10 +157,13 @@ class MCPGateway:
         upstream_cmd: list[str],
         wal_writer: WALWriter,
         replay: GatewayReplay | None = None,
+        *,
+        server_name: str = "unknown",
     ) -> None:
         self._upstream_cmd = upstream_cmd
         self._wal_writer = wal_writer
         self._replay = replay
+        self._server_name = server_name.strip() or "unknown"
         self._metrics: dict[str, ToolMetrics] = {}
         self._proc: asyncio.subprocess.Process | None = None
         self._pending: dict[Any, asyncio.Future[dict[str, Any]]] = {}
@@ -272,7 +275,7 @@ class MCPGateway:
                 await self._send_upstream(message)
             return None
 
-        fut: asyncio.Future[dict[str, Any]] = asyncio.get_event_loop().create_future()
+        fut: asyncio.Future[dict[str, Any]] = asyncio.get_running_loop().create_future()
         self._pending[req_id] = fut
         t0 = time.monotonic()
         try:
@@ -290,6 +293,7 @@ class MCPGateway:
             decision_type="mcp_tool_call",
             inputs={
                 "method": method,
+                "server_name": self._server_name,
                 "tool_name": tool_name,
                 "arguments": params.get("arguments", {}),
                 "request_id": req_id,
@@ -316,7 +320,7 @@ class MCPGateway:
 
     async def run_stdio(self) -> None:
         """Run as a stdio proxy. Reads from stdin, writes to stdout. Blocks until EOF."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         reader = asyncio.StreamReader()
         protocol = asyncio.StreamReaderProtocol(reader)
         await loop.connect_read_pipe(lambda: protocol, sys.stdin.buffer)

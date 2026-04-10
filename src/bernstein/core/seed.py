@@ -311,6 +311,10 @@ class SeedConfig:
     internal_llm_provider: str = "openrouter_free"
     internal_llm_model: str = "nvidia/nemotron-3-super-120b-a12b"
     model_fallback: ModelFallbackSeedConfig | None = None
+    cost_tags: dict[str, str] = field(default_factory=dict)
+    cost_autopilot: bool = False
+    deployment_strategy: str = "rolling"
+    org_policies: list[str] = field(default_factory=list)
 
 
 _BUDGET_RE = re.compile(r"^\$(\d+(?:\.\d+)?)$")
@@ -1410,6 +1414,28 @@ def parse_seed(path: Path) -> SeedConfig:
 
     model_fallback = _parse_model_fallback(data.get("model_fallback"))
 
+    # --- Cost allocation tags ---
+    cost_tags_raw: object = data.get("cost_tags", {})
+    if not isinstance(cost_tags_raw, dict):
+        raise SeedError(f"cost_tags must be a mapping, got: {type(cost_tags_raw).__name__}")
+    cost_tags: dict[str, str] = {str(k): str(v) for k, v in cost_tags_raw.items()}
+
+    # --- Cost autopilot ---
+    cost_autopilot_raw: object = data.get("cost_autopilot", False)
+    if not isinstance(cost_autopilot_raw, bool):
+        raise SeedError(f"cost_autopilot must be a boolean, got: {type(cost_autopilot_raw).__name__}")
+
+    # --- Deployment strategy ---
+    deployment_strategy_raw: object = data.get("deployment_strategy", "rolling")
+    if not isinstance(deployment_strategy_raw, str):
+        raise SeedError(f"deployment_strategy must be a string, got: {type(deployment_strategy_raw).__name__}")
+
+    # --- Org policies ---
+    org_policies_raw: object = data.get("org_policies", [])
+    if not isinstance(org_policies_raw, list):
+        raise SeedError(f"org_policies must be a list of file paths, got: {type(org_policies_raw).__name__}")
+    org_policies: list[str] = [str(p) for p in org_policies_raw]
+
     return SeedConfig(
         goal=goal,
         budget_usd=budget_usd,
@@ -1453,6 +1479,10 @@ def parse_seed(path: Path) -> SeedConfig:
         internal_llm_provider=internal_llm_provider_raw,
         internal_llm_model=internal_llm_model_raw,
         model_fallback=model_fallback,
+        cost_tags=cost_tags,
+        cost_autopilot=cost_autopilot_raw,
+        deployment_strategy=deployment_strategy_raw,
+        org_policies=org_policies,
     )
 
 

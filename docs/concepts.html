@@ -77,6 +77,8 @@
     <ul>
       <li><a href="#architecture">Architecture</a></li>
       <li><a href="#task-lifecycle">Task lifecycle</a></li>
+      <li><a href="#agent-session-states">Agent session states</a></li>
+      <li><a href="#agent-turn-states">Agent turn states</a></li>
       <li><a href="#agent-roles">Agent roles</a></li>
       <li><a href="#model-routing">Model routing</a></li>
       <li><a href="#completion-signals">Completion signals</a></li>
@@ -132,16 +134,69 @@ Janitor (completion signal verification)</code></pre>
     </div>
 
     <h2 id="task-lifecycle">Task lifecycle</h2>
-    <p>Every task moves through a well-defined state machine:</p>
+    <p>Every task moves through a deterministic finite state machine (FSM) enforced by the Lifecycle Governance Kernel (<code>core/lifecycle.py</code>). Illegal transitions raise <code>IllegalTransitionError</code> and are recorded in the audit log.</p>
 
     <div class="code-block">
-      <pre><code class="language-text">open → claimed → in_progress → done → closed
-         ↑                    ↘ failed
-         │                    ↘ orphaned → open (retry)
-         │                               ↘ failed (max retries)
-         │
-    blocked (dependency not yet met)
-    open → cancelled (user cancellation)</code></pre>
+      <pre><code class="language-text">                    ┌─────────────────────────────────────────────┐
+                    │             TASK STATE MACHINE               │
+                    └─────────────────────────────────────────────┘
+
+  [plan mode] ──► PLANNED ──► OPEN ◄────────────────────────────────┐
+  [dynamic]  ──────────────► OPEN                                   │
+                              │                                      │
+              ┌───────────────┤                                      │
+              │               │                                      │
+              ▼               ▼                                      │
+          CANCELLED       CLAIMED ──────────────────────────────┐   │
+                              │                                  │   │
+              ┌───────────────┤                                  │   │
+              │               │                                  │   │
+              ▼               ▼                                  │   │
+          CANCELLED      IN_PROGRESS                             │   │
+                              │                                  │   │
+         ┌────────────────────┤                                  │   │
+         │         │          │          │           │           │   │
+         ▼         ▼          ▼          ▼           ▼           │   │
+       DONE      FAILED    BLOCKED  WAITING_FOR  ORPHANED        │   │
+         │         │          │     SUBTASKS        │            │   │
+         │         │          │         │           │            │   │
+         ▼         ▼          └────────►└───────────┘            │   │
+       CLOSED    OPEN ◄────────────────────────────────────────┘   │
+                              └────────────────────────────────────┘
+
+  Terminal states: CLOSED, CANCELLED</code></pre>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>State</th><th>Meaning</th><th>Terminal?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>planned</code></td><td>Created from a plan file; awaiting human approval before execution.</td><td></td></tr>
+        <tr><td><code>open</code></td><td>Ready for an agent to claim. Default starting state for dynamically created tasks.</td><td></td></tr>
+        <tr><td><code>claimed</code></td><td>An agent has reserved the task but hasn't started executing yet.</td><td></td></tr>
+        <tr><td><code>in_progress</code></td><td>An agent is actively working. Heartbeat timeout triggers crash recovery if the agent goes silent.</td><td></td></tr>
+        <tr><td><code>done</code></td><td>Agent reported completion. Janitor verification and merge are pending.</td><td></td></tr>
+        <tr><td><code>closed</code></td><td>Janitor verified and branch merged. Fully complete.</td><td>Yes</td></tr>
+        <tr><td><code>failed</code></td><td>Agent reported failure or janitor rejected the result. Can be retried (up to <code>max_retries</code>).</td><td></td></tr>
+        <tr><td><code>blocked</code></td><td>Has unsatisfied dependencies. Transitions to <code>open</code> automatically when resolved.</td><td></td></tr>
+        <tr><td><code>waiting_for_subtasks</code></td><td>Parent task waiting for child subtasks to complete (agent decomposed work).</td><td></td></tr>
+        <tr><td><code>cancelled</code></td><td>Manually or programmatically cancelled.</td><td>Yes</td></tr>
+        <tr><td><code>orphaned</code></td><td>Agent crashed mid-task. The orchestrator attempts recovery: requeue to <code>open</code>, or <code>failed</code> after max retries.</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <p>See <a href="https://github.com/chernistry/bernstein/blob/main/docs/LIFECYCLE.md" target="_blank" rel="noopener">LIFECYCLE.md</a> for the complete transition table and audit metadata reference.</p>
+
+    <h2 id="agent-session-states">Agent session states</h2>
+    <p>The agent session FSM tracks the lifecycle of a <strong>process</strong> — from spawn to termination. One agent session can handle multiple sequential tasks.</p>
+
+    <div class="code-block">
+      <pre><code class="language-text">spawn() ──► starting ──► working ──► idle ──► working (next task)
+                │            │         │
+                │            │         └──► dead (idle recycle)
+                │            └──────────── dead (crash / kill / timeout)
+                └────────────────────────► dead (spawn failure)</code></pre>
     </div>
 
     <table>
@@ -149,15 +204,51 @@ Janitor (completion signal verification)</code></pre>
         <tr><th>State</th><th>Meaning</th></tr>
       </thead>
       <tbody>
-        <tr><td><code>open</code></td><td>Waiting in the queue. No agent has picked it up yet.</td></tr>
-        <tr><td><code>blocked</code></td><td>Has unsatisfied <code>depends_on</code> entries. Will become <code>open</code> automatically when dependencies complete.</td></tr>
-        <tr><td><code>claimed</code></td><td>An agent has reserved the task but hasn't started yet.</td></tr>
-        <tr><td><code>in_progress</code></td><td>An agent is actively working. Heartbeat timeout triggers respawn if the agent goes silent.</td></tr>
-        <tr><td><code>done</code></td><td>Agent reported completion <em>and</em> janitor verified completion signals.</td></tr>
-        <tr><td><code>closed</code></td><td>Janitor verification passed after <code>done</code>. Terminal state — the task is fully complete.</td></tr>
-        <tr><td><code>failed</code></td><td>Agent reported failure, or janitor found completion signals unmet after max retries.</td></tr>
-        <tr><td><code>cancelled</code></td><td>User cancelled the task from <code>open</code> or <code>blocked</code> state.</td></tr>
-        <tr><td><code>orphaned</code></td><td>Agent crashed or went silent during <code>in_progress</code>. Retried back to <code>open</code>, or moved to <code>failed</code> after max retries.</td></tr>
+        <tr><td><code>starting</code></td><td>Process spawned; waiting for first heartbeat confirming it is alive.</td></tr>
+        <tr><td><code>working</code></td><td>Actively executing a task.</td></tr>
+        <tr><td><code>idle</code></td><td>Task complete; session is alive and can accept a new task.</td></tr>
+        <tr><td><code>dead</code></td><td>Process exited — crash, SIGKILL, timeout watchdog, or idle recycling. Terminal.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="agent-turn-states">Agent turn states</h2>
+    <p>The agent turn FSM operates at a finer granularity than the session FSM. It tracks the lifecycle of a <strong>single task-handling turn</strong> within an agent process — from task claim through to cleanup.</p>
+
+    <div class="code-block">
+      <pre><code class="language-text">IDLE ──task_claimed──► CLAIMING ──agent_spawned──► SPAWNING ──agent_spawned──► RUNNING
+                           │                           │                           │
+                      task_failed                 task_failed              ┌───────┼──────────────┐
+                           │                           │                   │       │              │
+                           ▼                           ▼            tool_started   │         verify_requested
+                         FAILED ◄──────────────── FAILED            │       │              │
+                           │                                         │  compact_needed      │
+                           │                                         ▼       │              ▼
+                      agent_reaped                               TOOL_USE    │          VERIFYING
+                           │                                         │       ▼              │
+                           ▼                                    tool_completed  COMPACTING  │
+                         REAPED ◄── agent_reaped ◄── COMPLETING ◄──┘        │   │      task_completed
+                                                         │            verify_requested     │
+                                                    task_completed          │              ▼
+                                                         │                  └──► RUNNING  COMPLETING
+                                                         │                               │
+                                                         └──────────────────────────────►REAPED</code></pre>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th>State</th><th>Meaning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>IDLE</code></td><td>No active turn — between tasks or not yet assigned.</td></tr>
+        <tr><td><code>CLAIMING</code></td><td>Task claimed; worktree is being prepared.</td></tr>
+        <tr><td><code>SPAWNING</code></td><td>CLI process launched but not yet executing.</td></tr>
+        <tr><td><code>RUNNING</code></td><td>Agent is actively working on the task.</td></tr>
+        <tr><td><code>TOOL_USE</code></td><td>Agent is executing an external tool (file editor, shell, search).</td></tr>
+        <tr><td><code>COMPACTING</code></td><td>Context window near limit; compaction/summarization in progress.</td></tr>
+        <tr><td><code>VERIFYING</code></td><td>Work done; janitor or LLM verification pending.</td></tr>
+        <tr><td><code>COMPLETING</code></td><td>Verification passed; task being marked done, metrics emitted.</td></tr>
+        <tr><td><code>FAILED</code></td><td>Error, crash, or verification failure. Awaiting cleanup.</td></tr>
+        <tr><td><code>REAPED</code></td><td>Cleanup complete — worktree removed, metrics flushed. Terminal.</td></tr>
       </tbody>
     </table>
 

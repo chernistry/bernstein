@@ -3,3 +3,6 @@ name: "Bernstein CodeQL config"
 paths-ignore:
   - "templates/adapter_plugin"
   - "templates/quality_gate_plugin"
+  - "tests/**"
+  - "docs/**"
+  - "benchmarks/**"

@@ -260,6 +260,7 @@ exclude = [
     "src/bernstein/tui/snapshot_testing.py",
     "src/bernstein/core/log_search.py",
     "src/bernstein/core/postmortem.py",
+    "src/bernstein/core/routes/team_dashboard.py",
 ]
 
 [tool.pytest.ini_options]

@@ -216,8 +216,7 @@ def logs_search(
 
     if not result.entries:
         console.print(
-            f"[yellow]No results[/yellow] for [bold]{query!r}[/bold] "
-            f"(scanned {result.total_scanned:,} lines)."
+            f"[yellow]No results[/yellow] for [bold]{query!r}[/bold] (scanned {result.total_scanned:,} lines)."
         )
         return
 
@@ -251,7 +250,4 @@ def logs_search(
             msg = msg.replace(query, f"[bold]{query}[/bold]")
 
         level_badge = f"[{color}]{entry.level.upper():<7}[/{color}]" if color else entry.level.upper()
-        console.print(
-            f"[dim]{ts_str}[/dim] {level_badge} "
-            f"[cyan]{source_short}[/cyan] {role_tag}{msg}"
-        )
+        console.print(f"[dim]{ts_str}[/dim] {level_badge} [cyan]{source_short}[/cyan] {role_tag}{msg}")

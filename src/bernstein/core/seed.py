@@ -313,6 +313,7 @@ class SeedConfig:
     model_fallback: ModelFallbackSeedConfig | None = None
     cost_tags: dict[str, str] = field(default_factory=dict)
     cost_autopilot: bool = False
+    deployment_strategy: str = "rolling"
 
 
 _BUDGET_RE = re.compile(r"^\$(\d+(?:\.\d+)?)$")
@@ -1423,6 +1424,13 @@ def parse_seed(path: Path) -> SeedConfig:
     if not isinstance(cost_autopilot_raw, bool):
         raise SeedError(f"cost_autopilot must be a boolean, got: {type(cost_autopilot_raw).__name__}")
 
+    # --- Deployment strategy ---
+    deployment_strategy_raw: object = data.get("deployment_strategy", "rolling")
+    if not isinstance(deployment_strategy_raw, str):
+        raise SeedError(
+            f"deployment_strategy must be a string, got: {type(deployment_strategy_raw).__name__}"
+        )
+
     return SeedConfig(
         goal=goal,
         budget_usd=budget_usd,
@@ -1468,6 +1476,7 @@ def parse_seed(path: Path) -> SeedConfig:
         model_fallback=model_fallback,
         cost_tags=cost_tags,
         cost_autopilot=cost_autopilot_raw,
+        deployment_strategy=deployment_strategy_raw,
     )
 
 

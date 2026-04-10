@@ -757,6 +757,27 @@ def _make_profile_ctx(profile: bool, workdir: Path) -> contextlib.AbstractContex
     return contextlib.nullcontext()
 
 
+def _exec_restart() -> None:
+    """Re-exec the current process as ``bernstein run`` (full stack restart).
+
+    On macOS/Linux, uses ``os.execv`` which replaces the current process
+    image entirely — no orphan.  On Windows, ``os.execv`` does not truly
+    replace the process (it spawns a child), so we use ``subprocess.Popen``
+    and ``sys.exit`` instead.
+    """
+    import subprocess
+
+    argv = [sys.executable, "-m", "bernstein.cli.main", "run"]
+    if sys.platform == "win32":
+        # Windows: execv creates a child process and the parent stays alive,
+        # so we spawn explicitly and exit the current process.
+        subprocess.Popen(argv, close_fds=True)
+        raise SystemExit(0)
+    else:
+        # Unix: execv replaces the process image — clean restart.
+        os.execv(sys.executable, argv)
+
+
 def _finalize_run_output(*, quiet: bool) -> None:
     """Render either the interactive dashboard or the final summary.
 
@@ -782,9 +803,10 @@ def _finalize_run_output(*, quiet: bool) -> None:
             app = DashboardApp()
             with contextlib.suppress(SystemExit):
                 app.run()
-            # Hot restart: Textual has restored terminal, re-exec safely
+            # Hot restart: server+orchestrator already killed by the TUI,
+            # re-exec the full `bernstein run` so everything restarts cleanly.
             if getattr(app, "_restart_on_exit", False):
-                os.execv(sys.executable, [sys.executable, "-m", "bernstein.cli.main", "live"])
+                _exec_restart()
         except Exception:
             # Textual failed at runtime -- fall through to fallback
             _try_fallback_display()

@@ -2266,8 +2266,51 @@ class BernsteinApp(App[None]):
     _restart_on_exit: bool = False
     _play_power_off_on_exit: bool = False
 
+    @staticmethod
+    def _shutdown_server_and_orchestrator() -> None:
+        """Kill the task server, spawner, and watchdog before restart.
+
+        Sends POST /shutdown to the task server for graceful exit, then
+        SIGTERM to spawner and watchdog via PID files.  If the server
+        doesn't respond, falls back to killing PIDs directly.
+        """
+        import signal as _signal
+
+        from bernstein.cli.helpers import (
+            SDD_PID_SERVER,
+            SDD_PID_SPAWNER,
+            SDD_PID_WATCHDOG,
+            is_alive,
+            read_pid,
+        )
+        from bernstein.core.platform_compat import kill_process
+
+        # 1. Ask the server to shut down gracefully
+        with contextlib.suppress(Exception):
+            httpx.post(f"{SERVER_URL}/shutdown", json={"reason": "hot restart"}, timeout=2.0)
+
+        # 2. Kill spawner and watchdog
+        for pid_path in (SDD_PID_SPAWNER, SDD_PID_WATCHDOG):
+            pid = read_pid(pid_path)
+            if pid is not None and is_alive(pid):
+                kill_process(pid, sig=_signal.SIGTERM)
+
+        # 3. Give the server a moment, then force-kill if still alive
+        import time as _time
+
+        _time.sleep(0.5)
+        server_pid = read_pid(SDD_PID_SERVER)
+        if server_pid is not None and is_alive(server_pid):
+            kill_process(server_pid, sig=_signal.SIGKILL)
+
+        # 4. Clean up PID files so the next run starts fresh
+        for pid_path in (SDD_PID_SERVER, SDD_PID_SPAWNER, SDD_PID_WATCHDOG):
+            Path(pid_path).unlink(missing_ok=True)
+
     def action_hot_restart(self) -> None:
-        """Hot restart: exit TUI cleanly, then re-exec into `bernstein live`."""
+        """Hot restart: stop server+orchestrator, exit TUI, then re-exec the full stack."""
+        self.notify("Restarting server and orchestrator...", severity="warning", timeout=2)
+        self._shutdown_server_and_orchestrator()
         self._restart_on_exit = True
         self.exit(message="Restarting...")
 

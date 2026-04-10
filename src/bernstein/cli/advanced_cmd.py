@@ -16,7 +16,6 @@ from __future__ import annotations
 import contextlib
 import datetime as dt
 import json
-import os
 import sys
 import time
 from pathlib import Path
@@ -90,9 +89,12 @@ def live(interval: float, classic: bool, no_splash: bool) -> None:
 
             caps = detect_capabilities()
             power_off_effect(config=CRTConfig(width=caps.term_width, height=min(caps.term_height, 24)))
-        # Hot restart: Textual has cleanly restored terminal, now re-exec
+        # Hot restart: server+orchestrator already killed by the TUI,
+        # re-exec the full `bernstein run` so everything restarts cleanly.
         if getattr(app, "_restart_on_exit", False):
-            os.execv(sys.executable, [sys.executable, "-m", "bernstein.cli.main", "live"])
+            from bernstein.cli.run_cmd import _exec_restart
+
+            _exec_restart()
         return
 
     # -- classic Rich Live display --

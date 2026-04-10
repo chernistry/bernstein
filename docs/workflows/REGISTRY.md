@@ -2,7 +2,7 @@
 
 This registry maps workflow specs in `docs/workflows/` to current implementation status in the codebase.
 
-Last updated: 2026-04-08
+Last updated: 2026-04-11
 
 ---
 
@@ -32,6 +32,8 @@ Last updated: 2026-04-08
 | Per-tenant rate limiting & quotas (ENT-008) | `WORKFLOW-tenant-rate-limiting-quota.md` | Draft | API rate limits, task/hour, agent concurrency, cost budget — TenantRateLimiter exists but not wired to middleware |
 | Data residency enforcement (ENT-009) | `WORKFLOW-data-residency-enforcement.md` | Draft | DataResidencyController + router ModelPolicy exist but are not bridged. No enforcement on task server writes, no policy persistence, no attestation persistence. 8 RC findings. |
 | Disaster recovery with cross-region replication (ENT-010) | `WORKFLOW-disaster-recovery-cross-region.md` | Draft | backup_sdd/restore_sdd local-only. WALReplicationManager has no transport layer. No periodic scheduling, no remote upload, no failover detection, no runbook generation. 10 RC findings. |
+| Free-tier cloud-hosted evaluation (ROAD-009) | `WORKFLOW-free-tier-cloud-hosted-evaluation.md` | Draft | Sandboxed Bernstein instances for zero-install evaluation. No implementation exists — web frontend, sandbox provisioner, session manager, and budget monitor are all new infrastructure. |
+| Multi-modal agent support (ROAD-184) | `WORKFLOW-multi-modal-agent-support.md` | Draft | Image/diagram attachments on tasks, vision-capable routing, multi-modal prompt construction. Requires Task model extension, CLIAdapter interface extension, new asset preprocessor, and router vision awareness. |
 
 Archived/deprecated reference docs remain under `docs/workflows/archive/`.
 
@@ -160,6 +162,30 @@ Data path: `.sdd/docs/runbooks/` (to be created for generated runbooks)
 
 Config path: `.sdd/config/audit-key` (HMAC key), `.sdd/config/compliance.json` (preset)
 Data path: `.sdd/audit/*.jsonl` (daily logs), `.sdd/audit/merkle/` (seals)
+
+### Free-tier cloud-hosted evaluation workflows
+
+- No implementation exists yet. Spec: `WORKFLOW-free-tier-cloud-hosted-evaluation.md`
+- Existing reusable components:
+  - `src/bernstein/core/free_tier.py` — FreeTierMaximizer (provider quota tracking)
+  - `src/bernstein/core/hijacker.py` — TierHijacker (free-tier auto-detection)
+  - `src/bernstein/core/cost.py` — cost tracking and budget forecasting
+  - `src/bernstein/core/agent_signals.py` — SHUTDOWN signal protocol (reusable for budget-triggered stop)
+- New components needed: web frontend, API gateway, session manager, sandbox provisioner, progress streamer, cleanup service
+
+### Multi-modal agent support workflows
+
+- No implementation exists yet. Spec: `WORKFLOW-multi-modal-agent-support.md`
+- Existing components requiring extension:
+  - `src/bernstein/core/models.py` — Task dataclass (needs `attachments`, `has_attachments` fields)
+  - `src/bernstein/core/router.py` — RoutingDecision (needs `vision_mode` field)
+  - `src/bernstein/adapters/base.py` — CLIAdapter.spawn() (needs `image_paths` parameter, `supports_vision` property)
+  - `src/bernstein/adapters/claude.py` — Claude adapter (natively supports vision via Read tool — minimal changes)
+  - `src/bernstein/adapters/gemini.py` — Gemini adapter (needs `--image` flag support)
+  - `src/bernstein/core/spawner.py` — prompt construction (needs multi-modal prompt templates)
+  - `src/bernstein/core/context_collapse.py` — collapse pipeline (needs image-awareness for token budgeting)
+  - `src/bernstein/core/cost.py` — cost module (needs image-token cost models per provider)
+- New components needed: asset validator, asset preprocessor, attachment storage (`.sdd/runtime/attachments/`)
 
 ### Review and quality workflows
 

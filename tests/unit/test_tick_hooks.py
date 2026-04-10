@@ -146,9 +146,7 @@ class PreSpawnPlugin:
     """Plugin that implements pre_spawn."""
 
     @hookimpl
-    def pre_spawn(
-        self, context: TickContext, task_id: str, role: str
-    ) -> TickHookResult:
+    def pre_spawn(self, context: TickContext, task_id: str, role: str) -> TickHookResult:
         return TickHookResult(
             hook_name="pre_spawn_plugin",
             phase="pre_spawn",
@@ -162,9 +160,7 @@ class PostSpawnPlugin:
     """Plugin that implements post_spawn."""
 
     @hookimpl
-    def post_spawn(
-        self, context: TickContext, task_id: str, agent_id: str
-    ) -> TickHookResult:
+    def post_spawn(self, context: TickContext, task_id: str, agent_id: str) -> TickHookResult:
         return TickHookResult(
             hook_name="post_spawn_plugin",
             phase="post_spawn",

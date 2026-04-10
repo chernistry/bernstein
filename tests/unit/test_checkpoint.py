@@ -245,9 +245,7 @@ class TestListCheckpoints:
 
     def test_list_multiple_sorted(self, tmp_path: Path) -> None:
         # Create three checkpoints with different timestamps.
-        for i, ts in enumerate(
-            ["2026-04-10T14:00:00+00:00", "2026-04-10T12:00:00+00:00", "2026-04-10T16:00:00+00:00"]
-        ):
+        for i, ts in enumerate(["2026-04-10T14:00:00+00:00", "2026-04-10T12:00:00+00:00", "2026-04-10T16:00:00+00:00"]):
             meta = CheckpointMetadata(
                 checkpoint_id=f"ckpt-{i:03d}",
                 created_at=ts,

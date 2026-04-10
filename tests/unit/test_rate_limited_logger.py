@@ -256,9 +256,7 @@ class TestInstallRateLimitedFilter:
         f2 = install_rate_limited_filter(name)
         assert f1 is f2
         # Only one filter added
-        rate_filters = [
-            f for f in target.filters if isinstance(f, RateLimitedLogFilter)
-        ]
+        rate_filters = [f for f in target.filters if isinstance(f, RateLimitedLogFilter)]
         assert len(rate_filters) == 1
 
         # Cleanup

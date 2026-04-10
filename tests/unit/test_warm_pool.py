@@ -75,9 +75,7 @@ class TestWarmPoolConfig:
             cfg.max_slots = 10  # type: ignore[misc]
 
     def test_custom_values(self) -> None:
-        cfg = WarmPoolConfig(
-            max_slots=5, slot_ttl_seconds=600.0, roles=["backend", "qa"]
-        )
+        cfg = WarmPoolConfig(max_slots=5, slot_ttl_seconds=600.0, roles=["backend", "qa"])
         assert cfg.max_slots == 5
         assert cfg.slot_ttl_seconds == 600.0
         assert cfg.roles == ["backend", "qa"]
@@ -227,12 +225,8 @@ class TestAvailableRoles:
 
     def test_returns_ready_roles(self) -> None:
         pool = WarmPool(WarmPoolConfig())
-        pool.add_slot(
-            PoolSlot(slot_id="s1", role="backend", worktree_path="/t/1", created_at=1.0)
-        )
-        pool.add_slot(
-            PoolSlot(slot_id="s2", role="qa", worktree_path="/t/2", created_at=2.0)
-        )
+        pool.add_slot(PoolSlot(slot_id="s1", role="backend", worktree_path="/t/1", created_at=1.0))
+        pool.add_slot(PoolSlot(slot_id="s2", role="qa", worktree_path="/t/2", created_at=2.0))
         assert pool.available_roles() == ["backend", "qa"]
 
     def test_excludes_claimed_and_expired(self) -> None:
@@ -259,12 +253,8 @@ class TestAvailableRoles:
 
     def test_deduplicates(self) -> None:
         pool = WarmPool(WarmPoolConfig())
-        pool.add_slot(
-            PoolSlot(slot_id="s1", role="backend", worktree_path="/t/1", created_at=1.0)
-        )
-        pool.add_slot(
-            PoolSlot(slot_id="s2", role="backend", worktree_path="/t/2", created_at=2.0)
-        )
+        pool.add_slot(PoolSlot(slot_id="s1", role="backend", worktree_path="/t/1", created_at=1.0))
+        pool.add_slot(PoolSlot(slot_id="s2", role="backend", worktree_path="/t/2", created_at=2.0))
         assert pool.available_roles() == ["backend"]
 
 
@@ -281,12 +271,7 @@ class TestLoadWarmPoolConfig:
     def test_loads_from_yaml(self, tmp_path: Path) -> None:
         yaml_file = tmp_path / "bernstein.yaml"
         yaml_file.write_text(
-            "warm_pool:\n"
-            "  max_slots: 5\n"
-            "  slot_ttl_seconds: 600\n"
-            "  roles:\n"
-            "    - backend\n"
-            "    - qa\n",
+            "warm_pool:\n  max_slots: 5\n  slot_ttl_seconds: 600\n  roles:\n    - backend\n    - qa\n",
             encoding="utf-8",
         )
         cfg = load_warm_pool_config(yaml_file)
@@ -320,10 +305,7 @@ class TestLoadWarmPoolConfig:
     def test_invalid_types_fall_back_to_defaults(self, tmp_path: Path) -> None:
         yaml_file = tmp_path / "bernstein.yaml"
         yaml_file.write_text(
-            "warm_pool:\n"
-            '  max_slots: "not_a_number"\n'
-            "  slot_ttl_seconds: true\n"
-            "  roles: 42\n",
+            'warm_pool:\n  max_slots: "not_a_number"\n  slot_ttl_seconds: true\n  roles: 42\n',
             encoding="utf-8",
         )
         cfg = load_warm_pool_config(yaml_file)

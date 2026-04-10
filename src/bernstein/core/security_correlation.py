@@ -288,7 +288,7 @@ def load_security_events(
             if isinstance(details_raw, dict):
                 details_dict: dict[str, object] = details_raw
             else:
-                details_dict = {}
+                details_dict: dict[str, object] = {}
 
             run_id = str(entry.get("run_id", "") or details_dict.get("run_id", ""))
             if run_ids is not None and run_id not in run_ids:

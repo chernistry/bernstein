@@ -44,7 +44,7 @@ class SnapshotResult:
 
     widget_name: str
     matched: bool
-    diff_lines: list[str] = field(default_factory=list)
+    diff_lines: list[str] = field(default_factory=lambda: list[str]())
     snapshot_path: str = ""
 
 

@@ -49,9 +49,9 @@ class TaskTemplate:
     role: str
     scope: str
     complexity: str
-    quality_gates: list[str] = field(default_factory=list)
-    completion_signals: list[str] = field(default_factory=list)
-    tags: list[str] = field(default_factory=list)
+    quality_gates: list[str] = field(default_factory=lambda: list[str]())
+    completion_signals: list[str] = field(default_factory=lambda: list[str]())
+    tags: list[str] = field(default_factory=lambda: list[str]())
 
 
 BUILTIN_TEMPLATES: dict[str, TaskTemplate] = {

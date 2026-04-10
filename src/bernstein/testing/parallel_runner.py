@@ -60,8 +60,8 @@ class ParallelRunReport:
     wall_time_s: float
     cpu_time_s: float
     speedup: float
-    results: list[FileTestResult] = field(default_factory=list)
-    failures: list[str] = field(default_factory=list)
+    results: list[FileTestResult] = field(default_factory=lambda: list[FileTestResult]())
+    failures: list[str] = field(default_factory=lambda: list[str]())
 
 
 def discover_test_files(test_dir: Path, pattern: str = "test_*.py") -> list[str]:

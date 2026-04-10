@@ -32,12 +32,8 @@ if TYPE_CHECKING:
 # Data classes
 # ---------------------------------------------------------------------------
 
-_TIMESTAMP_RE = re.compile(
-    r"^\[?(?P<ts>\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)"
-)
-_ISO_FULL = re.compile(
-    r"^(?P<y>\d{4})-(?P<mo>\d{2})-(?P<d>\d{2})[T ](?P<h>\d{2}):(?P<mi>\d{2}):(?P<s>\d{2})"
-)
+_TIMESTAMP_RE = re.compile(r"^\[?(?P<ts>\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)")
+_ISO_FULL = re.compile(r"^(?P<y>\d{4})-(?P<mo>\d{2})-(?P<d>\d{2})[T ](?P<h>\d{2}):(?P<mi>\d{2}):(?P<s>\d{2})")
 
 
 @dataclass(frozen=True)
@@ -85,10 +81,20 @@ _RANGE_RE = re.compile(
     re.IGNORECASE,
 )
 _UNIT_SECONDS: dict[str, float] = {
-    "s": 1, "sec": 1, "second": 1, "seconds": 1,
-    "m": 60, "min": 60, "minute": 60, "minutes": 60,
-    "h": 3600, "hour": 3600, "hours": 3600,
-    "d": 86400, "day": 86400, "days": 86400,
+    "s": 1,
+    "sec": 1,
+    "second": 1,
+    "seconds": 1,
+    "m": 60,
+    "min": 60,
+    "minute": 60,
+    "minutes": 60,
+    "h": 3600,
+    "hour": 3600,
+    "hours": 3600,
+    "d": 86400,
+    "day": 86400,
+    "days": 86400,
 }
 
 
@@ -183,9 +189,23 @@ def _detect_level(line: str) -> str:
 # ---------------------------------------------------------------------------
 
 _ROLE_KEYWORDS: list[str] = [
-    "backend", "frontend", "qa", "security", "devops", "architect",
-    "docs", "reviewer", "ml-engineer", "prompt-engineer", "retrieval",
-    "visionary", "analyst", "resolver", "ci-fixer", "manager", "vp",
+    "backend",
+    "frontend",
+    "qa",
+    "security",
+    "devops",
+    "architect",
+    "docs",
+    "reviewer",
+    "ml-engineer",
+    "prompt-engineer",
+    "retrieval",
+    "visionary",
+    "analyst",
+    "resolver",
+    "ci-fixer",
+    "manager",
+    "vp",
 ]
 
 

@@ -292,10 +292,7 @@ class PostMortemGenerator:
                         continue
                     lines.append(f"- **{factor.category}** ({factor.count}x): {factor.description}")
         else:
-            lines.append(
-                "No dominant failure pattern detected. "
-                "Review agent logs manually for more detail."
-            )
+            lines.append("No dominant failure pattern detected. Review agent logs manually for more detail.")
         lines.append("")
 
         # -- Failed task traces ------------------------------------------------
@@ -356,12 +353,7 @@ class PostMortemGenerator:
         """
         md = self.to_markdown(report)
         # Minimal HTML wrapper — avoids heavyweight markdown-to-HTML dependency.
-        escaped = (
-            md.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\n", "<br>\n")
-        )
+        escaped = md.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>\n")
         title = f"Post-Mortem: {report.run_id}"
         return f"""<!DOCTYPE html>
 <html lang="en">
@@ -500,9 +492,7 @@ class PostMortemGenerator:
             if end > 0:
                 kind = "task_complete" if success else "task_fail"
                 label = f"Task {'completed' if success else 'FAILED'}: {task_id}"
-                events.append(
-                    PostMortemEvent(timestamp=end, label=label, kind=kind, task_id=task_id)
-                )
+                events.append(PostMortemEvent(timestamp=end, label=label, kind=kind, task_id=task_id))
 
         return sorted(events, key=lambda e: e.timestamp)
 
@@ -525,11 +515,7 @@ class PostMortemGenerator:
             if session_id and aggregator.log_exists(session_id):
                 summary = aggregator.parse_log(session_id)
                 retry_ctx = aggregator.failure_context_for_retry(session_id)
-                error_snippets = [
-                    ev.message[:200]
-                    for ev in summary.events
-                    if ev.level == "error"
-                ][:3]
+                error_snippets = [ev.message[:200] for ev in summary.events if ev.level == "error"][:3]
                 dominant = summary.dominant_failure_category or ""
                 files_touched = summary.files_modified
             else:

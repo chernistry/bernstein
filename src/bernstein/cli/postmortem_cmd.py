@@ -73,10 +73,7 @@ def postmortem_cmd(
         raise SystemExit(1)
 
     if report.failed_tasks == 0:
-        console.print(
-            f"[green]Run `{report.run_id}` had no failed tasks.[/green] "
-            "Post-mortem not required."
-        )
+        console.print(f"[green]Run `{report.run_id}` had no failed tasks.[/green] Post-mortem not required.")
         return
 
     content = generator.to_html(report) if fmt == "html" else generator.to_markdown(report)

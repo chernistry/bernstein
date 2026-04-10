@@ -1080,6 +1080,7 @@ def create_app(
     from bernstein.core.routes.slack import router as slack_router
     from bernstein.core.routes.status import router as status_router
     from bernstein.core.routes.tasks import router as tasks_router
+    from bernstein.core.routes.team_dashboard import router as team_dashboard_router
     from bernstein.core.routes.webhooks import router as webhooks_router
     from bernstein.core.routes.workspace import router as workspace_router
 
@@ -1389,6 +1390,7 @@ def create_app(
     application.include_router(slack_router)
     application.include_router(costs_router)
     application.include_router(dashboard_router)
+    application.include_router(team_dashboard_router)
     application.include_router(graph_router)
     application.include_router(observability_router)
     application.include_router(quality_router)

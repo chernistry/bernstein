@@ -311,6 +311,7 @@ class SeedConfig:
     internal_llm_provider: str = "openrouter_free"
     internal_llm_model: str = "nvidia/nemotron-3-super-120b-a12b"
     model_fallback: ModelFallbackSeedConfig | None = None
+    deployment_strategy: str = "rolling"
 
 
 _BUDGET_RE = re.compile(r"^\$(\d+(?:\.\d+)?)$")
@@ -1410,6 +1411,13 @@ def parse_seed(path: Path) -> SeedConfig:
 
     model_fallback = _parse_model_fallback(data.get("model_fallback"))
 
+    # --- Deployment strategy ---
+    deployment_strategy_raw: object = data.get("deployment_strategy", "rolling")
+    if not isinstance(deployment_strategy_raw, str):
+        raise SeedError(
+            f"deployment_strategy must be a string, got: {type(deployment_strategy_raw).__name__}"
+        )
+
     return SeedConfig(
         goal=goal,
         budget_usd=budget_usd,
@@ -1453,6 +1461,7 @@ def parse_seed(path: Path) -> SeedConfig:
         internal_llm_provider=internal_llm_provider_raw,
         internal_llm_model=internal_llm_model_raw,
         model_fallback=model_fallback,
+        deployment_strategy=deployment_strategy_raw,
     )
 
 

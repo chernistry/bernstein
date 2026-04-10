@@ -246,6 +246,48 @@ stateDiagram-v2
     dead --> [*]
 ```
 
+### Agent Turn FSM (10 states)
+
+Tracks the lifecycle of a single task-handling turn within an agent process.
+Source: `src/bernstein/core/agent_turn_state.py`.
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> CLAIMING : task_claimed
+
+    CLAIMING --> SPAWNING : agent_spawned
+    CLAIMING --> FAILED : task_failed
+
+    SPAWNING --> RUNNING : agent_spawned
+    SPAWNING --> FAILED : task_failed
+
+    RUNNING --> TOOL_USE : tool_started
+    RUNNING --> COMPACTING : compact_needed
+    RUNNING --> VERIFYING : verify_requested
+    RUNNING --> FAILED : task_failed
+
+    TOOL_USE --> RUNNING : tool_completed
+    TOOL_USE --> FAILED : task_failed
+
+    COMPACTING --> RUNNING : verify_requested
+    COMPACTING --> FAILED : task_failed
+
+    VERIFYING --> COMPLETING : task_completed
+    VERIFYING --> RUNNING : compact_needed
+    VERIFYING --> FAILED : task_failed
+
+    COMPLETING --> REAPED : agent_reaped
+
+    FAILED --> REAPED : agent_reaped
+
+    REAPED --> [*]
+```
+
+See [LIFECYCLE.md](LIFECYCLE.md#agent-turn-states-10-states) for the full
+transition table and events reference.
+
 ---
 
 ## Non-goals for this document

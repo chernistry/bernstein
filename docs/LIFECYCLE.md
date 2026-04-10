@@ -216,6 +216,105 @@ These classify abnormal agent terminations:
 
 ---
 
+## Agent Turn States (10 states)
+
+The agent turn FSM operates at a finer granularity than the agent session FSM above.
+It tracks the lifecycle of a **single task handling turn** within an agent process —
+from the moment a task is claimed through to cleanup.
+
+Source of truth: `src/bernstein/core/agent_turn_state.py` (`AgentTurnState`,
+`AgentTurnEvent`, `AgentTurnStateMachine`).
+
+| State | Description |
+|-------|-------------|
+| `IDLE` | No active turn — agent is between tasks or not yet assigned. |
+| `CLAIMING` | A task has been claimed; worktree is being prepared. |
+| `SPAWNING` | Agent process has been launched but hasn't started executing yet. |
+| `RUNNING` | Agent process is actively working on the task. |
+| `TOOL_USE` | Agent is executing an external tool (file editor, shell, search, etc.). |
+| `COMPACTING` | Context window is near its limit; compaction/summarization is in progress. |
+| `VERIFYING` | Task work is done; janitor or LLM verification is pending. |
+| `COMPLETING` | Verification passed; task is being marked done and metrics emitted. |
+| `FAILED` | An error, crash, or verification failure occurred. |
+| `REAPED` | Cleanup is complete (worktree removed, metrics flushed). Terminal. |
+
+### Agent Turn State Diagram
+
+Events that drive transitions are shown on each arrow.
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> CLAIMING : task_claimed
+
+    CLAIMING --> SPAWNING : agent_spawned
+    CLAIMING --> FAILED : task_failed
+
+    SPAWNING --> RUNNING : agent_spawned
+    SPAWNING --> FAILED : task_failed
+
+    RUNNING --> TOOL_USE : tool_started
+    RUNNING --> COMPACTING : compact_needed
+    RUNNING --> VERIFYING : verify_requested
+    RUNNING --> FAILED : task_failed
+
+    TOOL_USE --> RUNNING : tool_completed
+    TOOL_USE --> FAILED : task_failed
+
+    COMPACTING --> RUNNING : verify_requested
+    COMPACTING --> FAILED : task_failed
+
+    VERIFYING --> COMPLETING : task_completed
+    VERIFYING --> RUNNING : compact_needed
+    VERIFYING --> FAILED : task_failed
+
+    COMPLETING --> REAPED : agent_reaped
+
+    FAILED --> REAPED : agent_reaped
+
+    REAPED --> [*]
+```
+
+### Agent Turn Transition Table (exhaustive)
+
+| From | Event | To | Notes |
+|------|-------|----|-------|
+| `IDLE` | `task_claimed` | `CLAIMING` | Orchestrator picks up the next open task |
+| `CLAIMING` | `agent_spawned` | `SPAWNING` | Worktree ready; CLI process launched |
+| `CLAIMING` | `task_failed` | `FAILED` | Worktree setup failed (permission error, git conflict) |
+| `SPAWNING` | `agent_spawned` | `RUNNING` | Process confirmed alive and active |
+| `SPAWNING` | `task_failed` | `FAILED` | Spawn error or adapter rejected the task |
+| `RUNNING` | `tool_started` | `TOOL_USE` | Agent invoked a tool (Edit, Bash, Glob, etc.) |
+| `RUNNING` | `compact_needed` | `COMPACTING` | Context window approaching the model's limit |
+| `RUNNING` | `verify_requested` | `VERIFYING` | Agent signals it is done; verification begins |
+| `RUNNING` | `task_failed` | `FAILED` | Runtime error or abort during execution |
+| `TOOL_USE` | `tool_completed` | `RUNNING` | Tool call finished; agent resumes |
+| `TOOL_USE` | `task_failed` | `FAILED` | Fatal error inside the tool invocation |
+| `COMPACTING` | `verify_requested` | `RUNNING` | Compaction done; context summarized; agent continues |
+| `COMPACTING` | `task_failed` | `FAILED` | Compaction itself failed (`compact_failure` abort) |
+| `VERIFYING` | `task_completed` | `COMPLETING` | All completion signals satisfied |
+| `VERIFYING` | `compact_needed` | `RUNNING` | Context grew during verification; must compact first |
+| `VERIFYING` | `task_failed` | `FAILED` | Janitor rejected the result |
+| `COMPLETING` | `agent_reaped` | `REAPED` | Task marked done; worktree removed; metrics flushed |
+| `FAILED` | `agent_reaped` | `REAPED` | Error handled; resources cleaned up |
+
+### Events Reference
+
+| Event | Fired by | Meaning |
+|-------|----------|---------|
+| `task_claimed` | Spawner / orchestrator | A task was successfully reserved for this agent |
+| `agent_spawned` | Adapter / spawner | CLI process started (fires twice: at launch and at readiness confirmation) |
+| `tool_started` | Agent turn monitor | Agent began a tool call |
+| `tool_completed` | Agent turn monitor | Tool call returned |
+| `compact_needed` | Token monitor | Context window usage crossed the compaction threshold |
+| `verify_requested` | Agent / orchestrator | Agent declared the task finished |
+| `task_completed` | Janitor | All completion signals confirmed |
+| `task_failed` | Any layer | Unrecoverable error at the current phase |
+| `agent_reaped` | Janitor / spawner | Cleanup of process and worktree is complete |
+
+---
+
 ## Abort Chain Hierarchy
 
 Agent aborts follow a three-level containment hierarchy:

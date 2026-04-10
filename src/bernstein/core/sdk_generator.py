@@ -243,7 +243,7 @@ def generate_sdk_to_file(output_path: str, openapi_spec: dict[str, Any]) -> str:
 # TypeScript SDK generation
 # ---------------------------------------------------------------------------
 
-_TS_SDK_HEADER = '''\
+_TS_SDK_HEADER = """\
 /**
  * Auto-generated Bernstein API client SDK (TypeScript).
  *
@@ -300,7 +300,7 @@ export class BernsteinClient {
     }
   }
 
-'''
+"""
 
 
 def _ts_type(schema: dict[str, Any]) -> str:
@@ -379,10 +379,10 @@ def _generate_ts_method(method: str, path: str, operation: dict[str, Any]) -> st
                 lines.append(f"    if ({qp_name} !== undefined) _q.push(`{qp_name}=${{{qp_name}}}`);")
             else:
                 lines.append(f"    _q.push(`{qp_name}=${{{qp_name}}}`);")
-        lines.append(f'    let _path = `{path}`;')
-        lines.append("    if (_q.length) _path += `?${_q.join(\"&\")}`;")
+        lines.append(f"    let _path = `{path}`;")
+        lines.append('    if (_q.length) _path += `?${_q.join("&")}`;')
     else:
-        lines.append(f'    const _path = `{path}`;')
+        lines.append(f"    const _path = `{path}`;")
 
     body_arg = ", body" if has_body else ""
     lines.append(f'    return this._request("{http_method}", _path{body_arg});')

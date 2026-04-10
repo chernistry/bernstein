@@ -18,7 +18,7 @@ import copy
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -78,16 +78,20 @@ def _resolve_path(data: dict[str, Any], path: str) -> tuple[Any, str]:
     parts = path.split(".")
     current: Any = data
     for part in parts[:-1]:
-        current = current[int(part)] if isinstance(current, list) else current[part]
-    return current, parts[-1]
+        if isinstance(current, list):
+            current = cast(Any, current[int(part)])
+        else:
+            current = current[part]  # type: ignore[index]
+    final_key: str = parts[-1]
+    return current, final_key
 
 
 def _get_value(data: dict[str, Any], path: str) -> Any:
     """Return the value at *path* inside *data*."""
     parent, key = _resolve_path(data, path)
     if isinstance(parent, list):
-        return parent[int(key)]
-    return parent[key]
+        return cast(Any, parent[int(key)])
+    return parent[key]  # type: ignore[index]
 
 
 def _set_value(data: dict[str, Any], path: str, value: Any) -> None:

@@ -72,7 +72,7 @@ class RestartState:
     old_pid: int
     new_pid: int
     wal_position: int
-    active_agent_pids: list[int] = field(default_factory=list)
+    active_agent_pids: list[int] = field(default_factory=lambda: list[int]())
     started_at: float = 0.0
     completed_at: float = 0.0
 

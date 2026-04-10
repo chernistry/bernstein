@@ -70,7 +70,7 @@ class ArbitrageResult:
     """
 
     selected: ProviderPricing
-    candidates: list[ProviderPricing] = field(default_factory=list)
+    candidates: list[ProviderPricing] = field(default_factory=lambda: list[ProviderPricing]())
     estimated_cost_usd: float = 0.0
     savings_vs_default_pct: float = 0.0
 

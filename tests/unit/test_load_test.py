@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from bernstein.testing.load_test import (
     LoadTestConfig,
     LoadTestReport,
@@ -43,18 +45,18 @@ def _make_result(
 class TestComputePercentiles:
     def test_empty_returns_zeros(self) -> None:
         pct = compute_percentiles([])
-        assert pct == {"p50": 0.0, "p95": 0.0, "p99": 0.0, "max": 0.0}
+        assert pct == pytest.approx({"p50": 0.0, "p95": 0.0, "p99": 0.0, "max": 0.0})
 
     def test_single_value(self) -> None:
         pct = compute_percentiles([42.0])
-        assert pct["p50"] == 42.0
-        assert pct["p99"] == 42.0
-        assert pct["max"] == 42.0
+        assert pct["p50"] == pytest.approx(42.0)
+        assert pct["p99"] == pytest.approx(42.0)
+        assert pct["max"] == pytest.approx(42.0)
 
     def test_two_values(self) -> None:
         pct = compute_percentiles([10.0, 20.0])
-        assert pct["p50"] == 10.0
-        assert pct["max"] == 20.0
+        assert pct["p50"] == pytest.approx(10.0)
+        assert pct["max"] == pytest.approx(20.0)
 
     def test_sorted_order_irrelevant(self) -> None:
         forward = compute_percentiles([1.0, 2.0, 3.0, 4.0, 5.0])
@@ -64,17 +66,17 @@ class TestComputePercentiles:
     def test_100_values_known_percentiles(self) -> None:
         durations = [float(i) for i in range(1, 101)]
         pct = compute_percentiles(durations)
-        assert pct["p50"] == 50.0
-        assert pct["p95"] == 95.0
-        assert pct["p99"] == 99.0
-        assert pct["max"] == 100.0
+        assert pct["p50"] == pytest.approx(50.0)
+        assert pct["p95"] == pytest.approx(95.0)
+        assert pct["p99"] == pytest.approx(99.0)
+        assert pct["max"] == pytest.approx(100.0)
 
     def test_all_same_values(self) -> None:
         pct = compute_percentiles([7.0] * 50)
-        assert pct["p50"] == 7.0
-        assert pct["p95"] == 7.0
-        assert pct["p99"] == 7.0
-        assert pct["max"] == 7.0
+        assert pct["p50"] == pytest.approx(7.0)
+        assert pct["p95"] == pytest.approx(7.0)
+        assert pct["p99"] == pytest.approx(7.0)
+        assert pct["max"] == pytest.approx(7.0)
 
     def test_keys_present(self) -> None:
         pct = compute_percentiles([1.0, 2.0, 3.0])
@@ -100,7 +102,7 @@ class TestBuildLoadTestReport:
         assert report.successful == 3
         assert report.failed == 0
         assert report.errors == {}
-        assert report.max_ms == 15.0
+        assert report.max_ms == pytest.approx(15.0)
 
     def test_mixed_success_and_failure(self) -> None:
         config = LoadTestConfig()
@@ -124,8 +126,8 @@ class TestBuildLoadTestReport:
         assert report.total_requests == 0
         assert report.successful == 0
         assert report.failed == 0
-        assert report.requests_per_second == 0.0
-        assert report.p50_ms == 0.0
+        assert report.requests_per_second == pytest.approx(0.0)
+        assert report.p50_ms == pytest.approx(0.0)
 
     def test_single_result(self) -> None:
         config = LoadTestConfig()
@@ -133,8 +135,8 @@ class TestBuildLoadTestReport:
         report = build_load_test_report(config, results)
 
         assert report.total_requests == 1
-        assert report.requests_per_second == 1.0
-        assert report.p50_ms == 42.0
+        assert report.requests_per_second == pytest.approx(1.0)
+        assert report.p50_ms == pytest.approx(42.0)
 
     def test_rps_calculation(self) -> None:
         config = LoadTestConfig()
@@ -149,7 +151,7 @@ class TestBuildLoadTestReport:
         report = build_load_test_report(config, results)
 
         # 6 requests across 10 seconds (20 - 10) = 0.6 rps
-        assert report.requests_per_second == 0.6
+        assert report.requests_per_second == pytest.approx(0.6)
 
     def test_config_preserved(self) -> None:
         config = LoadTestConfig(target_url="http://test:9999", concurrent_agents=10)
@@ -434,7 +436,7 @@ class TestDataclasses:
         config = LoadTestConfig()
         assert config.target_url == "http://localhost:8052"
         assert config.concurrent_agents == 100
-        assert config.duration_seconds == 30.0
+        assert config.duration_seconds == pytest.approx(30.0)
         assert config.requests_per_agent == 50
         assert config.endpoints == ["/status", "/tasks", "/health"]
 
@@ -457,9 +459,9 @@ class TestDataclasses:
         )
         assert r.endpoint == "/status"
         assert r.status_code == 200
-        assert r.duration_ms == 12.5
+        assert r.duration_ms == pytest.approx(12.5)
         assert r.error is None
-        assert r.timestamp == 1000.0
+        assert r.timestamp == pytest.approx(1000.0)
 
     def test_result_is_frozen(self) -> None:
         r = _make_result()

@@ -16,7 +16,6 @@ Supported queries::
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -62,22 +61,41 @@ def parse_graphql_query(query: str) -> ParsedQuery:
     # Strip outer braces
     inner = query.strip().strip("{").strip("}").strip()
 
-    # Extract operation name, optional args, and field block
-    match = re.match(r"(\w+)\s{0,10}(?:\(([^)]{0,500})\))?\s{0,10}\{([^}]{0,2000})\}", inner)
-    if not match:
+    # Extract operation name and body using simple string parsing (no regex)
+    # to avoid polynomial-time regex backtracking on adversarial input.
+    paren_start = inner.find("(")
+    brace_start = inner.find("{")
+    if brace_start < 0:
         return ParsedQuery()
 
-    operation = match.group(1)
-    args_str = match.group(2) or ""
-    fields_str = match.group(3)
+    operation = inner[:min(paren_start, brace_start) if paren_start >= 0 else brace_start].strip()
+    if not operation or not operation.isidentifier():
+        return ParsedQuery()
 
-    # Parse args: key: "value" pairs
+    # Extract args between ( and )
+    args_str = ""
+    if 0 <= paren_start < brace_start:
+        paren_end = inner.find(")", paren_start)
+        if paren_end > paren_start:
+            args_str = inner[paren_start + 1 : paren_end]
+
+    # Extract fields between { and }
+    brace_end = inner.find("}", brace_start)
+    fields_str = inner[brace_start + 1 : brace_end] if brace_end > brace_start else ""
+
+    # Parse args: key: "value" pairs via simple split
     args: dict[str, str] = {}
-    for arg_match in re.finditer(r'(\w+)\s{0,10}:\s{0,10}"([^"]*)"', args_str):
-        args[arg_match.group(1)] = arg_match.group(2)
+    for part in args_str.split(","):
+        if ":" not in part or '"' not in part:
+            continue
+        key, _, val = part.partition(":")
+        key = key.strip()
+        val = val.strip().strip('"')
+        if key.isidentifier():
+            args[key] = val
 
-    # Parse fields (top-level names only; nested sub-selections are ignored)
-    fields = re.findall(r"\w+", fields_str)
+    # Parse fields (top-level identifiers only)
+    fields = [w for w in fields_str.split() if w.isidentifier()]
 
     return ParsedQuery(operation=operation, fields=fields, args=args)
 

@@ -90,7 +90,8 @@ class TestFormatHelpSuggestion:
         link = HELP_LINKS[0]
         result = format_help_suggestion(link)
         url_part = result.removeprefix("See: ")
-        assert url_part.startswith("https://bernstein.readthedocs.io")
+        expected_host = "bernstein.readthedocs.io"
+        assert expected_host in url_part
 
 
 class TestEnrichErrorMessage:

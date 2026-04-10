@@ -279,7 +279,15 @@ class ApprovalGate:
 
         push_result = push_fn(worktree_path, pr_branch)
         if not getattr(push_result, "ok", True):
-            logger.warning("Approval gate: push failed for task %s: %s", task.id, getattr(push_result, "stderr", ""))
+            stderr = getattr(push_result, "stderr", "")
+            logger.warning("Approval gate: push failed for task %s, retrying: %s", task.id, stderr)
+            import time as _time
+
+            _time.sleep(2)
+            push_result = push_fn(worktree_path, pr_branch)
+            if not getattr(push_result, "ok", True):
+                logger.error("Approval gate: push failed on retry for task %s", task.id)
+                return ""
 
         pr_result: PullRequestResult = create_fn(
             cwd=self._workdir,

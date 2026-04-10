@@ -380,9 +380,19 @@ def safe_push(
         "timed out",
         "timeout",
         "reset by peer",
+        "non-fast-forward",
+        "fetch first",
+        "cannot lock ref",
     )
     push_result = GitResult(returncode=1, stdout="", stderr="no push attempted")
     for attempt in range(max_retries + 1):
+        # Re-fetch and rebase before each retry to handle concurrent pushes
+        if attempt > 0:
+            fetch(cwd, remote)
+            rebase_r = run_git(["rebase", f"{remote}/{branch}"], cwd, timeout=120)
+            if not rebase_r.ok:
+                run_git(["rebase", "--abort"], cwd)
+                run_git(["merge", f"{remote}/{branch}", "--no-edit"], cwd, timeout=120)
         push_result = run_git(["push", remote, branch], cwd, timeout=60)
         if push_result.ok:
             return push_result

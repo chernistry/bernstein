@@ -12,6 +12,7 @@ opps = "opps"        # opps = opportunities (test_evolution_e2e.py, test_evoluti
 ded = "ded"          # injection_ded = injection deduction (memory_sanitizer.py)
 ehr = "ehr"          # Electronic Health Record (HIPAA compliance)
 mis = "mis"          # false positive on partial words
+smal = "smal"        # intentional typo in test_plan_autocorrect.py test fixture
 
 # Technical terms used consistently in the codebase
 unparseable = "unparseable"

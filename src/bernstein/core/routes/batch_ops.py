@@ -7,6 +7,7 @@ operations on up to 200 tasks in a single request.
 from __future__ import annotations
 
 import logging
+import re
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
@@ -168,7 +169,8 @@ async def batch_operations(body: BatchRequest, request: Request) -> BatchResult:
     store = _get_store(request)
     result = BatchResult()
 
-    for task_id in body.ids:
+    for raw_id in body.ids:
+        task_id = re.sub(r"[^\w\-]", "", raw_id)[:64]
         try:
             if body.action == BatchAction.CANCEL:
                 await _cancel_task(store, task_id)

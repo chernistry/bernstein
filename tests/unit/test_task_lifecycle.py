@@ -425,7 +425,7 @@ def test_prepare_speculative_warm_pool_prewarms_near_ready_tasks_without_spawnin
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
 
-    warm_pool = WarmPool(repo_root, config=WarmPoolConfig(pool_size=1, use_git_worktrees=False))
+    warm_pool = WarmPool(config=WarmPoolConfig(max_slots=1))
     orch = _claim_orch(repo_root)
     orch._spawner._warm_pool = warm_pool
     orch._spawner.spawn_for_tasks = MagicMock()
@@ -437,7 +437,7 @@ def test_prepare_speculative_warm_pool_prewarms_near_ready_tasks_without_spawnin
 
     prepare_speculative_warm_pool(orch, graph, [blocker, dependent])
 
-    assert warm_pool.available == 1
+    assert warm_pool.stats()["ready"] == 1
     orch._client.post.assert_not_called()
     orch._spawner.spawn_for_tasks.assert_not_called()
 

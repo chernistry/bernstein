@@ -227,6 +227,7 @@ def _render_optional_status(value: bool | None) -> str:
 def _print_usage_report(report: MCPUsageAnalyticsReport) -> None:
     """Render a human-readable historical MCP usage report."""
     from rich.table import Table
+
     console.print("[bold cyan]MCP Usage Analytics[/bold cyan]")
     console.print(
         f"Recorded tool calls: [bold]{report.total_calls}[/bold]  "

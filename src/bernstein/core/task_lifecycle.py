@@ -237,13 +237,15 @@ def prepare_speculative_warm_pool(orch: Any, task_graph: Any, tasks: list[Task])
 
     created = 0
     try:
-        for candidate in candidates[:desired_idle - current_ready]:
-            warm_pool.add_slot(PoolSlot(
-                slot_id=f"spec-{candidate.id}",
-                role=candidate.role,
-                worktree_path="",
-                created_at=0.0,
-            ))
+        for candidate in candidates[: desired_idle - current_ready]:
+            warm_pool.add_slot(
+                PoolSlot(
+                    slot_id=f"spec-{candidate.id}",
+                    role=candidate.role,
+                    worktree_path="",
+                    created_at=0.0,
+                )
+            )
             created += 1
     except RuntimeError as exc:
         logger.debug("Speculative warm-pool preparation skipped: %s", exc)

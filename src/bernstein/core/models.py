@@ -1060,6 +1060,7 @@ class OrchestratorConfig:
     agent_resource_limits: Any | None = None  # ResourceLimits | None — OS-level limits for non-sandboxed spawns
     shutdown_stagger_delay_s: float = 5.0  # Seconds between SHUTDOWN signals during drain
     stale_claim_timeout_s: float = 900.0  # Seconds before a claimed task with no live agent is released
+    drain_timeout_s: float = 60.0  # Seconds to wait for agents during drain before cleanup
 
     def __post_init__(self) -> None:
         """Parse nested workflow config if dict provided."""

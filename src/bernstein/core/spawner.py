@@ -7,6 +7,7 @@ import concurrent.futures
 import json
 import logging
 import shutil
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -49,7 +50,6 @@ from bernstein.templates.renderer import TemplateError, render_role_prompt
 
 if TYPE_CHECKING:
     import subprocess
-    import threading
 
     from bernstein.adapters.base import CLIAdapter
     from bernstein.agents.catalog import CatalogAgent, CatalogRegistry
@@ -806,6 +806,8 @@ class AgentSpawner:
         self._worktree_roots: dict[str, Path] = {}
         self._warm_pool = warm_pool
         self._warm_pool_entries: dict[str, PoolSlot] = {}
+        # Per-repo lock to serialize pushes and prevent non-fast-forward races
+        self._push_locks: dict[Path, threading.Lock] = {}
         self._traces: dict[str, AgentTrace] = {}
         self._trace_store = TraceStore(workdir / ".sdd" / "traces")
         self._runtime_bridge = runtime_bridge
@@ -1625,6 +1627,9 @@ class AgentSpawner:
                                 except RouterError:
                                     pass
                             continue
+                    # Release warm pool slot before raising so the pre-provisioned
+                    # worktree is not permanently leaked (BUG-19).
+                    self._release_warm_pool_slot(session_id)
                     raise RuntimeError(f"All spawn attempts failed for session {session_id}: {error_text}")
                 # Success — exit the retry loop
                 break
@@ -2204,6 +2209,22 @@ class AgentSpawner:
                 logger.warning("reap_completed_agent: wait failed for %s: %s", session.id, exc)
         logger.info("Agent %s process reaped", session.id)
 
+    def _release_warm_pool_slot(self, session_id: str) -> None:
+        """Release a claimed warm pool slot for *session_id*, if any.
+
+        Safe to call even when no warm pool entry was claimed — the
+        method is a no-op in that case.  Used to prevent permanent
+        worktree leaks when a spawn fails after claiming a slot (BUG-19).
+        """
+        warm_entry = self._warm_pool_entries.pop(session_id, None)
+        if warm_entry is not None and self._warm_pool is not None:
+            logger.info(
+                "Releasing warm pool slot %s after spawn failure for session %s",
+                warm_entry.slot_id,
+                session_id,
+            )
+            self._warm_pool.release_slot(warm_entry.slot_id)
+
     def _merge_and_cleanup_worktree(
         self,
         session: AgentSession,
@@ -2230,7 +2251,16 @@ class AgentSpawner:
                 if merge_result and merge_result.success:
                     from bernstein.core.git_ops import safe_push
 
-                    push_result = safe_push(worktree_root, "main")
+                    # Serialize pushes per-repo to prevent concurrent
+                    # non-fast-forward races (BUG-09).  safe_push already
+                    # retries with rebase, but concurrent callers can
+                    # still collide; the lock ensures only one push is
+                    # in-flight per repository at a time.
+                    push_lock = self._push_locks.setdefault(
+                        worktree_root, threading.Lock()
+                    )
+                    with push_lock:
+                        push_result = safe_push(worktree_root, "main")
                     if push_result.ok:
                         logger.info("Pushed merged work from %s to origin/main", session.id)
                     else:

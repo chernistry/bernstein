@@ -303,7 +303,10 @@ def validate_formula(formula: str, *, allow_unknown: bool = True) -> list[str]:
     try:
         tree = ast.parse(formula.strip(), mode="eval")
     except SyntaxError as exc:
-        errors.append(f"Syntax error: {exc}")
+        # Use ``exc.msg`` rather than ``str(exc)`` to avoid leaking file
+        # paths or internal stack frames through ``/metrics/custom/schema``
+        # (CodeQL alert py/stack-trace-exposure #96).
+        errors.append(f"Syntax error: {exc.msg or 'invalid formula'}")
         return errors
 
     # Walk AST to check for unsupported nodes.

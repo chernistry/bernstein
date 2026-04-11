@@ -178,7 +178,11 @@ def _load_prompt_token_report(sdd_dir: Path, session_id: str) -> dict[str, Any] 
     try:
         return json.loads(report_path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
     except (OSError, json.JSONDecodeError) as exc:
-        logger.debug("Cannot load prompt token report for %s: %s", session_id, exc)
+        # Strip CR/LF from the user-controlled session_id before logging
+        # so an attacker cannot inject fake log lines (CodeQL
+        # py/log-injection #98).
+        safe_sid = session_id.replace("\r", "").replace("\n", "")
+        logger.debug("Cannot load prompt token report for %s: %s", safe_sid, exc)
         return None
 
 

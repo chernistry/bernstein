@@ -1665,10 +1665,27 @@ class Orchestrator:
         """Return True when the orchestrator is draining for shutdown."""
         return self._shutting_down.is_set()
 
-    def _drain_before_cleanup(self, timeout_s: float = 10.0) -> None:
-        """Stop new work, wait briefly for active agents, then drain executor."""
+    def _drain_before_cleanup(self, timeout_s: float | None = None) -> None:
+        """Stop new work, send SHUTDOWN signals, reap completed agents, then drain executor.
+
+        Sends SHUTDOWN signals to all active agents at the start of drain so
+        they can save WIP and exit cleanly.  During the wait loop, continues
+        reaping dead agents and processing completed tasks so that work
+        finished during drain is not lost.
+
+        Args:
+            timeout_s: Maximum seconds to wait for agents to finish.  Defaults
+                to ``self._config.drain_timeout_s`` (60 s).
+        """
         if self._executor_drained:
             return
+
+        if timeout_s is None:
+            timeout_s = self._config.drain_timeout_s
+
+        # BUG-06: Send SHUTDOWN signals so agents save WIP and exit cleanly
+        with contextlib.suppress(Exception):
+            send_shutdown_signals(self, reason="drain_before_cleanup")
 
         deadline = time.time() + timeout_s
         while time.time() < deadline:
@@ -1679,7 +1696,19 @@ class Orchestrator:
             ]
             if not active_sessions:
                 break
-            time.sleep(0.2)
+
+            # BUG-20: Reap dead agents and process completed tasks each
+            # iteration so work that finishes during drain is merged.
+            try:
+                tasks_by_status = fetch_all_tasks(self._client, self._config.server_url)
+                done_tasks = tasks_by_status.get("done", [])
+                if done_tasks:
+                    process_completed_tasks(self, done_tasks, TickResult())
+                reap_dead_agents(self, TickResult(), tasks_by_status)
+            except Exception:
+                logger.debug("Drain poll: task fetch/reap failed (non-critical)", exc_info=True)
+
+            time.sleep(1.0)
 
         try:
             self._executor.shutdown(wait=True, cancel_futures=True)
@@ -2449,9 +2478,17 @@ class Orchestrator:
         logger.info("Executor shut down, background test/ruff processes released")
 
     def _restart(self) -> None:
-        """Replace the current process with a fresh orchestrator."""
+        """Replace the current process with a fresh orchestrator.
+
+        BUG-22 fix: sends SHUTDOWN signals and drains active agents before
+        calling ``os.execv`` so that running agents are not orphaned.
+        """
         import sys
 
+        logger.info("Stopping active agents before restart")
+        self.stop()
+        self._drain_before_cleanup()
+        self._cleanup()
         logger.info("Exec'ing fresh orchestrator process")
         os.execv(sys.executable, [sys.executable, *sys.argv])
 

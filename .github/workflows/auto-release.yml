@@ -21,6 +21,7 @@ jobs:
   release:
     name: Patch release
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: >-
       github.event.workflow_run.conclusion == 'success'
     environment:

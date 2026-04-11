@@ -16,6 +16,7 @@ jobs:
   gemini-review:
     name: Gemini review
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: >
       !github.event.pull_request.draft &&
       !contains(github.event.pull_request.labels.*.name, 'skip-ai')

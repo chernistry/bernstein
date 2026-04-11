@@ -30,6 +30,7 @@ jobs:
   release:
     name: "${{ inputs.bump }} release"
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     environment:
       name: pypi
       url: https://pypi.org/p/bernstein

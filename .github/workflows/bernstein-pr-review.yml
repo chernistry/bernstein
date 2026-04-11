@@ -18,6 +18,7 @@ jobs:
   review:
     name: Review with Bernstein
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     if: >
       !github.event.pull_request.draft &&
       !contains(github.event.pull_request.labels.*.name, 'skip-bernstein')

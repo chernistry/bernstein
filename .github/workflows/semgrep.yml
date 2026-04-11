@@ -25,6 +25,7 @@ jobs:
   semgrep:
     name: Semgrep scan
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     container:
       image: semgrep/semgrep
     if: github.actor != 'dependabot[bot]'

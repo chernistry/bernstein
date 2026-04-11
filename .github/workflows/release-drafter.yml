@@ -17,6 +17,7 @@ permissions:
 jobs:
   update_release_draft:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: release-drafter/release-drafter@a6acf82562eee06318b77ab8cb0b11ed81c677a7 # v7
         with:

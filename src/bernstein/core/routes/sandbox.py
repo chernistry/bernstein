@@ -6,6 +6,8 @@ paste a GitHub URL, pick a solution pack, and watch agents work.
 
 from __future__ import annotations
 
+import html
+import json
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -277,11 +279,19 @@ def _render_landing_page() -> str:
 
 
 def _render_sandbox_page(session_id: str) -> str:
+    # Defence in depth: even though ``_validate_session_id`` already
+    # restricts session_id to ``[A-Za-z0-9_-]{1,64}``, escape the value
+    # before embedding into HTML (html.escape for the <title>) and into
+    # JS string literals (json.dumps to get a safely quoted literal). This
+    # also satisfies CodeQL py/reflective-xss which does not recognise
+    # the regex allowlist as a sanitiser.
+    safe_title_id = html.escape(session_id)
+    safe_js_id = json.dumps(session_id)
     return f"""\
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Bernstein Sandbox — Session {session_id}</title>
+  <title>Bernstein Sandbox — Session {safe_title_id}</title>
   {_COMMON_HEAD}
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen">
@@ -390,12 +400,12 @@ def _render_sandbox_page(session_id: str) -> str:
       }},
       async refresh() {{
         try {{
-          const resp = await fetch('/sandbox/sessions/{session_id}');
+          const resp = await fetch('/sandbox/sessions/' + {safe_js_id});
           if (resp.ok) this.data = await resp.json();
         }} catch (e) {{ /* retry on next poll */ }}
       }},
       async cancel() {{
-        await fetch('/sandbox/sessions/{session_id}/cancel', {{method: 'POST'}});
+        await fetch('/sandbox/sessions/' + {safe_js_id} + '/cancel', {{method: 'POST'}});
         await this.refresh();
       }},
     }};

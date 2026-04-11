@@ -620,22 +620,20 @@ class TestQualityGatesBenchmarkParsing:
         assert cfg.quality_gates.benchmark.enabled is False
 
     def test_benchmark_enabled(self, seed_file: Path) -> None:
-        seed_file.write_text(
-            'goal: "Test"\nquality_gates:\n  benchmark:\n    enabled: true\n'
-        )
+        seed_file.write_text('goal: "Test"\nquality_gates:\n  benchmark:\n    enabled: true\n')
         cfg = parse_seed(seed_file)
         assert cfg.quality_gates is not None
         assert cfg.quality_gates.benchmark.enabled is True
-        assert cfg.quality_gates.benchmark.threshold == 0.10
+        assert cfg.quality_gates.benchmark.threshold == pytest.approx(0.10)
         assert "benchmark-json" in cfg.quality_gates.benchmark.command
 
     def test_benchmark_custom_command_and_threshold(self, seed_file: Path) -> None:
         seed_file.write_text(
-            "goal: \"Test\"\n"
+            'goal: "Test"\n'
             "quality_gates:\n"
             "  benchmark:\n"
             "    enabled: true\n"
-            "    command: \"pytest perf/ --benchmark-json=results.json\"\n"
+            '    command: "pytest perf/ --benchmark-json=results.json"\n'
             "    threshold: 0.05\n"
         )
         cfg = parse_seed(seed_file)
@@ -646,9 +644,7 @@ class TestQualityGatesBenchmarkParsing:
         assert bm.threshold == pytest.approx(0.05)
 
     def test_benchmark_invalid_enabled_type_raises(self, seed_file: Path) -> None:
-        seed_file.write_text(
-            'goal: "Test"\nquality_gates:\n  benchmark:\n    enabled: "yes"\n'
-        )
+        seed_file.write_text('goal: "Test"\nquality_gates:\n  benchmark:\n    enabled: "yes"\n')
         with pytest.raises(SeedError, match="benchmark.enabled"):
             parse_seed(seed_file)
 
@@ -660,8 +656,6 @@ class TestQualityGatesBenchmarkParsing:
             parse_seed(seed_file)
 
     def test_benchmark_non_mapping_raises(self, seed_file: Path) -> None:
-        seed_file.write_text(
-            'goal: "Test"\nquality_gates:\n  benchmark: "enabled"\n'
-        )
+        seed_file.write_text('goal: "Test"\nquality_gates:\n  benchmark: "enabled"\n')
         with pytest.raises(SeedError, match="benchmark must be a mapping"):
             parse_seed(seed_file)

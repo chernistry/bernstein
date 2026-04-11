@@ -286,9 +286,14 @@ class GateRunner:
         changed_files = sorted(resolved_changed_files or [])
         pipeline = self._resolve_pipeline()
 
-        results = await asyncio.gather(
-            *[
-                self._run_step(
+        # Run auto_format steps first (they modify files) before parallel gates.
+        format_steps = [s for s in pipeline if s.name == "auto_format"]
+        other_steps = [s for s in pipeline if s.name != "auto_format"]
+
+        format_results: list[GateResult] = []
+        for step in format_steps:
+            format_results.append(
+                await self._run_step(
                     step,
                     task,
                     run_dir,
@@ -296,9 +301,24 @@ class GateRunner:
                     skip_set=skip_set,
                     bypass_reason=bypass_reason,
                 )
-                for step in pipeline
-            ]
+            )
+
+        other_results = list(
+            await asyncio.gather(
+                *[
+                    self._run_step(
+                        step,
+                        task,
+                        run_dir,
+                        changed_files,
+                        skip_set=skip_set,
+                        bypass_reason=bypass_reason,
+                    )
+                    for step in other_steps
+                ]
+            )
         )
+        results = format_results + other_results
         report = GateReport(
             task_id=task.id,
             overall_pass=all(not result.blocked for result in results),
@@ -614,6 +634,7 @@ class GateRunner:
         normalized_detail = detail
         if detail.startswith(_TIMED_OUT_PREFIX):
             status = "timeout"
+            blocked = step.required
         elif ok:
             status = "pass"
             normalized_detail = pass_detail or detail
@@ -653,7 +674,7 @@ class GateRunner:
                 name=step.name,
                 status="timeout",
                 required=step.required,
-                blocked=False,
+                blocked=step.required,
                 cached=False,
                 duration_ms=0,
                 details=detail,
@@ -1448,7 +1469,7 @@ class GateRunner:
                 name=step.name,
                 status="timeout",
                 required=step.required,
-                blocked=False,
+                blocked=step.required,
                 cached=False,
                 duration_ms=0,
                 details=detail,

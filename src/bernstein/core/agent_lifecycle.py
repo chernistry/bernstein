@@ -298,12 +298,12 @@ def refresh_agent_states(orch: Any, tasks_snapshot: dict[str, list[Task]]) -> No
     for k in expired:
         del orch._spawn_failures[k]
 
-    # Cap _processed_done_tasks to prevent unbounded set growth
+    # Cap _processed_done_tasks to prevent unbounded growth (FIFO eviction)
     if len(orch._processed_done_tasks) > orch._MAX_PROCESSED_DONE:
-        # Keep only the most recent half
         excess = len(orch._processed_done_tasks) - orch._MAX_PROCESSED_DONE // 2
+        # popitem(last=False) removes the oldest entry first
         for _ in range(excess):
-            orch._processed_done_tasks.pop()
+            orch._processed_done_tasks.popitem(last=False)
 
 
 def purge_dead_agents(orch: Any) -> None:

@@ -1601,6 +1601,23 @@ def claim_and_spawn_batches(
                         logger.warning("Could not mark task %s as failed: %s", task.id, fail_exc)
                 orch._spawn_failures.pop(batch_key, None)
                 spawn_failure_history.pop(batch_key, None)
+            else:
+                # Transient failure — release claimed tasks immediately so they
+                # don't stay stuck in "claimed" status for the 15-min timeout.
+                for task in batch:
+                    try:
+                        fail_task(
+                            orch._client,
+                            base,
+                            task.id,
+                            f"Spawn failed (transient, attempt {new_count}): {analysis.detail}",
+                        )
+                    except Exception as fail_exc:
+                        logger.warning(
+                            "Could not release task %s after transient spawn failure: %s",
+                            task.id,
+                            fail_exc,
+                        )
 
 
 def process_completed_tasks(
@@ -1625,7 +1642,7 @@ def process_completed_tasks(
     for task in done_tasks:
         if task.id in orch._processed_done_tasks:
             continue
-        orch._processed_done_tasks.add(task.id)
+        orch._processed_done_tasks[task.id] = None
         new_tasks.append(task)
 
     if not new_tasks:
@@ -1643,7 +1660,12 @@ def process_completed_tasks(
         _cache_diff_lines = 0
         _qg_result: Any = None
         if task.id in verify_futures:
-            passed, failed_signals = verify_futures[task.id].result()
+            try:
+                passed, failed_signals = verify_futures[task.id].result()
+            except Exception:
+                logger.warning("verify_task raised for %s — treating as failed", task.id)
+                passed = False
+                failed_signals = ["verify_task exception"]
             janitor_passed = passed
             if passed:
                 result.verified.append(task.id)
@@ -1915,8 +1937,36 @@ def process_completed_tasks(
                     except Exception as _ab_exc:
                         logger.debug("A/B test outcome recording failed: %s", _ab_exc)
 
-            # Move backlog ticket file from open/ to closed/ if it exists
-            if janitor_passed and not _skip_merge:
+            # Route merge conflicts to a dedicated resolver agent.
+            # Check merge result BEFORE closing the task -- a failed merge
+            # means the code is missing from main so we must not mark it
+            # completed (BUG-5 fix).
+            _merge_ok = _merge_result is None or _merge_result.success
+            if (
+                _merge_result is not None
+                and not _merge_result.success
+                and _merge_result.conflicting_files
+                and not _skip_merge
+            ):
+                _merge_ok = False
+                create_conflict_resolution_task(
+                    task,
+                    _merge_result.conflicting_files,
+                    client=orch._client,
+                    server_url=orch._config.server_url,
+                    session_id=session.id,
+                )
+                orch._post_bulletin(
+                    "alert",
+                    f"merge conflict in {len(_merge_result.conflicting_files)} files — "
+                    f"resolver task created (task {task.id})",
+                )
+
+            # Move backlog ticket file from open/ to closed/ if it exists.
+            # Only close when merge succeeded (or there was no worktree to
+            # merge).  A failed merge means code is missing from main --
+            # closing the task would hide the problem (BUG-5 fix).
+            if janitor_passed and not _skip_merge and _merge_ok:
                 _move_backlog_ticket(orch._workdir, task)
 
                 # Transition task to CLOSED on the server (terminal success state)
@@ -1936,26 +1986,6 @@ def process_completed_tasks(
                         logger.info("Closed GitHub issue #%s for task %s", _issue_number, task.id)
                     except Exception as exc:
                         logger.warning("Failed to close GitHub issue #%s: %s", _issue_number, exc)
-
-            # Route merge conflicts to a dedicated resolver agent.
-            if (
-                _merge_result is not None
-                and not _merge_result.success
-                and _merge_result.conflicting_files
-                and not _skip_merge
-            ):
-                create_conflict_resolution_task(
-                    task,
-                    _merge_result.conflicting_files,
-                    client=orch._client,
-                    server_url=orch._config.server_url,
-                    session_id=session.id,
-                )
-                orch._post_bulletin(
-                    "alert",
-                    f"merge conflict in {len(_merge_result.conflicting_files)} files — "
-                    f"resolver task created (task {task.id})",
-                )
 
         # Record task completion in the operational metrics collector so
         # run summaries and evolution analysis see real duration/success data.

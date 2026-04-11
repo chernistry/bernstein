@@ -183,8 +183,13 @@ class RequestRateLimitMiddleware(BaseHTTPMiddleware):
 
         # Exempt loopback clients (orchestrator, spawner, agents) from rate
         # limiting — they are internal components, not external callers.
+        # Also exempt requests that carry the X-Bernstein-Internal header from
+        # loopback — these are spawner/lifecycle calls (e.g. retry task
+        # creation) that must never be 429'd even when X-Forwarded-For is set.
         direct_ip = request.client.host if request.client else "unknown"
-        if direct_ip in _LOOPBACK_HOSTS and not request.headers.get("X-Forwarded-For"):
+        if direct_ip in _LOOPBACK_HOSTS and (
+            not request.headers.get("X-Forwarded-For") or request.headers.get("X-Bernstein-Internal") == "true"
+        ):
             return await call_next(request)
 
         # Try seed_config buckets first

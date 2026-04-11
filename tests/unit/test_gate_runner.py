@@ -104,9 +104,25 @@ def test_changed_file_resolution_uses_git_diff_fallback(tmp_path: Path) -> None:
     assert report.changed_files == ["src/fallback.py"]
 
 
-def test_timeout_is_warning_only(tmp_path: Path) -> None:
+def test_timeout_blocks_required_gate(tmp_path: Path) -> None:
     config = QualityGatesConfig(
         pipeline=[GatePipelineStep(name="lint", required=True, condition="always")],
+        cache_enabled=False,
+    )
+    runner = GateRunner(config, tmp_path)
+    task = _make_task()
+
+    with patch("bernstein.core.quality_gates._run_command", return_value=(False, "Timed out after 30s")):
+        report = asyncio.run(runner.run_all(task, tmp_path))
+
+    assert not report.overall_pass
+    assert report.results[0].status == "timeout"
+    assert report.results[0].blocked
+
+
+def test_timeout_does_not_block_optional_gate(tmp_path: Path) -> None:
+    config = QualityGatesConfig(
+        pipeline=[GatePipelineStep(name="lint", required=False, condition="always")],
         cache_enabled=False,
     )
     runner = GateRunner(config, tmp_path)

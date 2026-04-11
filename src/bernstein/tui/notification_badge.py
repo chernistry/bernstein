@@ -248,10 +248,7 @@ def render_notification_center(
     Returns:
         Rich ``Text`` payload suitable for a compact review panel.
     """
-    text = Text.from_markup(
-        "[bold]Notifications[/bold]"
-        f" [dim]({unread_count} unread, N marks read)[/dim]"
-    )
+    text = Text.from_markup(f"[bold]Notifications[/bold] [dim]({unread_count} unread, N marks read)[/dim]")
     entries = records[:limit]
     if not entries:
         text.append("\n")

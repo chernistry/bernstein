@@ -155,14 +155,19 @@ def _launch_server(state: _SupervisorState) -> int:
         "--port",
         str(port),
     ]
-    # Always enable reload so the server picks up code changes on restart.
-    # --reload-dir watches the actual source tree (editable install uses src/).
-    src_dir = str(workdir / "src" / "bernstein")
-    if Path(src_dir).is_dir():
-        server_cmd.extend(["--reload", "--reload-dir", src_dir])
-    elif state.evolve_mode:
-        # Fallback: reload without --reload-dir (watches cwd)
-        server_cmd.append("--reload")
+    # ``--reload`` is gated on ``evolve_mode``. In a self-modifying system
+    # (bernstein agents constantly edit src/bernstein/*.py) ``--reload``
+    # is catastrophic: every file write triggers a uvicorn restart, which
+    # drops in-flight HTTP connections, races on port 8052 ("Address already
+    # in use"), and replays the WAL with duplicate task claims. Incident
+    # 2026-04-11 03:19 — server hung 127s, orchestrator gave up. Production
+    # runs MUST not auto-reload; only the explicit dev/evolve flow may.
+    if state.evolve_mode:
+        src_dir = str(workdir / "src" / "bernstein")
+        if Path(src_dir).is_dir():
+            server_cmd.extend(["--reload", "--reload-dir", src_dir])
+        else:
+            server_cmd.append("--reload")
 
     log_path = workdir / ".sdd" / "runtime" / "server.log"
     rotate_log_file(log_path)

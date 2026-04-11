@@ -1,14 +1,11 @@
-goal: >
-  Implement tickets from .sdd/backlog/open/ by priority (p0 first, then p1, p2).
-  Read each ticket file for requirements. Implement, write tests, run
-  uv run ruff check src/ and uv run pytest tests/unit/RELEVANT_FILE.py -x -q.
-  Commit each completed task. Do NOT invent new tickets or create tasks
-  beyond what is in the backlog files.
+goal: 'Implement tickets from .sdd/backlog/open/ by priority (p0 first, then p1, p2).
+  Read each ticket file for requirements. Implement, write tests, run uv run ruff
+  check src/ and uv run pytest tests/unit/RELEVANT_FILE.py -x -q. Commit each completed
+  task. Do NOT invent new tickets or create tasks beyond what is in the backlog files.
 
+  '
 cli: claude
-
-max_agents: 6
-
+max_agents: 7
 role_model_policy:
   manager:
     model: opus
@@ -37,40 +34,29 @@ role_model_policy:
   devops:
     model: sonnet
     effort: high
-
-budget: "$0"
-
-# Internal LLM provider for manager reviews, decomposition, and planning.
-# Use "claude" to route through the Anthropic API (same key as Claude Code).
-# Set to "openrouter_free" only if you have an OpenRouter key configured.
-internal_llm_provider: "claude"
-internal_llm_model: "claude-sonnet-4-6"
-
-# Disable features that use internal LLM calls — saves tokens.
-evolution_enabled: false   # no upgrade/self-improve tasks
-auto_decompose: false      # no LLM-based task splitting
-
+budget: $0
+internal_llm_provider: claude
+internal_llm_model: claude-sonnet-4-6
+evolution_enabled: false
+auto_decompose: false
 constraints:
-  - "Python 3.12+, strict typing (Pyright strict), Ruff linting"
-  - "File-based state in .sdd/ only — no databases"
-  - "Short-lived agents only — no long-running sessions"
-  - "Run tests: uv run python scripts/run_tests.py -x (NOT pytest tests/ directly)"
-  - "Do NOT modify files outside your task scope"
-  - "Commit with descriptive messages after completing each task"
-  - "Move completed tickets to .sdd/backlog/closed/"
-  - "Default branch is main — never push to master"
-
+- Python 3.12+, strict typing (Pyright strict), Ruff linting
+- "File-based state in .sdd/ only \u2014 no databases"
+- "Short-lived agents only \u2014 no long-running sessions"
+- 'Run tests: uv run python scripts/run_tests.py -x (NOT pytest tests/ directly)'
+- Do NOT modify files outside your task scope
+- Commit with descriptive messages after completing each task
+- Move completed tickets to .sdd/backlog/closed/
+- "Default branch is main — never use any other default branch"
 quality_gates:
   enabled: true
   lint: true
-  lint_command: "ruff check ."
+  lint_command: ruff check .
   type_check: false
   tests: false
-
 context_files:
-  - docs/DESIGN.md
-  - CLAUDE.md
-  - docs/the-bernstein-way.md
-
+- docs/DESIGN.md
+- CLAUDE.md
+- docs/the-bernstein-way.md
 agency:
   path: /Users/sasha/IdeaProjects/cloned/agency-agents

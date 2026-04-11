@@ -756,6 +756,21 @@ def _run_dlp_gate(
         ".ico",
         ".pdf",
     }
+    # Files that *define* the DLP / PII patterns themselves will always
+    # match their own rules ("All rights reserved", credit-card regexes, etc.)
+    # — scanning them produces guaranteed false positives that block legit
+    # merges (incident 2026-04-11: architect-80d4691e blocked on the very
+    # commit that *added* DLP rules to dlp_scanner.py).
+    _self_skip_paths = (
+        "src/bernstein/core/dlp_scanner.py",
+        "src/bernstein/core/pii_output_gate.py",
+        "src/bernstein/core/sensitive_file_detector.py",
+        "src/bernstein/core/quality_gates.py",
+        "tests/unit/test_dlp_scanner.py",
+        "tests/unit/test_pii_output_gate.py",
+        "tests/unit/test_sensitive_file_detector.py",
+        "tests/unit/test_quality_gates.py",
+    )
 
     scan_targets: list[_Path]
     if changed_files is not None:
@@ -772,6 +787,8 @@ def _run_dlp_gate(
             continue
         # Check ignore paths
         rel = str(fpath.relative_to(run_dir))
+        if rel in _self_skip_paths:
+            continue
         if any(rel.startswith(ig.rstrip("/")) or fnmatch(rel, ig) for ig in config.dlp_ignore_paths):
             continue
         try:

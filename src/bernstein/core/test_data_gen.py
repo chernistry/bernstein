@@ -1,4 +1,4 @@
-﻿"""Realistic test data generators for Bernstein task payloads.
+"""Realistic test data generators for Bernstein task payloads.
 
 This module provides configurable generators for test tasks, plans,
 and completion signals that mirror the structure of real agent
@@ -12,19 +12,17 @@ from __future__ import annotations
 
 import random
 import uuid
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
+from dataclasses import dataclass
+from datetime import UTC
+from typing import Any
 
 __all__ = [
-    "TaskTemplate",
     "GeneratedTask",
+    "TaskTemplate",
+    "generate_completion_signal",
+    "generate_plan",
     "generate_task",
     "generate_task_batch",
-    "generate_plan",
-    "generate_completion_signal",
 ]
 
 
@@ -115,6 +113,7 @@ _TASK_MODIFIERS = [
 # Data model
 # --------------------------------------------------------------------------- #
 
+
 @dataclass(frozen=True)
 class TaskTemplate:
     """Template for generating realistic test tasks.
@@ -167,6 +166,7 @@ class GeneratedTask:
 # Internal helpers
 # --------------------------------------------------------------------------- #
 
+
 def _generate_scope(template: TaskTemplate) -> list[str]:
     """Generate a realistic file-scope list for a task."""
     count = random.randint(*template.file_count_range)
@@ -204,6 +204,7 @@ def _generate_goal(title: str, scope: list[str]) -> str:
 # Public API
 # --------------------------------------------------------------------------- #
 
+
 def generate_task(template: TaskTemplate | None = None) -> GeneratedTask:
     """Generate a single realistic test task.
 
@@ -218,9 +219,9 @@ def generate_task(template: TaskTemplate | None = None) -> GeneratedTask:
         complexity = random.choice(["low", "medium", "high"])
         role = random.choice(_ROLES)
         file_counts = _COMPLEXITY_FILE_COUNTS[complexity]
-        dep_counts = _COMPLEXITY_DEPENDENCY_COUNTS[complexity]
+        _COMPLEXITY_DEPENDENCY_COUNTS[complexity]
         gate_counts = _COMPLEXITY_GATE_COUNTS[complexity]
-        priority_range = _COMPLEXITY_PRIORITIES[complexity]
+        _COMPLEXITY_PRIORITIES[complexity]
 
         num_gates = random.randint(*gate_counts)
         gates = sorted(random.sample(_QUALITY_GATES_ALL, k=num_gates))
@@ -237,7 +238,7 @@ def generate_task(template: TaskTemplate | None = None) -> GeneratedTask:
     scope = _generate_scope(template)
     goal = _generate_goal(title, scope)
 
-    num_deps = random.randint(*_COMPLEXITY_DEPENDENCY_COUNTS[template.complexity])
+    random.randint(*_COMPLEXITY_DEPENDENCY_COUNTS[template.complexity])
 
     return GeneratedTask(
         task_id=uuid.uuid4().hex[:8],
@@ -277,7 +278,7 @@ def generate_task_batch(
         cmp = complexity or random.choice(["low", "medium", "high"])
         file_counts = _COMPLEXITY_FILE_COUNTS[cmp]
         gate_counts = _COMPLEXITY_GATE_COUNTS[cmp]
-        priority_range = _COMPLEXITY_PRIORITIES[cmp]
+        _COMPLEXITY_PRIORITIES[cmp]
 
         num_gates = random.randint(*gate_counts)
         gates = sorted(random.sample(_QUALITY_GATES_ALL, k=num_gates))
@@ -323,7 +324,7 @@ def generate_plan(
     all_tasks: list[GeneratedTask] = []
     stage_outputs: list[list[str]] = []  # task_ids per stage
 
-    for stage_idx in range(stages):
+    for _stage_idx in range(stages):
         stage_tasks = generate_task_batch(tasks_per_stage)
         prev_ids = stage_outputs[-1] if stage_outputs else []
 
@@ -352,11 +353,13 @@ def generate_plan(
     # Build stage structure
     stage_objs: list[dict[str, Any]] = []
     for i, task_group in enumerate(stage_outputs):
-        stage_objs.append({
-            "stage_id": i + 1,
-            "task_ids": task_group,
-            "depends_on": stage_outputs[i - 1] if i > 0 else [],
-        })
+        stage_objs.append(
+            {
+                "stage_id": i + 1,
+                "task_ids": task_group,
+                "depends_on": stage_outputs[i - 1] if i > 0 else [],
+            }
+        )
 
     return {
         "stages": stage_objs,
@@ -391,7 +394,7 @@ def generate_completion_signal(task: GeneratedTask) -> dict[str, Any]:
         `tests_pass`, `quality_gates_pass`, `duration_seconds`,
         and `completed_at`.
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     gate_results = {
         gate: random.random() > 0.1  # ~90% pass rate per gate
@@ -411,5 +414,5 @@ def generate_completion_signal(task: GeneratedTask) -> dict[str, Any]:
         "tests_pass": tests_pass,
         "quality_gates_pass": gate_results,
         "duration_seconds": random.randint(60, 7200),
-        "completed_at": datetime.now(timezone.utc).isoformat(),
+        "completed_at": datetime.now(UTC).isoformat(),
     }

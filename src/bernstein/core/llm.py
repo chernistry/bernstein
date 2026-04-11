@@ -168,17 +168,48 @@ async def call_llm(
             logger.error("Claude CLI call failed: %s", exc)
             raise RuntimeError(f"Claude CLI call failed: {exc}") from exc
 
-    # Gemini CLI path — uses OAuth auth, no API key needed.
-    # Runs `gemini -p "prompt" -m model`
-    if provider == "gemini":
-        logger.debug("Calling Gemini CLI: model=%s", model)
+    # Generic CLI-based provider — any supported agent CLI can serve as the
+    # internal LLM.  Known CLI binaries and their prompt/model flag conventions:
+    _CLI_FLAGS: dict[str, tuple[str, str, list[str]]] = {
+        "gemini": ("-p", "-m", []),
+        "qwen": ("-y", "--model", []),
+        "codex": ("--prompt", "--model", []),
+        "goose": ("--prompt", "--model", []),
+        "aider": ("--message", "--model", []),
+        "claude": ("--print -p", "--model", ["--output-format", "text", "--max-turns", "1"]),
+    }
+    # If the provider matches a known CLI or ANY registered adapter name,
+    # try running it as a CLI subprocess.
+    _cli_binary = provider  # default: use provider name as binary
+    if provider in _CLI_FLAGS:
+        prompt_flag, model_flag, extra = _CLI_FLAGS[provider]
+    else:
+        # Unknown CLI — try generic convention: binary -p prompt -m model
+        prompt_flag, model_flag, extra = "-p", "-m", []
+        # Check if it's a registered adapter name
         try:
+            from bernstein.adapters.registry import get_adapter
+
+            adapter = get_adapter(provider)
+            _cli_binary = provider  # adapter exists, use its name as binary
+            logger.debug("Using registered adapter '%s' as internal LLM CLI", provider)
+        except Exception:
+            pass  # Not a known adapter — still try as raw CLI binary
+
+    if provider not in ("openrouter", "openrouter_free", "oxen", "together", "g4f"):
+        logger.debug("Calling %s CLI: model=%s", _cli_binary, model)
+        try:
+            import shlex
+
+            # Build command: split prompt_flag if it contains spaces (e.g. "--print -p")
+            cmd: list[str] = [_cli_binary]
+            cmd.extend(shlex.split(prompt_flag))
+            cmd.append(prompt)
+            cmd.extend(shlex.split(model_flag))
+            cmd.append(model)
+            cmd.extend(extra)
             proc = await _asyncio.create_subprocess_exec(
-                "gemini",
-                "-p",
-                prompt,
-                "-m",
-                model,
+                *cmd,
                 stdout=_asyncio.subprocess.PIPE,
                 stderr=_asyncio.subprocess.PIPE,
             )
@@ -186,18 +217,18 @@ async def call_llm(
             _stdout = stdout_bytes.decode() if stdout_bytes else ""
             _stderr = stderr_bytes.decode() if stderr_bytes else ""
             if proc.returncode != 0:
-                raise RuntimeError(f"gemini CLI exited {proc.returncode}: {_stderr[:200]}")
+                raise RuntimeError(f"{_cli_binary} CLI exited {proc.returncode}: {_stderr[:200]}")
             _text = _stdout.strip()
             if _store is not None:
                 _store.record(prompt, model, _text)
             return _text
         except TimeoutError as exc:
-            raise RuntimeError("Gemini CLI timed out after 120s") from exc
+            raise RuntimeError(f"{_cli_binary} CLI timed out after 120s") from exc
         except FileNotFoundError as exc:
-            raise RuntimeError("gemini CLI not found — install Gemini CLI") from exc
+            raise RuntimeError(f"{_cli_binary} CLI not found — install it first") from exc
         except Exception as exc:
-            logger.error("Gemini CLI call failed: %s", exc)
-            raise RuntimeError(f"Gemini CLI call failed: {exc}") from exc
+            logger.error("%s CLI call failed: %s", _cli_binary, exc)
+            raise RuntimeError(f"{_cli_binary} CLI call failed: {exc}") from exc
 
     # OpenAI-compatible providers (OpenRouter, Together, G4F, etc.)
     client = get_client(provider)

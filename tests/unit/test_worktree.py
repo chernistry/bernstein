@@ -126,7 +126,7 @@ def test_worktree_setup_config_application(repo_root: Path) -> None:
         # Check setup command
         mock_run.assert_called_once()
         args, kwargs = mock_run.call_args
-        assert args[0] == "echo 'hello'"
+        assert args[0] == ["echo", "hello"]
         assert kwargs["cwd"] == worktree_path
 
 

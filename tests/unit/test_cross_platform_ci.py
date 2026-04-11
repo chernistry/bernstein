@@ -124,15 +124,22 @@ class TestCIWorkflowExists:
         fetch_steps = [step for step in steps if step.get("name") == "Fetch base ref for impacted-test selection"]
         assert len(fetch_steps) == 1
         fetch_step = fetch_steps[0]
-        assert fetch_step.get("if") == "github.event_name == 'pull_request'"
+        assert fetch_step.get("if") == "github.event_name == 'pull_request' && runner.os != 'Windows'"
         assert "refs/heads/${{ github.base_ref }}" in fetch_step.get("run", "")
 
     def test_pull_request_test_job_uses_affected_runner_with_fallback(self) -> None:
         data = _load_ci_workflow()
         steps = _ci_test_steps(data)
-        run_steps = [step for step in steps if step.get("name") == "Run isolated test suite"]
-        assert len(run_steps) == 1
-        run_script = run_steps[0].get("run", "")
+        run_steps = [
+            step for step in steps if (step.get("name") or "").startswith("Run isolated test suite")
+        ]
+        assert run_steps, "expected at least one 'Run isolated test suite' step"
+        # The Linux/macOS variant carries the --affected fallback logic.
+        unix_steps = [
+            step for step in run_steps if "Linux/macOS" in (step.get("name") or "")
+        ]
+        assert len(unix_steps) == 1
+        run_script = unix_steps[0].get("run", "")
         assert "--affected" in run_script
         assert "refs/remotes/origin/${{ github.base_ref }}" in run_script
         assert "uv run python scripts/run_tests.py -x --parallel 4" in run_script

@@ -1,8 +1,8 @@
 # WORKFLOW: Team Adoption Dashboard
-**Version**: 0.1
+**Version**: 0.2
 **Date**: 2026-04-11
 **Author**: Workflow Architect
-**Status**: Draft
+**Status**: Review
 **Implements**: road-007-team-adoption-dashboard
 
 ---
@@ -382,3 +382,4 @@ No resources are created by this workflow. It is read-only.
 |---|---|---|
 | 2026-04-11 | Initial spec created with 8 Reality Checker findings | — |
 | 2026-04-11 | 3 Critical gaps identified: cost key mismatch, quality source mismatch, missing merge writer | Documented required fixes |
+| 2026-04-11 | v0.2 — All 8 RC findings verified against current codebase. RC-2 confirmed: line 68 reads `total_cost_usd`, writer writes `spent_usd`. RC-4 confirmed: reads `.sdd/metrics/*.json` and `.sdd/runtime/quality/*.json`, neither exists. RC-5 confirmed: counts `IN_PROGRESS` not `CLAIMED`. RC-7 confirmed: globs per-merge directory files, no writer exists. Promoted to Review. | All findings re-verified, status → Review |

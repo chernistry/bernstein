@@ -1,8 +1,8 @@
 # WORKFLOW: Multi-Modal Agent Support
-**Version**: 0.1
+**Version**: 0.2
 **Date**: 2026-04-11
 **Author**: Workflow Architect
-**Status**: Draft
+**Status**: Review
 **Implements**: road-184-multi-modal-agent-support
 
 ---
@@ -444,3 +444,4 @@ No new persistent resources are created beyond what the existing task lifecycle 
 |---|---|---|
 | 2026-04-11 | Initial spec created with 7 Reality Checker findings | — |
 | 2026-04-11 | Confirmed no multi-modal data path exists end-to-end | Documented full pipeline gap analysis |
+| 2026-04-11 | v0.2 — All 7 RC findings verified against current codebase. RC-1 confirmed: `Task`, `TaskRecord`, `TaskCreate` all lack `attachments`. RC-3 confirmed: `CLIAdapter` has no `supports_vision`. RC-6 confirmed: `spawn()` has no `attachments` param. Note: `ProviderConfig` in `router.py` does have `supports_vision` but it's not wired to CLIAdapter. Promoted to Review. | All findings re-verified, status → Review |

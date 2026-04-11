@@ -46,6 +46,27 @@
     .tab-active { border-bottom: 2px solid #4f46e5; color: #e5e5e5; }
     .tab-inactive { border-bottom: 2px solid transparent; color: #737373; }
     .tab-inactive:hover { color: #a3a3a3; }
+    /* Reconnect banner */
+    @keyframes slide-down { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .reconnect-banner { animation: slide-down 0.2s ease-out; }
+    /* Skeleton loading */
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    .skeleton {
+      background: linear-gradient(90deg, #1a1a1d 25%, #2a2a2d 50%, #1a1a1d 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s ease-in-out infinite;
+      border-radius: 4px;
+    }
+    .skeleton-text { height: 12px; margin-bottom: 6px; }
+    .skeleton-stat { height: 28px; width: 60px; }
+    .skeleton-row { height: 32px; width: 100%; margin-bottom: 4px; }
+    /* Filter chip */
+    .chip { transition: all 0.15s ease; user-select: none; }
+    .chip-active { background: rgba(79, 70, 229, 0.25); color: #818cf8; border-color: rgba(79, 70, 229, 0.4); }
+    .chip-inactive { background: transparent; color: #737373; border-color: #2a2a2d; }
+    .chip-inactive:hover { color: #a3a3a3; border-color: #3a3a3d; }
+    /* Sort indicator */
+    .sort-arrow { display: inline-block; margin-left: 2px; font-size: 8px; vertical-align: middle; }
     /* Kanban */
     .kanban-col { min-width: 160px; flex: 1 1 0; }
     /* DAG */

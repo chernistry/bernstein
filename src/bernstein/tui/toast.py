@@ -16,6 +16,8 @@ from typing import ClassVar
 
 from rich.text import Text
 
+from bernstein.tui.notification_badge import NotificationHistory
+
 
 class ToastLevel(Enum):
     """Severity level for toast notifications."""
@@ -101,6 +103,8 @@ class ToastManager:
         """Initialize the toast manager."""
         self._active: deque[Toast] = deque(maxlen=self.MAX_VISIBLE)
         self._history: deque[Toast] = deque(maxlen=self.MAX_HISTORY)
+        # UX-009: persistent notification history with read/unread tracking
+        self.notification_history: NotificationHistory = NotificationHistory()
 
     def add(
         self,

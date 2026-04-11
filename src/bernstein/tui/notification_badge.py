@@ -2,11 +2,15 @@
 
 Shows badge counts on panels indicating unread events when the user
 is focused on another panel (e.g., "Tasks [3 new]", "Logs [!]").
+
+UX-009: Extends with NotificationHistory for persistent unread tracking.
 """
 
 from __future__ import annotations
 
-from collections import defaultdict
+import time
+from collections import defaultdict, deque
+from dataclasses import dataclass, field
 
 
 class BadgeTracker:
@@ -104,3 +108,120 @@ class BadgeTracker:
         if count > 0:
             return f"[{count} new]"
         return ""
+
+
+# ---------------------------------------------------------------------------
+# UX-009: Notification history with unread tracking
+# ---------------------------------------------------------------------------
+
+#: Maximum number of entries retained in notification history.
+_MAX_HISTORY: int = 100
+
+
+@dataclass
+class NotificationRecord:
+    """A single entry in the notification history.
+
+    Attributes:
+        message: The notification text.
+        level: Severity level (e.g. "info", "success", "warning", "error").
+        timestamp: Unix timestamp when the notification was created.
+        read: Whether the user has marked this notification as read.
+        source: Optional source identifier (e.g. task_id, panel_id).
+    """
+
+    message: str
+    level: str = "info"
+    timestamp: float = field(default_factory=time.time)
+    read: bool = False
+    source: str = ""
+
+
+class NotificationHistory:
+    """Stores the last N notifications with read/unread state.
+
+    Used by the notification center panel to display a scrollable
+    history of all events, with unread badges.
+    """
+
+    def __init__(self, max_size: int = _MAX_HISTORY) -> None:
+        """Initialise history with a bounded capacity.
+
+        Args:
+            max_size: Maximum number of records to retain.
+        """
+        self._max_size = max_size
+        self._records: deque[NotificationRecord] = deque(maxlen=max_size)
+
+    def add(
+        self,
+        message: str,
+        level: str = "info",
+        source: str = "",
+        timestamp: float | None = None,
+    ) -> NotificationRecord:
+        """Add a new notification to history.
+
+        Args:
+            message: The notification text.
+            level: Severity level string.
+            source: Optional source identifier.
+            timestamp: Unix timestamp (defaults to now).
+
+        Returns:
+            The created NotificationRecord.
+        """
+        record = NotificationRecord(
+            message=message,
+            level=level,
+            timestamp=timestamp if timestamp is not None else time.time(),
+            source=source,
+        )
+        self._records.append(record)
+        return record
+
+    def mark_read(self, index: int) -> None:
+        """Mark a single notification as read by index (0 = oldest).
+
+        Args:
+            index: Zero-based index into the history list.
+
+        Raises:
+            IndexError: If the index is out of range.
+        """
+        if index < 0 or index >= len(self._records):
+            raise IndexError(f"index {index} out of range (0..{len(self._records) - 1})")
+        self._records[index].read = True
+
+    def mark_all_read(self) -> None:
+        """Mark every notification in the history as read."""
+        for record in self._records:
+            record.read = True
+
+    def get_unread_count(self) -> int:
+        """Return the number of unread notifications.
+
+        Returns:
+            Count of records where ``read`` is False.
+        """
+        return sum(1 for r in self._records if not r.read)
+
+    def get_history(self, limit: int | None = None) -> list[NotificationRecord]:
+        """Return notification history, newest first.
+
+        Args:
+            limit: Maximum number of records to return.
+                None returns all records.
+
+        Returns:
+            List of NotificationRecord, newest first.
+        """
+        records = list(reversed(self._records))
+        if limit is not None:
+            return records[:limit]
+        return records
+
+    @property
+    def size(self) -> int:
+        """Total number of records in history."""
+        return len(self._records)

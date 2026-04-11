@@ -2235,10 +2235,31 @@ class AgentSpawner:
         self,
         session: AgentSession,
         skip_merge: bool,
+        defer_cleanup: bool = False,
     ) -> MergeResult | None:
-        """Merge worktree branch back and clean up. Returns MergeResult if applicable."""
-        worktree_path = self._worktree_paths.pop(session.id, None)
-        worktree_root = self._worktree_roots.pop(session.id, self._workdir.resolve())
+        """Merge worktree branch back and optionally clean up.
+
+        Args:
+            session: The agent session whose worktree to process.
+            skip_merge: When True, skip the merge step.
+            defer_cleanup: When True, skip worktree cleanup so the caller
+                can inspect the merge result and clean up later via
+                ``cleanup_worktree``.  Used by task_lifecycle to ensure
+                the worktree survives until after PR creation and merge
+                verification (BUG-4 fix).
+
+        Returns:
+            MergeResult when worktrees are enabled and skip_merge is False
+            (None otherwise).
+        """
+        if defer_cleanup:
+            # Peek at paths without popping so cleanup_worktree can find
+            # them later.
+            worktree_path = self._worktree_paths.get(session.id)
+            worktree_root = self._worktree_roots.get(session.id, self._workdir.resolve())
+        else:
+            worktree_path = self._worktree_paths.pop(session.id, None)
+            worktree_root = self._worktree_roots.pop(session.id, self._workdir.resolve())
         worktree_mgr = self._worktree_managers.get(worktree_root)
         merge_result: MergeResult | None = None
 
@@ -2266,13 +2287,14 @@ class AgentSpawner:
                             logger.info("Pushed merged work from %s to origin/main", session.id)
                         else:
                             logger.warning("Push failed after merge for %s: %s", session.id, push_result.stderr)
-            # If the session used a warm pool entry, clean it up via the pool
-            # (branch/path naming differs from normal worktrees).
-            warm_entry = self._warm_pool_entries.pop(session.id, None)
-            if warm_entry is not None and self._warm_pool is not None:
-                self._warm_pool.release_slot(warm_entry.slot_id)
-            else:
-                worktree_mgr.cleanup(session.id)
+            if not defer_cleanup:
+                # If the session used a warm pool entry, clean it up via the pool
+                # (branch/path naming differs from normal worktrees).
+                warm_entry = self._warm_pool_entries.pop(session.id, None)
+                if warm_entry is not None and self._warm_pool is not None:
+                    self._warm_pool.release_slot(warm_entry.slot_id)
+                else:
+                    worktree_mgr.cleanup(session.id)
 
         return merge_result
 

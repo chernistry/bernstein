@@ -13,6 +13,21 @@ Source of truth: `src/bernstein/adapters/registry.py`, individual adapter files.
 > Free tier? → `gemini` or `qwen`. Air-gapped? → `ollama` or `tabby`.
 > Multi-provider resilience? → combine `claude` + `codex` + `gemini`.
 
+### Dual role: agents AND scheduler
+
+Every adapter can serve two roles in Bernstein:
+
+1. **As an agent** — spawned per-task to write code, run tests, commit changes
+2. **As the internal scheduler LLM** — used by the orchestrator for task decomposition, cost estimation, and plan optimization
+
+Set the scheduler model in `bernstein.yaml`:
+```yaml
+internal_llm_provider: gemini            # any adapter name
+internal_llm_model: gemini-3.1-pro-preview
+```
+
+This means you can run Bernstein with **zero Claude Code dependency** — use `qwen` or `gemini` for everything, or run fully air-gapped with `ollama`.
+
 ---
 
 ## Comparison Matrix

@@ -43,6 +43,7 @@ _PRESET_PANELS: dict[str, frozenset[str]] = {
             "waterfall-view",
             "coordinator-dashboard",
             "approval-panel",
+            "session-recorder",
             "tool-observer",
         }
     ),

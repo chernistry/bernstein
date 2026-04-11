@@ -12,6 +12,7 @@ import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 from rich.text import Text
 from textual.widgets import Static
@@ -289,7 +290,7 @@ class NotificationCenterPanel(Static):
     }
     """
 
-    def __init__(self, **kwargs: object) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         """Initialise with an empty notification snapshot."""
         super().__init__(**kwargs)
         self._records: list[NotificationRecord] = []

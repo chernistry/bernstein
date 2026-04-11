@@ -82,6 +82,14 @@ Screen {
     margin: 0 0 1 0;
 }
 
+#notification-center {
+    margin: 0 0 1 0;
+}
+
+#session-recorder {
+    margin: 0 0 1 0;
+}
+
 /* Shortcuts footer — docked at the bottom */
 #shortcuts-footer {
     dock: bottom;

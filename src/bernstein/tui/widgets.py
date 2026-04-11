@@ -555,6 +555,7 @@ class ShortcutsFooter(Static):
         "x cancel",
         "p prioritize",
         "n notifications",
+        "R record",
         "t retry",
         "k kill",
         "s spawn",

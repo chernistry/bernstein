@@ -68,7 +68,7 @@ def _dominant_component(files: list[str]) -> str:
 
 # Patterns that strongly suggest a breaking change in a diff hunk.
 _BREAKING_DIFF_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"^-\s*(def |class )\w[^_]", re.MULTILINE),  # removed public symbol
+    re.compile(r"^-\s*(def |class )[A-Za-z]", re.MULTILINE),  # removed public symbol (not _private)
     re.compile(r"^-\s*@(click\.command|app\.route|router\.(get|post|put|delete|patch))", re.MULTILINE),
     re.compile(r"BREAKING CHANGE", re.IGNORECASE),
 ]

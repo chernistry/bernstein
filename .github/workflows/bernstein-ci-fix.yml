@@ -21,11 +21,14 @@ jobs:
   fix:
     name: Auto-fix with Bernstein
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     # Only run if CI failed AND the ANTHROPIC_API_KEY secret is available.
     # Skip if only lint failed — the autofix job in ci.yml handles that.
     if: >
       github.event.workflow_run.conclusion == 'failure' &&
-      vars.BERNSTEIN_CI_FIX_ENABLED == 'true'
+      vars.BERNSTEIN_CI_FIX_ENABLED == 'true' &&
+      github.actor != 'bernstein[bot]' &&
+      github.actor != 'bernstein-orchestrator[bot]'
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:

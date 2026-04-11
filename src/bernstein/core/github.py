@@ -787,7 +787,11 @@ def sync_github_issues_to_backlog(workdir: Path) -> int:
     backlog_open = workdir / ".sdd" / "backlog" / "open"
     backlog_open.mkdir(parents=True, exist_ok=True)
 
-    # Fetch open issues via gh CLI
+    # Fetch open issues via gh CLI.
+    # ``assignees`` is read so we can skip any issue that already has a
+    # human volunteer — otherwise bernstein races the contributor to
+    # implement it and closes their assigned ticket out from under them
+    # (incident 2026-04-11, GH#684 → GH#680 apology).
     try:
         result = subprocess.run(
             [
@@ -797,7 +801,7 @@ def sync_github_issues_to_backlog(workdir: Path) -> int:
                 "--state",
                 "open",
                 "--json",
-                "number,title,body,labels",
+                "number,title,body,labels,assignees",
                 "--limit",
                 "500",
             ],
@@ -865,9 +869,25 @@ def sync_github_issues_to_backlog(workdir: Path) -> int:
                 continue
 
     created = 0
+    skipped_assigned = 0
     for issue in issues:
         number: int = issue.get("number", 0)
         if not number or number in existing_numbers:
+            continue
+
+        # Skip issues that have a human assignee — never race a
+        # contributor. This has to live in the sync step, not the
+        # spawner: once a backlog file has been created, the
+        # orchestrator has no easy way to correlate it back to the
+        # original GitHub issue to check assignment.
+        assignees_raw: list[dict[str, Any]] = issue.get("assignees", []) or []
+        if any(a.get("login") for a in assignees_raw):
+            skipped_assigned += 1
+            logger.info(
+                "Skipping GitHub issue #%d — already assigned to %s",
+                number,
+                ",".join(str(a.get("login", "?")) for a in assignees_raw),
+            )
             continue
 
         title: str = issue.get("title", "Untitled issue")
@@ -908,4 +928,9 @@ def sync_github_issues_to_backlog(workdir: Path) -> int:
         created += 1
         logger.info("Synced GitHub issue #%d to backlog: %s", number, filename)
 
+    if skipped_assigned:
+        logger.info(
+            "Skipped %d assigned GitHub issue(s) during backlog sync",
+            skipped_assigned,
+        )
     return created

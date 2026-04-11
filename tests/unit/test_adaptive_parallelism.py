@@ -165,9 +165,15 @@ class TestLowErrorRate:
 
 
 class TestCpuOverload:
+    # ``_CPU_PAUSE_THRESHOLD`` is 300% (3 fully-pinned cores on a multi-core
+    # machine — the metric is a sum across cores, not a single-core %).
+    # Use 350% in tests to simulate sustained multi-core pressure.
+    _OVERLOAD_CPU = 350.0
+    _BELOW_THRESHOLD_CPU = 250.0
+
     @patch("bernstein.core.adaptive_parallelism.AdaptiveParallelism._get_cpu_percent")
     def test_pause_when_cpu_over_threshold(self, mock_cpu: object) -> None:
-        mock_cpu.return_value = 96.0  # type: ignore[union-attr]
+        mock_cpu.return_value = self._OVERLOAD_CPU  # type: ignore[union-attr]
         ap = AdaptiveParallelism(configured_max=6)
         ap._created_at -= 300  # move past the 2-min startup grace period
 
@@ -178,7 +184,7 @@ class TestCpuOverload:
     @patch("bernstein.core.adaptive_parallelism.AdaptiveParallelism._get_cpu_percent")
     def test_restore_when_cpu_drops(self, mock_cpu: object) -> None:
         # First: CPU high → halve to 3
-        mock_cpu.return_value = 96.0  # type: ignore[union-attr]
+        mock_cpu.return_value = self._OVERLOAD_CPU  # type: ignore[union-attr]
         ap = AdaptiveParallelism(configured_max=6)
         ap._created_at -= 300  # move past the 2-min startup grace period
         assert ap.effective_max_agents() == 3
@@ -189,16 +195,17 @@ class TestCpuOverload:
         assert result >= 1  # restored to at least 1
 
     @patch("bernstein.core.adaptive_parallelism.AdaptiveParallelism._get_cpu_percent")
-    def test_exactly_95_does_not_pause(self, mock_cpu: object) -> None:
-        mock_cpu.return_value = 95.0  # type: ignore[union-attr]
+    def test_exactly_at_threshold_does_not_pause(self, mock_cpu: object) -> None:
+        # Threshold is strict ``>`` — hitting it exactly does not trigger.
+        mock_cpu.return_value = 300.0  # type: ignore[union-attr]
         ap = AdaptiveParallelism(configured_max=6)
 
         result = ap.effective_max_agents()
-        assert result == 6  # 95% is not > 95%
+        assert result == 6  # 300 is not > 300
 
     @patch("bernstein.core.adaptive_parallelism.AdaptiveParallelism._get_cpu_percent")
     def test_cpu_overload_resets_low_error_timer(self, mock_cpu: object) -> None:
-        mock_cpu.return_value = 96.0  # type: ignore[union-attr]
+        mock_cpu.return_value = self._OVERLOAD_CPU  # type: ignore[union-attr]
         ap = AdaptiveParallelism(configured_max=6)
         ap._created_at -= 300  # move past the 2-min startup grace period
         ap._low_error_since = time.time()
@@ -276,7 +283,7 @@ class TestStatus:
 class TestRulePriority:
     @patch("bernstein.core.adaptive_parallelism.AdaptiveParallelism._get_cpu_percent")
     def test_cpu_overload_overrides_error_rate_reduction(self, mock_cpu: object) -> None:
-        mock_cpu.return_value = 96.0  # type: ignore[union-attr]
+        mock_cpu.return_value = 350.0  # type: ignore[union-attr]
         ap = AdaptiveParallelism(configured_max=6)
         ap._created_at -= 300  # move past the 2-min startup grace period
 

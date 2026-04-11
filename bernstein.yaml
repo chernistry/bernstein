@@ -12,11 +12,11 @@ adapters:
 role_model_policy:
   manager:
     cli: qwen
-    model: coder-model
+    model: qwen3.6-plus
     effort: max
   architect:
     cli: qwen
-    model: coder-model
+    model: qwen3.6-plus
     effort: max
   security:
     cli: gemini
@@ -24,7 +24,7 @@ role_model_policy:
     effort: high
   backend:
     cli: qwen
-    model: coder-model
+    model: qwen3.6-plus
     effort: high
   frontend:
     cli: gemini
@@ -32,7 +32,7 @@ role_model_policy:
     effort: high
   qa:
     cli: qwen
-    model: coder-model
+    model: qwen3.6-plus
     effort: high
   reviewer:
     cli: gemini
@@ -44,7 +44,7 @@ role_model_policy:
     effort: high
   devops:
     cli: qwen
-    model: coder-model
+    model: qwen3.6-plus
     effort: high
 budget: $0
 internal_llm_provider: gemini

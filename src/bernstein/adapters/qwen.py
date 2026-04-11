@@ -62,35 +62,25 @@ class QwenAdapter(CLIAdapter):
         # default / openai
         return settings.openai_api_key or "", settings.openai_base_url or ""
 
-    # Model name mapping: Bernstein abstract names → Qwen model IDs.
-    # "coder-model" is the qwen settings.json alias, not a valid API model ID.
-    # When the model is "coder-model" or "default", omit --model entirely
-    # and let qwen use its configured default from ~/.qwen/settings.json.
+    # Model name mapping: Bernstein abstract names and aliases → real Qwen API model IDs.
+    # "coder-model" is a qwen settings.json display alias, not a valid API model ID.
     _MODEL_MAP: ClassVar[dict[str, str]] = {
         "opus": "qwen3.6-plus",
         "sonnet": "qwen3.6-plus",
         "haiku": "qwen3-coder-plus",
+        "coder-model": "qwen3.6-plus",  # settings.json alias
+        "default": "qwen3.6-plus",
+        "auto": "qwen3.6-plus",
     }
-    _SKIP_MODEL_FLAG: ClassVar[frozenset[str]] = frozenset(
-        {
-            "coder-model",
-            "default",
-            "auto",
-        }
-    )
 
     def _build_command(self, model_name: str, provider: str, settings: LLMSettings) -> list[str]:
         """Build the qwen CLI command list (without the final prompt argument)."""
         cmd: list[str] = ["qwen", "-y"]
 
-        # Map abstract names to real Qwen model IDs
-        mapped = self._MODEL_MAP.get(model_name)
-        if mapped:
-            cmd.extend(["--model", mapped])
-        elif model_name.lower() not in self._SKIP_MODEL_FLAG:
-            # Pass through user-specified model names (e.g., "qwen3.6-plus")
-            cmd.extend(["--model", model_name])
-        # else: omit --model, let qwen use its configured default
+        # Map abstract/alias names to real Qwen API model IDs.
+        # Always pass --model explicitly to avoid relying on settings.json.
+        resolved = self._MODEL_MAP.get(model_name, model_name)
+        cmd.extend(["--model", resolved])
 
         if provider != "default":
             cmd.extend(["--auth-type", "openai"])

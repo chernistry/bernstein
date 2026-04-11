@@ -38,7 +38,8 @@ class GeminiAdapter(CLIAdapter):
 
         api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
         if not api_key:
-            logger.warning("GeminiAdapter: neither GOOGLE_API_KEY nor GEMINI_API_KEY is set — spawn will fail")
+            # Gemini CLI supports OAuth auth without API keys — this is just informational
+            logger.debug("GeminiAdapter: no GOOGLE_API_KEY/GEMINI_API_KEY set (using OAuth)")
 
         cmd = [
             "gemini",

@@ -1129,7 +1129,10 @@ class AgentSpawner:
                 is_batch=base_config.is_batch,
             )
 
-        if self._router is not None and self._router.state.providers:
+        # Skip router when role_model_policy explicitly sets model+cli —
+        # the operator's config takes precedence over bandit/cascade routing.
+        _policy_has_explicit_model = bool(role_policy.get("model") and role_policy.get("cli"))
+        if self._router is not None and self._router.state.providers and not _policy_has_explicit_model:
             try:
                 decision = self._router.select_provider_for_task(
                     tasks[0],

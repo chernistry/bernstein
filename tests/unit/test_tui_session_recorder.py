@@ -9,6 +9,9 @@ import pytest
 
 from bernstein.tui.session_recorder import (
     RecordingFrame,
+    list_recordings,
+    render_session_recorder_panel,
+    summarize_recording,
     SessionPlayer,
     SessionRecorder,
 )
@@ -95,3 +98,70 @@ class TestSessionPlayer:
         frame = RecordingFrame(timestamp=1.0, event_type="test", data={"k": "v"})
         assert frame.timestamp == pytest.approx(1.0)
         assert frame.data == {"k": "v"}
+
+
+class TestRecordingSummaries:
+    def test_summarize_recording(self, tmp_path: Path) -> None:
+        path = tmp_path / "session.jsonl"
+        recorder = SessionRecorder(path)
+        recorder.start()
+        recorder.record_frame(timestamp=0.0, event_type="a", data={})
+        recorder.record_frame(timestamp=2.5, event_type="b", data={})
+        recorder.stop()
+
+        summary = summarize_recording(path)
+
+        assert summary is not None
+        assert summary.frame_count == 2
+        assert summary.duration_s == pytest.approx(2.5)
+        assert summary.last_event_type == "b"
+
+    def test_list_recordings_newest_first(self, tmp_path: Path) -> None:
+        older = tmp_path / "older.jsonl"
+        newer = tmp_path / "newer.jsonl"
+        for index, path in enumerate((older, newer), start=1):
+            recorder = SessionRecorder(path)
+            recorder.start()
+            recorder.record_frame(timestamp=float(index), event_type=f"event-{index}", data={})
+            recorder.stop()
+
+        newer.touch()
+
+        recordings = list_recordings(tmp_path)
+
+        assert [recording.path.name for recording in recordings] == ["newer.jsonl", "older.jsonl"]
+
+
+class TestRenderSessionRecorderPanel:
+    def test_empty_state(self) -> None:
+        rendered = render_session_recorder_panel(recording_active=False, active_recording=None, recordings=[])
+        plain = rendered.plain
+
+        assert "Recorder idle" in plain
+        assert "No recordings yet." in plain
+
+    def test_playback_preview(self, tmp_path: Path) -> None:
+        path = tmp_path / "session.jsonl"
+        recorder = SessionRecorder(path)
+        recorder.start()
+        recorder.record_frame(timestamp=1.0, event_type="status_update", data={"summary": {"done": 2, "total": 5}})
+        recorder.stop()
+        summary = summarize_recording(path)
+        assert summary is not None
+
+        rendered = render_session_recorder_panel(
+            recording_active=True,
+            active_recording=path,
+            recordings=[summary],
+            selected_recording=path,
+            playback_frame=RecordingFrame(
+                timestamp=1.0,
+                event_type="status_update",
+                data={"summary": {"done": 2, "total": 5}},
+            ),
+        )
+        plain = rendered.plain
+
+        assert "Recorder REC" in plain
+        assert "Playback" in plain
+        assert "tasks 2/5" in plain

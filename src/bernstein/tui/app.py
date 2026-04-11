@@ -22,13 +22,22 @@ from bernstein.tui.accessibility import AccessibilityConfig, detect_accessibilit
 from bernstein.tui.command_palette import DEFAULT_PALETTE_COMMANDS, CommandPalette, CommandPaletteScreen, PaletteCommand
 from bernstein.tui.keybinding_config import resolve_all_bindings as _resolve_all_bindings
 from bernstein.tui.layout_persistence import LayoutConfig, load_layout, save_layout
+from bernstein.tui.notification_badge import NotificationCenterPanel, NotificationHistory
 from bernstein.tui.progress_bar import TaskProgress
+from bernstein.tui.session_recorder import (
+    RecordingFrame,
+    RecordingSummary,
+    SessionPlayer,
+    SessionRecorder,
+    SessionRecorderPanel,
+    list_recordings,
+)
 from bernstein.tui.split_pane import SplitPaneState
 from bernstein.tui.task_context import TaskContextPanel, TaskContextSummary
 from bernstein.tui.task_search import TaskSearchInput, matches_task_search, parse_task_search
 from bernstein.tui.themes import ThemeMode, cycle_theme, load_theme_config, save_theme_config
 from bernstein.tui.timeline import TaskTimeline, TimelineEntry
-from bernstein.tui.toast import ToastManager, render_toast_stack
+from bernstein.tui.toast import Toast, ToastLevel, ToastManager, render_toast_stack
 from bernstein.tui.widgets import (
     ActionBar,
     AgentLogWidget,
@@ -59,6 +68,8 @@ def _build_app_bindings() -> list[BindingType]:
         Binding(e.key, e.action, e.description, show=e.show, priority=e.priority) for e in _resolve_all_bindings()
     ]
     bindings.append(Binding("/", "focus_task_search", "Search", show=True))
+    bindings.append(Binding("n", "acknowledge_notifications", "Mark notifications read", show=False))
+    bindings.append(Binding("R", "toggle_session_recording", "Toggle recording", show=False))
     bindings.append(Binding("1", "layout_focus", "Focus layout", show=False))
     bindings.append(Binding("2", "layout_balanced", "Balanced layout", show=False))
     bindings.append(Binding("3", "layout_observability", "Observability layout", show=False))
@@ -219,6 +230,15 @@ class BernsteinApp(App[None]):
         self._split = SplitPaneState()
         # TUI-009: toast notification manager
         self._toasts = ToastManager()
+        self._notifications = NotificationHistory()
+        self._recordings_dir = Path(".sdd/recordings/tui")
+        self._session_recorder: SessionRecorder | None = None
+        self._recording_started_at = 0.0
+        self._active_recording_path: Path | None = None
+        self._replay_frames: list[RecordingFrame] = []
+        self._replay_index = 0
+        self._selected_replay_path: Path | None = None
+        self._replay_timer: object | None = None
         # Track seen task IDs to detect completions
         self._seen_done: set[str] = set()
         # TUI-011: theme — load persisted preference, fall back to auto-detect
@@ -246,6 +266,8 @@ class BernsteinApp(App[None]):
             with Vertical(id="right-pane"):
                 yield TaskContextPanel(id="task-context")
                 yield RuntimeHealthPanel(id="runtime-health")
+                yield NotificationCenterPanel(id="notification-center")
+                yield SessionRecorderPanel(id="session-recorder")
                 yield AgentLogWidget(id="agent-log")
         # TUI-009: toast overlay widget
         yield _ToastOverlay(self._toasts, id="toast-overlay")
@@ -271,6 +293,12 @@ class BernsteinApp(App[None]):
         self.query_one("#tool-observer", ToolObserverWidget).display = "tool-observer" in self._layout.visible_panels
         self.query_one("#task-context", TaskContextPanel).display = "task-context" in self._layout.visible_panels
         self.query_one("#runtime-health", RuntimeHealthPanel).display = "runtime-health" in self._layout.visible_panels
+        self.query_one("#notification-center", NotificationCenterPanel).display = (
+            "notification-center" in self._layout.visible_panels
+        )
+        self.query_one("#session-recorder", SessionRecorderPanel).display = (
+            "session-recorder" in self._layout.visible_panels
+        )
 
         # TUI-013: apply accessibility CSS class when enabled
         if self.accessibility.no_animations:
@@ -285,6 +313,8 @@ class BernsteinApp(App[None]):
         if self._layout.split_enabled and not self._split.enabled:
             self._split.toggle()
         self._apply_split_layout()
+        self._refresh_notification_center()
+        self._refresh_session_recorder_panel()
 
         self._load_historical_logs()
         self.set_interval(self._poll_interval, self.action_refresh)
@@ -448,8 +478,19 @@ class BernsteinApp(App[None]):
         for row in rows:
             if row.status == "done" and row.task_id not in self._seen_done:
                 self._seen_done.add(row.task_id)
-                self._toasts.task_completed(row.task_id, row.title)
-                self.query_one("#toast-overlay", _ToastOverlay).refresh()
+                self._remember_toast(self._toasts.task_completed(row.task_id, row.title))
+
+        if self._session_recorder is not None and self._session_recorder.recording:
+            self._session_recorder.record_frame(
+                timestamp=time.time() - self._recording_started_at,
+                event_type="status_update",
+                data={
+                    "summary": summary,
+                    "selected_task_id": self._selected_task_id or "",
+                    "visible_tasks": [row.task_id for row in rows[:5]],
+                },
+            )
+            self._refresh_session_recorder_panel()
 
         # Update timeline if visible
         if self.query_one("#task-timeline", TaskTimeline).display:
@@ -531,10 +572,7 @@ class BernsteinApp(App[None]):
         self._theme_mode = cycle_theme(self._theme_mode)
         save_theme_config(self._theme_mode)
         self._apply_theme()
-        from bernstein.tui.toast import ToastLevel
-
-        self._toasts.add(f"Theme: {self._theme_mode.value}", level=ToastLevel.INFO)
-        self.query_one("#toast-overlay", _ToastOverlay).refresh()
+        self._remember_toast(self._toasts.add(f"Theme: {self._theme_mode.value}", level=ToastLevel.INFO))
 
     # -- TUI-008: split-pane --------------------------------------------------
 
@@ -560,6 +598,8 @@ class BernsteinApp(App[None]):
             "tool-observer",
             "task-context",
             "runtime-health",
+            "notification-center",
+            "session-recorder",
         ):
             self.query_one(f"#{panel_id}").display = panel_id in self._layout.visible_panels
         self._apply_split_layout()
@@ -589,6 +629,107 @@ class BernsteinApp(App[None]):
         """Dismiss all active toast notifications."""
         self._toasts.dismiss_all()
         self.query_one("#toast-overlay", _ToastOverlay).refresh()
+
+    def action_acknowledge_notifications(self) -> None:
+        """Mark all notification-center entries as read."""
+        self._notifications.mark_all_read()
+        self._refresh_notification_center()
+
+    def _ensure_panel_visible(self, panel_id: str) -> None:
+        """Force a panel visible and persist the updated layout."""
+        if panel_id not in self._layout.visible_panels:
+            self._layout = self._layout.toggle_panel(panel_id)
+            self.query_one(f"#{panel_id}").display = True
+            self._persist_layout()
+
+    def action_toggle_session_recording(self) -> None:
+        """Start or stop TUI session recording."""
+        self._ensure_panel_visible("session-recorder")
+        if self._session_recorder is not None and self._session_recorder.recording:
+            self._session_recorder.stop()
+            stopped_path = self._active_recording_path
+            self._session_recorder = None
+            self._active_recording_path = None
+            if stopped_path is not None:
+                self._remember_toast(
+                    self._toasts.add(
+                        f"Recording saved: {stopped_path.stem}",
+                        level=ToastLevel.SUCCESS,
+                        source=str(stopped_path),
+                    )
+                )
+            self._refresh_session_recorder_panel()
+            return
+
+        self._recordings_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        path = self._recordings_dir / f"session-{timestamp}.jsonl"
+        self._session_recorder = SessionRecorder(path)
+        self._session_recorder.start()
+        self._active_recording_path = path
+        self._recording_started_at = time.time()
+        self._remember_toast(
+            self._toasts.add(
+                f"Recording started: {path.stem}",
+                level=ToastLevel.INFO,
+                source=str(path),
+            )
+        )
+        self._refresh_session_recorder_panel()
+
+    def action_replay_latest_recording(self) -> None:
+        """Replay the most recent saved TUI session recording."""
+        recordings = self._current_recordings()
+        if not recordings:
+            self._remember_toast(self._toasts.error("No TUI recordings available yet."))
+            return
+        self._start_replay(recordings[0].path)
+
+    def _current_recordings(self) -> list[RecordingSummary]:
+        """Return recent recording summaries from disk."""
+        return list_recordings(self._recordings_dir)
+
+    def _start_replay(self, recording_path: Path) -> None:
+        """Load a saved recording and begin playback preview in the side panel."""
+        self._ensure_panel_visible("session-recorder")
+        self._stop_replay()
+        self._replay_frames = SessionPlayer(recording_path).load_frames()
+        if not self._replay_frames:
+            self._remember_toast(self._toasts.error(f"Recording is empty: {recording_path.stem}"))
+            return
+        self._selected_replay_path = recording_path
+        self._replay_index = 0
+        self._refresh_session_recorder_panel()
+        self._replay_timer = self.set_interval(0.5, self._advance_replay)
+
+    def _advance_replay(self) -> None:
+        """Advance the playback preview to the next recorded frame."""
+        if not self._replay_frames:
+            self._stop_replay()
+            return
+        self._replay_index += 1
+        if self._replay_index >= len(self._replay_frames):
+            self._stop_replay()
+            return
+        self._refresh_session_recorder_panel()
+
+    def _stop_replay(self) -> None:
+        """Stop the active playback preview timer, if one exists."""
+        if self._replay_timer is not None:
+            self._replay_timer.stop()  # type: ignore[union-attr]
+            self._replay_timer = None
+
+    def _refresh_session_recorder_panel(self) -> None:
+        """Refresh the recorder panel with current recording and playback state."""
+        recordings = list_recordings(self._recordings_dir)
+        playback_frame = self._replay_frames[self._replay_index] if self._replay_frames else None
+        self.query_one("#session-recorder", SessionRecorderPanel).set_snapshot(
+            recording_active=bool(self._session_recorder and self._session_recorder.recording),
+            active_recording=self._active_recording_path,
+            recordings=recordings,
+            selected_recording=self._selected_replay_path,
+            playback_frame=playback_frame,
+        )
 
     def action_toggle_timeline(self) -> None:
         """Show/hide the task execution timeline."""
@@ -837,8 +978,35 @@ class BernsteinApp(App[None]):
                     "Surface timeline, approvals, and tool observer",
                     category="layout",
                 ),
+                PaletteCommand(
+                    "Mark notifications read",
+                    "acknowledge_notifications",
+                    "Clear unread state in notification center",
+                    category="notifications",
+                ),
+                PaletteCommand(
+                    "Toggle session recording",
+                    "toggle_session_recording",
+                    "Start or stop TUI session recording",
+                    category="recording",
+                ),
+                PaletteCommand(
+                    "Replay latest recording",
+                    "replay_latest_recording",
+                    "Preview the most recent recorded TUI session",
+                    category="recording",
+                ),
             ]
         )
+        for recording in self._current_recordings():
+            palette.register(
+                PaletteCommand(
+                    name=f"Replay {recording.path.stem}",
+                    action=f"replay_recording:{recording.path}",
+                    description=f"{recording.frame_count} frames · {recording.duration_s:.1f}s",
+                    category="recording",
+                )
+            )
         for row in self._all_rows[:40]:
             palette.register(
                 PaletteCommand(
@@ -870,9 +1038,29 @@ class BernsteinApp(App[None]):
             self._selected_task_id = task_id
             self._sync_task_context()
             return
+        if result.startswith("replay_recording:"):
+            recording_path = Path(result.split(":", 1)[1])
+            self._start_replay(recording_path)
+            return
         action = getattr(self, f"action_{result}", None)
         if callable(action):
             action()
+
+    def _remember_toast(self, toast: Toast) -> None:
+        """Mirror a toast into persistent notification history and refresh the UI."""
+        self._notifications.add(
+            toast.message,
+            level=toast.level.value,
+            source=toast.source,
+            timestamp=toast.timestamp,
+        )
+        self._refresh_notification_center()
+        self.query_one("#toast-overlay", _ToastOverlay).refresh()
+
+    def _refresh_notification_center(self) -> None:
+        """Render the latest notification history into the side panel."""
+        panel = self.query_one("#notification-center", NotificationCenterPanel)
+        panel.set_history(self._notifications.get_history(limit=5), self._notifications.get_unread_count())
 
     @staticmethod
     def _count_active_agents() -> int:

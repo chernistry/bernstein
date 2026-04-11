@@ -1284,23 +1284,17 @@ def parse_seed(path: Path) -> SeedConfig:
         benchmark_cfg = BenchmarkConfig()
         if benchmark_raw is not None:
             if not isinstance(benchmark_raw, dict):
-                raise SeedError(
-                    f"quality_gates.benchmark must be a mapping, got: {type(benchmark_raw).__name__}"
-                )
+                raise SeedError(f"quality_gates.benchmark must be a mapping, got: {type(benchmark_raw).__name__}")
             bm_dict: dict[str, object] = cast("dict[str, object]", benchmark_raw)
             bm_enabled = bm_dict.get("enabled", False)
             if not isinstance(bm_enabled, bool):
-                raise SeedError(
-                    f"quality_gates.benchmark.enabled must be a bool, got: {type(bm_enabled).__name__}"
-                )
+                raise SeedError(f"quality_gates.benchmark.enabled must be a bool, got: {type(bm_enabled).__name__}")
             bm_command = bm_dict.get(
                 "command",
                 "uv run pytest benchmarks/ --benchmark-json=.benchmark_results.json -q",
             )
             if not isinstance(bm_command, str):
-                raise SeedError(
-                    f"quality_gates.benchmark.command must be a string, got: {type(bm_command).__name__}"
-                )
+                raise SeedError(f"quality_gates.benchmark.command must be a string, got: {type(bm_command).__name__}")
             bm_threshold = bm_dict.get("threshold", 0.10)
             if not isinstance(bm_threshold, (int, float)):
                 raise SeedError(

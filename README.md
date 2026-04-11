@@ -60,6 +60,13 @@ Bernstein auto-discovers installed CLI agents. Mix them in the same run — chea
 | [Amp](https://ampcode.com), [Cody](https://sourcegraph.com/cody), [Continue.dev](https://continue.dev), [Goose](https://block.github.io/goose/), [Kilo](https://kilo.dev), [Kiro](https://kiro.dev), [OpenCode](https://opencode.ai), [Qwen](https://github.com/QwenLM/Qwen-Agent), [Roo Code](https://github.com/RooVetGit/Roo-Code), [Tabby](https://tabby.tabbyml.com) | Various | See docs |
 | **Generic** | Any CLI with `--prompt` | Built-in |
 
+Any adapter also works as the **internal scheduler LLM** — run the entire stack without any specific provider:
+
+```yaml
+internal_llm_provider: gemini            # or qwen, ollama, codex, goose, ...
+internal_llm_model: gemini-3.1-pro-preview
+```
+
 > [!TIP]
 > Run `bernstein --headless` for CI pipelines — no TUI, structured JSON output, non-zero exit on failure.
 

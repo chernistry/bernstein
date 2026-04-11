@@ -36,13 +36,70 @@ tasks:
 
 role_model_policy:
   backend:
-    provider: claude_standard
-    model: sonnet
+    cli: qwen
+    model: coder-model
+    effort: high
+  security:
+    cli: gemini
+    model: gemini-3.1-pro-preview
     effort: high
 
-storage:
-  backend: memory
+# Internal LLM for orchestrator scheduling decisions (plan decomposition,
+# cost estimation, auto-decompose). Accepts ANY supported adapter name.
+internal_llm_provider: gemini
+internal_llm_model: gemini-3.1-pro-preview
 ```
+
+### `internal_llm_provider` — Orchestrator scheduling model
+
+The orchestrator uses a lightweight LLM for internal decisions: task decomposition, cost estimation, difficulty scoring, and plan optimization. This is **not** the agent — it's the scheduler's brain.
+
+Any registered adapter CLI can serve as the internal LLM provider:
+
+| Provider | Model example | Notes |
+|----------|---------------|-------|
+| `gemini` | `gemini-3.1-pro-preview` | Free tier, 1M context, strong reasoning |
+| `qwen` | `coder-model` | Free via Qwen OAuth, good for coding tasks |
+| `claude` | `claude-sonnet-4-6` | Strongest reasoning, requires Claude Code CLI |
+| `codex` | `gpt-5.4-mini` | OpenAI models via Codex CLI |
+| `ollama` | `deepseek-r1:70b` | Fully local, no API calls |
+| `goose` | `claude-sonnet-4-6` | Block's Goose CLI |
+| `aider` | `claude-sonnet-4-6` | Aider CLI (any provider backend) |
+| `openrouter` | `nvidia/nemotron-3-super-120b-a12b` | API-based, requires `OPENROUTER_API_KEY` |
+
+Set via `bernstein.yaml`:
+```yaml
+internal_llm_provider: gemini          # adapter name
+internal_llm_model: gemini-3.1-pro-preview  # model passed to the CLI
+```
+
+Or via environment:
+```bash
+export BERNSTEIN_INTERNAL_LLM_PROVIDER=qwen
+export BERNSTEIN_INTERNAL_LLM_MODEL=coder-model
+```
+
+### `role_model_policy` — Per-role agent configuration
+
+Each role can use a different CLI adapter and model:
+
+```yaml
+role_model_policy:
+  manager:
+    cli: qwen           # which CLI agent to spawn
+    model: coder-model   # model name passed to that CLI
+    effort: max          # controls max_turns and budget
+  backend:
+    cli: gemini
+    model: gemini-3.1-pro-preview
+    effort: high
+  docs:
+    cli: claude
+    model: sonnet
+    effort: medium
+```
+
+When `cli: auto` is set at the top level, the orchestrator picks the best available adapter per role based on the `role_model_policy`. When a specific `cli:` is set per role, that adapter is used exclusively for that role.
 
 ---
 

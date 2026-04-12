@@ -73,7 +73,7 @@ class TestAuthRateLimiterHTTP:
         from starlette.testclient import TestClient
 
         # Patch the module-level limiter with a low-limit one for testing
-        import bernstein.core.auth_rate_limiter as mod
+        import bernstein.core.security.auth_rate_limiter as mod
         from bernstein.core.auth_rate_limiter import AuthRateLimiter, check_auth_rate_limit
 
         original = mod._auth_limiter

@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bernstein.core.config.recipe import Recipe, RecipeStep, validate_recipe
-
 
 # --- RecipeStep tests ---
 

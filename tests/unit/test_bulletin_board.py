@@ -6,10 +6,7 @@ import json
 import time
 from pathlib import Path
 
-import pytest
-
 from bernstein.core.communication.bulletin_board import BulletinBoard, BulletinMessage
-
 
 # --- BulletinMessage tests ---
 

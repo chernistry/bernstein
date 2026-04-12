@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import logging
 
-import pytest
-
 from bernstein.core.observability.correlation import (
     CorrelationContext,
     CorrelationFilter,
@@ -16,7 +14,6 @@ from bernstein.core.observability.correlation import (
     set_correlation_id,
     set_current_context,
 )
-
 
 # --- CorrelationContext tests ---
 

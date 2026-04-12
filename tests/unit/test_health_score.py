@@ -5,15 +5,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from bernstein.core.observability.health_score import (
     HealthScore,
     _score_to_grade,
     calculate_health_score,
     format_health_report,
 )
-
 
 # --- HealthScore dataclass tests ---
 

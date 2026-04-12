@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import pytest
+from bernstein.core.models import Task, TaskStatus
 
-from bernstein.core.models import Complexity, Scope, Task, TaskStatus
 from bernstein.core.quality.duplicate_detector import (
     compute_word_overlap,
     detect_duplicates,
     merge_duplicate_tasks,
     normalize_text,
 )
-
 
 # --- Helpers ---
 

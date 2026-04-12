@@ -8,7 +8,6 @@ import pytest
 
 from bernstein.core.persistence.store import BaseTaskStore, RoleSummary, StatusSummary
 
-
 # --- RoleSummary tests ---
 
 

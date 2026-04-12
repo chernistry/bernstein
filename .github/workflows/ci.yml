@@ -105,11 +105,12 @@ on:
       - "scripts/generate_benchmark_docs.py"
 
 # Single concurrency group: new push cancels in-progress run.
-# Combined with path-ignore and fast-fail (test needs lint), this keeps
-# CI minutes low while always testing the latest code.
+# NOTE: cancel-in-progress disabled temporarily so CI can complete
+# while external decomposition agents are pushing frequently.
+# Re-enable after stabilization.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # ─── Fast checks (never cancelled, <2 min each) ───────────────────────

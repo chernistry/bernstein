@@ -1,15 +1,26 @@
-"""Tests for capability-based agent addressing and routing."""
+"""Tests for capability-based agent addressing and routing.
+
+Covers the original CapabilityRouter (discovery-based) *and* the new
+CapabilityRegistry with typed Capability/CapabilityLevel (issue #647).
+"""
 
 from __future__ import annotations
 
 import pytest
-
 from bernstein.core.agent_discovery import AgentCapabilities, DiscoveryResult
-from bernstein.core.capability_router import (
+
+from bernstein.core.routing.capability_router import (
+    AgentProfile,
+    Capability,
+    CapabilityLevel,
     CapabilityMatch,
+    CapabilityRegistry,
     CapabilityRouter,
+    RegistryMatch,
+    build_default_profiles,
     infer_capabilities_from_description,
     normalize_capability,
+    populate_registry_defaults,
 )
 
 
@@ -254,3 +265,359 @@ class TestCapabilityRouter:
         for m in matches:
             if m.agent_name == "codex":
                 assert "mini" in m.model.lower() or m.model == "gpt-5.4"
+
+
+# ===================================================================
+# Issue #647 — CapabilityRegistry with typed capabilities
+# ===================================================================
+
+# ---------------------------------------------------------------------------
+# Helpers for registry tests
+# ---------------------------------------------------------------------------
+
+
+def _cap(name: str, level: CapabilityLevel = CapabilityLevel.BASIC) -> Capability:
+    """Shorthand for creating a Capability."""
+    return Capability(name=name, level=level)
+
+
+def _expert(name: str) -> Capability:
+    return Capability(name=name, level=CapabilityLevel.EXPERT)
+
+
+def _advanced(name: str) -> Capability:
+    return Capability(name=name, level=CapabilityLevel.ADVANCED)
+
+
+def _basic(name: str) -> Capability:
+    return Capability(name=name, level=CapabilityLevel.BASIC)
+
+
+# ---------------------------------------------------------------------------
+# Capability dataclass
+# ---------------------------------------------------------------------------
+
+
+class TestCapabilityDataclass:
+    """Tests for the Capability frozen dataclass."""
+
+    def test_frozen(self) -> None:
+        cap = _cap("python")
+        with pytest.raises(AttributeError):
+            cap.name = "java"  # type: ignore[misc]
+
+    def test_defaults(self) -> None:
+        cap = Capability(name="python")
+        assert cap.level == CapabilityLevel.BASIC
+        assert cap.description == ""
+
+    def test_equality(self) -> None:
+        a = Capability(name="python", level=CapabilityLevel.EXPERT)
+        b = Capability(name="python", level=CapabilityLevel.EXPERT)
+        assert a == b
+
+    def test_hash_in_frozenset(self) -> None:
+        caps = frozenset({_expert("python"), _expert("python")})
+        assert len(caps) == 1
+
+    def test_description_stored(self) -> None:
+        cap = Capability(name="python", description="CPython expertise")
+        assert cap.description == "CPython expertise"
+
+
+# ---------------------------------------------------------------------------
+# CapabilityLevel ordering
+# ---------------------------------------------------------------------------
+
+
+class TestCapabilityLevelOrdering:
+    """Tests for CapabilityLevel enum ordering."""
+
+    def test_expert_ge_advanced(self) -> None:
+        assert CapabilityLevel.EXPERT >= CapabilityLevel.ADVANCED
+
+    def test_advanced_ge_basic(self) -> None:
+        assert CapabilityLevel.ADVANCED >= CapabilityLevel.BASIC
+
+    def test_basic_not_ge_advanced(self) -> None:
+        assert not (CapabilityLevel.BASIC >= CapabilityLevel.ADVANCED)
+
+    def test_expert_gt_basic(self) -> None:
+        assert CapabilityLevel.EXPERT > CapabilityLevel.BASIC
+
+    def test_basic_lt_expert(self) -> None:
+        assert CapabilityLevel.BASIC < CapabilityLevel.EXPERT
+
+    def test_same_level_ge(self) -> None:
+        assert CapabilityLevel.ADVANCED >= CapabilityLevel.ADVANCED
+
+    def test_same_level_not_gt(self) -> None:
+        assert not (CapabilityLevel.ADVANCED > CapabilityLevel.ADVANCED)
+
+    def test_le_ordering(self) -> None:
+        assert CapabilityLevel.BASIC <= CapabilityLevel.ADVANCED
+        assert CapabilityLevel.ADVANCED <= CapabilityLevel.ADVANCED
+        assert not (CapabilityLevel.EXPERT <= CapabilityLevel.BASIC)
+
+
+# ---------------------------------------------------------------------------
+# AgentProfile dataclass
+# ---------------------------------------------------------------------------
+
+
+class TestAgentProfileDataclass:
+    """Tests for the AgentProfile frozen dataclass."""
+
+    def test_frozen(self) -> None:
+        profile = AgentProfile(adapter_name="claude", model="opus")
+        with pytest.raises(AttributeError):
+            profile.adapter_name = "codex"  # type: ignore[misc]
+
+    def test_default_capabilities_empty(self) -> None:
+        profile = AgentProfile(adapter_name="claude", model="opus")
+        assert profile.capabilities == frozenset()
+
+
+# ---------------------------------------------------------------------------
+# RegistryMatch dataclass
+# ---------------------------------------------------------------------------
+
+
+class TestRegistryMatchDataclass:
+    """Tests for the RegistryMatch frozen dataclass."""
+
+    def test_frozen(self) -> None:
+        profile = AgentProfile(adapter_name="claude", model="opus")
+        match = RegistryMatch(
+            agent=profile,
+            score=0.8,
+            matched_capabilities=frozenset({_expert("python")}),
+            missing_capabilities=frozenset(),
+        )
+        with pytest.raises(AttributeError):
+            match.score = 1.0  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# CapabilityRegistry — registration
+# ---------------------------------------------------------------------------
+
+
+class TestRegistryRegistration:
+    """Tests for agent registration and unregistration."""
+
+    def test_register_returns_profile(self) -> None:
+        reg = CapabilityRegistry()
+        caps = frozenset({_expert("python")})
+        profile = reg.register("claude", "opus", caps)
+        assert profile.adapter_name == "claude"
+        assert profile.model == "opus"
+        assert profile.capabilities == caps
+
+    def test_agents_property(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register("claude", "opus", frozenset({_expert("python")}))
+        reg.register("codex", "gpt-4", frozenset({_advanced("python")}))
+        assert len(reg.agents) == 2
+
+    def test_register_replaces_existing(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register("claude", "opus", frozenset({_expert("python")}))
+        reg.register("claude", "opus", frozenset({_basic("python")}))
+        assert len(reg.agents) == 1
+        profile = reg.agents[0]
+        cap_levels = {c.level for c in profile.capabilities}
+        assert CapabilityLevel.BASIC in cap_levels
+
+    def test_unregister_existing(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register("claude", "opus", frozenset())
+        assert reg.unregister("claude", "opus") is True
+        assert len(reg.agents) == 0
+
+    def test_unregister_missing(self) -> None:
+        reg = CapabilityRegistry()
+        assert reg.unregister("nonexistent", "model") is False
+
+
+# ---------------------------------------------------------------------------
+# CapabilityRegistry — find_agents
+# ---------------------------------------------------------------------------
+
+
+class TestRegistryFindAgents:
+    """Tests for find_agents scoring and ranking."""
+
+    def test_perfect_match_scores_1(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register("claude", "opus", frozenset({_expert("python"), _expert("testing")}))
+        results = reg.find_agents([_basic("python"), _basic("testing")])
+        assert len(results) == 1
+        assert results[0].score == 1.0
+        assert len(results[0].missing_capabilities) == 0
+
+    def test_partial_match(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register("claude", "opus", frozenset({_expert("python")}))
+        results = reg.find_agents([_basic("python"), _basic("testing")])
+        assert len(results) == 1
+        assert results[0].score == 0.5
+        assert len(results[0].matched_capabilities) == 1
+        assert len(results[0].missing_capabilities) == 1
+
+    def test_level_too_low_counts_as_missing(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register("claude", "haiku", frozenset({_basic("python")}))
+        results = reg.find_agents([_expert("python")])
+        assert results[0].score == 0.0
+        assert len(results[0].missing_capabilities) == 1
+
+    def test_higher_level_satisfies_lower_requirement(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register("claude", "opus", frozenset({_expert("python")}))
+        results = reg.find_agents([_basic("python")])
+        assert results[0].score == 1.0
+
+    def test_ranking_by_score(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register(
+            "claude",
+            "opus",
+            frozenset({_expert("python"), _expert("testing"), _expert("security")}),
+        )
+        reg.register("codex", "gpt-4", frozenset({_advanced("python")}))
+        results = reg.find_agents([_basic("python"), _basic("testing"), _basic("security")])
+        assert results[0].agent.adapter_name == "claude"
+        assert results[0].score == 1.0
+        assert results[1].agent.adapter_name == "codex"
+
+    def test_deterministic_tiebreak_by_adapter_name(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register("beta", "m1", frozenset({_expert("python")}))
+        reg.register("alpha", "m1", frozenset({_expert("python")}))
+        results = reg.find_agents([_basic("python")])
+        assert results[0].agent.adapter_name == "alpha"
+        assert results[1].agent.adapter_name == "beta"
+
+    def test_min_score_filter(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register("claude", "opus", frozenset({_expert("python"), _expert("testing")}))
+        reg.register("codex", "gpt-4", frozenset({_basic("python")}))
+        results = reg.find_agents(
+            [_basic("python"), _basic("testing")],
+            min_score=0.8,
+        )
+        assert len(results) == 1
+        assert results[0].agent.adapter_name == "claude"
+
+    def test_empty_requirements_returns_all(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register("claude", "opus", frozenset({_expert("python")}))
+        reg.register("codex", "gpt-4", frozenset())
+        results = reg.find_agents([])
+        assert len(results) == 2
+        assert all(m.score == 1.0 for m in results)
+
+    def test_empty_registry_returns_empty(self) -> None:
+        reg = CapabilityRegistry()
+        results = reg.find_agents([_basic("python")])
+        assert results == []
+
+    def test_no_capability_match(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register("claude", "opus", frozenset({_expert("python")}))
+        results = reg.find_agents([_basic("quantum-computing")])
+        assert results[0].score == 0.0
+        assert len(results[0].missing_capabilities) == 1
+
+    def test_multi_capability_scoring(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register(
+            "claude",
+            "opus",
+            frozenset({_expert("python"), _expert("testing"), _advanced("devops")}),
+        )
+        results = reg.find_agents(
+            [
+                _basic("python"),
+                _basic("testing"),
+                _expert("devops"),
+                _basic("security"),
+            ]
+        )
+        # 2 of 4 match (python + testing), devops is advanced but expert required
+        assert results[0].score == 0.5
+
+
+# ---------------------------------------------------------------------------
+# CapabilityRegistry — best_match
+# ---------------------------------------------------------------------------
+
+
+class TestRegistryBestMatch:
+    """Tests for best_match convenience method."""
+
+    def test_returns_best(self) -> None:
+        reg = CapabilityRegistry()
+        reg.register("claude", "opus", frozenset({_expert("python"), _expert("testing")}))
+        reg.register("codex", "gpt-4", frozenset({_basic("python")}))
+        result = reg.best_match([_basic("python"), _basic("testing")])
+        assert result is not None
+        assert result.agent.adapter_name == "claude"
+
+    def test_none_when_empty_registry(self) -> None:
+        reg = CapabilityRegistry()
+        assert reg.best_match([_basic("python")]) is None
+
+
+# ---------------------------------------------------------------------------
+# Default profiles (opus / sonnet / haiku)
+# ---------------------------------------------------------------------------
+
+
+class TestDefaultProfiles:
+    """Tests for build_default_profiles and populate_registry_defaults."""
+
+    def test_build_returns_three_profiles(self) -> None:
+        profiles = build_default_profiles()
+        assert len(profiles) == 3
+        names = {p.model for p in profiles}
+        assert "claude-opus-4-0520" in names
+        assert "claude-sonnet-4-0520" in names
+        assert "claude-haiku" in names
+
+    def test_opus_all_expert(self) -> None:
+        profiles = build_default_profiles()
+        opus = next(p for p in profiles if "opus" in p.model)
+        for cap in opus.capabilities:
+            assert cap.level == CapabilityLevel.EXPERT, f"{cap.name} should be expert"
+
+    def test_sonnet_has_advanced_capabilities(self) -> None:
+        profiles = build_default_profiles()
+        sonnet = next(p for p in profiles if "sonnet" in p.model)
+        advanced_count = sum(1 for c in sonnet.capabilities if c.level == CapabilityLevel.ADVANCED)
+        assert advanced_count > 0
+
+    def test_haiku_all_basic(self) -> None:
+        profiles = build_default_profiles()
+        haiku = next(p for p in profiles if "haiku" in p.model)
+        for cap in haiku.capabilities:
+            assert cap.level == CapabilityLevel.BASIC, f"{cap.name} should be basic"
+
+    def test_haiku_fewer_capabilities_than_opus(self) -> None:
+        profiles = build_default_profiles()
+        opus = next(p for p in profiles if "opus" in p.model)
+        haiku = next(p for p in profiles if "haiku" in p.model)
+        assert len(haiku.capabilities) < len(opus.capabilities)
+
+    def test_populate_registry_defaults(self) -> None:
+        reg = CapabilityRegistry()
+        populate_registry_defaults(reg)
+        assert len(reg.agents) == 3
+
+    def test_opus_beats_haiku_for_expert_python(self) -> None:
+        reg = CapabilityRegistry()
+        populate_registry_defaults(reg)
+        result = reg.best_match([_expert("python")])
+        assert result is not None
+        assert "opus" in result.agent.model

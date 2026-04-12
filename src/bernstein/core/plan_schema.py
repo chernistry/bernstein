@@ -382,6 +382,49 @@ def _validate_stage(stage: dict[str, Any], idx: int, errors: list[str]) -> None:
         errors.append(f"{path}.depends_on: expected type array")
 
 
+def _validate_stages_field(plan_data: dict[str, Any], errors: list[str]) -> None:
+    """Validate the 'stages' top-level field."""
+    if "stages" not in plan_data:
+        errors.append("Missing required top-level field 'stages'")
+    elif not isinstance(plan_data["stages"], list):
+        errors.append("'stages' must be an array")
+    elif len(plan_data["stages"]) == 0:
+        errors.append("'stages' must contain at least one stage")
+    else:
+        for i, stage in enumerate(plan_data["stages"]):
+            _validate_stage(stage, i, errors)
+
+
+def _validate_optional_fields(plan_data: dict[str, Any], errors: list[str]) -> None:
+    """Validate optional typed top-level fields."""
+    if "max_agents" in plan_data:
+        _check_type(plan_data["max_agents"], "integer", "max_agents", errors)
+
+    if "constraints" in plan_data and not isinstance(plan_data["constraints"], list):
+        errors.append("'constraints' must be an array")
+
+    if "context_files" in plan_data and not isinstance(plan_data["context_files"], list):
+        errors.append("'context_files' must be an array")
+
+    _validate_repos_field(plan_data, errors)
+
+
+def _validate_repos_field(plan_data: dict[str, Any], errors: list[str]) -> None:
+    """Validate the optional 'repos' field."""
+    if "repos" not in plan_data:
+        return
+    if not isinstance(plan_data["repos"], list):
+        errors.append("'repos' must be an array")
+        return
+    for i, repo in enumerate(plan_data["repos"]):
+        repo_path = f"repos[{i}]"
+        if not isinstance(repo, dict):
+            errors.append(f"{repo_path}: expected a mapping")
+            continue
+        if "path" not in repo or not repo["path"]:
+            errors.append(f"{repo_path}: missing required field 'path'")
+
+
 def validate_plan(plan_data: dict[str, Any]) -> list[str]:
     """Validate a plan dict against the Bernstein plan schema.
 
@@ -399,32 +442,11 @@ def validate_plan(plan_data: dict[str, Any]) -> list[str]:
     if not isinstance(plan_data, dict):
         return ["Plan must be a YAML mapping (dict)"]
 
-    # Required top-level fields
     if "name" not in plan_data or not plan_data["name"]:
         errors.append("Missing required top-level field 'name'")
 
-    if "stages" not in plan_data:
-        errors.append("Missing required top-level field 'stages'")
-    elif not isinstance(plan_data["stages"], list):
-        errors.append("'stages' must be an array")
-    elif len(plan_data["stages"]) == 0:
-        errors.append("'stages' must contain at least one stage")
-    else:
-        for i, stage in enumerate(plan_data["stages"]):
-            _validate_stage(stage, i, errors)
-
-    # Optional typed fields
-    if "max_agents" in plan_data:
-        _check_type(plan_data["max_agents"], "integer", "max_agents", errors)
-
-    if "constraints" in plan_data and not isinstance(plan_data["constraints"], list):
-        errors.append("'constraints' must be an array")
-
-    if "context_files" in plan_data and not isinstance(plan_data["context_files"], list):
-        errors.append("'context_files' must be an array")
-
-    if "repos" in plan_data:
-        _validate_repos(plan_data["repos"], errors)
+    _validate_stages_field(plan_data, errors)
+    _validate_optional_fields(plan_data, errors)
 
     return errors
 

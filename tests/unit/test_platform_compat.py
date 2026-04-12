@@ -6,18 +6,23 @@ import os
 import signal
 import subprocess
 import sys
+import tempfile
 from unittest.mock import patch
 
 import pytest
-
 from bernstein.core.platform_compat import (
     IS_WINDOWS,
     executable_name,
+    get_platform_info,
+    get_process_kill_cmd,
+    is_signal_supported,
     kill_process,
     kill_process_group,
+    normalize_path,
     path_separator,
     process_alive,
     shell_quote,
+    skip_on_windows,
 )
 
 # ---------------------------------------------------------------------------
@@ -259,3 +264,284 @@ class TestIsWindows:
     def test_matches_sys_platform(self) -> None:
         """IS_WINDOWS should reflect the actual sys.platform."""
         assert (sys.platform == "win32") == IS_WINDOWS
+
+
+# ---------------------------------------------------------------------------
+# PlatformInfo dataclass
+# ---------------------------------------------------------------------------
+
+
+class TestPlatformInfo:
+    """Tests for the PlatformInfo frozen dataclass."""
+
+    def test_is_frozen(self) -> None:
+        """PlatformInfo instances must be immutable."""
+        info = get_platform_info()
+        with pytest.raises(AttributeError):
+            info.os_name = "linux"  # type: ignore[misc]
+
+    def test_os_name_is_valid_literal(self) -> None:
+        """os_name must be one of the three supported values."""
+        info = get_platform_info()
+        assert info.os_name in ("linux", "macos", "windows")
+
+    def test_arch_is_non_empty(self) -> None:
+        info = get_platform_info()
+        assert info.arch
+        assert isinstance(info.arch, str)
+
+    def test_python_version_matches_runtime(self) -> None:
+        info = get_platform_info()
+        expected = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        assert info.python_version == expected
+
+    def test_has_signals_matches_platform(self) -> None:
+        info = get_platform_info()
+        if sys.platform == "win32":
+            assert info.has_signals is False
+        else:
+            assert info.has_signals is True
+
+    def test_path_separator_matches_platform(self) -> None:
+        info = get_platform_info()
+        expected = ";" if sys.platform == "win32" else ":"
+        assert info.path_separator == expected
+
+    def test_temp_dir_exists(self) -> None:
+        info = get_platform_info()
+        assert os.path.isdir(info.temp_dir)
+
+    def test_temp_dir_matches_tempfile(self) -> None:
+        info = get_platform_info()
+        assert info.temp_dir == tempfile.gettempdir()
+
+    def test_dataclass_equality(self) -> None:
+        """Two calls should produce equal snapshots (same machine)."""
+        a = get_platform_info()
+        b = get_platform_info()
+        assert a == b
+
+    def test_dataclass_hashable(self) -> None:
+        """Frozen dataclasses should be hashable."""
+        info = get_platform_info()
+        assert hash(info) == hash(get_platform_info())
+
+    @patch("bernstein.core.config.platform_compat.sys")
+    @patch("bernstein.core.config.platform_compat.IS_WINDOWS", False)
+    def test_linux_detection(self, mock_sys: object) -> None:
+        """Verify linux is detected from sys.platform."""
+        import bernstein.core.config.platform_compat as pc
+
+        original = pc.sys.platform  # type: ignore[union-attr]
+        try:
+            pc.sys.platform = "linux"  # type: ignore[union-attr]
+            assert pc._detect_os_name() == "linux"
+        finally:
+            pc.sys.platform = original  # type: ignore[union-attr]
+
+    @patch("bernstein.core.config.platform_compat.sys")
+    @patch("bernstein.core.config.platform_compat.IS_WINDOWS", False)
+    def test_macos_detection(self, mock_sys: object) -> None:
+        """Verify macos is detected from sys.platform."""
+        import bernstein.core.config.platform_compat as pc
+
+        original = pc.sys.platform  # type: ignore[union-attr]
+        try:
+            pc.sys.platform = "darwin"  # type: ignore[union-attr]
+            assert pc._detect_os_name() == "macos"
+        finally:
+            pc.sys.platform = original  # type: ignore[union-attr]
+
+    @patch("bernstein.core.config.platform_compat.sys")
+    def test_windows_detection(self, mock_sys: object) -> None:
+        """Verify windows is detected from sys.platform."""
+        import bernstein.core.config.platform_compat as pc
+
+        original = pc.sys.platform  # type: ignore[union-attr]
+        try:
+            pc.sys.platform = "win32"  # type: ignore[union-attr]
+            assert pc._detect_os_name() == "windows"
+        finally:
+            pc.sys.platform = original  # type: ignore[union-attr]
+
+
+# ---------------------------------------------------------------------------
+# is_signal_supported
+# ---------------------------------------------------------------------------
+
+
+class TestIsSignalSupported:
+    """Tests for is_signal_supported()."""
+
+    def test_sigterm_always_supported(self) -> None:
+        """SIGTERM is available on all platforms."""
+        assert is_signal_supported("SIGTERM") is True
+
+    def test_sigint_always_supported(self) -> None:
+        """SIGINT is available on all platforms."""
+        assert is_signal_supported("SIGINT") is True
+
+    def test_nonexistent_signal_not_supported(self) -> None:
+        """A made-up signal name should return False."""
+        assert is_signal_supported("SIGFAKE_DOES_NOT_EXIST") is False
+
+    @pytest.mark.skipif(IS_WINDOWS, reason="SIGKILL exists on Unix")
+    def test_sigkill_supported_on_unix(self) -> None:
+        assert is_signal_supported("SIGKILL") is True
+
+    @pytest.mark.skipif(IS_WINDOWS, reason="SIGUSR1 exists on Unix")
+    def test_sigusr1_supported_on_unix(self) -> None:
+        assert is_signal_supported("SIGUSR1") is True
+
+    @patch("bernstein.core.config.platform_compat.IS_WINDOWS", True)
+    def test_sigkill_not_supported_on_windows(self) -> None:
+        """SIGKILL should be reported as unsupported when IS_WINDOWS is True."""
+        from bernstein.core.config.platform_compat import is_signal_supported as iss
+
+        assert iss("SIGKILL") is False
+
+    @patch("bernstein.core.config.platform_compat.IS_WINDOWS", True)
+    def test_sigusr1_not_supported_on_windows(self) -> None:
+        from bernstein.core.config.platform_compat import is_signal_supported as iss
+
+        assert iss("SIGUSR1") is False
+
+    @patch("bernstein.core.config.platform_compat.IS_WINDOWS", True)
+    def test_sigterm_supported_even_on_windows(self) -> None:
+        """SIGTERM is not in the POSIX-only set, so it should still work."""
+        from bernstein.core.config.platform_compat import is_signal_supported as iss
+
+        assert iss("SIGTERM") is True
+
+
+# ---------------------------------------------------------------------------
+# normalize_path
+# ---------------------------------------------------------------------------
+
+
+class TestNormalizePath:
+    """Tests for normalize_path()."""
+
+    def test_forward_slashes_unchanged_on_unix(self) -> None:
+        if not IS_WINDOWS:
+            assert normalize_path("/usr/local/bin") == "/usr/local/bin"
+
+    def test_backslashes_converted_on_unix(self) -> None:
+        if not IS_WINDOWS:
+            result = normalize_path("src\\bernstein\\core")
+            assert "\\" not in result
+            assert result == "src/bernstein/core"
+
+    def test_redundant_separators_collapsed(self) -> None:
+        result = normalize_path("src//bernstein///core")
+        assert "//" not in result and "\\\\" not in result
+
+    def test_dot_segments_resolved(self) -> None:
+        result = normalize_path("src/bernstein/../bernstein/core")
+        assert ".." not in result
+        assert "bernstein" in result
+
+    def test_empty_path_returns_dot(self) -> None:
+        """os.path.normpath('') returns '.'."""
+        assert normalize_path("") == "."
+
+    def test_windows_style_path_on_unix(self) -> None:
+        """Windows paths with backslashes are converted to forward slashes on Unix."""
+        if not IS_WINDOWS:
+            result = normalize_path("C:\\Users\\test\\file.py")
+            assert "\\" not in result
+
+    @patch("bernstein.core.config.platform_compat.IS_WINDOWS", True)
+    def test_windows_backslashes_preserved(self) -> None:
+        """On Windows, os.path.normpath produces backslashes -- we keep them."""
+        # When IS_WINDOWS is True the function skips the backslash replacement.
+        # We can't fully test this on Unix because os.path.normpath will use
+        # posixpath, but we verify the branch is exercised.
+        from bernstein.core.config.platform_compat import normalize_path as np
+
+        result = np("src/bernstein/core")
+        # On any OS, the result should at least contain the path components.
+        assert "bernstein" in result
+
+
+# ---------------------------------------------------------------------------
+# get_process_kill_cmd
+# ---------------------------------------------------------------------------
+
+
+class TestGetProcessKillCmd:
+    """Tests for get_process_kill_cmd()."""
+
+    def test_unix_kill_command(self) -> None:
+        if not IS_WINDOWS:
+            cmd = get_process_kill_cmd(1234)
+            assert cmd == ["kill", "1234"]
+
+    def test_pid_as_string_in_output(self) -> None:
+        """PID should appear as a string in the command list."""
+        cmd = get_process_kill_cmd(42)
+        assert "42" in cmd
+
+    @patch("bernstein.core.config.platform_compat.IS_WINDOWS", True)
+    def test_windows_taskkill_command(self) -> None:
+        from bernstein.core.config.platform_compat import get_process_kill_cmd as gpkc
+
+        cmd = gpkc(5678)
+        assert cmd == ["taskkill", "/F", "/PID", "5678"]
+
+    @patch("bernstein.core.config.platform_compat.IS_WINDOWS", True)
+    def test_windows_command_has_force_flag(self) -> None:
+        from bernstein.core.config.platform_compat import get_process_kill_cmd as gpkc
+
+        cmd = gpkc(1)
+        assert "/F" in cmd
+
+    def test_returns_list_of_strings(self) -> None:
+        cmd = get_process_kill_cmd(99)
+        assert isinstance(cmd, list)
+        assert all(isinstance(tok, str) for tok in cmd)
+
+
+# ---------------------------------------------------------------------------
+# skip_on_windows
+# ---------------------------------------------------------------------------
+
+
+class TestSkipOnWindows:
+    """Tests for skip_on_windows() pytest marker decorator."""
+
+    def test_returns_callable(self) -> None:
+        """skip_on_windows() must return a callable decorator."""
+        decorator = skip_on_windows("test reason")
+        assert callable(decorator)
+
+    def test_default_reason(self) -> None:
+        """Calling with no args should use the default reason."""
+        decorator = skip_on_windows()
+        assert callable(decorator)
+
+    def test_decorated_function_is_callable(self) -> None:
+        """Applying the decorator to a function should return a callable."""
+
+        @skip_on_windows("testing")
+        def dummy_test() -> None:
+            pass
+
+        assert callable(dummy_test)
+
+    @pytest.mark.skipif(IS_WINDOWS, reason="Only tests skip logic on non-Windows")
+    def test_does_not_skip_on_unix(self) -> None:
+        """On Unix, the decorated test should execute normally."""
+        executed = False
+
+        @skip_on_windows("should not skip")
+        def inner() -> bool:
+            nonlocal executed
+            executed = True
+            return True
+
+        # On Unix, the decorator does not prevent execution —
+        # it only adds a pytest marker. Direct calls still work.
+        result = inner()
+        assert result is True
+        assert executed

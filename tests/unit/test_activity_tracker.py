@@ -22,7 +22,7 @@ from bernstein.tui.activity_tracker import (
 
 def _reset_singleton() -> None:
     """Force the module-level singleton to re-create on next call."""
-    import bernstein.activity_tracker as _mod
+    import bernstein.tui.activity_tracker as _mod
 
     _mod._default_session = None
 
@@ -211,7 +211,7 @@ class TestActivitySession:
 
 class TestModuleLevelFunctions:
     def test_start_and_stop_via_module_functions(self, activity_dir: Path) -> None:
-        import bernstein.activity_tracker as _mod
+        import bernstein.tui.activity_tracker as _mod
 
         with patch.object(_mod, "_DEFAULT_ACTIVITY_FILE", "activity.jsonl"):
             # Force session to use our tmp_path.
@@ -226,7 +226,7 @@ class TestModuleLevelFunctions:
             assert result.description == "Unit tests"
 
     def test_get_activity_summary_via_module_functions(self, activity_dir: Path) -> None:
-        import bernstein.activity_tracker as _mod
+        import bernstein.tui.activity_tracker as _mod
 
         session = ActivitySession(activity_dir)
         session.start_activity("reviewing", "Code review")
@@ -238,7 +238,7 @@ class TestModuleLevelFunctions:
             assert summary[0].category == "reviewing"
 
     def test_stop_without_start_returns_none_at_module_level(self) -> None:
-        import bernstein.activity_tracker as _mod
+        import bernstein.tui.activity_tracker as _mod
 
         # Ensure a clean session.
         session = ActivitySession()

@@ -1458,7 +1458,7 @@ class TestSpawnResiliency:
 
 
 class TestReaping:
-    @patch("bernstein.core.agent_lifecycle._is_process_alive", return_value=False)
+    @patch("bernstein.core.agent_recycling._is_process_alive", return_value=False)
     def test_reaps_stale_heartbeat(self, _mock_alive: MagicMock, tmp_path: Path) -> None:
         transport = _mock_transport(
             {
@@ -1568,7 +1568,7 @@ class TestReaping:
 
         assert session.status == "dead"
 
-    @patch("bernstein.core.agent_lifecycle._is_process_alive", return_value=True)
+    @patch("bernstein.core.agent_recycling._is_process_alive", return_value=True)
     def test_zero_heartbeat_not_reaped_if_alive(self, _mock_alive: MagicMock, tmp_path: Path) -> None:
         """An agent that never heartbeated but whose process is alive is NOT reaped."""
         transport = _mock_transport(
@@ -1957,7 +1957,7 @@ class TestFileOwnership:
         r2 = orch.tick()
         assert len(r2.spawned) == 1  # no conflict, spawns fine
 
-    @patch("bernstein.core.agent_lifecycle._is_process_alive", return_value=False)
+    @patch("bernstein.core.agent_recycling._is_process_alive", return_value=False)
     def test_ownership_released_on_reap(self, _mock_alive: MagicMock, tmp_path: Path) -> None:
         """File ownership released when a stale agent is reaped."""
         transport = _mock_transport(
@@ -3256,7 +3256,7 @@ class TestDeadAgentFileOwnershipEdgeCases:
 class TestStaleHeartbeatReapingDefault:
     """An agent whose heartbeat exceeds the configured timeout is reaped and its tasks failed."""
 
-    @patch("bernstein.core.agent_lifecycle._is_process_alive", return_value=False)
+    @patch("bernstein.core.agent_recycling._is_process_alive", return_value=False)
     def test_stale_heartbeat_reaps_agent(self, _mock_alive: MagicMock, tmp_path: Path) -> None:
         """Heartbeat older than heartbeat_timeout_s triggers reaping and task failure."""
         adapter = _mock_adapter()
@@ -5216,7 +5216,7 @@ class TestEvolutionAgentLifetimeRecording:
         assert kw["role"] == "qa"
         assert kw["tasks_completed"] == 0  # timed out before completing
 
-    @patch("bernstein.core.agent_lifecycle._is_process_alive", return_value=False)
+    @patch("bernstein.core.agent_recycling._is_process_alive", return_value=False)
     def test_heartbeat_reap_records_agent_lifetime(self, _mock_alive: MagicMock, tmp_path: Path) -> None:
         """_reap_dead_agents (heartbeat path) calls record_agent_lifetime."""
         transport = _mock_transport({"GET /tasks": httpx.Response(200, json=[])})

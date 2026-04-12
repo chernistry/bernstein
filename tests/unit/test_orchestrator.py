@@ -4783,7 +4783,7 @@ class TestParallelVerification:
         )
         orch = _build_orchestrator(tmp_path, transport)
 
-        with patch("bernstein.core.task_completion.verify_task", side_effect=slow_verify):
+        with patch("bernstein.core.tasks.task_lifecycle.verify_task", side_effect=slow_verify):
             t_start = time.time()
             result = TickResult()
             orch._process_completed_tasks(tasks_with_signals, result)
@@ -4838,7 +4838,7 @@ class TestProcessCompletedTasksParallel:
             time.sleep(SLEEP)
             return True, []
 
-        with patch("bernstein.core.task_completion.verify_task", side_effect=slow_verify):
+        with patch("bernstein.core.tasks.task_lifecycle.verify_task", side_effect=slow_verify):
             tick_result = TickResult()
             start = time.monotonic()
             orch._process_completed_tasks([Task.from_dict(d) for d in task_dicts], tick_result)
@@ -5887,7 +5887,7 @@ def test_record_live_costs_enforces_max_cost_per_agent(tmp_path: Path) -> None:
     orch._release_task_to_session = MagicMock()
     orch._record_provider_health = MagicMock()
 
-    with patch("bernstein.core.orchestrator.retry_or_fail_task") as mock_retry:
+    with patch("bernstein.core.orchestration.orchestrator.retry_or_fail_task") as mock_retry:
         orch._record_live_costs()
 
     assert session.id in orch._cost_cap_killed_agents

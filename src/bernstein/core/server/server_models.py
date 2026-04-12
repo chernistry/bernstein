@@ -6,13 +6,12 @@ The parent ``server`` module re-exports every name for backward compatibility.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-if TYPE_CHECKING:
-    from bernstein.core.bulletin import MessageType
-    from bernstein.core.task_store import ProgressEntry
+from bernstein.core.bulletin import MessageType
+from bernstein.core.task_store import ProgressEntry
 
 # ---------------------------------------------------------------------------
 # Pydantic request / response schemas

@@ -1,2 +1,2 @@
 """Backward-compatibility shim — moved to bernstein.core.cost.cost_hooks."""
-from bernstein.core.cost.cost_hooks import *  # noqa: F401,F403
+from bernstein.core.cost.cost_hooks import *  # noqa: F403

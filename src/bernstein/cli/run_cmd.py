@@ -10,6 +10,11 @@ This module is a thin re-export shim.  The actual implementations live in:
 
 from __future__ import annotations
 
+# --- helpers re-exports (used by mock.patch in tests) ---
+import time as time
+
+from bernstein.cli.helpers import server_get as server_get
+
 # --- run_bootstrap ---
 from bernstein.cli.run_bootstrap import _build_synthetic_plan as _build_synthetic_plan
 from bernstein.cli.run_bootstrap import _default_constraints_for as _default_constraints_for
@@ -38,11 +43,6 @@ from bernstein.cli.run_confirm import cook as cook
 from bernstein.cli.run_confirm import demo as demo
 from bernstein.cli.run_confirm import detect_available_adapter as detect_available_adapter
 from bernstein.cli.run_confirm import setup_demo_project as setup_demo_project
-
-# --- helpers re-exports (used by mock.patch in tests) ---
-import time as time
-
-from bernstein.cli.helpers import server_get as server_get
 
 # --- run_preflight ---
 from bernstein.cli.run_preflight import RunCostEstimate as RunCostEstimate

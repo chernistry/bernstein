@@ -3,8 +3,8 @@
 from bernstein.core.observability.metrics import (
     AgentMetrics,
     MetricPoint,
-    MetricType,
     MetricsCollector,
+    MetricType,
     PercentileTracker,
     ProviderHealth,
     ProviderStatus,

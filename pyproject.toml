@@ -127,6 +127,16 @@ exclude = [
     "scripts/",
     "docs/",
     ".github/",
+    "src/bernstein/core/orchestration/",
+    "src/bernstein/core/agents/",
+    "src/bernstein/core/tasks/",
+    "src/bernstein/core/quality/",
+    "src/bernstein/core/cost/",
+    "src/bernstein/core/tokens/",
+    "src/bernstein/core/security/",
+    "src/bernstein/core/config/",
+    "src/bernstein/core/observability/",
+    "src/bernstein/core/protocols/",
 ]
 
 [tool.hatch.build.targets.wheel]

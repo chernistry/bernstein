@@ -3,4 +3,4 @@
 All public names are re-exported so existing imports continue to work.
 """
 
-from bernstein.core.tokens.compression_models import *  # noqa: F401,F403
+from bernstein.core.tokens.compression_models import *  # noqa: F403

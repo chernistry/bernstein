@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from pathlib import Path
 
-from bernstein.core.cost import _MODEL_COST_USD_PER_1K  # pyright: ignore[reportPrivateUsage]
+from bernstein.core.cost.cost import _MODEL_COST_USD_PER_1K  # pyright: ignore[reportPrivateUsage]
 from bernstein.core.models import (
     AgentCostSummary,
     ModelCostBreakdown,

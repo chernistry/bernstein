@@ -1,5 +1,11 @@
 """Backward-compatibility shim — moved to bernstein.core.git.pr_size_governor."""
 
-from bernstein.core._shim import install_shim
+import importlib as _importlib
 
-install_shim(__name__, "bernstein.core.git.pr_size_governor")
+from bernstein.core.git.pr_size_governor import *  # noqa: F403
+
+_real = _importlib.import_module("bernstein.core.git.pr_size_governor")
+
+
+def __getattr__(name: str):
+    return getattr(_real, name)

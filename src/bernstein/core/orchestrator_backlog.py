@@ -1,5 +1,11 @@
 """Backward-compatibility shim — moved to bernstein.core.orchestration.orchestrator_backlog."""
 
-from bernstein.core._shim import install_shim
+import importlib as _importlib
 
-install_shim(__name__, "bernstein.core.orchestration.orchestrator_backlog")
+from bernstein.core.orchestration.orchestrator_backlog import *  # noqa: F403
+
+_real = _importlib.import_module("bernstein.core.orchestration.orchestrator_backlog")
+
+
+def __getattr__(name: str):
+    return getattr(_real, name)

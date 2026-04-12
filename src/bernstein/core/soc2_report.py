@@ -1,5 +1,11 @@
 """Backward-compatibility shim — moved to bernstein.core.security.soc2_report."""
 
-from bernstein.core._shim import install_shim
+import importlib as _importlib
 
-install_shim(__name__, "bernstein.core.security.soc2_report")
+from bernstein.core.security.soc2_report import *  # noqa: F403
+
+_real = _importlib.import_module("bernstein.core.security.soc2_report")
+
+
+def __getattr__(name: str):
+    return getattr(_real, name)

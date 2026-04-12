@@ -1,5 +1,11 @@
 """Backward-compatibility shim — moved to bernstein.core.agents.spawner_core."""
 
-from bernstein.core._shim import install_shim
+import importlib as _importlib
 
-install_shim(__name__, "bernstein.core.agents.spawner_core")
+from bernstein.core.agents.spawner_core import *  # noqa: F403
+
+_real = _importlib.import_module("bernstein.core.agents.spawner_core")
+
+
+def __getattr__(name: str):
+    return getattr(_real, name)

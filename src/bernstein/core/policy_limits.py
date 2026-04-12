@@ -1,5 +1,11 @@
 """Backward-compatibility shim — moved to bernstein.core.security.policy_limits."""
 
-from bernstein.core._shim import install_shim
+import importlib as _importlib
 
-install_shim(__name__, "bernstein.core.security.policy_limits")
+from bernstein.core.security.policy_limits import *  # noqa: F403
+
+_real = _importlib.import_module("bernstein.core.security.policy_limits")
+
+
+def __getattr__(name: str):
+    return getattr(_real, name)

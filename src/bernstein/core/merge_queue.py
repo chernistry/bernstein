@@ -1,5 +1,11 @@
 """Backward-compatibility shim — moved to bernstein.core.git.merge_queue."""
 
-from bernstein.core._shim import install_shim
+import importlib as _importlib
 
-install_shim(__name__, "bernstein.core.git.merge_queue")
+from bernstein.core.git.merge_queue import *  # noqa: F403
+
+_real = _importlib.import_module("bernstein.core.git.merge_queue")
+
+
+def __getattr__(name: str):
+    return getattr(_real, name)

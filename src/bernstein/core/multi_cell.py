@@ -1,5 +1,11 @@
 """Backward-compatibility shim — moved to bernstein.core.orchestration.multi_cell."""
 
-from bernstein.core._shim import install_shim
+import importlib as _importlib
 
-install_shim(__name__, "bernstein.core.orchestration.multi_cell")
+from bernstein.core.orchestration.multi_cell import *  # noqa: F403
+
+_real = _importlib.import_module("bernstein.core.orchestration.multi_cell")
+
+
+def __getattr__(name: str):
+    return getattr(_real, name)

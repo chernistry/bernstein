@@ -1,5 +1,11 @@
 """Backward-compatibility shim — moved to bernstein.core.knowledge.file_discovery."""
 
-from bernstein.core._shim import install_shim
+import importlib as _importlib
 
-install_shim(__name__, "bernstein.core.knowledge.file_discovery")
+from bernstein.core.knowledge.file_discovery import *  # noqa: F403
+
+_real = _importlib.import_module("bernstein.core.knowledge.file_discovery")
+
+
+def __getattr__(name: str):
+    return getattr(_real, name)

@@ -1,5 +1,11 @@
 """Backward-compatibility shim — moved to bernstein.core.agents.cross_agent_consistency."""
 
-from bernstein.core._shim import install_shim
+import importlib as _importlib
 
-install_shim(__name__, "bernstein.core.agents.cross_agent_consistency")
+from bernstein.core.agents.cross_agent_consistency import *  # noqa: F403
+
+_real = _importlib.import_module("bernstein.core.agents.cross_agent_consistency")
+
+
+def __getattr__(name: str):
+    return getattr(_real, name)

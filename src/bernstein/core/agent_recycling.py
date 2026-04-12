@@ -1,5 +1,11 @@
 """Backward-compatibility shim — moved to bernstein.core.agents.agent_recycling."""
 
-from bernstein.core._shim import install_shim
+import importlib as _importlib
 
-install_shim(__name__, "bernstein.core.agents.agent_recycling")
+from bernstein.core.agents.agent_recycling import *  # noqa: F403
+
+_real = _importlib.import_module("bernstein.core.agents.agent_recycling")
+
+
+def __getattr__(name: str):
+    return getattr(_real, name)

@@ -1,5 +1,11 @@
 """Backward-compatibility shim — moved to bernstein.core.knowledge.semantic_diff."""
 
-from bernstein.core._shim import install_shim
+import importlib as _importlib
 
-install_shim(__name__, "bernstein.core.knowledge.semantic_diff")
+from bernstein.core.knowledge.semantic_diff import *  # noqa: F403
+
+_real = _importlib.import_module("bernstein.core.knowledge.semantic_diff")
+
+
+def __getattr__(name: str):
+    return getattr(_real, name)

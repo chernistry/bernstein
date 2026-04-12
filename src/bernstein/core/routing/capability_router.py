@@ -4,6 +4,14 @@ Instead of assigning tasks to specific adapters/models, tasks specify
 required capabilities: ``requires: [python, testing, refactoring]``.
 The router matches capabilities to available agents, decoupling task
 definitions from specific providers.
+
+Includes two layers:
+1.  **CapabilityRouter** — lightweight matcher that works against
+    ``DiscoveryResult`` objects obtained from agent_discovery probes.
+2.  **CapabilityRegistry** — explicit registration of agents with typed
+    ``Capability`` descriptors (name + level + description).  This enables
+    fine-grained skill-level matching (basic / advanced / expert) and
+    produces ranked ``RegistryMatch`` results.
 """
 
 from __future__ import annotations
@@ -11,12 +19,320 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bernstein.core.agent_discovery import AgentCapabilities, DiscoveryResult
+    from bernstein.core.agents.agent_discovery import AgentCapabilities, DiscoveryResult
 
 logger = logging.getLogger(__name__)
+
+
+# ===================================================================
+# Capability-level types (issue #647)
+# ===================================================================
+
+
+class CapabilityLevel(Enum):
+    """Proficiency level for a single capability."""
+
+    BASIC = "basic"
+    ADVANCED = "advanced"
+    EXPERT = "expert"
+
+    def __ge__(self, other: object) -> bool:
+        if not isinstance(other, CapabilityLevel):
+            return NotImplemented
+        order = {CapabilityLevel.BASIC: 0, CapabilityLevel.ADVANCED: 1, CapabilityLevel.EXPERT: 2}
+        return order[self] >= order[other]
+
+    def __gt__(self, other: object) -> bool:
+        if not isinstance(other, CapabilityLevel):
+            return NotImplemented
+        order = {CapabilityLevel.BASIC: 0, CapabilityLevel.ADVANCED: 1, CapabilityLevel.EXPERT: 2}
+        return order[self] > order[other]
+
+    def __le__(self, other: object) -> bool:
+        if not isinstance(other, CapabilityLevel):
+            return NotImplemented
+        order = {CapabilityLevel.BASIC: 0, CapabilityLevel.ADVANCED: 1, CapabilityLevel.EXPERT: 2}
+        return order[self] <= order[other]
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, CapabilityLevel):
+            return NotImplemented
+        order = {CapabilityLevel.BASIC: 0, CapabilityLevel.ADVANCED: 1, CapabilityLevel.EXPERT: 2}
+        return order[self] < order[other]
+
+
+@dataclass(frozen=True)
+class Capability:
+    """A single typed capability with proficiency level.
+
+    Attributes:
+        name: Canonical capability name (e.g. ``"python"``).
+        level: Proficiency level (basic, advanced, expert).
+        description: Optional human-readable description of what this entails.
+    """
+
+    name: str
+    level: CapabilityLevel = CapabilityLevel.BASIC
+    description: str = ""
+
+
+@dataclass(frozen=True)
+class AgentProfile:
+    """Snapshot of an agent's capabilities for registry-based routing.
+
+    Attributes:
+        adapter_name: Adapter identifier (e.g. ``"claude"``, ``"codex"``).
+        model: Model identifier (e.g. ``"claude-opus-4-0520"``).
+        capabilities: Immutable set of capabilities this agent provides.
+    """
+
+    adapter_name: str
+    model: str
+    capabilities: frozenset[Capability] = field(default_factory=frozenset[Capability])
+
+
+@dataclass(frozen=True)
+class RegistryMatch:
+    """Result of matching required capabilities against a registered agent.
+
+    Attributes:
+        agent: The matched agent profile.
+        score: Match quality from 0.0 (nothing matched) to 1.0 (all matched
+            at required level or above).
+        matched_capabilities: Capabilities the agent satisfies.
+        missing_capabilities: Capabilities the agent lacks or has at too low
+            a level.
+    """
+
+    agent: AgentProfile
+    score: float
+    matched_capabilities: frozenset[Capability]
+    missing_capabilities: frozenset[Capability]
+
+
+class CapabilityRegistry:
+    """Register agents with explicit capabilities and query by required skills.
+
+    Usage::
+
+        registry = CapabilityRegistry()
+        registry.register("claude", "claude-opus-4-0520", frozenset({
+            Capability("python", CapabilityLevel.EXPERT),
+            Capability("testing", CapabilityLevel.EXPERT),
+        }))
+        matches = registry.find_agents([
+            Capability("python", CapabilityLevel.ADVANCED),
+        ])
+    """
+
+    def __init__(self) -> None:
+        self._agents: dict[tuple[str, str], AgentProfile] = {}
+
+    # -- mutation ----------------------------------------------------------
+
+    def register(
+        self,
+        adapter_name: str,
+        model: str,
+        capabilities: frozenset[Capability],
+    ) -> AgentProfile:
+        """Register (or replace) an agent's capability profile.
+
+        Args:
+            adapter_name: Adapter identifier.
+            model: Model identifier.
+            capabilities: Frozen set of capabilities.
+
+        Returns:
+            The stored ``AgentProfile``.
+        """
+        profile = AgentProfile(
+            adapter_name=adapter_name,
+            model=model,
+            capabilities=capabilities,
+        )
+        self._agents[(adapter_name, model)] = profile
+        logger.debug("registered %s/%s with %d capabilities", adapter_name, model, len(capabilities))
+        return profile
+
+    def unregister(self, adapter_name: str, model: str) -> bool:
+        """Remove a previously registered agent.
+
+        Returns:
+            True if the agent was present and removed, False otherwise.
+        """
+        return self._agents.pop((adapter_name, model), None) is not None
+
+    @property
+    def agents(self) -> list[AgentProfile]:
+        """All currently registered agents."""
+        return list(self._agents.values())
+
+    # -- query -------------------------------------------------------------
+
+    def find_agents(
+        self,
+        required_capabilities: list[Capability],
+        *,
+        min_score: float = 0.0,
+    ) -> list[RegistryMatch]:
+        """Find agents matching the required capabilities, ranked by score.
+
+        An agent's score is the fraction of required capabilities it
+        satisfies *at the required level or higher*.  Results are returned
+        in descending score order with ties broken by adapter name for
+        determinism.
+
+        Args:
+            required_capabilities: Capabilities a task needs.
+            min_score: Exclude agents below this score (0.0 -- 1.0).
+
+        Returns:
+            List of ``RegistryMatch`` sorted by score descending.
+        """
+        if not required_capabilities:
+            return [
+                RegistryMatch(
+                    agent=profile,
+                    score=1.0,
+                    matched_capabilities=frozenset(),
+                    missing_capabilities=frozenset(),
+                )
+                for profile in self._agents.values()
+            ]
+
+        results: list[RegistryMatch] = []
+        for profile in self._agents.values():
+            matched, missing = self._evaluate(profile, required_capabilities)
+            score = len(matched) / len(required_capabilities)
+            if score < min_score:
+                continue
+            results.append(
+                RegistryMatch(
+                    agent=profile,
+                    score=round(score, 3),
+                    matched_capabilities=frozenset(matched),
+                    missing_capabilities=frozenset(missing),
+                )
+            )
+
+        results.sort(key=lambda m: (-m.score, m.agent.adapter_name))
+        return results
+
+    def best_match(
+        self,
+        required_capabilities: list[Capability],
+    ) -> RegistryMatch | None:
+        """Return the single best-scoring agent, or ``None`` if the registry is empty.
+
+        Args:
+            required_capabilities: Capabilities a task needs.
+
+        Returns:
+            The highest-scored ``RegistryMatch``, or ``None``.
+        """
+        matches = self.find_agents(required_capabilities)
+        return matches[0] if matches else None
+
+    # -- internals ---------------------------------------------------------
+
+    @staticmethod
+    def _evaluate(
+        profile: AgentProfile,
+        required: list[Capability],
+    ) -> tuple[list[Capability], list[Capability]]:
+        """Check which required capabilities a profile satisfies.
+
+        A capability is satisfied when the agent has a capability with the
+        same name whose level is >= the required level.
+        """
+        caps_by_name: dict[str, CapabilityLevel] = {c.name: c.level for c in profile.capabilities}
+        matched: list[Capability] = []
+        missing: list[Capability] = []
+        for req in required:
+            agent_level = caps_by_name.get(req.name)
+            if agent_level is not None and agent_level >= req.level:
+                matched.append(req)
+            else:
+                missing.append(req)
+        return matched, missing
+
+
+# ===================================================================
+# Default capability profiles for well-known models
+# ===================================================================
+
+_ALL_CAPABILITIES: tuple[str, ...] = (
+    "python",
+    "javascript",
+    "typescript",
+    "frontend",
+    "backend",
+    "testing",
+    "devops",
+    "security",
+    "refactoring",
+    "code-review",
+    "design",
+    "documentation",
+    "machine-learning",
+    "long-context",
+    "reasoning",
+)
+
+_HAIKU_BASIC_CAPS: tuple[str, ...] = (
+    "python",
+    "javascript",
+    "typescript",
+    "frontend",
+    "backend",
+    "testing",
+    "documentation",
+)
+
+
+def build_default_profiles() -> list[AgentProfile]:
+    """Build default capability profiles for well-known Claude models.
+
+    Returns:
+        A list of ``AgentProfile`` instances for claude-opus, claude-sonnet,
+        and claude-haiku with reasonable default capability levels.
+    """
+    opus_caps = frozenset(Capability(name=c, level=CapabilityLevel.EXPERT) for c in _ALL_CAPABILITIES)
+
+    sonnet_advanced: frozenset[str] = frozenset(_ALL_CAPABILITIES) - {"long-context", "machine-learning", "design"}
+    sonnet_caps = frozenset(
+        Capability(
+            name=c,
+            level=CapabilityLevel.ADVANCED if c in sonnet_advanced else CapabilityLevel.BASIC,
+        )
+        for c in _ALL_CAPABILITIES
+    )
+
+    haiku_caps = frozenset(Capability(name=c, level=CapabilityLevel.BASIC) for c in _HAIKU_BASIC_CAPS)
+
+    return [
+        AgentProfile(adapter_name="claude", model="claude-opus-4-0520", capabilities=opus_caps),
+        AgentProfile(adapter_name="claude", model="claude-sonnet-4-0520", capabilities=sonnet_caps),
+        AgentProfile(adapter_name="claude", model="claude-haiku", capabilities=haiku_caps),
+    ]
+
+
+def populate_registry_defaults(registry: CapabilityRegistry) -> None:
+    """Populate a registry with default profiles for well-known models.
+
+    Convenience helper so callers don't need to know the details::
+
+        registry = CapabilityRegistry()
+        populate_registry_defaults(registry)
+    """
+    for profile in build_default_profiles():
+        registry.register(profile.adapter_name, profile.model, profile.capabilities)
+
 
 # Canonical capability names and their synonyms
 _CAPABILITY_ALIASES: dict[str, str] = {
@@ -160,7 +476,7 @@ class CapabilityRouter:
     """
 
     discovery: DiscoveryResult
-    _agent_caps: dict[str, set[str]] = field(default_factory=dict, init=False, repr=False)
+    _agent_caps: dict[str, set[str]] = field(default_factory=dict[str, set[str]], init=False, repr=False)
 
     def __post_init__(self) -> None:
         self._build_agent_capability_index()

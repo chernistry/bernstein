@@ -137,7 +137,7 @@ class TestConfigureDatadog:
 
         with (
             patch.dict("sys.modules", {"ddtrace": None}),
-            patch("bernstein.core.observability.telemetry.init_telemetry_from_preset") as mock_preset,
+            patch("bernstein.core.telemetry.init_telemetry_from_preset") as mock_preset,
         ):
             mock_preset.return_value = None
             result = configure_datadog(cfg)
@@ -159,7 +159,7 @@ class TestConfigureDatadog:
         assert cfg.env == "test"
         assert cfg.agent_host == "custom-host"
 
-    @patch("bernstein.core.observability.telemetry.init_telemetry_from_preset")
+    @patch("bernstein.core.telemetry.init_telemetry_from_preset")
     def test_otlp_fallback_calls_preset(self, mock_preset: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
         """When ddtrace is missing, falls back to OTLP preset."""
         monkeypatch.delenv("DD_API_KEY", raising=False)
@@ -269,7 +269,7 @@ class TestAutoConfigureApm:
         monkeypatch.delenv("DATADOG_API_KEY", raising=False)
         monkeypatch.setenv("DD_AGENT_HOST", "dd-agent")
 
-        with patch("bernstein.core.observability.telemetry.init_telemetry_from_preset") as mock_preset:
+        with patch("bernstein.core.telemetry.init_telemetry_from_preset") as mock_preset:
             mock_preset.return_value = None
             result = auto_configure_apm()
 
@@ -282,7 +282,7 @@ class TestAutoConfigureApm:
         monkeypatch.delenv("DATADOG_API_KEY", raising=False)
 
         with (
-            patch("bernstein.core.observability.telemetry.init_telemetry_from_preset") as mock_dd,
+            patch("bernstein.core.telemetry.init_telemetry_from_preset") as mock_dd,
             patch("bernstein.core.observability.telemetry._init_http_telemetry") as mock_nr,
         ):
             mock_dd.return_value = None

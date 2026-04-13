@@ -49,7 +49,7 @@ _PRE_COMMIT_TEMPLATE: Final[str] = textwrap.dedent("""\
     def main() -> int:
         result = subprocess.run(
             ["git", "diff", "--cached", "--name-only"],
-            capture_output=True, text=True, check=False,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         if result.returncode != 0:
             print("bernstein pre-commit: failed to get staged files", file=sys.stderr)

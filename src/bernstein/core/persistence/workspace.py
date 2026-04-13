@@ -162,7 +162,7 @@ class Workspace:
             cmd = ["git", "clone", "--branch", repo.branch, repo.url, str(abs_path)]
             logger.info("Cloning %s -> %s", repo.url, abs_path)
             try:
-                subprocess.run(cmd, capture_output=True, text=True, check=True)
+                subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", check=True)
                 cloned.append(repo.name)
             except subprocess.CalledProcessError as exc:
                 logger.warning("Failed to clone '%s': %s", repo.name, exc.stderr.strip())
@@ -267,7 +267,7 @@ class Workspace:
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 cwd=str(repo_path),
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 check=True,
             )
             return result.stdout.strip()
@@ -282,7 +282,7 @@ class Workspace:
                 ["git", "status", "--porcelain"],
                 cwd=str(repo_path),
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 check=True,
             )
             return result.stdout.strip() == ""
@@ -297,7 +297,7 @@ class Workspace:
                 ["git", "rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
                 cwd=str(repo_path),
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 check=True,
             )
             parts = result.stdout.strip().split()

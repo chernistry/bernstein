@@ -2683,7 +2683,7 @@ class Orchestrator:
             ["uv", "run", "ruff", "check", ".", "--output-format", "json"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             cwd=self._workdir,
             start_new_session=True,
         )
@@ -2777,7 +2777,7 @@ class Orchestrator:
             ["uv", "run", "pytest", "tests/", "-x", "-q", "--tb=line"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             cwd=self._workdir,
             start_new_session=True,
         )
@@ -2883,7 +2883,7 @@ class Orchestrator:
             test_result = subprocess.run(
                 ["uv", "run", "pytest", "tests/", "-x", "-q", "--tb=line"],
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 cwd=self._workdir,
                 timeout=300,
             )

@@ -8,7 +8,7 @@ Usage::
 
     diff_output = subprocess.check_output(
         ["git", "diff", "--stat", "--numstat", "main...HEAD"],
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
     )
     summary = build_diff_summary("task-042", diff_output, {"pytest": "passed"})
     print(format_diff_preview(summary))

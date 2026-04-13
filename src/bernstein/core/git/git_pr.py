@@ -384,7 +384,7 @@ def create_github_pr(
             cmd,
             cwd=cwd,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=30,
         )
         if result.returncode == 0:
@@ -410,7 +410,7 @@ def enable_pr_auto_merge(cwd: Path, pr_url_or_number: str) -> GitResult:
             ["gh", "pr", "merge", "--auto", "--squash", pr_url_or_number],
             cwd=cwd,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=30,
         )
         return GitResult(
@@ -500,7 +500,7 @@ def bisect_regression(
             ["git", "bisect", "run", *test_cmd.split()],
             cwd=cwd,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=600,
         )
 

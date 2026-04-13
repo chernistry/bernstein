@@ -601,6 +601,12 @@ def exec_restart() -> None:
         "Profile orchestrator execution with cProfile. Writes .prof binary and .txt report to .sdd/runtime/profiles/."
     ),
 )
+@click.option(
+    "--auto-pr",
+    is_flag=True,
+    default=False,
+    help="Automatically create a GitHub PR when all tasks complete.",
+)
 def run(
     plan_file: Path | None,
     goal: str | None,
@@ -627,6 +633,7 @@ def run(
     ab_test: bool = False,
     dry_run: bool = False,
     profile: bool = False,
+    auto_pr: bool = False,
 ) -> None:
     """Parse seed, init workspace, start server, launch agents.
 
@@ -697,6 +704,10 @@ def run(
     # Propagate quiet flag so the orchestrator suppresses the live summary card
     if quiet:
         os.environ["BERNSTEIN_QUIET"] = "1"
+
+    # Propagate auto-PR flag so the orchestrator creates a PR when all tasks complete
+    if auto_pr:
+        os.environ["BERNSTEIN_AUTO_PR"] = "1"
 
     _configure_quality_gate_bypass(
         goal=goal,

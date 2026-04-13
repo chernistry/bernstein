@@ -56,7 +56,7 @@ class TestSpawn:
         popen, _ = self._spawn(tmp_path)
         cmd = popen.call_args.args[0]
         assert cmd[0] == sys.executable
-        assert cmd[1:3] == ["-m", "bernstein.core.worker"]
+        assert cmd[1:3] == ["-m", "bernstein.core.orchestration.worker"]
         assert "--role" in cmd
         assert "--session" in cmd
 
@@ -64,7 +64,7 @@ class TestSpawn:
         popen, _ = self._spawn(tmp_path)
         inner = self._inner_cmd(popen.call_args.args[0])
         assert inner[0] == sys.executable
-        assert inner[1:3] == ["-m", "bernstein.core.manager"]
+        assert inner[1:3] == ["-m", "bernstein.core.orchestration.manager"]
 
     def test_cmd_includes_port_8052(self, tmp_path: Path) -> None:
         popen, _ = self._spawn(tmp_path)

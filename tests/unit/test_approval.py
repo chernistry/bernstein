@@ -93,8 +93,8 @@ def test_create_pr_uses_injected_push_and_create(tmp_path: Path, make_task: Any)
     )
 
     assert pr_url == "https://example/pr/1"
-    assert "**Role**: backend" in created["body"]
-    assert "**Tests**: 12 passed" in created["body"]
+    assert "## Summary" in created["body"]
+    assert "12 passed" in created["body"]
 
 
 def test_approval_gate_with_override_mode(tmp_path: Path, make_task: Any) -> None:

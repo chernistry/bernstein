@@ -74,6 +74,8 @@ def test_desktop_notification_uses_terminal_notifier_on_macos() -> None:
         check=False,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
 
@@ -94,6 +96,8 @@ def test_desktop_notification_uses_notify_send_on_linux() -> None:
         check=False,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
 

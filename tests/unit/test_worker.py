@@ -34,7 +34,7 @@ class TestBuildWorkerCmd:
             model="claude-sonnet-4-6",
         )
         assert result[0] == sys.executable
-        assert result[1:3] == ["-m", "bernstein.core.worker"]
+        assert result[1:3] == ["-m", "bernstein.core.orchestration.worker"]
         assert "--role" in result
         assert result[result.index("--role") + 1] == "qa"
         assert "--session" in result
@@ -71,7 +71,7 @@ class TestWorkerProcess:
             [
                 sys.executable,
                 "-m",
-                "bernstein.core.worker",
+                "bernstein.core.orchestration.worker",
                 "--role",
                 "test",
                 "--session",
@@ -126,7 +126,7 @@ class TestWorkerProcess:
             [
                 sys.executable,
                 "-m",
-                "bernstein.core.worker",
+                "bernstein.core.orchestration.worker",
                 "--role",
                 "qa",
                 "--session",
@@ -162,7 +162,7 @@ class TestWorkerProcess:
             [
                 sys.executable,
                 "-m",
-                "bernstein.core.worker",
+                "bernstein.core.orchestration.worker",
                 "--role",
                 "test",
                 "--session",
@@ -184,7 +184,7 @@ class TestWorkerProcess:
             [
                 sys.executable,
                 "-m",
-                "bernstein.core.worker",
+                "bernstein.core.orchestration.worker",
                 "--role",
                 "test",
                 "--session",

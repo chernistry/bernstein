@@ -154,6 +154,8 @@ def test_has_git_commits_on_branch_returns_true_when_commits_exist(tmp_path: Pat
             cwd=str(tmp_path),
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
 

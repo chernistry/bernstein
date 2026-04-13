@@ -70,7 +70,7 @@ if not _PROMETHEUS_AVAILABLE:
         def __init__(self, *args: Any, **kwargs: Any) -> None: pass
     class _StubMetric:
         def __init__(self, *args: Any, **kwargs: Any) -> None: pass
-        def labels(self, *args: Any, **kwargs: Any) -> "_StubMetric": return self
+        def labels(self, *args: Any, **kwargs: Any) -> _StubMetric: return self
         def inc(self, *args: Any, **kwargs: Any) -> None: pass
         def dec(self, *args: Any, **kwargs: Any) -> None: pass
         def set(self, *args: Any, **kwargs: Any) -> None: pass

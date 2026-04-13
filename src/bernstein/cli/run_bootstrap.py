@@ -621,7 +621,7 @@ def exec_restart() -> None:
     is_flag=False,
     flag_value=".sdd/logs/activity.log",
     default=None,
-    help="Write activity to log file. Use --activity-log for default (.sdd/logs/activity.log) or --activity-log PATH for custom.",
+    help="Write activity to log file (default: .sdd/logs/activity.log).",
 )
 def run(
     plan_file: Path | None,

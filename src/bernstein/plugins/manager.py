@@ -322,7 +322,7 @@ class CommandHook:
                 proc = subprocess.run(
                     [str(script)],
                     input=json.dumps(sub_kwargs),
-                    text=True,
+                    text=True, encoding="utf-8", errors="replace",
                     capture_output=True,
                     env=env,
                     check=False,

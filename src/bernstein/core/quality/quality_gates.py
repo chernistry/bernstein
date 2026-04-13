@@ -323,14 +323,14 @@ def _get_intent_diff(worktree_path: Path, owned_files: list[str]) -> str:
         cmd = ["git", "diff", "HEAD~1", "--"]
         if owned_files:
             cmd.extend(owned_files)
-        result = subprocess.run(cmd, cwd=worktree_path, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, cwd=worktree_path, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
         diff = result.stdout.strip()
         if not diff:
             result = subprocess.run(
                 ["git", "diff", "HEAD", "--"],
                 cwd=worktree_path,
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=30,
             )
             diff = result.stdout.strip()
@@ -498,7 +498,7 @@ def _run_command(command: str, cwd: Path, timeout_s: int) -> tuple[bool, str]:
             # that may use pipes or globs; not user input
             cwd=cwd,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=timeout_s,
         )
         output = (proc.stdout + proc.stderr).strip()

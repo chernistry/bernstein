@@ -330,7 +330,7 @@ def check_test_dependencies() -> list[dict[str, str]]:
     result = subprocess.run(
         ["uv", "run", "ruff", "--version"],
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
         timeout=10,
     )
     ruff_ok = result.returncode == 0
@@ -347,7 +347,7 @@ def check_test_dependencies() -> list[dict[str, str]]:
     result = subprocess.run(
         ["uv", "run", "pytest", "--version"],
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
         timeout=10,
     )
     pytest_ok = result.returncode == 0
@@ -364,7 +364,7 @@ def check_test_dependencies() -> list[dict[str, str]]:
     result = subprocess.run(
         ["uv", "run", "pyright", "--version"],
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
         timeout=10,
     )
     pyright_ok = result.returncode == 0

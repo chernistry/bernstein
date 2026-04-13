@@ -187,7 +187,7 @@ class BenchmarkGate:
             shlex.split(self._benchmark_command),
             cwd=cwd,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=600,
         )
         if result.returncode != 0:

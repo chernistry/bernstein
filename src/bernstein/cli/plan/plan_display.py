@@ -50,25 +50,63 @@ C_BRIGHT = "#ffffff"
 # Risk display helpers
 # ---------------------------------------------------------------------------
 
-_RISK_ICON: dict[str, str] = {
-    "low": "\u2713",
-    "medium": "\u26a0",
-    "high": "\u26a1",
-    "critical": "\u2b24",
-}
+# Use ASCII-safe characters on Windows to avoid cp1252 encoding issues
+if _IS_WINDOWS:
+    _RISK_ICON: dict[str, str] = {
+        "low": "+",
+        "medium": "!",
+        "high": "!!",
+        "critical": "X",
+    }
+    _STATUS_LABEL: dict[str, str] = {
+        PlanStatus.PENDING.value: "pending - awaiting approval",
+        PlanStatus.APPROVED.value: "approved",
+        PlanStatus.REJECTED.value: "rejected",
+        PlanStatus.EXPIRED.value: "expired",
+    }
+    # Box-drawing characters for Windows (ASCII)
+    _BOX_H = "-"
+    _BOX_TL = "+"
+    _BOX_TR = "+"
+    _BOX_BL = "+"
+    _BOX_BR = "+"
+    _BOX_V = "|"
+    _ICON_PLAY = ">"
+    _ICON_X = "x"
+    _ICON_CHECK = "+"
+    _ICON_WARN = "!"
+    _ICON_DASH = "-"
+else:
+    _RISK_ICON: dict[str, str] = {
+        "low": "\u2713",
+        "medium": "\u26a0",
+        "high": "\u26a1",
+        "critical": "\u2b24",
+    }
+    _STATUS_LABEL: dict[str, str] = {
+        PlanStatus.PENDING.value: "pending \u2014 awaiting approval",
+        PlanStatus.APPROVED.value: "approved",
+        PlanStatus.REJECTED.value: "rejected",
+        PlanStatus.EXPIRED.value: "expired",
+    }
+    # Box-drawing characters for Unix (Unicode)
+    _BOX_H = "\u2500"  # ─
+    _BOX_TL = "\u250c"  # ┌
+    _BOX_TR = "\u2510"  # ┐
+    _BOX_BL = "\u2514"  # └
+    _BOX_BR = "\u2518"  # ┘
+    _BOX_V = "\u2502"  # │
+    _ICON_PLAY = "\u25b6"  # ▶
+    _ICON_X = "\u2715"  # ✕
+    _ICON_CHECK = "\u2713"  # ✓
+    _ICON_WARN = "\u26a0"  # ⚠
+    _ICON_DASH = "\u2014"  # —
 
 _RISK_COLOR: dict[str, str] = {
     "low": C_GREEN,
     "medium": C_WARN,
     "high": C_ERR,
     "critical": C_ERR,
-}
-
-_STATUS_LABEL: dict[str, str] = {
-    PlanStatus.PENDING.value: "pending \u2014 awaiting approval",
-    PlanStatus.APPROVED.value: "approved",
-    PlanStatus.REJECTED.value: "rejected",
-    PlanStatus.EXPIRED.value: "expired",
 }
 
 # ---------------------------------------------------------------------------
@@ -100,7 +138,8 @@ def _truncate(text: str, max_len: int) -> str:
     """Truncate text with ellipsis if it exceeds max_len."""
     if len(text) <= max_len:
         return text
-    return text[: max_len - 1] + "\u2026"
+    ellipsis = "..." if _IS_WINDOWS else "\u2026"
+    return text[: max_len - len(ellipsis)] + ellipsis
 
 
 # ---------------------------------------------------------------------------
@@ -193,44 +232,44 @@ def _drain_input() -> None:
 
 def _hline(width: int) -> str:
     """Horizontal rule inside the outer box."""
-    return f"[{C_DIM}]{'─' * width}[/{C_DIM}]"
+    return f"[{C_DIM}]{_BOX_H * width}[/{C_DIM}]"
 
 
 def _box_top(width: int) -> str:
-    """Top border: ┌──...──┐"""
-    inner = "─" * (width - 2)
-    return f"[{C_DIM}]┌{inner}┐[/{C_DIM}]"
+    """Top border: +--...--+"""
+    inner = _BOX_H * (width - 2)
+    return f"[{C_DIM}]{_BOX_TL}{inner}{_BOX_TR}[/{C_DIM}]"
 
 
 def _box_bottom(width: int) -> str:
-    """Bottom border: └──...──┘"""
-    inner = "─" * (width - 2)
-    return f"[{C_DIM}]└{inner}┘[/{C_DIM}]"
+    """Bottom border: +--...--+"""
+    inner = _BOX_H * (width - 2)
+    return f"[{C_DIM}]{_BOX_BL}{inner}{_BOX_BR}[/{C_DIM}]"
 
 
 def _box_row(content: str, width: int) -> str:
-    """Row inside the outer box: │  content  │  (content is Rich markup)."""
+    """Row inside the outer box: |  content  |  (content is Rich markup)."""
     # We can't measure Rich markup width exactly, so we pad the raw line
     # and let the outer borders frame it visually.
-    return f"[{C_DIM}]│[/{C_DIM}]  {content}"
+    return f"[{C_DIM}]{_BOX_V}[/{C_DIM}]  {content}"
 
 
 def _inner_box_top(label: str, width: int) -> str:
-    """Inner box top: ┌─ Label ─────...─┐"""
-    prefix = f"─ {label} "
-    fill = "─" * max(0, width - len(prefix) - 2)
-    return f"  [{C_DIM}]┌{prefix}{fill}┐[/{C_DIM}]"
+    """Inner box top: +- Label -----...--+"""
+    prefix = f"{_BOX_H} {label} "
+    fill = _BOX_H * max(0, width - len(prefix) - 2)
+    return f"  [{C_DIM}]{_BOX_TL}{prefix}{fill}{_BOX_TR}[/{C_DIM}]"
 
 
 def _inner_box_row(content: str) -> str:
-    """Inner box row: │  content  │"""
-    return f"  [{C_DIM}]│[/{C_DIM}]  {content}"
+    """Inner box row: |  content  |"""
+    return f"  [{C_DIM}]{_BOX_V}[/{C_DIM}]  {content}"
 
 
 def _inner_box_bottom(width: int) -> str:
-    """Inner box bottom: └─────...─┘"""
-    inner = "─" * (width - 2)
-    return f"  [{C_DIM}]└{inner}┘[/{C_DIM}]"
+    """Inner box bottom: +-----...--+"""
+    inner = _BOX_H * (width - 2)
+    return f"  [{C_DIM}]{_BOX_BL}{inner}{_BOX_BR}[/{C_DIM}]"
 
 
 # ---------------------------------------------------------------------------
@@ -335,9 +374,12 @@ class _PlanRenderer:
         high_risk = len(plan.high_risk_tasks)
         risk_color = C_ERR if high_risk > 0 else C_GREEN
 
+        # Use ASCII-safe plus-minus for Windows
+        pm = "+/-" if _IS_WINDOWS else "\u00b1"
+
         rows: list[tuple[str, str, str]] = [
             ("Tasks", str(len(plan.task_estimates)), C_BRIGHT),
-            ("Est. cost", f"{_fmt_cost(plan.total_estimated_cost_usd)} (±20%)", C_CYAN),
+            ("Est. cost", f"{_fmt_cost(plan.total_estimated_cost_usd)} ({pm}20%)", C_CYAN),
             ("Est. time", _fmt_minutes(plan.total_estimated_minutes), C_WHITE),
             ("High-risk", str(high_risk), risk_color),
         ]
@@ -348,7 +390,7 @@ class _PlanRenderer:
             warning = (
                 f"Estimated cost (${plan.total_estimated_cost_usd:.2f}) exceeds configured budget (${budget_usd:.2f})."
             )
-            self._add(_box_row(f"[bold {C_ERR}]⚠ BUDGET WARNING[/{C_ERR}]", self.width))
+            self._add(_box_row(f"[bold {C_ERR}]{_ICON_WARN} BUDGET WARNING[/{C_ERR}]", self.width))
             self._add(_box_row(f"[{C_ERR}]{_truncate(warning, self.width - 6)}[/{C_ERR}]", self.width))
             self._blank()
 
@@ -449,8 +491,8 @@ class _PlanRenderer:
         self._blank()
 
         # Buttons
-        approve_btn = f"[bold {C_GREEN}][ \u25b6 APPROVE ][/bold {C_GREEN}]"
-        cancel_btn = f"[bold {C_ERR}][ \u2715 CANCEL ][/bold {C_ERR}]"
+        approve_btn = f"[bold {C_GREEN}][ {_ICON_PLAY} APPROVE ][/bold {C_GREEN}]"
+        cancel_btn = f"[bold {C_ERR}][ {_ICON_X} CANCEL ][/bold {C_ERR}]"
         # Center the buttons
         btn_text = f"{approve_btn}        {cancel_btn}"
         # Approximate centering (markup is invisible to width calc)
@@ -528,7 +570,7 @@ def display_plan_and_confirm(
 
     if not is_tty or is_ci:
         render_plan(plan, tasks, console=console)
-        console.print(f"\n  [{C_DIM}]Non-interactive mode \u2014 auto-approved[/{C_DIM}]")
+        console.print(f"\n  [{C_DIM}]Non-interactive mode {_ICON_DASH} auto-approved[/{C_DIM}]")
         return True
 
     # Interactive: render plan, then wait for keypress
@@ -562,9 +604,9 @@ def display_plan_and_confirm(
 
     approved = key in _approve_keys
     if approved:
-        console.print(f"\n  [bold {C_GREEN}]\u2713 Plan approved[/bold {C_GREEN}]")
+        console.print(f"\n  [bold {C_GREEN}]{_ICON_CHECK} Plan approved[/bold {C_GREEN}]")
     else:
-        console.print(f"\n  [{C_DIM}]\u2715 Cancelled[/{C_DIM}]")
+        console.print(f"\n  [{C_DIM}]{_ICON_X} Cancelled[/{C_DIM}]")
 
     return approved
 

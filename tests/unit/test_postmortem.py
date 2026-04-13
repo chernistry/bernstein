@@ -1,19 +1,19 @@
-"""Tests for automated post-mortem report generation (ROAD-153)."""
+"""Tests for bernstein.core.postmortem.
+
+Covers timeline building, severity inference, root cause analysis,
+report generation, and HTML export.
+"""
 
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
 
-import pytest
 from bernstein.core.postmortem import (
-    ContributingFactor,
-    FailedTaskTrace,
-    PostMortemEvent,
-    PostMortemGenerator,
-    PostMortemReport,
-    RecommendedAction,
+    analyze_root_cause,
+    build_timeline,
+    export_report_html,
+    generate_postmortem,
 )
 
 # ---------------------------------------------------------------------------
@@ -21,295 +21,272 @@ from bernstein.core.postmortem import (
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture()
-def workdir(tmp_path: Path) -> Path:
-    sdd = tmp_path / ".sdd"
-    sdd.mkdir()
-    return tmp_path
-
-
-@pytest.fixture()
-def run_id() -> str:
-    return "test-run-abc"
-
-
-@pytest.fixture()
-def summary_dir(workdir: Path, run_id: str) -> Path:
-    d = workdir / ".sdd" / "runs" / run_id
-    d.mkdir(parents=True)
+def _make_event(
+    event: str = "task_started",
+    timestamp: float = 1700000000.0,
+    agent_id: str | None = "agent-1",
+    **extra: object,
+) -> dict:
+    """Build a minimal replay event dict."""
+    d: dict = {"event": event, "timestamp": timestamp, "agent_id": agent_id}
+    d.update(extra)
     return d
 
 
-@pytest.fixture()
-def metrics_dir(workdir: Path) -> Path:
-    d = workdir / ".sdd" / "metrics"
-    d.mkdir(parents=True)
-    return d
-
-
-@pytest.fixture()
-def sample_report() -> PostMortemReport:
-    now = time.time()
-    return PostMortemReport(
-        run_id="run-42",
-        goal="Add JWT authentication",
-        generated_at=now,
-        total_tasks=10,
-        failed_tasks=3,
-        success_rate_pct=70.0,
-        timeline=[
-            PostMortemEvent(timestamp=now - 100, label="Task started: t1", kind="task_start", task_id="t1"),
-            PostMortemEvent(timestamp=now - 50, label="Task FAILED: t1", kind="task_fail", task_id="t1"),
-        ],
-        failed_task_traces=[
-            FailedTaskTrace(
-                task_id="t1",
-                role="backend",
-                model="sonnet",
-                session_id="sess-001",
-                dominant_failure="compile_error",
-                error_snippets=["SyntaxError: invalid syntax on line 42"],
-                files_touched=["src/auth.py"],
-                retry_context="Tried fixing import, failed again",
-            )
-        ],
-        contributing_factors=[
-            ContributingFactor(category="compile_error", count=2, description="Syntax errors."),
-            ContributingFactor(category="rate_limit", count=1, description="Rate limits."),
-        ],
-        recommended_actions=[
-            RecommendedAction(priority="high", action="Fix syntax errors", rationale="Blocking progress"),
-            RecommendedAction(priority="medium", action="Add backoff", rationale="Rate limits"),
-        ],
-    )
-
-
-@pytest.fixture()
-def generator(workdir: Path, run_id: str) -> PostMortemGenerator:
-    return PostMortemGenerator(workdir, run_id=run_id)
+_SAMPLE_EVENTS = [
+    _make_event("task_claimed", 1700000000.0, task_id="T-001"),
+    _make_event("agent_spawned", 1700000001.0, model="sonnet"),
+    _make_event("task_completed", 1700000010.0, status="fail", error="timeout"),
+    _make_event("task_warning", 1700000005.0, message="slow response", agent_id=None),
+]
 
 
 # ---------------------------------------------------------------------------
-# PostMortemGenerator — data loading
+# _infer_severity (tested indirectly via build_timeline)
 # ---------------------------------------------------------------------------
 
 
-class TestPostMortemGeneratorDataLoading:
-    def test_detect_latest_run_when_no_runs_returns_unknown(self, workdir: Path) -> None:
-        gen = PostMortemGenerator(workdir)
-        assert gen._run_id == "unknown"
+class TestBuildTimeline:
+    """Tests for timeline building."""
 
-    def test_detect_latest_run_picks_most_recent(self, workdir: Path) -> None:
-        runs = workdir / ".sdd" / "runs"
-        for name in ("run-001", "run-002"):
-            d = runs / name
-            d.mkdir(parents=True)
-            (d / "summary.json").write_text("{}", encoding="utf-8")
-        gen = PostMortemGenerator(workdir)
-        assert gen._run_id in ("run-001", "run-002")
+    def test_from_events_list(self) -> None:
+        timeline = build_timeline("run-1", events=_SAMPLE_EVENTS)
+        assert len(timeline) == 4
+        assert timeline[0].event_type == "task_claimed"
 
-    def test_load_summary_returns_empty_when_missing(self, generator: PostMortemGenerator) -> None:
-        assert generator._load_summary() == {}
+    def test_timestamps_parsed(self) -> None:
+        timeline = build_timeline("run-1", events=_SAMPLE_EVENTS)
+        assert timeline[0].timestamp.year == 2023
 
-    def test_load_summary_parses_json(self, generator: PostMortemGenerator, summary_dir: Path) -> None:
-        (summary_dir / "summary.json").write_text(json.dumps({"goal": "Do something cool"}), encoding="utf-8")
-        s = generator._load_summary()
-        assert s["goal"] == "Do something cool"
+    def test_from_replay_file(self, tmp_path: Path) -> None:
+        replay_dir = tmp_path / "runs" / "run-1"
+        replay_dir.mkdir(parents=True)
+        replay_file = replay_dir / "replay.jsonl"
+        with open(replay_file, "w") as f:
+            for e in _SAMPLE_EVENTS:
+                f.write(json.dumps(e) + "\n")
 
-    def test_load_task_metrics_returns_empty_when_no_dir(self, generator: PostMortemGenerator) -> None:
-        assert generator._load_task_metrics() == []
+        timeline = build_timeline("run-1", sdd_dir=tmp_path)
+        assert len(timeline) == 4
 
-    def test_load_task_metrics_reads_json_files(self, generator: PostMortemGenerator, metrics_dir: Path) -> None:
-        payload = {"task_id": "t1", "success": True, "start_time": 1000.0, "end_time": 1100.0}
-        (metrics_dir / "task_t1.json").write_text(json.dumps(payload), encoding="utf-8")
-        metrics = generator._load_task_metrics()
-        assert len(metrics) == 1
-        assert metrics[0]["task_id"] == "t1"
+    def test_missing_replay_file(self, tmp_path: Path) -> None:
+        timeline = build_timeline("nonexistent", sdd_dir=tmp_path)
+        assert timeline == []
 
+    def test_no_events_no_dir(self) -> None:
+        timeline = build_timeline("any")
+        assert timeline == []
 
-# ---------------------------------------------------------------------------
-# PostMortemGenerator — generate()
-# ---------------------------------------------------------------------------
+    def test_agent_id_preserved(self) -> None:
+        timeline = build_timeline("run-1", events=_SAMPLE_EVENTS)
+        assert timeline[0].agent_id == "agent-1"
+        assert timeline[3].agent_id is None  # warning has no agent
 
+    def test_description_includes_metadata(self) -> None:
+        timeline = build_timeline("run-1", events=_SAMPLE_EVENTS)
+        assert "task_id=T-001" in timeline[0].description
 
-class TestPostMortemGeneratorGenerate:
-    def test_generate_returns_report_with_unknown_when_no_data(self, generator: PostMortemGenerator) -> None:
-        report = generator.generate()
-        assert report.run_id == "test-run-abc"
-        assert report.total_tasks == 0
-        assert report.failed_tasks == 0
-        assert report.success_rate_pct == pytest.approx(0.0)
+    def test_empty_events(self) -> None:
+        timeline = build_timeline("run-1", events=[])
+        assert timeline == []
 
-    def test_generate_computes_success_rate(self, generator: PostMortemGenerator, metrics_dir: Path) -> None:
-        for i, success in enumerate([True, True, False]):
-            payload = {
-                "task_id": f"t{i}",
-                "success": success,
-                "start_time": float(1000 + i * 10),
-                "end_time": float(1050 + i * 10),
-            }
-            (metrics_dir / f"task_t{i}.json").write_text(json.dumps(payload), encoding="utf-8")
-        report = generator.generate()
-        assert report.total_tasks == 3
-        assert report.failed_tasks == 1
-        assert report.success_rate_pct == pytest.approx(66.67, abs=0.1)
-
-    def test_generate_builds_timeline(self, generator: PostMortemGenerator, metrics_dir: Path) -> None:
-        payload = {
-            "task_id": "t1",
-            "success": False,
-            "start_time": 1000.0,
-            "end_time": 1100.0,
-        }
-        (metrics_dir / "task_t1.json").write_text(json.dumps(payload), encoding="utf-8")
-        report = generator.generate()
-        kinds = [ev.kind for ev in report.timeline]
-        assert "task_start" in kinds
-        assert "task_fail" in kinds
-
-    def test_generate_aggregates_factors(self, generator: PostMortemGenerator, metrics_dir: Path) -> None:
-        # We can't easily inject log data, but with no session logs the factors should be empty.
-        payload = {"task_id": "t1", "success": False, "start_time": 1000.0, "end_time": 1100.0, "session_id": ""}
-        (metrics_dir / "task_t1.json").write_text(json.dumps(payload), encoding="utf-8")
-        report = generator.generate()
-        # No session log → no factors from log aggregator
-        assert isinstance(report.contributing_factors, list)
+    def test_invalid_json_in_replay(self, tmp_path: Path) -> None:
+        replay_dir = tmp_path / "runs" / "run-1"
+        replay_dir.mkdir(parents=True)
+        replay_file = replay_dir / "replay.jsonl"
+        replay_file.write_text("valid json\n{bad json\nvalid again\n")
+        with open(replay_file, "w") as f:
+            f.write(json.dumps(_SAMPLE_EVENTS[0]) + "\n")
+            f.write("{bad json\n")
+            f.write(json.dumps(_SAMPLE_EVENTS[1]) + "\n")
+        timeline = build_timeline("run-1", sdd_dir=tmp_path)
+        assert len(timeline) == 2  # skips invalid line
 
 
 # ---------------------------------------------------------------------------
-# PostMortemGenerator — to_markdown()
+# Severity inference
 # ---------------------------------------------------------------------------
 
 
-class TestPostMortemMarkdown:
-    def test_to_markdown_contains_run_id(self, generator: PostMortemGenerator, sample_report: PostMortemReport) -> None:
-        md = generator.to_markdown(sample_report)
-        assert "run-42" in md
+class TestSeverityInference:
+    """Tests for event severity inference."""
 
-    def test_to_markdown_contains_goal(self, generator: PostMortemGenerator, sample_report: PostMortemReport) -> None:
-        md = generator.to_markdown(sample_report)
-        assert "Add JWT authentication" in md
+    def test_error_event(self) -> None:
+        timeline = build_timeline("r", events=[_make_event("task_failed", error="something broke")])
+        assert timeline[0].severity == "error"
 
-    def test_to_markdown_contains_timeline(
-        self, generator: PostMortemGenerator, sample_report: PostMortemReport
-    ) -> None:
-        md = generator.to_markdown(sample_report)
-        assert "## Event Timeline" in md
-        assert "task_fail" in md
+    def test_critical_event(self) -> None:
+        timeline = build_timeline("r", events=[_make_event("process_killed", status="oom")])
+        assert timeline[0].severity == "critical"
 
-    def test_to_markdown_contains_rca(self, generator: PostMortemGenerator, sample_report: PostMortemReport) -> None:
-        md = generator.to_markdown(sample_report)
-        assert "Root Cause Analysis" in md
-        assert "compile_error" in md
+    def test_warning_event(self) -> None:
+        timeline = build_timeline("r", events=[_make_event("task_slow", message="retrying")])
+        assert timeline[0].severity == "warning"
 
-    def test_to_markdown_contains_recommended_actions(
-        self, generator: PostMortemGenerator, sample_report: PostMortemReport
-    ) -> None:
-        md = generator.to_markdown(sample_report)
-        assert "Recommended Actions" in md
-        assert "HIGH" in md
-
-    def test_to_markdown_contains_task_trace(
-        self, generator: PostMortemGenerator, sample_report: PostMortemReport
-    ) -> None:
-        md = generator.to_markdown(sample_report)
-        assert "t1" in md
-        assert "backend" in md
-        assert "SyntaxError" in md
+    def test_info_event(self) -> None:
+        timeline = build_timeline("r", events=[_make_event("task_started")])
+        assert timeline[0].severity == "info"
 
 
 # ---------------------------------------------------------------------------
-# PostMortemGenerator — to_html()
+# analyze_root_cause
 # ---------------------------------------------------------------------------
 
 
-class TestPostMortemHTML:
-    def test_to_html_is_valid_html_structure(
-        self, generator: PostMortemGenerator, sample_report: PostMortemReport
-    ) -> None:
-        html = generator.to_html(sample_report)
+class TestAnalyzeRootCause:
+    """Tests for root cause analysis."""
+
+    def test_timeout_pattern(self) -> None:
+        events = [
+            _make_event("task_failed", error="request timed out after 30s"),
+        ]
+        timeline = build_timeline("r", events=events)
+        cause, _factors, recs = analyze_root_cause("r", timeline)
+        assert "time budget" in cause.lower() or "timeout" in cause.lower()
+        assert len(recs) >= 2
+
+    def test_auth_failure_pattern(self) -> None:
+        events = [
+            _make_event("task_failed", error="401 unauthorized"),
+        ]
+        timeline = build_timeline("r", events=events)
+        cause, _factors, _recs = analyze_root_cause("r", timeline)
+        assert "auth" in cause.lower() or "credential" in cause.lower()
+
+    def test_rate_limit_pattern(self) -> None:
+        events = [
+            _make_event("task_failed", error="429 rate limit exceeded"),
+        ]
+        timeline = build_timeline("r", events=events)
+        cause, _, _ = analyze_root_cause("r", timeline)
+        assert "rate limit" in cause.lower()
+
+    def test_test_failure_pattern(self) -> None:
+        events = [
+            _make_event("quality_gate", status="fail", error="test failed: AssertionError"),
+        ]
+        timeline = build_timeline("r", events=events)
+        cause, _, _ = analyze_root_cause("r", timeline)
+        assert "test" in cause.lower()
+
+    def test_no_events(self) -> None:
+        cause, _factors, recs = analyze_root_cause("r", [])
+        assert "No events" in cause
+        assert len(recs) >= 1
+
+    def test_no_matching_pattern(self) -> None:
+        events = [
+            _make_event("task_completed", status="unknown_issue"),
+        ]
+        timeline = build_timeline("r", events=events)
+        cause, _, _recs = analyze_root_cause("r", timeline)
+        # Should still return something useful
+        assert isinstance(cause, str)
+        assert len(cause) > 0
+
+    def test_contributing_factors_from_warnings(self) -> None:
+        events = [
+            _make_event("task_warning", message="slow API response"),
+            _make_event("task_warning", message="retrying request"),
+            _make_event("task_failed", error="request timed out"),
+        ]
+        timeline = build_timeline("r", events=events)
+        _, factors, _ = analyze_root_cause("r", timeline)
+        assert len(factors) == 2
+
+    def test_dependency_missing_pattern(self) -> None:
+        events = [
+            _make_event("task_failed", error="ModuleNotFoundError: No module named 'foo'"),
+        ]
+        timeline = build_timeline("r", events=events)
+        cause, _, _recs = analyze_root_cause("r", timeline)
+        assert "depend" in cause.lower()
+
+
+# ---------------------------------------------------------------------------
+# generate_postmortem
+# ---------------------------------------------------------------------------
+
+
+class TestGeneratePostmortem:
+    """Tests for full report generation."""
+
+    def test_basic_report(self) -> None:
+        report = generate_postmortem("run-1", events=_SAMPLE_EVENTS)
+        assert report.run_id == "run-1"
+        assert len(report.timeline) == 4
+        assert report.root_cause  # non-empty
+        assert report.summary  # non-empty
+        assert report.generated_at.tzinfo is not None  # timezone-aware
+
+    def test_empty_run(self) -> None:
+        report = generate_postmortem("empty", events=[])
+        assert report.run_id == "empty"
+        assert len(report.timeline) == 0
+        assert "No events" in report.root_cause
+
+    def test_from_replay_file(self, tmp_path: Path) -> None:
+        replay_dir = tmp_path / "runs" / "run-1"
+        replay_dir.mkdir(parents=True)
+        replay_file = replay_dir / "replay.jsonl"
+        with open(replay_file, "w") as f:
+            for e in _SAMPLE_EVENTS:
+                f.write(json.dumps(e) + "\n")
+        report = generate_postmortem("run-1", sdd_dir=tmp_path)
+        assert len(report.timeline) == 4
+
+    def test_summary_includes_counts(self) -> None:
+        report = generate_postmortem("run-1", events=_SAMPLE_EVENTS)
+        assert "error" in report.summary.lower()
+        assert "warning" in report.summary.lower()
+
+
+# ---------------------------------------------------------------------------
+# export_report_html
+# ---------------------------------------------------------------------------
+
+
+class TestExportReportHtml:
+    """Tests for HTML export."""
+
+    def test_valid_html(self) -> None:
+        report = generate_postmortem("run-1", events=_SAMPLE_EVENTS)
+        html = export_report_html(report)
         assert "<!DOCTYPE html>" in html
-        assert "<html" in html
         assert "</html>" in html
+        assert report.run_id in html
 
-    def test_to_html_contains_run_id(self, generator: PostMortemGenerator, sample_report: PostMortemReport) -> None:
-        html = generator.to_html(sample_report)
-        assert "run-42" in html
+    def test_timeline_in_html(self) -> None:
+        report = generate_postmortem("run-1", events=_SAMPLE_EVENTS)
+        html = export_report_html(report)
+        assert "task_claimed" in html
+        assert "task_completed" in html
 
-    def test_to_html_has_styled_tables(self, generator: PostMortemGenerator, sample_report: PostMortemReport) -> None:
-        html = generator.to_html(sample_report)
-        assert "<table>" in html
-        assert "<th>" in html
-        assert "<td>" in html
+    def test_root_cause_in_html(self) -> None:
+        report = generate_postmortem("run-1", events=_SAMPLE_EVENTS)
+        html = export_report_html(report)
+        assert "Root Cause" in html
 
-    def test_to_html_contains_all_sections(
-        self, generator: PostMortemGenerator, sample_report: PostMortemReport
-    ) -> None:
-        html = generator.to_html(sample_report)
-        assert "Event Timeline" in html
-        assert "Root Cause Analysis" in html
-        assert "Agent Decision Traces" in html
-        assert "Recommended Actions" in html
+    def test_severity_classes(self) -> None:
+        report = generate_postmortem("run-1", events=_SAMPLE_EVENTS)
+        html = export_report_html(report)
+        assert "severity-error" in html
+        assert "severity-warning" in html
 
-    def test_to_html_escapes_special_chars(self, generator: PostMortemGenerator) -> None:
-        report = PostMortemReport(
-            run_id="<xss>",
-            goal="<script>alert(1)</script>",
-            generated_at=time.time(),
-            total_tasks=0,
-            failed_tasks=0,
-            success_rate_pct=0.0,
-        )
-        html = generator.to_html(report)
+    def test_html_escaping(self) -> None:
+        events = [_make_event("task_failed", error="<script>alert('xss')</script>")]
+        report = generate_postmortem("run-1", events=events)
+        html = export_report_html(report)
         assert "<script>" not in html
         assert "&lt;script&gt;" in html
 
-    def test_to_html_not_just_pre_block(self, generator: PostMortemGenerator, sample_report: PostMortemReport) -> None:
-        html = generator.to_html(sample_report)
-        # Proper HTML should have structure beyond a single pre block
-        assert html.count("<table>") >= 1
-        # Should have styled sections, not just raw markdown escaped in <pre>
-        assert "border-collapse" in html
+    def test_empty_timeline_html(self) -> None:
+        report = generate_postmortem("empty", events=[])
+        html = export_report_html(report)
+        assert "<!DOCTYPE html>" in html
 
-
-# ---------------------------------------------------------------------------
-# PostMortemGenerator — save()
-# ---------------------------------------------------------------------------
-
-
-class TestPostMortemSave:
-    def test_save_markdown_writes_file(
-        self, generator: PostMortemGenerator, sample_report: PostMortemReport, tmp_path: Path
-    ) -> None:
-        out = tmp_path / "out.md"
-        result = generator.save(sample_report, fmt="markdown", path=out)
-        assert result == out
-        assert out.exists()
-        assert "run-42" in out.read_text(encoding="utf-8")
-
-    def test_save_html_writes_file(
-        self, generator: PostMortemGenerator, sample_report: PostMortemReport, tmp_path: Path
-    ) -> None:
-        out = tmp_path / "out.html"
-        result = generator.save(sample_report, fmt="html", path=out)
-        assert result == out
-        assert out.exists()
-        content = out.read_text(encoding="utf-8")
-        assert "<!DOCTYPE html>" in content
-
-    def test_save_auto_creates_sdd_reports_dir(
-        self, generator: PostMortemGenerator, sample_report: PostMortemReport, workdir: Path
-    ) -> None:
-        result = generator.save(sample_report, fmt="markdown")
-        assert result.exists()
-        assert ".sdd/reports" in str(result)
-
-    def test_save_pdf_falls_back_to_html(
-        self, generator: PostMortemGenerator, sample_report: PostMortemReport, tmp_path: Path
-    ) -> None:
-        out = tmp_path / "out.pdf"
-        # Without weasyprint/wkhtmltopdf, should fall back to HTML
-        result = generator.save(sample_report, fmt="pdf", path=out)
-        # Either PDF or HTML fallback
-        assert result.exists()
-        assert result.suffix in (".pdf", ".html")
+    def test_recommendations_in_html(self) -> None:
+        events = [_make_event("task_failed", error="request timed out")]
+        report = generate_postmortem("run-1", events=events)
+        html = export_report_html(report)
+        assert "Recommendations" in html

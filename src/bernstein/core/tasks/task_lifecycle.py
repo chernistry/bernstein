@@ -934,7 +934,7 @@ def claim_and_spawn_batches(
     batches: list[list[Task]],
     alive_count: int,
     assigned_task_ids: set[str],
-    _done_ids: set[str],
+    done_ids: set[str],
     result: Any,  # TickResult
 ) -> None:
     """Claim tasks and spawn agents for each ready batch.

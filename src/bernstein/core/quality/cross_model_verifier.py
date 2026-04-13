@@ -148,7 +148,7 @@ def _get_diff(worktree_path: Path, owned_files: list[str]) -> str:
         cmd = ["git", "diff", "HEAD~1", "--"]
         if owned_files:
             cmd.extend(owned_files)
-        result = subprocess.run(cmd, cwd=worktree_path, capture_output=True, text=True, timeout=30)
+        result = subprocess.run(cmd, cwd=worktree_path, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
         diff = result.stdout.strip()
         if not diff:
             # Fallback: uncommitted staged changes
@@ -156,7 +156,7 @@ def _get_diff(worktree_path: Path, owned_files: list[str]) -> str:
                 ["git", "diff", "HEAD", "--"],
                 cwd=worktree_path,
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=30,
             )
             diff = result.stdout.strip()

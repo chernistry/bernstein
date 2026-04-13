@@ -331,7 +331,7 @@ class SandboxValidator:
                 # pipes or globs; not user input
                 cwd=worktree,
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=SANDBOX_TIMEOUT,
             )
             output = result.stdout + "\n" + result.stderr

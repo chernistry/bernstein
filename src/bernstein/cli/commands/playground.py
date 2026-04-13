@@ -149,7 +149,7 @@ def _run_git(args: list[str], cwd: Path | None = None) -> subprocess.CompletedPr
     return subprocess.run(
         ["git", *args],
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
         cwd=cwd,
         timeout=30,
     )
@@ -285,7 +285,7 @@ def apply_sandbox(session: PlaygroundSession) -> bool:
         ["git", "apply", "--3way", "-"],
         input=diff,
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
         cwd=original,
         timeout=30,
     )

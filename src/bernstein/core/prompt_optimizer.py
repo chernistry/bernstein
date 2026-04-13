@@ -129,8 +129,8 @@ def _sprt_decide(
     p1_hyp = min(p0 + cfg.min_effect_size, 1.0 - 1e-9)  # H1: challenger beats by delta
 
     # SPRT decision boundaries (log scale).
-    log_A = math.log((1.0 - cfg.beta) / cfg.alpha)  # upper boundary → promote challenger
-    log_B = math.log(cfg.beta / (1.0 - cfg.alpha))  # lower boundary → keep control
+    log_upper = math.log((1.0 - cfg.beta) / cfg.alpha)  # upper boundary -> promote challenger
+    log_lower = math.log(cfg.beta / (1.0 - cfg.alpha))  # lower boundary -> keep control
 
     # Compute log-likelihood ratio for the challenger arm.
     llr = 0.0
@@ -148,9 +148,9 @@ def _sprt_decide(
             return SprtDecision.PROMOTE_CHALLENGER
         return SprtDecision.CONTINUE
 
-    if llr >= log_A:
+    if llr >= log_upper:
         return SprtDecision.PROMOTE_CHALLENGER
-    if llr <= log_B:
+    if llr <= log_lower:
         return SprtDecision.KEEP_CONTROL
     return SprtDecision.CONTINUE
 

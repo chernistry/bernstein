@@ -424,7 +424,7 @@ class KubernetesHPABackend(ScalingBackend):
             result = subprocess.run(
                 cmd,
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=10,
             )
             if result.returncode == 0 and result.stdout.strip():
@@ -465,7 +465,7 @@ class KubernetesHPABackend(ScalingBackend):
             result = subprocess.run(
                 cmd,
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=15,
             )
             if result.returncode == 0:

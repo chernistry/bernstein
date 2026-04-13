@@ -225,7 +225,7 @@ def inject_widget_into_pr(pr_number: int, widget: StatusWidget) -> bool:
         result = subprocess.run(
             ["gh", "pr", "view", str(pr_number), "--json", "body", "--jq", ".body"],
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             check=True,
             timeout=30,
         )
@@ -240,7 +240,7 @@ def inject_widget_into_pr(pr_number: int, widget: StatusWidget) -> bool:
         subprocess.run(
             ["gh", "pr", "edit", str(pr_number), "--body", new_body],
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             check=True,
             timeout=30,
         )

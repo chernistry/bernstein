@@ -429,7 +429,7 @@ class SecurityIncidentResponder:
             result = subprocess.run(
                 ["git", "rev-parse", branch],
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=5,
                 cwd=str(self.workdir),
             )
@@ -539,7 +539,7 @@ class SecurityIncidentResponder:
             r = subprocess.run(
                 ["git", "log", "-1", "--format=%H %s"],
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=5,
                 cwd=str(self.workdir),
             )
@@ -550,7 +550,7 @@ class SecurityIncidentResponder:
             r2 = subprocess.run(
                 ["git", "status", "--short"],
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=5,
                 cwd=str(self.workdir),
             )

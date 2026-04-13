@@ -6,6 +6,7 @@ a computer booting up — no wasted lines, no empty gaps.
 
 from __future__ import annotations
 
+import sys
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -14,6 +15,9 @@ if TYPE_CHECKING:
 
 # ── Compact one-line logo ──────────────────────────────────────
 LOGO_INLINE = "[bold]BERNSTEIN[/bold] [dim]v{version}[/dim]"
+
+# Use ASCII-safe separator on Windows to avoid cp1252 encoding issues
+_SEP_CHAR = "-" if sys.platform == "win32" else "─"
 
 
 def _detect_terminal_width(console: Console) -> int:
@@ -40,7 +44,7 @@ def splash(
     is_animated = not skip_animation and console.is_terminal
 
     # ── Header line ──
-    sep = "[dim]─[/dim]" * min(56, width - 2)
+    sep = f"[dim]{_SEP_CHAR}[/dim]" * min(56, width - 2)
     console.print(sep)
     ver = f" v{version}" if version else ""
     console.print(f"  [bold blue]BERNSTEIN[/bold blue][dim]{ver}  declarative agent orchestration[/dim]")

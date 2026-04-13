@@ -14,13 +14,20 @@ from __future__ import annotations
 import os
 import platform
 import re
-import select
 import subprocess
 import sys
-import termios
 import time
-import tty
 from contextlib import contextmanager
+
+# Platform-specific imports for terminal input handling
+if sys.platform == "win32":
+    import msvcrt
+    _HAS_TERMIOS = False
+else:
+    import select
+    import termios
+    import tty
+    _HAS_TERMIOS = True
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -77,6 +84,11 @@ def _raw_mode() -> Iterator[None]:
         yield
         return
 
+    if sys.platform == "win32":
+        # Windows doesn't need raw mode for msvcrt.kbhit()
+        yield
+        return
+
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
     try:
@@ -93,6 +105,13 @@ def _key_pressed() -> bool:
     """
     if not sys.stdin.isatty():
         return False
+
+    if sys.platform == "win32":
+        try:
+            return msvcrt.kbhit()
+        except (OSError, ValueError):
+            return False
+
     try:
         return bool(select.select([sys.stdin], [], [], 0.0)[0])
     except (OSError, ValueError):
@@ -103,6 +122,15 @@ def _drain_input() -> None:
     """Consume any buffered input so it doesn't leak to the next prompt."""
     if not sys.stdin.isatty():
         return
+
+    if sys.platform == "win32":
+        try:
+            while msvcrt.kbhit():
+                msvcrt.getch()
+        except (OSError, ValueError):
+            pass
+        return
+
     try:
         while select.select([sys.stdin], [], [], 0.0)[0]:
             sys.stdin.read(1)
@@ -127,7 +155,7 @@ def _memory_gb() -> int:
             result = subprocess.run(
                 ["sysctl", "-n", "hw.memsize"],
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=2,
             )
             if result.returncode == 0:

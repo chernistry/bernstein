@@ -499,7 +499,7 @@ class {class_name}(CLIAdapter):
             cwd=workdir,
             stdout=open(log_path, "w"),
             stderr=subprocess.STDOUT,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
         )
         return SpawnResult(pid=proc.pid, log_path=log_path, proc=proc)
 '''

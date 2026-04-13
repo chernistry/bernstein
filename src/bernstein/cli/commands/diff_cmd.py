@@ -114,7 +114,7 @@ def _run_git(args: list[str], cwd: Path) -> str:
             ["git", *args],
             cwd=cwd,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=30,
         )
         return result.stdout.strip()

@@ -48,7 +48,7 @@ class TestRooCodeAdapterSpawn:
             )
         cmd = popen.call_args.args[0]
         assert cmd[0] == sys.executable
-        assert cmd[1:3] == ["-m", "bernstein.core.worker"]
+        assert cmd[1:3] == ["-m", "bernstein.core.orchestration.worker"]
         inner = _inner_cmd(cmd)
         assert inner[0] == "roo-code"
 

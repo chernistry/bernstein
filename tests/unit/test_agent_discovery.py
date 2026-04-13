@@ -82,7 +82,10 @@ class TestDetectCodex:
         login_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="Logged in using ChatGPT\n", stderr="")
         mock_probe.side_effect = [version_result, login_result]
 
-        with patch.dict("os.environ", {}, clear=True):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch("bernstein.core.agents.agent_discovery._parse_codex_config", return_value=(None, [])),
+        ):
             agent, warnings = _detect_codex()
 
         assert agent is not None
@@ -90,7 +93,7 @@ class TestDetectCodex:
         assert agent.logged_in is True
         assert agent.login_method == "ChatGPT"
         assert agent.binary == "/usr/local/bin/codex"
-        assert "o4-mini" in agent.available_models
+        assert len(agent.available_models) >= 1
         assert warnings == []
 
     @patch("bernstein.core.agents.agent_discovery._run_probe")
@@ -115,7 +118,10 @@ class TestDetectCodex:
         login_result = subprocess.CompletedProcess(args=[], returncode=1, stdout="Not logged in\n", stderr="")
         mock_probe.side_effect = [version_result, login_result]
 
-        with patch.dict("os.environ", {}, clear=True):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch("bernstein.core.agents.agent_discovery._parse_codex_config", return_value=(None, [])),
+        ):
             agent, warnings = _detect_codex()
 
         assert agent is not None

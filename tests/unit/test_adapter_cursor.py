@@ -64,7 +64,7 @@ class TestCursorAdapterSpawn:
     def test_wrapped_with_worker(self, tmp_path: Path) -> None:
         cmd, _ = _spawn(tmp_path)
         assert cmd[0] == sys.executable
-        assert cmd[1:3] == ["-m", "bernstein.core.worker"]
+        assert cmd[1:3] == ["-m", "bernstein.core.orchestration.worker"]
 
     def test_inner_cmd_starts_with_cursor_agent(self, tmp_path: Path) -> None:
         cmd, _ = _spawn(tmp_path)

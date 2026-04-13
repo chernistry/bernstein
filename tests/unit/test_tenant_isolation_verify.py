@@ -1,0 +1,408 @@
+"""Tests for cross-tenant data isolation verification suite.
+
+Verifies IsolationTest, IsolationReport, TenantIsolationVerifier, and
+render_isolation_report against real temporary filesystem state.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import FrozenInstanceError, dataclass
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from bernstein.core.security.tenant_isolation import (
+    ensure_tenant_data_layout,
+    tenant_data_paths,
+)
+from bernstein.core.security.tenant_isolation_verify import (
+    IsolationReport,
+    IsolationTest,
+    TenantIsolationVerifier,
+    render_isolation_report,
+)
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class StubTask:
+    """Minimal task stand-in for isolation verification tests."""
+
+    id: str
+    tenant_id: str
+    title: str = "stub"
+
+
+def _write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
+    """Write a list of dicts as a JSONL file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        for rec in records:
+            f.write(json.dumps(rec) + "\n")
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def sdd(tmp_path: Path) -> Path:
+    """Create a temporary .sdd directory and provision two tenants."""
+    d = tmp_path / ".sdd"
+    d.mkdir()
+    ensure_tenant_data_layout(d, "tenant-a")
+    ensure_tenant_data_layout(d, "tenant-b")
+    return d
+
+
+@pytest.fixture()
+def verifier() -> TenantIsolationVerifier:
+    return TenantIsolationVerifier()
+
+
+# ---------------------------------------------------------------------------
+# IsolationTest frozen dataclass
+# ---------------------------------------------------------------------------
+
+
+class TestIsolationTestDataclass:
+    """IsolationTest is frozen and holds expected fields."""
+
+    def test_frozen(self) -> None:
+        t = IsolationTest(name="x", description="d", passed=True, details="ok")
+        with pytest.raises(FrozenInstanceError):
+            t.name = "y"  # type: ignore[misc]
+
+    def test_fields(self) -> None:
+        t = IsolationTest(name="n", description="desc", passed=False, details="err")
+        assert t.name == "n"
+        assert t.description == "desc"
+        assert t.passed is False
+        assert t.details == "err"
+
+
+# ---------------------------------------------------------------------------
+# IsolationReport frozen dataclass
+# ---------------------------------------------------------------------------
+
+
+class TestIsolationReportDataclass:
+    """IsolationReport is frozen and computes counts correctly."""
+
+    def test_frozen(self) -> None:
+        r = IsolationReport(tests=(), total=0, passed_count=0, failed_count=0, passed=True)
+        with pytest.raises(FrozenInstanceError):
+            r.total = 5  # type: ignore[misc]
+
+    def test_all_passed(self) -> None:
+        t1 = IsolationTest(name="a", description="", passed=True, details="")
+        t2 = IsolationTest(name="b", description="", passed=True, details="")
+        r = IsolationReport(tests=(t1, t2), total=2, passed_count=2, failed_count=0, passed=True)
+        assert r.passed is True
+        assert r.failed_count == 0
+
+    def test_some_failed(self) -> None:
+        t1 = IsolationTest(name="a", description="", passed=True, details="")
+        t2 = IsolationTest(name="b", description="", passed=False, details="bad")
+        r = IsolationReport(tests=(t1, t2), total=2, passed_count=1, failed_count=1, passed=False)
+        assert r.passed is False
+        assert r.failed_count == 1
+
+
+# ---------------------------------------------------------------------------
+# verify_task_isolation
+# ---------------------------------------------------------------------------
+
+
+class TestVerifyTaskIsolation:
+    """Task store isolation checks."""
+
+    def test_clean_store_passes(self, verifier: TenantIsolationVerifier) -> None:
+        store: dict[str, Any] = {
+            "t1": StubTask(id="t1", tenant_id="tenant-a"),
+            "t2": StubTask(id="t2", tenant_id="tenant-b"),
+        }
+        results = verifier.verify_task_isolation(store, "tenant-a", "tenant-b")
+        assert all(r.passed for r in results)
+
+    def test_empty_store_passes(self, verifier: TenantIsolationVerifier) -> None:
+        results = verifier.verify_task_isolation({}, "tenant-a", "tenant-b")
+        assert all(r.passed for r in results)
+
+    def test_ambiguous_tenant_id_detected(self, verifier: TenantIsolationVerifier) -> None:
+        store: dict[str, Any] = {
+            "t1": StubTask(id="t1", tenant_id=""),
+        }
+        results = verifier.verify_task_isolation(store, "tenant-a", "tenant-b")
+        ambig = [r for r in results if r.name == "no_ambiguous_tenant_id"]
+        assert len(ambig) == 1
+        assert ambig[0].passed is False
+
+    def test_whitespace_tenant_id_is_ambiguous(self, verifier: TenantIsolationVerifier) -> None:
+        store: dict[str, Any] = {
+            "t1": StubTask(id="t1", tenant_id="   "),
+        }
+        results = verifier.verify_task_isolation(store, "x", "y")
+        ambig = [r for r in results if r.name == "no_ambiguous_tenant_id"]
+        assert ambig[0].passed is False
+
+    def test_three_results_returned(self, verifier: TenantIsolationVerifier) -> None:
+        results = verifier.verify_task_isolation({}, "a", "b")
+        assert len(results) == 3
+
+    def test_single_tenant_store(self, verifier: TenantIsolationVerifier) -> None:
+        store: dict[str, Any] = {
+            "t1": StubTask(id="t1", tenant_id="tenant-a"),
+            "t2": StubTask(id="t2", tenant_id="tenant-a"),
+        }
+        results = verifier.verify_task_isolation(store, "tenant-a", "tenant-b")
+        assert all(r.passed for r in results)
+
+
+# ---------------------------------------------------------------------------
+# verify_cost_isolation
+# ---------------------------------------------------------------------------
+
+
+class TestVerifyCostIsolation:
+    """Cost / metrics directory isolation checks."""
+
+    def test_distinct_dirs_pass(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        results = verifier.verify_cost_isolation(sdd, "tenant-a", "tenant-b")
+        dirs_test = [r for r in results if r.name == "cost_dirs_distinct"]
+        assert dirs_test[0].passed is True
+
+    def test_no_overlap(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        results = verifier.verify_cost_isolation(sdd, "tenant-a", "tenant-b")
+        overlap_test = [r for r in results if r.name == "cost_dirs_no_overlap"]
+        assert overlap_test[0].passed is True
+
+    def test_clean_cost_data_passes(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        paths_a = tenant_data_paths(sdd, "tenant-a")
+        paths_b = tenant_data_paths(sdd, "tenant-b")
+        _write_jsonl(paths_a.metrics_dir / "cost.jsonl", [{"cost_usd": 1.0, "tenant_id": "tenant-a"}])
+        _write_jsonl(paths_b.metrics_dir / "cost.jsonl", [{"cost_usd": 2.0, "tenant_id": "tenant-b"}])
+        results = verifier.verify_cost_isolation(sdd, "tenant-a", "tenant-b")
+        content_test = [r for r in results if r.name == "cost_content_not_cross_contaminated"]
+        assert content_test[0].passed is True
+
+    def test_cross_contaminated_cost_detected(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        paths_a = tenant_data_paths(sdd, "tenant-a")
+        paths_b = tenant_data_paths(sdd, "tenant-b")
+        # Tenant-b record placed in tenant-a directory
+        _write_jsonl(paths_a.metrics_dir / "cost.jsonl", [{"cost_usd": 1.0, "tenant_id": "tenant-b"}])
+        _write_jsonl(paths_b.metrics_dir / "cost.jsonl", [{"cost_usd": 2.0, "tenant_id": "tenant-b"}])
+        results = verifier.verify_cost_isolation(sdd, "tenant-a", "tenant-b")
+        content_test = [r for r in results if r.name == "cost_content_not_cross_contaminated"]
+        assert content_test[0].passed is False
+
+    def test_missing_dirs_pass(self, verifier: TenantIsolationVerifier, tmp_path: Path) -> None:
+        empty_sdd = tmp_path / "empty_sdd"
+        empty_sdd.mkdir()
+        results = verifier.verify_cost_isolation(empty_sdd, "tenant-a", "tenant-b")
+        content_test = [r for r in results if r.name == "cost_content_not_cross_contaminated"]
+        assert content_test[0].passed is True
+
+
+# ---------------------------------------------------------------------------
+# verify_wal_isolation
+# ---------------------------------------------------------------------------
+
+
+class TestVerifyWalIsolation:
+    """WAL namespace isolation checks."""
+
+    def test_distinct_wal_dirs(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        results = verifier.verify_wal_isolation(sdd, "tenant-a", "tenant-b")
+        dirs_test = [r for r in results if r.name == "wal_dirs_distinct"]
+        assert dirs_test[0].passed is True
+
+    def test_wal_dirs_no_overlap(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        results = verifier.verify_wal_isolation(sdd, "tenant-a", "tenant-b")
+        overlap_test = [r for r in results if r.name == "wal_dirs_no_overlap"]
+        assert overlap_test[0].passed is True
+
+    def test_wal_dirs_rooted_in_tenant(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        results = verifier.verify_wal_isolation(sdd, "tenant-a", "tenant-b")
+        rooted_test = [r for r in results if r.name == "wal_dirs_rooted_in_tenant"]
+        assert rooted_test[0].passed is True
+
+    def test_clean_wal_files_pass(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        paths_a = tenant_data_paths(sdd, "tenant-a")
+        paths_b = tenant_data_paths(sdd, "tenant-b")
+        _write_jsonl(paths_a.wal_dir / "run-001.wal.jsonl", [{"actor": "tenant-a", "seq": 0}])
+        _write_jsonl(paths_b.wal_dir / "run-002.wal.jsonl", [{"actor": "tenant-b", "seq": 0}])
+        results = verifier.verify_wal_isolation(sdd, "tenant-a", "tenant-b")
+        leak_test = [r for r in results if r.name == "wal_content_no_cross_leak"]
+        assert leak_test[0].passed is True
+
+    def test_wal_cross_leak_detected(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        paths_a = tenant_data_paths(sdd, "tenant-a")
+        paths_b = tenant_data_paths(sdd, "tenant-b")
+        # Tenant-b actor placed in tenant-a WAL dir
+        _write_jsonl(paths_a.wal_dir / "leaked.wal.jsonl", [{"actor": "tenant-b", "seq": 0}])
+        _write_jsonl(paths_b.wal_dir / "run.wal.jsonl", [{"actor": "tenant-b", "seq": 0}])
+        results = verifier.verify_wal_isolation(sdd, "tenant-a", "tenant-b")
+        leak_test = [r for r in results if r.name == "wal_content_no_cross_leak"]
+        assert leak_test[0].passed is False
+
+    def test_missing_wal_dirs_pass(self, verifier: TenantIsolationVerifier, tmp_path: Path) -> None:
+        empty_sdd = tmp_path / "empty_sdd"
+        empty_sdd.mkdir()
+        results = verifier.verify_wal_isolation(empty_sdd, "a", "b")
+        leak_test = [r for r in results if r.name == "wal_content_no_cross_leak"]
+        assert leak_test[0].passed is True
+
+
+# ---------------------------------------------------------------------------
+# verify_archive_isolation
+# ---------------------------------------------------------------------------
+
+
+class TestVerifyArchiveIsolation:
+    """Archive record isolation checks."""
+
+    def test_clean_shared_archive_passes(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        archive_file = sdd / "archive" / "tasks.jsonl"
+        _write_jsonl(
+            archive_file,
+            [
+                {"task_id": "t1", "tenant_id": "tenant-a"},
+                {"task_id": "t2", "tenant_id": "tenant-b"},
+            ],
+        )
+        results = verifier.verify_archive_isolation(archive_file, "tenant-a", "tenant-b")
+        no_shared = [r for r in results if r.name == "archive_no_shared_task_ids"]
+        assert no_shared[0].passed is True
+
+    def test_overlapping_task_ids_detected(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        archive_file = sdd / "archive" / "tasks.jsonl"
+        _write_jsonl(
+            archive_file,
+            [
+                {"task_id": "shared-1", "tenant_id": "tenant-a"},
+                {"task_id": "shared-1", "tenant_id": "tenant-b"},
+            ],
+        )
+        results = verifier.verify_archive_isolation(archive_file, "tenant-a", "tenant-b")
+        no_shared = [r for r in results if r.name == "archive_no_shared_task_ids"]
+        assert no_shared[0].passed is False
+
+    def test_tenant_archive_paths_distinct(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        results = verifier.verify_archive_isolation(sdd, "tenant-a", "tenant-b")
+        paths_test = [r for r in results if r.name == "archive_tenant_paths_distinct"]
+        assert paths_test[0].passed is True
+
+    def test_tenant_archive_content_isolated(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        paths_a = tenant_data_paths(sdd, "tenant-a")
+        paths_b = tenant_data_paths(sdd, "tenant-b")
+        _write_jsonl(paths_a.root / "backlog" / "archive.jsonl", [{"task_id": "t1", "tenant_id": "tenant-a"}])
+        _write_jsonl(paths_b.root / "backlog" / "archive.jsonl", [{"task_id": "t2", "tenant_id": "tenant-b"}])
+        results = verifier.verify_archive_isolation(sdd, "tenant-a", "tenant-b")
+        content_test = [r for r in results if r.name == "archive_tenant_content_isolated"]
+        assert content_test[0].passed is True
+
+    def test_archive_cross_leak_detected(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        paths_a = tenant_data_paths(sdd, "tenant-a")
+        paths_b = tenant_data_paths(sdd, "tenant-b")
+        # Tenant-b record in tenant-a archive
+        _write_jsonl(paths_a.root / "backlog" / "archive.jsonl", [{"task_id": "t99", "tenant_id": "tenant-b"}])
+        _write_jsonl(paths_b.root / "backlog" / "archive.jsonl", [{"task_id": "t2", "tenant_id": "tenant-b"}])
+        results = verifier.verify_archive_isolation(sdd, "tenant-a", "tenant-b")
+        content_test = [r for r in results if r.name == "archive_tenant_content_isolated"]
+        assert content_test[0].passed is False
+
+    def test_missing_archive_passes(self, verifier: TenantIsolationVerifier, tmp_path: Path) -> None:
+        empty_sdd = tmp_path / "empty"
+        empty_sdd.mkdir()
+        results = verifier.verify_archive_isolation(empty_sdd, "a", "b")
+        assert all(r.passed for r in results)
+
+
+# ---------------------------------------------------------------------------
+# run_all_checks
+# ---------------------------------------------------------------------------
+
+
+class TestRunAllChecks:
+    """Integration: run_all_checks aggregates all verifiers."""
+
+    def test_clean_state_passes(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        report = verifier.run_all_checks(sdd)
+        assert report.passed is True
+        assert report.failed_count == 0
+        assert report.total > 0
+
+    def test_with_task_store(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        store: dict[str, Any] = {
+            "t1": StubTask(id="t1", tenant_id="tenant-a"),
+            "t2": StubTask(id="t2", tenant_id="tenant-b"),
+        }
+        report = verifier.run_all_checks(sdd, store=store)
+        assert report.passed is True
+
+    def test_report_counts(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        report = verifier.run_all_checks(sdd)
+        assert report.total == report.passed_count + report.failed_count
+
+    def test_custom_tenant_names(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        ensure_tenant_data_layout(sdd, "acme")
+        ensure_tenant_data_layout(sdd, "globex")
+        report = verifier.run_all_checks(sdd, tenant_a="acme", tenant_b="globex")
+        assert report.passed is True
+
+    def test_report_is_frozen(self, verifier: TenantIsolationVerifier, sdd: Path) -> None:
+        report = verifier.run_all_checks(sdd)
+        with pytest.raises(FrozenInstanceError):
+            report.passed = False  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# render_isolation_report
+# ---------------------------------------------------------------------------
+
+
+class TestRenderIsolationReport:
+    """Markdown rendering of IsolationReport."""
+
+    def test_pass_report_header(self) -> None:
+        report = IsolationReport(tests=(), total=0, passed_count=0, failed_count=0, passed=True)
+        md = render_isolation_report(report)
+        assert "PASS" in md
+        assert "FAIL" not in md.split("\n")[0]
+
+    def test_fail_report_header(self) -> None:
+        t = IsolationTest(name="x", description="d", passed=False, details="bad")
+        report = IsolationReport(tests=(t,), total=1, passed_count=0, failed_count=1, passed=False)
+        md = render_isolation_report(report)
+        assert md.startswith("## Tenant Isolation Report — FAIL")
+
+    def test_table_rows(self) -> None:
+        t1 = IsolationTest(name="a", description="desc-a", passed=True, details="ok")
+        t2 = IsolationTest(name="b", description="desc-b", passed=False, details="err")
+        report = IsolationReport(tests=(t1, t2), total=2, passed_count=1, failed_count=1, passed=False)
+        md = render_isolation_report(report)
+        lines = md.strip().split("\n")
+        table_rows = [ln for ln in lines if ln.startswith("| PASS") or ln.startswith("| FAIL")]
+        assert len(table_rows) == 2
+
+    def test_pipe_chars_escaped_in_details(self) -> None:
+        t = IsolationTest(name="x", description="d", passed=True, details="a|b|c")
+        report = IsolationReport(tests=(t,), total=1, passed_count=1, failed_count=0, passed=True)
+        md = render_isolation_report(report)
+        assert "a\\|b\\|c" in md
+
+    def test_counts_in_summary(self) -> None:
+        t1 = IsolationTest(name="a", description="", passed=True, details="")
+        t2 = IsolationTest(name="b", description="", passed=True, details="")
+        report = IsolationReport(tests=(t1, t2), total=2, passed_count=2, failed_count=0, passed=True)
+        md = render_isolation_report(report)
+        assert "**Total:** 2" in md
+        assert "**Passed:** 2" in md
+        assert "**Failed:** 0" in md

@@ -3544,6 +3544,30 @@ class Orchestrator:
             logger.warning("Auto-PR: failed to push branch: %s", exc)
             return
 
+        # Check if a PR already exists for this branch
+        try:
+            pr_check = subprocess.run(
+                ["gh", "pr", "view", current_branch, "--json", "url", "-q", ".url"],
+                cwd=self._workdir,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=15,
+            )
+            if pr_check.returncode == 0 and pr_check.stdout.strip():
+                existing_url = pr_check.stdout.strip()
+                logger.info("Auto-PR: PR already exists for branch %s: %s", current_branch, existing_url)
+                self._notify(
+                    "pr.exists",
+                    "Pull request already exists",
+                    f"PR for branch {current_branch}: {existing_url}",
+                    pr_url=existing_url,
+                )
+                return
+        except Exception:
+            pass  # Continue to create PR if check fails
+
         # Build PR title and body
         pr_title = done_tasks[0].title if len(done_tasks) == 1 else f"Bernstein: {len(done_tasks)} tasks completed"
 

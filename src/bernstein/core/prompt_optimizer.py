@@ -39,6 +39,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from bernstein.core.tokens.prompt_versioning import PromptRegistry
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -329,8 +331,8 @@ class PromptOptimizer:
 
     def __init__(
         self,
-        sdd_dir: "Path",
-        templates_dir: "Path | None" = None,
+        sdd_dir: Path,
+        templates_dir: Path | None = None,
         cfg: SprtConfig | None = None,
     ) -> None:
         from pathlib import Path as _Path
@@ -385,7 +387,7 @@ class PromptOptimizer:
     # Registry access
     # ------------------------------------------------------------------
 
-    def _get_registry(self) -> "PromptRegistry":
+    def _get_registry(self) -> PromptRegistry:
         """Return a PromptRegistry for sdd_dir."""
         from bernstein.core.tokens.prompt_versioning import PromptRegistry
 
@@ -483,7 +485,7 @@ class PromptOptimizer:
     def _introduce_challenger(
         self,
         role: str,
-        registry: "PromptRegistry",
+        registry: PromptRegistry,
         rs: dict[str, Any],
     ) -> int | None:
         """Add a new challenger version and start an A/B test.
@@ -553,7 +555,7 @@ class PromptOptimizer:
             task_id: Task identifier (must match a previous assign_variant call,
                 but falls back to recording for the active version if not found).
             passed: Whether the task passed quality gates.
-            quality_score: Quality score from review (0–1).
+            quality_score: Quality score from review (0-1).
             cost_usd: Cost incurred by this task.
             latency_s: Task duration in seconds.
 
@@ -568,10 +570,7 @@ class PromptOptimizer:
         control_version: int | None = rs.get("active_version")
         challenger_version: int | None = rs.get("challenger_version")
 
-        if assignment is not None:
-            used_version = assignment.variant_version
-        else:
-            used_version = control_version
+        used_version = assignment.variant_version if assignment is not None else control_version
 
         # Record in registry
         if used_version is not None:
@@ -585,10 +584,7 @@ class PromptOptimizer:
             )
 
         # Update local metrics (for SPRT without reloading all registry data)
-        if used_version == challenger_version:
-            m = rs["challenger_metrics"]
-        else:
-            m = rs["control_metrics"]
+        m = rs["challenger_metrics"] if used_version == challenger_version else rs["control_metrics"]
         m["observations"] += 1
         if passed:
             m["successes"] += 1
@@ -617,7 +613,7 @@ class PromptOptimizer:
         self,
         role: str,
         decision: SprtDecision,
-        registry: "PromptRegistry",
+        registry: PromptRegistry,
         rs: dict[str, Any],
     ) -> None:
         """Finalize an A/B test: promote winner and introduce new challenger.
@@ -631,7 +627,7 @@ class PromptOptimizer:
         control_version: int = rs["active_version"]
         challenger_version: int = rs["challenger_version"]
 
-        if decision in (SprtDecision.PROMOTE_CHALLENGER, SprtDecision.MAX_SAMPLE_REACHED):
+        if decision in (SprtDecision.PROMOTE_CHALLENGER, SprtDecision.MAX_SAMPLE_REACHED): # noqa: SIM102
             # Check raw rates when max sample is reached
             if decision == SprtDecision.MAX_SAMPLE_REACHED:
                 c_rate = rs["challenger_metrics"]["successes"] / max(rs["challenger_metrics"]["observations"], 1)
@@ -679,9 +675,14 @@ class PromptOptimizer:
                 "control_version": control_version,
                 "challenger_version": challenger_version,
                 "control_obs": rs["control_metrics"]["observations"],
-                "control_sr": round(rs["control_metrics"]["successes"] / max(rs["control_metrics"]["observations"], 1), 4),
+                "control_sr": round(
+                    rs["control_metrics"]["successes"]
+                    / max(rs["control_metrics"]["observations"], 1), 4,
+                ),
                 "challenger_obs": rs["challenger_metrics"]["observations"],
-                "challenger_sr": round(rs["challenger_metrics"]["successes"] / max(rs["challenger_metrics"]["observations"], 1), 4),
+                "challenger_sr": round(
+                    rs["challenger_metrics"]["successes"] / max(rs["challenger_metrics"]["observations"], 1), 4
+                ),
             }
         )
 

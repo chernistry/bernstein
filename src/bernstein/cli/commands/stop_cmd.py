@@ -419,7 +419,7 @@ def _list_process_snapshots_windows() -> list[_ProcessSnapshot]:
         result = subprocess.run(
             [
                 "powershell", "-NoProfile", "-Command",
-                "Get-Process | Select-Object Id, @{N='ParentId';E={(Get-CimInstance Win32_Process -Filter \"ProcessId=$($_.Id)\").ParentProcessId}}, Path | ConvertTo-Csv -NoTypeInformation"
+                "Get-Process | Select-Object Id, @{N='ParentId';E={(Get-CimInstance Win32_Process -Filter \"ProcessId=$($_.Id)\").ParentProcessId}}, Path | ConvertTo-Csv -NoTypeInformation"  # noqa: E501
             ],
             capture_output=True,
             text=True, encoding="utf-8", errors="replace",

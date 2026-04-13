@@ -7,14 +7,14 @@ from typing import TYPE_CHECKING
 import pytest
 
 from bernstein.core.prompt_optimizer import (
+    _CHALLENGER_TEMPLATES,
+    PromptOptimizer,
     SprtConfig,
     SprtDecision,
     VariantAssignment,
-    _CHALLENGER_TEMPLATES,
     _next_challenger_template,
     _sprt_decide,
     generate_challenger_content,
-    PromptOptimizer,
 )
 
 if TYPE_CHECKING:
@@ -312,7 +312,7 @@ class TestPromptOptimizer:
         opt.assign_variant(role="backend", task_id="seed")
         status = opt.get_status("backend")
         challenger_ver = status["challenger_version"]
-        control_ver = status["active_version"]
+        status["active_version"]
 
         # Simulate recording many outcomes: challenger almost always passes,
         # control fails often.  We bypass assignment tracking by directly

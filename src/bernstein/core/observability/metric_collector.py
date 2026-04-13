@@ -957,7 +957,7 @@ class MetricsCollector:
         model: str,
         latency_ms: float,
         tokens: int,
-        _cost_usd: float,
+        cost_usd: float,
         success: bool,
         *,
         tenant_id: str = "default",

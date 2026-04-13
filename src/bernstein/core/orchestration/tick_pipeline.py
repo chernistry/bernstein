@@ -341,6 +341,7 @@ def prioritize_starving_roles(
     """
     if not alive_per_role:
         return batches
+
     def _starving_sort_key(b: list[Task]) -> int:
         if not b:
             return 1

@@ -1715,7 +1715,9 @@ def _run_cross_model_check(
     result.verification_failures.append((task.id, [f"cross_model_review:{issues_str}"]))
     logger.info(
         "Cross-model review blocked merge for task %s (reviewer=%s): %s",
-        task.id, verdict.reviewer_model, verdict.feedback,
+        task.id,
+        verdict.reviewer_model,
+        verdict.feedback,
     )
     _create_cmv_fix_task(orch, task, verdict)
     return False
@@ -1761,7 +1763,10 @@ def _evaluate_approval_gate(
     try:
         override_mode, timeout_s = _resolve_approval_workflow(orch, task)
         approval_result = orch._approval_gate.evaluate(
-            task, session_id=session.id, override_mode=override_mode, timeout_s=timeout_s,
+            task,
+            session_id=session.id,
+            override_mode=override_mode,
+            timeout_s=timeout_s,
         )
         if approval_result.rejected:
             logger.warning("Approval gate: task %s rejected -- skipping merge for agent %s", task.id, session.id)
@@ -1806,7 +1811,10 @@ def _resolve_approval_workflow(orch: Any, task: Task) -> tuple[Any, float | None
 
 
 def _create_approval_pr(
-    orch: Any, task: Task, session: AgentSession, completion_data: CompletionData | None,
+    orch: Any,
+    task: Task,
+    session: AgentSession,
+    completion_data: CompletionData | None,
 ) -> None:
     """Create a PR for approval-gate PR mode."""
     worktree_path = orch._spawner.get_worktree_path(session.id)
@@ -1820,25 +1828,37 @@ def _create_approval_pr(
     completion = completion_data or {"files_modified": [], "test_results": {}}
     test_summary = completion.get("test_results", {}).get("summary", "")
     pr_url = orch._approval_gate.create_pr(
-        task, worktree_path=worktree_path, session_id=session.id,
-        labels=orch._config.pr_labels, role=session.role,
-        model=session.model_config.model, cost_usd=cost_usd, test_summary=test_summary,
+        task,
+        worktree_path=worktree_path,
+        session_id=session.id,
+        labels=orch._config.pr_labels,
+        role=session.role,
+        model=session.model_config.model,
+        cost_usd=cost_usd,
+        test_summary=test_summary,
     )
     if pr_url:
         logger.info("Approval gate: PR created for task %s: %s", task.id, pr_url)
 
 
 def _reap_and_cleanup_session(
-    orch: Any, task: Task, session: AgentSession, result: Any,
-    janitor_passed: bool, skip_merge: bool,
-    completion_data: CompletionData | None, cache_diff_lines: int,
+    orch: Any,
+    task: Task,
+    session: AgentSession,
+    result: Any,
+    janitor_passed: bool,
+    skip_merge: bool,
+    completion_data: CompletionData | None,
+    cache_diff_lines: int,
 ) -> tuple[bool, int]:
     """Reap agent, handle merge, cleanup worktree.
 
     Returns (cache_verified, cache_diff_lines).
     """
     merge_result: MergeResult | None = orch._spawner.reap_completed_agent(
-        session, skip_merge=skip_merge, defer_cleanup=True,
+        session,
+        skip_merge=skip_merge,
+        defer_cleanup=True,
     )
     if session.status != "dead":
         transition_agent(session, "dead", actor="task_lifecycle", reason="task completed, process reaped")
@@ -1876,7 +1896,10 @@ def _cleanup_batch_session(orch: Any, session: AgentSession) -> None:
 
 
 def _record_ab_test_outcome(
-    orch: Any, task: Task, session: AgentSession, janitor_passed: bool,
+    orch: Any,
+    task: Task,
+    session: AgentSession,
+    janitor_passed: bool,
 ) -> None:
     """Persist A/B test quality/cost result for this task."""
     if not getattr(orch._config, "ab_test", False):
@@ -1889,9 +1912,13 @@ def _record_ab_test_outcome(
         from bernstein.core.ab_test_results import record_ab_outcome
 
         record_ab_outcome(
-            orch._workdir, task_id=task.id, task_title=task.title,
-            model=model_map[task.id], session_id=session.id,
-            tokens_used=session.tokens_used, files_changed=session.files_changed,
+            orch._workdir,
+            task_id=task.id,
+            task_title=task.title,
+            model=model_map[task.id],
+            session_id=session.id,
+            tokens_used=session.tokens_used,
+            files_changed=session.files_changed,
             status="completed" if janitor_passed else "failed",
             duration_s=time.time() - session.spawn_ts,
         )
@@ -1900,9 +1927,12 @@ def _record_ab_test_outcome(
 
 
 def _handle_merge_result(
-    orch: Any, task: Task, result: Any,
+    orch: Any,
+    task: Task,
+    result: Any,
     merge_result: MergeResult | None,
-    janitor_passed: bool, skip_merge: bool,
+    janitor_passed: bool,
+    skip_merge: bool,
 ) -> bool:
     """Handle merge conflicts and return whether merge succeeded."""
     if merge_result is None or merge_result.success:
@@ -1910,13 +1940,15 @@ def _handle_merge_result(
     if not merge_result.conflicting_files or skip_merge:
         return False
     create_conflict_resolution_task(
-        task, merge_result.conflicting_files,
-        client=orch._client, server_url=orch._config.server_url, session_id=None,
+        task,
+        merge_result.conflicting_files,
+        client=orch._client,
+        server_url=orch._config.server_url,
+        session_id=None,
     )
     orch._post_bulletin(
         "alert",
-        f"merge conflict in {len(merge_result.conflicting_files)} files — "
-        f"resolver task created (task {task.id})",
+        f"merge conflict in {len(merge_result.conflicting_files)} files — resolver task created (task {task.id})",
     )
     return False
 
@@ -1943,7 +1975,10 @@ def _close_completed_task(orch: Any, task: Task) -> None:
 
 
 def _record_bandit_outcome(
-    orch: Any, task: Task, session: AgentSession, janitor_passed: bool,
+    orch: Any,
+    task: Task,
+    session: AgentSession,
+    janitor_passed: bool,
 ) -> None:
     """Feed quality-cost reward to the bandit policy."""
     bandit: Any = getattr(orch, "_bandit_router", None)
@@ -1962,9 +1997,13 @@ def _record_bandit_outcome(
 
 
 def _record_completion_metrics(
-    orch: Any, task: Task, session: AgentSession | None,
-    janitor_passed: bool, qg_result: Any,
-    completion_data: CompletionData | None, agent_just_reaped: bool,
+    orch: Any,
+    task: Task,
+    session: AgentSession | None,
+    janitor_passed: bool,
+    qg_result: Any,
+    completion_data: CompletionData | None,
+    agent_just_reaped: bool,
 ) -> tuple[Any, float]:
     """Record task completion in metrics, cost tracker, convergence guard.
 
@@ -1979,9 +2018,13 @@ def _record_completion_metrics(
     tokens_in = task_m.tokens_prompt if task_m else 0
     tokens_out = task_m.tokens_completion if task_m else 0
     orch._cost_tracker.record_cumulative(
-        agent_id=agent_id, task_id=task.id, model=model,
-        total_input_tokens=tokens_in, total_output_tokens=tokens_out,
-        total_cost_usd=cost_usd if cost_usd > 0 else None, tenant_id=task.tenant_id,
+        agent_id=agent_id,
+        task_id=task.id,
+        model=model,
+        total_input_tokens=tokens_in,
+        total_output_tokens=tokens_out,
+        total_cost_usd=cost_usd if cost_usd > 0 else None,
+        tenant_id=task.tenant_id,
     )
     try:
         orch._cost_tracker.save(orch._workdir / ".sdd")
@@ -2015,14 +2058,19 @@ def _record_completion_metrics(
 
 
 def _record_effectiveness_score(
-    orch: Any, task: Task, session: AgentSession,
-    qg_result: Any, completion_data: CompletionData | None,
+    orch: Any,
+    task: Task,
+    session: AgentSession,
+    qg_result: Any,
+    completion_data: CompletionData | None,
 ) -> None:
     """Score agent effectiveness and persist the result."""
     try:
         scorer = EffectivenessScorer(orch._workdir)
         score = scorer.score(
-            session, task, qg_result,
+            session,
+            task,
+            qg_result,
             completion_data.get("log_summary") if completion_data is not None else None,
         )
         scorer.record(score)
@@ -2038,32 +2086,43 @@ def _record_agent_lifetime(orch: Any, session: AgentSession, collector: Any) -> 
         lifetime = round((time.time() - session.spawn_ts) if session.spawn_ts > 0 else 0.0, 2)
         tasks_done = agent_m.tasks_completed if agent_m else 0
         orch._evolution.record_agent_lifetime(
-            agent_id=session.id, role=session.role,
-            lifetime_seconds=lifetime, tasks_completed=tasks_done, model=session.model_config.model,
+            agent_id=session.id,
+            role=session.role,
+            lifetime_seconds=lifetime,
+            tasks_completed=tasks_done,
+            model=session.model_config.model,
         )
     except Exception as exc:
         logger.warning("Evolution record_agent_lifetime failed: %s", exc)
 
 
 def _post_completion_bulletin(
-    orch: Any, task: Task, janitor_passed: bool,
-    cache_verified: bool, cache_diff_lines: int,
+    orch: Any,
+    task: Task,
+    janitor_passed: bool,
+    cache_verified: bool,
+    cache_diff_lines: int,
 ) -> None:
     """Post bulletin and cache result for completed/failed tasks."""
     if janitor_passed:
         orch._post_bulletin("status", f"task completed: {task.title} ({task.id})")
         orch._notify(
-            "task.completed", f"Task completed: {task.title}",
-            task.result_summary or "", task_id=task.id, role=task.role,
+            "task.completed",
+            f"Task completed: {task.title}",
+            task.result_summary or "",
+            task_id=task.id,
+            role=task.role,
         )
         _enqueue_paired_test_task(orch, task)
         _cache_task_result(orch, task, cache_verified, cache_diff_lines)
     else:
         orch._post_bulletin("alert", f"task failed janitor: {task.title} ({task.id})")
         orch._notify(
-            "task.failed", f"Task failed: {task.title}",
+            "task.failed",
+            f"Task failed: {task.title}",
             task.result_summary or "Janitor verification did not pass.",
-            task_id=task.id, role=task.role,
+            task_id=task.id,
+            role=task.role,
         )
 
 
@@ -2077,8 +2136,10 @@ def _cache_task_result(orch: Any, task: Task, verified: bool, diff_lines: int) -
     try:
         rc.store(
             rc.task_key(task.role, task.title, task.description),
-            task.result_summary, verified=verified,
-            git_diff_lines=diff_lines, source_task_id=task.id,
+            task.result_summary,
+            verified=verified,
+            git_diff_lines=diff_lines,
+            source_task_id=task.id,
         )
         rc.save()
     except Exception as exc:
@@ -2086,8 +2147,12 @@ def _cache_task_result(orch: Any, task: Task, verified: bool, diff_lines: int) -
 
 
 def _record_evolution_completion(
-    orch: Any, task: Task, session: AgentSession | None,
-    task_m: Any, cost_usd: float, janitor_passed: bool,
+    orch: Any,
+    task: Task,
+    session: AgentSession | None,
+    task_m: Any,
+    cost_usd: float,
+    janitor_passed: bool,
 ) -> None:
     """Record task completion in evolution tracker and set agent affinity."""
     if orch._evolution is not None:
@@ -2100,9 +2165,12 @@ def _record_evolution_completion(
         )
         try:
             orch._evolution.record_task_completion(
-                task=task, duration_seconds=round(duration, 2),
-                cost_usd=cost_usd, janitor_passed=janitor_passed,
-                model=model, provider=provider,
+                task=task,
+                duration_seconds=round(duration, 2),
+                cost_usd=cost_usd,
+                janitor_passed=janitor_passed,
+                model=model,
+                provider=provider,
             )
         except Exception as exc:
             logger.warning("Evolution record_task_completion failed: %s", exc)
@@ -2118,7 +2186,9 @@ def _record_evolution_completion(
             affinity[downstream.id] = task.assigned_agent
             logger.debug(
                 "agent_affinity: task %s -> agent %s (downstream of %s)",
-                downstream.id, task.assigned_agent, task.id,
+                downstream.id,
+                task.assigned_agent,
+                task.id,
             )
 
 
@@ -2162,7 +2232,9 @@ def process_completed_tasks(
 
 
 def _resolve_janitor_result(
-    task: Task, verify_futures: dict[str, Any], result: Any,
+    task: Task,
+    verify_futures: dict[str, Any],
+    result: Any,
 ) -> bool:
     """Resolve janitor verification for a single task."""
     if task.id not in verify_futures:
@@ -2184,7 +2256,10 @@ def _resolve_janitor_result(
 
 
 def _process_single_completed_task(
-    orch: Any, task: Task, verify_futures: dict[str, Any], result: Any,
+    orch: Any,
+    task: Task,
+    verify_futures: dict[str, Any],
+    result: Any,
 ) -> None:
     """Process a single completed task through verification and post-merge pipeline."""
     cache_verified = False
@@ -2222,11 +2297,24 @@ def _process_single_completed_task(
 
         skip_merge = _evaluate_approval_gate(orch, task, session, completion_data, janitor_passed)
         cache_verified, cache_diff_lines = _reap_and_cleanup_session(
-            orch, task, session, result, janitor_passed, skip_merge, completion_data, cache_diff_lines,
+            orch,
+            task,
+            session,
+            result,
+            janitor_passed,
+            skip_merge,
+            completion_data,
+            cache_diff_lines,
         )
 
     task_m, cost_usd = _record_completion_metrics(
-        orch, task, session, janitor_passed, qg_result, completion_data, agent_just_reaped,
+        orch,
+        task,
+        session,
+        janitor_passed,
+        qg_result,
+        completion_data,
+        agent_just_reaped,
     )
 
     _post_completion_bulletin(orch, task, janitor_passed, cache_verified, cache_diff_lines)

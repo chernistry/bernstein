@@ -406,18 +406,25 @@ def test_quality_trend_endpoint_with_data(tmp_path: Path) -> None:
     metrics_dir = tmp_path / ".sdd" / "metrics"
     metrics_dir.mkdir(parents=True)
 
-    # Write completion records for two different days
-    today = time.strftime("%Y-%m-%d", time.gmtime())
+    # Write completion records - use noon UTC to avoid midnight-boundary flakes
+    import calendar
+    import datetime
+
+    utc_now = datetime.datetime.now(datetime.UTC)
+    noon_today = utc_now.replace(hour=12, minute=0, second=0, microsecond=0)
+    base_ts = calendar.timegm(noon_today.timetuple())
+    today = noon_today.strftime("%Y-%m-%d")
+
     completion_file = metrics_dir / f"task_completion_time_{today}.jsonl"
     records = [
         {
-            "timestamp": time.time() - 3600,  # 1 hour ago
+            "timestamp": base_ts - 3600,
             "metric_type": "task_completion_time",
             "value": 30.0,
             "labels": {"model": "sonnet", "success": "True"},
         },
         {
-            "timestamp": time.time() - 1800,  # 30 min ago
+            "timestamp": base_ts - 1800,
             "metric_type": "task_completion_time",
             "value": 60.0,
             "labels": {"model": "sonnet", "success": "False"},
@@ -428,17 +435,17 @@ def test_quality_trend_endpoint_with_data(tmp_path: Path) -> None:
     # Write gate records
     gates_file = metrics_dir / "quality_gates.jsonl"
     gate_records = [
-        {"timestamp": time.time() - 3600, "task_id": "t1", "gate": "lint", "result": "pass"},
-        {"timestamp": time.time() - 1800, "task_id": "t2", "gate": "lint", "result": "blocked"},
-        {"timestamp": time.time() - 900, "task_id": "t3", "gate": "tests", "result": "pass"},
+        {"timestamp": base_ts - 3600, "task_id": "t1", "gate": "lint", "result": "pass"},
+        {"timestamp": base_ts - 1800, "task_id": "t2", "gate": "lint", "result": "blocked"},
+        {"timestamp": base_ts - 900, "task_id": "t3", "gate": "tests", "result": "pass"},
     ]
     gates_file.write_text("\n".join(json.dumps(r) for r in gate_records))
 
     # Write quality scores
     scores_file = metrics_dir / "quality_scores.jsonl"
     score_records = [
-        {"timestamp": time.time() - 3600, "task_id": "t1", "total": 80, "breakdown": {}},
-        {"timestamp": time.time() - 1800, "task_id": "t2", "total": 60, "breakdown": {}},
+        {"timestamp": base_ts - 3600, "task_id": "t1", "total": 80, "breakdown": {}},
+        {"timestamp": base_ts - 1800, "task_id": "t2", "total": 60, "breakdown": {}},
     ]
     scores_file.write_text("\n".join(json.dumps(r) for r in score_records))
 

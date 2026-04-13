@@ -8,6 +8,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,6 +16,7 @@ from typing import Any, cast
 
 import click
 
+from bernstein.cli.display.icons import get_icons
 from bernstein.cli.helpers import (
     SDD_PID_SERVER,
     SDD_PID_SPAWNER,
@@ -133,7 +135,7 @@ def return_claimed_to_open() -> int:
         num = f.name.split("-")[0]
         try:
             if num in closed_nums:
-                f.unlink()  # already completed — remove duplicate
+                f.unlink()  # already completed - remove duplicate
             else:
                 f.rename(open_dir / f.name)
                 count += 1
@@ -221,7 +223,7 @@ def sigint_handler(signum: int, frame: Any) -> None:
         signum: Signal number (always ``SIGINT``).
         frame: Current stack frame (unused).
     """
-    console.print("\n[yellow]Ctrl+C received — saving state…[/yellow]")
+    console.print("\n[yellow]Ctrl+C received - saving state...[/yellow]")
     with contextlib.suppress(OSError):
         save_session_on_stop(Path.cwd())
     moved = return_claimed_to_open()
@@ -258,21 +260,28 @@ def soft_stop(timeout: int) -> None:
     _last_phase: dict[str, int] = {"number": 0}
 
     def on_update(phase: object, agents: object) -> None:
+        _icons = get_icons()
         number = getattr(phase, "number", 0)
         name = getattr(phase, "name", "")
         detail = getattr(phase, "detail", "")
         status = getattr(phase, "status", "")
+
+        # ASCII-safe icons for Windows
+        _running = "..." if sys.platform == "win32" else "\u23f3"  # hourglass
+        _done = _icons.check
+        _failed = _icons.cross
+        _commit = "[w]" if sys.platform == "win32" else "\U0001f4dd"  # memo emoji
 
         # Print phase header on transition
         if number != _last_phase["number"]:
             if _last_phase["number"] > 0:
                 print()  # newline after previous phase
             if status == "running":
-                icon = "⏳"
+                icon = _running
             elif status == "done":
-                icon = "✓"
+                icon = _done
             else:
-                icon = "✗"
+                icon = _failed
             print(f"  {icon} Phase {number}/6: {name}", flush=True)
             _last_phase["number"] = number
 
@@ -286,7 +295,7 @@ def soft_stop(timeout: int) -> None:
             for a_obj in cast("list[object]", agents):
                 sid: str = getattr(a_obj, "session_id", "?")
                 st: str = getattr(a_obj, "status", "?")
-                sym = {"running": "⏳", "exited": "✓", "killed": "✗", "committing": "📝"}.get(st, "?")
+                sym = {"running": _running, "exited": _done, "killed": _failed, "committing": _commit}.get(st, "?")
                 agent_lines.append(f"{sym} {sid}")
             if agent_lines:
                 print(f"\r    {' | '.join(agent_lines)}    ", end="", flush=True)
@@ -326,7 +335,7 @@ def _kill_named_pid(pid: int, label: str, killed: set[int]) -> None:
     if dead:
         console.print(f"[red]Killed {label} (PID {pid}).[/red]")
     else:
-        console.print(f"[yellow]{label} (PID {pid}) resisted SIGKILL — may need manual cleanup.[/yellow]")
+        console.print(f"[yellow]{label} (PID {pid}) resisted SIGKILL - may need manual cleanup.[/yellow]")
 
 
 def _kill_pid_file(path: str, label: str, killed: set[int]) -> None:
@@ -401,7 +410,7 @@ def _list_process_snapshots() -> list[_ProcessSnapshot]:
         result = subprocess.run(
             ["ps", "-ax", "-o", "pid=,ppid=,pgid=,command="],
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=5,
             check=False,
         )
@@ -465,7 +474,7 @@ def _kill_port_holder(port: int, killed: set[int]) -> None:
         result = subprocess.run(
             ["lsof", "-ti", f":{port}"],
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=5,
         )
         for line in result.stdout.strip().splitlines():
@@ -520,11 +529,11 @@ def hard_stop() -> None:
     _collect_pids_from_metadata(killed_pids)
     _collect_repo_processes(killed_pids)
 
-    # 4. Verification sweep — re-scan and retry anything still alive
+    # 4. Verification sweep - re-scan and retry anything still alive
     time.sleep(0.1)
     survivors: list[int] = [p for p in killed_pids if is_alive(p)]
     if survivors:
-        console.print(f"[yellow]Retrying {len(survivors)} survivor(s)…[/yellow]")
+        console.print(f"[yellow]Retrying {len(survivors)} survivor(s)...[/yellow]")
         for pid in survivors:
             _kill_named_pid(pid, f"survivor-{pid}", killed_pids)
     _collect_repo_processes(killed_pids)
@@ -545,9 +554,9 @@ def hard_stop() -> None:
 
     total = len(killed_pids)
     if total:
-        console.print(f"\n[red]Bernstein stopped (hard) — killed {total} process(es).[/red]")
+        console.print(f"\n[red]Bernstein stopped (hard) - killed {total} process(es).[/red]")
     else:
-        console.print("\n[red]Bernstein stopped (hard) — no processes were running.[/red]")
+        console.print("\n[red]Bernstein stopped (hard) - no processes were running.[/red]")
 
 
 # ---------------------------------------------------------------------------
@@ -584,9 +593,9 @@ def stop(timeout: int, force: bool) -> None:
     print_banner()
 
     if force:
-        console.print("[bold red]Hard stop — killing everything immediately…[/bold red]\n")
+        console.print("[bold red]Hard stop - killing everything immediately...[/bold red]\n")
         hard_stop()
     else:
-        console.print("[bold]Soft stop — giving agents time to save…[/bold]\n")
+        console.print("[bold]Soft stop - giving agents time to save...[/bold]\n")
         soft_stop(timeout)
         _unregister_mcp_discovery(Path.cwd())

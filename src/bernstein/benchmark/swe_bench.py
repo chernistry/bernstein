@@ -520,7 +520,7 @@ class SWEBenchRunner:
             ["bernstein", "--goal", goal, "--headless", "--budget", "2.00"],
             cwd=self.workdir,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=600,
         )
 

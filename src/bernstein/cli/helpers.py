@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import signal
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -36,10 +37,17 @@ SDD_PID_SERVER = ".sdd/runtime/server.pid"
 SDD_PID_SPAWNER = ".sdd/runtime/spawner.pid"
 SDD_PID_WATCHDOG = ".sdd/runtime/watchdog.pid"
 
-BANNER = """\
-╔══════════════════════════════════╗
-║  🎼 Bernstein — Agent Orchestra  ║
-╚══════════════════════════════════╝"""
+# Use ASCII-safe banner on Windows to avoid cp1252 encoding issues
+if sys.platform == "win32":
+    BANNER = """\
++----------------------------------+
+|  Bernstein - Agent Orchestra     |
++----------------------------------+"""
+else:
+    BANNER = """\
+\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2557
+\u2551  \U0001F3BC Bernstein \u2014 Agent Orchestra  \u2551
+\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u255d"""
 
 # Task status -> Rich color
 STATUS_COLORS: dict[str, str] = {

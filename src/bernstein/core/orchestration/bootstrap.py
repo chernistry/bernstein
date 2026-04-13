@@ -27,6 +27,8 @@ import httpx
 from rich.console import Console
 from rich.status import Status
 
+from bernstein.cli.display.icons import get_icons
+
 if TYPE_CHECKING:
     from collections.abc import Awaitable as _Awaitable
 
@@ -684,7 +686,8 @@ def bootstrap_from_goal(
         console.print(f"[bold]First run detected[/bold] — auto-configuring for {type_note}")
         console.print(agents_note)
 
-    console.print(f"[green]→[/green] Goal: [bold]{goal[:80]}[/bold]")
+    _icons = get_icons()
+    console.print(f"[green]{_icons.arrow_right}[/green] Goal: [bold]{goal[:80]}[/bold]")
     try:
         from bernstein.core.complexity_advisor import ComplexityMode, suggest_goal_execution_mode
 
@@ -708,15 +711,15 @@ def bootstrap_from_goal(
             auto_write_bernstein_yaml(workdir)
         _clean_stale_runtime(workdir)
     if created:
-        console.print("[green]→[/green] Created .sdd/ workspace")
+        console.print(f"[green]{_icons.arrow_right}[/green] Created .sdd/ workspace")
     else:
-        console.print("[green]→[/green] Workspace ready")
+        console.print(f"[green]{_icons.arrow_right}[/green] Workspace ready")
 
     with Status("[bold]Loading agent catalog...[/bold]", console=console):
         _discover_catalog(workdir)
-    console.print("[green]→[/green] Agent catalog loaded")
+    console.print(f"[green]{_icons.arrow_right}[/green] Agent catalog loaded")
 
-    # Index codebase with a hard 10s deadline — don't block startup.
+    # Index codebase with a hard 10s deadline - don't block startup.
     # We must NOT use ThreadPoolExecutor as a context manager because its
     # __exit__ calls shutdown(wait=True), which blocks until the thread
     # finishes even after the timeout fires.
@@ -726,9 +729,9 @@ def bootstrap_from_goal(
         try:
             _index_future.result(timeout=10)
         except concurrent.futures.TimeoutError:
-            console.print("[yellow]→[/yellow] Indexing taking too long — continuing in background")
+            console.print(f"[yellow]{_icons.arrow_right}[/yellow] Indexing taking too long - continuing in background")
     _index_pool.shutdown(wait=False)
-    console.print("[green]→[/green] Codebase indexed")
+    console.print(f"[green]{_icons.arrow_right}[/green] Codebase indexed")
 
     with Status("[bold]Checking safety invariants...[/bold]", console=console):
         from bernstein.evolution.invariants import verify_invariants, write_lockfile
@@ -755,7 +758,7 @@ def bootstrap_from_goal(
                 fix="Check .sdd/runtime/server.log for details",
             ).print()
             raise SystemExit(1)
-    console.print(f"[green]→[/green] Task server ready (PID {server_pid}, {bind_host}:{port})")
+    console.print(f"[green]{_icons.arrow_right}[/green] Task server ready (PID {server_pid}, {bind_host}:{port})")
 
     # Register Bernstein as a discoverable MCP server for Claude Code sessions
     with contextlib.suppress(OSError):
@@ -772,7 +775,7 @@ def bootstrap_from_goal(
 
         gh_count = sync_github_issues_to_backlog(workdir)
         if gh_count > 0:
-            console.print(f"[green]\u2192[/green] Synced {gh_count} GitHub issue(s) to backlog")
+            console.print(f"[green]{_icons.arrow_right}[/green] Synced {gh_count} GitHub issue(s) to backlog")
     except Exception as exc:
         logger.debug("GitHub issue sync skipped: %s", exc)
 
@@ -790,7 +793,7 @@ def bootstrap_from_goal(
         with httpx.Client(timeout=10.0) as _wf_client:
             _wf_imported = import_workflow_tasks(workdir, _wf_client, server_url)
         if _wf_imported:
-            console.print(f"[green]→[/green] Imported {_wf_imported} task(s) from workflow file(s)")
+            console.print(f"[green]{_icons.arrow_right}[/green] Imported {_wf_imported} task(s) from workflow file(s)")
             backlog_count += _wf_imported
     except Exception as _wf_exc:
         logger.debug("Workflow import skipped: %s", _wf_exc)
@@ -824,11 +827,11 @@ def bootstrap_from_goal(
             import asyncio
 
             asyncio.run(with_init_timeout(_post_all(), context="posting tasks from plan file"))
-        console.print(f"[green]→[/green] Posted {len(tasks)} tasks from plan file")
+        console.print(f"[green]{_icons.arrow_right}[/green] Posted {len(tasks)} tasks from plan file")
         backlog_count = len(tasks)
     elif backlog_count > 0:
         console.print(
-            f"[green]→[/green] Planning tasks ({backlog_count} found in backlog"
+            f"[green]{_icons.arrow_right}[/green] Planning tasks ({backlog_count} found in backlog"
             + (f", {len(sync_result.skipped)} already synced" if sync_result.skipped else "")
             + ")"
         )
@@ -841,7 +844,7 @@ def bootstrap_from_goal(
                 server_url=server_url,
                 auth_token=auth_token,
             )
-        console.print("[green]→[/green] Planning tasks (manager agent will decompose goal)")
+        console.print(f"[green]{_icons.arrow_right}[/green] Planning tasks (manager agent will decompose goal)")
 
     # Cost estimation — show before spawning agents
     from bernstein.core.cost import estimate_run_cost
@@ -856,7 +859,7 @@ def bootstrap_from_goal(
     with Status(f"[bold]Spawning agents ({cell_label})...[/bold]", console=console):
         spawner_pid = _start_spawner(workdir, port, cells=cells, ab_test=ab_test)
         _start_watchdog(workdir, port)
-    console.print(f"[green]→[/green] Spawning agents (PID {spawner_pid})")
+    console.print(f"[green]{_icons.arrow_right}[/green] Spawning agents (PID {spawner_pid})")
 
     console.print("\n[bold green]Dashboard ready.[/bold green] Use [bold]bernstein stop[/bold] to stop.")
 

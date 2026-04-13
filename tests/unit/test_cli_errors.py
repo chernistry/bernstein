@@ -84,7 +84,7 @@ class TestErrorFactories:
         assert "Invalid YAML" in err.why
 
     def test_server_error(self) -> None:
-        err = server_error(Exception("Connection refused"))
+        err = server_error(RuntimeError("Connection refused"))
         assert "server" in err.what.lower()
         assert "Connection refused" in err.why
         assert "status" in err.fix

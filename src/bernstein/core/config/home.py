@@ -444,7 +444,7 @@ def explain_conflicts(bundle: dict[str, ConfigResolution]) -> list[SettingConfli
             continue
         # Check if any two layers have different values
         values = [layer["value"] for layer in non_default]
-        if len(set(str(v) for v in values)) > 1:
+        if len({str(v) for v in values}) > 1:
             winning = resolution["source_chain"][0]
             conflicts.append(
                 {

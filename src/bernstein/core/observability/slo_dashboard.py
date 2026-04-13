@@ -217,10 +217,8 @@ def _compute_quality_gate_pct(records: list[dict[str, object]]) -> float:
             continue
         evaluated += 1
         gate_result = rec.get("quality_gate_passed")
-        if gate_result is True:
-            passed += 1
-        elif gate_result is None and status == "done":
-            # No explicit gate result recorded; treat completed tasks as passed
+        if gate_result is True or (gate_result is None and status == "done"):
+            # Count explicit gate passes and completed tasks without gate results
             passed += 1
     if evaluated == 0:
         return 100.0

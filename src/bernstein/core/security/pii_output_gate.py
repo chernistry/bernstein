@@ -174,7 +174,7 @@ _SECRET_RULES: list[tuple[str, re.Pattern[str], str, str]] = [
     ),
     (
         "credit_card_number",
-        re.compile(r"\b(?:\d[ -]*?){13,19}\b"),
+        re.compile(r"\b(?:\d[ -]*){13,19}\b"),
         "medium",
         "Credit card number",
     ),

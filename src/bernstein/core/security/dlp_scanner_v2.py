@@ -440,7 +440,7 @@ def _collect_rules(policy: DLPPolicy) -> list[_RuleDef]:
 def _scan_lines(
     lines: list[str],
     rules: list[_RuleDef],
-    policy: DLPPolicy,
+    _policy: DLPPolicy,
 ) -> list[DLPMatch]:
     """Scan lines against all rules and return matches."""
     matches: list[DLPMatch] = []
@@ -458,7 +458,7 @@ def _scan_lines(
 
             # Luhn validation for credit card matches
             if pattern_name == "credit_card":
-                digits_only = re.sub(r"[^0-9]", "", matched_raw)
+                digits_only = re.sub(r"\D", "", matched_raw)
                 if len(digits_only) < 13 or not _luhn_check(digits_only):
                     continue
 

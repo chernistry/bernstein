@@ -59,17 +59,19 @@ def workspace_status(request: Request) -> WorkspaceResponse:
         return WorkspaceResponse(repos=[])
 
     statuses = workspace.status()
-    repos = [
-        WorkspaceRepoResponse(
-            name=repo.name,
-            path=str(workspace.resolve_repo(repo.name)),
-            branch=(status.branch if (status := statuses.get(repo.name)) is not None else "unknown"),
-            clean=status.clean if status is not None else False,
-            ahead=status.ahead if status is not None else 0,
-            behind=status.behind if status is not None else 0,
+    repos = []
+    for repo in workspace.repos:
+        status = statuses.get(repo.name)
+        repos.append(
+            WorkspaceRepoResponse(
+                name=repo.name,
+                path=str(workspace.resolve_repo(repo.name)),
+                branch=status.branch if status is not None else "unknown",
+                clean=status.clean if status is not None else False,
+                ahead=status.ahead if status is not None else 0,
+                behind=status.behind if status is not None else 0,
+            )
         )
-        for repo in workspace.repos
-    ]
     return WorkspaceResponse(repos=repos)
 
 

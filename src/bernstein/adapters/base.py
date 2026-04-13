@@ -348,7 +348,7 @@ class CLIAdapter(ABC):
         """
         return False
 
-    def cancel_tool_batch(self, _session_id: str, _batch_id: str) -> None:
+    def cancel_tool_batch(self, _session_id: str, _batch_id: str) -> None:  # noqa: B027
         """Abort all pending tool calls in a batch.
 
         Optional: implemented by adapters that support concurrent tool execution.
@@ -357,4 +357,3 @@ class CLIAdapter(ABC):
             _session_id: Agent session ID.
             _batch_id: The batch identifier to cancel.
         """
-        return

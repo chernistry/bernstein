@@ -472,7 +472,7 @@ def identify_target_files(goal_text: str, project_root: Path) -> tuple[str, ...]
     """
     lower = goal_text.lower()
     # Build keyword set from meaningful words (3+ chars)
-    keywords = {w for w in re.findall(r"[a-z]{3,}", lower)}
+    keywords = set(re.findall(r"[a-z]{3,}", lower))
 
     # Also add multi-word domain terms
     for kw in _DOMAIN_KEYWORDS:

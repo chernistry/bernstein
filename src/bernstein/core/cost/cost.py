@@ -254,7 +254,7 @@ class EpsilonGreedyBandit:
 
         # Exploration: random choice with probability epsilon
         # S311: not security-sensitive — epsilon-greedy exploration for cost optimisation
-        if random.random() < self.epsilon:  # NOSONAR(python:S5547) non-crypto RNG for bandit exploration
+        if random.random() < self.epsilon:  # NOSONAR — non-crypto RNG for bandit exploration
             chosen = random.choice(models)  # NOSONAR
             logger.debug("Bandit[%s]: explore → %s", role, chosen)
             return chosen

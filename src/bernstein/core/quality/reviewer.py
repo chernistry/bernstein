@@ -102,7 +102,7 @@ async def review_queue(
     server_url: str,
     model: str,
     provider: str,
-    templates_dir: Path,
+    _templates_dir: Path,
 ) -> QueueReviewResult:
     """Review the task queue and return corrections.
 
@@ -116,7 +116,7 @@ async def review_queue(
         server_url: Base URL of the task server.
         model: LLM model to use.
         provider: LLM provider.
-        templates_dir: Root templates/ directory.
+        _templates_dir: Root templates/ directory (part of interface).
 
     Returns:
         QueueReviewResult with corrections to apply.
@@ -191,7 +191,7 @@ def review_queue_sync(
     server_url: str,
     model: str,
     provider: str,
-    templates_dir: Path,
+    _templates_dir: Path,
 ) -> QueueReviewResult:
     """Synchronous wrapper for review_queue.
 
@@ -204,12 +204,14 @@ def review_queue_sync(
         server_url: Base URL of the task server.
         model: LLM model to use.
         provider: LLM provider.
-        templates_dir: Root templates/ directory.
+        _templates_dir: Root templates/ directory (part of interface).
 
     Returns:
         QueueReviewResult with corrections to apply.
     """
-    coro = review_queue(completed_count, failed_count, budget_remaining_pct, server_url, model, provider, templates_dir)
+    coro = review_queue(
+        completed_count, failed_count, budget_remaining_pct, server_url, model, provider, _templates_dir,
+    )
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():

@@ -14,13 +14,13 @@ app = Flask(__name__)
 ITEMS = ["apple", "banana", "cherry", "date"]
 
 
-@app.route("/")
+@app.route("/", methods=["GET"])
 def hello() -> object:
     """Return a greeting."""
     return jsonify({"message": "Hello, World!", "status": "ok"})
 
 
-@app.route("/items/<int:n>")
+@app.route("/items/<int:n>", methods=["GET"])
 def get_item(n: int) -> object:
     """Return the nth item (1-indexed).
 
@@ -31,7 +31,7 @@ def get_item(n: int) -> object:
     return jsonify({"id": n, "item": ITEMS[n]})  # off-by-one
 
 
-@app.route("/echo")
+@app.route("/echo", methods=["GET"])
 def echo() -> object:
     """Echo a query parameter.
 
@@ -42,7 +42,7 @@ def echo() -> object:
     return jsonify({"echo": msg})
 
 
-@app.route("/health")
+@app.route("/health", methods=["GET"])
 def health() -> object:
     """Health check endpoint.
 

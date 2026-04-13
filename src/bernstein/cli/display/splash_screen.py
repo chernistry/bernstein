@@ -288,7 +288,7 @@ def _box_bottom(width: int) -> str:
 def _center_text(text: str, width: int) -> str:
     """Center text within a given width (approximate, since Rich markup is invisible)."""
     # Strip markup for length calc (rough heuristic)
-    plain = re.sub(r"\[.*?\]", "", text)
+    plain = re.sub(r"\[[^\]]*\]", "", text)
     padding = max(0, (width - len(plain)) // 2)
     return " " * padding + text
 

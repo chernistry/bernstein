@@ -15,8 +15,6 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 if TYPE_CHECKING:
     from pathlib import Path
 
-    pass
-
 logger = logging.getLogger(__name__)
 
 

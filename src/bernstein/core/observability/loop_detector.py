@@ -401,7 +401,7 @@ def _oldest_lock_holder(
         The agent ID chosen as the victim.
     """
     agent_min_ts: dict[str, float] = {}
-    for _, (agent_id, locked_at) in held.items():
+    for agent_id, locked_at in held.values():
         if agent_id in cycle and (agent_id not in agent_min_ts or locked_at < agent_min_ts[agent_id]):
             agent_min_ts[agent_id] = locked_at
 

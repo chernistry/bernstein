@@ -108,7 +108,7 @@ class TestCompleteTask:
 
     def test_sets_success_and_tokens(self, collector: MetricsCollector) -> None:
         collector.start_task("t1", "backend", "sonnet", "claude")
-        m = collector.complete_task("t1", success=True, tokens_used=500, _cost_usd=0.01)
+        m = collector.complete_task("t1", success=True, tokens_used=500, cost_usd=0.01)
         assert m is not None
         assert m.success is True
         assert m.tokens_used == 500
@@ -136,7 +136,7 @@ class TestCompleteTask:
 
     def test_also_writes_cost_efficiency_file(self, collector: MetricsCollector) -> None:
         collector.start_task("t1", "backend", "sonnet", "claude")
-        collector.complete_task("t1", success=True, _cost_usd=0.05)
+        collector.complete_task("t1", success=True, cost_usd=0.05)
         today = datetime.now().strftime("%Y-%m-%d")
         cost_file = collector._metrics_dir / f"cost_efficiency_{today}.jsonl"
         assert cost_file.exists()
@@ -183,7 +183,7 @@ class TestAgentMetrics:
 
     def test_complete_agent_task_success(self, collector: MetricsCollector) -> None:
         collector.start_agent("a1", "backend", "sonnet", "claude")
-        collector.complete_agent_task("a1", success=True, tokens_used=100, _cost_usd=0.01)
+        collector.complete_agent_task("a1", success=True, tokens_used=100, cost_usd=0.01)
         m = collector._agent_metrics["a1"]
         assert m.tasks_completed == 1
         assert m.tasks_failed == 0
@@ -328,7 +328,7 @@ class TestUsageQuotas:
 
 class TestQualityAndErrors:
     def test_record_janitor_result_writes_metric(self, collector: MetricsCollector) -> None:
-        collector.record_janitor_result("t1", passed=True, role="backend", model="sonnet", provider="claude")
+        collector.record_janitor_result("t1", passed=True, role="backend", model="sonnet", _provider="claude")
         today = datetime.now().strftime("%Y-%m-%d")
         f = collector._metrics_dir / f"agent_success_{today}.jsonl"
         assert f.exists()
@@ -338,7 +338,7 @@ class TestQualityAndErrors:
 
     def test_record_janitor_result_updates_task_metrics(self, collector: MetricsCollector) -> None:
         collector.start_task("t1", "backend", "sonnet", "claude")
-        collector.record_janitor_result("t1", passed=True, role="backend", model="sonnet", provider="claude")
+        collector.record_janitor_result("t1", passed=True, role="backend", model="sonnet", _provider="claude")
         assert collector._task_metrics["t1"].janitor_passed is True
 
     def test_record_error_writes_metric(self, collector: MetricsCollector) -> None:
@@ -503,15 +503,15 @@ class TestQueryMethods:
 
     def test_get_total_cost(self, collector: MetricsCollector) -> None:
         collector.start_agent("a1", "backend", "sonnet", "claude")
-        collector.complete_agent_task("a1", success=True, _cost_usd=0.05)
-        collector.complete_agent_task("a1", success=True, _cost_usd=0.10)
+        collector.complete_agent_task("a1", success=True, cost_usd=0.05)
+        collector.complete_agent_task("a1", success=True, cost_usd=0.10)
         assert collector.get_total_cost() == pytest.approx(0.15)
 
     def test_get_total_cost_by_agent(self, collector: MetricsCollector) -> None:
         collector.start_agent("a1", "backend", "sonnet", "claude")
-        collector.complete_agent_task("a1", success=True, _cost_usd=0.05)
+        collector.complete_agent_task("a1", success=True, cost_usd=0.05)
         collector.start_agent("a2", "qa", "sonnet", "claude")
-        collector.complete_agent_task("a2", success=True, _cost_usd=0.20)
+        collector.complete_agent_task("a2", success=True, cost_usd=0.20)
         assert collector.get_total_cost(agent_id="a1") == pytest.approx(0.05)
 
 

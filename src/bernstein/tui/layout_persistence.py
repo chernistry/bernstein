@@ -70,19 +70,22 @@ class LayoutConfig:
         if panel_id in self.visible_panels:
             if panel_id in _REQUIRED_PANELS:
                 return self
-            return replace(self, visible_panels=self.visible_panels - {panel_id})
-        return replace(self, visible_panels=self.visible_panels | {panel_id})
+            result: LayoutConfig = replace(self, visible_panels=self.visible_panels - {panel_id})  # type: ignore[assignment]
+            return result
+        toggled: LayoutConfig = replace(self, visible_panels=self.visible_panels | {panel_id})  # type: ignore[assignment]
+        return toggled
 
     def apply_preset(self, preset: str) -> LayoutConfig:
         """Return a new config seeded from a named layout preset."""
         preset_name = preset if preset in _VALID_PRESETS else "balanced"
-        return replace(
+        result: LayoutConfig = replace(  # type: ignore[assignment]
             self,
             preset=preset_name,
             split_enabled=True,
             split_ratio=_PRESET_SPLIT_RATIO[preset_name],
             visible_panels=_PRESET_PANELS[preset_name] | _REQUIRED_PANELS,
         )
+        return result
 
 
 def _clamp_ratio(value: object) -> float:

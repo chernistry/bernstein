@@ -21,8 +21,8 @@ from datetime import UTC
 from typing import Any
 
 # Module-level seeded RNG — deterministic test data, not used for security.
-# NOSONAR: all random usage below is for test-fixture variety, not crypto.
-_rng = random.Random(42)
+# All random usage below is for test-fixture variety, not crypto.
+_rng = random.Random(42)  # NOSONAR
 
 __all__ = [
     "GeneratedTask",

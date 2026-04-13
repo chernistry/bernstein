@@ -81,7 +81,7 @@ def test_review_queue_skips_when_budget_is_low(tmp_path: Path) -> None:
             server_url="http://server",
             model="haiku",
             provider="anthropic",
-            templates_dir=tmp_path / "templates",
+            _templates_dir=tmp_path / "templates",
         )
     )
 
@@ -169,7 +169,7 @@ def test_review_queue_returns_skipped_on_parse_error(monkeypatch: pytest.MonkeyP
             server_url="http://server",
             model="haiku",
             provider="anthropic",
-            templates_dir=tmp_path / "templates",
+            _templates_dir=tmp_path / "templates",
         )
     )
 

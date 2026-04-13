@@ -393,7 +393,7 @@ class EvolutionCoordinator:
         role: str,
         lifetime_seconds: float,
         tasks_completed: int,
-        model: str | None = None,
+        _model: str | None = None,
     ) -> None:
         """Record agent session lifetime metrics when an agent ends.
 
@@ -402,7 +402,7 @@ class EvolutionCoordinator:
             role: Role the agent was assigned.
             lifetime_seconds: Total wall-clock time the agent was alive.
             tasks_completed: Number of tasks the agent successfully completed.
-            model: Model used by the agent.
+            _model: Model used by the agent (part of interface).
         """
         metrics = AgentMetrics(
             timestamp=time.time(),

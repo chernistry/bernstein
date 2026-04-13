@@ -153,8 +153,8 @@ def _traceback_longest_path(
     node_ids: set[str],
 ) -> list[str]:
     """DP for longest path, then trace back from the endpoint."""
-    dist: dict[str, int] = {nid: 1 for nid in node_ids}
-    predecessor: dict[str, str | None] = {nid: None for nid in node_ids}
+    dist: dict[str, int] = dict.fromkeys(node_ids, 1)
+    predecessor: dict[str, str | None] = dict.fromkeys(node_ids, None)
 
     for node in topo_order:
         for successor in adjacency[node]:
@@ -190,7 +190,7 @@ def find_critical_path(data: GraphData) -> list[str]:
 
     node_ids: set[str] = {n.id for n in data.nodes}
     adjacency: dict[str, list[str]] = defaultdict(list)
-    in_degree: dict[str, int] = {nid: 0 for nid in node_ids}
+    in_degree: dict[str, int] = dict.fromkeys(node_ids, 0)
 
     for edge in data.edges:
         if edge.source in node_ids and edge.target in node_ids:

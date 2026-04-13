@@ -112,13 +112,11 @@ class TestComplexityMultiplier:
     def test_low_complexity(self) -> None:
         task = _make_task(scope=Scope.MEDIUM, complexity=Complexity.LOW)
         est = estimate_timeout(task, model="sonnet")
-        # 1800 * 0.7 = 1260
         assert est.timeout_s == pytest.approx(1260.0)
 
     def test_high_complexity(self) -> None:
         task = _make_task(scope=Scope.MEDIUM, complexity=Complexity.HIGH)
         est = estimate_timeout(task, model="sonnet")
-        # 1800 * 1.5 = 2700
         assert est.timeout_s == pytest.approx(2700.0)
 
 
@@ -131,13 +129,11 @@ class TestModelSpeedFactor:
     def test_haiku_faster(self) -> None:
         task = _make_task(scope=Scope.MEDIUM, complexity=Complexity.MEDIUM)
         est = estimate_timeout(task, model="haiku")
-        # 1800 * 1.0 * 0.5 = 900
         assert est.timeout_s == pytest.approx(900.0)
 
     def test_opus_slower(self) -> None:
         task = _make_task(scope=Scope.MEDIUM, complexity=Complexity.MEDIUM)
         est = estimate_timeout(task, model="opus")
-        # 1800 * 1.0 * 1.5 = 2700
         assert est.timeout_s == pytest.approx(2700.0)
 
     def test_unknown_model_defaults_to_1(self) -> None:
@@ -169,7 +165,6 @@ class TestFileCount:
             owned_files=["a.py", "b.py", "c.py"],
         )
         est = estimate_timeout(task, model="sonnet")
-        # 900 * 1.0 * 1.0 + 3*30 = 990
         assert est.timeout_s == pytest.approx(990.0)
 
     def test_no_files(self) -> None:
@@ -361,5 +356,4 @@ class TestEdgeCases:
             owned_files=[f"f{i}.py" for i in range(10)],
         )
         est = estimate_timeout(task, model="sonnet")
-        # 1800 * 1.5 + 10*30 = 2700 + 300 = 3000
         assert est.timeout_s == pytest.approx(3000.0)

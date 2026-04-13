@@ -369,8 +369,7 @@ def override(section: str, overrides: dict[str, Any]) -> None:
     for key, value in overrides.items():
         if not hasattr(target, key):
             raise AttributeError(
-                f"{type(target).__name__} has no field {key!r}. "
-                f"Valid fields: {[f for f in target.__dataclass_fields__]}"
+                f"{type(target).__name__} has no field {key!r}. Valid fields: {list(target.__dataclass_fields__)}"
             )
         current = getattr(target, key)
         # Merge dicts instead of replacing

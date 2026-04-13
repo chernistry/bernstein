@@ -486,7 +486,6 @@ class TestAggregateCostsByRole:
     def test_backend_total(self, tmp_path: Path) -> None:
         archive = _write_archive(tmp_path, _sample_records())
         result = aggregate_costs_by_role(archive)
-        # T-001 (0.05) + T-003 (0.15) = 0.20
         assert result["backend"] == pytest.approx(0.20)
 
     def test_empty_archive(self, tmp_path: Path) -> None:
@@ -517,7 +516,6 @@ class TestAggregateCostsByModel:
     def test_sonnet_total(self, tmp_path: Path) -> None:
         archive = _write_archive(tmp_path, _sample_records())
         result = aggregate_costs_by_model(archive)
-        # T-001 (0.05) + T-004 (0.03) = 0.08
         assert result["sonnet"] == pytest.approx(0.08)
 
     def test_empty_archive(self, tmp_path: Path) -> None:

@@ -471,7 +471,7 @@ class CostTracker:
 
     def spent_by_model(self) -> dict[str, float]:
         """Return cumulative spend by model."""
-        return {model: cost for model, cost in self._spent_by_model.items()}
+        return dict(self._spent_by_model)
 
     # ---- persistence ------------------------------------------------------
 

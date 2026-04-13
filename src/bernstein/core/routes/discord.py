@@ -233,7 +233,7 @@ def _handle_stop(_request: Request, _payload: dict[str, Any]) -> JSONResponse:
     return _ephemeral("Graceful shutdown requested. Bernstein will finish in-flight tasks and exit.")
 
 
-def _handle_cost(request: Request, _payload: dict[str, Any]) -> JSONResponse:
+def _handle_cost(_request: Request, _payload: dict[str, Any]) -> JSONResponse:
     """Handle ``/bernstein cost`` — show cumulative spend report.
 
     Reads cost data from the task store metrics and returns a summary.

@@ -48,8 +48,6 @@ from bernstein.core.git.git_basic import run_git
 if TYPE_CHECKING:
     from pathlib import Path
 
-    pass
-
 logger = logging.getLogger(__name__)
 
 # One lock per session prevents concurrent partial-merge calls for the same

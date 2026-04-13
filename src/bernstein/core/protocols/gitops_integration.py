@@ -92,7 +92,7 @@ class HealthCheck:
     provider: GitOpsProvider
     app_name: str
     healthy: bool
-    details: dict[str, Any] = field(default_factory=lambda: dict[str, Any]())
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------

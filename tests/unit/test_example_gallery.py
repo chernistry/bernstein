@@ -61,67 +61,76 @@ def examples_dir(tmp_path: Path) -> Path:
 
     # Infrastructure plan
     _write_plan(
-        plans_dir, "CI CD Pipeline",
+        plans_dir,
+        "CI CD Pipeline",
         budget="$15",
-        stages=[{
-            "name": "Setup",
-            "steps": [
-                {
-                    "title": "Create workflow",
-                    "role": "devops",
-                    "description": "Set up GitHub Actions",
-                    "scope": "small",
-                    "complexity": "low",
-                    "completion_signals": [{"type": "path_exists", "path": ".github/workflows/ci.yml"}],
-                },
-                {
-                    "title": "Add tests",
-                    "role": "qa",
-                    "description": "Write unit tests",
-                    "scope": "small",
-                    "complexity": "low",
-                    "completion_signals": [{"type": "test_passes", "command": "pytest"}],
-                },
-            ],
-        }],
+        stages=[
+            {
+                "name": "Setup",
+                "steps": [
+                    {
+                        "title": "Create workflow",
+                        "role": "devops",
+                        "description": "Set up GitHub Actions",
+                        "scope": "small",
+                        "complexity": "low",
+                        "completion_signals": [{"type": "path_exists", "path": ".github/workflows/ci.yml"}],
+                    },
+                    {
+                        "title": "Add tests",
+                        "role": "qa",
+                        "description": "Write unit tests",
+                        "scope": "small",
+                        "complexity": "low",
+                        "completion_signals": [{"type": "test_passes", "command": "pytest"}],
+                    },
+                ],
+            }
+        ],
     )
 
     # Backend plan
     _write_plan(
-        plans_dir, "REST API",
+        plans_dir,
+        "REST API",
         budget="$20",
-        stages=[{
-            "name": "Implementation",
-            "steps": [
-                {
-                    "title": "Build API",
-                    "role": "backend",
-                    "description": "Create REST endpoints",
-                    "scope": "medium",
-                    "complexity": "medium",
-                    "completion_signals": [{"type": "path_exists", "path": "src/api.py"}],
-                },
-                {
-                    "title": "Add auth",
-                    "role": "security",
-                    "description": "Add JWT auth",
-                    "scope": "medium",
-                    "complexity": "high",
-                    "completion_signals": [{"type": "command", "run": "pytest"}],
-                },
-            ],
-        }],
+        stages=[
+            {
+                "name": "Implementation",
+                "steps": [
+                    {
+                        "title": "Build API",
+                        "role": "backend",
+                        "description": "Create REST endpoints",
+                        "scope": "medium",
+                        "complexity": "medium",
+                        "completion_signals": [{"type": "path_exists", "path": "src/api.py"}],
+                    },
+                    {
+                        "title": "Add auth",
+                        "role": "security",
+                        "description": "Add JWT auth",
+                        "scope": "medium",
+                        "complexity": "high",
+                        "completion_signals": [{"type": "command", "run": "pytest"}],
+                    },
+                ],
+            }
+        ],
     )
 
     # Simple plan (no stages)
     simple_path = tmp_path / "simple.yaml"
     with open(simple_path, "w") as f:
-        yaml.dump({
-            "name": "Simple Plan",
-            "description": "A minimal plan",
-            "budget": "$5",
-            "goal": "Do something simple",
-        }, f)
+        yaml.dump(
+            {
+                "name": "Simple Plan",
+                "description": "A minimal plan",
+                "budget": "$5",
+                "goal": "Do something simple",
+            },
+            f,
+        )
 
     return tmp_path
 
@@ -136,9 +145,13 @@ class TestExamplePlan:
 
     def test_repr(self) -> None:
         plan = ExamplePlan(
-            name="Test", description="desc", category="backend",
-            difficulty="beginner", estimated_cost_usd=10.0,
-            agent_count=2, plan_path=Path("test.yaml"),
+            name="Test",
+            description="desc",
+            category="backend",
+            difficulty="beginner",
+            estimated_cost_usd=10.0,
+            agent_count=2,
+            plan_path=Path("test.yaml"),
             raw={"name": "Test"},
         )
         r = repr(plan)
@@ -243,74 +256,97 @@ class TestValidateExamplePlan:
 
     def test_invalid_role(self, tmp_path: Path) -> None:
         path = _write_plan(
-            tmp_path, "Bad Role",
-            stages=[{
-                "name": "S1",
-                "steps": [{
-                    "title": "Step",
-                    "role": "nonexistent_role",
-                    "description": "desc",
-                }],
-            }],
+            tmp_path,
+            "Bad Role",
+            stages=[
+                {
+                    "name": "S1",
+                    "steps": [
+                        {
+                            "title": "Step",
+                            "role": "nonexistent_role",
+                            "description": "desc",
+                        }
+                    ],
+                }
+            ],
         )
         errors = validate_example_plan(path)
         assert any("unknown role" in e for e in errors)
 
     def test_invalid_complexity(self, tmp_path: Path) -> None:
         path = _write_plan(
-            tmp_path, "Bad Complexity",
-            stages=[{
-                "name": "S1",
-                "steps": [{
-                    "title": "Step",
-                    "role": "backend",
-                    "description": "desc",
-                    "complexity": "extreme",
-                }],
-            }],
+            tmp_path,
+            "Bad Complexity",
+            stages=[
+                {
+                    "name": "S1",
+                    "steps": [
+                        {
+                            "title": "Step",
+                            "role": "backend",
+                            "description": "desc",
+                            "complexity": "extreme",
+                        }
+                    ],
+                }
+            ],
         )
         errors = validate_example_plan(path)
         assert any("unknown complexity" in e for e in errors)
 
     def test_invalid_scope(self, tmp_path: Path) -> None:
         path = _write_plan(
-            tmp_path, "Bad Scope",
-            stages=[{
-                "name": "S1",
-                "steps": [{
-                    "title": "Step",
-                    "role": "backend",
-                    "description": "desc",
-                    "scope": "massive",
-                }],
-            }],
+            tmp_path,
+            "Bad Scope",
+            stages=[
+                {
+                    "name": "S1",
+                    "steps": [
+                        {
+                            "title": "Step",
+                            "role": "backend",
+                            "description": "desc",
+                            "scope": "massive",
+                        }
+                    ],
+                }
+            ],
         )
         errors = validate_example_plan(path)
         assert any("unknown scope" in e for e in errors)
 
     def test_invalid_signal_type(self, tmp_path: Path) -> None:
         path = _write_plan(
-            tmp_path, "Bad Signal",
-            stages=[{
-                "name": "S1",
-                "steps": [{
-                    "title": "Step",
-                    "role": "backend",
-                    "description": "desc",
-                    "completion_signals": [{"type": "magic_check"}],
-                }],
-            }],
+            tmp_path,
+            "Bad Signal",
+            stages=[
+                {
+                    "name": "S1",
+                    "steps": [
+                        {
+                            "title": "Step",
+                            "role": "backend",
+                            "description": "desc",
+                            "completion_signals": [{"type": "magic_check"}],
+                        }
+                    ],
+                }
+            ],
         )
         errors = validate_example_plan(path)
         assert any("unknown signal type" in e for e in errors)
 
     def test_missing_step_fields(self, tmp_path: Path) -> None:
         path = _write_plan(
-            tmp_path, "Missing Step Fields",
-            stages=[{
-                "name": "S1",
-                "steps": [{"title": "No role or description"}],
-            }],
+            tmp_path,
+            "Missing Step Fields",
+            stages=[
+                {
+                    "name": "S1",
+                    "steps": [{"title": "No role or description"}],
+                }
+            ],
         )
         errors = validate_example_plan(path)
         assert any("role" in e for e in errors)
@@ -397,7 +433,7 @@ class TestExampleGalleryFiltering:
 
     def test_filter_by_difficulty(self, examples_dir: Path) -> None:
         gallery = discover_examples(examples_dir)
-        difficulties = set(e.difficulty for e in gallery.examples)
+        difficulties = {e.difficulty for e in gallery.examples}
         if len(difficulties) < 1:
             pytest.skip("Need difficulties")
         diff = next(iter(difficulties))

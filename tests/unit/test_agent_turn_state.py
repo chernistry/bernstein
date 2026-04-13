@@ -372,7 +372,7 @@ class TestDescribe:
 
     def test_verifying_has_compact_fallback(self, sm: AgentTurnStateMachine) -> None:
         edges = sm.describe(AgentTurnState.VERIFYING)
-        edge_map = {evt: tgt for evt, tgt in edges}
+        edge_map = dict(edges)
         assert "task_completed" in edge_map
         assert "task_failed" in edge_map
         assert "compact_needed" in edge_map

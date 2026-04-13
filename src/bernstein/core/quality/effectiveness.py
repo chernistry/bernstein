@@ -101,7 +101,8 @@ class EffectivenessScorer:
             + (score.retry_score * EFFECTIVENESS_WEIGHTS["retry"])
             + (score.completion_score * EFFECTIVENESS_WEIGHTS["completion"])
         )
-        return replace(score, total=total, grade=self._grade(total))
+        result: EffectivenessScore = replace(score, total=total, grade=self._grade(total))  # type: ignore[assignment]
+        return result
 
     def record(self, score: EffectivenessScore) -> None:
         """Append one effectiveness record to JSONL history."""

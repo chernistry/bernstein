@@ -208,7 +208,7 @@ class TestExtractImports:
     def test_line_numbers(self) -> None:
         source = "import os\n\nimport sys\n"
         imports = _extract_imports(source)
-        line_map = {m: ln for m, ln in imports}
+        line_map = dict(imports)
         assert line_map["os"] == 1
         assert line_map["sys"] == 3
 

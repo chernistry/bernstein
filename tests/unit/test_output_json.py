@@ -90,7 +90,6 @@ class TestOutputOption:
             ctx.ensure_object(dict)
             # The decorator should have already set JSON mode
             # But we need to verify is_json() returns True
-            pass
 
         runner = CliRunner()
         result = runner.invoke(dummy, ["--output", "json"])

@@ -711,7 +711,7 @@ class MetricsCollector:
         passed: bool,
         role: str,
         model: str,
-        provider: str,
+        _provider: str,
         *,
         tenant_id: str = "default",
     ) -> None:
@@ -722,7 +722,7 @@ class MetricsCollector:
             passed: Whether verification passed.
             role: Agent role.
             model: Model used.
-            provider: API provider.
+            _provider: API provider (part of interface).
         """
         # Update task metrics if exists
         if task_id in self._task_metrics:

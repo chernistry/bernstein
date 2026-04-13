@@ -15,8 +15,6 @@ class TestProtocolVersionDetection:
         """MCP library should be importable."""
         try:
             import mcp  # noqa: F401
-
-            assert True
         except ImportError:
             pytest.skip("MCP not installed")
 
@@ -26,9 +24,9 @@ class TestProtocolVersionDetection:
             import mcp
 
             # MCP may not have __version__, check for version info in various places
-            getattr(mcp, "__version__", None) or getattr(mcp, "version", None)
-            # If no version attribute, just check it imports successfully
-            assert mcp is not None
+            version = getattr(mcp, "__version__", None) or getattr(mcp, "version", None)
+            # Verify version is either available or the module at least imported
+            assert version is not None or hasattr(mcp, "__name__")
         except ImportError:
             pytest.skip("MCP not installed")
 
@@ -36,8 +34,6 @@ class TestProtocolVersionDetection:
         """A2A library should be importable if available."""
         try:
             import a2a  # noqa: F401
-
-            assert True
         except ImportError:
             pytest.skip("A2A not installed")
 
@@ -49,7 +45,7 @@ class TestBernsteinProtocolIntegration:
         """Adapters should initialize without error."""
         from bernstein.adapters.base import CLIAdapter
 
-        assert CLIAdapter is not None
+        assert callable(CLIAdapter)
 
     def test_task_model_serialization(self):
         """Task models should serialize correctly."""

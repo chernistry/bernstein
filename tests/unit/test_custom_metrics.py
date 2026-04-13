@@ -20,47 +20,47 @@ from bernstein.core.custom_metrics import (
 
 class TestEvaluateFormula:
     def test_basic_arithmetic(self) -> None:
-        vars = {"a": 10.0, "b": 4.0}
-        assert evaluate_formula("a + b", vars) == pytest.approx(14.0)
-        assert evaluate_formula("a - b", vars) == pytest.approx(6.0)
-        assert evaluate_formula("a * b", vars) == pytest.approx(40.0)
-        assert evaluate_formula("a / b", vars) == pytest.approx(2.5)
+        variables = {"a": 10.0, "b": 4.0}
+        assert evaluate_formula("a + b", variables) == pytest.approx(14.0)
+        assert evaluate_formula("a - b", variables) == pytest.approx(6.0)
+        assert evaluate_formula("a * b", variables) == pytest.approx(40.0)
+        assert evaluate_formula("a / b", variables) == pytest.approx(2.5)
 
     def test_integer_constants(self) -> None:
-        vars: dict[str, float] = {}
-        assert evaluate_formula("3 + 4", vars) == pytest.approx(7.0)
+        variables: dict[str, float] = {}
+        assert evaluate_formula("3 + 4", variables) == pytest.approx(7.0)
 
     def test_float_constants(self) -> None:
-        vars: dict[str, float] = {}
-        assert evaluate_formula("1.5 * 2.0", vars) == pytest.approx(3.0)
+        variables: dict[str, float] = {}
+        assert evaluate_formula("1.5 * 2.0", variables) == pytest.approx(3.0)
 
     def test_nested_parentheses(self) -> None:
-        vars = {"x": 10.0, "y": 2.0}
-        assert evaluate_formula("(x + y) * (x - y)", vars) == pytest.approx(96.0)
+        variables = {"x": 10.0, "y": 2.0}
+        assert evaluate_formula("(x + y) * (x - y)", variables) == pytest.approx(96.0)
 
     def test_division_by_zero_returns_zero(self) -> None:
-        vars = {"a": 5.0, "b": 0.0}
-        assert evaluate_formula("a / b", vars) == pytest.approx(0.0)
+        variables = {"a": 5.0, "b": 0.0}
+        assert evaluate_formula("a / b", variables) == pytest.approx(0.0)
 
     def test_floor_div_by_zero_returns_zero(self) -> None:
-        vars = {"a": 5.0, "b": 0.0}
-        assert evaluate_formula("a // b", vars) == pytest.approx(0.0)
+        variables = {"a": 5.0, "b": 0.0}
+        assert evaluate_formula("a // b", variables) == pytest.approx(0.0)
 
     def test_modulo(self) -> None:
-        vars = {"a": 10.0, "b": 3.0}
-        assert evaluate_formula("a % b", vars) == pytest.approx(1.0)
+        variables = {"a": 10.0, "b": 3.0}
+        assert evaluate_formula("a % b", variables) == pytest.approx(1.0)
 
     def test_power(self) -> None:
-        vars = {"a": 2.0, "b": 8.0}
-        assert evaluate_formula("a ** b", vars) == pytest.approx(256.0)
+        variables = {"a": 2.0, "b": 8.0}
+        assert evaluate_formula("a ** b", variables) == pytest.approx(256.0)
 
     def test_unary_negation(self) -> None:
-        vars = {"a": 5.0}
-        assert evaluate_formula("-a", vars) == pytest.approx(-5.0)
+        variables = {"a": 5.0}
+        assert evaluate_formula("-a", variables) == pytest.approx(-5.0)
 
     def test_unary_pos(self) -> None:
-        vars = {"a": 5.0}
-        assert evaluate_formula("+a", vars) == pytest.approx(5.0)
+        variables = {"a": 5.0}
+        assert evaluate_formula("+a", variables) == pytest.approx(5.0)
 
     def test_unknown_variable_raises(self) -> None:
         with pytest.raises(FormulaError, match="Unknown variable"):
@@ -84,39 +84,39 @@ class TestEvaluateFormula:
 
     def test_code_per_dollar_formula(self) -> None:
         """Validate the canonical example from the task description."""
-        vars = build_variables(extra_vars={"lines_changed": 1500.0, "total_cost": 3.0})
-        result = evaluate_formula("lines_changed / total_cost", vars)
+        variables = build_variables(extra_vars={"lines_changed": 1500.0, "total_cost": 3.0})
+        result = evaluate_formula("lines_changed / total_cost", variables)
         assert result == pytest.approx(500.0)
 
     def test_safe_zero_division_in_efficiency_formula(self) -> None:
-        vars = build_variables(tick_vars={"tasks_completed": 0.0, "tasks_failed": 0.0})
+        variables = build_variables(tick_vars={"tasks_completed": 0.0, "tasks_failed": 0.0})
         # Should not raise — division by 0.001 constant guard
-        result = evaluate_formula("tasks_completed / (tasks_completed + tasks_failed + 0.001)", vars)
+        result = evaluate_formula("tasks_completed / (tasks_completed + tasks_failed + 0.001)", variables)
         assert result == pytest.approx(0.0, abs=1e-3)
 
 
 class TestBuildVariables:
     def test_defaults_are_zero(self) -> None:
-        vars = build_variables()
-        assert vars["tasks_completed"] == pytest.approx(0.0)
-        assert vars["total_cost"] == pytest.approx(0.0)
-        assert vars["lines_changed"] == pytest.approx(0.0)
+        variables = build_variables()
+        assert variables["tasks_completed"] == pytest.approx(0.0)
+        assert variables["total_cost"] == pytest.approx(0.0)
+        assert variables["lines_changed"] == pytest.approx(0.0)
 
     def test_tick_vars_override_defaults(self) -> None:
-        vars = build_variables(tick_vars={"tasks_completed": 42.0})
-        assert vars["tasks_completed"] == pytest.approx(42.0)
+        variables = build_variables(tick_vars={"tasks_completed": 42.0})
+        assert variables["tasks_completed"] == pytest.approx(42.0)
 
     def test_extra_vars_override_defaults(self) -> None:
-        vars = build_variables(extra_vars={"total_cost": 9.99})
-        assert vars["total_cost"] == pytest.approx(9.99)
+        variables = build_variables(extra_vars={"total_cost": 9.99})
+        assert variables["total_cost"] == pytest.approx(9.99)
 
     def test_both_overrides_coexist(self) -> None:
-        vars = build_variables(
+        variables = build_variables(
             tick_vars={"tasks_completed": 10.0},
             extra_vars={"total_cost": 5.0},
         )
-        assert vars["tasks_completed"] == pytest.approx(10.0)
-        assert vars["total_cost"] == pytest.approx(5.0)
+        assert variables["tasks_completed"] == pytest.approx(10.0)
+        assert variables["total_cost"] == pytest.approx(5.0)
 
 
 class TestValidateFormula:

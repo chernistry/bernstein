@@ -225,14 +225,12 @@ def analyze_mcp_usage(
                 MCPToolUsageSummary(
                     server_name=server_name,
                     tool_name=tool_name,
-                    total_calls=tool_counts[(server_name, tool_name)],
+                    total_calls=count,
                     error_count=tool_errors[(server_name, tool_name)],
-                    avg_latency_ms=(
-                        tool_latency_totals[(server_name, tool_name)] / tool_counts[(server_name, tool_name)]
-                    ),
+                    avg_latency_ms=(tool_latency_totals[(server_name, tool_name)] / count),
                     last_used_at=tool_last_used.get((server_name, tool_name)),
                 )
-                for server_name, tool_name in tool_counts
+                for (server_name, tool_name), count in tool_counts.items()
             ),
             key=lambda item: (-item.total_calls, item.server_name, item.tool_name),
         )
@@ -240,7 +238,7 @@ def analyze_mcp_usage(
 
     all_server_names = {
         *installed_servers,
-        *(inventory_server for inventory_server in tool_inventory),
+        *tool_inventory,
         *(tool.server_name for tool in top_tools),
     }
     server_summaries: list[MCPServerUsageSummary] = []

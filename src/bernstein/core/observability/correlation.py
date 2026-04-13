@@ -129,11 +129,11 @@ def set_correlation_id(correlation_id: str) -> None:
         _current_context.set(CorrelationContext(correlation_id=correlation_id, task_id="none"))
 
 
-def set_current_context(context: CorrelationContext) -> None:
-    """Set correlation context in current thread.
+def set_current_context(context: CorrelationContext | None) -> None:
+    """Set or clear the correlation context in the current thread.
 
     Args:
-        context: Context to set.
+        context: Context to set, or ``None`` to clear.
     """
     _current_context.set(context)
 

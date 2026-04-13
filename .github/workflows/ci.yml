@@ -503,7 +503,7 @@ jobs:
   pr-summary:
     name: PR CI summary
     runs-on: ubuntu-latest
-    if: always() && github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request'
     needs: [repo-hygiene, lint, typecheck, test, spelling, dead-code, actionlint, dist-size, sonarcloud]
     timeout-minutes: 5
     permissions:

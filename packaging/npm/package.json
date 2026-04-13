@@ -1,22 +1,26 @@
 {
   "name": "bernstein-orchestrator",
-  "version": "1.4.11",
-  "description": "Declarative agent orchestration for engineering teams (Python wrapper)",
+  "version": "1.6.10",
+  "description": "Declarative agent orchestration for engineering teams. Spawn parallel AI coding agents, verify with tests, commit clean code.",
   "keywords": [
     "ai",
     "agents",
     "orchestration",
     "multi-agent",
     "coding",
-    "cli"
+    "cli",
+    "claude-code",
+    "codex",
+    "gemini-cli",
+    "mcp"
   ],
   "license": "Apache-2.0",
   "author": "Alex Chernysh <alex@alexchernysh.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/alexchernysh/bernstein.git"
+    "url": "https://github.com/chernistry/bernstein.git"
   },
-  "homepage": "https://pypi.org/project/bernstein/",
+  "homepage": "https://github.com/chernistry/bernstein",
   "bin": {
     "bernstein": "index.js"
   },

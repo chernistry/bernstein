@@ -272,10 +272,10 @@ class McpFakeLab:
             status_data=self._status_data,
         )
         # Capture the real class before patching so _make_client doesn't recurse.
-        _RealAsyncClient = httpx.AsyncClient
+        real_async_client = httpx.AsyncClient
 
         def _make_client(*_args: Any, **_kwargs: Any) -> httpx.AsyncClient:
-            return _RealAsyncClient(transport=transport)
+            return real_async_client(transport=transport)
 
         mcp = create_mcp_server(server_url=self._server_url)
         with patch("bernstein.mcp.server.httpx.AsyncClient", side_effect=_make_client):

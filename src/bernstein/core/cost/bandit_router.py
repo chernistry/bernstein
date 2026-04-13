@@ -239,27 +239,27 @@ def _dot(a: list[float], b: list[float]) -> float:
     return sum(x * y for x, y in zip(a, b, strict=False))
 
 
-def _matmul_vec(A: list[list[float]], v: list[float]) -> list[float]:
-    """Multiply matrix ``A`` (n x d) by column vector ``v`` (d,) -> result (n,)."""
-    return [_dot(row, v) for row in A]
+def _matmul_vec(mat: list[list[float]], v: list[float]) -> list[float]:
+    """Multiply matrix ``mat`` (n x d) by column vector ``v`` (d,) -> result (n,)."""
+    return [_dot(row, v) for row in mat]
 
 
-def _inv(A: list[list[float]]) -> list[list[float]]:
-    """Invert square matrix ``A`` via Gauss-Jordan elimination.
+def _inv(mat: list[list[float]]) -> list[list[float]]:
+    """Invert square matrix ``mat`` via Gauss-Jordan elimination.
 
-    Falls back to the identity matrix if ``A`` is singular (shouldn't happen
-    in practice once the diagonal of A stays ≥ 1 due to the identity init).
+    Falls back to the identity matrix if ``mat`` is singular (shouldn't happen
+    in practice once the diagonal stays >= 1 due to the identity init).
 
     Args:
-        A: Square n x n matrix.
+        mat: Square n x n matrix.
 
     Returns:
-        Inverse of ``A``, or identity on failure.
+        Inverse of ``mat``, or identity on failure.
     """
-    n = len(A)
-    # Augment [A | I]
+    n = len(mat)
+    # Augment [mat | I]
     aug: list[list[float]] = [
-        [A[i][j] for j in range(n)] + [1.0 if i == j else 0.0 for j in range(n)] for i in range(n)
+        [mat[i][j] for j in range(n)] + [1.0 if i == j else 0.0 for j in range(n)] for i in range(n)
     ]
     for col in range(n):
         # Partial pivoting
@@ -281,30 +281,30 @@ def _inv(A: list[list[float]]) -> list[list[float]]:
     return [[aug[i][n + j] for j in range(n)] for i in range(n)]
 
 
-def _sherman_morrison_update(A_inv: list[list[float]], x: list[float]) -> list[list[float]]:
+def _sherman_morrison_update(mat_inv: list[list[float]], x: list[float]) -> list[list[float]]:
     """Rank-1 inverse update for ``A + x x^T``.
 
     Args:
-        A_inv: Current inverse matrix.
+        mat_inv: Current inverse matrix.
         x: Feature vector.
 
     Returns:
         Updated inverse matrix.
     """
-    Ax = _matmul_vec(A_inv, x)
-    denom = 1.0 + _dot(x, Ax)
+    mat_x = _matmul_vec(mat_inv, x)
+    denom = 1.0 + _dot(x, mat_x)
     if abs(denom) <= 1e-12:
         logger.warning("BanditPolicy: Sherman-Morrison denominator too small, recomputing inverse")
-        d = len(A_inv)
-        A = _inv(A_inv)
+        d = len(mat_inv)
+        recovered = _inv(mat_inv)
         for i in range(d):
             for j in range(d):
-                A[i][j] += x[i] * x[j]
-        return _inv(A)
+                recovered[i][j] += x[i] * x[j]
+        return _inv(recovered)
 
     updated: list[list[float]] = []
-    for i, row in enumerate(A_inv):
-        updated.append([value - (Ax[i] * Ax[j]) / denom for j, value in enumerate(row)])
+    for i, row in enumerate(mat_inv):
+        updated.append([value - (mat_x[i] * mat_x[j]) / denom for j, value in enumerate(row)])
     return updated
 
 
@@ -448,29 +448,29 @@ def _validate_raw_matrices(
 ) -> tuple[dict[str, object], dict[str, object], dict[str, object]] | None:
     """Validate and extract raw matrix dicts from policy data.
 
-    Returns (raw_A_inv_by_arm, raw_A_by_arm, raw_b_by_arm) or None on invalid data.
+    Returns (raw_inv_by_arm, raw_mat_by_arm, raw_vec_by_arm) or None on invalid data.
     """
-    raw_A_inv = raw_data.get("A_inv")
-    raw_A = raw_data.get("A")
-    raw_b = raw_data.get("b", {})
+    raw_inv = raw_data.get("A_inv")
+    raw_mat = raw_data.get("A")
+    raw_vec = raw_data.get("b", {})
 
-    if raw_A_inv is None and raw_A is None:
+    if raw_inv is None and raw_mat is None:
         logger.info("BanditPolicy: resetting %s because policy matrices are missing", path)
         return None
-    if raw_A_inv is not None and not isinstance(raw_A_inv, dict):
+    if raw_inv is not None and not isinstance(raw_inv, dict):
         logger.info("BanditPolicy: resetting %s because inverse matrices are invalid", path)
         return None
-    if raw_A is not None and not isinstance(raw_A, dict):
+    if raw_mat is not None and not isinstance(raw_mat, dict):
         logger.info("BanditPolicy: resetting %s because legacy matrices are invalid", path)
         return None
-    if not isinstance(raw_b, dict):
+    if not isinstance(raw_vec, dict):
         logger.info("BanditPolicy: resetting %s because policy matrices are invalid", path)
         return None
 
     return (
-        cast("dict[str, object]", raw_A_inv or {}),
-        cast("dict[str, object]", raw_A or {}),
-        cast("dict[str, object]", raw_b),
+        cast("dict[str, object]", raw_inv or {}),
+        cast("dict[str, object]", raw_mat or {}),
+        cast("dict[str, object]", raw_vec),
     )
 
 
@@ -487,26 +487,26 @@ def _load_arm_matrices(
     if validated is None:
         return None
 
-    raw_A_inv_by_arm, raw_A_by_arm, raw_b_by_arm = validated
-    loaded_A_inv: dict[str, list[list[float]]] = {}
-    loaded_b: dict[str, list[float]] = {}
+    raw_inv_by_arm, raw_mat_by_arm, raw_vec_by_arm = validated
+    loaded_inv: dict[str, list[list[float]]] = {}
+    loaded_vec: dict[str, list[float]] = {}
     legacy_loaded = False
 
     for arm in arm_list:
-        raw_matrix = raw_A_inv_by_arm.get(arm)
-        raw_vector = raw_b_by_arm.get(arm)
+        raw_matrix = raw_inv_by_arm.get(arm)
+        raw_vector = raw_vec_by_arm.get(arm)
         if raw_matrix is None:
-            raw_matrix = raw_A_by_arm.get(arm)
+            raw_matrix = raw_mat_by_arm.get(arm)
             if raw_matrix is not None:
                 legacy_loaded = True
         if not _is_matrix(raw_matrix, FEATURE_DIM) or not _is_vector(raw_vector, FEATURE_DIM):
             logger.info("BanditPolicy: resetting %s because arm %s has incompatible dimensions", path, arm)
             return None
         matrix = [[float(value) for value in row] for row in raw_matrix]
-        loaded_A_inv[arm] = matrix if arm in raw_A_inv_by_arm else _inv(matrix)
-        loaded_b[arm] = [float(value) for value in raw_vector]
+        loaded_inv[arm] = matrix if arm in raw_inv_by_arm else _inv(matrix)
+        loaded_vec[arm] = [float(value) for value in raw_vector]
 
-    return loaded_A_inv, loaded_b, legacy_loaded
+    return loaded_inv, loaded_vec, legacy_loaded
 
 
 class BanditPolicy:
@@ -566,10 +566,10 @@ class BanditPolicy:
         scores: list[ArmScore] = []
 
         for arm in self.arms:
-            A_inv = self._A_inv[arm]
-            theta = _matmul_vec(A_inv, self._b[arm])
+            arm_inv = self._A_inv[arm]
+            theta = _matmul_vec(arm_inv, self._b[arm])
             exploit = _dot(theta, x)
-            variance = _dot(x, _matmul_vec(A_inv, x))
+            variance = _dot(x, _matmul_vec(arm_inv, x))
             explore = self.alpha * math.sqrt(max(0.0, variance))
             scores.append(ArmScore(arm=arm, exploit=exploit, explore=explore, total=exploit + explore))
 
@@ -591,9 +591,9 @@ class BanditPolicy:
             self._A_inv[arm] = _identity(d)
             self._b[arm] = [0.0] * d
 
-        A_inv = self._A_inv[arm]
+        current_inv = self._A_inv[arm]
         b = self._b[arm]
-        self._A_inv[arm] = _sherman_morrison_update(A_inv, x)
+        self._A_inv[arm] = _sherman_morrison_update(current_inv, x)
         for i in range(len(x)):
             b[i] += reward * x[i]
 
@@ -655,11 +655,11 @@ class BanditPolicy:
             result = _load_arm_matrices(raw_data, policy.arms, path)
             if result is None:
                 return cls(arms=default_arms)
-            loaded_A_inv, loaded_b, legacy_loaded = result
+            loaded_inv, loaded_vec, legacy_loaded = result
             policy._A_inv.clear()
-            policy._A_inv.update(loaded_A_inv)
+            policy._A_inv.update(loaded_inv)
             policy._b.clear()
-            policy._b.update(loaded_b)
+            policy._b.update(loaded_vec)
             if legacy_loaded:
                 try:
                     policy.save(path)

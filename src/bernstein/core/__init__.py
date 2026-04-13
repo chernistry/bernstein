@@ -271,6 +271,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "log_context": "bernstein.core.observability.log_context",
     "log_redact": "bernstein.core.observability.log_redact",
     "log_search": "bernstein.core.observability.log_search",
+    "log_search_engine": "bernstein.core.observability.log_search_engine",
     "loop_detector": "bernstein.core.observability.loop_detector",
     "mailbox": "bernstein.core.communication.mailbox",
     "manager": "bernstein.core.orchestration.manager",

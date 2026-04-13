@@ -749,12 +749,12 @@ def run(
     # --dry-run: show scheduling plan without executing
     if dry_run:
         _show_dry_run_plan(
-            _workdir=Path.cwd(),
+            workdir=Path.cwd(),
             plan_file=plan_file,
-            _goal=goal,
-            _seed_file=seed_file,
+            goal=goal,
+            seed_file=seed_file,
             model_override=model,
-            _cli=cli,
+            cli=cli,
         )
         return
 

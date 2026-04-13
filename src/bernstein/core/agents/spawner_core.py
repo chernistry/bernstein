@@ -2114,10 +2114,10 @@ class AgentSpawner:
             handle = self._container_mgr.spawn_in_container(
                 session_id=session_id,
                 cmd=self._adapter_cmd_for_container(
-                    _prompt_file=prompt_file,
+                    prompt_file=prompt_file,
                     model_config=model_config,
                     session_id=session_id,
-                    _mcp_config=mcp_config,
+                    mcp_config=mcp_config,
                     adapter=adapter,
                 ),
                 env=container_env,
@@ -2199,10 +2199,10 @@ class AgentSpawner:
                 session_id=session_id,
                 adapter_name=adapter_name,
                 cmd=self._adapter_cmd_for_container(
-                    _prompt_file=prompt_file,
+                    prompt_file=prompt_file,
                     model_config=model_config,
                     session_id=session_id,
-                    _mcp_config=mcp_config,
+                    mcp_config=mcp_config,
                     adapter=adapter,
                 ),
                 env=sandbox_env,

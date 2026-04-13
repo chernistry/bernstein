@@ -103,9 +103,8 @@ def _extract_top_level_symbols(
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 imports.append(alias.name.split(".")[0])
-        elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                imports.append(node.module.split(".")[0])
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imports.append(node.module.split(".")[0])
 
     return classes, functions, imports
 
@@ -133,7 +132,7 @@ def _parse_python_file(filepath: Path) -> FileSummary | None:
         docstring=docstring,
         classes=classes,
         functions=functions,
-        imports=sorted(list(set(imports))),
+        imports=sorted(set(imports)),
     )
 
 

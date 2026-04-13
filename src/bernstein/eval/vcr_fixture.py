@@ -63,7 +63,7 @@ _SHORT_HEX_PATTERN = re.compile(
 
 # Port numbers in URL contexts (high ports only, not 80/443/8080)
 _PORT_PATTERN = re.compile(
-    r"(?:https?://[^/:]+:)(\d{2,5})",
+    r"https?://[^/:]+:(\d{2,5})",
 )
 
 # ---------------------------------------------------------------------------

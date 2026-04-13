@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def should_auto_decompose(
     task: Task,
     decomposed_task_ids: set[str],
-    workdir: Path | None = None,
+    _workdir: Path | None = None,
     force_parallel: bool = False,
 ) -> bool:
     """Return True if a task should be decomposed into subtasks.
@@ -38,7 +38,7 @@ def should_auto_decompose(
     Args:
         task: The task to check.
         decomposed_task_ids: Set of already-decomposed task IDs.
-        workdir: Repository root for coupling analysis (unused, kept for API).
+        _workdir: Repository root for coupling analysis (part of interface).
         force_parallel: If True, enable decomposition logic.
 
     Returns:

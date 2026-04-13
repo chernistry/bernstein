@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING
 from bernstein.core.git.git_basic import run_git
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -60,12 +61,11 @@ def _rmtree_windows_safe(path: Path, max_attempts: int = 3) -> bool:
     if not path.exists():
         return True
 
-    def _onerror(func: object, fpath: str, exc_info: object) -> None:
+    def _onerror(func: Callable[[str], object], fpath: str, exc_info: object) -> None:
         """Handle permission errors by making file writable and retrying."""
         try:
             os.chmod(fpath, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
-            if callable(func):
-                func(fpath)
+            func(fpath)
         except OSError:
             pass  # Give up on this file
 

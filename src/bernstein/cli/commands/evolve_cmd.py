@@ -22,7 +22,7 @@ _SDD_NOT_FOUND_MSG = (
 def _parse_duration(s: str) -> int:
     """Parse a duration string like '2h', '30m', '1h30m' into seconds."""
     total = 0
-    for match in _re.finditer(r"(\d+)\s*(h|m|s)", s.lower()):
+    for match in _re.finditer(r"(\d+)\s*([hms])", s.lower()):
         value = int(match.group(1))
         unit = match.group(2)
         if unit == "h":

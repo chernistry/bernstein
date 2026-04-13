@@ -186,7 +186,7 @@ def file_lesson(
     lessons_path = memory_dir / "lessons.jsonl"
 
     # Normalize inputs
-    tags_lower = sorted(set(t.lower().strip() for t in tags if t.strip()))
+    tags_lower = sorted({t.lower().strip() for t in tags if t.strip()})
     confidence_clamped = max(0.0, min(1.0, confidence))
     now = time.time()
 
@@ -278,7 +278,7 @@ def get_lessons_for_agent(
     if not lessons_path.exists():
         return []
 
-    task_tags_lower = set(t.lower().strip() for t in task_tags if t.strip())
+    task_tags_lower = {t.lower().strip() for t in task_tags if t.strip()}
     if not task_tags_lower:
         return []
 

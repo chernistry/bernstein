@@ -31,7 +31,7 @@ _GROUP_RE = re.compile(
 )
 
 # Matches ##[error] annotations.
-_ERROR_RE = re.compile(r"##\[error\](.+?)$", re.MULTILINE)
+_ERROR_RE = re.compile(r"##\[error\](.+)$", re.MULTILINE)
 
 
 @dataclass
@@ -96,7 +96,7 @@ def _extract_job_name(raw_log: str) -> str:
     Returns:
         Extracted job name, or ``"github_actions"`` as fallback.
     """
-    m = re.search(r"##\[group\]Run\s+(.+?)$", raw_log, re.MULTILINE)
+    m = re.search(r"##\[group\]Run\s+(.+)$", raw_log, re.MULTILINE)
     if m:
         return m.group(1).strip()[:80]
     return "github_actions"

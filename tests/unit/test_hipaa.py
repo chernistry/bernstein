@@ -238,7 +238,7 @@ class TestEncryptionAtRest:
         key_path = tmp_path / "config" / "hipaa-enc-key"
         stat = key_path.stat()
         # 0o600 = owner read/write only
-        assert oct(stat.st_mode)[-3:] == "600"
+        assert oct(stat.st_mode).endswith("600")
 
     def test_ciphertext_differs_from_plaintext(self, tmp_path: Path) -> None:
         key = os.urandom(32)

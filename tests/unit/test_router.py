@@ -779,7 +779,7 @@ class TestPolicyFilter:
         filtered = filter_obj.filter_providers(providers)
 
         assert len(filtered) == 2
-        assert set(p.name for p in filtered) == {"anthropic", "ollama"}
+        assert {p.name for p in filtered} == {"anthropic", "ollama"}
 
     def test_filter_providers_respects_deny_list(self) -> None:
 
@@ -795,7 +795,7 @@ class TestPolicyFilter:
         filtered = filter_obj.filter_providers(providers)
 
         assert len(filtered) == 2
-        assert set(p.name for p in filtered) == {"anthropic", "ollama"}
+        assert {p.name for p in filtered} == {"anthropic", "ollama"}
 
     def test_filter_providers_respects_required_region(self) -> None:
 

@@ -1358,7 +1358,7 @@ def reap_dead_agents(
                         role=session.role,
                         lifetime_seconds=round(runtime, 2),
                         tasks_completed=0,
-                        model=session.model_config.model,
+                        _model=session.model_config.model,
                     )
             with contextlib.suppress(OSError):
                 orch._signal_mgr.clear_signals(session.id)
@@ -1443,7 +1443,7 @@ def reap_dead_agents(
                         role=session.role,
                         lifetime_seconds=round(now - session.spawn_ts, 2),
                         tasks_completed=0,
-                        model=session.model_config.model,
+                        _model=session.model_config.model,
                     )
             # Record provider health failure for reaped agent
             orch._record_provider_health(session, success=False)

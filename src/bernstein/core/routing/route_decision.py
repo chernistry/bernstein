@@ -147,7 +147,7 @@ class RouteDecisionTracker:
 
 
 def format_routing_reasons(
-    task_id: str,
+    _task_id: str,
     adapter: str,
     model: str,
     effort: str,
@@ -159,7 +159,7 @@ def format_routing_reasons(
     """Format human-readable routing reasons.
 
     Args:
-        task_id: Task identifier.
+        _task_id: Task identifier (part of interface).
         adapter: Adapter chosen.
         model: Model chosen.
         effort: Effort level.

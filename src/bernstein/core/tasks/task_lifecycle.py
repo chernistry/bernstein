@@ -702,7 +702,7 @@ def retry_or_fail_task(
 def should_auto_decompose(
     task: Task,
     decomposed_task_ids: set[str],
-    workdir: Path | None = None,
+    _workdir: Path | None = None,
     force_parallel: bool = False,
 ) -> bool:
     """Return True if a task should be decomposed into subtasks.
@@ -718,7 +718,7 @@ def should_auto_decompose(
     Args:
         task: The task to check.
         decomposed_task_ids: Set of already-decomposed task IDs.
-        workdir: Repository root for coupling analysis (unused, kept for API).
+        _workdir: Repository root for coupling analysis (part of interface).
         force_parallel: If True, enable decomposition logic.
 
     Returns:
@@ -932,7 +932,7 @@ def claim_and_spawn_batches(
     batches: list[list[Task]],
     alive_count: int,
     assigned_task_ids: set[str],
-    done_ids: set[str],
+    _done_ids: set[str],
     result: Any,  # TickResult
 ) -> None:
     """Claim tasks and spawn agents for each ready batch.
@@ -946,7 +946,7 @@ def claim_and_spawn_batches(
         batches: Role-grouped task batches from group_by_role.
         alive_count: Current number of alive agents (used to enforce max_agents cap).
         assigned_task_ids: Task IDs already owned by active agents (mutated in-place).
-        done_ids: IDs of already-completed tasks (reserved for future guard use).
+        _done_ids: IDs of already-completed tasks (part of interface).
         result: TickResult accumulator for spawned/error lists.
     """
     if getattr(orch, "is_shutting_down", lambda: False)():
@@ -1207,7 +1207,7 @@ def claim_and_spawn_batches(
             and should_auto_decompose(
                 batch[0],
                 orch._decomposed_task_ids,
-                workdir=orch._workdir,
+                _workdir=orch._workdir,
                 force_parallel=orch._config.force_parallel,
             )
         ):
@@ -1830,11 +1830,11 @@ def _create_approval_pr(
     pr_url = orch._approval_gate.create_pr(
         task,
         worktree_path=worktree_path,
-        session_id=session.id,
+        _session_id=session.id,
         labels=orch._config.pr_labels,
-        role=session.role,
-        model=session.model_config.model,
-        cost_usd=cost_usd,
+        _role=session.role,
+        _model=session.model_config.model,
+        _cost_usd=cost_usd,
         test_summary=test_summary,
     )
     if pr_url:
@@ -2090,7 +2090,7 @@ def _record_agent_lifetime(orch: Any, session: AgentSession, collector: Any) -> 
             role=session.role,
             lifetime_seconds=lifetime,
             tasks_completed=tasks_done,
-            model=session.model_config.model,
+            _model=session.model_config.model,
         )
     except Exception as exc:
         logger.warning("Evolution record_agent_lifetime failed: %s", exc)

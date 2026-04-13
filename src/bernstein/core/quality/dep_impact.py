@@ -158,8 +158,7 @@ def _collect_module_aliases(
         import bernstein.core.foo          # bound as "bernstein.core.foo"
         import bernstein.core.foo as foo   # bound as "foo"
     """
-    aliases: set[str] = {}  # type: ignore[assignment]
-    aliases = set()
+    aliases: set[str] = set()
 
     for node in ast.walk(tree):
         if not isinstance(node, ast.Import):

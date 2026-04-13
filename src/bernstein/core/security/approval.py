@@ -219,12 +219,12 @@ class ApprovalGate:
         task: Task,
         *,
         worktree_path: Path,
-        session_id: str,
+        _session_id: str,
         base_branch: str = "main",
         labels: list[str] | None = None,
-        role: str = "",
-        model: str = "",
-        cost_usd: float = 0.0,
+        _role: str = "",
+        _model: str = "",
+        _cost_usd: float = 0.0,
         test_summary: str = "",
     ) -> str:
         """Push the agent branch and open a GitHub PR.
@@ -237,12 +237,12 @@ class ApprovalGate:
         Args:
             task: The task whose work should become a PR.
             worktree_path: Path to the agent's git worktree.
-            session_id: Agent session ID (used for logging).
+            _session_id: Agent session ID (part of interface).
             base_branch: Target branch for the PR.
             labels: GitHub labels to attach (defaults to ["bernstein", "auto-generated"]).
-            role: Agent role that produced this work (e.g. ``"backend"``).
-            model: Model name used by the agent (e.g. ``"sonnet"``).
-            cost_usd: Approximate cost of the agent run in USD.
+            _role: Agent role (part of interface).
+            _model: Model name (part of interface).
+            _cost_usd: Cost in USD (part of interface).
             test_summary: One-line test result summary (e.g. ``"12 passed, 0 failed"``).
 
         Returns:

@@ -8,12 +8,12 @@ import tempfile
 import time
 from pathlib import Path
 
+from bernstein.core.orchestrator import Orchestrator, OrchestratorConfig
+from bernstein.core.spawner import AgentSpawner
 from fastapi.testclient import TestClient
 
 from bernstein.adapters.mock import MockAgentAdapter
-from bernstein.core.orchestrator import Orchestrator, OrchestratorConfig
 from bernstein.core.server import create_app
-from bernstein.core.spawner import AgentSpawner
 
 
 def setup_benchmark_env():
@@ -77,8 +77,7 @@ def run_benchmark():
         orch._task_to_session.clear()
 
     avg_lat = sum(latencies) / len(latencies)
-    # Sort and pick max for small samples
-    p95_lat = sorted(latencies)[-1]
+    p95_lat = max(latencies)
 
     print("\nResults (100 tasks in backlog):")
     print(f"  Average Tick Latency: {avg_lat:.2f} ms")

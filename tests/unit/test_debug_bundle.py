@@ -97,7 +97,7 @@ class TestRedactTokens:
 
 class TestRedactPasswords:
     def test_password_env(self) -> None:
-        text = "export DATABASE_PASSWORD=hunter2"
+        text = "export DATABASE_PASSWORD=hunter2"  # NOSONAR — test fixture for redaction
         result, count = redact_secrets(text)
         assert "hunter2" not in result
         assert count >= 1

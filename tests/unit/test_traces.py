@@ -307,8 +307,7 @@ class TestReplayPayloadConstruction:
     def test_payload_falls_back_to_trace_model_when_no_override(self) -> None:
         trace = self._make_trace_with_snapshot()
         snapshot = trace.task_snapshots[0]
-        override_model: str | None = None
-        effective_model = override_model or trace.model
+        effective_model = trace.model  # no override, should fall back to trace model
         payload: dict[str, object] = {
             "title": f"[replay] {snapshot.get('title', '')}",
             "description": "",

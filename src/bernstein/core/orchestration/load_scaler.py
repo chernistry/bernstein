@@ -31,7 +31,7 @@ class LoadAdjustmentResult:
     current_memory: float
     current_agents: int
     recommended_agents: int
-    adjustment: int  # Positive = increase, negative = decrease
+    adjustment: int
     reason: str
     timestamp: float
 

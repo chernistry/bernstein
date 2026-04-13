@@ -459,10 +459,13 @@ def test_config_plugins_failure_doesnt_break_entry_points(tmp_path: Path) -> Non
     """Config plugins subsystem failure does not prevent entry-point plugins from loading."""
     fake_ep = _make_fake_entry_point(name="test_ep", plugin=_CollectorPlugin())
 
+    def _raise_yaml_broken(_root: object) -> None:
+        raise RuntimeError("yaml broken")
+
     with patch("bernstein.plugins.manager.entry_points", return_value=[fake_ep]):
         local_pm = PluginManager()
         # Simulate yaml loading failure for config plugins subsystem
-        local_pm._load_config_plugins_subsystem = lambda _root: (_ for _ in ()).throw(RuntimeError("yaml broken"))  # type: ignore[assignment]
+        local_pm._load_config_plugins_subsystem = _raise_yaml_broken  # type: ignore[assignment]
         local_pm.load_from_workdir(tmp_path)
 
     # Entry-point plugin must still be registered

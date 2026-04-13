@@ -44,10 +44,14 @@ def test_generate_progress_bar_image_respects_dimensions() -> None:
     assert image.size == (200, 16)
 
 
+def _raise_no_font(*args: object, **kwargs: object) -> None:
+    raise OSError("no font")
+
+
 def test_load_font_falls_back_to_default_when_truetype_unavailable(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     _load_font.cache_clear()
     fallback = ImageFont.load_default()
-    monkeypatch.setattr("PIL.ImageFont.truetype", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("no font")))
+    monkeypatch.setattr("PIL.ImageFont.truetype", _raise_no_font)
     monkeypatch.setattr("PIL.ImageFont.load_default", lambda: fallback)
 
     font = _load_font(24)

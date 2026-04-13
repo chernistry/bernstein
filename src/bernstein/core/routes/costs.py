@@ -126,8 +126,6 @@ def cost_events(request: Request) -> StreamingResponse:
                 # Pass through heartbeats
                 if "event: heartbeat" in message:
                     yield message
-        except asyncio.CancelledError:
-            raise
         finally:
             sse_bus.unsubscribe(queue)
 

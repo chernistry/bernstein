@@ -605,7 +605,7 @@ class TestHijackerIntegration:
         opportunities = hijacker.scan_for_opportunities()
 
         # Should find at least 3 sources: trial, promo, and unused quota
-        sources_found = set(opp.source for opp in opportunities)
+        sources_found = {opp.source for opp in opportunities}
         assert len(sources_found) >= 2  # At least trial/promo + quota
 
     def test_routes_test_tasks_to_free_tier(self) -> None:

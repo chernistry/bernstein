@@ -1093,7 +1093,7 @@ class GateRunnerCommandsMixin:
                     visit(neighbor)
                 elif neighbor in in_stack:
                     start = stack.index(neighbor)
-                    cycle = tuple([*stack[start:], neighbor])
+                    cycle = (*stack[start:], neighbor)
                     if changed_modules.intersection(cycle):
                         cycles.add(cycle)
             stack.pop()

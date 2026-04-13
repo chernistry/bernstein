@@ -282,7 +282,7 @@ class TestGenerateAlerts:
     def test_improvement_no_alert(self) -> None:
         history = [
             _snap(run_id="r1", lint_errors=20),
-            _snap(run_id="r2", lint_errors=10),  # 50% decrease = improvement
+            _snap(run_id="r2", lint_errors=10),
         ]
         alerts = generate_alerts(history)
         lint_alerts = [a for a in alerts if a.metric_name == "lint_errors"]

@@ -114,7 +114,7 @@ class TestContextManagement:
 
     def test_set_correlation_id_creates_context(self) -> None:
         # Reset context first
-        set_current_context(None)  # type: ignore[arg-type]
+        set_current_context(None)
         set_correlation_id("manual-id")
         ctx = get_current_context()
         assert ctx is not None
@@ -152,7 +152,7 @@ class TestCorrelationFilter:
         assert record.task_id == "T-filter-test"  # type: ignore[attr-defined]
 
     def test_defaults_to_none_without_context(self) -> None:
-        set_current_context(None)  # type: ignore[arg-type]
+        set_current_context(None)
         f = CorrelationFilter()
         record = logging.LogRecord(
             name="test",

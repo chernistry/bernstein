@@ -197,7 +197,7 @@ class TestAppInstantiation:
 
     def test_app_can_be_created(self) -> None:
         app = BernsteinApp()
-        assert app is not None
+        assert isinstance(app, BernsteinApp)
         assert app.TITLE == "Bernstein"
 
     def test_app_custom_interval(self) -> None:

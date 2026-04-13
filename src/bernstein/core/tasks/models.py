@@ -230,7 +230,7 @@ class Task:
     title: str
     description: str
     role: str  # Which specialist role
-    priority: int = 2  # 1=critical, 2=normal, 3=nice-to-have
+    priority: int = 2
     scope: Scope = Scope.MEDIUM
     complexity: Complexity = Complexity.MEDIUM
     estimated_minutes: int = 30

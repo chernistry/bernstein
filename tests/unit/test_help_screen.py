@@ -15,7 +15,7 @@ class TestHelpScreen:
         """Test help screen can be created."""
         screen = HelpScreen()
 
-        assert screen is not None
+        assert isinstance(screen, HelpScreen)
 
     def test_help_screen_bindings(self) -> None:
         """Test help screen has correct bindings."""

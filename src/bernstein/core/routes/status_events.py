@@ -78,8 +78,6 @@ def sse_events(request: Request) -> StreamingResponse:
                     break
                 sse_bus.mark_read(queue)
                 yield message
-        except asyncio.CancelledError:
-            raise
         finally:
             sse_bus.unsubscribe(queue)
 

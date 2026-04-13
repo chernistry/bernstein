@@ -469,6 +469,12 @@ class _RichGroup(click.Group):
 )
 @click.option("--verbose", "-v", is_flag=True, default=False, help="Show debug-level output.")
 @click.option("--quiet", "-q", is_flag=True, default=False, help="Suppress all non-error output.")
+@click.option(
+    "--auto-pr",
+    is_flag=True,
+    default=False,
+    help="Automatically create a GitHub PR when all tasks complete.",
+)
 @click.pass_context
 def cli(
     ctx: click.Context,
@@ -494,6 +500,7 @@ def cli(
     auto_approve: bool,
     verbose: bool,
     quiet: bool,
+    auto_pr: bool,
 ) -> None:
     """Declarative agent orchestration for engineering teams."""
     setup_json_logging()
@@ -661,6 +668,7 @@ def cli(
         ab_test=False,
         dry_run=False,
         profile=False,
+        auto_pr=auto_pr,
     )
 
 

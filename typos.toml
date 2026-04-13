@@ -2,6 +2,8 @@
 extend-ignore-re = [
     # Test files intentionally use truncated strings to simulate partial writes
     "Truncat",
+    # Base64-encoded JWT tokens contain fragments that look like typos
+    "eyJ[A-Za-z0-9+/=._-]+",
 ]
 
 [default.extend-words]

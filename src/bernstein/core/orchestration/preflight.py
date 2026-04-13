@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 console = Console()
 
+
 # Use ASCII-safe symbols on Windows with legacy encoding
 def _safe_symbol(unicode_char: str, ascii_fallback: str) -> str:
     """Return unicode_char if encodable, else ascii_fallback."""
@@ -29,6 +30,7 @@ def _safe_symbol(unicode_char: str, ascii_fallback: str) -> str:
         except (UnicodeEncodeError, LookupError):
             return ascii_fallback
     return unicode_char
+
 
 _CHECK = _safe_symbol("✓", "+")
 _ARROW = _safe_symbol("↳", "->")

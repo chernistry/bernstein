@@ -657,9 +657,7 @@ def _render_prompt(
         if prompt_optimizer is not None:
             try:
                 task_id = tasks[0].id if tasks else ""
-                _optimizer_assignment = prompt_optimizer.assign_variant(
-                    role=role, task_id=task_id
-                )
+                _optimizer_assignment = prompt_optimizer.assign_variant(role=role, task_id=task_id)
                 optimizer_override = _optimizer_assignment.content_override
                 if optimizer_override:
                     logger.debug(

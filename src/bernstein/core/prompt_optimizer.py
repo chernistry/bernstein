@@ -67,9 +67,9 @@ _DEFAULT_MIN_SAMPLE: int = 10
 class SprtDecision(Enum):
     """Outcome of a Sequential Probability Ratio Test."""
 
-    CONTINUE = "continue"       # Insufficient evidence — keep collecting
+    CONTINUE = "continue"  # Insufficient evidence — keep collecting
     PROMOTE_CHALLENGER = "promote_challenger"  # Challenger is significantly better
-    KEEP_CONTROL = "keep_control"   # Challenger is not better — revert to control
+    KEEP_CONTROL = "keep_control"  # Challenger is not better — revert to control
     MAX_SAMPLE_REACHED = "max_sample_reached"  # Forced decision from sample cap
 
 
@@ -125,12 +125,12 @@ def _sprt_decide(
         return SprtDecision.KEEP_CONTROL
 
     # Estimated success rates with Laplace smoothing to avoid log(0).
-    p0 = (control_successes + 1) / (control_obs + 2)      # control rate
-    p1_hyp = min(p0 + cfg.min_effect_size, 1.0 - 1e-9)    # H1: challenger beats by delta
+    p0 = (control_successes + 1) / (control_obs + 2)  # control rate
+    p1_hyp = min(p0 + cfg.min_effect_size, 1.0 - 1e-9)  # H1: challenger beats by delta
 
     # SPRT decision boundaries (log scale).
-    log_A = math.log((1.0 - cfg.beta) / cfg.alpha)    # upper boundary → promote challenger
-    log_B = math.log(cfg.beta / (1.0 - cfg.alpha))    # lower boundary → keep control
+    log_A = math.log((1.0 - cfg.beta) / cfg.alpha)  # upper boundary → promote challenger
+    log_B = math.log(cfg.beta / (1.0 - cfg.alpha))  # lower boundary → keep control
 
     # Compute log-likelihood ratio for the challenger arm.
     llr = 0.0
@@ -627,7 +627,7 @@ class PromptOptimizer:
         control_version: int = rs["active_version"]
         challenger_version: int = rs["challenger_version"]
 
-        if decision in (SprtDecision.PROMOTE_CHALLENGER, SprtDecision.MAX_SAMPLE_REACHED): # noqa: SIM102
+        if decision in (SprtDecision.PROMOTE_CHALLENGER, SprtDecision.MAX_SAMPLE_REACHED):  # noqa: SIM102
             # Check raw rates when max sample is reached
             if decision == SprtDecision.MAX_SAMPLE_REACHED:
                 c_rate = rs["challenger_metrics"]["successes"] / max(rs["challenger_metrics"]["observations"], 1)
@@ -676,8 +676,8 @@ class PromptOptimizer:
                 "challenger_version": challenger_version,
                 "control_obs": rs["control_metrics"]["observations"],
                 "control_sr": round(
-                    rs["control_metrics"]["successes"]
-                    / max(rs["control_metrics"]["observations"], 1), 4,
+                    rs["control_metrics"]["successes"] / max(rs["control_metrics"]["observations"], 1),
+                    4,
                 ),
                 "challenger_obs": rs["challenger_metrics"]["observations"],
                 "challenger_sr": round(

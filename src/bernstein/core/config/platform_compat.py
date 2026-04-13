@@ -420,7 +420,9 @@ def _win_taskkill(pid: int, *, force: bool = False, tree: bool = False) -> bool:
         result = subprocess.run(
             ["powershell", "-NoProfile", "-Command", ps_cmd],
             capture_output=True,
-            text=True, encoding="utf-8", errors="replace",
+            text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
         # PowerShell returns 0 even if process doesn't exist, so verify

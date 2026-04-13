@@ -209,9 +209,7 @@ def _matches_github_workflow_run(event: TriggerEvent, trigger: TriggerConfig) ->
     if workflow_names and event.metadata.get("workflow_name") not in workflow_names:
         return False
     exclude_workflow_names = filters.get("exclude_workflow_names", [])
-    if event.metadata.get("workflow_name") in exclude_workflow_names:
-        return False
-    return True
+    return event.metadata.get("workflow_name") not in exclude_workflow_names
 
 
 def _matches_slack(event: TriggerEvent, trigger: TriggerConfig) -> bool:
@@ -223,9 +221,7 @@ def _matches_slack(event: TriggerEvent, trigger: TriggerConfig) -> bool:
     if filters.get("mention_required") and event.message and "@bernstein" not in event.message:
         return False
     msg_pattern = filters.get("message_pattern")
-    if msg_pattern and event.message and not re.search(msg_pattern, event.message):
-        return False
-    return True
+    return not (msg_pattern and event.message and not re.search(msg_pattern, event.message))
 
 
 def _matches_file_watch(event: TriggerEvent, trigger: TriggerConfig) -> bool:
@@ -238,9 +234,7 @@ def _matches_file_watch(event: TriggerEvent, trigger: TriggerConfig) -> bool:
     if exclude_patterns and event.changed_files and _exclude_all_paths(event.changed_files, exclude_patterns):
         return False
     allowed_events = filters.get("events", [])
-    if allowed_events and event.metadata.get("event_type") not in allowed_events:
-        return False
-    return True
+    return not (allowed_events and event.metadata.get("event_type") not in allowed_events)
 
 
 def _matches_webhook(event: TriggerEvent, trigger: TriggerConfig) -> bool:
@@ -254,10 +248,7 @@ def _matches_webhook(event: TriggerEvent, trigger: TriggerConfig) -> bool:
         return False
     header_filters: dict[str, str] = filters.get("headers", {})
     request_headers: dict[str, str] = event.metadata.get("request_headers", {})
-    for key, expected in header_filters.items():
-        if request_headers.get(key, "") != expected:
-            return False
-    return True
+    return all(request_headers.get(key, "") == expected for key, expected in header_filters.items())
 
 
 # ---------------------------------------------------------------------------

@@ -721,6 +721,10 @@ def run(
     if auto_pr:
         os.environ["BERNSTEIN_AUTO_PR"] = "1"
 
+    # Propagate auto-PR flag so the orchestrator creates a PR when all tasks complete
+    if auto_pr:
+        os.environ["BERNSTEIN_AUTO_PR"] = "1"
+
     _configure_quality_gate_bypass(
         goal=goal,
         seed_file=seed_file,

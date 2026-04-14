@@ -22,9 +22,20 @@ fi
 # Install pipx if not present
 if ! command -v pipx >/dev/null 2>&1; then
   echo "Installing pipx..."
-  python3 -m pip install --user pipx
-  python3 -m pipx ensurepath
-  export PATH="$PATH:~/.local/bin"
+  if [ "$OS" = "darwin" ]; then
+    # Use Homebrew to install pipx on macOS
+    if ! command -v brew >/dev/null 2>&1; then
+      echo "Error: Homebrew is not installed. Install Homebrew first: https://brew.sh/"
+      exit 1
+    fi
+    brew install pipx
+    pipx ensurepath
+  else
+    # Use pip to install pipx on other systems
+    python3 -m pip install --user pipx
+    python3 -m pipx ensurepath
+    export PATH="$PATH:~/.local/bin"
+  fi
 fi
 
 # Install Bernstein

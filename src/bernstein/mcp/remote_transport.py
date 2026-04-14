@@ -624,7 +624,6 @@ def create_asgi_app(
                 elif msg["type"] == "lifespan.shutdown":
                     await send({"type": "lifespan.shutdown.complete"})
                     return
-            return
 
         if scope["type"] != "http":
             return

@@ -1,0 +1,218 @@
+---
+id: rt-001-routine-trigger-source
+title: "rt-001 — Claude Code Routines as Bernstein trigger source"
+status: open
+type: feat
+priority: 1
+scope: large
+complexity: high
+role: backend
+model: auto
+effort: high
+estimated_minutes: 240
+depends_on: []
+blocks: [rt-002-routine-offload-adapter, rt-003-routine-scenario-bridge]
+tags: [routines, claude-code, triggers, integration, cloud, enterprise]
+janitor_signals:
+  - tests_pass
+  - lint_clean
+  - types_clean
+context_files:
+  - src/bernstein/core/trigger_sources/
+  - src/bernstein/adapters/claude.py
+  - src/bernstein/core/server/api_endpoints.py
+  - src/bernstein/mcp/server.py
+  - src/bernstein/core/config/defaults.py
+affected_paths:
+  - src/bernstein/core/trigger_sources/routine_trigger.py
+  - src/bernstein/core/trigger_sources/routine_webhook.py
+  - src/bernstein/core/config/routine_config.py
+  - tests/unit/test_routine_trigger.py
+  - tests/unit/test_routine_webhook.py
+  - docs/routines-integration.md
+---
+
+## Goal
+
+Enable Claude Code Routines to trigger Bernstein orchestration runs — turning
+Routines into lightweight cloud-hosted event receivers that delegate complex
+multi-agent work to Bernstein. A single Routine trigger (GitHub PR opened,
+schedule fires, API call) spawns a full Bernstein orchestration with parallel
+agents, quality gates, and cost-aware model routing instead of running everything
+in one Claude session.
+
+## Background — What Are Routines?
+
+Claude Code Routines (research preview, April 2026) are cloud-hosted, trigger-driven
+Claude Code sessions on Anthropic infrastructure. Three trigger types:
+
+1. **Scheduled** — cron-like (hourly, daily, weekly, custom cron via CLI)
+2. **API** — HTTP POST to `https://api.anthropic.com/v1/claude_code/routines/{trigger_id}/fire`
+   with Bearer token, optional `text` payload. Returns `{claude_code_session_id, claude_code_session_url}`.
+3. **GitHub** — webhooks on PR, push, issue, check_run, workflow_run, release, etc.
+   Filters: author, title, body, base/head branch, labels, draft, merged, fork.
+
+Routines run on Anthropic cloud, clone repos, push `claude/` prefixed branches.
+They have MCP connector access and can run shell commands.
+
+**Key limitation**: One Claude session per trigger event. No multi-agent parallelism,
+no quality gates, no model routing. This is where Bernstein fills the gap.
+
+## Design
+
+### Architecture: Routine → Bernstein Pipeline
+
+```
+┌─────────────────────┐
+│  Routine Trigger     │  (GitHub PR, schedule, API call)
+│  (Anthropic Cloud)   │
+└──────────┬──────────┘
+           │ fires Routine session
+           ▼
+┌─────────────────────┐
+│  Routine Prompt      │  "Call Bernstein with this task..."
+│  (single Claude      │   POST to Bernstein task server
+│   session)           │   via MCP or curl
+└──────────┬──────────┘
+           │ HTTP POST /tasks or MCP bernstein_run
+           ▼
+┌─────────────────────┐
+│  Bernstein           │  Decomposes → parallel agents → quality gates → merge
+│  (local or CF cloud) │  Multiple models, 21 adapters, git worktrees
+└─────────────────────┘
+```
+
+### Implementation Steps
+
+#### 1. RoutineTriggerSource class
+
+New trigger source at `src/bernstein/core/trigger_sources/routine_trigger.py`:
+
+```python
+@dataclass
+class RoutineTriggerConfig:
+    """Configuration for receiving Routine-initiated tasks."""
+    enabled: bool = False
+    webhook_port: int = 8053  # separate from task server (8052)
+    webhook_path: str = "/hooks/routine"
+    auth_token: str = ""  # shared secret for verifying Routine calls
+    default_plan: str | None = None  # optional plan.yaml to use
+    auto_decompose: bool = True  # decompose goal into tasks
+    github_context_extraction: bool = True  # extract PR/issue context from payload
+
+class RoutineTriggerSource:
+    """Listens for incoming webhook calls from Claude Code Routines."""
+
+    async def start(self, config: RoutineTriggerConfig) -> None: ...
+    async def handle_webhook(self, request: web.Request) -> web.Response: ...
+    def _extract_github_context(self, payload: dict) -> TaskContext: ...
+    def _map_routine_event_to_tasks(self, context: TaskContext) -> list[TaskSpec]: ...
+```
+
+The webhook receives POST payloads from a Routine's prompt execution. The Routine
+is configured with a prompt like:
+
+```
+When triggered, call the Bernstein orchestrator at {BERNSTEIN_URL}/hooks/routine
+with the event context. Bernstein will handle multi-agent decomposition.
+```
+
+Or better: The Routine's MCP connectors include the Bernstein MCP server, so it
+can call `bernstein_run(goal="Review PR #123 for security, performance, and style")`.
+
+#### 2. Routine prompt templates
+
+Create templates at `templates/routines/` that users can copy into their Routine prompts:
+
+- `pr-review.md` — Comprehensive PR review with Bernstein's multi-role system
+  (security reviewer + performance reviewer + style reviewer in parallel)
+- `nightly-maintenance.md` — Backlog grooming, dependency updates, stale branch cleanup
+- `deploy-verification.md` — Post-deploy smoke tests via Bernstein agents
+- `issue-triage.md` — Auto-label, assign, decompose new issues into tasks
+- `docs-drift.md` — Detect and fix documentation drift after merges
+
+Each template includes the Bernstein MCP server connection config and structured
+instructions for the Routine to delegate to Bernstein.
+
+#### 3. GitHub context extraction
+
+When a Routine fires from a GitHub event, extract rich context:
+
+```python
+@dataclass
+class GitHubRoutineContext:
+    event_type: str  # "pull_request.opened", "push", "issues.opened"
+    repo: str
+    ref: str | None
+    pr_number: int | None
+    pr_title: str | None
+    pr_body: str | None
+    pr_diff_url: str | None
+    issue_number: int | None
+    issue_title: str | None
+    labels: list[str]
+    author: str
+    changed_files: list[str]
+```
+
+This context feeds into Bernstein's task decomposition. A PR review becomes:
+- Task 1: Security review (role=security, files=changed_files)
+- Task 2: Performance review (role=backend, focus=perf)
+- Task 3: Style review (role=reviewer)
+- Task 4: Test coverage check (role=qa)
+
+All running in parallel, each in their own git worktree, with quality gates.
+
+#### 4. Configuration in bernstein.yaml
+
+```yaml
+trigger_sources:
+  routine:
+    enabled: true
+    webhook_port: 8053
+    auth_token: ${ROUTINE_WEBHOOK_TOKEN}
+    default_roles: [reviewer, security, qa]
+    auto_decompose: true
+    github_context_extraction: true
+    templates_dir: templates/routines/
+```
+
+#### 5. Bernstein CLI integration
+
+```bash
+# Generate a Routine prompt template
+bernstein routine template pr-review --output routine-prompt.md
+
+# Show Routine setup instructions
+bernstein routine setup --trigger github --event pull_request.opened
+
+# Test webhook locally
+bernstein routine test --payload '{"event": "pull_request.opened", "pr": 123}'
+```
+
+### Why This Matters
+
+**For enterprise users**: Routines provide the cloud trigger layer (no server to maintain),
+Bernstein provides the multi-agent orchestration layer (parallel work, quality gates,
+cost control). Together they form a zero-infrastructure CI/CD AI pipeline.
+
+**For individual users**: Set up a Routine once (e.g., "review every PR"), Bernstein
+handles the complex work with multiple reviewers in parallel — something a single
+Routine session can't do.
+
+### Testing
+
+- Unit tests for RoutineTriggerSource webhook handling
+- Unit tests for GitHub context extraction from different event types
+- Integration test: mock Routine webhook → Bernstein task creation → agent assignment
+- E2E test: actual Routine API call → Bernstein orchestration (requires Pro plan)
+
+### Acceptance Criteria
+
+- [ ] RoutineTriggerSource class handles webhook POST from Routine sessions
+- [ ] GitHub event context correctly extracted and mapped to Bernstein tasks
+- [ ] 5 Routine prompt templates ready for copy-paste into claude.ai/code/routines
+- [ ] bernstein.yaml config section documented
+- [ ] `bernstein routine template` CLI command works
+- [ ] Tests cover all GitHub event types (PR, push, issue, check_run)
+- [ ] Documentation page at docs/routines-integration.md

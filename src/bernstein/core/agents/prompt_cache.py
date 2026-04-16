@@ -116,19 +116,23 @@ def mark_cacheable_sections(
         static_parts.append(extra_static)
 
     if static_parts:
-        blocks.append(PromptBlock(
-            content="\n\n".join(static_parts),
-            cacheable=True,
-            label="system_prefix",
-        ))
+        blocks.append(
+            PromptBlock(
+                content="\n\n".join(static_parts),
+                cacheable=True,
+                label="system_prefix",
+            )
+        )
 
     # Dynamic suffix — NOT cacheable (changes per task)
     if task_instructions:
-        blocks.append(PromptBlock(
-            content=task_instructions,
-            cacheable=False,
-            label="task_instructions",
-        ))
+        blocks.append(
+            PromptBlock(
+                content=task_instructions,
+                cacheable=False,
+                label="task_instructions",
+            )
+        )
 
     return blocks
 

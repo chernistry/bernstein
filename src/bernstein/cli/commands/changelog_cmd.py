@@ -248,12 +248,13 @@ _CTYPE_COLORS: dict[str, str] = {"feat": "green", "fix": "yellow"}
 
 def _write_changelog_file(output_path: str, text: str, entry_count: int, version_label: str) -> None:
     """Write changelog text to a file, prepending if an existing changelog header is found."""
-    out = Path(output_path).resolve()
-    # Validate the resolved path stays within the current working directory to
-    # prevent path-traversal attacks (S2083).
+    # Sanitize: resolve relative to CWD and reject any path that escapes it (S2083).
     cwd = Path.cwd().resolve()
-    if not (out == cwd or cwd in out.parents):
+    candidate = (cwd / output_path).resolve()
+    if not str(candidate).startswith(str(cwd)):
         raise click.ClickException(f"Output path '{output_path}' resolves outside the working directory.")
+    # Use the sanitized, CWD-anchored path — never the raw user string.
+    out = candidate
     if out.exists():
         existing = out.read_text()
         if existing.startswith("# Changelog"):

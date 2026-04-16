@@ -5,6 +5,8 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+from pytest import approx
+
 from bernstein.core.communication.bulletin_board import BulletinBoard, BulletinMessage
 
 
@@ -44,7 +46,7 @@ class TestConfidenceField:
             content="test",
             timestamp=time.time(),
         )
-        assert msg.confidence == 0.5
+        assert msg.confidence == approx(0.5)
 
     def test_custom_confidence(self) -> None:
         msg = BulletinMessage(
@@ -56,7 +58,7 @@ class TestConfidenceField:
             timestamp=time.time(),
             confidence=0.95,
         )
-        assert msg.confidence == 0.95
+        assert msg.confidence == approx(0.95)
 
     def test_confidence_in_roundtrip(self) -> None:
         msg = BulletinMessage(
@@ -70,7 +72,7 @@ class TestConfidenceField:
         )
         d = msg.to_dict()
         restored = BulletinMessage.from_dict(d)
-        assert restored.confidence == 0.8
+        assert restored.confidence == approx(0.8)
 
 
 class TestScopeFiltering:
@@ -164,7 +166,7 @@ class TestConfidenceDecay:
         board._messages[msg.id].confidence = 1.0
 
         board.apply_confidence_decay(decay_rate=0.9)
-        assert board._messages[msg.id].confidence == 0.9
+        assert board._messages[msg.id].confidence == approx(0.9)
 
     def test_decay_respects_floor(self, tmp_path: Path) -> None:
         board = BulletinBoard(tmp_path)
@@ -172,7 +174,7 @@ class TestConfidenceDecay:
         board._messages[msg.id].confidence = 0.05
 
         board.apply_confidence_decay(decay_rate=0.5, min_confidence=0.1)
-        assert board._messages[msg.id].confidence == 0.1
+        assert board._messages[msg.id].confidence == approx(0.1)
 
     def test_multiple_decay_rounds(self, tmp_path: Path) -> None:
         board = BulletinBoard(tmp_path)
@@ -248,7 +250,7 @@ class TestBackwardCompatibility:
             "expires_at": None,
         }
         msg = BulletinMessage.from_dict(old_data)
-        assert msg.confidence == 0.5
+        assert msg.confidence == approx(0.5)
         assert msg.scope == []
         assert msg.source_model == ""
 
@@ -267,7 +269,7 @@ class TestBackwardCompatibility:
             "source_model": "claude-opus-4-20250514",
         }
         msg = BulletinMessage.from_dict(new_data)
-        assert msg.confidence == 0.9
+        assert msg.confidence == approx(0.9)
         assert msg.scope == ["src/foo.py"]
         assert msg.source_model == "claude-opus-4-20250514"
 
@@ -280,7 +282,7 @@ class TestBackwardCompatibility:
             content="test",
             timestamp=time.time(),
         )
-        assert msg.confidence == 0.5
+        assert msg.confidence == approx(0.5)
         assert msg.scope == []
         assert msg.source_model == ""
 
@@ -305,5 +307,5 @@ class TestBackwardCompatibility:
         board = BulletinBoard(tmp_path)
         msgs = board.get_messages()
         assert len(msgs) == 1
-        assert msgs[0].confidence == 0.5
+        assert msgs[0].confidence == approx(0.5)
         assert msgs[0].scope == []

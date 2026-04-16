@@ -38,13 +38,13 @@ def _outcome(
 class TestPerStepSuccessRate:
     def test_empty_tracker(self) -> None:
         tracker = CompoundErrorTracker()
-        assert tracker.per_step_success_rate() == 0.0
+        assert tracker.per_step_success_rate() == pytest.approx(0.0)
 
     def test_all_success(self) -> None:
         tracker = CompoundErrorTracker()
         for _ in range(5):
             tracker.record(_outcome(success=True))
-        assert tracker.per_step_success_rate() == 1.0
+        assert tracker.per_step_success_rate() == pytest.approx(1.0)
 
     def test_known_rate(self) -> None:
         tracker = CompoundErrorTracker()
@@ -56,7 +56,7 @@ class TestPerStepSuccessRate:
 class TestCompoundSuccessRate:
     def test_empty_tracker(self) -> None:
         tracker = CompoundErrorTracker()
-        assert tracker.compound_success_rate() == 0.0
+        assert tracker.compound_success_rate() == pytest.approx(0.0)
 
     def test_85_pct_10_steps(self) -> None:
         """85% per step over 10 steps -> ~19.7%."""
@@ -85,7 +85,7 @@ class TestCompoundSuccessRate:
 class TestAvgStepCount:
     def test_empty_tracker(self) -> None:
         tracker = CompoundErrorTracker()
-        assert tracker.avg_step_count() == 1.0
+        assert tracker.avg_step_count() == pytest.approx(1.0)
 
     def test_known_average(self) -> None:
         tracker = CompoundErrorTracker()
@@ -207,4 +207,4 @@ class TestToSummary:
         tracker = CompoundErrorTracker()
         summary = tracker.to_summary()
         assert summary["total_outcomes"] == 0
-        assert summary["per_step_success_rate"] == 0.0
+        assert summary["per_step_success_rate"] == pytest.approx(0.0)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pytest import approx
+
 from bernstein.core.observability.otel_conventions import (
     ATTR_AGENT_MODEL,
     ATTR_AGENT_NAME,
@@ -163,7 +165,7 @@ class TestChaining:
 
     def test_with_cost(self) -> None:
         sa = SpanAttributes.for_task(task_id="t-40").with_cost(0.123456789)
-        assert sa.attrs[ATTR_COST_USD] == 0.123457  # rounded to 6 decimals
+        assert sa.attrs[ATTR_COST_USD] == approx(0.123457)  # rounded to 6 decimals
 
     def test_with_steps(self) -> None:
         sa = SpanAttributes.for_task(task_id="t-41").with_steps(42)
@@ -180,7 +182,7 @@ class TestChaining:
             .with_cost(1.5)
             .with_steps(10)
         )
-        assert sa.attrs[ATTR_COST_USD] == 1.5
+        assert sa.attrs[ATTR_COST_USD] == approx(1.5)
         assert sa.attrs[ATTR_STEP_COUNT] == 10
         # Original keys still present
         assert sa.attrs[ATTR_AGENT_NAME] == "a"

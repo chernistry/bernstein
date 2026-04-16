@@ -49,7 +49,7 @@ class SSEEvent:
     timestamp: float = 0.0
 
     def __post_init__(self) -> None:
-        if self.timestamp == 0.0:
+        if self.timestamp == 0:
             self.timestamp = time.time()
 
     def to_sse(self) -> str:

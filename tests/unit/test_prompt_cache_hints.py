@@ -7,6 +7,8 @@ cache savings tracking in CostTracker.
 
 from __future__ import annotations
 
+from pytest import approx
+
 from bernstein.adapters.claude import build_cacheable_system_blocks
 from bernstein.core.agents.spawner_prompt_cache import CacheableBlock, mark_cacheable_prefix
 from bernstein.core.cost.cost_tracker import CostTracker, TokenUsage
@@ -178,7 +180,7 @@ class TestCostTrackerCacheMetrics:
             agent_id="agent-1",
             task_id="task-1",
         )
-        assert tracker.cache_savings_usd() == 0.0
+        assert tracker.cache_savings_usd() == approx(0.0)
 
     def test_cache_savings_in_report(self) -> None:
         """The RunCostReport should include cache_savings_usd."""
@@ -204,7 +206,7 @@ class TestCostTrackerCacheMetrics:
         report = tracker.report()
         d = report.to_dict()
         assert "cache_savings_usd" in d
-        assert d["cache_savings_usd"] == 0.0
+        assert d["cache_savings_usd"] == approx(0.0)
 
     def test_token_usage_cache_fields(self) -> None:
         """TokenUsage should track cache_read_tokens and cache_write_tokens."""

@@ -483,10 +483,10 @@ class TestUpload:
 
         put_calls: list[tuple[str, bytes]] = []
 
-        async def _mock_put(key: str, data: bytes, content_type: str = "") -> None:
+        def _mock_put(key: str, data: bytes, content_type: str = "") -> None:
             put_calls.append((key, data))
 
-        async def _mock_get(key: str) -> bytes:
+        def _mock_get(key: str) -> bytes:
             return json.dumps(existing_manifest.to_dict()).encode()
 
         with patch.object(r2_sync, "_put_object", side_effect=_mock_put):
@@ -556,7 +556,7 @@ class TestDownload:
 
         call_count = 0
 
-        async def _mock_get(key: str) -> bytes:
+        def _mock_get(key: str) -> bytes:
             nonlocal call_count
             call_count += 1
             if "manifest.json" in key:
@@ -585,7 +585,7 @@ class TestDownload:
             file_count=len(local_files),
         )
 
-        async def _mock_get(key: str) -> bytes:
+        def _mock_get(key: str) -> bytes:
             return json.dumps(remote_manifest.to_dict()).encode()
 
         with patch.object(r2_sync, "_get_object", side_effect=_mock_get):
@@ -628,10 +628,10 @@ class TestCleanup:
         """Cleanup deletes all objects with the workspace prefix."""
         deleted: list[str] = []
 
-        async def _mock_list(prefix: str) -> list[str]:
+        def _mock_list(prefix: str) -> list[str]:
             return [f"{prefix}manifest.json", f"{prefix}workspace.zip"]
 
-        async def _mock_delete(key: str) -> None:
+        def _mock_delete(key: str) -> None:
             deleted.append(key)
 
         with patch.object(r2_sync, "_list_objects", side_effect=_mock_list):
@@ -649,7 +649,7 @@ class TestCleanup:
     ) -> None:
         """Cleanup of non-existent workspace is a no-op."""
 
-        async def _mock_list(prefix: str) -> list[str]:
+        def _mock_list(prefix: str) -> list[str]:
             return []
 
         with patch.object(r2_sync, "_list_objects", side_effect=_mock_list):
@@ -737,11 +737,11 @@ class TestContentAddressedDedup:
 
         uploaded_zips: list[bytes] = []
 
-        async def _mock_put(key: str, data: bytes, content_type: str = "") -> None:
+        def _mock_put(key: str, data: bytes, content_type: str = "") -> None:
             if "workspace.zip" in key:
                 uploaded_zips.append(data)
 
-        async def _mock_get(key: str) -> bytes:
+        def _mock_get(key: str) -> bytes:
             return json.dumps(existing_manifest.to_dict()).encode()
 
         with patch.object(r2_sync, "_put_object", side_effect=_mock_put):

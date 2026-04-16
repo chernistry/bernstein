@@ -26,6 +26,7 @@ _PARSE_ERROR = -32700
 _INVALID_REQUEST = -32600
 _METHOD_NOT_FOUND = -32601
 _INTERNAL_ERROR = -32603
+_CONTENT_TYPE_JSON = "application/json"
 
 
 @dataclass(frozen=True)
@@ -217,13 +218,13 @@ class StreamableHTTPTransport:
         """
         # Normalise path.
         if not path.rstrip("/").endswith(self._config.path.rstrip("/")):
-            return (404, {"content-type": "application/json"}, b'{"error":"not found"}')
+            return (404, {"content-type": _CONTENT_TYPE_JSON}, b'{"error":"not found"}')
 
         # Auth check.
         if not self._authenticate(headers):
             return (
                 401,
-                {"content-type": "application/json"},
+                {"content-type": _CONTENT_TYPE_JSON},
                 b'{"error":"unauthorized"}',
             )
 
@@ -236,7 +237,7 @@ class StreamableHTTPTransport:
 
         return (
             405,
-            {"content-type": "application/json", "allow": "GET, POST, DELETE"},
+            {"content-type": _CONTENT_TYPE_JSON, "allow": "GET, POST, DELETE"},
             b'{"error":"method not allowed"}',
         )
 
@@ -252,12 +253,12 @@ class StreamableHTTPTransport:
             message = json.loads(body)
         except (json.JSONDecodeError, UnicodeDecodeError):
             err = _jsonrpc_error(_PARSE_ERROR, "Parse error")
-            return (400, {"content-type": "application/json"}, json.dumps(err).encode())
+            return (400, {"content-type": _CONTENT_TYPE_JSON}, json.dumps(err).encode())
 
         session_id = headers.get("mcp-session-id")
         session = await self._get_or_create_session(session_id)
         resp_headers: dict[str, str] = {
-            "content-type": "application/json",
+            "content-type": _CONTENT_TYPE_JSON,
             "mcp-session-id": session.session_id,
         }
 
@@ -287,13 +288,13 @@ class StreamableHTTPTransport:
         if session_id and session_id not in self._sessions:
             return (
                 404,
-                {"content-type": "application/json"},
+                {"content-type": _CONTENT_TYPE_JSON},
                 b'{"error":"session not found"}',
             )
         # Server-initiated SSE not yet implemented.
         return (
             501,
-            {"content-type": "application/json"},
+            {"content-type": _CONTENT_TYPE_JSON},
             b'{"error":"SSE stream not implemented - use POST for request/response"}',
         )
 
@@ -306,12 +307,12 @@ class StreamableHTTPTransport:
         if not session_id or session_id not in self._sessions:
             return (
                 404,
-                {"content-type": "application/json"},
+                {"content-type": _CONTENT_TYPE_JSON},
                 b'{"error":"session not found"}',
             )
         async with self._lock:
             del self._sessions[session_id]
-        return (200, {"content-type": "application/json"}, b'{"status":"session closed"}')
+        return (200, {"content-type": _CONTENT_TYPE_JSON}, b'{"status":"session closed"}')
 
     # -- JSON-RPC dispatch ---------------------------------------------------
 

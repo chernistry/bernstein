@@ -17,6 +17,8 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+_CONTENT_TYPE_JSON = "application/json"
+
 
 @dataclass(frozen=True)
 class RemoteServerConfig:
@@ -265,8 +267,8 @@ class MCPClientSession:
             payload["params"] = params
 
         headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
+            "Content-Type": _CONTENT_TYPE_JSON,
+            "Accept": _CONTENT_TYPE_JSON,
             **self._build_auth_headers(),
         }
 
@@ -305,7 +307,7 @@ class MCPClientSession:
 
                 return dict(data.get("result", {}))
 
-            except (MCPAuthError, MCPClientError):
+            except MCPClientError:
                 raise
             except httpx.ConnectError as exc:
                 last_error = MCPConnectionError(
@@ -349,7 +351,7 @@ class MCPClientSession:
             payload["params"] = params
 
         headers = {
-            "Content-Type": "application/json",
+            "Content-Type": _CONTENT_TYPE_JSON,
             **self._build_auth_headers(),
         }
         if self._mcp_session_id is not None:

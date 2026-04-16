@@ -283,7 +283,7 @@ class GateRunnerCommandsMixin:
         report = self._run_dead_code_ast_analysis(dead_code_detector, python_files, run_dir)
         return self._build_dead_code_result(step, command, ok, vulture_detail, report)
 
-    def _run_dead_code_ast_analysis(self: Any, dead_code_detector: Any, python_files: list[str], run_dir: Path) -> Any:
+    def _run_dead_code_ast_analysis(self: Any, _dead_code_detector: Any, python_files: list[str], run_dir: Path) -> Any:
         """Run AST-based dead code analysis, returning the report."""
         from bernstein.core import dead_code_detector as dcd
 

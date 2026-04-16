@@ -11,7 +11,7 @@ REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || .)}"
 OUTPUT_DIR="$REPO_ROOT/docs/community-spotlights"
 
 # --- Helpers ---
-info()  { printf '\033[1;34m[INFO]\033[0m  %s\n' "$*"; }
+info()  { printf '\033[1;34m[INFO]\033[0m  %s\n' "$*"; return 0; }
 error() { printf '\033[1;31m[ERROR]\033[0m %s\n' "$*" >&2; exit 1; }
 
 [[ -n "$MONTH" ]] || error "Usage: $0 --month YYYY-MM [--repo /path/to/repo]"

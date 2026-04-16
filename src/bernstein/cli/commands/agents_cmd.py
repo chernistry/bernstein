@@ -311,7 +311,7 @@ def _validate_local_definitions(definitions_path: Path, issues: list[str]) -> No
     """Validate local YAML agent definitions."""
     import yaml
 
-    from bernstein.agents.registry import AgentRegistry, SchemaValidationError
+    from bernstein.agents.registry import AgentRegistry
 
     console.print(f"[cyan]→ local[/cyan]  {definitions_path}")
     if not definitions_path.exists():
@@ -331,7 +331,7 @@ def _validate_local_definitions(definitions_path: Path, issues: list[str]) -> No
             registry = AgentRegistry(definitions_dir=definitions_path)
             registry._validate_schema(cast("dict[str, Any]", data), yaml_file)  # type: ignore[reportPrivateUsage]
             console.print(f"  [green]✓[/green] {yaml_file.name}")
-        except (SchemaValidationError, Exception) as exc:
+        except Exception as exc:
             issues.append(f"local/{yaml_file.name}: {exc}")
             console.print(f"  [red]✗[/red] {yaml_file.name}: {exc}")
 

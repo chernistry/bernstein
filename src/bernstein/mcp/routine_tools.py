@@ -28,7 +28,7 @@ def list_scenarios(scenarios_dir: Path | None = None) -> list[dict[str, Any]]:
             "description": recipe.description,
             "tags": list(recipe.tags),
             "task_count": len(recipe.tasks),
-            "roles": sorted(set(t.role for t in recipe.tasks)),
+            "roles": sorted({t.role for t in recipe.tasks}),
             "version": recipe.version,
         }
         for recipe in library.scenarios.values()

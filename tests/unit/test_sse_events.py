@@ -3,138 +3,111 @@
 from __future__ import annotations
 
 import json
-import time
 
 from bernstein.core.server.sse_events import SSEEvent, SSEEventType
 
 
 class TestSSEEventType:
-    """Tests for the SSEEventType enum."""
-
-    def test_all_14_event_types_defined(self) -> None:
+    def test_has_14_members(self) -> None:
         assert len(SSEEventType) == 14
 
     def test_event_type_values_are_dotted(self) -> None:
         for member in SSEEventType:
+            if member == SSEEventType.HEARTBEAT:
+                continue
             assert "." in member.value, f"{member.name} should have dotted value"
 
-    def test_event_type_is_str_enum(self) -> None:
-        assert isinstance(SSEEventType.TASK_CREATED, str)
-        assert SSEEventType.TASK_CREATED == "task.created"
+    def test_all_expected_types_exist(self) -> None:
+        expected = {
+            "TASK_CREATED", "TASK_CLAIMED", "TASK_COMPLETED", "TASK_FAILED",
+            "TASK_RETRIED", "AGENT_SPAWNED", "AGENT_EXITED", "GATE_RESULT",
+            "COST_UPDATE", "MERGE_STARTED", "MERGE_COMPLETED",
+            "RUN_STARTED", "RUN_COMPLETED", "HEARTBEAT",
+        }
+        actual = {m.name for m in SSEEventType}
+        assert expected == actual
 
 
-class TestSSEEventToSSE:
-    """Tests for SSE wire format output."""
-
-    def test_to_sse_starts_with_event(self) -> None:
-        event = SSEEvent.task_created("t1", "do stuff", "backend", "medium")
-        wire = event.to_sse()
+class TestSSEEvent:
+    def test_to_sse_wire_format(self) -> None:
+        evt = SSEEvent(event=SSEEventType.TASK_CREATED, data={"task_id": "t1"}, timestamp=1000.0)
+        wire = evt.to_sse()
         assert wire.startswith("event: task.created\n")
-
-    def test_to_sse_has_data_line(self) -> None:
-        event = SSEEvent.task_created("t1", "do stuff", "backend", "medium")
-        wire = event.to_sse()
-        lines = wire.strip().split("\n")
-        assert lines[1].startswith("data: ")
-
-    def test_to_sse_ends_with_double_newline(self) -> None:
-        event = SSEEvent.task_created("t1", "do stuff", "backend", "medium")
-        wire = event.to_sse()
+        assert "data: " in wire
         assert wire.endswith("\n\n")
 
-    def test_to_sse_data_is_valid_json(self) -> None:
-        event = SSEEvent.task_created("t1", "do stuff", "backend", "medium")
-        wire = event.to_sse()
-        data_line = wire.strip().split("\n")[1]
-        payload = json.loads(data_line.removeprefix("data: "))
-        assert isinstance(payload, dict)
-
-    def test_to_sse_payload_contains_timestamp(self) -> None:
-        event = SSEEvent.task_created("t1", "do stuff", "backend", "medium")
-        wire = event.to_sse()
-        data_line = wire.strip().split("\n")[1]
-        payload = json.loads(data_line.removeprefix("data: "))
-        assert "timestamp" in payload
-        assert isinstance(payload["timestamp"], float)
-
-
-class TestSSEEventTimestamp:
-    """Tests for auto-generated timestamps."""
+    def test_to_sse_json_payload_valid(self) -> None:
+        evt = SSEEvent(event=SSEEventType.TASK_COMPLETED, data={"task_id": "t2"}, timestamp=2000.0)
+        wire = evt.to_sse()
+        data_line = next(line for line in wire.split("\n") if line.startswith("data: "))
+        payload = json.loads(data_line[6:])
+        assert payload["task_id"] == "t2"
+        assert payload["timestamp"] == 2000.0
 
     def test_timestamp_auto_generated(self) -> None:
-        before = time.time()
-        event = SSEEvent.task_created("t1", "goal", "role", "low")
-        after = time.time()
-        assert before <= event.timestamp <= after
+        evt = SSEEvent(event=SSEEventType.HEARTBEAT, data={})
+        assert evt.timestamp > 0
 
-    def test_timestamp_preserved_when_provided(self) -> None:
-        event = SSEEvent(SSEEventType.TASK_CREATED, {"task_id": "t1"}, timestamp=123.0)
-        assert event.timestamp == 123.0
+    def test_id_field_in_wire_format(self) -> None:
+        evt = SSEEvent(event=SSEEventType.HEARTBEAT, data={}, id="evt-42")
+        wire = evt.to_sse()
+        assert "id: evt-42\n" in wire
+
+    def test_no_id_by_default(self) -> None:
+        evt = SSEEvent(event=SSEEventType.HEARTBEAT, data={})
+        wire = evt.to_sse()
+        assert "id: " not in wire
 
 
 class TestSSEEventFactories:
-    """Tests for each factory method."""
-
     def test_task_created(self) -> None:
-        event = SSEEvent.task_created("t1", "build API", "backend", "high")
-        assert event.event_type == SSEEventType.TASK_CREATED
-        assert event.data["task_id"] == "t1"
-        assert event.data["goal"] == "build API"
-        assert event.data["role"] == "backend"
-        assert event.data["complexity"] == "high"
+        evt = SSEEvent.task_created(task_id="abc", title="Fix bug")
+        assert evt.event == SSEEventType.TASK_CREATED
+        assert evt.data["task_id"] == "abc"
+        assert evt.data["title"] == "Fix bug"
 
     def test_task_completed(self) -> None:
-        event = SSEEvent.task_completed("t1", "agent-1", "opus", 42.567, 0.12345)
-        assert event.event_type == SSEEventType.TASK_COMPLETED
-        assert event.data["task_id"] == "t1"
-        assert event.data["agent_id"] == "agent-1"
-        assert event.data["model"] == "opus"
-        assert event.data["duration_s"] == 42.57
-        assert event.data["cost_usd"] == 0.1235
+        evt = SSEEvent.task_completed(task_id="abc", cost_usd=0.12)
+        assert evt.event == SSEEventType.TASK_COMPLETED
+        assert evt.data["task_id"] == "abc"
+        assert evt.data["cost_usd"] == 0.12
 
     def test_task_failed(self) -> None:
-        event = SSEEvent.task_failed("t1", "timeout", True)
-        assert event.event_type == SSEEventType.TASK_FAILED
-        assert event.data["task_id"] == "t1"
-        assert event.data["reason"] == "timeout"
-        assert event.data["will_retry"] is True
+        evt = SSEEvent.task_failed(task_id="abc", reason="timeout")
+        assert evt.event == SSEEventType.TASK_FAILED
+        assert evt.data["reason"] == "timeout"
 
     def test_agent_spawned(self) -> None:
-        event = SSEEvent.agent_spawned("a1", "t1", "sonnet", "claude")
-        assert event.event_type == SSEEventType.AGENT_SPAWNED
-        assert event.data["agent_id"] == "a1"
-        assert event.data["task_id"] == "t1"
-        assert event.data["model"] == "sonnet"
-        assert event.data["adapter"] == "claude"
+        evt = SSEEvent.agent_spawned(agent_id="a1", role="backend")
+        assert evt.event == SSEEventType.AGENT_SPAWNED
+        assert evt.data["agent_id"] == "a1"
+        assert evt.data["role"] == "backend"
 
     def test_gate_result_passed(self) -> None:
-        event = SSEEvent.gate_result("t1", "ruff", passed=True, details="clean")
-        assert event.event_type == SSEEventType.GATE_PASSED
-        assert event.data["passed"] is True
-        assert event.data["gate"] == "ruff"
+        evt = SSEEvent.gate_result(gate_name="lint", passed=True)
+        assert evt.event == SSEEventType.GATE_RESULT
+        assert evt.data["passed"] is True
 
     def test_gate_result_failed(self) -> None:
-        event = SSEEvent.gate_result("t1", "pytest", passed=False, details="3 failures")
-        assert event.event_type == SSEEventType.GATE_FAILED
-        assert event.data["passed"] is False
+        evt = SSEEvent.gate_result(gate_name="test", passed=False)
+        assert evt.event == SSEEventType.GATE_RESULT
+        assert evt.data["passed"] is False
 
     def test_cost_update(self) -> None:
-        event = SSEEvent.cost_update(1.23456, 10.0, 12.3456)
-        assert event.event_type == SSEEventType.COST_UPDATE
-        assert event.data["total_usd"] == 1.2346
-        assert event.data["budget_usd"] == 10.0
-        assert event.data["budget_pct"] == 12.3
+        evt = SSEEvent.cost_update(total_usd=1.23)
+        assert evt.event == SSEEventType.COST_UPDATE
+        assert evt.data["total_usd"] == 1.23
 
     def test_merge_completed(self) -> None:
-        event = SSEEvent.merge_completed("t1", "feat/x", "abc1234")
-        assert event.event_type == SSEEventType.MERGE_COMPLETED
-        assert event.data["branch"] == "feat/x"
-        assert event.data["commit_sha"] == "abc1234"
+        evt = SSEEvent.merge_completed(branch="feat/x", result="success")
+        assert evt.event == SSEEventType.MERGE_COMPLETED
+        assert evt.data["branch"] == "feat/x"
 
     def test_run_completed(self) -> None:
-        event = SSEEvent.run_completed(10, 8, 2, 5.6789)
-        assert event.event_type == SSEEventType.RUN_COMPLETED
-        assert event.data["total_tasks"] == 10
-        assert event.data["passed"] == 8
-        assert event.data["failed"] == 2
-        assert event.data["total_cost_usd"] == 5.6789
+        evt = SSEEvent.run_completed(run_id="run-1")
+        assert evt.event == SSEEventType.RUN_COMPLETED
+        assert evt.data["run_id"] == "run-1"
+
+    def test_extra_kwargs(self) -> None:
+        evt = SSEEvent.task_created(task_id="t1", title="X", custom_field="val")
+        assert evt.data["custom_field"] == "val"

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+from pytest import approx
+
 from bernstein.core.server.sse_events import SSEEvent, SSEEventType
 
 
@@ -19,10 +21,20 @@ class TestSSEEventType:
 
     def test_all_expected_types_exist(self) -> None:
         expected = {
-            "TASK_CREATED", "TASK_CLAIMED", "TASK_COMPLETED", "TASK_FAILED",
-            "TASK_RETRIED", "AGENT_SPAWNED", "AGENT_EXITED", "GATE_RESULT",
-            "COST_UPDATE", "MERGE_STARTED", "MERGE_COMPLETED",
-            "RUN_STARTED", "RUN_COMPLETED", "HEARTBEAT",
+            "TASK_CREATED",
+            "TASK_CLAIMED",
+            "TASK_COMPLETED",
+            "TASK_FAILED",
+            "TASK_RETRIED",
+            "AGENT_SPAWNED",
+            "AGENT_EXITED",
+            "GATE_RESULT",
+            "COST_UPDATE",
+            "MERGE_STARTED",
+            "MERGE_COMPLETED",
+            "RUN_STARTED",
+            "RUN_COMPLETED",
+            "HEARTBEAT",
         }
         actual = {m.name for m in SSEEventType}
         assert expected == actual
@@ -42,7 +54,7 @@ class TestSSEEvent:
         data_line = next(line for line in wire.split("\n") if line.startswith("data: "))
         payload = json.loads(data_line[6:])
         assert payload["task_id"] == "t2"
-        assert payload["timestamp"] == 2000.0
+        assert payload["timestamp"] == approx(2000.0)
 
     def test_timestamp_auto_generated(self) -> None:
         evt = SSEEvent(event=SSEEventType.HEARTBEAT, data={})
@@ -70,7 +82,7 @@ class TestSSEEventFactories:
         evt = SSEEvent.task_completed(task_id="abc", cost_usd=0.12)
         assert evt.event == SSEEventType.TASK_COMPLETED
         assert evt.data["task_id"] == "abc"
-        assert evt.data["cost_usd"] == 0.12
+        assert evt.data["cost_usd"] == approx(0.12)
 
     def test_task_failed(self) -> None:
         evt = SSEEvent.task_failed(task_id="abc", reason="timeout")
@@ -96,7 +108,7 @@ class TestSSEEventFactories:
     def test_cost_update(self) -> None:
         evt = SSEEvent.cost_update(total_usd=1.23)
         assert evt.event == SSEEventType.COST_UPDATE
-        assert evt.data["total_usd"] == 1.23
+        assert evt.data["total_usd"] == approx(1.23)
 
     def test_merge_completed(self) -> None:
         evt = SSEEvent.merge_completed(branch="feat/x", result="success")

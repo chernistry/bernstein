@@ -386,7 +386,7 @@ class TestGetUsageSummary:
 
         call_count = 0
 
-        async def mock_post(*args: Any, **kwargs: Any) -> httpx.Response:
+        def mock_post(*args: Any, **kwargs: Any) -> httpx.Response:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -468,7 +468,7 @@ class TestCheckQuota:
     async def test_monthly_cost_exceeded(self, client: D1AnalyticsClient) -> None:
         call_count = 0
 
-        async def mock_post(*args: Any, **kwargs: Any) -> httpx.Response:
+        def mock_post(*args: Any, **kwargs: Any) -> httpx.Response:
             nonlocal call_count
             call_count += 1
             if call_count == 1:

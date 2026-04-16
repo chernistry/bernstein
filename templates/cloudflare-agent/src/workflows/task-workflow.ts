@@ -39,7 +39,7 @@ export class BernsteinTaskWorkflow extends WorkflowEntrypoint<Env, TaskParams> {
     const params = event.payload;
 
     // Step 1: Claim the task from the Bernstein task server.
-    const claimed = await step.do(
+    await step.do(
       "claim",
       { retries: { limit: 3, delay: "5 seconds", backoff: "exponential" } },
       async (): Promise<StepResult> => {
@@ -61,7 +61,7 @@ export class BernsteinTaskWorkflow extends WorkflowEntrypoint<Env, TaskParams> {
     );
 
     // Step 2: Spawn the agent process.
-    const spawned = await step.do(
+    await step.do(
       "spawn",
       {
         retries: { limit: 3, delay: "10 seconds", backoff: "exponential" },
@@ -97,7 +97,7 @@ export class BernsteinTaskWorkflow extends WorkflowEntrypoint<Env, TaskParams> {
     );
 
     // Step 3: Execute — poll until the agent completes.
-    const executed = await step.do(
+    await step.do(
       "execute",
       { timeout: "2 hours" },
       async (): Promise<StepResult> => {
@@ -132,7 +132,7 @@ export class BernsteinTaskWorkflow extends WorkflowEntrypoint<Env, TaskParams> {
     );
 
     // Step 4: Verify — run quality gates.
-    const verified = await step.do(
+    await step.do(
       "verify",
       {
         retries: { limit: 2, delay: "10 seconds", backoff: "exponential" },
@@ -167,7 +167,7 @@ export class BernsteinTaskWorkflow extends WorkflowEntrypoint<Env, TaskParams> {
     });
 
     // Step 6: Merge the changes.
-    const merged = await step.do(
+    await step.do(
       "merge",
       {
         retries: { limit: 2, delay: "5 seconds", backoff: "exponential" },

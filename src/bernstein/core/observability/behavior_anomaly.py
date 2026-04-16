@@ -633,7 +633,7 @@ class RealtimeBehaviorMonitor:
 
     def _check_file_change_velocity(
         self,
-        state: SessionAnomalyState,
+        _state: SessionAnomalyState,
         session_id: str,
         task_id: str,
         files_changed: int,

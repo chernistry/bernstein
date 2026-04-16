@@ -303,10 +303,7 @@ class OpenClawGatewayClient:
 
     async def _retry_with_device_token(self) -> ClientConnection:
         """Retry connection using cached device token."""
-        try:
-            retry_socket = await self._connect_websocket()
-        except BridgeError:
-            raise
+        retry_socket = await self._connect_websocket()
         try:
             await self._authenticate(retry_socket, use_device_token=True)
             return retry_socket

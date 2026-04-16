@@ -19,6 +19,8 @@ from httpx import Response as HttpxResponse
 from bernstein.adapters.base import DEFAULT_TIMEOUT_SECONDS, CLIAdapter, SpawnResult
 from bernstein.core.server import create_app
 
+_TASKS_PATH = "/tasks"
+
 if TYPE_CHECKING:
     from fastapi import FastAPI
 
@@ -239,8 +241,8 @@ def make_proxy_handler(
         path = request.url.path
         api_path = path if path.startswith("/") else "/" + path
 
-        if method == "GET" and api_path == "/tasks":
-            resp = test_client.get("/tasks")
+        if method == "GET" and api_path == _TASKS_PATH:
+            resp = test_client.get(_TASKS_PATH)
             tasks_data = resp.json()
             if on_tasks_fetched:
                 on_tasks_fetched(tasks_data)
@@ -251,7 +253,7 @@ def make_proxy_handler(
                 slug_fn=slug_fn,
                 complete_statuses=complete_statuses,
             )
-            resp = test_client.get("/tasks")
+            resp = test_client.get(_TASKS_PATH)
             return HttpxResponse(resp.status_code, content=resp.content, headers=dict(resp.headers))
 
         content = request.read()

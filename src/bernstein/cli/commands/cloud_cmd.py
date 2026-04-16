@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 _DEFAULT_CLOUD_URL = "https://api.bernstein.run"
 _CONFIG_DIR = Path.home() / ".config" / "bernstein"
 _TOKEN_FILE = _CONFIG_DIR / "cloud-token.json"
+_MSG_NOT_LOGGED_IN = "Not logged in."
+_RUNS_PATH = "/runs"
 
 
 # ---------------------------------------------------------------------------
@@ -71,7 +73,7 @@ def cloud_logout() -> None:
         _TOKEN_FILE.unlink()
         click.echo("Logged out from Bernstein Cloud.")
     else:
-        click.echo("Not logged in.")
+        click.echo(_MSG_NOT_LOGGED_IN)
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +100,7 @@ def cloud_run(goal: str, max_agents: int, model: str, budget: float, *, wait: bo
         "model": model,
         "budget": budget,
     }
-    resp = _cloud_request("POST", "/runs", token, json=payload)
+    resp = _cloud_request("POST", _RUNS_PATH, token, json=payload)
     resp.raise_for_status()
     data = resp.json()
     run_id = data.get("id", "unknown")
@@ -123,10 +125,10 @@ def cloud_status(run_id: str | None) -> None:
     """Show status of cloud runs."""
     token = _load_token()
     if not token:
-        click.echo("Not logged in.", err=True)
+        click.echo(_MSG_NOT_LOGGED_IN, err=True)
         sys.exit(1)
 
-    path = f"/runs/{run_id}" if run_id else "/runs"
+    path = f"{_RUNS_PATH}/{run_id}" if run_id else _RUNS_PATH
     resp = _cloud_request("GET", path, token)
     resp.raise_for_status()
     click.echo(json.dumps(resp.json(), indent=2))
@@ -144,10 +146,10 @@ def cloud_runs(limit: int, *, output_json: bool) -> None:
     """List recent cloud runs."""
     token = _load_token()
     if not token:
-        click.echo("Not logged in.", err=True)
+        click.echo(_MSG_NOT_LOGGED_IN, err=True)
         sys.exit(1)
 
-    resp = _cloud_request("GET", "/runs", token, params={"limit": limit})
+    resp = _cloud_request("GET", _RUNS_PATH, token, params={"limit": limit})
     resp.raise_for_status()
     data = resp.json()
 
@@ -170,7 +172,7 @@ def cloud_cost(period: str) -> None:
     """Show cloud usage and costs."""
     token = _load_token()
     if not token:
-        click.echo("Not logged in.", err=True)
+        click.echo(_MSG_NOT_LOGGED_IN, err=True)
         sys.exit(1)
 
     resp = _cloud_request("GET", "/billing/usage", token, params={"period": period})

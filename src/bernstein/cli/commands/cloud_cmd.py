@@ -184,6 +184,45 @@ def cloud_cost(period: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# cloud init
+# ---------------------------------------------------------------------------
+
+_WRANGLER_TOML_TEMPLATE = """\
+name = "{worker_name}"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+BERNSTEIN_SERVER_URL = "http://127.0.0.1:8052"
+
+# Add your Cloudflare bindings here:
+# [[kv_namespaces]]
+# binding = "TASKS"
+# id = "your-kv-namespace-id"
+"""
+
+
+@cloud_group.command("init")
+@click.option("--worker-name", default="bernstein-agent", show_default=True, help="Cloudflare Worker name.")
+@click.option("--output", "-o", default="wrangler.toml", show_default=True, help="Output path for wrangler.toml.")
+def cloud_init(worker_name: str, output: str) -> None:
+    """Scaffold wrangler.toml and Cloudflare bindings for cloud deployment.
+
+    \b
+      bernstein cloud init                        # write wrangler.toml
+      bernstein cloud init --output deploy/wrangler.toml
+    """
+    out_path = Path(output)
+    if out_path.exists():
+        click.echo(f"{output} already exists. Remove it first or use --output to specify a different path.", err=True)
+        raise SystemExit(1)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(_WRANGLER_TOML_TEMPLATE.format(worker_name=worker_name), encoding="utf-8")
+    click.echo(f"Created {output}")
+    click.echo("Next: edit bindings in wrangler.toml, then run 'bernstein cloud deploy'.")
+
+
+# ---------------------------------------------------------------------------
 # cloud deploy
 # ---------------------------------------------------------------------------
 

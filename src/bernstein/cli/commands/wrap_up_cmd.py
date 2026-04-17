@@ -154,20 +154,6 @@ def _build_next_session_brief(open_tasks: list[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-@click.command("wrap-up")
-@click.option(
-    "--stop",
-    "do_stop",
-    is_flag=True,
-    default=False,
-    help="Also perform a soft stop after saving the wrap-up brief.",
-)
-@click.option(
-    "--timeout",
-    default=30,
-    show_default=True,
-    help="Soft-stop timeout in seconds (only used with --stop).",
-)
 def _render_wrapup_brief(
     workdir: Path,
     saved_path: Path,
@@ -218,6 +204,20 @@ def _render_wrapup_brief(
     console.print()
 
 
+@click.command("wrap-up")
+@click.option(
+    "--stop",
+    "do_stop",
+    is_flag=True,
+    default=False,
+    help="Also perform a soft stop after saving the wrap-up brief.",
+)
+@click.option(
+    "--timeout",
+    default=30,
+    show_default=True,
+    help="Soft-stop timeout in seconds (only used with --stop).",
+)
 def wrap_up(do_stop: bool, timeout: int) -> None:
     """End the current session with a structured wrap-up brief.
 

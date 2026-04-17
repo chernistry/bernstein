@@ -24,7 +24,7 @@
     "description": "Paperclip is an AI company simulator with org charts and budgets. Bernstein is an engineering tool that ships code. Compare approaches to multi-agent management.",
     "author": { "@type": "Person", "name": "Alex Chernysh", "url": "https://alexchernysh.com" },
     "datePublished": "2026-04-01",
-    "dateModified": "2026-04-06",
+    "dateModified": "2026-04-17T12:00:00+03:00",
     "publisher": { "@type": "Organization", "name": "Bernstein", "url": "https://chernistry.github.io/bernstein/" }
   }
   </script>
@@ -34,7 +34,7 @@
     "@type": "ItemList",
     "name": "Bernstein vs Paperclip Feature Comparison",
     "itemListElement": [
-      { "@type": "ListItem", "position": 1, "name": "Bernstein", "description": "Engineering orchestrator: deterministic scheduling, git worktree isolation, janitor verification, 18+ CLI agents" },
+      { "@type": "ListItem", "position": 1, "name": "Bernstein", "description": "Engineering orchestrator: deterministic scheduling, git worktree isolation, janitor verification, 17 CLI agents" },
       { "@type": "ListItem", "position": 2, "name": "Paperclip", "description": "AI company simulator: org charts, team budgets, governance hierarchies, React dashboard" }
     ]
   }
@@ -125,9 +125,9 @@
 
     <h2 id="overview">What each tool is</h2>
 
-    <p><strong>Paperclip</strong> (47k stars, MIT, Node.js + React) is an "AI company management" platform. It models AI agents as employees in an organization: they have roles, report to managers, operate within budgets, follow org-chart hierarchies, and receive scheduled heartbeats. The coordinator is an LLM. It supports OpenClaw, Claude, Codex, and Cursor agents.</p>
+    <p><strong>Paperclip</strong> (launched 2026-03-04; MIT, Node.js + React) is an AI-company control plane. It models AI agents as employees in an organization: they have roles, report to managers, operate within budgets, follow org-chart hierarchies, and receive scheduled heartbeats. The coordinator is an LLM. It supports Claude Code, Codex, Cursor, and OpenClaw plus bash and HTTP hooks.</p>
 
-    <p><strong>Bernstein</strong> (Apache 2.0, Python) is a multi-agent orchestrator for CLI coding agents. It breaks a goal into tasks, spawns agents in isolated git worktrees, verifies their output (tests, lint, file checks), and merges the results. The orchestrator is deterministic Python -- zero LLM tokens spent on coordination. It supports 18+ CLI agents and runs anywhere Python runs.</p>
+    <p><strong>Bernstein</strong> (Apache 2.0, Python) is a multi-agent orchestrator for CLI coding agents. It breaks a goal into tasks, spawns agents in isolated git worktrees, verifies their output (tests, lint, file checks), and merges the results. The orchestrator is deterministic Python -- zero LLM tokens spent on coordination. It supports 17 CLI agents and runs anywhere Python runs.</p>
 
     <h2 id="feature-comparison">Feature comparison</h2>
 
@@ -140,7 +140,7 @@
         <tr><td><strong>Open source</strong></td><td>Apache 2.0</td><td>MIT</td></tr>
         <tr><td><strong>Language</strong></td><td>Python</td><td>Node.js + React</td></tr>
         <tr><td><strong>Orchestrator logic</strong></td><td>Deterministic code (no LLM)</td><td>LLM-based coordination</td></tr>
-        <tr><td><strong>Agent adapters</strong></td><td>18+ CLI agents</td><td>OpenClaw, Claude, Codex, Cursor</td></tr>
+        <tr><td><strong>Agent adapters</strong></td><td>17 CLI agents</td><td>OpenClaw, Claude, Codex, Cursor</td></tr>
         <tr><td><strong>Org charts / hierarchies</strong></td><td>No</td><td>Yes -- core feature</td></tr>
         <tr><td><strong>Budget enforcement</strong></td><td>Cost tracking + budget caps</td><td>Per-agent and per-team budgets</td></tr>
         <tr><td><strong>Git worktree isolation</strong></td><td>Yes -- per agent</td><td>No</td></tr>
@@ -209,7 +209,7 @@ State: .sdd/ files (backlog, runtime, metrics, config)</code></pre>
     <ul>
       <li><strong>You want to ship code.</strong> Implement features in parallel and merge them into a working branch.</li>
       <li><strong>You want zero coordination overhead.</strong> No LLM tokens on scheduling. Deterministic task assignment and verification.</li>
-      <li><strong>You use diverse CLI agents.</strong> 18+ adapters. Mix Claude, Codex, Gemini, and Aider in the same session.</li>
+      <li><strong>You use diverse CLI agents.</strong> 17 adapters. Mix Claude, Codex, Gemini, and Aider in the same session.</li>
       <li><strong>You want git-native safety.</strong> Worktree isolation, conflict detection, janitor verification.</li>
       <li><strong>You work in terminals.</strong> CLI-native, works over SSH, runs in CI.</li>
     </ul>

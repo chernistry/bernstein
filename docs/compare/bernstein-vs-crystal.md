@@ -2,7 +2,7 @@
 
 > **tl;dr** — Crystal uses iterative self-review loops: an agent writes code, a reviewer agent critiques it, the writer revises, repeat until quality gates pass. Bernstein uses external verification: the janitor runs tests and the linter, and trusts those results over agent self-assessment. Crystal is better when objective test suites are thin or absent. Bernstein is better when tests are the ground truth and you want fast, deterministic verification.
 
-*This comparison is based on publicly available documentation as of March 2026.*
+*Last verified: 2026-04-17.*
 
 ---
 
@@ -102,13 +102,7 @@ Crystal's review loop adds API calls. For a 3-iteration loop with writer + revie
 | 3 (write + two reviews) | 4–5 | +$0.20–0.40 |
 | 4 (write + three reviews) | 6–7 | +$0.30–0.60 |
 
-Bernstein benchmark (25 GitHub issues, 2026-03-28):
-
-| Metric | Bernstein | Estimated Crystal (3-cycle) |
-|---|---:|---:|
-| **Median cost per task** | $0.150 | ~$0.30–0.50 |
-| **CI pass rate** | 80% | Varies (internal verification may miss test failures) |
-| **Verification time** | Seconds (test runner) | Minutes (LLM review cycles) |
+Bernstein adds no extra LLM calls for verification — the janitor runs `pytest` and `ruff` and reads exit codes. Crystal's review loop adds one or more LLM calls per iteration. For a fair head-to-head on the same task mix, we are holding back quantitative claims until the Bernstein SWE-Bench Lite harness lands. See [`benchmarks/README.md`](../../benchmarks/README.md) for the current pilot (n=25, +8 pp, p=0.569).
 
 The cost premium for Crystal is task-type-dependent. For tasks with good test coverage, Bernstein's test-based verification is faster and cheaper while providing stronger guarantees. For tasks without test coverage, Crystal's review loop provides quality signal that Bernstein can't.
 

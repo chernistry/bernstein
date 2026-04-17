@@ -1,18 +1,18 @@
 # Bernstein vs. Dorothy
 
-> **tl;dr** — Dorothy is a graph-based multi-agent conversation framework: agents deliberate, pass messages, and build shared understanding over multiple turns. Bernstein is a task dispatch system: agents get isolated tasks, work them independently, and exit. Dorothy is better when the problem requires multi-turn reasoning between agents. Bernstein is better when the problem decomposes into parallel independent subtasks with external verification requirements.
+> **tl;dr** — Dorothy is a free desktop app that orchestrates Claude Code, Codex, Gemini, and local agents with a Kanban board, a "Super Agent" delegation layer, and Telegram/Slack controls. Bernstein is a headless orchestrator for CLI coding agents that runs in a terminal or CI and stores all state in files. Dorothy is better when you want a GUI to watch and delegate across a few agents. Bernstein is better when you want unattended, budget-capped, file-state runs across 17 adapters.
 
-*This comparison is based on publicly available documentation as of March 2026.*
+*Last verified: 2026-04-17. Based on the Dorothy public site and repo (`github.com/Charlie85270/Dorothy`).*
 
 ---
 
 ## What each tool is
 
-**Dorothy** is a multi-agent framework built around conversation graphs. You define agents as nodes and message-passing edges. Agents can deliberate — passing context back and forth over multiple turns until they reach a result. It's designed for problems where the reasoning process itself is the output: research synthesis, design deliberation, multi-perspective analysis.
+**Dorothy** is a desktop application that presents AI coding agents through a visual Kanban interface. It can launch and monitor Claude Code, Codex, Gemini, and local agents, delegate between them through a "Super Agent" that talks to them via MCP, schedule recurring work with cron, and trigger on GitHub issues/PRs. It integrates Google Workspace as an MCP server and has Telegram/Slack bridges for remote control.
 
-**Bernstein** is a task dispatch orchestrator for CLI coding agents. It decomposes a goal into tasks, assigns each task to a short-lived coding agent (Claude Code, Codex, Gemini CLI), verifies the result against external criteria (tests, linter), and merges the output. The orchestrator is deterministic Python — no LLM makes scheduling decisions.
+**Bernstein** is a task dispatch orchestrator for CLI coding agents. It decomposes a goal into tasks, assigns each task to a short-lived CLI agent (across 17 adapters: Claude Code, Codex, Gemini CLI, Cursor, Aider, Amp, etc.), verifies the result against external criteria (tests, linter), and merges the output. The orchestrator is deterministic Python — no LLM makes scheduling decisions. No GUI.
 
-The core architectural difference: Dorothy coordinates agents that talk to each other. Bernstein coordinates agents that don't.
+The core difference: Dorothy gives you a visual control plane. Bernstein gives you a headless, reproducible, file-state control plane.
 
 ---
 
@@ -20,126 +20,100 @@ The core architectural difference: Dorothy coordinates agents that talk to each 
 
 | Feature | Bernstein | Dorothy |
 |---|---|---|
-| **Agent communication** | None — agents are isolated | Multi-turn message passing between agents |
-| **Task model** | Discrete tasks with completion signal | Conversational turns until convergence |
-| **Verification** | External (tests, linter, file checks) | Internal (agent consensus, reflection loops) |
-| **CLI agent support** | Yes — wraps installed CLI tools | Typically SDK-based agents |
-| **Parallel execution** | Yes — independent tasks run concurrently | Depends on graph topology |
-| **Deterministic coordinator** | Yes — Python, no LLM for scheduling | Graph structure defines flow |
+| **Interface** | CLI + TUI + JSON status endpoint | Desktop app (Kanban, dashboard) |
+| **Agent coverage** | 17 CLI adapters | Claude Code, Codex, Gemini, local |
+| **Scheduler** | Deterministic Python, no LLM | "Super Agent" (LLM) via MCP |
+| **Verification** | Janitor: tests, linter, file checks | None built-in |
+| **Parallel execution** | Yes — independent tasks run concurrently | Yes — up to ~10 agents |
+| **Git worktree isolation** | Yes — per agent | No |
+| **State** | File-based (`.sdd/`, survives crashes) | Application state |
+| **Remote control** | CLI, SSH, REST | Telegram, Slack |
+| **Trigger sources** | Manual, CI, cron via your own runner | Built-in cron, GitHub issues/PRs |
 | **Self-evolution** | Yes — `--evolve` mode | No |
-| **Model routing** | Cost-aware bandit across providers | Configurable per node |
-| **Headless / overnight** | Yes — `--headless` flag | Depends on deployment |
+| **Model routing** | Cost-aware bandit across providers | Per-agent |
+| **Headless / overnight** | Yes — `--headless` + budget cap | Via Telegram/Slack, app must be running |
 | **Open source** | Apache 2.0 | MIT |
-| **Primary use case** | Parallel coding tasks | Multi-perspective reasoning and deliberation |
+| **Primary use case** | Unattended parallel coding with verification | Visual orchestration of a small agent fleet |
 
 ---
 
 ## Architecture comparison
 
-**Dorothy (conversation graph):**
+**Dorothy (desktop + Super Agent):**
 ```
-User goal
-    │
-    ▼
-Orchestrator agent (LLM-based)
-    │
-    ├── Researcher agent  ←──┐
-    │       │                │ (multi-turn message passing)
-    │       ▼                │
-    ├── Analyst agent  ──────┤
-    │       │                │
-    │       ▼                │
-    └── Synthesizer agent ───┘
-         │
-         ▼
-    Final output (after convergence)
+Desktop app (Kanban, dashboard, logs)
+    |
+    v
+Super Agent (LLM) -- talks to agents via MCP
+    |
+    +-- Claude Code         (one project, one window)
+    +-- Codex               (one project, one window)
+    +-- Gemini              (one project, one window)
+    +-- local agent         (one project, one window)
+
+Triggers: cron, GitHub issue/PR webhook, Telegram/Slack command
 ```
 
-Dorothy's agents communicate within the framework. The researcher can ask the analyst a clarifying question. The synthesizer reads all previous messages. Completion is defined by the graph reaching a terminal node, not by external test results.
+Dorothy's value is visual delegation: you watch the Kanban board, approve tasks, and let the Super Agent route work to the right agent. The app must run for agents to execute.
 
-**Bernstein (isolated task dispatch):**
+**Bernstein (headless task dispatch):**
 ```
 bernstein -g "goal"  (terminal)
-    │
-    ▼
-Task server (deterministic Python)
-    │
-    ├── Task A → claude  (no knowledge of B/C) → janitor → merge
-    ├── Task B → codex   (no knowledge of A/C) → janitor → merge
-    └── Task C → gemini  (no knowledge of A/B) → janitor → merge
+    |
+    v
+Task server (deterministic Python, .sdd/ files)
+    |
+    +-- Task A -> claude (isolated worktree) -> janitor -> merge
+    +-- Task B -> codex  (isolated worktree) -> janitor -> merge
+    +-- Task C -> gemini (isolated worktree) -> janitor -> merge
 
-Verification: pytest + ruff pass rate, not agent consensus
+Verification: pytest + ruff + file checks before merge
 ```
 
-Bernstein's agents don't communicate. Each one reads its task description and the codebase, works independently, and exits. The janitor verifies the output against objective criteria. There's no deliberation — just execution and verification.
+Bernstein's value is unattended operation: `bernstein --headless --budget 20` works the backlog until empty or budget hit. No GUI, no app to keep open.
 
 ---
 
-## When isolation beats deliberation
+## When GUI + delegation beats headless dispatch
 
-For coding tasks, isolation has specific advantages:
+- **You're actively watching.** A Kanban board shows what's running and what's stuck. The TUI shows the same, but Dorothy's GUI is more discoverable.
+- **You want to approve individual tasks.** Dorothy's Super Agent asks; Bernstein assumes you encoded acceptance in the plan file and the janitor.
+- **You already run Telegram/Slack for team coordination.** Dorothy's bridges slot in.
+- **Your agents do diverse work, not just coding.** Dorothy's Google Workspace MCP means an agent can read email, update a doc, book a meeting. Bernstein's janitor expects "code changes + tests pass."
 
-**Hallucination containment.** If Agent A takes a wrong turn and reasons incorrectly about an API, that incorrect reasoning doesn't propagate to Agent B and C. Each agent starts from the codebase, not from other agents' assumptions.
+## When headless dispatch beats GUI + delegation
 
-**Parallelism.** Independent agents can run simultaneously. Dorothy's conversation graphs have sequential dependencies by design — Agent B can't respond until Agent A sends its message.
-
-**Objective verification.** "The tests pass" is a verifiable criterion. "The agents reached consensus" is not. For coding tasks, Bernstein's external janitor provides a ground truth that agent self-assessment can't.
-
-**Speed.** Multi-turn deliberation is slow. A Dorothy workflow with 3 agents doing 4 turns each is 12 LLM calls before any code is written. Bernstein dispatches coding agents immediately and measures results.
-
----
-
-## When deliberation beats isolation
-
-**Research and synthesis.** "Analyze this codebase from a security perspective, cross-check with performance implications, and produce a recommendation" — this problem benefits from agents challenging each other's assumptions. Dorothy's message passing is designed for this.
-
-**Ambiguous requirements.** If the task requires agents to negotiate what "done" means before starting, a conversation graph is better than discrete task dispatch. Bernstein assumes requirements are clear enough to write a task description.
-
-**Multi-perspective review.** Code review where a security agent, a performance agent, and a readability agent all comment on the same diff — and respond to each other's objections — is a deliberation problem. Bernstein's agents don't see each other's output.
-
-**Problems without external verification.** If there's no test suite, no linter, and no objective completion criterion, Bernstein's janitor has nothing to check. Dorothy's agent consensus becomes the verification mechanism.
-
----
-
-## Cost and performance
-
-Dorothy's multi-turn model means more LLM calls per outcome. If 3 agents do 4 turns each, that's 12 API calls before completion. For coding tasks with clear requirements and a test suite, this is overhead without benefit.
-
-Bernstein benchmark (25 GitHub issues, 2026-03-28):
-
-| Metric | Bernstein | Typical multi-turn deliberation |
-|---|---:|---|
-| **API calls per task** | 1 per agent (3–5 total) | 10–20 (3 agents × 4–6 turns) |
-| **Median cost per task** | $0.150 | Varies (2–5× higher for equivalent complexity) |
-| **CI pass rate** | 80% | Depends on task type |
-| **Verification method** | External: pytest, ruff | Internal: agent consensus |
-
-The cost comparison is task-dependent. For deliberation-appropriate tasks (research, analysis, design review), Dorothy's additional API calls produce qualitatively better output. For implementation tasks with clear specs, those extra turns are wasted.
+- **The run must complete without anyone watching.** Overnight, weekend, CI, remote server. Bernstein's `--headless --budget` runs until done or broke. Dorothy wants its app running and an approving hand on Telegram.
+- **You want file-state you can check into git.** `.sdd/` is text. You can diff it, `grep` it, revive it after a crash. Dorothy's state is in the app.
+- **Verification is non-negotiable.** Bernstein won't merge unless the janitor's signals pass. Dorothy leaves that to the agent and the user.
+- **You need 17 adapters, not 4.** Cursor, Aider, Amp, Kilo, Kiro, Goose, OpenCode, Qwen, Cody, Continue.dev, Ollama, IAC, Visionary, generic — Bernstein wraps them all. Dorothy currently advertises Claude Code, Codex, Gemini, and local.
 
 ---
 
 ## When to use Dorothy instead
 
-- **The task requires agents to challenge and refine each other's reasoning.** Research synthesis, design review, threat modeling, competitive analysis — problems where multiple passes improve quality.
-- **Requirements are ambiguous and need negotiation.** If the agents need to decide what to build before building it, a conversation graph is better than a task queue.
-- **There's no external verification criterion.** If success is "the output is good" rather than "the tests pass," deliberation is the verification mechanism.
-- **You want visible agent reasoning.** Dorothy surfaces the full conversation between agents. Bernstein shows task outcomes, not reasoning paths.
-- **You're building an agent application, not automating coding tasks.** Dorothy is a framework for building products. Bernstein is a tool for running software development workflows.
+- **You want a dashboard.** Kanban view, per-agent status, visible logs.
+- **You want to delegate through a Super Agent.** LLM-routed work across a small fleet.
+- **You live in Telegram/Slack.** Remote-trigger agents from chat.
+- **Your work crosses Google Workspace.** Email, docs, calendar, not just code.
 
 ---
 
 ## When to use Bernstein instead
 
-- **The task decomposes into parallel independent subtasks.** REST endpoints + tests + docs can all happen simultaneously. Dorothy's sequential message passing doesn't help here.
-- **You need external verification.** Tests either pass or fail — agent consensus is irrelevant. Bernstein's janitor enforces this. Dorothy doesn't have an equivalent.
-- **You want CLI agent support.** Bernstein wraps Claude Code, Codex, Gemini CLI, and Qwen as installed CLI tools. Dorothy typically uses SDK-based agent construction, requiring more integration work.
-- **You want cost-aware model routing.** Bernstein's bandit router assigns cheap models to simple tasks and escalates complexity. Dorothy's model selection is per-node configuration.
+- **The task decomposes into parallel independent subtasks.** REST endpoints + tests + docs can all happen simultaneously in isolated worktrees.
+- **You need external verification.** Tests either pass or fail — agent consensus is irrelevant. Bernstein's janitor enforces this.
+- **You want 17-adapter coverage.** Bernstein wraps Claude Code, Codex, Gemini CLI, Cursor, Aider, Amp, Kilo, Kiro, Goose, OpenCode, Qwen, Cody, Continue.dev, Ollama, IAC, Visionary, and a generic adapter.
+- **You want cost-aware model routing.** Bernstein's bandit router assigns cheap models to simple tasks and escalates complexity.
 - **You want headless, overnight operation.** `bernstein --headless --budget 20.00` runs until the backlog is empty or the budget runs out, retrying failures automatically.
+- **You want a checkable audit trail.** `.sdd/` files, HMAC-chained logs, per-task cost + quality metrics.
 
 ---
 
 ## See also
 
-- [Bernstein benchmark: multi-agent vs single-agent](../../benchmarks/README.md)
+- [Benchmark methodology and raw data](../../benchmarks/README.md)
 - [Full comparison matrix](./README.md)
 - [Bernstein vs. single agent](./bernstein-vs-single-agent.md)
+</content>
+</invoke>

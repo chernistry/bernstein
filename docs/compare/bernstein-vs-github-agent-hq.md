@@ -1,16 +1,16 @@
 # Bernstein vs. GitHub Agent HQ
 
-> **tl;dr** — GitHub Agent HQ validated the multi-agent coding pattern in February 2026. It's excellent if you live in GitHub's ecosystem and don't mind the lock-in. Bernstein is the open-source alternative: model-agnostic, CLI-native, runs anywhere, and costs less for mixed workloads.
+> **tl;dr** — GitHub Agent HQ was announced at GitHub Universe 2025 and rolled out through early 2026. It's excellent if you live in GitHub's ecosystem and don't mind the lock-in. Bernstein is the open-source alternative: model-agnostic, CLI-native, runs anywhere, and costs less for mixed workloads.
 
-*This comparison is based on GitHub's public documentation and announcements as of March 2026. Agent HQ features may have changed since this was written.*
+*Last verified: 2026-04-17. Based on GitHub's Universe 2025 announcements and the public Agent HQ rollout notes.*
 
 ---
 
-## What happened in February 2026
+## What Agent HQ is
 
-GitHub launched Agent HQ, a multi-agent coding system that runs Claude, Codex, and Copilot simultaneously on the same task. It uses a coordinator agent to break down a goal, assigns subtasks to specialized agents, and shows the activity in a GitHub-native UI.
+Announced at GitHub Universe 2025 and rolled out to GitHub.com through early 2026, Agent HQ is a multi-agent coding system that runs Claude, Codex, and Copilot agents on the same task. It uses a coordinator agent to break down a goal, assigns subtasks to specialized agents, and shows the activity in a GitHub-native UI (issues, PRs, checks).
 
-This is exactly what Bernstein does. GitHub building it validates the architectural bet: parallel short-lived agents, a deterministic coordinator, external verification before merge. The main difference is who owns the orchestrator and what it's allowed to talk to.
+This is structurally close to what Bernstein does. GitHub building it validates the architectural bet: parallel short-lived agents, a deterministic coordinator, external verification before merge. The main difference is who owns the orchestrator and what it's allowed to talk to.
 
 ---
 
@@ -27,7 +27,7 @@ This is exactly what Bernstein does. GitHub building it validates the architectu
 | Feature | Bernstein | GitHub Agent HQ |
 |---|---|---|
 | **Open source** | Yes — Apache 2.0 | No — proprietary |
-| **Model flexibility** | Any CLI agent (Claude, Codex, Gemini, Qwen, generic) | Claude, Codex, Copilot (GitHub-managed) |
+| **Model flexibility** | Any CLI agent (17 adapters) | Claude, Codex, Copilot (GitHub-managed) |
 | **Provider lock-in** | None | GitHub + Microsoft/Anthropic/OpenAI |
 | **Runs outside GitHub** | Yes — any git repo, any host | No — GitHub-only |
 | **CLI-native** | Yes — works in terminal, SSH, CI | No — GitHub web UI + API |
@@ -111,7 +111,7 @@ When Bernstein publishes benchmark numbers publicly, the first acceptable format
 - commit SHA shown
 - sourced from `benchmarks/swe_bench/run.py eval`
 
-GitHub has not published Agent HQ SWE-Bench results as of April 1, 2026. Until Bernstein can reproduce Agent HQ under a Bernstein-owned live harness, this page will not claim numeric wins or losses.
+GitHub has not published Agent HQ SWE-Bench results as of 2026-04-17. Until Bernstein can reproduce Agent HQ under a Bernstein-owned live harness, this page will not claim numeric wins or losses.
 
 ---
 

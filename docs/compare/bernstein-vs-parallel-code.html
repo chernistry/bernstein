@@ -24,7 +24,7 @@
     "description": "Parallel Code lets you manually run multiple coding agents in separate terminals. Bernstein automates the coordination: task planning, model routing, verification, and merge.",
     "author": { "@type": "Person", "name": "Alex Chernysh", "url": "https://alexchernysh.com" },
     "datePublished": "2026-03-28",
-    "dateModified": "2026-04-06",
+    "dateModified": "2026-04-17T12:00:00+03:00",
     "publisher": { "@type": "Organization", "name": "Bernstein", "url": "https://chernistry.github.io/bernstein/" }
   }
   </script>
@@ -190,8 +190,8 @@ You return when it is done. Or set --headless and do not return.</code></pre>
       </thead>
       <tbody>
         <tr><td><strong>Human attention required</strong></td><td>High (monitoring + verification)</td><td>Low (setup + review)</td></tr>
-        <tr><td><strong>CI pass rate</strong></td><td>Depends on verification</td><td>80% (janitor-enforced)</td></tr>
-        <tr><td><strong>Merge conflicts</strong></td><td>Frequent without coordination</td><td>0 (worktree isolation)</td></tr>
+        <tr><td><strong>Verification before merge</strong></td><td>Depends on how well you verify</td><td>Janitor-enforced (pytest + ruff + file checks)</td></tr>
+        <tr><td><strong>Merge conflicts</strong></td><td>Frequent without coordination</td><td>Worktree isolation + merge queue</td></tr>
         <tr><td><strong>Overnight operation</strong></td><td>Not possible</td><td>Yes (<code>--headless</code>)</td></tr>
       </tbody>
     </table>

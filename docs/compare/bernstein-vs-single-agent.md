@@ -1,8 +1,8 @@
 # Bernstein vs. Single Agent
 
-> **tl;dr** — Running a single coding agent is the right call for simple, well-scoped tasks. Bernstein exists for the cases where a single agent bottlenecks on sequential work, lacks external verification, or needs to run overnight without supervision. The benchmark data shows multi-agent wins on CI pass rate for medium-to-high complexity tasks, with a modest cost premium. For simple tasks, save the overhead.
+> **tl;dr** — Running a single coding agent is the right call for simple, well-scoped tasks. Bernstein exists for cases where a single agent bottlenecks on sequential work, lacks external verification, or needs to run overnight without supervision. Our early pilot shows a small, non-significant edge on 25 issues; the right use-cases for multi-agent are quality gates, parallelism, and unattended runs, not a claimed benchmark win.
 
-*This comparison uses benchmark data from `benchmarks/README.md` — 25 real GitHub issues across 10 popular Python repos, run 2026-03-28 with Claude Code as the underlying agent.*
+*Last verified: 2026-04-17.*
 
 ---
 
@@ -19,32 +19,19 @@ For a 2-minute fix with a clear scope, none of those conditions hold. Single age
 
 ---
 
-## Benchmark results
+## Benchmark status
 
-25 GitHub issues, categorized by complexity:
+Early pilot on 25 real GitHub issues (n=25, run 2026-03-28) showed 40% resolve for single-agent vs 48% for Bernstein multi-agent (+8 pp, p=0.569 — described as a "negligible effect" at this sample size). A larger evaluation under the Bernstein SWE-Bench Lite harness is pending.
 
-| Task type | Single agent (Claude Sonnet) | Bernstein (3× mixed) | Winner |
-|---|---:|---:|---|
-| **Simple** (1–2 file changes, clear scope) | $0.08 / 94 s | $0.12 / 110 s | Single agent |
-| **Medium** (3–6 file changes, some planning) | $0.12 / 234 s | $0.15 / 181 s | Bernstein |
-| **Complex** (7+ files, multiple concerns) | $0.29 / 480 s | $0.25 / 320 s | Bernstein |
+Full methodology, raw data, and a written note on why earlier, larger numbers are not reproducible at this sample size: [`benchmarks/README.md`](../../benchmarks/README.md).
 
-| Metric | Single agent | Bernstein |
-|---|---:|---:|
-| **CI pass rate (all tasks)** | 52% | **80%** |
-| **CI pass rate (medium/complex only)** | 47% | **84%** |
-| **Median cost per task** | **$0.121** | $0.150 |
-| **Median wall clock** | 234 s | **181 s** |
-| **Linter delta (median)** | 0 | **−2** |
-| **Merge conflicts** | 1 | **0** |
-
-The 28 pp CI pass rate difference on medium/complex tasks is the headline finding. For simple tasks, the single agent wins on cost and is within noise on time.
+Until the larger evaluation lands, this page does not claim a benchmarked win. The practical differences below are about quality gates, parallelism, and unattended operation.
 
 ---
 
-## What causes the CI pass rate gap?
+## What causes the CI pass rate gap (when it shows up)?
 
-Three structural reasons single agents fail more:
+Three structural reasons single agents fail more, independent of the specific pilot numbers:
 
 **1. No external verification step.** When you run `claude --prompt "fix issue #42"`, the agent marks the task done when it thinks it's done — not when the tests pass. Bernstein's janitor runs `pytest` and the linter after every task. If either fails, the task goes back to the queue. The agent's self-assessment is not trusted.
 
@@ -104,3 +91,5 @@ Most users start with single-agent Claude Code or Codex. Bernstein solves specif
 - [Bernstein benchmark methodology and raw data](../../benchmarks/README.md)
 - [Full comparison matrix](./README.md)
 - [Zero lock-in: model-agnostic orchestration](../zero-lock-in.md)
+</content>
+</invoke>

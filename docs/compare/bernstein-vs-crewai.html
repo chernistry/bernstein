@@ -24,7 +24,7 @@
     "description": "CrewAI uses LLM-driven scheduling with Python SDK agents. Bernstein uses deterministic scheduling with any CLI agent. Compare orchestration approaches.",
     "author": { "@type": "Person", "name": "Alex Chernysh", "url": "https://alexchernysh.com" },
     "datePublished": "2026-04-06",
-    "dateModified": "2026-04-06",
+    "dateModified": "2026-04-17T12:00:00+03:00",
     "publisher": { "@type": "Organization", "name": "Bernstein", "url": "https://chernistry.github.io/bernstein/" }
   }
   </script>
@@ -34,7 +34,7 @@
     "@type": "ItemList",
     "name": "Bernstein vs CrewAI Feature Comparison",
     "itemListElement": [
-      { "@type": "ListItem", "position": 1, "name": "Bernstein", "description": "Deterministic scheduling, 18+ CLI agent adapters, git worktree isolation, janitor verification, cost tracking" },
+      { "@type": "ListItem", "position": 1, "name": "Bernstein", "description": "Deterministic scheduling, 17 CLI agent adapters, git worktree isolation, janitor verification, cost tracking" },
       { "@type": "ListItem", "position": 2, "name": "CrewAI", "description": "Python-native, LLM-driven scheduling, role-based agents defined as Python SDK classes" }
     ]
   }
@@ -57,7 +57,7 @@
       {
         "@type": "Question",
         "name": "Can I use CLI coding agents like Claude Code with CrewAI?",
-        "acceptedAnswer": { "@type": "Answer", "text": "CrewAI agents are Python SDK classes, not CLI tools. You define agent behavior in Python code. Bernstein wraps 18+ installed CLI agents (Claude Code, Codex, Gemini CLI, Aider, Cursor, and more) as subprocess adapters -- no Python SDK integration required." }
+        "acceptedAnswer": { "@type": "Answer", "text": "CrewAI agents are Python SDK classes, not CLI tools. You define agent behavior in Python code. Bernstein wraps 17 installed CLI agents (Claude Code, Codex, Gemini CLI, Aider, Cursor, and more) as subprocess adapters -- no Python SDK integration required." }
       }
     ]
   }
@@ -123,7 +123,7 @@
 
   <main class="doc-content">
 
-    <p>CrewAI is a popular Python framework for multi-agent orchestration where agents are Python classes with LLM-driven task delegation. Bernstein takes a fundamentally different approach: it wraps any installed CLI coding agent (Claude Code, Codex, Gemini CLI, and 15+ others) with deterministic Python scheduling that spends zero LLM tokens on coordination. CrewAI is better for building custom agent applications in Python. Bernstein is better for orchestrating real CLI coding agents on software development tasks.</p>
+    <p>CrewAI is a popular Python framework for multi-agent orchestration where agents are Python classes with LLM-driven task delegation. Bernstein takes a fundamentally different approach: it wraps any installed CLI coding agent (Claude Code, Codex, Gemini CLI, and 14 others) with deterministic Python scheduling that spends zero LLM tokens on coordination. CrewAI is better for building custom agent applications in Python. Bernstein is better for orchestrating real CLI coding agents on software development tasks.</p>
 
     <h2 id="overview">What each tool is</h2>
 
@@ -140,7 +140,7 @@
       <tbody>
         <tr><td><strong>Agent type</strong></td><td>CLI tools (installed separately)</td><td>Python SDK classes</td></tr>
         <tr><td><strong>Scheduling</strong></td><td>Deterministic Python (zero LLM tokens)</td><td>LLM-driven delegation</td></tr>
-        <tr><td><strong>Agent count</strong></td><td>18+ CLI agents via adapters</td><td>Custom Python agents (unlimited)</td></tr>
+        <tr><td><strong>Agent count</strong></td><td>17 CLI agents via adapters</td><td>Custom Python agents (unlimited)</td></tr>
         <tr><td><strong>Task decomposition</strong></td><td>Single LLM call, then deterministic</td><td>LLM-driven throughout execution</td></tr>
         <tr><td><strong>Git isolation</strong></td><td>Worktree per agent</td><td>No built-in git isolation</td></tr>
         <tr><td><strong>Result verification</strong></td><td>Janitor (tests, linter, files)</td><td>No built-in verification</td></tr>
@@ -276,7 +276,7 @@ Scheduling overhead: zero LLM tokens</code></pre>
       <i data-lucide="info" aria-hidden="true"></i>
       <div>
         <p><strong>Can I use CLI coding agents like Claude Code with CrewAI?</strong></p>
-        <p>CrewAI agents are Python SDK classes. Bernstein wraps 18+ installed CLI agents as subprocess adapters -- no Python SDK integration required.</p>
+        <p>CrewAI agents are Python SDK classes. Bernstein wraps 17 installed CLI agents as subprocess adapters -- no Python SDK integration required.</p>
       </div>
     </div>
 

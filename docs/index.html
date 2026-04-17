@@ -82,11 +82,11 @@
     <a href="index.html" class="nav-logo">bernstein</a>
     <div class="nav-links">
       <a href="index.html" class="nav-link" data-page="index.html">Overview</a>
-      <a href="getting-started.html" class="nav-link" data-page="getting-started.html">Getting Started</a>
+      <a href="getting-started/getting-started.html" class="nav-link" data-page="getting-started.html">Getting Started</a>
       <a href="concepts.html" class="nav-link" data-page="concepts.html">Concepts</a>
-      <a href="adapters.html" class="nav-link" data-page="adapters.html">Adapters</a>
+      <a href="adapters/adapters.html" class="nav-link" data-page="adapters.html">Adapters</a>
       <a href="api-reference.html" class="nav-link" data-page="api-reference.html">API Reference</a>
-      <a href="leaderboard.html" class="nav-link" data-page="leaderboard.html">Benchmarks</a>
+      <a href="benchmarks/leaderboard.html" class="nav-link" data-page="leaderboard.html">Benchmarks</a>
       <a href="compare/index.html" class="nav-link" data-page="compare/index.html">Compare</a>
       <a href="docs-index.html" class="nav-link" data-page="docs-index.html">All Docs</a>
       <a href="blog.html" class="nav-link" data-page="blog.html">Blog</a>
@@ -129,7 +129,7 @@
           <p style="margin-top:0.5rem;font-size:0.75rem;color:var(--text-4,#a0a0a8);text-align:center;max-width:36rem;margin-left:auto;margin-right:auto;white-space:nowrap;">or: <code style="font-size:0.75rem;">uv tool install bernstein</code> &middot; <code style="font-size:0.75rem;">brew install bernstein</code></p>
         </div>
         <div class="hero-actions">
-          <a href="getting-started.html" class="btn-primary">Get started &#8594;</a>
+          <a href="getting-started/getting-started.html" class="btn-primary">Get started &#8594;</a>
           <a href="https://github.com/chernistry/bernstein" class="btn-secondary" target="_blank" rel="noopener">View source</a>
         </div>
       </div>
@@ -308,7 +308,7 @@
         <div class="feature-group-items">
           <div class="feature-item">
             <h4>Any CLI agent</h4>
-            <p>17 CLI coding agents supported via thin adapters: Claude Code, Codex, Gemini CLI, Aider, Amp, Cursor, Kilo, Kiro, OpenCode, Qwen, Cody, Continue.dev, Goose, Ollama, IaC (Terraform/Pulumi), and a Generic adapter for any CLI tool. Mix models in the same run. No vendor lock-in. <a href="adapters.html">Full adapter reference and feature matrix</a></p>
+            <p>17 CLI coding agents supported via thin adapters: Claude Code, Codex, Gemini CLI, Aider, Amp, Cursor, Kilo, Kiro, OpenCode, Qwen, Cody, Continue.dev, Goose, Ollama, IaC (Terraform/Pulumi), and a Generic adapter for any CLI tool. Mix models in the same run. No vendor lock-in. <a href="adapters/adapters.html">Full adapter reference and feature matrix</a></p>
           </div>
           <div class="feature-item">
             <h4>Agent catalogs</h4>
@@ -701,7 +701,7 @@ bernstein run --evolve --max-cycles 10</code></pre>
       <h2>Get started</h2>
       <p>Open-source, Apache 2.0. Works with the CLI agents you already have.</p>
       <div class="cta-actions">
-        <a href="getting-started.html" class="btn-primary">Read the docs &#8594;</a>
+        <a href="getting-started/getting-started.html" class="btn-primary">Read the docs &#8594;</a>
         <a href="https://github.com/chernistry/bernstein" class="btn-secondary" target="_blank" rel="noopener">View on GitHub</a>
       </div>
     </div>
@@ -720,7 +720,7 @@ bernstein run --evolve --max-cycles 10</code></pre>
   </details>
   <details>
     <summary>Can you run multiple AI agents on the same codebase at once?</summary>
-    <p>Yes. Bernstein spawns each agent in its own git worktree — an isolated copy of your repository. Agents work simultaneously without conflicts. The orchestrator merges verified results back to main. A single run can coordinate 17 different AI coding agents. <a href="getting-started.html">Get started</a></p>
+    <p>Yes. Bernstein spawns each agent in its own git worktree — an isolated copy of your repository. Agents work simultaneously without conflicts. The orchestrator merges verified results back to main. A single run can coordinate 17 different AI coding agents. <a href="getting-started/getting-started.html">Get started</a></p>
   </details>
   <details>
     <summary>How much does AI agent orchestration cost?</summary>

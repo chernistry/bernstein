@@ -38,11 +38,11 @@
     <a href="index.html" class="nav-logo">bernstein</a>
     <div class="nav-links">
       <a href="index.html" class="nav-link" data-page="index.html">Overview</a>
-      <a href="getting-started.html" class="nav-link" data-page="getting-started.html">Getting Started</a>
+      <a href="getting-started/getting-started.html" class="nav-link" data-page="getting-started.html">Getting Started</a>
       <a href="concepts.html" class="nav-link" data-page="concepts.html">Concepts</a>
-      <a href="adapters.html" class="nav-link" data-page="adapters.html">Adapters</a>
-      <a href="api.html" class="nav-link" data-page="api.html">API Reference</a>
-      <a href="leaderboard.html" class="nav-link" data-page="leaderboard.html">Benchmarks</a>
+      <a href="adapters/adapters.html" class="nav-link" data-page="adapters.html">Adapters</a>
+      <a href="api-reference.html" class="nav-link" data-page="api.html">API Reference</a>
+      <a href="benchmarks/leaderboard.html" class="nav-link" data-page="leaderboard.html">Benchmarks</a>
       <a href="compare/index.html" class="nav-link" data-page="compare/index.html">Compare</a>
       <a href="docs-index.html" class="nav-link" data-page="docs-index.html">All Docs</a>
       <a href="blog.html" class="nav-link" data-page="blog.html">Blog</a>
@@ -504,7 +504,7 @@ stages:
   <h2>Architecture FAQ</h2>
   <details>
     <summary>Why does Bernstein use short-lived agents instead of long-running ones?</summary>
-    <p>Long-running agents accumulate context rot — their context windows fill with stale information, leading to degraded output quality. Bernstein spawns fresh agents per task: clean context, no idle resource consumption, and no "sleep" problem. Each agent does 1-3 tasks and exits. State persists in <code>.sdd/</code> files, not in agent memory. <a href="getting-started.html">Try it yourself</a></p>
+    <p>Long-running agents accumulate context rot — their context windows fill with stale information, leading to degraded output quality. Bernstein spawns fresh agents per task: clean context, no idle resource consumption, and no "sleep" problem. Each agent does 1-3 tasks and exits. State persists in <code>.sdd/</code> files, not in agent memory. <a href="getting-started/getting-started.html">Try it yourself</a></p>
   </details>
   <details>
     <summary>How does Bernstein prevent agents from conflicting with each other?</summary>
@@ -512,7 +512,7 @@ stages:
   </details>
   <details>
     <summary>What makes the orchestrator deterministic?</summary>
-    <p>The orchestrator is pure Python — no LLM calls for scheduling, routing, or coordination decisions. Given the same task graph and configuration, it produces identical execution plans. <code>bernstein verify --determinism</code> proves this with hash comparisons. The execution WAL provides crash recovery without non-determinism. <a href="adapters.html">See which agents are supported</a></p>
+    <p>The orchestrator is pure Python — no LLM calls for scheduling, routing, or coordination decisions. Given the same task graph and configuration, it produces identical execution plans. <code>bernstein verify --determinism</code> proves this with hash comparisons. The execution WAL provides crash recovery without non-determinism. <a href="adapters/adapters.html">See which agents are supported</a></p>
   </details>
 </section>
 

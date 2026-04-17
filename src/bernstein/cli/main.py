@@ -779,4 +779,5 @@ cli.add_command(explain_help_cmd, "explain")
 cli.add_command(config_path_cmd, "config-path")
 cli.add_command(init_wizard_cmd, "init-wizard")
 cli.add_command(aliases_cmd, "aliases")
-cli.add_command(debug_cmd, "debug")
+cli.add_command(debug_cmd, "debug-bundle")
+cli.add_command(debug_cmd, "debug")  # backward-compat alias

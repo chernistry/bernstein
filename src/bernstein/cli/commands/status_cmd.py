@@ -144,7 +144,7 @@ def _decorate_agent_rows(agents: list[dict[str, Any]]) -> None:
 # ---------------------------------------------------------------------------
 
 
-@click.command("score", hidden=True)
+@click.command("status")
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
 @click.option("--no-color", "no_color", is_flag=True, default=False, help="Disable colour output.")
 @click.option(

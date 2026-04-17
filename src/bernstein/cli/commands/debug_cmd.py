@@ -78,7 +78,7 @@ def _load_bundle_module() -> tuple[
         return None, None
 
 
-@click.command("debug")
+@click.command("debug-bundle")
 @click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
 @click.option("--output", "-o", type=click.Path(), default=None, help="Output zip path")
 @click.option("--extended", is_flag=True, help="Include full logs (not truncated)")

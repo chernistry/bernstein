@@ -383,7 +383,7 @@ def _generate_default_yaml(project_type: str) -> str:
     return "\n".join(lines)
 
 
-@click.command("overture", hidden=True)
+@click.command("init")
 @click.option(
     "--dir",
     "target_dir",
@@ -992,7 +992,7 @@ def run(
 # ---------------------------------------------------------------------------
 
 
-@click.command("downbeat", hidden=True)
+@click.command("start")
 @click.argument("goal", required=False, default=None)
 @click.option(
     "--seed-file",

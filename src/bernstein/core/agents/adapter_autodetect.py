@@ -25,7 +25,13 @@ logger = logging.getLogger(__name__)
 # Known CLI tool -> adapter mappings
 # ---------------------------------------------------------------------------
 
-# Maps binary names to their adapter registry names.
+# Maps binary names (as they appear on PATH) to their adapter registry names.
+#
+# IMPORTANT: The key must match the binary name each adapter actually spawns
+# (see ``src/bernstein/adapters/<name>.py`` ``cmd = [...]``). Multiple binaries
+# may map to a single adapter (e.g. both ``terraform`` and ``pulumi`` satisfy
+# the ``iac`` adapter). Ordering is not significant — ``scan_for_adapters``
+# iterates the map in sorted order.
 _KNOWN_BINARIES: dict[str, str] = {
     "claude": "claude",
     "codex": "codex",
@@ -38,9 +44,11 @@ _KNOWN_BINARIES: dict[str, str] = {
     "cn": "continue",
     "goose": "goose",
     "kilo": "kilo",
-    "kiro": "kiro",
+    "kiro-cli": "kiro",
     "ollama": "ollama",
     "opencode": "opencode",
+    "terraform": "iac",
+    "pulumi": "iac",
 }
 
 

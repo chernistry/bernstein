@@ -1,8 +1,8 @@
 # Bernstein vs. Stoneforge
 
-> **tl;dr** — Stoneforge is a provider-specific multi-agent coding framework with strong IDE integration and a polished developer experience. Bernstein is provider-agnostic and CLI-native, trades the IDE UX for model flexibility and headless operation. Neither is better in the abstract — the question is whether provider lock-in matters for your workflow.
+> **tl;dr** — Stoneforge is a provider-integrated multi-agent coding framework with git worktrees, a merge queue, and an IDE plugin story. Bernstein is provider-agnostic and CLI-native, trading the IDE UX for model flexibility, 17 adapters, headless runs, and `--evolve`. Neither is better in the abstract — the question is whether provider lock-in matters for your workflow.
 
-*This comparison is based on publicly available documentation. Feature details may have changed since this was written (March 2026).*
+*Last verified: 2026-04-17. Stoneforge launched 2026-03-03 with git worktrees and merge-queue support.*
 
 ---
 
@@ -18,11 +18,11 @@
 
 | Feature | Bernstein | Stoneforge |
 |---|---|---|
-| **Provider flexibility** | Any CLI agent (Claude, Codex, Gemini, Qwen, Generic) | Single provider |
+| **Provider flexibility** | Any CLI agent (17 adapters) | Single provider |
 | **CLI agent support** | Yes — wraps installed CLI tools | No — uses provider SDK directly |
 | **IDE integration** | No — terminal-native | Yes — VS Code, JetBrains plugins |
 | **Task planning** | LLM planner from natural language goal | Structured prompt with agent roles |
-| **Agent isolation** | Git worktree per agent, process isolation | Shared session context |
+| **Agent isolation** | Git worktree per agent, process isolation | Git worktrees + merge queue |
 | **Result verification** | External janitor (tests, linter, files) | Provider-native tool verification |
 | **Self-evolution** | Yes — `--evolve` mode | No |
 | **Model routing** | Cost-aware bandit across providers | Fixed to provider models |
@@ -70,14 +70,7 @@ Stoneforge's shared context means agents can reference each other's reasoning �
 
 Stoneforge costs are determined by the underlying provider pricing. If you use a single high-end model for all agents, costs reflect that.
 
-Bernstein benchmark (25 GitHub issues, 2026-03-28):
-
-| Mode | Median cost per task | CI pass rate |
-|---|---:|---:|
-| Single agent | $0.121 | 52% |
-| Bernstein | $0.150 | **80%** |
-
-Bernstein's bandit router reduces cost on low-complexity tasks by routing to Haiku or free-tier Gemini. For a mixed workload, the effective cost per task can be lower than running all tasks against a premium model.
+Bernstein's bandit router reduces cost on low-complexity tasks by routing to Haiku or free-tier Gemini. For a mixed workload, the effective cost per task can be lower than running all tasks against a premium model. Early pilot: 40%/48% resolve on 25 issues (+8 pp, p=0.569, n=25, "negligible effect"); larger evaluation pending. See [`benchmarks/README.md`](../../benchmarks/README.md).
 
 ---
 
@@ -100,7 +93,7 @@ The risk: if that provider raises prices, introduces rate limits, or you want to
 
 ## When to use Bernstein instead
 
-- **You want provider flexibility.** Mix Claude, Codex, Gemini, and Qwen in the same run. Route tasks to the cheapest capable model. Switch providers if pricing or quality changes.
+- **You want provider flexibility.** Mix Claude, Codex, Gemini, and Qwen in the same run across 17 adapters. Route tasks to the cheapest capable model. Switch providers if pricing or quality changes.
 - **You want no vendor dependency for orchestration logic.** Your task definitions, role templates, janitor rules, and evolution config are plain files — no vendor SDK imports.
 - **You want headless, overnight operation.** CI pipelines, scheduled evolution runs, budget-capped overnight sessions.
 - **You want self-evolution.** Bernstein analyzes its own metrics and improves prompts, routing rules, and templates over time.

@@ -2,13 +2,13 @@
 
 > **tl;dr** — Parallel Code lets you manually run multiple coding agent sessions in separate windows or tmux panes. It works fine if you want to manage the parallelism yourself. Bernstein automates the coordination: task planning, model routing, verification, and merge conflict prevention. The question is whether you want to be the orchestrator or have software be the orchestrator.
 
-*This comparison is based on publicly available documentation and community usage patterns as of March 2026.*
+*Last verified: 2026-04-17. "Parallel Code" covers both the `github.com/johannesjo/parallel-code` desktop app (Claude Code + Codex + Gemini, git worktree per agent) and the broader manual-tmux pattern of running multiple coding agents side by side.*
 
 ---
 
 ## What each tool is
 
-**Parallel Code** refers to the pattern (and in some cases the specific tool) of running multiple independent coding agent sessions simultaneously — typically via tmux, multiple terminal windows, or a session manager that launches several Claude Code or Codex instances on different tasks. The parallelism is human-coordinated: you decide what tasks to run, assign them to sessions, and monitor the output.
+**Parallel Code** refers to both the specific desktop app at `github.com/johannesjo/parallel-code` (gives every agent its own git branch and worktree, one-click diff viewer, one-click merge, supports Claude Code, Codex, and Gemini) and the broader pattern of running multiple independent coding agent sessions simultaneously — typically via tmux, multiple terminal windows, or a session manager. The parallelism is human-coordinated: you decide what tasks to run, assign them to sessions, and resolve conflicts.
 
 **Bernstein** automates that coordination. You provide a goal in natural language. Bernstein decomposes it into subtasks, assigns each to an agent process with the appropriate model and role, runs them in isolated git worktrees, verifies results with a janitor (tests + linter), and merges the work. The human stays out of the loop unless a task needs escalation.
 
@@ -78,14 +78,16 @@ Managing parallel agent sessions manually costs real attention:
 
 For 2–3 sessions on a short task, this coordination tax is acceptable. For 5+ sessions on a complex feature, it consumes most of the time savings from parallelism.
 
-Bernstein's value proposition is eliminating the coordination tax. The benchmark (25 GitHub issues, 2026-03-28) shows:
+Bernstein's value proposition is eliminating the coordination tax:
 
-| Metric | Manual parallel (estimated) | Bernstein |
+| Metric | Manual parallel | Bernstein |
 |---|---:|---:|
 | **Human attention required** | High (monitoring + verification) | Low (setup + review) |
-| **CI pass rate** | Depends on how well you verify | **80%** (janitor-enforced) |
-| **Merge conflicts** | Frequent without coordination | **0** (worktree isolation) |
-| **Overnight operation** | Not possible (needs supervision) | Yes (`--headless`) |
+| **Verification before merge** | Depends on how well you verify | Janitor-enforced (pytest + ruff + file checks) |
+| **Merge conflicts** | Frequent without coordination | Worktree isolation + merge queue |
+| **Overnight operation** | Not possible (needs supervision) | Yes (`--headless --budget N`) |
+
+Numeric quality claims (early pilot, n=25, +8 pp, p=0.569) live in [`benchmarks/README.md`](../../benchmarks/README.md). Earlier copies of this page cited larger deltas that were not reproducible at n=25 and have been removed.
 
 ---
 

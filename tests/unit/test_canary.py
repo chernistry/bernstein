@@ -305,7 +305,7 @@ def test_promote_canary_preserves_thresholds() -> None:
     )
     promoted = promote_canary(state)
     assert promoted.auto_promote_threshold == 42
-    assert promoted.auto_rollback_diff_pct == 7.5
+    assert promoted.auto_rollback_diff_pct == pytest.approx(7.5)
 
 
 def test_rollback_canary_clears_canary() -> None:
@@ -333,7 +333,7 @@ def test_rollback_canary_preserves_thresholds() -> None:
     )
     rolled = rollback_canary(state)
     assert rolled.auto_promote_threshold == 20
-    assert rolled.auto_rollback_diff_pct == 5.0
+    assert rolled.auto_rollback_diff_pct == pytest.approx(5.0)
 
 
 # ---------------------------------------------------------------------------

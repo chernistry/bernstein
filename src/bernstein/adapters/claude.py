@@ -6,7 +6,6 @@ import contextlib
 import json
 import logging
 import os
-import signal
 import subprocess
 import sys
 import time
@@ -18,7 +17,7 @@ from bernstein.adapters.claude_agents import build_agents_json
 from bernstein.adapters.env_isolation import build_filtered_env
 from bernstein.core.defaults import COST
 from bernstein.core.models import ApiTier, ApiTierInfo, ModelConfig, ProviderType, RateLimit
-from bernstein.core.platform_compat import kill_process_group, process_alive
+from bernstein.core.platform_compat import kill_process_group_graceful, process_alive
 
 # Map short model names to Claude Code CLI model IDs.
 # Updated 2026-04-16 — Opus 4.7 generally available, same price as 4.6.
@@ -705,11 +704,16 @@ class ClaudeCodeAdapter(CLIAdapter):
         # of os.getpgid() which fails when the process is already dead —
         # this ensures we kill the entire session group including any
         # child processes (the actual claude CLI) that outlive the wrapper.
-        kill_process_group(pid, signal.SIGTERM)
-        # Also kill the wrapper process
+        #
+        # ``kill_process_group_graceful`` sends SIGTERM, polls briefly, and
+        # escalates to SIGKILL if the group is still alive.  Without the
+        # escalation, agents that trap SIGTERM survive reap paths — see
+        # audit-011.
+        kill_process_group_graceful(pid)
+        # Also kill the wrapper process with the same TERM→KILL escalation
         wrapper_pid = self._wrapper_pids.pop(pid, None)
         if wrapper_pid:
-            kill_process_group(wrapper_pid, signal.SIGTERM)
+            kill_process_group_graceful(wrapper_pid)
         self._procs.pop(pid, None)
 
     def name(self) -> str:

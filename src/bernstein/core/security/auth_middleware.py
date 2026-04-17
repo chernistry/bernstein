@@ -5,8 +5,18 @@ that supports:
 - JWT tokens (from SSO login)
 - Agent identity JWT tokens (per-agent, task-scoped, zero-trust)
 - Legacy bearer tokens (backwards compatible)
-- Public path exemptions
+- Public path exemptions (health, discovery, login flow)
+- HMAC-authenticated path exemptions (webhooks/hooks validate their own HMAC)
 - User context injection into request.state
+
+Secure-by-default
+-----------------
+Authentication is REQUIRED by default.  A request to any protected path
+without a valid Bearer token (and without a matching HMAC signature for
+HMAC-authenticated paths) returns HTTP 401.  To run without authentication
+(development convenience only) set ``BERNSTEIN_AUTH_DISABLED=1`` or put
+``auth.enabled: false`` in ``bernstein.yaml`` — this logs a loud warning
+once per process.
 
 Zero-trust enforcement
 ----------------------
@@ -20,6 +30,7 @@ unrestricted (manager / orchestrator tokens).
 from __future__ import annotations
 
 import logging
+import os
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -42,24 +53,31 @@ logger = logging.getLogger(__name__)
 # Regex to extract task ID from paths like /tasks/{id}/complete
 _TASK_ID_PATH_RE = re.compile(r"^/tasks/([^/]+)/(?:complete|fail|progress|cancel|block|steal)$")
 
+# ---------------------------------------------------------------------------
+# Public and HMAC-authenticated paths
+# ---------------------------------------------------------------------------
 
-# Paths that are always accessible without authentication
+# Paths that are always accessible without any authentication.
+# Keep this list tiny — only trivially public endpoints (health probes,
+# discovery metadata, docs, login flow) belong here.
 AUTH_PUBLIC_PATHS = frozenset(
     {
+        # Health / readiness probes
         "/health",
         "/health/ready",
         "/health/live",
+        "/health/deps",
         "/ready",
         "/alive",
+        # Agent / protocol discovery
         "/.well-known/agent.json",
+        "/.well-known/acp.json",
+        "/acp/v0/agents",
+        # API docs
         "/docs",
+        "/redoc",
         "/openapi.json",
-        "/webhook",
-        "/webhooks/github",
-        "/dashboard",
-        "/dashboard/data",
-        "/dashboard/file_locks",
-        "/events",
+        "/openapi.yaml",
         # Auth flow endpoints (must be public for login to work)
         "/auth/login",
         "/auth/oidc/callback",
@@ -71,9 +89,31 @@ AUTH_PUBLIC_PATHS = frozenset(
     }
 )
 
-# Path prefixes that are always accessible without authentication.
+# Paths whose handlers perform their own HMAC-based verification.  The
+# bearer-token middleware lets these pass; the route itself rejects
+# unsigned / badly-signed requests with 401.
+#
+# IMPORTANT: do NOT add paths here unless their handler actually verifies
+# a shared-secret HMAC signature.  An entry here bypasses bearer auth.
+AUTH_HMAC_PATHS = frozenset(
+    {
+        "/webhook",
+        "/webhooks/github",
+        "/webhooks/gitlab",
+        "/webhooks/slack/commands",
+        "/webhooks/slack/events",
+    }
+)
+
+# Path prefixes whose handlers perform their own HMAC verification.
 # Used for routes with path parameters (e.g. /hooks/{session_id}).
-AUTH_PUBLIC_PATH_PREFIXES = ("/hooks/",)
+AUTH_HMAC_PATH_PREFIXES = ("/hooks/",)
+
+# Opt-out flag: when set to a truthy value, auth is disabled and the
+# middleware passes every request through (with a loud warning on startup).
+AUTH_DISABLED_ENV = "BERNSTEIN_AUTH_DISABLED"
+
+_AUTH_DISABLED_TRUTHY = frozenset({"1", "true", "yes", "on"})
 
 # Read-only methods that viewers can access
 _READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -88,6 +128,18 @@ _ROUTE_PERMISSIONS: dict[str, str] = {
     "/config": "config:write",
     "/webhooks": "webhooks:manage",
 }
+
+
+def auth_disabled_via_opt_out() -> bool:
+    """Return True when auth has been explicitly opted out for the process.
+
+    The only supported opt-out signal is the ``BERNSTEIN_AUTH_DISABLED``
+    environment variable set to a truthy value (``1``, ``true``, ``yes``,
+    ``on``).  Config-based opt-out (``auth.enabled: false`` in
+    ``bernstein.yaml``) is handled at the app factory layer, which passes
+    the resolved flag into :class:`SSOAuthMiddleware` via ``auth_disabled``.
+    """
+    return os.environ.get(AUTH_DISABLED_ENV, "").strip().lower() in _AUTH_DISABLED_TRUTHY
 
 
 def _get_required_permission(path: str, method: str) -> str | None:
@@ -120,11 +172,19 @@ def _get_required_permission(path: str, method: str) -> str | None:
 class SSOAuthMiddleware(BaseHTTPMiddleware):
     """Multi-strategy authentication middleware.
 
-    Authentication strategies (tried in order):
-    1. SSO JWT token in Authorization: Bearer <jwt>
+    Authentication strategies (tried in order for Bearer-authenticated
+    paths):
+
+    1. SSO JWT token in ``Authorization: Bearer <jwt>``
     2. Agent identity JWT (per-agent, task-scoped — zero-trust enforcement)
     3. Legacy static bearer token
-    4. No auth (if auth is not configured)
+    4. 401 if no strategy accepts the token
+
+    HMAC-authenticated paths (``AUTH_HMAC_PATHS``, ``AUTH_HMAC_PATH_PREFIXES``)
+    bypass bearer auth — their route handlers verify a shared-secret HMAC
+    signature and reject invalid / missing signatures with 401.
+
+    Truly-public paths (``AUTH_PUBLIC_PATHS``) require no auth at all.
 
     On successful auth, injects ``request.state.user`` (AuthUser or None)
     and ``request.state.auth_claims`` (dict) for downstream routes.
@@ -134,17 +194,34 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
     checks if needed.
     """
 
+    # Log the "auth disabled" warning at most once per process to keep logs
+    # readable while still making the misconfiguration loud.
+    _warned_disabled: bool = False
+
     def __init__(
         self,
         app: Any,
         auth_service: AuthService | None = None,
         legacy_token: str | None = None,
         agent_identity_store: AgentIdentityStore | None = None,
+        auth_disabled: bool | None = None,
     ) -> None:
         super().__init__(app)
         self._auth_service = auth_service
         self._legacy_token = legacy_token
         self._agent_identity_store = agent_identity_store
+        # Resolve opt-out from explicit arg > env var. Config-based opt-out
+        # should be passed in via ``auth_disabled=True`` from the factory.
+        resolved_disabled = bool(auth_disabled) or auth_disabled_via_opt_out()
+        self._auth_disabled = resolved_disabled
+        if resolved_disabled and not SSOAuthMiddleware._warned_disabled:
+            logger.warning(
+                "SECURITY: Bernstein auth is DISABLED — every request is "
+                "accepted without a Bearer token (opt-out via "
+                "BERNSTEIN_AUTH_DISABLED or auth.enabled=false).  "
+                "Do NOT run this configuration on any network-exposed host.",
+            )
+            SSOAuthMiddleware._warned_disabled = True
 
     async def dispatch(
         self,
@@ -153,28 +230,25 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
     ) -> StarletteResponse:
         path = request.url.path
 
-        # Public paths are always accessible
-        if path in AUTH_PUBLIC_PATHS or path.startswith(AUTH_PUBLIC_PATH_PREFIXES):
+        # Opt-out: pass every request through unauthenticated.
+        if self._auth_disabled:
             response: StarletteResponse = await call_next(request)
+            return response
+
+        # Truly-public paths are always accessible.
+        if path in AUTH_PUBLIC_PATHS:
+            response = await call_next(request)
+            return response
+
+        # HMAC-authenticated paths: the route handler verifies a shared
+        # secret; the bearer middleware lets them through.
+        if path in AUTH_HMAC_PATHS or path.startswith(AUTH_HMAC_PATH_PREFIXES):
+            response = await call_next(request)
             return response
 
         auth_header = request.headers.get("authorization", "")
         has_bearer = auth_header.startswith("Bearer ")
 
-        # No SSO or legacy auth configured (dev/no-auth mode).
-        # In this mode we still validate Bearer tokens when presented — this
-        # enforces zero-trust for agents that do include their tokens while
-        # allowing unauthenticated local development requests to pass through.
-        if self._auth_service is None and not self._legacy_token:
-            if not has_bearer:
-                # No token, no auth configured → dev-mode pass-through
-                response = await call_next(request)
-                return response
-            # A Bearer token is present — validate it as an agent JWT.
-            token = auth_header[7:]
-            return await self._try_agent_or_reject(request, call_next, path, token)
-
-        # Auth IS configured — require a valid token.
         if not has_bearer:
             return JSONResponse(
                 status_code=401,
@@ -210,24 +284,7 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
                 return response
 
         return JSONResponse(
-            status_code=403,
-            content={"detail": "Invalid or expired authentication token"},
-        )
-
-    async def _try_agent_or_reject(
-        self,
-        request: Request,
-        call_next: Callable[[Request], Any],
-        path: str,
-        token: str,
-    ) -> StarletteResponse:
-        """Validate an agent JWT in no-auth mode; reject invalid tokens."""
-        if self._agent_identity_store is not None:
-            result = await self._try_agent_jwt(request, call_next, path, token)
-            if result is not None:
-                return result
-        return JSONResponse(
-            status_code=403,
+            status_code=401,
             content={"detail": "Invalid or expired authentication token"},
         )
 

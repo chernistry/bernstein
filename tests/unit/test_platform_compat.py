@@ -218,11 +218,7 @@ class TestKillProcessGroupGraceful:
         # Spawn a child that ignores SIGTERM via Python's signal module and
         # sits in a long sleep.  Without SIGKILL escalation, SIGTERM alone
         # leaves the process running.
-        script = (
-            "import signal, time\n"
-            "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
-            "time.sleep(60)\n"
-        )
+        script = "import signal, time\nsignal.signal(signal.SIGTERM, signal.SIG_IGN)\ntime.sleep(60)\n"
         proc = subprocess.Popen(
             [sys.executable, "-c", script],
             stdout=subprocess.DEVNULL,

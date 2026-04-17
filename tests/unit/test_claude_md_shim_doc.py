@@ -48,8 +48,7 @@ def test_redirect_map_covers_documented_names() -> None:
     redirect_map = core_pkg._REDIRECT_MAP
     for name in ("orchestrator", "spawner", "task_lifecycle"):
         assert name in redirect_map, (
-            f"_REDIRECT_MAP is missing {name!r}; legacy import path "
-            f"bernstein.core.{name} will break."
+            f"_REDIRECT_MAP is missing {name!r}; legacy import path bernstein.core.{name} will break."
         )
         target = redirect_map[name]
         # Importing the target must succeed — the finder relies on it.
@@ -86,10 +85,8 @@ def test_claude_md_documents_the_real_mechanism() -> None:
     # The replacement bullet must reference the finder + map by name so
     # engineers know where to add new aliases.
     assert "_CoreRedirectFinder" in text, (
-        "CLAUDE.md should reference _CoreRedirectFinder so contributors "
-        "can find the real back-compat mechanism."
+        "CLAUDE.md should reference _CoreRedirectFinder so contributors can find the real back-compat mechanism."
     )
     assert "_REDIRECT_MAP" in text, (
-        "CLAUDE.md should reference _REDIRECT_MAP so contributors know "
-        "where to add new legacy aliases."
+        "CLAUDE.md should reference _REDIRECT_MAP so contributors know where to add new legacy aliases."
     )

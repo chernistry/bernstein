@@ -9,8 +9,11 @@ intended base directory via ``Path.resolve().is_relative_to(base)``.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json as _json
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
 import pytest
@@ -27,6 +30,32 @@ from bernstein.core.hooks_receiver import (
 from httpx import ASGITransport, AsyncClient
 
 from bernstein.core.server import create_app
+
+# Signing secret used by the fixtures below.  The hook endpoint verifies
+# an HMAC-SHA256 signature (audit-113) before the session_id allowlist
+# check (audit-114), so every path-traversal case has to be signed to
+# exercise the downstream rejection logic under test.
+_HOOK_SECRET = "test-hook-secret"
+
+
+def _signed_post(
+    client: AsyncClient,
+    url: str,
+    *,
+    body: dict[str, Any],
+) -> Any:
+    """Return a coroutine for a signed POST that mirrors ``client.post(json=...)``."""
+    raw = _json.dumps(body).encode("utf-8")
+    sig = hmac.new(_HOOK_SECRET.encode("utf-8"), raw, hashlib.sha256).hexdigest()
+    return client.post(
+        url,
+        content=raw,
+        headers={
+            "Content-Type": "application/json",
+            "X-Bernstein-Hook-Signature-256": f"sha256={sig}",
+        },
+    )
+
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -182,7 +211,10 @@ def jsonl_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture()
-def app(jsonl_path: Path, tmp_path: Path):  # type: ignore[no-untyped-def]
+def app(jsonl_path: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+    # Hooks route enforces an HMAC signature (audit-113); configure the
+    # shared secret the ``_signed_post`` helper uses below.
+    monkeypatch.setenv("BERNSTEIN_HOOK_SECRET", _HOOK_SECRET)
     application = create_app(jsonl_path=jsonl_path)
     application.state.workdir = tmp_path  # type: ignore[attr-defined]
     return application
@@ -204,9 +236,10 @@ def _assert_rejected(response_status: int, response_body: dict[str, object]) -> 
 @pytest.mark.anyio
 async def test_valid_session_id_returns_200(client: AsyncClient, tmp_path: Path) -> None:
     """Baseline: a clean session_id is accepted and writes its sidecar."""
-    response = await client.post(
+    response = await _signed_post(
+        client,
         "/hooks/sess-valid-001",
-        json={"hook_event_name": "PostToolUse", "tool_name": "Bash"},
+        body={"hook_event_name": "PostToolUse", "tool_name": "Bash"},
     )
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
@@ -223,9 +256,10 @@ async def test_dotdot_session_id_returns_400(client: AsyncClient, tmp_path: Path
     and reaches the route parameter verbatim.  Starlette decodes the
     path component back to ``..`` before handing it to the handler.
     """
-    response = await client.post(
+    response = await _signed_post(
+        client,
         "/hooks/%2E%2E",
-        json={"hook_event_name": "Stop"},
+        body={"hook_event_name": "Stop"},
     )
     _assert_rejected(response.status_code, response.json())
     # Nothing should have been written outside the hooks tree.
@@ -250,17 +284,19 @@ async def test_absolute_path_session_id_returns_400(client: AsyncClient, tmp_pat
     """
     # Form 1: backslash-encoded absolute path survives Starlette routing
     # and hits the handler, which must reject it with 400.
-    response = await client.post(
+    response = await _signed_post(
+        client,
         "/hooks/" + quote("\\etc\\passwd", safe=""),
-        json={"hook_event_name": "Stop"},
+        body={"hook_event_name": "Stop"},
     )
     _assert_rejected(response.status_code, response.json())
 
     # Form 2: forward-slash absolute path — Starlette splits and 404s.
     # This is still a secure outcome; no file is written outside base.
-    response2 = await client.post(
+    response2 = await _signed_post(
+        client,
         "/hooks/" + quote("/etc/passwd", safe=""),
-        json={"hook_event_name": "Stop"},
+        body={"hook_event_name": "Stop"},
     )
     assert response2.status_code in (400, 404), f"absolute /etc/passwd must be rejected, got {response2.status_code}"
     assert not (tmp_path / "etc" / "passwd").exists()
@@ -278,17 +314,19 @@ async def test_url_encoded_dotdot_returns_400(client: AsyncClient, tmp_path: Pat
     secure).
     """
     # Bare dot-dot reaches the handler and must be rejected with 400.
-    response = await client.post(
+    response = await _signed_post(
+        client,
         "/hooks/%2e%2e",
-        json={"hook_event_name": "Stop"},
+        body={"hook_event_name": "Stop"},
     )
     _assert_rejected(response.status_code, response.json())
 
     # Slash-suffixed form is split by Starlette (404) or rejected (400)
     # — either outcome prevents filesystem writes outside the base.
-    response2 = await client.post(
+    response2 = await _signed_post(
+        client,
         "/hooks/%2e%2e%2f",
-        json={"hook_event_name": "Stop"},
+        body={"hook_event_name": "Stop"},
     )
     # Any non-2xx is acceptable: handler rejection (400), route miss
     # (404), or trailing-slash redirect (307) all prevent the write.
@@ -304,9 +342,10 @@ async def test_url_encoded_dotdot_returns_400(client: AsyncClient, tmp_path: Pat
 async def test_null_byte_session_id_returns_400(client: AsyncClient, tmp_path: Path) -> None:
     """Null byte in session_id is rejected (cannot be used to truncate filenames)."""
     encoded = quote("foo\x00bar", safe="")
-    response = await client.post(
+    response = await _signed_post(
+        client,
         f"/hooks/{encoded}",
-        json={"hook_event_name": "PostToolUse"},
+        body={"hook_event_name": "PostToolUse"},
     )
     _assert_rejected(response.status_code, response.json())
 
@@ -328,9 +367,10 @@ async def test_symlink_escape_session_id_returns_400(client: AsyncClient, tmp_pa
     link = hooks_dir / "sess-symlink.jsonl"
     os.symlink(outside / "stolen.jsonl", link)
 
-    response = await client.post(
+    response = await _signed_post(
+        client,
         "/hooks/sess-symlink",
-        json={"hook_event_name": "PostToolUse", "tool_name": "Bash"},
+        body={"hook_event_name": "PostToolUse", "tool_name": "Bash"},
     )
     _assert_rejected(response.status_code, response.json())
     # Nothing written to the outside target.
@@ -347,9 +387,10 @@ async def test_rejection_does_not_write_completion_marker(client: AsyncClient, t
     care about is the negative: no marker file anywhere in ``tmp_path``.
     """
     completed_dir = tmp_path / ".sdd" / "runtime" / "completed"
-    response = await client.post(
+    response = await _signed_post(
+        client,
         "/hooks/" + quote("../../SHUTDOWN", safe=""),
-        json={"hook_event_name": "Stop"},
+        body={"hook_event_name": "Stop"},
     )
     # 307/400/404 are all acceptable — none leave the filesystem dirty.
     assert response.status_code in (307, 400, 404), f"traversal payload must be rejected, got {response.status_code}"

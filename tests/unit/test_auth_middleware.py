@@ -7,9 +7,14 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
 from bernstein.core.auth_middleware import SSOAuthMiddleware, _get_required_permission
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+
+# Module-level: these tests rely on the secure-by-default middleware behaviour
+# (no ``BERNSTEIN_AUTH_DISABLED`` shim), so opt out of the autouse fixture.
+pytestmark = pytest.mark.auth_enabled
 
 
 def _app_with_middleware(auth_service: Any = None, legacy_token: str | None = None) -> TestClient:
@@ -183,8 +188,8 @@ def test_agent_jwt_read_requests_not_scope_checked(tmp_path: Any) -> None:
     assert response.status_code == 200
 
 
-def test_invalid_bearer_token_rejected_in_dev_mode(tmp_path: Any) -> None:
-    """In dev mode, an invalid Bearer token (not a valid agent JWT) is rejected."""
+def test_invalid_bearer_token_rejected(tmp_path: Any) -> None:
+    """An invalid Bearer token (not a valid agent JWT) is rejected with 401."""
     client, _store = _app_with_agent_identity_store(tmp_path)
 
     response = client.post(
@@ -193,7 +198,7 @@ def test_invalid_bearer_token_rejected_in_dev_mode(tmp_path: Any) -> None:
         json={"result_summary": "done"},
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 def test_check_agent_task_scope_returns_none_for_non_task_paths() -> None:

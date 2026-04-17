@@ -127,9 +127,7 @@ class TestFindOrphanedClaims:
         orphans = WALRecovery.find_orphaned_claims(sdd, exclude_run_id="current")
         assert orphans == []
 
-    def test_claim_with_matching_spawn_confirmed_is_not_orphan(
-        self, tmp_path: Path
-    ) -> None:
+    def test_claim_with_matching_spawn_confirmed_is_not_orphan(self, tmp_path: Path) -> None:
         """task_claimed paired with task_spawn_confirmed in the same run is committed work."""
         sdd = tmp_path / ".sdd"
         sdd.mkdir()
@@ -193,8 +191,7 @@ class TestRecoverFromWALRetriesOrphans:
         orch._recover_from_wal()
 
         assert "T-abandoned" in recorder.force_claim_targets(), (
-            "Expected POST /tasks/T-abandoned/force-claim; recorded paths: "
-            f"{[str(r.url) for r in recorder.requests]}"
+            f"Expected POST /tasks/T-abandoned/force-claim; recorded paths: {[str(r.url) for r in recorder.requests]}"
         )
 
     def test_non_orphan_does_not_trigger_force_claim(self, tmp_path: Path) -> None:
@@ -242,9 +239,7 @@ class TestRecoverFromWALRetriesOrphans:
 
         reader = WALReader(run_id=orch._run_id, sdd_dir=sdd)
         acks = [e for e in reader.iter_entries() if e.decision_type == "wal_recovery_ack"]
-        orphan_flags = {
-            e.inputs["original_inputs"]["task_id"]: e.output["orphan"] for e in acks
-        }
+        orphan_flags = {e.inputs["original_inputs"]["task_id"]: e.output["orphan"] for e in acks}
         assert orphan_flags == {"T-ok": False, "T-orphan": True}
 
     def test_force_claim_failure_is_non_fatal(self, tmp_path: Path) -> None:
@@ -385,9 +380,7 @@ class TestPreservePriorWorktrees:
 class TestAudit001Regression:
     """Would-have-caught-the-bug scenario described in audit-001."""
 
-    def test_crash_between_claim_and_spawn_does_not_silently_drop_task(
-        self, tmp_path: Path
-    ) -> None:
+    def test_crash_between_claim_and_spawn_does_not_silently_drop_task(self, tmp_path: Path) -> None:
         """End-to-end reproduction of the audit-001 work-loss scenario."""
         sdd = tmp_path / ".sdd"
         sdd.mkdir()

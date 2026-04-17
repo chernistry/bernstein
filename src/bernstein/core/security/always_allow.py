@@ -159,7 +159,9 @@ def _load_entries(path: Path) -> list[dict[str, object]]:
     try:
         raw: object = yaml.safe_load(path.read_text(encoding="utf-8"))
     except OSError as exc:
-        logger.warning("Failed to load YAML from %s: %s", path, type(exc).__name__)  # lgtm[py/clear-text-logging-sensitive-data]  # noqa: E501
+        logger.warning(
+            "Failed to load YAML from %s: %s", path, type(exc).__name__
+        )  # lgtm[py/clear-text-logging-sensitive-data]
         return []
 
     if isinstance(raw, dict) and "always_allow" in raw:
@@ -220,6 +222,7 @@ def _record_tamper_event(workdir: Path, rules_path: Path, reason: str) -> None:
     see always-allow tampering alongside every other guardrail block.
     """
     import re as _re
+
     try:
         metrics_dir = workdir / ".sdd" / "metrics"
         metrics_dir.mkdir(parents=True, exist_ok=True)
@@ -233,7 +236,9 @@ def _record_tamper_event(workdir: Path, rules_path: Path, reason: str) -> None:
             "files": [str(rules_path)],
             "detail": _sanitized,
         }
-        with open(metrics_dir / "guardrails.jsonl", "a", encoding="utf-8") as f:  # lgtm[py/clear-text-storage-sensitive-data]  # noqa: E501
+        with open(
+            metrics_dir / "guardrails.jsonl", "a", encoding="utf-8"
+        ) as f:  # lgtm[py/clear-text-storage-sensitive-data]
             f.write(json.dumps(event) + "\n")
     except OSError as exc:
         logger.error("Failed to record always-allow tamper event: %s", exc)
@@ -295,9 +300,7 @@ def _verify_manifest(workdir: Path, rules_path: Path) -> None:
         reason = f"Always-allow manifest at {manifest_path} is unreadable: {type(exc).__name__}"
         _record_tamper_event(workdir, rules_path, reason)
         logger.error(reason)  # lgtm[py/clear-text-logging-sensitive-data] — file path + exception type only
-        raise AlwaysAllowTamperError(
-            f"Always-allow manifest at {manifest_path} is unreadable: {exc}"
-        ) from exc
+        raise AlwaysAllowTamperError(f"Always-allow manifest at {manifest_path} is unreadable: {exc}") from exc
 
     expected_digest = str(manifest.get("sha256", "")).lower()
     actual_digest = _sha256_of(rules_path).lower()

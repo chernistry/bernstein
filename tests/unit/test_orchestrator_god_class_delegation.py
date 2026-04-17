@@ -66,12 +66,9 @@ def test_evolve_method_delegates_to_module(method_name: str, target: str) -> Non
     method = getattr(Orchestrator, method_name)
     src = inspect.getsource(method)
     assert f"orchestrator_evolve.{target}" in src, (
-        f"Orchestrator.{method_name} body does not delegate to "
-        f"orchestrator_evolve.{target}: {src!r}"
+        f"Orchestrator.{method_name} body does not delegate to orchestrator_evolve.{target}: {src!r}"
     )
-    assert hasattr(orchestrator_evolve, target), (
-        f"orchestrator_evolve.{target} does not exist"
-    )
+    assert hasattr(orchestrator_evolve, target), f"orchestrator_evolve.{target} does not exist"
 
 
 @pytest.mark.parametrize(("method_name", "target"), _CLEANUP_DELEGATIONS)
@@ -80,12 +77,9 @@ def test_cleanup_method_delegates_to_module(method_name: str, target: str) -> No
     method = getattr(Orchestrator, method_name)
     src = inspect.getsource(method)
     assert f"orchestrator_cleanup.{target}" in src, (
-        f"Orchestrator.{method_name} body does not delegate to "
-        f"orchestrator_cleanup.{target}: {src!r}"
+        f"Orchestrator.{method_name} body does not delegate to orchestrator_cleanup.{target}: {src!r}"
     )
-    assert hasattr(orchestrator_cleanup, target), (
-        f"orchestrator_cleanup.{target} does not exist"
-    )
+    assert hasattr(orchestrator_cleanup, target), f"orchestrator_cleanup.{target} does not exist"
 
 
 def test_evolve_focus_areas_still_on_class() -> None:

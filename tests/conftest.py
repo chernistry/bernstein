@@ -119,6 +119,24 @@ def _stable_adaptive_parallelism(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(autouse=True)
+def _disable_auth_for_tests(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Disable Bernstein auth by default in the test suite.
+
+    Production default is "auth enabled".  Existing tests assume "no bearer
+    token needed"; rather than thread a token through dozens of fixtures we
+    set ``BERNSTEIN_AUTH_DISABLED=1`` for every test.  Tests that exercise
+    the auth behaviour itself (see ``tests/unit/test_auth_middleware_defaults.py``)
+    mark themselves with ``pytest.mark.auth_enabled`` to opt out.
+    """
+
+    if request.node.get_closest_marker("auth_enabled") is not None:
+        # Remove the env var so the middleware sees a "secure-by-default" env.
+        monkeypatch.delenv("BERNSTEIN_AUTH_DISABLED", raising=False)
+        return
+    monkeypatch.setenv("BERNSTEIN_AUTH_DISABLED", "1")
+
+
+@pytest.fixture(autouse=True)
 def _init_git_repo_for_spawner_tmp_path_tests(request: pytest.FixtureRequest) -> None:
     """Initialize a minimal git repo for AgentSpawner tests that use ``tmp_path``.
 

@@ -421,6 +421,13 @@ def create_app(
     # Resolve auth token: explicit arg > env var > None
     effective_token = auth_token or os.environ.get("BERNSTEIN_AUTH_TOKEN")
 
+    # Auth is enabled by default.  Operators can opt out via the
+    # BERNSTEIN_AUTH_DISABLED env var or the ``auth.enabled`` seed key —
+    # both paths log a loud warning on startup.
+    from bernstein.core.security.auth_middleware import auth_disabled_via_opt_out
+
+    auth_disabled_flag = auth_disabled_via_opt_out()
+
     # Cluster setup
     effective_cluster = cluster_config or ClusterConfig()
     # Persist node registry alongside the task store when inside .sdd/
@@ -506,11 +513,18 @@ def create_app(
         description=(
             "Bernstein REST API — multi-agent orchestration for CLI coding agents.\n\n"
             "## Authentication\n\n"
-            "When auth is enabled (`BERNSTEIN_AUTH_ENABLED=true`), include a Bearer token "
-            "in all requests:\n\n"
+            "Authentication is ENABLED by default.  Include a Bearer token in "
+            "all requests:\n\n"
             "```\nAuthorization: Bearer <token>\n```\n\n"
-            "Public endpoints (no auth required): `/health`, `/health/ready`, `/health/live`, "
-            "`/.well-known/agent.json`, `/docs`, `/openapi.json`.\n\n"
+            "To run without auth (development only), set `BERNSTEIN_AUTH_DISABLED=1` "
+            "— this logs a loud warning and passes every request through.\n\n"
+            "Public endpoints (no auth required): `/health`, `/health/ready`, "
+            "`/health/live`, `/ready`, `/alive`, `/.well-known/agent.json`, "
+            "`/docs`, `/openapi.json`, and the auth-flow endpoints "
+            "(`/auth/login`, `/auth/oidc/callback`, etc.).\n\n"
+            "Webhook and hook endpoints (`/webhook`, `/webhooks/*`, "
+            "`/hooks/{session_id}`) authenticate via HMAC-SHA256 signatures "
+            "— they do NOT accept Bearer tokens.\n\n"
             "## Base URL\n\n"
             "Default: `http://127.0.0.1:8052`. Override with env vars `BERNSTEIN_HOST` and "
             "`BERNSTEIN_PORT`.\n\n"
@@ -570,6 +584,7 @@ def create_app(
         auth_service=auth_service,
         legacy_token=legacy_auth_token,
         agent_identity_store=_agent_identity_store,
+        auth_disabled=auth_disabled_flag,
     )
 
     # Per-endpoint request rate limiting — reads buckets from app.state.seed_config.

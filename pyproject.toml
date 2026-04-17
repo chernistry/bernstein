@@ -412,6 +412,7 @@ addopts = [
 ]
 markers = [
     "ci: tests that run as part of CI for every release",
+    "auth_enabled: opt out of the autouse auth-disabled shim (tests that exercise auth defaults)",
 ]
 # Visible warnings without converting to errors; individual tests or runs
 # can tighten via `pytest -W error::DeprecationWarning`.

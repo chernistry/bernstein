@@ -57,6 +57,4 @@ def test_orchestrator_retains_live_methods() -> None:
         "_save_session_state",
         "_drain_before_cleanup",
     ):
-        assert callable(getattr(Orchestrator, name, None)), (
-            f"Orchestrator.{name} is not defined — audit-008 rollback?"
-        )
+        assert callable(getattr(Orchestrator, name, None)), f"Orchestrator.{name} is not defined — audit-008 rollback?"

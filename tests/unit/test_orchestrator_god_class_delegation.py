@@ -99,7 +99,7 @@ def test_evolve_focus_areas_still_on_class() -> None:
 
 def test_replenish_constants_preserved() -> None:
     """Cooldown / max-task class constants stay on the class for back-compat."""
-    assert Orchestrator._REPLENISH_COOLDOWN_S == 60.0
+    assert Orchestrator._REPLENISH_COOLDOWN_S == pytest.approx(60.0)
     assert Orchestrator._REPLENISH_MAX_TASKS == 5
 
 

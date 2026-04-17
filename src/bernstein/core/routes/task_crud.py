@@ -805,19 +805,48 @@ async def close_task(task_id: str, request: Request) -> TaskResponse:
     responses={404: {"description": "Task not found"}, 409: {"description": "Invalid state transition"}},
 )
 async def cancel_task(task_id: str, body: TaskCancelRequest, request: Request) -> TaskResponse:
-    """Cancel a task that has not yet finished."""
+    """Cancel a task and cascade to all of its descendant subtasks.
+
+    Walks the subtask tree (``parent_task_id`` references) via
+    ``TaskStore.cancel_cascade`` so that children are not left running
+    after the parent is aborted.  Returns the root task.
+    """
     store = _get_store(request)
+    sse_bus = _get_sse_bus(request)
     try:
         existing_task = store.get_task(task_id)
         if existing_task is None:
             raise KeyError
         _require_task_access(existing_task, request)
-        task = await store.cancel(task_id, body.reason)
+        # Preserve the legacy 409 for a root task that is already terminal —
+        # ``cancel_cascade`` silently skips terminal tasks, so we check here.
+        cancellable = {
+            "open",
+            "claimed",
+            "in_progress",
+            "blocked",
+            "waiting_for_subtasks",
+            "planned",
+        }
+        if existing_task.status.value not in cancellable:
+            raise ValueError(
+                f"Task '{task_id}' cannot be cancelled from status '{existing_task.status.value}'",
+            )
+        cancelled_tasks = await store.cancel_cascade(task_id, body.reason)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from None
-    return task_to_response(task)
+
+    # Publish an SSE event for every cancelled task (root + descendants) so
+    # the dashboard and any waiting watchers can react immediately.
+    root_task = next((t for t in cancelled_tasks if t.id == task_id), cancelled_tasks[0])
+    for cancelled in cancelled_tasks:
+        sse_bus.publish(
+            "task_update",
+            json.dumps({"id": cancelled.id, "status": cancelled.status.value}),
+        )
+    return task_to_response(root_task)
 
 
 @router.post(

@@ -458,6 +458,46 @@ async def test_cancel_no_reason(client: AsyncClient) -> None:
     assert resp.json()["status"] == "cancelled"
 
 
+@pytest.mark.anyio
+async def test_cancel_task_cascade_cancels_children(client: AsyncClient) -> None:
+    """POST /tasks/{id}/cancel cascades to open subtasks (audit-021)."""
+    parent_resp = await client.post("/tasks", json=TASK_PAYLOAD)
+    assert parent_resp.status_code == 201
+    parent_id = parent_resp.json()["id"]
+
+    # Create two subtasks via the self-create endpoint (links parent_task_id).
+    child_ids: list[str] = []
+    for i in range(2):
+        sub_resp = await client.post(
+            "/tasks/self-create",
+            json={
+                "parent_task_id": parent_id,
+                "title": f"Subtask {i}",
+                "description": f"Child task {i}",
+                "role": "backend",
+                "priority": 2,
+            },
+        )
+        assert sub_resp.status_code == 201
+        child_ids.append(sub_resp.json()["id"])
+
+    # Cancel the parent and assert every child is now cancelled too.
+    cancel_resp = await client.post(
+        f"/tasks/{parent_id}/cancel",
+        json={"reason": "project scrapped"},
+    )
+    assert cancel_resp.status_code == 200
+    assert cancel_resp.json()["status"] == "cancelled"
+    assert cancel_resp.json()["id"] == parent_id
+
+    for child_id in child_ids:
+        child_resp = await client.get(f"/tasks/{child_id}")
+        assert child_resp.status_code == 200
+        assert child_resp.json()["status"] == "cancelled", (
+            f"child {child_id} still has status {child_resp.json()['status']}"
+        )
+
+
 # -- GET /tasks -------------------------------------------------------------
 
 

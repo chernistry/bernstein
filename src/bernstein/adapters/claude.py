@@ -543,6 +543,10 @@ class ClaudeCodeAdapter(CLIAdapter):
         and SubagentStop events.  Each hook POSTs to the Bernstein task server
         so the orchestrator gets real-time visibility into agent activity.
 
+        Each hook request is signed with HMAC-SHA256 over the raw body, using
+        the shared secret in ``BERNSTEIN_HOOK_SECRET`` (or
+        ``BERNSTEIN_AUTH_TOKEN``).  The server rejects unsigned requests.
+
         If the settings file already exists, the hooks key is merged in
         (preserving any other settings the user may have configured).
 
@@ -556,7 +560,18 @@ class ClaudeCodeAdapter(CLIAdapter):
         settings_path = settings_dir / "settings.local.json"
 
         hook_url = f"{server_url}/hooks/{session_id}"
-        curl_cmd = f"curl -sS -X POST -H 'Content-Type: application/json' -d @- {hook_url}"
+        # Sign the body with HMAC-SHA256 before posting.  ``openssl`` is in the
+        # base image on every supported OS; we read the secret from the env
+        # var the adapter also exports when spawning the agent.
+        curl_cmd = (
+            "sh -c '"
+            'SECRET="${BERNSTEIN_HOOK_SECRET:-$BERNSTEIN_AUTH_TOKEN}"; '
+            "BODY=$(cat); "
+            'SIG=$(printf "%s" "$BODY" | openssl dgst -sha256 -hmac "$SECRET" -hex | awk "{print \\$2}"); '
+            'curl -sS -X POST -H "Content-Type: application/json" '
+            f'-H "X-Bernstein-Hook-Signature-256: sha256=$SIG" -d "$BODY" {hook_url}'
+            "'"
+        )
         hook_entry = {"type": "command", "command": curl_cmd}
 
         hook_events = ["PostToolUse", "Stop", "PreCompact", "SubagentStart", "SubagentStop"]

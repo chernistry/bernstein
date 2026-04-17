@@ -280,9 +280,7 @@ def test_run_scheduled_scan_dedups_findings_via_existing_titles() -> None:
     )
     # Pre-populate the server with an already-open task for "jinja2"
     client = _FakeClient(
-        get_response=_FakeResponse(
-            payload=[{"title": "Upgrade vulnerable dependency: jinja2", "status": "open"}]
-        )
+        get_response=_FakeResponse(payload=[{"title": "Upgrade vulnerable dependency: jinja2", "status": "open"}])
     )
     orch = _FakeOrch(_client=client, _dependency_scanner=scanner)
 

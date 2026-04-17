@@ -21,36 +21,45 @@ if TYPE_CHECKING:
 # Auth middleware — bearer token validation
 # ---------------------------------------------------------------------------
 
-# Paths that are always accessible without auth (health checks, agent card)
+# Paths that are always accessible without auth (health checks, agent card,
+# API docs, and auth/discovery endpoints).  Keep this list minimal — anything
+# that mutates state or exposes operational data must go through bearer auth
+# (or HMAC alternative auth, for webhook-style endpoints whose handlers
+# verify their own shared secret).
 _PUBLIC_PATHS = frozenset(
     {
         "/health",
         "/health/ready",
         "/health/live",
+        "/health/deps",
         "/ready",
         "/alive",
         "/.well-known/agent.json",
         "/.well-known/acp.json",
         "/acp/v0/agents",
         "/docs",
+        "/redoc",
         "/openapi.json",
-        "/webhook",
-        "/webhooks/github",
-        "/webhooks/slack/commands",
-        "/webhooks/slack/events",
-        "/dashboard",
-        "/dashboard/data",
-        "/dashboard/file_locks",
-        "/events",
-        "/ws",
-        "/health/deps",
-        "/grafana/dashboard",
+        "/openapi.yaml",
     }
 )
 
-# Path prefixes that are always accessible without auth.
-# Used for routes with path parameters (e.g. /hooks/{session_id}).
-_PUBLIC_PATH_PREFIXES = ("/hooks/", "/export/", "/dashboard/tasks/")
+# HMAC-authenticated paths: handler verifies a shared-secret HMAC and rejects
+# unsigned requests with 401.  Listed here so the bearer middleware does not
+# reject them before the handler runs.
+_HMAC_AUTH_PATHS = frozenset(
+    {
+        "/webhook",
+        "/webhooks/github",
+        "/webhooks/gitlab",
+        "/webhooks/slack/commands",
+        "/webhooks/slack/events",
+    }
+)
+
+# Path prefixes whose handler verifies an HMAC signature (e.g.
+# ``/hooks/{session_id}``).
+_HMAC_AUTH_PATH_PREFIXES = ("/hooks/",)
 
 
 class BearerAuthMiddleware(BaseHTTPMiddleware):
@@ -75,7 +84,7 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
             return response
 
         path = request.url.path
-        if path in _PUBLIC_PATHS or path.startswith(_PUBLIC_PATH_PREFIXES):
+        if path in _PUBLIC_PATHS or path in _HMAC_AUTH_PATHS or path.startswith(_HMAC_AUTH_PATH_PREFIXES):
             response = await call_next(request)
             return response
 

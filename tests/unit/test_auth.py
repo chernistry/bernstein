@@ -521,16 +521,19 @@ class TestSSOAuthMiddleware:
     """Tests for the SSO auth middleware logic (unit-level, no HTTP server)."""
 
     def test_public_paths_defined(self) -> None:
-        from bernstein.core.auth_middleware import AUTH_PUBLIC_PATHS
+        from bernstein.core.auth_middleware import AUTH_HMAC_PATHS, AUTH_PUBLIC_PATHS
 
         assert "/health" in AUTH_PUBLIC_PATHS
         assert "/auth/login" in AUTH_PUBLIC_PATHS
         assert "/auth/oidc/callback" in AUTH_PUBLIC_PATHS
         assert "/auth/saml/acs" in AUTH_PUBLIC_PATHS
         assert "/auth/cli/device" in AUTH_PUBLIC_PATHS
-        assert "/webhook" in AUTH_PUBLIC_PATHS
         assert "/ready" in AUTH_PUBLIC_PATHS
         assert "/alive" in AUTH_PUBLIC_PATHS
+        # /webhook, /webhooks/*, /hooks/* are HMAC-authenticated, not bare public.
+        assert "/webhook" not in AUTH_PUBLIC_PATHS
+        assert "/webhook" in AUTH_HMAC_PATHS
+        assert "/webhooks/github" in AUTH_HMAC_PATHS
 
     def test_route_permission_mapping(self) -> None:
         from bernstein.core.auth_middleware import _get_required_permission

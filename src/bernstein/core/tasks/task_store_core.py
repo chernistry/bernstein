@@ -946,8 +946,9 @@ class TaskStore:
 
         Raises:
             KeyError: If task_id does not exist.
-            ValueError: If expected_version doesn't match (CAS conflict) or
-                if agent_role doesn't match task role.
+            ValueError: If expected_version doesn't match (CAS conflict),
+                if agent_role doesn't match task role, or if the task is
+                not in an OPEN state (already claimed / in progress / terminal).
         """
         async with self._lock:
             task = self._tasks.get(task_id)
@@ -961,20 +962,28 @@ class TaskStore:
                 raise ValueError(
                     f"role mismatch: task {task_id} requires role '{task.role}', agent has role '{agent_role}'"
                 )
-            if task.status == TaskStatus.OPEN:
-                if not self._dependencies_satisfied(task):
-                    raise ValueError(f"task {task_id} has unresolved dependencies")
-                # TASK-003: file ownership overlap check
-                overlap_msg = self._check_file_ownership_overlap(task)
-                if overlap_msg is not None:
-                    raise ValueError(overlap_msg)
-                self._index_remove(task)
-                transition_task(task, TaskStatus.CLAIMED, actor="task_store", reason="claim_by_id")
-                task.claimed_at = time.time()
-                task.claimed_by_session = claimed_by_session
-                task.version += 1
-                self._index_add(task)
-                await self._append_jsonl(self._task_to_record(task))
+            if task.status != TaskStatus.OPEN:
+                # audit-014: never silently re-return an already-claimed or
+                # terminal task — that enables double-claim. Raise so the
+                # HTTP layer can map it to 409 Conflict.
+                raise ValueError(
+                    f"task {task_id} is not open (status={task.status.value}); "
+                    f"cannot claim (already claimed by session "
+                    f"{task.claimed_by_session!r})"
+                )
+            if not self._dependencies_satisfied(task):
+                raise ValueError(f"task {task_id} has unresolved dependencies")
+            # TASK-003: file ownership overlap check
+            overlap_msg = self._check_file_ownership_overlap(task)
+            if overlap_msg is not None:
+                raise ValueError(overlap_msg)
+            self._index_remove(task)
+            transition_task(task, TaskStatus.CLAIMED, actor="task_store", reason="claim_by_id")
+            task.claimed_at = time.time()
+            task.claimed_by_session = claimed_by_session
+            task.version += 1
+            self._index_add(task)
+            await self._append_jsonl(self._task_to_record(task))
             return task
 
     async def claim_batch(

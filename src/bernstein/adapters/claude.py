@@ -20,9 +20,11 @@ from bernstein.core.defaults import COST
 from bernstein.core.models import ApiTier, ApiTierInfo, ModelConfig, ProviderType, RateLimit
 from bernstein.core.platform_compat import kill_process_group, process_alive
 
-# Map short model names to Claude Code CLI model IDs
+# Map short model names to Claude Code CLI model IDs.
+# Updated 2026-04-16 — Opus 4.7 generally available, same price as 4.6.
 _MODEL_MAP: dict[str, str] = {
-    "opus": "claude-opus-4-6",
+    "opus": "claude-opus-4-7",
+    "opus-4-6": "claude-opus-4-6",  # pinned fallback
     "sonnet": "claude-sonnet-4-6",
     "haiku": "claude-haiku-4-5-20251001",
 }
@@ -283,8 +285,9 @@ class ClaudeCodeAdapter(CLIAdapter):
         effort_map = {"max": "max", "high": "high", "medium": "medium", "normal": "medium", "low": "low"}
         claude_effort = effort_map.get(effort, "high")
 
-        # Choose fallback model: opus → sonnet, sonnet → haiku
+        # Choose fallback model: opus-4-7 → opus-4-6 → sonnet → haiku
         _fallback_map = {
+            "claude-opus-4-7": "claude-opus-4-6",
             "claude-opus-4-6": "claude-sonnet-4-6",
             "claude-sonnet-4-6": "claude-haiku-4-5-20251001",
         }

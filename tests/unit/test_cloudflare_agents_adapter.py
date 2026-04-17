@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import signal
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -382,6 +381,6 @@ class TestCloudflareIsAlive:
 class TestCloudflareKill:
     def test_calls_killpg(self) -> None:
         adapter = CloudflareAgentsAdapter()
-        with patch("bernstein.adapters.base.kill_process_group") as mock_killpg:
+        with patch("bernstein.adapters.base.kill_process_group_graceful") as mock_killpg:
             adapter.kill(555)
-        mock_killpg.assert_called_once_with(555, signal.SIGTERM)
+        mock_killpg.assert_called_once_with(555)

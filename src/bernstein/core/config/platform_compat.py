@@ -20,6 +20,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
@@ -285,6 +286,67 @@ def kill_process_group(pgid: int, sig: int = 15) -> bool:
     # Windows: kill process tree
     force = sig == 9
     return _win_taskkill(pgid, force=force, tree=True)
+
+
+def kill_process_group_graceful(
+    pgid: int,
+    *,
+    grace_seconds: float = 3.0,
+    poll_interval: float = 0.1,
+) -> bool:
+    """Send SIGTERM to a process group, then SIGKILL if it fails to exit.
+
+    Bernstein adapters spawn child processes with ``start_new_session=True``
+    so the PID equals the PGID.  Reap paths (wall-clock timeout and stale
+    heartbeat) invoke :meth:`CLIAdapter.kill`, which historically only sent
+    SIGTERM without waiting or escalating — wedged agents that trap SIGTERM
+    (e.g. ``trap '' TERM``) survive the reap and leak resources until the
+    next orchestrator startup.
+
+    This helper performs the standard TERM → poll → KILL escalation used
+    elsewhere (see ``orchestration/drain.py``) so every kill path is
+    guaranteed to reap the process group.
+
+    Args:
+        pgid: Process group ID (on Unix) or PID (on Windows).
+        grace_seconds: Total time to wait for SIGTERM to take effect
+            before escalating to SIGKILL.  Defaults to 3s — reap paths
+            need to be aggressive because the agent already failed to
+            heartbeat or exceeded its wall-clock timeout.
+        poll_interval: How often to poll :func:`process_alive` during the
+            grace window.  Smaller values make the helper exit sooner when
+            the process dies cleanly after SIGTERM.
+
+    Returns:
+        ``True`` if SIGTERM was delivered successfully (even if SIGKILL
+        later had to be used).  ``False`` when the group was already dead
+        or the initial SIGTERM could not be sent.
+    """
+    if pgid <= 0:
+        return False
+
+    # Best-effort TERM first; if it fails the group is already gone.
+    if not kill_process_group(pgid, signal.SIGTERM):
+        return False
+
+    # Poll for graceful exit.  Using the lead PID as a liveness proxy is
+    # safe because it is guaranteed to be the session leader (start_new_session=True).
+    deadline = time.monotonic() + grace_seconds
+    while time.monotonic() < deadline:
+        if not process_alive(pgid):
+            return True
+        time.sleep(poll_interval)
+
+    # Still alive after grace period — escalate.
+    if process_alive(pgid):
+        logger.warning(
+            "Process group %d did not exit within %.1fs of SIGTERM; sending SIGKILL",
+            pgid,
+            grace_seconds,
+        )
+        kill_sig = signal.SIGKILL if is_signal_supported("SIGKILL") else 9
+        kill_process_group(pgid, kill_sig)
+    return True
 
 
 def process_alive(pid: int) -> bool:

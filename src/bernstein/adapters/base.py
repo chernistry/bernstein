@@ -12,7 +12,11 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
-from bernstein.core.platform_compat import kill_process_group, process_alive
+from bernstein.core.platform_compat import (
+    kill_process_group,
+    kill_process_group_graceful,
+    process_alive,
+)
 from bernstein.core.resource_limits import ResourceLimits, make_preexec_fn
 
 if TYPE_CHECKING:
@@ -308,8 +312,13 @@ class CLIAdapter(ABC):
         equals the PGID.  Using the PID directly avoids ``os.getpgid()``
         failing when the wrapper process has already exited — this prevents
         orphan child processes from accumulating.
+
+        Sends SIGTERM first, polls for exit for a short grace period, then
+        escalates to SIGKILL if the group is still alive.  Without this
+        escalation, agents that trap SIGTERM survive reap paths (wall-clock
+        timeout and stale heartbeat) — see audit-011.
         """
-        kill_process_group(pid, signal.SIGTERM)
+        kill_process_group_graceful(pid)
 
     @abstractmethod
     def name(self) -> str:

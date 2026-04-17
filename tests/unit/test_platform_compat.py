@@ -7,6 +7,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 from unittest.mock import patch
 
 import pytest
@@ -18,6 +19,7 @@ from bernstein.core.platform_compat import (
     is_signal_supported,
     kill_process,
     kill_process_group,
+    kill_process_group_graceful,
     normalize_path,
     path_separator,
     process_alive,
@@ -138,6 +140,109 @@ class TestKillProcessGroup:
         assert result is True
         proc.wait(timeout=5)
         assert process_alive(proc.pid) is False
+
+
+# ---------------------------------------------------------------------------
+# kill_process_group_graceful — audit-011
+# ---------------------------------------------------------------------------
+
+
+class TestKillProcessGroupGraceful:
+    """Tests for kill_process_group_graceful() — SIGTERM→poll→SIGKILL."""
+
+    def test_zero_pgid_returns_false(self) -> None:
+        assert kill_process_group_graceful(0) is False
+
+    def test_negative_pgid_returns_false(self) -> None:
+        assert kill_process_group_graceful(-1) is False
+
+    def test_returns_false_when_initial_term_fails(self) -> None:
+        """If SIGTERM cannot be delivered, the helper must report failure."""
+        with patch(
+            "bernstein.core.config.platform_compat.kill_process_group",
+            return_value=False,
+        ) as mock_kpg:
+            assert kill_process_group_graceful(12345) is False
+        # Only the initial SIGTERM attempt should have happened.
+        mock_kpg.assert_called_once()
+
+    def test_exits_early_when_process_dies_after_term(self) -> None:
+        """When process dies after SIGTERM, no SIGKILL should be sent."""
+        alive_states = iter([True, False])
+
+        def _alive(_pid: int) -> bool:
+            try:
+                return next(alive_states)
+            except StopIteration:
+                return False
+
+        with (
+            patch(
+                "bernstein.core.config.platform_compat.kill_process_group",
+                return_value=True,
+            ) as mock_kpg,
+            patch(
+                "bernstein.core.config.platform_compat.process_alive",
+                side_effect=_alive,
+            ),
+        ):
+            assert kill_process_group_graceful(12345, grace_seconds=1.0, poll_interval=0.01) is True
+
+        # Only the SIGTERM call — no SIGKILL escalation.
+        assert mock_kpg.call_count == 1
+        assert mock_kpg.call_args_list[0].args[1] == signal.SIGTERM
+
+    @pytest.mark.skipif(IS_WINDOWS, reason="SIGKILL not available on Windows")
+    def test_escalates_to_sigkill_when_process_survives_term(self) -> None:
+        """If the group never exits, SIGKILL must be sent after the grace period."""
+        with (
+            patch(
+                "bernstein.core.config.platform_compat.kill_process_group",
+                return_value=True,
+            ) as mock_kpg,
+            patch(
+                "bernstein.core.config.platform_compat.process_alive",
+                return_value=True,
+            ),
+        ):
+            assert kill_process_group_graceful(12345, grace_seconds=0.05, poll_interval=0.01) is True
+
+        # Expect two calls — SIGTERM first, then SIGKILL.
+        assert mock_kpg.call_count == 2
+        assert mock_kpg.call_args_list[0].args == (12345, signal.SIGTERM)
+        assert mock_kpg.call_args_list[1].args == (12345, signal.SIGKILL)
+
+    @pytest.mark.skipif(IS_WINDOWS, reason="Requires POSIX process groups + SIGTERM trap")
+    def test_reaps_wedged_process_that_traps_sigterm(self) -> None:
+        """End-to-end: a child that traps SIGTERM must still be killed."""
+        # Spawn a child that ignores SIGTERM via Python's signal module and
+        # sits in a long sleep.  Without SIGKILL escalation, SIGTERM alone
+        # leaves the process running.
+        script = (
+            "import signal, time\n"
+            "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+            "time.sleep(60)\n"
+        )
+        proc = subprocess.Popen(
+            [sys.executable, "-c", script],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        try:
+            # Give the child a moment to install its handler.
+            time.sleep(0.2)
+            assert process_alive(proc.pid) is True
+
+            # Reap with a short grace so the test doesn't linger.
+            assert kill_process_group_graceful(proc.pid, grace_seconds=0.3, poll_interval=0.05) is True
+            proc.wait(timeout=5)
+            assert process_alive(proc.pid) is False
+        finally:
+            # Belt-and-braces cleanup in case the assertion above failed.
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait(timeout=5)
 
 
 # ---------------------------------------------------------------------------

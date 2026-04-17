@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import signal
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -380,13 +379,13 @@ class TestAiderKill:
     def test_calls_killpg_with_pid_as_pgid(self) -> None:
         """kill() uses pid directly as pgid (start_new_session=True)."""
         adapter = AiderAdapter()
-        with patch("bernstein.adapters.base.kill_process_group") as mock_kill:
+        with patch("bernstein.adapters.base.kill_process_group_graceful") as mock_kill:
             adapter.kill(555)
-        mock_kill.assert_called_once_with(555, signal.SIGTERM)
+        mock_kill.assert_called_once_with(555)
 
     def test_does_not_raise_on_oserror(self) -> None:
         adapter = AiderAdapter()
-        with patch("bernstein.adapters.base.kill_process_group", return_value=False):
+        with patch("bernstein.adapters.base.kill_process_group_graceful", return_value=False):
             adapter.kill(556)  # must not raise
 
 

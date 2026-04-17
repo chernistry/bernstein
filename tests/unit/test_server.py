@@ -1524,16 +1524,22 @@ async def test_claim_by_id_unknown_task(client: AsyncClient) -> None:
 
 @pytest.mark.anyio
 async def test_claim_by_id_already_claimed(client: AsyncClient) -> None:
-    """Claiming an already-claimed task still returns the task."""
+    """Claiming an already-claimed task returns 409 Conflict (audit-014).
+
+    Previously the server silently re-returned the unchanged task,
+    enabling double-claim — two agents both believed they owned the
+    same task. The second claim must now fail with 409.
+    """
     create_resp = await client.post("/tasks", json=TASK_PAYLOAD)
     task_id = create_resp.json()["id"]
 
-    await client.post(f"/tasks/{task_id}/claim")
+    first = await client.post(f"/tasks/{task_id}/claim")
+    assert first.status_code == 200
+    assert first.json()["status"] == "claimed"
+
     resp = await client.post(f"/tasks/{task_id}/claim")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["id"] == task_id
-    assert data["status"] == "claimed"
+    assert resp.status_code == 409
+    assert "not open" in resp.json()["detail"]
 
 
 # -- POST /tasks/claim-batch ------------------------------------------------

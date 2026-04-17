@@ -12,7 +12,7 @@
 
 ### Orchestrate any AI coding agent. Any model. One command.
 
-<img alt="Bernstein in action: parallel AI agents orchestrated in real time" src="docs/assets/in-action.gif" width="700">
+<img alt="Bernstein in action: parallel AI agents orchestrated in real time" src="docs/assets/in-action-small.gif" width="700">
 
 [![CI](https://github.com/chernistry/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/chernistry/bernstein/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/bernstein)](https://pypi.org/project/bernstein/)

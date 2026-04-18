@@ -397,7 +397,6 @@ _REDIRECT_MAP: dict[str, str] = {
     "resource_limits": "bernstein.core.security.resource_limits",
     "retrospective": "bernstein.core.quality.retrospective",
     "retry_budget": "bernstein.core.cost.retry_budget",
-    "review_checklist": "bernstein.core.quality.review_checklist",
     "review_rubric": "bernstein.core.quality.review_rubric",
     "reviewer": "bernstein.core.quality.reviewer",
     "roadmap_runtime": "bernstein.core.planning.roadmap_runtime",

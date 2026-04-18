@@ -301,9 +301,7 @@ class TestRecoverCrashedSpawn:
 
         reader = WALReader(run_id=orch._run_id, sdd_dir=sdd)
         retries = [
-            e
-            for e in reader.iter_entries()
-            if e.decision_type == "task_retry" and e.inputs.get("task_id") == "T-audit"
+            e for e in reader.iter_entries() if e.decision_type == "task_retry" and e.inputs.get("task_id") == "T-audit"
         ]
         assert len(retries) == 1
         assert retries[0].inputs["reason"] == "crashed_spawn_recovery"
@@ -330,8 +328,7 @@ class TestRecoverCrashedSpawn:
         acks = [
             e
             for e in reader.iter_entries()
-            if e.decision_type == "wal_recovery_ack"
-            and e.inputs["original_inputs"].get("task_id") == "T-ack"
+            if e.decision_type == "wal_recovery_ack" and e.inputs["original_inputs"].get("task_id") == "T-ack"
         ]
         assert len(acks) == 1
         assert acks[0].output["crashed_spawn"] is True
@@ -384,9 +381,7 @@ class TestRecoverCrashedSpawn:
 class TestAudit013Regression:
     """Exact scenario from the ticket: SIGKILL between claim_confirmed and spawn."""
 
-    def test_sigkill_between_claim_confirmed_and_spawn_preserves_and_reopens(
-        self, tmp_path: Path
-    ) -> None:
+    def test_sigkill_between_claim_confirmed_and_spawn_preserves_and_reopens(self, tmp_path: Path) -> None:
         """Full reproduction: dirty worktree + task_id recoverable after hard crash.
 
         Verifies ALL of the ticket's exit criteria:

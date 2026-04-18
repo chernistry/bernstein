@@ -66,17 +66,13 @@ def _signed_headers(
     return {
         "content-type": "application/json",
         "x-bernstein-timestamp": str(timestamp),
-        "x-bernstein-webhook-signature-256": sign_hmac_sha256(
-            secret, signed, prefix="sha256="
-        ),
+        "x-bernstein-webhook-signature-256": sign_hmac_sha256(secret, signed, prefix="sha256="),
     }
 
 
 @pytest.mark.anyio
 async def test_generic_webhook_creates_task_with_defaults(client: AsyncClient) -> None:
-    body = json.dumps(
-        {"title": "Fix flaky login", "description": "Investigate the login test flake."}
-    ).encode()
+    body = json.dumps({"title": "Fix flaky login", "description": "Investigate the login test flake."}).encode()
     response = await client.post("/webhook", content=body, headers=_signed_headers(body))
 
     assert response.status_code == 201
@@ -92,31 +88,21 @@ async def test_generic_webhook_creates_task_with_defaults(client: AsyncClient) -
 async def test_generic_webhook_is_public_when_server_auth_is_enabled(
     auth_client: AsyncClient,
 ) -> None:
-    body = json.dumps(
-        {"title": "Create task", "description": "This should bypass bearer auth."}
-    ).encode()
-    response = await auth_client.post(
-        "/webhook", content=body, headers=_signed_headers(body)
-    )
+    body = json.dumps({"title": "Create task", "description": "This should bypass bearer auth."}).encode()
+    response = await auth_client.post("/webhook", content=body, headers=_signed_headers(body))
 
     assert response.status_code == 201
     assert response.json()["task"]["title"] == "Create task"
 
 
 @pytest.mark.anyio
-async def test_generic_webhook_enforces_hmac_only(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_generic_webhook_enforces_hmac_only(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """audit-121: plaintext fallback is gone — HMAC + timestamp required."""
 
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
-    body = json.dumps(
-        {"title": "Allowed", "description": "Correct HMAC signature."}
-    ).encode()
+    body = json.dumps({"title": "Allowed", "description": "Correct HMAC signature."}).encode()
 
-    missing = await client.post(
-        "/webhook", content=body, headers={"content-type": "application/json"}
-    )
+    missing = await client.post("/webhook", content=body, headers={"content-type": "application/json"})
     assert missing.status_code == 401
 
     plaintext = await client.post(
@@ -134,8 +120,6 @@ async def test_generic_webhook_enforces_hmac_only(
     rejected = await client.post("/webhook", content=body, headers=wrong_sig)
     assert rejected.status_code == 401
 
-    allowed = await client.post(
-        "/webhook", content=body, headers=_signed_headers(body)
-    )
+    allowed = await client.post("/webhook", content=body, headers=_signed_headers(body))
     assert allowed.status_code == 201
     assert allowed.json()["task"]["title"] == "Allowed"

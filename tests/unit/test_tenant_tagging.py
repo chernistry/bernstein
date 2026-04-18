@@ -91,9 +91,7 @@ async def test_webhook_task_persists_header_tenant(
             "content-type": "application/json",
             "x-tenant-id": "tenant-beta",
             "x-bernstein-timestamp": str(timestamp),
-            "x-bernstein-webhook-signature-256": sign_hmac_sha256(
-                secret, signed, prefix="sha256="
-            ),
+            "x-bernstein-webhook-signature-256": sign_hmac_sha256(secret, signed, prefix="sha256="),
         },
     )
     await app.state.store.flush_buffer()

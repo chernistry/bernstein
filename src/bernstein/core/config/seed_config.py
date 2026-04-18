@@ -49,6 +49,7 @@ def check_internal_llm_preflight(provider: str) -> str | None:
         )
     return None
 
+
 if TYPE_CHECKING:
     from bernstein.agents.catalog import CatalogRegistry
     from bernstein.core.compliance import ComplianceConfig

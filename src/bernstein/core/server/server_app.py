@@ -231,9 +231,7 @@ class SSEBus:
         # per IP. Bounded by RECONNECT_MAX_PER_WINDOW + 1 to avoid unbounded
         # growth for abusive clients.
         _max_hist = reconnect_max_per_window + 1
-        self._recent_connects: dict[str, deque[float]] = defaultdict(
-            lambda: deque(maxlen=_max_hist)
-        )
+        self._recent_connects: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=_max_hist))
         # audit-122: cooldown expiry per IP (monotonic timestamp)
         self._reconnect_cooldown_until: dict[str, float] = {}
         self._reconnect_max_per_window = reconnect_max_per_window

@@ -1356,9 +1356,7 @@ class BanditRouter:
                 "shadow_counters": self._shadow_counters,
                 "shadow_stats": self._shadow_stats(),
                 "effort_bandit": self._effort_bandit.to_dict(),
-                "seeded_arms": {
-                    f"{role}|{model}": value for (role, model), value in self._seeded_arms.items()
-                },
+                "seeded_arms": {f"{role}|{model}": value for (role, model), value in self._seeded_arms.items()},
                 "saved_at": time.time(),
             }
             state_path.write_text(json.dumps(payload), encoding="utf-8")

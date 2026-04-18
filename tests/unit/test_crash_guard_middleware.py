@@ -19,10 +19,11 @@ import logging
 from typing import TYPE_CHECKING
 
 import pytest
-from bernstein.core.server.server_middleware import CrashGuardMiddleware, _is_sse_request
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from starlette.responses import StreamingResponse
+
+from bernstein.core.server.server_middleware import CrashGuardMiddleware, _is_sse_request
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -37,7 +38,7 @@ def _build_app() -> FastAPI:
         raise RuntimeError("kaboom: /secret/path/leaks")
 
     @app.get("/events")
-    def events(request: Request) -> StreamingResponse:  # noqa: ARG001
+    def events(request: Request) -> StreamingResponse:
         async def gen() -> AsyncGenerator[bytes, None]:
             yield b"event: hello\ndata: 1\n\n"
             raise RuntimeError("sse-fail: /another/secret")
@@ -94,9 +95,7 @@ def test_non_sse_accept_is_not_detected() -> None:
     assert _is_sse_request(_Req()) is False  # type: ignore[arg-type]
 
 
-def test_production_mode_redacts_traceback(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_production_mode_redacts_traceback(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     """Without BERNSTEIN_DEBUG the log line is one line + sha256 hash."""
     monkeypatch.delenv("BERNSTEIN_DEBUG", raising=False)
     client = TestClient(_build_app(), raise_server_exceptions=False)
@@ -119,9 +118,7 @@ def test_production_mode_redacts_traceback(
     assert "Traceback (most recent call last)" not in msg
 
 
-def test_debug_mode_emits_full_traceback(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_debug_mode_emits_full_traceback(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     """With BERNSTEIN_DEBUG=1 logger.exception emits the full traceback."""
     monkeypatch.setenv("BERNSTEIN_DEBUG", "1")
     client = TestClient(_build_app(), raise_server_exceptions=False)

@@ -1851,9 +1851,7 @@ class Orchestrator:
         # We close the union of run_ids that held uncommitted entries and
         # run_ids that held orphaned claims -- in practice these are the
         # only WALs whose entries were returned by the scan helpers.
-        closed_run_ids = sorted(
-            {r for r, _ in uncommitted} | {r for r, _ in orphaned} | {r for r, _ in crashed_spawns}
-        )
+        closed_run_ids = sorted({r for r, _ in uncommitted} | {r for r, _ in orphaned} | {r for r, _ in crashed_spawns})
         for closed_run_id in closed_run_ids:
             run_uncommitted = sum(1 for r, _ in uncommitted if r == closed_run_id)
             run_orphaned = sum(1 for r, _ in orphaned if r == closed_run_id)

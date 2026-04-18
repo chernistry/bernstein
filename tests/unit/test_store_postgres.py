@@ -24,10 +24,10 @@ class _AcquireContext:
 
 
 class _FakeTransaction:
-    def __init__(self, conn: "_TxAware | None" = None) -> None:
+    def __init__(self, conn: _TxAware | None = None) -> None:
         self._conn = conn
 
-    async def __aenter__(self) -> "_FakeTransaction":
+    async def __aenter__(self) -> _FakeTransaction:
         if self._conn is not None:
             self._conn.transaction_entered = True
         return self

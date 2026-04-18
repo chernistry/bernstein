@@ -64,9 +64,7 @@ def _signed(
     return {
         "content-type": "application/json",
         "x-bernstein-timestamp": str(timestamp),
-        "x-bernstein-webhook-signature-256": sign_hmac_sha256(
-            secret, signed_payload, prefix="sha256="
-        ),
+        "x-bernstein-webhook-signature-256": sign_hmac_sha256(secret, signed_payload, prefix="sha256="),
     }
 
 
@@ -142,9 +140,7 @@ async def test_webhook_no_secret_configured_disables_endpoint(
 
 
 @pytest.mark.anyio
-async def test_webhook_plaintext_secret_header_rejected(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_webhook_plaintext_secret_header_rejected(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """audit-121: the plaintext ``X-Bernstein-Webhook-Secret`` header is no longer honoured."""
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     body = json.dumps(_WEBHOOK_PAYLOAD).encode()
@@ -160,9 +156,7 @@ async def test_webhook_plaintext_secret_header_rejected(
 
 
 @pytest.mark.anyio
-async def test_webhook_missing_timestamp_returns_401(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_webhook_missing_timestamp_returns_401(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """audit-121: missing ``X-Bernstein-Timestamp`` is rejected."""
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     body = json.dumps(_WEBHOOK_PAYLOAD).encode()
@@ -181,9 +175,7 @@ async def test_webhook_missing_timestamp_returns_401(
 
 
 @pytest.mark.anyio
-async def test_webhook_malformed_timestamp_returns_401(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_webhook_malformed_timestamp_returns_401(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """audit-121: non-numeric timestamps are treated as missing."""
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     body = json.dumps(_WEBHOOK_PAYLOAD).encode()
@@ -196,9 +188,7 @@ async def test_webhook_malformed_timestamp_returns_401(
 
 
 @pytest.mark.anyio
-async def test_webhook_stale_timestamp_returns_401(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_webhook_stale_timestamp_returns_401(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """audit-121: timestamps older than five minutes are rejected even with valid HMAC."""
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     body = json.dumps(_WEBHOOK_PAYLOAD).encode()
@@ -209,9 +199,7 @@ async def test_webhook_stale_timestamp_returns_401(
 
 
 @pytest.mark.anyio
-async def test_webhook_future_timestamp_returns_401(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_webhook_future_timestamp_returns_401(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """audit-121: timestamps more than five minutes in the future are rejected."""
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     body = json.dumps(_WEBHOOK_PAYLOAD).encode()
@@ -221,9 +209,7 @@ async def test_webhook_future_timestamp_returns_401(
 
 
 @pytest.mark.anyio
-async def test_webhook_timestamp_header_bound_into_hmac(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_webhook_timestamp_header_bound_into_hmac(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """audit-121: rewriting the timestamp header after signing invalidates the HMAC."""
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     body = json.dumps(_WEBHOOK_PAYLOAD).encode()
@@ -235,9 +221,7 @@ async def test_webhook_timestamp_header_bound_into_hmac(
 
 
 @pytest.mark.anyio
-async def test_webhook_without_signature_returns_401(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_webhook_without_signature_returns_401(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """POST without HMAC signature must return 401 even with a fresh timestamp."""
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     body = json.dumps(_WEBHOOK_PAYLOAD).encode()
@@ -253,9 +237,7 @@ async def test_webhook_without_signature_returns_401(
 
 
 @pytest.mark.anyio
-async def test_webhook_with_wrong_signature_returns_401(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_webhook_with_wrong_signature_returns_401(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """POST with a wrong HMAC signature must return 401."""
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     body = json.dumps(_WEBHOOK_PAYLOAD).encode()
@@ -278,9 +260,7 @@ async def test_webhook_with_correct_signature_creates_task(
 
 
 @pytest.mark.anyio
-async def test_webhook_endpoint_disabled_without_secret(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_webhook_endpoint_disabled_without_secret(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """Endpoint returns 503 when no secret is configured, even for signed requests."""
     monkeypatch.delenv("BERNSTEIN_WEBHOOK_SECRET", raising=False)
     body = json.dumps(_WEBHOOK_PAYLOAD).encode()
@@ -351,9 +331,7 @@ async def test_gitlab_webhook_endpoint_disabled_without_token(
 
 
 @pytest.mark.anyio
-async def test_gitlab_webhook_missing_token_returns_401(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_gitlab_webhook_missing_token_returns_401(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """/webhooks/gitlab returns 401 when token is set server-side but not sent."""
     monkeypatch.setenv("GITLAB_WEBHOOK_TOKEN", "gitlab-top-secret")
     resp = await client.post(
@@ -366,9 +344,7 @@ async def test_gitlab_webhook_missing_token_returns_401(
 
 
 @pytest.mark.anyio
-async def test_gitlab_webhook_wrong_token_returns_401(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_gitlab_webhook_wrong_token_returns_401(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """/webhooks/gitlab returns 401 when the provided token does not match."""
     monkeypatch.setenv("GITLAB_WEBHOOK_TOKEN", "gitlab-top-secret")
     resp = await client.post(
@@ -384,9 +360,7 @@ async def test_gitlab_webhook_wrong_token_returns_401(
 
 
 @pytest.mark.anyio
-async def test_gitlab_webhook_correct_token_accepted(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_gitlab_webhook_correct_token_accepted(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     """/webhooks/gitlab returns 200 when the token matches (no actionable payload)."""
     monkeypatch.setenv("GITLAB_WEBHOOK_TOKEN", "gitlab-top-secret")
     resp = await client.post(

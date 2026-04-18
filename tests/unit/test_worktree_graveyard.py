@@ -152,10 +152,14 @@ def test_cleanup_all_stale_preserves_unmerged_commits_to_graveyard(repo: Path) -
     assert not (repo / ".sdd" / "worktrees" / "crashed-with-work").exists()
 
     # Graveyard ref points at the saved tip; commit is still reachable.
-    refs = _run(
-        ["git", "for-each-ref", "--format=%(refname) %(objectname)", "refs/graveyard/"],
-        repo,
-    ).stdout.strip().splitlines()
+    refs = (
+        _run(
+            ["git", "for-each-ref", "--format=%(refname) %(objectname)", "refs/graveyard/"],
+            repo,
+        )
+        .stdout.strip()
+        .splitlines()
+    )
     assert len(refs) == 1
     ref_name, ref_sha = refs[0].split()
     assert ref_name.startswith("refs/graveyard/crashed-with-work-")
@@ -205,10 +209,14 @@ def test_purge_graveyard_keeps_recent_entries(repo: Path) -> None:
     purged = purge_graveyard(repo, older_than_days=14)
     assert purged == 0
 
-    refs = _run(
-        ["git", "for-each-ref", "--format=%(refname)", "refs/graveyard/"],
-        repo,
-    ).stdout.strip().splitlines()
+    refs = (
+        _run(
+            ["git", "for-each-ref", "--format=%(refname)", "refs/graveyard/"],
+            repo,
+        )
+        .stdout.strip()
+        .splitlines()
+    )
     assert len(refs) == 1
 
     bundles = list((repo / ".sdd" / "graveyard").glob("*.bundle"))

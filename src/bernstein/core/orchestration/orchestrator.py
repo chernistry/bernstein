@@ -293,6 +293,9 @@ class Orchestrator:
         self._cluster_config = cluster_config
         self._quality_gate_config: QualityGatesConfig | None = quality_gate_config
         self._gate_coalescer: QualityGateCoalescer = QualityGateCoalescer()
+        # Formal verification gate is invoked by task_lifecycle._run_verification_gates
+        # only when OrchestratorConfig.formal_verification_enabled is True. Default
+        # remains False so deployments without Z3/Lean4 installed are unaffected.
         self._formal_verification_config: Any | None = formal_verification_config
         _headers: dict[str, str] = {}
         if config.auth_token:

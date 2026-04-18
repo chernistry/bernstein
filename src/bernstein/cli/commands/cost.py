@@ -15,6 +15,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from bernstein.cli.helpers import is_json, print_json
+from bernstein.core.observability.metric_collector import iter_metric_files
 
 console = Console()
 
@@ -295,7 +296,7 @@ def _load_archive_tasks(sdd_dir: Path) -> list[dict[str, Any]]:
 
 def _load_api_usage_jsonl(metrics_dir: Path) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
-    for p in sorted(metrics_dir.glob("api_usage_*.jsonl")):
+    for p in iter_metric_files(metrics_dir, "api_usage"):
         for line in p.read_text().splitlines():
             line = line.strip()
             if line:

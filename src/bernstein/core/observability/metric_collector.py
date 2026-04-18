@@ -17,9 +17,42 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from bernstein.core.persistence.runtime_state import rotate_log_file
 from bernstein.core.tenanting import normalize_tenant_id, tenant_metrics_dir
 
 logger = logging.getLogger(__name__)
+
+# Default size threshold for rotating per-day metric files such as
+# ``api_usage_YYYYMMDD.jsonl``. Kept deliberately modest so long-running
+# orchestrators never accumulate multi-GB metric files.
+_METRIC_FILE_ROTATE_BYTES = 10 * 1024 * 1024
+_METRIC_FILE_MAX_BACKUPS = 5
+
+
+def iter_metric_files(metrics_dir: Path, prefix: str) -> list[Path]:
+    """Return live and rotated metric JSONL files matching *prefix*.
+
+    The on-disk layout is ``{prefix}_YYYYMMDD.jsonl`` plus rotation suffixes
+    ``.1``, ``.2`` … applied by :func:`rotate_log_file`. Callers that
+    aggregate across days must include rotated backups, otherwise any
+    rollover silently truncates their view.
+
+    Args:
+        metrics_dir: Directory containing metric JSONL files.
+        prefix: Metric-type filename prefix (e.g. ``api_usage``).
+
+    Returns:
+        Sorted list of matching paths (live + rotated), empty when the
+        directory does not exist.
+    """
+    if not metrics_dir.exists():
+        return []
+    patterns = (f"{prefix}_*.jsonl", f"{prefix}_*.jsonl.*")
+    seen: set[Path] = set()
+    for pattern in patterns:
+        for path in metrics_dir.glob(pattern):
+            seen.add(path)
+    return sorted(seen)
 
 
 class MetricType(Enum):
@@ -916,6 +949,14 @@ class MetricsCollector:
 
         for filepath, lines in by_file.items():
             try:
+                # Bound per-file growth: rotate *before* appending so the new
+                # write starts a fresh file once the threshold is crossed.
+                # See audit-068 — previously these JSONL files grew unbounded.
+                rotate_log_file(
+                    filepath,
+                    max_bytes=_METRIC_FILE_ROTATE_BYTES,
+                    max_backups=_METRIC_FILE_MAX_BACKUPS,
+                )
                 with filepath.open("a") as f:
                     f.write("\n".join(lines) + "\n")
             except OSError:

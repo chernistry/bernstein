@@ -18,6 +18,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from bernstein.core.cost import forecast_planned_backlog
+from bernstein.core.observability.metric_collector import iter_metric_files
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -123,7 +124,7 @@ def _read_api_usage_metrics(metrics_dir: Path, days: int = 7) -> list[dict[str, 
     records: list[dict[str, Any]] = []
     cutoff = time.time() - days * 86400
 
-    for f in sorted(metrics_dir.glob("api_usage_*.jsonl")):
+    for f in iter_metric_files(metrics_dir, "api_usage"):
         try:
             for raw in f.read_text(encoding="utf-8").splitlines():
                 raw = raw.strip()

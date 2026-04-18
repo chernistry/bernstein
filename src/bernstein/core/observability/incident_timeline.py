@@ -12,6 +12,8 @@ import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, cast
 
+from bernstein.core.observability.metric_collector import iter_metric_files
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -234,7 +236,7 @@ def _collect_incident_lifecycle_events(incident: dict[str, Any]) -> list[Timelin
 def _collect_api_usage_events(metrics_dir: Path, start_ts: float, end_ts: float) -> list[TimelineEvent]:
     """Collect API usage anomalies (failures, high latency) in the time window."""
     events: list[TimelineEvent] = []
-    for path in sorted(metrics_dir.glob("api_usage_*.jsonl")):
+    for path in iter_metric_files(metrics_dir, "api_usage"):
         for rec in _read_jsonl(path):
             ts = rec.get("timestamp", 0)
             if start_ts <= ts <= end_ts:

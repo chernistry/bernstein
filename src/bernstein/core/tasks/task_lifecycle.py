@@ -33,6 +33,7 @@ from bernstein.core.fast_path import (
     get_l1_model_config,
     try_fast_path_batch,
 )
+from bernstein.core.hook_events import HookEvent
 from bernstein.core.janitor import verify_task
 from bernstein.core.metrics import get_collector
 from bernstein.core.router import RouterError
@@ -2243,7 +2244,7 @@ def _post_completion_bulletin(
     if janitor_passed:
         orch._post_bulletin("status", f"task completed: {task.title} ({task.id})")
         orch._notify(
-            "task.completed",
+            HookEvent.TASK_COMPLETED.value,
             f"Task completed: {task.title}",
             task.result_summary or "",
             task_id=task.id,
@@ -2254,7 +2255,7 @@ def _post_completion_bulletin(
     else:
         orch._post_bulletin("alert", f"task failed janitor: {task.title} ({task.id})")
         orch._notify(
-            "task.failed",
+            HookEvent.TASK_FAILED.value,
             f"Task failed: {task.title}",
             task.result_summary or "Janitor verification did not pass.",
             task_id=task.id,

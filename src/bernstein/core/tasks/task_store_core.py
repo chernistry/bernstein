@@ -22,6 +22,7 @@ from fastapi import HTTPException
 from typing_extensions import TypedDict
 
 from bernstein.core.defaults import TASK as _TASK_DEFAULTS
+from bernstein.core.hook_events import HookEvent
 from bernstein.core.tasks.lifecycle import IllegalTransitionError, transition_agent, transition_task
 from bernstein.core.tasks.models import (
     AgentSession,
@@ -785,7 +786,7 @@ class TaskStore:
             input_data = {"title": task.title, "role": task.role, "priority": task.priority}
             output_data = {"task_id": task.id, "status": task.status.value}
             audit.log(
-                event_type="task.created",
+                event_type=HookEvent.TASK_CREATED.value,
                 actor="task_store",
                 resource_type="task",
                 resource_id=task.id,
@@ -925,7 +926,7 @@ class TaskStore:
                 input_data = {"title": task.title, "role": task.role, "priority": task.priority}
                 output_data = {"task_id": task.id, "status": task.status.value}
                 audit.log(
-                    event_type="task.created",
+                    event_type=HookEvent.TASK_CREATED.value,
                     actor="task_store",
                     resource_type="task",
                     resource_id=task.id,

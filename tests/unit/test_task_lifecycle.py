@@ -715,3 +715,157 @@ def test_verify_via_janitor_runs_run_janitor_for_llm_judge(
     assert captured["tasks"][0].id == "T-vj"
     assert captured["workdir"] == tmp_path
     assert captured["server_url"] == "http://server"
+
+
+# ---------------------------------------------------------------------------
+# Formal verification gate — audit-030
+# ---------------------------------------------------------------------------
+
+
+def _formal_verification_orch(tmp_path: Path, *, enabled: bool, config: Any) -> Any:
+    """Build a minimal orchestrator stub for formal-verification gate tests."""
+    return SimpleNamespace(
+        _config=SimpleNamespace(formal_verification_enabled=enabled),
+        _workdir=tmp_path,
+        _formal_verification_config=config,
+        _spawner=MagicMock(),
+    )
+
+
+def test_formal_verification_gate_skipped_when_flag_disabled(tmp_path: Path, make_task: Any) -> None:
+    """Gate returns True without invoking run_formal_verification when the flag is off."""
+    from bernstein.core.task_lifecycle import _run_formal_verification_gate
+
+    fv_config = SimpleNamespace(enabled=True, block_on_violation=True, properties=[object()])
+    orch = _formal_verification_orch(tmp_path, enabled=False, config=fv_config)
+    session = _session_for("T-fv-skip")
+    task = make_task(id="T-fv-skip")
+    result = TickResult()
+
+    with patch("bernstein.core.quality.formal_verification.run_formal_verification") as mock_run:
+        passed = _run_formal_verification_gate(orch, task, session, result)
+
+    assert passed is True
+    assert mock_run.call_count == 0
+    assert result.verification_failures == []
+
+
+def test_formal_verification_gate_skipped_when_config_none(tmp_path: Path, make_task: Any) -> None:
+    """Gate returns True without invoking run_formal_verification when no config is set."""
+    from bernstein.core.task_lifecycle import _run_formal_verification_gate
+
+    orch = _formal_verification_orch(tmp_path, enabled=True, config=None)
+    session = _session_for("T-fv-noconfig")
+    task = make_task(id="T-fv-noconfig")
+    result = TickResult()
+
+    with patch("bernstein.core.quality.formal_verification.run_formal_verification") as mock_run:
+        passed = _run_formal_verification_gate(orch, task, session, result)
+
+    assert passed is True
+    assert mock_run.call_count == 0
+
+
+def test_formal_verification_gate_invoked_when_configured_and_passes(tmp_path: Path, make_task: Any) -> None:
+    """Gate calls run_formal_verification for tasks with a config and honors a pass result."""
+    from bernstein.core.formal_verification import FormalVerificationResult
+    from bernstein.core.task_lifecycle import _run_formal_verification_gate
+
+    fv_config = SimpleNamespace(enabled=True, block_on_violation=True, properties=[object()])
+    orch = _formal_verification_orch(tmp_path, enabled=True, config=fv_config)
+    session = _session_for("T-fv-pass")
+    task = make_task(id="T-fv-pass")
+    result = TickResult()
+
+    passing_result = FormalVerificationResult(task_id="T-fv-pass", passed=True, violations=[], properties_checked=1)
+    with patch(
+        "bernstein.core.quality.formal_verification.run_formal_verification", return_value=passing_result
+    ) as mock_run:
+        passed = _run_formal_verification_gate(orch, task, session, result)
+
+    assert passed is True
+    assert mock_run.call_count == 1
+    call_args = mock_run.call_args
+    assert call_args.args[0] is task
+    assert call_args.args[1] == tmp_path
+    assert call_args.args[2] is fv_config
+    assert result.verification_failures == []
+
+
+def test_formal_verification_gate_blocks_on_violation(tmp_path: Path, make_task: Any) -> None:
+    """Violations with block_on_violation=True register verification failures."""
+    from bernstein.core.formal_verification import FormalVerificationResult, PropertyViolation
+    from bernstein.core.task_lifecycle import _run_formal_verification_gate
+
+    fv_config = SimpleNamespace(enabled=True, block_on_violation=True, properties=[object()])
+    orch = _formal_verification_orch(tmp_path, enabled=True, config=fv_config)
+    session = _session_for("T-fv-fail")
+    task = make_task(id="T-fv-fail")
+    result = TickResult()
+    result.verified.append("T-fv-fail")
+
+    violation = PropertyViolation(
+        property_name="output_non_empty",
+        counterexample="result_length = 0",
+        checker="z3",
+        detail="Invariant can be violated: result_length > 0",
+    )
+    failing_result = FormalVerificationResult(
+        task_id="T-fv-fail", passed=False, violations=[violation], properties_checked=1
+    )
+    with patch("bernstein.core.quality.formal_verification.run_formal_verification", return_value=failing_result):
+        passed = _run_formal_verification_gate(orch, task, session, result)
+
+    assert passed is False
+    assert "T-fv-fail" not in result.verified
+    assert result.verification_failures
+    failed_task_id, failed_signals = result.verification_failures[0]
+    assert failed_task_id == "T-fv-fail"
+    assert any("formal_verification:output_non_empty" in s for s in failed_signals)
+
+
+def test_formal_verification_gate_non_blocking_violations_pass(tmp_path: Path, make_task: Any) -> None:
+    """Violations with block_on_violation=False log but do not block."""
+    from bernstein.core.formal_verification import FormalVerificationResult, PropertyViolation
+    from bernstein.core.task_lifecycle import _run_formal_verification_gate
+
+    fv_config = SimpleNamespace(enabled=True, block_on_violation=False, properties=[object()])
+    orch = _formal_verification_orch(tmp_path, enabled=True, config=fv_config)
+    session = _session_for("T-fv-warn")
+    task = make_task(id="T-fv-warn")
+    result = TickResult()
+
+    violation = PropertyViolation(
+        property_name="soft_invariant",
+        counterexample="x=0",
+        checker="z3",
+        detail="soft failure",
+    )
+    non_blocking = FormalVerificationResult(
+        task_id="T-fv-warn", passed=False, violations=[violation], properties_checked=1
+    )
+    with patch("bernstein.core.quality.formal_verification.run_formal_verification", return_value=non_blocking):
+        passed = _run_formal_verification_gate(orch, task, session, result)
+
+    assert passed is True
+    assert result.verification_failures == []
+
+
+def test_formal_verification_gate_swallows_runner_exception(tmp_path: Path, make_task: Any) -> None:
+    """Unexpected exceptions in run_formal_verification must not break the tick."""
+    from bernstein.core.task_lifecycle import _run_formal_verification_gate
+
+    fv_config = SimpleNamespace(enabled=True, block_on_violation=True, properties=[object()])
+    orch = _formal_verification_orch(tmp_path, enabled=True, config=fv_config)
+    session = _session_for("T-fv-boom")
+    task = make_task(id="T-fv-boom")
+    result = TickResult()
+
+    with patch(
+        "bernstein.core.quality.formal_verification.run_formal_verification",
+        side_effect=RuntimeError("solver crash"),
+    ):
+        passed = _run_formal_verification_gate(orch, task, session, result)
+
+    assert passed is True
+    assert result.verification_failures == []

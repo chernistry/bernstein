@@ -69,7 +69,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "auto_distillation": "bernstein.core.tokens.auto_distillation",
     "auto_mode_classifier": "bernstein.core.routing.auto_mode_classifier",
     "backlog_parser": "bernstein.core.tasks.backlog_parser",
-    "bandit_router": "bernstein.core.cost.bandit_router",
+    "bandit_router": "bernstein.core.routing.bandit_router",
     "batch_api": "bernstein.core.tasks.batch_api",
     # batch_mode: removed in audit-026 — dead code, no production importers.
     "batch_router": "bernstein.core.tasks.batch_router",

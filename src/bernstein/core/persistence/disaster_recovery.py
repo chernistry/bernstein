@@ -346,14 +346,14 @@ def restore_sdd(
         with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as tar:
             # filter="data" (Python 3.12+) blocks absolute paths, ".."
             # components, and special file types — mitigating path traversal.
-            tar.extractall(path=sdd_path, filter="data")
+            tar.extractall(path=sdd_path, filter="data")  # NOSONAR S5042 - filter=data blocks traversal
     else:
         # Bind the source fd to a context manager so it is closed even if
         # tarfile.open raises.  tarfile does not own fileobj-supplied fds.
         with source.open("rb") as fh, tarfile.open(fileobj=fh, mode="r:*") as tar:
             # filter="data" (Python 3.12+) blocks absolute paths, ".."
             # components, and special file types — mitigating path traversal.
-            tar.extractall(path=sdd_path, filter="data")
+            tar.extractall(path=sdd_path, filter="data")  # NOSONAR S5042 - filter=data blocks traversal
 
     # Count restored files
     restored = sum(1 for _ in sdd_path.rglob("*") if _.is_file())

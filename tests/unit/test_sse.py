@@ -173,8 +173,8 @@ class TestSSEBus:
     def test_default_stale_timeout_is_30_seconds(self) -> None:
         """audit-122: default stale timeout dropped from 120s -> 30s."""
         bus = SSEBus()
-        assert bus._stale_timeout_s == 30.0
-        assert SSEBus.STALE_TIMEOUT_S == 30.0
+        assert pytest.approx(30.0) == bus._stale_timeout_s
+        assert pytest.approx(30.0) == SSEBus.STALE_TIMEOUT_S
 
     def test_reconnect_limiter_blocks_after_three_in_window(self) -> None:
         """audit-122: 4th reconnect inside the window is rejected with PermissionError."""

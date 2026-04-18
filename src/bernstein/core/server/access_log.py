@@ -151,7 +151,7 @@ class StructuredAccessLogMiddleware(BaseHTTPMiddleware):
         the rotation threshold. On rotation, the persistent handle is closed
         and reopened so subsequent writes go to the fresh file.
         """
-        first_call = self._last_rotate_check == 0.0
+        first_call = self._last_rotate_check <= 0.0
         time_elapsed = now - self._last_rotate_check >= self._rotate_interval_seconds
         size_exceeded = self._bytes_written >= self._rotate_bytes_threshold
         if not (first_call or time_elapsed or size_exceeded):

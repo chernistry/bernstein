@@ -387,3 +387,76 @@ class TestBlockingHookPayload:
         p = BlockingHookPayload(event=HookEvent.PRE_SPAWN, action="spawn")
         d = p.to_dict()
         assert "context" not in d
+
+
+# ---------------------------------------------------------------------------
+# Emit-site parity (audit-152)
+# ---------------------------------------------------------------------------
+
+
+class TestEmitSiteParity:
+    """audit-152 — every task/agent/merge emit site must use HookEvent values.
+
+    These regression tests ensure that when a module fires a task / agent /
+    merge hook it goes through ``HookEvent.<MEMBER>.value`` (or a constant
+    that is itself sourced from the enum).  Raw string literals for those
+    canonical events are a typo hazard and undermine the enum as a single
+    source of truth.
+    """
+
+    def test_task_lifecycle_emits_use_enum(self) -> None:
+        """``_post_completion_bulletin`` emits via ``HookEvent.*.value``."""
+        from bernstein.core.tasks import task_lifecycle
+
+        src = _read_module_source(task_lifecycle)
+        # The old literals must be gone from the emit path.
+        assert '"task.completed"' not in src, (
+            "task_lifecycle.py still contains the raw 'task.completed' literal; "
+            "it must emit via HookEvent.TASK_COMPLETED.value"
+        )
+        assert '"task.failed"' not in src, (
+            "task_lifecycle.py still contains the raw 'task.failed' literal; "
+            "it must emit via HookEvent.TASK_FAILED.value"
+        )
+        # The enum members must be referenced.
+        assert "HookEvent.TASK_COMPLETED.value" in src
+        assert "HookEvent.TASK_FAILED.value" in src
+
+    def test_task_store_audit_logs_use_enum(self) -> None:
+        """``TaskStore.create`` / ``create_batch`` audit-log via ``HookEvent``."""
+        from bernstein.core.tasks import task_store_core
+
+        src = _read_module_source(task_store_core)
+        assert 'event_type="task.created"' not in src, (
+            "task_store_core.py still uses the raw 'task.created' literal for "
+            "audit events; it must emit via HookEvent.TASK_CREATED.value"
+        )
+        assert "HookEvent.TASK_CREATED.value" in src
+
+    def test_notifications_constants_sourced_from_enum(self) -> None:
+        """Notification event constants overlap HookEvent where applicable."""
+        from bernstein.core.hook_events import HookEvent as _HE
+
+        from bernstein.core.communication import notifications
+
+        assert _HE.TASK_COMPLETED.value == notifications.EVENT_TASK_COMPLETED
+        assert _HE.TASK_FAILED.value == notifications.EVENT_TASK_FAILED
+
+    def test_orchestrator_task_failed_alias_uses_enum(self) -> None:
+        """Orchestrator module-level aliases derive from the enum."""
+        from bernstein.core.hook_events import HookEvent as _HE
+
+        from bernstein.core.orchestration import orchestrator
+
+        assert _HE.TASK_FAILED.value == orchestrator._EVENT_TASK_FAILED
+        assert _HE.TASK_COMPLETED.value == orchestrator._EVENT_TASK_COMPLETED
+
+
+def _read_module_source(module: object) -> str:
+    """Return the source text for a module (used by parity tests)."""
+    import inspect
+
+    path = inspect.getsourcefile(module)  # type: ignore[arg-type]
+    assert path is not None
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()

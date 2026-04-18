@@ -65,6 +65,7 @@ from bernstein.core.fast_path import (
 )
 from bernstein.core.file_locks import FileLockManager
 from bernstein.core.graph import TaskGraph
+from bernstein.core.hook_events import HookEvent
 from bernstein.core.incident import IncidentManager
 from bernstein.core.manifest import build_manifest, save_manifest
 from bernstein.core.memory_guard import MemoryGuard
@@ -3499,7 +3500,7 @@ def _collect_notify_targets(seed: Any, targets: list[NotificationTarget]) -> Non
             NotificationTarget(
                 type="desktop",
                 url="",
-                events=["task.completed", _EVENT_TASK_FAILED],
+                events=[_EVENT_TASK_COMPLETED, _EVENT_TASK_FAILED],
             )
         )
 
@@ -3523,7 +3524,7 @@ def _collect_smtp_targets(seed: Any, targets: list[NotificationTarget]) -> None:
         NotificationTarget(
             type="email",
             url="",
-            events=["task.completed", _EVENT_TASK_FAILED, "approval.needed", _EVENT_RUN_COMPLETED],
+            events=[_EVENT_TASK_COMPLETED, _EVENT_TASK_FAILED, "approval.needed", _EVENT_RUN_COMPLETED],
         )
     )
 
@@ -4022,7 +4023,8 @@ from bernstein.core.orchestration.nudge_manager import nudge_orchestrator as nud
 
 _EVENT_RUN_COMPLETED = "run.completed"
 
-_EVENT_TASK_FAILED = "task.failed"
+_EVENT_TASK_COMPLETED = HookEvent.TASK_COMPLETED.value
+_EVENT_TASK_FAILED = HookEvent.TASK_FAILED.value
 
 _TESTS_DIR = "tests/"
 

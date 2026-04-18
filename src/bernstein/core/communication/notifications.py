@@ -41,6 +41,8 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
 
+from bernstein.core.hook_events import HookEvent
+
 if TYPE_CHECKING:
     from bernstein.core.models import SmtpConfig
 
@@ -49,10 +51,15 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Event name constants
 # ---------------------------------------------------------------------------
+#
+# Values that overlap :class:`bernstein.core.hook_events.HookEvent` members
+# are sourced from the enum so that the canonical taxonomy has exactly one
+# source of truth.  Events that are notification-only (``run.*``,
+# ``task.deadline_*``, ``predictive.*``) continue to live as literals.
 
 EVENT_RUN_STARTED = "run.started"
-EVENT_TASK_COMPLETED = "task.completed"
-EVENT_TASK_FAILED = "task.failed"
+EVENT_TASK_COMPLETED = HookEvent.TASK_COMPLETED.value
+EVENT_TASK_FAILED = HookEvent.TASK_FAILED.value
 EVENT_RUN_COMPLETED = "run.completed"
 EVENT_BUDGET_WARNING = "budget.warning"
 EVENT_BUDGET_EXHAUSTED = "budget.exhausted"

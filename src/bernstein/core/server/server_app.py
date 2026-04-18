@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from bernstein.core.a2a import A2AHandler
 from bernstein.core.acp import ACPHandler
@@ -514,6 +516,13 @@ def create_app(
         ):
             signal.signal(signal.SIGHUP, previous_sighup)
         await store.flush_buffer()
+        # Close the persistent access-log file handle (audit-080).
+        middleware_stack = getattr(app, "middleware_stack", None)
+        while middleware_stack is not None:
+            if isinstance(middleware_stack, StructuredAccessLogMiddleware):
+                await middleware_stack.aclose()
+                break
+            middleware_stack = getattr(middleware_stack, "app", None)
 
     application = FastAPI(
         title="Bernstein Task Server",

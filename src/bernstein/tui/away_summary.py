@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from pathlib import Path  # noqa: TC003
 from typing import Any
 
+from bernstein.core.observability.metric_collector import iter_metric_files
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -72,20 +74,16 @@ def _read_jsonl(filepath: Path, since_ts: float) -> list[dict[str, Any]]:
 
 def _collect_api_usage_since(metrics_dir: Path, since_ts: float) -> list[dict[str, Any]]:
     """Collect API usage records since timestamp from daily JSONL files."""
-    if not metrics_dir.exists():
-        return []
     records: list[dict[str, Any]] = []
-    for jsonl_file in metrics_dir.glob("api_usage_*.jsonl"):
+    for jsonl_file in iter_metric_files(metrics_dir, "api_usage"):
         records.extend(_read_jsonl(jsonl_file, since_ts))
     return records
 
 
 def _collect_error_records(metrics_dir: Path, since_ts: float) -> list[dict[str, Any]]:
     """Collect error rate records since timestamp."""
-    if not metrics_dir.exists():
-        return []
     records: list[dict[str, Any]] = []
-    for jsonl_file in metrics_dir.glob("error_rate_*.jsonl"):
+    for jsonl_file in iter_metric_files(metrics_dir, "error_rate"):
         records.extend(_read_jsonl(jsonl_file, since_ts))
     return records
 

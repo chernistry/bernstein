@@ -1908,7 +1908,7 @@ def _run_verification_gates(
     result: Any,
     janitor_passed: bool,
 ) -> tuple[bool, Any]:
-    """Run quality gates, rule enforcement, and cross-model verification.
+    """Run quality gates, rule enforcement, cross-model, and formal verification.
 
     Returns updated (janitor_passed, qg_result) tuple.
     """
@@ -1923,7 +1923,84 @@ def _run_verification_gates(
     if janitor_passed:
         janitor_passed = _run_cross_model_check(orch, task, session, result)
 
+    if janitor_passed:
+        janitor_passed = _run_formal_verification_gate(orch, task, session, result)
+
     return janitor_passed, qg_result
+
+
+def _run_formal_verification_gate(
+    orch: Any,
+    task: Task,
+    session: AgentSession,
+    result: Any,
+) -> bool:
+    """Run the Z3/Lean4 formal-verification gate when configured.
+
+    Gated behind the ``formal_verification_enabled`` flag on
+    :class:`OrchestratorConfig` (default ``False``) so deployments without
+    Z3/Lean4 installed are never impacted.  When the flag is on *and*
+    ``orch._formal_verification_config`` is populated, each configured
+    property is checked.  Violations block merge when the config has
+    ``block_on_violation`` set (the default).
+
+    Args:
+        orch: Orchestrator instance (duck-typed).
+        task: The completed task being verified.
+        session: Agent session that produced the task.
+        result: Tick result accumulator used to record verification failures.
+
+    Returns:
+        True when the gate passes or is skipped, False when a violation
+        blocks merge.
+    """
+    if not getattr(orch._config, "formal_verification_enabled", False):
+        return True
+
+    fv_config = getattr(orch, "_formal_verification_config", None)
+    if fv_config is None:
+        return True
+
+    # Extract janitor-derived completion context if a log aggregator is present.
+    try:
+        summary = AgentLogAggregator(orch._workdir).parse_log(session.id)
+        files_modified_count = len(summary.files_modified)
+    except Exception as exc:
+        logger.debug("formal_verification: could not read agent log for %s: %s", session.id, exc)
+        files_modified_count = 0
+
+    test_passed = True  # Preceding gates already validated test outcomes.
+
+    try:
+        from bernstein.core.quality.formal_verification import run_formal_verification
+
+        fv_result = run_formal_verification(
+            task,
+            orch._workdir,
+            fv_config,
+            files_modified=files_modified_count,
+            test_passed=test_passed,
+        )
+    except Exception as exc:
+        logger.warning("formal_verification: gate raised unexpectedly for task %s: %s", task.id, exc)
+        return True  # Never break tick pipeline on gateway bugs.
+
+    if fv_result.skipped or fv_result.passed:
+        return True
+
+    if not getattr(fv_config, "block_on_violation", True):
+        logger.info(
+            "formal_verification: %d violation(s) for task %s (non-blocking): %s",
+            len(fv_result.violations),
+            task.id,
+            ", ".join(v.property_name for v in fv_result.violations),
+        )
+        return True
+
+    failed = [f"formal_verification:{v.property_name}: {v.detail}" for v in fv_result.violations]
+    _fail_verification(result, task.id, failed)
+    logger.info("Formal verification blocked merge for task %s: %s", task.id, ", ".join(failed))
+    return False
 
 
 def _run_cross_model_check(

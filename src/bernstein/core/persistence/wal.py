@@ -68,6 +68,157 @@ def _compute_entry_hash(payload: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
+# UncommittedIndex (audit-085)
+# ---------------------------------------------------------------------------
+
+
+class UncommittedIndex:
+    """Sidecar index of uncommitted WAL entries across all runs.
+
+    Without this index, :meth:`WALRecovery.scan_all_uncommitted` must read
+    and JSON-parse every line of every ``*.wal.jsonl`` file on startup.
+    With 200 runs x 500 entries that is 100 000 JSON parses per boot.
+
+    The index is a JSONL file at ``.sdd/runtime/wal/uncommitted.idx.json``
+    holding one row per uncommitted entry::
+
+        {"run_id": "r-1", "seq": 3, "entry_hash": "ab12..."}
+
+    The index is a *secondary cache*: if it is missing, truncated, or
+    otherwise corrupt, callers must fall back to a full WAL scan and
+    rebuild the index from the scan result. Loss of the index therefore
+    only costs one slow boot — never correctness.
+
+    All mutating operations ``fsync`` the file so a crash cannot leave
+    the on-disk form diverging from the in-process state.
+    """
+
+    _FILENAME = "uncommitted.idx.json"
+
+    def __init__(self, sdd_dir: Path) -> None:
+        self._path = sdd_dir / "runtime" / "wal" / self._FILENAME
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+
+    @property
+    def path(self) -> Path:
+        """Return the on-disk path of the index file."""
+        return self._path
+
+    # ------------------------------------------------------------------
+    # Load / persist
+    # ------------------------------------------------------------------
+
+    def load(self) -> list[tuple[str, int, str]]:
+        """Return every indexed ``(run_id, seq, entry_hash)`` tuple.
+
+        Returns an empty list when the index file does not exist.
+
+        Raises:
+            ValueError: When the index file exists but is malformed.
+                Callers that want to fall back to a full scan should
+                catch this and trigger a rebuild.
+        """
+        if not self._path.exists():
+            return []
+
+        rows: list[tuple[str, int, str]] = []
+        try:
+            text = self._path.read_text()
+        except OSError as exc:
+            raise ValueError(f"uncommitted index unreadable: {exc}") from exc
+
+        for lineno, raw in enumerate(text.splitlines(), start=1):
+            line = raw.strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+                run_id = str(data["run_id"])
+                seq = int(data["seq"])
+                entry_hash = str(data["entry_hash"])
+            except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+                raise ValueError(f"uncommitted index corrupt at line {lineno}: {exc}") from exc
+            rows.append((run_id, seq, entry_hash))
+        return rows
+
+    def _write_all(self, rows: list[tuple[str, int, str]]) -> None:
+        """Atomically rewrite the index with *rows* (fsync guaranteed)."""
+        tmp = self._path.with_suffix(self._path.suffix + ".tmp")
+        with tmp.open("w") as f:
+            for run_id, seq, entry_hash in rows:
+                f.write(
+                    json.dumps(
+                        {"run_id": run_id, "seq": seq, "entry_hash": entry_hash},
+                        separators=(",", ":"),
+                    )
+                    + "\n"
+                )
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, self._path)
+
+    # ------------------------------------------------------------------
+    # Mutations
+    # ------------------------------------------------------------------
+
+    def add(self, run_id: str, seq: int, entry_hash: str) -> None:
+        """Append ``(run_id, seq, entry_hash)`` to the index.
+
+        Duplicates are allowed on disk — :meth:`load` is tolerant of them
+        as long as each row is individually well-formed.  Callers that
+        care about uniqueness should use :meth:`remove` before re-adding.
+        """
+        with self._path.open("a") as f:
+            f.write(
+                json.dumps(
+                    {"run_id": run_id, "seq": seq, "entry_hash": entry_hash},
+                    separators=(",", ":"),
+                )
+                + "\n"
+            )
+            f.flush()
+            os.fsync(f.fileno())
+
+    def remove(self, run_id: str, seq: int) -> bool:
+        """Remove every row matching ``(run_id, seq)`` from the index.
+
+        Returns ``True`` when at least one row was removed.  Missing or
+        corrupt indexes are treated as empty (no rows removed, no error).
+        """
+        try:
+            rows = self.load()
+        except ValueError:
+            # Corrupt index: nothing to remove, let the next scan rebuild.
+            return False
+        kept = [r for r in rows if not (r[0] == run_id and r[1] == seq)]
+        if len(kept) == len(rows):
+            return False
+        self._write_all(kept)
+        return True
+
+    def remove_run(self, run_id: str) -> int:
+        """Remove every row whose ``run_id`` matches *run_id*.
+
+        Returns the number of rows removed.  Called after a run's WAL is
+        closed (audit-072) so that subsequent scans are not slowed by
+        stale rows pointing at an already-recovered WAL.
+        """
+        try:
+            rows = self.load()
+        except ValueError:
+            return 0
+        kept = [r for r in rows if r[0] != run_id]
+        removed = len(rows) - len(kept)
+        if removed:
+            self._write_all(kept)
+        return removed
+
+    def rebuild(self, rows: list[tuple[str, int, str]]) -> None:
+        """Replace the index with *rows* (used after a fallback scan)."""
+        self._write_all(rows)
+
+
+# ---------------------------------------------------------------------------
 # WALWriter
 # ---------------------------------------------------------------------------
 
@@ -82,9 +233,20 @@ class WALWriter:
     """
 
     def __init__(self, run_id: str, sdd_dir: Path) -> None:
+        self._run_id = run_id
+        self._sdd_dir = sdd_dir
         self._path = sdd_dir / "runtime" / "wal" / f"{run_id}.wal.jsonl"
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._seq, self._prev_hash = self._load_tail()
+        # Sidecar index of uncommitted entries (audit-085). Lazily instantiated
+        # so tests that only exercise the reader do not create the index file.
+        self._index: UncommittedIndex | None = None
+
+    def _uncommitted_index(self) -> UncommittedIndex:
+        """Return a lazily-instantiated :class:`UncommittedIndex`."""
+        if self._index is None:
+            self._index = UncommittedIndex(self._sdd_dir)
+        return self._index
 
     def _load_tail(self) -> tuple[int, str]:
         """Return (last_seq, last_entry_hash) from an existing WAL file.
@@ -229,6 +391,16 @@ class WALWriter:
             f.flush()
             os.fsync(f.fileno())
 
+        # audit-085: update the sidecar index after the WAL line has been
+        # durably written. Index corruption only degrades startup speed
+        # (scan_all_uncommitted falls back to a full scan and rebuilds)
+        # so we swallow the error rather than failing the append.
+        if not committed:
+            try:
+                self._uncommitted_index().add(self._run_id, seq, entry_hash)
+            except OSError:
+                logger.warning("uncommitted index add failed; will rebuild on next scan", exc_info=True)
+
         entry = WALEntry(
             seq=seq,
             prev_hash=self._prev_hash,
@@ -243,6 +415,27 @@ class WALWriter:
         self._seq = seq
         self._prev_hash = entry_hash
         return entry
+
+    def mark_committed(self, seq: int) -> bool:
+        """Remove ``(run_id, seq)`` from the uncommitted index.
+
+        The hash-chained WAL is append-only, so the on-disk entry itself
+        cannot be mutated from ``committed=False`` to ``committed=True``
+        retroactively.  This method only updates the sidecar index used
+        by :meth:`WALRecovery.scan_all_uncommitted` — it signals "a
+        follow-up committed entry has been written, stop reporting this
+        seq as uncommitted on boot".
+
+        Returns ``True`` when a matching index row was removed, ``False``
+        when the index had no such row (e.g. the seq was already
+        committed, the index was rebuilt, or the entry was never written
+        with ``committed=False``).
+        """
+        try:
+            return self._uncommitted_index().remove(self._run_id, seq)
+        except OSError:
+            logger.warning("uncommitted index remove failed; will rebuild on next scan", exc_info=True)
+            return False
 
 
 # ---------------------------------------------------------------------------
@@ -460,6 +653,13 @@ class WALRecovery:
             f.write(json.dumps(payload, separators=(",", ":")))
             f.flush()
             os.fsync(f.fileno())
+
+        # audit-085: drop stale uncommitted-index rows for the now-closed
+        # run so future scans do not have to filter them out.
+        try:
+            UncommittedIndex(sdd_dir).remove_run(run_id)
+        except OSError:
+            logger.warning("failed to prune uncommitted index for %s", run_id, exc_info=True)
         return marker
 
     @staticmethod

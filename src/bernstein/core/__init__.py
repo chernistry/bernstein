@@ -292,7 +292,6 @@ _REDIRECT_MAP: dict[str, str] = {
     "metric_collector": "bernstein.core.observability.metric_collector",
     "metric_export": "bernstein.core.observability.metric_export",
     "metrics": "bernstein.core.observability.metrics",
-    "migration_wizard": "bernstein.core.config.migration_wizard",
     "model_fallback": "bernstein.core.routing.model_fallback",
     "model_recommender": "bernstein.core.routing.model_recommender",
     "model_routing": "bernstein.core.routing.model_routing",

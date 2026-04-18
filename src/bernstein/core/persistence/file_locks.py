@@ -9,24 +9,110 @@ survive restarts without re-locking already-owned files.
 
 Lock TTL (:attr:`FileLockManager.LOCK_TTL_SECONDS`, default 2 h) automatically
 expires stale entries left behind by crashed agents.
+
+Cross-process safety
+--------------------
+The manager uses an OS-level advisory file lock (``fcntl.flock`` on POSIX,
+``msvcrt.locking`` on Windows) on ``.sdd/runtime/locks/file_locks.lock`` as the
+outermost guard for every public operation. This guarantees that two Bernstein
+processes operating on the same ``.sdd/`` directory (e.g. a coordinator and a
+CLI invocation, or two workers) serialize their load-modify-save cycles and
+never silently clobber each other's locks. In-process threads still serialize
+via a ``threading.Lock`` inside the file lock so the ordering between Python
+threads within a single process remains predictable and cheap.
+
+NFS caveat: ``fcntl.flock`` behavior on NFS depends on the client/server
+implementation. On modern Linux NFSv4 it is honored end-to-end, but on older
+mounts or some filers it degrades to a local-only lock. Using ``.sdd/`` on a
+shared filesystem is not recommended; keep it on a local disk.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import os
+import sys
 import threading
 import time
+from contextlib import contextmanager, suppress
 from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import IO, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 LOCK_TTL_SECONDS = 7_200  # 2 hours — expire stale locks from crashed agents
+
+
+# ---------------------------------------------------------------------------
+# Cross-process file lock primitive
+# ---------------------------------------------------------------------------
+
+
+if sys.platform == "win32":  # pragma: no cover - exercised on Windows only
+    import msvcrt
+
+    def _os_lock(fh: IO[bytes]) -> None:
+        """Acquire an exclusive OS-level lock on *fh* (Windows)."""
+        while True:
+            try:
+                msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)
+                return
+            except OSError:
+                # msvcrt.locking retries 10 times with 1 s delay internally;
+                # if it still raises we loop with a short sleep so the semantics
+                # match the blocking POSIX flock.
+                time.sleep(0.05)
+
+    def _os_unlock(fh: IO[bytes]) -> None:
+        """Release the OS-level lock on *fh* (Windows)."""
+        with suppress(OSError):
+            msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+else:
+    import fcntl
+
+    def _os_lock(fh: IO[bytes]) -> None:
+        """Acquire an exclusive OS-level lock on *fh* (POSIX)."""
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+
+    def _os_unlock(fh: IO[bytes]) -> None:
+        """Release the OS-level lock on *fh* (POSIX)."""
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+
+@contextmanager
+def _cross_process_lock(lock_path: Path) -> Iterator[None]:
+    """Acquire a blocking exclusive OS-level file lock at *lock_path*.
+
+    The underlying file is created if missing. The lock is released (and the
+    file handle closed) when the context exits, even if the guarded block
+    raises.
+
+    Args:
+        lock_path: Path to the ``.lock`` sentinel file. Parent directories are
+            created automatically.
+
+    Yields:
+        ``None`` while the lock is held.
+    """
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    # Open for read+write so Windows msvcrt.locking can take an exclusive lock
+    # on byte 0. Using ``a+b`` avoids truncating the file if something useful
+    # was ever written there (we never write to the lock file itself).
+    fh = open(lock_path, "a+b")  # noqa: SIM115 - manual close in finally
+    try:
+        _os_lock(fh)
+        try:
+            yield
+        finally:
+            _os_unlock(fh)
+    finally:
+        fh.close()
 
 
 @dataclass
@@ -69,9 +155,36 @@ class FileLockManager:
 
     def __init__(self, workdir: Path) -> None:
         self._path = workdir / ".sdd" / "runtime" / "file_locks.json"
+        # Sentinel file used for the OS-level advisory lock. Kept separate from
+        # the JSON payload so ``flock`` / ``msvcrt.locking`` never races the
+        # atomic rename used when persisting state.
+        self._os_lock_path = workdir / ".sdd" / "runtime" / "locks" / "file_locks.lock"
         self._lock = threading.Lock()
         self._locks: dict[str, FileLock] = {}
-        self._load()
+        # Initial load under the cross-process guard so a concurrent process
+        # mid-write doesn't hand us a torn JSON document.
+        with _cross_process_lock(self._os_lock_path):
+            self._load()
+
+    @contextmanager
+    def _guard(self) -> Iterator[None]:
+        """Acquire the OS file lock *and* the in-process lock, then refresh state.
+
+        Every public operation runs inside this guard so the sequence
+        ``read-from-disk → mutate → write-to-disk`` is atomic with respect to
+        both other threads in this process and other Bernstein processes on
+        the same workdir.
+
+        Yields:
+            ``None`` while both locks are held and ``self._locks`` reflects
+            the on-disk state.
+        """
+        with _cross_process_lock(self._os_lock_path), self._lock:
+            # Reload so we observe writes made by peer processes while we were
+            # waiting on the OS lock.
+            self._locks = {}
+            self._load()
+            yield
 
     # ------------------------------------------------------------------
     # Public API
@@ -102,7 +215,7 @@ class FileLockManager:
         Returns:
             Empty list on success, or the paths of files with conflicting locks.
         """
-        with self._lock:
+        with self._guard():
             self._evict_expired_unlocked()
             conflicts = [f for f in files if f in self._locks and self._locks[f].agent_id != agent_id]
             if conflicts:
@@ -139,7 +252,7 @@ class FileLockManager:
         Returns:
             Paths of the released files.
         """
-        with self._lock:
+        with self._guard():
             released = [f for f, lock in self._locks.items() if lock.agent_id == agent_id]
             for f in released:
                 del self._locks[f]
@@ -160,25 +273,25 @@ class FileLockManager:
         Returns:
             List of ``(path, FileLock)`` tuples for each conflicting file.
         """
-        with self._lock:
+        with self._guard():
             self._evict_expired_unlocked()
             return [(f, self._locks[f]) for f in files if f in self._locks]
 
     def is_locked(self, file_path: str) -> bool:
         """Return True if *file_path* currently has an active lock."""
-        with self._lock:
+        with self._guard():
             self._evict_expired_unlocked()
             return file_path in self._locks
 
     def all_locks(self) -> list[FileLock]:
         """Snapshot of all active (non-expired) locks, sorted by path."""
-        with self._lock:
+        with self._guard():
             self._evict_expired_unlocked()
             return sorted(self._locks.values(), key=lambda lock: lock.file_path)
 
     def locks_for_agent(self, agent_id: str) -> list[FileLock]:
         """Return all locks held by the given agent."""
-        with self._lock:
+        with self._guard():
             self._evict_expired_unlocked()
             return [lock for lock in self._locks.values() if lock.agent_id == agent_id]
 
@@ -187,8 +300,8 @@ class FileLockManager:
     # ------------------------------------------------------------------
 
     def _evict_expired(self) -> None:
-        """Remove locks whose TTL has elapsed (acquires threading lock)."""
-        with self._lock:
+        """Remove locks whose TTL has elapsed (acquires both locks)."""
+        with self._guard():
             self._evict_expired_unlocked()
 
     def _evict_expired_unlocked(self) -> None:
@@ -216,11 +329,19 @@ class FileLockManager:
             self._locks = {}
 
     def _save(self) -> None:
-        """Persist current lock state to disk atomically."""
+        """Persist current lock state to disk atomically.
+
+        Callers must hold the cross-process OS lock (via :meth:`_guard`).
+        The write goes to a sibling temp file and is promoted via
+        :func:`os.replace` so readers either see the old payload or the new
+        one — never a truncated mid-write document.
+        """
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
             data = [asdict(lock) for lock in self._locks.values()]
-            self._path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            tmp_path = self._path.with_suffix(self._path.suffix + ".tmp")
+            tmp_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            os.replace(tmp_path, self._path)
         except OSError as exc:
             logger.warning("Could not persist file locks to %s: %s", self._path, exc)
 

@@ -1052,6 +1052,7 @@ class OrchestratorConfig:
     kill_on_memory_leak: bool = False
     evolve_mode: bool = False
     budget_usd: float = 0.0  # Stop spawning when cumulative cost reaches this (0 = unlimited)
+    budget_aware_routing_enabled: bool = True  # audit-102: downgrade opus→sonnet near budget cap
     dry_run: bool = False  # Preview planned spawns without actually spawning agents
     auth_token: str | None = None  # Bearer token for authenticated API calls
     merge_strategy: str = "pr"  # "pr" | "direct" — how agent work reaches the main branch

@@ -286,19 +286,26 @@ def test_corrupt_lock_file_is_tolerated(workdir: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _backdate_persisted_lock(workdir: Path, file_path: str, age_seconds: float) -> None:
+    """Rewrite the persisted lock JSON so *file_path* looks *age_seconds* old.
+
+    Used by TTL tests: since every public method reloads state from disk under
+    the cross-process guard, merely mutating ``mgr._locks`` in memory is no
+    longer enough — the next call would re-read the fresh timestamp from disk.
+    """
+    lock_path = workdir / ".sdd" / "runtime" / "file_locks.json"
+    data = json.loads(lock_path.read_text())
+    for entry in data:
+        if entry["file_path"] == file_path:
+            entry["locked_at"] = time.time() - age_seconds
+    lock_path.write_text(json.dumps(data))
+
+
 def test_expired_lock_is_evicted(workdir: Path) -> None:
     mgr = FileLockManager(workdir)
     mgr.LOCK_TTL_SECONDS = 1  # type: ignore[assignment]
     mgr.acquire(["src/foo.py"], agent_id="a1", task_id="t1")
-    # Backdating the lock's timestamp is cleaner than sleeping
-    lock = mgr._locks["src/foo.py"]
-    mgr._locks["src/foo.py"] = FileLock(
-        file_path=lock.file_path,
-        agent_id=lock.agent_id,
-        task_id=lock.task_id,
-        task_title=lock.task_title,
-        locked_at=time.time() - 10,  # 10 s ago, past TTL of 1 s
-    )
+    _backdate_persisted_lock(workdir, "src/foo.py", age_seconds=10)
     assert not mgr.is_locked("src/foo.py")
 
 
@@ -306,16 +313,123 @@ def test_expired_lock_allows_reacquire(workdir: Path) -> None:
     mgr = FileLockManager(workdir)
     mgr.LOCK_TTL_SECONDS = 1  # type: ignore[assignment]
     mgr.acquire(["src/foo.py"], agent_id="a1", task_id="t1")
-    lock = mgr._locks["src/foo.py"]
-    mgr._locks["src/foo.py"] = FileLock(
-        file_path=lock.file_path,
-        agent_id=lock.agent_id,
-        task_id=lock.task_id,
-        task_title=lock.task_title,
-        locked_at=time.time() - 10,
-    )
+    _backdate_persisted_lock(workdir, "src/foo.py", age_seconds=10)
     conflicts = mgr.acquire(["src/foo.py"], agent_id="a2", task_id="t2")
     assert conflicts == []
 
 
 # ---------------------------------------------------------------------------
+# Cross-process file locking (audit-077)
+# ---------------------------------------------------------------------------
+
+
+_WORKER_SRC = """
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+from bernstein.core.persistence.file_locks import _cross_process_lock
+
+lock_path = Path(sys.argv[1])
+trace_path = Path(sys.argv[2])
+worker_id = sys.argv[3]
+hold_seconds = float(sys.argv[4])
+
+with _cross_process_lock(lock_path):
+    enter = time.time()
+    time.sleep(hold_seconds)
+    leave = time.time()
+    with trace_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"worker": worker_id, "pid": os.getpid(), "enter": enter, "leave": leave}) + "\\n")
+"""
+
+
+def test_cross_process_flock_serializes_workers(tmp_path: Path) -> None:
+    """Two subprocesses racing on the same OS lock must NOT overlap.
+
+    Regression guard for audit-077: the old implementation used only a
+    ``threading.Lock`` so two Python processes happily entered the critical
+    section simultaneously. With ``fcntl.flock`` / ``msvcrt.locking`` around
+    every load-modify-save cycle, their [enter, leave] intervals are
+    guaranteed to be disjoint.
+    """
+    import subprocess
+    import sys as _sys
+
+    lock_path = tmp_path / "cross.lock"
+    trace_path = tmp_path / "trace.jsonl"
+    worker_script = tmp_path / "worker.py"
+    worker_script.write_text(_WORKER_SRC, encoding="utf-8")
+
+    hold = 0.3
+    procs = [
+        subprocess.Popen(
+            [_sys.executable, str(worker_script), str(lock_path), str(trace_path), f"w{i}", str(hold)],
+            cwd=str(tmp_path),
+        )
+        for i in range(2)
+    ]
+    for p in procs:
+        p.wait(timeout=30)
+        assert p.returncode == 0, f"worker exited with {p.returncode}"
+
+    entries = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert len(entries) == 2, f"expected 2 trace entries, got {entries}"
+    assert entries[0]["pid"] != entries[1]["pid"]
+
+    entries.sort(key=lambda e: e["enter"])
+    epsilon = 0.01
+    assert entries[1]["enter"] + epsilon >= entries[0]["leave"], (
+        f"workers overlapped: first={entries[0]}, second={entries[1]}"
+    )
+    total = entries[1]["leave"] - entries[0]["enter"]
+    assert total >= 2 * hold - epsilon, f"workers were not serialized: total={total:.3f}s"
+
+
+def test_cross_process_file_lock_manager_no_lost_writes(tmp_path: Path) -> None:
+    """Two FileLockManager processes writing concurrently must not lose locks.
+
+    Without cross-process locking, the last-writer-wins ``json.dump`` in
+    ``_save`` silently drops acquisitions made by the peer process between its
+    load and our save. Running many acquires from two subprocesses and
+    asserting the final on-disk state contains them all is the tightest
+    available proof.
+    """
+    import subprocess
+    import sys as _sys
+
+    script_src = """
+import sys
+from pathlib import Path
+from bernstein.core.persistence.file_locks import FileLockManager
+
+workdir = Path(sys.argv[1])
+worker_id = sys.argv[2]
+count = int(sys.argv[3])
+
+mgr = FileLockManager(workdir)
+for i in range(count):
+    mgr.acquire([f"{worker_id}/file_{i}.py"], agent_id=f"{worker_id}-agent-{i}", task_id=f"{worker_id}-t{i}")
+"""
+    script_path = tmp_path / "mgr_worker.py"
+    script_path.write_text(script_src, encoding="utf-8")
+
+    n_per_worker = 20
+    procs = [
+        subprocess.Popen(
+            [_sys.executable, str(script_path), str(tmp_path), f"w{i}", str(n_per_worker)],
+            cwd=str(tmp_path),
+        )
+        for i in range(2)
+    ]
+    for p in procs:
+        p.wait(timeout=60)
+        assert p.returncode == 0
+
+    final = FileLockManager(tmp_path)
+    paths = {lock.file_path for lock in final.all_locks()}
+    expected = {f"w{w}/file_{i}.py" for w in range(2) for i in range(n_per_worker)}
+    missing = expected - paths
+    assert not missing, f"cross-process write lost {len(missing)} locks: {sorted(missing)[:5]}..."

@@ -104,7 +104,7 @@ class TaskCreate(BaseModel):
 
     # audit-117: cap serialized size of dict-of-any fields to block deeply-nested
     # or very wide payloads from wedging the server at pydantic-validation time.
-    def model_post_init(self, __context: Any) -> None:
+    def model_post_init(self, _context: Any) -> None:
         """Enforce serialized-size caps on dict fields and meta_messages entries."""
         _enforce_dict_size(self.slack_context, field_name="slack_context")
         _enforce_dict_size(self.metadata, field_name="metadata")

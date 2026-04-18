@@ -122,7 +122,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "compliance_report": "bernstein.core.security.compliance_report",
     "compression_models": "bernstein.core.tokens.compression_models",
     "config_diff": "bernstein.core.config.config_diff",
-    "config_diff_cmd": "bernstein.core.config.config_diff_cmd",
+    "config_drift_cmd": "bernstein.core.config.config_drift_cmd",
     "config_path_validation": "bernstein.core.config.config_path_validation",
     "config_schema": "bernstein.core.config.config_schema",
     "config_watcher": "bernstein.core.config.config_watcher",

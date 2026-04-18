@@ -1000,6 +1000,35 @@ class ConvergenceGuardConfig:
     spawn_rate_window_seconds: int = 60  # 1 minute
 
 
+@dataclass(frozen=True)
+class CIAutofixConfig:
+    """Configuration for orchestrator-driven CI autofix polling (audit-035).
+
+    When ``enabled`` is True, the orchestrator tick periodically polls the
+    GitHub Actions API for failing workflow runs and creates Bernstein fix
+    tasks via :class:`CIAutofixPipeline`.  GitHub token plumbing is a
+    separate ticket; when ``token`` is empty the tick falls back to the
+    ``GITHUB_TOKEN`` environment variable.
+
+    Attributes:
+        enabled: Whether the CI autofix poller runs inside the tick loop.
+            Defaults to ``False`` so the behaviour is opt-in.
+        poll_interval_s: Minimum seconds between poll attempts. The first
+            poll fires on the first tick when enabled.
+        repo: Repository in ``owner/repo`` format. When empty the poller
+            is a no-op (nothing to watch).
+        token: Optional GitHub token. When empty, ``GITHUB_TOKEN`` is read
+            from the environment at poll time.
+        per_page: Number of most recent runs to request per poll.
+    """
+
+    enabled: bool = False
+    poll_interval_s: int = 60
+    repo: str = ""
+    token: str = ""
+    per_page: int = 10
+
+
 @dataclass
 class OrchestratorConfig:
     """Configuration for the orchestrator main loop.
@@ -1067,6 +1096,7 @@ class OrchestratorConfig:
     max_cost_per_agent: float = 0.0  # Hard per-agent spend cap (0 = unlimited)
     test_agent: TestAgentConfig = field(default_factory=TestAgentConfig)
     convergence: ConvergenceGuardConfig = field(default_factory=ConvergenceGuardConfig)
+    ci_autofix: CIAutofixConfig = field(default_factory=CIAutofixConfig)
     permission_mode: str | None = None  # "bypass" | "plan" | "auto" | "default" — see permission_mode.py
     agent_resource_limits: Any | None = None  # ResourceLimits | None — OS-level limits for non-sandboxed spawns
     shutdown_stagger_delay_s: float = 5.0  # Seconds between SHUTDOWN signals during drain

@@ -712,6 +712,14 @@ class Orchestrator:
                 capacity_fn=self._current_capacity,
             )
 
+        # CI autofix poller (audit-035): lazily constructed on first use so
+        # the orchestrator doesn't import httpx-async machinery unless the
+        # flag is enabled.  _last_ci_poll_ts enforces the poll_interval_s
+        # cadence regardless of tick frequency.
+        self._ci_monitor: Any | None = None
+        self._ci_autofix_pipeline: Any | None = None
+        self._last_ci_poll_ts: float = 0.0
+
     # -- Hot-reload source detection -----------------------------------------
 
     # Key source files whose modification triggers an orchestrator restart.
@@ -1482,6 +1490,21 @@ class Orchestrator:
 
         # 4d-iv. Real-time cost recording: update budget status from live tokens
         self._record_live_costs()
+
+        # 4d-v. CI autofix poll (audit-035): opt-in via config.ci_autofix.enabled.
+        # _maybe_poll_ci_autofix internally rate-limits to poll_interval_s
+        # (default 60s) and short-circuits when the flag is off, so calling
+        # every tick is cheap.
+        try:
+            created = self._maybe_poll_ci_autofix()
+            if created:
+                logger.info(
+                    "CI autofix poll created %d fix task(s): %s",
+                    len(created),
+                    ", ".join(created),
+                )
+        except Exception as exc:
+            logger.warning("CI autofix poll raised: %s", exc)
 
         # 4e. Recycle idle agents (task already resolved but process still alive,
         #     or no heartbeat for idle threshold). SHUTDOWN → 30s grace → SIGKILL.
@@ -2291,6 +2314,55 @@ class Orchestrator:
         """Remove reverse-index entries for the given task IDs."""
         for tid in task_ids:
             self._task_to_session.pop(tid, None)
+
+    def _maybe_poll_ci_autofix(self) -> list[str]:
+        """Poll GitHub Actions for failing runs if the feature flag is enabled (audit-035).
+
+        Calls :meth:`CIMonitor.poll` at most once per ``poll_interval_s`` seconds,
+        tracked via ``_last_ci_poll_ts``.  Lazily constructs the monitor and
+        pipeline on first use so the hot path is free when the flag is off.
+
+        Returns:
+            List of fix-task IDs created during this poll (may be empty).
+            Always empty when the flag is disabled, when the repo is not
+            configured, or when a GitHub token cannot be resolved.
+        """
+        ci_cfg = getattr(self._config, "ci_autofix", None)
+        if ci_cfg is None or not ci_cfg.enabled:
+            return []
+        if not ci_cfg.repo:
+            return []
+
+        now = time.time()
+        if now - self._last_ci_poll_ts < ci_cfg.poll_interval_s:
+            return []
+        self._last_ci_poll_ts = now
+
+        token = ci_cfg.token or os.environ.get("GITHUB_TOKEN", "")
+        if not token:
+            logger.debug("CI autofix poll: GITHUB_TOKEN not set - skipping")
+            return []
+
+        if self._ci_monitor is None or self._ci_autofix_pipeline is None:
+            from bernstein.core.quality.ci_fix import CIAutofixPipeline
+            from bernstein.core.quality.ci_monitor import CIMonitor
+
+            self._ci_monitor = CIMonitor()
+            self._ci_autofix_pipeline = CIAutofixPipeline(
+                server_url=self._config.server_url,
+                repo_root=self._workdir,
+            )
+
+        try:
+            return self._ci_monitor.poll(
+                ci_cfg.repo,
+                token,
+                self._ci_autofix_pipeline,
+                per_page=ci_cfg.per_page,
+            )
+        except Exception as exc:
+            logger.warning("CI autofix poll failed: %s", exc)
+            return []
 
     def _check_server_health(self) -> bool:
         """Ping the task server health endpoint with a short timeout.

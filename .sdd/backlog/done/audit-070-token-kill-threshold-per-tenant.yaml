@@ -1,0 +1,42 @@
+---
+id: audit-070-token-kill-threshold-per-tenant
+title: "audit-070-token-kill-threshold-per-tenant — Token monitor kill threshold hardcoded; not per-tenant"
+status: done
+type: feat
+priority: 2
+scope: small
+complexity: low
+role: backend
+model: auto
+effort: low
+estimated_minutes: 30
+depends_on: []
+blocks: []
+tags: [audit-2026-04, cost-tokens, feat, multi-tenant]
+context_files:
+  - src/bernstein/core/tokens/token_monitor.py
+  - src/bernstein/core/defaults.py
+affected_paths:
+  - src/bernstein/core/tokens/token_monitor.py
+require_review: true
+---
+
+## Summary
+
+_KILL_THRESHOLD is single global from defaults.py. Multi-tenant deployments (tenanting module) have different sensible limits (enterprise vs free).
+
+## Evidence
+
+token_monitor.py:55 `_KILL_THRESHOLD = TOKEN.kill_threshold`. No per-tenant override. `warned_quadratic` fires once per session then goes silent.
+
+## Reproduction
+
+grep -n 'kill_threshold' tokens/token_monitor.py — only the global.
+
+## Proposed fix
+
+Make _KILL_THRESHOLD a per-tenant map resolved in check_token_growth via TOKEN_CFG.get(session.tenant_id, TOKEN.kill_threshold). Reset warned_quadratic after N clean samples.
+
+## Risks / out of scope
+
+Tenant discovery on hot path.

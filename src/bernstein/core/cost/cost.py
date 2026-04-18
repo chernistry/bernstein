@@ -634,7 +634,11 @@ def forecast_planned_backlog(
     projected_total = current_spend_usd + estimated_remaining_cost
     avg_cost = estimated_remaining_cost / len(planned_tasks) if planned_tasks else 0.0
 
-    has_history = bool(metrics_dir and metrics_dir.exists() and any(metrics_dir.glob("api_usage_*.jsonl")))
+    has_history = bool(
+        metrics_dir
+        and metrics_dir.exists()
+        and (any(metrics_dir.glob("api_usage_*.jsonl")) or any(metrics_dir.glob("api_usage_*.jsonl.*")))
+    )
     if len(planned_tasks) >= 10 and has_history:
         confidence_level = "high"
     elif len(planned_tasks) >= 3:

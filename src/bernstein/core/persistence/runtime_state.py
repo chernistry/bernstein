@@ -59,22 +59,54 @@ class SessionReplayMetadata:
         return asdict(self)
 
 
-def rotate_log_file(log_path: Path, *, max_bytes: int = _LOG_ROTATE_BYTES) -> bool:
-    """Rotate *log_path* to ``.1`` when it exceeds *max_bytes*.
+def rotate_log_file(
+    log_path: Path,
+    *,
+    max_bytes: int = _LOG_ROTATE_BYTES,
+    max_backups: int = 1,
+) -> bool:
+    """Rotate *log_path* when it exceeds *max_bytes*, keeping up to *max_backups*.
+
+    With ``max_backups=1`` (default) the file is rotated to ``<name>.1``,
+    overwriting any previous rollover — preserving the historical single-backup
+    behaviour. With ``max_backups>1`` older backups are shifted (``.1 -> .2``,
+    ``.2 -> .3`` …) and anything beyond ``.max_backups`` is deleted.
 
     Args:
         log_path: Log file to rotate.
-        max_bytes: Rotation threshold in bytes.
+        max_bytes: Rotation threshold in bytes. Files at or below this size
+            are left untouched.
+        max_backups: Number of historical rollovers to retain.
 
     Returns:
         True when rotation happened, False otherwise.
     """
+    if max_backups < 1:
+        max_backups = 1
     try:
         if not log_path.exists() or log_path.stat().st_size <= max_bytes:
             return False
     except OSError as exc:
         logger.debug("Cannot stat log %s for rotation: %s", log_path, exc)
         return False
+
+    # Shift existing backups: .N-1 -> .N, .N-2 -> .N-1, ..., .1 -> .2.
+    # Anything at or beyond the retention limit is removed.
+    for index in range(max_backups, 0, -1):
+        src = log_path.with_suffix(log_path.suffix + f".{index}")
+        if not src.exists():
+            continue
+        if index >= max_backups:
+            with contextlib.suppress(OSError):
+                src.unlink()
+            continue
+        dst = log_path.with_suffix(log_path.suffix + f".{index + 1}")
+        with contextlib.suppress(OSError):
+            dst.unlink()
+        try:
+            shutil.move(str(src), str(dst))
+        except OSError as exc:
+            logger.warning("Failed to shift rotated log %s -> %s: %s", src, dst, exc)
 
     rotated = log_path.with_suffix(log_path.suffix + ".1")
     with contextlib.suppress(OSError):

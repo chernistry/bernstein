@@ -313,9 +313,7 @@ class TestCIMonitorPollWrapper:
         async def _poll_failures(*_args: Any, **_kwargs: Any) -> list[CIFailure]:
             return [good, bad]
 
-        async def _parse_logs(
-            _self: CIMonitor, _repo: str, run_id: int, _token: str
-        ) -> FailureContext:
+        async def _parse_logs(_self: CIMonitor, _repo: str, run_id: int, _token: str) -> FailureContext:
             if run_id == 2:
                 raise RuntimeError("bad log")
             return FailureContext(test_name="", error_message="boom")
@@ -339,9 +337,7 @@ class TestTickWiring:
     def test_tick_body_references_maybe_poll(self) -> None:
         """The _tick_internal source must call _maybe_poll_ci_autofix."""
         src = inspect.getsource(Orchestrator._tick_internal)
-        assert "_maybe_poll_ci_autofix" in src, (
-            "Orchestrator._tick_internal does not wire up the CI autofix poll"
-        )
+        assert "_maybe_poll_ci_autofix" in src, "Orchestrator._tick_internal does not wire up the CI autofix poll"
 
     def test_tick_invokes_poll_when_enabled(self, tmp_path: Path) -> None:
         """A single tick with the flag enabled calls _maybe_poll_ci_autofix."""
@@ -350,9 +346,7 @@ class TestTickWiring:
             CIAutofixConfig(enabled=True, repo="o/r", token="tok", poll_interval_s=1),
         )
 
-        with patch.object(
-            Orchestrator, "_maybe_poll_ci_autofix", return_value=["task-abc"]
-        ) as mock_poll:
+        with patch.object(Orchestrator, "_maybe_poll_ci_autofix", return_value=["task-abc"]) as mock_poll:
             orch.tick()
 
         assert mock_poll.called

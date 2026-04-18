@@ -256,9 +256,7 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
         # middleware's own init path (e.g. the server factory reads it from
         # the environment but hasn't threaded it here), treat auth as
         # configured to fail closed.
-        if os.environ.get("BERNSTEIN_AUTH_TOKEN", "").strip():
-            return True
-        return False
+        return bool(os.environ.get("BERNSTEIN_AUTH_TOKEN", "").strip())
 
     async def dispatch(
         self,

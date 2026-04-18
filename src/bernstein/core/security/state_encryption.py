@@ -517,9 +517,7 @@ class KeyManager:
         if self._is_wrapped(blob):
             passphrase = self._passphrase()
             if not passphrase:
-                raise ValueError(
-                    "State key is wrapped but BERNSTEIN_STATE_KEY_PASSPHRASE is not set"
-                )
+                raise ValueError("State key is wrapped but BERNSTEIN_STATE_KEY_PASSPHRASE is not set")
             return self._unwrap_key(blob, passphrase)
         return blob
 

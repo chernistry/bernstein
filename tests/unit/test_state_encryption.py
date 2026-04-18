@@ -25,9 +25,7 @@ def _pin_key_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     delete the env var explicitly.
     """
     monkeypatch.delenv("BERNSTEIN_STATE_KEY_PASSPHRASE", raising=False)
-    monkeypatch.setenv(
-        "BERNSTEIN_STATE_KEY_PATH", str(tmp_path / "state-key-override")
-    )
+    monkeypatch.setenv("BERNSTEIN_STATE_KEY_PATH", str(tmp_path / "state-key-override"))
 
 
 class TestGenerateKey:
@@ -210,9 +208,7 @@ class TestKeyManagerDefaultPath:
 
 
 class TestKeyManagerMigration:
-    def test_migrates_legacy_key_and_deletes_old(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_migrates_legacy_key_and_deletes_old(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         legacy_key = b"x" * 32
         sdd = tmp_path / ".sdd"
         legacy_path = sdd / "config" / "state-key"
@@ -231,9 +227,7 @@ class TestKeyManagerMigration:
         # Old in-tree copy is gone so it can't leak via tarballs.
         assert not legacy_path.exists()
 
-    def test_migration_preserves_existing_new_key(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_migration_preserves_existing_new_key(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         # New key already exists — legacy key should be discarded, not
         # clobber the new one.
         new_path = tmp_path / "state-key-override"
@@ -252,9 +246,7 @@ class TestKeyManagerMigration:
 
 
 class TestKeyManagerPassphraseWrapping:
-    def test_wraps_key_when_passphrase_set(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_wraps_key_when_passphrase_set(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("BERNSTEIN_STATE_KEY_PASSPHRASE", "hunter2")
         key_path = tmp_path / "state-key-override"
         km = KeyManager(tmp_path / ".sdd")
@@ -270,9 +262,7 @@ class TestKeyManagerPassphraseWrapping:
         km2 = KeyManager(tmp_path / ".sdd")
         assert km2.load_key() == key
 
-    def test_wrong_passphrase_fails(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_wrong_passphrase_fails(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("BERNSTEIN_STATE_KEY_PASSPHRASE", "hunter2")
         km = KeyManager(tmp_path / ".sdd")
         km.ensure_key()
@@ -282,9 +272,7 @@ class TestKeyManagerPassphraseWrapping:
         with pytest.raises(ValueError, match="unwrap"):
             km2.load_key()
 
-    def test_wrapped_key_without_passphrase_errors(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_wrapped_key_without_passphrase_errors(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("BERNSTEIN_STATE_KEY_PASSPHRASE", "hunter2")
         km = KeyManager(tmp_path / ".sdd")
         km.ensure_key()
@@ -294,9 +282,7 @@ class TestKeyManagerPassphraseWrapping:
         with pytest.raises(ValueError, match="PASSPHRASE"):
             km2.load_key()
 
-    def test_plain_key_ignored_by_passphrase_env_on_read(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_plain_key_ignored_by_passphrase_env_on_read(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         # A pre-existing unwrapped key (e.g. just migrated) must still
         # load cleanly even if the passphrase env var is set — we only
         # unwrap blobs that carry the BSK1 magic.

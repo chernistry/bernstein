@@ -15,8 +15,8 @@ from bernstein.core.convergence_guard import ConvergenceGuard
 from bernstein.core.graph import TaskGraph
 from bernstein.core.models import (
     AgentSession,
-    Complexity,
     CompletionSignal,
+    Complexity,
     ConvergenceGuardConfig,
     ModelConfig,
     Scope,

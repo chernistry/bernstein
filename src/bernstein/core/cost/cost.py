@@ -323,9 +323,7 @@ class EpsilonGreedyBandit:
                 # Under-observed arms that meet the threshold (e.g. seeded
                 # priors) compete at nominal per-token cost so we don't over-
                 # trust a tiny sample's observed ``avg_cost_usd``.
-                cost = (
-                    arm.avg_cost_usd if arm.observations >= self.min_observations else _model_cost(arm.model)
-                )
+                cost = arm.avg_cost_usd if arm.observations >= self.min_observations else _model_cost(arm.model)
                 qualifying.append((model, cost))
 
         if not qualifying:

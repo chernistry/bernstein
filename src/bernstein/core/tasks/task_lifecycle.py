@@ -2591,9 +2591,7 @@ def process_completed_tasks(
         if not task.completion_signals:
             continue
         if _has_llm_judge_signal(task):
-            verify_futures[task.id] = orch._executor.submit(
-                _verify_via_janitor, task, orch._workdir, server_url
-            )
+            verify_futures[task.id] = orch._executor.submit(_verify_via_janitor, task, orch._workdir, server_url)
         else:
             verify_futures[task.id] = orch._executor.submit(verify_task, task, orch._workdir)
 

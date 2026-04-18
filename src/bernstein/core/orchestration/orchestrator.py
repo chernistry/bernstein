@@ -3063,7 +3063,6 @@ class Orchestrator:
 
     def _get_pr_diff_stats(self, branch: str) -> dict[str, int]:
         """Get diff statistics for PR body."""
-        import re
         import subprocess
 
         stats = {"files": 0, "insertions": 0, "deletions": 0}

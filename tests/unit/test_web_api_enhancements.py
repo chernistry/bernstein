@@ -198,9 +198,7 @@ class TestCORSConfiguration:
         """The port-glob form is accepted because the server translates it."""
         from bernstein.core.seed import _parse_cors_config
 
-        result = _parse_cors_config(
-            {"allowed_origins": ["http://localhost:*", "https://app.example.com"]}
-        )
+        result = _parse_cors_config({"allowed_origins": ["http://localhost:*", "https://app.example.com"]})
         assert result is not None
         assert "http://localhost:*" in result.allowed_origins
         assert "https://app.example.com" in result.allowed_origins

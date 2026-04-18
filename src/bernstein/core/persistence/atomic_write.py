@@ -101,10 +101,12 @@ def write_atomic_bytes(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = _tmp_path_for(path)
     try:
+        # 0o600 — owner-only. Runtime state may carry task metadata, session
+        # tokens, or other material that should not be world-readable.
         fd = os.open(
             str(tmp),
             os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
-            0o644,
+            0o600,
         )
         try:
             with os.fdopen(fd, "wb") as fh:

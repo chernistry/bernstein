@@ -212,7 +212,7 @@ def test_persistence_write_session_json_atomic(tmp_path: Path) -> None:
     session_path = tmp_path / ".sdd" / "runtime" / "session.json"
     assert session_path.exists()
     data = json.loads(session_path.read_text(encoding="utf-8"))
-    assert data["saved_at"] == 123.0
+    assert data["saved_at"] == pytest.approx(123.0)
     assert data["goal"] == "test"
     # No stray temp files.
     runtime = session_path.parent

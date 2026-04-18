@@ -123,4 +123,3 @@ class TestCoordinatorMode:
         assert is_worker_task("frontend") is True
         assert is_worker_task("qa") is True
         assert is_worker_task("coordinator") is False
-

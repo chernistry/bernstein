@@ -5,4 +5,4 @@ keeps working for callers that previously imported from the ``a2a.py``
 module (which now lives at ``bernstein.core.protocols.a2a.a2a``).
 """
 
-from bernstein.core.protocols.a2a.a2a import *  # noqa: F401,F403
+from bernstein.core.protocols.a2a.a2a import *  # noqa: F403

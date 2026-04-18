@@ -6,4 +6,4 @@ from the ``cluster.py`` module (now at
 ``bernstein.core.protocols.cluster.cluster``).
 """
 
-from bernstein.core.protocols.cluster.cluster import *  # noqa: F401,F403
+from bernstein.core.protocols.cluster.cluster import *  # noqa: F403

@@ -159,13 +159,7 @@ def build_wrapper_script(
     heartbeat_touch = _build_heartbeat_touch(heartbeat_path)
     completion_write = _build_completion_write(completion_path)
 
-    return (
-        _WRAPPER_PRELUDE
-        + heartbeat_touch
-        + _WRAPPER_DISPATCH
-        + completion_write
-        + token_writer
-    )
+    return _WRAPPER_PRELUDE + heartbeat_touch + _WRAPPER_DISPATCH + completion_write + token_writer
 
 
 __all__ = ["build_wrapper_script"]

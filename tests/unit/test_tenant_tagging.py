@@ -79,8 +79,8 @@ async def test_webhook_task_persists_header_tenant(
 
     from bernstein.core.webhook_signatures import sign_hmac_sha256
 
-    secret = "tenant-tagging-secret"
-    monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", secret)
+    webhook_secret_value = "tenant-tagging-secret"  # NOSONAR test fixture
+    monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", webhook_secret_value)
     body = json.dumps({"title": "Webhook task", "description": "Created from webhook."}).encode()
     timestamp = int(time.time())
     signed = f"{timestamp}.".encode() + body
@@ -91,7 +91,7 @@ async def test_webhook_task_persists_header_tenant(
             "content-type": "application/json",
             "x-tenant-id": "tenant-beta",
             "x-bernstein-timestamp": str(timestamp),
-            "x-bernstein-webhook-signature-256": sign_hmac_sha256(secret, signed, prefix="sha256="),
+            "x-bernstein-webhook-signature-256": sign_hmac_sha256(webhook_secret_value, signed, prefix="sha256="),
         },
     )
     await app.state.store.flush_buffer()

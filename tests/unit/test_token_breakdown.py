@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from bernstein.core.tokens.token_breakdown import (
     CategoryName,
     TokenBreakdown,
@@ -23,7 +25,7 @@ class TestTokenCategory:
         cat = TokenCategory(category="system_prompt", tokens=500, percentage=25.0)
         assert cat.category == "system_prompt"
         assert cat.tokens == 500
-        assert cat.percentage == 25.0
+        assert cat.percentage == pytest.approx(25.0)
 
     def test_immutable(self) -> None:
         cat = TokenCategory(category="output", tokens=100, percentage=10.0)
@@ -45,7 +47,7 @@ class TestTokenBreakdown:
     def test_defaults(self) -> None:
         bd = TokenBreakdown(agent_id="a1", task_id="t1", total_tokens=0)
         assert bd.categories == ()
-        assert bd.waste_estimate == 0.0
+        assert bd.waste_estimate == pytest.approx(0.0)
 
     def test_frozen(self) -> None:
         bd = TokenBreakdown(agent_id="a1", task_id="t1", total_tokens=100)
@@ -170,7 +172,7 @@ class TestEstimateWaste:
 
     def test_zero_tokens_returns_zero(self) -> None:
         bd = TokenBreakdown(agent_id="a1", task_id="t1", total_tokens=0)
-        assert estimate_waste(bd, files_used=[]) == 0.0
+        assert estimate_waste(bd, files_used=[]) == pytest.approx(0.0)
 
     def test_below_min_threshold_returns_zero(self) -> None:
         bd = TokenBreakdown(
@@ -179,7 +181,7 @@ class TestEstimateWaste:
             total_tokens=50,
             categories=(TokenCategory(category="system_prompt", tokens=50, percentage=100.0),),
         )
-        assert estimate_waste(bd, files_used=[]) == 0.0
+        assert estimate_waste(bd, files_used=[]) == pytest.approx(0.0)
 
     def test_unused_files_penalty(self) -> None:
         bd = TokenBreakdown(
@@ -214,7 +216,7 @@ class TestEstimateWaste:
         waste = estimate_waste(bd, files_used=["src/main.py"])
         # No category exceeds its bloat threshold, files are used,
         # and output >= 5%, so waste should be 0.
-        assert waste == 0.0
+        assert waste == pytest.approx(0.0)
 
     def test_bloated_category_penalty(self) -> None:
         bd = TokenBreakdown(

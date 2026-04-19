@@ -1,7 +1,8 @@
 # Adapter Selection Guide
 
-Bernstein ships 17 CLI agent adapters in `src/bernstein/adapters/`, plus support
-modules (caching, conformance testing, environment isolation, plugin SDK, etc.).
+Bernstein ships 18 CLI agent adapters in `src/bernstein/adapters/` (17 named
+third-party wrappers plus a `generic` catch-all), along with support modules
+(caching, conformance testing, environment isolation, plugin SDK, etc.).
 
 All CLI agent adapters implement the `CLIAdapter` interface (`adapters/base.py`):
 `spawn()`, process monitoring via PID, log capture to `.sdd/runtime/<session>.log`,
@@ -36,6 +37,7 @@ This means you can run Bernstein with **zero Claude Code dependency** — use `q
 |---------|----------|--------|-----------|-----------|----------|-------------------|-----|----------------------|
 | `claude` | Anthropic | opus, sonnet, haiku | ★★★★★ (opus) / ★★★★ (sonnet) / ★★ (haiku) | $$–$$$ | Full (role-scoped) | JSON schema enforced | Yes | Primary workhorse — architecture, features, tests, docs |
 | `codex` | OpenAI | GPT-5, GPT-5 mini | ★★★★★ (GPT-5) / ★★★★ (mini) | $$–$$$ | Full | JSON (`--json`) | No | Provider diversity; OpenAI reasoning models |
+| `openai_agents` | OpenAI (Agents SDK v2) | GPT-5, GPT-5 mini, o4 | ★★★★ | $–$$$ | Full (SDK tool protocol) | JSONL event stream | Yes (Bernstein-bridged) | OpenAI sandboxed execution with E2B / Modal / Docker |
 | `gemini` | Google | Gemini Pro, Gemini Flash | ★★★★★ (Pro) / ★★★★ (Flash) | Free–$$$ | Full | JSON (`--output-format json`) | No | Free-tier usage; cost-effective medium tasks |
 | `aider` | Multi | Any (Anthropic/OpenAI/Azure) | Inherited from model | $–$$$ | File editing | No | Commit-per-change workflows; focused file edits |
 | `amp` | Sourcegraph | Anthropic + OpenAI models | ★★★★★ (opus/o3) | $$–$$$ | Full | No | Sourcegraph-integrated teams; codebase-aware context |
@@ -44,12 +46,11 @@ This means you can run Bernstein with **zero Claude Code dependency** — use `q
 | `cody` | Sourcegraph | Anthropic/OpenAI/Google (via SG) | Inherited from model | $$ | Chat only | No | Sourcegraph-integrated with codebase-level context |
 | `cursor` | Cursor | Cursor's model routing | ★★★★ | $$ | Full | No | Teams with Cursor subscriptions |
 | `goose` | Block | Anthropic models | ★★★★ | $$–$$$ | Full | No | Teams already using Block's Goose |
-| `roo-code` | Multi | Anthropic + OpenAI | ★★★★ | $$–$$$ | Full | JSON (`--output-format json`) | No | VS Code extension users wanting headless CLI |
 | `continue` | Multi | Anthropic/OpenAI/Google | Inherited from model | $–$$$ | Full | No | Teams with existing Continue.dev configurations |
 | `opencode` | Multi | Any configured provider | Inherited from model | $–$$$ | Full | JSON (`--format json`) | No | Multi-provider setups; single CLI interface |
 | `kiro` | AWS | AWS-managed models | ★★★ | $$ | Full | No | AWS-centric teams using AWS AI services |
 | `kilo` | Stackblitz | Any (via provider routing) | Inherited from model | $–$$$ | Full | No | Web development; Stackblitz-integrated teams |
-| `tabby` | Self-hosted | Server-configured model | Varies | Free | Agent tasks | No | Self-hosted; compliance-restricted; full model control |
+| `cloudflare` | Cloudflare | Workers AI models | ★★★ | Free–$$ | Full | No | Cloudflare Workers / Agents SDK users |
 | `iac` | N/A | N/A (Terraform/Pulumi) | N/A | N/A | IaC plan+apply | No | Infrastructure tasks — pair with LLM adapter for codegen |
 | `generic` | Any | Pass-through | Depends on CLI | Varies | Depends on CLI | No | Unlisted CLIs; prototyping new adapters |
 | `mock` | None | None (simulated) | N/A | Free | Simulated | Simulated | Unit and integration tests only |
@@ -309,20 +310,24 @@ brew install block/tap/goose
 
 ---
 
-### roo-code
+### openai_agents (OpenAI Agents SDK v2)
 
-**Install:** Available as a VS Code extension. The `roo-cline` CLI is bundled with the extension.
+**Install:**
 ```bash
-# Enable headless CLI access from VS Code extension settings
-code --install-extension RooVeterinaryInc.roo-cline
+pip install 'bernstein[openai]'
 ```
 
 **Unique features:**
-- JSON structured output via `--output-format json`
-- Task passed via `--task` flag
-- Reads VS Code workspace settings for model/provider config
+- Wraps the OpenAI Agents SDK v2 (`agents.Agent` + `Runner.run_sync`) in a subprocess
+- Structured JSONL event stream: `start`, `tool_call`, `tool_result`, `usage`, `completion`
+- Pluggable sandbox providers exposed through the SDK: `unix_local`, `docker`, `e2b`, `modal`
+- Rate-limit detection via SDK exception classes mapped to Bernstein's back-off
+- MCP bridging: Bernstein-managed MCP servers are forwarded through the runner manifest; the SDK never spawns its own MCP children
+- Cost tracking from emitted `usage` events (`gpt-5`, `gpt-5-mini`, `o4` pricing rows)
 
-**Best for:** VS Code extension users wanting headless CLI execution with their existing Roo Code config. Preserves model routing and custom instructions from VS Code settings.
+**Env vars:** `OPENAI_API_KEY` (required), plus optional `OPENAI_BASE_URL`, `OPENAI_ORGANIZATION`, `OPENAI_PROJECT`.
+
+**Best for:** OpenAI plans that benefit from SDK-native tool-use, sandboxed execution (E2B / Modal), or where the Agents SDK event protocol is a better fit than the `codex` CLI. See the [dedicated `openai_agents` doc](openai-agents.md) and the [decision guide](../compare/openai-agents.md) for when to pick `openai_agents` vs `codex` vs `claude`.
 
 ---
 
@@ -396,30 +401,6 @@ npm install -g kilocode
 
 ---
 
-### tabby (Self-hosted)
-
-**Install:**
-```bash
-# Install Tabby server (requires Docker or native binary)
-docker pull tabbyml/tabby
-# or download from https://tabby.tabbyml.com/docs/installation/
-
-# Start the server
-tabby serve --model TabbyML/StarCoder-1B --device cuda
-```
-
-**Unique features:**
-- Requires a running Tabby server (`tabby serve`)
-- Model selection is server-side (not per-invocation)
-- Zero cloud dependency when using local models
-- Supports multiple coding models from the Tabby registry
-
-**Env vars:** `TABBY_SERVER_URL` (default: `http://127.0.0.1:8080`).
-
-**Best for:** Self-hosted, air-gapped, or compliance-restricted environments where you control the entire model stack. Tabby supports model fine-tuning on your own codebase for higher-quality completions.
-
----
-
 ### iac (Infrastructure as Code)
 
 **Unique features:**
@@ -484,7 +465,7 @@ Simulates agent behavior for unit and integration tests. Not for production use.
 
 ## Support Modules
 
-In addition to the 17 CLI agent adapters above, the adapter package includes
+In addition to the 18 CLI agent adapters above, the adapter package includes
 support modules that provide cross-cutting infrastructure:
 
 | Module | Purpose |
@@ -506,24 +487,27 @@ support modules that provide cross-cutting infrastructure:
 
 1. **Do you need zero cloud cost?**
    - Yes, and have GPU -> `ollama`
-   - Yes, and have Tabby server -> `tabby`
    - Yes, and want free tier API -> `gemini` or `qwen` (with free OpenRouter)
 
 2. **Do you need the strongest reasoning?**
    - Claude Opus -> `claude` with `model: opus`
-   - OpenAI GPT-5.4 -> `codex` or `amp`
+   - OpenAI GPT-5 -> `codex`, `openai_agents`, or `amp`
    - Want to compare both -> use `TierAwareRouter` with multiple providers
 
 3. **Do you need structured output?**
-   - `claude` (JSON schema enforced), `codex` (JSON), `gemini` (JSON), `roo-code` (JSON), `opencode` (JSON)
+   - `claude` (JSON schema enforced), `codex` (JSON), `gemini` (JSON), `openai_agents` (JSONL events), `opencode` (JSON)
 
 4. **Do you need MCP support?**
-   - `claude` (deepest), `cursor`, `kilo`
+   - `claude` (deepest), `openai_agents` (Bernstein-bridged), `cursor`, `kilo`
 
-5. **Do you need air-gapped / self-hosted?**
-   - `ollama` (local Ollama), `tabby` (self-hosted server)
+5. **Do you need pluggable sandbox execution (Docker / E2B / Modal)?**
+   - `openai_agents` today; more adapters follow the outer `SandboxBackend`
+     abstraction as phase 2 of the sandbox roadmap lands.
 
-6. **Do you need multi-provider diversity?**
+6. **Do you need air-gapped / self-hosted?**
+   - `ollama` (local Ollama via Aider front-end)
+
+7. **Do you need multi-provider diversity?**
    - Primary: `claude`, Secondary: `codex` or `gemini`, Tertiary: `qwen`
    - The `TierAwareRouter` handles failover, cost balancing, and rate-limit avoidance across providers automatically.
 

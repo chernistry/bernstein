@@ -50,8 +50,13 @@ from bernstein.core.sandbox.backend import (
     SandboxSession,
 )
 from bernstein.core.sandbox.manifest import (
+    ArtifactMount,
+    AzureBlobMount,
     FileEntry,
+    GCSMount,
     GitRepoEntry,
+    R2Mount,
+    S3Mount,
     WorkspaceManifest,
 )
 from bernstein.core.sandbox.registry import (
@@ -76,10 +81,15 @@ from bernstein.core.security.sandbox import (
 spawn_in_sandbox: _Any = _spawn_in_sandbox  # pyright: ignore[reportUnknownVariableType]
 
 __all__ = [
+    "ArtifactMount",
+    "AzureBlobMount",
     "DockerSandbox",
     "ExecResult",
     "FileEntry",
+    "GCSMount",
     "GitRepoEntry",
+    "R2Mount",
+    "S3Mount",
     "SandboxBackend",
     "SandboxCapability",
     "SandboxRuntime",

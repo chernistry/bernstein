@@ -192,7 +192,7 @@ class DockerSandboxSession(SandboxSession):
             # traversal primitive. ``_safe_extract_single_file``
             # refuses any member whose name does not resolve to the
             # exact file we requested.
-            with tarfile.open(fileobj=buf, mode="r") as tf:
+            with tarfile.open(fileobj=buf, mode="r") as tf:  # NOSONAR S5042
                 return _safe_extract_single_file(tf, expected_name=expected_name, resolved=resolved)
 
         return await asyncio.to_thread(_do_read)
@@ -217,7 +217,7 @@ class DockerSandboxSession(SandboxSession):
             # the only consumer is the docker daemon, which treats the
             # single member as the file to place under ``parent``.
             buf = BytesIO()
-            with tarfile.open(fileobj=buf, mode="w") as tf:
+            with tarfile.open(fileobj=buf, mode="w") as tf:  # NOSONAR S5042
                 info = tarfile.TarInfo(name=name)
                 info.size = len(data)
                 info.mode = mode

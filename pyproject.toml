@@ -104,18 +104,15 @@ grpc = ["grpcio>=1.68", "grpcio-tools>=1.68", "grpcio-reflection>=1.68", "protob
 k8s = ["kubernetes>=31.0"]
 ml = ["scikit-learn>=1.5"]
 graphics = []  # term-image disabled: caps pillow<11, conflicts with CVE-2026-25990 fix
-<<<<<<< HEAD
 # OpenAI Agents SDK v2 integration (src/bernstein/adapters/openai_agents.py).
 # Declared as an optional extra so users who don't spawn OpenAI Agents agents
 # don't need the SDK installed.  Enable with: pip install 'bernstein[openai]'.
 openai = ["openai-agents>=0.4.0"]
-=======
 # Sandbox backend extras (oai-002). Each pulls in the provider SDK for the
 # corresponding SandboxBackend. Kept optional so minimal installs stay lean.
 docker = ["docker>=7"]
 e2b = ["e2b-code-interpreter>=1.0"]
 modal = ["modal>=0.65"]
->>>>>>> 1d54cea5 (build(deps): add docker / e2b / modal optional extras for oai-002)
 
 [project.scripts]
 bernstein = "bernstein.cli.main:cli"

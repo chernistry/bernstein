@@ -44,6 +44,7 @@ from bernstein.cli.advanced_cmd import (
     trace_cmd,
 )
 from bernstein.cli.agents_cmd import agents_group
+from bernstein.cli.commands.skills_cmd import skills_group
 
 # New CLI commands (CLI-004 through CLI-013)
 from bernstein.cli.aliases import ALIASES, aliases_cmd
@@ -720,6 +721,7 @@ cli.add_command(history_cmd, "history")
 
 # Already registered elsewhere
 cli.add_command(agents_group)
+cli.add_command(skills_group)
 cli.add_command(test_cmd, "test")
 cli.add_command(auth_group, "auth")
 cli.add_command(auth_login, "login")

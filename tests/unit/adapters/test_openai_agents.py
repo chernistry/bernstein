@@ -191,7 +191,7 @@ class TestSpawnCommand:
         assert manifest["model"] == "gpt-5-mini"
         assert manifest["effort"] == "medium"
         assert manifest["task_scope"] == "small"
-        assert manifest["budget_multiplier"] == 2.0
+        assert manifest["budget_multiplier"] == pytest.approx(2.0)
         assert manifest["system_addendum"] == "do not run git push"
         assert manifest["sandbox_provider"] == "unix_local"
 
@@ -473,7 +473,7 @@ class TestRunnerManifest:
             {
                 "session_id": "s1",
                 "prompt": "hi",
-                "workdir": "/tmp",
+                "workdir": "/workspace",
                 "model": "gpt-5-mini",
             },
         )
@@ -488,7 +488,7 @@ class TestRunnerManifest:
             {
                 "session_id": "s1",
                 "prompt": "hi",
-                "workdir": "/tmp",
+                "workdir": "/workspace",
                 "model": "gpt-5-mini",
                 "future_field": "ignored",
             },
@@ -527,7 +527,7 @@ class TestRunnerHelpers:
         manifest = RunnerManifest(
             session_id="s",
             prompt="p",
-            workdir="/tmp",
+            workdir="/workspace",
             model="gpt-5",
             system_addendum="be terse",
             tools=[{"name": "file_read"}],
@@ -542,7 +542,7 @@ class TestRunnerHelpers:
         manifest = RunnerManifest(
             session_id="s",
             prompt="p",
-            workdir="/tmp",
+            workdir="/workspace",
             model="gpt-5",
         )
         kwargs = _build_agent_kwargs(manifest)
@@ -623,7 +623,7 @@ class TestRunnerRun:
         return RunnerManifest(
             session_id="abc",
             prompt="hello",
-            workdir="/tmp",
+            workdir="/workspace",
             model="gpt-5-mini",
         )
 

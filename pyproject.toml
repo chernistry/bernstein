@@ -113,6 +113,13 @@ openai = ["openai-agents>=0.4.0"]
 docker = ["docker>=7"]
 e2b = ["e2b-code-interpreter>=1.0"]
 modal = ["modal>=0.65"]
+# Cloud artifact storage sinks (oai-003). Each extra pulls in the provider
+# SDK needed by the corresponding ArtifactSink. Kept optional so local-only
+# installs stay lean. R2 reuses boto3 under the hood.
+s3 = ["boto3>=1.40"]
+gcs = ["google-cloud-storage>=3.0"]
+azure = ["azure-storage-blob>=12.20"]
+r2 = ["boto3>=1.40"]
 
 [project.scripts]
 bernstein = "bernstein.cli.main:cli"
@@ -153,6 +160,14 @@ bernstein-worker = "bernstein.core.worker:main"
 # zero-arg factory returning a ``bernstein.core.skills.SkillSource``.
 # Example:
 # my-data-pack = "my_pack.skills:source"
+
+[project.entry-points."bernstein.storage_sinks"]
+# Pluggable artifact storage sinks (oai-003). First-party sinks
+# (local_fs, s3, gcs, azure_blob, r2) ship in core and are registered
+# eagerly by bernstein.core.storage.registry; plugin authors register
+# additional sinks (custom providers, domain-specific wrappers ...) via
+# this group. Example:
+# my_sink = "my_pkg.storage:MyArtifactSink"
 
 [tool.hatch.build]
 exclude = [

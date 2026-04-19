@@ -59,6 +59,81 @@ def _import_docker() -> Any:
     return docker
 
 
+def _safe_extract_single_file(tf: tarfile.TarFile, *, expected_name: str, resolved: str) -> bytes:
+    """Extract exactly one file from ``tf`` whose name matches ``expected_name``.
+
+    Defence-in-depth against path traversal in the tar members
+    produced by ``docker.container.get_archive``. Although the archive
+    comes from a container we control, we still validate each member:
+
+    * Reject any member whose name does not equal ``expected_name``
+      (the basename of the requested path) or the absolute-path form
+      ``resolved.lstrip("/")``. This prevents a crafted or buggy tar
+      from smuggling in a member called ``../etc/shadow`` or a
+      symlink-style entry that resolves outside our intended target.
+    * Reject non-file members (directories, symlinks, devices) —
+      ``session.read`` only ever wants a single file's bytes.
+    * Reject any absolute-path member whose name starts with ``/`` or
+      contains a ``..`` segment after normalisation. Even a matching
+      name must be "inside" the requested target to be accepted.
+
+    Args:
+        tf: Open tar archive streamed from ``container.get_archive``.
+        expected_name: Basename of the path the caller requested.
+        resolved: The full POSIX path the caller requested. Used for
+            the error message and for the alternate absolute-form
+            member-name comparison.
+
+    Returns:
+        The bytes of the single file member.
+
+    Raises:
+        FileNotFoundError: No matching file member was found.
+        IsADirectoryError: The archive held only directory entries.
+    """
+    members = tf.getmembers()
+    if not members:
+        raise FileNotFoundError(resolved)
+
+    # Docker's get_archive can emit either basename-only members (the
+    # common case) or absolute-path members on some daemon versions.
+    # We accept both forms; anything else is rejected.
+    absolute_form = resolved.lstrip("/")
+
+    acceptable: list[tarfile.TarInfo] = []
+    saw_any_file = False
+    for member in members:
+        if not member.isfile():
+            continue
+        saw_any_file = True
+
+        # Normalise once: reject absolute-path traversal (e.g.
+        # ``../etc/shadow``). PurePosixPath normalises redundant
+        # separators but keeps ``..`` segments explicit.
+        parts = PurePosixPath(member.name).parts
+        if ".." in parts:
+            continue
+        if member.name.startswith("/"):
+            continue
+
+        if member.name == expected_name or member.name == absolute_form:
+            acceptable.append(member)
+
+    if not acceptable:
+        if saw_any_file:
+            # A file member existed but its name did not match. Surface
+            # as FileNotFoundError to match the documented contract —
+            # the caller asked for a file that is not present under the
+            # name they provided.
+            raise FileNotFoundError(resolved)
+        raise IsADirectoryError(resolved)
+
+    extracted = tf.extractfile(acceptable[0])
+    if extracted is None:
+        raise FileNotFoundError(resolved)
+    return extracted.read()
+
+
 class DockerSandboxSession(SandboxSession):
     """A session backed by a running Docker container.
 
@@ -101,6 +176,7 @@ class DockerSandboxSession(SandboxSession):
 
     async def read(self, path: str) -> bytes:
         resolved = self._resolve_posix(path)
+        expected_name = PurePosixPath(resolved).name
 
         def _do_read() -> bytes:
             archive, _ = self._container.get_archive(resolved)
@@ -108,17 +184,16 @@ class DockerSandboxSession(SandboxSession):
             for chunk in archive:
                 buf.write(chunk)
             buf.seek(0)
+            # ``get_archive`` returns a tar stream sourced from a
+            # container we own. The tar is not from an untrusted
+            # origin, but we still validate members before extraction
+            # so a docker-daemon bug (or future change to
+            # ``get_archive``) cannot turn ``session.read`` into a path
+            # traversal primitive. ``_safe_extract_single_file``
+            # refuses any member whose name does not resolve to the
+            # exact file we requested.
             with tarfile.open(fileobj=buf, mode="r") as tf:
-                members = tf.getmembers()
-                if not members:
-                    raise FileNotFoundError(resolved)
-                file_member = next((m for m in members if m.isfile()), None)
-                if file_member is None:
-                    raise IsADirectoryError(resolved)
-                extracted = tf.extractfile(file_member)
-                if extracted is None:
-                    raise FileNotFoundError(resolved)
-                return extracted.read()
+                return _safe_extract_single_file(tf, expected_name=expected_name, resolved=resolved)
 
         return await asyncio.to_thread(_do_read)
 
@@ -132,6 +207,15 @@ class DockerSandboxSession(SandboxSession):
             mkdir = self._container.exec_run(["mkdir", "-p", parent])
             if mkdir.exit_code != 0:
                 raise OSError(f"mkdir -p {parent} failed: {mkdir.output.decode('utf-8', 'replace')}")
+            # Build a single-member tar in memory. The archive is
+            # constructed *here* from trusted inputs (``name`` derives
+            # from ``self._resolve_posix`` which pins paths under
+            # :attr:`workdir`; ``data`` is caller-supplied bytes with
+            # no path component) — it is then streamed straight to
+            # ``put_archive``. There is no extraction step on our
+            # side, so S5042 "tar extraction" guidance does not apply:
+            # the only consumer is the docker daemon, which treats the
+            # single member as the file to place under ``parent``.
             buf = BytesIO()
             with tarfile.open(fileobj=buf, mode="w") as tf:
                 info = tarfile.TarInfo(name=name)

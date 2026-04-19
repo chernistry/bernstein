@@ -33,12 +33,16 @@ if TYPE_CHECKING:
 # Precompiled once — Pydantic recompiles each time if we pass a string.
 _NAME_PATTERN: re.Pattern[str] = re.compile(r"^[a-z][a-z0-9-]*$")
 
-# ``---`` on a line by itself (with optional trailing whitespace) opens or
-# closes the frontmatter block. Captured eagerly to find the end marker.
-_FRONTMATTER_RE = re.compile(
-    r"\A---\s*\r?\n(?P<front>.*?)\r?\n---\s*(?:\r?\n|\Z)(?P<body>.*)",
-    re.DOTALL,
-)
+# Matches a line containing only ``---`` (with optional trailing whitespace).
+# Anchored to line boundaries and uses only a bounded character class, so it
+# is immune to catastrophic backtracking.
+_FENCE_LINE_RE: re.Pattern[str] = re.compile(r"^---[ \t]*$")
+
+# Hard cap on frontmatter size (16 KiB). A real SKILL.md header is ~500 bytes;
+# anything larger is either corrupt or hostile. The cap is applied to the
+# frontmatter slice — not the whole file — so legitimate markdown bodies
+# stay unbounded.
+_MAX_FRONTMATTER_BYTES = 16 * 1024
 
 
 class SkillManifestError(ValueError):
@@ -112,15 +116,10 @@ def parse_skill_md(path: Path) -> tuple[SkillManifest, str]:
     except OSError as exc:
         raise SkillManifestError(path, f"cannot read file: {exc}") from exc
 
-    match = _FRONTMATTER_RE.match(raw)
-    if match is None:
-        raise SkillManifestError(
-            path,
-            "missing YAML frontmatter — expected ``---`` on the first line",
-        )
-
-    front_raw = match.group("front")
-    body = match.group("body").strip()
+    try:
+        front_raw, body = _split_frontmatter(raw)
+    except ValueError as exc:
+        raise SkillManifestError(path, str(exc)) from exc
 
     try:
         data: object = yaml.safe_load(front_raw)
@@ -158,3 +157,54 @@ def parse_skill_md(path: Path) -> tuple[SkillManifest, str]:
         raise SkillManifestError(path, f"invalid manifest: {exc.errors()}") from exc
 
     return manifest, body
+
+
+def _split_frontmatter(raw: str) -> tuple[str, str]:
+    """Split a ``SKILL.md`` text into ``(frontmatter_yaml, body)``.
+
+    Implemented as a linear line-scan rather than a ``re.DOTALL``-style
+    regex so there is no nested quantifier for a malicious input to exploit
+    (the original pattern ``\\A---\\s*\\r?\\n(.*?)\\r?\\n---\\s*(?:\\r?\\n|\\Z)(.*)``
+    tripped SonarCloud's ReDoS heuristic — see S5852). The frontmatter slice
+    is bounded by :data:`_MAX_FRONTMATTER_BYTES` so even a file that never
+    closes the fence can never force more than ``O(cap)`` work.
+
+    Args:
+        raw: Full ``SKILL.md`` text.
+
+    Returns:
+        ``(front, body)`` — ``front`` is the YAML between the two fences
+        (unstripped, suitable for :func:`yaml.safe_load`); ``body`` is the
+        markdown after the closing fence with surrounding whitespace stripped.
+
+    Raises:
+        ValueError: When the file does not start with ``---`` on its first
+            line, when the closing fence is missing, or when the frontmatter
+            would exceed :data:`_MAX_FRONTMATTER_BYTES`.
+    """
+    lines = raw.splitlines()
+    if not lines or not _FENCE_LINE_RE.match(lines[0]):
+        raise ValueError("missing YAML frontmatter — expected ``---`` on the first line")
+
+    front_lines: list[str] = []
+    close_idx: int | None = None
+    front_bytes = 0
+
+    for idx in range(1, len(lines)):
+        line = lines[idx]
+        if _FENCE_LINE_RE.match(line):
+            close_idx = idx
+            break
+        # Count against the byte cap eagerly so a pathological input can't
+        # force us to accumulate gigabytes before we notice.
+        front_bytes += len(line.encode("utf-8")) + 1  # +1 for the newline
+        if front_bytes > _MAX_FRONTMATTER_BYTES:
+            raise ValueError(f"frontmatter exceeds {_MAX_FRONTMATTER_BYTES} bytes — refusing to parse")
+        front_lines.append(line)
+
+    if close_idx is None:
+        raise ValueError("unterminated YAML frontmatter — missing closing ``---`` fence")
+
+    front = "\n".join(front_lines)
+    body = "\n".join(lines[close_idx + 1 :]).strip()
+    return front, body

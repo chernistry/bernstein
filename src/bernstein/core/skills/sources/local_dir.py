@@ -7,7 +7,7 @@ Directory layout::
             SKILL.md            # required, with YAML frontmatter
             references/         # optional — on-demand bodies
                 deep-dive.md
-            scripts/            # optional — agent-invokable helpers
+            scripts/            # optional — agent-invocable helpers
                 lint.sh
             assets/             # optional — static files (schemas etc.)
                 schema.json

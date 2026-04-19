@@ -87,7 +87,7 @@ When adding a new CLI command, create a new `*_cmd.py` module in `cli/commands/`
 
 ## Supported CLI Adapters
 
-Bernstein ships with 17 adapters (16 specific + 1 generic). When writing a new adapter, check that it isn't already implemented:
+Bernstein ships with 18 adapters (17 specific + 1 generic). When writing a new adapter, check that it isn't already implemented:
 
 | Adapter | File | Agent |
 |---------|------|-------|
@@ -105,6 +105,7 @@ Bernstein ships with 17 adapters (16 specific + 1 generic). When writing a new a
 | `kilo` | `adapters/kilo.py` | [Kilo](https://kilo.dev) |
 | `kiro` | `adapters/kiro.py` | [Kiro](https://kiro.dev) |
 | `ollama` | `adapters/ollama.py` | [Ollama](https://ollama.ai) (local models) |
+| `openai_agents` | `adapters/openai_agents.py` | [OpenAI Agents SDK v2](https://openai.github.io/openai-agents-python/) |
 | `opencode` | `adapters/opencode.py` | [OpenCode](https://opencode.ai) |
 | `qwen` | `adapters/qwen.py` | [Qwen Code](https://github.com/QwenLM/qwen-code) |
 | `generic` | `adapters/generic.py` | Any CLI agent (catch-all) |

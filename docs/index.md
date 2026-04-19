@@ -2,8 +2,9 @@
 title: Bernstein — Open-Source Multi-Agent Orchestration Platform
 description: >-
   Bernstein is the open-source multi-agent orchestrator for AI coding agents.
-  Run Claude Code, Codex, Gemini CLI in parallel. Deterministic scheduling,
-  17 adapters, Cloudflare cloud execution, zero vendor lock-in.
+  Run Claude Code, Codex, Gemini CLI, and the OpenAI Agents SDK in parallel.
+  Deterministic scheduling, 18 adapters, pluggable sandbox backends,
+  cloud artifact storage, progressive skills, zero vendor lock-in.
 tags:
   - orchestration
   - multi-agent
@@ -72,7 +73,7 @@ bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
 
     ---
 
-    17 CLI adapters: Claude Code, Codex, Gemini, Cursor, Aider, Cloudflare Agents, and more.
+    18 CLI adapters: Claude Code, Codex, OpenAI Agents SDK v2, Gemini, Cursor, Aider, Cloudflare Agents, and more.
     Mix cheap local models with cloud models in the same run.
 
 - :material-source-branch:{ .lg .middle } **Git worktree isolation**
@@ -101,7 +102,8 @@ bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
 | :material-api: [API Reference](reference/openapi-reference.md) | Task server REST API |
 | :material-sitemap: [Architecture](architecture/ARCHITECTURE.md) | How Bernstein works under the hood |
 | :material-state-machine: [Lifecycle FSM](architecture/LIFECYCLE.md) | Task and agent state machines with transition tables |
-| :material-text-box-check: [Changelog](CHANGELOG.md) | What's new |
+| :material-text-box-check: [What's New](whats-new.md) | Summary of recent releases (1.8 → 1.9) |
+| :material-history: [Changelog](CHANGELOG.md) | Full release history |
 
 ## Links
 

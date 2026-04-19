@@ -2,7 +2,7 @@
 
 This page describes practical compatibility boundaries for Bernstein integrations.
 
-Last updated: 2026-04-13
+Last updated: 2026-04-19
 
 ---
 
@@ -10,7 +10,7 @@ Last updated: 2026-04-13
 
 - Python: project targets Python 3.12+.
 - Task server/API: FastAPI-based local or remote server operation.
-- CLI adapters: 18 CLI agent adapters (17 third-party + generic) in `src/bernstein/adapters/`.
+- CLI adapters: 18 CLI agent adapters (17 third-party + generic) in `src/bernstein/adapters/`, including the OpenAI Agents SDK v2 adapter (`openai_agents`).
 
 ### Supported CLI agent adapters
 
@@ -27,12 +27,11 @@ Last updated: 2026-04-13
 | `cody` | Sourcegraph | No | No |
 | `cursor` | Cursor | No | Yes |
 | `goose` | Block | No | No |
-| `roo-code` | Multi | JSON (`--output-format json`) | No |
 | `continue` | Multi | No | No |
 | `opencode` | Multi | JSON (`--format json`) | No |
 | `kiro` | AWS | No | No |
 | `kilo` | Stackblitz | No | Yes (ACP/MCP) |
-| `tabby` | Self-hosted | No | No |
+| `cloudflare` | Cloudflare | No | No |
 | `iac` | N/A (Terraform/Pulumi) | No | No |
 | `generic` | Any | Depends on CLI | No |
 

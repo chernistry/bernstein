@@ -7,13 +7,14 @@ Bernstein orchestrates short-lived CLI coding agents around a central task serve
 ## Prerequisites
 
 - **Python 3.12+** (macOS, Linux, Windows)
-- **At least one CLI coding agent** installed and authenticated. Bernstein supports 17 adapters out of the box:
+- **At least one CLI coding agent** installed and authenticated. Bernstein supports 18 adapters out of the box:
 
 | Agent | Install |
 |-------|---------|
 | [Aider](https://aider.chat) | `pip install aider-chat` |
 | [Amp](https://ampcode.com) | `brew install amp` |
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `npm install -g @anthropic-ai/claude-code` |
+| [Cloudflare Agents](https://developers.cloudflare.com/agents/) | `bernstein cloud login` |
 | [Codex CLI](https://github.com/openai/codex) | `npm install -g @openai/codex` |
 | [Cody](https://sourcegraph.com/cody) | Install Cody CLI |
 | [Continue](https://continue.dev) | VS Code / JetBrains extension |
@@ -23,6 +24,7 @@ Bernstein orchestrates short-lived CLI coding agents around a central task serve
 | [Kilo](https://kilo.dev) | `npm install -g kilo` |
 | [Kiro](https://kiro.dev) | Install Kiro CLI |
 | [Ollama](https://ollama.com) | `brew install ollama` |
+| [OpenAI Agents SDK v2](https://openai.github.io/openai-agents-python/) | `pip install 'bernstein[openai]'` |
 | [OpenCode](https://opencode.ai) | Install OpenCode CLI |
 | [Qwen](https://github.com/QwenLM/Qwen-Agent) | `npm install -g qwen-code` |
 | Generic | Any CLI agent via `generic` adapter |

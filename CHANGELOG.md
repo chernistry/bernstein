@@ -12,34 +12,87 @@ This file captures the human-curated highlights.
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-04-19
+
 ### Added
+
+- **OpenAI Agents SDK v2 adapter (`openai_agents`)** — ticket oai-001. New
+  first-class CLI adapter that wraps `agents.Agent` + `Runner.run_sync` in a
+  subprocess so the existing Bernstein spawner can manage lifecycle,
+  timeouts, rate-limit back-off, and cost tracking. Structured JSONL event
+  stream, MCP bridging through the runner manifest (Bernstein-managed MCP
+  servers are forwarded into `RunConfig`), pricing rows for `gpt-5`,
+  `gpt-5-mini`, and `o4`. Install with `pip install 'bernstein[openai]'`.
+- **Pluggable sandbox backends** — ticket oai-002. A new
+  `SandboxBackend` / `SandboxSession` protocol lets every spawned agent
+  run inside a local git worktree (default), a Docker container, an E2B
+  Firecracker microVM, or a Modal serverless container (with optional GPU).
+  Third parties register custom backends via the
+  `bernstein.sandbox_backends` entry-point group. `plan.yaml` gains an
+  optional per-stage `sandbox:` block. `bernstein agents sandbox-backends`
+  lists every installed backend with its capability set. Extras:
+  `bernstein[docker]`, `bernstein[e2b]`, `bernstein[modal]`.
+- **Cloud artifact storage sinks** — ticket oai-003. New async
+  `ArtifactSink` protocol decouples `.sdd/` persistence from the local
+  filesystem. First-party sinks: `local_fs` (default), `s3`, `gcs`,
+  `azure_blob`, `r2`. `BufferedSink` preserves the WAL crash-safety
+  contract by fsyncing locally first and mirroring to the remote
+  asynchronously. Third parties register sinks via the
+  `bernstein.storage_sinks` entry-point group. Extras: `bernstein[s3]`,
+  `bernstein[gcs]`, `bernstein[azure]`, `bernstein[r2]`.
+- **Progressive-disclosure skill packs** — ticket oai-004. Role prompts
+  migrated to the OpenAI Agents SDK "Skills" shape: only a compact skill
+  index ships in every spawn's system prompt; agents pull full bodies via
+  the `load_skill` MCP tool on demand. 17 built-in role packs (backend,
+  qa, security, frontend, devops, architect, docs, retrieval,
+  ml-engineer, reviewer, manager, vp, prompt-engineer, visionary,
+  analyst, resolver, ci-fixer). New CLI: `bernstein skills list` /
+  `bernstein skills show <name> [--reference … | --script …]`. Plugin
+  authors register additional skill sources through
+  `bernstein.skill_sources`. Legacy `templates/roles/` path still loads
+  as a fallback for two more minor versions.
 - Honest 3-line terminal transcript in README hero area alongside the GIF.
+- New architecture pages: `docs/architecture/sandbox.md`,
+  `docs/architecture/storage.md`, `docs/architecture/skills.md`.
+- New user-facing summary page: `docs/whats-new.md`.
 
 ### Changed
-- README adapter table reduced to 17 entries (16 real + generic wrapper) after
-  removing `roo_code` and `tabby`; fixed Qwen link to `qwen-code` npm, Continue
-  install to `@continuedev/cli` (binary `cn`), and Cody invocation.
+
+- **Adapter count updated to 18** (17 third-party wrappers + generic). New
+  row for `openai_agents` in README, `CONTRIBUTING.md`, `ADAPTER_GUIDE.md`,
+  `compatibility.md`, `GETTING_STARTED.md`, and every comparison page.
+- Comparison pages' "Last verified" stamp bumped from 2026-04-17 to
+  2026-04-19. Compare tables now call out pluggable sandbox backends and
+  remote artifact sinks as Bernstein-side differentiators.
 - README model column dropped stale patch versions: Claude uses `Opus 4`,
-  `Sonnet 4.6`, `Haiku 4.5`; Codex uses `GPT-5` / `GPT-5 mini`; Gemini uses
-  `Gemini 2.5 Pro` / `Gemini Flash`.
+  `Sonnet 4.6`, `Haiku 4.5`; Codex uses `GPT-5` / `GPT-5 mini`; Gemini
+  uses `Gemini 2.5 Pro` / `Gemini Flash`.
 - README install one-liner now uses `pipx install bernstein` and runs
-  `bernstein init` before `bernstein -g`.
-- README compare table updated for 2026-04-17: CrewAI `In-memory + SQLite
-  checkpoint`, AutoGen maintenance-mode footnote, LangGraph `Yes (Studio +
-  LangSmith)` web UI and MCP `client + server`.
-- Softened README claims per backlog findings: "zero LLM tokens on scheduling"
-  to "no LLM calls in selection, retry, or reap decisions"; dropped
-  "tamper-evident" from audit logs, "no silent data loss" from WAL recovery,
-  "learns optimal ... over time" from bandit router, "Z-score flagging" from
-  cost anomaly detection, "pluggy-based" from plugin system. Marked Workers
-  AI and `--evolve` as experimental.
+  `bernstein init` before `bernstein -g`. New "Optional extras" table
+  documents `bernstein[openai,docker,e2b,modal,s3,gcs,azure,r2,grpc,k8s]`.
+- Softened README claims per backlog findings: "zero LLM tokens on
+  scheduling" to "no LLM calls in selection, retry, or reap decisions";
+  dropped "tamper-evident" from audit logs, "no silent data loss" from
+  WAL recovery, "learns optimal ... over time" from bandit router,
+  "Z-score flagging" from cost anomaly detection, "pluggy-based" from
+  plugin system. Marked Workers AI and `--evolve` as experimental.
 - README badge row trimmed to CI, PyPI, Python 3.12+, and License.
-- `CONTRIBUTING.md` adapter count updated from 18 to 17 and the adapter table
-  was trimmed to match.
+- `docs/architecture/ARCHITECTURE.md` gains a "Sandbox, storage, and
+  skills (1.9.x)" cross-link section and fixes the `What to read next`
+  relative paths that pointed at non-existent sibling files.
+- `mkdocs.yml` nav exposes the three new architecture pages under
+  *Concepts*, the OpenAI Agents adapter guide under *Guides*, the
+  `openai_agents vs codex / claude / gemini` decision page under
+  *Comparisons*, and *What's New* under *Reference*.
 
 ### Removed
-- README rows for Roo Code, Tabby, and Codex on Cloudflare (not a `CLIAdapter`).
+
+- README rows for Roo Code, Tabby, and Codex on Cloudflare (not a
+  `CLIAdapter`). `ADAPTER_GUIDE.md` and `compatibility.md` lose their
+  matching stale rows.
 - Dead `opencollective.com/bernstein` link from the Support section.
+- Over-claim of "36 CLI adapters" in `docs/compare/openai-agents.md`;
+  reality is 18.
 
 ## [1.7.0] - 2026-04-13
 
@@ -117,7 +170,8 @@ This file captures the human-curated highlights.
 - TUI dashboard, web dashboard, Prometheus `/metrics`, and OTel exporter
   presets.
 
-[Unreleased]: https://github.com/chernistry/bernstein/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/chernistry/bernstein/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/chernistry/bernstein/compare/v1.7.0...v1.9.0
 [1.7.0]: https://github.com/chernistry/bernstein/compare/v1.6.4...v1.7.0
 [1.6.4]: https://github.com/chernistry/bernstein/compare/v1.6.0...v1.6.4
 [1.6.0]: https://github.com/chernistry/bernstein/compare/v1.5.0...v1.6.0

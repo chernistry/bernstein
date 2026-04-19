@@ -28,6 +28,35 @@ description: >
 # Which CLI agent to use. auto detects installed agents.
 # cli: auto
 
+# ---------------------------------------------------------------------------
+# Artifact storage sink (optional, oai-003).
+# Selects where .sdd/ artifacts (WAL, audit logs, task outputs, metrics,
+# cost ledger) persist. Omit to keep the existing local-filesystem
+# behaviour (zero diff from prior releases).
+#
+# Built-in sinks: local_fs. Optional extras: s3, gcs, azure_blob, r2.
+# Plugin authors register more via the ``bernstein.storage_sinks``
+# entry-point group. See docs/architecture/storage.md.
+#
+# When `buffered: true`, writes are committed locally (preserving WAL
+# fsync semantics for crash safety) and asynchronously mirrored to the
+# remote sink — recommended for production deployments on ephemeral
+# compute where the host may die between restarts.
+# ---------------------------------------------------------------------------
+# storage:
+#   sink: local_fs              # default; no-op
+#   # sink: s3                  # optional extra: `pip install bernstein[s3]`
+#   # sink: gcs                 # optional extra: `pip install bernstein[gcs]`
+#   # sink: azure_blob          # optional extra: `pip install bernstein[azure]`
+#   # sink: r2                  # optional extra: `pip install bernstein[r2]`
+#   bucket: my-bernstein-runs   # provider-specific (S3/GCS/R2)
+#   # container: my-container   # Azure Blob container name
+#   prefix: runs/{run_id}       # {run_id} expanded at runtime
+#   # region: us-east-1         # S3-specific
+#   # account_id: abcd1234      # R2-specific (determines endpoint)
+#   buffered: true              # recommended for production
+#   # Credentials are picked up from env / IAM role by default.
+
 # Spending cap in USD. Accepts "$N", "$N.NN", or plain numbers.
 # budget: "$10"
 

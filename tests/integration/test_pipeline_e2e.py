@@ -15,7 +15,6 @@ import pytest
 from bernstein.core.git_pr import merge_branch
 from bernstein.core.guardrails import GuardrailsConfig
 from bernstein.core.janitor import evaluate_signal, run_janitor, verify_task
-from bernstein.core.lifecycle import transition_task
 from bernstein.core.models import (
     CompletionSignal,
     ModelConfig,
@@ -24,6 +23,7 @@ from bernstein.core.models import (
 )
 
 from bernstein.adapters.base import CLIAdapter, SpawnResult
+from bernstein.core.lifecycle import transition_task
 
 # ---------------------------------------------------------------------------
 # Helpers

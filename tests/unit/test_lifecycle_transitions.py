@@ -9,6 +9,14 @@ from __future__ import annotations
 from typing import Literal
 
 import pytest
+from bernstein.core.models import (
+    AgentSession,
+    LifecycleEvent,
+    ModelConfig,
+    Task,
+    TaskStatus,
+)
+
 from bernstein.core.lifecycle import (
     AGENT_TRANSITIONS,
     TASK_TRANSITIONS,
@@ -19,13 +27,6 @@ from bernstein.core.lifecycle import (
     remove_listener,
     transition_agent,
     transition_task,
-)
-from bernstein.core.models import (
-    AgentSession,
-    LifecycleEvent,
-    ModelConfig,
-    Task,
-    TaskStatus,
 )
 
 # ---------------------------------------------------------------------------

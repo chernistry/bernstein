@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from bernstein.core.models import AbortReason, AgentSession, Task, TaskStatus, TransitionReason
+
 from bernstein.core.lifecycle import (
     IllegalTransitionError,
     add_listener,
@@ -9,7 +11,6 @@ from bernstein.core.lifecycle import (
     transition_agent,
     transition_task,
 )
-from bernstein.core.models import AbortReason, AgentSession, Task, TaskStatus, TransitionReason
 
 
 @pytest.fixture

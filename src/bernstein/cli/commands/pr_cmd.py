@@ -81,14 +81,15 @@ def _enrich_summary_with_git(summary: SessionSummary, cwd: Path) -> SessionSumma
         A new :class:`SessionSummary` with git-derived fields populated
         when they were missing from the original.
     """
+    from dataclasses import replace
+
     branch = summary.branch if summary.branch not in ("", "HEAD") else _current_branch(cwd)
     diff_stat = summary.diff_stat or _diff_stat(cwd, summary.base_branch, branch)
     if branch == summary.branch and diff_stat == summary.diff_stat:
         return summary
 
-    from dataclasses import replace
-
-    return replace(summary, branch=branch, diff_stat=diff_stat)
+    updated: SessionSummary = replace(summary, branch=branch, diff_stat=diff_stat)
+    return updated
 
 
 def _push_branch(branch: str, cwd: Path) -> tuple[bool, str]:

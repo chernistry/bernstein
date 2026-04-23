@@ -28,6 +28,9 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
+_WRAPUP_GLOB = "*-wrapup.json"
+
+
 __all__ = [
     "GateResult",
     "SessionSummary",
@@ -180,7 +183,7 @@ def _shape_outcome(goal: str) -> str:
 
     # Drop any existing "feat: " / "fix(scope): " prefix so we don't
     # double-stamp the conventional-commit tag.
-    cleaned = re.sub(r"^(?:[a-z]+)(?:\([^)]+\))?:\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"^[a-z]+(?:\([^)]+\))?:\s*", "", cleaned, flags=re.IGNORECASE)
 
     if not cleaned:
         return "update project"
@@ -323,7 +326,7 @@ def _pick_latest_wrapup(sessions_dir: Path) -> Path | None:
     if not sessions_dir.exists():
         return None
     candidates = sorted(
-        sessions_dir.glob("*-wrapup.json"),
+        sessions_dir.glob(_WRAPUP_GLOB),
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
@@ -350,12 +353,12 @@ def _load_by_session_id(sessions_dir: Path, session_id: str) -> Path | None:
 
     # Fast path: filename prefix match (e.g. ``<timestamp>-<id>-wrapup.json``
     # or ``<id>-wrapup.json``).
-    for candidate in sessions_dir.glob("*-wrapup.json"):
+    for candidate in sessions_dir.glob(_WRAPUP_GLOB):
         if session_id in candidate.name:
             return candidate
 
     # Slow path: scan contents for the session id.
-    for candidate in sessions_dir.glob("*-wrapup.json"):
+    for candidate in sessions_dir.glob(_WRAPUP_GLOB):
         payload = _read_json(candidate)
         if payload.get("session_id") == session_id:
             return candidate

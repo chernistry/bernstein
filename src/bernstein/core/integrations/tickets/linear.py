@@ -87,6 +87,25 @@ def _post_graphql(api_key: str, query: str, variables: dict[str, Any]) -> dict[s
             raise TicketParseError(f"Linear API returned HTTP {exc.code}") from exc
 
 
+def _extract_labels(issue: dict[str, Any]) -> tuple[str, ...]:
+    """Pull a tuple of label names from a Linear issue node."""
+    nodes = (issue.get("labels") or {}).get("nodes") or []
+    return tuple(
+        str(node.get("name", "")).strip()
+        for node in nodes
+        if isinstance(node, dict) and node.get("name")
+    )
+
+
+def _extract_assignee(issue: dict[str, Any]) -> str | None:
+    """Pull the human-readable assignee name from a Linear issue node."""
+    assignee_obj = issue.get("assignee")
+    if not isinstance(assignee_obj, dict):
+        return None
+    name = assignee_obj.get("displayName") or assignee_obj.get("name")
+    return str(name) if name else None
+
+
 def fetch_linear(url: str) -> TicketPayload:
     """Fetch a Linear issue and return it as a :class:`TicketPayload`.
 
@@ -107,21 +126,12 @@ def fetch_linear(url: str) -> TicketPayload:
     if not isinstance(issue, dict):
         raise TicketParseError(f"Linear issue {key} not found in response")
 
-    labels_node = (issue.get("labels") or {}).get("nodes") or []
-    labels = tuple(
-        str(node.get("name", "")).strip() for node in labels_node if isinstance(node, dict) and node.get("name")
-    )
-    assignee_obj = issue.get("assignee") or {}
-    assignee = None
-    if isinstance(assignee_obj, dict):
-        assignee = assignee_obj.get("displayName") or assignee_obj.get("name")
-
     return TicketPayload(
         id=str(issue.get("identifier") or key),
         title=str(issue.get("title") or "").strip(),
         description=str(issue.get("description") or "").strip(),
-        labels=labels,
-        assignee=str(assignee) if assignee else None,
+        labels=_extract_labels(issue),
+        assignee=_extract_assignee(issue),
         url=str(issue.get("url") or url),
         source="linear",
     )

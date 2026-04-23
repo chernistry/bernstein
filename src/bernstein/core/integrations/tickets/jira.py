@@ -10,10 +10,9 @@ variables at call time:
 from __future__ import annotations
 
 import base64
-import json
 import os
 import re
-from typing import Any, cast
+from typing import Any
 from urllib.parse import urlparse
 
 from bernstein.core.integrations.tickets import (
@@ -21,6 +20,7 @@ from bernstein.core.integrations.tickets import (
     TicketParseError,
     TicketPayload,
 )
+from bernstein.core.integrations.tickets._http import http_get_json
 
 __all__ = ["fetch_jira"]
 
@@ -89,31 +89,13 @@ def _get(base_url: str, issue_key: str, email: str, token: str) -> dict[str, Any
     auth = base64.b64encode(creds).decode("ascii")
     endpoint = f"{base_url}/rest/api/3/issue/{issue_key}"
     headers = {"Authorization": f"Basic {auth}", "Accept": "application/json"}
-    try:
-        import httpx
-
-        resp = httpx.get(endpoint, headers=headers, timeout=_TIMEOUT_S)
-        if resp.status_code in (401, 403):
-            raise TicketAuthError(
-                f"Jira rejected the request (HTTP {resp.status_code}). Check {_EMAIL_ENV} and {_TOKEN_ENV}."
-            )
-        if resp.status_code >= 400:
-            raise TicketParseError(f"Jira API returned HTTP {resp.status_code}: {resp.text[:200]}")
-        return cast(dict[str, Any], resp.json())
-    except ImportError:  # pragma: no cover - httpx is a declared dependency
-        import urllib.error
-        import urllib.request
-
-        req = urllib.request.Request(endpoint, headers=headers)
-        try:
-            with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as handle:
-                return cast(dict[str, Any], json.loads(handle.read().decode("utf-8")))
-        except urllib.error.HTTPError as exc:
-            if exc.code in (401, 403):
-                raise TicketAuthError(
-                    f"Jira rejected the request (HTTP {exc.code}). Check {_EMAIL_ENV} and {_TOKEN_ENV}."
-                ) from exc
-            raise TicketParseError(f"Jira API returned HTTP {exc.code}") from exc
+    return http_get_json(
+        url=endpoint,
+        headers=headers,
+        provider_label="Jira",
+        auth_env_var=f"{_EMAIL_ENV} and {_TOKEN_ENV}",
+        timeout=_TIMEOUT_S,
+    )
 
 
 def fetch_jira(url: str) -> TicketPayload:

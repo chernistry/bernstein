@@ -8,6 +8,7 @@ wrapper, not in the module under test.
 from __future__ import annotations
 
 import json
+import math
 import time
 from pathlib import Path
 from unittest.mock import patch
@@ -184,7 +185,7 @@ def test_load_session_summary_picks_newest_wrapup(tmp_path: Path) -> None:
     assert summary.goal == "Newer goal"
     assert summary.diff_stat == "new.py | 2 +"
     assert len(summary.gates) == 2
-    assert summary.cost.total_usd == 0.42
+    assert math.isclose(summary.cost.total_usd, 0.42)
     assert summary.cost.by_role == {"engineer": 0.42}
 
 
@@ -208,7 +209,7 @@ def test_load_session_summary_falls_back_to_live_session(tmp_path: Path) -> None
 
     assert summary.goal == "Fallback goal"
     assert summary.session_id == "run-xyz"
-    assert summary.cost.total_usd == 0.05
+    assert math.isclose(summary.cost.total_usd, 0.05)
 
 
 # ---------------------------------------------------------------------------

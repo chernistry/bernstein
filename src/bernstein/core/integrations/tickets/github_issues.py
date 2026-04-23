@@ -19,6 +19,7 @@ from bernstein.core.integrations.tickets import (
     TicketParseError,
     TicketPayload,
 )
+from bernstein.core.integrations.tickets._http import http_get_json
 
 __all__ = ["fetch_github_issue"]
 
@@ -89,31 +90,13 @@ def _fetch_via_rest(owner: str, repo: str, number: int) -> dict[str, Any]:
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
-    try:
-        import httpx
-
-        resp = httpx.get(endpoint, headers=headers, timeout=_TIMEOUT_S)
-        if resp.status_code in (401, 403):
-            raise TicketAuthError(
-                f"GitHub rejected the request (HTTP {resp.status_code}). Check the {_GH_ENV} environment variable."
-            )
-        if resp.status_code >= 400:
-            raise TicketParseError(f"GitHub API returned HTTP {resp.status_code}: {resp.text[:200]}")
-        return cast(dict[str, Any], resp.json())
-    except ImportError:  # pragma: no cover - httpx is a declared dependency
-        import urllib.error
-        import urllib.request
-
-        req = urllib.request.Request(endpoint, headers=headers)
-        try:
-            with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as handle:
-                return cast(dict[str, Any], json.loads(handle.read().decode("utf-8")))
-        except urllib.error.HTTPError as exc:
-            if exc.code in (401, 403):
-                raise TicketAuthError(
-                    f"GitHub rejected the request (HTTP {exc.code}). Check the {_GH_ENV} environment variable."
-                ) from exc
-            raise TicketParseError(f"GitHub API returned HTTP {exc.code}") from exc
+    return http_get_json(
+        url=endpoint,
+        headers=headers,
+        provider_label="GitHub",
+        auth_env_var=_GH_ENV,
+        timeout=_TIMEOUT_S,
+    )
 
 
 def _normalize_gh_cli(

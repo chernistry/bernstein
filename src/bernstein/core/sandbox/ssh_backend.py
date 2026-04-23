@@ -489,14 +489,13 @@ class SSHSandboxBackend:
         )
         wait_for = timeout + _DEFAULT_TIMEOUT_SLACK if timeout else None
         try:
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(input=stdin),
-                timeout=wait_for,
-            )
+            async with asyncio.timeout(wait_for):
+                stdout, stderr = await process.communicate(input=stdin)
         except TimeoutError:
             process.kill()
             try:
-                await asyncio.wait_for(process.wait(), timeout=5)
+                async with asyncio.timeout(5):
+                    await process.wait()
             except TimeoutError:
                 logger.warning("ssh process did not exit after kill: %s", argv)
             raise TimeoutError(f"ssh command timed out after {timeout}s") from None

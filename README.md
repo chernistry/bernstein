@@ -25,19 +25,31 @@
 
 ---
 
-Bernstein takes a goal, breaks it into tasks, assigns them to AI coding agents running in parallel, verifies the output, and merges the results. When agents succeed, the janitor merges verified work into main. Failed tasks retry or route to a different model.
+**What is this?** You tell it what you want built. It splits the work across several AI coding agents (Claude Code, Codex, Gemini CLI, and 28 more), runs the tests, and merges the code that actually passes. You come back to working code.
 
-### Why deterministic coordination
+### Install and run
 
-LLMs write code well. They schedule work across other LLMs badly. Most agent orchestrators use an LLM as the coordinator and hit the same failure modes: non-reproducible plans, silent coordination drift, token burn on meta-decisions a 200-line event loop does reliably. Bernstein inverts that. One LLM call upfront decomposes the goal; after that, scheduling, worktree isolation, quality gates, and HMAC-chained audit replay are all deterministic Python. Every run is bit-identically replayable.
-
-No framework to learn. No vendor lock-in. Agents are interchangeable workers. Swap any agent, any model, any provider.
+One line on macOS / Linux:
 
 ```bash
-pipx install bernstein
-cd your-project && bernstein init
+curl -fsSL https://bernstein.run/install.sh | sh
+```
+
+Windows (PowerShell):
+
+```powershell
+irm https://bernstein.run/install.ps1 | iex
+```
+
+Then point it at your project and set a goal:
+
+```bash
+cd your-project
+bernstein init                          # creates a .sdd/ workspace
 bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
 ```
+
+What you see while it runs:
 
 ```
 $ bernstein -g "Add JWT auth"
@@ -47,7 +59,13 @@ $ bernstein -g "Add JWT auth"
 [verify]  all gates pass. merging to main.
 ```
 
-Also available via `pip`, `uv tool install`, `brew`, `dnf copr`, and `npx bernstein-orchestrator`. See [install options](#install).
+### Why it's different
+
+Most agent orchestrators use an LLM to decide who does what. That's non-deterministic and burns tokens on scheduling instead of code. Bernstein does one LLM call to break down your goal, then the rest — running agents in parallel, isolating their git branches, running tests, routing retries — is plain Python. Every run is reproducible. Every step is logged and replayable.
+
+No framework to learn. No vendor lock-in. Swap any agent, any model, any provider.
+
+Other install options: `pipx install bernstein`, `pip install bernstein`, `uv tool install bernstein`, `brew`, `dnf copr`, `npx bernstein-orchestrator`. See [install options](#install).
 
 ## Supported agents
 
@@ -229,12 +247,16 @@ bernstein fingerprint check src/foo.py                 # check generated code ag
 
 | Method | Command |
 |--------|---------|
+| **One-liner (macOS / Linux)** | `curl -fsSL https://bernstein.run/install.sh \| sh` |
+| **One-liner (Windows)** | `irm https://bernstein.run/install.ps1 \| iex` |
 | **pip** | `pip install bernstein` |
 | **pipx** | `pipx install bernstein` |
 | **uv** | `uv tool install bernstein` |
 | **Homebrew** | `brew tap chernistry/bernstein && brew install bernstein` |
 | **Fedora / RHEL** | `sudo dnf copr enable alexchernysh/bernstein && sudo dnf install bernstein` |
 | **npm** (wrapper) | `npx bernstein-orchestrator` |
+
+The one-liner scripts check for Python 3.12+, bootstrap pipx when it's missing, fix PATH for the current session, and install (or upgrade) `bernstein`. They handle brew-managed macOS environments and the Windows `py -3` launcher fallback. Script sources: [install.sh](scripts/install.sh) · [install.ps1](scripts/install.ps1).
 
 ### Optional extras
 

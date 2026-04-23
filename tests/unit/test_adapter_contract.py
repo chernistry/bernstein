@@ -87,13 +87,20 @@ _ADAPTER_FACTORIES: list[tuple[str, Any]] = [
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("no_watchdog_threads")
 @pytest.mark.parametrize(
     "name,factory",
     _ADAPTER_FACTORIES,
     ids=[f[0] for f in _ADAPTER_FACTORIES],
 )
 class TestAdapterContract:
-    """Every adapter must satisfy the CLIAdapter abstract interface."""
+    """Every adapter must satisfy the CLIAdapter abstract interface.
+
+    The watchdog-threads fixture is applied class-wide — the contract
+    suite parameterizes across every registered adapter, and each
+    ``spawn()`` call would otherwise arm a daemon Timer that outlives
+    the test and eventually hits the runner's thread limit on CI.
+    """
 
     def test_is_subclass_of_cli_adapter(self, name: str, factory: Any) -> None:
         adapter = factory()

@@ -211,6 +211,11 @@ __all__ = [
     "write_shutdown_signals",
 ]
 
+# Operator-experience commands (feat/operator-experience)
+from bernstein.cli.commands.hooks_cmd import hooks as hooks_group
+from bernstein.cli.commands.pr_cmd import pr_cmd
+from bernstein.cli.commands.remote_cmd import remote_group
+from bernstein.cli.commands.ticket_cmd import from_ticket, ticket_group
 from bernstein.cli.helpers import (
     BANNER,
     SDD_DIRS,
@@ -718,6 +723,13 @@ cli.add_command(retro)
 cli.add_command(help_all, "help-all")
 cli.add_command(cleanup_cmd, "cleanup")
 cli.add_command(history_cmd, "history")
+
+# Operator-experience commands (feat/operator-experience)
+cli.add_command(pr_cmd, "pr")
+cli.add_command(from_ticket, "from-ticket")
+cli.add_command(ticket_group, "ticket")
+cli.add_command(remote_group, "remote")
+cli.add_command(hooks_group, "hooks")
 
 # Already registered elsewhere
 cli.add_command(agents_group)

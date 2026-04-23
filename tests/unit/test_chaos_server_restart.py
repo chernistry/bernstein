@@ -14,11 +14,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from bernstein.core.lifecycle import (
-    IllegalTransitionError,
-    transition_agent,
-    transition_task,
-)
 from bernstein.core.models import (
     AgentSession,
     ModelConfig,
@@ -30,6 +25,12 @@ from bernstein.core.wal import (
     WALReader,
     WALRecovery,
     WALWriter,
+)
+
+from bernstein.core.lifecycle import (
+    IllegalTransitionError,
+    transition_agent,
+    transition_task,
 )
 
 # ---------------------------------------------------------------------------

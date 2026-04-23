@@ -18,6 +18,9 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from bernstein.core.models import AgentSession, Task, TaskStatus
+from bernstein.core.task_store import EmptyCompletionError, TaskStore
+
 from bernstein.core.lifecycle import (
     DuplicateTransitionError,
     _LRUSet,
@@ -25,8 +28,6 @@ from bernstein.core.lifecycle import (
     transition_agent,
     transition_task,
 )
-from bernstein.core.models import AgentSession, Task, TaskStatus
-from bernstein.core.task_store import EmptyCompletionError, TaskStore
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -53,9 +53,7 @@ def http_get_json(
                 f"Check the {auth_env_var} environment variable."
             )
         if resp.status_code >= 400:
-            raise TicketParseError(
-                f"{provider_label} API returned HTTP {resp.status_code}: {resp.text[:200]}"
-            )
+            raise TicketParseError(f"{provider_label} API returned HTTP {resp.status_code}: {resp.text[:200]}")
         return cast(dict[str, Any], resp.json())
     except ImportError:  # pragma: no cover - httpx is a declared dependency
         import urllib.error
@@ -71,6 +69,4 @@ def http_get_json(
                     f"{provider_label} rejected the request (HTTP {exc.code}). "
                     f"Check the {auth_env_var} environment variable."
                 ) from exc
-            raise TicketParseError(
-                f"{provider_label} API returned HTTP {exc.code}"
-            ) from exc
+            raise TicketParseError(f"{provider_label} API returned HTTP {exc.code}") from exc

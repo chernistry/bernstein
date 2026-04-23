@@ -90,11 +90,7 @@ def _post_graphql(api_key: str, query: str, variables: dict[str, Any]) -> dict[s
 def _extract_labels(issue: dict[str, Any]) -> tuple[str, ...]:
     """Pull a tuple of label names from a Linear issue node."""
     nodes = (issue.get("labels") or {}).get("nodes") or []
-    return tuple(
-        str(node.get("name", "")).strip()
-        for node in nodes
-        if isinstance(node, dict) and node.get("name")
-    )
+    return tuple(str(node.get("name", "")).strip() for node in nodes if isinstance(node, dict) and node.get("name"))
 
 
 def _extract_assignee(issue: dict[str, Any]) -> str | None:

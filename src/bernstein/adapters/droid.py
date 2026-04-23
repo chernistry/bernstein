@@ -85,10 +85,7 @@ class DroidAdapter(CLIAdapter):
                     start_new_session=True,
                 )
             except FileNotFoundError as exc:
-                msg = (
-                    "droid not found in PATH. Install: "
-                    "curl -fsSL https://app.factory.ai/cli | sh"
-                )
+                msg = "droid not found in PATH. Install: curl -fsSL https://app.factory.ai/cli | sh"
                 raise RuntimeError(msg) from exc
             except PermissionError as exc:
                 raise RuntimeError(f"Permission denied executing droid: {exc}") from exc

@@ -71,9 +71,7 @@ class HermesAdapter(CLIAdapter):
             model=model_config.model,
         )
 
-        env = build_filtered_env(
-            ["HERMES_API_KEY", "NOUS_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"]
-        )
+        env = build_filtered_env(["HERMES_API_KEY", "NOUS_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"])
         with log_path.open("w") as log_file:
             try:
                 proc = subprocess.Popen(

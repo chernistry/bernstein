@@ -71,9 +71,7 @@ class CharmAdapter(CLIAdapter):
             model=model_config.model,
         )
 
-        env = build_filtered_env(
-            ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY", "GROQ_API_KEY"]
-        )
+        env = build_filtered_env(["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY", "GROQ_API_KEY"])
         with log_path.open("w") as log_file:
             try:
                 proc = subprocess.Popen(

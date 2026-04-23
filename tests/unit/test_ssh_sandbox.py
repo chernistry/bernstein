@@ -155,14 +155,14 @@ def test_spawn_agent_routes_through_ssh() -> None:
     ):
         handle = backend.spawn_agent(
             ["agent", "--task", "hello"],
-            cwd="/tmp/bern/sbx-123",
+            cwd="/srv/bern/sbx-123",
         )
 
     assert handle is fake_popen
     argv = popen.call_args.args[0]
     assert argv[0] == "ssh"
     script = argv[-1]
-    assert "cd /tmp/bern/sbx-123" in script
+    assert "cd /srv/bern/sbx-123" in script
     assert "agent" in script
     assert "hello" in script
 

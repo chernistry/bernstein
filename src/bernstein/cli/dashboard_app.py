@@ -300,6 +300,27 @@ class BernsteinApp(App[None]):
             except OSError as exc:
                 logging.getLogger(__name__).warning("Failed to open activity log file: %s", exc)
 
+    def add_section(self, widget: Any, *, anchor: str = "#activity-bar") -> None:
+        """Mount *widget* into the dashboard without rewriting the layout.
+
+        This is the stable extension point used by optional panels (for
+        example the interactive-approval panel from op-002). The widget
+        is mounted immediately after *anchor* so it sits between the
+        activity log and the expert row by default. Callers that mount
+        during ``on_mount`` should pass the widget fully configured.
+
+        Args:
+            widget: Any Textual widget with a ``compose`` method.
+            anchor: CSS selector for the sibling after which to mount.
+                Falls back to appending to the screen when not found.
+        """
+        try:
+            target = self.query_one(anchor)
+        except Exception:
+            self.mount(widget)
+            return
+        target.mount(widget, after=None)
+
     def _write_activity(self, role: str, line: str) -> None:
         """Write an activity line to the RichLog and optionally to a file."""
         formatted = _format_activity_line(role, line)

@@ -244,8 +244,9 @@ class TestApprovalGatePR:
         assert result.pr_url == ""
 
     def test_create_pr_calls_git_ops_and_returns_url(self, tmp_path: Path) -> None:
-        from bernstein.core.approval import ApprovalGate, ApprovalMode
         from bernstein.core.git_ops import PullRequestResult
+
+        from bernstein.core.approval import ApprovalGate, ApprovalMode
 
         mock_create_pr = MagicMock(
             return_value=PullRequestResult(success=True, pr_url="https://github.com/owner/repo/pull/42")
@@ -271,8 +272,9 @@ class TestApprovalGatePR:
         mock_create_pr.assert_called_once()
 
     def test_create_pr_uses_bernstein_branch_prefix(self, tmp_path: Path) -> None:
-        from bernstein.core.approval import ApprovalGate, ApprovalMode
         from bernstein.core.git_ops import PullRequestResult
+
+        from bernstein.core.approval import ApprovalGate, ApprovalMode
 
         captured_head: list[str] = []
 
@@ -298,8 +300,9 @@ class TestApprovalGatePR:
         assert captured_head[0].startswith("bernstein/task-")
 
     def test_create_pr_adds_bernstein_labels(self, tmp_path: Path) -> None:
-        from bernstein.core.approval import ApprovalGate, ApprovalMode
         from bernstein.core.git_ops import PullRequestResult
+
+        from bernstein.core.approval import ApprovalGate, ApprovalMode
 
         captured_labels: list[list[str]] = []
 
@@ -326,8 +329,9 @@ class TestApprovalGatePR:
         assert "auto-generated" in captured_labels[0]
 
     def test_create_pr_returns_empty_string_when_gh_fails(self, tmp_path: Path) -> None:
-        from bernstein.core.approval import ApprovalGate, ApprovalMode
         from bernstein.core.git_ops import PullRequestResult
+
+        from bernstein.core.approval import ApprovalGate, ApprovalMode
 
         mock_push = MagicMock(return_value=MagicMock(ok=True))
 
@@ -444,8 +448,9 @@ class TestSpawnerSkipMerge:
 
 class TestApprovalGateAutoMerge:
     def test_auto_merge_enabled_calls_enable_pr_auto_merge(self, tmp_path: Path) -> None:
-        from bernstein.core.approval import ApprovalGate, ApprovalMode
         from bernstein.core.git_ops import GitResult, PullRequestResult
+
+        from bernstein.core.approval import ApprovalGate, ApprovalMode
 
         mock_push = MagicMock(return_value=MagicMock(ok=True))
         mock_create_pr = MagicMock(return_value=PullRequestResult(success=True, pr_url="https://github.com/x/y/pull/1"))
@@ -470,8 +475,9 @@ class TestApprovalGateAutoMerge:
         mock_enable_auto_merge.assert_called_once_with(tmp_path, "https://github.com/x/y/pull/1")
 
     def test_auto_merge_disabled_does_not_call_enable_pr_auto_merge(self, tmp_path: Path) -> None:
-        from bernstein.core.approval import ApprovalGate, ApprovalMode
         from bernstein.core.git_ops import PullRequestResult
+
+        from bernstein.core.approval import ApprovalGate, ApprovalMode
 
         mock_push = MagicMock(return_value=MagicMock(ok=True))
         mock_create_pr = MagicMock(return_value=PullRequestResult(success=True, pr_url="https://github.com/x/y/pull/2"))
@@ -495,8 +501,9 @@ class TestApprovalGateAutoMerge:
         mock_enable_auto_merge.assert_not_called()
 
     def test_custom_pr_labels_used_when_no_override(self, tmp_path: Path) -> None:
-        from bernstein.core.approval import ApprovalGate, ApprovalMode
         from bernstein.core.git_ops import PullRequestResult
+
+        from bernstein.core.approval import ApprovalGate, ApprovalMode
 
         captured: list[list[str]] = []
 
@@ -524,8 +531,9 @@ class TestApprovalGateAutoMerge:
         assert captured[0] == ["bernstein", "my-team"]
 
     def test_explicit_labels_override_instance_labels(self, tmp_path: Path) -> None:
-        from bernstein.core.approval import ApprovalGate, ApprovalMode
         from bernstein.core.git_ops import PullRequestResult
+
+        from bernstein.core.approval import ApprovalGate, ApprovalMode
 
         captured: list[list[str]] = []
 

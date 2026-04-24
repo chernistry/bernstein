@@ -58,7 +58,9 @@ def stop_active_tunnels() -> int:
     for handle in reg.list_active():
         if handle.pid > 0:
             with contextlib.suppress(OSError, ProcessLookupError):
-                os.kill(handle.pid, signal.SIGTERM)
+                # PID comes from our own tunnels.json — target is always
+                # a tunnel process we started (Sonar python:S4828).
+                os.kill(handle.pid, signal.SIGTERM)  # NOSONAR python:S4828
         reg.destroy(handle.name)
         count += 1
     return count

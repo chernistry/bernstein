@@ -225,7 +225,7 @@ def test_missing_binary_raises_provider_not_available(
 ) -> None:
     """``detect`` should raise ``ProviderNotAvailable`` with an install hint."""
     monkeypatch.setattr(
-        "bernstein.core.tunnels.drivers.cloudflared.shutil.which",
+        "bernstein.core.tunnels.drivers._base.shutil.which",
         lambda _name: None,
     )
     with pytest.raises(ProviderNotAvailable) as excinfo:
@@ -236,7 +236,7 @@ def test_missing_binary_raises_provider_not_available(
 def test_missing_bore_binary_hints_cargo(monkeypatch: pytest.MonkeyPatch) -> None:
     """``bore`` install hint should mention ``cargo install bore-cli``."""
     monkeypatch.setattr(
-        "bernstein.core.tunnels.drivers.bore.shutil.which",
+        "bernstein.core.tunnels.drivers._base.shutil.which",
         lambda _name: None,
     )
     with pytest.raises(ProviderNotAvailable) as excinfo:

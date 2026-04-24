@@ -48,7 +48,10 @@ def _sigterm_pid(pid: int) -> bool:
     if pid <= 0:
         return False
     try:
-        os.kill(pid, signal.SIGTERM)
+        # We only ever SIGTERM PIDs we wrote into tunnels.json ourselves,
+        # so the signal target is always a tunnel process we own
+        # (Sonar python:S4828).
+        os.kill(pid, signal.SIGTERM)  # NOSONAR python:S4828
     except OSError:
         # ProcessLookupError is a subclass of OSError — catching both
         # would be redundant (Sonar python:S5713).

@@ -268,7 +268,10 @@ class TelegramBridge(BridgeProtocol):
         try:
             await asyncio.sleep(delay)
         except asyncio.CancelledError:
-            return
+            # Propagate cancellation after releasing local state; swallowing
+            # CancelledError silently would desync the asyncio task tree
+            # (Sonar python:S7497).
+            raise
         async with self._edit_lock:
             state = self._edit_state.get(key)
             if state is None or not state.pending_text:

@@ -29,11 +29,11 @@ class _FakeBot:
     sent: list[dict[str, Any]] = field(default_factory=list)
     edited: list[dict[str, Any]] = field(default_factory=list)
 
-    async def send_message(self, **kwargs: Any) -> _FakeSentMessage:
+    async def send_message(self, **kwargs: Any) -> _FakeSentMessage: # NOSONAR — async-signature required by protocol / fixture
         self.sent.append(kwargs)
         return _FakeSentMessage(message_id=len(self.sent) + 99)
 
-    async def edit_message_text(self, **kwargs: Any) -> None:
+    async def edit_message_text(self, **kwargs: Any) -> None: # NOSONAR — async-signature required by protocol / fixture
         self.edited.append(kwargs)
 
 
@@ -42,10 +42,10 @@ class _FakeUpdater:
     started: bool = False
     stopped: bool = False
 
-    async def start_polling(self) -> None:
+    async def start_polling(self) -> None: # NOSONAR — async-signature required by protocol / fixture
         self.started = True
 
-    async def stop(self) -> None:
+    async def stop(self) -> None: # NOSONAR — async-signature required by protocol / fixture
         self.stopped = True
 
 
@@ -62,16 +62,16 @@ class _FakeApplication:
     def add_handler(self, handler: Any) -> None:
         self.handlers.append(handler)
 
-    async def initialize(self) -> None:
+    async def initialize(self) -> None: # NOSONAR — async-signature required by protocol / fixture
         self.initialized = True
 
-    async def start(self) -> None:
+    async def start(self) -> None: # NOSONAR — async-signature required by protocol / fixture
         self.started = True
 
-    async def stop(self) -> None:
+    async def stop(self) -> None: # NOSONAR — async-signature required by protocol / fixture
         self.started = False
 
-    async def shutdown(self) -> None:
+    async def shutdown(self) -> None: # NOSONAR — async-signature required by protocol / fixture
         self.shutdown_called = True
 
 
@@ -159,7 +159,7 @@ def test_stub_registrations_are_noops() -> None:
     bridge.on_button(lambda _t, _a, _d: _async_noop())  # type: ignore[misc,arg-type]
 
 
-async def _async_noop() -> None:
+async def _async_noop() -> None: # NOSONAR — async-signature required by protocol / fixture
     return None
 
 
@@ -181,7 +181,7 @@ def test_telegram_run_command_routes_to_registered_handler(fake_telegram: None) 
 
     received: list[ChatMessage] = []
 
-    async def handler(msg: ChatMessage) -> None:
+    async def handler(msg: ChatMessage) -> None: # NOSONAR — async-signature required by protocol / fixture
         received.append(msg)
 
     bridge = TelegramBridge(token="dummy")
@@ -211,7 +211,7 @@ def test_telegram_approval_button_round_trip(fake_telegram: None) -> None:
 
     decisions: list[tuple[str, str, str]] = []
 
-    async def button(thread_id: str, approval_id: str, decision: str) -> None:
+    async def button(thread_id: str, approval_id: str, decision: str) -> None: # NOSONAR — async-signature required by protocol / fixture
         decisions.append((thread_id, approval_id, decision))
 
     bridge = TelegramBridge(token="dummy")
@@ -307,7 +307,7 @@ def _fake_callback_update(*, data: str, chat_id: int) -> Any:
     chat = types.SimpleNamespace(id=chat_id)
     message = types.SimpleNamespace(chat=chat)
 
-    async def _answer() -> None:
+    async def _answer() -> None: # NOSONAR — async-signature required by protocol / fixture
         return None
 
     query = types.SimpleNamespace(data=data, message=message, answer=_answer)

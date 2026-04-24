@@ -159,9 +159,11 @@ class _TaskDispatcher:
         ``TaskStore.create`` using the task-server's JSONL backing file.
         Tests monkeypatch this method directly.
         """
+        # ``adapter`` is kept on the caller's side for logging / status
+        # display; the underlying TaskStore only needs goal + thread id.
+        del adapter
         return await _create_task_via_store(
             goal=goal,
-            adapter=adapter,
             thread_id=thread_id,
             workdir=self.workdir,
         )
@@ -390,7 +392,6 @@ class ChatSession:
 async def _create_task_via_store(
     *,
     goal: str,
-    adapter: str,
     thread_id: str,
     workdir: Path,
 ) -> tuple[str, str]:

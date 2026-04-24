@@ -60,7 +60,7 @@ class _FakeBridge(BridgeProtocol):
 class _StubDispatcher:
     calls: list[dict[str, str]] = field(default_factory=list)
 
-    async def create(self, *, goal: str, adapter: str, thread_id: str) -> tuple[str, str]:
+    async def create(self, *, goal: str, adapter: str, thread_id: str) -> tuple[str, str]: # NOSONAR — async-signature required by protocol
         self.calls.append({"goal": goal, "adapter": adapter, "thread_id": thread_id})
         tid = f"t-{len(self.calls)}"
         return tid, f"sess-{tid}"

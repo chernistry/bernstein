@@ -212,6 +212,7 @@ __all__ = [
 ]
 
 # Operator-experience commands (feat/operator-experience)
+from bernstein.cli.commands.approval_cmd import approve_tool_cmd, reject_tool_cmd
 from bernstein.cli.commands.hooks_cmd import hooks as hooks_group
 from bernstein.cli.commands.pr_cmd import pr_cmd
 from bernstein.cli.commands.remote_cmd import remote_group
@@ -794,6 +795,11 @@ cli.add_command(config_path_cmd, "config-path")
 cli.add_command(init_wizard_cmd, "init-wizard")
 cli.add_command(aliases_cmd, "aliases")
 cli.add_command(debug_cmd, "debug-bundle")
+
+# op-002: interactive tool-call approval (approve-tool / reject-tool).
+# These are the tool-call resolvers; task-level ``approve``/``reject`` live in task_cmd.
+cli.add_command(approve_tool_cmd, "approve-tool")
+cli.add_command(reject_tool_cmd, "reject-tool")
 cli.add_command(debug_cmd, "debug")  # backward-compat alias
 
 # Chat-control bridges (op-001)

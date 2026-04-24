@@ -28,6 +28,10 @@ from bernstein.core.daemon.errors import UnitExistsError
 
 __all__ = ["daemon_group"]
 
+# Single-source the error message so the five call sites stay in sync
+# (Sonar python:S1192).
+_UNSUPPORTED_INIT_ERR = "Unsupported init system (need systemd or launchd)."
+
 DEFAULT_COMMAND = "bernstein dashboard --headless"
 
 
@@ -118,7 +122,7 @@ def install(
                     command, env=env, workdir=workdir, path_env=path_env, force=force
                 )
         else:
-            raise click.ClickException("Unsupported init system (need systemd or launchd).")
+            raise click.ClickException(_UNSUPPORTED_INIT_ERR)
     except UnitExistsError as exc:
         raise click.ClickException(str(exc)) from exc
     click.echo(f"Installed daemon unit at {path}")
@@ -135,7 +139,7 @@ def start_cmd() -> None:
     elif init == "systemd":
         systemd_mod.start()
     else:
-        raise click.ClickException("Unsupported init system.")
+        raise click.ClickException(_UNSUPPORTED_INIT_ERR)
     click.echo("Daemon started.")
 
 
@@ -150,7 +154,7 @@ def stop_cmd() -> None:
     elif init == "systemd":
         systemd_mod.stop()
     else:
-        raise click.ClickException("Unsupported init system.")
+        raise click.ClickException(_UNSUPPORTED_INIT_ERR)
     click.echo("Daemon stopped.")
 
 
@@ -167,7 +171,7 @@ def restart_cmd() -> None:
     elif init == "systemd":
         systemd_mod.restart()
     else:
-        raise click.ClickException("Unsupported init system.")
+        raise click.ClickException(_UNSUPPORTED_INIT_ERR)
     click.echo("Daemon restarted.")
 
 
@@ -180,7 +184,7 @@ def status_cmd() -> None:
     elif init == "systemd":
         text = systemd_mod.status()
     else:
-        raise click.ClickException("Unsupported init system.")
+        raise click.ClickException(_UNSUPPORTED_INIT_ERR)
     click.echo(text)
 
 
@@ -194,7 +198,7 @@ def uninstall_cmd(force: bool) -> None:
     elif init == "systemd":
         removed = systemd_mod.uninstall()
     else:
-        raise click.ClickException("Unsupported init system.")
+        raise click.ClickException(_UNSUPPORTED_INIT_ERR)
     if not removed and not force:
         click.echo("No daemon unit installed.")
         return

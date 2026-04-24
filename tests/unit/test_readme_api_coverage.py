@@ -153,6 +153,10 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "ticket",
         "remote",
         "hooks",
+        "chat",
+        "tunnel",
+        "approve-tool",
+        "reject-tool",
     }
 )
 

@@ -49,7 +49,9 @@ def _sigterm_pid(pid: int) -> bool:
         return False
     try:
         os.kill(pid, signal.SIGTERM)
-    except (OSError, ProcessLookupError):
+    except OSError:
+        # ProcessLookupError is a subclass of OSError — catching both
+        # would be redundant (Sonar python:S5713).
         return False
     return True
 

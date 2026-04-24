@@ -4,7 +4,7 @@ We are grateful to everyone who has contributed to Bernstein.
 
 ## Core team
 
-- **Alex Chernysh** ([@chernistry](https://github.com/chernistry)) — Creator, core maintenance
+- **Alex Chernysh** ([@chernistry](https://github.com/chernistry), [alexchernysh.com](https://alexchernysh.com)) — Creator and maintainer. Project home: [bernstein.run](https://bernstein.run).
 
 ## Contributors
 

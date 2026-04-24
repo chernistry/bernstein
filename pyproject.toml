@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "bernstein"
 version = "1.8.14"
-description = "Declarative agent orchestration for engineering teams"
+description = "Multi-agent orchestration for CLI coding agents (Claude Code, Codex, Gemini CLI, and 28 more) — deterministic, declarative, zero vendor lock-in."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
@@ -78,12 +78,14 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/chernistry/bernstein"
-Documentation = "https://github.com/chernistry/bernstein#readme"
+Homepage = "https://bernstein.run"
+Documentation = "https://bernstein.readthedocs.io"
 Repository = "https://github.com/chernistry/bernstein"
+Source = "https://github.com/chernistry/bernstein"
 Issues = "https://github.com/chernistry/bernstein/issues"
 Changelog = "https://github.com/chernistry/bernstein/releases"
 Funding = "https://github.com/sponsors/chernistry"
+Author = "https://alexchernysh.com"
 
 [project.optional-dependencies]
 # Mirrored from [dependency-groups].dev so `pip install bernstein[dev]` works

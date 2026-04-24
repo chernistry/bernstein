@@ -19,7 +19,9 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/github/license/chernistry/bernstein)](LICENSE)
 
-[Documentation](https://bernstein.readthedocs.io/) &middot; [Getting Started](docs/getting-started/GETTING_STARTED.md) &middot; [Glossary](docs/reference/GLOSSARY.md) &middot; [Limitations](docs/reference/KNOWN_LIMITATIONS.md)
+[Website](https://bernstein.run) &middot; [Documentation](https://bernstein.readthedocs.io/) &middot; [Getting Started](docs/getting-started/GETTING_STARTED.md) &middot; [Glossary](docs/reference/GLOSSARY.md) &middot; [Limitations](docs/reference/KNOWN_LIMITATIONS.md)
+
+Created by [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry)
 
 </div>
 
@@ -298,5 +300,7 @@ Contact: [forte@bernstein.run](mailto:forte@bernstein.run)
 [Apache License 2.0](LICENSE)
 
 ---
+
+Made with love by [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [bernstein.run](https://bernstein.run)
 
 <!-- mcp-name: io.github.chernistry/bernstein -->

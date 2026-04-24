@@ -475,3 +475,12 @@ uv run python benchmarks/swe_bench/run.py eval --scenarios bernstein-sonnet --li
 ```
 
 The 1.78× speedup headline comes from the simulation harness in `benchmarks/run_benchmark.py` — it models scheduling, not real agent execution. Treat it as a capacity planning estimate.
+
+---
+
+## Learn more
+
+- Project site: [bernstein.run](https://bernstein.run)
+- Source: [github.com/chernistry/bernstein](https://github.com/chernistry/bernstein)
+- PyPI: [pypi.org/project/bernstein](https://pypi.org/project/bernstein/)
+- Author: [Alex Chernysh](https://alexchernysh.com) ([@chernistry](https://github.com/chernistry))

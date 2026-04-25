@@ -118,9 +118,7 @@ def _coerce_ts(entry: dict[str, Any]) -> float:
     return 0.0
 
 
-def load_recent_entries(
-    project: str, sdd_dir: Path, *, max_entries: int = 500
-) -> list[AuditEntry]:
+def load_recent_entries(project: str, sdd_dir: Path, *, max_entries: int = 500) -> list[AuditEntry]:
     """Load the newest ``max_entries`` audit rows for ``project``.
 
     Args:
@@ -218,10 +216,7 @@ def check_audit_tail(project: str, sdd_dir: Path, *, count: int = 100) -> AuditC
                     project=project,
                     ok=False,
                     broken_at=f"{filename}:{line_no}",
-                    message=(
-                        f"chain break — prev_hmac {str(entry_prev)[:12]}... "
-                        f"!= expected {prev_hmac[:12]}..."
-                    ),
+                    message=(f"chain break — prev_hmac {str(entry_prev)[:12]}... != expected {prev_hmac[:12]}..."),
                     entries_checked=len(rows),
                     last_ts=last_ts,
                 )

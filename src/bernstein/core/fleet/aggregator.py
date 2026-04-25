@@ -212,9 +212,7 @@ class FleetAggregator:
         self._cost_window_days = cost_window_days
         self._owned_client = client is None
         self._client = client or httpx.AsyncClient(timeout=http_timeout_s)
-        self._snapshots: dict[str, ProjectSnapshot] = {
-            name: ProjectSnapshot(name=name) for name in self._projects
-        }
+        self._snapshots: dict[str, ProjectSnapshot] = {name: ProjectSnapshot(name=name) for name in self._projects}
         self._tasks: list[asyncio.Task[None]] = []
         self._event_queue: asyncio.Queue[AggregatorEvent] = asyncio.Queue(maxsize=1024)
         self._stop_event: asyncio.Event = asyncio.Event()
@@ -230,16 +228,8 @@ class FleetAggregator:
             return
         self._started = True
         for project in self._projects.values():
-            self._tasks.append(
-                asyncio.create_task(
-                    self._poll_loop(project), name=f"fleet-poll-{project.name}"
-                )
-            )
-            self._tasks.append(
-                asyncio.create_task(
-                    self._sse_loop(project), name=f"fleet-sse-{project.name}"
-                )
-            )
+            self._tasks.append(asyncio.create_task(self._poll_loop(project), name=f"fleet-poll-{project.name}"))
+            self._tasks.append(asyncio.create_task(self._sse_loop(project), name=f"fleet-sse-{project.name}"))
 
     async def stop(self) -> None:
         """Cancel workers and close the HTTP client."""
@@ -258,7 +248,7 @@ class FleetAggregator:
         await self.start()
         return self
 
-    async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
+    async def __aexit__(self, _exc_type: Any, _exc: Any, _tb: Any) -> None:
         await self.stop()
 
     # ------------------------------------------------------------------
@@ -412,9 +402,7 @@ class FleetAggregator:
                 data = {"value": data}
         except json.JSONDecodeError:
             data = {"raw": data_text}
-        bus_event = AggregatorEvent(
-            project=project_name, event=event_name, data=data, ts=time.time()
-        )
+        bus_event = AggregatorEvent(project=project_name, event=event_name, data=data, ts=time.time())
         try:
             self._event_queue.put_nowait(bus_event)
         except asyncio.QueueFull:

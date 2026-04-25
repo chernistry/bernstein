@@ -55,11 +55,7 @@ def _inject_label(metric_line: str, project: str) -> str:
     if labels:
         # ``{a="1"}`` -> ``{project="x",a="1"}``
         inner = labels[1:-1].strip()
-        new_labels = (
-            "{" + f'project="{project}",' + inner + "}"
-            if inner
-            else "{" + f'project="{project}"' + "}"
-        )
+        new_labels = "{" + f'project="{project}",' + inner + "}" if inner else "{" + f'project="{project}"' + "}"
     else:
         new_labels = "{" + f'project="{project}"' + "}"
     return f"{name}{new_labels} {value}"
@@ -117,10 +113,7 @@ async def merge_prometheus_metrics(
         client = httpx.AsyncClient(timeout=timeout_s)
 
     try:
-        tasks = [
-            _scrape_one(client, project, timeout_s)
-            for project in projects
-        ]
+        tasks = [_scrape_one(client, project, timeout_s) for project in projects]
         results = await asyncio.gather(*tasks, return_exceptions=False)
     finally:
         if owned:
@@ -134,7 +127,7 @@ async def merge_prometheus_metrics(
     for project, text, error in results:
         if error or text is None:
             merge.failed_projects[project.name] = error or "unknown error"
-            body_parts.append(f"# fleet_project_offline {{project=\"{project.name}\"}} 1")
+            body_parts.append(f'# fleet_project_offline {{project="{project.name}"}} 1')
             continue
         merge.ok_projects.append(project.name)
         body_parts.append(f"# === project: {project.name} ===")

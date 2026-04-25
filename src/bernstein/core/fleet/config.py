@@ -126,9 +126,7 @@ def _looks_loopback(url: str) -> bool:
     return True
 
 
-def _validate_project_block(
-    index: int, block: dict[str, Any]
-) -> tuple[ProjectConfig | None, list[FleetConfigError]]:
+def _validate_project_block(index: int, block: dict[str, Any]) -> tuple[ProjectConfig | None, list[FleetConfigError]]:
     errors: list[FleetConfigError] = []
     raw_path = block.get("path")
     if not isinstance(raw_path, str) or not raw_path.strip():
@@ -150,8 +148,7 @@ def _validate_project_block(
             errors.append(
                 FleetConfigError(
                     index,
-                    f"task_server_url {url!r} is not loopback/VPN; "
-                    "v1.9 fleet view is local-only",
+                    f"task_server_url {url!r} is not loopback/VPN; v1.9 fleet view is local-only",
                 )
             )
     else:
@@ -196,26 +193,20 @@ def parse_projects_config(text: str, source_path: Path | None = None) -> FleetCo
     if blocks is None:
         return config
     if not isinstance(blocks, list):
-        config.errors.append(
-            FleetConfigError(-1, "'project' must be an array of tables ([[project]])")
-        )
+        config.errors.append(FleetConfigError(-1, "'project' must be an array of tables ([[project]])"))
         return config
 
     seen_names: set[str] = set()
     for index, block in enumerate(blocks):
         if not isinstance(block, dict):
-            config.errors.append(
-                FleetConfigError(index, "[[project]] entry is not a table")
-            )
+            config.errors.append(FleetConfigError(index, "[[project]] entry is not a table"))
             continue
         project, errors = _validate_project_block(index, block)
         config.errors.extend(errors)
         if project is None:
             continue
         if project.name in seen_names:
-            config.errors.append(
-                FleetConfigError(index, f"duplicate project name {project.name!r}")
-            )
+            config.errors.append(FleetConfigError(index, f"duplicate project name {project.name!r}"))
             continue
         seen_names.add(project.name)
         config.projects.append(project)

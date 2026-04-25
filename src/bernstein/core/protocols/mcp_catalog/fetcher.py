@@ -31,9 +31,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_CATALOG_URL = "https://bernstein.run/mcp-catalog.json"
 
 #: GitHub mirror used as fallback on 5xx errors against the primary URL.
-DEFAULT_MIRROR_URL = (
-    "https://raw.githubusercontent.com/chernistry/bernstein-mcp-catalog/main/mcp-catalog.json"
-)
+DEFAULT_MIRROR_URL = "https://raw.githubusercontent.com/chernistry/bernstein-mcp-catalog/main/mcp-catalog.json"
 
 #: Default revalidation window (6h, configurable via mcp.catalog.revalidate_interval).
 DEFAULT_REVALIDATE_SECONDS = 6 * 3600
@@ -162,9 +160,7 @@ def _write_cache(cache_path: Path, entry: CacheEntry) -> None:
     tmp.replace(cache_path)
 
 
-def _is_within_revalidate_window(
-    fetched_at: str, *, revalidate_seconds: int, now: datetime | None = None
-) -> bool:
+def _is_within_revalidate_window(fetched_at: str, *, revalidate_seconds: int, now: datetime | None = None) -> bool:
     """Return True when the cache is fresh enough to skip revalidation."""
     if not fetched_at:
         return False
@@ -289,9 +285,7 @@ class CatalogFetcher:
             try:
                 catalog = validate_catalog(cached_entry.catalog)
             except CatalogValidationError as exc:  # pragma: no cover - defensive
-                raise CatalogValidationError(
-                    "cached catalog failed re-validation after 304"
-                ) from exc
+                raise CatalogValidationError("cached catalog failed re-validation after 304") from exc
             updated = CacheEntry(
                 fetched_at=datetime.now(tz=UTC).isoformat(),
                 etag=cached_entry.etag,
@@ -323,16 +317,12 @@ class CatalogFetcher:
                         revalidated=True,
                         source_url=cached_entry.source_url or source_url,
                     )
-            raise RuntimeError(
-                f"Catalog fetch failed: HTTP {response.status} from {source_url}"
-            )
+            raise RuntimeError(f"Catalog fetch failed: HTTP {response.status} from {source_url}")
 
         try:
             payload = json.loads(response.body)
         except json.JSONDecodeError as exc:
-            raise CatalogValidationError(
-                f"catalog response from {source_url} was not valid JSON: {exc}"
-            ) from exc
+            raise CatalogValidationError(f"catalog response from {source_url} was not valid JSON: {exc}") from exc
 
         catalog = validate_catalog(payload)
 

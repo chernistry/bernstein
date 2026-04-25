@@ -31,9 +31,7 @@ _ENTRY_REQUIRED: frozenset[str] = frozenset(
         "verified_by_bernstein",
     }
 )
-_ENTRY_OPTIONAL: frozenset[str] = frozenset(
-    {"auto_upgrade", "signature", "command", "args", "env"}
-)
+_ENTRY_OPTIONAL: frozenset[str] = frozenset({"auto_upgrade", "signature", "command", "args", "env"})
 _ENTRY_ALLOWED: frozenset[str] = _ENTRY_REQUIRED | _ENTRY_OPTIONAL
 
 _ID_PATTERN: re.Pattern[str] = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
@@ -148,37 +146,27 @@ class Catalog:
 def _ensure_str(value: Any, field_name: str) -> str:
     """Validate that ``value`` is a non-empty string."""
     if not isinstance(value, str) or not value:
-        raise CatalogValidationError(
-            f"field {field_name!r} must be a non-empty string, got {type(value).__name__}"
-        )
+        raise CatalogValidationError(f"field {field_name!r} must be a non-empty string, got {type(value).__name__}")
     return value
 
 
 def _ensure_bool(value: Any, field_name: str) -> bool:
     """Validate that ``value`` is a bool."""
     if not isinstance(value, bool):
-        raise CatalogValidationError(
-            f"field {field_name!r} must be a bool, got {type(value).__name__}"
-        )
+        raise CatalogValidationError(f"field {field_name!r} must be a bool, got {type(value).__name__}")
     return value
 
 
 def _ensure_str_list(value: Any, field_name: str, *, min_items: int = 1) -> tuple[str, ...]:
     """Validate a list of strings with a minimum length."""
     if not isinstance(value, list):
-        raise CatalogValidationError(
-            f"field {field_name!r} must be a list, got {type(value).__name__}"
-        )
+        raise CatalogValidationError(f"field {field_name!r} must be a list, got {type(value).__name__}")
     if len(value) < min_items:
-        raise CatalogValidationError(
-            f"field {field_name!r} must have at least {min_items} item(s)"
-        )
+        raise CatalogValidationError(f"field {field_name!r} must have at least {min_items} item(s)")
     out: list[str] = []
     for index, item in enumerate(value):
         if not isinstance(item, str) or not item:
-            raise CatalogValidationError(
-                f"field {field_name!r}[{index}] must be a non-empty string"
-            )
+            raise CatalogValidationError(f"field {field_name!r}[{index}] must be a non-empty string")
         out.append(item)
     return tuple(out)
 
@@ -186,19 +174,13 @@ def _ensure_str_list(value: Any, field_name: str, *, min_items: int = 1) -> tupl
 def _ensure_env(value: Any, field_name: str) -> dict[str, str]:
     """Validate an env mapping of string -> string."""
     if not isinstance(value, dict):
-        raise CatalogValidationError(
-            f"field {field_name!r} must be an object, got {type(value).__name__}"
-        )
+        raise CatalogValidationError(f"field {field_name!r} must be an object, got {type(value).__name__}")
     out: dict[str, str] = {}
     for key, val in value.items():
         if not isinstance(key, str) or not key:
-            raise CatalogValidationError(
-                f"field {field_name!r} keys must be non-empty strings"
-            )
+            raise CatalogValidationError(f"field {field_name!r} keys must be non-empty strings")
         if not isinstance(val, str):
-            raise CatalogValidationError(
-                f"field {field_name!r}[{key!r}] must be a string"
-            )
+            raise CatalogValidationError(f"field {field_name!r}[{key!r}] must be a string")
         out[key] = val
     return out
 
@@ -206,47 +188,32 @@ def _ensure_env(value: Any, field_name: str) -> dict[str, str]:
 def _validate_entry(raw: Any, index: int) -> CatalogEntry:
     """Validate a single entry dict."""
     if not isinstance(raw, dict):
-        raise CatalogValidationError(
-            f"entries[{index}] must be an object, got {type(raw).__name__}"
-        )
+        raise CatalogValidationError(f"entries[{index}] must be an object, got {type(raw).__name__}")
 
     keys = set(raw.keys())
     missing = _ENTRY_REQUIRED - keys
     if missing:
-        raise CatalogValidationError(
-            f"entries[{index}] missing required field(s): {sorted(missing)}"
-        )
+        raise CatalogValidationError(f"entries[{index}] missing required field(s): {sorted(missing)}")
     unknown = keys - _ENTRY_ALLOWED
     if unknown:
-        raise CatalogValidationError(
-            f"entries[{index}] has unknown field(s): {sorted(unknown)}"
-        )
+        raise CatalogValidationError(f"entries[{index}] has unknown field(s): {sorted(unknown)}")
 
     entry_id = _ensure_str(raw["id"], f"entries[{index}].id")
     if not _ID_PATTERN.match(entry_id):
-        raise CatalogValidationError(
-            f"entries[{index}].id {entry_id!r} does not match pattern {_ID_PATTERN.pattern!r}"
-        )
+        raise CatalogValidationError(f"entries[{index}].id {entry_id!r} does not match pattern {_ID_PATTERN.pattern!r}")
 
-    install_command = _ensure_str_list(
-        raw["install_command"], f"entries[{index}].install_command"
-    )
+    install_command = _ensure_str_list(raw["install_command"], f"entries[{index}].install_command")
 
-    transports = _ensure_str_list(
-        raw["transports"], f"entries[{index}].transports"
-    )
+    transports = _ensure_str_list(raw["transports"], f"entries[{index}].transports")
     for transport in transports:
         if transport not in _VALID_TRANSPORTS:
             raise CatalogValidationError(
-                f"entries[{index}].transports has unsupported value {transport!r}; "
-                f"valid: {sorted(_VALID_TRANSPORTS)}"
+                f"entries[{index}].transports has unsupported value {transport!r}; valid: {sorted(_VALID_TRANSPORTS)}"
             )
 
     args_value = raw.get("args")
     args: tuple[str, ...] = (
-        ()
-        if args_value is None
-        else _ensure_str_list(args_value, f"entries[{index}].args", min_items=0)
+        () if args_value is None else _ensure_str_list(args_value, f"entries[{index}].args", min_items=0)
     )
 
     env_value = raw.get("env")
@@ -276,9 +243,7 @@ def _validate_entry(raw: Any, index: int) -> CatalogEntry:
         install_command=install_command,
         version_pin=_ensure_str(raw["version_pin"], f"entries[{index}].version_pin"),
         transports=transports,
-        verified_by_bernstein=_ensure_bool(
-            raw["verified_by_bernstein"], f"entries[{index}].verified_by_bernstein"
-        ),
+        verified_by_bernstein=_ensure_bool(raw["verified_by_bernstein"], f"entries[{index}].verified_by_bernstein"),
         auto_upgrade=auto_upgrade,
         signature=signature,
         command=command,
@@ -302,49 +267,36 @@ def validate_catalog(payload: Any) -> Catalog:
             Callers should preserve any cached copy on this error.
     """
     if not isinstance(payload, dict):
-        raise CatalogValidationError(
-            f"top-level payload must be an object, got {type(payload).__name__}"
-        )
+        raise CatalogValidationError(f"top-level payload must be an object, got {type(payload).__name__}")
 
     keys = set(payload.keys())
     missing = _CATALOG_REQUIRED - keys
     if missing:
-        raise CatalogValidationError(
-            f"catalog missing required field(s): {sorted(missing)}"
-        )
+        raise CatalogValidationError(f"catalog missing required field(s): {sorted(missing)}")
     unknown = keys - _CATALOG_ALLOWED
     if unknown:
-        raise CatalogValidationError(
-            f"catalog has unknown field(s): {sorted(unknown)}"
-        )
+        raise CatalogValidationError(f"catalog has unknown field(s): {sorted(unknown)}")
 
     version_raw = payload["version"]
     if not isinstance(version_raw, int) or isinstance(version_raw, bool):
-        raise CatalogValidationError(
-            f"field 'version' must be an integer, got {type(version_raw).__name__}"
-        )
+        raise CatalogValidationError(f"field 'version' must be an integer, got {type(version_raw).__name__}")
     if version_raw != _SUPPORTED_SCHEMA_VERSION:
         raise CatalogValidationError(
-            f"unsupported catalog schema version {version_raw!r}; "
-            f"this client expects {_SUPPORTED_SCHEMA_VERSION}"
+            f"unsupported catalog schema version {version_raw!r}; this client expects {_SUPPORTED_SCHEMA_VERSION}"
         )
 
     generated_at = _ensure_str(payload["generated_at"], "generated_at")
 
     entries_raw = payload["entries"]
     if not isinstance(entries_raw, list):
-        raise CatalogValidationError(
-            f"field 'entries' must be a list, got {type(entries_raw).__name__}"
-        )
+        raise CatalogValidationError(f"field 'entries' must be a list, got {type(entries_raw).__name__}")
 
     entries: list[CatalogEntry] = []
     seen_ids: set[str] = set()
     for index, raw in enumerate(entries_raw):
         entry = _validate_entry(raw, index)
         if entry.id in seen_ids:
-            raise CatalogValidationError(
-                f"entries[{index}] duplicates id {entry.id!r}"
-            )
+            raise CatalogValidationError(f"entries[{index}] duplicates id {entry.id!r}")
         seen_ids.add(entry.id)
         entries.append(entry)
 

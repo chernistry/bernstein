@@ -105,26 +105,20 @@ def _build_service() -> CatalogService:
 
 def _prompt_confirm(preview: InstallPreview) -> bool:
     """Default confirmation gate using a Click prompt."""
-    return click.confirm(
-        "Apply this install to the user MCP config?", default=False
-    )
+    return click.confirm("Apply this install to the user MCP config?", default=False)
 
 
 def _render_preview(preview: InstallPreview) -> None:
     """Render a sandboxed dry-run preview in the console."""
     status = "ok" if preview.succeeded else f"failed (exit={preview.exit_code})"
     console.print(
-        f"[bold]Sandbox preview[/bold] {status} "
-        f"in {preview.duration_seconds:.2f}s; "
-        f"{len(preview.diff)} file change(s)"
+        f"[bold]Sandbox preview[/bold] {status} in {preview.duration_seconds:.2f}s; {len(preview.diff)} file change(s)"
     )
     if preview.timed_out:
         console.print("[red]Preview timed out before completing.[/red]")
     if preview.diff:
         for change in preview.diff:
-            console.print(
-                f"  [{change.change_type}] {change.path} ({change.size_bytes}B)"
-            )
+            console.print(f"  [{change.change_type}] {change.path} ({change.size_bytes}B)")
     if preview.stdout:
         console.print("[dim]stdout:[/dim]")
         console.print(preview.stdout.decode("utf-8", errors="replace"))
@@ -184,10 +178,7 @@ def search_cmd(query: str, refresh: bool) -> None:
         return
     for entry in results:
         verified = "[green]verified[/green]" if entry.verified_by_bernstein else "[yellow]unverified[/yellow]"
-        console.print(
-            f"[bold]{entry.id}[/bold] ({entry.version_pin}) {verified} "
-            f"- {entry.name}: {entry.description}"
-        )
+        console.print(f"[bold]{entry.id}[/bold] ({entry.version_pin}) {verified} - {entry.name}: {entry.description}")
 
 
 @catalog_group.command("info")
@@ -204,9 +195,7 @@ def info_cmd(entry_id: str, refresh: bool) -> None:
     console.print(f"Homepage:    {entry.homepage}")
     console.print(f"Repository:  {entry.repository}")
     console.print(f"Transports:  {', '.join(entry.transports)}")
-    console.print(
-        f"Verified by Bernstein: {'yes' if entry.verified_by_bernstein else 'no'}"
-    )
+    console.print(f"Verified by Bernstein: {'yes' if entry.verified_by_bernstein else 'no'}")
     console.print(f"Auto-upgrade: {'yes' if entry.auto_upgrade else 'no'}")
     console.print(f"Install command: {' '.join(entry.install_command)}")
     if entry.signature is not None:
@@ -242,8 +231,7 @@ def install_cmd(entry_id: str, yes: bool, refresh: bool) -> None:
     if outcome.installed is None:
         if not outcome.preview.succeeded:
             raise click.ClickException(
-                f"Sandbox preview failed (exit {outcome.preview.exit_code}); "
-                "host MCP config left untouched."
+                f"Sandbox preview failed (exit {outcome.preview.exit_code}); host MCP config left untouched."
             )
         if not outcome.confirmed:
             console.print("[yellow]Install aborted by user.[/yellow]")
@@ -301,16 +289,10 @@ def upgrade_cmd(entry_id: str | None, all_entries: bool, yes: bool, refresh: boo
     service = _build_service()
     try:
         if all_entries:
-            outcomes = service.upgrade_all(
-                skip_confirmation=yes, force_refresh=refresh
-            )
+            outcomes = service.upgrade_all(skip_confirmation=yes, force_refresh=refresh)
         else:
             assert entry_id is not None
-            outcomes = [
-                service.upgrade(
-                    entry_id, skip_confirmation=yes, force_refresh=refresh
-                )
-            ]
+            outcomes = [service.upgrade(entry_id, skip_confirmation=yes, force_refresh=refresh)]
     except KeyError as exc:
         raise click.ClickException(str(exc)) from exc
     except CatalogValidationError as exc:
@@ -318,18 +300,11 @@ def upgrade_cmd(entry_id: str | None, all_entries: bool, yes: bool, refresh: boo
 
     for outcome in outcomes:
         if outcome.applied:
-            console.print(
-                f"[green]Upgraded[/green] {outcome.entry_id}: "
-                f"{outcome.from_version} -> {outcome.to_version}"
-            )
+            console.print(f"[green]Upgraded[/green] {outcome.entry_id}: {outcome.from_version} -> {outcome.to_version}")
         elif outcome.from_version == outcome.to_version:
-            console.print(
-                f"[dim]{outcome.entry_id} already on latest ({outcome.from_version}).[/dim]"
-            )
+            console.print(f"[dim]{outcome.entry_id} already on latest ({outcome.from_version}).[/dim]")
         else:
-            console.print(
-                f"[yellow]Skipped[/yellow] {outcome.entry_id} ({outcome.skipped_reason})"
-            )
+            console.print(f"[yellow]Skipped[/yellow] {outcome.entry_id} ({outcome.skipped_reason})")
         if outcome.preview is not None and not outcome.applied:
             _render_preview(outcome.preview)
 
@@ -354,10 +329,7 @@ def status_cmd() -> None:
     console.print(f"Cache:                {status.cache_path}")
     console.print(f"Last fetch:           {status.last_fetch_at or 'never'}")
     console.print(f"Next due:             {status.next_due_at}")
-    console.print(
-        f"Check interval (sec): {status.check_interval_seconds}  "
-        f"(BERNSTEIN_MCP_CATALOG_CHECK_INTERVAL)"
-    )
+    console.print(f"Check interval (sec): {status.check_interval_seconds}  (BERNSTEIN_MCP_CATALOG_CHECK_INTERVAL)")
     console.print(f"Installed:            {status.installed_count}")
     console.print(f"Cache state:          {status.last_check_log}")
 

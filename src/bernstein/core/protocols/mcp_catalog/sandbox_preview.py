@@ -140,9 +140,7 @@ def _compute_diff(
     for path in sorted(after_keys & before_keys):
         if before[path] != after[path]:
             size, _ = after[path]
-            diffs.append(
-                FileDiff(path=path, change_type="modified", size_bytes=size)
-            )
+            diffs.append(FileDiff(path=path, change_type="modified", size_bytes=size))
 
     return tuple(diffs)
 

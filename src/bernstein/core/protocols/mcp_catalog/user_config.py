@@ -91,17 +91,9 @@ class InstalledEntry:
         except (KeyError, TypeError):
             return None
         args_value = raw.get("args", [])
-        args = (
-            tuple(str(item) for item in args_value)
-            if isinstance(args_value, list)
-            else ()
-        )
+        args = tuple(str(item) for item in args_value) if isinstance(args_value, list) else ()
         env_value = raw.get("env", {})
-        env: dict[str, str] = (
-            {str(k): str(v) for k, v in env_value.items()}
-            if isinstance(env_value, dict)
-            else {}
-        )
+        env: dict[str, str] = {str(k): str(v) for k, v in env_value.items()} if isinstance(env_value, dict) else {}
         return cls(
             id=entry_id,
             name=name,
@@ -246,11 +238,7 @@ def upgrade_entry(
         return None
 
     existing_raw = servers[entry.id]
-    existing = (
-        InstalledEntry.from_dict(existing_raw)
-        if isinstance(existing_raw, dict)
-        else None
-    )
+    existing = InstalledEntry.from_dict(existing_raw) if isinstance(existing_raw, dict) else None
     timestamp = (now or datetime.now(tz=UTC)).isoformat()
     upgraded = InstalledEntry(
         id=entry.id,

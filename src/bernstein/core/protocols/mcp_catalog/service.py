@@ -152,9 +152,7 @@ class CatalogService:
     user_config_path: Path
     auditor: CatalogAuditor = field(default_factory=CatalogAuditor)
     config: CatalogServiceConfig = field(default_factory=CatalogServiceConfig)
-    confirm_callback: Callable[[InstallPreview], bool] = field(
-        default=lambda _preview: True
-    )
+    confirm_callback: Callable[[InstallPreview], bool] = field(default=lambda _preview: True)
 
     # ------------------------------------------------------------------
     # Catalog browsing
@@ -172,11 +170,7 @@ class CatalogService:
             return list(catalog.entries)
         out: list[CatalogEntry] = []
         for entry in catalog.entries:
-            if (
-                needle in entry.id.lower()
-                or needle in entry.name.lower()
-                or needle in entry.description.lower()
-            ):
+            if needle in entry.id.lower() or needle in entry.name.lower() or needle in entry.description.lower():
                 out.append(entry)
         return out
 
@@ -210,9 +204,7 @@ class CatalogService:
         if entry is None:
             raise KeyError(f"Catalog entry {entry_id!r} not found")
 
-        preview = run_install_preview(
-            entry, runner=self.config.sandbox_runner
-        )
+        preview = run_install_preview(entry, runner=self.config.sandbox_runner)
         warning_unverified = not entry.verified_by_bernstein
 
         if not preview.succeeded:
@@ -328,9 +320,7 @@ class CatalogService:
             )
 
         if not (installed.auto_upgrade or skip_confirmation):
-            preview = run_install_preview(
-                catalog_entry, runner=self.config.sandbox_runner
-            )
+            preview = run_install_preview(catalog_entry, runner=self.config.sandbox_runner)
             if not preview.succeeded:
                 self.auditor.upgrade(
                     entry_id=entry_id,
@@ -365,9 +355,7 @@ class CatalogService:
                     preview=preview,
                 )
         else:
-            preview = run_install_preview(
-                catalog_entry, runner=self.config.sandbox_runner
-            )
+            preview = run_install_preview(catalog_entry, runner=self.config.sandbox_runner)
             if not preview.succeeded:
                 self.auditor.upgrade(
                     entry_id=entry_id,
@@ -402,9 +390,7 @@ class CatalogService:
             preview=preview,
         )
 
-    def upgrade_all(
-        self, *, skip_confirmation: bool = False, force_refresh: bool = False
-    ) -> list[UpgradeOutcome]:
+    def upgrade_all(self, *, skip_confirmation: bool = False, force_refresh: bool = False) -> list[UpgradeOutcome]:
         """Upgrade every installed entry that has a newer catalog pin."""
         outcomes: list[UpgradeOutcome] = []
         for installed in self.list_installed():
@@ -438,9 +424,7 @@ class CatalogService:
             if not entry.last_upgrade_check:
                 return True
             try:
-                ts = datetime.fromisoformat(
-                    entry.last_upgrade_check.replace("Z", "+00:00")
-                )
+                ts = datetime.fromisoformat(entry.last_upgrade_check.replace("Z", "+00:00"))
             except ValueError:
                 return True
             if latest is None or ts > latest:
@@ -457,9 +441,7 @@ class CatalogService:
         last_fetch = ""
         if self.fetcher.cache_path.exists():
             try:
-                last_fetch = datetime.fromtimestamp(
-                    self.fetcher.cache_path.stat().st_mtime, tz=UTC
-                ).isoformat()
+                last_fetch = datetime.fromtimestamp(self.fetcher.cache_path.stat().st_mtime, tz=UTC).isoformat()
             except OSError:
                 last_fetch = ""
         installed = self.list_installed()
@@ -469,18 +451,14 @@ class CatalogService:
             if not entry.last_upgrade_check:
                 continue
             try:
-                ts = datetime.fromisoformat(
-                    entry.last_upgrade_check.replace("Z", "+00:00")
-                )
+                ts = datetime.fromisoformat(entry.last_upgrade_check.replace("Z", "+00:00"))
             except ValueError:
                 continue
             if latest_check is None or ts > latest_check:
                 latest_check = ts
 
         if latest_check is not None:
-            next_due = latest_check + timedelta(
-                seconds=self.config.check_interval_seconds
-            )
+            next_due = latest_check + timedelta(seconds=self.config.check_interval_seconds)
             next_due_str = next_due.isoformat()
         else:
             next_due_str = (now or datetime.now(tz=UTC)).isoformat()

@@ -810,3 +810,8 @@ cli.add_command(debug_cmd, "debug")  # backward-compat alias
 from bernstein.cli.commands.chat_cmd import chat_group  # noqa: E402
 
 cli.add_command(chat_group, "chat")
+
+# release/1.9: outbound notification drivers (Telegram, Slack, Discord, Email, Webhook, Shell).
+from bernstein.cli.commands.notify_cmd import notify_group  # noqa: E402
+
+cli.add_command(notify_group, "notify")

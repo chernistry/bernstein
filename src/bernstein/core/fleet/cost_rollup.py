@@ -55,10 +55,7 @@ def render_sparkline(series: list[float]) -> CostSparkline:
     if peak <= 0:
         return CostSparkline(series=list(series), glyphs=" " * len(series), peak=0.0)
     last_idx = len(_SPARKLINE_GLYPHS) - 1
-    glyphs = "".join(
-        _SPARKLINE_GLYPHS[min(last_idx, max(0, round((v / peak) * last_idx)))]
-        for v in series
-    )
+    glyphs = "".join(_SPARKLINE_GLYPHS[min(last_idx, max(0, round((v / peak) * last_idx)))] for v in series)
     return CostSparkline(series=list(series), glyphs=glyphs, peak=peak)
 
 
@@ -126,9 +123,7 @@ def _read_cost_history(sdd_dir: Path, window_days: int) -> list[float]:
     return [bucket[k] for k in sorted(bucket)][-window_days:]
 
 
-def rollup_costs(
-    project_paths: dict[str, Path], *, window_days: int = 7
-) -> FleetCostRollup:
+def rollup_costs(project_paths: dict[str, Path], *, window_days: int = 7) -> FleetCostRollup:
     """Aggregate per-project rolling costs into a fleet view.
 
     Args:

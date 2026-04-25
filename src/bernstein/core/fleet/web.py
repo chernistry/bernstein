@@ -139,9 +139,7 @@ def build_fleet_app(
 
     @app.get("/api/cost")
     async def api_cost() -> JSONResponse:  # pyright: ignore[reportUnusedFunction]
-        rollup = rollup_costs(
-            {p.name: p.sdd_dir for p in aggregator.projects()}, window_days=7
-        )
+        rollup = rollup_costs({p.name: p.sdd_dir for p in aggregator.projects()}, window_days=7)
         return JSONResponse(
             {
                 "fleet_total_usd": rollup.fleet_total_usd,
@@ -200,10 +198,7 @@ def build_fleet_app(
                 "entries_checked": s.entries_checked,
                 "last_ts": s.last_ts,
             }
-            for s in (
-                check_audit_tail(p.name, p.sdd_dir)
-                for p in aggregator.projects()
-            )
+            for s in (check_audit_tail(p.name, p.sdd_dir) for p in aggregator.projects())
         ]
         return JSONResponse({"chains": statuses})
 

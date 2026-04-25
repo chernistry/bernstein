@@ -81,8 +81,7 @@ def _run_tui(config: FleetConfig) -> None:
     if not config.projects:
         _print_config_errors(config)
         _console.print(
-            "[red]No projects configured.[/red] "
-            f"Edit {default_projects_config_path()} and add [[project]] blocks."
+            f"[red]No projects configured.[/red] Edit {default_projects_config_path()} and add [[project]] blocks."
         )
         sys.exit(2)
 
@@ -150,10 +149,7 @@ def _parse_bind(bind: str) -> tuple[str, int]:
 def _run_web(config: FleetConfig, bind: str) -> None:
     if not config.projects:
         _print_config_errors(config)
-        _console.print(
-            "[red]No projects configured.[/red] "
-            "Add [[project]] blocks before launching --web."
-        )
+        _console.print("[red]No projects configured.[/red] Add [[project]] blocks before launching --web.")
         sys.exit(2)
     host, port = _parse_bind(bind)
 
@@ -198,9 +194,7 @@ def _bulk_target(
     from bernstein.core.fleet.aggregator import ProjectSnapshot, ProjectState
     from bernstein.core.fleet.cost_rollup import rollup_costs
 
-    rollup = rollup_costs(
-        {p.name: p.sdd_dir for p in config.projects}, window_days=7
-    )
+    rollup = rollup_costs({p.name: p.sdd_dir for p in config.projects}, window_days=7)
     snapshots = [
         ProjectSnapshot(
             name=p.name,

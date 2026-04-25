@@ -100,9 +100,7 @@ def select_projects(
     by_name: dict[str, ProjectConfig] = {p.name: p for p in projects}
     snap_by_name: dict[str, ProjectSnapshot] = {s.name: s for s in snapshots}
 
-    candidates = (
-        [by_name[n] for n in names if n in by_name] if names else list(projects)
-    )
+    candidates = [by_name[n] for n in names if n in by_name] if names else list(projects)
 
     if not filter_expression:
         return candidates
@@ -120,14 +118,10 @@ def select_projects(
 # -- Subprocess plumbing ---------------------------------------------------
 
 
-SubprocessRunner = Callable[
-    [list[str], Path, dict[str, str]], Awaitable[tuple[int, str, str]]
-]
+SubprocessRunner = Callable[[list[str], Path, dict[str, str]], Awaitable[tuple[int, str, str]]]
 
 
-async def _default_runner(
-    cmd: list[str], cwd: Path, env: dict[str, str]
-) -> tuple[int, str, str]:
+async def _default_runner(cmd: list[str], cwd: Path, env: dict[str, str]) -> tuple[int, str, str]:
     """Default implementation: spawn ``cmd`` with ``cwd`` and capture output."""
     process = await asyncio.create_subprocess_exec(
         *cmd,
@@ -219,9 +213,7 @@ async def bulk_pause(
     halts; this preserves the per-project audit chain because the call
     goes through the project's existing supervised stop path.
     """
-    return await _bulk_dispatch(
-        "pause", projects, ["daemon", "stop"], runner=runner
-    )
+    return await _bulk_dispatch("pause", projects, ["daemon", "stop"], runner=runner)
 
 
 async def bulk_resume(
@@ -233,9 +225,7 @@ async def bulk_resume(
 
     Maps to ``bernstein daemon start`` (the inverse of ``bulk_pause``).
     """
-    return await _bulk_dispatch(
-        "resume", projects, ["daemon", "start"], runner=runner
-    )
+    return await _bulk_dispatch("resume", projects, ["daemon", "start"], runner=runner)
 
 
 async def bulk_cost_report(

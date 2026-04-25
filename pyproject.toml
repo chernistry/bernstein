@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bernstein"
-version = "1.8.15"
+version = "1.9.0"
 description = "Multi-agent orchestration for CLI coding agents (Claude Code, Codex, Gemini CLI, and 28 more) — deterministic, declarative, zero vendor lock-in."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -75,6 +75,10 @@ dependencies = [
     # billion-laughs / quadratic-blowup DoS on unauthenticated IdP responses
     # (audit-054). defusedxml.ElementTree is a drop-in for xml.etree.ElementTree.
     "defusedxml>=0.7.1",
+    # OS-keychain transport for the credential vault (release 1.9). Pulls in
+    # macOS Keychain / Linux Secret Service / Windows Credential Manager
+    # backends. AES-GCM file fallback uses the existing ``cryptography`` dep.
+    "keyring>=25.0",
 ]
 
 [project.urls]
@@ -174,6 +178,17 @@ bernstein-worker = "bernstein.core.worker:main"
 # this group. Example:
 # my_sink = "my_pkg.storage:MyArtifactSink"
 
+[project.entry-points."bernstein.notification_sinks"]
+# Outbound notification drivers (release 1.9). First-party drivers
+# (telegram, slack, discord, email_smtp, webhook, shell) ship in core
+# and are registered eagerly by bernstein.core.notifications.registry;
+# plugin authors register additional drivers (PagerDuty, Opsgenie,
+# Mattermost, ...) via this group. Each entry resolves to a callable
+# whose signature is ``factory(config: dict[str, Any]) -> NotificationSink``
+# and the entry name is the ``kind`` referenced from
+# ``bernstein.yaml::notifications.sinks[*].kind``. Example:
+# pagerduty = "my_pkg.notify:PagerDutySink"
+
 [tool.hatch.build]
 # NOTE: do NOT add src/bernstein/ entries here.  Every file under src/
 # ships production code that the runtime imports -- either directly or
@@ -202,6 +217,11 @@ packages = ["src/bernstein"]
 # templates/.
 "templates/skills" = "bernstein/_default_templates/skills"
 "templates/roles" = "bernstein/_default_templates/roles"
+# Review pipeline DSL (release_1.9_review_pipeline_dsl) — built-in stage
+# templates and the default 3-phase pipeline. Loaded by
+# bernstein.core.quality.review_pipeline at runtime when users omit a
+# pipeline path.
+"templates/review" = "bernstein/_default_templates/review"
 # ascii_logo.md now lives in-package at src/bernstein/_default_templates/ —
 # no force-include needed. The dev-repo copy at docs/assets/ascii_logo.md is
 # the display fallback read by cli/display/splash_v2.py when running from a

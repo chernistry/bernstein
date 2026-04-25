@@ -91,8 +91,7 @@ def _fetch_via_rest(owner: str, repo: str, number: int) -> dict[str, Any]:
     token = resolution.secret if resolution.found else os.environ.get(_GH_ENV, "")
     if not token:
         raise TicketAuthError(
-            f"gh CLI not found and no GitHub credential is stored. "
-            f"Run `bernstein connect github` or set {_GH_ENV}."
+            f"gh CLI not found and no GitHub credential is stored. Run `bernstein connect github` or set {_GH_ENV}."
         )
     endpoint = f"https://api.github.com/repos/{owner}/{repo}/issues/{number}"
     headers = {

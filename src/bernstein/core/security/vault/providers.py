@@ -105,9 +105,7 @@ _PROVIDERS: dict[ProviderId, ProviderConfig] = {
         display_name="GitHub",
         legacy_env_vars=("GITHUB_TOKEN",),
         auth_mode=AuthMode.TOKEN_PASTE,
-        paste_prompts=(
-            TokenPastePrompt(field="token", label="GitHub personal access token (PAT)"),
-        ),
+        paste_prompts=(TokenPastePrompt(field="token", label="GitHub personal access token (PAT)"),),
         whoami=WhoamiSpec(
             url_template="https://api.github.com/user",
             auth_header_template="Bearer {token}",
@@ -126,9 +124,7 @@ _PROVIDERS: dict[ProviderId, ProviderConfig] = {
         # Default to token-paste; the OAuth device-code flow is opt-in via
         # the connect CLI flag because most Linear users still ship API keys.
         auth_mode=AuthMode.TOKEN_PASTE,
-        paste_prompts=(
-            TokenPastePrompt(field="token", label="Linear API key (lin_api_...)"),
-        ),
+        paste_prompts=(TokenPastePrompt(field="token", label="Linear API key (lin_api_...)"),),
         whoami=WhoamiSpec(
             url_template="https://api.linear.app/graphql",
             auth_header_template="{token}",
@@ -170,9 +166,7 @@ _PROVIDERS: dict[ProviderId, ProviderConfig] = {
         display_name="Slack",
         legacy_env_vars=("BERNSTEIN_SLACK_TOKEN", "SLACK_BOT_TOKEN"),
         auth_mode=AuthMode.TOKEN_PASTE,
-        paste_prompts=(
-            TokenPastePrompt(field="token", label="Slack bot token (xoxb-...)"),
-        ),
+        paste_prompts=(TokenPastePrompt(field="token", label="Slack bot token (xoxb-...)"),),
         whoami=WhoamiSpec(
             url_template="https://slack.com/api/auth.test",
             auth_header_template="Bearer {token}",
@@ -189,9 +183,7 @@ _PROVIDERS: dict[ProviderId, ProviderConfig] = {
         display_name="Telegram bot",
         legacy_env_vars=("BERNSTEIN_TELEGRAM_TOKEN", "TELEGRAM_BOT_TOKEN"),
         auth_mode=AuthMode.TOKEN_PASTE,
-        paste_prompts=(
-            TokenPastePrompt(field="token", label="Telegram bot token (123456:ABC-DEF...)"),
-        ),
+        paste_prompts=(TokenPastePrompt(field="token", label="Telegram bot token (123456:ABC-DEF...)"),),
         whoami=WhoamiSpec(
             url_template="https://api.telegram.org/bot{token}/getMe",
             auth_header_template="",

@@ -105,8 +105,7 @@ class FileBackend(CredentialVault):
         passphrase = env.get(passphrase_env, "")
         if not passphrase:
             raise FileBackendUnavailable(
-                f"Vault file backend requires a passphrase in {passphrase_env}; "
-                f"the variable is unset or empty."
+                f"Vault file backend requires a passphrase in {passphrase_env}; the variable is unset or empty."
             )
         self._passphrase = passphrase.encode("utf-8")
         self._path = path or DEFAULT_VAULT_PATH
@@ -155,9 +154,7 @@ class FileBackend(CredentialVault):
         try:
             return aesgcm.decrypt(nonce, ct, None)
         except Exception as exc:
-            raise FileBackendUnavailable(
-                "Vault decryption failed — passphrase mismatch or file corrupted."
-            ) from exc
+            raise FileBackendUnavailable("Vault decryption failed — passphrase mismatch or file corrupted.") from exc
 
     # ------------------------------------------------------------------
     # File I/O

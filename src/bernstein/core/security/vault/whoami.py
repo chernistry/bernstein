@@ -100,9 +100,7 @@ def call_whoami(
 
     method = "POST" if provider.id == "linear" else "GET"
     payload: dict[str, Any] | None = (
-        {"query": "query { viewer { id email name } }"}
-        if provider.id == "linear"
-        else None
+        {"query": "query { viewer { id email name } }"} if provider.id == "linear" else None
     )
 
     owns_client = client is None
@@ -121,8 +119,7 @@ def call_whoami(
 
     if resp.status_code != spec.success_status:
         raise WhoamiError(
-            f"{provider.display_name} rejected the credential "
-            f"(HTTP {resp.status_code}); response: {resp.text[:200]}"
+            f"{provider.display_name} rejected the credential (HTTP {resp.status_code}); response: {resp.text[:200]}"
         )
 
     try:

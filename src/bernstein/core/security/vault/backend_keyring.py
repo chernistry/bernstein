@@ -64,9 +64,7 @@ def _import_keyring() -> Any:
     try:
         import keyring  # type: ignore[import-not-found]
     except ImportError as exc:  # pragma: no cover - covered via tests with monkeypatch
-        raise KeyringUnavailable(
-            "The 'keyring' package is not installed; install it or use --backend file."
-        ) from exc
+        raise KeyringUnavailable("The 'keyring' package is not installed; install it or use --backend file.") from exc
     return keyring
 
 
@@ -105,9 +103,7 @@ class KeyringBackend(CredentialVault):
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as exc:
-            raise VaultError(
-                f"Stored credential for {account!r} is corrupted (not JSON): {exc}"
-            ) from exc
+            raise VaultError(f"Stored credential for {account!r} is corrupted (not JSON): {exc}") from exc
         if not isinstance(data, dict):
             raise VaultError(f"Stored credential for {account!r} is not a JSON object.")
         return cast(dict[str, Any], data)

@@ -137,8 +137,7 @@ def fetch_jira(url: str) -> TicketPayload:
             email = email or os.environ.get(_EMAIL_ENV)
     if not email or not token:
         raise TicketAuthError(
-            "Missing Jira credentials. Run `bernstein connect jira` or set both "
-            f"{_EMAIL_ENV} and {_TOKEN_ENV}."
+            f"Missing Jira credentials. Run `bernstein connect jira` or set both {_EMAIL_ENV} and {_TOKEN_ENV}."
         )
 
     raw = _get(base_url, key, email, token)

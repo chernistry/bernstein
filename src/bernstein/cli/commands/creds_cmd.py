@@ -152,11 +152,7 @@ def _prompt_paste(provider: ProviderConfig) -> dict[str, str]:
     """
     fields: dict[str, str] = {}
     for prompt in provider.paste_prompts:
-        value = (
-            getpass.getpass(f"{prompt.label}: ")
-            if prompt.is_secret
-            else click.prompt(prompt.label, type=str)
-        )
+        value = getpass.getpass(f"{prompt.label}: ") if prompt.is_secret else click.prompt(prompt.label, type=str)
         if not value:
             raise click.UsageError(f"{prompt.label} cannot be empty.")
         fields[prompt.field] = value.strip()
@@ -189,11 +185,13 @@ def _run_oauth_device_code(provider: ProviderConfig) -> dict[str, str]:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
-            lambda: poll_device_code(
-                challenge,
-                token_endpoint=spec.token_endpoint,
-                client_id=spec.client_id,
-            ).access_token,
+            lambda: (
+                poll_device_code(
+                    challenge,
+                    token_endpoint=spec.token_endpoint,
+                    client_id=spec.client_id,
+                ).access_token
+            ),
         )
 
     try:

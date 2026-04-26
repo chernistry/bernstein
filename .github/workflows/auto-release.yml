@@ -236,7 +236,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/chernistry/bernstein:latest
-            ghcr.io/chernistry/bernstein:${{ steps.final.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ steps.final.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

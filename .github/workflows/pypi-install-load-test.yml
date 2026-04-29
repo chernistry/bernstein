@@ -1,0 +1,422 @@
+# .github/workflows/pypi-install-load-test.yml
+#
+# Manual workflow that exercises GitHub Actions parallelism + the live PyPI
+# install endpoint by running a configurable number of `pip install bernstein`
+# invocations across a fan-out matrix of runners.
+#
+# Two things this workflow is designed to surface:
+#   1. How many parallel installs GitHub Actions can sustain in a single run
+#      before hitting concurrent-job caps, runner allocation latency, or
+#      transient PyPI 5xx blips.
+#   2. How those installs show up on https://pypistats.org/packages/bernstein
+#      — which is the public download counter for PyPI packages.
+#
+# What this workflow is NOT:
+#   * a denial-of-service tool (PyPI happily serves billions of installs per
+#     day; a few thousand pulls from one CI run is invisible to their fleet);
+#   * a stats-inflation tool (pypistats deliberately classifies CI traffic as
+#     "with mirrors" and excludes it from the headline `without_mirrors`
+#     column on the website — you may see no movement there, by design);
+#   * a substitute for synthetic perf testing of bernstein itself (use
+#     bench/ for that).
+#
+# Run it when you want to:
+#   * verify a release's install path actually works against the live PyPI
+#     index (no local cache, no `--find-links` shortcuts, no ./dist wheel);
+#   * watch how pypistats updates over a 24-48h window after a real install
+#     fan-out;
+#   * confirm that an Actions tier change (e.g. a runner-pool capacity bump)
+#     holds up under realistic concurrent load.
+
+name: PyPI install load test
+
+on:
+  workflow_dispatch:
+    inputs:
+      installs:
+        description: "Total pip installs to perform (100..3000)"
+        type: number
+        default: 500
+      concurrency:
+        description: "Max parallel matrix jobs (1..200)"
+        type: number
+        default: 80
+      version:
+        description: "Optional pinned version (e.g. 1.9.1). Empty = latest from PyPI."
+        type: string
+        default: ""
+
+# This workflow only reads its own checkout and writes artefacts to its own
+# run. No write access needed.
+permissions:
+  contents: read
+
+# Don't auto-cancel an in-progress run (matrix slots are already burned by
+# the time a second one starts). Block back-to-back runs on the same ref so
+# we don't accidentally double-spend the Actions quota.
+concurrency:
+  group: pypi-install-load-test-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # =============================================================================
+  # Stage 1 — pre-flight: validate inputs, snapshot pypistats, build chunk matrix
+  # =============================================================================
+  pre:
+    name: Pre-flight + pre-snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      chunk_size: ${{ steps.matrix.outputs.chunk_size }}
+      total: ${{ steps.matrix.outputs.total }}
+      chunks: ${{ steps.matrix.outputs.chunks }}
+
+    steps:
+      # ---------------------------------------------------------------------
+      # Input bounds. type: number on workflow_dispatch only enforces "is a
+      # number"; it doesn't enforce min/max. Fail fast here so users see a
+      # clean error instead of a 200-job runaway.
+      # ---------------------------------------------------------------------
+      - name: Validate inputs
+        env:
+          INSTALLS: ${{ inputs.installs }}
+          CONCURRENCY: ${{ inputs.concurrency }}
+        run: |
+          set -euo pipefail
+          if [[ "$INSTALLS" -lt 100 || "$INSTALLS" -gt 3000 ]]; then
+            echo "::error title=Invalid input::installs must be 100..3000 (got $INSTALLS)"
+            exit 1
+          fi
+          if [[ "$CONCURRENCY" -lt 1 || "$CONCURRENCY" -gt 200 ]]; then
+            echo "::error title=Invalid input::concurrency must be 1..200 (got $CONCURRENCY)"
+            exit 1
+          fi
+          if [[ "$CONCURRENCY" -gt "$INSTALLS" ]]; then
+            echo "::warning title=Capping chunks::concurrency ($CONCURRENCY) > installs ($INSTALLS); will use $INSTALLS chunks of size 1"
+          fi
+
+      # ---------------------------------------------------------------------
+      # Pre-test pypistats snapshot. We hit two endpoints:
+      #   /recent  → last_day, last_week, last_month
+      #   /overall → with_mirrors, without_mirrors aggregates
+      # Both are public; no auth needed. Failures are non-fatal — we'd rather
+      # see install metrics than abort because pypistats is having a bad day.
+      # ---------------------------------------------------------------------
+      - name: Snapshot pypistats (before)
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 3 --retry-delay 2 \
+            "https://pypistats.org/api/packages/bernstein/recent" -o pre_recent.json \
+            || echo '{"data":{},"error":"fetch failed"}' > pre_recent.json
+          curl -fsS --retry 3 --retry-delay 2 \
+            "https://pypistats.org/api/packages/bernstein/overall" -o pre_overall.json \
+            || echo '{"data":[],"error":"fetch failed"}' > pre_overall.json
+          jq -n \
+            --slurpfile recent pre_recent.json \
+            --slurpfile overall pre_overall.json \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{ts: $ts, recent: $recent[0], overall: $overall[0]}' \
+            > pre_stats.json
+          echo "Pre-test snapshot at $(jq -r '.ts' pre_stats.json):"
+          jq -r '.recent.data | "  last_day=\(.last_day // "?")  last_week=\(.last_week // "?")  last_month=\(.last_month // "?")"' pre_stats.json || true
+
+      # ---------------------------------------------------------------------
+      # Chunk matrix.
+      #
+      #   chunks    = min(concurrency, installs)
+      #   chunk_size = ceil(installs / chunks)
+      #
+      # Each matrix job claims a chunk index 1..chunks and processes
+      # `chunk_size` installs (or fewer for the tail). max-parallel on the
+      # matrix bounds wall-clock concurrency.
+      #
+      # We deliberately stay below GitHub's hard cap of 256 matrix entries
+      # by capping the `concurrency` input at 200 — leaves headroom for
+      # internal accounting jobs and avoids the silent matrix-truncation
+      # behaviour that bites at the 256 boundary.
+      # ---------------------------------------------------------------------
+      - name: Build chunk matrix
+        id: matrix
+        env:
+          INSTALLS: ${{ inputs.installs }}
+          CONCURRENCY: ${{ inputs.concurrency }}
+        run: |
+          set -euo pipefail
+          chunks=$(( CONCURRENCY < INSTALLS ? CONCURRENCY : INSTALLS ))
+          chunk_size=$(( (INSTALLS + chunks - 1) / chunks ))
+          matrix=$(jq -nc --argjson n "$chunks" '{chunk: [range(1; $n + 1)]}')
+          {
+            echo "matrix=$matrix"
+            echo "chunk_size=$chunk_size"
+            echo "total=$INSTALLS"
+            echo "chunks=$chunks"
+          } >> "$GITHUB_OUTPUT"
+          echo "Plan: $chunks chunks × $chunk_size installs each (target $INSTALLS, max parallel $CONCURRENCY)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pre-stats
+          path: pre_stats.json
+          retention-days: 14
+
+  # =============================================================================
+  # Stage 2 — fan out installs across the matrix
+  # =============================================================================
+  install:
+    name: Install chunk ${{ matrix.chunk }}
+    needs: pre
+    strategy:
+      # Don't tear the whole matrix down on a single chunk failure; we count
+      # failures as data, not as a stop signal.
+      fail-fast: false
+      # max-parallel literally bounds how many of these chunk jobs run at
+      # the same time. GitHub-hosted free-tier accounts allow ~20 concurrent
+      # jobs by default; paid tiers / org plans typically raise this to
+      # 60-180. We accept up to 200 here and let the runner pool throttle
+      # the overflow if the tier is lower.
+      max-parallel: ${{ fromJson(inputs.concurrency) }}
+      matrix: ${{ fromJson(needs.pre.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    # 30 min cap — at chunk_size up to 15 with avg 2-3s per install, this is
+    # comfortable. Acts as a watchdog against runaway loops or PyPI hanging
+    # on a single install (we've seen 60s+ TLS retries during regional issues).
+    timeout-minutes: 30
+
+    steps:
+      # uv is significantly faster than pip for repeated venv creation +
+      # install; a chunk of 15 installs runs ~3-5x faster on uv. We disable
+      # uv's package cache because the whole point of this test is to
+      # actually pull from PyPI on every install — see --no-cache below.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: false
+
+      - name: Run install loop
+        env:
+          CHUNK: ${{ matrix.chunk }}
+          CHUNK_SIZE: ${{ needs.pre.outputs.chunk_size }}
+          TOTAL: ${{ needs.pre.outputs.total }}
+          BERN_VERSION: ${{ inputs.version }}
+        run: |
+          # NOTE: not -e — we deliberately want to count individual failures
+          # rather than aborting the whole chunk on the first network blip.
+          set -uo pipefail
+
+          pkg="bernstein"
+          if [[ -n "${BERN_VERSION:-}" ]]; then
+            pkg="bernstein==${BERN_VERSION}"
+          fi
+
+          # Compute this chunk's slice of the [0..TOTAL) install range.
+          start_idx=$(( (CHUNK - 1) * CHUNK_SIZE ))
+          end_idx=$(( CHUNK * CHUNK_SIZE ))
+          if [[ $end_idx -gt $TOTAL ]]; then end_idx=$TOTAL; fi
+          count=$(( end_idx - start_idx ))
+
+          if [[ $count -le 0 ]]; then
+            echo "Chunk ${CHUNK} is empty (start=$start_idx, end=$end_idx, total=$TOTAL); skipping."
+            jq -nc --argjson chunk "$CHUNK" \
+              '{chunk: $chunk, success: 0, failure: 0, wall_ms: 0, durations_ms: [], errors: ""}' \
+              > "result-${CHUNK}.json"
+            exit 0
+          fi
+
+          echo "Chunk ${CHUNK}: installing $pkg $count time(s) (idx $start_idx..$((end_idx-1)))"
+
+          success=0
+          failure=0
+          durations=()
+          errors=""
+          chunk_t0=$(date +%s%N)
+
+          for (( i=0; i<count; i++ )); do
+            idx=$(( start_idx + i ))
+            venv="$RUNNER_TEMP/venv-$idx"
+            log="$RUNNER_TEMP/log-$idx.txt"
+
+            uv venv --quiet --python 3.12 "$venv"
+
+            t0=$(date +%s%N)
+            # --no-cache = force a real HTTPS GET to PyPI for every install
+            # --no-deps  = don't pull bernstein's transitive deps (we're
+            #              measuring the bernstein download specifically;
+            #              deps would dominate the wall clock and noise the
+            #              pypistats counter we're trying to read).
+            # --quiet    = suppress per-install output; keep the runner log readable.
+            if uv pip install \
+                --python "$venv/bin/python" \
+                --no-cache \
+                --no-deps \
+                --quiet \
+                "$pkg" > "$log" 2>&1; then
+              t1=$(date +%s%N)
+              durations+=( $(( (t1 - t0) / 1000000 )) )
+              success=$(( success + 1 ))
+            else
+              # Capture last 200 chars of the install log for the report.
+              # tr collapses newlines so the JSON stays clean.
+              err=$(tail -c 200 "$log" | tr '\n' ' ' | tr -d '"')
+              errors="${errors}idx=${idx}: ${err}"$'\n'
+              failure=$(( failure + 1 ))
+            fi
+
+            rm -rf "$venv" "$log"
+          done
+
+          chunk_t1=$(date +%s%N)
+          chunk_wall_ms=$(( (chunk_t1 - chunk_t0) / 1000000 ))
+
+          # Build the durations JSON array; handle empty case under set -u.
+          if [[ ${#durations[@]} -eq 0 ]]; then
+            durations_json="[]"
+          else
+            durations_json="[$(IFS=,; echo "${durations[*]}")]"
+          fi
+
+          jq -nc \
+            --argjson chunk "$CHUNK" \
+            --argjson success "$success" \
+            --argjson failure "$failure" \
+            --argjson wall "$chunk_wall_ms" \
+            --argjson durations "$durations_json" \
+            --arg errors "$(printf '%s' "$errors" | head -c 2000)" \
+            '{chunk: $chunk, success: $success, failure: $failure, wall_ms: $wall, durations_ms: $durations, errors: $errors}' \
+            > "result-${CHUNK}.json"
+
+          echo "Chunk ${CHUNK} done: success=$success failure=$failure wall=${chunk_wall_ms}ms"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: install-result-${{ matrix.chunk }}
+          path: result-${{ matrix.chunk }}.json
+          retention-days: 14
+
+  # =============================================================================
+  # Stage 3 — aggregate, snapshot pypistats again, render report
+  # =============================================================================
+  aggregate:
+    name: Aggregate + report
+    needs: [pre, install]
+    # Always run the aggregator, even if some chunks failed — the partial
+    # picture is still useful and we want the summary visible.
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Only the helper script + its package metadata are needed.
+          # Sparse checkout keeps this step under 2s.
+          sparse-checkout: |
+            dev/tools
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Download chunk results
+        uses: actions/download-artifact@v4
+        with:
+          path: results
+          pattern: install-result-*
+          merge-multiple: true
+
+      - name: Download pre-snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: pre-stats
+          path: .
+
+      - name: Snapshot pypistats (after)
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 3 --retry-delay 2 \
+            "https://pypistats.org/api/packages/bernstein/recent" -o post_recent.json \
+            || echo '{"data":{},"error":"fetch failed"}' > post_recent.json
+          curl -fsS --retry 3 --retry-delay 2 \
+            "https://pypistats.org/api/packages/bernstein/overall" -o post_overall.json \
+            || echo '{"data":[],"error":"fetch failed"}' > post_overall.json
+          jq -n \
+            --slurpfile recent post_recent.json \
+            --slurpfile overall post_overall.json \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{ts: $ts, recent: $recent[0], overall: $overall[0]}' \
+            > post_stats.json
+
+      - name: Render report
+        env:
+          INSTALLS: ${{ inputs.installs }}
+          CONCURRENCY: ${{ inputs.concurrency }}
+          BERN_VERSION: ${{ inputs.version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python dev/tools/pypi_load_test.py report \
+            --results results \
+            --pre pre_stats.json \
+            --post post_stats.json \
+            --installs "$INSTALLS" \
+            --concurrency "$CONCURRENCY" \
+            --version "${BERN_VERSION:-latest}" \
+            --run-url "$RUN_URL" \
+            --md report.md \
+            --json report.json
+
+      # The Markdown report is the primary deliverable. GitHub renders the
+      # Step Summary file as the "Summary" tab on the workflow run, so
+      # operators see the report inline next to the run logs without having
+      # to download an artefact.
+      - name: Append report to job summary
+        run: cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: load-test-report
+          path: |
+            report.md
+            report.json
+            pre_stats.json
+            post_stats.json
+          retention-days: 30
+
+# =============================================================================
+# How to run
+# =============================================================================
+#
+# 1. Open  Actions → "PyPI install load test" → "Run workflow".
+# 2. Inputs:
+#      installs    — total pip installs to perform (100..3000)
+#      concurrency — max parallel matrix jobs (1..200)
+#      version     — optional pinned version (default: latest on PyPI)
+# 3. The "Aggregate + report" job's Summary tab renders the full report
+#    once the run is complete; the same report is uploaded as the
+#    `load-test-report` artefact (Markdown + JSON + pre/post snapshots).
+#
+# Suggested ramp:
+#   * 200    — smoke test; verify the workflow + helper script + reporting
+#   * 500    — typical run; ~5-10 min wall clock at concurrency 80
+#   * 1000   — moderate stress; concurrency 100-150
+#   * 2000+  — full stress; concurrency 150-200; budget 20-30 min
+#
+# Interpreting the report:
+#   * pypistats has a ~24-hour ingestion delay. The Δ columns immediately
+#     after the run will look like noise. Re-check
+#     https://pypistats.org/packages/bernstein in 24-48h.
+#   * pypistats classifies CI traffic into the `with_mirrors` bucket. The
+#     headline `without_mirrors` column is unlikely to move at all by
+#     design. That is correct behaviour, not a bug.
+#   * "Effective parallelism" = sum of all install durations ÷ longest
+#     chunk's wall clock. When the runner pool is healthy this number
+#     approaches `concurrency`. When it falls below, the runner pool is
+#     throttled (other jobs in the org sharing the runner pool, or
+#     GitHub-side capacity dips).
+#   * Failures are bucketed at the bottom of the report with the last 200
+#     chars of each pip install log. The most common failures are PyPI 5xx
+#     blips (retry-friendly) and runner DNS hiccups (also retry-friendly,
+#     but visible only via re-running the workflow).
+#
+# Reading the live PyPI page:
+#   https://pypistats.org/packages/bernstein  — daily/weekly/monthly +
+#   recent versions chart. The site updates ~once per day.

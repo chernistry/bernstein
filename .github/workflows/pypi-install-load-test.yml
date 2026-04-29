@@ -84,6 +84,13 @@ jobs:
           CONCURRENCY: ${{ inputs.concurrency }}
         run: |
           set -euo pipefail
+          # GitHub Actions serialises workflow_dispatch number inputs with a
+          # trailing .0 ("500.0" instead of "500") when they come from a
+          # default. Bash arithmetic chokes on the decimal, so strip it
+          # defensively before any [[ -lt ]] / $(( )) comparisons.
+          # Idempotent: ${INSTALLS%.*} of "500" stays "500".
+          INSTALLS=${INSTALLS%.*}
+          CONCURRENCY=${CONCURRENCY%.*}
           if [[ "$INSTALLS" -lt 100 || "$INSTALLS" -gt 3000 ]]; then
             echo "::error title=Invalid input::installs must be 100..3000 (got $INSTALLS)"
             exit 1
@@ -143,6 +150,9 @@ jobs:
           CONCURRENCY: ${{ inputs.concurrency }}
         run: |
           set -euo pipefail
+          # Same float-strip as the validation step — see comment there.
+          INSTALLS=${INSTALLS%.*}
+          CONCURRENCY=${CONCURRENCY%.*}
           chunks=$(( CONCURRENCY < INSTALLS ? CONCURRENCY : INSTALLS ))
           chunk_size=$(( (INSTALLS + chunks - 1) / chunks ))
           matrix=$(jq -nc --argjson n "$chunks" '{chunk: [range(1; $n + 1)]}')
@@ -175,7 +185,13 @@ jobs:
       # jobs by default; paid tiers / org plans typically raise this to
       # 60-180. We accept up to 200 here and let the runner pool throttle
       # the overflow if the tier is lower.
-      max-parallel: ${{ fromJson(inputs.concurrency) }}
+      #
+      # We read this from `pre.outputs.chunks` rather than `inputs.concurrency`
+      # directly — the pre-job has already stripped the `.0` GitHub appends
+      # to default workflow_dispatch number inputs, and `chunks` is exactly
+      # the number of matrix entries (so max-parallel == chunks lets every
+      # chunk run in parallel up to that cap, which is the whole point).
+      max-parallel: ${{ fromJson(needs.pre.outputs.chunks) }}
       matrix: ${{ fromJson(needs.pre.outputs.matrix) }}
     runs-on: ubuntu-latest
     # 30 min cap — at chunk_size up to 15 with avg 2-3s per install, this is

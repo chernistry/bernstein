@@ -244,25 +244,25 @@ Commands that eliminate the glue code most teams end up writing around their run
 
 The table above compares Bernstein against LLM-orchestration frameworks (they orchestrate LLM calls). The table below covers the closer category — other tools that orchestrate **CLI coding agents**:
 
-| Feature | Bernstein | [ComposioHQ/agent-orchestrator](https://github.com/ComposioHQ/agent-orchestrator) | [emdash](https://github.com/generalaction/emdash) | [umputun/ralphex](https://github.com/umputun/ralphex) |
-|---------|-----------|-----------|-----------|-----------|
-| Shape | Python CLI + library + MCP server | TypeScript CLI + local dashboard | Electron desktop app | Go CLI |
-| Primary language | Python | TypeScript | TypeScript | Go |
-| Install | `pipx install bernstein` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / single binary |
-| Agent adapters | 31 | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code only) |
-| Parallel multi-agent execution | Yes | Yes | Yes | No (single sequential session) |
-| Git worktree per agent | Yes | Yes | Yes | Optional `--worktree` flag |
-| MCP server mode (exposes self as MCP) | Yes (stdio + HTTP/SSE) | No | No | No |
-| Coordinator | Deterministic Python scheduler | LLM-driven | Not documented | Linear plan executor |
-| HMAC-chained audit replay | Yes | No | No | No |
-| Cross-model verifier / quality gates | Yes (multi-stage) | No | No | Multi-phase review (Claude only) |
-| Autonomous CI-fix / PR flow | Yes (`bernstein autofix`) | Yes | No | No |
-| Visual dashboard | TUI + web | Web | Desktop app | Web (`--serve`) |
-| Notification sinks | Telegram/Slack/Discord/Email/Webhook/Shell | No | No | Telegram / Email / Slack / Webhook |
-| Backing | Solo OSS | Funded (Composio.dev) | YC W26 | Solo OSS |
-| License | Apache 2.0 | MIT | Apache 2.0 | MIT |
+| Feature | Bernstein | [awslabs/cli-agent-orchestrator](https://github.com/awslabs/cli-agent-orchestrator) | [ComposioHQ/agent-orchestrator](https://github.com/ComposioHQ/agent-orchestrator) | [emdash](https://github.com/generalaction/emdash) | [umputun/ralphex](https://github.com/umputun/ralphex) |
+|---------|-----------|-----------|-----------|-----------|-----------|
+| Shape | Python CLI + library + MCP server | Python CLI + tmux sessions + web UI | TypeScript CLI + local dashboard | Electron desktop app | Go CLI |
+| Primary language | Python | Python | TypeScript | TypeScript | Go |
+| Install | `pipx install bernstein` | `uv tool install cli-agent-orchestrator` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / single binary |
+| Agent adapters | 37 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code only) |
+| Parallel multi-agent execution | Yes | Yes (tmux session per agent) | Yes | Yes | No (single sequential session) |
+| Git worktree per agent | Yes | No (planned, [#100](https://github.com/awslabs/cli-agent-orchestrator/issues/100)) | Yes | Yes | Optional `--worktree` flag |
+| MCP server mode (exposes self as MCP) | Yes (stdio + HTTP/SSE) | Yes (inter-agent comms) | No | No | No |
+| Coordinator | Deterministic Python scheduler | Hierarchical LLM supervisor | LLM-driven | Not documented | Linear plan executor |
+| HMAC-chained audit replay | Yes | No | No | No | No |
+| Cross-model verifier / quality gates | Yes (multi-stage) | No | No | No | Multi-phase review (Claude only) |
+| Autonomous CI-fix / PR flow | Yes (`bernstein autofix`) | No | Yes | No | No |
+| Visual dashboard | TUI + web | Web UI + tmux | Web | Desktop app | Web (`--serve`) |
+| Notification sinks | Telegram/Slack/Discord/Email/Webhook/Shell | — | No | No | Telegram / Email / Slack / Webhook |
+| Backing | Solo OSS | AWS Labs | Funded (Composio.dev) | YC W26 | Solo OSS |
+| License | Apache 2.0 | Apache 2.0 | MIT | Apache 2.0 | MIT |
 
-Bernstein's wedge in this category: **Python-native, MCP-server-first, widest adapter coverage, true multi-agent parallelism**. If your stack is TypeScript and you want a product with a dashboard, Composio's `@aoagents/ao` is a better fit; if you want a polished desktop ADE, emdash is; if you only use Claude Code and want a single Go binary that walks a plan top-to-bottom, ralphex is. If you want a primitive that imports into Python, exposes itself over MCP to any client, runs many agents in parallel, and covers the full agent breadth (including Qwen, Goose, Ollama, OpenAI Agents SDK, Cloudflare Agents, and more) — Bernstein.
+Bernstein's wedge in this category: **Python-native, MCP-server-first, widest adapter coverage, true multi-agent parallelism, deterministic scheduler with no LLM in the coordination loop**. If you want AWS-aligned tmux-session isolation with a hierarchical LLM supervisor, AWS Labs' `cao` is a closer fit; if your stack is TypeScript and you want a product with a dashboard, Composio's `@aoagents/ao` is a better fit; if you want a polished desktop ADE, emdash is; if you only use Claude Code and want a single Go binary that walks a plan top-to-bottom, ralphex is. If you want a primitive that imports into Python, exposes itself over MCP to any client, runs many agents in parallel, and covers the full agent breadth (including Qwen, Goose, Ollama, OpenAI Agents SDK, Cloudflare Agents, and more) — Bernstein.
 
 [^autogen]: AutoGen is in maintenance mode; successor is Microsoft Agent Framework 1.0.
 
@@ -339,6 +339,47 @@ PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and code style.
 If Bernstein saves you time: [GitHub Sponsors](https://github.com/sponsors/chernistry)
 
 Contact: [forte@bernstein.run](mailto:forte@bernstein.run)
+
+## Featured in
+
+Curated lists, newsletters, and peer projects that picked up Bernstein:
+
+- [**Python Weekly #742**](https://www.pythonweekly.com/p/python-weekly-issue-742-april-23-2026) (April 23, 2026) — newsletter mention.
+- [**Augment Code — 9 Open-Source Agent Orchestrators for AI Coding (2026)**](https://www.augmentcode.com/tools/open-source-agent-orchestrators) — editorial roundup; "the most architecturally interesting tool in this roundup."
+- [**nibzard/awesome-agentic-patterns**](https://github.com/nibzard/awesome-agentic-patterns/blob/main/patterns/deterministic-zero-llm-orchestration.md) — Bernstein cited as the production implementation of the "deterministic zero-LLM orchestration" pattern.
+- [**Jenqyang/Awesome-AI-Agents**](https://github.com/Jenqyang/Awesome-AI-Agents)
+- [**jamesmurdza/awesome-ai-devtools**](https://github.com/jamesmurdza/awesome-ai-devtools)
+- [**jim-schwoebel/awesome_ai_agents**](https://github.com/jim-schwoebel/awesome_ai_agents)
+- [**Piebald-AI/awesome-gemini-cli**](https://github.com/Piebald-AI/awesome-gemini-cli)
+- [**ComposioHQ/awesome-codex-skills**](https://github.com/ComposioHQ/awesome-codex-skills)
+- [**jxzhangjhu/Awesome-LLM-RAG**](https://github.com/jxzhangjhu/Awesome-LLM-RAG)
+- [**rohitg00/awesome-claude-code-toolkit**](https://github.com/rohitg00/awesome-claude-code-toolkit)
+- [**numtide/llm-agents.nix**](https://github.com/numtide/llm-agents.nix) — Nix flake distribution.
+
+<details>
+<summary>More awesome lists & community curation</summary>
+
+- [andyrewlee/awesome-agent-orchestrators](https://github.com/andyrewlee/awesome-agent-orchestrators)
+- [bradAGI/awesome-cli-coding-agents](https://github.com/bradAGI/awesome-cli-coding-agents)
+- [milisp/awesome-codex-cli](https://github.com/milisp/awesome-codex-cli)
+- [yaolifeng0629/Awesome-independent-tools](https://github.com/yaolifeng0629/Awesome-independent-tools) (中文 + EN)
+- [caramaschiHG/awesome-ai-agents-2026](https://github.com/caramaschiHG/awesome-ai-agents-2026)
+- [ai-for-developers/awesome-vibe-coding](https://github.com/ai-for-developers/awesome-vibe-coding)
+- [killop/anything_about_game](https://github.com/killop/anything_about_game) (`AI.md`)
+- [Glama MCP Catalog](https://glama.ai/mcp/servers/chernistry/bernstein) — editorial MCP server listing.
+- Mirrors: [icopy-site/awesome](https://github.com/icopy-site/awesome), [icopy-site/awesome-cn](https://github.com/icopy-site/awesome-cn), [trackawesomelist/trackawesomelist](https://github.com/trackawesomelist/trackawesomelist).
+
+</details>
+
+<details>
+<summary>Cited as prior art by peer projects</summary>
+
+- [**mkb23/overcode**](https://github.com/mkb23/overcode/blob/main/docs/design/bakeoffs/overcode-vs-bernstein.md) — long-form bakeoff treating Bernstein as the reference implementation.
+- [**Vintersong/NOVA-Cognition-Framework**](https://github.com/Vintersong/NOVA-Cognition-Framework) — `BERNSTEIN_PATTERNS.md`, "Patterns Worth Borrowing".
+- [**AJV009/drupal-contrib-workbench**](https://github.com/AJV009/drupal-contrib-workbench) — research notes on the manager/janitor split.
+- [**danielvaughan/codex-blog**](https://github.com/danielvaughan/codex-blog/blob/main/_posts/2026-04-09-loki-mode-autonomous-execution.md) — comparison article positioning Bernstein on the deterministic end.
+
+</details>
 
 ## Star History
 

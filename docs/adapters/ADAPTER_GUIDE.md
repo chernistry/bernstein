@@ -1,8 +1,9 @@
 # Adapter Selection Guide
 
-Bernstein ships 37 CLI agent adapters in `src/bernstein/adapters/` (36 named
-third-party wrappers plus a `generic` catch-all), along with support modules
-(caching, conformance testing, environment isolation, plugin SDK, etc.).
+Bernstein ships 42 registered CLI agent adapters in `src/bernstein/adapters/`
+(41 named third-party wrappers plus a `generic` catch-all), along with support
+modules (caching, conformance testing, environment isolation, plugin SDK,
+etc.).
 
 All CLI agent adapters implement the `CLIAdapter` interface (`adapters/base.py`):
 `spawn()`, process monitoring via PID, log capture to `.sdd/runtime/<session>.log`,
@@ -453,7 +454,7 @@ Runs OpenAI Codex inside Cloudflare sandboxes for isolated, scalable execution.
 
 **Configuration:** `CodexSandboxConfig` with `cloudflare_account_id`, `cloudflare_api_token`, `openai_api_key`, `sandbox_image`, `max_execution_minutes`, `memory_mb`, `cpu_cores`, `network_access`, `r2_bucket`.
 
-**Best for:** Running Codex agents in isolated environments where you need container-level security and R2-based workspace sync. See the [Cloudflare Adapters guide](cloudflare-adapters.md) for full details.
+**Best for:** Running Codex agents in isolated environments where you need container-level security and R2-based workspace sync. See the [Cloudflare Adapters guide](../cloudflare/cloudflare-adapters.md) for full details.
 
 ---
 
@@ -703,7 +704,7 @@ Use these when you have an existing workflow built on Composio or ralphex and wa
 
 ## Support Modules
 
-In addition to the 37 CLI agent adapters above, the adapter package includes
+In addition to the 42 registered CLI agent adapters above, the adapter package includes
 support modules that provide cross-cutting infrastructure:
 
 | Module | Purpose |

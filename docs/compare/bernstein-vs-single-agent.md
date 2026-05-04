@@ -90,6 +90,6 @@ Most users start with single-agent Claude Code or Codex. Bernstein solves specif
 
 - [Bernstein benchmark methodology and raw data](../../benchmarks/README.md)
 - [Full comparison matrix](./README.md)
-- [Zero lock-in: model-agnostic orchestration](../zero-lock-in.md)
+- [Why deterministic orchestration: model-agnostic by construction](../architecture/WHY_DETERMINISTIC.md)
 </content>
 </invoke>

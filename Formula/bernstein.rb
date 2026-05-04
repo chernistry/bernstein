@@ -3,8 +3,10 @@ class Bernstein < Formula
 
   desc "Multi-agent orchestration for CLI coding agents"
   homepage "https://github.com/chernistry/bernstein"
-  url "https://files.pythonhosted.org/packages/7f/3f/a0c82320607dd3002190ce94e0d7f13c5e3198291cf666a5917349447adc/bernstein-1.4.10.tar.gz"
-  sha256 "cb5e0f11d521a7237bf982a6eea3c3017613ba640044b5030e0f08b9d79cdbd3"
+  # TODO: regenerate sha256 + tarball URL after release tag for 1.9.3
+  url "https://files.pythonhosted.org/packages/source/b/bernstein/bernstein-1.9.3.tar.gz"
+  sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+  version "1.9.3"
   license "MIT"
 
   depends_on "python@3.12"

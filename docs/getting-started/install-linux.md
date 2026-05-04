@@ -115,7 +115,7 @@ rpm -K bernstein-*.rpm
 | uv     | `uv tool install bernstein` |
 | pip    | `pip install bernstein` |
 | npm    | `npx bernstein-orchestrator` (requires Python 3.12+) |
-| Docker | `docker run ghcr.io/sipyourdrink-ltd/bernstein` |
+| Docker | `docker run -v "$(pwd)":/workspace -p 8052:8052 ghcr.io/sipyourdrink-ltd/bernstein -g "your goal"` |
 
 ---
 

@@ -240,5 +240,5 @@ For 737 tasks over 47 hours, 12 agents:
 
 - [ADR-001: Agent Lifecycle Model](../decisions/001-agent-lifecycle.md) — Full analysis of hunger vs. pull vs. short-lived models with rag_challenge data
 - [ADR-006: No Embedded LLM in the Orchestrator](../decisions/006-no-embedded-llm.md) — Why the control plane is deterministic code
-- [Why Deterministic Orchestration](../WHY_DETERMINISTIC.md) — Narrative explainer with first-principles reasoning
-- [Architecture](../ARCHITECTURE.md) — Full system diagram and module breakdown
+- [Why Deterministic Orchestration](../architecture/WHY_DETERMINISTIC.md) — Narrative explainer with first-principles reasoning
+- [Architecture](../architecture/ARCHITECTURE.md) — Full system diagram and module breakdown

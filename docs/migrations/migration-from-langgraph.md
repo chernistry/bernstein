@@ -657,8 +657,8 @@ Each spawn takes 5-30 seconds depending on the agent. To optimize:
 
 ## What to read next
 
-- [Plans reference](plans.md) — full YAML schema for plan files
+- Plans reference — full YAML schema for plan files (forthcoming)
 - [Configuration reference](CONFIG.md) — all bernstein.yaml options
 - [Architecture](ARCHITECTURE.md) — how the orchestrator works internally
-- [Plugin SDK](plugin-sdk.md) — extend Bernstein with custom hooks
+- [Plugin SDK](../integrations/plugin-sdk.md) — extend Bernstein with custom hooks
 - [Quality gates](ARCHITECTURE.md#quality-gates) — configuring verification

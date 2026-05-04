@@ -1,115 +1,114 @@
 # Bernstein vs. Stoneforge
 
-> **tl;dr** — Stoneforge is a provider-integrated multi-agent coding framework with git worktrees, a merge queue, and an IDE plugin story. Bernstein is provider-agnostic and CLI-native, trading the IDE UX for model flexibility, 31 adapters, headless runs, and `--evolve`. Neither is better in the abstract — the question is whether provider lock-in matters for your workflow.
+> **tl;dr** -- Stoneforge is a **provider-agnostic** web dashboard that orchestrates Claude Code, OpenCode, and OpenAI Codex agents in isolated git worktrees with a steward-style merge queue. Bernstein is a **CLI-first** orchestrator that wraps 39+ CLI agents with deterministic Python scheduling, an external janitor, and budget-capped headless runs. The real question is whether you want a browser tab open while agents work, or whether you want to point a terminal at the project and walk away.
 
-*Last verified: 2026-04-19. Stoneforge launched 2026-03-03 with git worktrees and merge-queue support.*
-
----
-
-## What each tool is
-
-**Stoneforge** is a multi-agent coding framework built around a specific AI provider's model. It runs multiple specialized agents within a structured session, with strong IDE plugin support and a first-party UI for viewing agent activity. The tight provider integration enables features like shared context across agents and provider-native tool use.
-
-**Bernstein** is provider-agnostic. It wraps whichever CLI coding agent you have installed — Claude Code, Codex, Gemini CLI, Qwen, or any CLI with a `--prompt` flag. The orchestrator is deterministic Python code. Agent sessions are isolated processes that exit after 1-3 tasks.
+*Last verified: 2026-05-04 against [github.com/stoneforge-ai/stoneforge](https://github.com/stoneforge-ai/stoneforge) (v1.24.0, Apache 2.0, 138 stars).*
 
 ---
 
-## Feature comparison
+## What Stoneforge actually is
 
-| Feature | Bernstein | Stoneforge |
+Stoneforge is a web dashboard and runtime for orchestrating AI coding agents. It runs locally on `http://localhost:3457` and exposes:
+
+- a Kanban board, planning view, and real-time agent activity feed
+- an in-browser code editor (Monaco + LSP)
+- a merge-request review queue staffed by **steward agents** that run tests, squash-merge on green, and emit handoff tasks on red
+- channel-based messaging and a document library shared across agents
+
+Under the hood: each worker gets its **own git worktree** (no shared session), event-sourced state in JSONL with a SQLite cache for query speed, and provider selection per-agent across **Claude Code (default), OpenCode, and OpenAI Codex**. Authentication is delegated to whichever underlying agent CLI you point it at -- Stoneforge never holds provider keys directly.
+
+---
+
+## When to pick Stoneforge
+
+- **You want to watch.** A browser dashboard with a Kanban board and live activity feed is genuinely better UX than tailing logs when you're actively monitoring agents.
+- **You want a shared knowledge base across agents.** Stoneforge's channel/document model lets agents read each other's notes; Bernstein keeps each agent's context isolated by design.
+
+## When to pick Bernstein
+
+- **You want unattended runs.** `bernstein --headless --budget 20` runs to backlog-empty or budget-exhausted with no UI to keep open. Stoneforge's web dashboard is its primary interface.
+- **You need broader CLI coverage.** Bernstein wraps 39+ adapters (Claude, Codex, Gemini, Cursor, Aider, Amp, Kilo, Kiro, Goose, OpenCode, Qwen, Cody, Continue, Ollama, IAC, Copilot, Droid, Cline, Codebuff, Hermes, Auggie, Kimi, Rovo, Pi, Mistral, AutoHand, Forge, Plandex, OpenHands, OpenInterpreter, AIChat, GPTMe, Charm, Composio, Letta Code, Ralphex, generic, plus Claude tier variants). Stoneforge supports three providers.
+
+---
+
+## Side-by-side
+
+| Dimension | Bernstein | Stoneforge |
 |---|---|---|
-| **Provider flexibility** | Any CLI agent (31 adapters) | Single provider |
-| **CLI agent support** | Yes — wraps installed CLI tools | No — uses provider SDK directly |
-| **IDE integration** | No — terminal-native | Yes — VS Code, JetBrains plugins |
-| **Task planning** | LLM planner from natural language goal | Structured prompt with agent roles |
-| **Agent isolation** | Git worktree per agent, process isolation | Git worktrees + merge queue |
-| **Result verification** | External janitor (tests, linter, files) | Provider-native tool verification |
-| **Self-evolution** | Yes — `--evolve` mode | No |
-| **Model routing** | Cost-aware bandit across providers | Fixed to provider models |
-| **Headless operation** | Yes — CI pipelines, overnight runs | Limited |
-| **Multi-repo support** | Yes — workspace mode | No |
-| **Cost optimization** | Routes cheap models to simple tasks | Fixed to provider pricing |
-| **Agent catalogs** | Yes — Agency + custom catalogs | No |
-| **Chat bridges (Telegram / Discord / Slack)** *(only Bernstein)* | Yes — `bernstein chat serve --platform=telegram\|discord\|slack` | No |
-| **SSH remote sandbox** *(only Bernstein)* | Yes — `bernstein remote test/run/forget <host>` with ControlMaster reuse | No |
-| **Lifecycle hooks (pre/post task, merge, spawn)** *(only Bernstein)* | Yes — `bernstein hooks` (shell scripts or pluggy `@hookimpl`) | No |
-| **Auto-PR with janitor gate + cost summary** *(only Bernstein)* | Yes — `bernstein pr` | No |
-| **Tunnel wrapper (cloudflared / ngrok / bore / tailscale)** *(only Bernstein)* | Yes — `bernstein tunnel start/list/stop` | No |
-| **Interactive mid-run tool-call approval** *(only Bernstein)* | Yes — `bernstein approve-tool` / `reject-tool` (`--latest`, `--id`, `--always`) | Provider-native only |
-| **Daemon / service install (systemd / launchd)** *(only Bernstein)* | Yes — `bernstein daemon install/start/stop/status` | No |
-| **Open source license** | Apache 2.0 | Apache 2.0 |
+| **Primary interface** | CLI + TUI + REST API | Web dashboard at `localhost:3457` |
+| **Provider coverage** | 39+ CLI adapters | 3 (Claude Code, OpenCode, OpenAI Codex) |
+| **Agent isolation** | Per-task worktree, fresh process, exits after 1-3 tasks | Per-worker worktree, persistent worker session |
+| **Coordination model** | Deterministic Python scheduler, zero LLM tokens on coordination | Event-sourced (JSONL + SQLite cache), steward-driven merge queue |
+| **Verification** | External janitor: lint, tests, type-check, custom gates | Steward agent runs tests; merges on pass, handoff task on fail |
+| **Persistence** | `.sdd/` files in repo (WAL, CAS store, backlog YAMLs) | JSONL event log + SQLite cache; survives restarts |
+| **Headless / overnight** | Native (`--headless --budget`) | Possible but the UI is the design center |
+| **License** | Apache 2.0 | Apache 2.0 |
+| **Maturity / scale** | v1.9.x, multi-thousand stars | v1.24.0 (Apr 2026), 138 stars |
 
 ---
 
-## Architecture comparison
+## Architecture
 
-**Stoneforge (provider-integrated):**
-```
-IDE plugin / Stoneforge UI
-    │
-    ▼
-Provider API (single vendor)
-    │
-    ├── Agent 1 (specialized role, shared session context)
-    ├── Agent 2 (specialized role, shared session context)
-    └── Agent 3 (specialized role, shared session context)
+**Stoneforge:**
 
-Context is shared. Agents see each other's output within the provider session.
 ```
-
-**Bernstein (CLI-native, provider-agnostic):**
-```
-bernstein -g "goal"  (terminal)
-    │
-    ▼
-Task server (local FastAPI, no external dependencies)
-    │
-    ├── Task A → claude (isolated worktree, fresh context) → janitor → merge
-    ├── Task B → codex  (isolated worktree, fresh context) → janitor → merge  ← any provider
-    └── Task C → gemini (isolated worktree, fresh context) → janitor → merge
+Web dashboard (localhost:3457)
+    |
+    v
+Stoneforge runtime  ----  event log (JSONL) + SQLite cache
+    |
+    +-- Worker 1 (Claude Code)  in worktree-1   ---+
+    +-- Worker 2 (OpenCode)     in worktree-2   ---+--> Steward agent --> merge queue
+    +-- Worker 3 (Codex)        in worktree-3   ---+
 ```
 
-Stoneforge's shared context means agents can reference each other's reasoning — useful for complex decisions but risky if one agent's hallucination propagates. Bernstein's isolation means each agent starts clean — no accumulated state, but also no cross-agent awareness.
+**Bernstein:**
+
+```
+bernstein -g "goal"   (terminal)
+    |
+    v
+Task server (deterministic Python, .sdd/ files)
+    |
+    +-- Task A -> claude  (isolated worktree, fresh context) -> janitor -> merge
+    +-- Task B -> codex   (isolated worktree, fresh context) -> janitor -> merge
+    +-- Task C -> gemini  (isolated worktree, fresh context) -> janitor -> merge
+```
+
+Both projects converge on per-worker git worktrees as the isolation primitive. They diverge on what sits above: Stoneforge's dashboard + steward + persistent workers vs Bernstein's deterministic scheduler + janitor + short-lived agent processes.
+
+---
+
+## Notes on a previous version of this page
+
+Earlier drafts of this comparison described Stoneforge as "provider-integrated", "single-provider", and "IDE-integrated" with VS Code and JetBrains plugins. None of that matches the current upstream:
+
+- Stoneforge is **provider-agnostic** -- per-agent selection across Claude Code, OpenCode, and Codex.
+- It is a **web dashboard** at `localhost:3457`, not an IDE plugin. There are no VS Code or JetBrains extensions in the repo.
+- Agents run in **isolated worktrees**, not a shared provider session. Coordination happens via the event log + steward agent, not via a shared context window.
+
+The "provider lock-in" framing in the previous page therefore did not apply to Stoneforge. This rewrite drops it.
 
 ---
 
 ## Cost comparison
 
-Stoneforge costs are determined by the underlying provider pricing. If you use a single high-end model for all agents, costs reflect that.
+Bernstein routes simple tasks to cheaper Claude tiers (Haiku) and reserves expensive tiers for high-complexity work via the **cascade router** (`core/routing/cascade_router.py`). Effective per-task cost in mixed workloads is typically lower than running every task on a single premium tier.
 
-Bernstein's bandit router reduces cost on low-complexity tasks by routing to Haiku or free-tier Gemini. For a mixed workload, the effective cost per task can be lower than running all tasks against a premium model. Early pilot: 40%/48% resolve on 25 issues (+8 pp, p=0.569, n=25, "negligible effect"); larger evaluation pending. See [`benchmarks/README.md`](../../benchmarks/README.md).
+Stoneforge cost is determined by whichever provider you pick for each agent; there is no built-in cross-tier cost optimization within a single provider. Picking the right model per task is up to the operator. For a team that already standardizes on one provider per project, this is fine; for a workload that mixes complexity, Bernstein's bandit pays for itself.
 
----
-
-## Provider lock-in: an honest assessment
-
-Stoneforge's tight provider integration is a genuine advantage — features that require deep access to provider internals (streaming token inspection, native tool use, session-level memory) work better with first-party integration. If you plan to stay with one provider indefinitely, this is a reasonable trade.
-
-The risk: if that provider raises prices, introduces rate limits, or you want to use a newer model from a different lab, switching Stoneforge means rebuilding your orchestration layer. Bernstein's adapters abstract the provider interface — swapping from `--cli claude` to `--cli codex` is one flag change.
+Either tool's cost model is dominated by which models you use, not by orchestration overhead.
 
 ---
 
-## When to use Stoneforge instead
+## Conclusion
 
-- **You're committed to one provider.** If your policy, compliance, or trust model locks you to a specific AI vendor, Stoneforge's first-party integration makes more sense than Bernstein's general adapter layer.
-- **You want IDE integration.** Stoneforge's VS Code and JetBrains plugins show agent activity inline, in your existing editor. Bernstein is terminal + TUI only.
-- **You need shared context across agents.** Problems where agents need to read each other's output mid-task are better served by Stoneforge's shared session model.
-- **First-party support and SLAs matter.** Stoneforge offers commercial support from the vendor. Bernstein is community-supported (Apache 2.0).
-
----
-
-## When to use Bernstein instead
-
-- **You want provider flexibility.** Mix Claude, Codex, Gemini, OpenAI Agents SDK v2, and Qwen in the same run across 31 adapters. Route tasks to the cheapest capable model. Switch providers if pricing or quality changes.
-- **You want no vendor dependency for orchestration logic.** Your task definitions, role templates, janitor rules, and evolution config are plain files — no vendor SDK imports.
-- **You want headless, overnight operation.** CI pipelines, scheduled evolution runs, budget-capped overnight sessions.
-- **You want self-evolution.** Bernstein analyzes its own metrics and improves prompts, routing rules, and templates over time.
-- **You prefer CLI-native tooling.** No IDE extension required. Works in any terminal, including SSH sessions.
+Both projects are honest about what they are. Stoneforge is the right pick when a human is actively in the loop and the project benefits from a shared knowledge surface across agents. Bernstein is the right pick when the run must complete unattended, on a CI runner, or across an adapter set that goes beyond the three providers Stoneforge currently supports.
 
 ---
 
 ## See also
 
-- [Bernstein benchmark: multi-agent vs single-agent](../../benchmarks/README.md)
-- [Bernstein vs. CrewAI](../migrations/migration-from-crewai.md)
-- [Bernstein vs. single agent](./bernstein-vs-single-agent.md)
+- [compare/README.md](./README.md)
+- [bernstein-vs-single-agent.md](./bernstein-vs-single-agent.md)
+- [Stoneforge upstream](https://github.com/stoneforge-ai/stoneforge)

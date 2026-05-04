@@ -129,7 +129,7 @@ This workflow generates a human-readable compatibility table from protocol test 
    ![A2A](https://img.shields.io/badge/a2a-0.2%2C%200.3-blue)
    ![ACP](https://img.shields.io/badge/acp-latest-brightgreen)
 
-   [See full compatibility matrix](docs/compatibility.md)
+   [See full compatibility matrix](../../docs/adapters/compatibility.md)
    ```
 
 **Timeout**: 10s

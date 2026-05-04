@@ -33,7 +33,7 @@ bernstein --version
 You should see something like:
 
 ```
-bernstein 1.5.3
+bernstein 1.9.3
 ```
 
 > **If you see "command not found"**: Make sure your tool bin directory is on `$PATH`.
@@ -297,11 +297,11 @@ You have a working Bernstein setup. Here are common next steps:
 
 Useful references:
 
-- [Configuration reference](CONFIG.md) — full `bernstein.yaml` options
-- [Security Hardening Guide](security-hardening.md) — permission modes, sandboxing, audit logging
-- [Architecture guide](ARCHITECTURE.md) — how the orchestrator, spawner, and janitor work
-- [Deployment guide](deployment-guide.md) — Docker, Kubernetes, CI/CD
-- [Cost optimization](cost-optimization.md) — reduce API spend
+- [Configuration reference](../operations/CONFIG.md) — full `bernstein.yaml` options
+- [Security Hardening Guide](../security/security-hardening.md) — permission modes, sandboxing, audit logging
+- [Architecture guide](../architecture/ARCHITECTURE.md) — how the orchestrator, spawner, and janitor work
+- [Deployment guide](../operations/deployment-guide.md) — Docker, Kubernetes, CI/CD
+- [Cost optimization](../operations/cost-optimization.md) — reduce API spend
 
 ---
 

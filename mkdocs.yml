@@ -4,7 +4,7 @@ site_author: Alex Chernysh
 site_description: >-
   Bernstein is the open-source multi-agent orchestration platform for AI coding
   agents. Run Claude Code, Codex, Gemini CLI, and the OpenAI Agents SDK in
-  parallel with deterministic scheduling, 18 adapters, pluggable sandbox
+  parallel with deterministic scheduling, 42 adapters, pluggable sandbox
   backends, cloud artifact storage, and zero vendor lock-in.
 repo_url: https://github.com/sipyourdrink-ltd/bernstein
 repo_name: sipyourdrink-ltd/bernstein
@@ -141,71 +141,69 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Getting Started:
-      - Quickstart: getting-started/GETTING_STARTED.md
+  - Get started:
+      - Install: getting-started/install.md
+      - First run: getting-started/first-run.md
       - Tutorial: getting-started/quickstart-tutorial.md
       - Install on Linux: getting-started/install-linux.md
       - Configuration: operations/CONFIG.md
   - Concepts:
       - Architecture: architecture/ARCHITECTURE.md
-      - Design: architecture/DESIGN.md
-      - Task Lifecycle: architecture/LIFECYCLE.md
-      - Why Deterministic: architecture/WHY_DETERMINISTIC.md
-      - Sandbox Backends: architecture/sandbox.md
-      - Artifact Storage: architecture/storage.md
-      - Skill Packs: architecture/skills.md
+      - Why deterministic: architecture/WHY_DETERMINISTIC.md
+      - Task lifecycle: architecture/LIFECYCLE.md
+      - Quality pipeline: architecture/quality-pipeline.md
+      - Model routing: architecture/model-routing.md
+      - State persistence: architecture/state-persistence.md
+      - Permission modes: architecture/permission-modes.md
+      - Sandbox backends: architecture/sandbox.md
+      - Artifact storage: architecture/storage.md
+      - Skill packs: architecture/skills.md
+      - Design notes: architecture/DESIGN.md
       - Glossary: reference/GLOSSARY.md
-  - Guides:
-      - Adapter Guide: adapters/ADAPTER_GUIDE.md
+  - Adapters & integrations:
+      - Adapter guide: adapters/ADAPTER_GUIDE.md
       - OpenAI Agents SDK: adapters/openai-agents.md
-      - Hook System: integrations/hook-system.md
+      - Compatibility: adapters/compatibility.md
+      - Hook system: integrations/hook-system.md
       - Plugin SDK: integrations/plugin-sdk.md
-      - Cost Optimization: operations/cost-optimization.md
-      - Performance Tuning: operations/performance-tuning.md
-      - Security Hardening: security/security-hardening.md
+      - MCP server injection: integrations/mcp-server-injection.md
       - GitHub Action: integrations/github-action.md
-      - GitHub App Setup: integrations/github-app-setup.md
-  - Deployment:
-      - Deployment Guide: operations/deployment-guide.md
-      - Deployment Reference: operations/DEPLOYMENT.md
+      - GitHub App: integrations/github-app-setup.md
+  - Operations:
+      - Deployment: operations/DEPLOYMENT.md
+      - Deployment guide (long): operations/deployment-guide.md
+      - Helm chart: operations/HELM_DEPLOYMENT.md
+      - Cluster mode: operations/cluster-mode.md
+      - Security & identity: operations/security-and-identity.md
+      - Env isolation: operations/env-isolation.md
+      - Verification tracking: operations/verification-tracking.md
+      - Observability: operations/observability-overview.md
+      - Cost optimization: operations/cost-optimization.md
+      - Performance tuning: operations/performance-tuning.md
       - Runbooks: operations/runbooks.md
-      - Cluster Mode: architecture/CLUSTER.md
-      - Helm Deployment: operations/HELM_DEPLOYMENT.md
+      - Troubleshooting: operations/TROUBLESHOOTING.md
+      - Model policy: operations/MODEL_POLICY.md
   - Cloud / Cloudflare:
       - Overview: cloudflare/cloudflare-overview.md
       - Setup: cloudflare/cloudflare-setup.md
+      - Cloud CLI: cloudflare/cloudflare-cli.md
       - Bridges: cloudflare/cloudflare-bridges.md
       - Adapters: cloudflare/cloudflare-adapters.md
       - Workers AI: cloudflare/cloudflare-ai.md
-      - Analytics & Caching: cloudflare/cloudflare-analytics.md
-      - Cloud CLI: cloudflare/cloudflare-cli.md
       - MCP Remote: cloudflare/cloudflare-mcp.md
+      - Analytics: cloudflare/cloudflare-analytics.md
   - Reference:
-      - What's New: whats-new.md
-      - API Reference: reference/openapi-reference.md
-      - ACP Bridge: reference/acp-bridge.md
-      - Feature Matrix: reference/FEATURE_MATRIX.md
-      - Model Policy: operations/MODEL_POLICY.md
-      - Compatibility: adapters/compatibility.md
-      - Dependency Resolver: architecture/DEPENDENCY_RESOLVER.md
-      - Known Limitations: reference/KNOWN_LIMITATIONS.md
-      - Competitive Matrix: reference/competitive-matrix.md
-      - Troubleshooting: operations/TROUBLESHOOTING.md
+      - What's new: whats-new.md
+      - API reference: reference/openapi-reference.md
+      - ACP bridge: reference/acp-bridge.md
+      - Feature matrix: reference/FEATURE_MATRIX.md
+      - Known limitations: reference/KNOWN_LIMITATIONS.md
+      - Competitive matrix: reference/competitive-matrix.md
+      - Dependency resolver: architecture/DEPENDENCY_RESOLVER.md
       - Changelog: CHANGELOG.md
-  - Migration:
-      - Migration Guides: migrations/migration-guides.md
-      - From CrewAI: migrations/migration-from-crewai.md
-      - From LangGraph: migrations/migration-from-langgraph.md
-  - Blog:
-      - Ten Agents One Release: blog/ten-agents-one-release.md
-      - v1.9 — Four Commands That Close the Last-Mile Gap: blog/v1.9-four-commands-last-mile.md
-      - Zero-LLM Coordination: blog/zero-llm-coordination.md
-      - Multi-Agent Benchmark: blog/multi-agent-benchmark.md
-      - Self-Evolution 30 Days: blog/self-evolution-30-days.md
-      - SWE-Bench Thesis: blog/swe-bench-orchestration-thesis.md
-      - COBOL Modernization: blog/cobol-modernization.md
   - Comparisons:
       - OpenAI Agents vs Codex vs Claude: compare/openai-agents.md
+      - Deterministic vs LLM orchestration: compare/deterministic-vs-llm-orchestration.md
       - vs Conductor: compare/bernstein-vs-conductor.md
       - vs Crystal: compare/bernstein-vs-crystal.md
       - vs Dorothy: compare/bernstein-vs-dorothy.md
@@ -214,19 +212,35 @@ nav:
       - vs Parallel Code: compare/bernstein-vs-parallel-code.md
       - vs Single Agent: compare/bernstein-vs-single-agent.md
       - vs Stoneforge: compare/bernstein-vs-stoneforge.md
-      - Deterministic vs LLM orchestration: compare/deterministic-vs-llm-orchestration.md
-      - Competitive Matrix: reference/competitive-matrix.md
+      - vs AgentsMesh: compare/bernstein-vs-agentsmesh.md
+      - vs claude-flow: compare/bernstein-vs-claude-flow.md
+      - vs Claude Squad: compare/bernstein-vs-claude-squad.md
+  - Migration:
+      - Migration guides: migrations/migration-guides.md
+      - From CrewAI: migrations/migration-from-crewai.md
+      - From LangGraph: migrations/migration-from-langgraph.md
+  - Blog:
+      - Ten agents one release: blog/ten-agents-one-release.md
+      - v1.9 — Four commands that close the last-mile gap: blog/v1.9-four-commands-last-mile.md
+      - Zero-LLM coordination: blog/zero-llm-coordination.md
+      - Multi-agent benchmark: blog/multi-agent-benchmark.md
+      - Self-evolution 30 days: blog/self-evolution-30-days.md
+      - SWE-Bench thesis: blog/swe-bench-orchestration-thesis.md
+      - COBOL modernization: blog/cobol-modernization.md
   - Decisions:
-      - Agent Lifecycle: decisions/001-agent-lifecycle.md
-      - UX and Distribution: decisions/002-ux-and-distribution.md
-      - Self-Evolution: decisions/003-self-evolution.md
-      - File-Based State: decisions/004-file-based-state.md
-      - Short-Lived Agents: decisions/005-short-lived-agents.md
-      - No Embedded LLM: decisions/006-no-embedded-llm.md
-      - Pluggy Plugin System: decisions/007-pluggy-plugin-system.md
+      - Agent lifecycle: decisions/001-agent-lifecycle.md
+      - UX and distribution: decisions/002-ux-and-distribution.md
+      - Self-evolution: decisions/003-self-evolution.md
+      - File-based state: decisions/004-file-based-state.md
+      - Short-lived agents: decisions/005-short-lived-agents.md
+      - No embedded LLM: decisions/006-no-embedded-llm.md
+      - Pluggy plugin system: decisions/007-pluggy-plugin-system.md
       - Click for CLI: decisions/008-click-for-cli.md
-  - Contributing: CONTRIBUTING.md
-  - Audit: security/AUDIT.md
+  - Security:
+      - Hardening: security/security-hardening.md
+      - SOC 2 audit: security/AUDIT.md
+      - Bug bounty: security/bug-bounty.md
+      - Acknowledgments: security/security-acknowledgments.md
   - Benchmarks: benchmarks/BENCHMARKS.md
 
 docs_dir: docs

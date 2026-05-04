@@ -109,6 +109,27 @@ available = router.get_available_providers()  # Returns 8 (not 10)
 decision = router.select_provider_for_task(task)  # Selected from 8
 ```
 
+## Cost-Aware Cascading
+
+Within the providers Model Policy allows, `CascadeRouter`
+(`core/routing/cascade_router.py:246`) picks the cheapest viable Claude tier
+(`sonnet → opus`) for a task's first attempt and escalates to the next tier
+on explicit failure, janitor failure, or a low-confidence regex match in the
+agent output. A per-`(role, model)` bandit proactively skips tiers below
+`QUALITY_THRESHOLD` (0.80) once `MIN_OBSERVATIONS` (5) samples accumulate.
+
+See `architecture/model-routing.md` for full mechanism detail.
+
+## Cross-Adapter Failover
+
+When the active provider raises rate-limit, timeout, or API error,
+`CascadeFallbackManager` (`core/routing/cascade.py:108`) walks
+`DEFAULT_CASCADE_ORDER = ["opus", "sonnet", "codex", "gemini", "qwen"]` and
+returns the first viable agent that still meets the task's capability floor.
+A 5-minute sticky window prevents ping-pong while the primary is throttled.
+
+See `architecture/model-routing.md` for full mechanism detail.
+
 ## Validation
 
 Use `bernstein config validate` to check policy consistency:

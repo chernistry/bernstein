@@ -8,12 +8,16 @@ This guide walks through provisioning the Cloudflare resources needed for Bernst
 
 - A [Cloudflare account](https://dash.cloudflare.com/sign-up) (free tier is sufficient for Workers AI and basic Workers)
 - [Node.js](https://nodejs.org/) 18+ (for wrangler CLI)
-- `wrangler` CLI installed:
+- **wrangler v3.0+** installed. Earlier wrangler 2.x releases use a different command surface (notably for D1 and Workers AI) and will not match the commands below.
 
 ```bash
-npm install -g wrangler
+npm install -g wrangler@latest
+wrangler --version   # should print 3.x or later
 wrangler login
 ```
+
+!!! note "wrangler version check"
+    If you have a 2.x installation pinned by your project, run `npx wrangler@latest <command>` instead of installing globally.
 
 ---
 
@@ -48,7 +52,6 @@ For full Bernstein integration, the token needs these permissions:
 | Workers AI: Run | Account | Workers AI provider |
 | D1: Edit | Account | D1 Analytics |
 | R2: Edit | Account | R2 Workspace Sync |
-| Vectorize: Edit | Account | Vectorize Cache |
 | Browser Rendering: Run | Account | Browser Rendering bridge |
 
 !!! tip "Least-privilege tokens"
@@ -117,37 +120,11 @@ config = D1Config(
 
 ---
 
-## 5. Create a Vectorize index (semantic cache)
+## 5. Deploy the agent Worker (optional)
 
-Vectorize stores embeddings for semantic LLM response caching. When a new prompt is similar enough to a cached one, Bernstein returns the cached response instead of making another LLM call.
+> Note: Vectorize-backed semantic caching was described in earlier drafts but is not shipped. There is no `wrangler vectorize create` step in the current setup. Prompt caching is delivered via Anthropic's native `cache_control` headers. See [analytics](cloudflare-analytics.md) for context.
 
-```bash
-wrangler vectorize create bernstein-cache \
-  --dimensions 768 \
-  --metric cosine
-```
 
-!!! note "Dimensions must match the embedding model"
-    The default embedding model `@cf/baai/bge-base-en-v1.5` produces 768-dimensional vectors. If you change the embedding model, update the dimensions accordingly.
-
-```python
-from bernstein.core.memory.vectorize_cache import VectorizeConfig
-
-config = VectorizeConfig(
-    account_id="abc123",
-    api_token="cf_token_...",
-    index_name="bernstein-cache",           # default
-    embedding_model="@cf/baai/bge-base-en-v1.5",  # default
-    similarity_threshold=0.92,              # default; lower = more cache hits
-    max_cache_entries=10_000,               # default
-    ttl_seconds=86_400,                     # default: 24 hours
-    dimensions=768,                         # must match embedding model
-)
-```
-
----
-
-## 6. Deploy the agent Worker (optional)
 
 If you want to run agents on Cloudflare Workers (not just use Workers AI locally), deploy the agent worker:
 
@@ -165,7 +142,7 @@ bernstein cloud deploy --worker-name bernstein-agent
 
 ---
 
-## 7. Authenticate the Cloud CLI
+## 6. Authenticate the Cloud CLI
 
 For the hosted Bernstein Cloud service (api.bernstein.run):
 
@@ -208,9 +185,6 @@ wrangler r2 bucket list | grep bernstein
 
 # Check D1 database
 wrangler d1 list | grep bernstein
-
-# Check Vectorize index
-wrangler vectorize list | grep bernstein
 ```
 
 ---

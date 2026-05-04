@@ -10,4 +10,4 @@ Thank you to the following researchers who have responsibly disclosed vulnerabil
 
 Researchers are acknowledged here with their permission. To be included, mention it in your HackerOne report.
 
-To report a vulnerability, see [SECURITY.md](../SECURITY.md).
+To report a vulnerability, see [SECURITY.md](../../SECURITY.md) (the canonical security policy lives at the repository root).

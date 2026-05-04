@@ -16,7 +16,7 @@ How to run Bernstein in different environments. Each section is self-contained w
 - [Upgrading](#upgrading)
 - [Troubleshooting deployments](#troubleshooting-deployments)
 
-> **New to Bernstein?** Complete the [Quickstart Tutorial](QUICKSTART_TUTORIAL.md) first to see orchestration in action before deploying.
+> **New to Bernstein?** Complete the [Quickstart Tutorial](../getting-started/quickstart-tutorial.md) first to see orchestration in action before deploying.
 
 ---
 

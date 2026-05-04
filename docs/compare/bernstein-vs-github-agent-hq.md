@@ -205,6 +205,6 @@ Raw data and methodology: [`benchmarks/`](../../benchmarks/)
 ## See also
 
 - [Bernstein benchmark: multi-agent vs single-agent](../../benchmarks/README.md)
-- [Competitive matrix: Bernstein vs. CrewAI, AutoGen, LangGraph](../competitive-matrix.md)
-- [Zero lock-in: model-agnostic orchestration](../zero-lock-in.md)
+- [Competitive matrix: Bernstein vs. CrewAI, AutoGen, LangGraph](../reference/competitive-matrix.md)
+- [Why deterministic orchestration: model-agnostic by construction](../architecture/WHY_DETERMINISTIC.md)
 - [Full comparison index](./README.md)

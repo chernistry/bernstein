@@ -3,7 +3,7 @@ title: Bernstein — Open-Source Multi-Agent Orchestration Platform
 description: >-
   Bernstein is the open-source multi-agent orchestrator for AI coding agents.
   Run Claude Code, Codex, Gemini CLI, and the OpenAI Agents SDK in parallel.
-  Deterministic scheduling, 37 adapters, pluggable sandbox backends,
+  Deterministic scheduling, 42 adapters, pluggable sandbox backends,
   cloud artifact storage, progressive skills, zero vendor lock-in.
 tags:
   - orchestration
@@ -49,6 +49,7 @@ No framework to learn. No vendor lock-in. Agents are interchangeable workers —
 === "brew"
 
     ```bash
+    brew tap sipyourdrink-ltd/bernstein
     brew install bernstein
     ```
 
@@ -73,7 +74,7 @@ bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
 
     ---
 
-    37 CLI adapters: Claude Code, Codex, OpenAI Agents SDK v2, Gemini, Cursor, Aider, Cloudflare Agents, GitHub Copilot, Droid, Crush, and more.
+    42 CLI adapters: Claude Code, Codex, OpenAI Agents SDK v2, Gemini, Cursor, Aider, Cloudflare Agents, GitHub Copilot, Droid, Crush, and more.
     Mix cheap local models with cloud models in the same run.
 
 - :material-source-branch:{ .lg .middle } **Git worktree isolation**
@@ -96,7 +97,8 @@ bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
 
 | | |
 |---|---|
-| :material-rocket-launch: [Getting Started](getting-started/GETTING_STARTED.md) | Install and run your first orchestration |
+| :material-rocket-launch: [Install](getting-started/install.md) | Get Bernstein installed and verify it runs |
+| :material-play-circle: [First run](getting-started/first-run.md) | Take Bernstein from "installed" to "first orchestrated task complete" |
 | :material-wrench: [Configuration](operations/CONFIG.md) | bernstein.yaml reference |
 | :material-puzzle: [Adapter Guide](adapters/ADAPTER_GUIDE.md) | Supported agents and how to add your own |
 | :material-api: [API Reference](reference/openapi-reference.md) | Task server REST API |

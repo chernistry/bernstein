@@ -56,7 +56,7 @@ Runtime state (`.sdd/runtime/`) is ephemeral — PIDs, logs, signals. Never comm
 
 ## Package structure
 
-Since v1.6, `core/` is organized into 22 sub-packages rather than flat files. Top-level modules like `core/server.py` and `core/orchestrator.py` still exist but are **thin re-export shims** — the real implementation lives in the corresponding sub-package. This keeps import paths stable while allowing each subsystem to grow independently.
+Since v1.6, `core/` is organized into 35 sub-packages rather than flat files. Top-level modules like `core/server.py` and `core/orchestrator.py` still exist but are **thin re-export shims** — the real implementation lives in the corresponding sub-package. This keeps import paths stable while allowing each subsystem to grow independently.
 
 | Sub-package | Responsibility |
 |-------------|----------------|
@@ -112,6 +112,8 @@ Launches CLI agents for task batches. Builds the prompt (system role prompt + ta
 ### Router (`core/routing/router.py`)
 
 Routes tasks to the appropriate model and effort level. Tier-aware: knows which providers are free/standard/premium, respects cost optimization, and applies skill-profile routing. Separate from `core/routing/cascade_router.py` which handles cost-aware cascading (try cheap model first, escalate on failure).
+
+See [`architecture/model-routing.md`](model-routing.md) for cascade behaviour.
 
 ### Janitor (`core/quality/janitor.py`)
 

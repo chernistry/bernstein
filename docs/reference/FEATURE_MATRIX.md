@@ -69,6 +69,8 @@ Legend:
 | Agent loop detection | Shipped | Brief | Kills agents in edit-loop cycles |
 | Deadlock detection | Shipped | Brief | Wait-for graph, automatic victim selection |
 | Cross-model verification | Shipped | Brief | Different model reviews completed diffs |
+| `cross_model_verifier` (quality gate) | Shipped (disabled by default) | Brief | `core/quality/cross_model_verifier.py` — independent diff review by a separate model; opt-in via config |
+| `behavior_anomaly` (statistical agent anomaly detection) | Shipped | Brief | `core/observability/behavior_anomaly.py` — flags agents whose runtime metrics deviate statistically from baseline |
 | Agent run manifest | Shipped | Brief | Hashable workflow spec for SOC2 evidence |
 | Context degradation detector | Shipped | Roadmap-level docs | Monitors quality over time, restarts when degraded |
 | Progressive permission prompts | Shipped | Brief | Per-agent permission levels |
@@ -77,7 +79,7 @@ Legend:
 
 | Capability | Runtime status | Docs status | Notes |
 |---|---|---|---|
-| Agent catalog/discovery | Shipped | Full | `bernstein agents sync/list/discover/match/showcase` (37 CLI agent adapters) |
+| Agent catalog/discovery | Shipped | Full | `bernstein agents sync/list/discover/match/showcase` (42 registered CLI agent adapters) |
 | GitHub App and CI fix flows | Shipped | Full | `bernstein ci fix <url>`, `github setup` |
 | Trigger sources (`github`, `slack`, `file_watch`, `webhook`) | Partial | Brief | Source adapters exist; authoring docs need detail |
 | Plugin hooks (pluggy) | Shipped | Full | SDK docs in CONTRIBUTING.md |
@@ -99,7 +101,9 @@ Legend:
 | Plan archival | Shipped | Brief | `bernstein plan ls/show` — list and inspect archived plans (`core/planning/lifecycle.py`) |
 | Slack integration | Shipped | Brief | Slash commands and events API endpoints |
 | Webhook ingestion | Shipped | Brief | `POST /webhooks/` for external event routing |
-| Adaptive parallelism | Partial | Roadmap-level docs | `adaptive_parallelism.py` exists |
+| `adaptive_parallelism` (dynamic max_agents tuning) | Shipped | Roadmap-level docs | `core/orchestration/adaptive_parallelism.py` — auto-tunes concurrency from observed success rates |
+| `warm_pool` (spawn latency optimisation) | Shipped | Roadmap-level docs | `core/agents/warm_pool.py` — pre-spawned agent pool to cut spawn latency |
+| `cas_store` (content-addressed artifact dedup) | Shipped | Roadmap-level docs | `core/persistence/cas_store.py` — content-addressed deduplication for artifacts |
 | Workflow DSL | Shipped | Brief | `bernstein workflow validate/list/show` |
 | Chaos engineering | Shipped | Brief | `bernstein chaos agent-kill/rate-limit/file-remove/status/slo` |
 | Benchmark suite | Shipped | Full | `bernstein benchmark run/compare/swe-bench` |
@@ -107,7 +111,8 @@ Legend:
 | SWE-Bench harness | Shipped | Full | Verified eval in `benchmarks/swe_bench/run.py` |
 | Graduation system | Partial | Brief | Agent promotion stages, routes in `routes/graduation.py` |
 | Semantic caching | Shipped | Brief | `semantic_cache.py` — prompt deduplication |
-| Cascade router | Shipped | Brief | Cost-aware model cascading |
+| `cascade_router` (intra-Claude tier escalation) | Shipped | Brief | Tier escalation within a single provider — see `core/routing/cascade_router.py:386` |
+| `cascade_fallback_manager` (cross-adapter failover) | Shipped | Brief | Cross-adapter provider failover — see `core/routing/cascade.py:287` |
 | Batch router | Shipped | Brief | Task batching for non-urgent work |
 | Prompt caching | Shipped | Brief | SHA-256 system prefix deduplication |
 | Output style customization | Shipped | Roadmap-level docs | Configurable agent output format |
@@ -169,6 +174,7 @@ Legend:
 | `bernstein cache` | Shipped | Brief | Response cache management |
 | `bernstein test-adapter` | Shipped | Brief | Adapter smoke test |
 | `bernstein add-task` | Shipped | Brief | Inject task via CLI |
+| `bernstein task compose / sync / notes / parts` | Shipped | Hidden | Hidden task subcommands — not surfaced via `--help`. See `cli/commands/task_cmd.py` |
 | `bernstein cancel` | Shipped | Brief | Cancel task |
 | `bernstein review/approve/reject/pending` | Shipped | Brief | Review workflow |
 | `bernstein sync` | Shipped | Brief | Sync backlog with server |

@@ -22,13 +22,13 @@
 [![License](https://img.shields.io/github/license/sipyourdrink-ltd/bernstein)](LICENSE)
 [![MseeP.ai](https://img.shields.io/badge/MseeP.ai-verified-2496ed)](https://mseep.ai/app/chernistry-bernstein)
 
-[Website](https://bernstein.run) &middot; [Documentation](https://bernstein.readthedocs.io/) &middot; [Getting Started](docs/getting-started/GETTING_STARTED.md) &middot; [Glossary](docs/reference/GLOSSARY.md) &middot; [Limitations](docs/reference/KNOWN_LIMITATIONS.md)
+[Website](https://bernstein.run) &middot; [Documentation](https://bernstein.readthedocs.io/) &middot; [Install](docs/getting-started/install.md) &middot; [First run](docs/getting-started/first-run.md) &middot; [Glossary](docs/reference/GLOSSARY.md) &middot; [Limitations](docs/reference/KNOWN_LIMITATIONS.md)
 
 </div>
 
 ---
 
-**What is this?** You tell it what you want built. It splits the work across several AI coding agents (Claude Code, Codex, Gemini CLI, and 34 more), runs the tests, and merges the code that actually passes. You come back to working code.
+**What is this?** You tell it what you want built. It splits the work across several AI coding agents (Claude Code, Codex, Gemini CLI, and 39 more), runs the tests, and merges the code that actually passes. You come back to working code.
 
 ### Install and run
 
@@ -68,13 +68,13 @@ Most agent orchestrators use an LLM to decide who does what. That's non-determin
 
 No framework to learn. No vendor lock-in. Swap any agent, any model, any provider.
 
-Other install options: `pipx install bernstein`, `pip install bernstein`, `uv tool install bernstein`, `brew`, `dnf copr`, `npx bernstein-orchestrator`. See [install options](#install).
+Other install options: `pipx install bernstein`, `pip install bernstein`, `uv tool install bernstein`, `brew tap sipyourdrink-ltd/bernstein && brew install bernstein`, `dnf copr`, `npx bernstein-orchestrator`. See [install options](#install).
 
 ## Supported agents
 
 Bernstein auto-discovers installed CLI agents. Mix them in the same run. Cheap local models for boilerplate, heavier cloud models for architecture.
 
-37 CLI agent adapters: 36 third-party wrappers plus a generic wrapper for anything with `--prompt`.
+42 CLI agent adapters: 41 third-party wrappers plus a generic wrapper for anything with `--prompt`.
 
 | Agent | Models | Install |
 |-------|--------|---------|
@@ -251,7 +251,7 @@ The table above compares Bernstein against LLM-orchestration frameworks (they or
 | Shape | Python CLI + library + MCP server | Python CLI + tmux sessions + web UI | TypeScript CLI + local dashboard | Electron desktop app | Go CLI |
 | Primary language | Python | Python | TypeScript | TypeScript | Go |
 | Install | `pipx install bernstein` | `uv tool install cli-agent-orchestrator` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / single binary |
-| Agent adapters | 37 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code only) |
+| Agent adapters | 42 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code only) |
 | Parallel multi-agent execution | Yes | Yes (tmux session per agent) | Yes | Yes | No (single sequential session) |
 | Git worktree per agent | Yes | No (planned, [#100](https://github.com/awslabs/cli-agent-orchestrator/issues/100)) | Yes | Yes | Optional `--worktree` flag |
 | MCP server mode (exposes self as MCP) | Yes (stdio + HTTP/SSE) | Yes (inter-agent comms) | No | No | No |

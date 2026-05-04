@@ -8,6 +8,18 @@ Bernstein-specific terms used throughout the codebase and documentation.
 
 An append-only communication channel where agents post findings, blockers, and status updates visible to all other agents in the same run. Implemented in `src/bernstein/core/bulletin.py`.
 
+### CAS Store
+
+A content-addressed store that deduplicates artifact content by SHA-256 hash. When two agents emit identical output (e.g., the same generated file), only one copy is persisted on disk and both runs reference the same blob. Backs the workspace-sync optimization in `bridges/r2_sync.py` and the local artifact pool. Implemented in `src/bernstein/core/persistence/cas_store.py`.
+
+### Cascade Router
+
+The cost-aware, bandit-driven model escalator that picks the cheapest viable Claude tier for a given task and escalates on failure. Default chain is `haiku -> sonnet -> opus`; high-stakes roles (manager, architect, security) start at `sonnet -> opus`. Escalation triggers on (1) explicit task failure, (2) janitor verification rejection, or (3) low-confidence regex scan over the agent's last 2000 chars (e.g., "I'm not sure", "TODO: escalate"). Per-(role, model) success rates persist to `.sdd/metrics/bandit_state.json`; chain reports to `.sdd/metrics/cascade_chains.jsonl`. Implemented in `src/bernstein/core/routing/cascade_router.py`.
+
+### Cross-Model Verifier
+
+An optional quality-pipeline component that re-runs a completed task on a second model and compares outputs to detect plausible-but-wrong code. Off by default; doubles cost for the verified subset. Used in conjunction with the janitor when correctness matters more than budget. Implemented in `src/bernstein/core/quality/cross_model_verifier.py`.
+
 ### Caching Adapter
 
 A wrapper adapter that intercepts spawn calls to enable prompt prefix deduplication and response reuse. Delegates actual execution to the underlying adapter while tracking cache break events across agents. Implemented in `src/bernstein/adapters/caching_adapter.py`.
@@ -34,7 +46,9 @@ An optimization that skips full planning for simple, single-file tasks. Instead 
 
 ### Janitor
 
-The verification system that checks whether an agent's work is correct — runs lint, type-checks, tests, and other quality gates before accepting work. Implemented in `src/bernstein/core/janitor.py`.
+The verification system that checks whether an agent's work is correct — runs lint, type-checks, tests, and other quality gates before accepting work. Distinct from the **Cross-Model Verifier** (which double-checks output by re-running on a second model) and the **Reviewer** (which performs LLM-based review). Implemented in `src/bernstein/core/quality/janitor.py`.
+
+The janitor also has a maintenance role: it periodically reaps orphaned worktrees and stale agent state. The cleanup interval is governed by `janitor.worktree_cleanup_interval_s` and `janitor.max_orphan_age_s` in `bernstein.yaml`.
 
 ### Env Isolation
 
@@ -79,6 +93,14 @@ Creating a short-lived agent process for a task batch. The spawner handles promp
 ### Tick
 
 The orchestrator's polling cycle (approximately 3 seconds). Each tick fetches pending tasks, spawns agents, checks heartbeats, and evaluates quality gates. Implemented in `src/bernstein/core/orchestrator.py`.
+
+### WAL
+
+Write-Ahead Log -- the durable journal of state transitions used for crash recovery. Every task or agent state change is appended to `.sdd/wal/wal.jsonl` *before* being applied to in-memory state. On startup, `wal_replay.py` walks any incomplete entries and re-applies them so the orchestrator picks up exactly where it stopped. Combined with the **CAS Store** and Merkle integrity hashing, this gives Bernstein process-crash, host-reboot, and partial-merge survival without an external database. Implemented in `src/bernstein/core/persistence/wal.py` (writer) and `src/bernstein/core/persistence/wal_replay.py` (replay). The fsync policy is configurable via `wal.fsync` in `bernstein.yaml`.
+
+### Warm Pool
+
+A pre-spawn pool of agent processes kept idle so newly-claimed tasks see lower spawn latency. Instead of fork-and-init on every task, the orchestrator hands a queued process its prompt and the agent is already past CLI startup costs. Sized for typical concurrency; can be disabled if RAM is constrained (each pre-spawned process holds its baseline working set). Implemented in `src/bernstein/core/agents/warm_pool.py` and `src/bernstein/core/agents/spawner_warm_pool.py`.
 
 ### Worktree
 

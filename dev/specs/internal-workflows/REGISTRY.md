@@ -1,8 +1,8 @@
 # Workflow Registry
 
-This registry maps workflow specs in `docs/workflows/` to current implementation status in the codebase.
+This registry maps workflow specs in `dev/specs/internal-workflows/` to current implementation status in the codebase.
 
-Last updated: 2026-04-11
+Last updated: 2026-05-04
 
 ---
 
@@ -23,11 +23,13 @@ Last updated: 2026-04-11
 | Context collapse with drain retry | `WORKFLOW-context-collapse-drain-retry.md` | Draft | T493 — bounded drain retry loop for spawn prompt context overflow |
 | Permission mode hierarchy | `WORKFLOW-permission-mode-hierarchy.md` | Shipped | bypass→plan→auto→default mode hierarchy with severity relaxation + hook resolution |
 | Verification nudge | `WORKFLOW-verification-nudge.md` | Shipped | Tracks unverified task completions and alerts when threshold exceeded |
+| Reactive 413 compaction + budget | `WORKFLOW-reactive-413-compaction-budget.md` | Stable | p0_c2_020426 — orchestrator spawn handler reacts to 413 / context overflow with bounded compaction budget |
 | Event-sourced task transitions (CQRS) | `WORKFLOW-event-sourced-task-transitions.md` | Draft | Append-only event log per task; state derived by replaying events, not mutable status field |
 | Multi-tenant task isolation (ENT-001) | `WORKFLOW-multi-tenant-task-isolation.md` | Approved | v1.2 — tenant-scoped CRUD, backlog, metrics. Implementation guidance for WAL scoping, tenant audit, quota wiring. Open Qs resolved. |
 | Cluster node auth hardening (ENT-002) | `WORKFLOW-cluster-node-auth.md` | Approved | v1.2 — JWT auth for node reg/heartbeats. Implementation guidance for persistent revocation, user_id bypass fix, dead code cleanup, auth failure rate limiting. Open Qs resolved. |
 | Audit integrity on startup (ENT-003) | `WORKFLOW-audit-integrity-on-startup.md` | Draft | `verify_on_startup()` exists but is dead code — never called from orchestrator. Spec defines wiring pattern + insertion point. |
 | SOC 2 evidence export (ENT-004) | `WORKFLOW-soc2-evidence-export.md` | Draft | Raw JSONL export exists; spec adds control mappings (CC6.1, CC7.2), evidence summaries, Merkle attestation, structured formatting. |
+| SLA monitoring with breach alerting (ENT-005) | `WORKFLOW-sla-monitoring-breach-alerting.md` | Draft | Scheduled metric evaluation with SLA breach detection — SLAMonitor + alerts not yet wired. |
 | Cluster task stealing (ENT-007) | `WORKFLOW-cluster-task-stealing.md` | Draft | Pull-based task stealing with CAS locking — missing assigned_node/pinned_node fields, cooldown not persisted |
 | Per-tenant rate limiting & quotas (ENT-008) | `WORKFLOW-tenant-rate-limiting-quota.md` | Draft | API rate limits, task/hour, agent concurrency, cost budget — TenantRateLimiter exists but not wired to middleware |
 | Data residency enforcement (ENT-009) | `WORKFLOW-data-residency-enforcement.md` | Draft | DataResidencyController + router ModelPolicy exist but are not bridged. No enforcement on task server writes, no policy persistence, no attestation persistence. 8 RC findings. |
@@ -42,7 +44,7 @@ Last updated: 2026-04-11
 | Distributed tracing context propagation (road-117) | `WORKFLOW-distributed-tracing-propagation.md` | Draft | End-to-end W3C traceparent propagation: CLI → task server → orchestrator → spawner → agent → quality gates → merge. Core trace_correlation.py and correlation.py exist but are completely unused. 11 steps, 15 test cases, 8 assumptions. |
 | Semantic task deduplication (road-069) | `WORKFLOW-semantic-task-deduplication.md` | Draft | Embedding-based duplicate detection at plan load time. TF-IDF (zero-dep) or gte-small backend. Three thresholds: auto-merge (0.92), warn (0.80), info (0.65). Reuses semantic_cache.py embeddings and duplicate_detector.py merge logic (both partially unused). 7 steps, 19 test cases, 7 assumptions. |
 
-Archived/deprecated reference docs remain under `docs/workflows/archive/`.
+Archived/deprecated reference docs remain under `dev/specs/internal-workflows/archive/`.
 
 ---
 

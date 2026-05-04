@@ -207,5 +207,5 @@ this by always adding new arguments as optional kwargs with sensible defaults.
 - Implementation: `src/bernstein/plugins/`
 - Hook specs: `src/bernstein/plugins/hookspecs.py`
 - Plugin manager: `src/bernstein/plugins/manager.py`
-- Plugin SDK docs: [plugin-sdk.md](../plugin-sdk.md)
+- Plugin SDK docs: [plugin-sdk.md](../integrations/plugin-sdk.md)
 - pluggy docs: https://pluggy.readthedocs.io/

@@ -1,6 +1,6 @@
 # The Bernstein Architecture: Zero LLM Tokens on Coordination
 
-**Published:** [DATE]
+**Published:** 2026-03-29
 **Target:** Dev.to, Hashnode, cross-post to HN
 **Reading time:** ~8 minutes
 

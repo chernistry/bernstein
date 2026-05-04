@@ -305,7 +305,7 @@ bernstein fingerprint check src/foo.py                 # check generated code ag
 | **pip** | `pip install bernstein` |
 | **pipx** | `pipx install bernstein` |
 | **uv** | `uv tool install bernstein` |
-| **Homebrew** | `brew tap sipyourdrink-ltd/bernstein && brew install bernstein` |
+| **Homebrew** | `brew tap chernistry/tap && brew install bernstein` |
 | **Fedora / RHEL** | `sudo dnf copr enable alexchernysh/bernstein && sudo dnf install bernstein` |
 | **npm** (envoltorio) | `npx bernstein-orchestrator` |
 

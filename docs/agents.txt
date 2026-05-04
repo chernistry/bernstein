@@ -1,11 +1,11 @@
 User-agent: *
 Name: Bernstein
 Description: Open-source multi-agent orchestration platform for AI coding agents
-Homepage: https://chernistry.github.io/bernstein/
-Repository: https://github.com/chernistry/bernstein
+Homepage: https://sipyourdrink-ltd.github.io/bernstein/
+Repository: https://github.com/sipyourdrink-ltd/bernstein
 Package: https://pypi.org/project/bernstein/
-Documentation: https://chernistry.github.io/bernstein/getting-started.html
-API: https://chernistry.github.io/bernstein/api.html
+Documentation: https://sipyourdrink-ltd.github.io/bernstein/getting-started.html
+API: https://sipyourdrink-ltd.github.io/bernstein/api.html
 Author: Alex Chernysh <https://alexchernysh.com>
 License: Apache-2.0
 Category: DeveloperTool, AIOrchestration, MultiAgent

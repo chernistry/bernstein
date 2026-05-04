@@ -10,7 +10,7 @@
   "icon": "media/bernstein-icon.png",
   "galleryBanner": { "color": "#1a1a2e", "theme": "dark" },
   "repository": { "type": "git", "url": "https://github.com/sipyourdrink-ltd/bernstein" },
-  "homepage": "https://chernistry.github.io/bernstein/",
+  "homepage": "https://sipyourdrink-ltd.github.io/bernstein/",
   "license": "Apache-2.0",
   "activationEvents": ["onStartupFinished"],
   "main": "./dist/extension.js",

@@ -154,8 +154,12 @@ nav:
       - Quality pipeline: architecture/quality-pipeline.md
       - Model routing: architecture/model-routing.md
       - State persistence: architecture/state-persistence.md
+      - CAS store: architecture/cas-store.md
+      - Plans (YAML schema): architecture/plans.md
       - Permission modes: architecture/permission-modes.md
       - Sandbox backends: architecture/sandbox.md
+      - Warm pool: architecture/warm-pool.md
+      - Adaptive parallelism: architecture/adaptive-parallelism.md
       - Artifact storage: architecture/storage.md
       - Skill packs: architecture/skills.md
       - Design notes: architecture/DESIGN.md
@@ -174,12 +178,22 @@ nav:
       - Deployment guide (long): operations/deployment-guide.md
       - Helm chart: operations/HELM_DEPLOYMENT.md
       - Cluster mode: operations/cluster-mode.md
+      - Fleet (multi-project): operations/fleet.md
       - Security & identity: operations/security-and-identity.md
+      - Secrets & creds: operations/secrets.md
       - Env isolation: operations/env-isolation.md
+      - Compliance: operations/compliance.md
       - Verification tracking: operations/verification-tracking.md
       - Observability: operations/observability-overview.md
+      - Notifications: operations/notifications.md
       - Cost optimization: operations/cost-optimization.md
       - Performance tuning: operations/performance-tuning.md
+      - Autofix daemon: operations/autofix.md
+      - Review responder: operations/review-responder.md
+      - Preview server: operations/preview.md
+      - Voice control (experimental): operations/voice-control.md
+      - Chaos engineering: operations/chaos-engineering.md
+      - Disaster recovery: operations/disaster-recovery.md
       - Runbooks: operations/runbooks.md
       - Troubleshooting: operations/TROUBLESHOOTING.md
       - Model policy: operations/MODEL_POLICY.md
@@ -188,12 +202,17 @@ nav:
       - Setup: cloudflare/cloudflare-setup.md
       - Cloud CLI: cloudflare/cloudflare-cli.md
       - Bridges: cloudflare/cloudflare-bridges.md
+      - Browser Rendering: cloudflare/cloudflare-browser-rendering.md
       - Adapters: cloudflare/cloudflare-adapters.md
       - Workers AI: cloudflare/cloudflare-ai.md
       - MCP Remote: cloudflare/cloudflare-mcp.md
       - Analytics: cloudflare/cloudflare-analytics.md
   - Reference:
       - What's new: whats-new.md
+      - CLI reference: reference/cli-reference.md
+      - Task lifecycle CLI: reference/cli/task-lifecycle.md
+      - Replay CLI: reference/cli/replay.md
+      - MCP catalog: reference/mcp-catalog.md
       - API reference: reference/openapi-reference.md
       - ACP bridge: reference/acp-bridge.md
       - Feature matrix: reference/FEATURE_MATRIX.md

@@ -14,7 +14,7 @@ Before adding the repository, configure GPG key verification so apt/dnf can auth
 
 ```bash
 # Download and install the Bernstein GPG public key
-curl -fsSL https://chernistry.github.io/bernstein/gpg/bernstein-signing-key.gpg \
+curl -fsSL https://sipyourdrink-ltd.github.io/bernstein/gpg/bernstein-signing-key.gpg \
   | sudo gpg --dearmor -o /usr/share/keyrings/bernstein-archive-keyring.gpg
 ```
 
@@ -25,7 +25,7 @@ curl -fsSL https://chernistry.github.io/bernstein/gpg/bernstein-signing-key.gpg 
 ```bash
 # Add repository
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/bernstein-archive-keyring.gpg] \
-  https://chernistry.github.io/bernstein/apt stable main" \
+  https://sipyourdrink-ltd.github.io/bernstein/apt stable main" \
   | sudo tee /etc/apt/sources.list.d/bernstein.list
 
 # Install
@@ -59,10 +59,10 @@ COPR repository: https://copr.fedorainfracloud.org/coprs/alexchernysh/bernstein/
 sudo tee /etc/yum.repos.d/bernstein.repo << 'EOF'
 [bernstein]
 name=Bernstein
-baseurl=https://chernistry.github.io/bernstein/rpm
+baseurl=https://sipyourdrink-ltd.github.io/bernstein/rpm
 enabled=1
 gpgcheck=1
-gpgkey=https://chernistry.github.io/bernstein/gpg/bernstein-signing-key.gpg
+gpgkey=https://sipyourdrink-ltd.github.io/bernstein/gpg/bernstein-signing-key.gpg
 EOF
 
 # Install

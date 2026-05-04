@@ -68,7 +68,7 @@ Most agent orchestrators use an LLM to decide who does what. That's non-determin
 
 No framework to learn. No vendor lock-in. Swap any agent, any model, any provider.
 
-Other install options: `pipx install bernstein`, `pip install bernstein`, `uv tool install bernstein`, `brew tap sipyourdrink-ltd/bernstein && brew install bernstein`, `dnf copr`, `npx bernstein-orchestrator`. See [install options](#install).
+Other install options: `pipx install bernstein`, `pip install bernstein`, `uv tool install bernstein`, `brew tap chernistry/tap && brew install bernstein`, `dnf copr`, `npx bernstein-orchestrator`. See [install options](#install).
 
 ## Supported agents
 
@@ -305,7 +305,7 @@ bernstein fingerprint check src/foo.py                 # check generated code ag
 | **pip** | `pip install bernstein` |
 | **pipx** | `pipx install bernstein` |
 | **uv** | `uv tool install bernstein` |
-| **Homebrew** | `brew tap sipyourdrink-ltd/bernstein && brew install bernstein` |
+| **Homebrew** | `brew tap chernistry/tap && brew install bernstein` |
 | **Fedora / RHEL** | `sudo dnf copr enable alexchernysh/bernstein && sudo dnf install bernstein` |
 | **npm** (wrapper) | `npx bernstein-orchestrator` |
 

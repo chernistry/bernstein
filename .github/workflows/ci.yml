@@ -384,7 +384,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test]
     continue-on-error: true
-    if: github.repository_owner == 'chernistry'
+    if: github.repository_owner == 'sipyourdrink-ltd'
     timeout-minutes: 15
     permissions:
       contents: read

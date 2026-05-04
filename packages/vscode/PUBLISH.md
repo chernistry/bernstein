@@ -8,13 +8,13 @@
 1. Go to [marketplace.visualstudio.com](https://marketplace.visualstudio.com)
 2. Sign in with a Microsoft account
 3. Click on your profile → Publish extensions
-4. Create a publisher (use: `chernistry`)
+4. Create a publisher (use: `alex-chernysh`, matching `publisher` in `packages/vscode/package.json`)
 
 #### Open VSX Registry
 1. Go to [open-vsx.org](https://open-vsx.org)
 2. Sign in with Eclipse identity or create new account
 3. Click "Publish Extension"
-4. Create a namespace (use: `chernistry`)
+4. Create a namespace (use: `alex-chernysh`, matching `publisher` in `packages/vscode/package.json`)
 
 ### 2. Personal Access Tokens (PATs)
 

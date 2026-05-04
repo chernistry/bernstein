@@ -52,11 +52,13 @@ irm https://astral.sh/uv/install.ps1 | iex        # Windows PowerShell
 === "Homebrew (macOS / Linux)"
 
     ```bash
-    brew tap sipyourdrink-ltd/bernstein
+    brew tap chernistry/tap
     brew install bernstein
     ```
 
     Bernstein is **not** in `homebrew-core`. The `tap` step is required.
+    The tap lives at `github.com/chernistry/homebrew-tap`; `brew tap chernistry/tap`
+    is the Homebrew short form.
 
 === "Fedora / RHEL (dnf)"
 

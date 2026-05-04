@@ -544,7 +544,7 @@ model_policy:
 
 ## What to read next
 
-- Plans reference — full YAML schema for plan files (forthcoming)
+- [Plans reference](../architecture/plans.md) — full YAML schema for plan files
 - [Configuration reference](CONFIG.md) — all bernstein.yaml options
 - [Role templates](../templates/roles/) — built-in roles and how to extend them
 - [Quality gates](ARCHITECTURE.md#quality-gates) — configuring verification

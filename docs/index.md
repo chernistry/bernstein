@@ -49,7 +49,7 @@ No framework to learn. No vendor lock-in. Agents are interchangeable workers —
 === "brew"
 
     ```bash
-    brew tap sipyourdrink-ltd/bernstein
+    brew tap chernistry/tap
     brew install bernstein
     ```
 

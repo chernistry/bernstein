@@ -5,18 +5,18 @@
 > storage sinks, progressive-disclosure skill packs, zero vendor lock-in. Apache 2.0 licensed.
 
 ## Core Documentation
-- [Getting Started](https://chernistry.github.io/bernstein/getting-started.html): Install, configure, run first orchestration in 60 seconds
-- [Architecture & Concepts](https://chernistry.github.io/bernstein/concepts.html): Task server, agent spawner, janitor verification, worktree isolation
-- [Adapter Reference](https://chernistry.github.io/bernstein/adapters.html): 18 supported agents — Claude Code, Codex, OpenAI Agents SDK v2, Gemini CLI, Cursor, Aider, and more
-- [API Reference](https://chernistry.github.io/bernstein/api-reference.html): 120+ REST endpoints for tasks, agents, cost tracking, quality gates
+- [Getting Started](https://sipyourdrink-ltd.github.io/bernstein/getting-started.html): Install, configure, run first orchestration in 60 seconds
+- [Architecture & Concepts](https://sipyourdrink-ltd.github.io/bernstein/concepts.html): Task server, agent spawner, janitor verification, worktree isolation
+- [Adapter Reference](https://sipyourdrink-ltd.github.io/bernstein/adapters.html): 18 supported agents — Claude Code, Codex, OpenAI Agents SDK v2, Gemini CLI, Cursor, Aider, and more
+- [API Reference](https://sipyourdrink-ltd.github.io/bernstein/api-reference.html): 120+ REST endpoints for tasks, agents, cost tracking, quality gates
 
 ## Guides
-- [Benchmarks](https://chernistry.github.io/bernstein/leaderboard.html): SWE-Bench Lite results — solo agents vs orchestrated multi-agent
-- [Comparisons](https://chernistry.github.io/bernstein/compare/index.html): Bernstein vs CrewAI, AutoGen, LangGraph, and 8 other frameworks
-- [Known Limitations](https://chernistry.github.io/bernstein/limitations.html): Honest constraints and workarounds
+- [Benchmarks](https://sipyourdrink-ltd.github.io/bernstein/leaderboard.html): SWE-Bench Lite results — solo agents vs orchestrated multi-agent
+- [Comparisons](https://sipyourdrink-ltd.github.io/bernstein/compare/index.html): Bernstein vs CrewAI, AutoGen, LangGraph, and 8 other frameworks
+- [Known Limitations](https://sipyourdrink-ltd.github.io/bernstein/limitations.html): Honest constraints and workarounds
 
 ## Resources
-- [GitHub Repository](https://github.com/chernistry/bernstein): Source code, issues, discussions
+- [GitHub Repository](https://github.com/sipyourdrink-ltd/bernstein): Source code, issues, discussions
 - [PyPI Package](https://pypi.org/project/bernstein/): pip install bernstein
-- [Blog](https://chernistry.github.io/bernstein/blog.html): Engineering articles on multi-agent orchestration patterns
+- [Blog](https://sipyourdrink-ltd.github.io/bernstein/blog.html): Engineering articles on multi-agent orchestration patterns
 - [Author](https://alexchernysh.com): Built by Alex Chernysh

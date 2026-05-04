@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 BACKLOG_DIR = Path(__file__).resolve().parent.parent / ".sdd" / "backlog" / "open"
-REPO = "chernistry/bernstein"
+REPO = "sipyourdrink-ltd/bernstein"
 
 # Map filename prefix to GitHub label(s)
 PREFIX_TO_LABELS: dict[str, list[str]] = {

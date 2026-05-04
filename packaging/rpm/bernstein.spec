@@ -3,7 +3,7 @@ Version:        1.4.11
 Release:        1%{?dist}
 Summary:        Multi-agent orchestration for AI coding agents
 License:        Apache-2.0
-URL:            https://github.com/chernistry/bernstein
+URL:            https://github.com/sipyourdrink-ltd/bernstein
 BuildArch:      noarch
 Requires:       python3 >= 3.12
 

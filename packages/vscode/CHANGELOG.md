@@ -75,4 +75,4 @@ All notable changes to the Bernstein VS Code extension will be documented in thi
 
 ### Support
 
-Questions or issues? File a bug: [github.com/chernistry/bernstein/issues](https://github.com/chernistry/bernstein/issues)
+Questions or issues? File a bug: [github.com/sipyourdrink-ltd/bernstein/issues](https://github.com/sipyourdrink-ltd/bernstein/issues)

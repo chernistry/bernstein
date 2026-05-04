@@ -58,7 +58,7 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: chernistry/bernstein-action@v4
+      - uses: sipyourdrink-ltd/bernstein@v4
         with:
           task: "Update API docs to match current source"
           budget: "2.00"

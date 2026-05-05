@@ -33,6 +33,8 @@ from bernstein.adapters.clm import (
     CLM_TOKEN_ENV,
     ClmAdapter,
     ClmConfig,
+    StreamingChunk,
+    assemble_streaming_response,
 )
 
 if TYPE_CHECKING:
@@ -50,6 +52,9 @@ def _free_port() -> int:
         return int(s.getsockname()[1])
 
 
+_LONG_STREAM_CHUNKS: tuple[str, ...] = tuple(f"long-chunk-{i:03d} " for i in range(60))
+
+
 def _build_fake_nim_app(received: list[dict[str, object]]) -> FastAPI:
     app = FastAPI()
 
@@ -60,15 +65,29 @@ def _build_fake_nim_app(received: list[dict[str, object]]) -> FastAPI:
         body = await request.json()
         received.append({"auth": authorization, "body": body})
 
+        # Distinguish the short canonical reply from the regression-test
+        # stream by inspecting a marker in the request body. Keeps both
+        # tests behind one fake-NIM fixture instead of two.
+        is_long = bool(body.get("stream")) and "long-stream" in json.dumps(body.get("messages", []))
+        chunks: tuple[str, ...] = _LONG_STREAM_CHUNKS if is_long else tuple(_FAKE_NIM_REPLY.split())
+        suffix = "" if is_long else " "
+
         async def sse() -> Generator[bytes, None, None]:  # type: ignore[misc]
-            for chunk in _FAKE_NIM_REPLY.split():
+            for chunk in chunks:
                 payload = {
                     "id": "chatcmpl-fake",
                     "object": "chat.completion.chunk",
                     "model": _FAKE_NIM_MODEL,
-                    "choices": [{"index": 0, "delta": {"content": chunk + " "}, "finish_reason": None}],
+                    "choices": [{"index": 0, "delta": {"content": chunk + suffix}, "finish_reason": None}],
                 }
                 yield f"data: {json.dumps(payload)}\n\n".encode()
+            done = {
+                "id": "chatcmpl-fake",
+                "object": "chat.completion.chunk",
+                "model": _FAKE_NIM_MODEL,
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+            }
+            yield f"data: {json.dumps(done)}\n\n".encode()
             yield b"data: [DONE]\n\n"
 
         return StreamingResponse(sse(), media_type="text/event-stream")
@@ -163,3 +182,61 @@ def test_adapter_handshake_and_streaming_assembly(
 
     # Sanity: instantiated adapter reports the expected name.
     assert ClmAdapter().name() == "clm"
+
+
+def test_streaming_lineage_regression_50plus_chunks(
+    fake_nim: tuple[str, list[dict[str, object]]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Phase 2 regression: a 50+ chunk stream must produce a single lineage payload carrying the *full* assembled body.
+
+    Historically, lineage writers consuming streaming SDK iterators
+    captured only the first chunk's delta. The contract this test
+    pins down: ``assemble_streaming_response`` joins every chunk and
+    its lineage payload contains every part of the body, in order.
+    """
+    endpoint, _ = fake_nim
+    monkeypatch.setenv(CLM_ENDPOINT_ENV, endpoint)
+    monkeypatch.setenv(CLM_TOKEN_ENV, _FAKE_NIM_TOKEN)
+    monkeypatch.setenv(CLM_MODEL_ENV, _FAKE_NIM_MODEL)
+
+    config = ClmConfig.from_env()
+
+    with httpx.Client(base_url=endpoint, timeout=10.0) as client:
+        request_body = {
+            "model": config.model,
+            "messages": [{"role": "user", "content": "long-stream please"}],
+            "stream": True,
+        }
+        events: list[StreamingChunk] = []
+        with client.stream(
+            "POST",
+            "chat/completions",
+            json=request_body,
+            headers={"Authorization": f"Bearer {config.token}"},
+        ) as stream:
+            for raw in stream.iter_lines():
+                if not raw or not raw.startswith("data:"):
+                    continue
+                data = raw[len("data:") :].strip()
+                if data == "[DONE]":
+                    break
+                event = json.loads(data)
+                choice = event["choices"][0]
+                delta = choice["delta"]
+                events.append(
+                    StreamingChunk(
+                        content=delta.get("content", "") or "",
+                        finish_reason=choice.get("finish_reason"),
+                    )
+                )
+
+    payload = assemble_streaming_response(events)
+    expected = "".join(_LONG_STREAM_CHUNKS)
+
+    assert payload.chunk_count >= 50, f"expected 50+ chunks, got {payload.chunk_count}"
+    assert payload.content == expected
+    assert payload.content != events[0].content
+    assert "long-chunk-000" in payload.content
+    assert "long-chunk-059" in payload.content
+    assert payload.finish_reason == "stop"

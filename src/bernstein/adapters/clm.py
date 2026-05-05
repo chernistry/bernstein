@@ -7,13 +7,19 @@ talk to that gateway via ``OPENAI_API_BASE`` / ``OPENAI_API_KEY``,
 unlocking Bernstein's HMAC audit chain, lineage trail, and
 fingerprint memoisation for engineering workflows against CLM.
 
-Phase 1 — adapter MVP. Phase 2 (mTLS, tool-calling, streaming
-regression) is deferred until the cluster-mtls-transport ticket
-lands. See ``docs/adapters/clm.md`` for configuration.
+Phase 1 — adapter MVP. Phase 2 partial (this module) wires the
+per-agent tool allowlist (T578) into the OpenAI-compatible
+``tools=[]`` request shape, refuses spawns that trip the lethal-
+trifecta capability matrix, and exposes a streaming-assembly helper
+whose lineage payload always carries the full response — never just
+the first chunk. mTLS support is deferred to Phase 2.5 once
+cluster-mtls-transport's shared ``httpx.SSLContext`` plumbing lands.
+See ``docs/adapters/clm.md`` for configuration.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import subprocess
@@ -28,12 +34,14 @@ from bernstein.adapters.base import (
     build_worker_cmd,
 )
 from bernstein.adapters.env_isolation import build_filtered_env
+from bernstein.core.agents.spawner_warm_pool import parse_tool_allowlist_env
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Iterable, Mapping, Sequence
     from pathlib import Path
 
     from bernstein.core.models import ModelConfig
+    from bernstein.core.security.capability_matrix import CapabilityRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +52,16 @@ CLM_TOKEN_ENV = "CLM_TOKEN"
 CLM_MODEL_ENV = "CLM_MODEL"
 CLM_TIMEOUT_ENV = "CLM_REQUEST_TIMEOUT_SECONDS"
 CLM_MAX_RETRIES_ENV = "CLM_MAX_RETRIES"
+
+# Forwarded into the spawned subprocess as the JSON-encoded OpenAI tools
+# array (one entry per allow-listed tool). A downstream wrapper (or an
+# in-process HTTP client when we move off aider) reads this and embeds
+# it as ``tools=[...]`` on the chat-completions request.
+CLM_TOOLS_SCHEMA_ENV = "CLM_TOOLS_SCHEMA"
+
+# Stable adapter token used by the lethal-trifecta capability matrix.
+# Matches the row registered in ``templates/capabilities/adapters.yaml``.
+_ADAPTER_CAPABILITY_TOKEN = "adapter.clm"
 
 _DEFAULT_REQUEST_TIMEOUT_SECONDS = 60
 _DEFAULT_MAX_RETRIES = 2
@@ -112,6 +130,122 @@ def _int_env(source: Mapping[str, str], name: str, default: int) -> int:
         raise ClmConfigError(f"{name} must be an integer, got {raw!r}") from exc
 
 
+def build_openai_tools_schema(allowlist: Sequence[str]) -> list[dict[str, Any]]:
+    """Translate a Bernstein tool allowlist into the OpenAI ``tools=[]`` shape.
+
+    NIM exposes the OpenAI-compatible tools API; the per-spawn allowlist
+    (``BERNSTEIN_TOOL_ALLOWLIST``) caps which tools the model is allowed
+    to call. The schemas are intentionally minimal — tool descriptions
+    and JSON-Schema parameter shapes are owned by the catalog, not the
+    adapter; we forward only the names so the catalog stays the single
+    source of truth and the adapter cannot accidentally widen them.
+    """
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": tool_name,
+                "description": f"Bernstein scoped tool: {tool_name}",
+                "parameters": {"type": "object", "properties": {}, "additionalProperties": True},
+            },
+        }
+        for tool_name in allowlist
+    ]
+
+
+@dataclass(frozen=True)
+class StreamingChunk:
+    """One assistant streaming event emitted by the gateway."""
+
+    content: str = ""
+    tool_calls: tuple[dict[str, Any], ...] = ()
+    finish_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class StreamingLineagePayload:
+    """Streaming response state captured for the lineage record.
+
+    The contract this dataclass defends, asserted by the regression
+    test, is that lineage records carry the *full* assembled response
+    even when streaming is on — never just the first chunk.
+
+    Attributes:
+        content: Full assistant message body, joined from every chunk.
+        tool_calls: Every assistant tool call seen across the stream.
+        finish_reason: Final ``finish_reason`` reported by the gateway.
+        chunk_count: Total number of chunks observed (for drift signal).
+    """
+
+    content: str
+    tool_calls: tuple[dict[str, Any], ...]
+    finish_reason: str | None
+    chunk_count: int
+
+
+def assemble_streaming_response(events: Iterable[StreamingChunk]) -> StreamingLineagePayload:
+    """Fold a streaming event sequence into the full response payload.
+
+    Done in adapter code (not delegated to the SDK) because the lineage
+    contract requires the full body, and SDK iterators have historically
+    been the source of "first-chunk-only" lineage bugs — see the Phase 2
+    streaming regression test.
+    """
+    content_parts: list[str] = []
+    tool_calls: list[dict[str, Any]] = []
+    finish_reason: str | None = None
+    count = 0
+    for event in events:
+        count += 1
+        if event.content:
+            content_parts.append(event.content)
+        if event.tool_calls:
+            tool_calls.extend(event.tool_calls)
+        if event.finish_reason is not None:
+            finish_reason = event.finish_reason
+    return StreamingLineagePayload(
+        content="".join(content_parts),
+        tool_calls=tuple(tool_calls),
+        finish_reason=finish_reason,
+        chunk_count=count,
+    )
+
+
+def _evaluate_lethal_trifecta(
+    allowlist: Sequence[str],
+    *,
+    workdir: Path | None = None,
+    registry: CapabilityRegistry | None = None,
+) -> None:
+    """Refuse spawns whose adapter-token + tool chain unions all three capabilities.
+
+    The matrix already considers ``adapter.clm`` as carrying
+    ``private_data + external_comm`` (it dials a customer gateway with
+    operator-shared prompts). Adding any tool tagged ``untrusted_input``
+    therefore unions the full trifecta. Enforcement runs *before* the
+    CLM call is made, per the Phase 2 acceptance criterion.
+
+    Only the *declared* subset of the chain is evaluated — undeclared
+    tools default-deny in the matrix but should not block a spawn here
+    (the spawner_core path surfaces them as warnings via the audit CLI),
+    matching the policy already used in :mod:`spawner_core`.
+    """
+    from bernstein.core.security.capability_matrix import (
+        CapabilityRegistry,
+        LethalTrifectaError,
+    )
+
+    reg = registry if registry is not None else CapabilityRegistry.load_default(workdir=workdir)
+    chain = [_ADAPTER_CAPABILITY_TOKEN, *allowlist]
+    declared = [t for t in chain if t in reg.tools]
+    if not declared:
+        return
+    decision = reg.evaluate_chain(declared)
+    if not decision.allowed:
+        err = LethalTrifectaError(decision)
+        raise SpawnError(f"lethal trifecta: {decision.reason}") from err
+
+
 class ClmAdapter(CLIAdapter):
     """Spawn ``aider`` against a CLM (NIM) OpenAI-compatible gateway.
 
@@ -140,6 +274,10 @@ class ClmAdapter(CLIAdapter):
 
         config = ClmConfig.from_env()
         model_id = model_config.model or config.model
+
+        allowlist = parse_tool_allowlist_env() or []
+        _evaluate_lethal_trifecta(allowlist, workdir=workdir)
+        tools_schema = build_openai_tools_schema(allowlist)
 
         cmd = [
             "aider",
@@ -172,6 +310,8 @@ class ClmAdapter(CLIAdapter):
         env["OPENAI_API_BASE"] = config.endpoint
         env["OPENAI_API_KEY"] = config.token
         env["OPENAI_API_TIMEOUT"] = str(config.request_timeout_seconds)
+        if tools_schema:
+            env[CLM_TOOLS_SCHEMA_ENV] = json.dumps(tools_schema, separators=(",", ":"))
 
         with log_path.open("w") as log_file:
             try:

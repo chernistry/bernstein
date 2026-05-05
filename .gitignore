@@ -101,3 +101,4 @@ docs/openapi.json
 # Local benchmark run artifacts (simulation/eval outputs — regenerated on demand)
 benchmarks/results/
 benchmarks/swe_bench/results/
+.cache/

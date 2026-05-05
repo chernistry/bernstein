@@ -533,7 +533,11 @@ def plugins_cmd(workdir: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-@click.command("doctor")
+@click.group(
+    name="doctor",
+    invoke_without_command=True,
+    subcommand_metavar="[airgap]",
+)
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
 @click.option("--fix", "auto_fix", is_flag=True, default=False, help="Attempt to auto-fix issues.")
 @click.pass_context
@@ -544,10 +548,38 @@ def doctor(ctx: click.Context, as_json: bool, auto_fix: bool) -> None:
       bernstein doctor          # print diagnostic report
       bernstein doctor --json   # machine-readable output
       bernstein doctor --fix    # attempt to auto-fix issues
+      bernstein doctor airgap   # battery of checks for an air-gapped run
     """
+    if ctx.invoked_subcommand is not None:
+        ctx.obj = {"as_json": as_json, "auto_fix": auto_fix}
+        return
     from bernstein.cli.status_cmd import doctor as _doctor_impl
 
     ctx.invoke(_doctor_impl, as_json=as_json, auto_fix=auto_fix)
+
+
+@doctor.command("airgap")
+@click.pass_context
+def doctor_airgap_cmd(ctx: click.Context) -> None:
+    """Run the battery of air-gap self-checks.
+
+    \b
+    Checks:
+      - --profile airgap is the active entry point
+      - network policy denies every destination by default
+      - declared adapter endpoints are all blocked
+      - MCP catalog has no enabled bernstein-managed entries
+      - fingerprint memo store is on local disk only
+      - audit chain HMAC is intact
+      - .sdd/runtime contains no public hostnames
+
+    Exit code is 0 only when every check passes.
+    """
+    from bernstein.cli.commands.doctor_airgap_cmd import run_doctor_airgap
+
+    parent = ctx.obj if isinstance(ctx.obj, dict) else {}
+    as_json = bool(parent.get("as_json", False))
+    raise SystemExit(run_doctor_airgap(workdir=Path.cwd(), as_json=as_json))
 
 
 # ---------------------------------------------------------------------------

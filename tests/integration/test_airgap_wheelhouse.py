@@ -340,3 +340,188 @@ def test_sign_script_present() -> None:
     contents = script.read_text()
     assert "cosign" in contents
     assert "MANIFEST" in contents
+
+
+# ---------------------------------------------------------------------------
+# Phase 2: pluggable verifier + wheelhouse CLI subcommands
+# ---------------------------------------------------------------------------
+
+
+def test_verifier_protocol_kinds() -> None:
+    from bernstein.core.distribution import VerifierKind
+
+    assert {k.value for k in VerifierKind} == {"auto", "crypto", "cosign", "gpg"}
+
+
+def test_select_verifier_returns_none_with_no_inputs() -> None:
+    from bernstein.core.distribution import VerifierKind, select_verifier
+
+    assert select_verifier(VerifierKind.AUTO) is None
+
+
+def test_select_verifier_crypto_requires_pubkey(tmp_path: Path) -> None:
+    from bernstein.core.distribution import VerifierKind, select_verifier
+
+    assert select_verifier(VerifierKind.CRYPTO) is None
+    pem = tmp_path / "key.pem"
+    pem.write_text("-----BEGIN PUBLIC KEY-----\n-----END PUBLIC KEY-----\n")
+    v = select_verifier(VerifierKind.CRYPTO, pubkey_path=pem)
+    assert v is not None
+    assert v.name == "crypto"
+
+
+def test_select_verifier_gpg_when_available() -> None:
+    import shutil as _shutil
+
+    from bernstein.core.distribution import VerifierKind, select_verifier
+
+    v = select_verifier(VerifierKind.GPG)
+    if _shutil.which("gpg") or _shutil.which("gpg2"):
+        assert v is not None
+        assert v.name == "gpg"
+    else:
+        assert v is None
+
+
+def test_verify_wheelhouse_core_returns_report(tmp_path: Path) -> None:
+    from bernstein.core.distribution import verify_wheelhouse
+
+    wh = _make_fixture_wheelhouse(tmp_path / "wh")
+    report = verify_wheelhouse(wh.path)
+    assert report.ok is True
+    assert report.wheels_total == 1
+    assert report.wheels_verified == 1
+    assert report.signatures_present == 0
+
+
+def test_verify_wheelhouse_core_enumerates_every_offender(tmp_path: Path) -> None:
+    """SAST-style framing: report names each offender, no short-circuit."""
+    import zipfile
+
+    from bernstein.core.distribution import verify_wheelhouse
+
+    target = tmp_path / "wh"
+    target.mkdir()
+    names = ["bernstein-1.9.4-py3-none-any.whl", "click-8.1.7-py3-none-any.whl"]
+    wheels = []
+    for n in names:
+        with zipfile.ZipFile(target / n, "w") as zf:
+            zf.writestr("a/__init__.py", "x")
+        wheels.append({"name": n, "sha256": "deadbeef" * 8, "size": 0})
+    (target / "MANIFEST.json").write_text(json.dumps({"version": "1.9.4", "wheels": wheels}, indent=2, sort_keys=True))
+    report = verify_wheelhouse(target)
+    assert report.ok is False
+    assert any(names[0] in f for f in report.failures)
+    assert any(names[1] in f for f in report.failures)
+
+
+def test_verify_wheelhouse_require_signatures_flags_missing(tmp_path: Path) -> None:
+    from bernstein.core.distribution import verify_wheelhouse
+
+    wh = _make_fixture_wheelhouse(tmp_path / "wh")
+    report = verify_wheelhouse(wh.path, require_signatures=True)
+    assert report.ok is False
+    assert any("missing signature" in f for f in report.failures)
+
+
+def test_wheelhouse_verify_subcommand_passes(tmp_path: Path) -> None:
+    from bernstein.cli.commands.wheelhouse_cmd import wheelhouse_group
+
+    wh = _make_fixture_wheelhouse(tmp_path / "wh")
+    runner = CliRunner()
+    result = runner.invoke(wheelhouse_group, ["verify", str(wh.path)])
+    assert result.exit_code == 0, result.output
+    assert "PASSED" in result.output
+
+
+def test_wheelhouse_verify_subcommand_fails_on_tamper(tmp_path: Path) -> None:
+    from bernstein.cli.commands.wheelhouse_cmd import wheelhouse_group
+
+    wh = _make_fixture_wheelhouse(tmp_path / "wh")
+    target_wheel = wh.path / wh.wheel_names[0]
+    target_wheel.write_bytes(target_wheel.read_bytes() + b"TAMPER")
+    runner = CliRunner()
+    result = runner.invoke(wheelhouse_group, ["verify", str(wh.path)])
+    assert result.exit_code == 1
+    assert "FAILED" in result.output
+    assert wh.wheel_names[0] in result.output
+
+
+def test_wheelhouse_verify_unknown_verifier_falls_back_to_auto(tmp_path: Path) -> None:
+    from bernstein.cli.commands.wheelhouse_cmd import wheelhouse_group
+
+    wh = _make_fixture_wheelhouse(tmp_path / "wh")
+    runner = CliRunner()
+    result = runner.invoke(wheelhouse_group, ["verify", str(wh.path), "--verifier", "auto"])
+    assert result.exit_code == 0
+
+
+def test_wheelhouse_build_help() -> None:
+    from bernstein.cli.commands.wheelhouse_cmd import wheelhouse_group
+
+    runner = CliRunner()
+    result = runner.invoke(wheelhouse_group, ["build", "--help"])
+    assert result.exit_code == 0
+    assert "version" in result.output.lower()
+
+
+def test_gpg_verifier_unavailable_returns_false_on_missing_binary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from bernstein.core.distribution import GpgVerifier
+
+    monkeypatch.setattr("bernstein.core.distribution.verifier.shutil.which", lambda _name: None)
+    v = GpgVerifier()
+    assert v.available() is False
+    blob = tmp_path / "blob"
+    sig = tmp_path / "blob.sig"
+    blob.write_bytes(b"x")
+    sig.write_bytes(b"x")
+    assert v.verify(blob, sig) is False
+
+
+def test_cosign_verifier_unavailable_returns_false_on_missing_binary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from bernstein.core.distribution import CosignVerifier
+
+    monkeypatch.setattr("bernstein.core.distribution.verifier.shutil.which", lambda _name: None)
+    v = CosignVerifier()
+    assert v.available() is False
+    blob = tmp_path / "blob"
+    sig = tmp_path / "blob.sig"
+    blob.write_bytes(b"x")
+    sig.write_bytes(b"x")
+    assert v.verify(blob, sig) is False
+
+
+def test_gpg_verifier_runs_subprocess_when_available(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Verify the verifier shells to gpg with --verify on the right inputs."""
+    from bernstein.core.distribution import GpgVerifier
+
+    captured: dict[str, object] = {}
+
+    class _Result:
+        returncode = 0
+
+    def _fake_which(name: str) -> str | None:
+        return f"/usr/bin/{name}" if name in {"gpg", "gpg2"} else None
+
+    def _fake_run(cmd: list[str], **kwargs: object) -> _Result:  # pyright: ignore
+        captured["cmd"] = cmd
+        return _Result()
+
+    monkeypatch.setattr("bernstein.core.distribution.verifier.shutil.which", _fake_which)
+    monkeypatch.setattr("bernstein.core.distribution.verifier.subprocess.run", _fake_run)
+
+    blob = tmp_path / "wheel"
+    sig = tmp_path / "wheel.sig"
+    blob.write_bytes(b"contents")
+    sig.write_bytes(b"sig")
+    v = GpgVerifier()
+    assert v.verify(blob, sig) is True
+    cmd = captured["cmd"]
+    assert isinstance(cmd, list)
+    assert "--verify" in cmd
+    assert str(sig) in cmd
+    assert str(blob) in cmd

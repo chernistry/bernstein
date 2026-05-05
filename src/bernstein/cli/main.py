@@ -845,3 +845,8 @@ cli.add_command(notify_group, "notify")
 from bernstein.cli.commands.lineage_cmd import lineage_cmd  # noqa: E402
 
 cli.add_command(lineage_cmd, "lineage")
+
+# Air-gap distribution: build / verify wheel bundle.
+from bernstein.cli.commands.wheelhouse_cmd import wheelhouse_group  # noqa: E402
+
+cli.add_command(wheelhouse_group, "wheelhouse")

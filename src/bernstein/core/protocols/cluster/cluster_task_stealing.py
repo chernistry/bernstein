@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 
 from bernstein.core.defaults import PROTOCOL
+from bernstein.core.observability import prometheus as _metrics
+from bernstein.core.protocols.cluster import cluster_audit as _audit
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,18 @@ class StealResult(StrEnum):
     COOLDOWN = "cooldown"
     VERSION_CONFLICT = "version_conflict"
     TASK_PINNED = "task_pinned"
+
+
+def _steal_metric_label(result: StealResult) -> str:
+    """Map the engine's StealResult enum onto the Prometheus label set."""
+    if result is StealResult.SUCCESS:
+        return "stolen"
+    if result is StealResult.COOLDOWN:
+        return "cooldown"
+    if result is StealResult.VERSION_CONFLICT:
+        return "rejected_version_mismatch"
+    # NO_CANDIDATES / VICTIM_BELOW_THRESHOLD / TASK_PINNED — all "no_victim".
+    return "no_victim"
 
 
 @dataclass(frozen=True)
@@ -239,6 +253,7 @@ class TaskStealingEngine:
                 result=StealResult.NO_CANDIDATES,
             )
             self._history.append(attempt)
+            _metrics.record_steal_attempt(_steal_metric_label(attempt.result))
             return attempt
 
         victim = self.find_victim(thief_id, nodes)
@@ -248,6 +263,7 @@ class TaskStealingEngine:
                 result=StealResult.NO_CANDIDATES,
             )
             self._history.append(attempt)
+            _metrics.record_steal_attempt(_steal_metric_label(attempt.result))
             return attempt
 
         tasks = victim_tasks.get(victim.node_id, [])
@@ -258,6 +274,7 @@ class TaskStealingEngine:
                 result=StealResult.VICTIM_BELOW_THRESHOLD,
             )
             self._history.append(attempt)
+            _metrics.record_steal_attempt(_steal_metric_label(attempt.result))
             return attempt
 
         selected = self.select_tasks_to_steal(tasks, thief_id)
@@ -268,6 +285,7 @@ class TaskStealingEngine:
                 result=StealResult.TASK_PINNED,
             )
             self._history.append(attempt)
+            _metrics.record_steal_attempt(_steal_metric_label(attempt.result))
             return attempt
 
         # Record the steal and update cooldown
@@ -283,6 +301,15 @@ class TaskStealingEngine:
             timestamp=now,
         )
         self._history.append(attempt)
+        # One metric increment per stolen task; one audit event per stolen task.
+        for task_id in stolen_ids:
+            _metrics.record_steal_attempt("stolen")
+            _audit.record_task_stolen(
+                task_id,
+                from_node=victim.node_id,
+                to_node=thief_id,
+                queue_depth_delta=len(stolen_ids),
+            )
         logger.info(
             "Node %s stole %d task(s) from %s: %s",
             thief_id,

@@ -503,6 +503,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "store_factory": "bernstein.core.persistence.store_factory",
     "store_postgres": "bernstein.core.persistence.store_postgres",
     "store_redis": "bernstein.core.persistence.store_redis",
+    "swarm_migration": "bernstein.core.tasks.swarm_migration",
     "sync": "bernstein.core.persistence.sync",
     # synthesis: removed in audit-169 — dead code, no production importers.
     "task_claim": "bernstein.core.tasks.task_claim",

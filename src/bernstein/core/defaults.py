@@ -364,6 +364,10 @@ class JanitorDefaults:
     file_health_touches_rotate_bytes: int = 10 * 1024 * 1024  # 10 MiB
     replay_rotate_bytes: int = 50 * 1024 * 1024  # 50 MiB per run
 
+    # Persistent fingerprint memoization store cap (MiB).  See
+    # bernstein.core.persistence.fingerprint.MemoStore.
+    memo_max_mb: int = 200
+
 
 # ---------------------------------------------------------------------------
 # MCP catalog defaults

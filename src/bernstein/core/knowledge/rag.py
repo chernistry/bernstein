@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import ast
+import hashlib
 import logging
 import os
 import sqlite3
@@ -20,6 +21,9 @@ import time
 from dataclasses import dataclass
 from enum import Enum as _Enum
 from pathlib import Path
+from typing import Any
+
+from bernstein.core.persistence.fingerprint import MemoStore, default_store, memoize_persistent
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +170,40 @@ def _extract_python_chunks(source: str, rel_path: str) -> list[dict[str, object]
             )
 
     return chunks
+
+
+_rag_memo_store: MemoStore | None = None
+_memoized_chunker: Any = None
+
+
+def _chunk_for_memo(*, chunk_sha: str, rel_path: str, source: str, is_python: bool) -> list[dict[str, object]]:
+    """Memoization shim around the AST/line chunker.
+
+    Fingerprint key = (chunk_sha, rel_path, embedder_id="bm25_v1",
+    this-function-body-hash).  A change to the chunker invalidates the
+    cached chunks, so a bug fix in chunk shaping correctly re-derives.
+    """
+    embedder_id = "bm25_v1"  # noqa: F841 -- folded into the fingerprint via locals
+    if is_python:
+        return _extract_python_chunks(source, rel_path)
+    return _line_chunks(source, rel_path)
+
+
+def _get_memoized_chunker(workdir: Path) -> Any:
+    """Build the memoized chunker lazily so import-time cwd is irrelevant."""
+    global _rag_memo_store, _memoized_chunker
+    if _memoized_chunker is None:
+        _rag_memo_store = default_store(workdir)
+        _memoized_chunker = memoize_persistent(_rag_memo_store, site="rag")(_chunk_for_memo)
+    return _memoized_chunker
+
+
+def _chunk_with_memo(workdir: Path, source: str, rel_path: str, *, is_python: bool) -> list[dict[str, object]]:
+    """Compute chunk_sha and dispatch to the memoized chunker."""
+    chunk_sha = hashlib.sha256(source.encode("utf-8", errors="replace")).hexdigest()
+    chunker = _get_memoized_chunker(workdir)
+    result = chunker(chunk_sha=chunk_sha, rel_path=rel_path, source=source, is_python=is_python)
+    return list(result) if result is not None else []
 
 
 def _line_chunks(
@@ -328,7 +366,7 @@ class CodebaseIndexer:
                 logger.warning("Could not read %s for indexing", rel)
                 continue
 
-            chunks = _extract_python_chunks(source, rel) if fpath.suffix == ".py" else _line_chunks(source, rel)
+            chunks = _chunk_with_memo(self._root, source, rel, is_python=fpath.suffix == ".py")
 
             for chunk in chunks:
                 conn.execute(

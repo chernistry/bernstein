@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import sqlite3
@@ -11,7 +12,12 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from bernstein.core.git_context import ls_files as _git_ls_files
-from bernstein.core.knowledge.ast_symbol_graph import build_semantic_graph, parse_file_symbols
+from bernstein.core.knowledge.ast_symbol_graph import (
+    FileSymbols,
+    build_semantic_graph,
+    parse_file_symbols,
+)
+from bernstein.core.persistence.fingerprint import MemoStore, default_store, memoize_persistent
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +79,48 @@ class ImpactResult:
     matched_files: list[str]
     impacted_files: list[str]
     built_at: str
+
+
+_kg_memo_store: MemoStore | None = None
+_memoized_extract: Any = None
+
+
+def _extract_symbols_for_memo(*, file_sha: str, rel_path: str, abs_path: str) -> FileSymbols | None:
+    """Memoization shim around :func:`parse_file_symbols`.
+
+    Keyed by (file_sha, rel_path, this-function-body-hash).  The
+    file_sha argument forces invalidation when the source bytes change;
+    a change to *this* function or to ``parse_file_symbols`` is captured
+    by the function-body component of the fingerprint.
+    """
+    return parse_file_symbols(Path(abs_path), rel_path)
+
+
+def _get_memoized_extract(workdir: Path) -> Any:
+    """Build the memoized extractor lazily so import-time cwd is irrelevant."""
+    global _kg_memo_store, _memoized_extract
+    if _memoized_extract is None:
+        _kg_memo_store = default_store(workdir)
+        _memoized_extract = memoize_persistent(_kg_memo_store, site="knowledge_graph")(_extract_symbols_for_memo)
+    return _memoized_extract
+
+
+def _parse_file_symbols_memoized(workdir: Path, filepath: Path, rel_path: str) -> FileSymbols | None:
+    """Read *filepath* once for hashing, then dispatch to the memoized extractor.
+
+    Falls back to the un-cached parser when reading fails so the graph
+    build keeps progressing on permission/encoding errors.
+    """
+    try:
+        source_bytes = filepath.read_bytes()
+    except OSError:
+        return parse_file_symbols(filepath, rel_path)
+    file_sha = hashlib.sha256(source_bytes).hexdigest()
+    extractor = _get_memoized_extract(workdir)
+    return cast(
+        "FileSymbols | None",
+        extractor(file_sha=file_sha, rel_path=rel_path, abs_path=str(filepath)),
+    )
 
 
 def _db_path(workdir: Path) -> Path:
@@ -224,7 +272,7 @@ def _collect_file_nodes_and_edges(
         file_node_id = f"file:{rel_path}"
         nodes.append(KnowledgeNode(id=file_node_id, kind="file", name=Path(rel_path).name, file_path=rel_path))
 
-        parsed = parse_file_symbols(workdir / rel_path, rel_path)
+        parsed = _parse_file_symbols_memoized(workdir, workdir / rel_path, rel_path)
         if parsed is None:
             continue
 

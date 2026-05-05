@@ -193,6 +193,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "fast_path": "bernstein.core.quality.fast_path",
     "file_discovery": "bernstein.core.knowledge.file_discovery",
     "file_health": "bernstein.core.persistence.file_health",
+    "fingerprint": "bernstein.core.persistence.fingerprint",
     "file_locks": "bernstein.core.persistence.file_locks",
     "flaky_detector": "bernstein.core.quality.flaky_detector",
     "formal_verification": "bernstein.core.quality.formal_verification",

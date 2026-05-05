@@ -13,9 +13,10 @@ import json
 import logging
 import subprocess
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from bernstein.core.llm import call_llm
+from bernstein.core.persistence.fingerprint import default_store, memoize_persistent
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -24,6 +25,44 @@ if TYPE_CHECKING:
     from bernstein.core.voting import VotingConfig
 
 logger = logging.getLogger(__name__)
+
+# Per-workdir memoized call cache.  Tests pass a fresh ``tmp_path`` for
+# each run, so each test gets an isolated store; in production every
+# orchestrator process binds to a single project root.
+_memoized_calls: dict[Path, Any] = {}
+
+
+async def _raw_review_call(
+    *,
+    reviewer_model: str,
+    provider: str,
+    prompt: str,
+    max_tokens: int,
+) -> str:
+    """Underlying reviewer LLM call.
+
+    Wrapped by ``memoize_persistent`` on first use; a change to *this*
+    function's body invalidates every cached entry — that is the whole
+    point of fingerprint memoization.
+    """
+    return await call_llm(
+        prompt=prompt,
+        model=reviewer_model,
+        provider=provider,
+        max_tokens=max_tokens,
+        temperature=0.0,
+    )
+
+
+def _memoized_review_call(workdir: Path) -> Any:
+    """Return the memoized review-call coroutine for *workdir*."""
+    cached = _memoized_calls.get(workdir)
+    if cached is None:
+        store = default_store(workdir)
+        cached = memoize_persistent(store, site="cross_model_verifier")(_raw_review_call)
+        _memoized_calls[workdir] = cached
+    return cached
+
 
 # Cost-control constants
 _MAX_DIFF_CHARS = 12_000
@@ -295,12 +334,11 @@ async def verify_with_cross_model(
     )
 
     try:
-        raw = await call_llm(
-            prompt=prompt,
-            model=reviewer,
+        raw = await _memoized_review_call(worktree_path)(
+            reviewer_model=reviewer,
             provider=config.provider,
+            prompt=prompt,
             max_tokens=config.max_tokens,
-            temperature=0.0,
         )
     except RuntimeError as exc:
         logger.warning(

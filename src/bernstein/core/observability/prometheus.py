@@ -115,6 +115,9 @@ __all__ = [
     "evolve_proposals_total",
     "generate_latest",
     "get_transition_reason_histogram",
+    "memo_hits_total",
+    "memo_misses_total",
+    "memo_size_bytes",
     "merge_duration",
     "record_transition_reason",
     "registry",
@@ -227,6 +230,26 @@ task_transition_reasons_total: Counter = Counter(
     "bernstein_task_transition_reasons_total",
     "Task lifecycle transitions by reason.",
     labelnames=["reason", "role"],
+    registry=registry,
+)
+
+memo_hits_total: Counter = Counter(
+    "bernstein_memo_hits_total",
+    "Persistent fingerprint memoization cache hits, partitioned by call site.",
+    labelnames=["site"],
+    registry=registry,
+)
+
+memo_misses_total: Counter = Counter(
+    "bernstein_memo_misses_total",
+    "Persistent fingerprint memoization cache misses, partitioned by call site.",
+    labelnames=["site"],
+    registry=registry,
+)
+
+memo_size_bytes: Gauge = Gauge(
+    "bernstein_memo_size_bytes",
+    "On-disk size of the persistent fingerprint memoization store in bytes.",
     registry=registry,
 )
 

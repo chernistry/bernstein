@@ -158,7 +158,6 @@ Bernstein can run agents on Cloudflare Workers instead of locally. The `bernstei
 - **R2 workspace sync**. Local worktree state syncs to R2 object storage so cloud agents see the same files.
 - **Workers AI** (experimental). Use Cloudflare-hosted models as the LLM provider, no external API keys required.
 - **D1 analytics**. Task metrics and cost data stored in D1 for querying.
-- **Vectorize**. Semantic cache backed by Cloudflare's vector database.
 - **Browser rendering**. Headless Chrome on Workers for agents that need to inspect web output.
 - **MCP remote transport**. Expose or consume MCP servers over Cloudflare's network.
 
@@ -220,6 +219,24 @@ Commands that eliminate the glue code most teams end up writing around their run
 | `bernstein connect <provider>` / `bernstein creds` | Stores and rotates API credentials in the OS keychain. Agents inherit scoped keys per-run. |
 | `bernstein autofix` | Daemon that monitors open Bernstein PRs; spawns a fixer agent when CI fails and pushes the repair automatically. |
 | `bernstein preview start` | Starts a sandboxed dev server for the current branch and prints a shareable public tunnel URL. |
+
+### Retrieval & caching: what's actually under the hood
+
+Bernstein deliberately uses **no neural embeddings, no vector databases, and no
+external embedding APIs**. There are two retrieval/caching layers, both
+keyword/lexical:
+
+- **Codebase RAG** (`core/knowledge/rag.py`) — SQLite FTS5 with BM25 ranking
+  and AST-aware chunking for Python files. Built incrementally on file mtime;
+  used to enrich agent task context within token budgets.
+- **Semantic cache** (`core/knowledge/semantic_cache.py`) — despite the name,
+  fuzzy matching is done with TF (term-frequency) cosine similarity over word
+  counts, not learned embeddings. It deduplicates near-identical LLM planning
+  and agent-output requests so we don't re-spawn agents for the same goal.
+
+If you need real semantic retrieval (vector DB, neural embeddings), wire it
+yourself via the retrieval role/skill in `templates/`; nothing in core
+performs vector search.
 
 ## How it compares
 

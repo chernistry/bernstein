@@ -13,7 +13,6 @@ All notable project changes are tracked here (code + docs).
   - R2 Workspace Sync (`bridges/r2_sync.py`) — content-addressed delta file sync via Cloudflare R2
   - Workers AI Provider (`core/routing/cloudflare_ai.py`) — free-tier LLM models (Llama 3.1, Mistral, Gemma, Qwen) for planning
   - D1 Analytics Client (`core/cost/d1_analytics.py`) — usage metering, billing tiers (free/pro/team/enterprise), quota enforcement
-  - Vectorize Semantic Cache (`core/memory/vectorize_cache.py`) — embedding-based LLM response caching
   - MCP Remote Transport (`mcp/remote_transport.py`) — streamable HTTP transport for remote MCP server access
   - Cloud CLI (`cli/commands/cloud_cmd.py`) — `bernstein cloud` subcommands: login, logout, run, status, runs, cost, deploy
   - Cloudflare Agents Adapter (`adapters/cloudflare_agents.py`) — spawn agents via `npx wrangler dev`

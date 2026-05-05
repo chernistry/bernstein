@@ -32,7 +32,7 @@ You are working on Bernstein, a multi-agent orchestration system for CLI coding 
   - `knowledge/` — knowledge graph, codebase impact analysis
   - `plugins_core/` — pluggy-based plugin system
   - `routes/` — HTTP route handlers
-  - `memory/` — persistent memory stores (SQLite + vector cache)
+  - `memory/` — persistent memory stores (SQLite-backed, no vector index)
   - `trigger_sources/` — external trigger integrations
   - `grpc_gen/` — generated gRPC stubs
   - Back-compat: `from bernstein.core.<old> import X` works via a `sys.meta_path` finder in `core/__init__.py` (`_CoreRedirectFinder`, `_REDIRECT_MAP`). The finder covers legacy names like `orchestrator.py`, `spawner.py`, `task_lifecycle.py`, etc. Top-level `.py` files outside sub-packages: `defaults.py`, `credential_scoping.py`, `streaming_merge.py`. WARNING: new aliases MUST be added to `_REDIRECT_MAP` in `src/bernstein/core/__init__.py`; creating physical shim files will shadow the finder.

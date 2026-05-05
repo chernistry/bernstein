@@ -1,0 +1,40 @@
+# Sample Bernstein worker config for a Tailscale-overlay deployment.
+#
+# Drop this on the worker host as `~/.bernstein/bernstein.yaml`. The
+# only Bernstein-specific bit is the cluster `server_url` pointing at
+# the central node's MagicDNS hostname; everything else is identical
+# to a same-VPC worker.
+#
+# Bring it up with:
+#
+#   sudo tailscale up --authkey="$TS_AUTHKEY_WORKER" \
+#       --advertise-tags=tag:bernstein-worker
+#
+#   bernstein cluster worker \
+#       --config ~/.bernstein/bernstein.yaml \
+#       --role backend
+
+cluster:
+  enabled: true
+  # Replace `tailXXXXX` with your tailnet's MagicDNS suffix
+  # (`tailscale status --json | jq -r .MagicDNSSuffix`).
+  server_url: http://bernstein-central.tailXXXXX.ts.net:8052
+  # Shared HMAC secret with the central server. Provide it via env
+  # (`BERNSTEIN_CLUSTER_AUTH_SECRET`) rather than committing it.
+  auth_secret_env: BERNSTEIN_CLUSTER_AUTH_SECRET
+  heartbeat_interval_s: 5
+  node_timeout_s: 30
+  # The traffic is encrypted by WireGuard at the network layer, so
+  # plain HTTP is fine here. Layer mTLS on top if you need
+  # application-level identity for audit (see docs/cluster/mtls-setup.md).
+  tls: null
+
+worker:
+  role: backend
+  capacity:
+    max_agents: 4
+    gpu_available: false
+    supported_models: ["sonnet"]
+  labels:
+    deployment: tailscale-overlay
+    region: contractor-laptop

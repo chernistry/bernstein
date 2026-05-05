@@ -1,0 +1,65 @@
+# Bernstein central server + cloudflared sidecar.
+#
+# Brings up two containers on a private Docker network:
+#   * bernstein-central — the cluster central server (no public ports)
+#   * bernstein-cloudflared — the tunnel sidecar
+#
+# The central server is NOT published on the host; only cloudflared can
+# reach it on the internal network. The public ingress is the
+# Cloudflare hostname configured in the Zero Trust dashboard.
+#
+# Required environment:
+#   CF_TUNNEL_TOKEN              — token from `cloudflared tunnel token`
+#   BERNSTEIN_CLUSTER_AUTH_SECRET — shared HMAC secret for cluster JWTs
+#
+# Optional:
+#   BERNSTEIN_IMAGE              — pin a Bernstein image tag (default: latest)
+
+services:
+  bernstein-central:
+    image: ${BERNSTEIN_IMAGE:-ghcr.io/sipyourdrink-ltd/bernstein:latest}
+    container_name: bernstein-central
+    restart: unless-stopped
+    environment:
+      BERNSTEIN_CLUSTER_ENABLED: "1"
+      BERNSTEIN_CLUSTER_AUTH_SECRET: ${BERNSTEIN_CLUSTER_AUTH_SECRET:?required}
+      BERNSTEIN_BIND_HOST: "0.0.0.0"
+      BERNSTEIN_BIND_PORT: "8052"
+    command:
+      - "bernstein"
+      - "cluster"
+      - "server"
+      - "--bind"
+      - "0.0.0.0:8052"
+    volumes:
+      - bernstein-state:/var/lib/bernstein
+    networks:
+      - bernstein-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8052/health || exit 1"]
+      interval: 10s
+      timeout:  3s
+      retries:  6
+
+  bernstein-cloudflared:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bernstein-cloudflared
+    restart: unless-stopped
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:?required}
+    depends_on:
+      bernstein-central:
+        condition: service_healthy
+    networks:
+      - bernstein-net
+    # cloudflared talks outbound to Cloudflare's edge, so it does not
+    # need any inbound published ports.
+
+networks:
+  bernstein-net:
+    driver: bridge
+
+volumes:
+  bernstein-state:

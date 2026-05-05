@@ -1,0 +1,39 @@
+# cloudflared sidecar config for the Bernstein central server.
+#
+# The tunnel terminates at the Cloudflare edge; cloudflared opens an
+# outbound connection so no inbound port has to be exposed on the host
+# running the central server.
+#
+# Usage:
+#   - Create the tunnel in the Cloudflare Zero Trust dashboard (or via
+#     `cloudflared tunnel create bernstein-central`).
+#   - Set the tunnel UUID below or override it through the
+#     `TUNNEL_ID` env var in docker-compose.yml.
+#   - Map a public hostname (`central.bernstein.example.com`) to this
+#     tunnel via the dashboard's Public Hostnames page; the same
+#     mapping is repeated under `ingress:` so cloudflared can do
+#     local routing if it ever runs without the edge config.
+#
+# All values are placeholders — replace `example.com` and the UUID
+# with your own.
+
+tunnel: 00000000-0000-0000-0000-000000000000
+credentials-file: /etc/cloudflared/creds.json
+
+# Optional but recommended: TLS to origin even though it's localhost.
+# Cloudflare terminates the public TLS; this keeps the inner hop
+# encrypted as well.
+originRequest:
+  connectTimeout: 10s
+  tlsTimeout:     10s
+  keepAliveConnections: 16
+  keepAliveTimeout:     90s
+  noTLSVerify: false
+
+ingress:
+  - hostname: central.bernstein.example.com
+    service: http://bernstein-central:8052
+    originRequest:
+      httpHostHeader: central.bernstein.example.com
+  # Catch-all: required by cloudflared. Anything else gets a 404.
+  - service: http_status:404

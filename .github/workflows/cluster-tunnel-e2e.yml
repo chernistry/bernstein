@@ -1,0 +1,98 @@
+name: cluster-tunnel-e2e
+
+# Bring up Bernstein central + a cloudflared sidecar via docker compose
+# and assert a worker can register / heartbeat through the public
+# tunnel hostname.
+#
+# This workflow makes real outbound calls to Cloudflare's edge and
+# requires:
+#   * secrets.CF_TUNNEL_TOKEN     — token for the test tunnel
+#   * secrets.CF_TUNNEL_HOSTNAME  — public hostname mapped to the tunnel
+#
+# Both are scoped to a throwaway tunnel used only for CI.
+#
+# It is opt-in:
+#   * Default: NOT triggered on regular PRs (the test guards itself
+#     with CI_TUNNEL_TEST=1 and skips when the secrets are missing).
+#   * Nightly: scheduled cron run.
+#   * On-demand: workflow_dispatch.
+
+on:
+  schedule:
+    # 04:23 UTC nightly. Offset from cluster-e2e (03:17) and other
+    # nightly maintenance jobs so they don't compete for the same
+    # GitHub-hosted runner pool.
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to test"
+        required: false
+        default: "main"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cluster-tunnel-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cluster-tunnel-e2e:
+    name: cluster-tunnel-e2e (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Only run on the upstream repo so PRs from forks don't try to
+    # use the secrets (and silently skip).
+    if: github.repository == 'sipyourdrink-ltd/bernstein'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync --frozen --all-extras
+
+      - name: Verify docker compose available
+        run: docker compose version
+
+      - name: Run cluster tunnel smoke test
+        env:
+          CI_TUNNEL_TEST: "1"
+          CF_TUNNEL_TOKEN:    ${{ secrets.CF_TUNNEL_TOKEN }}
+          CF_TUNNEL_HOSTNAME: ${{ secrets.CF_TUNNEL_HOSTNAME }}
+          BERNSTEIN_RUN_CLUSTER_E2E: "1"
+        run: |
+          uv run pytest tests/integration/cluster/test_cluster_tunnel_smoke.py \
+            -m cluster_e2e -x -q --tb=short
+
+      - name: Collect docker compose logs
+        if: always()
+        run: |
+          docker ps -a > /tmp/docker-ps.txt 2>&1 || true
+          docker compose -f examples/cluster/cloudflared/docker-compose.yml \
+            logs --no-color > /tmp/compose-final.log 2>&1 || true
+          docker compose -f examples/cluster/cloudflared/docker-compose.yml \
+            down -v --remove-orphans > /tmp/compose-down.log 2>&1 || true
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cluster-tunnel-e2e-logs
+          path: |
+            /tmp/docker-ps.txt
+            /tmp/compose-final.log
+            /tmp/compose-down.log
+            /tmp/pytest-*/**/compose.log
+          if-no-files-found: ignore
+          retention-days: 7

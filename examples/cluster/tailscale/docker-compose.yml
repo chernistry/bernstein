@@ -1,0 +1,66 @@
+# Bernstein central server + tailscaled sidecar.
+#
+# Both containers share the same network namespace via
+# `network_mode: service:tailscale`. The tailscale container holds the
+# WireGuard interface; the bernstein-central container binds 8052
+# inside that namespace, so workers on the tailnet reach it via the
+# MagicDNS hostname `bernstein-central.tailXXXXX.ts.net:8052`.
+#
+# Required environment:
+#   TS_AUTHKEY                    — Tailscale auth key tagged
+#                                   `tag:bernstein-central`
+#   BERNSTEIN_CLUSTER_AUTH_SECRET — shared HMAC secret for cluster JWTs
+#
+# Optional:
+#   BERNSTEIN_IMAGE — pin a Bernstein image tag (default: latest)
+
+services:
+  tailscale:
+    image: tailscale/tailscale:stable
+    container_name: bernstein-tailscale
+    restart: unless-stopped
+    hostname: bernstein-central
+    environment:
+      TS_AUTHKEY:    ${TS_AUTHKEY:?required}
+      TS_HOSTNAME:   bernstein-central
+      TS_EXTRA_ARGS: --advertise-tags=tag:bernstein-central --accept-dns=true
+      TS_STATE_DIR:  /var/lib/tailscale
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+      - sys_module
+
+  bernstein-central:
+    image: ${BERNSTEIN_IMAGE:-ghcr.io/sipyourdrink-ltd/bernstein:latest}
+    container_name: bernstein-central
+    restart: unless-stopped
+    # Share the tailscale container's network namespace so we bind
+    # 8052 onto the WireGuard interface without exposing it on the
+    # host.
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+    environment:
+      BERNSTEIN_CLUSTER_ENABLED: "1"
+      BERNSTEIN_CLUSTER_AUTH_SECRET: ${BERNSTEIN_CLUSTER_AUTH_SECRET:?required}
+      BERNSTEIN_BIND_HOST: "0.0.0.0"
+      BERNSTEIN_BIND_PORT: "8052"
+    command:
+      - "bernstein"
+      - "cluster"
+      - "server"
+      - "--bind"
+      - "0.0.0.0:8052"
+    volumes:
+      - bernstein-state:/var/lib/bernstein
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8052/health || exit 1"]
+      interval: 10s
+      timeout:  3s
+      retries:  6
+
+volumes:
+  tailscale-state:
+  bernstein-state:

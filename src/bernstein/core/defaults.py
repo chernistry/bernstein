@@ -497,6 +497,10 @@ SCHEMA_RETRY = SchemaRetryDefaults()
 # numeric cap is needed (no need to import the whole singleton).
 SCHEMA_RETRY_MAX_ATTEMPTS: int = SCHEMA_RETRY.max_attempts
 
+# Abstract-diff PR review augmentation (abstracted-code-review).
+ABSTRACT_DIFF_ENABLED: bool = True
+ABSTRACT_DIFF_MAX_FILES: int = 50
+
 
 # Mapping of section name (as used in bernstein.yaml ``tuning:`` blocks) to the
 # module-level attribute that stores the singleton.  We rebind the attribute

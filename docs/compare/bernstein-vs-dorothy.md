@@ -21,7 +21,7 @@ The core difference: Dorothy gives you a visual control plane. Bernstein gives y
 | Feature | Bernstein | Dorothy |
 |---|---|---|
 | **Interface** | CLI + TUI + JSON status endpoint | Desktop app (Kanban, dashboard) |
-| **Agent coverage** | 42 CLI adapters | Claude Code, Codex, Gemini, local |
+| **Agent coverage** | 40 CLI adapters | Claude Code, Codex, Gemini, local |
 | **Scheduler** | Deterministic Python, no LLM | "Super Agent" (LLM) via MCP |
 | **Verification** | Janitor: tests, linter, file checks | None built-in |
 | **Parallel execution** | Yes — independent tasks run concurrently | Yes — up to ~10 agents |

@@ -67,3 +67,25 @@ def test_register_and_get_instance_adapter() -> None:
     register_adapter("instance_adapter", instance)
     result = get_adapter("instance_adapter")
     assert result is instance
+
+
+def test_user_facing_adapter_count_matches_public_copy() -> None:
+    """Lock the user-facing adapter count cited in README / landing copy.
+
+    Reality:
+      - ``_ADAPTERS`` holds 40 entries; ``mock`` is a test-only stub.
+      - ``generic`` is served by a special-case in ``get_adapter`` and not
+        present in the dict.
+
+    User-facing total = (entries excluding ``mock``) + 1 for ``generic`` = 40.
+    Of those: 2 leaf-node delegators (``composio``, ``ralphex``) + 1 generic
+    + 37 third-party wrappers.
+
+    If you add or remove an adapter, update README.md / docs/index.md /
+    landing copy together with this assertion so the public count stays
+    honest.
+    """
+    production = {name for name in _ADAPTERS if name != "mock"}
+    user_facing = production | {"generic"}
+    assert len(user_facing) == 40, sorted(user_facing)
+    assert {"composio", "ralphex"}.issubset(user_facing)

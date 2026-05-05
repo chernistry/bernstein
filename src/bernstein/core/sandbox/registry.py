@@ -143,13 +143,18 @@ class _Registry:
     def _load_builtins(self) -> None:
         # Imports are local to keep the module-load graph minimal and to
         # tolerate partial installs (a missing optional dep must never
-        # break registry import).
+        # break registry import). The cloud-REST backends (blaxel,
+        # daytona, runloop, vercel) speak plain httpx so they ship as
+        # first-party built-ins; credential-presence checks happen at
+        # ``backend.create`` time, not at registry-load time.
+        from bernstein.core.sandbox.backends.blaxel import BlaxelSandboxBackend
         from bernstein.core.sandbox.backends.docker import DockerSandboxBackend
         from bernstein.core.sandbox.backends.worktree import WorktreeSandboxBackend
 
         builtins: tuple[tuple[str, type[SandboxBackend]], ...] = (
             ("worktree", WorktreeSandboxBackend),
             ("docker", DockerSandboxBackend),
+            ("blaxel", BlaxelSandboxBackend),
         )
         for name, cls in builtins:
             if name in self._all_names():

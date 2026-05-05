@@ -15,6 +15,7 @@ from bernstein.adapters.base import CLIAdapter
 from bernstein.adapters.charm import CharmAdapter
 from bernstein.adapters.claude import ClaudeCodeAdapter
 from bernstein.adapters.cline import ClineAdapter
+from bernstein.adapters.clm import ClmAdapter
 from bernstein.adapters.cloudflare_agents import CloudflareAgentsAdapter
 from bernstein.adapters.codebuff import CodebuffAdapter
 from bernstein.adapters.codex import CodexAdapter
@@ -59,6 +60,7 @@ _ADAPTERS: dict[str, type[CLIAdapter] | CLIAdapter] = {
     "charm": CharmAdapter,
     "claude": ClaudeCodeAdapter,
     "cline": ClineAdapter,
+    "clm": ClmAdapter,
     "cloudflare": CloudflareAgentsAdapter,
     "codebuff": CodebuffAdapter,
     "codex": CodexAdapter,

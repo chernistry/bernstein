@@ -1,0 +1,190 @@
+"""Customer-key signing layer for lineage records (schema v2).
+
+Bernstein already chains every WAL entry with an HMAC, so the
+orchestrator can self-verify a run hasn't been tampered with. That
+chain is signed by Bernstein, not the customer -- a sovereign auditor
+who refuses to trust upstream signing keys can't validate it.
+
+This module adds a second, independent signature that the *customer*
+controls. A :class:`LineageSigner` is plugged into
+:class:`bernstein.core.persistence.lineage.LineageWriter`; every record
+emitted while the signer is set carries a detached signature over the
+canonicalised record bytes (see ``canonical_record_bytes``). The
+signature is base64-encoded into ``LineageRecord.customer_signature``
+so it round-trips through the WAL without binary escaping.
+
+Default implementation
+----------------------
+:class:`Ed25519FileKeySigner` reads a customer-provided Ed25519 private
+key from disk in either PEM or raw 32-byte form. We pick Ed25519 by
+default because (a) signatures are 64 bytes — small enough to embed in
+every WAL line, (b) signing latency is ~50µs on commodity hardware,
+(c) the key format is unambiguous, (d) ``cryptography`` already ships
+in Bernstein's dependency closure.
+
+Pluggable backends
+------------------
+The :class:`LineageSigner` protocol is intentionally narrow: a
+``sign(bytes) -> bytes`` call. HSM, TPM, or KMS-backed signers
+implement the same protocol — the writer doesn't care where the key
+material lives, only that the call returns a signature over the
+provided canonical bytes. Verifiers are similarly pluggable via
+:class:`LineageVerifier`.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Protocol, runtime_checkable
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+    Ed25519PrivateKey,
+    Ed25519PublicKey,
+)
+
+
+@runtime_checkable
+class LineageSigner(Protocol):
+    """Anything that can sign canonicalised lineage record bytes."""
+
+    def sign(self, payload: bytes) -> bytes:
+        """Return a detached signature over *payload*."""
+        ...
+
+
+@runtime_checkable
+class LineageVerifier(Protocol):
+    """Anything that can verify a detached signature."""
+
+    def verify(self, payload: bytes, signature: bytes) -> bool:
+        """Return ``True`` iff *signature* is valid for *payload*."""
+        ...
+
+
+class LineageSignerError(RuntimeError):
+    """Raised for unrecoverable signer setup or operation errors."""
+
+
+class Ed25519FileKeySigner:
+    """Ed25519 signer that reads a customer's private key from disk.
+
+    Accepts either a PEM-encoded ``PRIVATE KEY`` block (PKCS#8) or a
+    raw 32-byte seed. Pick PEM for human-managed keys, raw for keys
+    materialised from a KMS/HSM export. The key is loaded eagerly at
+    construction so a missing/corrupt key fails fast instead of at
+    first emit.
+    """
+
+    __slots__ = ("_private_key", "key_path")
+
+    def __init__(self, key_path: Path, private_key: Ed25519PrivateKey) -> None:
+        self.key_path = key_path
+        self._private_key = private_key
+
+    @classmethod
+    def from_path(cls, key_path: Path) -> Ed25519FileKeySigner:
+        if not key_path.exists():
+            raise LineageSignerError(f"signing key not found: {key_path}")
+        try:
+            data = key_path.read_bytes()
+        except OSError as exc:
+            raise LineageSignerError(f"cannot read signing key {key_path}: {exc}") from exc
+        return cls(key_path, _load_ed25519_private(data, key_path))
+
+    def sign(self, payload: bytes) -> bytes:
+        return self._private_key.sign(payload)
+
+    def public_key_bytes(self) -> bytes:
+        """Return the raw 32-byte public key (for handing to the auditor)."""
+        return self._private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw,
+        )
+
+
+class Ed25519PublicKeyVerifier:
+    """Verifier paired with :class:`Ed25519FileKeySigner`.
+
+    Constructed from either a raw 32-byte public key (e.g. material
+    handed to the customer auditor out-of-band) or a PEM-encoded
+    public key on disk.
+    """
+
+    __slots__ = ("_public_key",)
+
+    def __init__(self, public_key: Ed25519PublicKey) -> None:
+        self._public_key = public_key
+
+    @classmethod
+    def from_raw(cls, raw: bytes) -> Ed25519PublicKeyVerifier:
+        if len(raw) != 32:
+            raise LineageSignerError(f"raw Ed25519 public key must be 32 bytes, got {len(raw)}")
+        return cls(Ed25519PublicKey.from_public_bytes(raw))
+
+    @classmethod
+    def from_path(cls, key_path: Path) -> Ed25519PublicKeyVerifier:
+        if not key_path.exists():
+            raise LineageSignerError(f"public key not found: {key_path}")
+        data = key_path.read_bytes()
+        if data.lstrip().startswith(b"-----BEGIN"):
+            try:
+                public_key = serialization.load_pem_public_key(data)
+            except ValueError as exc:
+                raise LineageSignerError(f"invalid PEM public key {key_path}: {exc}") from exc
+            if not isinstance(public_key, Ed25519PublicKey):
+                raise LineageSignerError(f"public key {key_path} is not Ed25519")
+            return cls(public_key)
+        return cls.from_raw(data.strip() if len(data) > 32 else data)
+
+    def verify(self, payload: bytes, signature: bytes) -> bool:
+        try:
+            self._public_key.verify(signature, payload)
+        except InvalidSignature:
+            return False
+        return True
+
+
+def _load_ed25519_private(data: bytes, source: Path) -> Ed25519PrivateKey:
+    if data.lstrip().startswith(b"-----BEGIN"):
+        try:
+            private_key = serialization.load_pem_private_key(data, password=None)
+        except (ValueError, TypeError) as exc:
+            raise LineageSignerError(f"invalid PEM private key {source}: {exc}") from exc
+        if not isinstance(private_key, Ed25519PrivateKey):
+            raise LineageSignerError(f"private key {source} is not Ed25519")
+        return private_key
+    raw = data.strip() if len(data) > 32 else data
+    if len(raw) != 32:
+        raise LineageSignerError(
+            f"raw Ed25519 private key must be 32 bytes (got {len(raw)} from {source})",
+        )
+    try:
+        return Ed25519PrivateKey.from_private_bytes(raw)
+    except ValueError as exc:
+        raise LineageSignerError(f"cannot load raw Ed25519 key from {source}: {exc}") from exc
+
+
+def signer_from_config(
+    *,
+    enabled: bool,
+    key_path: str | None,
+    key_kind: str = "ed25519",
+) -> LineageSigner | None:
+    """Build a :class:`LineageSigner` from bernstein.yaml-shaped config.
+
+    Returns ``None`` when signing is disabled or unconfigured. Raises
+    :class:`LineageSignerError` when ``enabled=True`` but the key
+    cannot be loaded — the orchestrator should fail fast rather than
+    silently drop signatures.
+    """
+    if not enabled:
+        return None
+    if key_path is None:
+        raise LineageSignerError("lineage.customer_signing.enabled=true requires key_path")
+    if key_kind != "ed25519":
+        raise LineageSignerError(
+            f"unsupported lineage.customer_signing.key_kind: {key_kind!r} (only 'ed25519' is implemented in Phase 1)",
+        )
+    return Ed25519FileKeySigner.from_path(Path(key_path))

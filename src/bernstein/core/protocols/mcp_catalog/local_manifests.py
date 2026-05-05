@@ -44,15 +44,11 @@ def _coerce_entry_payload(raw: object, source: Path) -> dict[str, Any]:
     happens inside :func:`validate_catalog`, not here.
     """
     if not isinstance(raw, dict):
-        raise CatalogValidationError(
-            f"local manifest {source.name!r} must be a YAML mapping, got {type(raw).__name__}"
-        )
+        raise CatalogValidationError(f"local manifest {source.name!r} must be a YAML mapping, got {type(raw).__name__}")
     out: dict[str, Any] = {}
     for key, value in raw.items():  # type: ignore[reportUnknownVariableType]
         if not isinstance(key, str):
-            raise CatalogValidationError(
-                f"local manifest {source.name!r} has non-string key {key!r}"
-            )
+            raise CatalogValidationError(f"local manifest {source.name!r} has non-string key {key!r}")
         out[key] = value
     return out
 

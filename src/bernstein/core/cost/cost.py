@@ -43,6 +43,7 @@ QUALITY_THRESHOLD: float = 0.80  # minimum success_rate to consider an arm
 
 # Model name constants (used across pricing tables and cache tiers)
 MODEL_GPT_5_4 = "gpt-5.4"
+MODEL_GPT_5_5 = "gpt-5.5"
 MODEL_GEMINI_3_1_PRO = "gemini-3.1-pro"
 
 
@@ -56,11 +57,16 @@ class ModelUsdPer1MTokens(TypedDict, total=False):
 
 
 # Per-model input/output pricing per 1M tokens (USD). Keys match substring checks in ``_model_cost``.
-# Updated 2026-03-28 from official API pricing pages.
+# Updated 2026-05-05 from official API pricing pages — GPT-5.5 added (announced
+# 2026-04-23, generally available in API on 2026-04-24).
 MODEL_COSTS_PER_1M_TOKENS: dict[str, ModelUsdPer1MTokens] = {
     "haiku": {"input": 1.0, "output": 5.0, "cache_read": 0.1, "cache_write": 1.25},
     "sonnet": {"input": 3.0, "output": 15.0, "cache_read": 0.3, "cache_write": 3.75},
     "opus": {"input": 5.0, "output": 25.0, "cache_read": 0.5, "cache_write": 6.25},
+    # GPT-5.5: launched 2026-04-24 at GPT-5.4 input parity with cheaper
+    # output (per OpenAI pricing page); GPT-5.4 retained as pinned fallback.
+    MODEL_GPT_5_5: {"input": 2.5, "output": 12.0},
+    "gpt-5.5-mini": {"input": 0.6, "output": 3.0},
     MODEL_GPT_5_4: {"input": 2.5, "output": 15.0},
     "gpt-5.4-mini": {"input": 0.75, "output": 4.5},
     # OpenAI Agents SDK v2 baseline models (oai-001). Launch prices as of
@@ -94,6 +100,9 @@ _MODEL_COST_USD_PER_1K: dict[str, float] = {
     # variants, o4-mini) must come *before* the shorter stems they share
     # a prefix with.  Without this ordering, "gpt-5-mini" would hit the
     # "gpt-5" row and inherit its higher blended cost.
+    # GPT-5.5 family — substring matching ordering: mini before stem.
+    "gpt-5.5-mini": 0.0018,  # ($0.60 + $3.00) / 2 / 1000
+    MODEL_GPT_5_5: 0.00725,  # ($2.50 + $12.00) / 2 / 1000
     "gpt-5.4-mini": 0.002625,  # ($0.75 + $4.50) / 2 / 1000
     MODEL_GPT_5_4: 0.00875,  # ($2.50 + $15) / 2 / 1000
     # OpenAI Agents SDK v2 launch SKUs (oai-001).  "gpt-5-mini" MUST

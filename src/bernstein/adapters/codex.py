@@ -1,4 +1,11 @@
-"""OpenAI Codex CLI adapter."""
+"""OpenAI Codex CLI adapter.
+
+Last verified against upstream @openai/codex 0.117.x on 2026-05-05.
+Install: ``npm i -g @openai/codex`` (or ``brew install --cask codex``).
+Recommended models: ``gpt-5.5`` (GA 2026-04-24) or ``gpt-5.5-mini`` for cheap
+work; ``gpt-5.4`` retained as a pinned fallback.  The o-series reasoning
+models (``o3``, ``o4-mini``) are also accepted by the CLI.
+"""
 
 from __future__ import annotations
 

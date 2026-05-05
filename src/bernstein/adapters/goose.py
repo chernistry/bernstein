@@ -1,8 +1,15 @@
 """Goose CLI adapter for Bernstein.
 
-Adapter for Block's Goose (https://github.com/block/goose).
-Goose is an AI agent that can execute tasks autonomously.
-This adapter allows Bernstein to orchestrate Goose as a worker agent.
+Adapter for Goose (https://github.com/block/goose), now stewarded by the
+Agentic AI Foundation (Linux Foundation) — the GitHub org has moved from
+``block/goose`` to ``aaif-goose/goose`` while binary releases continue under
+the ``block/goose`` releases page.  Goose is an AI agent that can execute
+tasks autonomously; this adapter allows Bernstein to orchestrate Goose as a
+worker agent.
+
+Last verified against upstream Goose 1.33.x on 2026-05-05.
+Install: ``brew install --cask block-goose`` (macOS), or
+``curl -fsSL https://github.com/block/goose/releases/download/stable/download_cli.sh | bash``.
 """
 
 from __future__ import annotations

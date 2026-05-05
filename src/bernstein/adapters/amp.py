@@ -14,15 +14,17 @@ from bernstein.adapters.base import DEFAULT_TIMEOUT_SECONDS, CLIAdapter, SpawnRe
 from bernstein.adapters.env_isolation import build_filtered_env
 
 # Map Bernstein short model names to Amp model identifiers.
-# Amp accepts provider-prefixed names (e.g. "anthropic:claude-sonnet-4-6", "openai:gpt-5.4").
+# Amp accepts provider-prefixed names (e.g. "anthropic:claude-sonnet-4-6", "openai:gpt-5.5").
 # Short names are mapped to the most common Amp-compatible IDs; unknown names pass through.
-# Updated 2026-04-17 (audit-140) — keep Opus alias in sync with claude.py canonical ID.
+# Last verified against upstream Amp on 2026-05-05 — install: `brew install amp`.
 _MODEL_MAP: dict[str, str] = {
     "opus": "anthropic:claude-opus-4-7",
     "opus-4-6": "anthropic:claude-opus-4-6",  # pinned fallback
     "sonnet": "anthropic:claude-sonnet-4-6",
     "haiku": "anthropic:claude-haiku-4-5-20251001",
-    "gpt-5.4": "openai:gpt-5.4",
+    "gpt-5.5": "openai:gpt-5.5",
+    "gpt-5.5-mini": "openai:gpt-5.5-mini",
+    "gpt-5.4": "openai:gpt-5.4",  # pinned fallback
     "gpt-5.4-mini": "openai:gpt-5.4-mini",
     "o3": "openai:o3",
     "o4-mini": "openai:o4-mini",

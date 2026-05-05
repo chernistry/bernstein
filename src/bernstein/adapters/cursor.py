@@ -1,4 +1,11 @@
-"""Cursor Agent CLI adapter."""
+"""Cursor Agent CLI adapter.
+
+Last verified against upstream cursor-cli 2026.05.x on 2026-05-05.
+Install: ``brew install --cask cursor-cli`` or
+``curl https://cursor.com/install -fsSL | bash``.  The binary is
+``cursor-agent`` and self-updates by default; ``cursor-agent update`` forces
+a manual upgrade.
+"""
 
 from __future__ import annotations
 

@@ -71,6 +71,8 @@ _DEFAULT_SANDBOX_PROVIDER: str = "unix_local"
 # also appear in ``bernstein.core.cost.cost.MODEL_COSTS_PER_1M_TOKENS``
 # so cost tracking can price tool-call usage.
 _SUPPORTED_MODELS: tuple[str, ...] = (
+    "gpt-5.5",
+    "gpt-5.5-mini",
     "gpt-5",
     "gpt-5-mini",
     "o4",

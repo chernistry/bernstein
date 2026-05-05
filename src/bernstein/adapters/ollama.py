@@ -4,10 +4,14 @@ Uses Aider as the coding frontend with Ollama as the local LLM backend.
 This enables full code editing capabilities in air-gapped, privacy-sensitive,
 or cost-zero environments.
 
+Last verified against upstream Ollama 0.21.x on 2026-05-05.
+
 Prerequisites:
-    - Ollama: https://ollama.ai  (brew install ollama)
-    - Aider: pip install aider-chat
-    - A pulled model: ollama pull qwen2.5-coder:7b
+    - Ollama: https://ollama.com  (``brew install ollama`` or
+      ``curl -fsSL https://ollama.com/install.sh | sh``)
+    - Aider: ``pip install aider-chat``
+    - A pulled model: ``ollama pull qwen2.5-coder:7b`` (or the larger
+      ``qwen3-coder``, ``deepseek-r1:70b``, ``llama3.1`` as VRAM allows).
 """
 
 from __future__ import annotations

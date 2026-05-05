@@ -1,4 +1,11 @@
-"""Google Gemini CLI adapter."""
+"""Google Gemini CLI adapter.
+
+Last verified against upstream @google/gemini-cli 0.40.x on 2026-05-05.
+Install: ``npm install -g @google/gemini-cli``.  Recommended models:
+``gemini-3.1-pro`` (highest reasoning), ``gemini-3-flash`` (default in the
+Gemini app, Pro-grade reasoning at Flash speed), or ``gemini-3.1-flash-lite``
+for the cheapest tier.
+"""
 
 from __future__ import annotations
 

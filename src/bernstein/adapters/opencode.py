@@ -1,4 +1,9 @@
-"""OpenCode CLI adapter."""
+"""OpenCode CLI adapter.
+
+Last verified against upstream OpenCode (sst/opencode) 0.x on 2026-05-05.
+Install: ``curl -fsSL https://opencode.ai/install | bash`` (fastest),
+``brew install anomalyco/tap/opencode``, or ``npm i -g opencode-ai@latest``.
+"""
 
 from __future__ import annotations
 

@@ -65,6 +65,8 @@ _MODEL_TO_PROVIDER: dict[str, str] = {
     "opus": "claude",
     "sonnet": "claude",
     "haiku": "claude",
+    "gpt-5.5": "codex",
+    "gpt-5.5-mini": "codex",
     "gpt-5.4": "codex",
     "gpt-5.4-mini": "codex",
     "o3": "codex",

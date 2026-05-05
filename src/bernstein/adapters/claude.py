@@ -50,7 +50,12 @@ from bernstein.core.models import ApiTier, ApiTierInfo, ModelConfig, ProviderTyp
 from bernstein.core.platform_compat import kill_process_group_graceful, process_alive
 
 # Map short model names to Claude Code CLI model IDs.
-# Updated 2026-04-16 — Opus 4.7 generally available, same price as 4.6.
+# Last verified against upstream @anthropic-ai/claude-code 2.1.x on 2026-05-05.
+# Opus 4.7 is GA at the same price as 4.6 (Anthropic news, 2026-04-16); Sonnet
+# 4.6 and Haiku 4.5 remain the current production aliases.  Anthropic now
+# recommends the native installer (`curl -fsSL https://claude.ai/install.sh | sh`
+# or `brew install --cask claude-code`) over the deprecated npm path; the
+# adapter still works with whichever binary is on PATH.
 _MODEL_MAP: dict[str, str] = {
     "opus": "claude-opus-4-7",
     "opus-4-6": "claude-opus-4-6",  # pinned fallback

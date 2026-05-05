@@ -41,6 +41,8 @@ class CloudflareAgentsAdapter(CLIAdapter):
         CLOUDFLARE_API_TOKEN: API token with Workers permissions.
     """
 
+    external_endpoints = (("api.cloudflare.com", 443),)
+
     def spawn(
         self,
         *,
@@ -72,7 +74,9 @@ class CloudflareAgentsAdapter(CLIAdapter):
 
         Raises:
             RuntimeError: If ``npx`` is not found or permission is denied.
+            NetworkPolicyDenied: When the active --allow-network policy denies api.cloudflare.com.
         """
+        self.enforce_network_policy()
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 

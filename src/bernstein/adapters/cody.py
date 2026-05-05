@@ -77,6 +77,7 @@ class CodyAdapter(CLIAdapter):
         Raises:
             RuntimeError: If ``cody`` is not found in PATH.
         """
+        self.enforce_network_policy()
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 

@@ -247,6 +247,33 @@ def _propagate_env_flags(
         os.environ["BERNSTEIN_CONTAINER"] = "1"
 
 
+def _install_network_policy(
+    *,
+    run_profile: str | None,
+    allow_network: tuple[str, ...],
+) -> None:
+    """Install the egress policy for this run and propagate to children.
+
+    Default outside ``--profile airgap`` is unrestricted (back-compat).
+    Default inside ``--profile airgap`` is deny-all unless the operator
+    overrides with one or more ``--allow-network`` flags.
+    """
+    from bernstein.core.security.network_policy import (
+        PROFILE_AIRGAP,
+        NetworkPolicy,
+        install_policy,
+    )
+
+    profile_norm = (run_profile or "").strip().lower() or None
+    if allow_network:
+        policy = NetworkPolicy.from_specs(allow_network)
+    elif profile_norm == PROFILE_AIRGAP:
+        policy = NetworkPolicy.deny_all()
+    else:
+        policy = NetworkPolicy.allow_all()
+    install_policy(policy, profile=profile_norm)
+
+
 def _show_dry_run_plan(
     workdir: Path,
     plan_file: Path | None,
@@ -687,11 +714,34 @@ def exec_restart() -> None:
     help="Show scheduling plan without executing: which agent/model/tier each task would be assigned to.",
 )
 @click.option(
-    "--profile",
+    "--cprofile",
+    "cprofile",
     is_flag=True,
     default=False,
     help=(
         "Profile orchestrator execution with cProfile. Writes .prof binary and .txt report to .sdd/runtime/profiles/."
+    ),
+)
+@click.option(
+    "--profile",
+    "run_profile",
+    default=None,
+    type=click.Choice(["airgap"], case_sensitive=False),
+    help=(
+        "Run profile. 'airgap' = no network egress by default, MCP catalog disabled, "
+        "memo store pinned to .sdd/runtime/memo/. Combine with --allow-network to open "
+        "specific destinations."
+    ),
+)
+@click.option(
+    "--allow-network",
+    "allow_network",
+    multiple=True,
+    metavar="HOST|CIDR|HOST:PORT|none|any",
+    help=(
+        "Allow-list outbound network destinations. May be repeated. "
+        "Use 'none' for explicit deny-all (the --profile airgap default), "
+        "'any' to opt out of the gate (legacy default)."
     ),
 )
 @click.option(
@@ -741,7 +791,9 @@ def run(
     sandbox: str | None = None,
     ab_test: bool = False,
     dry_run: bool = False,
-    profile: bool = False,
+    cprofile: bool = False,
+    run_profile: str | None = None,
+    allow_network: tuple[str, ...] = (),
     task_filter: str | None = None,
     auto_pr: bool = False,
     activity_log_path: str | None = None,
@@ -786,7 +838,7 @@ def run(
     from bernstein.core.seed import SeedError
 
     _propagate_env_flags(
-        profile=profile,
+        profile=cprofile,
         workflow=workflow,
         routing=routing,
         compliance=compliance,
@@ -800,6 +852,8 @@ def run(
         activity_log_path=activity_log_path,
         audit=audit,
     )
+
+    _install_network_policy(run_profile=run_profile, allow_network=allow_network)
 
     _configure_quality_gate_bypass(
         goal=goal,
@@ -855,7 +909,7 @@ def run(
             console.print(f"[dim]Plan name:[/dim] {goal}")
             loaded_goal = goal or str(plan_file)
 
-            with _make_profile_ctx(profile, workdir), _quiet_bootstrap_console(quiet):
+            with _make_profile_ctx(cprofile, workdir), _quiet_bootstrap_console(quiet):
                 bootstrap_from_goal(
                     goal=loaded_goal,
                     workdir=workdir,
@@ -936,7 +990,7 @@ def run(
     if goal is not None:
         # Inline goal mode -- no YAML needed
         try:
-            with _make_profile_ctx(profile, workdir), _quiet_bootstrap_console(quiet):
+            with _make_profile_ctx(cprofile, workdir), _quiet_bootstrap_console(quiet):
                 bootstrap_from_goal(
                     goal=goal,
                     workdir=workdir,
@@ -971,7 +1025,7 @@ def run(
     try:
         # CLI --cells overrides seed file value when explicitly set (cells > 1)
         cli_cells: int | None = cells if cells > 1 else None
-        with _make_profile_ctx(profile, workdir), _quiet_bootstrap_console(quiet):
+        with _make_profile_ctx(cprofile, workdir), _quiet_bootstrap_console(quiet):
             bootstrap_from_seed(
                 seed_path=path,
                 workdir=workdir,

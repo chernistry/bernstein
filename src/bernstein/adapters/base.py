@@ -114,10 +114,31 @@ class CLIAdapter(ABC):
     """Interface for launching and monitoring CLI coding agents.
 
     Implement this for each supported CLI (Claude Code, Codex, Gemini, etc.).
+
+    Adapters that inherently dial out to a known SaaS endpoint declare it
+    via :attr:`external_endpoints` (host, port tuples). The base helper
+    :meth:`enforce_network_policy` consults the active policy at spawn time
+    and raises ``NetworkPolicyDenied`` when the destination is forbidden.
     """
+
+    external_endpoints: tuple[tuple[str, int], ...] = ()
 
     def __init__(self) -> None:
         self._resource_limits: ResourceLimits | None = None
+
+    def enforce_network_policy(self) -> None:
+        """Refuse to spawn when the adapter's known endpoints are denied.
+
+        No-op when ``external_endpoints`` is empty (the adapter is a pure
+        local subprocess) or when the policy is unrestricted.
+        """
+        if not self.external_endpoints:
+            return
+        from bernstein.core.security.network_policy import policy_from_env
+
+        policy = policy_from_env()
+        for host, port in self.external_endpoints:
+            policy.check(host, port, source=f"adapter:{self.name()}")
 
     def set_resource_limits(self, limits: ResourceLimits | None) -> None:
         """Configure OS-level resource limits applied to spawned child processes.

@@ -1,0 +1,49 @@
+// Tailnet ACL for Bernstein cluster.
+//
+// Two tags:
+//   tag:bernstein-central — the central server
+//   tag:bernstein-worker  — every worker
+//
+// Workers can reach the central server on TCP/8052 only. Workers
+// cannot reach each other; the central server cannot initiate
+// connections back to workers (Bernstein's STAR topology routes
+// everything through the central node — peer-to-peer reachability
+// would just be attack surface).
+//
+// Drop this into the "Access controls" page of your tailnet (or
+// `tailscale acl set`).
+
+{
+  "tagOwners": {
+    "tag:bernstein-central": ["autogroup:admin"],
+    "tag:bernstein-worker":  ["autogroup:admin"]
+  },
+
+  "acls": [
+    {
+      "action": "accept",
+      "src":    ["tag:bernstein-worker"],
+      "dst":    ["tag:bernstein-central:8052"]
+    }
+  ],
+
+  "ssh": [
+    // Operators (admins) can SSH into the central node for
+    // troubleshooting. Workers cannot.
+    {
+      "action": "accept",
+      "src":    ["autogroup:admin"],
+      "dst":    ["tag:bernstein-central"],
+      "users":  ["autogroup:nonroot", "root"]
+    }
+  ],
+
+  "tests": [
+    {
+      "src":    "tag:bernstein-worker",
+      "accept": ["tag:bernstein-central:8052"],
+      "deny":   ["tag:bernstein-worker:8052",
+                 "tag:bernstein-central:22"]
+    }
+  ]
+}

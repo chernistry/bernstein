@@ -25,6 +25,8 @@ from enum import StrEnum
 from typing import Any
 
 from bernstein.core.defaults import PROTOCOL
+from bernstein.core.observability import prometheus as _metrics
+from bernstein.core.protocols.cluster import cluster_audit as _audit
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,15 @@ class ScaleDirection(StrEnum):
     UP = "up"
     DOWN = "down"
     NONE = "none"
+
+
+def _scale_action_label(direction: ScaleDirection) -> str:
+    """Map ScaleDirection onto the Prometheus action label set."""
+    if direction is ScaleDirection.UP:
+        return "scale_up"
+    if direction is ScaleDirection.DOWN:
+        return "scale_down"
+    return "no_op"
 
 
 @dataclass(frozen=True)
@@ -558,9 +569,26 @@ class AutoscaleExecutor:
             scaling action was needed.
         """
         decision = self._autoscaler.evaluate(snapshot)
+        backend_name = self._backend.name
+        action_label = _scale_action_label(decision.direction)
+
         if decision.direction == ScaleDirection.NONE:
+            _metrics.record_scaling_decision(action_label, backend_name)
+            _audit.record_scale_decision(
+                action=action_label,
+                target_count=decision.recommended_nodes,
+                backend=backend_name,
+                dry_run=backend_name == "noop",
+            )
             return decision, None
 
         result = self._backend.scale_to(decision.recommended_nodes)
         self._results.append(result)
+        _metrics.record_scaling_decision(action_label, backend_name)
+        _audit.record_scale_decision(
+            action=action_label,
+            target_count=decision.recommended_nodes,
+            backend=backend_name,
+            dry_run=backend_name == "noop",
+        )
         return decision, result

@@ -25,6 +25,20 @@ SCOPE_NODE_HEARTBEAT = "node:heartbeat"
 SCOPE_NODE_ADMIN = "node:admin"
 
 
+def _record_admission_failure(reason: str) -> None:
+    """Increment the cluster admission-failure counter; never raise.
+
+    Imported lazily so this module stays importable when the Prometheus
+    package isn't on the path (e.g. minimal test envs).
+    """
+    try:
+        from bernstein.core.observability import prometheus as _metrics
+
+        _metrics.record_admission_failure(reason)
+    except Exception:  # pragma: no cover - defensive
+        logger.debug("Failed to record admission failure metric", exc_info=True)
+
+
 class ClusterAuthError(Exception):
     """Raised when cluster authentication fails."""
 
@@ -121,24 +135,29 @@ class ClusterAuthenticator:
             )
 
         if not authorization:
+            _record_admission_failure("invalid_token")
             raise ClusterAuthError("Missing Authorization header")
 
         parts = authorization.split(" ", 1)
         if len(parts) != 2 or parts[0].lower() != "bearer":
+            _record_admission_failure("invalid_token")
             raise ClusterAuthError("Invalid Authorization header format (expected 'Bearer <token>')")
 
         token = parts[1]
 
         # Check revocation
         if token in self._revoked_tokens:
+            _record_admission_failure("invalid_token")
             raise ClusterAuthError("Token has been revoked")
 
         payload = self._jwt.verify_token(token)
         if payload is None:
+            _record_admission_failure("invalid_token")
             raise ClusterAuthError("Invalid or expired token")
 
         # Check required scope
         if required_scope not in payload.scopes:
+            _record_admission_failure("scope_denied")
             raise ClusterAuthError(f"Token lacks required scope '{required_scope}' (has: {payload.scopes})")
 
         return payload

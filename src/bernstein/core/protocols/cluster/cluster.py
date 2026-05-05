@@ -27,6 +27,8 @@ from bernstein.core.models import (
     NodeInfo,
     NodeStatus,
 )
+from bernstein.core.observability import prometheus as _metrics
+from bernstein.core.protocols.cluster import cluster_audit as _audit
 from bernstein.core.protocols.cluster.cluster_tls import (
     TLSConfig,
     build_httpx_client_kwargs,
@@ -125,6 +127,7 @@ class NodeRegistry:
             existing.cell_ids = node.cell_ids or existing.cell_ids
             logger.info("Re-registered node %s (%s)", node.id, node.name)
             self._save()
+            self._sync_node_count_metrics()
             return existing
 
         node.registered_at = time.time()
@@ -133,20 +136,30 @@ class NodeRegistry:
         self._nodes[node.id] = node
         logger.info("Registered new node %s (%s) at %s", node.id, node.name, node.url)
         self._save()
+        self._sync_node_count_metrics()
+        _audit.record_node_registered(
+            node.id,
+            role=node.labels.get("role", "worker"),
+            registered_at=node.registered_at,
+            initial_capacity=node.capacity.max_agents,
+        )
         return node
 
     def heartbeat(self, node_id: str, capacity: NodeCapacity | None = None) -> NodeInfo | None:
         """Record a heartbeat from a node. Returns None if node is unknown."""
         node = self._nodes.get(node_id)
         if node is None:
+            _metrics.record_heartbeat("rejected_unknown_node")
             return None
         node.last_heartbeat = time.time()
         # Don't override CORDONED/DRAINING status
         if node.status == NodeStatus.OFFLINE:
             node.status = NodeStatus.ONLINE
             self._save()
+            self._sync_node_count_metrics()
         if capacity is not None:
             node.capacity = capacity
+        _metrics.record_heartbeat("accepted")
         return node
 
     def unregister(self, node_id: str) -> bool:
@@ -154,6 +167,8 @@ class NodeRegistry:
         removed = self._nodes.pop(node_id, None) is not None
         if removed:
             self._save()
+            self._sync_node_count_metrics()
+            _audit.record_node_left(node_id, reason="unregistered")
         return removed
 
     def cordon(self, node_id: str) -> NodeInfo | None:
@@ -164,6 +179,8 @@ class NodeRegistry:
         node.status = NodeStatus.CORDONED
         logger.info("Cordoned node %s (%s)", node.id, node.name)
         self._save()
+        self._sync_node_count_metrics()
+        _audit.record_node_cordoned(node.id)
         return node
 
     def uncordon(self, node_id: str) -> NodeInfo | None:
@@ -185,6 +202,8 @@ class NodeRegistry:
         node.status = NodeStatus.DRAINING
         logger.info("Started draining node %s (%s)", node.id, node.name)
         self._save()
+        self._sync_node_count_metrics()
+        _audit.record_node_drained(node.id)
         return node
 
     def get(self, node_id: str) -> NodeInfo | None:
@@ -211,7 +230,23 @@ class NodeRegistry:
                 node.status = NodeStatus.OFFLINE
                 stale.append(node)
                 logger.warning("Node %s (%s) marked offline — no heartbeat for %ds", node.id, node.name, timeout)
+                _audit.record_node_left(node.id, reason="timeout")
+        if stale:
+            self._sync_node_count_metrics()
         return stale
+
+    # ------------------------------------------------------------------
+    # Observability — keep the cluster_nodes_total gauge in sync with the
+    # registry's authoritative view.  Called from every mutation path.
+    # ------------------------------------------------------------------
+
+    def _sync_node_count_metrics(self) -> None:
+        """Set the per-status node-count gauge from the current registry."""
+        counts: dict[str, int] = {s.value: 0 for s in NodeStatus}
+        for node in self._nodes.values():
+            counts[node.status.value] = counts.get(node.status.value, 0) + 1
+        for status, count in counts.items():
+            _metrics.set_node_count(status, count)
 
     def online_count(self) -> int:
         """Number of online nodes."""

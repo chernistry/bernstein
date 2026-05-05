@@ -111,6 +111,11 @@ __all__ = [
     "agent_spawn_duration",
     "agent_transition_reasons_total",
     "agents_active",
+    "cluster_admission_failures_total",
+    "cluster_heartbeats_total",
+    "cluster_nodes_total",
+    "cluster_scaling_decisions_total",
+    "cluster_task_steals_total",
     "cost_usd_by_model_total",
     "cost_usd_total",
     "evolution_errors_by_type",
@@ -124,8 +129,13 @@ __all__ = [
     "memo_misses_total",
     "memo_size_bytes",
     "merge_duration",
+    "record_admission_failure",
+    "record_heartbeat",
+    "record_scaling_decision",
+    "record_steal_attempt",
     "record_transition_reason",
     "registry",
+    "set_node_count",
     "set_prometheus_enabled",
     "task_duration_seconds",
     "task_queue_depth",
@@ -333,6 +343,162 @@ def _sanitize_reason(raw: str) -> str:
         return "unknown"
     _seen_reasons.add(value)
     return value if value else "unknown"
+
+
+# ---------------------------------------------------------------------------
+# Cluster observability — node registry, task stealing, autoscaler.
+# Labels are bucketed against closed sets below to prevent cardinality
+# explosion on operator-supplied values.
+# ---------------------------------------------------------------------------
+
+cluster_nodes_total: Gauge = Gauge(
+    "bernstein_cluster_nodes_total",
+    "Number of cluster nodes currently in each lifecycle status.",
+    labelnames=["status"],
+    registry=registry,
+)
+
+cluster_heartbeats_total: Counter = Counter(
+    "bernstein_cluster_heartbeats_total",
+    "Cluster heartbeat outcomes (accepted / rejected_token / rejected_unknown_node).",
+    labelnames=["result"],
+    registry=registry,
+)
+
+cluster_task_steals_total: Counter = Counter(
+    "bernstein_cluster_task_steals_total",
+    "Task-stealing attempt outcomes (stolen / cooldown / no_victim / rejected_version_mismatch).",
+    labelnames=["result"],
+    registry=registry,
+)
+
+cluster_scaling_decisions_total: Counter = Counter(
+    "bernstein_cluster_scaling_decisions_total",
+    "Autoscaler decisions by action and backend.",
+    labelnames=["action", "backend"],
+    registry=registry,
+)
+
+cluster_admission_failures_total: Counter = Counter(
+    "bernstein_cluster_admission_failures_total",
+    "Cluster admission failures (invalid_token / scope_denied / cert_invalid).",
+    labelnames=["reason"],
+    registry=registry,
+)
+
+
+# ---------------------------------------------------------------------------
+# Cluster cardinality guards — keep the label sets bounded so an attacker
+# (or a buggy worker) cannot blow up Prometheus storage by sending novel
+# strings on every call.
+# ---------------------------------------------------------------------------
+
+_KNOWN_NODE_STATUSES: frozenset[str] = frozenset(
+    {"online", "ready", "degraded", "cordoned", "draining", "offline"},
+)
+
+_KNOWN_HEARTBEAT_RESULTS: frozenset[str] = frozenset(
+    {"accepted", "rejected_token", "rejected_unknown_node"},
+)
+
+_KNOWN_STEAL_RESULTS: frozenset[str] = frozenset(
+    {"stolen", "cooldown", "no_victim", "rejected_version_mismatch"},
+)
+
+_KNOWN_SCALE_ACTIONS: frozenset[str] = frozenset({"scale_up", "scale_down", "no_op"})
+
+_KNOWN_SCALE_BACKENDS: frozenset[str] = frozenset({"noop", "kubernetes"})
+
+_KNOWN_ADMISSION_REASONS: frozenset[str] = frozenset(
+    {"invalid_token", "scope_denied", "cert_invalid"},
+)
+
+
+def _bucket(value: str, allowed: frozenset[str], fallback: str = "unknown") -> str:
+    """Bucket *value* under *fallback* if it isn't in the closed *allowed* set."""
+    normalised = (value or "").strip().lower()
+    return normalised if normalised in allowed else fallback
+
+
+def set_node_count(status: str, count: int) -> None:
+    """Set the cluster_nodes_total gauge for a given status bucket.
+
+    Unknown statuses are bucketed under ``"unknown"`` to prevent label-
+    cardinality explosion.
+
+    Args:
+        status: One of online / ready / degraded / cordoned / draining / offline.
+        count: Number of nodes currently in that status.
+    """
+    if not _prometheus_enabled:
+        return
+    bucket = _bucket(status, _KNOWN_NODE_STATUSES)
+    try:
+        cluster_nodes_total.labels(status=bucket).set(float(count))
+    except Exception:
+        logger.debug("Failed to set cluster_nodes_total gauge", exc_info=True)
+
+
+def record_heartbeat(result: str) -> None:
+    """Increment the cluster heartbeat outcome counter.
+
+    Args:
+        result: One of accepted / rejected_token / rejected_unknown_node.
+    """
+    if not _prometheus_enabled:
+        return
+    bucket = _bucket(result, _KNOWN_HEARTBEAT_RESULTS)
+    try:
+        cluster_heartbeats_total.labels(result=bucket).inc()
+    except Exception:
+        logger.debug("Failed to record cluster heartbeat metric", exc_info=True)
+
+
+def record_steal_attempt(result: str) -> None:
+    """Increment the cluster task-stealing outcome counter.
+
+    Args:
+        result: One of stolen / cooldown / no_victim / rejected_version_mismatch.
+    """
+    if not _prometheus_enabled:
+        return
+    bucket = _bucket(result, _KNOWN_STEAL_RESULTS)
+    try:
+        cluster_task_steals_total.labels(result=bucket).inc()
+    except Exception:
+        logger.debug("Failed to record cluster task-steal metric", exc_info=True)
+
+
+def record_scaling_decision(action: str, backend: str) -> None:
+    """Increment the autoscaler decision counter.
+
+    Args:
+        action: One of scale_up / scale_down / no_op.
+        backend: One of noop / kubernetes (or any other registered backend).
+    """
+    if not _prometheus_enabled:
+        return
+    action_bucket = _bucket(action, _KNOWN_SCALE_ACTIONS)
+    backend_bucket = _bucket(backend, _KNOWN_SCALE_BACKENDS)
+    try:
+        cluster_scaling_decisions_total.labels(action=action_bucket, backend=backend_bucket).inc()
+    except Exception:
+        logger.debug("Failed to record cluster scaling decision metric", exc_info=True)
+
+
+def record_admission_failure(reason: str) -> None:
+    """Increment the cluster admission-failure counter.
+
+    Args:
+        reason: One of invalid_token / scope_denied / cert_invalid.
+    """
+    if not _prometheus_enabled:
+        return
+    bucket = _bucket(reason, _KNOWN_ADMISSION_REASONS)
+    try:
+        cluster_admission_failures_total.labels(reason=bucket).inc()
+    except Exception:
+        logger.debug("Failed to record cluster admission failure metric", exc_info=True)
 
 
 def get_transition_reason_histogram() -> dict[str, dict[str, float]]:

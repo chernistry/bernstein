@@ -165,13 +165,29 @@ nav:
       - Skill packs: architecture/skills.md
       - Design notes: architecture/DESIGN.md
       - Glossary: reference/GLOSSARY.md
+      - AST-aware reviewer chunks: concepts/ast-aware-chunking.md
+      - Fingerprint memoization: concepts/fingerprint-memoization.md
+      - Artifact lineage trail: concepts/artifact-lineage.md
+      - Feature contract: concepts/feature-contract.md
+      - Schema validation retry: concepts/schema-validation-retry.md
+      - Action cache and replay: concepts/action-cache.md
+      - Discrete phase pipeline: concepts/phase-pipeline.md
+      - Spec-as-test loop: concepts/spec-as-test.md
+      - Abstracted code review: concepts/abstracted-code-review.md
+      - Agent mode profiles: concepts/agent-mode-profiles.md
+      - Best-of-N delegation: concepts/best-of-n.md
+      - Swarm migration: concepts/swarm-migration.md
   - Adapters & integrations:
       - Adapter guide: adapters/ADAPTER_GUIDE.md
       - OpenAI Agents SDK: adapters/openai-agents.md
+      - CLM (Cyber Language Model): adapters/clm.md
       - Compatibility: adapters/compatibility.md
       - Hook system: integrations/hook-system.md
       - Plugin SDK: integrations/plugin-sdk.md
       - MCP server injection: integrations/mcp-server-injection.md
+      - MCP tool-search lazy loading: protocols/tool-search.md
+      - .well-known service manifest: protocols/well-known-manifest.md
+      - cocoindex-code (MCP catalog): integrations/cocoindex-code.md
       - GitHub Action: integrations/github-action.md
       - GitHub App: integrations/github-app-setup.md
   - Operations:
@@ -179,11 +195,19 @@ nav:
       - Deployment guide (long): operations/deployment-guide.md
       - Helm chart: operations/HELM_DEPLOYMENT.md
       - Cluster mode: operations/cluster-mode.md
+      - Cluster mTLS setup: cluster/mtls-setup.md
+      - Cluster deployment patterns: cluster/deployment-patterns.md
+      - Cluster observability: observability/cluster.md
+      - Cluster e2e harness: testing/cluster-e2e-harness.md
       - Fleet (multi-project): operations/fleet.md
       - Security & identity: operations/security-and-identity.md
+      - Capability matrix: security/capability-matrix.md
       - Secrets & creds: operations/secrets.md
       - Env isolation: operations/env-isolation.md
       - Compliance: operations/compliance.md
+      - Regulator-class lineage: compliance/regulatory-lineage.md
+      - Air-gap installation: installation/air-gap.md
+      - Incident-to-eval synthesis: eval/incident-synthesis.md
       - Verification tracking: operations/verification-tracking.md
       - Observability: operations/observability-overview.md
       - Notifications: operations/notifications.md

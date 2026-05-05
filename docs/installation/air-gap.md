@@ -24,8 +24,12 @@ You need `uv` and Python 3.12+ available. The build host is the only
 machine that needs PyPI access.
 
 ```bash
-# Build the wheelhouse (downloads every wheel in the closure + bernstein)
+# Build the wheelhouse (downloads every wheel in the closure + bernstein).
+# Either the script directly...
 python scripts/build_airgap_wheelhouse.py --version 1.9.4
+
+# ...or the operator-friendly subcommand (Phase 2):
+bernstein wheelhouse build --version 1.9.4
 
 # Sign every wheel + the manifest with cosign
 COSIGN_KEY=/secure/path/cosign.key \
@@ -54,9 +58,13 @@ Mount the encrypted media. Verify before installing — never run
 
 ```bash
 # 1. Confirm checksums against the manifest, signatures against the key.
+#    Either form below works:
 bernstein verify ./airgap-wheelhouse/1.9.4 \
   --ca-pubkey ./bernstein-release.pub \
   --require-signatures
+#  -- or, equivalently (Phase 2):
+bernstein wheelhouse verify ./airgap-wheelhouse/1.9.4 \
+  --ca-pubkey ./bernstein-release.pub
 
 # 2. Install with no PyPI access.
 python -m venv .venv && source .venv/bin/activate
@@ -64,10 +72,32 @@ pip install --no-index --find-links ./airgap-wheelhouse/1.9.4 bernstein
 
 # 3. Sanity check.
 bernstein --version
+
+# 4. Self-check the air-gap posture (Phase 2):
+bernstein doctor airgap
 ```
 
 The verify step is non-zero on any sha256 mismatch or signature
 failure and names the offending wheel in the error message.
+
+`bernstein doctor airgap` runs a battery of self-checks: confirms no
+network egress occurred during the last run, MCP catalog entries are
+all in their default state, the memo store path is local-only, and
+the audit chain's HMAC validates. It exits non-zero if any check
+fails and names which one.
+
+### GPG verifier
+
+Some sovereign customers prefer GPG over sigstore. Phase 2 ships a
+pluggable verifier:
+
+```bash
+bernstein wheelhouse verify ./airgap-wheelhouse/1.9.4 \
+  --signer gpg --gpg-keyring ./customer.gpg
+```
+
+The default verifier remains sigstore; switch via `--signer gpg` to
+use detached `*.asc` signatures alongside the wheels.
 
 ## Running with `--profile airgap`
 
@@ -142,17 +172,24 @@ running `python scripts/build_airgap_wheelhouse.py` with the same
 | `NetworkPolicyDenied: ...` at adapter spawn | Endpoint not on allow-list | Add `--allow-network <host>` or pick a local adapter |
 | `bernstein run` exits with `--profile` not recognised | Older bernstein version | Upgrade to ≥ 1.9.4 |
 
-## Future scope
+## Limitations
 
-Phase 2 (separate ticket) adds:
+- Linux x86_64 wheels only in the shipped wheelhouse build. Other
+  platforms (macOS, Windows, arm64) need their own wheelhouse pass —
+  a follow-up.
+- Native deps (cffi, lxml) are pinned to `manylinux_2_28_x86_64`. If
+  the customer's distro doesn't have that manylinux variant, rebuild
+  on a closer base image.
+- The signing key shipped is the Bernstein release key. Customers who
+  want their own bundle layer must re-sign as shown above.
+- `bernstein doctor airgap` reports state, not policy — use it to
+  confirm the run was clean, not as a runtime gate.
 
-- `bernstein wheelhouse build` and `bernstein wheelhouse verify`
-  subcommands that wrap these scripts so operators don't need to
-  know they exist as scripts on disk.
-- `bernstein doctor airgap` — a battery of self-checks (no-egress
-  during a plan, MCP catalog all-off, memo store local-only, audit
-  HMAC valid).
-- GPG verifier for sites that prefer GPG to sigstore.
+## Related
 
-Phase 1 is complete and ready for FDE-led demos. Phase 2 is the
-"production-ready operator experience" follow-up.
+- Source: `scripts/build_airgap_wheelhouse.py`,
+  `scripts/sign_airgap_wheelhouse.sh`,
+  `src/bernstein/cli/commands/{verify_cmd,wheelhouse_cmd,doctor_airgap_cmd}.py`
+- [Regulator-class lineage](../compliance/regulatory-lineage.md) —
+  tamper-loud audit on the produced artefacts
+- PRs #1015, #1018; tickets `2026-05-05-feat-airgap-distribution.md`

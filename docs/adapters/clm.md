@@ -190,3 +190,32 @@ covers two acceptance criteria from the Phase 2.5 ticket:
 * **Negative** — a worker that trusts the CA but presents no client
   cert is rejected at the handshake, surfacing as `httpx.HTTPError`
   before any chat-completions endpoint runs.
+
+---
+
+## Limitations
+
+* OpenAI-compatible HTTP only. A non-OpenAI-shaped CLM gateway is a v2
+  follow-up — not in scope here.
+* Aider is the spawned subprocess. Switching to a different driver
+  CLI requires a separate adapter shim.
+* mTLS uses one client cert per spawn. Per-request cert rotation is
+  not supported — lifecycle is the operator's PKI's job.
+* Token issuance is the customer's identity layer. Bernstein consumes
+  whatever JWT the customer issues and does no rotation of its own.
+* Streaming responses are assembled and emitted to lineage as a
+  single record. Per-chunk lineage is not in v1.
+
+## Related
+
+* Source: `src/bernstein/adapters/clm.py`,
+  `src/bernstein/adapters/clm_tls_launcher.py`
+* Shared TLS plumbing: `src/bernstein/core/protocols/cluster/cluster_tls.py`
+* [Cluster mTLS setup](../cluster/mtls-setup.md) — same `TLSConfig`
+  the cluster transport uses
+* [Artifact lineage trail](../concepts/artifact-lineage.md) — what
+  the adapter produces per agent invocation
+* PRs #1012 (Phase 1), #1016 (Phase 2 partial — tools + streaming),
+  #1022 (Phase 2.5 — mTLS)
+* Tickets: `2026-05-05-feat-clm-agent-adapter.md`,
+  `2026-05-05-feat-clm-adapter-phase-2-5-mtls.md`

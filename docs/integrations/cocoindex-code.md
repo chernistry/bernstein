@@ -86,3 +86,25 @@ bernstein mcp catalog uninstall cocoindex-code
 
 The local manifest is left in place so the entry continues to surface
 in `bernstein mcp catalog list` for future re-enable.
+
+## Limitations
+
+- Local index only — no shared index across hosts in v1.
+- Disabled by default. Catalog entry exists; servers are not started
+  until the operator explicitly enables.
+- The default embedding model is the upstream SentenceTransformer
+  default. Switching to a cloud-hosted embedding model means source
+  bytes cross the network — review that change as a data-flow
+  decision, not just a config flag.
+- The index path is upstream-managed (under the user cache dir). It
+  is intentionally outside `.sdd/` to avoid bloating run snapshots,
+  but the path is **not** controlled by Bernstein — confirm before
+  enabling on shared machines.
+
+## Related
+
+- Manifest: `src/bernstein/core/protocols/mcp_catalog/manifests/cocoindex_code.yaml`
+- [MCP server injection](mcp-server-injection.md)
+- [AST-aware reviewer chunking](../concepts/ast-aware-chunking.md) — sibling cocoindex-derived feature
+- [Fingerprint memoization](../concepts/fingerprint-memoization.md) — sibling cocoindex-derived feature
+- PR #994, ticket `2026-05-05-feat-cocoindex-code-mcp-catalog.md`

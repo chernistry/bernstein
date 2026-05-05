@@ -143,3 +143,25 @@ curl --cacert ~/.bernstein/cluster/ca.crt https://localhost:8052/cluster/health
   expected. Workers built before TLS rollout have to be updated to set
   `ClusterConfig.tls` before they'll re-register. Stage the rollout via
   `verify_mode="optional"` to catch stragglers.
+
+## Limitations
+
+- Manual cert rotation only in v1. ACME / cert-manager hooks are a
+  follow-up.
+- Single CA per cluster. Per-tenant cert isolation is not in v1.
+- mTLS authenticates the channel; the JWT bearer token still
+  authorises the action. They compose; neither is removed.
+- `bootstrap-ca` produces a self-signed CA suitable for self-hosted
+  internal clusters. For production-grade deployments use an external
+  PKI (step-ca, cert-manager, Vault, your corporate CA).
+- Plain-HTTP cluster mode remains supported; this feature is opt-in
+  via `ClusterConfig.tls`.
+
+## Related
+
+- Source: `src/bernstein/core/protocols/cluster/cluster_tls.py`
+- CLI: `bernstein cluster bootstrap-ca`
+- [Cluster deployment patterns](deployment-patterns.md) — Cloudflare Tunnel + Tailscale + same-VPC
+- [Cluster observability](../observability/cluster.md) — metrics + audit events for cert validation
+- [Cluster end-to-end harness](../testing/cluster-e2e-harness.md) — mTLS-on parameterised scenarios
+- PR #1019, ticket `2026-05-05-feat-cluster-mtls-transport.md`

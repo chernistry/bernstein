@@ -109,8 +109,8 @@ class LineageSigner(Protocol):
 
 Any HSM / TPM / KMS-backed signer can be implemented to satisfy this
 protocol and injected into `LineageWriter(..., signer=...)`. Phase 1
-ships only the file-key reference implementation; Phase 2 will add a
-`bernstein lineage verify` subcommand and a tamper-loud SIEM webhook.
+ships only the file-key reference implementation; HSM / KMS adapters
+are operator-provided.
 
 ## Verifying a chain
 
@@ -147,10 +147,75 @@ package. The CSV form is ingestable by any GRC vendor that accepts
 CSV. The JSON-LD form is shaped against schema.org `Action` so a
 verifier with a JSON-LD library can graph-walk the chain.
 
+## Tamper-loud detection (Phase 2)
+
+The janitor's lineage compaction step now runs a chain verification
+pass on every cycle. If verification fails the janitor:
+
+1. Emits an `audit.jsonl` entry of type `lineage_tamper_detected`.
+2. Increments `bernstein_lineage_tamper_total{run_id}`.
+3. POSTs to the configured SIEM webhook (if any).
+
+The janitor itself **does not block** on a tamper detection — it
+records the event and lets the operator decide response policy via
+the SIEM. Webhooks retry with exponential back-off on 5xx and fail
+closed on a broken sink (the janitor never blocks on a bad webhook).
+
+### Configuring the SIEM webhook
+
+```yaml
+tuning:
+  lineage:
+    alert_sink:
+      kind: webhook
+      url: https://siem.internal/bernstein-lineage-tamper
+      headers:
+        Authorization: "Bearer ${SIEM_TOKEN}"
+      retries: 5
+      backoff_seconds: [1, 2, 4, 8, 16]
+```
+
+For air-gap deployments the alternative `kind: syslog` writes to the
+local syslog facility instead of HTTP.
+
+### `bernstein lineage verify`
+
+A one-shot chain verification that exits 0 only if every record's
+HMAC and customer signature validate:
+
+```bash
+bernstein lineage verify r-2026-05-05
+```
+
+Useful for compliance teams running ad-hoc checks against archived
+runs, or for CI gating against the most recent run.
+
 ## What is intentionally NOT in this release
 
-- Tamper-detection during janitor compaction (Phase 2).
-- SIEM webhook on tamper detection (Phase 2).
-- `bernstein lineage verify` subcommand (Phase 2).
 - Multi-key rotation registry (Phase 3+).
 - AI-generated regulatory-class inference (Phase 3+).
+- Direct integration with specific GRC vendor APIs (ServiceNow GRC,
+  Archer, etc.). The exporter formats are generic; customers ingest
+  CSV / JSON-LD / HTML through their existing pipeline.
+
+## Limitations
+
+- The customer signature covers full record bytes. Edits to any
+  field invalidate the signature — including downstream-derived
+  fields. This is intentional (simpler audit story); customers who
+  need finer-grained signing can plug in a custom canonicaliser.
+- Single signing key per run. Rotation across environments is on the
+  operator (the schema accommodates a key id prefix in the signature
+  blob; we do not ship a registry).
+- Compliance metadata (`regulatory_class` vocabulary) is operator-
+  supplied and unconstrained. We document a recommended set; we do
+  not enforce it.
+
+## Related
+
+- Source: `src/bernstein/core/persistence/lineage.py`,
+  `lineage_signer.py`, `core/observability/lineage_alert.py`
+- CLI: `src/bernstein/cli/commands/{lineage_cmd,lineage_export_cmd,lineage_verify_cmd}.py`
+- [Artifact lineage trail](../concepts/artifact-lineage.md) — Phase 1 backbone
+- PRs #996 (Phase 1 backbone), #1013 (Phase 1 regulatory schema), #1017 (Phase 2 tamper-loud + verify)
+- Tickets: `2026-05-05-feat-artifact-lineage-trail.md`, `2026-05-05-feat-regulatory-lineage.md`

@@ -7,10 +7,13 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from bernstein.core import defaults as _defaults
 from bernstein.core.defaults import AGENT
+
+if TYPE_CHECKING:
+    from bernstein.core.protocols.cluster.cluster_tls import TLSConfig
 
 logger = logging.getLogger(__name__)
 
@@ -1343,6 +1346,10 @@ class ClusterConfig:
         node_timeout_s: Seconds before a node is considered offline.
         server_url: URL of the central task server (for worker nodes).
         bind_host: Host to bind the server to (0.0.0.0 for remote access).
+        tls: Optional mTLS configuration for the node-to-node transport.
+            When set, the central server serves over HTTPS with the supplied
+            cert chain and worker httpx clients present a client cert.
+            See :mod:`bernstein.core.protocols.cluster.cluster_tls`.
     """
 
     enabled: bool = False
@@ -1352,6 +1359,12 @@ class ClusterConfig:
     node_timeout_s: int = 60
     server_url: str | None = None  # Central server URL (worker nodes connect here)
     bind_host: str = "127.0.0.1"  # Default: localhost only
+    tls: TLSConfig | None = None
+
+    @property
+    def cluster_url_scheme(self) -> str:
+        """Return ``"https"`` when TLS is configured, ``"http"`` otherwise."""
+        return "https" if self.tls is not None else "http"
 
 
 # ---------------------------------------------------------------------------

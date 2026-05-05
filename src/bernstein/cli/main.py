@@ -850,3 +850,8 @@ cli.add_command(lineage_cmd, "lineage")
 from bernstein.cli.commands.wheelhouse_cmd import wheelhouse_group  # noqa: E402
 
 cli.add_command(wheelhouse_group, "wheelhouse")
+
+# Cluster lifecycle helpers (mTLS bootstrap, etc.)
+from bernstein.cli.commands.cluster_cmd import cluster_group  # noqa: E402
+
+cli.add_command(cluster_group, "cluster")

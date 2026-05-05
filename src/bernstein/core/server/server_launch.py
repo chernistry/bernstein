@@ -24,6 +24,8 @@ from bernstein.core.seed import SeedConfig, seed_to_initial_task
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from bernstein.core.protocols.cluster.cluster_tls import TLSConfig
+
 logger = logging.getLogger(__name__)
 
 _SERVER_READY_TIMEOUT_S = 30.0
@@ -221,6 +223,7 @@ def _start_server(
     cluster_enabled: bool = False,
     auth_token: str | None = None,
     evolve_mode: bool = False,
+    cluster_tls: TLSConfig | None = None,
 ) -> int:
     """Launch the task server as a background process.
 
@@ -291,6 +294,25 @@ def _start_server(
         "--port",
         str(port),
     ]
+    if cluster_tls is not None:
+        cluster_tls.validate_paths()
+        server_cmd.extend(
+            [
+                "--ssl-certfile",
+                str(cluster_tls.cert_file.expanduser().resolve(strict=False)),
+                "--ssl-keyfile",
+                str(cluster_tls.key_file.expanduser().resolve(strict=False)),
+            ]
+        )
+        if cluster_tls.verify_mode != "disabled":
+            server_cmd.extend(
+                [
+                    "--ssl-ca-certs",
+                    str(cluster_tls.ca_file.expanduser().resolve(strict=False)),
+                    "--ssl-cert-reqs",
+                    "2" if cluster_tls.verify_mode == "required" else "1",
+                ]
+            )
     # ``--reload`` was removed 2026-04-17 per audit-115 / incident
     # 2026-04-11.  Bernstein agents continuously edit src/bernstein/*.py,
     # so auto-reload causes a uvicorn restart on every write — in-flight

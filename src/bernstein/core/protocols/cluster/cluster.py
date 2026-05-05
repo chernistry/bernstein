@@ -27,6 +27,10 @@ from bernstein.core.models import (
     NodeInfo,
     NodeStatus,
 )
+from bernstein.core.protocols.cluster.cluster_tls import (
+    TLSConfig,
+    build_httpx_client_kwargs,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -414,6 +418,7 @@ class NodeHeartbeatClient:
         interval_s: int = 15,
         auth_token: str | None = None,
         capacity_fn: Callable[[], NodeCapacity] | None = None,
+        tls: TLSConfig | None = None,
     ) -> None:
         self._server_url = server_url.rstrip("/")
         self._node_name = node_name or socket.gethostname()
@@ -424,6 +429,7 @@ class NodeHeartbeatClient:
         self._interval_s = interval_s
         self._auth_token = auth_token
         self._capacity_fn = capacity_fn
+        self._tls = tls
 
         self._node_id: str | None = None
         self._stop_event = threading.Event()
@@ -511,7 +517,7 @@ class NodeHeartbeatClient:
 
     def _run(self) -> None:
         """Main loop for the heartbeat daemon thread."""
-        with httpx.Client() as client:
+        with httpx.Client(**build_httpx_client_kwargs(self._tls)) as client:
             while not self._stop_event.is_set():
                 if self._node_id is None and not self._register(client):
                     # Retry registration after interval
@@ -544,7 +550,7 @@ class NodeHeartbeatClient:
         # Best-effort unregister
         if self._node_id is not None:
             try:
-                with httpx.Client() as client:
+                with httpx.Client(**build_httpx_client_kwargs(self._tls)) as client:
                     client.delete(
                         f"{self._server_url}/cluster/nodes/{self._node_id}",
                         headers=self._headers(),

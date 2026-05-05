@@ -7,13 +7,17 @@ talk to that gateway via ``OPENAI_API_BASE`` / ``OPENAI_API_KEY``,
 unlocking Bernstein's HMAC audit chain, lineage trail, and
 fingerprint memoisation for engineering workflows against CLM.
 
-Phase 1 — adapter MVP. Phase 2 partial (this module) wires the
-per-agent tool allowlist (T578) into the OpenAI-compatible
-``tools=[]`` request shape, refuses spawns that trip the lethal-
-trifecta capability matrix, and exposes a streaming-assembly helper
-whose lineage payload always carries the full response — never just
-the first chunk. mTLS support is deferred to Phase 2.5 once
-cluster-mtls-transport's shared ``httpx.SSLContext`` plumbing lands.
+Phase 1 — adapter MVP. Phase 2 partial — tool-calling allowlist
+(T578) wired into the OpenAI-compatible ``tools=[]`` request shape,
+lethal-trifecta refusal, and streaming-assembly helper whose lineage
+payload always carries the full response — never just the first
+chunk. Phase 2.5 (this module) — opt-in mTLS to the customer
+gateway, reusing :class:`bernstein.core.protocols.cluster.cluster_tls.TLSConfig`
+plumbing. When ``CLM_CERT_FILE`` / ``CLM_KEY_FILE`` / ``CLM_CA_FILE``
+are set, the adapter routes the spawn through a small launcher
+(:mod:`bernstein.adapters.clm_tls_launcher`) that monkey-patches
+:class:`httpx.Client` defaults before importing aider, so the OpenAI
+SDK transparently presents the customer-issued client cert.
 See ``docs/adapters/clm.md`` for configuration.
 """
 
@@ -23,7 +27,9 @@ import json
 import logging
 import os
 import subprocess
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from bernstein.adapters.base import (
@@ -35,10 +41,10 @@ from bernstein.adapters.base import (
 )
 from bernstein.adapters.env_isolation import build_filtered_env
 from bernstein.core.agents.spawner_warm_pool import parse_tool_allowlist_env
+from bernstein.core.protocols.cluster.cluster_tls import TLSConfig, TLSConfigError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
-    from pathlib import Path
 
     from bernstein.core.models import ModelConfig
     from bernstein.core.security.capability_matrix import CapabilityRegistry
@@ -59,12 +65,50 @@ CLM_MAX_RETRIES_ENV = "CLM_MAX_RETRIES"
 # it as ``tools=[...]`` on the chat-completions request.
 CLM_TOOLS_SCHEMA_ENV = "CLM_TOOLS_SCHEMA"
 
+# Phase 2.5 — opt-in mTLS to the customer gateway. When all three are
+# set the adapter wires a launcher shim (clm_tls_launcher) into the
+# spawn cmd and forwards the paths so the in-process httpx client
+# presents the customer-issued client certificate during the TLS
+# handshake. Paths must be readable inside the spawned subprocess.
+CLM_CERT_FILE_ENV = "CLM_CERT_FILE"
+CLM_KEY_FILE_ENV = "CLM_KEY_FILE"
+CLM_CA_FILE_ENV = "CLM_CA_FILE"
+# Optional verification mode override, mirroring TLSConfig.verify_mode.
+# Defaults to "required" — a missing peer cert at the gateway aborts.
+CLM_VERIFY_MODE_ENV = "CLM_VERIFY_MODE"
+
 # Stable adapter token used by the lethal-trifecta capability matrix.
 # Matches the row registered in ``templates/capabilities/adapters.yaml``.
 _ADAPTER_CAPABILITY_TOKEN = "adapter.clm"
 
 _DEFAULT_REQUEST_TIMEOUT_SECONDS = 60
 _DEFAULT_MAX_RETRIES = 2
+
+# Env keys whose *values* are sensitive and must never be logged or
+# persisted to lineage / audit / .sdd/runtime/. Path keys are listed so
+# operators with a "scrub anything CLM_*" rule see them; the token key
+# is the load-bearing one. Cert/key files themselves stay on disk where
+# the operator's PKI placed them — only the env-var *values* (which are
+# paths and could leak deployment topology) are kept off the wire.
+_REDACTABLE_CLM_ENV_KEYS: frozenset[str] = frozenset(
+    {
+        CLM_TOKEN_ENV,
+        CLM_CERT_FILE_ENV,
+        CLM_KEY_FILE_ENV,
+        CLM_CA_FILE_ENV,
+    }
+)
+
+
+def redactable_clm_env_keys() -> frozenset[str]:
+    """Names of CLM_* env vars whose values must never be logged or persisted.
+
+    Exported so that audit / lineage writers can grep their payload and
+    scrub matches without hard-coding the list. The token is the
+    load-bearing entry; the cert/key/CA paths are included because they
+    leak the operator's PKI layout.
+    """
+    return _REDACTABLE_CLM_ENV_KEYS
 
 
 class ClmConfigError(SpawnError):
@@ -128,6 +172,59 @@ def _int_env(source: Mapping[str, str], name: str, default: int) -> int:
         return int(raw)
     except ValueError as exc:
         raise ClmConfigError(f"{name} must be an integer, got {raw!r}") from exc
+
+
+def tls_config_from_env(env: Mapping[str, str] | None = None) -> TLSConfig | None:
+    """Resolve an optional :class:`TLSConfig` from ``CLM_CERT_FILE`` / ``CLM_KEY_FILE`` / ``CLM_CA_FILE``.
+
+    Returns ``None`` when none of the three are set (operator opted out
+    of mTLS — equivalent to plain HTTPS / HTTP behaviour). Returns a
+    fully-validated :class:`TLSConfig` when all three are set. A
+    *partial* triple is treated as misconfiguration, since presenting a
+    client cert without trusting a CA bundle (or vice versa) is almost
+    always operator error rather than intent.
+
+    Args:
+        env: Optional env mapping override (mainly for tests). Defaults
+            to :data:`os.environ`.
+
+    Returns:
+        The resolved :class:`TLSConfig`, or ``None`` if mTLS is off.
+
+    Raises:
+        ClmConfigError: If the triple is partial, the verify-mode
+            override is invalid, or the resolved paths fail validation.
+    """
+    source: Mapping[str, str] = env if env is not None else os.environ
+    cert_raw = (source.get(CLM_CERT_FILE_ENV) or "").strip()
+    key_raw = (source.get(CLM_KEY_FILE_ENV) or "").strip()
+    ca_raw = (source.get(CLM_CA_FILE_ENV) or "").strip()
+    parts = ((CLM_CERT_FILE_ENV, cert_raw), (CLM_KEY_FILE_ENV, key_raw), (CLM_CA_FILE_ENV, ca_raw))
+    set_count = sum(1 for _, v in parts if v)
+    if set_count == 0:
+        return None
+    if set_count != len(parts):
+        missing = ", ".join(name for name, value in parts if not value)
+        raise ClmConfigError(
+            f"CLM mTLS requires {missing} alongside the other CLM_*_FILE entries; "
+            "see docs/adapters/clm.md (mTLS section)."
+        )
+    verify_raw = (source.get(CLM_VERIFY_MODE_ENV) or "required").strip()
+    if verify_raw not in ("required", "optional", "disabled"):
+        raise ClmConfigError(
+            f"{CLM_VERIFY_MODE_ENV} must be one of 'required', 'optional', 'disabled', got {verify_raw!r}"
+        )
+    try:
+        cfg = TLSConfig(
+            ca_file=Path(ca_raw),
+            cert_file=Path(cert_raw),
+            key_file=Path(key_raw),
+            verify_mode=verify_raw,  # type: ignore[arg-type]
+        )
+        cfg.validate_paths()
+    except TLSConfigError as exc:
+        raise ClmConfigError(f"CLM mTLS configuration is invalid: {exc}") from exc
+    return cfg
 
 
 def build_openai_tools_schema(allowlist: Sequence[str]) -> list[dict[str, Any]]:
@@ -273,13 +370,14 @@ class ClmAdapter(CLIAdapter):
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
         config = ClmConfig.from_env()
+        tls = tls_config_from_env()
         model_id = model_config.model or config.model
 
         allowlist = parse_tool_allowlist_env() or []
         _evaluate_lethal_trifecta(allowlist, workdir=workdir)
         tools_schema = build_openai_tools_schema(allowlist)
 
-        cmd = [
+        aider_args = [
             "aider",
             "--model",
             f"openai/{model_id}",
@@ -291,6 +389,13 @@ class ClmAdapter(CLIAdapter):
             "1024",
             "--no-auto-lint",
         ]
+        if tls is not None:
+            # Route through the launcher so httpx.Client defaults are
+            # patched with the customer client cert before aider imports
+            # the OpenAI SDK. The launcher then execs into aider's main.
+            cmd = [sys.executable, "-m", "bernstein.adapters.clm_tls_launcher", *aider_args]
+        else:
+            cmd = aider_args
 
         pid_dir = workdir / ".sdd" / "runtime" / "pids"
         wrapped_cmd = build_worker_cmd(
@@ -303,7 +408,10 @@ class ClmAdapter(CLIAdapter):
             model=f"clm/{model_id}",
         )
 
-        env = build_filtered_env([CLM_ENDPOINT_ENV, CLM_TOKEN_ENV, CLM_MODEL_ENV])
+        extra_keys = [CLM_ENDPOINT_ENV, CLM_TOKEN_ENV, CLM_MODEL_ENV]
+        if tls is not None:
+            extra_keys.extend([CLM_CERT_FILE_ENV, CLM_KEY_FILE_ENV, CLM_CA_FILE_ENV, CLM_VERIFY_MODE_ENV])
+        env = build_filtered_env(extra_keys)
         # Aider speaks the OpenAI wire format; rewire it onto the CLM
         # gateway via the standard OpenAI env vars. The scoped CLM_TOKEN
         # rides as the Bearer credential — never the operator's master.

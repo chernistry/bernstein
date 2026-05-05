@@ -6,9 +6,11 @@ telemetry and served behind NVIDIA NIM (TensorRT-LLM + Triton).
 NIM exposes an OpenAI-compatible HTTP API; the adapter is a thin
 shim that points `aider` at a customer-side CLM gateway.
 
-Phase 1 — adapter MVP. Phase 2 (mTLS, tool-calling, streaming
-regression) is deferred until the `cluster-mtls-transport` ticket
-lands.
+Phase 1 shipped the adapter MVP. Phase 2 partial added the
+tool-calling allowlist + streaming regression. Phase 2.5 (this
+document includes it) adds opt-in **mTLS** to the customer gateway,
+reusing the `TLSConfig` plumbing introduced by the
+`cluster-mtls-transport` ticket.
 
 ---
 
@@ -43,6 +45,10 @@ locally-pulled model.
 |----------|--------:|---------|
 | `CLM_REQUEST_TIMEOUT_SECONDS` | `60` | Per-request HTTP timeout |
 | `CLM_MAX_RETRIES` | `2` | SDK-level retry budget for transient errors |
+| `CLM_CERT_FILE` | _(unset)_ | Path to the worker's PEM-encoded client certificate (mTLS). Required when any of the three mTLS files is set. |
+| `CLM_KEY_FILE` | _(unset)_ | Path to the matching PEM-encoded private key. File mode 0600. |
+| `CLM_CA_FILE` | _(unset)_ | Path to the customer's CA bundle used to verify the gateway's server certificate. |
+| `CLM_VERIFY_MODE` | `required` | One of `required` / `optional` / `disabled`. Mirrors `TLSConfig.verify_mode`. Use `disabled` only for staged rollouts; **never** in a production sovereign deployment. |
 
 ### Credential scoping
 
@@ -111,12 +117,76 @@ is a v2 follow-up — not in scope for Phase 1.
 
 ---
 
-## Phase 2 (deferred)
+## mTLS (Phase 2.5)
 
-Tracked separately — blocked on `cluster-mtls-transport`:
+Sovereign customers commonly require the worker side of any agent
+session to present a client certificate signed by their internal CA
+during the TLS handshake. The CLM adapter supports this via the
+`CLM_CERT_FILE` / `CLM_KEY_FILE` / `CLM_CA_FILE` triple — the same
+PEM-encoded files the operator's PKI already issues for cluster
+node-to-node mTLS.
 
-* mTLS handshake against the customer's PKI.
-* Tool-calling with the per-agent allowlist mapped to NIM's
-  OpenAI-compatible `tools=[]` array.
-* Streaming regression test guaranteeing lineage records contain the
-  full assembled response, not just the first chunk.
+### How it wires through
+
+Aider talks to NIM via the OpenAI Python SDK, which dispatches every
+request through `httpx.Client`. httpx 0.28+ deliberately does **not**
+read TLS material from environment variables, so the adapter wraps the
+spawn through a small launcher
+(`bernstein.adapters.clm_tls_launcher`) that:
+
+1. Reads the `CLM_*_FILE` triple inside the spawned subprocess.
+2. Builds an `ssl.SSLContext` via
+   `bernstein.core.protocols.cluster.cluster_tls.build_httpx_client_kwargs`
+   — the same helper the cluster transport uses, so there is exactly
+   one place that knows how to produce a worker-side mTLS context.
+3. Monkey-patches `httpx.Client.__init__` and
+   `httpx.AsyncClient.__init__` to default to that context for any
+   constructor call that does **not** explicitly override `verify=`.
+4. Hands off to aider via `runpy.run_module("aider")` so the patch
+   survives into the OpenAI SDK call sites.
+
+The launcher is only inserted into the spawn command when all three
+`CLM_*_FILE` variables are set. A *partial* triple is rejected at
+spawn time with `ClmConfigError` — operator-error category, not a
+silent fallback to plain HTTP.
+
+### Configuration example
+
+```bash
+export CLM_ENDPOINT="https://clm.internal.<customer>/v1/"
+export CLM_TOKEN="$(cat /var/run/secrets/clm/jwt)"
+export CLM_MODEL="clm-7b-instruct"
+
+# mTLS: the operator's PKI emits these on a customer-provisioned jump box.
+export CLM_CERT_FILE=/etc/bernstein/pki/worker.crt
+export CLM_KEY_FILE=/etc/bernstein/pki/worker.key
+export CLM_CA_FILE=/etc/bernstein/pki/customer-ca.bundle.crt
+# Optional: override the verify mode (defaults to required).
+# export CLM_VERIFY_MODE=required
+```
+
+### Security caveats specific to mTLS
+
+* `CLM_CERT_FILE` and `CLM_KEY_FILE` paths are added to the adapter's
+  redaction set: their *values* (paths) leak deployment topology and
+  must not appear in lineage / audit / `.sdd/runtime/` records. The
+  files themselves stay where the operator's PKI placed them.
+* The private key file should be mode `0600` and owned by the user
+  account the operator runs Bernstein under. `bernstein cluster
+  bootstrap-ca` enforces this for self-hosted internal clusters; for
+  customer-issued material the customer's PKI is responsible.
+* `CLM_VERIFY_MODE=disabled` accepts any peer certificate (still TLS,
+  but no peer-cert verification). It exists for staged rollouts —
+  do not ship it.
+
+### Tested handshake paths
+
+The integration suite (`tests/integration/adapters/test_adapter_clm_with_fake_nim.py`)
+covers two acceptance criteria from the Phase 2.5 ticket:
+
+* **Positive** — a worker carrying the matching client cert completes
+  the TLS handshake against a `verify_mode='required'` fake NIM and
+  receives a 200 response.
+* **Negative** — a worker that trusts the CA but presents no client
+  cert is rejected at the handshake, surfacing as `httpx.HTTPError`
+  before any chat-completions endpoint runs.

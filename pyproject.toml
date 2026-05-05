@@ -479,6 +479,8 @@ markers = [
     "ci: tests that run as part of CI for every release",
     "auth_enabled: opt out of the autouse auth-disabled shim (tests that exercise auth defaults)",
     "audit_key_real: opt out of the autouse audit-key path isolation (tests that exercise the real resolution logic)",
+    "cluster_e2e: real-process cluster harness tests; skipped by default, run via the cluster-e2e workflow",
+    "slow: long-running tests (> ~5s); skipped by default in fast feedback runs",
 ]
 # Visible warnings without converting to errors; individual tests or runs
 # can tighten via `pytest -W error::DeprecationWarning`.

@@ -1,0 +1,65 @@
+name: cluster-e2e
+
+# Real two-process cluster harness: registration, heartbeats, kill -9 mid-task,
+# central restart, network partition, token expiry, and concurrent-claim CAS.
+# These tests are deliberately slower than the unit suite (> ~5s each) so they
+# run only on PRs that actually touch cluster code, plus a nightly schedule.
+
+on:
+  pull_request:
+    paths:
+      - "src/bernstein/core/protocols/cluster/**"
+      - "src/bernstein/core/server/server_app.py"
+      - "src/bernstein/core/routes/task_cluster.py"
+      - "src/bernstein/cli/commands/worker_cmd.py"
+      - "tests/integration/cluster/**"
+      - ".github/workflows/cluster-e2e.yml"
+  schedule:
+    # 03:17 UTC nightly; offset from the hour so it does not collide with
+    # release-drafter and CI-fix workflows.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cluster-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cluster-e2e:
+    name: cluster-e2e (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync --frozen --all-extras
+
+      - name: Run cluster e2e suite
+        env:
+          BERNSTEIN_RUN_CLUSTER_E2E: "1"
+        run: |
+          uv run pytest tests/integration/cluster/test_real_2node.py \
+            -m cluster_e2e -x -q --tb=short
+
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cluster-e2e-logs
+          path: |
+            /tmp/pytest-*/two_node_cluster*/central.log
+            /tmp/pytest-*/two_node_cluster*/worker-*.log
+          if-no-files-found: ignore
+          retention-days: 7

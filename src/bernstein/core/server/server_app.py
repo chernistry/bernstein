@@ -1292,11 +1292,26 @@ def create_app(
 # Default app instance for `uvicorn bernstein.core.server:app`
 # Auth token and cluster config are read from environment at import time.
 _default_cluster_enabled = os.environ.get("BERNSTEIN_CLUSTER_ENABLED", "").lower() in ("1", "true", "yes")
+
+
+def _env_int(name: str, default: int) -> int:
+    """Read an int env var, returning default on missing/invalid."""
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 _default_cluster_config = (
     ClusterConfig(
         enabled=_default_cluster_enabled,
-        auth_token=os.environ.get("BERNSTEIN_AUTH_TOKEN"),
+        auth_token=os.environ.get("BERNSTEIN_CLUSTER_AUTH_SECRET") or os.environ.get("BERNSTEIN_AUTH_TOKEN"),
         bind_host=os.environ.get("BERNSTEIN_BIND_HOST", "127.0.0.1"),
+        node_heartbeat_interval_s=_env_int("BERNSTEIN_CLUSTER_HEARTBEAT_INTERVAL_S", 15),
+        node_timeout_s=_env_int("BERNSTEIN_CLUSTER_NODE_TIMEOUT_S", 60),
     )
     if _default_cluster_enabled
     else None

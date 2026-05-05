@@ -112,6 +112,8 @@ __all__ = [
     "agent_spawns_by_mode_total",
     "agent_transition_reasons_total",
     "agents_active",
+    "best_of_n_candidates_total",
+    "best_of_n_judge_score",
     "cluster_admission_failures_total",
     "cluster_heartbeats_total",
     "cluster_nodes_total",
@@ -302,6 +304,21 @@ lineage_tamper_total: Counter = Counter(
     "bernstein_lineage_tamper_total",
     "Lineage chain verification failures detected (per run).",
     labelnames=["run_id"],
+    registry=registry,
+)
+
+best_of_n_candidates_total: Counter = Counter(
+    "bernstein_best_of_n_candidates_total",
+    "Best-of-N candidate workers by outcome (winner/loser).",
+    labelnames=["outcome", "role"],
+    registry=registry,
+)
+
+best_of_n_judge_score: Histogram = Histogram(
+    "bernstein_best_of_n_judge_score",
+    "LLM-as-judge rubric score per best-of-N candidate (0.0-1.0).",
+    buckets=(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
+    labelnames=["role"],
     registry=registry,
 )
 

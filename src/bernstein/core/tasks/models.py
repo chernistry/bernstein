@@ -296,6 +296,9 @@ class Task:
     subtask_wait_started_at: float | None = None  # Epoch when task entered WAITING_FOR_SUBTASKS
     parent_context: str | None = None  # Parent agent's context summary (key decisions, files explored) for subtasks
     requires: list[str] = field(default_factory=list[str])  # Capability-based addressing: e.g. ["python", "testing"]
+    best_of_n: int | None = (
+        None  # Opt-in best-of-N candidate fan-out (K in [2, BEST_OF_N.max_candidates]); None/<=1 = single agent
+    )
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> Task:
@@ -387,6 +390,7 @@ class Task:
             subtask_wait_started_at=raw.get("subtask_wait_started_at"),
             parent_context=raw.get("parent_context"),
             requires=list(raw.get("requires", [])),
+            best_of_n=(lambda v: None if v is None else int(v))(raw.get("best_of_n")),
         )
 
 

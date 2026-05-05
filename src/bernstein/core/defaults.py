@@ -350,6 +350,33 @@ class PhasePipelineDefaults:
 
 
 # ---------------------------------------------------------------------------
+# Best-of-N delegation defaults (opt-in recursive-best-of-N pattern)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class BestOfNDefaults:
+    """Opt-in best-of-N candidate fan-out.
+
+    OFF by default for back-compat — single-agent task assignment is
+    unchanged.  Tasks opt in by setting ``Task.best_of_n=K``; callers
+    must also flip ``BEST_OF_N.enabled`` (typically via the
+    ``best_of_n`` section of ``bernstein.yaml``) for the orchestrator to
+    actually fan out.
+    """
+
+    enabled: bool = False
+    default_candidates: int = 1
+    max_candidates: int = 5
+    judge_enabled: bool = True
+    judge_model: str = "haiku"
+    score_weight_tests: float = 0.5
+    score_weight_lint: float = 0.2
+    score_weight_judge: float = 0.2
+    score_weight_runtime: float = 0.1
+
+
+# ---------------------------------------------------------------------------
 # Trigger defaults
 # ---------------------------------------------------------------------------
 
@@ -533,6 +560,7 @@ APPROVAL = ApprovalDefaults()
 PROTOCOL = ProtocolDefaults()
 PLAN = PlanDefaults()
 PHASE_PIPELINE = PhasePipelineDefaults()
+BEST_OF_N = BestOfNDefaults()
 TRIGGER = TriggerDefaults()
 JANITOR = JanitorDefaults()
 CATALOG = CatalogDefaults()
@@ -575,6 +603,7 @@ _SECTION_TO_ATTR: Mapping[str, str] = MappingProxyType(
         "protocol": "PROTOCOL",
         "plan": "PLAN",
         "phase_pipeline": "PHASE_PIPELINE",
+        "best_of_n": "BEST_OF_N",
         "trigger": "TRIGGER",
         "janitor": "JANITOR",
         "catalog": "CATALOG",
@@ -602,6 +631,7 @@ _ATTR_TO_FACTORY: Mapping[str, type[Any]] = MappingProxyType(
         "PROTOCOL": ProtocolDefaults,
         "PLAN": PlanDefaults,
         "PHASE_PIPELINE": PhasePipelineDefaults,
+        "BEST_OF_N": BestOfNDefaults,
         "TRIGGER": TriggerDefaults,
         "JANITOR": JanitorDefaults,
         "CATALOG": CatalogDefaults,

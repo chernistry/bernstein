@@ -18,6 +18,7 @@ from typing_extensions import TypedDict
 from bernstein.core.backlog_parser import parse_backlog_text
 from bernstein.core.context_collapse import staged_context_collapse
 from bernstein.core.models import Task, TaskType
+from bernstein.core.orchestration.best_of_n import is_best_of_n, task_n
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -821,3 +822,22 @@ def collapse_prompt_sections(
         )
 
     return result.sections, result
+
+
+def partition_best_of_n(tasks: list[Task]) -> tuple[list[Task], list[tuple[Task, int]]]:
+    """Split *tasks* into ``(single_agent, fan_out)`` lists.
+
+    The fan-out list pairs each opted-in task with its clamped K so the
+    caller can hand them to a :class:`bernstein.core.orchestration.best_of_n.BestOfNRunner`
+    instead of the legacy single-agent path.  When the global flag is
+    off, every task lands in ``single_agent`` and the fan-out list is
+    empty — the legacy assignment loop is unaffected.
+    """
+    single: list[Task] = []
+    fan_out: list[tuple[Task, int]] = []
+    for task in tasks:
+        if is_best_of_n(task):
+            fan_out.append((task, task_n(task)))
+        else:
+            single.append(task)
+    return single, fan_out

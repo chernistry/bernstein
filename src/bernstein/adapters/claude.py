@@ -91,6 +91,8 @@ _RATE_LIMIT_COOLDOWN: float = COST.rate_limit_cooldown_s
 class ClaudeCodeAdapter(CLIAdapter):
     """Spawn and monitor Claude Code CLI sessions."""
 
+    external_endpoints = (("api.anthropic.com", 443),)
+
     # Track Popen objects for reliable is_alive() via poll()
     _procs: ClassVar[dict[int, subprocess.Popen[bytes]]] = {}
     _wrapper_pids: ClassVar[dict[int, int]] = {}  # claude_pid → wrapper_pid
@@ -472,6 +474,7 @@ class ClaudeCodeAdapter(CLIAdapter):
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
     ) -> SpawnResult:
+        self.enforce_network_policy()
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 

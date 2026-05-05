@@ -119,6 +119,7 @@ class IaCAdapter(CLIAdapter):
         system_addendum: str = "",
     ) -> SpawnResult:
         """Spawn an IaC plan-then-apply process."""
+        self.enforce_network_policy()
         tool = self._resolve_tool()
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)

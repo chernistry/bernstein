@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 class GeminiAdapter(CLIAdapter):
     """Spawn and monitor Google Gemini CLI sessions."""
 
+    external_endpoints = (("generativelanguage.googleapis.com", 443),)
+
     def spawn(
         self,
         *,
@@ -33,6 +35,7 @@ class GeminiAdapter(CLIAdapter):
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
     ) -> SpawnResult:
+        self.enforce_network_policy()
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 

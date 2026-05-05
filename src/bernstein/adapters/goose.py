@@ -71,6 +71,7 @@ class GooseAdapter(CLIAdapter):
         Raises:
             RuntimeError: If the Goose binary is not found.
         """
+        self.enforce_network_policy()
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 

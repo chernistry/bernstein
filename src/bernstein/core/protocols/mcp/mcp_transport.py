@@ -223,9 +223,13 @@ class SseTransport:
 
         Raises:
             TransportError: If the URL is empty.
+            NetworkPolicyDenied: If the active --allow-network policy denies the URL.
         """
         if not config.url:
             raise TransportError("SseTransport requires a non-empty url")
+        from bernstein.core.security.network_policy import policy_from_env
+
+        policy_from_env().check_url(config.url, source="mcp:sse")
         self._url = config.url
         self._timeout = config.timeout
         self._connected = True
@@ -283,9 +287,13 @@ class StreamableHttpTransport:
 
         Raises:
             TransportError: If the URL is empty.
+            NetworkPolicyDenied: If the active --allow-network policy denies the URL.
         """
         if not config.url:
             raise TransportError("StreamableHttpTransport requires a non-empty url")
+        from bernstein.core.security.network_policy import policy_from_env
+
+        policy_from_env().check_url(config.url, source="mcp:streamable_http")
         self._url = config.url
         self._timeout = config.timeout
         self._headers = dict(config.headers)

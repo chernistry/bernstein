@@ -1,6 +1,7 @@
-"""Verify CLI — WAL integrity, execution determinism, memory provenance, and formal verification.
+"""Verify CLI — WAL integrity, execution determinism, memory provenance, formal verification, wheelhouse.
 
 Commands:
+  bernstein verify <wheelhouse-path>          Verify air-gap wheelhouse manifest + signatures
   bernstein verify --wal-integrity <run-id>   Verify WAL hash chain
   bernstein verify --determinism <run-id>     Compute execution fingerprint
   bernstein verify --memory-audit             Audit lesson memory provenance chain
@@ -23,6 +24,12 @@ SDD_DIR = Path(".sdd")
 
 
 @click.command("verify")
+@click.argument(
+    "wheelhouse_path",
+    required=False,
+    default=None,
+    type=click.Path(exists=False, file_okay=False, dir_okay=True, path_type=Path),
+)
 @click.option(
     "--wal-integrity",
     "wal_run_id",
@@ -51,28 +58,59 @@ SDD_DIR = Path(".sdd")
     metavar="TASK_ID",
     help="Run Z3/Lean4 formal property checks for a completed task.",
 )
+@click.option(
+    "--ca-pubkey",
+    "ca_pubkey",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Public key (PEM) for wheelhouse signature verification. Defaults to the bundled release key.",
+)
+@click.option(
+    "--require-signatures/--no-require-signatures",
+    "require_signatures",
+    default=False,
+    help="When set, wheelhouse verify exits non-zero if any signature is missing.",
+)
 def verify_cmd(
+    wheelhouse_path: Path | None,
     wal_run_id: str | None,
     determinism_run_id: str | None,
     memory_audit: bool,
     formal_task_id: str | None,
+    ca_pubkey: Path | None,
+    require_signatures: bool,
 ) -> None:
-    """Verify WAL integrity, execution determinism, memory provenance, and formal properties.
+    """Verify WAL integrity, execution determinism, memory provenance, formal properties, or a wheelhouse.
 
     \b
+      bernstein verify <wheelhouse-path>          Verify air-gap wheelhouse signatures
       bernstein verify --wal-integrity <run-id>   Validate hash chain
       bernstein verify --determinism  <run-id>    Show execution fingerprint
       bernstein verify --memory-audit             Audit lesson memory provenance
       bernstein verify --formal <task-id>         Run Z3/Lean4 property checks
     """
-    if wal_run_id is None and determinism_run_id is None and not memory_audit and formal_task_id is None:
+    if (
+        wheelhouse_path is None
+        and wal_run_id is None
+        and determinism_run_id is None
+        and not memory_audit
+        and formal_task_id is None
+    ):
         console.print(
-            "[dim]Use --wal-integrity <run-id>, --determinism <run-id>, --memory-audit, or --formal <task-id>.[/dim]"
+            "[dim]Use <wheelhouse-path>, --wal-integrity <run-id>, --determinism <run-id>, "
+            "--memory-audit, or --formal <task-id>.[/dim]"
         )
         console.print("[dim]WAL files are stored in .sdd/runtime/wal/<run-id>.wal.jsonl[/dim]")
         return
 
     exit_code = 0
+
+    if wheelhouse_path is not None:
+        exit_code |= _verify_wheelhouse(
+            wheelhouse_path,
+            ca_pubkey=ca_pubkey,
+            require_signatures=require_signatures,
+        )
 
     if wal_run_id is not None:
         exit_code |= _verify_wal_integrity(wal_run_id)
@@ -87,6 +125,174 @@ def verify_cmd(
         exit_code |= _verify_formal(formal_task_id)
 
     raise SystemExit(exit_code)
+
+
+def _verify_wheelhouse(
+    wheelhouse_path: Path,
+    *,
+    ca_pubkey: Path | None,
+    require_signatures: bool,
+) -> int:
+    """Verify an air-gap wheelhouse's MANIFEST.json and per-wheel signatures.
+
+    Returns 0 if every wheel matches its sha256 in the manifest and (when
+    signature files are present or required) every signature validates
+    against ``ca_pubkey``. Returns 1 on the first mismatch with a clear
+    message naming the offending wheel.
+    """
+    import hashlib
+    import json
+    from typing import Any, cast
+
+    console.print()
+
+    if not wheelhouse_path.exists() or not wheelhouse_path.is_dir():
+        console.print(
+            Panel(
+                f"[bold red]Wheelhouse not found:[/bold red] {wheelhouse_path}",
+                border_style="red",
+                expand=False,
+            )
+        )
+        return 1
+
+    manifest_path = wheelhouse_path / "MANIFEST.json"
+    if not manifest_path.exists():
+        console.print(
+            Panel(
+                f"[bold red]Missing MANIFEST.json in:[/bold red] {wheelhouse_path}",
+                border_style="red",
+                expand=False,
+            )
+        )
+        return 1
+
+    try:
+        manifest = cast("dict[str, Any]", json.loads(manifest_path.read_text()))
+    except json.JSONDecodeError as exc:
+        console.print(
+            Panel(
+                f"[bold red]Malformed MANIFEST.json:[/bold red] {exc}",
+                border_style="red",
+                expand=False,
+            )
+        )
+        return 1
+
+    wheels_raw_any: Any = manifest.get("wheels") or []
+    if not isinstance(wheels_raw_any, list) or not wheels_raw_any:
+        console.print(
+            Panel(
+                "[bold red]MANIFEST.json contains no wheels[/bold red]",
+                border_style="red",
+                expand=False,
+            )
+        )
+        return 1
+    wheels: list[dict[str, Any]] = [
+        cast("dict[str, Any]", e) for e in cast("list[Any]", wheels_raw_any) if isinstance(e, dict)
+    ]
+
+    failures: list[str] = []
+    verified = 0
+    signed = 0
+    for entry in wheels:
+        name_raw = entry.get("name")
+        expected_sha_raw = entry.get("sha256")
+        name = str(name_raw) if isinstance(name_raw, str) else ""
+        expected_sha = str(expected_sha_raw) if isinstance(expected_sha_raw, str) else ""
+        if not name or not expected_sha:
+            failures.append(f"manifest entry malformed: {entry!r}")
+            continue
+        wheel_path = wheelhouse_path / name
+        if not wheel_path.exists():
+            failures.append(f"missing wheel: {name}")
+            continue
+        h = hashlib.sha256()
+        with wheel_path.open("rb") as fh:
+            while True:
+                chunk = fh.read(1 << 20)
+                if not chunk:
+                    break
+                h.update(chunk)
+        actual = h.hexdigest()
+        if actual != expected_sha:
+            failures.append(f"sha256 mismatch: {name} (expected {expected_sha[:12]}..., got {actual[:12]}...)")
+            continue
+        verified += 1
+        sig_path = wheel_path.with_suffix(wheel_path.suffix + ".sig")
+        if sig_path.exists():
+            signed += 1
+            if ca_pubkey is not None and not _verify_blob_signature(wheel_path, sig_path, ca_pubkey):
+                failures.append(f"signature invalid: {name}")
+        elif require_signatures:
+            failures.append(f"missing signature: {name}")
+
+    if failures:
+        console.print(
+            Panel(
+                "[bold red]Wheelhouse Verify: FAILED[/bold red]",
+                border_style="red",
+                expand=False,
+            )
+        )
+        for err in failures:
+            console.print(f"  [red]![/red] {err}")
+        console.print()
+        return 1
+
+    console.print(
+        Panel(
+            "[bold green]Wheelhouse Verify: PASSED[/bold green]",
+            border_style="green",
+            expand=False,
+        )
+    )
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="dim", no_wrap=True, min_width=18)
+    table.add_column("Value")
+    table.add_row("Path", str(wheelhouse_path))
+    table.add_row("Wheels verified", str(verified))
+    table.add_row("Signatures present", str(signed))
+    table.add_row("CA pubkey", str(ca_pubkey) if ca_pubkey else "(none — checksum only)")
+    console.print(table)
+    console.print()
+    return 0
+
+
+def _verify_blob_signature(blob: Path, sig: Path, pubkey: Path) -> bool:
+    """Verify a detached signature using the cryptography library.
+
+    Supports raw Ed25519 / ECDSA signatures over the blob bytes. Falls
+    back to RSA-PSS when the public key is RSA. Returns False on any
+    error so callers treat malformed signatures as failure.
+    """
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec, ed25519, padding, rsa
+
+    try:
+        pem = pubkey.read_bytes()
+        public_key = serialization.load_pem_public_key(pem)
+        sig_bytes = sig.read_bytes()
+        blob_bytes = blob.read_bytes()
+        if isinstance(public_key, ed25519.Ed25519PublicKey):
+            public_key.verify(sig_bytes, blob_bytes)
+            return True
+        if isinstance(public_key, ec.EllipticCurvePublicKey):
+            public_key.verify(sig_bytes, blob_bytes, ec.ECDSA(hashes.SHA256()))
+            return True
+        if isinstance(public_key, rsa.RSAPublicKey):
+            public_key.verify(
+                sig_bytes,
+                blob_bytes,
+                padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=padding.PSS.MAX_LENGTH),
+                hashes.SHA256(),
+            )
+            return True
+    except (InvalidSignature, ValueError, TypeError, OSError):
+        return False
+    return False
 
 
 def _verify_wal_integrity(run_id: str) -> int:

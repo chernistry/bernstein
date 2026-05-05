@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 class CodexAdapter(CLIAdapter):
     """Spawn and monitor OpenAI Codex CLI sessions."""
 
+    external_endpoints = (("api.openai.com", 443),)
+
     def spawn(
         self,
         *,
@@ -33,6 +35,7 @@ class CodexAdapter(CLIAdapter):
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
     ) -> SpawnResult:
+        self.enforce_network_policy()
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
         output_path = workdir / ".sdd" / "runtime" / f"{session_id}.last-message.txt"

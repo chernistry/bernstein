@@ -84,6 +84,17 @@ class OllamaAdapter(CLIAdapter):
         budget_multiplier: float = 1.0,
         system_addendum: str = "",
     ) -> SpawnResult:
+        from urllib.parse import urlparse
+
+        from bernstein.core.security.network_policy import policy_from_env
+
+        parsed = urlparse(self._base_url)
+        policy_from_env().check(
+            parsed.hostname or "localhost",
+            parsed.port or 11434,
+            source="adapter:ollama",
+        )
+
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 

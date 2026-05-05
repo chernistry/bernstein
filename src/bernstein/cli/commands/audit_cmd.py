@@ -303,6 +303,82 @@ def export_cmd(period: str, fmt: str, output: str | None, workdir: str) -> None:
     console.print()
 
 
+@audit_group.command("capabilities")
+@click.option(
+    "--workdir",
+    default=".",
+    show_default=True,
+    help="Project root (used to load templates/capabilities/).",
+)
+def capabilities_cmd(workdir: str) -> None:
+    """Print the lethal-trifecta capability matrix and any violations.
+
+    Loads tool capability declarations from
+    ``<workdir>/templates/capabilities/`` (falling back to the bundled
+    defaults), prints the matrix, and scans recorded spawn manifests
+    under ``.sdd/runtime/spawn_capabilities/`` for any chain that trips
+    all three capabilities.  Exits non-zero when a violation is found.
+    """
+    import json as _json
+
+    from bernstein.core.security.capability_matrix import (
+        Capability,
+        CapabilityRegistry,
+        EnforcementMode,
+        find_violating_chains,
+    )
+
+    root = Path(workdir).resolve()
+    registry = CapabilityRegistry.load_default(workdir=root, mode=EnforcementMode.ENFORCE)
+
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("Tool", style="bold")
+    table.add_column("Source", style="dim")
+    for cap in Capability:
+        table.add_column(cap.value, justify="center")
+
+    for name in sorted(registry.tools):
+        entry = registry.tools[name]
+        row: list[str] = [name, entry.source]
+        for cap in Capability:
+            row.append("[green]Y[/green]" if cap in entry.capabilities else "[dim]-[/dim]")
+        table.add_row(*row)
+
+    console.print()
+    console.print(Panel("[bold]Tool Capability Matrix[/bold]", border_style="cyan", expand=False))
+    console.print(table)
+    console.print(f"\n[dim]{len(registry.tools)} tool(s) declared[/dim]\n")
+
+    runtime_dir = root / ".sdd" / "runtime" / "spawn_capabilities"
+    chains: list[list[str]] = []
+    if runtime_dir.is_dir():
+        for path in sorted(runtime_dir.glob("*.json")):
+            try:
+                manifest = _json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, _json.JSONDecodeError):
+                continue
+            tools = manifest.get("tools", [])
+            if isinstance(tools, list):
+                chains.append([str(t) for t in tools])
+
+    violations = find_violating_chains(registry, chains)
+    if not violations:
+        console.print("[green]No lethal-trifecta violations in recorded spawns.[/green]\n")
+        return
+
+    console.print(
+        Panel(
+            f"[bold red]{len(violations)} lethal-trifecta violation(s)[/bold red]",
+            border_style="red",
+            expand=False,
+        )
+    )
+    for decision in violations:
+        console.print(f"  [red]![/red] {decision.reason} — tools=[bold]{list(decision.offending_tools)}[/bold]")
+    console.print()
+    raise SystemExit(1)
+
+
 @audit_group.command("query")
 @click.option("--event-type", default=None, help="Filter by event type.")
 @click.option("--actor", default=None, help="Filter by actor.")

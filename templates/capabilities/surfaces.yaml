@@ -1,0 +1,45 @@
+# Generic tool surfaces invoked by CLI agents.  Names follow the
+# convention <surface>.<verb> so capability lookups remain stable even
+# when adapters wrap them under different display names.
+tools:
+  # --- File I/O ----------------------------------------------------------
+  - name: fs.read
+    capabilities: [private_data]
+  - name: fs.read_secret
+    capabilities: [private_data]
+  - name: fs.write
+    capabilities: []
+  - name: fs.delete
+    capabilities: []
+
+  # --- Web / network fetch (untrusted by definition) ---------------------
+  - name: web.fetch
+    capabilities: [untrusted_input, external_comm]
+  - name: web.search
+    capabilities: [untrusted_input, external_comm]
+
+  # --- GitHub adapter / `gh` CLI -----------------------------------------
+  - name: github.fetch_issue
+    capabilities: [untrusted_input, external_comm]
+  - name: github.fetch_pr
+    capabilities: [untrusted_input, external_comm]
+  - name: github.fetch_comment
+    capabilities: [untrusted_input, external_comm]
+  - name: github.post_comment
+    capabilities: [external_comm]
+  - name: github.post_pr
+    capabilities: [external_comm]
+  - name: github.post_issue
+    capabilities: [external_comm]
+
+  # --- Git ---------------------------------------------------------------
+  - name: git.read
+    capabilities: [private_data]
+  - name: git.commit
+    capabilities: []
+  - name: git.push
+    capabilities: [external_comm]
+
+  # --- Shell / process exec ----------------------------------------------
+  - name: shell.exec
+    capabilities: [private_data, external_comm]

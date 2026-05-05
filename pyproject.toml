@@ -222,6 +222,9 @@ packages = ["src/bernstein"]
 # bernstein.core.quality.review_pipeline at runtime when users omit a
 # pipeline path.
 "templates/review" = "bernstein/_default_templates/review"
+# Lethal-trifecta capability matrix declarations.  Bundled so the
+# default-deny check can find tags right after pip install.
+"templates/capabilities" = "bernstein/_default_templates/capabilities"
 # ascii_logo.md now lives in-package at src/bernstein/_default_templates/ —
 # no force-include needed. The dev-repo copy at docs/assets/ascii_logo.md is
 # the display fallback read by cli/display/splash_v2.py when running from a

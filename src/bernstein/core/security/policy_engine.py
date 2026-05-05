@@ -17,7 +17,10 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 import yaml
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from bernstein.core.models import Task
+    from bernstein.core.security.capability_matrix import CapabilityRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +97,40 @@ class DecisionGraph:
             return d
 
         return PermissionDecision(DecisionType.ALLOW, "All checks passed or bypassed")
+
+
+def evaluate_lethal_trifecta(
+    tools: Sequence[str],
+    registry: CapabilityRegistry,
+) -> PermissionDecision:
+    """Evaluate a tool chain against the lethal-trifecta registry.
+
+    Produces a :class:`DecisionType.IMMUNE` denial (``bypass_immune=True``)
+    when the union of capabilities along the chain covers the full
+    trifecta and enforcement is on; otherwise an ALLOW.  Designed to be
+    fed into a :class:`DecisionGraph` ahead of plugin-level layers so
+    that plugins cannot override the structural rule.
+
+    Args:
+        tools: Tool identifiers as recorded in the registry.
+        registry: The capability registry (carries the enforcement mode).
+
+    Returns:
+        A :class:`PermissionDecision`.  IMMUNE+bypass_immune when denied,
+        ALLOW otherwise (warn-mode chains are ALLOW with a hint reason).
+    """
+    decision = registry.evaluate_chain(tools)
+    if decision.allowed:
+        return PermissionDecision(
+            type=DecisionType.ALLOW,
+            reason=decision.reason,
+        )
+    detail = f"{decision.reason}: tools={list(decision.offending_tools)}"
+    return PermissionDecision(
+        type=DecisionType.IMMUNE,
+        reason=detail,
+        bypass_immune=True,
+    )
 
 
 _REGEX_RULE_RE = re.compile(r"^(?P<field>[a-z_]+)[ \t]*(?P<operator>!~|=~)[ \t]*/(?P<pattern>.+)/$")

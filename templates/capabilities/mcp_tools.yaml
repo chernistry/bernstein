@@ -1,0 +1,23 @@
+# Built-in Bernstein MCP server tools (src/bernstein/mcp/server.py).
+# These talk to the local task server only — no external comm and no
+# untrusted input.  bernstein_run *can* spawn agents that touch private
+# data, so it is tagged accordingly.
+tools:
+  - name: mcp.bernstein_health
+    capabilities: []
+  - name: mcp.bernstein_run
+    capabilities: [private_data]
+  - name: mcp.bernstein_status
+    capabilities: [private_data]
+  - name: mcp.bernstein_tasks
+    capabilities: [private_data]
+  - name: mcp.bernstein_cost
+    capabilities: [private_data]
+  - name: mcp.bernstein_stop
+    capabilities: []
+  - name: mcp.bernstein_approve
+    capabilities: []
+  - name: mcp.bernstein_create_subtask
+    capabilities: [private_data]
+  - name: mcp.load_skill
+    capabilities: [private_data]

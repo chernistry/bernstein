@@ -35,7 +35,7 @@ import sys
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Literal
 
 # ---------------------------------------------------------------------------
 # Orchestrator defaults
@@ -413,6 +413,21 @@ class CatalogDefaults:
 
 
 # ---------------------------------------------------------------------------
+# Security defaults
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SecurityDefaults:
+    """Structural security knobs (orchestration-time, not LLM-driven)."""
+
+    # Lethal-trifecta enforcement: "enforce" denies any agent spawn whose
+    # tool chain unions PRIVATE_DATA + UNTRUSTED_INPUT + EXTERNAL_COMM.
+    # "warn" logs the violation; "off" disables the check entirely.
+    lethal_trifecta_enforcement: Literal["enforce", "warn", "off"] = "enforce"
+
+
+# ---------------------------------------------------------------------------
 # Singletons (rebindable via override()/reset())
 # ---------------------------------------------------------------------------
 
@@ -431,6 +446,7 @@ PHASE_PIPELINE = PhasePipelineDefaults()
 TRIGGER = TriggerDefaults()
 JANITOR = JanitorDefaults()
 CATALOG = CatalogDefaults()
+SECURITY = SecurityDefaults()
 
 
 # Mapping of section name (as used in bernstein.yaml ``tuning:`` blocks) to the
@@ -453,6 +469,7 @@ _SECTION_TO_ATTR: Mapping[str, str] = MappingProxyType(
         "trigger": "TRIGGER",
         "janitor": "JANITOR",
         "catalog": "CATALOG",
+        "security": "SECURITY",
     }
 )
 
@@ -475,6 +492,7 @@ _ATTR_TO_FACTORY: Mapping[str, type[Any]] = MappingProxyType(
         "TRIGGER": TriggerDefaults,
         "JANITOR": JanitorDefaults,
         "CATALOG": CatalogDefaults,
+        "SECURITY": SecurityDefaults,
     }
 )
 

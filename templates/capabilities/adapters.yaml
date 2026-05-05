@@ -1,0 +1,43 @@
+# Lethal-trifecta capability tags for Bernstein CLI agent adapters.
+#
+# Adapters launch a generic CLI coding agent (Claude Code, Codex, etc.).
+# Once a CLI agent is running it can read repository files, fetch URLs,
+# and call git/gh — so every adapter is tagged with all three capabilities
+# unless an operator scopes it via per-agent credential scoping or the
+# tool allowlist.  Treat the adapter row as the *outer* envelope; the
+# inner tool calls are tagged separately in mcp_tools.yaml / surfaces.yaml.
+tools:
+  - name: adapter.aider
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.amp
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.claude
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.cloudflare_agents
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.codex
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.cody
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.continue_dev
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.cursor
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.gemini
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.generic
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.goose
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.iac
+    capabilities: [private_data, external_comm]
+  - name: adapter.kilo
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.kiro
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.ollama
+    capabilities: [private_data, untrusted_input]
+  - name: adapter.opencode
+    capabilities: [private_data, untrusted_input, external_comm]
+  - name: adapter.qwen
+    capabilities: [private_data, untrusted_input, external_comm]

@@ -85,6 +85,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "bulletin": "bernstein.core.communication.bulletin",
     "cache_token_tracker": "bernstein.core.tokens.cache_token_tracker",
     "canary_mode": "bernstein.core.orchestration.canary_mode",
+    "capability_matrix": "bernstein.core.security.capability_matrix",
     "capability_router": "bernstein.core.routing.capability_router",
     "capacity_wake": "bernstein.core.orchestration.capacity_wake",
     "cascade": "bernstein.core.routing.cascade",

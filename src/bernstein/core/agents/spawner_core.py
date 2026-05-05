@@ -1144,6 +1144,89 @@ class AgentSpawner:
         """Merge the agent's worktree branch with conflict detection."""
         return merge_worktree_branch(session_id, self._workdir, repo_root=repo_root)
 
+    def _enforce_lethal_trifecta(
+        self,
+        session_id: str,
+        role: str,
+        catalog_agent: CatalogAgent | None,
+    ) -> None:
+        """Refuse spawns whose configured tool chain trips the full trifecta.
+
+        Records a capability manifest under
+        ``.sdd/runtime/spawn_capabilities/`` and raises :class:`SpawnError`
+        when enforcement is on.  Warn / off modes only persist the
+        manifest.
+
+        The adapter envelope is recorded for traceability but the
+        evaluation only considers the catalog-declared tool list — the
+        adapter alone is fine-grained-scoped via the worker tool
+        allowlist (T578) at runtime.  Once an operator opts into a
+        specific tool combination that unions the trifecta, the spawn is
+        refused.
+        """
+        import json
+        from datetime import UTC, datetime
+
+        from bernstein.core.defaults import SECURITY
+        from bernstein.core.security.capability_matrix import (
+            CapabilityRegistry,
+            EnforcementMode,
+            LethalTrifectaError,
+        )
+
+        try:
+            mode = EnforcementMode(SECURITY.lethal_trifecta_enforcement)
+        except ValueError:
+            mode = EnforcementMode.ENFORCE
+        registry = CapabilityRegistry.load_default(workdir=self._workdir, mode=mode)
+
+        adapter_token = f"adapter.{self._adapter.name()}"
+        catalog_tools = list(catalog_agent.tools) if catalog_agent is not None else []
+        chain: list[str] = [adapter_token, *catalog_tools]
+
+        # Spawn-time enforcement only refuses chains where the trifecta is
+        # reached via *declared* tool tags — undeclared catalog tools
+        # default to all-three at the registry level (so the audit CLI
+        # surfaces them as warnings) but a single undeclared tool should
+        # not block a spawn.  Once any operator-declared chain unions all
+        # three, we deny.
+        declared_only = [t for t in catalog_tools if t in registry.tools]
+        decision = registry.evaluate_chain(declared_only)
+
+        runtime_dir = self._workdir / ".sdd" / "runtime" / "spawn_capabilities"
+        try:
+            runtime_dir.mkdir(parents=True, exist_ok=True)
+            manifest = {
+                "agent_id": session_id,
+                "role": role,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "tools": chain,
+                "evaluated": catalog_tools,
+                "triggered": sorted(c.value for c in decision.triggered),
+                "allowed": decision.allowed,
+                "reason": decision.reason,
+                "mode": decision.mode.value,
+                "unknown_tools": list(decision.unknown_tools),
+                "offending_tools": list(decision.offending_tools),
+            }
+            (runtime_dir / f"{session_id}.json").write_text(
+                json.dumps(manifest, indent=2),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            logger.warning("Could not persist capability manifest for %s: %s", session_id, exc)
+
+        if not decision.allowed:
+            err = LethalTrifectaError(decision)
+            logger.error(
+                "Refusing spawn %s (role=%s): %s — chain=%s",
+                session_id,
+                role,
+                decision.reason,
+                chain,
+            )
+            raise SpawnError(f"lethal trifecta: {decision.reason}") from err
+
     def _reap_openclaw(self, session: AgentSession) -> None:
         """Sync logs from the remote bridge for an OpenClaw session."""
         reap_openclaw(session, self._runtime_bridge, self._run_bridge_call)
@@ -1467,6 +1550,11 @@ class AgentSpawner:
 
         # Build session ID early so we can inject it into the prompt for signal checks
         session_id = f"{role}-{uuid.uuid4().hex[:8]}"
+
+        # Lethal-trifecta structural check (orchestration-time).  See
+        # bernstein.core.security.capability_matrix.  The adapter envelope
+        # plus any catalog-declared tools form the chain we evaluate.
+        self._enforce_lethal_trifecta(session_id, role, catalog_agent)
 
         # Build catalog system prompt, appending tool preferences when present
         catalog_system_prompt: str | None = None

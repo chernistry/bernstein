@@ -63,6 +63,7 @@ def _memoized_review_call(workdir: Path) -> Any:
         _memoized_calls[workdir] = cached
     return cached
 
+
 # Cost-control constants
 _MAX_DIFF_CHARS = 12_000
 _MAX_TOKENS = 512

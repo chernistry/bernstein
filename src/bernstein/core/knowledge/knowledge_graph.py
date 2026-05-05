@@ -101,9 +101,7 @@ def _get_memoized_extract(workdir: Path) -> Any:
     global _kg_memo_store, _memoized_extract
     if _memoized_extract is None:
         _kg_memo_store = default_store(workdir)
-        _memoized_extract = memoize_persistent(_kg_memo_store, site="knowledge_graph")(
-            _extract_symbols_for_memo
-        )
+        _memoized_extract = memoize_persistent(_kg_memo_store, site="knowledge_graph")(_extract_symbols_for_memo)
     return _memoized_extract
 
 

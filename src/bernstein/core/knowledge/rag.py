@@ -176,9 +176,7 @@ _rag_memo_store: MemoStore | None = None
 _memoized_chunker: Any = None
 
 
-def _chunk_for_memo(
-    *, chunk_sha: str, rel_path: str, source: str, is_python: bool
-) -> list[dict[str, object]]:
+def _chunk_for_memo(*, chunk_sha: str, rel_path: str, source: str, is_python: bool) -> list[dict[str, object]]:
     """Memoization shim around the AST/line chunker.
 
     Fingerprint key = (chunk_sha, rel_path, embedder_id="bm25_v1",

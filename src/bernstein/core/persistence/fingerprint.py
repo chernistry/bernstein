@@ -104,9 +104,7 @@ def fingerprint(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> bytes:
     code_bytes = _function_ast_bytes(fn)
 
     args_blob = b"|".join(_canonical_arg_repr(a) for a in args)
-    kwargs_blob = b"|".join(
-        f"{k}=".encode() + _canonical_arg_repr(v) for k, v in sorted(kwargs.items())
-    )
+    kwargs_blob = b"|".join(f"{k}=".encode() + _canonical_arg_repr(v) for k, v in sorted(kwargs.items()))
     input_digest = hashlib.sha256(qualname.encode("utf-8") + b"\0" + args_blob + b"\0" + kwargs_blob).digest()
     code_digest = hashlib.sha256(code_bytes).digest()
     return bytes(a ^ b for a, b in zip(input_digest, code_digest, strict=True))

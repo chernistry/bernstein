@@ -41,6 +41,12 @@ from bernstein.core.agents.spawner_merge import (
     update_trace_outcome as _update_trace_outcome,
 )
 from bernstein.core.agents.spawner_prompt_cache import mark_cacheable_prefix
+from bernstein.core.agents.spawner_sandbox_session import (
+    SandboxExecHandle,
+    cancel_session_exec,
+    submit_session_exec,
+    write_prompt_to_session,
+)
 from bernstein.core.agents.spawner_warm_pool import _select_batch_config, _should_use_router
 from bernstein.core.agents.spawner_worktree import (
     cleanup_worktree as _cleanup_worktree,
@@ -67,7 +73,11 @@ from bernstein.core.models import (
     TransitionReason,
 )
 from bernstein.core.orchestrator import ShutdownInProgress
-from bernstein.core.prometheus import agent_spawn_duration
+from bernstein.core.prometheus import (
+    agent_spawn_duration,
+    sandbox_exec_count_total,
+    sandbox_session_created_total,
+)
 from bernstein.core.router import ProviderHealthStatus, RouterError, TierAwareRouter
 from bernstein.core.sandbox import DockerSandbox, spawn_in_sandbox
 from bernstein.core.team_state import TeamStateStore
@@ -885,11 +895,20 @@ class AgentSpawner:
         self._runtime_bridge = runtime_bridge
         self._sandbox = sandbox if sandbox is not None and sandbox.enabled else None
         self._sandbox_managers: dict[str, ContainerManager] = {}
-        # oai-002 phase 1: optional SandboxBackend-issued session. Stored
-        # for orchestration visibility only — the spawner still routes
-        # exec through the worktree path in phase 1. Phase 2 (oai-002b)
-        # routes adapter exec through this session.
+        # oai-002 phase 1: optional SandboxBackend-issued session.
+        # Phase 2 (oai-002b) routes adapter exec through the session
+        # via :mod:`spawner_sandbox_session` when the backend is not
+        # the local worktree. Worktree-backed sessions still go through
+        # the existing direct-subprocess path so the worker wrapper,
+        # process-group bookkeeping, and timeout watchdog stay intact.
         self._sandbox_session: SandboxSession | None = sandbox_session
+        if sandbox_session is not None:
+            sandbox_session_created_total.labels(backend=getattr(sandbox_session, "backend_name", "unknown")).inc()
+        # session_id -> SandboxExecHandle for agents whose exec went
+        # through SandboxSession.exec.  Consulted by check_alive / kill
+        # so the orchestrator's lifecycle paths keep working without a
+        # local subprocess PID.
+        self._sandbox_exec_handles: dict[str, SandboxExecHandle] = {}
         # Container isolation
         self._container_mgr: ContainerManager | None = None
         if container_config is not None:
@@ -1873,6 +1892,25 @@ class AgentSpawner:
                                 mcp_config=effective_mcp,
                             )
                             result = SpawnResult(pid=fake_pid, log_path=actual_log_path)
+                        elif (
+                            self._sandbox_session is not None
+                            and getattr(self._sandbox_session, "backend_name", "worktree") != "worktree"
+                        ):
+                            # oai-002 phase 2: route exec through the
+                            # attached SandboxSession (Docker, E2B,
+                            # Modal, plugin).  The local-worktree
+                            # backend is intentionally excluded so the
+                            # existing direct-subprocess path keeps
+                            # worker-wrapper / PID semantics intact.
+                            result = self._spawn_via_sandbox_session(
+                                session_id=session_id,
+                                prompt=prompt,
+                                spawn_cwd=spawn_cwd,
+                                model_config=model_config,
+                                mcp_config=effective_mcp,
+                                session=session,
+                                adapter=target_adapter,
+                            )
                         elif self._sandbox is not None:
                             result = self._spawn_in_sandbox(
                                 session_id=session_id,
@@ -2399,6 +2437,105 @@ class AgentSpawner:
         session.isolation = IsolationMode.CONTAINER.value
         return SpawnResult(pid=handle.pid or 0, log_path=log_path)
 
+    def _spawn_via_sandbox_session(
+        self,
+        *,
+        session_id: str,
+        prompt: str,
+        spawn_cwd: Path,
+        model_config: ModelConfig,
+        mcp_config: dict[str, Any] | None,
+        session: AgentSession,
+        adapter: CLIAdapter,
+    ) -> SpawnResult:
+        """Route adapter exec through the attached :class:`SandboxSession`.
+
+        Phase 2 of ``oai-002``. When the spawner has been wired with a
+        non-worktree :class:`SandboxBackend` (Docker, E2B, Modal,
+        custom plugin), the adapter command is run via
+        :meth:`SandboxSession.exec` and the prompt is injected via
+        :meth:`SandboxSession.write` instead of mutating the host
+        worktree directly. The local-worktree backend is intentionally
+        excluded: keeping it on the legacy direct-subprocess path
+        preserves the worker-wrapper, process-group, and timeout-watchdog
+        bookkeeping that production tooling depends on, and matches the
+        ticket's "byte-identical behaviour for worktree-only configs"
+        acceptance criterion.
+
+        Args:
+            session_id: Agent session identifier.
+            prompt: Rendered system prompt.
+            spawn_cwd: Worktree path on the host. Reserved for log
+                output and for adapters that still read host paths.
+            model_config: Model and effort configuration.
+            mcp_config: Optional MCP configuration.
+            session: Mutable session record updated with isolation
+                metadata.
+            adapter: The adapter selected for this spawn attempt.
+
+        Returns:
+            A :class:`SpawnResult`. ``pid`` is ``0`` because the
+            command lives inside the backend; liveness is tracked via
+            the :class:`SandboxExecHandle` stored in
+            ``_sandbox_exec_handles``.
+        """
+        assert self._sandbox_session is not None
+        sbx_session = self._sandbox_session
+
+        log_dir = spawn_cwd / ".sdd" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / f"{session_id}.log"
+
+        # 1) Inject the prompt through the session's file primitive.
+        write_prompt_to_session(
+            session=sbx_session,
+            prompt=prompt,
+            session_id=session_id,
+        )
+
+        # 2) Build the command using the existing container-shaped
+        #    helper.  It reads the prompt from a relative path inside
+        #    the workspace, which is exactly what session.exec needs.
+        prompt_file = spawn_cwd / ".sdd" / "runtime" / "prompts" / f"{session_id}.md"
+        cmd = self._adapter_cmd_for_container(
+            prompt_file=prompt_file,
+            model_config=model_config,
+            session_id=session_id,
+            mcp_config=mcp_config,
+            adapter=adapter,
+        )
+
+        # 3) Submit the exec on a dedicated thread; the future drives
+        #    liveness checks via SandboxSession-aware paths.
+        handle = submit_session_exec(
+            session=sbx_session,
+            cmd=cmd,
+            session_id=session_id,
+            log_path=log_path,
+        )
+        self._sandbox_exec_handles[session_id] = handle
+
+        # When the future resolves we increment the per-exit-code
+        # counter so operators can see how often agents inside a given
+        # backend exit cleanly.
+        def _record_exit(_h: SandboxExecHandle = handle) -> None:
+            try:
+                if _h.future.cancelled():
+                    code = "cancelled"
+                elif _h.future.exception() is not None:
+                    code = "error"
+                else:
+                    code = str(_h.future.result().exit_code)
+            except Exception:  # pragma: no cover — defensive
+                code = "error"
+            sandbox_exec_count_total.labels(backend=_h.backend_name, exit_code=code).inc()
+
+        handle.future.add_done_callback(lambda _f: _record_exit())
+
+        session.isolation = IsolationMode.CONTAINER.value
+        session.runtime_backend = handle.backend_name
+        return SpawnResult(pid=0, log_path=log_path)
+
     def _adapter_cmd_for_container(
         self,
         *,
@@ -2491,6 +2628,30 @@ class AgentSpawner:
             return False
         return True
 
+    def _check_alive_sandbox_session(self, session: AgentSession) -> bool | None:
+        """Liveness for agents whose exec runs via :meth:`SandboxSession.exec`.
+
+        Returns ``None`` when the session was not routed through a
+        sandbox session (so the next checker in the chain runs).
+        """
+        handle = self._sandbox_exec_handles.get(session.id)
+        if handle is None:
+            return None
+        if not handle.future.done():
+            return True
+        if handle.future.cancelled():
+            session.exit_code = -1
+            return False
+        exc = handle.future.exception()
+        if exc is not None:
+            session.exit_code = -1
+            return False
+        try:
+            session.exit_code = handle.future.result().exit_code
+        except Exception:  # pragma: no cover — already inspected above
+            session.exit_code = -1
+        return False
+
     def _check_alive_in_process(self, session: AgentSession) -> bool | None:
         """Check liveness via InProcessAgent. Returns None if not applicable."""
         if self._in_process is None:
@@ -2514,7 +2675,12 @@ class AgentSpawner:
         if session.runtime_backend == "openclaw":
             return self._check_alive_openclaw(session)
 
-        for checker in (self._check_alive_container, self._check_alive_process, self._check_alive_in_process):
+        for checker in (
+            self._check_alive_sandbox_session,
+            self._check_alive_container,
+            self._check_alive_process,
+            self._check_alive_in_process,
+        ):
             result = checker(session)
             if result is not None:
                 return result
@@ -2547,6 +2713,18 @@ class AgentSpawner:
 
     def _kill_local(self, session: AgentSession) -> None:
         """Kill a locally-running agent (container, in-process, or PID)."""
+        # Sandbox-session-routed agents have no local PID; cancel the
+        # future on its owning loop instead.
+        sbx_handle = self._sandbox_exec_handles.get(session.id)
+        if sbx_handle is not None:
+            cancel_session_exec(sbx_handle)
+            self._sandbox_exec_handles.pop(session.id, None)
+            self._transition_to_dead(
+                session,
+                "kill requested",
+                "sandbox session exec cancellation requested by orchestrator",
+            )
+            return
         container_mgr = self._container_manager_for_session(session.id)
         if session.container_id and container_mgr is not None:
             handle = container_mgr.get_handle(session.id)

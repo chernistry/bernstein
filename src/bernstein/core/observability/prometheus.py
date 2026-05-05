@@ -131,6 +131,10 @@ __all__ = [
     "merge_duration",
     "record_transition_reason",
     "registry",
+    "sandbox_exec_count_total",
+    "sandbox_session_created_total",
+    "sandbox_session_destroyed_total",
+    "sandbox_session_duration_seconds",
     "set_prometheus_enabled",
     "task_duration_seconds",
     "task_queue_depth",
@@ -294,6 +298,42 @@ lineage_tamper_total: Counter = Counter(
     "bernstein_lineage_tamper_total",
     "Lineage chain verification failures detected (per run).",
     labelnames=["run_id"],
+    registry=registry,
+)
+
+# ---------------------------------------------------------------------------
+# Sandbox session metrics (oai-002 phase 2).  Labelled by backend so the
+# orchestrator and operators can see which isolation primitive is in use
+# and how often agents bounce off it.  Cardinality is bounded by the
+# fixed set of registered backends (worktree, docker, e2b, modal, ...).
+# ---------------------------------------------------------------------------
+
+sandbox_session_created_total: Counter = Counter(
+    "bernstein_sandbox_session_created_total",
+    "Sandbox sessions created via SandboxBackend.create, by backend.",
+    labelnames=["backend"],
+    registry=registry,
+)
+
+sandbox_session_destroyed_total: Counter = Counter(
+    "bernstein_sandbox_session_destroyed_total",
+    "Sandbox sessions destroyed via SandboxBackend.destroy, by backend.",
+    labelnames=["backend"],
+    registry=registry,
+)
+
+sandbox_session_duration_seconds: Histogram = Histogram(
+    "bernstein_sandbox_session_duration_seconds",
+    "End-to-end session lifetime in seconds, by backend.",
+    buckets=(1, 5, 30, 60, 300, 1800, 3600, 7200),
+    labelnames=["backend"],
+    registry=registry,
+)
+
+sandbox_exec_count_total: Counter = Counter(
+    "bernstein_sandbox_exec_count_total",
+    "Commands executed via SandboxSession.exec, by backend and exit code.",
+    labelnames=["backend", "exit_code"],
     registry=registry,
 )
 

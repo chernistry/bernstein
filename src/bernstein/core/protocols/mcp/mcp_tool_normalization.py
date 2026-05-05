@@ -20,10 +20,17 @@ Usage::
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from dataclasses import dataclass, field
 from typing import Any, cast
+
+from bernstein.core.tasks.schema_retry import (
+    AskAgain,
+    SchemaRetryContext,
+    validate_with_retry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -441,3 +448,58 @@ class ToolNormalizer:
             }
             for entry in self._by_original.values()
         ]
+
+
+# ---------------------------------------------------------------------------
+# Tool-result decoding with schema-validation retry
+# ---------------------------------------------------------------------------
+
+
+def _decode_tool_result(raw: str) -> dict[str, Any]:
+    """Decode a JSON-object MCP tool result.
+
+    Raises:
+        ValueError: If the payload is not valid JSON or not an object.
+    """
+    try:
+        parsed: Any = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Tool result is not valid JSON: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError(f"Expected a JSON object, got {type(parsed).__name__}")
+    return cast("dict[str, Any]", parsed)
+
+
+def decode_tool_result_with_retry(
+    raw: str,
+    *,
+    ctx: SchemaRetryContext,
+    ask_again: AskAgain,
+    base_prompt: str = "",
+) -> dict[str, Any]:
+    """Decode an MCP tool result, retrying with error feedback on failure.
+
+    Thin wrapper around :func:`validate_with_retry` that decodes a
+    JSON-object tool response.  See the schema_retry module for the
+    full semantics.
+
+    Args:
+        raw: Raw text returned by the MCP tool.
+        ctx: Retry context (accumulates errors across calls).
+        ask_again: Callable that re-invokes the tool with a new prompt.
+        base_prompt: Optional prompt body appended after the error preamble.
+
+    Returns:
+        Parsed JSON object.
+
+    Raises:
+        SchemaRetryExhausted: If all attempts fail.
+    """
+    return validate_with_retry(
+        initial_response=raw,
+        validate=_decode_tool_result,
+        ctx=ctx,
+        ask_again=ask_again,
+        step_id="mcp.tool_result",
+        base_prompt=base_prompt,
+    )

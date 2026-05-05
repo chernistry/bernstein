@@ -454,6 +454,23 @@ class ActionCacheDefaults:
 
 
 # ---------------------------------------------------------------------------
+# Schema-validation retry defaults (schema-validation-retry)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SchemaRetryDefaults:
+    """Bounds for the structured-output validation-retry helper.
+
+    Used by :mod:`bernstein.core.tasks.schema_retry` to cap the number
+    of times an agent is asked to fix its own malformed JSON / schema
+    failure before the call site gives up.
+    """
+
+    max_attempts: int = 3  # industry-standard 2-3 attempts; see Self-Refine ICLR 2024
+
+
+# ---------------------------------------------------------------------------
 # Singletons (rebindable via override()/reset())
 # ---------------------------------------------------------------------------
 
@@ -474,6 +491,11 @@ JANITOR = JanitorDefaults()
 CATALOG = CatalogDefaults()
 SECURITY = SecurityDefaults()
 ACTION_CACHE = ActionCacheDefaults()
+SCHEMA_RETRY = SchemaRetryDefaults()
+
+# Module-level constant for direct import — preferred when only the
+# numeric cap is needed (no need to import the whole singleton).
+SCHEMA_RETRY_MAX_ATTEMPTS: int = SCHEMA_RETRY.max_attempts
 
 
 # Mapping of section name (as used in bernstein.yaml ``tuning:`` blocks) to the
@@ -498,6 +520,7 @@ _SECTION_TO_ATTR: Mapping[str, str] = MappingProxyType(
         "catalog": "CATALOG",
         "security": "SECURITY",
         "action_cache": "ACTION_CACHE",
+        "schema_retry": "SCHEMA_RETRY",
     }
 )
 
@@ -522,6 +545,7 @@ _ATTR_TO_FACTORY: Mapping[str, type[Any]] = MappingProxyType(
         "CATALOG": CatalogDefaults,
         "SECURITY": SecurityDefaults,
         "ACTION_CACHE": ActionCacheDefaults,
+        "SCHEMA_RETRY": SchemaRetryDefaults,
     }
 )
 

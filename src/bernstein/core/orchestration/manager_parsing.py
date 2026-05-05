@@ -26,6 +26,11 @@ from bernstein.core.orchestration.manager_models import (
     QueueCorrection,
     QueueReviewResult,
 )
+from bernstein.core.tasks.schema_retry import (
+    AskAgain,
+    SchemaRetryContext,
+    validate_with_retry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -100,17 +105,12 @@ def parse_queue_review_response(raw: str) -> QueueReviewResult:
     )
 
 
-def parse_tasks_response(raw: str) -> list[dict[str, Any]]:
-    """Parse the LLM planning response into raw task dicts.
+def _decode_tasks_payload(raw: str) -> list[dict[str, Any]]:
+    """Pure validator: cleans and decodes a JSON-array tasks payload.
 
-    Args:
-        raw: Raw LLM response (should be a JSON array of task objects).
-
-    Returns:
-        List of parsed task dictionaries.
-
-    Raises:
-        ValueError: If the response is not valid JSON or not a list.
+    Used as the ``validate`` argument to :func:`validate_with_retry`
+    and as the implementation of :func:`parse_tasks_response` for the
+    one-shot path.
     """
     cleaned = _extract_json(raw)
     try:
@@ -121,6 +121,47 @@ def parse_tasks_response(raw: str) -> list[dict[str, Any]]:
     if not isinstance(parsed, list):
         raise ValueError(f"Expected a JSON array, got {type(parsed).__name__}")
     return cast("list[dict[str, Any]]", parsed)
+
+
+def parse_tasks_response(
+    raw: str,
+    *,
+    ctx: SchemaRetryContext | None = None,
+    ask_again: AskAgain | None = None,
+    base_prompt: str = "",
+) -> list[dict[str, Any]]:
+    """Parse the LLM planning response into raw task dicts.
+
+    When ``ctx`` and ``ask_again`` are supplied, malformed payloads are
+    retried via :func:`validate_with_retry`; the validation error is
+    fed back into the next attempt's prompt.  Without them, the call
+    behaves as before (one-shot, raises ``ValueError`` on first failure).
+
+    Args:
+        raw: Raw LLM response (should be a JSON array of task objects).
+        ctx: Optional retry context for cross-step error accumulation.
+        ask_again: Optional spawner used to re-prompt the agent on failure.
+        base_prompt: Optional prompt body appended after the error preamble.
+
+    Returns:
+        List of parsed task dictionaries.
+
+    Raises:
+        ValueError: If the response is not valid JSON or not a list and
+            no retry path is configured.
+        SchemaRetryExhausted: If the retry path is configured and all
+            attempts fail.
+    """
+    if ctx is not None and ask_again is not None:
+        return validate_with_retry(
+            initial_response=raw,
+            validate=_decode_tasks_payload,
+            ctx=ctx,
+            ask_again=ask_again,
+            step_id="manager.plan",
+            base_prompt=base_prompt,
+        )
+    return _decode_tasks_payload(raw)
 
 
 def _parse_completion_signal(raw: dict[str, str]) -> CompletionSignal:

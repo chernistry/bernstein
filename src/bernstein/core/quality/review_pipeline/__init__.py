@@ -17,6 +17,10 @@ Public API:
 
 from __future__ import annotations
 
+from bernstein.core.quality.review_pipeline.ast_chunker import (
+    ReviewChunk,
+    chunk_for_review,
+)
 from bernstein.core.quality.review_pipeline.runner import (
     DiffSource,
     diff_from_pr,
@@ -57,12 +61,14 @@ __all__ = [
     "EffortLevel",
     "FinalVerdict",
     "PipelineVerdict",
+    "ReviewChunk",
     "ReviewPipeline",
     "ReviewPipelineError",
     "StageSpec",
     "StageVerdict",
     "aggregate_pipeline",
     "aggregate_stage",
+    "chunk_for_review",
     "diff_from_pr",
     "diff_from_task",
     "load_pipeline",

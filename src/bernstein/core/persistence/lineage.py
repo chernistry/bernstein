@@ -17,10 +17,21 @@ The CLI ``bernstein lineage <file>:<line>`` walks every WAL file under
 ``.sdd/runtime/wal/`` (current run only -- cross-run stitching is out
 of scope) and returns every record whose output artifact matches the
 requested file/line.
+
+Schema versioning
+-----------------
+Records are written with an explicit ``schema_version`` field. v1
+records (PR #996) carry only the producer/prompt/cost fields; v2
+records add ``regulatory_class`` (free-text class for compliance
+filtering) and ``customer_signature`` (base64-encoded detached
+signature produced by an injected :class:`LineageSigner`). The reader
+accepts both — missing v2 fields are read as ``None`` so a chain
+written before v2 keeps walking.
 """
 
 from __future__ import annotations
 
+import base64
 import gzip
 import hashlib
 import json
@@ -35,9 +46,15 @@ from bernstein.core.persistence.wal import WALReader, WALWriter
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from bernstein.core.persistence.lineage_signer import LineageSigner
+
 logger = logging.getLogger(__name__)
 
 LINEAGE_DECISION_TYPE = "lineage"
+
+SCHEMA_VERSION_V1 = 1
+SCHEMA_VERSION_V2 = 2
+CURRENT_SCHEMA_VERSION = SCHEMA_VERSION_V2
 
 
 @dataclass(frozen=True)
@@ -86,6 +103,11 @@ class LineageRecord:
     ``{output_id, inputs, fn_hash, ts}`` -- the fn_hash here is the
     producing agent's rendered-prompt SHA so two replays with identical
     prompts produce identical fn_hashes.
+
+    Schema-v2 fields ``regulatory_class`` and ``customer_signature`` are
+    optional; v1 records read back with both set to ``None``.
+    ``schema_version`` is informational on the in-memory record (the
+    serialised form on the WAL is the source of truth).
     """
 
     output_artifact: ArtifactRef
@@ -96,6 +118,9 @@ class LineageRecord:
     cost_usd: float = 0.0
     tokens: int = 0
     timestamp: float = 0.0
+    regulatory_class: str | None = None
+    customer_signature: str | None = None
+    schema_version: int = CURRENT_SCHEMA_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -119,7 +144,13 @@ def _artifact_from_dict(data: dict[str, Any]) -> ArtifactRef:
 
 
 def _record_to_payload(record: LineageRecord) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Split a record into (inputs, output) dicts for the WAL append call."""
+    """Split a record into (inputs, output) dicts for the WAL append call.
+
+    The serialised form keeps schema-v2 fields under the ``output``
+    payload so old readers (v1) that only look at the legacy keys can
+    still extract producer/prompt info; new readers see the v2 fields
+    via ``output.regulatory_class`` and ``output.customer_signature``.
+    """
     inputs_payload: dict[str, Any] = {
         "inputs": [_artifact_to_dict(a) for a in record.inputs],
         "producer": asdict(record.producer),
@@ -131,13 +162,24 @@ def _record_to_payload(record: LineageRecord) -> tuple[dict[str, Any], dict[str,
         "cost_usd": record.cost_usd,
         "tokens": record.tokens,
         "timestamp": record.timestamp,
+        "schema_version": record.schema_version,
     }
+    if record.regulatory_class is not None:
+        output_payload["regulatory_class"] = record.regulatory_class
+    if record.customer_signature is not None:
+        output_payload["customer_signature"] = record.customer_signature
     return inputs_payload, output_payload
 
 
 def _record_from_wal(inputs: dict[str, Any], output: dict[str, Any], ts: float) -> LineageRecord:
     out_dict = output.get("output_artifact", {})
     producer_dict = inputs.get("producer", {})
+    # v1 records pre-date the explicit field; treat any non-int read as v1
+    # so callers can branch on schema_version unconditionally.
+    schema_version_raw = output.get("schema_version")
+    schema_version = schema_version_raw if isinstance(schema_version_raw, int) else SCHEMA_VERSION_V1
+    regulatory_class = output.get("regulatory_class")
+    customer_signature = output.get("customer_signature")
     return LineageRecord(
         output_artifact=_artifact_from_dict(out_dict),
         inputs=[_artifact_from_dict(a) for a in inputs.get("inputs", [])],
@@ -151,7 +193,43 @@ def _record_from_wal(inputs: dict[str, Any], output: dict[str, Any], ts: float) 
         cost_usd=float(output.get("cost_usd", 0.0)),
         tokens=int(output.get("tokens", 0)),
         timestamp=float(output.get("timestamp", ts)),
+        regulatory_class=str(regulatory_class) if regulatory_class is not None else None,
+        customer_signature=str(customer_signature) if customer_signature is not None else None,
+        schema_version=schema_version,
     )
+
+
+def canonical_record_bytes(record: LineageRecord) -> bytes:
+    """Return the canonical byte representation a signer covers.
+
+    Uses sorted-key UTF-8 JSON without whitespace so the bytes a signer
+    produces are stable across writes/reads and across Python versions.
+    The ``customer_signature`` field is excluded from the canonical
+    payload — a signer cannot sign over its own output.
+    """
+    payload: dict[str, Any] = {
+        "schema_version": record.schema_version,
+        "output_artifact": _artifact_to_dict(record.output_artifact),
+        "inputs": [_artifact_to_dict(a) for a in record.inputs],
+        "producer": asdict(record.producer),
+        "prompt_sha": record.prompt_sha,
+        "model": record.model,
+        "cost_usd": record.cost_usd,
+        "tokens": record.tokens,
+        "timestamp": record.timestamp,
+        "regulatory_class": record.regulatory_class,
+    }
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
+
+def encode_signature(sig: bytes) -> str:
+    """Encode raw signature bytes for storage on the record."""
+    return base64.b64encode(sig).decode("ascii")
+
+
+def decode_signature(sig: str) -> bytes:
+    """Reverse of :func:`encode_signature`."""
+    return base64.b64decode(sig.encode("ascii"))
 
 
 def hash_file(path: Path) -> str:
@@ -179,15 +257,41 @@ class LineageWriter:
     no parallel verification path. Verifying the WAL hash chain
     (``WALReader.verify_chain``) and the audit-log HMAC chain remains a
     single operation.
+
+    A customer-provided :class:`LineageSigner` may be injected; when
+    set, every emitted record is signed (over the canonicalised v2
+    payload, see :func:`canonical_record_bytes`) and the signature
+    lands in :attr:`LineageRecord.customer_signature`. When unset, the
+    field stays ``None`` and the chain remains v1-compatible on the
+    wire (``schema_version=2`` plus null fields).
     """
 
-    def __init__(self, writer: WALWriter) -> None:
+    def __init__(
+        self,
+        writer: WALWriter,
+        *,
+        signer: LineageSigner | None = None,
+        default_regulatory_class: str | None = None,
+    ) -> None:
         self._writer = writer
+        self._signer = signer
+        self._default_regulatory_class = default_regulatory_class
 
     @classmethod
-    def for_run(cls, run_id: str, sdd_dir: Path) -> LineageWriter:
+    def for_run(
+        cls,
+        run_id: str,
+        sdd_dir: Path,
+        *,
+        signer: LineageSigner | None = None,
+        default_regulatory_class: str | None = None,
+    ) -> LineageWriter:
         """Construct a writer bound to *run_id* under *sdd_dir*."""
-        return cls(WALWriter(run_id=run_id, sdd_dir=sdd_dir))
+        return cls(
+            WALWriter(run_id=run_id, sdd_dir=sdd_dir),
+            signer=signer,
+            default_regulatory_class=default_regulatory_class,
+        )
 
     def emit(self, record: LineageRecord, *, actor: str | None = None) -> None:
         """Append *record* to the WAL with ``decision_type='lineage'``.
@@ -197,6 +301,11 @@ class LineageWriter:
             actor: Optional override for the WAL ``actor`` field.
                 Defaults to the producing agent_id.
         """
+        if record.regulatory_class is None and self._default_regulatory_class is not None:
+            record = _replace_regulatory_class(record, self._default_regulatory_class)
+        if self._signer is not None and record.customer_signature is None:
+            sig_bytes = self._signer.sign(canonical_record_bytes(record))
+            record = _replace_customer_signature(record, encode_signature(sig_bytes))
         inputs_payload, output_payload = _record_to_payload(record)
         self._writer.append(
             decision_type=LINEAGE_DECISION_TYPE,
@@ -204,6 +313,38 @@ class LineageWriter:
             output=output_payload,
             actor=actor or record.producer.agent_id,
         )
+
+
+def _replace_regulatory_class(record: LineageRecord, value: str) -> LineageRecord:
+    return LineageRecord(
+        output_artifact=record.output_artifact,
+        inputs=list(record.inputs),
+        producer=record.producer,
+        prompt_sha=record.prompt_sha,
+        model=record.model,
+        cost_usd=record.cost_usd,
+        tokens=record.tokens,
+        timestamp=record.timestamp,
+        regulatory_class=value,
+        customer_signature=record.customer_signature,
+        schema_version=record.schema_version,
+    )
+
+
+def _replace_customer_signature(record: LineageRecord, value: str) -> LineageRecord:
+    return LineageRecord(
+        output_artifact=record.output_artifact,
+        inputs=list(record.inputs),
+        producer=record.producer,
+        prompt_sha=record.prompt_sha,
+        model=record.model,
+        cost_usd=record.cost_usd,
+        tokens=record.tokens,
+        timestamp=record.timestamp,
+        regulatory_class=record.regulatory_class,
+        customer_signature=value,
+        schema_version=record.schema_version,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -335,21 +476,27 @@ def collect_bundle_records(sdd_dir: Path, *, max_records: int = 500) -> list[dic
     reader = LineageReader(sdd_dir)
     records: list[dict[str, Any]] = []
     for record in reader.iter_records():
-        records.append(
-            {
-                "output_artifact": _artifact_to_dict(record.output_artifact),
-                "inputs": [_artifact_to_dict(a) for a in record.inputs],
-                "producer": asdict(record.producer),
-                "prompt_sha": record.prompt_sha,
-                "model": record.model,
-                "cost_usd": record.cost_usd,
-                "tokens": record.tokens,
-                "timestamp": record.timestamp,
-            }
-        )
+        records.append(record_to_dict(record))
     if len(records) > max_records:
         records = records[-max_records:]
     return records
+
+
+def record_to_dict(record: LineageRecord) -> dict[str, Any]:
+    """Return a plain-dict view of *record*, including v2 fields."""
+    return {
+        "schema_version": record.schema_version,
+        "output_artifact": _artifact_to_dict(record.output_artifact),
+        "inputs": [_artifact_to_dict(a) for a in record.inputs],
+        "producer": asdict(record.producer),
+        "prompt_sha": record.prompt_sha,
+        "model": record.model,
+        "cost_usd": record.cost_usd,
+        "tokens": record.tokens,
+        "timestamp": record.timestamp,
+        "regulatory_class": record.regulatory_class,
+        "customer_signature": record.customer_signature,
+    }
 
 
 def bundle_records_to_jsonl(records: list[dict[str, Any]]) -> str:

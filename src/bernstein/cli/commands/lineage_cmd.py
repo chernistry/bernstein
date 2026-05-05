@@ -1,9 +1,15 @@
-"""``bernstein lineage <file>:<line>`` -- walk the artifact lineage chain.
+"""``bernstein lineage`` -- per-artifact lineage trail commands.
 
-Reads :class:`bernstein.core.persistence.lineage.LineageRecord` entries
-from the run's WAL and prints the producing agent, rendered-prompt SHA,
-input artifacts, and cost for the requested file/line. Single-run only;
-cross-run stitching is out of scope for v1.
+Two surfaces:
+
+* ``bernstein lineage <file>:<line>`` (legacy positional form) -- walks
+  the lineage chain back from a file/line to the producing agent. This
+  invocation existed before the regulator-class extension and is kept
+  for back-compat.
+* ``bernstein lineage walk <file>:<line>`` -- explicit form of the
+  above; preferred in scripts to avoid colliding with subcommand names.
+* ``bernstein lineage export <run_id> --format <csv|jsonld|html>`` --
+  produce a regulator-shaped artefact for an audit package.
 """
 
 from __future__ import annotations
@@ -13,6 +19,7 @@ from pathlib import Path
 import click
 from rich.table import Table
 
+from bernstein.cli.commands.lineage_export_cmd import lineage_export_cmd
 from bernstein.cli.helpers import console
 
 
@@ -34,7 +41,41 @@ def _parse_target(target: str) -> tuple[str, int | None]:
     return path, line
 
 
-@click.command("lineage")
+class _LineageGroup(click.Group):
+    """Group that preserves the legacy ``bernstein lineage <file>:<line>`` form.
+
+    Without this override, ``bernstein lineage src/foo.py:42`` would
+    fail with ``No such command 'src/foo.py:42'``. We rewrite the
+    args so click-internally invokes the ``walk`` subcommand whenever
+    the first positional token is not a registered subcommand name.
+    """
+
+    def resolve_command(
+        self,
+        ctx: click.Context,
+        args: list[str],
+    ) -> tuple[str | None, click.Command | None, list[str]]:
+        if args and not args[0].startswith("-") and args[0] not in self.commands:
+            args = ["walk", *args]
+        return super().resolve_command(ctx, args)
+
+
+@click.group(name="lineage", cls=_LineageGroup, invoke_without_command=True)
+@click.pass_context
+def lineage_cmd(ctx: click.Context) -> None:
+    """Per-artifact lineage trail (output -> producer + inputs).
+
+    \b
+    Examples:
+      bernstein lineage src/foo.py:42
+      bernstein lineage walk src/foo.py:42
+      bernstein lineage export <run_id> --format html --output /tmp/x.html
+    """
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+
+
+@lineage_cmd.command(name="walk")
 @click.argument("target", required=True)
 @click.option(
     "--workdir",
@@ -57,15 +98,8 @@ def _parse_target(target: str) -> tuple[str, int | None]:
     show_default=True,
     help="Maximum number of records to display.",
 )
-def lineage_cmd(target: str, workdir: str, run_id: str | None, limit: int) -> None:
-    """Walk the lineage chain backwards from ``<file>[:<line>]``.
-
-    \b
-    Examples:
-      bernstein lineage src/foo.py:42
-      bernstein lineage src/foo.py
-      bernstein lineage src/foo.py:42 --run r-2026-05-05
-    """
+def walk_cmd(target: str, workdir: str, run_id: str | None, limit: int) -> None:
+    """Walk the lineage chain backwards from ``<file>[:<line>]``."""
     from bernstein.core.persistence.lineage import LineageReader
 
     sdd_dir = Path(workdir).resolve() / ".sdd"
@@ -98,21 +132,29 @@ def lineage_cmd(target: str, workdir: str, run_id: str | None, limit: int) -> No
     table.add_column("Model", no_wrap=True)
     table.add_column("Tokens", justify="right")
     table.add_column("Cost USD", justify="right")
+    table.add_column("Reg. class", no_wrap=True)
+    table.add_column("Cust. sig", no_wrap=True)
 
     for record in records:
-        ts = f"{record.timestamp:.0f}" if record.timestamp else "—"
-        inputs_str = ", ".join(a.path for a in record.inputs) or "—"
-        prompt_short = record.prompt_sha[:12] + "…" if record.prompt_sha else "—"
+        ts = f"{record.timestamp:.0f}" if record.timestamp else "-"
+        inputs_str = ", ".join(a.path for a in record.inputs) or "-"
+        prompt_short = record.prompt_sha[:12] + "..." if record.prompt_sha else "-"
+        sig_short = "yes" if record.customer_signature else "-"
         table.add_row(
             ts,
             record.producer.agent_id,
             record.producer.run_id,
             prompt_short,
             inputs_str,
-            record.model or "—",
+            record.model or "-",
             str(record.tokens),
             f"{record.cost_usd:.4f}",
+            record.regulatory_class or "-",
+            sig_short,
         )
 
     console.print(table)
     console.print()
+
+
+lineage_cmd.add_command(lineage_export_cmd, "export")

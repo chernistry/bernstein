@@ -470,6 +470,29 @@ class SchemaRetryDefaults:
     max_attempts: int = 3  # industry-standard 2-3 attempts; see Self-Refine ICLR 2024
 
 
+@dataclass(frozen=True)
+class LineageDefaults:
+    """Lineage record schema-v2 configuration (regulator-class trail).
+
+    The customer-signing layer is opt-in: when ``customer_signing_enabled``
+    is False (the default), records continue to be written without a
+    ``customer_signature`` field — the writer is fully back-compat with
+    the v1 chain shipped in PR #996. When True, ``customer_signing_key_path``
+    must point at a customer-controlled Ed25519 private key (PEM PKCS#8 or
+    raw 32 bytes).
+
+    ``regulatory_class_default`` is an operator-supplied free-text label
+    (e.g. ``"production_detection_rule"``) that gets stamped on every
+    record produced during the run; the recommended vocabulary is
+    documented in ``docs/compliance/regulatory-lineage.md``.
+    """
+
+    customer_signing_enabled: bool = False
+    customer_signing_key_path: str | None = None
+    customer_signing_key_kind: Literal["ed25519", "rsa-4096"] = "ed25519"
+    regulatory_class_default: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Singletons (rebindable via override()/reset())
 # ---------------------------------------------------------------------------
@@ -492,6 +515,7 @@ CATALOG = CatalogDefaults()
 SECURITY = SecurityDefaults()
 ACTION_CACHE = ActionCacheDefaults()
 SCHEMA_RETRY = SchemaRetryDefaults()
+LINEAGE = LineageDefaults()
 
 # Module-level constant for direct import — preferred when only the
 # numeric cap is needed (no need to import the whole singleton).
@@ -521,6 +545,7 @@ _SECTION_TO_ATTR: Mapping[str, str] = MappingProxyType(
         "security": "SECURITY",
         "action_cache": "ACTION_CACHE",
         "schema_retry": "SCHEMA_RETRY",
+        "lineage": "LINEAGE",
     }
 )
 
@@ -546,6 +571,7 @@ _ATTR_TO_FACTORY: Mapping[str, type[Any]] = MappingProxyType(
         "SECURITY": SecurityDefaults,
         "ACTION_CACHE": ActionCacheDefaults,
         "SCHEMA_RETRY": SchemaRetryDefaults,
+        "LINEAGE": LineageDefaults,
     }
 )
 

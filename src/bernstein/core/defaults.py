@@ -491,6 +491,10 @@ class LineageDefaults:
     customer_signing_key_path: str | None = None
     customer_signing_key_kind: Literal["ed25519", "rsa-4096"] = "ed25519"
     regulatory_class_default: str | None = None
+    tamper_alert_enabled: bool = False
+    tamper_alert_webhook_url: str | None = None
+    tamper_alert_timeout_secs: float = 5.0
+    tamper_alert_max_retries: int = 3
 
 
 # ---------------------------------------------------------------------------

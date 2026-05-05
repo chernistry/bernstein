@@ -10,6 +10,8 @@ Two surfaces:
   above; preferred in scripts to avoid colliding with subcommand names.
 * ``bernstein lineage export <run_id> --format <csv|jsonld|html>`` --
   produce a regulator-shaped artefact for an audit package.
+* ``bernstein lineage verify <run_id>`` -- one-shot chain verification;
+  exits 0 only when every record validates.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ import click
 from rich.table import Table
 
 from bernstein.cli.commands.lineage_export_cmd import lineage_export_cmd
+from bernstein.cli.commands.lineage_verify_cmd import lineage_verify_cmd
 from bernstein.cli.helpers import console
 
 
@@ -70,6 +73,7 @@ def lineage_cmd(ctx: click.Context) -> None:
       bernstein lineage src/foo.py:42
       bernstein lineage walk src/foo.py:42
       bernstein lineage export <run_id> --format html --output /tmp/x.html
+      bernstein lineage verify <run_id> --public-key /etc/customer-pub.pem
     """
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())
@@ -158,3 +162,4 @@ def walk_cmd(target: str, workdir: str, run_id: str | None, limit: int) -> None:
 
 
 lineage_cmd.add_command(lineage_export_cmd, "export")
+lineage_cmd.add_command(lineage_verify_cmd, "verify")

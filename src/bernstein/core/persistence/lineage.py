@@ -502,3 +502,87 @@ def record_to_dict(record: LineageRecord) -> dict[str, Any]:
 def bundle_records_to_jsonl(records: list[dict[str, Any]]) -> str:
     """Serialise *records* as a JSONL string for the debug bundle."""
     return "\n".join(json.dumps(r, sort_keys=True, separators=(",", ":")) for r in records) + ("\n" if records else "")
+
+
+# ---------------------------------------------------------------------------
+# Chain verification (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class LineageVerificationResult:
+    """Outcome of a chain verification pass.
+
+    ``ok`` is True only when both the WAL hash chain is intact and
+    every customer signature (when a verifier is supplied) validates.
+    ``errors`` accumulates one entry per problem so a single broken
+    record in a long chain does not mask the rest.
+    """
+
+    ok: bool
+    errors: list[str] = field(default_factory=list[str])
+    record_count: int = 0
+    run_ids: list[str] = field(default_factory=list[str])
+
+
+def verify_run_chain(
+    sdd_dir: Path,
+    run_id: str,
+    *,
+    verifier: Any = None,
+) -> LineageVerificationResult:
+    """Verify the WAL hash chain and (optionally) customer signatures for *run_id*.
+
+    Args:
+        sdd_dir: ``.sdd`` root.
+        run_id: The run whose WAL is verified.
+        verifier: Optional :class:`LineageVerifier` (a duck-typed object
+            with ``verify(payload, signature) -> bool``). When provided,
+            every record carrying a ``customer_signature`` is re-verified
+            against the canonicalised payload.
+
+    Returns:
+        A :class:`LineageVerificationResult`. ``ok=False`` when the WAL
+        chain is broken or any signature fails to validate.
+    """
+    errors: list[str] = []
+    try:
+        wal_reader = WALReader(run_id=run_id, sdd_dir=sdd_dir)
+    except FileNotFoundError as exc:
+        return LineageVerificationResult(ok=False, errors=[f"wal not found for run {run_id}: {exc}"], run_ids=[run_id])
+
+    try:
+        chain_ok, chain_errors = wal_reader.verify_chain()
+    except FileNotFoundError as exc:
+        return LineageVerificationResult(ok=False, errors=[f"wal missing for run {run_id}: {exc}"], run_ids=[run_id])
+    if not chain_ok:
+        errors.extend(f"wal: {e}" for e in chain_errors)
+
+    record_count = 0
+    if verifier is not None:
+        for entry in wal_reader.iter_entries():
+            if entry.decision_type != LINEAGE_DECISION_TYPE:
+                continue
+            record = _record_from_wal(entry.inputs, entry.output, entry.timestamp)
+            record_count += 1
+            sig_b64 = record.customer_signature
+            if sig_b64 is None:
+                continue
+            try:
+                sig_bytes = decode_signature(sig_b64)
+            except (ValueError, TypeError) as exc:
+                errors.append(f"record seq={entry.seq}: malformed signature ({exc})")
+                continue
+            if not verifier.verify(canonical_record_bytes(record), sig_bytes):
+                errors.append(f"record seq={entry.seq} ({record.output_artifact.path}): signature failed to verify")
+    else:
+        for entry in wal_reader.iter_entries():
+            if entry.decision_type == LINEAGE_DECISION_TYPE:
+                record_count += 1
+
+    return LineageVerificationResult(
+        ok=len(errors) == 0,
+        errors=errors,
+        record_count=record_count,
+        run_ids=[run_id],
+    )

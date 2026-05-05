@@ -119,6 +119,7 @@ __all__ = [
     "get_transition_reason_histogram",
     "incident_evals_total",
     "incident_recurrence_rate",
+    "lineage_tamper_total",
     "memo_hits_total",
     "memo_misses_total",
     "memo_size_bytes",
@@ -281,6 +282,13 @@ action_cache_savings_usd_total: Counter = Counter(
     "bernstein_action_cache_savings_usd",
     "Cumulative USD saved by serving actions from the action cache.",
     labelnames=["model"],
+    registry=registry,
+)
+
+lineage_tamper_total: Counter = Counter(
+    "bernstein_lineage_tamper_total",
+    "Lineage chain verification failures detected (per run).",
+    labelnames=["run_id"],
     registry=registry,
 )
 

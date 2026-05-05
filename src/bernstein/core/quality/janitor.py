@@ -14,7 +14,7 @@ import re
 import subprocess
 import uuid
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import httpx
 
@@ -30,6 +30,9 @@ from bernstein.core.models import (
     Task,
     TaskType,
 )
+
+if TYPE_CHECKING:
+    from bernstein.core.persistence.lineage import LineageVerificationResult
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +182,113 @@ def compact_lineage_logs(workdir: Path) -> list[str]:
     from bernstein.core.persistence.lineage import compress_rotated_lineage
 
     return compress_rotated_lineage(workdir / ".sdd")
+
+
+def verify_lineage_chains(
+    workdir: Path,
+    *,
+    audit_log: Any = None,
+    sink: Any = None,
+    verifier: Any = None,
+) -> list[LineageVerificationResult]:
+    """Re-verify every run's lineage chain and surface tampering loudly.
+
+    The janitor calls this directly after :func:`compact_lineage_logs`
+    so a compactor that ran against a tampered file is followed by a
+    fresh chain check. Failures emit (a) an entry in ``audit.jsonl`` of
+    type ``lineage_tamper_detected``, (b) an increment of
+    ``bernstein_lineage_tamper_total{run_id=...}``, (c) a webhook call
+    to the configured SIEM sink. Verification failures NEVER raise --
+    the operator's response policy lives in the SIEM, not in the
+    orchestrator.
+
+    Args:
+        workdir: Project root containing ``.sdd``.
+        audit_log: Optional :class:`bernstein.core.security.audit.AuditLog`
+            instance. When set, a ``lineage_tamper_detected`` event is
+            appended for every failed run.
+        sink: Optional :class:`LineageAlertSink`. When set, a
+            ``LineageTamperEvent`` is delivered for each failed run.
+        verifier: Optional :class:`LineageVerifier`. When set, customer
+            signatures are checked alongside the WAL hash chain.
+
+    Returns:
+        One :class:`LineageVerificationResult` per run inspected.
+    """
+    from bernstein.core.persistence.lineage import LineageReader, verify_run_chain
+
+    sdd_dir = workdir / ".sdd"
+    reader = LineageReader(sdd_dir)
+    results: list[LineageVerificationResult] = []
+    run_ids = list(reader._iter_run_ids())
+    for run_id in run_ids:
+        try:
+            result = verify_run_chain(sdd_dir, run_id, verifier=verifier)
+        except Exception:
+            logger.warning("lineage: verify failed for run %s", run_id, exc_info=True)
+            continue
+        results.append(result)
+        if result.ok:
+            continue
+        _surface_tamper(run_id, result, audit_log=audit_log, sink=sink)
+    return results
+
+
+def _surface_tamper(
+    run_id: str,
+    result: LineageVerificationResult,
+    *,
+    audit_log: Any,
+    sink: Any,
+) -> None:
+    """Emit metric + audit event + SIEM alert for a failed verification."""
+    import time
+
+    from bernstein.core.observability.lineage_alert import LineageTamperEvent
+
+    try:
+        from bernstein.core.observability.prometheus import lineage_tamper_total
+
+        lineage_tamper_total.labels(run_id=run_id).inc()
+    except Exception:
+        logger.warning("lineage: failed to increment tamper counter", exc_info=True)
+
+    if audit_log is not None:
+        try:
+            audit_log.log(
+                event_type="lineage_tamper_detected",
+                actor="janitor",
+                resource_type="lineage_run",
+                resource_id=run_id,
+                details={
+                    "run_id": run_id,
+                    "errors": result.errors[:20],
+                    "error_count": len(result.errors),
+                    "record_count": result.record_count,
+                },
+            )
+        except Exception:
+            logger.warning("lineage: failed to write tamper audit event", exc_info=True)
+
+    if sink is not None:
+        try:
+            sink.emit(
+                LineageTamperEvent(
+                    run_id=run_id,
+                    errors=list(result.errors),
+                    record_count=result.record_count,
+                    detected_at=time.time(),
+                )
+            )
+        except Exception:
+            logger.warning("lineage: alert sink raised; broken sink", exc_info=True)
+
+    logger.warning(
+        "lineage tamper detected for run=%s errors=%d records=%d",
+        run_id,
+        len(result.errors),
+        result.record_count,
+    )
 
 
 async def run_janitor(

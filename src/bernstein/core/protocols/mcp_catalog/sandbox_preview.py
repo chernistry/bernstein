@@ -230,9 +230,31 @@ def run_install_preview(
     )
 
 
+def preview_local_manifest(
+    entry_id: str,
+    *,
+    runner: SandboxRunner | None = None,
+) -> InstallPreview:
+    """Run the sandboxed install preview for a bundled local manifest.
+
+    Thin convenience wrapper used by ``bernstein mcp catalog enable`` and
+    by integration smoke tests. Loads the entry from
+    :mod:`bernstein.core.protocols.mcp_catalog.local_manifests` and runs
+    :func:`run_install_preview` against it. Raises :class:`KeyError`
+    when the id is not present in the bundled manifests.
+    """
+    from bernstein.core.protocols.mcp_catalog.local_manifests import find_local_entry
+
+    entry = find_local_entry(entry_id)
+    if entry is None:
+        raise KeyError(f"Local manifest {entry_id!r} not found")
+    return run_install_preview(entry, runner=runner)
+
+
 __all__ = [
     "FileDiff",
     "InstallPreview",
     "SandboxRunner",
+    "preview_local_manifest",
     "run_install_preview",
 ]

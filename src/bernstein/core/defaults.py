@@ -366,6 +366,25 @@ class JanitorDefaults:
 
 
 # ---------------------------------------------------------------------------
+# MCP catalog defaults
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CatalogDefaults:
+    """Opt-in flags for bundled MCP catalog manifests.
+
+    Local manifests under ``core/protocols/mcp_catalog/manifests/`` are
+    "available, disabled by default" until the operator opts in via the
+    matching flag here (or its ``mcp.catalog.<entry>.enabled`` override
+    in ``bernstein.yaml``). This keeps existing fleets free of surprise
+    server registrations on upgrade.
+    """
+
+    cocoindex_code_enabled: bool = False  # mcp.catalog.cocoindex_code.enabled
+
+
+# ---------------------------------------------------------------------------
 # Singletons (rebindable via override()/reset())
 # ---------------------------------------------------------------------------
 
@@ -382,6 +401,7 @@ PROTOCOL = ProtocolDefaults()
 PLAN = PlanDefaults()
 TRIGGER = TriggerDefaults()
 JANITOR = JanitorDefaults()
+CATALOG = CatalogDefaults()
 
 
 # Mapping of section name (as used in bernstein.yaml ``tuning:`` blocks) to the
@@ -402,6 +422,7 @@ _SECTION_TO_ATTR: Mapping[str, str] = MappingProxyType(
         "plan": "PLAN",
         "trigger": "TRIGGER",
         "janitor": "JANITOR",
+        "catalog": "CATALOG",
     }
 )
 
@@ -422,6 +443,7 @@ _ATTR_TO_FACTORY: Mapping[str, type[Any]] = MappingProxyType(
         "PLAN": PlanDefaults,
         "TRIGGER": TriggerDefaults,
         "JANITOR": JanitorDefaults,
+        "CATALOG": CatalogDefaults,
     }
 )
 

@@ -42,6 +42,11 @@ from bernstein.core.protocols.mcp_catalog.fetcher import (
     HTTPTransport,
     default_cache_path,
 )
+from bernstein.core.protocols.mcp_catalog.local_manifests import (
+    LOCAL_MANIFESTS_DIR,
+    find_local_entry,
+    load_local_manifests,
+)
 from bernstein.core.protocols.mcp_catalog.manifest import (
     Catalog,
     CatalogEntry,
@@ -52,6 +57,7 @@ from bernstein.core.protocols.mcp_catalog.sandbox_preview import (
     FileDiff,
     InstallPreview,
     SandboxRunner,
+    preview_local_manifest,
     run_install_preview,
 )
 from bernstein.core.protocols.mcp_catalog.service import (
@@ -81,6 +87,7 @@ __all__ = [
     "DEFAULT_CHECK_INTERVAL_SECONDS",
     "DEFAULT_MIRROR_URL",
     "DEFAULT_REVALIDATE_SECONDS",
+    "LOCAL_MANIFESTS_DIR",
     "SERVERS_KEY",
     "CacheEntry",
     "Catalog",
@@ -102,8 +109,11 @@ __all__ = [
     "UpgradeOutcome",
     "default_cache_path",
     "default_user_config_path",
+    "find_local_entry",
     "install_entry",
     "list_installed",
+    "load_local_manifests",
+    "preview_local_manifest",
     "run_install_preview",
     "touch_upgrade_check",
     "uninstall_entry",

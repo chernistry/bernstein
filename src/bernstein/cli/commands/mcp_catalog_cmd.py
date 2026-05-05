@@ -3,6 +3,7 @@
 Subcommands::
 
     bernstein mcp catalog browse
+    bernstein mcp catalog list
     bernstein mcp catalog search <q>
     bernstein mcp catalog install <id> [--yes]
     bernstein mcp catalog list-installed
@@ -38,6 +39,7 @@ from bernstein.core.protocols.mcp_catalog import (
     InstallPreview,
     default_cache_path,
     default_user_config_path,
+    load_local_manifests,
 )
 
 logger = logging.getLogger(__name__)
@@ -130,6 +132,59 @@ def _render_preview(preview: InstallPreview) -> None:
 @click.group("catalog", invoke_without_command=False)
 def catalog_group() -> None:
     """Browse, install, and upgrade MCP servers from the community catalog."""
+
+
+def _local_entry_enabled(entry_id: str) -> bool:
+    """Resolve the ``mcp.catalog.<entry_id>.enabled`` flag.
+
+    The flag is currently driven by attributes on
+    :class:`bernstein.core.defaults.CatalogDefaults` whose names map from
+    ``cocoindex-code`` to ``cocoindex_code_enabled``. Unknown ids
+    default to ``False`` so newly-bundled manifests stay disabled until
+    explicitly registered.
+    """
+    from bernstein.core import defaults as _defaults
+
+    attr = entry_id.replace("-", "_") + "_enabled"
+    return bool(getattr(_defaults.CATALOG, attr, False))
+
+
+@catalog_group.command("list")
+def list_cmd() -> None:
+    """List bundled local manifests with their enabled/disabled state.
+
+    Local manifests under ``core/protocols/mcp_catalog/manifests/`` are
+    "available, disabled by default". Operators flip the matching
+    ``mcp.catalog.<id>.enabled`` flag in ``bernstein.yaml`` to register
+    a server for fleet-wide use.
+    """
+    from rich.table import Table
+
+    try:
+        catalog = load_local_manifests()
+    except CatalogValidationError as exc:
+        raise click.ClickException(f"Local manifest rejected: {exc}") from exc
+
+    if not catalog.entries:
+        console.print("[dim]No local MCP manifests bundled with this Bernstein release.[/dim]")
+        return
+
+    table = Table(title="Local MCP catalog manifests", header_style="bold cyan")
+    table.add_column("ID")
+    table.add_column("Name")
+    table.add_column("Version")
+    table.add_column("Status")
+    table.add_column("Verified")
+    for entry in catalog.entries:
+        status = "enabled" if _local_entry_enabled(entry.id) else "available, disabled by default"
+        table.add_row(
+            entry.id,
+            entry.name,
+            entry.version_pin,
+            status,
+            "yes" if entry.verified_by_bernstein else "no",
+        )
+    console.print(table)
 
 
 @catalog_group.command("browse")

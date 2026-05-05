@@ -1,0 +1,24 @@
+id: cocoindex-code
+name: CocoIndex Code
+description: >-
+  AST-aware, incrementally-updated semantic code index exposed as an MCP
+  server. Replaces dozens of grep/find calls with a single semantic-search
+  call so spawned agents can locate symbols and neighbours without burning
+  tokens on full-file reads. Apache-2.0; runs locally via SentenceTransformer
+  embeddings (no API key required).
+homepage: https://cocoindex.io/cocoindex-code
+repository: https://github.com/cocoindex-io/cocoindex
+install_command:
+  - pip
+  - install
+  - --dry-run
+  - cocoindex[full]==1.0.3
+version_pin: 1.0.3
+transports:
+  - stdio
+verified_by_bernstein: false
+auto_upgrade: false
+command: ccc
+args:
+  - mcp
+env: {}

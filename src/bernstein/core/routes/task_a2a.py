@@ -49,9 +49,14 @@ def _require_task_access(task: object, request: Request) -> None:
     _impl(task, request)  # type: ignore[arg-type]
 
 
-@router.get("/.well-known/agent.json")
+@router.get("/a2a/agent-card")
 def agent_card(request: Request) -> A2AAgentCardResponse:
-    """Publish the Bernstein orchestrator Agent Card (A2A spec)."""
+    """Publish the Bernstein orchestrator Agent Card (legacy A2A path).
+
+    The richer service manifest at ``/.well-known/agent.json`` is served by
+    ``routes.well_known``; this endpoint is preserved for callers that
+    historically pulled the orchestrator's own A2A card.
+    """
     a2a_handler = _get_a2a_handler(request)
     card = a2a_handler.orchestrator_card()
     d = card.to_dict()

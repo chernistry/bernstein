@@ -76,6 +76,7 @@ AUTH_PUBLIC_PATHS = frozenset(
         # Agent / protocol discovery
         "/.well-known/agent.json",
         "/.well-known/acp.json",
+        "/llms.txt",
         "/acp/v0/agents",
         # Auth flow endpoints (must be public for login to work)
         "/auth/login",

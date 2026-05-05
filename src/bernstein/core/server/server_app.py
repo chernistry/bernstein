@@ -1222,6 +1222,7 @@ def create_app(
     from bernstein.core.routes.task_detail import router as task_detail_router
     from bernstein.core.routes.team import router as team_router
     from bernstein.core.routes.websocket import router as ws_router
+    from bernstein.core.routes.well_known import router as well_known_router
 
     # Full roster of application routers.
     #
@@ -1273,6 +1274,7 @@ def create_app(
         team_router,
         provider_latency_router,
         predictive_router,
+        well_known_router,
     ]
 
     for r in all_routers:

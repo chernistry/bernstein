@@ -201,8 +201,13 @@ class TestA2AHandler:
 
 @pytest.mark.anyio
 async def test_agent_card_endpoint(client: AsyncClient) -> None:
-    """GET /.well-known/agent.json returns the orchestrator Agent Card."""
-    resp = await client.get("/.well-known/agent.json")
+    """GET /a2a/agent-card returns the orchestrator Agent Card.
+
+    The /.well-known/agent.json path now serves the richer service
+    manifest (see ``routes.well_known``); the legacy orchestrator card
+    moved to /a2a/agent-card.
+    """
+    resp = await client.get("/a2a/agent-card")
     assert resp.status_code == 200
     data = resp.json()
     assert data["name"] == "bernstein-orchestrator"

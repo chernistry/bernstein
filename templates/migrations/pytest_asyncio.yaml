@@ -1,0 +1,25 @@
+# Example swarm-migration plan: switch unittest-style async tests to pytest-asyncio.
+#
+# Use with:
+#   bernstein migrate \
+#     --id pytest-asyncio-rollout \
+#     --glob "tests/**/test_*.py" \
+#     --transform "$(cat templates/migrations/pytest_asyncio.yaml)" \
+#     --chunk-size 5 \
+#     --max-parallel 10
+#
+# The YAML body itself is consumed as the free-text transform prompt — the
+# top-level keys are informational only and ignored by `bernstein migrate`.
+id: pytest-asyncio-rollout
+description: |
+  Convert unittest.IsolatedAsyncioTestCase test classes to plain
+  pytest-asyncio coroutine functions.
+transform: |
+  For each file in the chunk:
+
+  1. Replace `class FooTest(unittest.IsolatedAsyncioTestCase):` with module-level
+     `async def test_foo()` definitions.
+  2. Add the `@pytest.mark.asyncio` decorator to every coroutine test.
+  3. Promote `setUp` / `tearDown` to fixtures defined in the same file.
+  4. Drop the `unittest` import once nothing else uses it.
+  5. Run `uv run pytest <file> -x -q` and confirm green before completing.

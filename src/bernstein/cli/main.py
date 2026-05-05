@@ -82,6 +82,7 @@ from bernstein.cli.man_page import man_pages_cmd
 from bernstein.cli.manifest_cmd import manifest_group
 from bernstein.cli.memory_cmd import memory_group
 from bernstein.cli.merge_cmd import merge_cmd
+from bernstein.cli.migrate_cmd import migrate_cmd
 from bernstein.cli.plan_archive_cmd import plan_ls, plan_show
 from bernstein.cli.plan_generate_cmd import plan_generate
 from bernstein.cli.plan_validate_cmd import validate_plan
@@ -798,6 +799,7 @@ cli.add_command(undo_cmd, "undo")
 cli.add_command(worker, "worker")
 cli.add_command(diff_cmd, "diff")
 cli.add_command(merge_cmd, "merge")
+cli.add_command(migrate_cmd, "migrate")
 cli.add_command(changelog_cmd, "changelog")
 cli.add_command(run_changelog_cmd, "run-changelog")
 cli.add_command(dr_group, "dr")

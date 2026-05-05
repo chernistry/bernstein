@@ -78,6 +78,7 @@ _CLI_REDIRECT_MAP: dict[str, str] = {
     "mcp_cmd": "bernstein.cli.commands.mcp_cmd",
     "memory_cmd": "bernstein.cli.commands.memory_cmd",
     "merge_cmd": "bernstein.cli.commands.merge_cmd",
+    "migrate_cmd": "bernstein.cli.commands.migrate_cmd",
     "plan_diff": "bernstein.cli.plan.plan_diff",
     "plan_display": "bernstein.cli.plan.plan_display",
     "plan_explain": "bernstein.cli.plan.plan_explain",

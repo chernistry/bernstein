@@ -1,0 +1,16 @@
+# Example swarm-migration plan: convert blocking helpers to async/await.
+id: sync-to-async-rollout
+description: |
+  Convert IO-bound helper modules from blocking sync to async/await.
+transform: |
+  For each file in the chunk:
+
+  1. Identify functions that perform network or filesystem IO and convert them
+     to `async def`. Update return types accordingly.
+  2. Replace `requests.<verb>` and `urllib.request` calls with `httpx.AsyncClient`.
+  3. Replace `open(...)` for large reads/writes with `aiofiles` where it improves
+     responsiveness (do NOT change tiny config reads).
+  4. Update every caller within the same file; cross-file callers remain on the
+     original list and will be migrated by a follow-up plan.
+  5. Run `uv run ruff check <file>` and the file's own test (if any) before
+     completing.

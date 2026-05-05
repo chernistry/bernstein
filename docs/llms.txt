@@ -1,8 +1,17 @@
 # Bernstein
 
+> Forward-deployed engineering, with a coding swarm that fits in your `.sdd/`.
+>
 > Bernstein is an open-source multi-agent orchestration platform for AI coding agents.
 > Deterministic scheduling, 37 CLI adapters, pluggable sandbox backends, cloud artifact
 > storage sinks, progressive-disclosure skill packs, zero vendor lock-in. Apache 2.0 licensed.
+
+## Forward-deployed engineering use case
+
+Forward-deployed engineering, on a swarm. Drop Bernstein into a
+client repo and you get a multi-agent crew with file-based state,
+per-agent credential scoping, and an HMAC-signed audit trail —
+running on whichever CLI agents the client already trusts.
 
 ## Core Documentation
 - [Getting Started](https://sipyourdrink-ltd.github.io/bernstein/getting-started.html): Install, configure, run first orchestration in 60 seconds

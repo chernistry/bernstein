@@ -30,6 +30,8 @@
 
 **What is this?** You tell it what you want built. It splits the work across several AI coding agents (Claude Code, Codex, Gemini CLI, and 39 more), runs the tests, and merges the code that actually passes. You come back to working code.
 
+Forward-deployed engineering, on a swarm. Drop Bernstein into a client repo and you get a multi-agent crew with file-based state, per-agent credential scoping, and an HMAC-signed audit trail — running on whichever CLI agents the client already trusts.
+
 ### Install and run
 
 One line on macOS / Linux:
@@ -69,6 +71,12 @@ Most agent orchestrators use an LLM to decide who does what. That's non-determin
 No framework to learn. No vendor lock-in. Swap any agent, any model, any provider.
 
 Other install options: `pipx install bernstein`, `pip install bernstein`, `uv tool install bernstein`, `brew tap chernistry/tap && brew install bernstein`, `dnf copr`, `npx bernstein-orchestrator`. See [install options](#install).
+
+## Use cases
+
+- Forward-deployed engineering — drop the swarm onto a client repo when you arrive, take it with you when you leave.
+- Self-evolving projects — point Bernstein at its own repo and let it execute the backlog (this codebase is one).
+- CI fleets — run a swarm of agents in parallel on PRs, with per-agent credential scoping and signed audit trail.
 
 ## Supported agents
 

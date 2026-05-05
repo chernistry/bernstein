@@ -93,6 +93,17 @@ bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
 
 </div>
 
+## Why as a forward-deployed-engineering tool
+
+Bernstein is built for the forward-deployed engineering pattern:
+parachute onto a client repo and stand up an AI engineering crew in
+minutes. State lives in `.sdd/` — no server to provision. Per-agent
+credential scoping keeps your keys out of the client's environment.
+The 31-adapter spread means the swarm runs on whichever CLI agent
+the client already trusts (Claude Code, Codex, Gemini CLI, Aider,
+and more). Every step is an HMAC-signed audit record, replayable
+for client compliance review.
+
 ## Quick links
 
 | | |

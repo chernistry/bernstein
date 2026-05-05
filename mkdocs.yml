@@ -5,7 +5,9 @@ site_description: >-
   Bernstein is the open-source multi-agent orchestration platform for AI coding
   agents. Run Claude Code, Codex, Gemini CLI, and the OpenAI Agents SDK in
   parallel with deterministic scheduling, 42 adapters, pluggable sandbox
-  backends, cloud artifact storage, and zero vendor lock-in.
+  backends, cloud artifact storage, and zero vendor lock-in. Built for the
+  forward-deployed engineering pattern — drop the swarm onto a client repo
+  with file-based state, per-agent credential scoping, and a signed audit trail.
 repo_url: https://github.com/sipyourdrink-ltd/bernstein
 repo_name: sipyourdrink-ltd/bernstein
 edit_uri: edit/main/docs/

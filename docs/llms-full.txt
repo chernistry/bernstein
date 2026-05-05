@@ -1,0 +1,138 @@
+# Bernstein
+
+> Forward-deployed engineering, with a coding swarm that fits in your `.sdd/`.
+>
+> Bernstein is an open-source multi-agent orchestration platform for AI coding
+> agents. Deterministic scheduling, 37 CLI adapters, pluggable sandbox backends,
+> cloud artifact storage sinks, progressive-disclosure skill packs, zero vendor
+> lock-in. Apache 2.0 licensed.
+
+This document is the long-form `llms-full.txt` variant per the llms.txt spec
+(<https://llmstxt.org/>). It expands on the short `llms.txt` with more context
+for ingestion by language models. Machine-readable Markdown, link-rich.
+
+## What Bernstein is
+
+Bernstein takes a goal, breaks it into tasks, assigns them to AI coding agents
+running in parallel, verifies the output, and merges the results. The orchestrator
+itself is deterministic Python — zero LLM tokens on scheduling. Every run is
+reproducible. Every step is logged and replayable.
+
+- Pure Python orchestration. No LLM in the coordination loop.
+- 37 CLI agent adapters. Mix Claude Code, Codex, Gemini CLI, Aider, Cursor,
+  and more in the same run.
+- Git worktree isolation per agent. Main branch stays clean.
+- Janitor verification: tests, lint, types, PII gating.
+- File-based state in `.sdd/`. No database. Inspect with `cat`, back up with
+  `cp -r`.
+
+## Forward-deployed engineering use case
+
+Bernstein is built for the forward-deployed engineering pattern:
+parachute onto a client repo and stand up an AI engineering crew in
+minutes. State lives in `.sdd/` — no server to provision. Per-agent
+credential scoping keeps your keys out of the client's environment.
+The 31-adapter spread means the swarm runs on whichever CLI agent
+the client already trusts (Claude Code, Codex, Gemini CLI, Aider,
+and more). Every step is an HMAC-signed audit record, replayable
+for client compliance review.
+
+## Primary use cases
+
+- **Forward-deployed engineering** — drop the swarm onto a client repo when
+  you arrive, take it with you when you leave.
+- **Self-evolving projects** — point Bernstein at its own repo and let it
+  execute the backlog.
+- **CI fleets** — run a swarm of agents in parallel on PRs, with per-agent
+  credential scoping and signed audit trail.
+
+## Install
+
+```bash
+pipx install bernstein
+# or: pip install bernstein
+# or: uv tool install bernstein
+# or: brew tap sipyourdrink-ltd/bernstein && brew install bernstein
+```
+
+One-liner installers (macOS / Linux / Windows):
+
+```bash
+curl -fsSL https://bernstein.run/install.sh | sh
+```
+
+```powershell
+irm https://bernstein.run/install.ps1 | iex
+```
+
+## Quick start
+
+```bash
+cd your-project
+bernstein init                          # creates a .sdd/ workspace
+bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
+bernstein live                          # TUI dashboard
+bernstein stop                          # graceful shutdown
+```
+
+## How it works
+
+1. **Decompose**. The manager breaks your goal into tasks with roles, owned
+   files, and completion signals.
+2. **Spawn**. Agents start in isolated git worktrees, one per task.
+3. **Verify**. The janitor checks concrete signals: tests pass, files exist,
+   lint clean, types correct.
+4. **Merge**. Verified work lands in main. Failed tasks get retried or routed
+   to a different model.
+
+## Core Documentation
+
+- [Getting Started](https://bernstein.readthedocs.io/en/latest/getting-started/GETTING_STARTED/) — Install, configure, run first orchestration in 60 seconds
+- [Architecture](https://bernstein.readthedocs.io/en/latest/architecture/ARCHITECTURE/) — Task server, agent spawner, janitor verification, worktree isolation
+- [Why deterministic](https://bernstein.readthedocs.io/en/latest/architecture/WHY_DETERMINISTIC/) — Design rationale for zero-LLM scheduling
+- [Lifecycle FSM](https://bernstein.readthedocs.io/en/latest/architecture/LIFECYCLE/) — Task and agent state machines with transition tables
+- [Adapter Guide](https://bernstein.readthedocs.io/en/latest/adapters/ADAPTER_GUIDE/) — Supported agents and how to add your own
+- [Sandbox backends](https://bernstein.readthedocs.io/en/latest/architecture/sandbox/) — Worktree, Docker, E2B, Modal
+- [Artifact sinks](https://bernstein.readthedocs.io/en/latest/architecture/storage/) — Local, S3, GCS, Azure Blob, Cloudflare R2
+- [Skills](https://bernstein.readthedocs.io/en/latest/architecture/skills/) — Progressive-disclosure skill packs (OpenAI Agents SDK pattern)
+- [Configuration](https://bernstein.readthedocs.io/en/latest/operations/CONFIG/) — `bernstein.yaml` reference
+- [API Reference](https://bernstein.readthedocs.io/en/latest/reference/openapi-reference/) — Task server REST API on `:8052`
+
+## Capabilities
+
+- **Core orchestration**. Parallel execution, git worktree isolation, janitor
+  verification, quality gates (lint, types, PII scan), cross-model code review,
+  circuit breaker for misbehaving agents, token growth monitoring with
+  auto-intervention.
+- **Intelligence**. Contextual bandit router for model/effort selection.
+  Knowledge graph for codebase impact analysis. Semantic caching saves tokens
+  on repeated patterns. Cost anomaly detection (burn-rate alerts). Behavior
+  anomaly detection with Z-score flagging.
+- **Sandboxing**. Pluggable `SandboxBackend` protocol — local git worktrees
+  (default), Docker containers, E2B Firecracker microVMs, Modal serverless
+  containers (with optional GPU).
+- **Artifact storage**. `.sdd/` state can stream to pluggable `ArtifactSink`
+  backends: local filesystem (default), S3, Google Cloud Storage, Azure Blob,
+  Cloudflare R2.
+- **Controls**. HMAC-chained audit logs, policy engine, PII output gating,
+  WAL-backed crash recovery, OAuth 2.0 PKCE.
+- **Observability**. Prometheus `/metrics`, OTel exporter presets, Grafana
+  dashboards. Per-model cost tracking (`bernstein cost`). Terminal TUI and
+  web dashboard.
+- **Ecosystem**. MCP server mode, A2A protocol support, GitHub App integration,
+  pluggy-based plugin system, multi-repo workspaces, cluster mode for
+  distributed execution.
+
+## Comparisons
+
+- [vs CrewAI / AutoGen / LangGraph](https://bernstein.readthedocs.io/en/latest/compare/) — Feature matrices vs LLM-orchestration frameworks
+- [vs other CLI-agent orchestrators](https://bernstein.readthedocs.io/en/latest/compare/) — `awslabs/cli-agent-orchestrator`, Composio's `@aoagents/ao`, emdash, ralphex
+
+## Resources
+
+- [GitHub Repository](https://github.com/sipyourdrink-ltd/bernstein) — Source code, issues, discussions
+- [PyPI Package](https://pypi.org/project/bernstein/) — `pip install bernstein`
+- [npm wrapper](https://www.npmjs.com/package/bernstein-orchestrator) — `npx bernstein-orchestrator`
+- [Website](https://bernstein.run)
+- [Documentation](https://bernstein.readthedocs.io/)
+- [Author](https://alexchernysh.com) — Built by Alex Chernysh

@@ -167,6 +167,13 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "notify",
         "preview",
         "review-responder",
+        # May 2026 feature batch
+        "cluster",
+        "handoff",
+        "lineage",
+        "migrate",
+        "routine",
+        "wheelhouse",
     }
 )
 

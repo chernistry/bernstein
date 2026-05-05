@@ -360,7 +360,41 @@ async def verify_with_cross_model(
         verdict.verdict,
         len(verdict.issues),
     )
+    _record_rework_sample(task=task, worktree_path=worktree_path, writer_model=writer_model, verdict=verdict)
     return verdict
+
+
+def _record_rework_sample(
+    *,
+    task: Task,
+    worktree_path: Path,
+    writer_model: str,
+    verdict: CrossModelVerdict,
+) -> None:
+    """Append a rework-ledger sample for the writer (model, effort, role).
+
+    Verifier rejection is the canonical "rework" signal: it means the
+    cheap implement model produced a diff that another model wouldn't
+    sign off on. We tag the sample with ``triggered_by="verifier"`` so
+    downstream consumers can slice the rate by trigger source.
+    """
+    try:
+        from bernstein.core.routing.rework_ledger import default_ledger
+    except ImportError:
+        return
+    outcome = "rework" if verdict.verdict == "request_changes" else "success"
+    effort = (task.effort or "normal").lower()
+    try:
+        ledger = default_ledger(worktree_path)
+        ledger.record(
+            model=writer_model,
+            effort=effort,
+            phase=task.role,
+            outcome=outcome,
+            triggered_by="verifier",
+        )
+    except (OSError, ValueError) as exc:
+        logger.debug("cross_model_verifier: ledger record failed: %s", exc)
 
 
 def run_cross_model_verification_sync(

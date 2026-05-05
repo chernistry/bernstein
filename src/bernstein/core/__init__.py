@@ -423,6 +423,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "retrospective": "bernstein.core.quality.retrospective",
     "retry_budget": "bernstein.core.cost.planned.retry_budget",
     "review_rubric": "bernstein.core.quality.review_rubric",
+    "rework_ledger": "bernstein.core.routing.rework_ledger",
     # reviewer: removed in audit-192 — dead code, no production importers.
     "roadmap_runtime": "bernstein.core.planning.roadmap_runtime",
     "role_classifier": "bernstein.core.routing.role_classifier",

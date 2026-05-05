@@ -114,6 +114,7 @@ __all__ = [
     "agents_active",
     "best_of_n_candidates_total",
     "best_of_n_judge_score",
+    "cascade_auto_promotions_total",
     "cluster_admission_failures_total",
     "cluster_heartbeats_total",
     "cluster_nodes_total",
@@ -134,6 +135,7 @@ __all__ = [
     "merge_duration",
     "record_transition_reason",
     "registry",
+    "rework_rate_per_model",
     "sandbox_exec_count_total",
     "sandbox_session_created_total",
     "sandbox_session_destroyed_total",
@@ -323,6 +325,21 @@ best_of_n_judge_score: Histogram = Histogram(
     "LLM-as-judge rubric score per best-of-N candidate (0.0-1.0).",
     buckets=(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
     labelnames=["role"],
+    registry=registry,
+)
+
+# Rework-rate ledger surface — see ``bernstein.core.routing.rework_ledger``.
+rework_rate_per_model: Gauge = Gauge(
+    "bernstein_rework_rate_per_model",
+    "Observed rework rate per (model, effort, phase) bucket from the rework ledger.",
+    labelnames=["model", "effort", "phase"],
+    registry=registry,
+)
+
+cascade_auto_promotions_total: Counter = Counter(
+    "bernstein_cascade_auto_promotions_total",
+    "Cascade-router auto-promotion events triggered by rework-rate signal.",
+    labelnames=["from_model", "to_model", "reason"],
     registry=registry,
 )
 

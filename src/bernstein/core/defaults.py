@@ -518,6 +518,30 @@ class SchemaRetryDefaults:
 
 
 @dataclass(frozen=True)
+class ReworkLedgerDefaults:
+    """Thresholds for the rework-rate ledger and cascade auto-promotion.
+
+    The ledger records one sample per (model, effort, phase) attempt and
+    reports a rework-rate that the cascade router consults when picking
+    a writer model. Auto-promotion fires when both gates pass:
+
+    * ``samples >= min_samples`` — guard against premature decisions
+      from a handful of noisy observations.
+    * ``rate >= promotion_threshold`` — only promote when the cheap tier
+      is observably costing more rework than it saves.
+
+    ``window_hours`` bounds the freshness of considered samples so that
+    a single bad afternoon doesn't pin the router on the expensive tier
+    forever.
+    """
+
+    enabled: bool = True
+    promotion_threshold: float = 0.30
+    min_samples: int = 20
+    window_hours: float = 24.0
+
+
+@dataclass(frozen=True)
 class LineageDefaults:
     """Lineage record schema-v2 configuration (regulator-class trail).
 
@@ -569,6 +593,7 @@ SECURITY = SecurityDefaults()
 ACTION_CACHE = ActionCacheDefaults()
 SCHEMA_RETRY = SchemaRetryDefaults()
 LINEAGE = LineageDefaults()
+REWORK_LEDGER = ReworkLedgerDefaults()
 
 # Module-level constant for direct import — preferred when only the
 # numeric cap is needed (no need to import the whole singleton).
@@ -612,6 +637,7 @@ _SECTION_TO_ATTR: Mapping[str, str] = MappingProxyType(
         "action_cache": "ACTION_CACHE",
         "schema_retry": "SCHEMA_RETRY",
         "lineage": "LINEAGE",
+        "rework_ledger": "REWORK_LEDGER",
     }
 )
 
@@ -640,6 +666,7 @@ _ATTR_TO_FACTORY: Mapping[str, type[Any]] = MappingProxyType(
         "ACTION_CACHE": ActionCacheDefaults,
         "SCHEMA_RETRY": SchemaRetryDefaults,
         "LINEAGE": LineageDefaults,
+        "REWORK_LEDGER": ReworkLedgerDefaults,
     }
 )
 

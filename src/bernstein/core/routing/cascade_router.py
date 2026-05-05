@@ -36,6 +36,7 @@ Integration:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 import time
@@ -54,6 +55,8 @@ from bernstein.core.models import Complexity, Scope, Task
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from bernstein.core.routing.rework_ledger import ReworkLedger
 
 logger = logging.getLogger(__name__)
 
@@ -312,10 +315,13 @@ class CascadeRouter:
         bandit_metrics_dir: Path | None = None,
         quality_threshold: float = QUALITY_THRESHOLD,
         min_observations: int = MIN_OBSERVATIONS,
+        *,
+        rework_ledger: ReworkLedger | None = None,
     ) -> None:
         self._bandit_metrics_dir = bandit_metrics_dir
         self._quality_threshold = quality_threshold
         self._min_observations = min_observations
+        self._rework_ledger = rework_ledger
 
         # chain_id → list of attempts (chronological order)
         self._chains: dict[str, list[CascadeAttempt]] = {}
@@ -356,6 +362,23 @@ class CascadeRouter:
             model, reason = self._escalate_from(last.model, task, last.escalation_reason or "escalation")
 
         effort = _effort_for_model(model, task)
+
+        # Closed-loop rework-rate promotion: when the chosen tier's bucket
+        # exceeds the configured rework threshold with sufficient samples,
+        # auto-promote one tier. Skipped on escalation paths because the
+        # router is already moving up.
+        if attempt_number == 0 and self._rework_ledger is not None:
+            promoted = _apply_rework_promotion(
+                ledger=self._rework_ledger,
+                cascade=_cascade_for_task(task),
+                model=model,
+                effort=effort,
+                phase=task.role,
+            )
+            if promoted is not None:
+                model, reason = promoted
+                effort = _effort_for_model(model, task)
+
         estimated_cost = (_AVG_TASK_TOKENS / 1_000) * _model_cost(model)
 
         return CascadeDecision(
@@ -720,6 +743,72 @@ def _effort_for_model(model: str, task: Task) -> str:
         return "low"
     # sonnet and unknown models
     return "high"
+
+
+def _apply_rework_promotion(
+    *,
+    ledger: ReworkLedger,
+    cascade: list[str],
+    model: str,
+    effort: str,
+    phase: str,
+) -> tuple[str, str] | None:
+    """Promote *model* one tier when the rework-rate signal warrants it.
+
+    Returns ``(new_model, reason)`` on promotion or ``None`` when the
+    current tier should be kept (insufficient samples, rate below
+    threshold, or already at the top of the cascade).
+    """
+    try:
+        from bernstein.core import defaults as _defaults
+    except ImportError:
+        return None
+    cfg = getattr(_defaults, "REWORK_LEDGER", None)
+    if cfg is None or not getattr(cfg, "enabled", True):
+        return None
+
+    try:
+        idx = cascade.index(model)
+    except ValueError:
+        return None
+    if idx >= len(cascade) - 1:
+        return None  # already at the top
+
+    rate = ledger.rework_rate(
+        model=model,
+        effort=effort,
+        phase=phase,
+        window_hours=getattr(cfg, "window_hours", 24.0),
+    )
+    if rate.samples < int(getattr(cfg, "min_samples", 20)):
+        return None
+    if rate.rate < float(getattr(cfg, "promotion_threshold", 0.30)):
+        return None
+
+    next_model = cascade[idx + 1]
+    reason = (
+        f"rework-rate auto-promotion: {model}→{next_model} "
+        f"(rate={rate.rate:.2f} over {rate.samples} samples, "
+        f"phase={phase}, effort={effort})"
+    )
+    logger.info(reason)
+
+    # Best-effort metric emission — never block routing on a metrics path.
+    with contextlib.suppress(Exception):
+        from bernstein.core.observability import prometheus as _p
+
+        _p.cascade_auto_promotions_total.labels(
+            from_model=model,
+            to_model=next_model,
+            reason="rework_rate",
+        ).inc()
+        _p.rework_rate_per_model.labels(
+            model=model,
+            effort=effort,
+            phase=phase,
+        ).set(rate.rate)
+
+    return next_model, reason
 
 
 def load_cascade_savings_summary(metrics_dir: Path) -> dict[str, Any]:

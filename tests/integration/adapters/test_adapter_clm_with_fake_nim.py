@@ -9,13 +9,22 @@ shape NVIDIA NIM exposes, points :class:`ClmAdapter` at it via
 * the gateway sees the OpenAI-shaped chat-completions request,
 * the streaming SSE assembly returns the full response body,
 * no CLM_TOKEN bytes leak into the spawn log.
+
+Phase 2.5 — also exercises the mTLS path against a TLS-terminated
+fake NIM driven via :func:`build_httpx_client_kwargs` plumbing, with a
+matching negative-path test that asserts the gateway rejects a
+worker which has no client cert at the TLS handshake.
 """
 
 from __future__ import annotations
 
 import contextlib
+import datetime
 import json
 import socket
+import ssl
+import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -24,17 +33,28 @@ from typing import TYPE_CHECKING
 import httpx
 import pytest
 import uvicorn
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from bernstein.adapters.clm import (
+    CLM_CA_FILE_ENV,
+    CLM_CERT_FILE_ENV,
     CLM_ENDPOINT_ENV,
+    CLM_KEY_FILE_ENV,
     CLM_MODEL_ENV,
     CLM_TOKEN_ENV,
     ClmAdapter,
     ClmConfig,
     StreamingChunk,
     assemble_streaming_response,
+    tls_config_from_env,
+)
+from bernstein.core.protocols.cluster.cluster_tls import (
+    build_httpx_client_kwargs,
 )
 
 if TYPE_CHECKING:
@@ -240,3 +260,189 @@ def test_streaming_lineage_regression_50plus_chunks(
     assert "long-chunk-000" in payload.content
     assert "long-chunk-059" in payload.content
     assert payload.finish_reason == "stop"
+
+
+# ---------------------------------------------------------------------------
+# Phase 2.5 — mTLS handshake against a TLS-terminated fake NIM
+# ---------------------------------------------------------------------------
+
+
+_MTLS_APP_MODULE = "tests.integration.adapters._clm_mtls_app"
+_MTLS_FAKE_NIM_TOKEN = "scoped-jwt-fake-nim-mtls"
+
+
+def _make_mtls_pki(out_dir: Path) -> dict[str, Path]:
+    """Generate CA + server cert/key + client cert/key for the mTLS test.
+
+    Mirrors :func:`tests.integration.test_cluster_mtls_handshake._make_pki`
+    so the two tests stay in lockstep on cert shape (CN/SAN/EKU). Lifted
+    rather than imported because the cluster test treats its helper as
+    a private fixture.
+    """
+    ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "test-ca")])
+    now = datetime.datetime.now(datetime.UTC)
+    ca = (
+        x509.CertificateBuilder()
+        .subject_name(ca_name)
+        .issuer_name(ca_name)
+        .public_key(ca_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now)
+        .not_valid_after(now + datetime.timedelta(days=1))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=1), critical=True)
+        .sign(ca_key, hashes.SHA256())
+    )
+    paths = {
+        "ca": out_dir / "ca.crt",
+        "server_cert": out_dir / "server.crt",
+        "server_key": out_dir / "server.key",
+        "client_cert": out_dir / "client.crt",
+        "client_key": out_dir / "client.key",
+    }
+    paths["ca"].write_bytes(ca.public_bytes(serialization.Encoding.PEM))
+
+    for role, cert_path, key_path, eku in (
+        ("server", paths["server_cert"], paths["server_key"], x509.ExtendedKeyUsageOID.SERVER_AUTH),
+        ("client", paths["client_cert"], paths["client_key"], x509.ExtendedKeyUsageOID.CLIENT_AUTH),
+    ):
+        leaf_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        cn = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, role)])
+        san = x509.SubjectAlternativeName([x509.DNSName("localhost"), x509.DNSName("127.0.0.1")])
+        leaf = (
+            x509.CertificateBuilder()
+            .subject_name(cn)
+            .issuer_name(ca_name)
+            .public_key(leaf_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(now)
+            .not_valid_after(now + datetime.timedelta(days=1))
+            .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+            .add_extension(x509.ExtendedKeyUsage([eku]), critical=False)
+            .add_extension(san, critical=False)
+            .sign(ca_key, hashes.SHA256())
+        )
+        cert_path.write_bytes(leaf.public_bytes(serialization.Encoding.PEM))
+        key_path.write_bytes(
+            leaf_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
+    return paths
+
+
+@contextlib.contextmanager
+def _serve_fake_nim_tls(pki: dict[str, Path], port: int) -> Generator[None, None, None]:
+    """Spawn a uvicorn TLS subprocess hosting the mTLS fake-NIM app.
+
+    A subprocess (rather than an in-thread :class:`uvicorn.Server`) is
+    used because asyncio's selector-based SSL transport has well-known
+    flakiness when the event loop runs on a non-main thread on macOS.
+    The cluster mTLS test makes the same call.
+    """
+    cmd = [
+        sys.executable,
+        "-m",
+        "uvicorn",
+        f"{_MTLS_APP_MODULE}:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        str(port),
+        "--log-level",
+        "warning",
+        "--ssl-certfile",
+        str(pki["server_cert"]),
+        "--ssl-keyfile",
+        str(pki["server_key"]),
+        "--ssl-ca-certs",
+        str(pki["ca"]),
+        "--ssl-cert-reqs",
+        str(int(ssl.CERT_REQUIRED)),
+    ]
+    proc = subprocess.Popen(cmd)
+    deadline = time.time() + 15.0
+    started = False
+    while time.time() < deadline:
+        with contextlib.suppress(OSError):
+            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                started = True
+                break
+        time.sleep(0.1)
+    if not started:
+        proc.terminate()
+        pytest.fail("uvicorn TLS subprocess never opened the port")
+    try:
+        yield
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5.0)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=2.0)
+
+
+@pytest.fixture
+def mtls_pki(tmp_path: Path) -> dict[str, Path]:
+    return _make_mtls_pki(tmp_path)
+
+
+def test_mtls_handshake_succeeds_with_client_cert(
+    mtls_pki: dict[str, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A worker carrying the matching client cert completes the TLS handshake and the chat-completion succeeds.
+
+    Drives the gateway via :func:`build_httpx_client_kwargs` — exactly
+    the kwargs the launcher (:mod:`bernstein.adapters.clm_tls_launcher`)
+    splats into ``httpx.Client`` defaults inside the spawned aider
+    subprocess. Asserting the success path here means the launcher's
+    transport layer is wire-correct without paying for an aider install
+    on every CI run.
+    """
+    monkeypatch.setenv(CLM_CERT_FILE_ENV, str(mtls_pki["client_cert"]))
+    monkeypatch.setenv(CLM_KEY_FILE_ENV, str(mtls_pki["client_key"]))
+    monkeypatch.setenv(CLM_CA_FILE_ENV, str(mtls_pki["ca"]))
+
+    tls = tls_config_from_env()
+    assert tls is not None
+    assert tls.verify_mode == "required"
+
+    port = _free_port()
+    with _serve_fake_nim_tls(mtls_pki, port):
+        kwargs = build_httpx_client_kwargs(tls)
+        with httpx.Client(**kwargs, timeout=10.0) as client:
+            resp = client.post(
+                f"https://localhost:{port}/v1/chat/completions",
+                json={
+                    "model": "clm-7b-instruct",
+                    "messages": [{"role": "user", "content": "ping"}],
+                },
+                headers={"Authorization": f"Bearer {_MTLS_FAKE_NIM_TOKEN}"},
+            )
+        assert resp.status_code == 200, f"handshake or auth failed: {resp.status_code} {resp.text}"
+        body = resp.json()
+        assert body["choices"][0]["message"]["content"] == "mtls handshake ok"
+
+
+def test_mtls_handshake_rejected_without_client_cert(mtls_pki: dict[str, Path]) -> None:
+    """A worker that trusts the CA but presents no client cert is refused at the TLS layer.
+
+    Negative-path acceptance criterion: the gateway is configured with
+    ``verify_mode='required'``, so the handshake must abort before the
+    chat-completions endpoint runs.
+    """
+    port = _free_port()
+    with _serve_fake_nim_tls(mtls_pki, port):
+        # Client trusts the CA so we know the failure is *only* the
+        # missing client cert, not a CA-trust issue.
+        verify_ctx = ssl.create_default_context(cafile=str(mtls_pki["ca"]))
+        with httpx.Client(verify=verify_ctx, timeout=10.0) as client, pytest.raises(httpx.HTTPError):
+            client.post(
+                f"https://localhost:{port}/v1/chat/completions",
+                json={"model": "clm-7b-instruct", "messages": []},
+                headers={"Authorization": f"Bearer {_MTLS_FAKE_NIM_TOKEN}"},
+            )

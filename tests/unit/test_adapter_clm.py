@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+import sys
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -11,22 +12,24 @@ from bernstein.core.models import ModelConfig
 
 from bernstein.adapters.base import SpawnError
 from bernstein.adapters.clm import (
+    CLM_CA_FILE_ENV,
+    CLM_CERT_FILE_ENV,
     CLM_ENDPOINT_ENV,
+    CLM_KEY_FILE_ENV,
     CLM_MODEL_ENV,
     CLM_TOKEN_ENV,
     CLM_TOOLS_SCHEMA_ENV,
+    CLM_VERIFY_MODE_ENV,
     ClmAdapter,
     ClmConfig,
     ClmConfigError,
     StreamingChunk,
     assemble_streaming_response,
     build_openai_tools_schema,
+    redactable_clm_env_keys,
+    tls_config_from_env,
 )
 from tests.unit._adapter_test_helpers import inner_cmd, make_popen_mock
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 pytestmark = pytest.mark.usefixtures("no_watchdog_threads")
 
@@ -264,3 +267,200 @@ def test_streaming_lineage_captures_tool_calls_across_chunks() -> None:
     payload = assemble_streaming_response(events)
     assert [c["id"] for c in payload.tool_calls] == ["c1", "c2"]
     assert payload.finish_reason == "tool_calls"
+
+
+# ---------------------------------------------------------------------------
+# Phase 2.5 — opt-in mTLS to the customer gateway
+# ---------------------------------------------------------------------------
+
+
+def _write_pem_stub(path: Path, label: str) -> None:
+    """Write a syntactically-valid PEM placeholder for path-validation only.
+
+    ``tls_config_from_env`` calls ``TLSConfig.validate_paths`` which only
+    asserts the files *exist*; integration tests cover real handshakes
+    against properly-signed certs. Keeping the unit tier free of x509
+    machinery avoids the per-test ~80ms RSA-keygen tax.
+    """
+    path.write_text(f"-----BEGIN {label}-----\nstub\n-----END {label}-----\n", encoding="utf-8")
+
+
+def test_tls_config_from_env_returns_none_when_unset() -> None:
+    """Operator opted out of mTLS — adapter must keep plain-HTTPS behaviour."""
+    assert tls_config_from_env({}) is None
+    # PATH presence alone should not flip mTLS on.
+    assert tls_config_from_env({"PATH": "/usr/bin"}) is None
+
+
+def test_tls_config_from_env_partial_triple_raises(tmp_path: Path) -> None:
+    cert = tmp_path / "client.crt"
+    _write_pem_stub(cert, "CERTIFICATE")
+    with pytest.raises(ClmConfigError, match=r"CLM_KEY_FILE.*CLM_CA_FILE"):
+        tls_config_from_env({CLM_CERT_FILE_ENV: str(cert)})
+
+
+def test_tls_config_from_env_full_triple_returns_validated_config(tmp_path: Path) -> None:
+    cert = tmp_path / "client.crt"
+    key = tmp_path / "client.key"
+    ca = tmp_path / "ca.crt"
+    for path, label in ((cert, "CERTIFICATE"), (key, "PRIVATE KEY"), (ca, "CERTIFICATE")):
+        _write_pem_stub(path, label)
+    cfg = tls_config_from_env(
+        {
+            CLM_CERT_FILE_ENV: str(cert),
+            CLM_KEY_FILE_ENV: str(key),
+            CLM_CA_FILE_ENV: str(ca),
+        }
+    )
+    assert cfg is not None
+    assert cfg.cert_file == cert
+    assert cfg.key_file == key
+    assert cfg.ca_file == ca
+    assert cfg.verify_mode == "required"
+
+
+def test_tls_config_from_env_honours_verify_mode_override(tmp_path: Path) -> None:
+    cert = tmp_path / "client.crt"
+    key = tmp_path / "client.key"
+    ca = tmp_path / "ca.crt"
+    for path, label in ((cert, "CERTIFICATE"), (key, "PRIVATE KEY"), (ca, "CERTIFICATE")):
+        _write_pem_stub(path, label)
+    cfg = tls_config_from_env(
+        {
+            CLM_CERT_FILE_ENV: str(cert),
+            CLM_KEY_FILE_ENV: str(key),
+            CLM_CA_FILE_ENV: str(ca),
+            CLM_VERIFY_MODE_ENV: "optional",
+        }
+    )
+    assert cfg is not None
+    assert cfg.verify_mode == "optional"
+
+
+def test_tls_config_from_env_rejects_bogus_verify_mode(tmp_path: Path) -> None:
+    cert = tmp_path / "client.crt"
+    key = tmp_path / "client.key"
+    ca = tmp_path / "ca.crt"
+    for path, label in ((cert, "CERTIFICATE"), (key, "PRIVATE KEY"), (ca, "CERTIFICATE")):
+        _write_pem_stub(path, label)
+    with pytest.raises(ClmConfigError, match="CLM_VERIFY_MODE"):
+        tls_config_from_env(
+            {
+                CLM_CERT_FILE_ENV: str(cert),
+                CLM_KEY_FILE_ENV: str(key),
+                CLM_CA_FILE_ENV: str(ca),
+                CLM_VERIFY_MODE_ENV: "trust-me-bro",
+            }
+        )
+
+
+def test_tls_config_from_env_missing_files_raises(tmp_path: Path) -> None:
+    with pytest.raises(ClmConfigError, match=r"CLM mTLS configuration is invalid"):
+        tls_config_from_env(
+            {
+                CLM_CERT_FILE_ENV: str(tmp_path / "absent.crt"),
+                CLM_KEY_FILE_ENV: str(tmp_path / "absent.key"),
+                CLM_CA_FILE_ENV: str(tmp_path / "absent.ca"),
+            }
+        )
+
+
+def test_spawn_routes_through_launcher_when_mtls_configured(tmp_path: Path) -> None:
+    """When the CLM_*_FILE triple is set, the spawn cmd is rewritten to ``python -m clm_tls_launcher aider …``."""
+    adapter = ClmAdapter()
+    proc_mock = make_popen_mock(720)
+
+    cert = tmp_path / "client.crt"
+    key = tmp_path / "client.key"
+    ca = tmp_path / "ca.crt"
+    for path, label in ((cert, "CERTIFICATE"), (key, "PRIVATE KEY"), (ca, "CERTIFICATE")):
+        _write_pem_stub(path, label)
+
+    env_with_mtls = {
+        **_ENV_BUNDLE,
+        CLM_CERT_FILE_ENV: str(cert),
+        CLM_KEY_FILE_ENV: str(key),
+        CLM_CA_FILE_ENV: str(ca),
+    }
+    with (
+        patch("bernstein.adapters.clm.subprocess.Popen", return_value=proc_mock) as popen,
+        patch.dict("os.environ", env_with_mtls, clear=True),
+    ):
+        adapter.spawn(
+            prompt="hello",
+            workdir=tmp_path,
+            model_config=ModelConfig(model="clm-7b-instruct", effort="medium"),
+            session_id="clm-mtls",
+        )
+
+    inner = inner_cmd(popen.call_args.args[0])
+    # Launcher prefix: `<python> -m bernstein.adapters.clm_tls_launcher aider …`
+    assert inner[0] == sys.executable
+    assert inner[1] == "-m"
+    assert inner[2] == "bernstein.adapters.clm_tls_launcher"
+    assert inner[3] == "aider"
+    # Aider's args are preserved unchanged after the launcher prefix.
+    assert "--model" in inner
+    assert inner[inner.index("--model") + 1] == "openai/clm-7b-instruct"
+
+    env = popen.call_args.kwargs.get("env", {})
+    # Cert/key/ca env vars must reach the spawned subprocess so the
+    # launcher can rebuild the TLSConfig in-process.
+    assert env[CLM_CERT_FILE_ENV] == str(cert)
+    assert env[CLM_KEY_FILE_ENV] == str(key)
+    assert env[CLM_CA_FILE_ENV] == str(ca)
+
+
+def test_spawn_skips_launcher_when_mtls_not_configured(tmp_path: Path) -> None:
+    """No mTLS env triple → adapter still calls aider directly (no behaviour drift)."""
+    adapter = ClmAdapter()
+    proc_mock = make_popen_mock(721)
+
+    with (
+        patch("bernstein.adapters.clm.subprocess.Popen", return_value=proc_mock) as popen,
+        patch.dict("os.environ", _ENV_BUNDLE, clear=True),
+    ):
+        adapter.spawn(
+            prompt="hello",
+            workdir=tmp_path,
+            model_config=ModelConfig(model="clm-7b-instruct", effort="medium"),
+            session_id="clm-no-mtls",
+        )
+
+    inner = inner_cmd(popen.call_args.args[0])
+    assert inner[0] == "aider"
+    env = popen.call_args.kwargs.get("env", {})
+    assert CLM_CERT_FILE_ENV not in env
+    assert CLM_KEY_FILE_ENV not in env
+    assert CLM_CA_FILE_ENV not in env
+
+
+def test_spawn_partial_mtls_triple_surfaces_typed_error(tmp_path: Path) -> None:
+    """A half-configured mTLS triple is operator error — fail fast, not silently."""
+    adapter = ClmAdapter()
+    cert = tmp_path / "client.crt"
+    _write_pem_stub(cert, "CERTIFICATE")
+    env_partial = {**_ENV_BUNDLE, CLM_CERT_FILE_ENV: str(cert)}
+    with (
+        patch.dict("os.environ", env_partial, clear=True),
+        pytest.raises(ClmConfigError, match="CLM mTLS"),
+    ):
+        adapter.spawn(
+            prompt="hello",
+            workdir=tmp_path,
+            model_config=ModelConfig(model="clm-7b-instruct", effort="medium"),
+            session_id="clm-partial-mtls",
+        )
+
+
+def test_redactable_env_keys_includes_token_and_paths() -> None:
+    """Audit / lineage scrubbers must see the token plus all three cert paths."""
+    keys = redactable_clm_env_keys()
+    assert CLM_TOKEN_ENV in keys
+    assert CLM_CERT_FILE_ENV in keys
+    assert CLM_KEY_FILE_ENV in keys
+    assert CLM_CA_FILE_ENV in keys
+    # The endpoint and model are *not* redacted — they're operator
+    # configuration the audit trail needs to preserve for traceability.
+    assert CLM_ENDPOINT_ENV not in keys
+    assert CLM_MODEL_ENV not in keys

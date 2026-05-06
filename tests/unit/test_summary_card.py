@@ -43,7 +43,7 @@ def test_fmt_duration_hours() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_estimated_time_saved_is_double() -> None:
+def test_estimated_time_saved_is_double_without_sequential_estimate() -> None:
     data = RunSummaryData(
         run_id="x",
         tasks_completed=3,
@@ -54,6 +54,21 @@ def test_estimated_time_saved_is_double() -> None:
         quality_score=None,
     )
     assert data.estimated_time_saved_seconds == pytest.approx(600.0)
+
+
+def test_estimated_time_saved_uses_sequential_estimate() -> None:
+    data = RunSummaryData(
+        run_id="x",
+        tasks_completed=3,
+        tasks_total=3,
+        tasks_failed=0,
+        wall_clock_seconds=300.0,
+        total_cost_usd=0.0,
+        quality_score=None,
+        sequential_time_seconds=900.0,
+    )
+    assert data.estimated_time_saved_seconds == pytest.approx(600.0)
+    assert data.time_saved_pct == pytest.approx(600.0 / 900.0)
 
 
 def test_to_dict_includes_estimated_time_saved() -> None:
@@ -113,6 +128,29 @@ def test_card_no_failed_row_when_zero_failures() -> None:
     table = build_summary_card(data)
     rendered = _render(table)
     assert "Tasks failed" not in rendered
+
+
+def test_card_shows_savings_rows_when_available() -> None:
+    data = RunSummaryData(
+        run_id="r3a",
+        tasks_completed=5,
+        tasks_total=5,
+        tasks_failed=0,
+        wall_clock_seconds=30.0,
+        total_cost_usd=0.5,
+        quality_score=0.75,
+        sequential_time_seconds=90.0,
+        cost_per_task_usd=0.1,
+        routing_savings_usd=1.25,
+    )
+    table = build_summary_card(data)
+    rendered = _render(table)
+    assert "Sequential estimate" in rendered
+    assert "1m 30s" in rendered
+    assert "Time saved" in rendered
+    assert "1m 0s (67%)" in rendered
+    assert "Cost per task" in rendered
+    assert "Model routing savings" in rendered
 
 
 def test_card_quality_score_present_when_provided() -> None:

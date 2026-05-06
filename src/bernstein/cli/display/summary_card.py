@@ -29,12 +29,28 @@ class RunSummaryData:
     wall_clock_seconds: float
     total_cost_usd: float
     quality_score: float | None  # 0.0-1.0, None if no verification data
+    sequential_time_seconds: float | None = None
+    cost_per_task_usd: float = 0.0
+    routing_savings_usd: float = 0.0
     timestamp: float = field(default_factory=time.time)
 
     @property
     def estimated_time_saved_seconds(self) -> float:
-        """2x total wall-clock time as estimated manual dev time savings."""
-        return self.wall_clock_seconds * 2.0
+        """Return time saved versus sequential execution.
+
+        Falls back to the historical 2x wall-clock heuristic when no
+        sequential estimate is available.
+        """
+        if self.sequential_time_seconds is None:
+            return self.wall_clock_seconds * 2.0
+        return max(self.sequential_time_seconds - self.wall_clock_seconds, 0.0)
+
+    @property
+    def time_saved_pct(self) -> float:
+        """Return percentage of time saved versus sequential execution."""
+        if not self.sequential_time_seconds or self.sequential_time_seconds <= 0:
+            return 0.0
+        return self.estimated_time_saved_seconds / self.sequential_time_seconds
 
     def to_dict(self) -> dict[str, object]:
         """Serialise to a plain dict suitable for JSON output."""
@@ -104,8 +120,17 @@ def build_summary_card(data: RunSummaryData) -> Table:
 
     table.add_row("Total time", _fmt_duration(data.wall_clock_seconds))
 
+    if data.sequential_time_seconds is not None:
+        table.add_row("Sequential estimate", _fmt_duration(data.sequential_time_seconds))
+        pct = round(data.time_saved_pct * 100)
+        table.add_row("Time saved", f"[green]{_fmt_duration(data.estimated_time_saved_seconds)} ({pct}%)[/green]")
+
     if data.total_cost_usd > 0:
         table.add_row("Total cost", f"[green]${data.total_cost_usd:.4f}[/green]")
+        if data.tasks_completed > 0:
+            table.add_row("Cost per task", f"[dim]${data.cost_per_task_usd:.4f}[/dim]")
+        if data.routing_savings_usd > 0:
+            table.add_row("Model routing savings", f"[green]${data.routing_savings_usd:.4f}[/green]")
 
     table.add_row(
         "Est. time saved",

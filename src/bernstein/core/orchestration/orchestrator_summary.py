@@ -12,6 +12,7 @@ import os
 import time
 from typing import TYPE_CHECKING, Any
 
+from bernstein.core.cost.savings_calculator import calculate_savings
 from bernstein.core.metrics import get_collector
 from bernstein.core.retrospective import generate_retrospective
 
@@ -19,6 +20,17 @@ if TYPE_CHECKING:
     from bernstein.core.models import Task
 
 logger = logging.getLogger(__name__)
+
+
+def _format_duration(seconds: float) -> str:
+    total_seconds = max(int(seconds), 0)
+    hours, rem = divmod(total_seconds, 3600)
+    minutes, secs = divmod(rem, 60)
+    if hours:
+        return f"{hours}h {minutes}m {secs}s"
+    if minutes:
+        return f"{minutes}m {secs}s"
+    return f"{secs}s"
 
 
 def generate_run_summary(
@@ -44,6 +56,12 @@ def generate_run_summary(
     collector = get_collector(orch._workdir / ".sdd" / "metrics")
     total_cost = collector.get_total_cost()
     files_modified: int = sum(getattr(m, "files_modified", 0) for m in collector.task_metrics.values())
+    savings = calculate_savings(
+        collector.task_metrics.values(),
+        wall_clock_seconds=wall_clock_s,
+        total_cost_usd=total_cost,
+        completed_tasks=total_completed,
+    )
 
     task_lines: list[str] = []
     for task in sorted(done_tasks, key=lambda t: t.title):
@@ -51,14 +69,7 @@ def generate_run_summary(
     for task in sorted(failed_tasks, key=lambda t: t.title):
         task_lines.append(f"- [ ] {task.title} *(failed)*")
 
-    hours, rem = divmod(int(wall_clock_s), 3600)
-    minutes, seconds = divmod(rem, 60)
-    if hours:
-        duration_str = f"{hours}h {minutes}m {seconds}s"
-    elif minutes:
-        duration_str = f"{minutes}m {seconds}s"
-    else:
-        duration_str = f"{seconds}s"
+    duration_str = _format_duration(wall_clock_s)
 
     lines = [
         "# Run Summary",
@@ -67,7 +78,11 @@ def generate_run_summary(
         f"**Total failed:** {total_failed}",
         f"**Files modified:** {files_modified}",
         f"**Estimated cost:** ${total_cost:.4f}",
+        f"**Cost per task:** ${savings.cost_per_task_usd:.4f}",
         f"**Wall-clock duration:** {duration_str}",
+        f"**Sequential estimate:** {_format_duration(savings.sequential_time_seconds)}",
+        f"**Time saved:** {_format_duration(savings.time_saved_seconds)} ({savings.time_saved_pct:.0%})",
+        f"**Model routing savings:** ${savings.routing_savings_usd:.4f}",
         "",
         "## Tasks",
         "",
@@ -144,6 +159,13 @@ def emit_summary_card(
     if verified:
         quality_score = sum(1 for m in verified if m.janitor_passed) / len(verified)
 
+    savings = calculate_savings(
+        task_metrics.values(),
+        wall_clock_seconds=wall_clock_s,
+        total_cost_usd=total_cost,
+        completed_tasks=len(done_tasks),
+    )
+
     summary_data = RunSummaryData(
         run_id=orch._run_id,
         tasks_completed=len(done_tasks),
@@ -152,6 +174,9 @@ def emit_summary_card(
         wall_clock_seconds=wall_clock_s,
         total_cost_usd=total_cost,
         quality_score=quality_score,
+        sequential_time_seconds=savings.sequential_time_seconds,
+        cost_per_task_usd=savings.cost_per_task_usd,
+        routing_savings_usd=savings.routing_savings_usd,
     )
 
     sdd_dir = orch._workdir / ".sdd"

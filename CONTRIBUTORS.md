@@ -21,6 +21,7 @@ We are grateful to everyone who has contributed to Bernstein.
 | **formatme** ([@oldschoola](https://github.com/oldschoola)) | Port-based PID fallback, Windows-safe rmtree, task filter ([#737](https://github.com/sipyourdrink-ltd/bernstein/pull/737)), full GitHub issue body sync, parameter fix ([#738](https://github.com/sipyourdrink-ltd/bernstein/pull/738)), title dedup fix ([#739](https://github.com/sipyourdrink-ltd/bernstein/pull/739)) |
 | **Alex Smith** ([@alexanderxfgl-bit](https://github.com/alexanderxfgl-bit)) | Vulnerability disclosure program ([#740](https://github.com/sipyourdrink-ltd/bernstein/pull/740)), credential scope minimization ([#741](https://github.com/sipyourdrink-ltd/bernstein/pull/741)), example gallery ([#742](https://github.com/sipyourdrink-ltd/bernstein/pull/742)), streaming merge ([#743](https://github.com/sipyourdrink-ltd/bernstein/pull/743)), community spotlight generator ([#783](https://github.com/sipyourdrink-ltd/bernstein/pull/783)) |
 | [@Ai-chan-0411](https://github.com/Ai-chan-0411) | Community Spotlight template ([#782](https://github.com/sipyourdrink-ltd/bernstein/pull/782)) |
+| [@zerone0x](https://github.com/zerone0x) | Use-case workflows guide ([#1048](https://github.com/sipyourdrink-ltd/bernstein/pull/1048)) |
 | **Alokik Singh** ([@alokiksingh676](https://github.com/alokiksingh676)) | Issue feedback |
 | **Ilia** ([@Ilia01](https://github.com/Ilia01)) | Issue feedback |
 | **OyaAI** ([@OyaAIProd](https://github.com/OyaAIProd)) | Security assessment review |

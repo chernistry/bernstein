@@ -8,7 +8,6 @@ plumbing without ever spawning a real subprocess.
 
 from __future__ import annotations
 
-import subprocess
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 

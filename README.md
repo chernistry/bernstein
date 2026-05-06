@@ -298,10 +298,10 @@ Bernstein's wedge in this category: **Python-native, MCP-server-first, widest ad
 
 These are real workflow patterns from Bernstein's own docs, examples, and project surface — not invented customer quotes.
 
-- **Parallel test generation** — fan out across untested modules with `bernstein -g "Generate unit tests for untested modules in src/" --max-agents 5`.
+- **Parallel test generation** — fan out across untested modules with `BERNSTEIN_MAX_AGENTS=5 bernstein -g "Generate unit tests for untested modules in src/"`.
 - **CI failure repair** — watch open PRs and dispatch scoped fixers with `bernstein autofix start --repo your-org/your-repo --foreground`.
 - **PR review follow-up** — turn review comments into tracked fix tasks with `bernstein review-responder start --repo your-org/your-repo --foreground`.
-- **Codebase modernization** — run wide refactors like `bernstein -g "Migrate callback-based modules in src/ to async/await and update tests" --max-agents 8`.
+- **Codebase modernization** — run wide refactors like `BERNSTEIN_MAX_AGENTS=8 bernstein -g "Migrate callback-based modules in src/ to async/await and update tests"`.
 - **Ticket-to-run workflows** — import GitHub, Jira, or Linear work directly with `bernstein from-ticket https://github.com/your-org/your-repo/issues/123 --run`.
 - **API-change safety checks** — catch downstream breakage before merge with `bernstein dep-impact --base main`.
 

@@ -9,7 +9,7 @@ These are honest workflow patterns pulled from Bernstein's own docs and CLI surf
 When a codebase has dozens of untested modules, the bottleneck is usually coordination, not test-writing itself. Bernstein lets you fan out the work across isolated worktrees so multiple agents can add coverage at the same time without stepping on each other.
 
 ```bash
-bernstein -g "Generate unit tests for untested modules in src/" --max-agents 5
+BERNSTEIN_MAX_AGENTS=5 bernstein -g "Generate unit tests for untested modules in src/"
 ```
 
 Good fit when you want broad coverage quickly, but still need janitor verification before anything lands.
@@ -39,7 +39,7 @@ Good fit when your team already does human review but wants the "please rename t
 The classic migration problem is repetitive but still risky: move callbacks to async/await, add types, rename an API surface, or update a framework pattern everywhere. Bernstein helps by splitting the migration into parallel worktrees, then running verification gates before merge.
 
 ```bash
-bernstein -g "Migrate callback-based modules in src/ to async/await and update tests" --max-agents 8
+BERNSTEIN_MAX_AGENTS=8 bernstein -g "Migrate callback-based modules in src/ to async/await and update tests"
 ```
 
 Good fit when the change is spread across many files and the main risk is merge conflict churn or uneven follow-through.
@@ -66,4 +66,4 @@ Good fit when you are doing refactors in shared libraries or internal platforms 
 
 ## Submit your workflow
 
-If you use Bernstein for something real, open a PR and add it here. The bar is simple: describe the workflow honestly, include a command that actually exists, and say what worked or where it was rough.
+If you use Bernstein for something real, open a PR and add it here. The bar is simple: describe the workflow, include a command that actually exists, and say what worked or where it was rough.

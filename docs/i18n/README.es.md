@@ -393,6 +393,6 @@ Listas curadas, newsletters y proyectos pares que han recogido a Bernstein:
 
 ---
 
-Hecho con cariño por [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [bernstein.run](https://bernstein.run)
+Hecho con cariño por [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->

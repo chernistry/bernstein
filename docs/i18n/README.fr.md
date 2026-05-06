@@ -393,6 +393,6 @@ Listes éditoriales, newsletters et projets pairs qui ont relayé Bernstein :
 
 ---
 
-Fait avec amour par [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [bernstein.run](https://bernstein.run)
+Fait avec amour par [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->

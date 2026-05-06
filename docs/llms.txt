@@ -28,4 +28,4 @@ running on whichever CLI agents the client already trusts.
 - [GitHub Repository](https://github.com/sipyourdrink-ltd/bernstein): Source code, issues, discussions
 - [PyPI Package](https://pypi.org/project/bernstein/): pip install bernstein
 - [Blog](https://sipyourdrink-ltd.github.io/bernstein/blog.html): Engineering articles on multi-agent orchestration patterns
-- [Author](https://alexchernysh.com): Built by Alex Chernysh
+- [Author](https://alexchernysh.com): Built by Alex Chernysh ([@alex_chernysh on X](https://x.com/alex_chernysh))

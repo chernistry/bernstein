@@ -393,6 +393,6 @@ Kuratierte Listen, Newsletter und Peer-Projekte, die Bernstein aufgegriffen habe
 
 ---
 
-Mit Liebe gemacht von [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [bernstein.run](https://bernstein.run)
+Mit Liebe gemacht von [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->

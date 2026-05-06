@@ -395,7 +395,7 @@ PRs מתקבלים בברכה. ראו [CONTRIBUTING.md](../../CONTRIBUTING.md) �
 
 ---
 
-נוצר באהבה על ידי [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [bernstein.run](https://bernstein.run)
+נוצר באהבה על ידי [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->
 

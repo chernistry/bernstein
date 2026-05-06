@@ -393,6 +393,6 @@ Daftar terkurasi, newsletter, dan proyek sejawat yang menyorot Bernstein:
 
 ---
 
-Dibuat dengan cinta oleh [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [bernstein.run](https://bernstein.run)
+Dibuat dengan cinta oleh [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->

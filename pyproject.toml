@@ -95,6 +95,7 @@ Issues = "https://github.com/sipyourdrink-ltd/bernstein/issues"
 Changelog = "https://github.com/sipyourdrink-ltd/bernstein/releases"
 Funding = "https://github.com/sponsors/chernistry"
 Author = "https://alexchernysh.com"
+Twitter = "https://x.com/alex_chernysh"
 
 [project.optional-dependencies]
 # Mirrored from [dependency-groups].dev so `pip install bernstein[dev]` works

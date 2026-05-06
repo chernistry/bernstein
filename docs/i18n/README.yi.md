@@ -395,7 +395,7 @@ PR'ן זענען באַגריסט. זעט [CONTRIBUTING.md](../../CONTRIBUTING.m
 
 ---
 
-געמאַכט מיט ליבע פֿון [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [bernstein.run](https://bernstein.run)
+געמאַכט מיט ליבע פֿון [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->
 

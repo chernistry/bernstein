@@ -66,6 +66,9 @@ extra:
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/bernstein/
       name: Bernstein on PyPI
+    - icon: fontawesome/brands/x-twitter
+      link: https://x.com/alex_chernysh
+      name: Alex Chernysh on X
     - icon: fontawesome/solid/globe
       link: https://alexchernysh.com
       name: Alex Chernysh

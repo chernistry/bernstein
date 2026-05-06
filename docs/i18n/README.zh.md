@@ -393,6 +393,6 @@ bernstein fingerprint check src/foo.py                 # 用索引检查生成�
 
 ---
 
-由 [Alex Chernysh](https://alexchernysh.com) 倾心打造 &middot; [GitHub](https://github.com/chernistry) &middot; [bernstein.run](https://bernstein.run)
+由 [Alex Chernysh](https://alexchernysh.com) 倾心打造 &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->

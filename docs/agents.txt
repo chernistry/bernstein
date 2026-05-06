@@ -7,6 +7,7 @@ Package: https://pypi.org/project/bernstein/
 Documentation: https://sipyourdrink-ltd.github.io/bernstein/getting-started.html
 API: https://sipyourdrink-ltd.github.io/bernstein/api.html
 Author: Alex Chernysh <https://alexchernysh.com>
+Author-X: https://x.com/alex_chernysh
 License: Apache-2.0
 Category: DeveloperTool, AIOrchestration, MultiAgent
 Tags: multi-agent, orchestration, ai-coding, deterministic-scheduling, cli-agents

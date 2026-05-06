@@ -393,6 +393,6 @@ PR'ы приветствуются. См. [CONTRIBUTING.md](../../CONTRIBUTING.m
 
 ---
 
-Сделано с любовью — [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [bernstein.run](https://bernstein.run)
+Сделано с любовью — [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->

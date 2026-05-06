@@ -127,4 +127,4 @@ for client compliance review.
 
 ---
 
-Created by [Alex Chernysh](https://alexchernysh.com) ([@chernistry](https://github.com/chernistry)).
+Created by [Alex Chernysh](https://alexchernysh.com) ([@chernistry](https://github.com/chernistry), [@alex_chernysh on X](https://x.com/alex_chernysh)).

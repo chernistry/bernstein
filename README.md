@@ -22,7 +22,7 @@
 [![License](https://img.shields.io/github/license/sipyourdrink-ltd/bernstein)](LICENSE)
 [![MseeP.ai](https://img.shields.io/badge/MseeP.ai-verified-2496ed)](https://mseep.ai/app/chernistry-bernstein)
 
-[Website](https://bernstein.run) &middot; [Documentation](https://bernstein.readthedocs.io/) &middot; [Install](docs/getting-started/install.md) &middot; [First run](docs/getting-started/first-run.md) &middot; [Glossary](docs/reference/GLOSSARY.md) &middot; [Limitations](docs/reference/KNOWN_LIMITATIONS.md)
+[Website](https://bernstein.run) &middot; [Documentation](https://bernstein.readthedocs.io/) &middot; [Install](docs/getting-started/install.md) &middot; [First run](docs/getting-started/first-run.md) &middot; [Enterprise evaluation](docs/ENTERPRISE.md) &middot; [Glossary](docs/reference/GLOSSARY.md) &middot; [Limitations](docs/reference/KNOWN_LIMITATIONS.md)
 
 <sub>As featured in</sub><br>
 <a href="https://codetrendy.com/listing/bernstein" target="_blank" rel="noopener noreferrer"><img src="https://codetrendy.com/api/badge/bernstein?theme=brand" alt="Bernstein - Listed on CodeTrendy" height="104" /></a>

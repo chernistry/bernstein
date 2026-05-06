@@ -200,6 +200,7 @@ nav:
       - Cluster observability: observability/cluster.md
       - Cluster e2e harness: testing/cluster-e2e-harness.md
       - Fleet (multi-project): operations/fleet.md
+      - Enterprise evaluation: ENTERPRISE.md
       - Security & identity: operations/security-and-identity.md
       - Capability matrix: security/capability-matrix.md
       - Secrets & creds: operations/secrets.md

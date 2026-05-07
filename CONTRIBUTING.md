@@ -37,10 +37,39 @@ All three must pass before committing. No exceptions, no "fix later."
    ```bash
    uv run ruff check src/
    uv run pyright src/
+   uv run lint-imports          # architecture contracts (adapter/core boundary)
    uv run python scripts/run_tests.py -x
    ```
 4. Commit with a clear message
 5. Open a PR against `main`
+
+### Pre-push hook
+
+Install the versioned pre-push hook to catch lint and architecture-contract
+violations before they reach CI:
+
+```bash
+ln -sf ../../scripts/git-hooks/pre-push .git/hooks/pre-push
+chmod +x scripts/git-hooks/pre-push
+```
+
+The hook is **blocking** on ruff and `lint-imports`, **advisory** on pyright.
+The most common architecture-contract violation it catches is an adapter
+importing a scheduler-internal module, e.g.
+`from bernstein.core.tasks.models import ModelConfig` (wrong) instead of
+`from bernstein.core.models import ModelConfig` (canonical). See
+`.importlinter` for the full contract list.
+
+### Auto-heal on CI failure
+
+When CI fails on `main`, the `bernstein-ci-fix` workflow
+(`.github/workflows/bernstein-ci-fix.yml`) runs Bernstein in headless mode
+against the failing commit, opens an `auto-heal/<sha>` branch with the
+proposed fix, and creates an `auto-heal: fix CI on <sha>` PR for review.
+If Bernstein can't produce a clean diff in 3 iterations within \$5, the
+workflow falls back to opening a `ci-fix` issue. Auto-heal is gated by
+the `BERNSTEIN_CI_FIX_ENABLED` repo variable, refuses to recurse on
+`auto-heal:` PRs, and only fires for canonical-repo pushes (never forks).
 
 ## Code Style
 

@@ -30,9 +30,11 @@ import hashlib
 import inspect
 import json
 import logging
+import os
 import pickle
 import textwrap
 import threading
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypeVar, cast
@@ -50,15 +52,39 @@ _AST_CACHE_LOCK = threading.Lock()
 F = TypeVar("F", bound=Callable[..., Any])
 
 
+def _canonicalize(value: Any) -> Any:
+    """Recursively normalise *value* into a JSON-friendly, order-stable form.
+
+    Sets and frozensets are sorted (by ``repr`` of their members, which
+    is total even for mixed-type members) so two processes with
+    different ``PYTHONHASHSEED`` produce identical bytes.  Without this,
+    ``json.dumps({"a","b"}, default=repr)`` round-trips through
+    ``repr(set)`` whose member order is hash-randomised — yielding a
+    different cache key per process and silently breaking action-cache
+    hits in CI.  Dicts recurse so nested sets are also canonicalised.
+    """
+    if isinstance(value, dict):
+        return {str(k): _canonicalize(v) for k, v in sorted(value.items(), key=lambda kv: repr(kv[0]))}
+    if isinstance(value, (set, frozenset)):
+        return ["__set__", sorted((_canonicalize(v) for v in value), key=repr)]
+    if isinstance(value, (list, tuple)):
+        return [_canonicalize(v) for v in value]
+    return value
+
+
 def _canonical_arg_repr(value: Any) -> bytes:
     """Return a stable byte representation of an argument value.
 
-    Tries JSON first (deterministic, sort_keys); falls back to pickle
-    with a fixed protocol for objects JSON cannot encode.  Keeps the
-    contract: equal logical inputs produce equal bytes.
+    Canonicalises sets/frozensets and nested containers before JSON
+    encoding so member order is fixed across processes (Python's hash
+    randomisation otherwise yields different bytes per
+    ``PYTHONHASHSEED``).  Falls back to pickle for objects JSON cannot
+    encode; the fall-back path is reached only by exotic types (custom
+    classes, file objects, etc.) that callers should not normally pass
+    through a memoised function anyway.
     """
     try:
-        return json.dumps(value, sort_keys=True, default=repr).encode("utf-8")
+        return json.dumps(_canonicalize(value), sort_keys=True, default=repr).encode("utf-8")
     except (TypeError, ValueError):
         try:
             return pickle.dumps(value, protocol=5)
@@ -143,7 +169,13 @@ class MemoStore:
         return self._root / hexd[:2] / f"{hexd[2:]}.bin"
 
     def get(self, digest: bytes) -> Any | None:
-        """Return cached value for *digest* or ``None`` on miss."""
+        """Return cached value for *digest* or ``None`` on miss.
+
+        Corrupt entries (truncated, partial-write, wrong protocol) are
+        unlinked before returning ``None`` so the next ``put`` can
+        replace them; otherwise a one-time corruption would force an
+        infinite stream of misses on a hot key.
+        """
         path = self._path_for(digest)
         if not path.exists():
             with self._lock:
@@ -152,8 +184,11 @@ class MemoStore:
         try:
             data = path.read_bytes()
             value = pickle.loads(data)
-        except (OSError, pickle.UnpicklingError, EOFError) as exc:
+        except (OSError, pickle.UnpicklingError, EOFError, ValueError) as exc:
             logger.debug("memo: failed to load %s: %s", path, exc)
+            # Self-heal: drop the bad entry so the next put repopulates it.
+            with contextlib.suppress(OSError):
+                path.unlink()
             with self._lock:
                 self._misses += 1
             return None
@@ -165,7 +200,16 @@ class MemoStore:
         return value
 
     def put(self, digest: bytes, value: Any) -> None:
-        """Persist *value* under *digest*; evict if size cap exceeded."""
+        """Persist *value* under *digest*; evict if size cap exceeded.
+
+        Concurrent writers targeting the same digest are tolerated by
+        giving each writer a unique temp filename
+        (``<name>.<pid>.<rand>.tmp``) and using ``os.replace`` for the
+        atomic rename onto the final path.  Without per-writer temp
+        paths two threads sharing one ``MemoStore`` instance race: the
+        first ``replace`` unlinks the temp, the second writer's
+        subsequent ``replace`` then sees ``FileNotFoundError``.
+        """
         path = self._path_for(digest)
         path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -173,9 +217,17 @@ class MemoStore:
         except (pickle.PicklingError, TypeError) as exc:
             logger.debug("memo: cannot pickle value for %s: %s", digest.hex()[:12], exc)
             return
-        tmp = path.with_suffix(path.suffix + ".tmp")
-        tmp.write_bytes(payload)
-        tmp.replace(path)
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+        try:
+            tmp.write_bytes(payload)
+            os.replace(tmp, path)
+        except OSError as exc:
+            # Best-effort cleanup; another concurrent writer may have already
+            # claimed the slot which is fine — content is content-addressed.
+            logger.debug("memo: put failed for %s: %s", digest.hex()[:12], exc)
+            with contextlib.suppress(OSError):
+                tmp.unlink()
+            return
         self._maybe_evict()
 
     def _iter_entries(self) -> list[tuple[Path, int, float]]:

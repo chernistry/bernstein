@@ -133,9 +133,20 @@ def _artifact_to_dict(ref: ArtifactRef) -> dict[str, Any]:
 
 
 def _artifact_from_dict(data: dict[str, Any]) -> ArtifactRef:
+    """Reconstruct an :class:`ArtifactRef` from its serialised dict form.
+
+    Tolerates missing or malformed v1 fields by defaulting ``path`` and
+    ``sha256`` to empty strings: the reader contract guarantees that a
+    truncated or partially-written WAL entry yields an ``ArtifactRef("", "")``
+    rather than crashing the entire iterator.  Empty-path records are
+    still useful in the bundle export and signature-verification paths
+    because they keep producer/prompt metadata intact.
+    """
+    if not isinstance(data, dict):
+        return ArtifactRef(path="", sha256="")
     return ArtifactRef(
-        path=str(data["path"]),
-        sha256=str(data["sha256"]),
+        path=str(data.get("path", "")),
+        sha256=str(data.get("sha256", "")),
         byte_start=data.get("byte_start"),
         byte_end=data.get("byte_end"),
         line_start=data.get("line_start"),

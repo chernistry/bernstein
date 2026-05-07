@@ -18,10 +18,10 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
-from bernstein.core.tasks.models import ModelConfig
 
 from bernstein.adapters.base import CLIAdapter
 from bernstein.adapters.junie import JunieAdapter
+from bernstein.core.tasks.models import ModelConfig
 from tests.unit._adapter_test_helpers import inner_cmd, make_popen_mock
 
 if TYPE_CHECKING:
@@ -318,9 +318,7 @@ class TestJunieEnvIsolation:
         env = popen.call_args.kwargs.get("env", {})
         assert env.get("JUNIE_PROVIDER") == "anthropic"
 
-    def test_env_forwards_routed_provider_key_anthropic(
-        self, tmp_path: Path
-    ) -> None:
+    def test_env_forwards_routed_provider_key_anthropic(self, tmp_path: Path) -> None:
         """JUNIE_PROVIDER=anthropic ⇒ ANTHROPIC_API_KEY is forwarded."""
         adapter = JunieAdapter()
         proc_mock = make_popen_mock(802)
@@ -464,9 +462,7 @@ class TestJunieEnvIsolation:
         env = popen.call_args.kwargs.get("env", {})
         assert "PATH" in env
 
-    def test_warns_when_credentials_missing(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_warns_when_credentials_missing(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         adapter = JunieAdapter()
         proc_mock = make_popen_mock(807)
         with (
@@ -550,9 +546,7 @@ class TestJunieEndpoints:
         """Static endpoints stay empty so per-spawn resolution is authoritative."""
         assert JunieAdapter.external_endpoints == ()
 
-    def test_endpoints_populated_for_anthropic_provider(
-        self, tmp_path: Path
-    ) -> None:
+    def test_endpoints_populated_for_anthropic_provider(self, tmp_path: Path) -> None:
         adapter = JunieAdapter()
         proc_mock = make_popen_mock(900)
         with (
@@ -575,9 +569,7 @@ class TestJunieEndpoints:
         hosts = {host for host, _ in adapter.external_endpoints}
         assert "api.anthropic.com" in hosts
 
-    def test_endpoints_populated_for_openai_provider(
-        self, tmp_path: Path
-    ) -> None:
+    def test_endpoints_populated_for_openai_provider(self, tmp_path: Path) -> None:
         adapter = JunieAdapter()
         proc_mock = make_popen_mock(901)
         with (
@@ -623,9 +615,7 @@ class TestJunieEndpoints:
         for _, port in adapter.external_endpoints:
             assert port == 443
 
-    def test_endpoints_empty_when_provider_unknown(
-        self, tmp_path: Path
-    ) -> None:
+    def test_endpoints_empty_when_provider_unknown(self, tmp_path: Path) -> None:
         """Unknown provider falls back to the empty allow-list (default policy)."""
         adapter = JunieAdapter()
         proc_mock = make_popen_mock(903)
@@ -653,9 +643,7 @@ class TestJunieEndpoints:
 class TestJunieIsAlive:
     def test_true_when_process_exists(self) -> None:
         adapter = JunieAdapter()
-        with patch(
-            "bernstein.adapters.base.process_alive", return_value=True
-        ) as mock_alive:
+        with patch("bernstein.adapters.base.process_alive", return_value=True) as mock_alive:
             assert adapter.is_alive(1234) is True
         mock_alive.assert_called_once_with(1234)
 
@@ -668,9 +656,7 @@ class TestJunieIsAlive:
 class TestJunieKill:
     def test_calls_killpg(self) -> None:
         adapter = JunieAdapter()
-        with patch(
-            "bernstein.adapters.base.kill_process_group_graceful"
-        ) as mock_killpg:
+        with patch("bernstein.adapters.base.kill_process_group_graceful") as mock_killpg:
             adapter.kill(555)
         mock_killpg.assert_called_once_with(555)
 

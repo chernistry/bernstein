@@ -153,13 +153,9 @@ def test_set_mode_persists_on_session() -> None:
     registry = _build_registry(audit_log=audit)
 
     async def _run() -> None:
-        prompt_result = await registry.dispatch(
-            _ctx("prompt"), {"prompt": "do x", "cwd": "/w"}
-        )
+        prompt_result = await registry.dispatch(_ctx("prompt"), {"prompt": "do x", "cwd": "/w"})
         sid = prompt_result["sessionId"]
-        result = await registry.dispatch(
-            _ctx("setMode"), {"sessionId": sid, "mode": "auto"}
-        )
+        result = await registry.dispatch(_ctx("setMode"), {"sessionId": sid, "mode": "auto"})
         assert result["mode"] == "auto"
         session = await registry.sessions.get(sid)
         assert session is not None and session.mode == "auto"
@@ -173,9 +169,7 @@ def test_set_mode_unknown_session_raises() -> None:
 
     async def _run() -> None:
         with pytest.raises(ACPSchemaError) as exc:
-            await registry.dispatch(
-                _ctx("setMode"), {"sessionId": "missing", "mode": "auto"}
-            )
+            await registry.dispatch(_ctx("setMode"), {"sessionId": "missing", "mode": "auto"})
         assert exc.value.code == SESSION_NOT_FOUND
 
     asyncio.run(_run())
@@ -194,9 +188,7 @@ def test_cancel_walks_drain_pipeline() -> None:
     async def _run() -> None:
         prompt_result = await registry.dispatch(_ctx("prompt"), {"prompt": "do x"})
         sid = prompt_result["sessionId"]
-        result = await registry.dispatch(
-            _ctx("cancel"), {"sessionId": sid, "reason": "mid_tool_call"}
-        )
+        result = await registry.dispatch(_ctx("cancel"), {"sessionId": sid, "reason": "mid_tool_call"})
         assert result["cancelled"] is True
         assert canceller_calls == [(sid, "mid_tool_call")]
         # Audit chain captures the cancel event.
@@ -265,9 +257,7 @@ def test_default_permission_asker_uses_stream_publisher() -> None:
 
     async def _run() -> None:
         # Manual mode: prompt goes to IDE, and we resolve it concurrently.
-        prompt_result = await registry.dispatch(
-            _ctx("prompt"), {"prompt": "x", "mode": "manual"}
-        )
+        prompt_result = await registry.dispatch(_ctx("prompt"), {"prompt": "x", "mode": "manual"})
         sid = prompt_result["sessionId"]
 
         async def _ide_responds() -> None:
@@ -302,9 +292,7 @@ def test_emit_stream_update_publishes_notification() -> None:
         await registry.emit_stream_update("s1", "hello tokens")
         assert frames
         f = frames[-1]
-        assert f == make_notification(
-            "streamUpdate", {"sessionId": "s1", "delta": "hello tokens"}
-        )
+        assert f == make_notification("streamUpdate", {"sessionId": "s1", "delta": "hello tokens"})
 
     asyncio.run(_run())
 

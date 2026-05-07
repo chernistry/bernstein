@@ -340,9 +340,7 @@ class TestDevinTerminalEnvIsolation:
         env = popen.call_args.kwargs.get("env", {})
         assert "PATH" in env
 
-    def test_warns_when_credentials_missing(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_warns_when_credentials_missing(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         adapter = DevinTerminalAdapter()
         proc_mock = make_popen_mock(905)
         with (
@@ -439,9 +437,7 @@ class TestDevinTerminalEndpoints:
 class TestDevinTerminalIsAlive:
     def test_true_when_process_exists(self) -> None:
         adapter = DevinTerminalAdapter()
-        with patch(
-            "bernstein.adapters.base.process_alive", return_value=True
-        ) as mock_alive:
+        with patch("bernstein.adapters.base.process_alive", return_value=True) as mock_alive:
             assert adapter.is_alive(1234) is True
         mock_alive.assert_called_once_with(1234)
 
@@ -454,17 +450,13 @@ class TestDevinTerminalIsAlive:
 class TestDevinTerminalKill:
     def test_calls_killpg(self) -> None:
         adapter = DevinTerminalAdapter()
-        with patch(
-            "bernstein.adapters.base.kill_process_group_graceful"
-        ) as mock_killpg:
+        with patch("bernstein.adapters.base.kill_process_group_graceful") as mock_killpg:
             adapter.kill(555)
         mock_killpg.assert_called_once_with(555)
 
     def test_does_not_raise_on_oserror(self) -> None:
         adapter = DevinTerminalAdapter()
-        with patch(
-            "bernstein.adapters.base.kill_process_group_graceful", return_value=False
-        ):
+        with patch("bernstein.adapters.base.kill_process_group_graceful", return_value=False):
             adapter.kill(556)  # must not raise
 
 
@@ -499,9 +491,7 @@ class TestDevinTerminalFastExit:
         # SpawnError is a RuntimeError subclass; default tail surfaces.
         assert "exited early" in str(excinfo.value)
 
-    def test_fast_exit_rate_limit_raises_rate_limit_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_fast_exit_rate_limit_raises_rate_limit_error(self, tmp_path: Path) -> None:
         adapter = DevinTerminalAdapter()
         proc_mock = make_popen_mock(911)
         proc_mock.wait.return_value = 1
@@ -524,9 +514,7 @@ class TestDevinTerminalFastExit:
                 session_id="devin-rate-limit",
             )
 
-    def test_fast_exit_clean_does_not_raise(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_fast_exit_clean_does_not_raise(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Exit code 0 from the probe must let spawn() return cleanly."""
         adapter = DevinTerminalAdapter()
         proc_mock = make_popen_mock(912)

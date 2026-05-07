@@ -39,22 +39,16 @@ class TestValidateRequest:
 
     def test_rejects_unknown_method(self) -> None:
         with pytest.raises(ACPSchemaError) as exc:
-            validate_request(
-                {"jsonrpc": "2.0", "method": "unknown_method", "id": 1, "params": {}}
-            )
+            validate_request({"jsonrpc": "2.0", "method": "unknown_method", "id": 1, "params": {}})
         assert exc.value.code == METHOD_NOT_FOUND
 
     def test_rejects_non_object_params(self) -> None:
         with pytest.raises(ACPSchemaError) as exc:
-            validate_request(
-                {"jsonrpc": "2.0", "method": "prompt", "id": 1, "params": []}
-            )
+            validate_request({"jsonrpc": "2.0", "method": "prompt", "id": 1, "params": []})
         assert exc.value.code == INVALID_PARAMS
 
     def test_initialize_accepts_optional_protocol_version(self) -> None:
-        parsed = validate_request(
-            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
-        )
+        parsed = validate_request({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
         assert parsed.method == "initialize"
         assert parsed.is_notification is False
 
@@ -72,22 +66,16 @@ class TestValidateRequest:
 
     def test_initialized_must_be_notification(self) -> None:
         # No id => OK
-        parsed = validate_request(
-            {"jsonrpc": "2.0", "method": "initialized", "params": {}}
-        )
+        parsed = validate_request({"jsonrpc": "2.0", "method": "initialized", "params": {}})
         assert parsed.is_notification is True
         # With id => rejected
         with pytest.raises(ACPSchemaError) as exc:
-            validate_request(
-                {"jsonrpc": "2.0", "id": 1, "method": "initialized", "params": {}}
-            )
+            validate_request({"jsonrpc": "2.0", "id": 1, "method": "initialized", "params": {}})
         assert exc.value.code == INVALID_REQUEST
 
     def test_prompt_requires_prompt_text(self) -> None:
         with pytest.raises(ACPSchemaError) as exc:
-            validate_request(
-                {"jsonrpc": "2.0", "id": 1, "method": "prompt", "params": {"cwd": "/tmp"}}
-            )
+            validate_request({"jsonrpc": "2.0", "id": 1, "method": "prompt", "params": {"cwd": "/tmp"}})
         assert exc.value.code == INVALID_PARAMS
 
     def test_prompt_rejects_non_string_role(self) -> None:
@@ -116,9 +104,7 @@ class TestValidateRequest:
 
     def test_cancel_requires_session_id(self) -> None:
         with pytest.raises(ACPSchemaError) as exc:
-            validate_request(
-                {"jsonrpc": "2.0", "id": 1, "method": "cancel", "params": {}}
-            )
+            validate_request({"jsonrpc": "2.0", "id": 1, "method": "cancel", "params": {}})
         assert exc.value.code == INVALID_PARAMS
 
     def test_request_permission_requires_decision_when_present(self) -> None:
@@ -165,20 +151,14 @@ class TestValidateResponse:
     """Validate :func:`validate_response` envelope checks."""
 
     def test_accepts_result_envelope(self) -> None:
-        validate_response(
-            {"jsonrpc": "2.0", "id": 1, "result": {"sessionId": "s1"}}
-        )
+        validate_response({"jsonrpc": "2.0", "id": 1, "result": {"sessionId": "s1"}})
 
     def test_accepts_error_envelope(self) -> None:
-        validate_response(
-            {"jsonrpc": "2.0", "id": 1, "error": {"code": -1, "message": "oops"}}
-        )
+        validate_response({"jsonrpc": "2.0", "id": 1, "error": {"code": -1, "message": "oops"}})
 
     def test_rejects_both_result_and_error(self) -> None:
         with pytest.raises(ACPSchemaError):
-            validate_response(
-                {"jsonrpc": "2.0", "id": 1, "result": {}, "error": {"code": 0, "message": ""}}
-            )
+            validate_response({"jsonrpc": "2.0", "id": 1, "result": {}, "error": {"code": 0, "message": ""}})
 
     def test_rejects_missing_id(self) -> None:
         with pytest.raises(ACPSchemaError):

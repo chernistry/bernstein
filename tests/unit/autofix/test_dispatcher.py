@@ -178,14 +178,10 @@ def test_fourth_attempt_escalates_to_human(tmp_path: Path) -> None:
     log = LogExtraction(ok=True, body="config drift")
 
     for _ in range(MAX_ATTEMPTS_PER_PUSH):
-        rec = dispatcher.dispatch(
-            repo_config=cfg, pr=pr, run_id="r", log=log, session_id="sess123"
-        )
+        rec = dispatcher.dispatch(repo_config=cfg, pr=pr, run_id="r", log=log, session_id="sess123")
         assert rec.outcome == "success"
 
-    overflow = dispatcher.dispatch(
-        repo_config=cfg, pr=pr, run_id="r", log=log, session_id="sess123"
-    )
+    overflow = dispatcher.dispatch(repo_config=cfg, pr=pr, run_id="r", log=log, session_id="sess123")
     assert overflow.outcome == "needs_human"
     assert any(label == "needs-human" for _, _, label in actions.labels)
     # No dispatch on the overflow attempt.
@@ -200,9 +196,7 @@ def test_fourth_attempt_escalates_to_human(tmp_path: Path) -> None:
 def test_cost_cap_aborts_and_comments(tmp_path: Path) -> None:
     """Spend over the per-repo cap aborts the attempt cleanly."""
     actions = _Actions()
-    spy = _DispatchSpy(
-        result=DispatchResult(success=True, commit_sha="sha", cost_usd=10.0)
-    )
+    spy = _DispatchSpy(result=DispatchResult(success=True, commit_sha="sha", cost_usd=10.0))
     dispatcher = Dispatcher(
         audit=_audit(tmp_path),
         action_adapter=actions,
@@ -249,9 +243,7 @@ def test_audit_chain_is_intact_after_attempt(tmp_path: Path) -> None:
     dispatcher = Dispatcher(
         audit=audit,
         action_adapter=_Actions(),
-        dispatch_hook=_DispatchSpy(
-            result=DispatchResult(success=True, commit_sha="sha", cost_usd=0.5)
-        ),
+        dispatch_hook=_DispatchSpy(result=DispatchResult(success=True, commit_sha="sha", cost_usd=0.5)),
     )
     dispatcher.dispatch(
         repo_config=_repo_config(),
@@ -271,9 +263,7 @@ def test_attempt_id_links_open_and_close_events(tmp_path: Path) -> None:
     dispatcher = Dispatcher(
         audit=audit,
         action_adapter=_Actions(),
-        dispatch_hook=_DispatchSpy(
-            result=DispatchResult(success=True, commit_sha="sha", cost_usd=0.5)
-        ),
+        dispatch_hook=_DispatchSpy(result=DispatchResult(success=True, commit_sha="sha", cost_usd=0.5)),
     )
     dispatcher.dispatch(
         repo_config=_repo_config(),
@@ -285,11 +275,7 @@ def test_attempt_id_links_open_and_close_events(tmp_path: Path) -> None:
 
     log_files = sorted(audit_dir.glob("*.jsonl"))
     assert log_files, "audit log must exist"
-    events = [
-        json.loads(line)
-        for line in log_files[0].read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    events = [json.loads(line) for line in log_files[0].read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(events) == 2
     assert events[0]["event_type"] == "autofix.attempt.start"
     assert events[1]["event_type"] == "autofix.attempt.finish"

@@ -45,7 +45,7 @@ from bernstein.adapters.env_isolation import build_filtered_env
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from bernstein.core.tasks.models import ModelConfig
+    from bernstein.core.models import ModelConfig
 
 logger = logging.getLogger(__name__)
 

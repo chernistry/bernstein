@@ -53,9 +53,7 @@ def test_utf8_bom_python_file_takes_ast_path(tmp_path: Path) -> None:
     assert "foo" in chunks[0].symbols
 
 
-def test_utf16_python_file_returns_empty_with_warning(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_utf16_python_file_returns_empty_with_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     fp = tmp_path / "u16.py"
     fp.write_bytes("def foo():\n    return 1\n".encode("utf-16"))
     with caplog.at_level(logging.WARNING, logger=LOGGER_NAME):
@@ -64,9 +62,7 @@ def test_utf16_python_file_returns_empty_with_warning(
     assert any("cannot read" in r.getMessage() for r in caplog.records)
 
 
-def test_binary_file_with_py_extension_returns_empty(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_binary_file_with_py_extension_returns_empty(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """A non-UTF-8 binary masquerading as .py must not crash the chunker."""
     fp = tmp_path / "binary.py"
     fp.write_bytes(bytes(range(256)))
@@ -79,9 +75,7 @@ def test_binary_file_with_py_extension_returns_empty(
 def test_crlf_line_endings_are_normalized(tmp_path: Path) -> None:
     """Windows-authored files round-trip through the AST path cleanly."""
     fp = tmp_path / "crlf.py"
-    fp.write_bytes(
-        b"def foo():\r\n    return 1\r\n\r\ndef bar():\r\n    return 2\r\n"
-    )
+    fp.write_bytes(b"def foo():\r\n    return 1\r\n\r\ndef bar():\r\n    return 2\r\n")
     chunks = chunk_for_review(fp)
     assert len(chunks) == 1
     assert chunks[0].symbols == ("foo", "bar")
@@ -166,9 +160,7 @@ def test_nested_classes_belong_to_outer_class_chunk(tmp_path: Path) -> None:
     """Inner classes are part of the outer class's AST node — not separate symbols."""
     fp = tmp_path / "nest.py"
     fp.write_text(
-        "class Outer:\n"
-        "    class Inner:\n"
-        "        def m(self): return 1\n",
+        "class Outer:\n    class Inner:\n        def m(self): return 1\n",
         encoding="utf-8",
     )
     chunks = chunk_for_review(fp)
@@ -180,11 +172,7 @@ def test_nested_classes_belong_to_outer_class_chunk(tmp_path: Path) -> None:
 def test_main_guard_is_not_a_top_level_symbol(tmp_path: Path) -> None:
     fp = tmp_path / "guard.py"
     fp.write_text(
-        "def foo():\n"
-        "    return 1\n"
-        "\n"
-        "if __name__ == '__main__':\n"
-        "    foo()\n",
+        "def foo():\n    return 1\n\nif __name__ == '__main__':\n    foo()\n",
         encoding="utf-8",
     )
     chunks = chunk_for_review(fp)
@@ -199,9 +187,7 @@ def test_main_guard_is_not_a_top_level_symbol(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("bad_budget", [-100, -1, 0, 1, 5])
-def test_subminimum_budget_does_not_break_chunker(
-    tmp_path: Path, bad_budget: int
-) -> None:
+def test_subminimum_budget_does_not_break_chunker(tmp_path: Path, bad_budget: int) -> None:
     """Negative / zero / tiny budgets clamp to the floor instead of crashing."""
     fp = tmp_path / "tiny.py"
     fp.write_text("def foo(): return 1\n", encoding="utf-8")
@@ -246,9 +232,7 @@ def test_many_small_functions_produce_multiple_chunks(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_directory_path_returns_empty_with_warning(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_directory_path_returns_empty_with_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.WARNING, logger=LOGGER_NAME):
         chunks = chunk_for_review(tmp_path)
     assert chunks == []
@@ -305,10 +289,7 @@ def test_non_python_languages_use_line_based_fallback(
     assert chunks
     assert all(c.language == "text" for c in chunks)
     assert all(c.symbols == () for c in chunks)
-    assert any(
-        "not Python" in r.getMessage() and "line-based fallback" in r.getMessage()
-        for r in caplog.records
-    )
+    assert any("not Python" in r.getMessage() and "line-based fallback" in r.getMessage() for r in caplog.records)
 
 
 def test_line_based_fallback_covers_all_lines_in_order(tmp_path: Path) -> None:
@@ -338,9 +319,7 @@ def test_line_based_fallback_covers_all_lines_in_order(tmp_path: Path) -> None:
         "def f(:\nreturn 1",
     ],
 )
-def test_malformed_python_falls_back_to_line_based(
-    tmp_path: Path, src: str, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_malformed_python_falls_back_to_line_based(tmp_path: Path, src: str, caplog: pytest.LogCaptureFixture) -> None:
     fp = tmp_path / "bad.py"
     fp.write_text(src, encoding="utf-8")
     with caplog.at_level(logging.WARNING, logger=LOGGER_NAME):

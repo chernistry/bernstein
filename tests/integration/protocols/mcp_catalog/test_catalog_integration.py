@@ -69,14 +69,10 @@ def isolated_audit_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return audit_dir
 
 
-def test_full_install_writes_managed_block_and_audit(
-    tmp_path: Path, isolated_audit_dir: Path
-) -> None:
+def test_full_install_writes_managed_block_and_audit(tmp_path: Path, isolated_audit_dir: Path) -> None:
     cache = tmp_path / "cache.json"
     user_config = tmp_path / "mcp.json"
-    user_config.write_text(
-        json.dumps({"mcpServers": {"manual": {"command": "x"}}})
-    )
+    user_config.write_text(json.dumps({"mcpServers": {"manual": {"command": "x"}}}))
 
     transport = _OneShotTransport(json.dumps(CATALOG_PAYLOAD).encode())
     fetcher = CatalogFetcher(
@@ -100,9 +96,7 @@ def test_full_install_writes_managed_block_and_audit(
     outcome = service.install("fs-readonly", skip_confirmation=True)
     assert outcome.installed is not None
     assert outcome.preview.exit_code == 0
-    assert any(
-        change.path == "install-marker.txt" for change in outcome.preview.diff
-    )
+    assert any(change.path == "install-marker.txt" for change in outcome.preview.diff)
 
     payload = json.loads(user_config.read_text())
     assert payload["mcpServers"]["manual"] == {"command": "x"}
@@ -113,12 +107,7 @@ def test_full_install_writes_managed_block_and_audit(
 
     audit_files = list(isolated_audit_dir.glob("*.jsonl"))
     assert audit_files, "expected at least one daily audit file"
-    audit_lines = [
-        json.loads(line)
-        for fp in audit_files
-        for line in fp.read_text().splitlines()
-        if line.strip()
-    ]
+    audit_lines = [json.loads(line) for fp in audit_files for line in fp.read_text().splitlines() if line.strip()]
     event_types = {entry["event_type"] for entry in audit_lines}
     assert "mcp_catalog.fetch" in event_types
     assert "mcp_catalog.install" in event_types

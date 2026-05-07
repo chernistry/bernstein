@@ -39,11 +39,7 @@ def test_merge_text_preserves_existing_labels() -> None:
 
 
 def test_merge_text_keeps_help_and_type_lines() -> None:
-    body = (
-        "# HELP bernstein_tasks_total Total tasks\n"
-        "# TYPE bernstein_tasks_total counter\n"
-        "bernstein_tasks_total 1\n"
-    )
+    body = "# HELP bernstein_tasks_total Total tasks\n# TYPE bernstein_tasks_total counter\nbernstein_tasks_total 1\n"
     rewritten = merge_text("alpha", body)
     assert "# HELP bernstein_tasks_total" in rewritten
     assert "# TYPE bernstein_tasks_total counter" in rewritten

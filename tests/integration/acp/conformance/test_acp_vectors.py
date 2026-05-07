@@ -32,7 +32,9 @@ from bernstein.core.protocols.acp.transport import StdioAcpTransport
 FIXTURE_DIR = Path(__file__).resolve().parents[3] / "fixtures" / "acp" / "conformance"
 
 
-def _wire_pipe(loop: asyncio.AbstractEventLoop) -> tuple[asyncio.StreamReader, asyncio.StreamWriter, asyncio.StreamReader]:
+def _wire_pipe(
+    loop: asyncio.AbstractEventLoop,
+) -> tuple[asyncio.StreamReader, asyncio.StreamWriter, asyncio.StreamReader]:
     transport_reader = asyncio.StreamReader(loop=loop)
     capture_reader = asyncio.StreamReader(loop=loop)
     capture_protocol = asyncio.StreamReaderProtocol(capture_reader, loop=loop)
@@ -58,7 +60,11 @@ def _wire_pipe(loop: asyncio.AbstractEventLoop) -> tuple[asyncio.StreamReader, a
         def write_eof(self) -> None:
             self.close()
 
-    return transport_reader, asyncio.StreamWriter(_CaptureTransport(), capture_protocol, transport_reader, loop), capture_reader
+    return (
+        transport_reader,
+        asyncio.StreamWriter(_CaptureTransport(), capture_protocol, transport_reader, loop),
+        capture_reader,
+    )
 
 
 def _make_registry() -> ACPHandlerRegistry:
@@ -97,9 +103,7 @@ def _replay(fixture: Path) -> list[dict[str, Any]]:
     async def _run() -> list[dict[str, Any]]:
         loop = asyncio.get_running_loop()
         reader, writer, capture = _wire_pipe(loop)
-        transport = StdioAcpTransport(
-            registry=_make_registry(), reader=reader, writer=writer
-        )
+        transport = StdioAcpTransport(registry=_make_registry(), reader=reader, writer=writer)
         serve_task = asyncio.create_task(transport.serve_forever())
 
         responses: list[dict[str, Any]] = []

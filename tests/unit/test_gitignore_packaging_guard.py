@@ -63,8 +63,7 @@ def test_no_shipped_subpackage_is_gitignored() -> None:
         msg = (
             "gitignore rule matches shipped src/bernstein/ sub-package(s).  "
             "Hatchling will drop them from the wheel and `pip install` users "
-            "will see ModuleNotFoundError.  Offending entries:\n  "
-            + "\n  ".join(offending)
+            "will see ModuleNotFoundError.  Offending entries:\n  " + "\n  ".join(offending)
         )
         raise AssertionError(msg)
 

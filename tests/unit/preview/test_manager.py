@@ -161,9 +161,7 @@ def test_parse_duration_rejects_invalid(spec: str) -> None:
 
 def test_start_persists_state_and_writes_audit_chain(tmp_path: Path) -> None:
     """Successful start emits 2 audit entries (start + link) and persists state."""
-    (tmp_path / "package.json").write_text(
-        json.dumps({"scripts": {"dev": "vite"}}), encoding="utf-8"
-    )
+    (tmp_path / "package.json").write_text(json.dumps({"scripts": {"dev": "vite"}}), encoding="utf-8")
     runner = _FakeRunner(["VITE ready", "Local:   http://localhost:5173/"])
     audit = _audit_log(tmp_path)
     store = PreviewStore(path=tmp_path / "preview.json")
@@ -209,10 +207,7 @@ def test_start_persists_state_and_writes_audit_chain(tmp_path: Path) -> None:
     log_files = list((tmp_path / "audit").glob("*.jsonl"))
     assert log_files, "audit log should have produced at least one daily file"
     raw_lines = [
-        json.loads(line)
-        for f in log_files
-        for line in f.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for f in log_files for line in f.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
     event_types = [r["event_type"] for r in raw_lines]
     assert "preview.start" in event_types
@@ -221,9 +216,7 @@ def test_start_persists_state_and_writes_audit_chain(tmp_path: Path) -> None:
 
 def test_stop_removes_record_and_audits(tmp_path: Path) -> None:
     """``stop`` tears the tunnel down, deletes state, audits ``preview.stop``."""
-    (tmp_path / "package.json").write_text(
-        json.dumps({"scripts": {"dev": "vite"}}), encoding="utf-8"
-    )
+    (tmp_path / "package.json").write_text(json.dumps({"scripts": {"dev": "vite"}}), encoding="utf-8")
     runner = _FakeRunner(["http://localhost:1234"])
     tunnel = _FakeTunnel()
     audit = _audit_log(tmp_path)
@@ -262,9 +255,7 @@ def test_stop_removes_record_and_audits(tmp_path: Path) -> None:
 
 def test_tunnel_failure_rolls_back_dev_server(tmp_path: Path) -> None:
     """When the tunnel can't open, the dev server is terminated."""
-    (tmp_path / "package.json").write_text(
-        json.dumps({"scripts": {"dev": "vite"}}), encoding="utf-8"
-    )
+    (tmp_path / "package.json").write_text(json.dumps({"scripts": {"dev": "vite"}}), encoding="utf-8")
     runner = _FakeRunner(["http://localhost:1234"])
     audit = _audit_log(tmp_path)
     store = PreviewStore(path=tmp_path / "preview.json")
@@ -293,9 +284,7 @@ def test_tunnel_failure_rolls_back_dev_server(tmp_path: Path) -> None:
 
 def test_port_probe_failure_rolls_back(tmp_path: Path) -> None:
     """A failing TCP probe also tears the dev server down."""
-    (tmp_path / "package.json").write_text(
-        json.dumps({"scripts": {"dev": "vite"}}), encoding="utf-8"
-    )
+    (tmp_path / "package.json").write_text(json.dumps({"scripts": {"dev": "vite"}}), encoding="utf-8")
     runner = _FakeRunner(["http://localhost:1234"])
     store = PreviewStore(path=tmp_path / "preview.json")
     audit = _audit_log(tmp_path)

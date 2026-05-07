@@ -28,7 +28,10 @@ def _project(tmp_path: Path, name: str) -> ProjectConfig:
 
 def test_evaluate_filter_basic(tmp_path: Path) -> None:
     snap = ProjectSnapshot(
-        name="alpha", state=ProjectState.ONLINE, agents=3, cost_usd=10.0,
+        name="alpha",
+        state=ProjectState.ONLINE,
+        agents=3,
+        cost_usd=10.0,
         pending_approvals=2,
     )
     assert evaluate_filter(snap, "cost>5")

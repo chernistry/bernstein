@@ -92,9 +92,7 @@ class TestInsertionAttack:
         assert any("prev_hmac mismatch" in e for e in errors)
         assert any("HMAC mismatch" in e for e in errors)
 
-    def test_inserted_record_with_correct_prev_hmac_still_fails(
-        self, tmp_path: Path
-    ) -> None:
+    def test_inserted_record_with_correct_prev_hmac_still_fails(self, tmp_path: Path) -> None:
         """Even if attacker knows prev_hmac, without the key they can't forge HMAC."""
         audit_dir = tmp_path / "audit"
         log = AuditLog(audit_dir, key=_TEST_KEY)
@@ -226,9 +224,7 @@ class TestCrossFileRotation:
         }
         e1["hmac"] = _compute_hmac(key, prev, e1)
         prev = e1["hmac"]
-        (audit_dir / "2026-04-04.jsonl").write_text(
-            json.dumps(e1, sort_keys=True) + "\n"
-        )
+        (audit_dir / "2026-04-04.jsonl").write_text(json.dumps(e1, sort_keys=True) + "\n")
 
         e2 = {
             "timestamp": "2026-04-05T10:00:00.000000Z",
@@ -240,9 +236,7 @@ class TestCrossFileRotation:
             "prev_hmac": prev,
         }
         e2["hmac"] = _compute_hmac(key, prev, e2)
-        (audit_dir / "2026-04-05.jsonl").write_text(
-            json.dumps(e2, sort_keys=True) + "\n"
-        )
+        (audit_dir / "2026-04-05.jsonl").write_text(json.dumps(e2, sort_keys=True) + "\n")
 
     def test_chain_carries_across_rotation(self, tmp_path: Path) -> None:
         audit_dir = tmp_path / "audit"
@@ -253,9 +247,7 @@ class TestCrossFileRotation:
         valid, errors = log.verify()
         assert valid, f"cross-file chain should verify, got {errors}"
 
-    def test_tampering_with_pre_rotation_file_breaks_chain(
-        self, tmp_path: Path
-    ) -> None:
+    def test_tampering_with_pre_rotation_file_breaks_chain(self, tmp_path: Path) -> None:
         audit_dir = tmp_path / "audit"
         audit_dir.mkdir()
         self._write_chained_pair(audit_dir, _TEST_KEY)
@@ -324,7 +316,7 @@ class TestTruncatedLastRecord:
         path, _ = _read_lines(audit_dir)
         content = path.read_text()
         # Truncate inside the last record (drop the last ~30 chars).
-        path.write_text(content[: -30])
+        path.write_text(content[:-30])
 
         valid, errors = log.verify()
         assert valid is False
@@ -398,12 +390,8 @@ class TestConcurrentWriters:
         audit_dir.mkdir()
         ctx = mp.get_context("spawn")
         barrier = ctx.Barrier(2)
-        p1 = ctx.Process(
-            target=_concurrent_writer, args=(str(audit_dir), "A", 5, barrier)
-        )
-        p2 = ctx.Process(
-            target=_concurrent_writer, args=(str(audit_dir), "B", 5, barrier)
-        )
+        p1 = ctx.Process(target=_concurrent_writer, args=(str(audit_dir), "A", 5, barrier))
+        p2 = ctx.Process(target=_concurrent_writer, args=(str(audit_dir), "B", 5, barrier))
         p1.start()
         p2.start()
         p1.join(timeout=30)
@@ -433,12 +421,8 @@ class TestConcurrentWriters:
         audit_dir.mkdir()
         ctx = mp.get_context("spawn")
         barrier = ctx.Barrier(2)
-        p1 = ctx.Process(
-            target=_concurrent_writer, args=(str(audit_dir), "A", 5, barrier)
-        )
-        p2 = ctx.Process(
-            target=_concurrent_writer, args=(str(audit_dir), "B", 5, barrier)
-        )
+        p1 = ctx.Process(target=_concurrent_writer, args=(str(audit_dir), "A", 5, barrier))
+        p2 = ctx.Process(target=_concurrent_writer, args=(str(audit_dir), "B", 5, barrier))
         p1.start()
         p2.start()
         p1.join(timeout=30)

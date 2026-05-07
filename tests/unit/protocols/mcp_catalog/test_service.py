@@ -137,9 +137,7 @@ class _FakeAuditor(CatalogAuditor):
         self.events.append(("mcp_catalog.uninstall", entry_id, {}))
 
 
-def _stub_preview(
-    monkeypatch: pytest.MonkeyPatch, *, exit_code: int = 0
-) -> list[CatalogEntry]:
+def _stub_preview(monkeypatch: pytest.MonkeyPatch, *, exit_code: int = 0) -> list[CatalogEntry]:
     """Replace ``run_install_preview`` with a deterministic stub.
 
     Returns the list that captures every entry the service tries to install.
@@ -171,9 +169,7 @@ def _build_service(
     auditor: CatalogAuditor | None = None,
 ) -> tuple[CatalogService, _FakeAuditor]:
     payload = catalog_payload or _good_catalog()
-    transport = _FakeTransport(
-        [HTTPResponse(status=200, body=json.dumps(payload).encode(), etag='"v1"')]
-    )
+    transport = _FakeTransport([HTTPResponse(status=200, body=json.dumps(payload).encode(), etag='"v1"')])
     fetcher = CatalogFetcher(
         primary_url="https://primary.example/x.json",
         mirror_url="https://mirror.example/x.json",
@@ -193,9 +189,7 @@ def _build_service(
     return service, fake_auditor
 
 
-def test_install_emits_audit_and_writes_config(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_install_emits_audit_and_writes_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     captured = _stub_preview(monkeypatch, exit_code=0)
     service, auditor = _build_service(tmp_path)
 
@@ -205,33 +199,23 @@ def test_install_emits_audit_and_writes_config(
     assert captured and captured[0].id == "fs-readonly"
 
     assert any(e[0] == "mcp_catalog.fetch" for e in auditor.events)
-    assert any(
-        e[0] == "mcp_catalog.install" and e[1] == "fs-readonly"
-        for e in auditor.events
-    )
+    assert any(e[0] == "mcp_catalog.install" and e[1] == "fs-readonly" for e in auditor.events)
     persisted = list_installed(service.user_config_path)
     assert len(persisted) == 1
     assert persisted[0].id == "fs-readonly"
 
 
-def test_install_failure_leaves_config_untouched(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_install_failure_leaves_config_untouched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _stub_preview(monkeypatch, exit_code=1)
     service, auditor = _build_service(tmp_path)
     outcome = service.install("fs-readonly", skip_confirmation=True)
     assert outcome.installed is None
     assert outcome.preview.exit_code == 1
     assert not service.user_config_path.exists()
-    assert any(
-        e[0] == "mcp_catalog.install" and e[2]["exit_code"] == 1
-        for e in auditor.events
-    )
+    assert any(e[0] == "mcp_catalog.install" and e[2]["exit_code"] == 1 for e in auditor.events)
 
 
-def test_unverified_entry_flag(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unverified_entry_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _stub_preview(monkeypatch, exit_code=0)
     payload = _good_catalog()
     payload["entries"][0]["verified_by_bernstein"] = False
@@ -240,9 +224,7 @@ def test_unverified_entry_flag(
     assert outcome.warning_unverified is True
 
 
-def test_install_aborted_when_confirm_returns_false(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_install_aborted_when_confirm_returns_false(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _stub_preview(monkeypatch, exit_code=0)
     service, _ = _build_service(tmp_path)
     service.confirm_callback = lambda _preview: False
@@ -252,9 +234,7 @@ def test_install_aborted_when_confirm_returns_false(
     assert not service.user_config_path.exists()
 
 
-def test_upgrade_skipped_when_versions_match(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_upgrade_skipped_when_versions_match(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _stub_preview(monkeypatch, exit_code=0)
     service, _ = _build_service(tmp_path)
     service.install("fs-readonly", skip_confirmation=True)
@@ -280,9 +260,7 @@ def test_upgrade_skipped_when_versions_match(
     assert outcome.skipped_reason == "already on latest version"
 
 
-def test_upgrade_applies_when_version_changes(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_upgrade_applies_when_version_changes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     captured = _stub_preview(monkeypatch, exit_code=0)
     service, auditor = _build_service(tmp_path)
     service.install("fs-readonly", skip_confirmation=True)
@@ -303,24 +281,18 @@ def test_upgrade_applies_when_version_changes(
             ]
         ),
     )
-    outcome = service.upgrade(
-        "fs-readonly", skip_confirmation=True, force_refresh=True
-    )
+    outcome = service.upgrade("fs-readonly", skip_confirmation=True, force_refresh=True)
     assert outcome.applied is True
     assert outcome.from_version == "1.0.0"
     assert outcome.to_version == "2.0.0"
     assert any(captured) and captured[-1].version_pin == "2.0.0"
     assert any(
-        e[0] == "mcp_catalog.upgrade"
-        and e[2]["from_version"] == "1.0.0"
-        and e[2]["to_version"] == "2.0.0"
+        e[0] == "mcp_catalog.upgrade" and e[2]["from_version"] == "1.0.0" and e[2]["to_version"] == "2.0.0"
         for e in auditor.events
     )
 
 
-def test_background_check_due_respects_cadence(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_background_check_due_respects_cadence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _stub_preview(monkeypatch, exit_code=0)
     service, _ = _build_service(tmp_path)
     # No installs yet => the first check is allowed.
@@ -336,15 +308,10 @@ def test_background_check_due_respects_cadence(
     assert service.background_check_due(now=future) is True
 
 
-def test_uninstall_emits_audit_event(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_uninstall_emits_audit_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _stub_preview(monkeypatch, exit_code=0)
     service, auditor = _build_service(tmp_path)
     service.install("fs-readonly", skip_confirmation=True)
     assert service.uninstall("fs-readonly") is True
-    assert any(
-        e[0] == "mcp_catalog.uninstall" and e[1] == "fs-readonly"
-        for e in auditor.events
-    )
+    assert any(e[0] == "mcp_catalog.uninstall" and e[1] == "fs-readonly" for e in auditor.events)
     assert service.uninstall("fs-readonly") is False

@@ -70,9 +70,7 @@ def _make_v1_record(path: str = "src/foo.py") -> LineageRecord:
 
 class TestArtifactFromDict:
     def test_complete_dict_round_trips(self) -> None:
-        ref = _artifact_from_dict(
-            {"path": "x.py", "sha256": "abc", "line_start": 5, "line_end": 10}
-        )
+        ref = _artifact_from_dict({"path": "x.py", "sha256": "abc", "line_start": 5, "line_end": 10})
         assert ref.path == "x.py"
         assert ref.sha256 == "abc"
         assert ref.line_start == 5

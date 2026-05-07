@@ -43,6 +43,7 @@ _KNOWN_BINARIES: dict[str, str] = {
     "cursor": "cursor",
     "cn": "continue",
     "goose": "goose",
+    "junie": "junie",
     "kilo": "kilo",
     "kiro-cli": "kiro",
     "ollama": "ollama",

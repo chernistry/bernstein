@@ -87,24 +87,31 @@ def test_acp_and_cli_emit_identical_audit_payloads() -> None:
             )
             sid = result["sessionId"]
             await registry.dispatch(_ctx("setMode", 2), {"sessionId": sid, "mode": "auto"})
-            await registry.dispatch(
-                _ctx("cancel", 3), {"sessionId": sid, "reason": "user_done"}
-            )
+            await registry.dispatch(_ctx("cancel", 3), {"sessionId": sid, "reason": "user_done"})
             return sid
 
         sid = asyncio.run(_drive_acp())
 
         # Mimic the CLI surface invoking the same audit calls directly.
         cli_audit.log(
-            "acp.prompt", "acp_bridge", "session", sid,
+            "acp.prompt",
+            "acp_bridge",
+            "session",
+            sid,
             {"peer": "test", "cwd": "/work", "role": "backend", "mode": "manual"},
         )
         cli_audit.log(
-            "acp.set_mode", "acp_bridge", "session", sid,
+            "acp.set_mode",
+            "acp_bridge",
+            "session",
+            sid,
             {"peer": "test", "mode": "auto"},
         )
         cli_audit.log(
-            "acp.cancel", "acp_bridge", "session", sid,
+            "acp.cancel",
+            "acp_bridge",
+            "session",
+            sid,
             {"peer": "test", "reason": "user_done", "ok": True},
         )
 

@@ -168,11 +168,11 @@ jobs:
         with:
           task: fix-ci
           budget: "5.00"
-          cli: claude
+          cli: gemini
           max-retries: "3"
           post-comment: "false"
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           # Opt out of the action's default commit-and-push: this workflow
           # stages the diff into a dedicated `auto-heal/<sha>` branch and
           # opens a PR (see "Push auto-heal branch and open PR" below).

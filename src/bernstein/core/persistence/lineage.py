@@ -57,6 +57,42 @@ SCHEMA_VERSION_V2 = 2
 CURRENT_SCHEMA_VERSION = SCHEMA_VERSION_V2
 
 
+class LineageRunIdError(ValueError):
+    """Raised when a ``run_id`` would land the WAL outside the run directory.
+
+    The WAL writer composes ``<sdd>/runtime/wal/<run_id>.wal.jsonl``; if
+    *run_id* contains a path separator (``/``, ``\\``) or starts with
+    ``..``, the resulting file lands in a sibling directory. The
+    lineage *reader* uses a non-recursive ``glob("*.wal.jsonl")`` and
+    will not surface those records, so the chain is silently lost.
+    Compliance flows treat that as an integrity break -- we fail fast
+    at write time instead of letting an auditor discover the gap.
+    """
+
+
+def _validate_run_id(run_id: str) -> str:
+    """Return *run_id* unchanged when safe; raise :class:`LineageRunIdError` otherwise.
+
+    Rejects empty strings, separators, and traversal sequences. The
+    check is intentionally narrow -- it does not enforce a character
+    set, only that the value composes a single file under the run
+    directory.
+    """
+    if not run_id:
+        raise LineageRunIdError("run_id must not be empty")
+    if "/" in run_id or "\\" in run_id:
+        raise LineageRunIdError(
+            f"run_id contains a path separator ({run_id!r}); "
+            "lineage records would land in a sibling directory and the "
+            "reader would silently skip them",
+        )
+    if run_id in {".", ".."} or run_id.startswith(".."):
+        raise LineageRunIdError(f"run_id resolves to a parent path: {run_id!r}")
+    if "\x00" in run_id:
+        raise LineageRunIdError("run_id contains a NUL byte")
+    return run_id
+
+
 @dataclass(frozen=True)
 class ArtifactRef:
     """Reference to a file region (an output cell or an input source).
@@ -180,6 +216,22 @@ def _record_from_wal(inputs: dict[str, Any], output: dict[str, Any], ts: float) 
     schema_version = schema_version_raw if isinstance(schema_version_raw, int) else SCHEMA_VERSION_V1
     regulatory_class = output.get("regulatory_class")
     customer_signature = output.get("customer_signature")
+    # Normalise empty-string sentinels to ``None``. A misconfigured importer
+    # that writes ``customer_signature=""`` would otherwise produce a
+    # misleading "signature failed to verify" tamper alert in
+    # :func:`verify_run_chain` because base64-decoding the empty string
+    # yields a zero-length byte string that no Ed25519 verifier accepts.
+    # Empty ``regulatory_class`` is similarly meaningless and would only
+    # confuse compliance filters that test ``record.regulatory_class is
+    # not None`` to detect classified records.
+    regulatory_class_norm: str | None = None
+    if regulatory_class is not None:
+        rc_str = str(regulatory_class)
+        regulatory_class_norm = rc_str if rc_str else None
+    customer_signature_norm: str | None = None
+    if customer_signature is not None:
+        cs_str = str(customer_signature)
+        customer_signature_norm = cs_str if cs_str else None
     return LineageRecord(
         output_artifact=_artifact_from_dict(out_dict),
         inputs=[_artifact_from_dict(a) for a in inputs.get("inputs", [])],
@@ -193,8 +245,8 @@ def _record_from_wal(inputs: dict[str, Any], output: dict[str, Any], ts: float) 
         cost_usd=float(output.get("cost_usd", 0.0)),
         tokens=int(output.get("tokens", 0)),
         timestamp=float(output.get("timestamp", ts)),
-        regulatory_class=str(regulatory_class) if regulatory_class is not None else None,
-        customer_signature=str(customer_signature) if customer_signature is not None else None,
+        regulatory_class=regulatory_class_norm,
+        customer_signature=customer_signature_norm,
         schema_version=schema_version,
     )
 
@@ -286,7 +338,14 @@ class LineageWriter:
         signer: LineageSigner | None = None,
         default_regulatory_class: str | None = None,
     ) -> LineageWriter:
-        """Construct a writer bound to *run_id* under *sdd_dir*."""
+        """Construct a writer bound to *run_id* under *sdd_dir*.
+
+        Raises :class:`LineageRunIdError` when *run_id* contains a path
+        separator or traversal sequence -- such a value would emit
+        records the lineage *reader* cannot find on subsequent walks
+        (silent compliance gap).
+        """
+        _validate_run_id(run_id)
         return cls(
             WALWriter(run_id=run_id, sdd_dir=sdd_dir),
             signer=signer,

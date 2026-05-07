@@ -79,7 +79,10 @@ Outbound network traffic usually comes from one of these sources:
 
 If you run only local models and local storage, Bernstein can operate without third-party model APIs. That is the deployment to validate for air-gapped or tightly regulated environments.
 
+Bernstein ships first-class plumbing for this case: a pinned-dependency wheelhouse, signed `MANIFEST.json` plus per-wheel detached signatures, a `bernstein verify <wheelhouse>` checksum/signature pass (cosign or GPG), a `--profile airgap` runtime that flips the egress default to deny-all, a `--allow-network HOST|CIDR|none|any` per-destination override, and a `bernstein doctor airgap` self-check that confirms the perimeter before the first run.
+
 Read next:
+- [Air-gap installation](installation/air-gap.md) — wheelhouse build, signed verification, `--profile airgap`, and adapter network endpoint audit
 - [Model policy](operations/MODEL_POLICY.md)
 - [Compliance](operations/compliance.md)
 - [Deployment guide](operations/deployment-guide.md)

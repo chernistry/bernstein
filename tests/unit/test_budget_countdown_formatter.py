@@ -242,3 +242,23 @@ class TestCardDefaults:
     def test_extensions_default_to_empty(self) -> None:
         card = issue_identity_card("a", "backend", "claude", "opus")
         assert card.extensions == {}
+
+
+class TestAdapterMirrorConstants:
+    """Adapter-side mirrors of the opt-in env / beta value stay in sync.
+
+    The Claude adapter inlines the constants to avoid a transitive
+    scheduler-internal import (see ``.importlinter`` contract
+    ``adapters-no-scheduler``). This test pins the mirror values so a
+    drift surfaces immediately.
+    """
+
+    def test_claude_adapter_mirrors_opt_in_env_name(self) -> None:
+        from bernstein.adapters import claude as claude_adapter
+
+        assert claude_adapter._TASK_BUDGETS_OPT_IN_ENV == TASK_BUDGETS_OPT_IN_ENV  # pyright: ignore[reportPrivateUsage]
+
+    def test_claude_adapter_mirrors_beta_value(self) -> None:
+        from bernstein.adapters import claude as claude_adapter
+
+        assert claude_adapter._TASK_BUDGETS_BETA_VALUE == TASK_BUDGETS_BETA_HEADER  # pyright: ignore[reportPrivateUsage]

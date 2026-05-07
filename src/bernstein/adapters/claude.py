@@ -45,15 +45,23 @@ from bernstein.adapters.claude_mcp_loader import (
 )
 from bernstein.adapters.claude_wrapper_script import build_wrapper_script
 from bernstein.adapters.env_isolation import build_filtered_env
-from bernstein.core.cost.budget_countdown import (
-    is_task_budgets_opt_in as _task_budgets_opt_in,
-)
 from bernstein.core.defaults import COST
 from bernstein.core.models import ApiTier, ApiTierInfo, ModelConfig, ProviderType, RateLimit
 from bernstein.core.platform_compat import kill_process_group_graceful, process_alive
-from bernstein.core.security.agent_identity import (
-    TASK_BUDGETS_BETA_HEADER as _TASK_BUDGETS_BETA_VALUE,
-)
+
+# task-budgets-2026-03-13 propagation. Inlined (rather than imported from
+# ``bernstein.core.cost.budget_countdown``) to keep this adapter free of
+# scheduler-internal transitive dependencies — see ``.importlinter``
+# contract ``adapters-no-scheduler``. Source of truth for both constants
+# is :mod:`bernstein.core.cost.budget_countdown` / :mod:`bernstein.core.security.agent_identity`.
+_TASK_BUDGETS_OPT_IN_ENV: str = "BERNSTEIN_ANTHROPIC_TASK_BUDGETS"
+_TASK_BUDGETS_BETA_VALUE: str = "task-budgets-2026-03-13"
+
+
+def _task_budgets_opt_in() -> bool:
+    """Mirror of :func:`bernstein.core.cost.budget_countdown.is_task_budgets_opt_in`."""
+    raw = os.environ.get(_TASK_BUDGETS_OPT_IN_ENV, "")
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 # Map short model names to Claude Code CLI model IDs.
 # Last verified against upstream @anthropic-ai/claude-code 2.1.x on 2026-05-05.

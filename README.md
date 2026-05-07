@@ -390,6 +390,7 @@ Contact: [forte@bernstein.run](mailto:forte@bernstein.run)
 Curated lists, newsletters, and peer projects that picked up Bernstein:
 
 - [**Python Weekly #742**](https://www.pythonweekly.com/p/python-weekly-issue-742-april-23-2026) (April 23, 2026) — newsletter mention.
+- [**Future Digest**](https://futuredigestnews.substack.com/p/your-claude-bill-just-hit-874-heres) (April 30, 2026) — Bernstein cited as the self-host orchestrator for long-running autonomous sessions in a cost-cutting playbook.
 - [**Augment Code — 9 Open-Source Agent Orchestrators for AI Coding (2026)**](https://www.augmentcode.com/tools/open-source-agent-orchestrators) — editorial roundup; "the most architecturally interesting tool in this roundup."
 - [**nibzard/awesome-agentic-patterns**](https://github.com/nibzard/awesome-agentic-patterns/blob/main/patterns/deterministic-zero-llm-orchestration.md) — Bernstein cited as the production implementation of the "deterministic zero-LLM orchestration" pattern.
 - [**Jenqyang/Awesome-AI-Agents**](https://github.com/Jenqyang/Awesome-AI-Agents)

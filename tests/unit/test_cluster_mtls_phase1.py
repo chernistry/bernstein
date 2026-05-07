@@ -61,6 +61,25 @@ def _build_ca(now: datetime.datetime, cn: str = "phase1-ca") -> tuple[x509.Certi
         .not_valid_before(now - datetime.timedelta(minutes=5))
         .not_valid_after(now + datetime.timedelta(days=1))
         .add_extension(x509.BasicConstraints(ca=True, path_length=1), critical=True)
+        # OpenSSL 3.2+ (ships with Python 3.13) rejects CA certs that set
+        # `pathLen` in BasicConstraints without a matching `keyCertSign` bit
+        # in KeyUsage — error: "Path length given without key usage
+        # keyCertSign". RFC 5280 §4.2.1.9 actually requires KeyUsage on any
+        # cert that signs other certs; older OpenSSL was lenient.
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=False,
+                content_commitment=False,
+                key_encipherment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=True,
+                crl_sign=True,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
         .add_extension(
             x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
             critical=False,

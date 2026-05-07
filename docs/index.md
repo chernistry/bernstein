@@ -3,7 +3,7 @@ title: Bernstein — Open-Source Multi-Agent Orchestration Platform
 description: >-
   Bernstein is the open-source multi-agent orchestrator for AI coding agents.
   Run Claude Code, Codex, Gemini CLI, and the OpenAI Agents SDK in parallel.
-  Deterministic scheduling, 42 adapters, pluggable sandbox backends,
+  Deterministic scheduling, 41 adapters, pluggable sandbox backends,
   cloud artifact storage, progressive skills, zero vendor lock-in.
 tags:
   - orchestration
@@ -74,7 +74,7 @@ bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
 
     ---
 
-    40 CLI adapters: Claude Code, Codex, OpenAI Agents SDK v2, Gemini, Cursor, Aider, Cloudflare Agents, GitHub Copilot, Droid, Crush, and more.
+    41 CLI adapters: Claude Code, Codex, OpenAI Agents SDK v2, Gemini, Cursor, Aider, Cloudflare Agents, GitHub Copilot, Devin Terminal, CLM gateway, Droid, Crush, and more.
     Mix cheap local models with cloud models in the same run.
 
 - :material-source-branch:{ .lg .middle } **Git worktree isolation**
@@ -99,7 +99,7 @@ Bernstein is built for the forward-deployed engineering pattern:
 parachute onto a client repo and stand up an AI engineering crew in
 minutes. State lives in `.sdd/` — no server to provision. Per-agent
 credential scoping keeps your keys out of the client's environment.
-The 31-adapter spread means the swarm runs on whichever CLI agent
+The 41-adapter spread means the swarm runs on whichever CLI agent
 the client already trusts (Claude Code, Codex, Gemini CLI, Aider,
 and more). Every step is an HMAC-signed audit record, replayable
 for client compliance review.

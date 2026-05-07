@@ -28,7 +28,7 @@
 
 ---
 
-**Apa ini?** Anda beri tahu apa yang ingin dibangun. Ia membagi pekerjaan ke beberapa AI coding agent (Claude Code, Codex, Gemini CLI, dan 34 lainnya), menjalankan tes, lalu menggabungkan kode yang benar-benar lulus. Anda kembali ke kode yang sudah berfungsi.
+**Apa ini?** Anda beri tahu apa yang ingin dibangun. Ia membagi pekerjaan ke beberapa AI coding agent (Claude Code, Codex, Gemini CLI, dan 38 lainnya), menjalankan tes, lalu menggabungkan kode yang benar-benar lulus. Anda kembali ke kode yang sudah berfungsi.
 
 ### Pasang dan jalankan
 
@@ -74,7 +74,7 @@ Opsi pemasangan lain: `pipx install bernstein`, `pip install bernstein`, `uv too
 
 Bernstein secara otomatis mendeteksi CLI agent yang terpasang. Campurkan mereka dalam run yang sama. Model lokal yang murah untuk boilerplate, model cloud yang lebih berat untuk arsitektur.
 
-37 adapter CLI agent: 36 wrapper pihak ketiga ditambah satu wrapper generik untuk apa pun yang punya `--prompt`.
+41 adapter CLI agent: 38 wrapper pihak ketiga ditambah satu wrapper generik untuk apa pun yang punya `--prompt`.
 
 | Agent | Models | Install |
 |-------|--------|---------|
@@ -226,7 +226,7 @@ Perintah-perintah yang menghilangkan kode "lem" yang biasanya ditulis kebanyakan
 | Feature | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |---------|-----------|--------|---------|-----------|
 | Orkestrator | Kode deterministik | Digerakkan LLM (+ Flows kode) | Digerakkan LLM | Graph + LLM |
-| Bekerja dengan | CLI agent apa pun (37 adapter) | Kelas Python SDK | Agen Python | Node LangChain |
+| Bekerja dengan | CLI agent apa pun (41 adapter) | Kelas Python SDK | Agen Python | Node LangChain |
 | Isolasi git | Worktree per agen | Tidak | Tidak | Tidak |
 | Sandbox pluggable | Worktree, Docker, E2B, Modal | Tidak | Tidak | Tidak |
 | Verifikasi | Janitor + quality gates | Guardrails + output Pydantic | Kondisi terminasi | Edge bersyarat |
@@ -251,7 +251,7 @@ Tabel di atas membandingkan Bernstein dengan framework orkestrasi LLM (mereka me
 | Bentuk | CLI Python + library + server MCP | CLI Python + sesi tmux + UI web | CLI TypeScript + dashboard lokal | Aplikasi desktop Electron | CLI Go |
 | Bahasa utama | Python | Python | TypeScript | TypeScript | Go |
 | Pemasangan | `pipx install bernstein` | `uv tool install cli-agent-orchestrator` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / single binary |
-| Adapter agen | 37 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code saja) |
+| Adapter agen | 41 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code saja) |
 | Eksekusi multi-agen paralel | Ya | Ya (sesi tmux per agen) | Ya | Ya | Tidak (sesi sekuensial tunggal) |
 | Git worktree per agen | Ya | Tidak (direncanakan, [#100](https://github.com/awslabs/cli-agent-orchestrator/issues/100)) | Ya | Ya | Flag `--worktree` opsional |
 | Mode server MCP (mengekspos diri sebagai MCP) | Ya (stdio + HTTP/SSE) | Ya (komunikasi antar-agen) | Tidak | Tidak | Tidak |

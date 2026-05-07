@@ -30,7 +30,7 @@
 
 ---
 
-**מה זה?** אתם אומרים מה אתם רוצים לבנות. הכלי מפצל את העבודה בין כמה סוכני קוד מבוססי בינה מלאכותית (Claude Code, Codex, Gemini CLI ועוד 34), מריץ את הבדיקות, וממזג את הקוד שעובר אותן בפועל. אתם חוזרים לקוד עובד.
+**מה זה?** אתם אומרים מה אתם רוצים לבנות. הכלי מפצל את העבודה בין כמה סוכני קוד מבוססי בינה מלאכותית (Claude Code, Codex, Gemini CLI ועוד 38), מריץ את הבדיקות, וממזג את הקוד שעובר אותן בפועל. אתם חוזרים לקוד עובד.
 
 ### התקנה והרצה
 
@@ -76,7 +76,7 @@ $ bernstein -g "Add JWT auth"
 
 Bernstein מזהה אוטומטית סוכני CLI מותקנים. ערבבו אותם באותה ריצה. מודלים מקומיים זולים לקוד שגרתי, מודלי ענן כבדים יותר לארכיטקטורה.
 
-37 מתאמי סוכני CLI: 36 עטיפות לצד שלישי בתוספת עטיפה גנרית לכל דבר עם `--prompt`.
+41 מתאמי סוכני CLI: 38 עטיפות לצד שלישי בתוספת עטיפה גנרית לכל דבר עם `--prompt`.
 
 | Agent | Models | Install |
 |-------|--------|---------|
@@ -228,7 +228,7 @@ bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 | תכונה | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |---------|-----------|--------|---------|-----------|
 | מתזמר | קוד דטרמיניסטי | מונע LLM (+ Flows בקוד) | מונע LLM | גרף + LLM |
-| עובד עם | כל סוכן CLI (37 מתאמים) | מחלקות Python SDK | סוכני Python | צמתי LangChain |
+| עובד עם | כל סוכן CLI (41 מתאמים) | מחלקות Python SDK | סוכני Python | צמתי LangChain |
 | בידוד Git | Worktrees לכל סוכן | לא | לא | לא |
 | ארגזי חול ניתנים לתוסף | Worktree, Docker, E2B, Modal | לא | לא | לא |
 | אימות | Janitor + שערי איכות | Guardrails + פלט Pydantic | תנאי סיום | קצוות מותנים |
@@ -253,7 +253,7 @@ bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 | צורה | Python CLI + ספרייה + שרת MCP | Python CLI + סשני tmux + ממשק אינטרנט | TypeScript CLI + לוח מחוונים מקומי | אפליקציית שולחן עבודה Electron | Go CLI |
 | שפה ראשית | Python | Python | TypeScript | TypeScript | Go |
 | התקנה | `pipx install bernstein` | `uv tool install cli-agent-orchestrator` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / בינארי יחיד |
-| מתאמי סוכנים | 37 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code בלבד) |
+| מתאמי סוכנים | 41 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code בלבד) |
 | הרצה מקבילית רב-סוכנית | כן | כן (סשן tmux לכל סוכן) | כן | כן | לא (סשן עוקב יחיד) |
 | Git worktree לכל סוכן | כן | לא (מתוכנן, [#100](https://github.com/awslabs/cli-agent-orchestrator/issues/100)) | כן | כן | דגל `--worktree` אופציונלי |
 | מצב שרת MCP (חושף את עצמו כ-MCP) | כן (stdio + HTTP/SSE) | כן (תקשורת בין סוכנים) | לא | לא | לא |

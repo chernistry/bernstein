@@ -2,6 +2,33 @@
 
 All notable project changes are tracked here (code + docs).
 
+## [1.10.1] — 2026-05-07
+
+### Added — adapters
+
+- **Devin for Terminal (Cognition).** First-class adapter with 558 lines of contract tests covering process tracking, env isolation, and timeout watchdogs. Drop-in for any plan via `cli_agent: devin_terminal`.
+- **Cursor adapter rewrite.** Replaced shell to non-existent `cursor agent` binary with the real `cursor-agent` CLI surface (`-p --workspace --output-format stream-json --trust --approve-mcps --force`); 242 lines of new contract tests.
+
+### Added — operator surfaces
+
+- **Run savings summary.** Each `bernstein run` summary card now reports estimated savings vs running the same plan single-shot through the most expensive routed model.
+
+### Fixed
+
+- **Handoff tokens prefixed with `h_`.** `secrets.token_urlsafe()` produces a `-`-leading token in roughly 1.5% of issuances; click misparses `bernstein handoff claim TOKEN` as if `-V` were an option. Fix issues all tokens with the `h_` prefix.
+
+### Documentation
+
+- **Enterprise evaluation guide** — deployment shapes Bernstein already supports (laptop tool, on-prem cluster, air-gap-clean wheelhouse, MCP server mode behind a corporate egress proxy) and the audit, lineage, and operator surfaces to interrogate before bringing it inside a regulated perimeter.
+- **Use-case workflows page** (`docs/use-cases.md`) — four most-asked patterns: continuous codebase audit, stale-PR triage, parallel adapter benchmarking, post-mortem evidence pack. Contributed by @zerone0x via #1048.
+- Internal scheduler-LLM example bumped from `gemini-2.5-pro` to `gemini-3.1-pro`.
+- Author identity surfaces (sameAs / rel=me / twitter:creator) reconciled across bernstein.run, alexchernysh.com, and the SoftwareApplication JSON-LD on the docs site.
+
+### Tooling
+
+- README's CodeTrendy banner shrunk from a 104px image strip to an inline shields.io badge.
+- `--max-agents` doc references replaced with the real `BERNSTEIN_MAX_AGENTS` env var (the public surface since 1.8).
+
 ## [1.10.0] — 2026-05-05
 
 ### Added — operator surface

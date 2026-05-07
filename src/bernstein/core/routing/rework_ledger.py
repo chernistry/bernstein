@@ -143,7 +143,11 @@ class ReworkLedger:
             payload = (json.dumps(asdict(sample), separators=(",", ":")) + "\n").encode("utf-8")
             # O_APPEND guarantees the seek-then-write is atomic at the
             # kernel level for sub-PIPE_BUF writes — no interleaving.
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+            # 0o600: rework telemetry contains (model, effort, phase, outcome)
+            # records that the cascade router replays. Reader and writer are
+            # the same operator user; world-read is unnecessary and would
+            # leak routing decisions to other users on shared hosts.
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
             try:
                 with self._lock:
                     os.write(fd, payload)

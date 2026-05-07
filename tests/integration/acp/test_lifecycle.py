@@ -18,7 +18,9 @@ from bernstein.core.protocols.acp.session import ACPSessionStore
 from bernstein.core.protocols.acp.transport import StdioAcpTransport
 
 
-def _wire_pipe(loop: asyncio.AbstractEventLoop) -> tuple[asyncio.StreamReader, asyncio.StreamWriter, asyncio.StreamReader]:
+def _wire_pipe(
+    loop: asyncio.AbstractEventLoop,
+) -> tuple[asyncio.StreamReader, asyncio.StreamWriter, asyncio.StreamReader]:
     """In-memory reader/writer pair (same shape as the unit-test helper)."""
     transport_reader = asyncio.StreamReader(loop=loop)
     capture_reader = asyncio.StreamReader(loop=loop)
@@ -216,9 +218,7 @@ def test_request_permission_round_trip_through_transport() -> None:
         )
         await asyncio.sleep(0.01)
         # Find the open waiter id from the notification just emitted.
-        rp_frame = next(
-            f for f in notifications if f.get("method") == "requestPermission"
-        )
+        rp_frame = next(f for f in notifications if f.get("method") == "requestPermission")
         prompt_id = rp_frame["params"]["promptId"]
         # Reply via the requestPermission handler.
         resp = await registry.dispatch(

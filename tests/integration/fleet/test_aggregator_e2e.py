@@ -59,10 +59,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self.wfile.write(b"event: heartbeat\ndata: {}\n\n")
                 self.wfile.flush()
                 for name, payload in list(self.__class__.sse_events):
-                    line = (
-                        f"event: {name}\n"
-                        f"data: {json.dumps(payload)}\n\n"
-                    ).encode()
+                    line = (f"event: {name}\ndata: {json.dumps(payload)}\n\n").encode()
                     self.wfile.write(line)
                     self.wfile.flush()
                 # Keep connection alive briefly for the client to consume.
@@ -115,9 +112,7 @@ async def test_aggregator_against_real_http_server(tmp_path: Path) -> None:
     _Handler.sse_events = [("task.created", {"task_id": "t1", "title": "demo"})]
     with _serve(_Handler) as port:
         project = _project(tmp_path, "alpha", port)
-        aggregator = FleetAggregator(
-            [project], poll_interval_s=0.1, backoff_min_s=0.05, backoff_max_s=0.1
-        )
+        aggregator = FleetAggregator([project], poll_interval_s=0.1, backoff_min_s=0.05, backoff_max_s=0.1)
         await aggregator.start()
         try:
             for _ in range(40):
@@ -203,9 +198,7 @@ async def test_web_app_projects_endpoint(tmp_path: Path) -> None:
     }
     with _serve(_Handler) as port:
         project = _project(tmp_path, "alpha", port)
-        aggregator = FleetAggregator(
-            [project], poll_interval_s=0.1, backoff_min_s=0.05, backoff_max_s=0.1
-        )
+        aggregator = FleetAggregator([project], poll_interval_s=0.1, backoff_min_s=0.05, backoff_max_s=0.1)
         await aggregator.start()
         try:
             # Allow the poll to run at least once.

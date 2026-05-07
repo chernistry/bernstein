@@ -26,12 +26,7 @@ def _entry(install_command: list[str], *, version: str = "1.0.0") -> CatalogEntr
 
 
 def test_preview_captures_stdout_stderr_and_exit_code() -> None:
-    code = (
-        "import sys; "
-        "sys.stdout.write('out-line'); "
-        "sys.stderr.write('err-line'); "
-        "sys.exit(0)"
-    )
+    code = "import sys; sys.stdout.write('out-line'); sys.stderr.write('err-line'); sys.exit(0)"
     entry = _entry([sys.executable, "-c", code])
     preview = run_install_preview(entry, runner=SandboxRunner(timeout_seconds=10))
     assert preview.exit_code == 0

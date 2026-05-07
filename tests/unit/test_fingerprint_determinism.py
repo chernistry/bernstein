@@ -156,10 +156,7 @@ class TestConcurrentWriters:
                 except Exception as exc:
                     errors.append(exc)
 
-        threads = [
-            threading.Thread(target=worker, args=({"k": c * 800},))
-            for c in "abcde"
-        ]
+        threads = [threading.Thread(target=worker, args=({"k": c * 800},)) for c in "abcde"]
         for t in threads:
             t.start()
         for t in threads:

@@ -111,14 +111,11 @@ class TestAliasingBypass:
         # unknown tool must default-deny and trip the trifecta on its own.
         decision_alias_only = reg.evaluate_chain(["fs.read_pretty"])
         assert decision_alias_only.allowed is True, (
-            "An empty-cap alias on its own must NOT trip the trifecta — "
-            "but it must also not contribute capabilities."
+            "An empty-cap alias on its own must NOT trip the trifecta — but it must also not contribute capabilities."
         )
         # Now an agent uses BOTH the alias AND the real (unknown) tool.
         # The unknown tool default-denies because we have no declaration.
-        decision_with_unknown = reg.evaluate_chain(
-            ["fs.read_pretty", "fs.read_secret"]
-        )
+        decision_with_unknown = reg.evaluate_chain(["fs.read_pretty", "fs.read_secret"])
         assert decision_with_unknown.allowed is False, (
             "Real tool fs.read_secret is unknown to this registry — "
             "default-deny must kick in regardless of any alias entry."
@@ -201,7 +198,7 @@ class TestEmptyAndMalformedDeclarations:
         # Mapping but no `tools` key
         (directory / "no_tools.yaml").write_text("not_tools: []\n", encoding="utf-8")
         # Mapping with tools=non-list
-        (directory / "tools_str.yaml").write_text("tools: \"oops\"\n", encoding="utf-8")
+        (directory / "tools_str.yaml").write_text('tools: "oops"\n', encoding="utf-8")
         reg = CapabilityRegistry.from_directory(directory)
         assert reg.tools == {}
         # And the trifecta chain must default-deny because everything is unknown.
@@ -219,9 +216,7 @@ class TestEmptyAndMalformedDeclarations:
         invariant down so it doesn't drift to allow-all by accident.
         """
         reg = CapabilityRegistry()
-        reg.register(
-            ToolCapabilities(tool_name="git.commit", capabilities=frozenset())
-        )
+        reg.register(ToolCapabilities(tool_name="git.commit", capabilities=frozenset()))
         decision = reg.evaluate_chain(["git.commit"])
         assert decision.triggered == frozenset()
         assert decision.allowed is True
@@ -245,9 +240,7 @@ class TestEmptyAndMalformedDeclarations:
         """
         path = tmp_path / "evil.yaml"
         path.write_text(
-            "tools:\n"
-            "  - name: x.read\n"
-            "    capabilities: !!python/object/apply:os.system ['echo pwned']\n",
+            "tools:\n  - name: x.read\n    capabilities: !!python/object/apply:os.system ['echo pwned']\n",
             encoding="utf-8",
         )
         # Sanity: confirm the loader does not raise — it absorbs the YAMLError.
@@ -256,9 +249,7 @@ class TestEmptyAndMalformedDeclarations:
         with pytest.raises(yaml.YAMLError):
             yaml.safe_load(path.read_text(encoding="utf-8"))
 
-    def test_loader_skips_entries_with_blank_or_whitespace_name(
-        self, tmp_path: Path
-    ) -> None:
+    def test_loader_skips_entries_with_blank_or_whitespace_name(self, tmp_path: Path) -> None:
         directory = tmp_path / "capabilities"
         directory.mkdir()
         (directory / "tools.yaml").write_text(
@@ -318,17 +309,13 @@ class TestAuditTrailUnderRelaxedModes:
     OFF→ENFORCE actionable: the operator can ``grep`` the audit log.
     """
 
-    def test_warn_mode_records_offending_tools(
-        self, declared_registry: CapabilityRegistry
-    ) -> None:
+    def test_warn_mode_records_offending_tools(self, declared_registry: CapabilityRegistry) -> None:
         declared_registry.mode = EnforcementMode.WARN
         decision = declared_registry.evaluate_chain(_trifecta_chain())
         assert decision.allowed is True
         assert set(decision.offending_tools) >= set(_trifecta_chain())
 
-    def test_off_mode_records_offending_tools(
-        self, declared_registry: CapabilityRegistry
-    ) -> None:
+    def test_off_mode_records_offending_tools(self, declared_registry: CapabilityRegistry) -> None:
         declared_registry.mode = EnforcementMode.OFF
         decision = declared_registry.evaluate_chain(_trifecta_chain())
         assert decision.allowed is True
@@ -352,9 +339,7 @@ class TestMutationAfterCheck:
     ``ChainDecision`` before any caller can look at the manifest.
     """
 
-    def test_decision_object_is_frozen_against_post_check_writes(
-        self, declared_registry: CapabilityRegistry
-    ) -> None:
+    def test_decision_object_is_frozen_against_post_check_writes(self, declared_registry: CapabilityRegistry) -> None:
         """A returned ``ChainDecision`` is a frozen dataclass.
 
         Even if the registry is mutated after the fact, the previously
@@ -377,9 +362,7 @@ class TestMutationAfterCheck:
         assert decision.allowed is False
         assert decision.triggered == frozenset(Capability)
 
-    def test_record_spawn_reevaluates_at_call_time(
-        self, tmp_path: Path, declared_registry: CapabilityRegistry
-    ) -> None:
+    def test_record_spawn_reevaluates_at_call_time(self, tmp_path: Path, declared_registry: CapabilityRegistry) -> None:
         """``record_spawn_capabilities`` must re-evaluate against the
         registry at call time — *not* trust any external decision blob.
 
@@ -433,9 +416,7 @@ class TestMutationAfterCheck:
                 registry=relaxed,
             )
 
-    def test_concurrent_evaluation_does_not_lose_deny(
-        self, declared_registry: CapabilityRegistry
-    ) -> None:
+    def test_concurrent_evaluation_does_not_lose_deny(self, declared_registry: CapabilityRegistry) -> None:
         """Many threads evaluate the same trifecta chain; none must allow.
 
         Even if the underlying ``tools`` dict were being read mutably the
@@ -450,9 +431,7 @@ class TestMutationAfterCheck:
 
         with ThreadPoolExecutor(max_workers=8) as pool:
             results = list(pool.map(lambda _: _evaluate(), range(64)))
-        assert all(r is False for r in results), (
-            "Race in evaluator surfaced an allow path under concurrency."
-        )
+        assert all(r is False for r in results), "Race in evaluator surfaced an allow path under concurrency."
 
 
 # ---------------------------------------------------------------------------
@@ -468,9 +447,7 @@ class TestSurfaceScope:
     cannot be tricked by a "small file" path.
     """
 
-    def test_fs_read_carries_private_data_for_any_path(
-        self, declared_registry: CapabilityRegistry
-    ) -> None:
+    def test_fs_read_carries_private_data_for_any_path(self, declared_registry: CapabilityRegistry) -> None:
         """``fs.read`` and ``fs.read_secret`` both carry PRIVATE_DATA.
 
         The bundled surfaces.yaml tags ``fs.read`` with PRIVATE_DATA, so
@@ -566,9 +543,7 @@ class TestDnsRebindingAtCapabilityLayer:
                 capabilities=frozenset({Capability.PRIVATE_DATA}),
             )
         )
-        decision = reg.evaluate_chain(
-            ["loopback.fetch", "prompt.from_user", "db.read_credentials"]
-        )
+        decision = reg.evaluate_chain(["loopback.fetch", "prompt.from_user", "db.read_credentials"])
         assert decision.allowed is False, (
             "A 'localhost-only' fetcher tagged EXTERNAL_COMM must still trip "
             "the trifecta — the structural check fires before the agent "
@@ -582,9 +557,7 @@ class TestDnsRebindingAtCapabilityLayer:
 
 
 class TestBypassImmune:
-    def test_lethal_trifecta_is_bypass_immune_in_decision_graph(
-        self, declared_registry: CapabilityRegistry
-    ) -> None:
+    def test_lethal_trifecta_is_bypass_immune_in_decision_graph(self, declared_registry: CapabilityRegistry) -> None:
         graph = DecisionGraph(bypass_enabled=True)
         graph.add_decision(evaluate_lethal_trifecta(_trifecta_chain(), declared_registry))
         # An attacker plugin tries to spam ALLOW decisions in front.
@@ -614,9 +587,7 @@ class TestManifestPersistenceOnDeny:
     auditor can reconstruct the attempted bypass after the fact.
     """
 
-    def test_manifest_written_before_raise(
-        self, tmp_path: Path, declared_registry: CapabilityRegistry
-    ) -> None:
+    def test_manifest_written_before_raise(self, tmp_path: Path, declared_registry: CapabilityRegistry) -> None:
         with pytest.raises(LethalTrifectaError):
             record_spawn_capabilities(
                 tmp_path,
@@ -627,8 +598,7 @@ class TestManifestPersistenceOnDeny:
             )
         manifest_path = tmp_path / ".sdd" / "runtime" / "spawn_capabilities" / "agent-deny.json"
         assert manifest_path.exists(), (
-            "Manifest must be persisted *before* the deny exception so the "
-            "audit trail captures the attempted bypass."
+            "Manifest must be persisted *before* the deny exception so the audit trail captures the attempted bypass."
         )
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         assert manifest["allowed"] is False
@@ -657,9 +627,7 @@ class TestWarnModeManifestVisibility:
         )
         assert decision.allowed is True
         manifest = json.loads(
-            (tmp_path / ".sdd" / "runtime" / "spawn_capabilities" / "agent-warn.json").read_text(
-                encoding="utf-8"
-            )
+            (tmp_path / ".sdd" / "runtime" / "spawn_capabilities" / "agent-warn.json").read_text(encoding="utf-8")
         )
         assert manifest["allowed"] is True
         assert sorted(manifest["triggered"]) == sorted(c.value for c in Capability)

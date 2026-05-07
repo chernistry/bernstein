@@ -257,14 +257,28 @@ def _install_network_policy(
     Default outside ``--profile airgap`` is unrestricted (back-compat).
     Default inside ``--profile airgap`` is deny-all unless the operator
     overrides with one or more ``--allow-network`` flags.
+
+    Raises:
+        NetworkPolicyConfigError: When ``--profile airgap`` is combined
+            with ``--allow-network any``. The combination silently
+            disables the airgap boundary so we reject it at parse time.
     """
     from bernstein.core.security.network_policy import (
         PROFILE_AIRGAP,
         NetworkPolicy,
+        NetworkPolicyConfigError,
         install_policy,
     )
 
     profile_norm = (run_profile or "").strip().lower() or None
+    if profile_norm == PROFILE_AIRGAP:
+        for spec in allow_network:
+            if spec.strip().lower() == "any":
+                raise NetworkPolicyConfigError(
+                    "--profile airgap is incompatible with --allow-network any: "
+                    "explicit allow-list entries (host, host:port, or CIDR) are required, "
+                    "or omit --allow-network to keep the deny-all default.",
+                )
     if allow_network:
         policy = NetworkPolicy.from_specs(allow_network)
     elif profile_norm == PROFILE_AIRGAP:

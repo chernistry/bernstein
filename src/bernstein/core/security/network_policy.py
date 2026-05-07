@@ -47,6 +47,17 @@ class NetworkPolicyDenied(RuntimeError):
         super().__init__(msg)
 
 
+class NetworkPolicyConfigError(ValueError):
+    """Raised when ``--profile airgap`` is combined with ``--allow-network any``.
+
+    Sovereign-customer compliance teams rely on the airgap profile being a
+    hard fail-closed boundary. Allowing ``any`` to silently override the
+    deny-all default would let a typo or copy-paste mistake escape the
+    boundary without the operator noticing — so we reject the combination
+    at parse time and force them to choose one or the other.
+    """
+
+
 @dataclass(frozen=True)
 class _HostPort:
     host: str
@@ -174,7 +185,20 @@ def _maybe_network(token: str) -> ipaddress.IPv4Network | ipaddress.IPv6Network 
 
 
 def _parse_host_port(token: str) -> _HostPort:
-    if ":" in token and not token.startswith("["):
+    # Bracketed IPv6 form: [::1] or [2001:db8::1]:443.
+    if token.startswith("["):
+        end = token.find("]")
+        if end == -1:
+            return _HostPort(host=token)
+        host = token[1:end]
+        rest = token[end + 1 :]
+        if rest.startswith(":"):
+            try:
+                return _HostPort(host=host, port=int(rest[1:]))
+            except ValueError:
+                return _HostPort(host=token)
+        return _HostPort(host=host)
+    if ":" in token:
         host, _, port_s = token.rpartition(":")
         try:
             return _HostPort(host=host, port=int(port_s))

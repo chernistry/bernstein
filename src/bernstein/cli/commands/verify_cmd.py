@@ -193,6 +193,8 @@ def _verify_wheelhouse(
         cast("dict[str, Any]", e) for e in cast("list[Any]", wheels_raw_any) if isinstance(e, dict)
     ]
 
+    from bernstein.core.distribution.verifier import _is_safe_wheel_name
+
     failures: list[str] = []
     verified = 0
     signed = 0
@@ -204,9 +206,15 @@ def _verify_wheelhouse(
         if not name or not expected_sha:
             failures.append(f"manifest entry malformed: {entry!r}")
             continue
+        if not _is_safe_wheel_name(name):
+            failures.append(f"unsafe wheel name in manifest: {name!r}")
+            continue
         wheel_path = wheelhouse_path / name
         if not wheel_path.exists():
             failures.append(f"missing wheel: {name}")
+            continue
+        if wheel_path.is_symlink():
+            failures.append(f"symlink wheel rejected: {name}")
             continue
         h = hashlib.sha256()
         with wheel_path.open("rb") as fh:

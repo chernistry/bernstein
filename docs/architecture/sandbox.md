@@ -3,9 +3,9 @@
 Bernstein isolates every spawned agent in a sandbox so multiple agents
 running against the same repository cannot stomp on each other's
 files, processes, or secrets. Historically the only sandbox type was
-a local git worktree. As of oai-002 the choice of sandbox is pluggable
-— agents can run inside worktrees, Docker containers, E2B microVMs,
-Modal sandboxes, or any backend a plugin author registers.
+a local git worktree. The choice of sandbox is now pluggable — agents
+can run inside worktrees, Docker containers, E2B microVMs, Modal
+sandboxes, or any backend a plugin author registers.
 
 This document covers:
 
@@ -15,8 +15,8 @@ This document covers:
 - The `bernstein.sandbox_backends` entry-point group for third-party
   backends
 - The phased rollout plan (phase 1 lands the protocol and backends;
-  phase 2 — tracked as `oai-002b` — refactors the spawner to route
-  adapter exec through `SandboxSession`)
+  phase 2 refactors the spawner to route adapter exec through
+  `SandboxSession`)
 
 ## Protocol shape
 
@@ -87,7 +87,8 @@ class WorkspaceManifest:
 
 `GitRepoEntry` and `FileEntry` are companion frozen dataclasses.
 Cloud-specific mount entries (S3, persistent volumes, secrets
-manager bindings) are intentionally deferred to `oai-003`.
+manager bindings) are intentionally deferred to the storage-sinks
+work.
 
 ## First-party backends
 
@@ -114,7 +115,7 @@ manager bindings) are intentionally deferred to `oai-003`.
   only `modal` exposes GPU today.
 - **Supported exec semantics.** All four backends handle argv-based
   exec with exit-code, stdout, and stderr capture. `docker` does not
-  support stdin injection in phase 1; that is tracked in `oai-002b`.
+  support stdin injection in phase 1; phase 2 addresses that.
 
 ## `plan.yaml` extension
 
@@ -134,7 +135,8 @@ stages:
 ```
 
 `sandbox:` is entirely optional. When omitted the stage runs in the
-worktree backend — byte-identical to pre-oai-002 behaviour.
+worktree backend — byte-identical to the pre-pluggable-sandbox
+behaviour.
 
 ## Registering a custom backend
 
@@ -161,7 +163,7 @@ Third-party backends must:
 
 ## Phased rollout
 
-### Phase 1 (this ticket, `oai-002`)
+### Phase 1
 
 - `SandboxBackend` / `SandboxSession` / `SandboxCapability` /
   `WorkspaceManifest` land in `src/bernstein/core/sandbox/`.
@@ -173,7 +175,7 @@ Third-party backends must:
 - `bernstein agents sandbox-backends` lists installed backends.
 - `plan.yaml` accepts an optional `sandbox:` block per stage.
 
-### Phase 2 (follow-up, `oai-002b`)
+### Phase 2
 
 - `AgentSpawner` routes adapter exec through
   `SandboxSession.exec`, so the selected backend controls where
@@ -195,8 +197,8 @@ metrics:
 - `sandbox_session_destroyed{backend=..., duration_seconds=...}`
 - `sandbox_exec_count{backend=..., exit_code=...}`
 
-Wiring into the existing metrics/WAL subsystems is part of
-`oai-002b`; phase 1 only exposes the interfaces.
+Wiring into the existing metrics/WAL subsystems is part of phase 2;
+phase 1 only exposes the interfaces.
 
 ## Conformance
 

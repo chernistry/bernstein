@@ -6,8 +6,6 @@ existing Bernstein spawner can manage lifecycle, timeouts, rate-limit
 back-off, and cost tracking the same way it does for every other coding
 agent.
 
-Ticket: [oai-001](../../.sdd/backlog/open/oai-001-feat-openai-agents-sdk-adapter.yaml).
-
 ---
 
 ## Installation
@@ -90,10 +88,9 @@ stages:
         sandbox_provider: unix_local   # unix_local | docker | e2b | modal
 ```
 
-Sandbox provider selection is adapter-internal for now.  Once
-[oai-002](../../.sdd/backlog/open/) ships the pluggable
-`SandboxBackend` abstraction, this choice will be promoted to a
-top-level Bernstein setting.
+Sandbox provider selection is adapter-internal for now. Once the
+pluggable `SandboxBackend` abstraction ships, this choice will be
+promoted to a top-level Bernstein setting.
 
 ---
 
@@ -165,7 +162,7 @@ code onto Bernstein's existing back-off (`COST.rate_limit_cooldown_s`).
 
 ## Known gaps (tracked separately)
 
-* **oai-002** — promote sandbox provider selection to Bernstein's outer
+* Promote sandbox provider selection to Bernstein's outer
   `SandboxBackend` once the abstraction lands.
-* **oai-003** — capture per-tool latency breakdown from the SDK's event
-  stream (currently only total tool-call count is recorded).
+* Capture per-tool latency breakdown from the SDK's event stream
+  (currently only total tool-call count is recorded).

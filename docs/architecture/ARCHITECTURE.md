@@ -212,20 +212,20 @@ Three pluggable subsystems landed in the 1.9 series. Each has its own
 dedicated architecture page:
 
 - **[Sandbox backends](sandbox.md)** — pluggable `SandboxBackend` /
-  `SandboxSession` protocol (oai-002). First-party backends: local git
+  `SandboxSession` protocol. First-party backends: local git
   `worktree` (default), `docker`, `e2b` (Firecracker microVMs), and
   `modal` (serverless containers with optional GPU). Third parties
   register through the `bernstein.sandbox_backends` entry-point group;
   `bernstein agents sandbox-backends` lists every installed backend.
 - **[Artifact storage sinks](storage.md)** — async `ArtifactSink`
-  protocol (oai-003) that decouples `.sdd/` persistence from the local
+  protocol that decouples `.sdd/` persistence from the local
   filesystem. First-party sinks cover `local_fs`, `s3`, `gcs`,
   `azure_blob`, and `r2`. `BufferedSink` preserves the WAL
   crash-safety contract by fsyncing locally first and mirroring the
   payload to the remote asynchronously. Third parties extend via
   `bernstein.storage_sinks`.
 - **[Progressive skill packs](skills.md)** — OpenAI Agents SDK
-  "Skills" pattern (oai-004): only a compact index ships in every
+  "Skills" pattern: only a compact index ships in every
   spawn's system prompt; agents pull full bodies on demand via the
   `load_skill` MCP tool. Plugins register additional skill sources
   under `bernstein.skill_sources`. Inspect available skills with

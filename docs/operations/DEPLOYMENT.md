@@ -36,7 +36,7 @@ docker compose ps
 docker compose up --scale bernstein-worker=4 -d
 ```
 
-> **Single-worker task server (audit-025).** Only `bernstein-worker`
+> **Single-worker task server.** Only `bernstein-worker`
 > replicas scale horizontally. The `bernstein-server` container must run
 > with **exactly one uvicorn worker** — the in-process `TaskStore` holds
 > state in memory and guards mutations with `asyncio.Lock`. Running

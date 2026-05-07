@@ -1,11 +1,11 @@
 # Skills — progressive-disclosure capability packs
 
-Status: active (oai-004, April 2026).
+Status: active (April 2026).
 Applies to: all CLI adapters spawned by Bernstein.
 
 ## Motivation
 
-Before oai-004 every agent spawn loaded the full ``templates/roles/<role>/system_prompt.md``
+Before this work every agent spawn loaded the full ``templates/roles/<role>/system_prompt.md``
 into the system prompt, whether or not the agent actually exercised the
 deep guidance. Across 17 roles the bodies averaged ~40 lines each; the
 token bill was paid on every spawn, including retries and forks.
@@ -30,7 +30,7 @@ templates/
       task_prompt.md
       config.yaml
     …
-  skills/               # new skill packs (oai-004)
+  skills/               # new skill packs
     backend/
       SKILL.md
       references/
@@ -203,7 +203,7 @@ Dead skills (zero loads in 30 days) become candidates for deprecation.
 
 ## Migration status
 
-All 17 roles migrated to skill packs as of oai-004:
+All 17 roles migrated to skill packs:
 
 | role              | references                                                  | notes                          |
 | ----------------- | ----------------------------------------------------------- | ------------------------------ |

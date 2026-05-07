@@ -8,13 +8,12 @@ description: >-
 
 # What's New in 1.9.x
 
-Bernstein 1.9 collects four feature tracks that landed as tickets
-`oai-001` through `oai-004`. This page summarises them in terms of what
-changes for someone upgrading from 1.8.x. Full detail lives in the
-dedicated architecture pages and the
+Bernstein 1.9 collects four feature tracks. This page summarises them in
+terms of what changes for someone upgrading from 1.8.x. Full detail lives
+in the dedicated architecture pages and the
 [CHANGELOG](CHANGELOG.md).
 
-## OpenAI Agents SDK v2 adapter (`openai_agents`) — oai-001
+## OpenAI Agents SDK v2 adapter (`openai_agents`)
 
 Bernstein now ships a first-class adapter for the
 [OpenAI Agents SDK v2](https://openai.github.io/openai-agents-python/).
@@ -49,7 +48,7 @@ See the [adapter reference](adapters/openai-agents.md) and the
 [decision guide](compare/openai-agents.md) for when to pick
 `openai_agents` vs `codex` vs `claude`.
 
-## Pluggable sandbox backends — oai-002
+## Pluggable sandbox backends
 
 Every spawned agent now runs inside a `SandboxSession`. Four
 first-party backends ship:
@@ -86,7 +85,7 @@ entry-point group.
 Full detail:
 [architecture/sandbox.md](architecture/sandbox.md).
 
-## Cloud artifact storage sinks — oai-003
+## Cloud artifact storage sinks
 
 `.sdd/` persistence (WAL, audit log, task outputs, cost ledger) now
 decouples from the local filesystem via an async `ArtifactSink`
@@ -108,7 +107,7 @@ disk.
 Full detail:
 [architecture/storage.md](architecture/storage.md).
 
-## Progressive-disclosure skill packs — oai-004
+## Progressive-disclosure skill packs
 
 Role prompts migrated from monolithic `templates/roles/<role>/system_prompt.md`
 files to OpenAI Agents SDK-shaped **skill packs** under

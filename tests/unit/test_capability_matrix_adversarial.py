@@ -18,7 +18,6 @@ from __future__ import annotations
 import json
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 import yaml
@@ -39,10 +38,6 @@ from bernstein.core.security.policy_engine import (
     PermissionDecision,
     evaluate_lethal_trifecta,
 )
-
-if TYPE_CHECKING:
-    pass
-
 
 # ---------------------------------------------------------------------------
 # Shared fixtures

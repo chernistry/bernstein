@@ -204,8 +204,12 @@ class HandoffTokenStore:
         if not session_id:
             raise ValueError("session_id is required")
         now = float(self._clock())
+        # Prefix with "h_" so the token never starts with "-" (urlsafe base64
+        # alphabet includes "-"). A leading dash makes click misparse the
+        # token as an option in `bernstein handoff claim TOKEN` and breaks
+        # ~1.5% of issued tokens at random — flaky in CI, surprising in prod.
         token = HandoffToken(
-            token=secrets.token_urlsafe(_TOKEN_BYTES),
+            token=f"h_{secrets.token_urlsafe(_TOKEN_BYTES)}",
             session_id=session_id,
             task_id=task_id,
             source_surface=source_surface,

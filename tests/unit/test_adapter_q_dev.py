@@ -8,6 +8,7 @@ isolation, login-cache pre-flight, and the inherited ``is_alive`` /
 
 from __future__ import annotations
 
+import platform
 import sys
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -31,13 +32,17 @@ pytestmark = pytest.mark.usefixtures("no_watchdog_threads")
 def fake_q_login(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Stand up a fake ``q login`` cache so spawn() doesn't reject the run.
 
-    Points ``Path.home`` at a temporary directory and creates the
-    ``~/.local/share/amazon-q`` directory inside it; clears the XDG and
-    Windows env hints so the cache lookup deterministically lands on
-    that path.
+    Points ``Path.home`` at a temporary directory and pre-creates *both* the
+    Linux/macOS layout (``~/.local/share/amazon-q``) and the Windows layout
+    (``~/AppData/Local/amazon-q``) so the fixture is platform-agnostic —
+    ``_has_q_login_cache()`` branches on ``platform.system()`` and we don't
+    want the test outcome to depend on which OS the runner happens to be.
+    Clears the XDG and Windows env hints so the cache lookup deterministically
+    lands on the home-rooted candidate paths.
     """
     home = tmp_path / "home"
     (home / ".local" / "share" / "amazon-q").mkdir(parents=True)
+    (home / "AppData" / "Local" / "amazon-q").mkdir(parents=True)
     monkeypatch.setattr("bernstein.adapters.q_dev.Path.home", lambda: home)
     monkeypatch.delenv("XDG_DATA_HOME", raising=False)
     monkeypatch.delenv("LOCALAPPDATA", raising=False)
@@ -216,6 +221,11 @@ class TestQDevLoginCachePreflight:
             )
         popen.assert_not_called()
 
+    @pytest.mark.skipif(
+        platform.system() == "Windows",
+        reason="XDG_DATA_HOME is a Linux/macOS convention; the Windows branch of "
+        "_has_q_login_cache() reads %LOCALAPPDATA% / AppData and ignores XDG.",
+    )
     def test_xdg_data_home_cache_satisfies_preflight(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """XDG_DATA_HOME is honoured when set."""
         adapter = QDevAdapter()

@@ -29,7 +29,7 @@
 
 ---
 
-**What is this?** You tell it what you want built. It splits the work across several AI coding agents (Claude Code, Codex, Gemini CLI, and 39 more), runs the tests, and merges the code that actually passes. You come back to working code.
+**What is this?** You tell it what you want built. It splits the work across several AI coding agents (Claude Code, Codex, Gemini CLI, and 40 more), runs the tests, and merges the code that actually passes. You come back to working code.
 
 Forward-deployed engineering, on a swarm. Drop Bernstein into a client repo and you get a multi-agent crew with file-based state, per-agent credential scoping, and an HMAC-signed audit trail — running on whichever CLI agents the client already trusts.
 
@@ -101,6 +101,7 @@ Bernstein auto-discovers installed CLI agents. Mix them in the same run. Cheap l
 | [Continue](https://continue.dev) | Any OpenAI/Anthropic-compatible | `npm install -g @continuedev/cli` (binary: `cn`) |
 | [Goose](https://block.github.io/goose/) | Any provider Goose supports | See [Goose docs](https://block.github.io/goose/) |
 | [IaC](https://www.terraform.io/) (Terraform/Pulumi) | Any provider the base agent uses | Built-in |
+| [Junie](https://junie.jetbrains.com) | BYOK (Anthropic, OpenAI, Google, xAI, OpenRouter, Copilot) | `curl -fsSL https://junie.jetbrains.com/install.sh \| bash` |
 | [Kilo](https://kilo.dev) | Kilo-hosted | See [Kilo docs](https://kilo.dev) |
 | [Kiro](https://kiro.dev) | Kiro-hosted | See [Kiro docs](https://kiro.dev) |
 | [AWS Q Developer](https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/command-line.html) | Amazon Q-managed (Claude-backed) | `brew install --cask amazon-q` then `q login` |
@@ -255,7 +256,7 @@ performs vector search.
 | Feature | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |---------|-----------|--------|---------|-----------|
 | Orchestrator | Deterministic code | LLM-driven (+ code Flows) | LLM-driven | Graph + LLM |
-| Works with | Any CLI agent (42 adapters) | Python SDK classes | Python agents | LangChain nodes |
+| Works with | Any CLI agent (43 adapters) | Python SDK classes | Python agents | LangChain nodes |
 | Git isolation | Worktrees per agent | No | No | No |
 | Pluggable sandboxes | Worktree, Docker, E2B, Modal | No | No | No |
 | Verification | Janitor + quality gates | Guardrails + Pydantic output | Termination conditions | Conditional edges |

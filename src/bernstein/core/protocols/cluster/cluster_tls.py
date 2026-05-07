@@ -34,6 +34,18 @@ VerifyMode = Literal["required", "optional", "disabled"]
 
 _VALID_MODES: tuple[VerifyMode, ...] = ("required", "optional", "disabled")
 
+# TLS 1.2 cipher allowlist — modern AEAD suites with forward secrecy only.
+# Drops PSK (we don't pre-share keys), pure-RSA key exchange (no PFS), and
+# every legacy weak family (NULL/EXPORT/RC4/DES/MD5/IDEA/SEED/RC2/aNULL).
+# OpenSSL's default cipher list on Linux ships PSK suites, so an explicit
+# allowlist is the simplest way to keep the surface auditable across
+# distros and Python builds (Py 3.12 ubuntu was failing the weak-suite
+# audit on the unconstrained default).
+# TLS 1.3 cipher selection is independent — its three default suites
+# (TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256,
+# TLS_AES_128_GCM_SHA256) are always permitted and use AEAD + PFS by design.
+_CIPHER_ALLOWLIST = "ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20"
+
 
 class TLSConfigError(ValueError):
     """Raised when a :class:`TLSConfig` is malformed or references missing files."""
@@ -113,6 +125,13 @@ def build_ssl_context(cfg: TLSConfig) -> ssl.SSLContext:
     """
     cfg.validate_paths()
     ctx = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+    # Pin TLS 1.2 floor explicitly. ssl.create_default_context() leaves
+    # minimum_version at TLSVersion.MINIMUM_SUPPORTED (a sentinel that
+    # defers to OpenSSL's system policy) on some Python builds — that
+    # sentinel sorts numerically below TLSVersion.TLSv1_2 (771), so a
+    # downstream `>= TLSv1_2` security assertion would silently fail.
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.set_ciphers(_CIPHER_ALLOWLIST)
     ctx.load_cert_chain(certfile=str(_resolve(cfg.cert_file)), keyfile=str(_resolve(cfg.key_file)))
 
     if cfg.verify_mode == "disabled":
@@ -155,11 +174,15 @@ def build_httpx_client_kwargs(cfg: TLSConfig | None) -> dict[str, Any]:
     cfg.validate_paths()
     if cfg.verify_mode == "disabled":
         ctx = ssl.create_default_context()
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        ctx.set_ciphers(_CIPHER_ALLOWLIST)
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         ctx.load_cert_chain(certfile=str(_resolve(cfg.cert_file)), keyfile=str(_resolve(cfg.key_file)))
         return {"verify": ctx}
     ctx = ssl.create_default_context(cafile=str(_resolve(cfg.ca_file)))
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.set_ciphers(_CIPHER_ALLOWLIST)
     ctx.load_cert_chain(certfile=str(_resolve(cfg.cert_file)), keyfile=str(_resolve(cfg.key_file)))
     return {"verify": ctx}
 

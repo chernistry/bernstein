@@ -61,6 +61,29 @@ def _build_ca(now: datetime.datetime, cn: str = "phase1-ca") -> tuple[x509.Certi
         .not_valid_before(now - datetime.timedelta(minutes=5))
         .not_valid_after(now + datetime.timedelta(days=1))
         .add_extension(x509.BasicConstraints(ca=True, path_length=1), critical=True)
+        # OpenSSL 3.2+ (ships with Python 3.13) rejects CA certs that set
+        # `pathLen` in BasicConstraints without a matching `keyCertSign` bit
+        # in KeyUsage — error: "Path length given without key usage
+        # keyCertSign". RFC 5280 §4.2.1.9 actually requires KeyUsage on any
+        # cert that signs other certs; older OpenSSL was lenient.
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=False,
+                content_commitment=False,
+                key_encipherment=False,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=True,
+                crl_sign=True,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
+        .add_extension(
+            x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
+            critical=False,
+        )
         .sign(key, hashes.SHA256())
     )
     return cert, key
@@ -90,6 +113,18 @@ def _build_leaf(
         .add_extension(x509.ExtendedKeyUsage([eku_oid]), critical=False)
         .add_extension(
             x509.SubjectAlternativeName([x509.DNSName(d) for d in san_dns]),
+            critical=False,
+        )
+        # OpenSSL >= 3.2 (Python 3.13 macOS / Linux) verifies that leaf certs
+        # carry an Authority Key Identifier matching the issuing CA's
+        # Subject Key Identifier. Without these the handshake fails with
+        # "Missing Authority Key Identifier".
+        .add_extension(
+            x509.SubjectKeyIdentifier.from_public_key(leaf_key.public_key()),
+            critical=False,
+        )
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()),
             critical=False,
         )
         .sign(ca_key, hashes.SHA256())

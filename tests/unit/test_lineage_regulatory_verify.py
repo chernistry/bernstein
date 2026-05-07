@@ -418,9 +418,7 @@ class TestRunIdValidation:
             "with\x00nul",
         ],
     )
-    def test_for_run_rejects_path_separators_and_traversal(
-        self, tmp_path: Path, bad_run_id: str
-    ) -> None:
+    def test_for_run_rejects_path_separators_and_traversal(self, tmp_path: Path, bad_run_id: str) -> None:
         sdd = tmp_path / ".sdd"
         sdd.mkdir()
         with pytest.raises(LineageRunIdError):
@@ -433,9 +431,7 @@ class TestRunIdValidation:
         for ok in ("run-1", "r-2026-05-05", "abc123", "with.dots.but.no.dotdot"):
             LineageWriter.for_run(ok, sdd).emit(_make_record(path=f"x-{ok}.py"))
 
-    def test_exporter_with_traversal_run_id_returns_no_records(
-        self, tmp_path: Path
-    ) -> None:
+    def test_exporter_with_traversal_run_id_returns_no_records(self, tmp_path: Path) -> None:
         """A traversal-shaped *query* run_id must not blow up the exporter --
         it just yields zero records (because the WAL glob is non-recursive
         and the file does not exist)."""
@@ -645,10 +641,7 @@ class TestJsonLdValidity:
         assert doc["@context"] == "https://schema.org"
         assert doc["@type"] == "ItemList"
         # Round-tripped value matches input
-        props = {
-            p["name"]: p["value"]
-            for p in doc["itemListElement"][0]["additionalProperty"]
-        }
+        props = {p["name"]: p["value"] for p in doc["itemListElement"][0]["additionalProperty"]}
         assert props["regulatory_class"] == rec.regulatory_class
 
     def test_jsonld_preserves_action_shape_for_each_record(self) -> None:
@@ -772,9 +765,7 @@ class TestExporterScale:
         for i in range(5000):
             writer.emit(
                 LineageRecord(
-                    output_artifact=ArtifactRef(
-                        path=f"src/f{i}.py", sha256="a" * 64, line_start=1, line_end=2
-                    ),
+                    output_artifact=ArtifactRef(path=f"src/f{i}.py", sha256="a" * 64, line_start=1, line_end=2),
                     inputs=[],
                     producer=AgentRef(agent_id="a", run_id="run-htmlbig"),
                     prompt_sha="p",

@@ -116,7 +116,9 @@ class TestCountTokensViaCheapModel:
 
     @pytest.mark.asyncio
     async def test_raises_when_call_llm_raises(self) -> None:
-        with patch("bernstein.core.tokens.token_counter.call_llm", new=AsyncMock(side_effect=RuntimeError("api error"))):
+        with patch(
+            "bernstein.core.tokens.token_counter.call_llm", new=AsyncMock(side_effect=RuntimeError("api error"))
+        ):
             with pytest.raises(RuntimeError, match="api error"):
                 await count_tokens_via_cheap_model(_SAMPLE_TEXT)
 

@@ -125,11 +125,7 @@ def test_5xx_falls_back_to_mirror(tmp_path: Path) -> None:
 def test_invalid_payload_preserves_cache(tmp_path: Path) -> None:
     transport = _FakeTransport()
     # First successful fetch primes the cache.
-    transport.push(
-        HTTPResponse(
-            status=200, body=json.dumps(_good_catalog()).encode(), etag='"v1"'
-        )
-    )
+    transport.push(HTTPResponse(status=200, body=json.dumps(_good_catalog()).encode(), etag='"v1"'))
     fetcher = _build_fetcher(tmp_path, transport, revalidate_seconds=1)
     fetcher.fetch()
     cached_text = fetcher.cache_path.read_text()
@@ -141,9 +137,7 @@ def test_invalid_payload_preserves_cache(tmp_path: Path) -> None:
 
     bad = _good_catalog()
     bad["unknown_field"] = True
-    transport.push(
-        HTTPResponse(status=200, body=json.dumps(bad).encode(), etag='"v2"')
-    )
+    transport.push(HTTPResponse(status=200, body=json.dumps(bad).encode(), etag='"v2"'))
     with pytest.raises(CatalogValidationError):
         fetcher.fetch()
 

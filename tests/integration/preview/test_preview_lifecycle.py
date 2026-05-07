@@ -141,9 +141,7 @@ class _FakeSandbox:
 def test_full_lifecycle_with_real_socket(tmp_path: Path, local_server: _LocalServer) -> None:
     """Start → list → stop, with audit-chain verification at the end."""
     # Project file the discovery layer can pick up.
-    (tmp_path / "package.json").write_text(
-        json.dumps({"scripts": {"dev": "vite"}}), encoding="utf-8"
-    )
+    (tmp_path / "package.json").write_text(json.dumps({"scripts": {"dev": "vite"}}), encoding="utf-8")
 
     # The fake dev server reports the port that the actual local socket
     # is bound to, so the TCP probe in PreviewManager.start succeeds.

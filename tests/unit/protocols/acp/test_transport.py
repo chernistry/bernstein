@@ -124,9 +124,7 @@ def _wire_stdio_pair() -> tuple[asyncio.StreamReader, asyncio.StreamWriter, asyn
             self.close()
 
     capture_transport = _CaptureTransport()
-    writer = asyncio.StreamWriter(
-        capture_transport, capture_protocol, transport_reader, loop
-    )
+    writer = asyncio.StreamWriter(capture_transport, capture_protocol, transport_reader, loop)
     return transport_reader, writer, capture_reader
 
 
@@ -146,9 +144,7 @@ def test_stdio_transport_initialize_round_trip() -> None:
         reader, writer, capture = _wire_stdio_pair()
         transport = StdioAcpTransport(registry=registry, reader=reader, writer=writer)
         # Feed an initialize frame and an EOF.
-        request = json.dumps(
-            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
-        )
+        request = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
         reader.feed_data((request + "\n").encode("utf-8"))
         reader.feed_eof()
         await transport.serve_forever()
@@ -183,9 +179,7 @@ def test_stdio_transport_unknown_method() -> None:
         registry = _make_registry()
         reader, writer, capture = _wire_stdio_pair()
         transport = StdioAcpTransport(registry=registry, reader=reader, writer=writer)
-        request = json.dumps(
-            {"jsonrpc": "2.0", "id": 9, "method": "frobnicate", "params": {}}
-        )
+        request = json.dumps({"jsonrpc": "2.0", "id": 9, "method": "frobnicate", "params": {}})
         reader.feed_data((request + "\n").encode("utf-8"))
         reader.feed_eof()
         await transport.serve_forever()
@@ -193,7 +187,6 @@ def test_stdio_transport_unknown_method() -> None:
         line = await asyncio.wait_for(capture.readline(), timeout=1.0)
         response = json.loads(line)
         assert response["error"]["code"] == METHOD_NOT_FOUND
-
 
     asyncio.run(_run())
 
@@ -227,12 +220,8 @@ def test_http_transport_json_initialize() -> None:
     async def _run() -> None:
         registry = _make_registry()
         transport = HttpAcpTransport(registry=registry)
-        body = json.dumps(
-            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
-        ).encode()
-        status, headers, payload = await transport.handle_request(
-            body, accept="application/json", peer="http://test"
-        )
+        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}).encode()
+        status, headers, payload = await transport.handle_request(body, accept="application/json", peer="http://test")
         assert status == 200
         assert headers["content-type"] == "application/json"
         assert isinstance(payload, (bytes, bytearray))
@@ -246,12 +235,8 @@ def test_http_transport_notification_returns_202() -> None:
     async def _run() -> None:
         registry = _make_registry()
         transport = HttpAcpTransport(registry=registry)
-        body = json.dumps(
-            {"jsonrpc": "2.0", "method": "initialized", "params": {}}
-        ).encode()
-        status, _headers, payload = await transport.handle_request(
-            body, accept="application/json", peer="http://test"
-        )
+        body = json.dumps({"jsonrpc": "2.0", "method": "initialized", "params": {}}).encode()
+        status, _headers, payload = await transport.handle_request(body, accept="application/json", peer="http://test")
         assert status == 202
         assert payload == b""
 
@@ -262,12 +247,8 @@ def test_http_transport_sse_streams_response() -> None:
     async def _run() -> None:
         registry = _make_registry()
         transport = HttpAcpTransport(registry=registry)
-        body = json.dumps(
-            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
-        ).encode()
-        status, headers, payload = await transport.handle_request(
-            body, accept="text/event-stream", peer="http://test"
-        )
+        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}).encode()
+        status, headers, payload = await transport.handle_request(body, accept="text/event-stream", peer="http://test")
         assert status == 200
         assert headers["content-type"] == "text/event-stream"
         assert not isinstance(payload, (bytes, bytearray))
@@ -335,21 +316,17 @@ def test_transport_parity_initialize() -> None:
     async def _run() -> None:
         # HTTP envelope.
         registry_http = _make_registry()
-        body = json.dumps(
-            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
-        ).encode()
-        _status, _headers, payload = await HttpAcpTransport(
-            registry=registry_http
-        ).handle_request(body, accept="application/json", peer="http")
+        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}).encode()
+        _status, _headers, payload = await HttpAcpTransport(registry=registry_http).handle_request(
+            body, accept="application/json", peer="http"
+        )
         assert isinstance(payload, (bytes, bytearray))
         http_envelope = json.loads(payload)
 
         # Stdio envelope.
         registry_stdio = _make_registry()
         reader, writer, capture = _wire_stdio_pair()
-        transport = StdioAcpTransport(
-            registry=registry_stdio, reader=reader, writer=writer
-        )
+        transport = StdioAcpTransport(registry=registry_stdio, reader=reader, writer=writer)
         reader.feed_data(body + b"\n")
         reader.feed_eof()
         await transport.serve_forever()

@@ -198,9 +198,7 @@ class TestQDevLoginCachePreflight:
                 session_id="qdev-no-auth",
             )
 
-    def test_missing_cache_does_not_invoke_subprocess(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_missing_cache_does_not_invoke_subprocess(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The error must surface BEFORE Popen is touched."""
         adapter = QDevAdapter()
         empty_home = tmp_path / "fresh"
@@ -218,9 +216,7 @@ class TestQDevLoginCachePreflight:
             )
         popen.assert_not_called()
 
-    def test_xdg_data_home_cache_satisfies_preflight(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_xdg_data_home_cache_satisfies_preflight(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """XDG_DATA_HOME is honoured when set."""
         adapter = QDevAdapter()
         xdg = tmp_path / "xdg-data"

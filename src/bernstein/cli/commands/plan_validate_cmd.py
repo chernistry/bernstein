@@ -14,6 +14,7 @@ from bernstein.core.plan_loader import PlanLoadError, load_plan
 # Known roles from templates/roles/
 _KNOWN_ROLES: frozenset[str] = frozenset(
     {
+        "adversary",
         "manager",
         "backend",
         "frontend",

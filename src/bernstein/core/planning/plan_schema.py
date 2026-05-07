@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 KNOWN_ROLES: list[str] = [
+    "adversary",
     "analyst",
     "architect",
     "backend",

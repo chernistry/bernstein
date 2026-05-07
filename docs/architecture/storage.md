@@ -1,4 +1,4 @@
-# Artifact Storage Sinks (oai-003)
+# Artifact Storage Sinks
 
 Bernstein persists its working state under `.sdd/`: the WAL, HMAC
 audit logs, runtime state, task outputs, cost ledger, and metrics
@@ -94,12 +94,12 @@ the ephemeral local disk may be empty. They fall back to local when
 the remote is unreachable or doesn't have the key (e.g. the mirror is
 still pending).
 
-## Sandbox integration (ties in with oai-002)
+## Sandbox integration
 
 `WorkspaceManifest` now carries a tuple of `ArtifactMount` entries
 (`S3Mount`, `GCSMount`, `AzureBlobMount`, `R2Mount`). Cloud sandbox
-backends (oai-002: docker, e2b, modal; future: daytona, cloudflare,
-vercel) translate these into provider-native filesystem bindings
+backends (docker, e2b, modal; future: daytona, cloudflare, vercel)
+translate these into provider-native filesystem bindings
 (`rclone mount` for S3/R2, `gcsfuse` for GCS, `blobfuse2` for Azure)
 so agent writes to the mount path stream straight into the
 orchestrator's artifact sink. The `worktree` backend ignores the

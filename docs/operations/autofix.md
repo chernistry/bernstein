@@ -129,8 +129,8 @@ $ bernstein autofix attach [--limit 200]
 
 Replays the last N attempts as JSON-per-line, then tails new entries —
 same surface `attach` provides for chat-control sessions
-(`src/bernstein/cli/commands/autofix_cmd.py:398-436`). The "resume from
-any terminal" handoff defined by op-005.
+(`src/bernstein/cli/commands/autofix_cmd.py:398-436`). This is the
+"resume from any terminal" handoff used by the chat-control surfaces.
 
 ---
 

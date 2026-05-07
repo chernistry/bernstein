@@ -28,6 +28,6 @@ reads from it so future readers don't confuse them.
 ## History
 
 `task_graph.py` was named `graph.py` and `ast_symbol_graph.py` was named
-`semantic_graph.py` until audit-177 (2026-04). The old names are still resolved
+`semantic_graph.py` until April 2026. The old names are still resolved
 through `_REDIRECT_MAP` in `bernstein/core/__init__.py` for back-compat, but new
 code should import the self-descriptive names directly.

@@ -3,7 +3,7 @@
 The Bernstein scenario library and Anthropic's Claude Code Routines complement
 each other: scenarios are version-controlled YAML recipes for multi-agent work,
 Routines are cloud-side triggers that fire prompts on schedules or GitHub
-events. The rt-003 bridge wires them together so a team lead can author one
+events. The bridge wires them together so a team lead can author one
 scenario in the repo and an operator can stand up the matching Routine in
 about five minutes.
 

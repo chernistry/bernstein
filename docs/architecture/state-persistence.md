@@ -28,7 +28,7 @@ each run) is intentional:
 | `.sdd/backlog/closed/*.yaml` | Tasks the janitor has finalised | durable — append-only history |
 | `.sdd/backlog/issues/*.yaml` | Tasks synced from GitHub issues | durable — re-synced each run |
 | `.sdd/runtime/wal/<run-id>.wal.jsonl` | Hash-chained write-ahead log of every orchestrator decision | durable for crash recovery |
-| `.sdd/runtime/wal/uncommitted.idx.json` | Sidecar index of in-flight entries (audit-085) | rebuildable from WAL |
+| `.sdd/runtime/wal/uncommitted.idx.json` | Sidecar index of in-flight entries | rebuildable from WAL |
 | `.sdd/runtime/wal/idempotency.jsonl` | Replay deduplication markers | durable — survives crashes |
 | `.sdd/metrics/*.jsonl` | Cost ledger, cascade chain reports, file-health scores | durable — append-only |
 | `.sdd/cas/{xx}/{sha256}` | Content-addressed artifact blobs | durable — deduplicated |

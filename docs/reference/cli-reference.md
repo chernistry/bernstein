@@ -701,7 +701,7 @@ Multi-project dashboard.
 
 #### `bernstein approve-tool` / `bernstein reject-tool`
 
-Tool-call approval gate (op-002). When an agent requests a sensitive tool call (network egress, file write outside its worktree, exec outside its sandbox), the orchestrator pauses and writes a request to `.sdd/runtime/tool_approvals/`. Resolve with these commands.
+Tool-call approval gate. When an agent requests a sensitive tool call (network egress, file write outside its worktree, exec outside its sandbox), the orchestrator pauses and writes a request to `.sdd/runtime/tool_approvals/`. Resolve with these commands.
 
 ```bash
 bernstein approve-tool <request_id>

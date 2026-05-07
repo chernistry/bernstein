@@ -24,6 +24,7 @@ from bernstein.adapters.composio import ComposioAdapter
 from bernstein.adapters.continue_dev import ContinueDevAdapter
 from bernstein.adapters.copilot import CopilotAdapter
 from bernstein.adapters.cursor import CursorAdapter
+from bernstein.adapters.devin_terminal import DevinTerminalAdapter
 from bernstein.adapters.droid import DroidAdapter
 from bernstein.adapters.forge import ForgeAdapter
 from bernstein.adapters.gemini import GeminiAdapter
@@ -69,6 +70,7 @@ _ADAPTERS: dict[str, type[CLIAdapter] | CLIAdapter] = {
     "continue": ContinueDevAdapter,
     "copilot": CopilotAdapter,
     "cursor": CursorAdapter,
+    "devin_terminal": DevinTerminalAdapter,
     "droid": DroidAdapter,
     "forge": ForgeAdapter,
     "gemini": GeminiAdapter,

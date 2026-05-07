@@ -113,6 +113,12 @@ def build_ssl_context(cfg: TLSConfig) -> ssl.SSLContext:
     """
     cfg.validate_paths()
     ctx = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+    # Pin TLS 1.2 floor explicitly. ssl.create_default_context() leaves
+    # minimum_version at TLSVersion.MINIMUM_SUPPORTED (a sentinel that
+    # defers to OpenSSL's system policy) on some Python builds — that
+    # sentinel sorts numerically below TLSVersion.TLSv1_2 (771), so a
+    # downstream `>= TLSv1_2` security assertion would silently fail.
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.load_cert_chain(certfile=str(_resolve(cfg.cert_file)), keyfile=str(_resolve(cfg.key_file)))
 
     if cfg.verify_mode == "disabled":
@@ -155,11 +161,13 @@ def build_httpx_client_kwargs(cfg: TLSConfig | None) -> dict[str, Any]:
     cfg.validate_paths()
     if cfg.verify_mode == "disabled":
         ctx = ssl.create_default_context()
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         ctx.load_cert_chain(certfile=str(_resolve(cfg.cert_file)), keyfile=str(_resolve(cfg.key_file)))
         return {"verify": ctx}
     ctx = ssl.create_default_context(cafile=str(_resolve(cfg.ca_file)))
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.load_cert_chain(certfile=str(_resolve(cfg.cert_file)), keyfile=str(_resolve(cfg.key_file)))
     return {"verify": ctx}
 

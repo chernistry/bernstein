@@ -46,6 +46,7 @@ from bernstein.adapters.opencode import OpenCodeAdapter
 from bernstein.adapters.openhands import OpenHandsAdapter
 from bernstein.adapters.pi import PiAdapter
 from bernstein.adapters.plandex import PlandexAdapter
+from bernstein.adapters.q_dev import QDevAdapter
 from bernstein.adapters.qwen import QwenAdapter
 from bernstein.adapters.ralphex import RalphexAdapter
 from bernstein.adapters.rovo import RovoAdapter
@@ -91,6 +92,7 @@ _ADAPTERS: dict[str, type[CLIAdapter] | CLIAdapter] = {
     "openhands": OpenHandsAdapter,
     "pi": PiAdapter,
     "plandex": PlandexAdapter,
+    "q_dev": QDevAdapter,
     "qwen": QwenAdapter,
     "ralphex": RalphexAdapter,
     "rovo": RovoAdapter,

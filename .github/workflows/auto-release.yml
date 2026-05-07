@@ -92,6 +92,9 @@ jobs:
     permissions:
       contents: write
       packages: write
+      # Required so the bump step can open a PR + enable auto-merge when
+      # branch protection on main blocks a direct push from GITHUB_TOKEN.
+      pull-requests: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -119,46 +122,88 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Only bump if tag already exists (means this is a new CI pass on same version)
-      - name: Bump patch
+      # Only bump if tag already exists (means this is a new CI pass on same
+      # version). The bump goes via a short-lived PR + auto-merge — pushing
+      # straight to main is rejected by branch protection (13 required status
+      # checks; GITHUB_TOKEN can't bypass). The PR's CI satisfies those
+      # checks; once it merges, the next auto-release run will see the new
+      # pyproject.toml version with no tag yet and proceed to tag + publish.
+      - name: Bump patch (via auto-merge PR)
         if: steps.check.outputs.exists == 'true'
         id: bump
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           IFS='.' read -r MAJOR MINOR PATCH <<< "${{ steps.ver.outputs.current }}"
           NEW="${MAJOR}.${MINOR}.$((PATCH + 1))"
+          BRANCH="auto/bump-v${NEW}"
+
+          # If a previous failed run left an open bump PR for the same target
+          # version, re-use it instead of fighting an existing branch.
+          EXISTING=$(gh pr list --state open --head "$BRANCH" \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            echo "::notice::Bump PR #$EXISTING for v${NEW} already open — letting it ride."
+            echo "version=$NEW" >> "$GITHUB_OUTPUT"
+            echo "deferred=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           sed -i "s/^version = \"${{ steps.ver.outputs.current }}\"/version = \"${NEW}\"/" pyproject.toml
-          echo "version=$NEW" >> "$GITHUB_OUTPUT"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
           git add pyproject.toml
           git commit -m "chore: auto-bump to v${NEW}"
-          git push
+          git push -u origin "$BRANCH"
 
-      # Final version (bumped or current)
+          PR_URL=$(gh pr create \
+            --title "chore: auto-bump to v${NEW}" \
+            --body "Automated patch bump from v${{ steps.ver.outputs.current }} → v${NEW}. Auto-merge enabled; the next auto-release run on main will tag + publish v${NEW}." \
+            --head "$BRANCH" --base main)
+          gh pr merge --auto --squash --delete-branch "$PR_URL"
+
+          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+          echo "deferred=true" >> "$GITHUB_OUTPUT"
+
+      # Final version (bumped or current). When the bump was deferred to a
+      # PR, every subsequent step short-circuits via the ``deferred`` output
+      # below — the actual tag + publish will happen on the next workflow
+      # run after the PR's CI passes and auto-merge fires.
       - name: Set version
         id: final
         run: |
+          if [ "${{ steps.bump.outputs.deferred }}" = "true" ]; then
+            echo "::notice::Auto-release deferred — bump PR for v${{ steps.bump.outputs.version }} will trigger the publish run on merge."
+            echo "deferred=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "deferred=false" >> "$GITHUB_OUTPUT"
           if [ "${{ steps.check.outputs.exists }}" = "true" ]; then
             echo "version=${{ steps.bump.outputs.version }}" >> "$GITHUB_OUTPUT"
           else
             echo "version=${{ steps.ver.outputs.current }}" >> "$GITHUB_OUTPUT"
           fi
 
-      # Tag + build + publish
+      # Tag + build + publish — all skipped when the bump was deferred to a PR.
       - name: Tag
+        if: steps.final.outputs.deferred != 'true'
         run: |
           git tag "v${{ steps.final.outputs.version }}"
           git push origin "v${{ steps.final.outputs.version }}"
 
       - name: Build
+        if: steps.final.outputs.deferred != 'true'
         run: uv build
 
       - name: Publish to PyPI
+        if: steps.final.outputs.deferred != 'true'
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
         with:
           password: ${{ secrets.PYPI_TOKEN }}
 
       - name: GitHub Release
+        if: steps.final.outputs.deferred != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.final.outputs.version }}
@@ -196,6 +241,7 @@ jobs:
 
       # --- npm wrapper ---
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        if: steps.final.outputs.deferred != 'true'
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org
@@ -208,6 +254,7 @@ jobs:
       # job's deployment status. PyPI / GitHub Release / GHCR are
       # unaffected — they ran in earlier steps.
       - name: Publish npm wrapper
+        if: steps.final.outputs.deferred != 'true'
         continue-on-error: true
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -220,14 +267,17 @@ jobs:
 
       # --- Docker / OCI ---
       - name: Log in to GitHub Container Registry
+        if: steps.final.outputs.deferred != 'true'
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Set up Docker Buildx
+        if: steps.final.outputs.deferred != 'true'
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
       - name: Build and push Docker image
+        if: steps.final.outputs.deferred != 'true'
         continue-on-error: true
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:

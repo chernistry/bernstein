@@ -101,6 +101,7 @@ Bernstein auto-discovers installed CLI agents. Mix them in the same run. Cheap l
 | [Continue](https://continue.dev) | Any OpenAI/Anthropic-compatible | `npm install -g @continuedev/cli` (binary: `cn`) |
 | [Goose](https://block.github.io/goose/) | Any provider Goose supports | See [Goose docs](https://block.github.io/goose/) |
 | [IaC](https://www.terraform.io/) (Terraform/Pulumi) | Any provider the base agent uses | Built-in |
+| [Junie](https://junie.jetbrains.com) | BYOK (Anthropic, OpenAI, Google, xAI, OpenRouter, Copilot) | `curl -fsSL https://junie.jetbrains.com/install.sh \| bash` |
 | [Kilo](https://kilo.dev) | Kilo-hosted | See [Kilo docs](https://kilo.dev) |
 | [Kiro](https://kiro.dev) | Kiro-hosted | See [Kiro docs](https://kiro.dev) |
 | [AWS Q Developer](https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/command-line.html) | Amazon Q-managed (Claude-backed) | `brew install --cask amazon-q` then `q login` |

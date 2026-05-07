@@ -290,6 +290,37 @@ def _hash_file(path: Path) -> str:
     return h.hexdigest()
 
 
+def _is_safe_wheel_name(name: str) -> bool:
+    """Return ``True`` when ``name`` is a relative path inside the bundle.
+
+    Rejects:
+    - empty names
+    - absolute paths (``/etc/passwd``)
+    - traversal segments (``../escape``)
+    - directory components (``subdir/wheel.whl``)
+    - control characters that survive ``Path``-arithmetic but break tools
+      downstream (NUL, newline, carriage return)
+
+    A tampered manifest that names ``/etc/passwd`` would otherwise cause
+    the verifier to read arbitrary system files via
+    ``Path('/wh') / '/etc/passwd' == Path('/etc/passwd')``. The verify
+    routine is the last line of defence before the operator runs
+    ``pip install`` on the bundle, so it must refuse rather than
+    silently follow the path.
+    """
+    if not name:
+        return False
+    if any(c in name for c in ("\x00", "\n", "\r")):
+        return False
+    if name.startswith(("/", "\\")):
+        return False
+    # Reject Windows drive prefixes (``C:\foo``).
+    if len(name) >= 2 and name[1] == ":":
+        return False
+    parts = name.replace("\\", "/").split("/")
+    return all(part not in ("..", "") for part in parts) and len(parts) == 1
+
+
 def _load_manifest(manifest_path: Path) -> list[dict[str, Any]]:
     raw = cast("dict[str, Any]", json.loads(manifest_path.read_text()))
     wheels_any: Any = raw.get("wheels") or []
@@ -336,6 +367,17 @@ def verify_wheelhouse(
             signatures_verified=0,
             manifest_signature_ok=None,
             failures=(f"missing MANIFEST.json in: {wheelhouse_path}",),
+        )
+    if manifest_path.is_symlink():
+        return VerifyReport(
+            ok=False,
+            verifier=verifier.name if verifier else "none",
+            wheels_total=0,
+            wheels_verified=0,
+            signatures_present=0,
+            signatures_verified=0,
+            manifest_signature_ok=None,
+            failures=(f"MANIFEST.json is a symlink in: {wheelhouse_path}",),
         )
 
     try:
@@ -387,6 +429,19 @@ def verify_wheelhouse(
             )
             continue
 
+        if not _is_safe_wheel_name(name):
+            failures.append(f"unsafe wheel name in manifest: {name!r}")
+            outcomes.append(
+                VerifyOutcome(
+                    name=name,
+                    sha256_ok=False,
+                    signature_present=False,
+                    signature_ok=None,
+                    error="unsafe wheel name (absolute or traversal path)",
+                )
+            )
+            continue
+
         wheel_path = wheelhouse_path / name
         if not wheel_path.exists():
             failures.append(f"missing wheel: {name}")
@@ -397,6 +452,22 @@ def verify_wheelhouse(
                     signature_present=False,
                     signature_ok=None,
                     error="missing wheel",
+                )
+            )
+            continue
+
+        if wheel_path.is_symlink():
+            # A symlink in the bundle could point at an attacker-controlled
+            # file that hashes to the manifest value once but to a tampered
+            # blob at install-time (TOCTOU). Reject symlinks outright.
+            failures.append(f"symlink wheel rejected: {name}")
+            outcomes.append(
+                VerifyOutcome(
+                    name=name,
+                    sha256_ok=False,
+                    signature_present=False,
+                    signature_ok=None,
+                    error="wheel is a symlink",
                 )
             )
             continue

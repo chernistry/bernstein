@@ -1,0 +1,75 @@
+#!/bin/sh
+# Bernstein pre-push hook.
+#
+# Convention:
+#   - Lint (ruff)             — BLOCKING. Lint errors must be fixed before push.
+#   - Architecture contracts  — BLOCKING. Adapter/core boundary violations
+#                               typically slip through unit tests but break
+#                               CI's import-linter step (see PR #1058 for the
+#                               canonical incident: an adapter imported
+#                               `bernstein.core.tasks.models` instead of
+#                               `bernstein.core.models`). Catching it locally
+#                               avoids a 20-min CI round-trip.
+#   - Typecheck (pyright)     — ADVISORY. Warns but does not block while
+#                               module-decomposition shims are being typed.
+#
+# Does NOT auto-format or amend — that caused data loss in past iterations.
+#
+# Install:
+#   ln -sf ../../scripts/git-hooks/pre-push .git/hooks/pre-push
+#   chmod +x scripts/git-hooks/pre-push
+
+# Resolve uv
+UV="$(command -v uv 2>/dev/null)" \
+    || UV="/opt/homebrew/bin/uv" \
+    || UV="$HOME/.local/bin/uv" \
+    || UV="$HOME/.cargo/bin/uv"
+
+if [ ! -x "$UV" ]; then
+    echo "[pre-push] WARNING: uv not found, skipping pre-push checks."
+    exit 0
+fi
+
+# Lint check (BLOCKING)
+echo "[pre-push] Running lint..."
+if ! "$UV" run ruff check src/ tests/ scripts/ --quiet; then
+    echo "[pre-push] ERROR: lint errors found. Run: uv run ruff check src/ tests/ scripts/ --fix"
+    exit 1
+fi
+echo "[pre-push] Lint passed."
+
+# Architecture contracts (BLOCKING)
+# Catches adapter-class import mistakes (e.g. importing
+# `bernstein.core.tasks.models` instead of `bernstein.core.models`) that
+# pytest does not surface but CI's Lint job rejects. See `.importlinter`
+# for the full contract list.
+echo "[pre-push] Running architecture contracts (import-linter)..."
+IMPORTLINTER_OUTPUT=$("$UV" run lint-imports 2>&1)
+IMPORTLINTER_EXIT=$?
+if [ $IMPORTLINTER_EXIT -ne 0 ]; then
+    echo "$IMPORTLINTER_OUTPUT"
+    echo
+    echo "[pre-push] ERROR: import-linter contract violation."
+    echo "[pre-push] Most likely cause: an adapter imported a scheduler-internal"
+    echo "[pre-push] module. Common mistake: 'from bernstein.core.tasks.models import"
+    echo "[pre-push] ModelConfig' instead of 'from bernstein.core.models import"
+    echo "[pre-push] ModelConfig'. See .importlinter for the full contract list."
+    exit 1
+fi
+echo "[pre-push] Architecture contracts passed."
+
+# Typecheck (ADVISORY - warn but don't block)
+echo "[pre-push] Running typecheck..."
+PYRIGHT_OUTPUT=$("$UV" run pyright 2>&1)
+PYRIGHT_EXIT=$?
+if [ $PYRIGHT_EXIT -ne 0 ]; then
+    # Extract error count from last line
+    ERROR_COUNT=$(echo "$PYRIGHT_OUTPUT" | tail -1)
+    echo "[pre-push] WARNING: typecheck issues found: $ERROR_COUNT"
+    echo "[pre-push] Typecheck is advisory while decomposition shims are being typed."
+    # Don't exit 1 — let the push proceed
+else
+    echo "[pre-push] Typecheck passed."
+fi
+
+exit 0

@@ -1,60 +1,284 @@
 name: "Bernstein CI Fix"
 
-# Trigger when another workflow (e.g. "CI") completes with a failure.
+# Trigger when CI completes with a failure on main. Bernstein then runs
+# in headless mode against the failing commit, attempts a fix, and either:
+#   - opens an `auto-heal/<sha>` PR with the proposed diff, or
+#   - falls back to creating a `ci-fix` issue documenting what was tried.
+#
+# Guards:
+#   - Only fires on the canonical repo (head_repository.full_name == github.repository)
+#     so fork-PR pushes can't burn the LLM budget.
+#   - Recursion guard: skips when the failing run was itself an `auto-heal:` PR.
+#   - Concurrency: one attempt per failing SHA (idempotent — a re-run on the
+#     same SHA cancels the older attempt).
+#   - Feature flag `BERNSTEIN_CI_FIX_ENABLED` (repo variable) gates the whole
+#     workflow so it stays off until explicitly enabled per environment.
+#   - No `actions: write` permission — auto-heal cannot trigger more
+#     workflows recursively.
 on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
     branches: [main]
 
-# Only one fix attempt at a time per branch.
+# One attempt per SHA; cancels older attempts on the same SHA so a re-run is
+# idempotent.
 concurrency:
-  group: bernstein-fix-${{ github.event.workflow_run.head_branch }}
+  group: auto-heal-${{ github.event.workflow_run.head_sha }}
   cancel-in-progress: true
 
 permissions:
   contents: write
   pull-requests: write
+  issues: write
   actions: read
 
 jobs:
-  fix:
-    name: Auto-fix with Bernstein
+  triage:
+    name: Triage CI failure
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    # Only run if CI failed on the canonical repo (not a fork) AND the
-    # autofix feature flag is set. Every string field on the payload
-    # that names a user or commit author is user-controlled and
-    # therefore forgeable (Sonar S8232). The only non-forgeable check
-    # on a ``workflow_run`` event is the head repository owner: forks
-    # have a different ``head_repository.full_name`` than the canonical
-    # repo. Bot-loop recursion is already impossible because
-    # ``on.workflow_run.workflows: ["CI"]`` (declared at the top of
-    # this file) means this workflow only fires when the "CI" workflow
-    # completes — it cannot trigger itself.
+    timeout-minutes: 5
+    # Gate: only run on a real CI failure on the canonical repo, with the
+    # autofix variable enabled, and not on auto-heal commits (recursion guard).
+    #
+    # Recursion guard rationale:
+    #   The triggering workflow_run carries the head commit's message via
+    #   `display_title`. Auto-heal commits are formatted as
+    #   `auto-heal: fix CI on <sha>`; if such a commit fails CI, we must
+    #   NOT spin up another auto-heal attempt — that would loop. Also skip
+    #   bot-authored commits in general (bernstein[bot], dependabot, etc.)
+    #   to avoid burning budget on automated traffic.
+    #
+    # Cost guard rationale:
+    #   `head_repository.full_name == github.repository` is the only
+    #   non-forgeable check on a workflow_run event payload (Sonar S8232).
+    #   Forks have a different head_repository, so this implicitly limits
+    #   auto-heal to org commits.
     if: >
       github.event.workflow_run.conclusion == 'failure' &&
       vars.BERNSTEIN_CI_FIX_ENABLED == 'true' &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      !startsWith(github.event.workflow_run.display_title, 'auto-heal:') &&
+      github.event.workflow_run.actor.login != 'bernstein[bot]' &&
+      github.event.workflow_run.actor.login != 'bernstein-orchestrator[bot]' &&
+      github.event.workflow_run.actor.login != 'github-actions[bot]'
+    outputs:
+      head_sha: ${{ steps.meta.outputs.head_sha }}
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      run_id: ${{ steps.meta.outputs.run_id }}
+      branch: ${{ steps.meta.outputs.branch }}
+      auto_heal_branch: ${{ steps.meta.outputs.auto_heal_branch }}
+      existing_pr: ${{ steps.idempotency.outputs.existing_pr }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.event.workflow_run.head_branch }}
-          # Need full history for bernstein worktree operations
-          fetch-depth: 0
+      - name: Extract failure metadata
+        id: meta
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          SHORT_SHA="${HEAD_SHA:0:12}"
+          {
+            echo "head_sha=${HEAD_SHA}"
+            echo "short_sha=${SHORT_SHA}"
+            echo "run_id=${RUN_ID}"
+            echo "branch=${BRANCH}"
+            echo "auto_heal_branch=auto-heal/${SHORT_SHA}"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Run Bernstein CI fix
+      - name: Check idempotency (existing auto-heal PR for this SHA)
+        id: idempotency
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: auto-heal/${{ steps.meta.outputs.short_sha }}
+        run: |
+          # If a PR already exists for this SHA's auto-heal branch, do not
+          # open another. Idempotent re-runs land here.
+          EXISTING=$(gh pr list \
+            --repo "${{ github.repository }}" \
+            --head "$BRANCH_NAME" \
+            --state open \
+            --json number \
+            --jq '.[0].number // ""' 2>/dev/null || echo "")
+          if [ -n "$EXISTING" ]; then
+            echo "existing_pr=$EXISTING" >> "$GITHUB_OUTPUT"
+            echo "::notice::Auto-heal PR #$EXISTING already exists for $BRANCH_NAME — skipping."
+          else
+            echo "existing_pr=" >> "$GITHUB_OUTPUT"
+          fi
+
+  fix:
+    name: Auto-heal with Bernstein
+    needs: triage
+    if: needs.triage.outputs.existing_pr == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    outputs:
+      pr_url: ${{ steps.open-pr.outputs.pr_url }}
+      pr_number: ${{ steps.open-pr.outputs.pr_number }}
+      result: ${{ steps.open-pr.outputs.result }}
+    steps:
+      - name: Checkout failing commit
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.triage.outputs.head_sha }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "bernstein[bot]"
+          git config user.email "bernstein-bot@users.noreply.github.com"
+
+      - name: Create auto-heal branch
+        env:
+          AUTO_HEAL_BRANCH: ${{ needs.triage.outputs.auto_heal_branch }}
+        run: |
+          git checkout -b "$AUTO_HEAL_BRANCH"
+
+      - name: Download failed CI logs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ needs.triage.outputs.run_id }}
+        run: |
+          mkdir -p /tmp/ci-failure
+          gh run view "$RUN_ID" --log-failed > /tmp/ci-failure/logs.txt 2>&1 || true
+          # Truncate to last 200 lines so the model gets the relevant tail.
+          tail -n 200 /tmp/ci-failure/logs.txt > /tmp/ci-failure/logs-tail.txt
+          {
+            echo "# CI failure on commit ${{ needs.triage.outputs.head_sha }}"
+            echo
+            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ needs.triage.outputs.run_id }}"
+            echo
+            echo "## Failing job tail (last 200 lines)"
+            echo
+            echo '```'
+            cat /tmp/ci-failure/logs-tail.txt
+            echo '```'
+          } > /tmp/ci-failure/summary.md
+
+      - name: Run Bernstein auto-heal
+        id: bernstein
         uses: ./
+        continue-on-error: true
         with:
           task: fix-ci
           budget: "5.00"
           cli: claude
           max-retries: "3"
+          post-comment: "false"
         env:
-          # Provide the API key for whichever CLI agent you use.
-          # For Claude Code:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          # For Codex:
-          # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          # For Gemini CLI:
-          # GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          # Opt out of the action's default commit-and-push: this workflow
+          # stages the diff into a dedicated `auto-heal/<sha>` branch and
+          # opens a PR (see "Push auto-heal branch and open PR" below).
+          BERNSTEIN_SKIP_AUTO_COMMIT: "true"
+
+      - name: Detect changes
+        id: diff
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Push auto-heal branch and open PR
+        id: open-pr
+        if: steps.diff.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUTO_HEAL_BRANCH: ${{ needs.triage.outputs.auto_heal_branch }}
+          SHORT_SHA: ${{ needs.triage.outputs.short_sha }}
+          HEAD_SHA: ${{ needs.triage.outputs.head_sha }}
+          RUN_ID: ${{ needs.triage.outputs.run_id }}
+        run: |
+          git add -A
+          git commit -m "auto-heal: fix CI on ${SHORT_SHA}
+
+          Bernstein attempted to fix the CI failure on ${HEAD_SHA}.
+          Source run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${RUN_ID}"
+          git push origin "$AUTO_HEAL_BRANCH"
+
+          PR_BODY=$(cat <<EOF
+          ## Auto-heal proposal
+
+          Bernstein detected a CI failure on \`${HEAD_SHA}\` and ran in headless
+          mode (3 iterations, \$5 budget) to produce this candidate fix.
+
+          - Failing CI run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${RUN_ID}
+          - Auto-heal branch: \`${AUTO_HEAL_BRANCH}\`
+
+          A human reviewer must verify the proposed diff before merge — the
+          standard required CI checks must still pass on this PR.
+
+          <details>
+          <summary>Failing log tail</summary>
+
+          \`\`\`
+          $(cat /tmp/ci-failure/logs-tail.txt)
+          \`\`\`
+          </details>
+          EOF
+          )
+
+          PR_URL=$(gh pr create \
+            --repo "${{ github.repository }}" \
+            --base main \
+            --head "$AUTO_HEAL_BRANCH" \
+            --title "auto-heal: fix CI on ${SHORT_SHA}" \
+            --body "$PR_BODY" \
+            --label "auto-heal,ci-fix")
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          PR_NUMBER=$(echo "$PR_URL" | sed -E 's#.*/pull/##')
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "result=pr_opened" >> "$GITHUB_OUTPUT"
+
+      - name: Mark no-changes outcome
+        id: no-changes-result
+        if: steps.diff.outputs.has_changes != 'true'
+        run: echo "result=no_changes" >> "$GITHUB_OUTPUT"
+
+  fallback-issue:
+    name: Open ci-fix issue (fallback)
+    needs: [triage, fix]
+    if: |
+      always() &&
+      needs.triage.outputs.existing_pr == '' &&
+      (needs.fix.result == 'failure' || needs.fix.outputs.result == 'no_changes')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Create or update ci-fix issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ needs.triage.outputs.head_sha }}
+          RUN_ID: ${{ needs.triage.outputs.run_id }}
+          OUTCOME: ${{ needs.fix.outputs.result }}
+        run: |
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${RUN_ID}"
+          TITLE="[ci-fix] CI failing on main — run ${RUN_ID}"
+          REASON="Bernstein auto-heal could not produce a fix in 3 iterations within \$5 budget."
+          if [ "$OUTCOME" = "no_changes" ]; then
+            REASON="Bernstein auto-heal ran but produced no diff (likely a transient/infrastructural failure or out-of-scope error)."
+          fi
+          BODY=$(cat <<EOF
+          CI failure on commit \`${HEAD_SHA}\`. Run: $RUN_URL
+
+          **Auto-heal outcome:** ${REASON}
+
+          Manual investigation needed.
+          EOF
+          )
+          OPEN=$(gh issue list --label ci-fix --state open --json number --jq length 2>/dev/null || echo 0)
+          if [ "$OPEN" = "0" ]; then
+            gh issue create --title "$TITLE" --body "$BODY" --label "bug,ci-fix" || true
+          fi

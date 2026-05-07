@@ -91,6 +91,14 @@ runs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: |
+        # Allow callers (e.g. the auto-heal workflow) to opt out of the
+        # default commit-and-push so they can stage the work into a
+        # dedicated branch / PR themselves.
+        if [ "${BERNSTEIN_SKIP_AUTO_COMMIT:-false}" = "true" ]; then
+          echo "BERNSTEIN_SKIP_AUTO_COMMIT=true — leaving working tree dirty for caller."
+          exit 0
+        fi
+
         if [ -z "$(git status --porcelain)" ]; then
           echo "No changes to commit."
           exit 0

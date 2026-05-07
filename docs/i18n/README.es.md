@@ -28,7 +28,7 @@
 
 ---
 
-**¿Qué es esto?** Tú le dices qué quieres construir. Reparte el trabajo entre varios agentes de codificación con IA (Claude Code, Codex, Gemini CLI y 34 más), ejecuta las pruebas y fusiona el código que realmente pasa. Vuelves y encuentras código que funciona.
+**¿Qué es esto?** Tú le dices qué quieres construir. Reparte el trabajo entre varios agentes de codificación con IA (Claude Code, Codex, Gemini CLI y 38 más), ejecuta las pruebas y fusiona el código que realmente pasa. Vuelves y encuentras código que funciona.
 
 ### Instalación y ejecución
 
@@ -74,7 +74,7 @@ Otras opciones de instalación: `pipx install bernstein`, `pip install bernstein
 
 Bernstein detecta automáticamente los agentes CLI instalados. Combínalos en una misma ejecución. Modelos locales económicos para el código repetitivo, modelos en la nube más potentes para la arquitectura.
 
-37 adaptadores de agentes CLI: 36 envoltorios de terceros más un envoltorio genérico para cualquier herramienta con `--prompt`.
+41 adaptadores de agentes CLI: 38 envoltorios de terceros más un envoltorio genérico para cualquier herramienta con `--prompt`.
 
 | Agent | Modelos | Instalación |
 |-------|---------|-------------|
@@ -226,7 +226,7 @@ Comandos que eliminan el código pegamento que la mayoría de equipos terminan e
 | Funcionalidad | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |---------------|-----------|--------|--------------------|-----------|
 | Orquestador | Código determinista | Dirigido por LLM (+ Flows en código) | Dirigido por LLM | Grafo + LLM |
-| Funciona con | Cualquier agente CLI (37 adaptadores) | Clases del SDK de Python | Agentes en Python | Nodos de LangChain |
+| Funciona con | Cualquier agente CLI (41 adaptadores) | Clases del SDK de Python | Agentes en Python | Nodos de LangChain |
 | Aislamiento de Git | Worktrees por agente | No | No | No |
 | Sandboxes enchufables | Worktree, Docker, E2B, Modal | No | No | No |
 | Verificación | Janitor + puertas de calidad | Guardrails + salida Pydantic | Condiciones de terminación | Aristas condicionales |
@@ -251,7 +251,7 @@ La tabla anterior compara Bernstein con frameworks de orquestación de LLM (que 
 | Forma | CLI + librería en Python + servidor MCP | CLI en Python + sesiones tmux + UI web | CLI en TypeScript + dashboard local | App de escritorio Electron | CLI en Go |
 | Lenguaje principal | Python | Python | TypeScript | TypeScript | Go |
 | Instalación | `pipx install bernstein` | `uv tool install cli-agent-orchestrator` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / binario único |
-| Adaptadores de agentes | 37 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (solo Claude Code) |
+| Adaptadores de agentes | 41 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (solo Claude Code) |
 | Ejecución multi-agente en paralelo | Sí | Sí (sesión tmux por agente) | Sí | Sí | No (una única sesión secuencial) |
 | Worktree de Git por agente | Sí | No (planeado, [#100](https://github.com/awslabs/cli-agent-orchestrator/issues/100)) | Sí | Sí | Flag opcional `--worktree` |
 | Modo servidor MCP (se expone como MCP) | Sí (stdio + HTTP/SSE) | Sí (comunicación entre agentes) | No | No | No |

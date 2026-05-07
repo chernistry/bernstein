@@ -28,7 +28,7 @@
 
 ---
 
-**De quoi s'agit-il ?** Vous décrivez ce que vous voulez construire. Bernstein répartit le travail entre plusieurs agents de codage IA (Claude Code, Codex, Gemini CLI et 34 autres), exécute les tests et fusionne le code qui passe vraiment. Vous revenez à du code qui fonctionne.
+**De quoi s'agit-il ?** Vous décrivez ce que vous voulez construire. Bernstein répartit le travail entre plusieurs agents de codage IA (Claude Code, Codex, Gemini CLI et 38 autres), exécute les tests et fusionne le code qui passe vraiment. Vous revenez à du code qui fonctionne.
 
 ### Installation et exécution
 
@@ -74,7 +74,7 @@ Autres options d'installation : `pipx install bernstein`, `pip install bernstein
 
 Bernstein détecte automatiquement les agents CLI installés. Mélangez-les dans une même exécution. Modèles locaux bon marché pour le code générique, modèles cloud plus puissants pour l'architecture.
 
-37 adaptateurs d'agents CLI : 36 wrappers tiers plus un wrapper générique pour tout ce qui prend `--prompt`.
+41 adaptateurs d'agents CLI : 38 wrappers tiers plus un wrapper générique pour tout ce qui prend `--prompt`.
 
 | Agent | Modèles | Installation |
 |-------|---------|--------------|
@@ -226,7 +226,7 @@ Des commandes qui éliminent le code de glue que la plupart des équipes finisse
 | Fonctionnalité | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |----------------|-----------|--------|---------|-----------|
 | Orchestrateur | Code déterministe | Piloté par LLM (+ Flows en code) | Piloté par LLM | Graphe + LLM |
-| Fonctionne avec | Tout agent CLI (37 adaptateurs) | Classes du SDK Python | Agents Python | Nœuds LangChain |
+| Fonctionne avec | Tout agent CLI (41 adaptateurs) | Classes du SDK Python | Agents Python | Nœuds LangChain |
 | Isolation git | Worktrees par agent | Non | Non | Non |
 | Sandboxes enfichables | Worktree, Docker, E2B, Modal | Non | Non | Non |
 | Vérification | Janitor + contrôles qualité | Guardrails + sortie Pydantic | Conditions de terminaison | Arêtes conditionnelles |
@@ -251,7 +251,7 @@ Le tableau ci-dessus compare Bernstein aux frameworks d'orchestration de LLM (qu
 | Forme | CLI Python + bibliothèque + serveur MCP | CLI Python + sessions tmux + interface web | CLI TypeScript + tableau de bord local | Application desktop Electron | CLI Go |
 | Langage principal | Python | Python | TypeScript | TypeScript | Go |
 | Installation | `pipx install bernstein` | `uv tool install cli-agent-orchestrator` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / binaire unique |
-| Adaptateurs d'agents | 37 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code uniquement) |
+| Adaptateurs d'agents | 41 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code uniquement) |
 | Exécution multi-agents en parallèle | Oui | Oui (session tmux par agent) | Oui | Oui | Non (session unique séquentielle) |
 | Git worktree par agent | Oui | Non (prévu, [#100](https://github.com/awslabs/cli-agent-orchestrator/issues/100)) | Oui | Oui | Indicateur optionnel `--worktree` |
 | Mode serveur MCP (s'expose en MCP) | Oui (stdio + HTTP/SSE) | Oui (communications inter-agents) | Non | Non | Non |

@@ -76,7 +76,7 @@ $ bernstein -g "Add JWT auth"
 
 يكتشف Bernstein تلقائياً وكلاء سطر الأوامر (CLI) المثبَّتين. اخلطهم في التشغيل نفسه. نماذج محلية رخيصة للأعمال الروتينية، ونماذج سحابية أثقل للهندسة المعمارية.
 
-37 محوِّل وكيل CLI: 36 غلافاً لأطراف ثالثة بالإضافة إلى غلاف عام لأي شيء يدعم `--prompt`.
+41 محوِّل وكيل CLI: 38 غلافاً لأطراف ثالثة بالإضافة إلى غلاف عام لأي شيء يدعم `--prompt`.
 
 | الوكيل | النماذج | التثبيت |
 |-------|--------|---------|
@@ -228,7 +228,7 @@ bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 | الميزة | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |---------|-----------|--------|---------|-----------|
 | المنسِّق | شيفرة حتمية | مُحرَّك بنموذج لغوي (+ Flows برمجية) | مُحرَّك بنموذج لغوي | رسم بياني + نموذج لغوي |
-| يعمل مع | أي وكيل CLI (37 محوِّلاً) | أصناف Python SDK | وكلاء Python | عُقد LangChain |
+| يعمل مع | أي وكيل CLI (41 محوِّلاً) | أصناف Python SDK | وكلاء Python | عُقد LangChain |
 | عزل git | Worktrees لكل وكيل | لا | لا | لا |
 | صناديق رمل قابلة للتوصيل | Worktree, Docker, E2B, Modal | لا | لا | لا |
 | التحقُّق | البوّاب + بوابات جودة | حواجز + مخرجات Pydantic | شروط إنهاء | حواف شرطية |
@@ -253,7 +253,7 @@ bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 | الشكل | Python CLI + مكتبة + خادم MCP | Python CLI + جلسات tmux + واجهة ويب | TypeScript CLI + لوحة قيادة محلية | تطبيق سطح مكتب Electron | Go CLI |
 | اللغة الأساسية | Python | Python | TypeScript | TypeScript | Go |
 | التثبيت | `pipx install bernstein` | `uv tool install cli-agent-orchestrator` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / ثنائي وحيد |
-| محوِّلات الوكلاء | 37 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code فقط) |
+| محوِّلات الوكلاء | 41 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code فقط) |
 | تنفيذ متوازٍ متعدد الوكلاء | نعم | نعم (جلسة tmux لكل وكيل) | نعم | نعم | لا (جلسة تسلسلية واحدة) |
 | Git worktree لكل وكيل | نعم | لا (مخطَّط، [#100](https://github.com/awslabs/cli-agent-orchestrator/issues/100)) | نعم | نعم | علم `--worktree` اختياري |
 | وضع خادم MCP (يكشف ذاته بوصفه MCP) | نعم (stdio + HTTP/SSE) | نعم (تواصل بين الوكلاء) | لا | لا | لا |

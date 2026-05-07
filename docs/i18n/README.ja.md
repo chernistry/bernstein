@@ -28,7 +28,7 @@
 
 ---
 
-**これは何ですか？** 作りたいものを伝えると、複数の AI コーディングエージェント (Claude Code、Codex、Gemini CLI、ほか 34 種類) に作業を分担させ、テストを実行し、実際に通ったコードをマージします。戻ってきたときには、動くコードが手元にあります。
+**これは何ですか？** 作りたいものを伝えると、複数の AI コーディングエージェント (Claude Code、Codex、Gemini CLI、ほか 38 種類) に作業を分担させ、テストを実行し、実際に通ったコードをマージします。戻ってきたときには、動くコードが手元にあります。
 
 ### インストールと実行
 
@@ -74,7 +74,7 @@ $ bernstein -g "Add JWT auth"
 
 Bernstein はインストール済みの CLI エージェントを自動で検出します。同じ実行内で混在させることもできます。定型処理には安価なローカルモデル、アーキテクチャ設計には強力なクラウドモデルといった使い分けが可能です。
 
-37 個の CLI エージェントアダプター: 36 個のサードパーティラッパーに加え、`--prompt` を受け付けるあらゆるツール用の汎用ラッパーが付属しています。
+41 個の CLI エージェントアダプター: 38 個のサードパーティラッパーに加え、`--prompt` を受け付けるあらゆるツール用の汎用ラッパーが付属しています。
 
 | Agent | Models | Install |
 |-------|--------|---------|
@@ -226,7 +226,7 @@ bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 | Feature | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |---------|-----------|--------|---------|-----------|
 | オーケストレーター | 決定的なコード | LLM 主導 (+ コードフロー) | LLM 主導 | グラフ + LLM |
-| 連携対象 | あらゆる CLI エージェント (37 アダプター) | Python SDK クラス | Python エージェント | LangChain ノード |
+| 連携対象 | あらゆる CLI エージェント (41 アダプター) | Python SDK クラス | Python エージェント | LangChain ノード |
 | Git 分離 | エージェントごとの Worktree | 非対応 | 非対応 | 非対応 |
 | プラガブルなサンドボックス | Worktree、Docker、E2B、Modal | 非対応 | 非対応 | 非対応 |
 | 検証 | ジャニター + 品質ゲート | ガードレール + Pydantic 出力 | 終了条件 | 条件付きエッジ |
@@ -251,7 +251,7 @@ bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 | 形態 | Python CLI + ライブラリ + MCP サーバー | Python CLI + tmux セッション + Web UI | TypeScript CLI + ローカルダッシュボード | Electron デスクトップアプリ | Go CLI |
 | 主要言語 | Python | Python | TypeScript | TypeScript | Go |
 | インストール | `pipx install bernstein` | `uv tool install cli-agent-orchestrator` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / 単一バイナリ |
-| エージェントアダプター | 37 | 5 (Kiro、Claude Code、Codex、Gemini、Kimi) | 3 (Claude Code、Codex、Aider) | 24 | 1 (Claude Code のみ) |
+| エージェントアダプター | 41 | 5 (Kiro、Claude Code、Codex、Gemini、Kimi) | 3 (Claude Code、Codex、Aider) | 24 | 1 (Claude Code のみ) |
 | 並列マルチエージェント実行 | 対応 | 対応 (エージェントごとの tmux セッション) | 対応 | 対応 | 非対応 (単一の逐次セッション) |
 | エージェントごとの Git worktree | 対応 | 非対応 (計画中、[#100](https://github.com/awslabs/cli-agent-orchestrator/issues/100)) | 対応 | 対応 | オプション (`--worktree` フラグ) |
 | MCP サーバーモード (自身を MCP として公開) | 対応 (stdio + HTTP/SSE) | 対応 (エージェント間通信) | 非対応 | 非対応 | 非対応 |

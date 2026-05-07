@@ -106,7 +106,7 @@ Bernstein erkennt installierte CLI-Agenten automatisch. Mische sie im selben Lau
 
 #### Orchestrator-Delegation (Leaf-Node)
 
-Eine separate, kleinere Klasse von Adaptern, die **andere CLI-Orchestratoren** so verpacken, als wären sie einzelne Agenten. Bernstein übergibt dem gewrappten Tool einen Prompt oder Plan und sieht nur den finalen Exit-Code — Sub-Agent-Kosten und Quality Gates innerhalb des gewrappten Orchestrators bleiben für Bernstein unsichtbar. Nützlich, wenn du einen bestehenden, auf einem dieser Tools basierenden Workflow als einzelnen Schritt in einen größeren Bernstein-Plan einbinden willst.
+Eine separate, kleinere Klasse von Adaptern, die **andere CLI-Orchestratoren** so verpacken, als wären sie einzelne Agenten. Bernstein übergibt dem gewrappten Tool einen Prompt oder Plan und sieht nur den finalen Exit-Code; Sub-Agent-Kosten und Quality Gates innerhalb des gewrappten Orchestrators bleiben für Bernstein unsichtbar. Nützlich, wenn du einen bestehenden, auf einem dieser Tools basierenden Workflow als einzelnen Schritt in einen größeren Bernstein-Plan einbinden willst.
 
 | Orchestrator | Verpackt als | Installation |
 |--------------|--------------|--------------|

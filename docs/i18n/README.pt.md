@@ -106,7 +106,7 @@ O Bernstein descobre automaticamente os agentes CLI instalados. Combine-os na me
 
 #### Delegação de orquestrador (nó-folha)
 
-Uma classe separada e menor de adaptadores que envolvem **outros orquestradores de CLI** como se fossem agentes individuais. O Bernstein entrega à ferramenta encapsulada um prompt ou plano e enxerga apenas o código de saída final — custos de subagentes e os portões de qualidade dentro do orquestrador encapsulado não são visíveis para o Bernstein. Útil quando você quer encaixar um fluxo de trabalho existente, construído sobre uma dessas ferramentas, em uma etapa de um plano maior do Bernstein.
+Uma classe separada e menor de adaptadores que envolvem **outros orquestradores de CLI** como se fossem agentes individuais. O Bernstein entrega à ferramenta encapsulada um prompt ou plano e enxerga apenas o código de saída final; custos de subagentes e os portões de qualidade dentro do orquestrador encapsulado não são visíveis para o Bernstein. Útil quando você quer encaixar um fluxo de trabalho existente, construído sobre uma dessas ferramentas, em uma etapa de um plano maior do Bernstein.
 
 | Orquestrador | Encapsulado como | Instalação |
 |--------------|------------|---------|

@@ -120,7 +120,7 @@ Bernstein auto-discovers installed CLI agents. Mix them in the same run. Cheap l
 
 #### Orchestrator delegation (leaf-node)
 
-A separate, smaller class of adapters that wrap **other CLI orchestrators** as if they were single agents. Bernstein hands the wrapped tool a prompt or plan and only sees the final exit code — sub-agent costs and quality gates inside the wrapped orchestrator are not visible to Bernstein. Useful when you want to drop an existing workflow built on one of these tools into a step of a larger Bernstein plan.
+A separate, smaller class of adapters that wrap **other CLI orchestrators** as if they were single agents. Bernstein hands the wrapped tool a prompt or plan and only sees the final exit code; sub-agent costs and quality gates inside the wrapped orchestrator are not visible to Bernstein. Useful when you want to drop an existing workflow built on one of these tools into a step of a larger Bernstein plan.
 
 | Orchestrator | Wrapped as | Install |
 |--------------|------------|---------|
@@ -299,7 +299,7 @@ Bernstein's wedge in this category: **Python-native, MCP-server-first, widest ad
 
 ## What people use it for
 
-These are real workflow patterns from Bernstein's own docs, examples, and project surface — not invented customer quotes.
+These are real workflow patterns from Bernstein's own docs, examples, and project surface, not invented customer quotes.
 
 - **Parallel test generation** — fan out across untested modules with `BERNSTEIN_MAX_AGENTS=5 bernstein -g "Generate unit tests for untested modules in src/"`.
 - **CI failure repair** — watch open PRs and dispatch scoped fixers with `bernstein autofix start --repo your-org/your-repo --foreground`.

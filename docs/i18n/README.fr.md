@@ -106,7 +106,7 @@ Bernstein détecte automatiquement les agents CLI installés. Mélangez-les dans
 
 #### Délégation à un orchestrateur (nœud feuille)
 
-Une catégorie distincte et plus restreinte d'adaptateurs qui encapsulent **d'autres orchestrateurs CLI** comme s'ils étaient des agents uniques. Bernstein transmet à l'outil encapsulé un prompt ou un plan, puis ne voit que le code de sortie final — les coûts des sous-agents et les contrôles qualité internes à l'orchestrateur encapsulé ne sont pas visibles pour Bernstein. Utile lorsque vous voulez intégrer un workflow existant bâti sur l'un de ces outils dans une étape d'un plan Bernstein plus large.
+Une catégorie distincte et plus restreinte d'adaptateurs qui encapsulent **d'autres orchestrateurs CLI** comme s'ils étaient des agents uniques. Bernstein transmet à l'outil encapsulé un prompt ou un plan, puis ne voit que le code de sortie final ; les coûts des sous-agents et les contrôles qualité internes à l'orchestrateur encapsulé ne sont pas visibles pour Bernstein. Utile lorsque vous voulez intégrer un workflow existant bâti sur l'un de ces outils dans une étape d'un plan Bernstein plus large.
 
 | Orchestrateur | Encapsulé sous | Installation |
 |---------------|----------------|--------------|

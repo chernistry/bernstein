@@ -106,7 +106,7 @@ Bernstein secara otomatis mendeteksi CLI agent yang terpasang. Campurkan mereka 
 
 #### Delegasi orkestrator (leaf-node)
 
-Kelas adapter terpisah yang lebih kecil yang membungkus **orkestrator CLI lain** seakan-akan mereka adalah satu agen tunggal. Bernstein menyerahkan prompt atau rencana ke alat yang dibungkus dan hanya melihat exit code akhir — biaya sub-agen dan quality gates di dalam orkestrator yang dibungkus tidak terlihat oleh Bernstein. Berguna ketika Anda ingin memasukkan workflow yang sudah ada yang dibangun di atas salah satu alat ini ke dalam langkah dari rencana Bernstein yang lebih besar.
+Kelas adapter terpisah yang lebih kecil yang membungkus **orkestrator CLI lain** seakan-akan mereka adalah satu agen tunggal. Bernstein menyerahkan prompt atau rencana ke alat yang dibungkus dan hanya melihat exit code akhir; biaya sub-agen dan quality gates di dalam orkestrator yang dibungkus tidak terlihat oleh Bernstein. Berguna ketika Anda ingin memasukkan workflow yang sudah ada yang dibangun di atas salah satu alat ini ke dalam langkah dari rencana Bernstein yang lebih besar.
 
 | Orchestrator | Wrapped as | Install |
 |--------------|------------|---------|

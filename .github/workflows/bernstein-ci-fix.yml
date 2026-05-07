@@ -69,6 +69,8 @@ jobs:
       branch: ${{ steps.meta.outputs.branch }}
       auto_heal_branch: ${{ steps.meta.outputs.auto_heal_branch }}
       existing_pr: ${{ steps.idempotency.outputs.existing_pr }}
+      safe_for_gemini: ${{ steps.scope.outputs.safe_for_gemini }}
+      failed_jobs: ${{ steps.scope.outputs.failed_jobs }}
     steps:
       - name: Extract failure metadata
         id: meta
@@ -107,10 +109,66 @@ jobs:
             echo "existing_pr=" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Classify failure scope (Gemini-safe allowlist)
+        id: scope
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.meta.outputs.run_id }}
+        run: |
+          # Gemini Flash is too narrow for complex fixes (test logic, type
+          # errors, security findings, deps). Only let it touch failures
+          # where the fix shape is ~1-line deterministic and the cost of a
+          # wrong fix is low. Anything else falls back to a ci-fix issue
+          # for human triage.
+          #
+          # Allowlist (exact job names from CI workflow):
+          #   - Lint                           (ruff format/check, import-linter)
+          #   - Spelling (typos)               (typos crate, autocorrects)
+          #   - Workflow lint                  (actionlint via reviewdog)
+          #   - Repo hygiene                   (.sdd not tracked, no merge markers, etc.)
+          #   - Dead code (Vulture)            (unused vars/imports)
+          ALLOWED='^(Lint|Spelling \(typos\)|Workflow lint|Repo hygiene|Dead code \(Vulture\))$'
+
+          FAILED=$(gh run view "$RUN_ID" \
+            --repo "${{ github.repository }}" \
+            --json jobs \
+            --jq '.jobs[] | select(.conclusion == "failure") | .name' 2>/dev/null || echo "")
+
+          if [ -z "$FAILED" ]; then
+            echo "safe_for_gemini=false" >> "$GITHUB_OUTPUT"
+            echo "failed_jobs=" >> "$GITHUB_OUTPUT"
+            echo "::notice::No failed jobs detected via gh run view — falling back to issue."
+            exit 0
+          fi
+
+          # Multi-line output via heredoc — preserve newlines for downstream readers.
+          {
+            echo "failed_jobs<<EOF"
+            echo "$FAILED"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          UNSAFE=0
+          while IFS= read -r job; do
+            [ -z "$job" ] && continue
+            if echo "$job" | grep -qE "$ALLOWED"; then
+              echo "::notice::'$job' — allowlisted for Gemini auto-heal."
+            else
+              echo "::notice::'$job' — not in allowlist, escalating to human triage."
+              UNSAFE=1
+            fi
+          done <<< "$FAILED"
+
+          if [ "$UNSAFE" = "1" ]; then
+            echo "safe_for_gemini=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "safe_for_gemini=true" >> "$GITHUB_OUTPUT"
+          fi
+
   fix:
     name: Auto-heal with Bernstein
     needs: triage
-    if: needs.triage.outputs.existing_pr == ''
+    if: needs.triage.outputs.existing_pr == '' && needs.triage.outputs.safe_for_gemini == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -168,11 +226,11 @@ jobs:
         with:
           task: fix-ci
           budget: "5.00"
-          cli: claude
+          cli: gemini
           max-retries: "3"
           post-comment: "false"
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           # Opt out of the action's default commit-and-push: this workflow
           # stages the diff into a dedicated `auto-heal/<sha>` branch and
           # opens a PR (see "Push auto-heal branch and open PR" below).
@@ -249,7 +307,10 @@ jobs:
     if: |
       always() &&
       needs.triage.outputs.existing_pr == '' &&
-      (needs.fix.result == 'failure' || needs.fix.outputs.result == 'no_changes')
+      (needs.triage.outputs.safe_for_gemini != 'true' ||
+       needs.fix.result == 'failure' ||
+       needs.fix.result == 'skipped' ||
+       needs.fix.outputs.result == 'no_changes')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

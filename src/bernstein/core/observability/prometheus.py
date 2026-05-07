@@ -231,6 +231,24 @@ cost_usd_by_model_total: Counter = Counter(
     registry=registry,
 )
 
+# Task-budget countdown: how often agents land softly under the
+# ``graceful-finish-on-low`` mode and how much headroom they leave behind.
+# See ``bernstein.core.cost.budget_countdown``.
+task_budget_graceful_finish_total: Counter = Counter(
+    "bernstein_task_budget_graceful_finish_total",
+    "Agents that ended via graceful-finish-on-low instead of hard-stop.",
+    labelnames=["role"],
+    registry=registry,
+)
+
+task_budget_remaining_at_finish_pct: Histogram = Histogram(
+    "bernstein_task_budget_remaining_at_finish_pct",
+    "Token-budget headroom (0-100) left when an agent finished gracefully.",
+    buckets=(0, 5, 10, 15, 20, 30, 40, 50, 75, 100),
+    labelnames=["role"],
+    registry=registry,
+)
+
 evolve_proposals_total: Counter = Counter(
     "bernstein_evolve_proposals_total",
     "Evolution proposals by verdict (accepted/rejected/pending).",

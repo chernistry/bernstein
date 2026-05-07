@@ -11,10 +11,41 @@ import hashlib
 import json
 import time
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+#: Claude Opus 4.7 task-budgets beta header value. Sent on the
+#: ``anthropic-beta`` API header (and ``ANTHROPIC_BETA`` env var for
+#: CLI-mediated calls) when the agent identity card opts in via the
+#: ``task_budgets`` extension.
+TASK_BUDGETS_BETA_HEADER: str = "task-budgets-2026-03-13"
+
+#: Default per-turn token budget visible to the agent in the countdown
+#: banner. 64k mirrors Anthropic's published per-task context surface for
+#: Opus 4.7 — callers may override on a per-card basis.
+DEFAULT_MAX_TOKENS: int = 64_000
+
+#: Default per-turn step budget. ~30 turns matches the typical role budget
+#: that ``ClaudeCodeAdapter._SCOPE_MULTIPLIERS`` resolves to for medium
+#: tasks; chosen so the countdown banner has meaningful information from
+#: the first turn.
+DEFAULT_MAX_STEPS: int = 30
+
+#: Valid budget modes.
+#:
+#: ``graceful-finish-on-low``
+#:     The orchestrator lets the agent finish the in-flight tool call and
+#:     emit a summary turn when the budget falls under the configured
+#:     threshold. This is the default and matches Anthropic's recommended
+#:     ``task-budgets-2026-03-13`` semantics.
+#:
+#: ``hard-stop-on-zero``
+#:     The orchestrator fires the existing ``budget_actions.suggest_downgrade``
+#:     path immediately at zero. Mirrors Cursor Glass's $5 arbitration
+#:     pause.
+BudgetMode = Literal["graceful-finish-on-low", "hard-stop-on-zero"]
 
 DEFAULT_CAPABILITIES: dict[str, list[str]] = {
     "backend": ["read_files", "write_files", "run_tests", "network_access"],
@@ -43,6 +74,20 @@ class AgentIdentityCard:
     denied_capabilities: list[str] = field(default_factory=list)
     scope: list[str] = field(default_factory=list)
     max_budget_usd: float = 10.0
+    #: Per-turn token cap surfaced to the agent in the countdown banner.
+    max_tokens: int = DEFAULT_MAX_TOKENS
+    #: Per-turn step cap surfaced to the agent in the countdown banner.
+    max_steps: int = DEFAULT_MAX_STEPS
+    #: Budget enforcement style (see :data:`BudgetMode`). Defaults to
+    #: ``graceful-finish-on-low`` for new identity cards.
+    budget_mode: BudgetMode = "graceful-finish-on-low"
+    #: Free-form extension flags negotiated at spawn time. Adapters opt in
+    #: to provider-specific behaviour by setting truthy values here.
+    #: Recognised keys today:
+    #:
+    #: - ``task_budgets`` (``bool``): when truthy on Anthropic adapters,
+    #:   the ``anthropic-beta: task-budgets-2026-03-13`` header is emitted.
+    extensions: dict[str, str | bool | int | float] = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
     expires_at: float = 0.0
 

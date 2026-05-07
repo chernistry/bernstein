@@ -45,9 +45,15 @@ from bernstein.adapters.claude_mcp_loader import (
 )
 from bernstein.adapters.claude_wrapper_script import build_wrapper_script
 from bernstein.adapters.env_isolation import build_filtered_env
+from bernstein.core.cost.budget_countdown import (
+    is_task_budgets_opt_in as _task_budgets_opt_in,
+)
 from bernstein.core.defaults import COST
 from bernstein.core.models import ApiTier, ApiTierInfo, ModelConfig, ProviderType, RateLimit
 from bernstein.core.platform_compat import kill_process_group_graceful, process_alive
+from bernstein.core.security.agent_identity import (
+    TASK_BUDGETS_BETA_HEADER as _TASK_BUDGETS_BETA_VALUE,
+)
 
 # Map short model names to Claude Code CLI model IDs.
 # Last verified against upstream @anthropic-ai/claude-code 2.1.x on 2026-05-05.
@@ -553,7 +559,23 @@ class ClaudeCodeAdapter(CLIAdapter):
             heartbeat_path=str(heartbeat_path),
             completion_path=str(completion_path),
         )
-        env = build_filtered_env(["ANTHROPIC_API_KEY"])
+        # Allow operator-set ANTHROPIC_BETA through so we can extend it
+        # rather than overwrite. Filter is empty-safe when the env var
+        # is unset.
+        env = build_filtered_env(["ANTHROPIC_API_KEY", "ANTHROPIC_BETA"])
+        # Anthropic Opus 4.7 ``task-budgets-2026-03-13`` beta header. Set
+        # via ``ANTHROPIC_BETA`` so the Claude Code CLI forwards it to
+        # every API call. Gated behind ``BERNSTEIN_ANTHROPIC_TASK_BUDGETS``
+        # (see :data:`bernstein.core.cost.budget_countdown.TASK_BUDGETS_OPT_IN_ENV`)
+        # until GA per the upstream beta-flag convention.
+        if _task_budgets_opt_in():
+            existing_beta = env.get("ANTHROPIC_BETA", "").strip()
+            if _TASK_BUDGETS_BETA_VALUE in existing_beta:
+                pass  # already present (operator set it explicitly)
+            elif existing_beta:
+                env["ANTHROPIC_BETA"] = f"{existing_beta},{_TASK_BUDGETS_BETA_VALUE}"
+            else:
+                env["ANTHROPIC_BETA"] = _TASK_BUDGETS_BETA_VALUE
         claude_proc, wrapper_proc = self._launch_process(wrapped_cmd, wrapper, workdir, log_path, env=env)
 
         # Track the worker process (wraps claude) for is_alive/kill

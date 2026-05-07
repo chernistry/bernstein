@@ -63,6 +63,7 @@ def _task_budgets_opt_in() -> bool:
     raw = os.environ.get(_TASK_BUDGETS_OPT_IN_ENV, "")
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
+
 # Map short model names to Claude Code CLI model IDs.
 # Last verified against upstream @anthropic-ai/claude-code 2.1.x on 2026-05-05.
 # Opus 4.7 is GA at the same price as 4.6 (Anthropic news, 2026-04-16); Sonnet

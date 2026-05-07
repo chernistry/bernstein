@@ -4,9 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from bernstein.plugins import hookspec
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from bernstein.core.knowledge.agents_md_generator import AgentsMdSection
 
 
 class ElicitationResult(Enum):
@@ -488,6 +493,30 @@ class BernsteinSpec:
             session_id: Agent session identifier.
             role: Agent role.
             source_paths: List of instruction file paths loaded.
+        """
+
+    @hookspec
+    def provide_agents_md_section(self, repo_path: Path) -> AgentsMdSection | list[AgentsMdSection] | None:
+        """Provide one or more sections that should be merged into AGENTS.md.
+
+        Called by ``bernstein agents-md generate / sync / verify``. Plugins
+        return either a single :class:`bernstein.core.knowledge.agents_md_generator.AgentsMdSection`
+        or a list of them; the generator appends contributions in plugin
+        load order *after* the canonical built-in sections.
+
+        Sections returned here participate in the cross-CLI rewrite the
+        same way as built-in sections — Cursor / Claude Code / Aider /
+        Goose all see the plugin's contribution. Use this hook to inject
+        plugin-specific build commands, environment requirements, or
+        operator notes that the user should not have to copy-paste into
+        five files.
+
+        Args:
+            repo_path: Repository root the generator is running against.
+
+        Returns:
+            One :class:`AgentsMdSection`, a list of them, or ``None`` to
+            skip. Returning an empty list is equivalent to ``None``.
         """
 
     @hookspec

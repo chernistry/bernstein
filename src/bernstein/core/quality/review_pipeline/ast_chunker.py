@@ -26,11 +26,24 @@ logger = logging.getLogger(__name__)
 
 _CHARS_PER_TOKEN: int = 4
 _DEFAULT_LINES_PER_FALLBACK_CHUNK: int = 200
+_MIN_BUDGET_TOKENS: int = 64
+# UTF-8 BOM (U+FEFF). Files saved by some editors include this leading
+# byte; ``ast.parse`` rejects it as a non-printable character even though
+# the rest of the source is valid Python. Strip it before parsing rather
+# than degrading to line-based chunking.
+_UTF8_BOM: str = "﻿"
 
 
 def _estimate_tokens(text: str) -> int:
     """Rough char-based token estimate; matches the prompt-cache optimizer."""
     return max(1, len(text) // _CHARS_PER_TOKEN)
+
+
+def _normalize_budget(budget_tokens: int) -> int:
+    """Clamp callers passing 0 or negative budgets to a sane floor."""
+    if budget_tokens < _MIN_BUDGET_TOKENS:
+        return _MIN_BUDGET_TOKENS
+    return budget_tokens
 
 
 @dataclass(frozen=True)
@@ -210,7 +223,9 @@ def chunk_for_review(path: str | Path, budget_tokens: int = 4000) -> list[Review
         path: File to chunk. Relative paths are accepted; the same string
             is preserved on the returned :class:`ReviewChunk`.
         budget_tokens: Soft per-chunk token budget. Single AST units larger
-            than the budget are still emitted whole.
+            than the budget are still emitted whole. Values below
+            :data:`_MIN_BUDGET_TOKENS` are clamped up so the line-based
+            fallback never produces zero-line windows.
 
     Returns:
         A list of :class:`ReviewChunk` in source order. Empty when the file
@@ -218,6 +233,7 @@ def chunk_for_review(path: str | Path, budget_tokens: int = 4000) -> list[Review
     """
     p = Path(path)
     path_str = str(path)
+    budget = _normalize_budget(budget_tokens)
     try:
         source = p.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
@@ -228,7 +244,11 @@ def chunk_for_review(path: str | Path, budget_tokens: int = 4000) -> list[Review
 
     if p.suffix != ".py":
         logger.info("ast_chunker: %s is not Python — using line-based fallback", path_str)
-        return _line_based_chunks(path_str, source, budget_tokens)
+        return _line_based_chunks(path_str, source, budget)
+
+    # Strip a leading UTF-8 BOM so editor-saved files still take the AST path.
+    if source.startswith(_UTF8_BOM):
+        source = source[len(_UTF8_BOM) :]
 
     try:
         tree = ast.parse(source, filename=path_str)
@@ -238,7 +258,7 @@ def chunk_for_review(path: str | Path, budget_tokens: int = 4000) -> list[Review
             path_str,
             exc,
         )
-        return _line_based_chunks(path_str, source, budget_tokens)
+        return _line_based_chunks(path_str, source, budget)
 
     units = _build_units(source, tree)
-    return _pack_units(units, path_str, budget_tokens)
+    return _pack_units(units, path_str, budget)

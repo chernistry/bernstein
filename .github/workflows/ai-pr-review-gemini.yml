@@ -57,17 +57,40 @@ jobs:
             "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048}
           }')
 
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
-            -H "Content-Type: application/json" \
-            -d "$PAYLOAD" 2>/dev/null)
+          # Gemini's free tier returns transient 5xx and 429s under load. Retry
+          # with exponential backoff on those; fail fast on auth/permission 4xx
+          # so we don't burn minutes on a misconfigured key.
+          HTTP_CODE=000
+          BODY_RAW=""
+          for attempt in 1 2 3 4 5; do
+            RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 60 \
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "$PAYLOAD" 2>/dev/null) || RESPONSE=$'\n000'
 
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY_RAW=$(echo "$RESPONSE" | sed '$d')
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+            BODY_RAW=$(echo "$RESPONSE" | sed '$d')
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              break
+            fi
+
+            case "$HTTP_CODE" in
+              429|500|502|503|504|000)
+                BACKOFF=$((2 ** attempt))
+                echo "Gemini API HTTP $HTTP_CODE on attempt $attempt — retrying in ${BACKOFF}s"
+                sleep "$BACKOFF"
+                ;;
+              *)
+                echo "Gemini API HTTP $HTTP_CODE — non-retryable, giving up"
+                break
+                ;;
+            esac
+          done
 
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "Gemini API returned HTTP $HTTP_CODE"
-            BODY="Gemini review could not be generated (HTTP $HTTP_CODE)."
+            echo "Gemini API returned HTTP $HTTP_CODE after retries"
+            BODY="Gemini review could not be generated (HTTP $HTTP_CODE after 5 attempts)."
           else
             BODY=$(echo "$BODY_RAW" | jq -r '.candidates[0].content.parts[0].text // "Review unavailable."')
           fi

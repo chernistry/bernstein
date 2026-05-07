@@ -78,6 +78,7 @@ Other install options: `pipx install bernstein`, `pip install bernstein`, `uv to
 - Forward-deployed engineering — drop the swarm onto a client repo when you arrive, take it with you when you leave.
 - Self-evolving projects — point Bernstein at its own repo and let it execute the backlog (this codebase is one).
 - CI fleets — run a swarm of agents in parallel on PRs, with per-agent credential scoping and signed audit trail.
+- Air-gapped / regulated deployment — install from a signed wheelhouse, run with `--profile airgap` to deny outbound by default, allow-list specific destinations as needed. See [Air-gap installation](docs/installation/air-gap.md).
 
 ## Supported agents
 

@@ -61,6 +61,10 @@ def _build_ca(now: datetime.datetime, cn: str = "phase1-ca") -> tuple[x509.Certi
         .not_valid_before(now - datetime.timedelta(minutes=5))
         .not_valid_after(now + datetime.timedelta(days=1))
         .add_extension(x509.BasicConstraints(ca=True, path_length=1), critical=True)
+        .add_extension(
+            x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
+            critical=False,
+        )
         .sign(key, hashes.SHA256())
     )
     return cert, key
@@ -90,6 +94,18 @@ def _build_leaf(
         .add_extension(x509.ExtendedKeyUsage([eku_oid]), critical=False)
         .add_extension(
             x509.SubjectAlternativeName([x509.DNSName(d) for d in san_dns]),
+            critical=False,
+        )
+        # OpenSSL >= 3.2 (Python 3.13 macOS / Linux) verifies that leaf certs
+        # carry an Authority Key Identifier matching the issuing CA's
+        # Subject Key Identifier. Without these the handshake fails with
+        # "Missing Authority Key Identifier".
+        .add_extension(
+            x509.SubjectKeyIdentifier.from_public_key(leaf_key.public_key()),
+            critical=False,
+        )
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()),
             critical=False,
         )
         .sign(ca_key, hashes.SHA256())

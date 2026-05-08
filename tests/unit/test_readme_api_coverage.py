@@ -174,6 +174,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "migrate",
         "routine",
         "wheelhouse",
+        # AAIF AGENTS.md generator (closes #1087)
+        "agents-md",
     }
 )
 

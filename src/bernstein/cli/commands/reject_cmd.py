@@ -61,9 +61,7 @@ def reject(task_id: str, workdir: str, prompt: bool) -> None:
         return
 
     if decision_file.exists():
-        console.print(
-            f"[dim]Already rejected:[/dim] task [bold]{task_id}[/bold] (no-op)"
-        )
+        console.print(f"[dim]Already rejected:[/dim] task [bold]{task_id}[/bold] (no-op)")
         return
 
     if prompt and not _foreground_confirm(f"Reject task {task_id}?"):
@@ -72,9 +70,7 @@ def reject(task_id: str, workdir: str, prompt: bool) -> None:
 
     created = _atomic_write_text(decision_file, "rejected")
     if created:
-        console.print(
-            f"[red]Rejected:[/red] task [bold]{task_id}[/bold] — work will be discarded."
-        )
+        console.print(f"[red]Rejected:[/red] task [bold]{task_id}[/bold] — work will be discarded.")
     else:
         console.print(f"[dim]Already rejected:[/dim] task [bold]{task_id}[/bold] (no-op)")
 

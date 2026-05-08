@@ -1494,9 +1494,7 @@ def claim_and_spawn_batches(
         # or the spec timeout fires. On rejection / reject-style timeout
         # we mark every task in the batch failed and skip the spawn so
         # the agent body never runs without explicit consent.
-        if any(t.approval_spec is not None for t in batch) and _await_pre_spawn_approvals(
-            orch, batch, base, result
-        ):
+        if any(t.approval_spec is not None for t in batch) and _await_pre_spawn_approvals(orch, batch, base, result):
             continue
 
         # WAL: record pre-execution intent BEFORE the HTTP POST /claim so a

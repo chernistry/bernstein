@@ -279,9 +279,7 @@ class ApprovalSpec:
         if not self.prompt or not self.prompt.strip():
             raise ValueError("ApprovalSpec.prompt must be a non-empty string")
         if self.timeout_seconds <= 0:
-            raise ValueError(
-                f"ApprovalSpec.timeout_seconds must be > 0, got {self.timeout_seconds!r}"
-            )
+            raise ValueError(f"ApprovalSpec.timeout_seconds must be > 0, got {self.timeout_seconds!r}")
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serialisable representation of the spec."""
@@ -308,9 +306,7 @@ class ApprovalSpec:
         """
         action = str(data.get("default_action", "reject"))
         if action not in ("reject", "approve", "fail"):
-            raise ValueError(
-                f"ApprovalSpec.default_action must be reject|approve|fail, got {action!r}"
-            )
+            raise ValueError(f"ApprovalSpec.default_action must be reject|approve|fail, got {action!r}")
         return cls(
             prompt=str(data["prompt"]),
             timeout_seconds=int(data.get("timeout_seconds", 86_400)),
@@ -456,9 +452,7 @@ class Task:
             eu_ai_act_risk=raw.get("eu_ai_act_risk", "minimal"),
             approval_required=bool(raw.get("approval_required", False)),
             approval_spec=(
-                ApprovalSpec.from_dict(raw["approval_spec"])
-                if isinstance(raw.get("approval_spec"), dict)
-                else None
+                ApprovalSpec.from_dict(raw["approval_spec"]) if isinstance(raw.get("approval_spec"), dict) else None
             ),
             risk_level=raw.get("risk_level", "low"),
             max_output_tokens=raw.get("max_output_tokens"),

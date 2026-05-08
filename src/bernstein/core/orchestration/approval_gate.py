@@ -209,9 +209,7 @@ def _resolve_default_action(action: Literal["reject", "approve", "fail"]) -> App
     return "rejected"
 
 
-def _classify_decision_files(
-    approved: Path, rejected: Path
-) -> tuple[ApprovalOutcome, DecisionSource] | None:
+def _classify_decision_files(approved: Path, rejected: Path) -> tuple[ApprovalOutcome, DecisionSource] | None:
     """Return the resolved outcome if a decision file exists, else ``None``.
 
     Both files are checked because a misbehaving operator could land

@@ -218,6 +218,15 @@ def verify_agent_card(
     if header.get("alg") != "EdDSA":
         return False
 
+    # Lock the JWS down to this issuer's intended ``typ``. Without this
+    # check, a signature minted for an entirely different JWS context with
+    # the same issuer key (a fictitious ``foo+jws`` typ used elsewhere in
+    # the system) would verify as a valid agent-card signature here. The
+    # ``typ`` header is set by ``sign_agent_card`` so legitimate signatures
+    # always carry it; rejection on mismatch is conservative and cheap.
+    if header.get("typ") != "agent-card+jws":
+        return False
+
     public_key = serialization.load_pem_public_key(public_key_pem)
 
     body_b64 = _b64url(canonicalize_jcs(_card_to_dict(card)))

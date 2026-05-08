@@ -29,9 +29,10 @@ from __future__ import annotations
 import base64
 import json
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from .agent_identity import AgentIdentityCard
+if TYPE_CHECKING:
+    from .agent_identity import AgentIdentityCard
 
 __all__ = [
     "AgentCardSignature",

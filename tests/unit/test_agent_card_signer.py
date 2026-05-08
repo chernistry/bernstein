@@ -18,7 +18,6 @@ from bernstein.core.security.agent_identity import (
     issue_identity_card,
 )
 
-
 # ---------------------------------------------------------------------------
 # JCS canonicalization
 # ---------------------------------------------------------------------------
@@ -43,7 +42,7 @@ class TestCanonicalizeJCS:
     def test_unicode_emitted_as_utf8(self) -> None:
         # ensure_ascii=False so we sign actual UTF-8 bytes, matching RFC 8785.
         out = canonicalize_jcs({"k": "værsågod"})
-        assert "værsågod".encode("utf-8") in out
+        assert "værsågod".encode() in out
 
     def test_nan_and_infinity_rejected(self) -> None:
         with pytest.raises(ValueError):
@@ -165,7 +164,7 @@ class TestSignVerify:
         priv, pub = generate_ed25519_keypair()
         card = _sample_card()
         sig = sign_agent_card(card, priv)
-        header_b64, _empty, sig_b64 = sig.detached_jws.split(".")
+        _header_b64, _empty, sig_b64 = sig.detached_jws.split(".")
 
         from base64 import urlsafe_b64encode
 

@@ -246,96 +246,14 @@ def review_cmd(
     )
 
 
-@click.command("approve")
-@click.argument("task_id")
-@click.option("--workdir", default=".", help="Project root directory.", type=click.Path())
-def approve(task_id: str, workdir: str) -> None:
-    """Approve a pending task review so Bernstein merges the work.
-
-    When running with ``--approval review``, Bernstein pauses after each
-    verified task and writes a pending approval file.  Run this command
-    to signal approval so the orchestrator continues with the merge.
-
-    \b
-    Example:
-      bernstein approve T-abc123
-    """
-    approvals_dir = Path(workdir) / ".sdd" / "runtime" / "approvals"
-    approvals_dir.mkdir(parents=True, exist_ok=True)
-    decision_file = approvals_dir / f"{task_id}.approved"
-    decision_file.write_text("approved")
-    console.print(f"[green]Approved:[/green] task [bold]{task_id}[/bold] — Bernstein will merge the work.")
-
-
-@click.command("reject")
-@click.argument("task_id")
-@click.option("--workdir", default=".", help="Project root directory.", type=click.Path())
-def reject(task_id: str, workdir: str) -> None:
-    """Reject a pending task review so Bernstein discards the work.
-
-    When running with ``--approval review``, Bernstein pauses after each
-    verified task and writes a pending approval file.  Run this command
-    to reject the work -- the worktree will be cleaned up without merging.
-
-    \b
-    Example:
-      bernstein reject T-abc123
-    """
-    approvals_dir = Path(workdir) / ".sdd" / "runtime" / "approvals"
-    approvals_dir.mkdir(parents=True, exist_ok=True)
-    decision_file = approvals_dir / f"{task_id}.rejected"
-    decision_file.write_text("rejected")
-    console.print(f"[red]Rejected:[/red] task [bold]{task_id}[/bold] — work will be discarded.")
-
-
-@click.command("pending")
-@click.option("--workdir", default=".", help="Project root directory.", type=click.Path())
-@click.pass_context
-def pending(ctx: click.Context, workdir: str) -> None:
-    """List tasks waiting for approval review.
-
-    Shows all tasks that have been verified and are waiting for a human
-    decision (``bernstein approve <id>`` or ``bernstein reject <id>``).
-    """
-    from rich.table import Table
-
-    pending_dir = Path(workdir) / ".sdd" / "runtime" / "pending_approvals"
-    if not pending_dir.exists() or not any(pending_dir.glob("*.json")):
-        if is_json():
-            print_json([])
-        else:
-            console.print("[dim]No tasks pending approval.[/dim]")
-        return
-
-    results: list[dict[str, Any]] = []
-    for f in sorted(pending_dir.glob("*.json")):
-        try:
-            import json as _json
-
-            data = _json.loads(f.read_text())
-            results.append(data)
-        except Exception:
-            results.append({"task_id": f.stem, "error": "unreadable"})
-
-    if is_json():
-        print_json(results)
-        return
-
-    table = Table(show_header=True, header_style="bold magenta")
-    table.add_column("Task ID", style="cyan")
-    table.add_column("Title")
-    table.add_column("Tests")
-
-    for res in results:
-        table.add_row(
-            res.get("task_id", "?"),
-            res.get("task_title", ""),
-            res.get("test_summary", ""),
-        )
-
-    console.print(table)
-    console.print("\n[dim]Approve with:[/dim] bernstein approve <task_id>")
-    console.print("[dim]Reject with:[/dim]  bernstein reject <task_id>")
+# NOTE: ``bernstein approve``, ``bernstein reject`` and ``bernstein pending``
+# moved to dedicated modules (``approve_cmd.py``, ``reject_cmd.py``,
+# ``pending_cmd.py``) as part of #1110. They are re-exported below so any
+# legacy ``from bernstein.cli.commands.task_cmd import approve`` import keeps
+# working without forcing every caller to update.
+from bernstein.cli.commands.approve_cmd import approve as approve  # noqa: E402
+from bernstein.cli.commands.pending_cmd import pending as pending  # noqa: E402
+from bernstein.cli.commands.reject_cmd import reject as reject  # noqa: E402
 
 
 def _build_graph_maps(

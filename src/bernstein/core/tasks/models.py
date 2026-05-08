@@ -238,6 +238,86 @@ class CompletionSignal:
     value: str  # path, glob pattern, test command, search string, or review instruction
 
 
+@dataclass(frozen=True)
+class ApprovalSpec:
+    """Explicit human-in-the-loop approval gate spec attached to a task.
+
+    Inspired by Archon's ``loop: interactive: true`` UX. When a task carries
+    an :class:`ApprovalSpec`, the orchestrator pauses *before* spawning the
+    agent body, emits an ``approval_pending`` event into the HMAC-chained
+    audit log, writes a ``.pending`` sentinel under
+    ``.sdd/runtime/approvals/`` and blocks until either an operator decision
+    file is written (``bernstein approve <task_id>`` /
+    ``bernstein reject <task_id>``) or the TTL expires.
+
+    Validation:
+        ``timeout_seconds`` MUST be strictly positive and ``prompt`` MUST be
+        non-empty after stripping whitespace; otherwise ``__post_init__``
+        raises :class:`ValueError`. The dataclass is frozen so the
+        validation runs exactly once at construction time.
+
+    Attributes:
+        prompt: Human-readable question presented to the operator. Must be
+            non-empty (whitespace-only counts as empty).
+        timeout_seconds: Maximum seconds to wait for an operator decision
+            before the gate falls back to ``default_action``. Must be > 0.
+            Default is 24 hours so background runs do not stall forever.
+        default_action: Outcome applied when the timeout fires. ``"reject"``
+            (the safe default) marks the task failed and skips the agent
+            spawn; ``"approve"`` continues with the body; ``"fail"`` is
+            equivalent to ``"reject"`` but is preserved as a distinct value
+            so future audit consumers can distinguish "human said no" from
+            "no human responded".
+    """
+
+    prompt: str
+    timeout_seconds: int = 86_400
+    default_action: Literal["reject", "approve", "fail"] = "reject"
+
+    def __post_init__(self) -> None:
+        """Enforce non-empty prompt and positive timeout at construction."""
+        if not self.prompt or not self.prompt.strip():
+            raise ValueError("ApprovalSpec.prompt must be a non-empty string")
+        if self.timeout_seconds <= 0:
+            raise ValueError(
+                f"ApprovalSpec.timeout_seconds must be > 0, got {self.timeout_seconds!r}"
+            )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serialisable representation of the spec."""
+        return {
+            "prompt": self.prompt,
+            "timeout_seconds": self.timeout_seconds,
+            "default_action": self.default_action,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ApprovalSpec:
+        """Build an :class:`ApprovalSpec` from a JSON-decoded mapping.
+
+        Args:
+            data: Mapping with at least ``prompt``; ``timeout_seconds`` and
+                ``default_action`` fall back to dataclass defaults.
+
+        Returns:
+            A validated :class:`ApprovalSpec`.
+
+        Raises:
+            ValueError: When the resulting spec violates the field
+                invariants enforced by :meth:`__post_init__`.
+        """
+        action = str(data.get("default_action", "reject"))
+        if action not in ("reject", "approve", "fail"):
+            raise ValueError(
+                f"ApprovalSpec.default_action must be reject|approve|fail, got {action!r}"
+            )
+        return cls(
+            prompt=str(data["prompt"]),
+            timeout_seconds=int(data.get("timeout_seconds", 86_400)),
+            default_action=action,  # type: ignore[arg-type]
+        )
+
+
 @dataclass
 class Task:
     """A unit of work for an agent."""
@@ -273,6 +353,13 @@ class Task:
     batch_eligible: bool | None = None  # Non-urgent: None=auto-detect, True=explicit batch, False=explicit realtime
     eu_ai_act_risk: Literal["minimal", "limited", "high", "unacceptable"] = "minimal"
     approval_required: bool = False  # Pause after completion until explicitly approved
+    # Pre-spawn human-in-the-loop gate (#1110). When set, the orchestrator
+    # blocks before invoking the agent body until an operator runs
+    # ``bernstein approve <task_id>`` / ``reject``, or the TTL fires and the
+    # spec's ``default_action`` is applied. The boolean ``approval_required``
+    # above continues to govern the *post-completion* review gate so that
+    # legacy approve/reject/pending tests stay intact.
+    approval_spec: ApprovalSpec | None = None
     risk_level: Literal["low", "medium", "high", "critical"] = "low"  # Risk for approval workflow routing
     sensitivity: Literal["public", "internal", "confidential"] = "internal"  # Data classification level
     max_output_tokens: int | None = None  # Escalated limit for model output
@@ -368,6 +455,11 @@ class Task:
             batch_eligible=(lambda v: None if v is None else bool(v))(raw.get("batch_eligible")),
             eu_ai_act_risk=raw.get("eu_ai_act_risk", "minimal"),
             approval_required=bool(raw.get("approval_required", False)),
+            approval_spec=(
+                ApprovalSpec.from_dict(raw["approval_spec"])
+                if isinstance(raw.get("approval_spec"), dict)
+                else None
+            ),
             risk_level=raw.get("risk_level", "low"),
             max_output_tokens=raw.get("max_output_tokens"),
             meta_messages=list(raw.get("meta_messages", [])),

@@ -1038,6 +1038,76 @@ def auto_decompose_task(
 # ---------------------------------------------------------------------------
 
 
+def _await_pre_spawn_approvals(
+    orch: Any,
+    batch: list[Task],
+    server_url: str,
+    result: Any,
+) -> bool:
+    """Block until every task with an :class:`ApprovalSpec` is resolved.
+
+    Implements the human-in-the-loop pre-spawn gate (#1110): each task
+    that carries an ``approval_spec`` is run through
+    :func:`bernstein.core.orchestration.approval_gate.wait_for_approval`,
+    which writes a sentinel and emits HMAC-chained audit events. On
+    rejection or reject-style timeout the entire batch is failed on the
+    server and the spawn is skipped — partial spawns would defeat the
+    point of the gate (denied tasks ride along with approved siblings).
+
+    Args:
+        orch: Orchestrator instance (provides ``_workdir`` and
+            ``_client``).
+        batch: Tasks scheduled to share an agent. All must be cleared
+            before any can spawn.
+        server_url: Base URL of the task server (for ``fail_task``).
+        result: Tick result accumulator; rejected tasks are appended to
+            ``result.errors`` with a ``approval-gate:`` prefix.
+
+    Returns:
+        ``True`` when the caller must skip the spawn (rejection or
+        timeout-with-default-action=reject), ``False`` when the entire
+        batch was approved and the body may run.
+    """
+    from bernstein.core.orchestration.approval_gate import wait_for_approval
+
+    workdir = getattr(orch, "_workdir", None)
+    if workdir is None:
+        # Without a workdir we cannot persist the sentinel; treat as
+        # rejected so we never silently bypass the gate.
+        for task in batch:
+            with contextlib.suppress(Exception):
+                fail_task(orch._client, server_url, task.id, "approval-gate: no workdir")
+        return True
+
+    rejected_ids: list[str] = []
+    for task in batch:
+        spec = task.approval_spec
+        if spec is None:
+            continue
+        try:
+            outcome = wait_for_approval(task.id, spec, workdir=workdir)
+        except Exception as exc:
+            logger.exception("approval gate: wait_for_approval crashed for %s", task.id)
+            outcome = "rejected"
+            with contextlib.suppress(Exception):
+                fail_task(orch._client, server_url, task.id, f"approval-gate crash: {exc}")
+            result.errors.append(f"approval-gate:{task.id}: {exc}")
+            rejected_ids.append(task.id)
+            continue
+        if outcome == "approved":
+            logger.info("approval gate: task %s approved -- proceeding to spawn", task.id)
+            continue
+        # outcome is "rejected" or "timeout"; the gate has already
+        # written a decision file mirroring the resolution.
+        rejected_ids.append(task.id)
+        reason = f"approval-gate {outcome} (default_action={spec.default_action})"
+        with contextlib.suppress(Exception):
+            fail_task(orch._client, server_url, task.id, reason)
+        result.errors.append(f"approval-gate:{task.id}: {outcome}")
+        logger.warning("approval gate: task %s -> %s; skipping spawn", task.id, outcome)
+    return bool(rejected_ids)
+
+
 def _pre_spawn_checks_pass(orch: Any, alive_count: int) -> bool:
     """Run pre-spawn guard checks; return False if spawning should be skipped."""
     if getattr(orch, "is_shutting_down", lambda: False)():
@@ -1416,6 +1486,17 @@ def claim_and_spawn_batches(
                 decomposed_task_ids=orch._decomposed_task_ids,
                 workdir=orch._workdir,
             )
+            continue
+
+        # Pre-spawn human-in-the-loop approval gate (#1110). When any task
+        # in this batch carries an ``approval_spec``, block until the
+        # operator decides via ``bernstein approve <id>`` / ``reject``,
+        # or the spec timeout fires. On rejection / reject-style timeout
+        # we mark every task in the batch failed and skip the spawn so
+        # the agent body never runs without explicit consent.
+        if any(t.approval_spec is not None for t in batch) and _await_pre_spawn_approvals(
+            orch, batch, base, result
+        ):
             continue
 
         # WAL: record pre-execution intent BEFORE the HTTP POST /claim so a

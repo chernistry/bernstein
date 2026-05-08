@@ -347,19 +347,6 @@ Top-level entry points exposed by the package:
 
 Default branch: `main`.
 
-Hot files in the last 30 days (commit count):
-
-| Path                                               | Commits |
-|----------------------------------------------------|---------|
-| `pyproject.toml`                                   | 98 |
-| `README.md`                                        | 58 |
-| `src/bernstein/cli/main.py`                        | 43 |
-| `uv.lock`                                          | 43 |
-| `src/bernstein/core/orchestration/orchestrator.py` | 40 |
-| `src/bernstein/core/__init__.py`                   | 36 |
-| `.github/workflows/ci.yml`                         | 32 |
-| `src/bernstein/core/tasks/task_lifecycle.py`       | 26 |
-
 ## Agent roles
 
 Bernstein ships agent role prompts under `templates/roles/`. The orchestrator loads them at task-spawn time; you don't write to them manually.

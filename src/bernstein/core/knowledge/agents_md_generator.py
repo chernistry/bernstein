@@ -853,7 +853,17 @@ def _git_default_branch(repo_path: Path) -> str | None:
             ref = result.stdout.strip()
             if ref.startswith("refs/remotes/origin/"):
                 return ref.removeprefix("refs/remotes/origin/")
-        for candidate in ("main", "master"):
+        # Try both local refs (``main``) and remote-tracking refs
+        # (``refs/remotes/origin/main``). actions/checkout only fetches the
+        # PR branch and origin tip refs; it does not create a local ``main``
+        # branch, so ``git rev-parse --verify main`` returns 128 there.
+        # ``refs/remotes/origin/main`` is what CI actually has.
+        for candidate in (
+            "main",
+            "master",
+            "refs/remotes/origin/main",
+            "refs/remotes/origin/master",
+        ):
             result = subprocess.run(
                 ["git", "rev-parse", "--verify", "--quiet", candidate],
                 cwd=repo_path,
@@ -862,7 +872,7 @@ def _git_default_branch(repo_path: Path) -> str | None:
                 timeout=5,
             )
             if result.returncode == 0:
-                return candidate
+                return candidate.removeprefix("refs/remotes/origin/")
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             cwd=repo_path,

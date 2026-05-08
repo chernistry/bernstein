@@ -26,6 +26,7 @@ import os
 import secrets
 import shutil
 import stat
+import sys
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -71,9 +72,19 @@ def _default_audit_key_path() -> Path:
 def _enforce_key_permissions(key_path: Path) -> None:
     """Ensure the key file is readable only by its owner (mode 0600).
 
+    Skipped on Windows, where POSIX permission bits do not apply: NTFS
+    enforces access through ACLs rather than ``chmod``-style modes, and
+    ``Path.stat().st_mode`` returns ``0o666`` for any user-owned file
+    regardless of the actual ACL. Enforcing the POSIX rule there would
+    flag every Windows install as insecure for no security reason.
+
     Raises:
-        AuditKeyPermissionError: If group or world bits are set on the file.
+        AuditKeyPermissionError: If group or world bits are set on the
+            file (POSIX systems only).
     """
+    if sys.platform == "win32":
+        return
+
     try:
         file_mode = stat.S_IMODE(key_path.stat().st_mode)
     except OSError as exc:  # pragma: no cover - filesystem race

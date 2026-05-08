@@ -89,6 +89,14 @@ jobs:
     if: needs.gate.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Binding to the "pypi" environment makes every successful publish
+    # create a green deployment marker (visible in the repo sidebar
+    # Deployments view). Without this, recent v1.10.x publishes succeed
+    # but the sidebar still shows whatever the last environment-bound
+    # run left behind — which was a stale failure from April 26.
+    environment:
+      name: pypi
+      url: https://pypi.org/p/bernstein/
     permissions:
       contents: write
       packages: write

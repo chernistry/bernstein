@@ -30,6 +30,7 @@ import click
 
 if TYPE_CHECKING:
     from bernstein.core.knowledge.agents_md_bridge import BridgeOutput, Target
+    from bernstein.core.knowledge.agents_md_generator import AgentsMdSection
 
 
 _TARGET_CHOICES = ("canonical", "cursor", "claude", "aider", "goose")
@@ -169,10 +170,11 @@ def agents_md_sync(workdir: Path, repo_name: str | None, dry_run: bool) -> None:
 
     sections, name = _generate_sections(workdir, repo_name)
     outputs = render_all(sections, repo_name=name)
-    total = 0
+    written_total = 0
+    planned_total = 0
     for target, output in outputs.items():
-        written = _write_output(output, workdir, dry_run=dry_run)
-        total += written
+        written_total += _write_output(output, workdir, dry_run=dry_run)
+        planned_total += len(output.files)
         if dry_run:
             for rel in output.files:
                 click.echo(f"[dry-run] would write {rel}  (target={target})")
@@ -180,9 +182,9 @@ def agents_md_sync(workdir: Path, repo_name: str | None, dry_run: bool) -> None:
             for rel in output.files:
                 click.echo(f"  · {rel}  ({target})")
     if dry_run:
-        click.echo(f"[dry-run] {total} file(s) across {len(outputs)} target(s) would be synced")
+        click.echo(f"[dry-run] {planned_total} file(s) across {len(outputs)} target(s) would be synced")
     else:
-        click.echo(f"Synced {total} file(s) across {len(outputs)} target(s) under {workdir}")
+        click.echo(f"Synced {written_total} file(s) across {len(outputs)} target(s) under {workdir}")
 
 
 # ---------------------------------------------------------------------------
@@ -226,9 +228,11 @@ def agents_md_verify(workdir: Path, target: str, repo_name: str | None) -> None:
     targets: tuple[Target, ...] = ALL_TARGETS if target == "all" else (target,)  # type: ignore[assignment]
 
     drift_count = 0
+    checked_count = 0
     for t in targets:
         output = render(sections, t, repo_name=name)
         for rel, expected in output.files.items():
+            checked_count += 1
             on_disk = workdir / rel
             if not on_disk.is_file():
                 click.echo(f"MISSING  {rel}  (target={t})")
@@ -244,7 +248,7 @@ def agents_md_verify(workdir: Path, target: str, repo_name: str | None) -> None:
             err=True,
         )
         sys.exit(1)
-    click.echo(f"OK       all {sum(len(render(sections, t, repo_name=name).files) for t in targets)} file(s) in sync")
+    click.echo(f"OK       all {checked_count} file(s) in sync")
 
 
 # ---------------------------------------------------------------------------
@@ -309,22 +313,94 @@ def agents_md_diff(workdir: Path, target: str, repo_name: str | None) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _generate_sections(workdir: Path, repo_name: str | None) -> tuple[list, str]:
+def _generate_sections(workdir: Path, repo_name: str | None) -> tuple[list[AgentsMdSection], str]:
     """Run the generator + return ``(sections, repo_name)``.
 
-    ``repo_name`` falls back to the basename of ``workdir`` when not
-    provided, so the canonical H1 always says something useful.
+    ``repo_name`` resolution order:
+
+    1. Explicit ``--repo-name`` flag (when provided).
+    2. ``[project] name`` from ``pyproject.toml`` if present (Python repos).
+    3. ``"name"`` from ``package.json`` if present (JS repos).
+    4. Basename of ``workdir`` as last-resort fallback.
+
+    The pyproject/package fallbacks make the H1 sensible when running from
+    a worktree whose directory name is auto-generated (e.g.
+    ``.claude/worktrees/agent-abc123``) instead of the project's real name.
     """
     from bernstein.core.knowledge.agents_md_generator import generate
 
-    sections = generate(workdir.resolve())
+    resolved = workdir.resolve()
+    sections = generate(resolved)
     if not sections:
         click.echo(f"No content derived from {workdir} — is this a repository?", err=True)
         sys.exit(2)
-    return sections, repo_name or workdir.resolve().name
+    name = repo_name or _infer_repo_name(resolved)
+    return sections, name
 
 
-def _render_target(sections: list, target: str, repo_name: str) -> BridgeOutput:
+def _infer_repo_name(repo_path: Path) -> str:
+    """Best-effort project name inference from manifest files.
+
+    Returns the project's canonical name when we can read a Python or JS
+    manifest, otherwise the directory basename.
+    """
+    py_name = _read_pyproject_name(repo_path / "pyproject.toml")
+    if py_name:
+        return py_name
+    js_name = _read_package_json_name(repo_path / "package.json")
+    if js_name:
+        return js_name
+    return repo_path.name
+
+
+def _read_pyproject_name(pyproj: Path) -> str | None:
+    """Return ``[project] name`` from a ``pyproject.toml`` if readable."""
+    if not pyproj.is_file():
+        return None
+    try:
+        import tomllib  # py311+
+    except ImportError:  # pragma: no cover — handled at runtime
+        return None
+    try:
+        data: dict[str, object] = tomllib.loads(pyproj.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
+    project_obj: object = data.get("project")
+    if not isinstance(project_obj, dict):
+        return None
+    return _coerce_name_field(project_obj)  # type: ignore[arg-type]
+
+
+def _read_package_json_name(package_json: Path) -> str | None:
+    """Return ``"name"`` from a ``package.json`` if readable."""
+    if not package_json.is_file():
+        return None
+    import json
+
+    try:
+        data: object = json.loads(package_json.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    return _coerce_name_field(data)  # type: ignore[arg-type]
+
+
+def _coerce_name_field(mapping: dict[object, object]) -> str | None:
+    """Pull ``mapping["name"]`` and return it only when it's a usable string.
+
+    Centralised so both manifest readers stay simple and pyright doesn't
+    have to chase ``Unknown`` types through nested narrowing — the
+    ``# type: ignore`` at the call sites is the trade-off for keeping JSON
+    parsing typed-as-``object`` until the runtime check narrows it.
+    """
+    name: object = mapping.get("name")
+    if isinstance(name, str) and name.strip():
+        return name.strip()
+    return None
+
+
+def _render_target(sections: list[AgentsMdSection], target: str, repo_name: str) -> BridgeOutput:
     """Single-target render bridge."""
     from bernstein.core.knowledge.agents_md_bridge import render
 

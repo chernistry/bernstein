@@ -160,6 +160,14 @@ jobs:
           if [ -n "$ERRORS" ]; then
             exit 1
           fi
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          enable-cache: true
+      - name: AGENTS.md cross-CLI sync drift check
+        # Fails if AGENTS.md / CLAUDE.md / CONVENTIONS.md / .aider.conf.yml /
+        # .goosehints / .cursor/rules/*.mdc drift from `bernstein agents-md
+        # generate`. Run `uv run bernstein agents-md sync` locally to fix.
+        run: uv run bernstein agents-md verify --workdir .
 
   lint:
     name: Lint

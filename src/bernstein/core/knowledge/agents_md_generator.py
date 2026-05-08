@@ -643,8 +643,29 @@ def _collect_package_rows(pkg_dir: Path, package: str) -> list[tuple[str, str]]:
     return rows
 
 
+_SUBPACKAGE_FILE_LIST_CAP = 6
+"""Soft cap on enumerated module names per sub-package row.
+
+A sub-package with 30+ modules dumped inline turns a useful module-map into
+a wall of names. When the sub-package's own ``__init__.py`` already has a
+docstring, the file list is omitted entirely — the docstring is the
+authoritative description. When there's no docstring we list at most this
+many module stems and append ``+N more`` for the rest.
+"""
+
+
 def _collect_subpackage_rows(pkg_dir: Path) -> list[tuple[str, str]]:
-    """Sub-package directories surface as one row each."""
+    """Sub-package directories surface as one row each.
+
+    The description is sourced in priority order:
+
+    1. Sub-package ``__init__.py`` module docstring (authoritative).
+    2. A capped list of module stems (when there's no docstring) so the
+       reader still sees what lives inside without a 50-name wall.
+    3. A neutral ``"<name>/ sub-package"`` placeholder (last resort).
+
+    Skips dunder/underscore-prefixed dirs (``__pycache__``, ``_internal``).
+    """
     rows: list[tuple[str, str]] = []
     seen: set[str] = set()
     for subdir in sorted(pkg_dir.iterdir()):
@@ -652,14 +673,27 @@ def _collect_subpackage_rows(pkg_dir: Path) -> list[tuple[str, str]]:
             continue
         seen.add(subdir.name)
         init = subdir / _INIT_PY
-        desc = _first_docstring_line(init) if init.exists() else f"{subdir.name}/ sub-package"
+        docstring = _first_docstring_line(init) if init.exists() else ""
         py_names = sorted(f.stem for f in subdir.glob("*.py") if not f.name.startswith("_"))
-        if py_names and not desc:
-            desc = f"Sub-package: {', '.join(py_names)}"
-        elif py_names and desc:
-            desc += f" ({', '.join(py_names)}.py)"
-        rows.append((f"`{subdir.name}/`", desc))
+        rows.append((f"`{subdir.name}/`", _summarise_subpackage(subdir.name, docstring, py_names)))
     return rows
+
+
+def _summarise_subpackage(name: str, docstring: str, py_names: list[str]) -> str:
+    """Compose the ``Purpose`` cell content for one sub-package row.
+
+    The docstring wins outright when present; the file list is informative
+    only when there's no docstring, and even then capped to keep the table
+    scannable.
+    """
+    if docstring:
+        return docstring
+    if py_names:
+        if len(py_names) <= _SUBPACKAGE_FILE_LIST_CAP:
+            return f"Sub-package: {', '.join(py_names)}"
+        head = ", ".join(py_names[:_SUBPACKAGE_FILE_LIST_CAP])
+        return f"Sub-package: {head} (+{len(py_names) - _SUBPACKAGE_FILE_LIST_CAP} more)"
+    return f"{name}/ sub-package"
 
 
 def _render_two_column_table(

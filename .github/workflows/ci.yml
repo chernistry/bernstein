@@ -5,8 +5,13 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      # Auto-release version bumps (prevent CI → release → CI loop)
-      - "pyproject.toml"
+      # NOTE: pyproject.toml IS NOT ignored. Auto-release uses a PR-based
+      # bump flow (auto-release.yml → opens auto/bump-vX.Y.Z PR with
+      # auto-merge); the resulting squash-merge to main carries only a
+      # pyproject.toml diff and MUST trigger CI so the workflow_run
+      # listener in auto-release.yml can fire and tag + publish. The old
+      # CI→release→CI loop concern is already handled by the bot-author
+      # filter and the "tag exists?" check inside auto-release.yml.
       # Documentation & prose
       - "docs/**"
       - "*.md"

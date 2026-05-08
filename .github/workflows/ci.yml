@@ -313,7 +313,11 @@ jobs:
     name: Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
     needs: [lint]  # fast-fail: don't waste 45min if lint fails
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    # 35 min for the unit suite + 25 min for the coverage re-run on
+    # ubuntu/3.13 = exactly 60 min, which kept clipping the job ceiling
+    # under coverage-step retries; 90 leaves enough headroom for slow
+    # runners without inviting hangs.
+    timeout-minutes: 90
     permissions:
       contents: read
     strategy:

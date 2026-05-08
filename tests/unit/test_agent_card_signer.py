@@ -168,11 +168,56 @@ class TestSignVerify:
 
         from base64 import urlsafe_b64encode
 
-        bad_header = urlsafe_b64encode(
-            json.dumps({"alg": "none", "typ": "agent-card+jws"}).encode()
-        ).rstrip(b"=").decode("ascii")
+        bad_header = (
+            urlsafe_b64encode(json.dumps({"alg": "none", "typ": "agent-card+jws"}).encode())
+            .rstrip(b"=")
+            .decode("ascii")
+        )
         forged = AgentCardSignature(
             detached_jws=f"{bad_header}..{sig_b64}",
+            kid=sig.kid,
+        )
+        assert verify_agent_card(card, forged, pub) is False
+
+    def test_wrong_typ_in_header_rejected(self) -> None:
+        """A signature minted for a different JWS context must not verify here.
+
+        Without the typ check, a signature produced by the same issuer key
+        but for a different ``typ`` (e.g. an unrelated internal JWS like
+        ``"deploy-attestation+jws"``) would verify as a valid agent-card
+        signature. The ``typ`` header pins the signature to its intended
+        protocol surface.
+        """
+        priv, pub = generate_ed25519_keypair()
+        card = _sample_card()
+        sig = sign_agent_card(card, priv)
+        _header_b64, _empty, sig_b64 = sig.detached_jws.split(".")
+
+        from base64 import urlsafe_b64encode
+
+        wrong_typ_header = (
+            urlsafe_b64encode(json.dumps({"alg": "EdDSA", "typ": "deploy-attestation+jws"}).encode())
+            .rstrip(b"=")
+            .decode("ascii")
+        )
+        forged = AgentCardSignature(
+            detached_jws=f"{wrong_typ_header}..{sig_b64}",
+            kid=sig.kid,
+        )
+        assert verify_agent_card(card, forged, pub) is False
+
+    def test_missing_typ_in_header_rejected(self) -> None:
+        """A header that omits ``typ`` entirely must also be refused."""
+        priv, pub = generate_ed25519_keypair()
+        card = _sample_card()
+        sig = sign_agent_card(card, priv)
+        _header_b64, _empty, sig_b64 = sig.detached_jws.split(".")
+
+        from base64 import urlsafe_b64encode
+
+        no_typ_header = urlsafe_b64encode(json.dumps({"alg": "EdDSA"}).encode()).rstrip(b"=").decode("ascii")
+        forged = AgentCardSignature(
+            detached_jws=f"{no_typ_header}..{sig_b64}",
             kid=sig.kid,
         )
         assert verify_agent_card(card, forged, pub) is False

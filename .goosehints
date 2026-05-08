@@ -52,6 +52,7 @@ Bernstein is a deterministic Python scheduler that runs a crew of CLI coding age
 | `tokens/`               | tokens sub-package |
 | `trigger_sources/`      | Trigger source adapters — normalize raw events into TriggerEvent |
 | `tunnels/`              | Tunnel provider abstraction and registry |
+| `workflows/`            | Archon-inspired YAML workflow manifests |
 
 ### `src/bernstein/adapters/` — CLI agent adapters
 

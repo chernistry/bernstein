@@ -14,8 +14,6 @@
 
 ### Orchestrate any AI coding agent. Any model. One command.
 
-<img alt="Bernstein in action: parallel AI agents orchestrated in real time" src="docs/assets/in-action-small.gif" width="700">
-
 [![CI](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/bernstein)](https://pypi.org/project/bernstein/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
@@ -29,31 +27,73 @@
 
 ---
 
-**What is this?** You tell it what you want built. It splits the work across several AI coding agents (Claude Code, Codex, Gemini CLI, and 40 more), runs the tests, and merges the code that actually passes. You come back to working code.
+Bernstein is a deterministic Python scheduler that runs a crew of CLI coding agents (Claude Code, Codex, Gemini CLI, and 40 more) against a single goal in parallel git worktrees, with an HMAC-signed audit chain over every step.
 
-Forward-deployed engineering, on a swarm. Drop Bernstein into a client repo and you get a multi-agent crew with file-based state, per-agent credential scoping, and an HMAC-signed audit trail — running on whichever CLI agents the client already trusts.
-
-### Install and run
-
-One line on macOS / Linux:
+### Install in 30 seconds
 
 ```bash
-curl -fsSL https://bernstein.run/install.sh | sh
+pipx install bernstein
+bernstein init
+bernstein run -g "fix the failing test in tests/test_foo.py"
 ```
 
-Windows (PowerShell):
+### See it in 60 seconds
 
-```powershell
-irm https://bernstein.run/install.ps1 | iex
-```
+The clip below covers a full run: manager decomposes the goal, three agents work in parallel, the audit chain records each handoff, the janitor verifies, a PR is opened.
 
-Then point it at your project and set a goal:
+<p align="center">
+  <img alt="Bernstein 60-second demo: manager decomposes goal, three agents run in parallel, audit chain logs every handoff, PR opens" src="docs/demo/demo.gif" width="800">
+</p>
+
+After the run, Bernstein posts a structured comment on the PR with cost, test results, lineage, and the audit hash chain:
+
+<p align="center">
+  <img alt="Bernstein PR comment: Summary, Cost, Lineage, Tests, Audit-chain sections" src="docs/demo/screenshot-pr-comment.svg" width="720">
+</p>
+
+> The GIF is generated from [`docs/demo/demo.tape`](docs/demo/demo.tape) with [vhs](https://github.com/charmbracelet/vhs); regenerate locally with `vhs docs/demo/demo.tape`.
+
+### How it compares
+
+| Feature                                | Bernstein   | Archon   | LangGraph |
+|----------------------------------------|-------------|----------|-----------|
+| Multi-agent crew (parallel adapters)   | yes         | one      | yes       |
+| Signed lineage / audit chain           | yes         | no       | no        |
+| Air-gap / sovereign deploy             | yes         | partial  | no        |
+| Visual workflow YAML                   | yes [^yaml] | yes      | no        |
+| Hosted dashboard / SaaS                | no          | partial  | no        |
+
+[^yaml]: Workflow YAML support lands with [PR #1108](https://github.com/sipyourdrink-ltd/bernstein/pull/1108) (in this batch). Until then, plans are authored as Python or via `bernstein run plan.yaml` against the legacy schema.
+
+A longer feature matrix against CrewAI, AutoGen, LangGraph, and the four CLI-agent orchestrators that share Bernstein's category lives in the [Detailed comparison](#detailed-comparison) section below.
+
+---
+
+### What is this, in one paragraph?
+
+You tell Bernstein what you want built. It splits the work across several AI coding agents, runs them in parallel inside isolated git worktrees, records every handoff in an HMAC-chained audit log, runs the tests, and merges the code that actually passes. You come back to a green PR.
+
+Forward-deployed engineering, on a swarm. Drop Bernstein into a client repo and you get a multi-agent crew with file-based state, per-agent credential scoping, and a signed audit trail running on whichever CLI agents the client already trusts.
+
+### Other install methods
 
 ```bash
-cd your-project
-bernstein init                          # creates a .sdd/ workspace
-bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
+curl -fsSL https://bernstein.run/install.sh | sh        # macOS / Linux one-liner
+irm https://bernstein.run/install.ps1 | iex             # Windows PowerShell
+pip install bernstein                                   # pip
+uv tool install bernstein                               # uv
+brew tap chernistry/tap && brew install bernstein       # Homebrew
 ```
+
+See the full [install matrix](#install) for `dnf copr`, `npx`, optional extras, and the wheelhouse path for air-gapped sites.
+
+### Why the scheduler is plain Python
+
+Most agent orchestrators use an LLM to decide who does what. That is non-deterministic and burns tokens on scheduling instead of code. Bernstein does one LLM call to break down your goal, then the rest (running agents in parallel, isolating their git branches, running tests, routing retries) is plain Python. Every run is reproducible. Every step is logged and replayable.
+
+No framework to learn. No vendor lock-in. Swap any agent, any model, any provider.
+
+<img alt="Bernstein in action: parallel AI agents orchestrated in real time" src="docs/assets/in-action-small.gif" width="700">
 
 What you see while it runs:
 
@@ -64,14 +104,6 @@ $ bernstein -g "Add JWT auth"
 [agent-2] codex:         tests/test_auth.py      (done, 1m 58s)
 [verify]  all gates pass. merging to main.
 ```
-
-### Why it's different
-
-Most agent orchestrators use an LLM to decide who does what. That's non-deterministic and burns tokens on scheduling instead of code. Bernstein does one LLM call to break down your goal, then the rest — running agents in parallel, isolating their git branches, running tests, routing retries — is plain Python. Every run is reproducible. Every step is logged and replayable.
-
-No framework to learn. No vendor lock-in. Swap any agent, any model, any provider.
-
-Other install options: `pipx install bernstein`, `pip install bernstein`, `uv tool install bernstein`, `brew tap chernistry/tap && brew install bernstein`, `dnf copr`, `npx bernstein-orchestrator`. See [install options](#install).
 
 ## Use cases
 
@@ -253,7 +285,7 @@ If you need real semantic retrieval (vector DB, neural embeddings), wire it
 yourself via the retrieval role/skill in `templates/`; nothing in core
 performs vector search.
 
-## How it compares
+## Detailed comparison
 
 | Feature | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |---------|-----------|--------|---------|-----------|

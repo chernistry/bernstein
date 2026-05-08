@@ -14,8 +14,6 @@
 
 ### Orkestrasi semua AI coding agent. Model apa pun. Satu perintah.
 
-<img alt="Bernstein beraksi: agen AI paralel diorkestrasi secara real time" src="../../docs/assets/in-action-small.gif" width="700">
-
 [![CI](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/bernstein)](https://pypi.org/project/bernstein/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
@@ -28,29 +26,73 @@
 
 ---
 
-**Apa ini?** Anda beri tahu apa yang ingin dibangun. Ia membagi pekerjaan ke beberapa AI coding agent (Claude Code, Codex, Gemini CLI, dan 38 lainnya), menjalankan tes, lalu menggabungkan kode yang benar-benar lulus. Anda kembali ke kode yang sudah berfungsi.
+Bernstein adalah scheduler Python yang deterministik; ia menjalankan kru CLI coding agent (Claude Code, Codex, Gemini CLI, dan 40 lainnya) atas satu tujuan secara paralel di worktree git, dengan rantai audit yang ditandatangani HMAC pada setiap langkah.
 
-### Pasang dan jalankan
-
-Satu baris pada macOS / Linux:
+### Pasang dalam 30 detik
 
 ```bash
-curl -fsSL https://bernstein.run/install.sh | sh
+pipx install bernstein
+bernstein init
+bernstein run -g "fix the failing test in tests/test_foo.py"
 ```
 
-Windows (PowerShell):
+### Lihat dalam 60 detik
 
-```powershell
-irm https://bernstein.run/install.ps1 | iex
-```
+Klip berikut mencakup satu run penuh: manager mendekomposisi tujuan, tiga agen bekerja paralel, rantai audit mencatat setiap handoff, janitor memverifikasi, lalu PR dibuka.
 
-Lalu arahkan ke proyek Anda dan tetapkan tujuan:
+<p align="center">
+  <img alt="Demo Bernstein 60 detik: manager mendekomposisi tujuan, tiga agen jalan paralel, rantai audit mencatat setiap handoff, PR dibuka" src="../../docs/demo/demo.gif" width="800">
+</p>
+
+Setelah run, Bernstein memposting komentar terstruktur di PR dengan biaya, hasil tes, lineage, dan rantai hash audit:
+
+<p align="center">
+  <img alt="Komentar PR Bernstein: bagian Ringkasan, Biaya, Lineage, Tes, Rantai audit" src="../../docs/demo/screenshot-pr-comment.svg" width="720">
+</p>
+
+> GIF dibangkitkan dari [`docs/demo/demo.tape`](../../docs/demo/demo.tape) dengan [vhs](https://github.com/charmbracelet/vhs); regenerasi lokal dengan `vhs docs/demo/demo.tape`.
+
+### Bagaimana perbandingannya
+
+| Fitur                                       | Bernstein   | Archon   | LangGraph |
+|---------------------------------------------|-------------|----------|-----------|
+| Kru multiagent (adapter paralel)            | ya          | satu     | ya        |
+| Lineage bertanda tangan / rantai audit      | ya          | tidak    | tidak     |
+| Deploy air-gap / berdaulat                  | ya          | parsial  | tidak     |
+| Workflow YAML visual                        | ya [^yaml]  | ya       | tidak     |
+| Dashboard hosted / SaaS                     | tidak       | parsial  | tidak     |
+
+[^yaml]: Dukungan workflow YAML mendarat bersama [PR #1108](https://github.com/sipyourdrink-ltd/bernstein/pull/1108) (di batch ini). Sampai itu mendarat, plan ditulis dengan Python atau via `bernstein run plan.yaml` di skema lama.
+
+Matriks fitur yang lebih panjang melawan CrewAI, AutoGen, LangGraph, dan empat orkestrator CLI agent yang berada di kategori sama dengan Bernstein ada di bagian [Perbandingan rinci](#detailed-comparison) di bawah.
+
+---
+
+### Apa ini, dalam satu paragraf?
+
+Anda beri tahu Bernstein apa yang ingin dibangun. Ia membagi pekerjaan ke beberapa AI coding agent, menjalankan mereka paralel di dalam worktree git terisolasi, mencatat setiap handoff di log audit ber-rantai HMAC, menjalankan tes, lalu menggabungkan kode yang benar-benar lulus. Anda kembali ke PR yang sudah hijau.
+
+Forward-deployed engineering, dalam bentuk swarm. Letakkan Bernstein di repo klien dan Anda mendapat kru multiagent dengan state berbasis file, scoping kredensial per agen, dan audit trail bertanda tangan, berjalan di atas CLI agent yang sudah dipercaya klien.
+
+### Metode pemasangan lain
 
 ```bash
-cd your-project
-bernstein init                          # creates a .sdd/ workspace
-bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
+curl -fsSL https://bernstein.run/install.sh | sh        # Satu baris di macOS / Linux
+irm https://bernstein.run/install.ps1 | iex             # PowerShell di Windows
+pip install bernstein                                   # pip
+uv tool install bernstein                               # uv
+brew tap chernistry/tap && brew install bernstein       # Homebrew
 ```
+
+Lihat [matriks pemasangan](#install) lengkap untuk `dnf copr`, `npx`, ekstra opsional, dan jalur wheelhouse untuk site air-gapped.
+
+### Mengapa scheduler-nya Python biasa
+
+Kebanyakan orkestrator agen menggunakan LLM untuk memutuskan siapa mengerjakan apa. Itu tidak deterministik dan menghabiskan token untuk penjadwalan, bukan untuk kode. Bernstein melakukan satu panggilan LLM untuk memecah tujuan Anda, lalu sisanya (menjalankan agen secara paralel, mengisolasi cabang git mereka, menjalankan tes, mengarahkan retry) adalah Python biasa. Setiap run dapat direproduksi. Setiap langkah dicatat dan dapat diputar ulang.
+
+Tidak ada framework yang harus dipelajari. Tidak ada vendor lock-in. Tukar agen apa pun, model apa pun, provider apa pun.
+
+<img alt="Bernstein beraksi: agen AI paralel diorkestrasi secara real time" src="../../docs/assets/in-action-small.gif" width="700">
 
 Apa yang Anda lihat saat berjalan:
 
@@ -61,14 +103,6 @@ $ bernstein -g "Add JWT auth"
 [agent-2] codex:         tests/test_auth.py      (done, 1m 58s)
 [verify]  all gates pass. merging to main.
 ```
-
-### Mengapa berbeda
-
-Kebanyakan orkestrator agen menggunakan LLM untuk memutuskan siapa mengerjakan apa. Itu tidak deterministik dan menghabiskan token untuk penjadwalan, bukan untuk kode. Bernstein melakukan satu panggilan LLM untuk memecah tujuan Anda, lalu sisanya — menjalankan agen secara paralel, mengisolasi cabang git mereka, menjalankan tes, mengarahkan retry — adalah Python biasa. Setiap run dapat direproduksi. Setiap langkah dicatat dan dapat diputar ulang.
-
-Tidak ada framework yang harus dipelajari. Tidak ada vendor lock-in. Tukar agen apa pun, model apa pun, provider apa pun.
-
-Opsi pemasangan lain: `pipx install bernstein`, `pip install bernstein`, `uv tool install bernstein`, `brew`, `dnf copr`, `npx bernstein-orchestrator`. Lihat [opsi pemasangan](#install).
 
 ## Agen yang didukung
 

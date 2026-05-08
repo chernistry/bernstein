@@ -3,7 +3,7 @@
 
 ## Overview
 
-**What is this?** You tell it what you want built. It splits the work across several AI coding agents (Claude Code, Codex, Gemini CLI, and 40 more), runs the tests, and merges the code that actually passes. You come back to working code.
+Bernstein is a deterministic Python scheduler that runs a crew of CLI coding agents (Claude Code, Codex, Gemini CLI, and 40 more) against a single goal in parallel git worktrees, with an HMAC-signed audit chain over every step.
 
 ## Module map
 

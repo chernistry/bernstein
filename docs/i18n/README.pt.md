@@ -14,8 +14,6 @@
 
 ### Orquestre qualquer agente de codificação de IA. Qualquer modelo. Um único comando.
 
-<img alt="Bernstein em ação: agentes de IA paralelos orquestrados em tempo real" src="../../docs/assets/in-action-small.gif" width="700">
-
 [![CI](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/bernstein)](https://pypi.org/project/bernstein/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
@@ -28,29 +26,73 @@
 
 ---
 
-**O que é isto?** Você diz o que quer construir. Ele divide o trabalho entre vários agentes de codificação de IA (Claude Code, Codex, Gemini CLI e mais 38), executa os testes e mescla o código que de fato passa. Você volta para um código funcionando.
+O Bernstein é um escalonador determinístico em Python que executa uma equipe de agentes CLI de codificação (Claude Code, Codex, Gemini CLI e mais 40) sobre um único objetivo, em worktrees git paralelos, com uma cadeia de auditoria assinada por HMAC sobre cada passo.
 
-### Instale e execute
-
-Uma linha no macOS / Linux:
+### Instale em 30 segundos
 
 ```bash
-curl -fsSL https://bernstein.run/install.sh | sh
+pipx install bernstein
+bernstein init
+bernstein run -g "fix the failing test in tests/test_foo.py"
 ```
 
-Windows (PowerShell):
+### Veja em 60 segundos
 
-```powershell
-irm https://bernstein.run/install.ps1 | iex
-```
+O clipe cobre uma execução completa: o manager decompõe o objetivo, três agentes trabalham em paralelo, a cadeia de auditoria registra cada handoff, o janitor verifica e um PR é aberto.
 
-Depois aponte para o seu projeto e defina um objetivo:
+<p align="center">
+  <img alt="Demo Bernstein de 60 segundos: o manager decompõe o objetivo, três agentes rodam em paralelo, a cadeia de auditoria registra cada handoff, abre-se um PR" src="../../docs/demo/demo.gif" width="800">
+</p>
+
+Após a execução, o Bernstein publica um comentário estruturado no PR com custo, resultados de testes, lineage e a cadeia hash de auditoria:
+
+<p align="center">
+  <img alt="Comentário do Bernstein no PR: seções Resumo, Custo, Lineage, Testes, Cadeia de auditoria" src="../../docs/demo/screenshot-pr-comment.svg" width="720">
+</p>
+
+> O GIF é gerado a partir de [`docs/demo/demo.tape`](../../docs/demo/demo.tape) com [vhs](https://github.com/charmbracelet/vhs); regenere localmente com `vhs docs/demo/demo.tape`.
+
+### Como ele se compara
+
+| Recurso                                    | Bernstein   | Archon   | LangGraph |
+|--------------------------------------------|-------------|----------|-----------|
+| Equipe multiagente (adaptadores em paralelo) | sim       | um       | sim       |
+| Lineage assinado / cadeia de auditoria     | sim         | não      | não       |
+| Implantação air-gap / soberana             | sim         | parcial  | não       |
+| Workflow YAML visual                       | sim [^yaml] | sim      | não       |
+| Painel hospedado / SaaS                    | não         | parcial  | não       |
+
+[^yaml]: O suporte a workflow YAML chega com a [PR #1108](https://github.com/sipyourdrink-ltd/bernstein/pull/1108) (neste lote). Até lá, os planos são escritos em Python ou via `bernstein run plan.yaml` no schema antigo.
+
+Uma matriz de recursos mais longa contra CrewAI, AutoGen, LangGraph e os quatro orquestradores de agentes CLI da mesma categoria do Bernstein vive na seção [Comparação detalhada](#detailed-comparison) abaixo.
+
+---
+
+### O que é isto, em um parágrafo?
+
+Você diz ao Bernstein o que quer construir. Ele divide o trabalho entre vários agentes de codificação de IA, roda-os em paralelo dentro de worktrees git isolados, registra cada handoff em um log de auditoria encadeado por HMAC, executa os testes e mescla o código que de fato passa. Você volta para um PR verde.
+
+Forward-deployed engineering, em formato de enxame. Solte o Bernstein em um repo de cliente e você terá uma equipe multiagente com estado em arquivos, escopo de credenciais por agente e um audit trail assinado, rodando sobre os agentes CLI nos quais o cliente já confia.
+
+### Outros métodos de instalação
 
 ```bash
-cd your-project
-bernstein init                          # creates a .sdd/ workspace
-bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
+curl -fsSL https://bernstein.run/install.sh | sh        # Uma linha no macOS / Linux
+irm https://bernstein.run/install.ps1 | iex             # PowerShell do Windows
+pip install bernstein                                   # pip
+uv tool install bernstein                               # uv
+brew tap chernistry/tap && brew install bernstein       # Homebrew
 ```
+
+Veja a [matriz de instalação](#install) completa para `dnf copr`, `npx`, extras opcionais e o caminho de wheelhouse para sites air-gapped.
+
+### Por que o escalonador é Python puro
+
+A maioria dos orquestradores de agentes usa um LLM para decidir quem faz o quê. Isso é não determinístico e queima tokens em escalonamento em vez de em código. O Bernstein faz uma única chamada ao LLM para decompor seu objetivo, e o restante (executar agentes em paralelo, isolar suas branches git, rodar testes, rotear retentativas) é Python puro. Cada execução é reproduzível. Cada passo é registrado e pode ser reproduzido novamente.
+
+Sem framework para aprender. Sem aprisionamento a fornecedores. Troque qualquer agente, qualquer modelo, qualquer provedor.
+
+<img alt="Bernstein em ação: agentes de IA paralelos orquestrados em tempo real" src="../../docs/assets/in-action-small.gif" width="700">
 
 O que você vê durante a execução:
 
@@ -61,14 +103,6 @@ $ bernstein -g "Add JWT auth"
 [agent-2] codex:         tests/test_auth.py      (done, 1m 58s)
 [verify]  all gates pass. merging to main.
 ```
-
-### Por que é diferente
-
-A maioria dos orquestradores de agentes usa um LLM para decidir quem faz o quê. Isso é não determinístico e queima tokens em escalonamento em vez de em código. O Bernstein faz uma única chamada ao LLM para decompor seu objetivo, e o restante — executar agentes em paralelo, isolar suas branches git, rodar testes, rotear retentativas — é Python puro. Cada execução é reproduzível. Cada passo é registrado e pode ser reproduzido novamente.
-
-Sem framework para aprender. Sem aprisionamento a fornecedores. Troque qualquer agente, qualquer modelo, qualquer provedor.
-
-Outras opções de instalação: `pipx install bernstein`, `pip install bernstein`, `uv tool install bernstein`, `brew`, `dnf copr`, `npx bernstein-orchestrator`. Veja [opções de instalação](#install).
 
 ## Agentes suportados
 

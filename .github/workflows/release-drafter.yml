@@ -18,6 +18,15 @@ jobs:
   update_release_draft:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Skip on PRs from forks: ``pull_request`` events from external
+    # repositories receive a read-only ``GITHUB_TOKEN`` regardless of
+    # the workflow-level ``permissions:`` block, so the action fails
+    # with "Resource not accessible by integration" when it tries to
+    # create or update the draft release. The draft will refresh on
+    # the next push to main after the fork PR merges.
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: release-drafter/release-drafter@563bf132657a13ded0b01fcb723c5a58cdd824e2 # v7
         with:

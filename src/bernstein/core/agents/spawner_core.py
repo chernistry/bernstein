@@ -1322,6 +1322,97 @@ class AgentSpawner:
                 exc,
             )
 
+    @staticmethod
+    def _is_fresh_restart_retry(task: Task) -> bool:
+        """Return True when this spawn must run as a fresh-context retry.
+
+        Issue #1109: a task opts into fresh-context retries by setting
+        ``agent_restart_between_retries=True``.  The flag only takes effect
+        on retry attempts (``retry_count > 0``); the very first attempt is
+        always a fresh spawn anyway.
+
+        Args:
+            task: The task being spawned.
+
+        Returns:
+            True when the spawn must drop accumulated state and be audited.
+        """
+        return bool(task.agent_restart_between_retries) and task.retry_count > 0
+
+    def _strip_failure_context_for_fresh_retry(self, task: Task) -> tuple[str, list[str]]:
+        """Return ``(description, meta_messages)`` with failure-context replay removed.
+
+        ``maybe_retry_task`` and ``retry_or_fail_task`` annotate retry tasks
+        with the prior failure summary so the next agent learns from it.
+        For fresh-context retries that replay is exactly what we want to
+        suppress: the agent must start as if this were attempt #1.
+
+        Args:
+            task: The task whose carry-over context is being stripped.
+
+        Returns:
+            Tuple of the cleaned description and a list of meta-messages
+            with any ``Retry N: Previous attempt failed*`` entries removed.
+        """
+        # Drop the "## Previous attempt failed" section appended by the
+        # retry helpers.  Everything before that header is the canonical
+        # description; everything after is failure replay.
+        description = task.description
+        marker = "\n\n## Previous attempt failed\n"
+        idx = description.find(marker)
+        if idx != -1:
+            description = description[:idx]
+
+        # Drop replay messages but keep operator-supplied nudges intact.
+        cleaned_messages = [
+            msg for msg in task.meta_messages if not msg.startswith("Retry ") or "Previous attempt failed" not in msg
+        ]
+        return description, cleaned_messages
+
+    def _emit_fresh_restart_on_retry_audit(
+        self,
+        *,
+        task_id: str,
+        retry_n: int,
+        reason: str,
+    ) -> None:
+        """Append an ``agent_fresh_restart_on_retry`` event to the audit chain.
+
+        Issue #1109 — every fresh-context retry must leave a trace so
+        operators can correlate the restart with the prior failure.  Audit
+        failures (key permission, disk full) must never mask the spawn:
+        they are logged and swallowed.
+
+        Args:
+            task_id: ID of the task being retried (audit ``resource_id``).
+            retry_n: Retry attempt number (1, 2, ...).
+            reason: Free-form reason string from the prior failure.
+        """
+        try:
+            from bernstein.core.security.audit import (
+                AGENT_FRESH_RESTART_ON_RETRY,
+                AuditLog,
+            )
+
+            audit = AuditLog(audit_dir=self._workdir / ".sdd" / "audit")
+            audit.log(
+                event_type=AGENT_FRESH_RESTART_ON_RETRY,
+                actor="spawner",
+                resource_type="task",
+                resource_id=task_id,
+                details={
+                    "task_id": task_id,
+                    "retry_n": retry_n,
+                    "reason": reason,
+                },
+            )
+        except Exception as exc:  # audit must never block the spawn
+            logger.warning(
+                "Could not emit agent_fresh_restart_on_retry audit event for task %s: %s",
+                task_id,
+                exc,
+            )
+
     def _reap_openclaw(self, session: AgentSession) -> None:
         """Sync logs from the remote bridge for an OpenClaw session."""
         reap_openclaw(session, self._runtime_bridge, self._run_bridge_call)
@@ -1553,6 +1644,29 @@ class AgentSpawner:
         if len(roles) > 1:
             raise ValueError(f"All tasks in a batch must share the same role, got: {roles}")
 
+        # Issue #1109: opt-in fresh-context retry.  When a task carries
+        # ``agent_restart_between_retries=True`` AND ``retry_count > 0``
+        # we must spawn a brand-new agent with no log carryover and no
+        # failure-context replay.  Strip the carry-over annotations from
+        # the in-memory task so prompt rendering treats it like attempt #1,
+        # disable warm-pool reuse, and audit the restart for traceability.
+        primary_task = tasks[0]
+        fresh_restart_on_retry = self._is_fresh_restart_retry(primary_task)
+        if fresh_restart_on_retry:
+            cleaned_description, cleaned_meta_messages = self._strip_failure_context_for_fresh_retry(primary_task)
+            primary_task.description = cleaned_description
+            primary_task.meta_messages = cleaned_meta_messages
+            self._emit_fresh_restart_on_retry_audit(
+                task_id=primary_task.id,
+                retry_n=primary_task.retry_count,
+                reason=primary_task.terminal_reason or "",
+            )
+            logger.info(
+                "Fresh-context retry for task %s (retry_n=%d): dropped failure replay, skipping warm pool",
+                primary_task.id,
+                primary_task.retry_count,
+            )
+
         # ---------------------------------------------------------------
         # Model selection precedence (highest wins):
         #
@@ -1775,7 +1889,14 @@ class AgentSpawner:
         if self._use_worktrees and worktree_mgr is not None:
             # Try acquiring a pre-provisioned worktree from the warm pool first.
             # This avoids the 5-15s ``git worktree add`` overhead on hot paths.
-            warm_entry = self._warm_pool.claim_slot(role) if self._warm_pool is not None else None
+            #
+            # Issue #1109: fresh-context retries bypass the warm pool so any
+            # state baked into a pre-warmed worktree (cached prompt prefixes,
+            # half-installed deps, leftover indexes) cannot leak across the
+            # restart boundary.
+            warm_entry = (
+                self._warm_pool.claim_slot(role) if self._warm_pool is not None and not fresh_restart_on_retry else None
+            )
             if warm_entry is not None:
                 spawn_cwd = Path(warm_entry.worktree_path)
                 self._worktree_paths[session_id] = spawn_cwd

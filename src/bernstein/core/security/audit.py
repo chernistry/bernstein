@@ -46,6 +46,17 @@ AUDIT_KEY_ENV = "BERNSTEIN_AUDIT_KEY_PATH"
 #: Required mode for the audit key file (0600 — owner read/write only).
 _REQUIRED_KEY_MODE = 0o600
 
+# ---------------------------------------------------------------------------
+# Audit event-type constants
+# ---------------------------------------------------------------------------
+# Canonical event-type strings emitted into the HMAC-chained log.  Centralised
+# here so producers and consumers reference the same identifiers.
+
+#: Issue #1109 — emitted whenever a retry spawns a fresh agent process with
+#: no accumulated state because the task opted into
+#: ``agent_restart_between_retries``.
+AGENT_FRESH_RESTART_ON_RETRY = "agent_fresh_restart_on_retry"
+
 
 class AuditKeyPermissionError(RuntimeError):
     """Raised when the audit key file has permissions looser than 0600."""

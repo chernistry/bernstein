@@ -299,6 +299,11 @@ class Task:
     best_of_n: int | None = (
         None  # Opt-in best-of-N candidate fan-out (K in [2, BEST_OF_N.max_candidates]); None/<=1 = single agent
     )
+    # Issue #1109: when True, retries spawn a fresh agent with NO accumulated
+    # state (no log carryover, no failure-context replay, no warm-pool reuse).
+    # Inspired by Archon's ``context: fresh`` per-node semantics applied to
+    # retry attempts.  Default False preserves existing retry behaviour.
+    agent_restart_between_retries: bool = False
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> Task:
@@ -391,6 +396,7 @@ class Task:
             parent_context=raw.get("parent_context"),
             requires=list(raw.get("requires", [])),
             best_of_n=(lambda v: None if v is None else int(v))(raw.get("best_of_n")),
+            agent_restart_between_retries=bool(raw.get("agent_restart_between_retries", False)),
         )
 
 

@@ -53,8 +53,6 @@ import subprocess
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from bernstein.core.git.git_context import hot_files
-
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -499,27 +497,23 @@ def _build_conventions(repo_path: Path, opts: GenerateOptions) -> AgentsMdSectio
 
 
 def _build_git_workflow(repo_path: Path) -> AgentsMdSection | None:
-    """Default branch + last-30-day hot files.
+    """Default branch line, deterministic across environments.
 
-    Uses :func:`git_context.hot_files` and ``git symbolic-ref``. Returns
-    ``None`` outside a git working tree.
+    The previous version included ``git_context.hot_files`` output in
+    the section body. That made the section non-deterministic across
+    shallow CI clones (`actions/checkout` defaults to depth 1) and full
+    local checkouts -- the same repo at the same SHA would render
+    different "hot files" tables in CI vs on a developer machine,
+    causing ``bernstein agents-md verify`` to flag drift even after a
+    fresh local sync. Returns ``None`` outside a git working tree.
     """
     default_branch = _git_default_branch(repo_path)
     if default_branch is None:
-        return None  # not a git repo
-
-    hot = hot_files(repo_path, days=30, max_results=8)
-    body_parts: list[str] = [f"Default branch: `{default_branch}`."]
-    if hot:
-        rows = [(f"`{path}`", str(count)) for path, count in hot]
-        body_parts.append(
-            "Hot files in the last 30 days (commit count):\n\n"
-            + _render_two_column_table(rows, "Path", right_header="Commits")
-        )
+        return None
     return AgentsMdSection(
         key="git-workflow",
         title="Git workflow",
-        body="\n\n".join(body_parts),
+        body=f"Default branch: `{default_branch}`.",
         kind="git-workflow",
         always_apply=True,
     )
@@ -643,8 +637,29 @@ def _collect_package_rows(pkg_dir: Path, package: str) -> list[tuple[str, str]]:
     return rows
 
 
+_SUBPACKAGE_FILE_LIST_CAP = 6
+"""Soft cap on enumerated module names per sub-package row.
+
+A sub-package with 30+ modules dumped inline turns a useful module-map into
+a wall of names. When the sub-package's own ``__init__.py`` already has a
+docstring, the file list is omitted entirely — the docstring is the
+authoritative description. When there's no docstring we list at most this
+many module stems and append ``+N more`` for the rest.
+"""
+
+
 def _collect_subpackage_rows(pkg_dir: Path) -> list[tuple[str, str]]:
-    """Sub-package directories surface as one row each."""
+    """Sub-package directories surface as one row each.
+
+    The description is sourced in priority order:
+
+    1. Sub-package ``__init__.py`` module docstring (authoritative).
+    2. A capped list of module stems (when there's no docstring) so the
+       reader still sees what lives inside without a 50-name wall.
+    3. A neutral ``"<name>/ sub-package"`` placeholder (last resort).
+
+    Skips dunder/underscore-prefixed dirs (``__pycache__``, ``_internal``).
+    """
     rows: list[tuple[str, str]] = []
     seen: set[str] = set()
     for subdir in sorted(pkg_dir.iterdir()):
@@ -652,14 +667,27 @@ def _collect_subpackage_rows(pkg_dir: Path) -> list[tuple[str, str]]:
             continue
         seen.add(subdir.name)
         init = subdir / _INIT_PY
-        desc = _first_docstring_line(init) if init.exists() else f"{subdir.name}/ sub-package"
+        docstring = _first_docstring_line(init) if init.exists() else ""
         py_names = sorted(f.stem for f in subdir.glob("*.py") if not f.name.startswith("_"))
-        if py_names and not desc:
-            desc = f"Sub-package: {', '.join(py_names)}"
-        elif py_names and desc:
-            desc += f" ({', '.join(py_names)}.py)"
-        rows.append((f"`{subdir.name}/`", desc))
+        rows.append((f"`{subdir.name}/`", _summarise_subpackage(subdir.name, docstring, py_names)))
     return rows
+
+
+def _summarise_subpackage(name: str, docstring: str, py_names: list[str]) -> str:
+    """Compose the ``Purpose`` cell content for one sub-package row.
+
+    The docstring wins outright when present; the file list is informative
+    only when there's no docstring, and even then capped to keep the table
+    scannable.
+    """
+    if docstring:
+        return docstring
+    if py_names:
+        if len(py_names) <= _SUBPACKAGE_FILE_LIST_CAP:
+            return f"Sub-package: {', '.join(py_names)}"
+        head = ", ".join(py_names[:_SUBPACKAGE_FILE_LIST_CAP])
+        return f"Sub-package: {head} (+{len(py_names) - _SUBPACKAGE_FILE_LIST_CAP} more)"
+    return f"{name}/ sub-package"
 
 
 def _render_two_column_table(
@@ -795,7 +823,24 @@ def _parse_pyproject_scripts(pyproj: Path) -> dict[str, str]:
 
 
 def _git_default_branch(repo_path: Path) -> str | None:
-    """Return the default branch (``main``/``master``/...) or ``None``."""
+    """Return the default branch (``main``/``master``/...) or ``None``.
+
+    Resolution order is deliberate so that the answer is *deterministic
+    across environments* — local checkouts, CI shallow clones, detached
+    HEADs, and worktrees must all agree:
+
+    1. ``git symbolic-ref refs/remotes/origin/HEAD`` — set when ``git
+       remote set-head origin -a`` ran. Authoritative on developer
+       machines; usually absent on ``actions/checkout`` runners.
+    2. ``git rev-parse --verify main`` then ``master`` — recognises the
+       conventional default-branch names. Works even in shallow clones
+       and detached HEAD. This step is what keeps CI render output
+       byte-stable against a freshly committed local sync.
+    3. ``git rev-parse --abbrev-ref HEAD`` — last resort. Returns the
+       current branch name when neither ``main`` nor ``master`` exists.
+       Skipped when HEAD is detached (returns the literal ``HEAD``)
+       because that would inject the PR-branch name into AGENTS.md.
+    """
     try:
         result = subprocess.run(
             ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
@@ -808,7 +853,26 @@ def _git_default_branch(repo_path: Path) -> str | None:
             ref = result.stdout.strip()
             if ref.startswith("refs/remotes/origin/"):
                 return ref.removeprefix("refs/remotes/origin/")
-        # Fallback: current branch
+        # Try both local refs (``main``) and remote-tracking refs
+        # (``refs/remotes/origin/main``). actions/checkout only fetches the
+        # PR branch and origin tip refs; it does not create a local ``main``
+        # branch, so ``git rev-parse --verify main`` returns 128 there.
+        # ``refs/remotes/origin/main`` is what CI actually has.
+        for candidate in (
+            "main",
+            "master",
+            "refs/remotes/origin/main",
+            "refs/remotes/origin/master",
+        ):
+            result = subprocess.run(
+                ["git", "rev-parse", "--verify", "--quiet", candidate],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                return candidate.removeprefix("refs/remotes/origin/")
         result = subprocess.run(
             ["git", "rev-parse", "--abbrev-ref", "HEAD"],
             cwd=repo_path,
@@ -822,6 +886,13 @@ def _git_default_branch(repo_path: Path) -> str | None:
                 return branch
     except (subprocess.TimeoutExpired, OSError):
         return None
+    # Final fallback — only if we're inside a git checkout. ``main`` is
+    # the modern default; older repos that adopted ``master`` will have
+    # been resolved earlier in the chain. Keeps the rendered section
+    # deterministic across shallow CI clones, worktrees, and detached
+    # heads where every prior probe came up empty.
+    if (repo_path / ".git").exists():
+        return "main"
     return None
 
 

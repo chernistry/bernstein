@@ -1182,6 +1182,20 @@ class AgentSpawner:
         allowlist (T578) at runtime.  Once an operator opts into a
         specific tool combination that unions the trifecta, the spawn is
         refused.
+
+        Aliasing defence: the registry is the source of truth.  If an
+        operator registers an alias name with the original tool's caps
+        (a structural choice they own), that alias contributes to the
+        trifecta calculation just like the canonical name.  If they
+        register an alias with empty caps to *strip* protections, the
+        registry's default-deny semantics take over the moment the
+        original (now unknown) tool name is used elsewhere.
+
+        On refusal we additionally emit a ``capability_matrix_refusal``
+        event into the HMAC-chained audit log so that SOC2/Dream-Security
+        auditors can replay every blocked spawn attempt without parsing
+        log lines.  Audit-emission failures degrade gracefully — a missing
+        audit log must never silently mask the refusal raise.
         """
         import json
         from datetime import UTC, datetime
@@ -1244,7 +1258,69 @@ class AgentSpawner:
                 decision.reason,
                 chain,
             )
+            self._emit_capability_matrix_refusal_audit_event(
+                session_id=session_id,
+                role=role,
+                chain=chain,
+                catalog_tools=catalog_tools,
+                decision=decision,
+            )
             raise SpawnError(f"lethal trifecta: {decision.reason}") from err
+
+    def _emit_capability_matrix_refusal_audit_event(
+        self,
+        *,
+        session_id: str,
+        role: str,
+        chain: list[str],
+        catalog_tools: list[str],
+        decision: Any,
+    ) -> None:
+        """Append a ``capability_matrix_refusal`` event to the HMAC audit chain.
+
+        Persists the structural decision to ``<workdir>/.sdd/audit/`` so
+        auditors can verify that no trifecta-prone agent ever spawned
+        without a matching deny event.  Failures (key permission, disk
+        full) are caught and logged — they must never mask the underlying
+        refusal raise.
+
+        Args:
+            session_id: Spawn session identifier (becomes the audit
+                ``resource_id``).
+            role: Agent role being refused.
+            chain: The full evaluated tool chain including the adapter
+                envelope.
+            catalog_tools: The catalog-declared tool list (subset of
+                *chain* used for the trifecta evaluation).
+            decision: The :class:`ChainDecision` produced by the
+                capability registry.
+        """
+        try:
+            from bernstein.core.security.audit import AuditLog
+
+            audit = AuditLog(audit_dir=self._workdir / ".sdd" / "audit")
+            audit.log(
+                event_type="capability_matrix_refusal",
+                actor="spawner",
+                resource_type="agent_session",
+                resource_id=session_id,
+                details={
+                    "role": role,
+                    "reason": decision.reason,
+                    "chain": list(chain),
+                    "catalog_tools": list(catalog_tools),
+                    "triggered": sorted(c.value for c in decision.triggered),
+                    "offending_tools": list(decision.offending_tools),
+                    "unknown_tools": list(decision.unknown_tools),
+                    "mode": decision.mode.value,
+                },
+            )
+        except Exception as exc:  # audit must never mask deny — log and move on
+            logger.warning(
+                "Could not emit capability_matrix_refusal audit event for %s: %s",
+                session_id,
+                exc,
+            )
 
     def _reap_openclaw(self, session: AgentSession) -> None:
         """Sync logs from the remote bridge for an OpenClaw session."""

@@ -301,6 +301,21 @@ jobs:
         continue-on-error: true  # Windows has Unix-only tests (chmod, SIGKILL) that are skipped but some may remain
         shell: pwsh
         run: uv run python scripts/run_tests.py -x --parallel 4
+      - name: Run capability-matrix spawn-refusal integration tests (Linux/macOS)
+        if: runner.os != 'Windows'
+        # Lethal-trifecta integration coverage: every supported OS/Python
+        # cell exercises the AgentSpawner spawn-refusal path so we catch
+        # regressions in the structural rule before they ship.  See
+        # tests/integration/test_capability_matrix_spawn_refusal.py.
+        run: |
+          uv run pytest tests/integration/test_capability_matrix_spawn_refusal.py \
+            -x -q --tb=short --timeout=120
+      - name: Run capability-matrix spawn-refusal integration tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          uv run pytest tests/integration/test_capability_matrix_spawn_refusal.py `
+            -x -q --tb=short --timeout=120
       - name: Generate coverage and JUnit reports (ubuntu, 3.13 only)
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && github.event_name == 'push'
         continue-on-error: true

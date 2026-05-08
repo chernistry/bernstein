@@ -451,11 +451,18 @@ def _build_setup(repo_path: Path) -> AgentsMdSection | None:
 
 
 def _build_architecture(repo_path: Path) -> AgentsMdSection | None:
-    """Surface entry points from ``[project.scripts]`` in pyproject.toml.
+    """Surface entry points from ``[project.scripts]`` plus any back-compat
+    redirect map declared in ``src/<pkg>/core/__init__.py``.
 
     Skipped silently when no entry points are declared. We deliberately
     don't pull every callable out of ast_symbol_graph — for AGENTS.md the
     operator wants ~5 starting points, not the full call graph.
+
+    The redirect-map detection covers a load-bearing audit invariant
+    (audit-012): when a project ships a ``sys.meta_path`` finder for
+    legacy import paths, the AGENTS.md surface must point readers at
+    the real mechanism so the documentation never drifts back to
+    "shim file lives at <name>.py" claims that aren't true.
     """
     pyproj = repo_path / "pyproject.toml"
     if not pyproj.is_file():
@@ -464,7 +471,14 @@ def _build_architecture(repo_path: Path) -> AgentsMdSection | None:
     if not scripts:
         return None
     rows = [(f"`{name}`", target) for name, target in scripts.items()]
-    body = "Top-level entry points exposed by the package:\n\n" + _render_two_column_table(rows, "Command")
+    body = "Top-level entry points exposed by the package:\n\n" + _render_two_column_table(
+        rows, "Command"
+    )
+
+    redirect_note = _detect_back_compat_redirect_map(repo_path)
+    if redirect_note:
+        body = body + "\n\n" + redirect_note
+
     return AgentsMdSection(
         key="architecture",
         title="Architecture (entry points)",
@@ -472,6 +486,43 @@ def _build_architecture(repo_path: Path) -> AgentsMdSection | None:
         kind="architecture",
         always_apply=True,
     )
+
+
+def _detect_back_compat_redirect_map(repo_path: Path) -> str | None:
+    """Return a markdown note when ``core/__init__.py`` declares a back-
+    compat redirect map.
+
+    Looks for the canonical pair ``_REDIRECT_MAP`` + ``_CoreRedirectFinder``
+    inside any ``src/*/core/__init__.py`` file. Both names must be present
+    for the section to fire — finding only one is ambiguous (could be
+    a renamed-but-not-replaced alias) and we'd rather emit nothing than
+    misdescribe.
+    """
+    src_dir = repo_path / "src"
+    if not src_dir.is_dir():
+        return None
+    for pkg_dir in sorted(src_dir.iterdir()):
+        if not pkg_dir.is_dir():
+            continue
+        init_path = pkg_dir / "core" / "__init__.py"
+        if not init_path.is_file():
+            continue
+        try:
+            text = init_path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if "_REDIRECT_MAP" not in text or "_CoreRedirectFinder" not in text:
+            continue
+        rel = init_path.relative_to(repo_path).as_posix()
+        return (
+            "**Back-compat aliases.** Legacy import paths (e.g. "
+            f"`{pkg_dir.name}.core.orchestrator`) are served by a "
+            "`sys.meta_path` finder, not by physical shim files. The mechanism "
+            f"lives in `{rel}` as `_CoreRedirectFinder` driven by the "
+            "`_REDIRECT_MAP` dict — add new aliases there rather than creating "
+            "shim modules at the old path."
+        )
+    return None
 
 
 def _build_conventions(repo_path: Path, opts: GenerateOptions) -> AgentsMdSection | None:

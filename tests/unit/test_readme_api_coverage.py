@@ -254,3 +254,85 @@ def test_readme_mentions_core_commands() -> None:
             f"README.md no longer mentions these core commands: {missing}\n"
             "Either the README was edited incorrectly, or the command was renamed."
         )
+
+
+# ---------------------------------------------------------------------------
+# Top-section structure (closes #1112)
+# ---------------------------------------------------------------------------
+# These guard the first-impression DX: the README's first screen must show an
+# install block, a demo image, and a comparison table. If any disappears the
+# tests fail loud so the rewrite from #1112 cannot silently regress.
+
+
+def test_readme_has_three_line_install_block() -> None:
+    """README.md must contain the canonical 3-line install block."""
+    readme = (_REPO_ROOT / "README.md").read_text()
+    required_lines = (
+        "pipx install bernstein",
+        "bernstein init",
+        'bernstein run -g "fix the failing test in tests/test_foo.py"',
+    )
+    missing = [line for line in required_lines if line not in readme]
+    if missing:
+        pytest.fail(
+            "README.md is missing the 3-line install block (closes #1112).\n"
+            f"Missing lines: {missing}\n"
+            "The block must appear at the top of the README so first-time "
+            "visitors can copy/paste without scrolling. See #1112 for context."
+        )
+
+
+def test_readme_references_demo_gif() -> None:
+    """README.md must reference docs/demo/demo.gif as the 60-second demo."""
+    readme = (_REPO_ROOT / "README.md").read_text()
+    if "docs/demo/demo.gif" not in readme:
+        pytest.fail(
+            "README.md no longer references docs/demo/demo.gif.\n"
+            "The 60-second demo image is the README's first-screen anchor "
+            "(closes #1112). Restore the reference or regenerate the GIF "
+            "with `vhs docs/demo/demo.tape`."
+        )
+
+
+def test_demo_assets_exist() -> None:
+    """The vhs tape, generated GIF, and PR-comment mockup must be on disk."""
+    required = (
+        _REPO_ROOT / "docs" / "demo" / "demo.tape",
+        _REPO_ROOT / "docs" / "demo" / "demo.gif",
+        _REPO_ROOT / "docs" / "demo" / "screenshot-pr-comment.svg",
+    )
+    missing = [str(p.relative_to(_REPO_ROOT)) for p in required if not p.exists()]
+    if missing:
+        pytest.fail(
+            f"Missing demo assets referenced by README.md: {missing}\n"
+            "Regenerate the GIF with `vhs docs/demo/demo.tape` and ensure "
+            "the SVG mockup is committed."
+        )
+
+
+def test_readme_has_top_section_comparison_table() -> None:
+    """README.md must contain the Bernstein/Archon/LangGraph comparison.
+
+    The 3-column table sits between the demo and the architecture body and
+    is the first competitive context a visitor sees. Its rows are the
+    promise the rest of the README has to deliver.
+    """
+    readme = (_REPO_ROOT / "README.md").read_text()
+    required_cells = (
+        "| Bernstein",
+        "| Archon",
+        "| LangGraph",
+        "Multi-agent crew (parallel adapters)",
+        "Signed lineage / audit chain",
+        "Air-gap / sovereign deploy",
+        "Visual workflow YAML",
+        "Hosted dashboard / SaaS",
+    )
+    missing = [cell for cell in required_cells if cell not in readme]
+    if missing:
+        pytest.fail(
+            "README.md is missing required cells from the top-section "
+            f"comparison table: {missing}\n"
+            "The Bernstein/Archon/LangGraph table is part of the first-screen "
+            "promise (closes #1112)."
+        )

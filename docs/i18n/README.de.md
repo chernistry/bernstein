@@ -14,8 +14,6 @@
 
 ### Orchestriere jeden KI-Coding-Agenten. Jedes Modell. Mit einem einzigen Befehl.
 
-<img alt="Bernstein im Einsatz: parallele KI-Agenten in Echtzeit orchestriert" src="../../docs/assets/in-action-small.gif" width="700">
-
 [![CI](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/bernstein)](https://pypi.org/project/bernstein/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
@@ -28,29 +26,73 @@
 
 ---
 
-**Was ist das?** Du sagst Bernstein, was gebaut werden soll. Es verteilt die Arbeit auf mehrere KI-Coding-Agenten (Claude Code, Codex, Gemini CLI und 38 weitere), führt die Tests aus und merged genau den Code, der wirklich besteht. Du kommst zurück zu funktionierendem Code.
+Bernstein ist ein deterministischer Python-Scheduler, der eine Crew von CLI-Coding-Agenten (Claude Code, Codex, Gemini CLI und 40 weitere) gegen ein einziges Ziel parallel in git-Worktrees laufen lässt, mit einer HMAC-signierten Audit-Kette über jeden Schritt.
 
-### Installation und Ausführung
-
-Eine Zeile auf macOS / Linux:
+### In 30 Sekunden installiert
 
 ```bash
-curl -fsSL https://bernstein.run/install.sh | sh
+pipx install bernstein
+bernstein init
+bernstein run -g "fix the failing test in tests/test_foo.py"
 ```
 
-Windows (PowerShell):
+### In 60 Sekunden gesehen
 
-```powershell
-irm https://bernstein.run/install.ps1 | iex
-```
+Der Clip unten zeigt einen kompletten Lauf: Der Manager zerlegt das Ziel, drei Agenten arbeiten parallel, die Audit-Kette protokolliert jeden Handoff, der Janitor verifiziert, eine PR wird geöffnet.
 
-Anschließend auf dein Projekt zeigen und ein Ziel setzen:
+<p align="center">
+  <img alt="60-Sekunden-Demo Bernstein: Manager zerlegt das Ziel, drei Agenten laufen parallel, Audit-Kette protokolliert jeden Handoff, PR wird geöffnet" src="../../docs/demo/demo.gif" width="800">
+</p>
+
+Nach dem Lauf postet Bernstein einen strukturierten Kommentar in der PR mit Kosten, Testergebnissen, Lineage und der Audit-Hash-Kette:
+
+<p align="center">
+  <img alt="Bernstein-PR-Kommentar: Abschnitte Zusammenfassung, Kosten, Lineage, Tests, Audit-Kette" src="../../docs/demo/screenshot-pr-comment.svg" width="720">
+</p>
+
+> Das GIF wird aus [`docs/demo/demo.tape`](../../docs/demo/demo.tape) mit [vhs](https://github.com/charmbracelet/vhs) erzeugt; lokal regenerieren mit `vhs docs/demo/demo.tape`.
+
+### Wie es im Vergleich abschneidet
+
+| Feature                                       | Bernstein   | Archon   | LangGraph |
+|-----------------------------------------------|-------------|----------|-----------|
+| Multi-Agent-Crew (parallele Adapter)          | ja          | einer    | ja        |
+| Signiertes Lineage / Audit-Kette              | ja          | nein     | nein      |
+| Air-gap / souveränes Deployment               | ja          | teilweise| nein      |
+| Visuelles Workflow-YAML                       | ja [^yaml]  | ja       | nein      |
+| Hosted-Dashboard / SaaS                       | nein        | teilweise| nein      |
+
+[^yaml]: Workflow-YAML-Support landet mit [PR #1108](https://github.com/sipyourdrink-ltd/bernstein/pull/1108) (in diesem Batch). Bis dahin werden Pläne in Python geschrieben oder über `bernstein run plan.yaml` gegen das alte Schema ausgeführt.
+
+Eine längere Feature-Matrix gegen CrewAI, AutoGen, LangGraph und die vier CLI-Agent-Orchestratoren in Bernsteins Kategorie steht im Abschnitt [Detaillierter Vergleich](#detailed-comparison) weiter unten.
+
+---
+
+### Was ist das, in einem Absatz?
+
+Du sagst Bernstein, was gebaut werden soll. Es verteilt die Arbeit auf mehrere KI-Coding-Agenten, lässt sie parallel in isolierten git-Worktrees arbeiten, protokolliert jeden Handoff in einem HMAC-verketteten Audit-Log, führt die Tests aus und merged genau den Code, der wirklich besteht. Du kommst zurück zu einer grünen PR.
+
+Forward-deployed Engineering, als Schwarm. Setze Bernstein in das Repo eines Kunden und du hast eine Multi-Agent-Crew mit dateibasiertem State, Credential-Scoping pro Agent und einem signierten Audit-Trail, betrieben auf den CLI-Agenten, denen der Kunde bereits vertraut.
+
+### Weitere Installationsmethoden
 
 ```bash
-cd your-project
-bernstein init                          # erstellt einen .sdd/-Workspace
-bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
+curl -fsSL https://bernstein.run/install.sh | sh        # macOS / Linux Einzeiler
+irm https://bernstein.run/install.ps1 | iex             # PowerShell unter Windows
+pip install bernstein                                   # pip
+uv tool install bernstein                               # uv
+brew tap chernistry/tap && brew install bernstein       # Homebrew
 ```
+
+Die vollständige [Installationsmatrix](#install) deckt `dnf copr`, `npx`, optionale Extras und den Wheelhouse-Pfad für Air-Gap-Standorte ab.
+
+### Warum der Scheduler schlichtes Python ist
+
+Die meisten Agenten-Orchestratoren lassen ein LLM entscheiden, wer was tut. Das ist nicht-deterministisch und verbrennt Tokens für Scheduling statt für Code. Bernstein macht genau einen LLM-Aufruf, um dein Ziel zu zerlegen, der Rest (Agenten parallel ausführen, ihre Git-Branches isolieren, Tests laufen lassen, Retries routen) ist schlichtes Python. Jeder Lauf ist reproduzierbar. Jeder Schritt wird protokolliert und ist erneut abspielbar.
+
+Kein Framework zu lernen. Kein Vendor-Lock-in. Tausche jeden Agenten, jedes Modell, jeden Provider beliebig aus.
+
+<img alt="Bernstein im Einsatz: parallele KI-Agenten in Echtzeit orchestriert" src="../../docs/assets/in-action-small.gif" width="700">
 
 Das siehst du während des Laufs:
 
@@ -61,14 +103,6 @@ $ bernstein -g "Add JWT auth"
 [agent-2] codex:         tests/test_auth.py      (done, 1m 58s)
 [verify]  all gates pass. merging to main.
 ```
-
-### Was Bernstein anders macht
-
-Die meisten Agenten-Orchestratoren lassen ein LLM entscheiden, wer was tut. Das ist nicht-deterministisch und verbrennt Tokens für Scheduling statt für Code. Bernstein macht genau einen LLM-Aufruf, um dein Ziel zu zerlegen — der Rest (Agenten parallel ausführen, ihre Git-Branches isolieren, Tests laufen lassen, Retries routen) ist schlichtes Python. Jeder Lauf ist reproduzierbar. Jeder Schritt wird protokolliert und ist erneut abspielbar.
-
-Kein Framework zu lernen. Kein Vendor-Lock-in. Tausche jeden Agenten, jedes Modell, jeden Provider beliebig aus.
-
-Weitere Installationsoptionen: `pipx install bernstein`, `pip install bernstein`, `uv tool install bernstein`, `brew`, `dnf copr`, `npx bernstein-orchestrator`. Siehe [Installationsoptionen](#installation).
 
 ## Unterstützte Agenten
 

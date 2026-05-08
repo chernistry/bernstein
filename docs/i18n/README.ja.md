@@ -14,8 +14,6 @@
 
 ### あらゆる AI コーディングエージェントを統制する。あらゆるモデルを。たった一つのコマンドで。
 
-<img alt="Bernstein 動作中: 並列 AI エージェントをリアルタイムにオーケストレーション" src="../../docs/assets/in-action-small.gif" width="700">
-
 [![CI](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/bernstein)](https://pypi.org/project/bernstein/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
@@ -28,29 +26,73 @@
 
 ---
 
-**これは何ですか？** 作りたいものを伝えると、複数の AI コーディングエージェント (Claude Code、Codex、Gemini CLI、ほか 38 種類) に作業を分担させ、テストを実行し、実際に通ったコードをマージします。戻ってきたときには、動くコードが手元にあります。
+Bernstein は決定的な Python スケジューラーです。CLI コーディングエージェント (Claude Code、Codex、Gemini CLI、ほか 40 種類) のチームを並列の git worktree で 1 つのゴールに対して走らせ、すべての操作に HMAC 署名された監査チェーンを付与します。
 
-### インストールと実行
-
-macOS / Linux なら一行で:
+### 30 秒でインストール
 
 ```bash
-curl -fsSL https://bernstein.run/install.sh | sh
+pipx install bernstein
+bernstein init
+bernstein run -g "fix the failing test in tests/test_foo.py"
 ```
 
-Windows (PowerShell):
+### 60 秒で見る
 
-```powershell
-irm https://bernstein.run/install.ps1 | iex
-```
+以下のクリップは 1 回の実行を通しで収めています。マネージャーがゴールを分解し、3 つのエージェントが並列で作業し、監査チェーンが各 handoff を記録し、janitor が検証し、PR が開きます。
 
-あとはプロジェクトに移動してゴールを設定するだけです:
+<p align="center">
+  <img alt="Bernstein 60 秒デモ: マネージャーがゴールを分解し、3 つのエージェントが並列実行し、監査チェーンが各 handoff を記録し、PR が開く" src="../../docs/demo/demo.gif" width="800">
+</p>
+
+実行後、Bernstein はコスト・テスト結果・lineage・監査ハッシュチェーンを含む構造化コメントを PR に投稿します。
+
+<p align="center">
+  <img alt="Bernstein の PR コメント: サマリー、コスト、Lineage、テスト、監査チェーンの各セクション" src="../../docs/demo/screenshot-pr-comment.svg" width="720">
+</p>
+
+> GIF は [`docs/demo/demo.tape`](../../docs/demo/demo.tape) から [vhs](https://github.com/charmbracelet/vhs) で生成しています。`vhs docs/demo/demo.tape` でローカル再生成できます。
+
+### 比較
+
+| 機能                                       | Bernstein   | Archon   | LangGraph |
+|--------------------------------------------|-------------|----------|-----------|
+| マルチエージェント (並列アダプタ)          | あり        | 1 つ     | あり      |
+| 署名付き lineage / 監査チェーン            | あり        | なし     | なし      |
+| エアギャップ / 主権デプロイ                | あり        | 一部     | なし      |
+| ビジュアルワークフロー YAML                | あり [^yaml]| あり     | なし      |
+| ホスト型ダッシュボード / SaaS              | なし        | 一部     | なし      |
+
+[^yaml]: ワークフロー YAML サポートは [PR #1108](https://github.com/sipyourdrink-ltd/bernstein/pull/1108) (この回) で着地します。それまでは Python で書くか、`bernstein run plan.yaml` で旧スキーマに対して動かしてください。
+
+CrewAI、AutoGen、LangGraph、および Bernstein と同じカテゴリの 4 つの CLI エージェントオーケストレーターに対するさらに詳細な機能マトリクスは、下の [詳細比較](#detailed-comparison) セクションにあります。
+
+---
+
+### これは何ですか、一段落で
+
+作りたいものを Bernstein に伝えると、複数の AI コーディングエージェントに作業を分担させ、隔離された git worktree で並列に走らせ、各 handoff を HMAC でチェーンされた監査ログに記録し、テストを実行し、実際に通ったコードをマージします。戻ってきたときには、グリーンの PR が手元にあります。
+
+Forward-deployed engineering を、スウォーム形式で。クライアントのリポジトリに Bernstein を投入すれば、ファイルベースの状態、エージェントごとの認証スコープ、署名付き audit trail を備えたマルチエージェントチームを、クライアントが既に信頼している CLI エージェント上で動かせます。
+
+### その他のインストール方法
 
 ```bash
-cd your-project
-bernstein init                          # creates a .sdd/ workspace
-bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
+curl -fsSL https://bernstein.run/install.sh | sh        # macOS / Linux のワンライナー
+irm https://bernstein.run/install.ps1 | iex             # Windows PowerShell
+pip install bernstein                                   # pip
+uv tool install bernstein                               # uv
+brew tap chernistry/tap && brew install bernstein       # Homebrew
 ```
+
+`dnf copr`、`npx`、オプションの extras、エアギャップサイト向けの wheelhouse パスは [インストールマトリクス](#install) を参照してください。
+
+### スケジューラーが素の Python である理由
+
+ほとんどのエージェントオーケストレーターは、誰が何をやるかを LLM に判断させます。これは非決定的で、コードではなくスケジューリングのためにトークンを消費します。Bernstein はゴールを分解するために LLM を一度だけ呼び出し、それ以降 (エージェントの並列実行、Git ブランチの隔離、テスト実行、リトライのルーティング) はすべて素の Python で行います。すべての実行は再現可能です。すべてのステップはログに記録され、再生可能です。
+
+学ぶべきフレームワークはありません。ベンダーロックインもありません。エージェントもモデルもプロバイダも、自由に差し替えられます。
+
+<img alt="Bernstein 動作中: 並列 AI エージェントをリアルタイムにオーケストレーション" src="../../docs/assets/in-action-small.gif" width="700">
 
 実行中に表示される様子:
 
@@ -61,14 +103,6 @@ $ bernstein -g "Add JWT auth"
 [agent-2] codex:         tests/test_auth.py      (done, 1m 58s)
 [verify]  all gates pass. merging to main.
 ```
-
-### どこが違うのか
-
-ほとんどのエージェントオーケストレーターは、誰が何をやるかを LLM に判断させます。これは非決定的で、コードではなくスケジューリングのためにトークンを消費します。Bernstein はゴールを分解するために LLM を一度だけ呼び出し、それ以降 — エージェントの並列実行、Git ブランチの隔離、テスト実行、リトライのルーティング — はすべて素の Python で行います。すべての実行は再現可能です。すべてのステップはログに記録され、再生可能です。
-
-学ぶべきフレームワークはありません。ベンダーロックインもありません。エージェントもモデルもプロバイダも、自由に差し替えられます。
-
-その他のインストール方法: `pipx install bernstein`、`pip install bernstein`、`uv tool install bernstein`、`brew`、`dnf copr`、`npx bernstein-orchestrator`。詳細は [インストールオプション](#インストール) を参照。
 
 ## 対応エージェント
 

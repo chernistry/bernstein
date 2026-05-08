@@ -14,8 +14,6 @@
 
 ### 编排任意 AI 编码代理。任意模型。一条命令。
 
-<img alt="Bernstein 实战：实时编排的并行 AI 代理" src="../../docs/assets/in-action-small.gif" width="700">
-
 [![CI](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/bernstein)](https://pypi.org/project/bernstein/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
@@ -28,29 +26,73 @@
 
 ---
 
-**这是什么？** 你告诉它你想构建什么。它会把任务拆分给多个 AI 编码代理（Claude Code、Codex、Gemini CLI，以及另外 38 个），跑测试，再合并真正通过验证的代码。等你回来时，代码已经能跑了。
+Bernstein 是一个用 Python 写的、确定性的调度器，它在并行的 git worktree 里指挥一支由 CLI 编码代理（Claude Code、Codex、Gemini CLI，以及另外 40 个）组成的团队完成同一个目标，并对每一步操作生成 HMAC 签名的审计链。
 
-### 安装并运行
-
-macOS / Linux 一行搞定：
+### 30 秒装好
 
 ```bash
-curl -fsSL https://bernstein.run/install.sh | sh
+pipx install bernstein
+bernstein init
+bernstein run -g "fix the failing test in tests/test_foo.py"
 ```
 
-Windows（PowerShell）：
+### 60 秒看完
 
-```powershell
-irm https://bernstein.run/install.ps1 | iex
-```
+下面这段录屏覆盖了一次完整运行：manager 拆解目标，三个代理并行干活，审计链记录每一次 handoff，janitor 验证，最后开 PR。
 
-然后切到你的项目里，设个目标：
+<p align="center">
+  <img alt="Bernstein 60 秒演示：manager 拆解目标，三个代理并行运行，审计链记录每次 handoff，PR 自动打开" src="../../docs/demo/demo.gif" width="800">
+</p>
+
+跑完之后，Bernstein 会在 PR 上贴一条结构化评论，包含成本、测试结果、lineage 和审计哈希链：
+
+<p align="center">
+  <img alt="Bernstein PR 评论：摘要、成本、Lineage、测试、审计链" src="../../docs/demo/screenshot-pr-comment.svg" width="720">
+</p>
+
+> 这段 GIF 由 [`docs/demo/demo.tape`](../../docs/demo/demo.tape) 通过 [vhs](https://github.com/charmbracelet/vhs) 生成；本地用 `vhs docs/demo/demo.tape` 重生即可。
+
+### 横向比较
+
+| 能力                                  | Bernstein   | Archon   | LangGraph |
+|--------------------------------------|-------------|----------|-----------|
+| 多代理并行（并行适配器）             | 是          | 一个     | 是        |
+| 签名 lineage / 审计链                | 是          | 否       | 否        |
+| Air-gap / 主权部署                   | 是          | 部分     | 否        |
+| 可视化工作流 YAML                    | 是 [^yaml]  | 是       | 否        |
+| 托管面板 / SaaS                      | 否          | 部分     | 否        |
+
+[^yaml]: 工作流 YAML 支持随 [PR #1108](https://github.com/sipyourdrink-ltd/bernstein/pull/1108)（同一批次）一起落地。在那之前，计划用 Python 编写，或通过 `bernstein run plan.yaml` 走旧的 schema。
+
+更详细的对比矩阵——对照 CrewAI、AutoGen、LangGraph，以及与 Bernstein 同属一个赛道的四款 CLI 代理编排器——见下文 [详细对比](#detailed-comparison)。
+
+---
+
+### 一句话讲清楚
+
+你告诉 Bernstein 你想构建什么。它把任务拆给多个 AI 编码代理，让它们在隔离的 git worktree 里并行干活，把每一次 handoff 都写进 HMAC 链式审计日志，跑测试，再合并真正通过验证的代码。等你回来，看到的是一个绿灯 PR。
+
+Forward-deployed engineering，按蜂群方式落地。把 Bernstein 扔进客户的 repo，你就拥有了一支多代理团队：状态写在文件里、每个代理用各自的凭据、操作链有签名审计——而且跑在客户已经信任的那些 CLI 代理之上。
+
+### 其他安装方式
 
 ```bash
-cd your-project
-bernstein init                          # 创建 .sdd/ 工作区
-bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
+curl -fsSL https://bernstein.run/install.sh | sh        # macOS / Linux 一行
+irm https://bernstein.run/install.ps1 | iex             # Windows PowerShell
+pip install bernstein                                   # pip
+uv tool install bernstein                               # uv
+brew tap chernistry/tap && brew install bernstein       # Homebrew
 ```
+
+完整[安装矩阵](#install)涵盖 `dnf copr`、`npx`、可选 extras，以及 air-gap 站点的 wheelhouse 路径。
+
+### 为什么调度器是普通 Python
+
+大多数代理编排器靠 LLM 决定谁干什么。这种做法既不确定，又把 token 烧在调度而不是真正写代码上。Bernstein 只用一次 LLM 调用来拆解你的目标，剩下的（并行运行代理、隔离 git 分支、跑测试、路由重试）都是普通的 Python 代码。每一次运行都可复现。每一步都有日志、都能回放。
+
+没有要学的框架。没有厂商锁定。任何代理、任何模型、任何提供商，随你换。
+
+<img alt="Bernstein 实战：实时编排的并行 AI 代理" src="../../docs/assets/in-action-small.gif" width="700">
 
 运行时你会看到这样的输出：
 
@@ -61,14 +103,6 @@ $ bernstein -g "Add JWT auth"
 [agent-2] codex:         tests/test_auth.py      (done, 1m 58s)
 [verify]  all gates pass. merging to main.
 ```
-
-### 它哪里不一样
-
-大多数代理编排器靠 LLM 决定谁干什么。这种做法既不确定，又把 token 烧在调度而不是真正写代码上。Bernstein 只用一次 LLM 调用来拆解你的目标，剩下的——并行运行代理、隔离 git 分支、跑测试、路由重试——都是普通的 Python 代码。每一次运行都可复现。每一步都有日志、都能回放。
-
-没有要学的框架。没有厂商锁定。任何代理、任何模型、任何提供商，随你换。
-
-其他安装方式：`pipx install bernstein`、`pip install bernstein`、`uv tool install bernstein`、`brew`、`dnf copr`、`npx bernstein-orchestrator`。详见[安装方式](#install)。
 
 ## 支持的代理
 

@@ -16,8 +16,6 @@
 
 ### نسِّق أي وكيل برمجة بالذكاء الاصطناعي. أي نموذج. بأمر واحد.
 
-<img alt="Bernstein أثناء العمل: وكلاء ذكاء اصطناعي متوازون يُنسَّقون في الزمن الحقيقي" src="../../docs/assets/in-action-small.gif" width="700">
-
 [![CI](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/bernstein)](https://pypi.org/project/bernstein/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
@@ -30,29 +28,73 @@
 
 ---
 
-**ما هذا؟** أنت تخبره بما تريد بناءه. فيُقسِّم العمل بين عدة وكلاء برمجة بالذكاء الاصطناعي (Claude Code وCodex وGemini CLI و34 وكيلاً آخر)، ويُشغِّل الاختبارات، ويدمج الشيفرة التي تنجح فعلاً. وتعود لتجد شيفرة عاملة.
+Bernstein هو مُجدوِل حتمي مكتوب بـ Python يُشغِّل فريقاً من وكلاء البرمجة عبر سطر الأوامر (Claude Code وCodex وGemini CLI و40 وكيلاً آخر) لتحقيق هدف واحد بالتوازي داخل worktrees مستقلة في git، مع سلسلة تدقيق موقَّعة بـ HMAC على كل خطوة.
 
-### التثبيت والتشغيل
-
-سطر واحد على macOS / Linux:
+### ثبِّته في 30 ثانية
 
 ```bash
-curl -fsSL https://bernstein.run/install.sh | sh
+pipx install bernstein
+bernstein init
+bernstein run -g "fix the failing test in tests/test_foo.py"
 ```
 
-Windows (PowerShell):
+### شاهده في 60 ثانية
 
-```powershell
-irm https://bernstein.run/install.ps1 | iex
-```
+يغطي المقطع التالي تشغيلاً كاملاً: المُدير يُفكِّك الهدف، وثلاثة وكلاء يعملون بالتوازي، وسلسلة التدقيق تُسجِّل كل تسليم بين الأطراف، والـ janitor يتحقق، ثم يُفتح PR.
 
-ثم وجِّهه إلى مشروعك وحدِّد هدفاً:
+<p align="center">
+  <img alt="عرض Bernstein لمدة 60 ثانية: المدير يُفكِّك الهدف، وثلاثة وكلاء يعملون بالتوازي، وسلسلة التدقيق تُسجِّل كل تسليم، ثم يُفتح PR" src="../../docs/demo/demo.gif" width="800">
+</p>
+
+بعد التشغيل، ينشر Bernstein تعليقاً منظماً على الـ PR يتضمن التكلفة ونتائج الاختبارات والـ lineage وسلسلة هاش التدقيق:
+
+<p align="center">
+  <img alt="تعليق Bernstein على الـ PR: أقسام الملخص والتكلفة والـ Lineage والاختبارات وسلسلة التدقيق" src="../../docs/demo/screenshot-pr-comment.svg" width="720">
+</p>
+
+> يُنتَج الـ GIF من [`docs/demo/demo.tape`](../../docs/demo/demo.tape) بواسطة [vhs](https://github.com/charmbracelet/vhs)؛ أعِد توليده محلياً بـ `vhs docs/demo/demo.tape`.
+
+### كيف يقارن نفسه
+
+| الميزة                                | Bernstein   | Archon   | LangGraph |
+|---------------------------------------|-------------|----------|-----------|
+| فريق متعدد الوكلاء (محوِّلات متوازية)  | نعم         | واحد     | نعم       |
+| Lineage موقَّع / سلسلة تدقيق           | نعم         | لا       | لا        |
+| نشر Air-gap / سيادي                   | نعم         | جزئي     | لا        |
+| YAML تدفق عمل بصري                    | نعم [^yaml] | نعم      | لا        |
+| لوحة مُستضافة / SaaS                   | لا          | جزئي     | لا        |
+
+[^yaml]: دعم YAML لتدفقات العمل ينزل مع [PR #1108](https://github.com/sipyourdrink-ltd/bernstein/pull/1108) (في الدفعة نفسها). حتى ذلك الحين، تُكتب الخطط بـ Python أو عبر `bernstein run plan.yaml` على المخطط القديم.
+
+تجد مصفوفة ميزات أطول مقارنةً بـ CrewAI وAutoGen وLangGraph وأربعة من منسِّقات وكلاء سطر الأوامر التي تشترك مع Bernstein في الفئة نفسها في قسم [المقارنة المفصَّلة](#detailed-comparison) أدناه.
+
+---
+
+### ما هذا، في فقرة واحدة؟
+
+أنت تخبر Bernstein بما تريد بناءه. يُقسِّم العمل بين عدة وكلاء برمجة بالذكاء الاصطناعي، ويُشغِّلهم بالتوازي داخل worktrees مستقلة في git، ويُسجِّل كل تسليم في سجل تدقيق مُسلسل بـ HMAC، ويُشغِّل الاختبارات، ويدمج الشيفرة التي تنجح فعلاً. وتعود لتجد PR أخضر.
+
+Forward-deployed engineering، بأسلوب السرب. ضع Bernstein في مستودع عميل وستحصل على فريق متعدد الوكلاء بحالة على ملفات وعزل اعتمادات لكل وكيل وأثر تدقيق موقَّع، يعمل على وكلاء سطر الأوامر التي يثق بها العميل أصلاً.
+
+### طرق تثبيت أخرى
 
 ```bash
-cd your-project
-bernstein init                          # creates a .sdd/ workspace
-bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
+curl -fsSL https://bernstein.run/install.sh | sh        # سطر واحد على macOS / Linux
+irm https://bernstein.run/install.ps1 | iex             # PowerShell على Windows
+pip install bernstein                                   # pip
+uv tool install bernstein                               # uv
+brew tap chernistry/tap && brew install bernstein       # Homebrew
 ```
+
+انظر [مصفوفة التثبيت](#install) الكاملة لـ `dnf copr` و`npx` والإضافات الاختيارية ومسار الـ wheelhouse للمواقع المعزولة (air-gap).
+
+### لماذا المُجدوِل Python خالص
+
+تستخدم معظم منسِّقات الوكلاء نموذجاً لغوياً كبيراً ليقرر مَن يفعل ماذا. وهذا غير حتمي ويستهلك الرموز (tokens) في الجدولة بدلاً من الشيفرة. أما Bernstein فيُجري نداءً واحداً للنموذج اللغوي لتفكيك هدفك، وما تبقى (تشغيل الوكلاء بالتوازي، وعزل فروع git الخاصة بهم، وتشغيل الاختبارات، وتوجيه إعادات المحاولة) هو Python خالص. كل تشغيل قابل للاستنساخ. وكل خطوة مُسجَّلة وقابلة للإعادة.
+
+لا إطار عمل عليك تعلُّمه. ولا تقييد بمزوِّد. بدِّل أي وكيل، أي نموذج، أي مزوِّد.
+
+<img alt="Bernstein أثناء العمل: وكلاء ذكاء اصطناعي متوازون يُنسَّقون في الزمن الحقيقي" src="../../docs/assets/in-action-small.gif" width="700">
 
 ما تراه أثناء التشغيل:
 
@@ -63,14 +105,6 @@ $ bernstein -g "Add JWT auth"
 [agent-2] codex:         tests/test_auth.py      (done, 1m 58s)
 [verify]  all gates pass. merging to main.
 ```
-
-### لماذا هو مختلف
-
-تستخدم معظم منسِّقات الوكلاء نموذجاً لغوياً كبيراً ليقرر مَن يفعل ماذا. وهذا غير حتمي ويستهلك الرموز (tokens) في الجدولة بدلاً من الشيفرة. أما Bernstein فيُجري نداءً واحداً للنموذج اللغوي لتفكيك هدفك، وما تبقى — تشغيل الوكلاء بالتوازي، وعزل فروع git الخاصة بهم، وتشغيل الاختبارات، وتوجيه إعادات المحاولة — هو Python خالص. كل تشغيل قابل للاستنساخ. وكل خطوة مُسجَّلة وقابلة للإعادة.
-
-لا إطار عمل عليك تعلُّمه. ولا تقييد بمزوِّد. بدِّل أي وكيل، أي نموذج، أي مزوِّد.
-
-خيارات تثبيت أخرى: `pipx install bernstein`، و`pip install bernstein`، و`uv tool install bernstein`، و`brew`، و`dnf copr`، و`npx bernstein-orchestrator`. انظر [خيارات التثبيت](#install).
 
 ## الوكلاء المدعومون
 

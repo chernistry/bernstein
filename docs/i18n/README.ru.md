@@ -14,8 +14,6 @@
 
 ### Оркеструйте любого ИИ-агента для кода. Любую модель. Одной командой.
 
-<img alt="Bernstein в действии: параллельные ИИ-агенты, оркестрируемые в реальном времени" src="../../docs/assets/in-action-small.gif" width="700">
-
 [![CI](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/bernstein)](https://pypi.org/project/bernstein/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
@@ -28,29 +26,73 @@
 
 ---
 
-**Что это?** Вы говорите, что нужно сделать. Bernstein распределяет работу между несколькими ИИ-агентами для написания кода (Claude Code, Codex, Gemini CLI и ещё 38), запускает тесты и мерджит тот код, который реально проходит. Вы возвращаетесь к рабочему коду.
+Bernstein — это детерминированный планировщик на Python: он запускает команду CLI-агентов для кода (Claude Code, Codex, Gemini CLI и ещё 40) на одну цель в параллельных git worktree, с HMAC-подписанной цепочкой аудита на каждом шаге.
 
-### Установка и запуск
-
-Одна строка для macOS / Linux:
+### Установка за 30 секунд
 
 ```bash
-curl -fsSL https://bernstein.run/install.sh | sh
+pipx install bernstein
+bernstein init
+bernstein run -g "fix the failing test in tests/test_foo.py"
 ```
 
-Windows (PowerShell):
+### Демо за 60 секунд
 
-```powershell
-irm https://bernstein.run/install.ps1 | iex
-```
+Ролик ниже охватывает один прогон целиком: менеджер декомпозирует цель, три агента работают параллельно, цепочка аудита фиксирует каждый handoff, janitor проверяет, и открывается PR.
 
-Дальше — направьте на свой проект и задайте цель:
+<p align="center">
+  <img alt="60-секундное демо Bernstein: менеджер декомпозирует цель, три агента работают параллельно, цепочка аудита фиксирует каждый handoff, открывается PR" src="../../docs/demo/demo.gif" width="800">
+</p>
+
+После прогона Bernstein постит структурированный комментарий в PR со стоимостью, результатами тестов, lineage и хеш-цепочкой аудита:
+
+<p align="center">
+  <img alt="Комментарий Bernstein в PR: разделы Сводка, Стоимость, Lineage, Тесты, Цепочка аудита" src="../../docs/demo/screenshot-pr-comment.svg" width="720">
+</p>
+
+> GIF собирается из [`docs/demo/demo.tape`](../../docs/demo/demo.tape) с помощью [vhs](https://github.com/charmbracelet/vhs); локально перегенерировать — `vhs docs/demo/demo.tape`.
+
+### Сравнение
+
+| Возможность                                    | Bernstein   | Archon   | LangGraph |
+|------------------------------------------------|-------------|----------|-----------|
+| Команда мульти-агентов (параллельные адаптеры) | да          | один     | да        |
+| Подписанный lineage / цепочка аудита           | да          | нет      | нет       |
+| Air-gap / суверенный деплой                    | да          | частично | нет       |
+| Визуальный workflow YAML                       | да [^yaml]  | да       | нет       |
+| Хостовый дашборд / SaaS                        | нет         | частично | нет       |
+
+[^yaml]: Поддержка workflow YAML приедет с [PR #1108](https://github.com/sipyourdrink-ltd/bernstein/pull/1108) (в этой же партии). До этого момента планы пишут на Python или подают через `bernstein run plan.yaml` под старую схему.
+
+Более длинная матрица возможностей против CrewAI, AutoGen, LangGraph и четырёх оркестраторов CLI-агентов того же класса, что и Bernstein, лежит в разделе [Подробное сравнение](#detailed-comparison) ниже.
+
+---
+
+### Что это, в одном абзаце
+
+Вы говорите Bernstein, что хотите получить. Он распределяет работу между несколькими ИИ-агентами для кода, запускает их параллельно в изолированных git worktree, фиксирует каждый handoff в HMAC-цепочечном логе аудита, прогоняет тесты и мерджит тот код, который реально проходит. Вы возвращаетесь к зелёному PR.
+
+Forward-deployed engineering в формате роя. Положите Bernstein в репозиторий клиента — и у вас есть мульти-агентная команда с состоянием в файлах, ограничением учётных данных по агентам и подписанным audit trail, работающая поверх тех CLI-агентов, которым клиент уже доверяет.
+
+### Другие способы установки
 
 ```bash
-cd your-project
-bernstein init                          # создаёт рабочее пространство .sdd/
-bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
+curl -fsSL https://bernstein.run/install.sh | sh        # Одна строка для macOS / Linux
+irm https://bernstein.run/install.ps1 | iex             # PowerShell в Windows
+pip install bernstein                                   # pip
+uv tool install bernstein                               # uv
+brew tap chernistry/tap && brew install bernstein       # Homebrew
 ```
+
+Полная [матрица установки](#install) покрывает `dnf copr`, `npx`, опциональные extras и путь wheelhouse для air-gap-площадок.
+
+### Почему планировщик — обычный Python
+
+Большинство оркестраторов агентов используют LLM, чтобы решать, кто что делает. Это недетерминированно и сжигает токены на планирование вместо кода. Bernstein делает один LLM-вызов, чтобы декомпозировать вашу цель, а всё остальное (параллельный запуск агентов, изоляция их git-веток, прогон тестов, маршрутизация повторных попыток) — это обычный Python. Каждый запуск воспроизводим. Каждый шаг логируется и поддаётся повтору.
+
+Никакого фреймворка для изучения. Никакой привязки к вендору. Меняйте любого агента, любую модель, любого провайдера.
+
+<img alt="Bernstein в действии: параллельные ИИ-агенты, оркестрируемые в реальном времени" src="../../docs/assets/in-action-small.gif" width="700">
 
 Что вы видите во время работы:
 
@@ -61,14 +103,6 @@ $ bernstein -g "Add JWT auth"
 [agent-2] codex:         tests/test_auth.py      (done, 1m 58s)
 [verify]  all gates pass. merging to main.
 ```
-
-### В чём отличие
-
-Большинство оркестраторов агентов используют LLM, чтобы решать, кто что делает. Это недетерминированно и сжигает токены на планирование вместо кода. Bernstein делает один LLM-вызов, чтобы декомпозировать вашу цель, а всё остальное — параллельный запуск агентов, изоляция их git-веток, прогон тестов, маршрутизация повторных попыток — это обычный Python. Каждый запуск воспроизводим. Каждый шаг логируется и поддаётся повтору.
-
-Никакого фреймворка для изучения. Никакой привязки к вендору. Меняйте любого агента, любую модель, любого провайдера.
-
-Другие способы установки: `pipx install bernstein`, `pip install bernstein`, `uv tool install bernstein`, `brew`, `dnf copr`, `npx bernstein-orchestrator`. См. [варианты установки](#установка).
 
 ## Поддерживаемые агенты
 

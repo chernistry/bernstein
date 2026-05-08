@@ -16,8 +16,6 @@
 
 ### תזמרו כל סוכן קוד מבוסס בינה מלאכותית. כל מודל. בפקודה אחת.
 
-<img alt="Bernstein בפעולה: סוכני בינה מלאכותית מתוזמרים במקביל בזמן אמת" src="../../docs/assets/in-action-small.gif" width="700">
-
 [![CI](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/bernstein)](https://pypi.org/project/bernstein/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
@@ -30,29 +28,73 @@
 
 ---
 
-**מה זה?** אתם אומרים מה אתם רוצים לבנות. הכלי מפצל את העבודה בין כמה סוכני קוד מבוססי בינה מלאכותית (Claude Code, Codex, Gemini CLI ועוד 38), מריץ את הבדיקות, וממזג את הקוד שעובר אותן בפועל. אתם חוזרים לקוד עובד.
+Bernstein הוא מתזמן Python דטרמיניסטי שמריץ צוות של סוכני קוד CLI (Claude Code, Codex, Gemini CLI ועוד 40) על מטרה אחת במקביל בתוך worktrees של git, עם שרשרת ביקורת חתומה ב-HMAC על כל צעד.
 
-### התקנה והרצה
-
-שורה אחת ב-macOS / Linux:
+### התקנה ב-30 שניות
 
 ```bash
-curl -fsSL https://bernstein.run/install.sh | sh
+pipx install bernstein
+bernstein init
+bernstein run -g "fix the failing test in tests/test_foo.py"
 ```
 
-Windows (PowerShell):
+### לראות תוך 60 שניות
 
-```powershell
-irm https://bernstein.run/install.ps1 | iex
-```
+הקליפ הבא מכסה ריצה שלמה: המנהל מפרק את המטרה, שלושה סוכנים עובדים במקביל, שרשרת הביקורת רושמת כל handoff, ה-janitor מוודא, ונפתח PR.
 
-לאחר מכן הפנו אותו לפרויקט שלכם והגדירו מטרה:
+<p align="center">
+  <img alt="הדגמת Bernstein של 60 שניות: המנהל מפרק את המטרה, שלושה סוכנים רצים במקביל, שרשרת הביקורת רושמת כל handoff, ונפתח PR" src="../../docs/demo/demo.gif" width="800">
+</p>
+
+לאחר הריצה Bernstein מפרסם תגובה מובנית ב-PR עם עלות, תוצאות בדיקות, lineage ושרשרת hash הביקורת:
+
+<p align="center">
+  <img alt="תגובת Bernstein ב-PR: סקירה, עלות, Lineage, בדיקות, שרשרת ביקורת" src="../../docs/demo/screenshot-pr-comment.svg" width="720">
+</p>
+
+> ה-GIF נוצר מ-[`docs/demo/demo.tape`](../../docs/demo/demo.tape) באמצעות [vhs](https://github.com/charmbracelet/vhs); ניתן ליצור מחדש מקומית עם `vhs docs/demo/demo.tape`.
+
+### השוואה
+
+| תכונה                                        | Bernstein   | Archon   | LangGraph |
+|----------------------------------------------|-------------|----------|-----------|
+| צוות מרובה סוכנים (מתאמים מקבילים)            | כן          | אחד      | כן        |
+| Lineage חתום / שרשרת ביקורת                  | כן          | לא       | לא        |
+| פריסה אוויר־מנותקת (air-gap) / ריבונית        | כן          | חלקית    | לא        |
+| YAML זרימת עבודה ויזואלית                    | כן [^yaml]  | כן       | לא        |
+| לוח בקרה מתארח / SaaS                        | לא          | חלקית    | לא        |
+
+[^yaml]: תמיכת YAML בזרימות עבודה נוחתת עם [PR #1108](https://github.com/sipyourdrink-ltd/bernstein/pull/1108) (במאצ'ר הזה). עד אז התוכניות נכתבות ב-Python או דרך `bernstein run plan.yaml` כנגד הסכמה הישנה.
+
+מטריצת תכונות ארוכה יותר אל מול CrewAI, AutoGen, LangGraph וארבעת מתזמרי סוכני ה-CLI שבאותה קטגוריה כמו Bernstein גרה בקטע [השוואה מפורטת](#detailed-comparison) למטה.
+
+---
+
+### מה זה, בפסקה אחת
+
+אתם אומרים ל-Bernstein מה אתם רוצים לבנות. הוא מפצל את העבודה בין כמה סוכני קוד מבוססי בינה מלאכותית, מריץ אותם במקביל בתוך worktrees מבודדים של git, רושם כל handoff בלוג ביקורת בשרשרת HMAC, מריץ את הבדיקות, וממזג את הקוד שעובר אותן בפועל. אתם חוזרים ל-PR ירוק.
+
+Forward-deployed engineering, בצורת נחיל. תניחו את Bernstein על repo של לקוח, ויש לכם צוות מרובה סוכנים עם state בקבצים, היקף הרשאות לכל סוכן, ו-audit trail חתום, רץ מעל סוכני ה-CLI שהלקוח כבר סומך עליהם.
+
+### דרכי התקנה נוספות
 
 ```bash
-cd your-project
-bernstein init                          # creates a .sdd/ workspace
-bernstein -g "Add JWT auth with refresh tokens, tests, and API docs"
+curl -fsSL https://bernstein.run/install.sh | sh        # שורה אחת ב-macOS / Linux
+irm https://bernstein.run/install.ps1 | iex             # PowerShell של Windows
+pip install bernstein                                   # pip
+uv tool install bernstein                               # uv
+brew tap chernistry/tap && brew install bernstein       # Homebrew
 ```
+
+ראו [מטריצת התקנה](#install) המלאה ל-`dnf copr`, `npx`, extras אופציונליים ושביל wheelhouse לאתרים אוויר־מנותקים.
+
+### למה המתזמן הוא Python רגיל
+
+רוב מתזמרי הסוכנים משתמשים ב-LLM כדי להחליט מי עושה מה. זה לא דטרמיניסטי ושורף טוקנים על תזמון במקום על קוד. Bernstein מבצע קריאת LLM אחת כדי לפרק את המטרה שלכם, וכל היתר (הרצת סוכנים במקביל, בידוד ענפי git שלהם, הרצת בדיקות, ניתוב ניסיונות חוזרים) הוא Python רגיל. כל ריצה ניתנת לשחזור. כל שלב מתועד וניתן לחזרה.
+
+אין מסגרת ללמוד. אין נעילת ספק. החליפו כל סוכן, כל מודל, כל ספק.
+
+<img alt="Bernstein בפעולה: סוכני בינה מלאכותית מתוזמרים במקביל בזמן אמת" src="../../docs/assets/in-action-small.gif" width="700">
 
 מה תראו בזמן הריצה:
 
@@ -63,14 +105,6 @@ $ bernstein -g "Add JWT auth"
 [agent-2] codex:         tests/test_auth.py      (done, 1m 58s)
 [verify]  all gates pass. merging to main.
 ```
-
-### למה זה שונה
-
-רוב מתזמרי הסוכנים משתמשים ב-LLM כדי להחליט מי עושה מה. זה לא דטרמיניסטי ושורף טוקנים על תזמון במקום על קוד. Bernstein מבצע קריאת LLM אחת כדי לפרק את המטרה שלכם, וכל היתר — הרצת סוכנים במקביל, בידוד ענפי git שלהם, הרצת בדיקות, ניתוב ניסיונות חוזרים — הוא Python רגיל. כל ריצה ניתנת לשחזור. כל שלב מתועד וניתן לחזרה.
-
-אין מסגרת ללמוד. אין נעילת ספק. החליפו כל סוכן, כל מודל, כל ספק.
-
-אפשרויות התקנה נוספות: `pipx install bernstein`, `pip install bernstein`, `uv tool install bernstein`, `brew`, `dnf copr`, `npx bernstein-orchestrator`. ראו [אפשרויות התקנה](#install).
 
 ## סוכנים נתמכים
 

@@ -64,7 +64,30 @@ from tests.fixtures.airgap import WheelhouseFixture, build_wheelhouse
 _HAS_COSIGN: Final[bool] = shutil.which("cosign") is not None
 _HAS_GPG: Final[bool] = shutil.which("gpg") is not None or shutil.which("gpg2") is not None
 _IS_LINUX: Final[bool] = sys.platform.startswith("linux")
-_HAS_UNSHARE: Final[bool] = shutil.which("unshare") is not None and _IS_LINUX
+
+
+def _probe_unshare_capable() -> bool:
+    """Return True if ``unshare -n`` actually works in this environment.
+
+    GitHub-hosted runners ship the ``unshare`` binary but lack
+    ``CAP_SYS_ADMIN``, so the syscall fails with ``EPERM``. We refuse to
+    declare unshare-capable unless a no-op invocation succeeds.
+    """
+    if not _IS_LINUX or shutil.which("unshare") is None:
+        return False
+    try:
+        result = subprocess.run(
+            ["unshare", "-n", "--", "true"],
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
+
+
+_HAS_UNSHARE: Final[bool] = _probe_unshare_capable()
 
 
 # ---------------------------------------------------------------------------

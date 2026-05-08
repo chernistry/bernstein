@@ -471,9 +471,7 @@ def _build_architecture(repo_path: Path) -> AgentsMdSection | None:
     if not scripts:
         return None
     rows = [(f"`{name}`", target) for name, target in scripts.items()]
-    body = "Top-level entry points exposed by the package:\n\n" + _render_two_column_table(
-        rows, "Command"
-    )
+    body = "Top-level entry points exposed by the package:\n\n" + _render_two_column_table(rows, "Command")
 
     redirect_note = _detect_back_compat_redirect_map(repo_path)
     if redirect_note:

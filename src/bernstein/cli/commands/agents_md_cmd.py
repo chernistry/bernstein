@@ -239,8 +239,27 @@ def agents_md_verify(workdir: Path, target: str, repo_name: str | None) -> None:
                 drift_count += 1
                 continue
             actual = on_disk.read_text(encoding="utf-8")
-            if actual != expected:
+            # Compare normalised: ignore trailing whitespace + final newline
+            # variance. Renderers emit a single trailing "\n", but editors,
+            # git autocrlf, and platform tooling can introduce stray trailing
+            # whitespace that is not semantically a drift.
+            if actual.rstrip() != expected.rstrip():
                 click.echo(f"DRIFT    {rel}  (target={t})")
+                a_norm, e_norm = actual.rstrip(), expected.rstrip()
+                for i, (a, e) in enumerate(zip(a_norm, e_norm, strict=False)):
+                    if a != e:
+                        ctx_a = a_norm[max(0, i - 20) : i + 20]
+                        ctx_e = e_norm[max(0, i - 20) : i + 20]
+                        click.echo(
+                            f"         first diff at offset {i}: actual={ctx_a!r} expected={ctx_e!r}",
+                            err=True,
+                        )
+                        break
+                else:
+                    click.echo(
+                        f"         length diff: actual={len(a_norm)} expected={len(e_norm)}",
+                        err=True,
+                    )
                 drift_count += 1
     if drift_count:
         click.echo(

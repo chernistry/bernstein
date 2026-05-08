@@ -287,6 +287,15 @@ def _install_network_policy(
         policy = NetworkPolicy.allow_all()
     install_policy(policy, profile=profile_norm)
 
+    # Under airgap profile, also patch socket.socket.connect so an
+    # un-declared outbound dial cannot bypass the per-adapter check.
+    # Outside airgap the guard self-disables (returns False) so the
+    # call is safe to issue unconditionally.
+    if profile_norm == PROFILE_AIRGAP:
+        from bernstein.core.security.socket_guard import install_runtime_socket_guard
+
+        install_runtime_socket_guard()
+
 
 def _show_dry_run_plan(
     workdir: Path,

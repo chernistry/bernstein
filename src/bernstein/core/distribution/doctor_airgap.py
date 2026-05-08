@@ -243,6 +243,39 @@ def check_no_external_hostnames(workdir: Path) -> Check:
     )
 
 
+def check_runtime_socket_guard_active() -> Check:
+    """Verify the process-wide runtime socket guard is patched in.
+
+    Under ``--profile airgap`` the orchestrator installs a
+    :class:`socket.socket.connect` hook so an un-declared outbound dial
+    raises :class:`NetworkPolicyDenied`. The hook only patches when
+    ``BERNSTEIN_PROFILE_MODE=airgap`` is set; outside airgap it is a
+    no-op. The doctor surfaces both a missing patch (FAIL) and a
+    "we're not in airgap right now" state (WARN).
+    """
+    from bernstein.core.security.socket_guard import is_runtime_socket_guard_installed
+
+    if os.environ.get(ENV_PROFILE_MODE, "").strip().lower() != PROFILE_AIRGAP:
+        return Check(
+            name="runtime socket guard active",
+            status=CheckStatus.WARN,
+            detail="airgap profile not active in this shell -- guard is not installed",
+        )
+    if is_runtime_socket_guard_installed():
+        return Check(
+            name="runtime socket guard active",
+            status=CheckStatus.PASS,
+            detail="socket.socket.connect is patched to consult the network policy",
+        )
+    return Check(
+        name="runtime socket guard active",
+        status=CheckStatus.FAIL,
+        detail="airgap profile is active but socket.socket.connect is NOT patched",
+        fix="rerun bernstein run --profile airgap (re-installs the guard) or "
+        "import bernstein.core.security.socket_guard and call install_runtime_socket_guard()",
+    )
+
+
 def check_policy_blocks_known_endpoints() -> Check:
     """Sanity probe: feed every adapter's declared endpoints into the policy.
 
@@ -308,6 +341,7 @@ def run_airgap_checks(workdir: Path | None = None) -> AirgapReport:
     rows: list[Check] = [
         check_profile_active(),
         check_network_policy_deny_all(),
+        check_runtime_socket_guard_active(),
         check_policy_blocks_known_endpoints(),
         check_mcp_catalog_all_off(),
         check_memo_store_local(cwd),
@@ -328,5 +362,6 @@ __all__ = [
     "check_no_external_hostnames",
     "check_policy_blocks_known_endpoints",
     "check_profile_active",
+    "check_runtime_socket_guard_active",
     "run_airgap_checks",
 ]

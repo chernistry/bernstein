@@ -1,0 +1,136 @@
+name: Airgap E2E
+
+# Runs the real-cosign + real-gpg + unshare-namespace integration tests on
+# Linux. Excluded from the main CI matrix because (a) it installs cosign /
+# gpg / unshare on the runner which the docs+test matrix does not need, and
+# (b) it's the only place in the suite that actually generates real
+# signatures and runs in a network namespace -- if you're iterating on
+# something else you don't want to wait on it. Sovereign-customer
+# compliance teams expect this gate to be green before any release that
+# touches the air-gap distribution path.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Nightly at 04:42 UTC -- after auto-release (03:00 UTC) so we cover
+    # the latest wheelhouse output from any same-day version bump.
+    - cron: "42 4 * * *"
+  pull_request:
+    paths:
+      - "src/bernstein/core/distribution/**"
+      - "src/bernstein/core/security/socket_guard.py"
+      - "src/bernstein/core/security/network_policy.py"
+      - "scripts/build_airgap_wheelhouse.py"
+      - "scripts/sign_airgap_wheelhouse.sh"
+      - "tests/integration/test_airgap_offline_e2e.py"
+      - "tests/integration/test_airgap_wheelhouse.py"
+      - "tests/unit/test_airgap_adversarial.py"
+      - "tests/unit/test_doctor_airgap.py"
+      - "tests/fixtures/airgap/**"
+      - ".github/workflows/airgap-e2e.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/bernstein/core/distribution/**"
+      - "src/bernstein/core/security/socket_guard.py"
+      - "scripts/build_airgap_wheelhouse.py"
+      - "scripts/sign_airgap_wheelhouse.sh"
+      - "tests/integration/test_airgap_offline_e2e.py"
+      - "tests/fixtures/airgap/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: airgap-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  airgap-e2e:
+    name: Airgap E2E (Linux, real cosign + gpg + unshare)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Install cosign
+        # Pinned to a known-good release. The integration test asserts cosign
+        # accepts ``--insecure-ignore-tlog`` on verify-blob, which has been
+        # stable since v2.0.0 (Jan 2023).
+        uses: sigstore/cosign-installer@d7d6e4b3f7adcdee2c30b2cf04a72a16e15bbcc1 # v3.10.0
+        with:
+          cosign-release: v2.4.1
+
+      - name: Install gpg + unshare prerequisites
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends gnupg2 util-linux
+
+      - name: Verify offline tooling is present
+        run: |
+          cosign version
+          gpg --version | head -1
+          which unshare
+          unshare --help | head -3
+
+      - name: Run airgap unit tests (no network needed)
+        run: |
+          uv run pytest \
+            tests/unit/test_airgap_adversarial.py \
+            tests/unit/test_doctor_airgap.py \
+            -x --tb=short
+
+      - name: Run airgap integration tests (real cosign + gpg + unshare)
+        env:
+          # The cosign generate-key-pair step writes an unprotected key for
+          # the test; an empty COSIGN_PASSWORD signals "no passphrase".
+          COSIGN_PASSWORD: ""
+        run: |
+          uv run pytest \
+            tests/integration/test_airgap_wheelhouse.py \
+            tests/integration/test_airgap_offline_e2e.py \
+            -x --tb=short -v
+
+      - name: Verify the doctor airgap battery on a clean install
+        env:
+          BERNSTEIN_PROFILE_MODE: airgap
+          BERNSTEIN_NETWORK_POLICY: none
+        run: |
+          uv run python -c "
+          from bernstein.core.distribution.doctor_airgap import run_airgap_checks
+          from bernstein.core.security.socket_guard import install_runtime_socket_guard
+          install_runtime_socket_guard(force=True)
+          report = run_airgap_checks()
+          for c in report.checks:
+              print(f'{c.status.value:5s} {c.name}: {c.detail}')
+          if not report.ok:
+              raise SystemExit(1)
+          "
+
+      - name: Smoke-build a wheelhouse + verify it inside unshare -n
+        run: |
+          # Build a representative wheelhouse (skip the project wheel; we
+          # only need the shape for the integration assertion).
+          uv run python scripts/build_airgap_wheelhouse.py \
+            --skip-project \
+            --output dist/airgap-wheelhouse-ci \
+            --version 0.0.0-ci
+          # Verify it inside an isolated namespace -- proves the verify
+          # path makes no outbound calls.
+          unshare -n -- uv run python -c "
+          from pathlib import Path
+          from bernstein.cli.commands.wheelhouse_cmd import run_verify
+          rc = run_verify(
+              wheelhouse_path=Path('dist/airgap-wheelhouse-ci'),
+              verifier_kind='auto', ca_pubkey=None, keyring_path=None,
+              cosign_identity=None, cosign_issuer=None,
+              require_signatures=False,
+          )
+          import sys; sys.exit(rc)
+          "

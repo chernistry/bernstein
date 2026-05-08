@@ -8,6 +8,7 @@ are deterministic regardless of the developer's local config.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -33,18 +34,38 @@ from bernstein.core.security.network_policy import (
     ENV_PROFILE_MODE,
     PROFILE_AIRGAP,
 )
+from bernstein.core.security.socket_guard import (
+    install_runtime_socket_guard,
+    uninstall_runtime_socket_guard,
+)
 
 
 @pytest.fixture
-def airgap_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def airgap_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Set the airgap env vars and install the runtime socket guard.
+
+    Production ``bernstein run --profile airgap`` does both: env vars +
+    guard install. The fixture mirrors that so the doctor battery sees
+    the same state in tests as it would in a real airgap run.
+    """
     monkeypatch.setenv(ENV_PROFILE_MODE, PROFILE_AIRGAP)
     monkeypatch.setenv(ENV_NETWORK_POLICY, "none")
+    install_runtime_socket_guard(force=True)
+    try:
+        yield
+    finally:
+        uninstall_runtime_socket_guard()
 
 
 @pytest.fixture
-def lax_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def lax_env(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.delenv(ENV_PROFILE_MODE, raising=False)
     monkeypatch.delenv(ENV_NETWORK_POLICY, raising=False)
+    uninstall_runtime_socket_guard()
+    try:
+        yield
+    finally:
+        uninstall_runtime_socket_guard()
 
 
 def test_check_profile_active_pass(airgap_env: None) -> None:

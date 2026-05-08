@@ -166,11 +166,19 @@ class CosignVerifier:
     Either ``pubkey_path`` (offline key) or ``identity`` + ``issuer``
     (sigstore keyless) must be set. Both forms are common at sovereign
     customers — the offline key is more common in the air-gap path.
+
+    The verifier defaults to ``--insecure-ignore-tlog`` because air-gap
+    bundles are signed off-net and never hit a Rekor transparency log.
+    Without that flag ``cosign verify-blob`` makes an outbound HTTPS
+    call to ``rekor.sigstore.dev`` and fails on an isolated host.
+    Operators that DO upload to a private Rekor pass
+    ``ignore_tlog=False`` to opt out of the override.
     """
 
     pubkey_path: Path | None = None
     identity: str | None = None
     issuer: str | None = None
+    ignore_tlog: bool = True
     name: str = "cosign"
 
     def available(self) -> bool:
@@ -184,6 +192,10 @@ class CosignVerifier:
             cmd += ["--certificate-identity", self.identity]
         if self.issuer:
             cmd += ["--certificate-oidc-issuer", self.issuer]
+        if self.ignore_tlog:
+            # No transparency-log lookup -- mandatory on air-gapped hosts
+            # because Rekor is a public network endpoint.
+            cmd.append("--insecure-ignore-tlog")
         cmd.append(str(blob))
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
@@ -321,8 +333,21 @@ def _is_safe_wheel_name(name: str) -> bool:
     return all(part not in ("..", "") for part in parts) and len(parts) == 1
 
 
+def _read_manifest_text(manifest_path: Path) -> str:
+    """Decode ``MANIFEST.json`` as UTF-8, transparently stripping a BOM.
+
+    Some Windows tooling persists JSON with a UTF-8 BOM (``\\ufeff`` at
+    offset 0). ``json.loads`` rejects that with
+    ``Unexpected UTF-8 BOM (decode using utf-8-sig)``. The verifier is
+    the last line of defence before the operator runs ``pip install``,
+    so we accept the BOM rather than crash on a manifest the build
+    side might emit on a Windows runner.
+    """
+    return manifest_path.read_bytes().decode("utf-8-sig")
+
+
 def _load_manifest(manifest_path: Path) -> list[dict[str, Any]]:
-    raw = cast("dict[str, Any]", json.loads(manifest_path.read_text()))
+    raw = cast("dict[str, Any]", json.loads(_read_manifest_text(manifest_path)))
     wheels_any: Any = raw.get("wheels") or []
     if not isinstance(wheels_any, list):
         return []

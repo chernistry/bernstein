@@ -41,10 +41,20 @@ if [[ -z "${COSIGN_KEY:-}" ]]; then
   exit 1
 fi
 
+# --tlog-upload=false: do not push to the public Rekor transparency log.
+# Air-gap signing happens on disconnected build hosts; the default Rekor
+# upload would dial rekor.sigstore.dev and fail (or silently leak the
+# fact a release was cut). Operators running a private Rekor opt back in
+# by exporting COSIGN_TLOG_UPLOAD=true.
+TLOG_FLAG="--tlog-upload=false"
+if [[ "${COSIGN_TLOG_UPLOAD:-}" == "true" ]]; then
+  TLOG_FLAG="--tlog-upload=true"
+fi
+
 sign_blob() {
   local target="$1"
   local sig="${target}.sig"
-  cosign sign-blob --yes --key "$COSIGN_KEY" --output-signature "$sig" "$target" >/dev/null
+  cosign sign-blob --yes "$TLOG_FLAG" --key "$COSIGN_KEY" --output-signature "$sig" "$target" >/dev/null
   echo "signed: ${target##*/}"
 }
 
@@ -55,7 +65,7 @@ done
 
 manifest_target="$WHEELHOUSE_DIR/MANIFEST.json"
 manifest_sig="$WHEELHOUSE_DIR/MANIFEST.sig"
-cosign sign-blob --yes --key "$COSIGN_KEY" --output-signature "$manifest_sig" "$manifest_target" >/dev/null
+cosign sign-blob --yes "$TLOG_FLAG" --key "$COSIGN_KEY" --output-signature "$manifest_sig" "$manifest_target" >/dev/null
 echo "signed: MANIFEST.json -> MANIFEST.sig"
 
 echo

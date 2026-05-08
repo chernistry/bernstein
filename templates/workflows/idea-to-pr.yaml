@@ -1,0 +1,43 @@
+name: idea-to-pr
+description: "Take a goal from idea to merged PR: research, plan, implement, test, ship."
+version: "1.0.0"
+nodes:
+  - id: research
+    agent: manager
+    prompt: |
+      Research the goal: {goal}
+
+      Produce a one-page brief covering scope, acceptance criteria,
+      affected files, and known risks. Cite any prior commits or open
+      tickets that overlap.
+
+  - id: plan
+    depends_on: [research]
+    agent: architect
+    prompt: |
+      Turn the research brief into a concrete plan for: {goal}
+
+      List the modules to touch, public surfaces to add or change,
+      tests to write, and the order to land changes. Surface any
+      decisions that need operator input rather than guessing.
+
+  - id: implement
+    depends_on: [plan]
+    agent: backend
+    prompt: |
+      Carry out the plan for: {goal}
+
+      Stay in scope. Keep each commit focused. Add tests alongside the
+      change. Run the local lint+format sweep before declaring done.
+    fresh_context: true
+    timeout_seconds: 3600
+
+  - id: tests
+    depends_on: [implement]
+    command: "pytest -x -q"
+    timeout_seconds: 1800
+
+  - id: open-pr
+    depends_on: [tests]
+    command: "git push -u origin HEAD && gh pr create --fill"
+    timeout_seconds: 300

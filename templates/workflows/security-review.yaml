@@ -1,0 +1,38 @@
+name: security-review
+description: "Static-scan, triage, patch, and adversary-review a security finding stream."
+version: "1.0.0"
+nodes:
+  - id: scan
+    command: "bandit -r src/ -ll || true"
+    timeout_seconds: 600
+
+  - id: secrets-scan
+    command: "gitleaks detect --redact --no-banner || true"
+    timeout_seconds: 600
+
+  - id: triage
+    depends_on: [scan, secrets-scan]
+    agent: security
+    prompt: |
+      Review the scan output and triage findings against: {goal}
+
+      For each issue mark severity (low/medium/high/critical), explain
+      the threat model, and produce a remediation plan ordered by
+      risk-to-fix ratio.
+
+  - id: patch
+    depends_on: [triage]
+    agent: backend
+    prompt: |
+      Apply the remediation plan from triage. Keep each fix in its own
+      commit. Add a regression test where the bug had an attacker-
+      reachable path.
+    timeout_seconds: 3600
+
+  - id: adversary-review
+    depends_on: [patch]
+    agent: security
+    prompt: |
+      Adversary-review the patches. For each fix, attempt one bypass
+      and document whether it succeeds. If any bypass succeeds, list
+      the next-step fix instead of declaring done.

@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, cast
 from fastapi import FastAPI
 
 from bernstein.core.a2a import A2AHandler
+from bernstein.core.a2a_federation import A2AFederation
 from bernstein.core.acp import ACPHandler
 from bernstein.core.auth_rate_limiter import RequestRateLimitMiddleware
 from bernstein.core.bulletin import BulletinBoard, DirectChannel, MessageBoard
@@ -1138,6 +1139,7 @@ def create_app(
     message_board = MessageBoard()
     direct_channel = DirectChannel()
     a2a_handler = A2AHandler(server_url="http://localhost:8052")
+    a2a_federation = A2AFederation(local_endpoint="http://localhost:8052")
     acp_handler = ACPHandler(server_url="http://localhost:8052")
 
     application.state.store = store  # type: ignore[attr-defined]
@@ -1145,6 +1147,7 @@ def create_app(
     application.state.message_board = message_board  # type: ignore[attr-defined]
     application.state.direct_channel = direct_channel  # type: ignore[attr-defined]
     application.state.a2a_handler = a2a_handler  # type: ignore[attr-defined]
+    application.state.a2a_federation = a2a_federation  # type: ignore[attr-defined]
     application.state.acp_handler = acp_handler  # type: ignore[attr-defined]
     application.state.node_registry = node_registry  # type: ignore[attr-defined]
     application.state.cluster_authenticator = cluster_authenticator  # type: ignore[attr-defined]

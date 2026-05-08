@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException, Request
 
+from bernstein.core.a2a import AgentCard
 from bernstein.core.difficulty_estimator import estimate_difficulty, minutes_for_level
 from bernstein.core.server import (
     A2AAgentCardResponse,
@@ -26,6 +27,7 @@ from bernstein.core.tenanting import request_tenant_id
 
 if TYPE_CHECKING:
     from bernstein.core.a2a import A2AHandler
+    from bernstein.core.a2a_federation import A2AFederation
 
 router = APIRouter()
 
@@ -40,6 +42,10 @@ def _get_sse_bus(request: Request) -> SSEBus:
 
 def _get_a2a_handler(request: Request) -> A2AHandler:
     return request.app.state.a2a_handler  # type: ignore[no-any-return]
+
+
+def _get_a2a_federation(request: Request) -> A2AFederation:
+    return request.app.state.a2a_federation  # type: ignore[no-any-return]
 
 
 def _require_task_access(task: object, request: Request) -> None:
@@ -179,3 +185,86 @@ def a2a_add_artifact(a2a_task_id: str, body: A2AArtifactRequest, request: Reques
         data=artifact.data,
         created_at=artifact.created_at,
     )
+
+
+@router.post(
+    "/a2a/v0/tasks",
+    status_code=202,
+    responses={
+        400: {"description": "Invalid sender Agent Card or task body"},
+        409: {"description": "Task rejected (validation, capacity, etc.)"},
+    },
+)
+async def a2a_v0_accept_task(request: Request) -> dict[str, Any]:
+    """Accept a federated task delegated from a peer orchestrator.
+
+    Wire format::
+
+        {
+          "sender": { ...AgentCard... },
+          "task":   { "id": "...", "message": "...", "role": "..." }
+        }
+
+    Returns 202 with the local federated-task id and the remote task id
+    that was offered. Validation errors return HTTP 409 so that the
+    caller's retry policy treats them as terminal (the peer is reachable
+    and authoritative, no point retrying with the same body).
+    """
+    a2a_federation = _get_a2a_federation(request)
+
+    try:
+        body = await request.json()
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON body: {exc}") from None
+
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="Body must be a JSON object")
+
+    sender_raw = body.get("sender")
+    task_raw = body.get("task")
+
+    if not isinstance(sender_raw, dict) or not sender_raw:
+        raise HTTPException(status_code=400, detail="Missing or invalid 'sender' Agent Card")
+    if not isinstance(task_raw, dict) or not task_raw:
+        raise HTTPException(status_code=400, detail="Missing or invalid 'task' body")
+
+    # Validate the sender Agent Card upfront so malformed peers are
+    # rejected at the boundary rather than silently logged.
+    try:
+        AgentCard.validate(sender_raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid sender card: {exc}") from None
+
+    sender_name = str(sender_raw.get("name") or "")
+    remote_task_id = str(task_raw.get("id") or "")
+    message = task_raw.get("message")
+    role = str(task_raw.get("role") or "backend")
+
+    if not remote_task_id:
+        raise HTTPException(status_code=409, detail="Missing 'task.id'")
+    if not isinstance(message, str) or not message.strip():
+        raise HTTPException(status_code=409, detail="Missing or empty 'task.message'")
+
+    # Auto-register inbound peer so the federation ledger has an ACTIVE
+    # entry to refresh; explicit register_peer remains available for
+    # callers that want to seed peers up-front with custom capabilities.
+    if a2a_federation.get_peer(sender_name) is None and sender_name:
+        endpoint = str(sender_raw.get("endpoint") or "")
+        a2a_federation.register_peer(
+            sender_name,
+            endpoint,
+            capabilities=list(sender_raw.get("capabilities") or []),
+        )
+
+    federated = a2a_federation.accept_inbound_task(
+        peer_name=sender_name,
+        remote_task_id=remote_task_id,
+        message=message,
+        role=role,
+    )
+    return {
+        "id": federated.id,
+        "remote_task_id": federated.remote_task_id,
+        "status": federated.status.value,
+        "peer_name": federated.peer_name,
+    }

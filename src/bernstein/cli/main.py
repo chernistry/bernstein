@@ -848,6 +848,11 @@ from bernstein.cli.commands.lineage_cmd import lineage_cmd  # noqa: E402
 
 cli.add_command(lineage_cmd, "lineage")
 
+# Canonical AGENTS.md generator + cross-CLI rewrite (cursor / claude / aider / goose).
+from bernstein.cli.commands.agents_md_cmd import agents_md_cmd  # noqa: E402
+
+cli.add_command(agents_md_cmd, "agents-md")
+
 # Air-gap distribution: build / verify wheel bundle.
 from bernstein.cli.commands.wheelhouse_cmd import wheelhouse_group  # noqa: E402
 

@@ -886,6 +886,13 @@ def _git_default_branch(repo_path: Path) -> str | None:
                 return branch
     except (subprocess.TimeoutExpired, OSError):
         return None
+    # Final fallback — only if we're inside a git checkout. ``main`` is
+    # the modern default; older repos that adopted ``master`` will have
+    # been resolved earlier in the chain. Keeps the rendered section
+    # deterministic across shallow CI clones, worktrees, and detached
+    # heads where every prior probe came up empty.
+    if (repo_path / ".git").exists():
+        return "main"
     return None
 
 

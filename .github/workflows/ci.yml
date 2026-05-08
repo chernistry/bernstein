@@ -128,6 +128,21 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          # Full clone so ``bernstein agents-md verify`` can resolve the
+          # default branch via ``git rev-parse --verify origin/main``.
+          # The default depth=1 single-ref fetch leaves origin/main
+          # unfetched and the verify step silently drops the
+          # git-workflow section, producing drift against locally-synced
+          # content.
+          fetch-depth: 0
+      - name: Establish origin/HEAD
+        # actions/checkout does not set ``refs/remotes/origin/HEAD`` even
+        # with full fetch. The generator's first-choice resolver reads
+        # that symbolic-ref; this step makes the result match a
+        # developer checkout where ``git remote set-head origin -a``
+        # has run.
+        run: git remote set-head origin -a
       - name: Assert .sdd is not tracked
         run: |
           TRACKED="$(git ls-files '.sdd')"

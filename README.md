@@ -41,22 +41,6 @@ bernstein init
 bernstein run -g "fix the failing test in tests/test_foo.py"
 ```
 
-### see it in 60 seconds
-
-The clip below covers a full run: manager decomposes the goal, three agents work in parallel, the audit chain records each handoff, the janitor verifies, a PR is opened.
-
-<p align="center">
-  <img alt="Bernstein 60-second demo: manager decomposes goal, three agents run in parallel, audit chain logs every handoff, PR opens" src="docs/demo/demo.gif" width="800">
-</p>
-
-After the run, Bernstein posts a structured comment on the PR with cost, test results, lineage, and the audit hash chain:
-
-<p align="center">
-  <img alt="Bernstein PR comment: Summary, Cost, Lineage, Tests, Audit-chain sections" src="docs/demo/screenshot-pr-comment.svg" width="720">
-</p>
-
-> The GIF is generated from [`docs/demo/demo.tape`](docs/demo/demo.tape) with [vhs](https://github.com/charmbracelet/vhs); regenerate locally with `vhs docs/demo/demo.tape`.
-
 ## sponsor
 
 if bernstein routed a model that saved you a claude bill, $25 covers a month of my coffee.

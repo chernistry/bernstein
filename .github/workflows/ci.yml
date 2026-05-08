@@ -258,6 +258,34 @@ jobs:
 
   # ─── Slow checks (cancel old runs, 15-45 min) ─────────────────────────
 
+  adapter-integration:
+    # End-to-end adapter tests against the fake-CLI harness in
+    # tests/integration/fake_cli.  Spawns real subprocesses (no Popen
+    # mocks) so PATH-resolution, env filtering, exit-code mapping, and
+    # output capture are exercised against actual fork/exec.  Skipped on
+    # Windows because the wrappers are POSIX shell scripts and the
+    # adapters use ``start_new_session=True``; unit tests cover the same
+    # argv/env logic on Windows via mocked Popen.
+    name: Adapter integration (fake-CLI)
+    needs: [lint]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.13"]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+      - name: Run fake-CLI adapter integration tests
+        run: uv run pytest tests/integration/test_adapter_e2e.py -x -q --timeout=60
+
   test:
     name: Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
     needs: [lint]  # fast-fail: don't waste 45min if lint fails

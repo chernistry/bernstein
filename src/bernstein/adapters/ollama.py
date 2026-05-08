@@ -155,7 +155,13 @@ class OllamaAdapter(CLIAdapter):
             except PermissionError as exc:
                 raise RuntimeError(f"Permission denied executing aider: {exc}") from exc
 
-        result = SpawnResult(pid=proc.pid, log_path=log_path)
+        # Thread the live Popen handle through so callers holding the
+        # result can call ``proc.wait()`` / ``proc.poll()`` to tell a
+        # live agent apart from an unreaped zombie.  Aligns this adapter
+        # with codex/gemini/claude (which already threaded ``proc`` via
+        # the SpawnResult); the base ``is_alive(pid)`` /proc probe alone
+        # cannot distinguish those two states.
+        result = SpawnResult(pid=proc.pid, log_path=log_path, proc=proc)
         if timeout_seconds > 0:
             result.timeout_timer = self._start_timeout_watchdog(proc.pid, timeout_seconds, session_id)
         return result

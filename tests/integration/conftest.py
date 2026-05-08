@@ -19,6 +19,13 @@ from httpx import Response as HttpxResponse
 from bernstein.adapters.base import DEFAULT_TIMEOUT_SECONDS, CLIAdapter, SpawnResult
 from bernstein.core.server import create_app
 
+# Re-export the fake-CLI harness fixture so adapter integration tests can
+# request ``fake_cli_fixture`` without an explicit module-level import.
+from .fake_cli.conftest_adapters import (  # noqa: F401
+    FakeCLIHandle,
+    fake_cli_fixture,
+)
+
 _TASKS_PATH = "/tasks"
 
 if TYPE_CHECKING:

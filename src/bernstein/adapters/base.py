@@ -250,11 +250,30 @@ class CLIAdapter(ABC):
 
     @staticmethod
     def _read_last_lines(log_path: Path, n: int = 10) -> list[str]:
-        """Read the last *n* lines from a log file."""
-        try:
-            return log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-n:]
-        except OSError:
-            return []
+        """Return the last *n* lines from ``log_path`` and its ``.stderr.log`` sibling.
+
+        The Claude Code adapter pipes the upstream CLI's stdout through a
+        wrapper that decodes stream-json into human-readable lines, but
+        the wrapper drops anything that isn't valid NDJSON.  Rate-limit
+        banners and startup errors from the CLI usually arrive on stderr
+        (or as non-JSON stdout that the wrapper swallows), so they never
+        reach ``log_path`` and the rate-limit probe returns ``False``
+        even when the CLI clearly said "you've hit your limit".
+
+        Reading both ``log_path`` and ``log_path.with_suffix(".stderr.log")``
+        keeps the existing ``_is_rate_limit_error`` heuristic working for
+        every adapter without changing call sites.  Adapters that don't
+        write a separate stderr file are unaffected: the missing path is
+        ignored.
+        """
+        lines: list[str] = []
+        for candidate in (log_path, log_path.with_suffix(".stderr.log")):
+            try:
+                text = candidate.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            lines.extend(text.splitlines())
+        return lines[-n:] if lines else []
 
     @staticmethod
     def _is_rate_limit_error(lines: list[str]) -> bool:

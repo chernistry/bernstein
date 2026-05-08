@@ -98,7 +98,14 @@ class AiderAdapter(CLIAdapter):
             except PermissionError as exc:
                 raise RuntimeError(f"Permission denied executing aider: {exc}") from exc
 
-        result = SpawnResult(pid=proc.pid, log_path=log_path)
+        # Thread the live Popen handle through SpawnResult so callers
+        # holding the result can call ``proc.wait()`` / ``proc.poll()``
+        # to distinguish a live agent from an unreaped zombie.  The base
+        # ``is_alive(pid)`` falls back to a /proc-style probe and cannot
+        # tell the difference, but the orchestrator's reap path consumes
+        # ``result.proc`` directly when present.  Codex/gemini/claude
+        # already threaded ``proc`` through; this aligns aider/ollama.
+        result = SpawnResult(pid=proc.pid, log_path=log_path, proc=proc)
         if timeout_seconds > 0:
             result.timeout_timer = self._start_timeout_watchdog(proc.pid, timeout_seconds, session_id)
         return result

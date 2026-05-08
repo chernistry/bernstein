@@ -1,0 +1,34 @@
+name: dependency-bump
+description: "Bump dependencies, run the test suite, and loop on flake fixes."
+version: "1.0.0"
+nodes:
+  - id: snapshot
+    command: "uv lock --snapshot 2>/dev/null || uv lock"
+    timeout_seconds: 300
+
+  - id: bump
+    depends_on: [snapshot]
+    agent: backend
+    prompt: |
+      Bump dependencies for: {goal}
+
+      Prefer minor bumps; surface major-version updates separately.
+      Update lockfile and any pinned versions in pyproject.toml.
+
+  - id: install
+    depends_on: [bump]
+    command: "uv sync"
+    timeout_seconds: 900
+
+  - id: tests
+    depends_on: [install]
+    command: "pytest -x -q"
+    loop:
+      until: "pytest -x -q"
+      max_iterations: 3
+    timeout_seconds: 1800
+
+  - id: smoke
+    depends_on: [tests]
+    command: "uv run python -c 'import bernstein; print(bernstein.__version__)'"
+    timeout_seconds: 120

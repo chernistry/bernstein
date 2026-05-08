@@ -125,6 +125,38 @@ $ bernstein -g "Add JWT auth"
 [verify]  all gates pass. merging to main.
 ```
 
+### YAML workflow manifests (optional)
+
+When the open-ended `bernstein run -g "<goal>"` is too coarse-grained, the
+`bernstein workflow` family runs a declarative DAG of agent / command / loop
+nodes. Manifests are plain YAML, validated up-front, and dispatched through
+the same `AgentSpawner` the rest of Bernstein uses. No parallel spawn path,
+no LLM in the scheduler.
+
+```bash
+bernstein workflow list                       # bundled + user-installed
+bernstein workflow run idea-to-pr -g "Add JWT auth"
+bernstein workflow init my-flow               # scaffold a starter manifest
+bernstein workflow validate path/to/flow.yaml
+```
+
+Stock workflows that ship with the wheel:
+
+| Name                  | What it does                                         |
+| --------------------- | ---------------------------------------------------- |
+| `idea-to-pr`          | research → plan → implement → tests → PR             |
+| `refactor-with-tests` | find target → propose → implement → loop until green |
+| `security-review`     | scan → triage → patch → adversary review             |
+| `doc-update`          | audit → update → docs build                          |
+| `dependency-bump`     | bump → install → tests-loop → smoke                  |
+| `hot-fix`             | reproduce → fix → regression loop → changelog        |
+
+Loop nodes re-fire until a bash predicate exits 0 (`pytest -x` is a typical
+one). `fresh_context: true` mints a new agent session per iteration. The
+`interactive: true` flag is reserved for the approval-gate work tracked in
+ticket #1110 and currently raises a clear `NotImplementedError`.
+
+
 ## use cases
 
 - forward-deployed engineering — drop the swarm onto a client repo when you arrive, take it with you when you leave.

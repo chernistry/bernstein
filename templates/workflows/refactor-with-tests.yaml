@@ -1,0 +1,37 @@
+name: refactor-with-tests
+description: "Find a target, propose a refactor, implement it, and loop on tests until green."
+version: "1.0.0"
+nodes:
+  - id: find-target
+    agent: architect
+    prompt: |
+      Identify the highest-value refactor target inside: {goal}
+
+      Explain why this target now (coupling, churn, cost). Output a list
+      of files and the smell each one carries.
+
+  - id: propose
+    depends_on: [find-target]
+    agent: architect
+    prompt: |
+      Propose a refactor for the target identified above.
+
+      Describe the refactoring move (Extract Method, Move Class, ...)
+      per file, the public-API delta, and the risk of regression.
+
+  - id: implement
+    depends_on: [propose]
+    agent: backend
+    prompt: |
+      Apply the proposed refactor. Keep behavioural diffs zero;
+      everything else (renames, splits, parameterisations) is fair
+      game. Write the missing tests required to verify the new shape.
+    timeout_seconds: 3600
+
+  - id: tests-green
+    depends_on: [implement]
+    command: "pytest -x -q"
+    loop:
+      until: "pytest -x -q"
+      max_iterations: 5
+    timeout_seconds: 1800

@@ -231,6 +231,10 @@ packages = ["src/bernstein"]
 # Lethal-trifecta capability matrix declarations.  Bundled so the
 # default-deny check can find tags right after pip install.
 "templates/capabilities" = "bernstein/_default_templates/capabilities"
+# Stock YAML workflow manifests (#1108) shipped with the wheel so
+# `bernstein workflow list` / `... run <name>` resolve immediately
+# without requiring a source checkout.
+"templates/workflows" = "bernstein/_default_templates/workflows"
 # ascii_logo.md now lives in-package at src/bernstein/_default_templates/ —
 # no force-include needed. The dev-repo copy at docs/assets/ascii_logo.md is
 # the display fallback read by cli/display/splash_v2.py when running from a

@@ -1,0 +1,41 @@
+name: hot-fix
+description: "Reproduce, fix, regression-test, and ship a hotfix in a tight loop."
+version: "1.0.0"
+nodes:
+  - id: reproduce
+    agent: backend
+    prompt: |
+      Reproduce the incident: {goal}
+
+      Capture a minimal reproduction in debug/ and write the failing
+      test. Do not patch the code yet.
+
+  - id: confirm-failure
+    depends_on: [reproduce]
+    command: "pytest -x -q debug/ || true"
+    timeout_seconds: 600
+
+  - id: fix
+    depends_on: [confirm-failure]
+    agent: backend
+    prompt: |
+      Apply the smallest correct fix that turns the reproducing test
+      green. Avoid drive-by changes — the goal is "land tonight, clean
+      up tomorrow".
+    fresh_context: true
+    timeout_seconds: 1800
+
+  - id: regression
+    depends_on: [fix]
+    command: "pytest -x -q"
+    loop:
+      until: "pytest -x -q"
+      max_iterations: 3
+    timeout_seconds: 1800
+
+  - id: changelog
+    depends_on: [regression]
+    agent: docs
+    prompt: |
+      Add a CHANGELOG entry under "Fixed" pointing at the original
+      issue and the test that now guards against it.

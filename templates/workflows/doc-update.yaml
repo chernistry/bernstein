@@ -1,0 +1,31 @@
+name: doc-update
+description: "Audit and update project documentation against current code."
+version: "1.0.0"
+nodes:
+  - id: collect-diff
+    command: "git log --since='30 days ago' --oneline"
+    timeout_seconds: 60
+
+  - id: audit
+    depends_on: [collect-diff]
+    agent: docs
+    prompt: |
+      Audit docs against the recent change log for: {goal}
+
+      List doc files that drifted from the current code, missing
+      sections (CLI commands without a flag table, public APIs without
+      examples), and stale screenshots/links.
+
+  - id: update
+    depends_on: [audit]
+    agent: docs
+    prompt: |
+      Apply the doc updates from the audit. Keep each doc change
+      paired with the code change it documents. Run any docs build
+      command after editing to catch broken links.
+    timeout_seconds: 1800
+
+  - id: build
+    depends_on: [update]
+    command: "mkdocs build --strict"
+    timeout_seconds: 600

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 import logging
+import os
 import re as _re
 import shlex as _shlex
 import subprocess as _subprocess
@@ -15,6 +16,7 @@ from bernstein.core.agents.heartbeat import HeartbeatMonitor
 from bernstein.core.context_recommendations import RecommendationEngine
 from bernstein.core.defaults import SPAWN
 from bernstein.core.lessons import gather_lessons_for_context
+from bernstein.core.memory.jsonl_log import JSONLMemoryLog
 from bernstein.templates.renderer import TemplateError, render_role_prompt
 
 if TYPE_CHECKING:
@@ -112,6 +114,7 @@ SECTION_RULES: dict[str, SectionRule] = {
     "lessons": SectionRule(
         exclude_roles=frozenset({"manager", "visionary"}),
     ),
+    "memory_lessons": SectionRule(),  # Auto-injected from JSONL log; gated by env var
     "predecessor": SectionRule(),  # Always included when present (already gated by data)
     "project": SectionRule(),  # Always included when present (already gated by data)
     "meta nudges": SectionRule(),  # Always included when present
@@ -224,6 +227,110 @@ def filter_sections(
 # ---------------------------------------------------------------------------
 _lesson_cache: dict[str, tuple[float, str]] = {}  # role -> (timestamp, text)
 _LESSON_CACHE_TTL = SPAWN.lesson_cache_ttl_s
+
+# ---------------------------------------------------------------------------
+# Memory-log auto-injection (BERNSTEIN_MEMORY_AUTO_INJECT)
+# ---------------------------------------------------------------------------
+
+#: Environment switch — flip to "1" to enable JSONL memory injection into
+#: leaf-agent prompts.  Default off so existing flows are unchanged.
+_MEMORY_AUTO_INJECT_ENV_VAR = "BERNSTEIN_MEMORY_AUTO_INJECT"
+
+#: JSONL key under ``.bernstein/memory/`` that the spawner reads when
+#: auto-injection is enabled.  Matches the convention documented in
+#: :mod:`bernstein.core.memory.jsonl_log`.
+_MEMORY_LESSONS_KEY = "lessons"
+
+#: Cap on the number of recent entries injected into the prompt.  Bounded
+#: so a runaway log cannot blow the prompt budget.
+_MEMORY_LESSONS_MAX = 10
+
+#: Stable separator used to demarcate the lessons block.  Kept as plain
+#: tags (not Markdown-only) so the boundary survives any downstream
+#: dedup / compression pass that strips Markdown headers.
+_MEMORY_LESSONS_OPEN = "<lessons>"
+_MEMORY_LESSONS_CLOSE = "</lessons>"
+
+
+def _memory_auto_inject_enabled() -> bool:
+    """Return True when ``BERNSTEIN_MEMORY_AUTO_INJECT`` is truthy.
+
+    The env-var-driven gate keeps the integration off by default so existing
+    runs are byte-identical until an operator flips the switch.
+
+    Returns:
+        ``True`` when the env var is set to ``1`` / ``true`` / ``yes`` / ``on``.
+    """
+    raw = os.environ.get(_MEMORY_AUTO_INJECT_ENV_VAR, "")
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _format_memory_lesson(entry: dict[str, Any]) -> str:
+    """Render a single memory entry as a compact bullet.
+
+    Args:
+        entry: One JSONL record from ``.bernstein/memory/lessons.jsonl``.
+
+    Returns:
+        A single-line bullet describing the lesson.  Returns an empty
+        string when the entry has no human-readable text — caller skips
+        empty bullets so the rendered block stays tight.
+    """
+    text = entry.get("lesson") or entry.get("text") or entry.get("message")
+    if not text:
+        # Fall back to a compact JSON dump so callers that store
+        # arbitrary structured records still get *something* useful.
+        try:
+            import json as _json
+
+            return f"- {_json.dumps(entry, ensure_ascii=False, sort_keys=True)}"
+        except Exception:
+            return ""
+    task = entry.get("task")
+    if task:
+        return f"- ({task}) {text}"
+    return f"- {text}"
+
+
+def _render_memory_lessons_block(workdir: Path) -> str:
+    """Read the most recent memory lessons and render the injection block.
+
+    The block is sandwiched between :data:`_MEMORY_LESSONS_OPEN` and
+    :data:`_MEMORY_LESSONS_CLOSE` so the orchestrator-side renderer can
+    grep for it deterministically (e.g. when auditing prompts).
+
+    Args:
+        workdir: Project working directory.  The JSONL log lives at
+            ``<workdir>/.bernstein/memory/lessons.jsonl``.
+
+    Returns:
+        Rendered block string, or empty string when the log is absent /
+        empty.  No-op semantics: a missing log MUST NOT raise; the
+        spawner relies on this for first-run robustness.
+    """
+    root = workdir / ".bernstein" / "memory"
+    log = JSONLMemoryLog(root=root)
+    try:
+        entries = log.read(_MEMORY_LESSONS_KEY)
+    except Exception:  # pragma: no cover — defensive, never block spawns
+        logger.debug("memory auto-inject: read failed", exc_info=True)
+        return ""
+    if not entries:
+        return ""
+
+    # Tail-window — the most recent N entries, oldest-first inside the window.
+    recent = entries[-_MEMORY_LESSONS_MAX:]
+    bullets: list[str] = []
+    for entry in recent:
+        rendered = _format_memory_lesson(entry)
+        if rendered:
+            bullets.append(rendered)
+    if not bullets:
+        return ""
+
+    body = "\n".join(bullets)
+    return f"\n{_MEMORY_LESSONS_OPEN}\n{body}\n{_MEMORY_LESSONS_CLOSE}\n"
+
 
 # ---------------------------------------------------------------------------
 # Cache-safe parameters for forked agents
@@ -745,6 +852,13 @@ def _render_prompt(
     ]
     if specialist_block:
         named_sections.append(("specialists", specialist_block))
+    # KV-cache locality: lessons go AFTER the stable header (role,
+    # git_safety, specialists) but BEFORE the variable goal/task body
+    # so the cacheable prefix stays byte-stable across spawns.
+    if _memory_auto_inject_enabled():
+        memory_block = _render_memory_lessons_block(workdir)
+        if memory_block:
+            named_sections.append(("memory_lessons", memory_block))
     named_sections.append(("tasks", f"\n## Assigned tasks\n{task_block}"))
     if lesson_context:
         named_sections.append(("lessons", f"\n{lesson_context}\n"))

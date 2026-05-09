@@ -37,13 +37,35 @@ import hashlib
 import logging
 import threading
 from collections import defaultdict
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Literal, overload
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
 logger = logging.getLogger(__name__)
+
+#: Supported vendor cache backends.  ``"generic"`` keeps the legacy
+#: byte-string return shape so existing callers do not change.
+Vendor = Literal["generic", "openai", "anthropic", "gemini"]
+
+#: OpenAI prompt-cache requires the cacheable prefix to align to a
+#: 256-token boundary (see Bernstein cache locality docs).  When
+#: ``tiktoken`` is installed we use the model's tokeniser; otherwise we
+#: fall back to a 4-chars/token heuristic that matches OpenAI's own
+#: rule-of-thumb for English text.
+_OPENAI_BOUNDARY_TOKENS = 256
+_HEURISTIC_CHARS_PER_TOKEN = 4
+
+#: Anthropic's prompt-cache API accepts up to 4 cache_control breakpoints
+#: per request.  See https://docs.anthropic.com/en/docs/build-with-claude/
+#: prompt-caching#structuring-your-prompt.
+_ANTHROPIC_MAX_SEGMENTS = 4
+
+#: Padding character used when zero-padding the OpenAI prefix to the
+#: next 256-token boundary.  A space is benign for the model and does
+#: not collide with the header-separator sentinel.
+_OPENAI_PAD_CHAR = " "
 
 
 # ---------------------------------------------------------------------------
@@ -80,17 +102,88 @@ def _normalise_reason(raw: str) -> str:
 _HEADER_SEPARATOR = "\n<!--bernstein:prefix-header-end-->\n"
 
 
+@dataclass(frozen=True)
+class StablePrefix:
+    """Vendor-aware cache-prefix bundle.
+
+    Returned by :func:`build_stable_prefix` when a vendor other than
+    ``"generic"`` is requested.  The bundle always carries the
+    canonical bytes (``text``) so the caller can still hash them, plus
+    one or more vendor-specific cache hints:
+
+    * ``segments`` — an ordered list of message-shaped dicts.  For
+      Anthropic, each entry has the form
+      ``{"type": "text", "text": "...", "cache_control": {...}}``
+      with ``cache_control`` set to ``{"type": "ephemeral"}`` on the
+      prefix segments.
+    * ``cached_content_handle`` — Gemini's canonical handle name; it is
+      the lowercase ``cachedContent/<sha256>`` form so the caller can
+      use it to look up an existing entry on the API.
+    * ``padded_text`` — OpenAI's text padded to the next 256-token
+      boundary so consecutive prompts share a cache-aligned prefix.
+
+    Empty fields denote "vendor doesn't expose this hint".
+    """
+
+    text: str
+    vendor: Vendor = "generic"
+    segments: list[dict[str, object]] = field(default_factory=list)
+    cached_content_handle: str = ""
+    padded_text: str = ""
+
+
+@overload
+def build_stable_prefix(
+    *,
+    header: Mapping[str, str] | None = ...,
+    body: str = ...,
+    vendor: Literal["generic"] = ...,
+) -> str: ...
+
+
+@overload
+def build_stable_prefix(
+    *,
+    header: Mapping[str, str] | None = ...,
+    body: str = ...,
+    vendor: Literal["openai", "anthropic", "gemini"],
+) -> StablePrefix: ...
+
+
 def build_stable_prefix(
     *,
     header: Mapping[str, str] | None = None,
     body: str = "",
-) -> str:
+    vendor: Vendor = "generic",
+) -> str | StablePrefix:
     """Build a byte-stable cache prefix from a header dict and a body string.
 
     The header is canonicalised by sorting keys lexicographically and
     rendering each entry as ``"<key>: <value>"`` on its own line.  This
     means callers cannot break the cache by reordering header fields.
     The body is appended verbatim after a fixed separator.
+
+    Vendor selection
+    ----------------
+    The optional ``vendor`` argument selects one of three vendor-aware
+    output paths.  ``"generic"`` (the default) keeps the legacy
+    behaviour and returns a plain :class:`str` so existing callers do
+    not need to change.  The other three return a :class:`StablePrefix`
+    bundle that carries vendor-specific cache hints in addition to the
+    canonical bytes:
+
+    * ``"openai"`` — pads the prefix to the next 256-token boundary
+      (rounded up via ``tiktoken`` when installed; otherwise via a
+      4 chars/token heuristic).  OpenAI's prompt-cache hashes only the
+      first 1024-token prefix in 256-token chunks; alignment maximises
+      hit rate.
+    * ``"anthropic"`` — splits the prompt into at most 4 segments and
+      tags the prefix segments with ``cache_control: {"type": "ephemeral"}``
+      so Anthropic's prompt cache treats them as a stable breakpoint.
+    * ``"gemini"`` — emits a candidate ``cachedContent`` handle name
+      derived from the canonical SHA-256 of the prefix bytes.  The
+      caller can use the handle to look up an existing context-cache
+      entry on Vertex AI / Gemini.
 
     Args:
         header: Mapping of stable header field names to values
@@ -100,15 +193,173 @@ def build_stable_prefix(
             protocol prefix).  ``None`` is treated as an empty mapping.
         body: Free-form prefix body (role template, project context,
             git safety protocol, etc.).  Appended verbatim.
+        vendor: Cache backend selection.  Default ``"generic"`` keeps
+            the legacy ``str`` return type for backward compatibility.
 
     Returns:
-        A deterministic prefix string.  Two calls with the same logical
-        inputs return byte-identical strings regardless of header
-        insertion order.
+        For ``vendor == "generic"`` — the deterministic prefix string.
+        Otherwise a :class:`StablePrefix` bundle with vendor-specific
+        cache hints.
     """
     items = sorted((str(k), str(v)) for k, v in (header or {}).items())
     header_str = "\n".join(f"{k}: {v}" for k, v in items)
-    return f"{header_str}{_HEADER_SEPARATOR}{body}"
+    text = f"{header_str}{_HEADER_SEPARATOR}{body}"
+
+    if vendor == "generic":
+        return text
+    if vendor == "openai":
+        return StablePrefix(
+            text=text,
+            vendor="openai",
+            padded_text=_align_to_openai_boundary(text),
+        )
+    if vendor == "anthropic":
+        return StablePrefix(
+            text=text,
+            vendor="anthropic",
+            segments=_anthropic_cache_segments(header_str, body),
+        )
+    if vendor == "gemini":
+        return StablePrefix(
+            text=text,
+            vendor="gemini",
+            cached_content_handle=_gemini_cached_content_handle(text),
+        )
+    # Defensive: Literal narrowing should make this unreachable.
+    msg = f"unsupported vendor: {vendor!r}"
+    raise ValueError(msg)
+
+
+# ---------------------------------------------------------------------------
+# Vendor-specific helpers
+# ---------------------------------------------------------------------------
+
+
+def _count_openai_tokens(text: str) -> int:
+    """Return token count for *text*, preferring tiktoken when available.
+
+    Args:
+        text: The input string.
+
+    Returns:
+        Token count.  Falls back to ``len(text) // 4`` (rounded up by
+        the caller via ceiling division) when ``tiktoken`` is not
+        installed in the environment.
+    """
+    try:
+        import tiktoken  # type: ignore[import-not-found]
+    except Exception:
+        # Heuristic fallback — OpenAI's own rule of thumb is ~4 chars
+        # per token for English text.  We round UP via ceiling division
+        # so a partially-filled token still counts as one.
+        return -(-len(text) // _HEURISTIC_CHARS_PER_TOKEN)
+    try:
+        # ``cl100k_base`` is the encoding used by all current GPT-4 /
+        # GPT-4o / GPT-3.5 chat completions.
+        enc = tiktoken.get_encoding("cl100k_base")
+        return len(enc.encode(text))
+    except Exception:  # pragma: no cover — defensive
+        return -(-len(text) // _HEURISTIC_CHARS_PER_TOKEN)
+
+
+def _align_to_openai_boundary(text: str) -> str:
+    """Right-pad *text* to the next ``_OPENAI_BOUNDARY_TOKENS`` boundary.
+
+    Args:
+        text: The canonical prefix text.
+
+    Returns:
+        ``text`` if already aligned, otherwise ``text`` followed by the
+        smallest amount of padding needed to reach the next boundary.
+    """
+    if not text:
+        return text
+    tokens = _count_openai_tokens(text)
+    remainder = tokens % _OPENAI_BOUNDARY_TOKENS
+    if remainder == 0:
+        return text
+    pad_tokens = _OPENAI_BOUNDARY_TOKENS - remainder
+    # Pad by character count using the chars/token heuristic so the
+    # alignment remains deterministic in environments without tiktoken.
+    pad_chars = pad_tokens * _HEURISTIC_CHARS_PER_TOKEN
+    return f"{text}{_OPENAI_PAD_CHAR * pad_chars}"
+
+
+def _anthropic_cache_segments(
+    header_str: str,
+    body: str,
+) -> list[dict[str, object]]:
+    """Build Anthropic message segments with ``cache_control`` markers.
+
+    The result has at most :data:`_ANTHROPIC_MAX_SEGMENTS` entries:
+
+    1. ``header`` — the canonicalised header block (always tagged
+       ephemeral so the system prefix is cached).
+    2. ``separator`` — the boundary sentinel.
+    3. ``body`` — the role/project/git_safety body (tagged ephemeral).
+    4. (reserved for caller-appended directive — no entry emitted by
+       this builder so callers can attach a 4th cache_control block on
+       a final user/assistant turn if desired).
+
+    Empty header / body segments are dropped to keep the message list
+    compact.
+
+    Args:
+        header_str: Canonicalised header text (already ``\\n``-joined
+            ``key: value`` pairs).
+        body: Verbatim prefix body.
+
+    Returns:
+        List of message-shaped dicts with ``cache_control`` markers on
+        the prefix segments.
+    """
+    segments: list[dict[str, object]] = []
+    if header_str:
+        segments.append(
+            {
+                "type": "text",
+                "text": header_str,
+                "cache_control": {"type": "ephemeral"},
+            },
+        )
+    # Always include the deterministic separator so the segment chain
+    # round-trips back to the canonical text bytes.
+    segments.append(
+        {
+            "type": "text",
+            "text": _HEADER_SEPARATOR,
+        },
+    )
+    if body:
+        segments.append(
+            {
+                "type": "text",
+                "text": body,
+                "cache_control": {"type": "ephemeral"},
+            },
+        )
+    # Anthropic's prompt-cache supports at most 4 cache_control
+    # breakpoints; the splitter above never emits more than 3 prefix
+    # segments so the caller can safely add one more on a downstream
+    # user-turn block.
+    assert len(segments) <= _ANTHROPIC_MAX_SEGMENTS
+    return segments
+
+
+def _gemini_cached_content_handle(text: str) -> str:
+    """Return the canonical Gemini ``cachedContents`` resource name.
+
+    Args:
+        text: The prefix text.
+
+    Returns:
+        ``cachedContents/<sha256>`` — the candidate handle that the
+        caller can pass to ``GenerativeModel.from_cached_content`` on
+        Vertex AI / Gemini.  The hash is the same SHA-256 used by
+        :func:`hash_prefix`, so two consecutive prefixes with the same
+        bytes yield the same handle.
+    """
+    return f"cachedContents/{hash_prefix(text)}"
 
 
 def hash_prefix(prefix: str) -> str:
@@ -302,6 +553,8 @@ def observe_prefix(
 __all__ = [
     "DriftSnapshot",
     "PromptCacheLocality",
+    "StablePrefix",
+    "Vendor",
     "build_stable_prefix",
     "default_locality",
     "hash_prefix",

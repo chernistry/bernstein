@@ -5,6 +5,7 @@ Commands:
   bernstein audit seal             Compute and store a Merkle root.
   bernstein audit seal --anchor-git  Also create a git tag.
   bernstein audit verify --merkle  Verify the Merkle tree against disk.
+  bernstein audit slice            Write a deterministic subset (KF-5).
 """
 
 from __future__ import annotations
@@ -519,6 +520,81 @@ def capabilities_cmd(workdir: str) -> None:
         console.print(f"  [red]![/red] {decision.reason} — tools=[bold]{list(decision.offending_tools)}[/bold]")
     console.print()
     raise SystemExit(1)
+
+
+@audit_group.command("slice")
+@click.option(
+    "--from",
+    "from_hmac",
+    default=None,
+    help="Inclusive lower bound — HMAC of the first event to include.  Omit to start at the earliest recorded event.",
+)
+@click.option(
+    "--to",
+    "to_hmac",
+    default=None,
+    help="Inclusive upper bound — HMAC of the last event to include.  Omit to run through the latest event.",
+)
+@click.option(
+    "--output",
+    "-o",
+    required=True,
+    type=click.Path(dir_okay=False, writable=True, resolve_path=True),
+    help="Path to the output JSONL file.",
+)
+def slice_cmd(from_hmac: str | None, to_hmac: str | None, output: str) -> None:
+    """Write a deterministic subset of the audit log between two HMACs.
+
+    \b
+    Foundation for KF-5 time-travel replay.  The output is byte-stable
+    JSONL — each line is sort-keys-serialised — so downstream replayers
+    can hash the slice directly.  The HMAC chain inside the slice is
+    re-verified before writing; a structural mismatch aborts the export.
+
+    \b
+    Examples:
+      bernstein audit slice --from <hash> --to <hash> -o /tmp/slice.jsonl
+      bernstein audit slice --to <hash> -o /tmp/head.jsonl
+      bernstein audit slice --from <hash> -o /tmp/tail.jsonl
+    """
+    from bernstein.core.security.audit_slice import (
+        AuditSliceError,
+        slice_audit_log,
+        verify_slice_chain,
+        write_slice_jsonl,
+    )
+
+    if not AUDIT_DIR.is_dir():
+        console.print(f"[red]Audit directory not found:[/red] {AUDIT_DIR}")
+        raise SystemExit(1)
+
+    try:
+        result = slice_audit_log(AUDIT_DIR, from_hmac=from_hmac, to_hmac=to_hmac)
+    except AuditSliceError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from None
+
+    valid, errors = verify_slice_chain(result)
+    if not valid:
+        console.print(Panel("[bold red]Slice chain check FAILED[/bold red]", border_style="red", expand=False))
+        for err in errors:
+            console.print(f"  [red]![/red] {err}")
+        raise SystemExit(1)
+
+    out_path = write_slice_jsonl(result, Path(output))
+
+    console.print()
+    console.print(Panel("[bold]Audit slice written[/bold]", border_style="green", expand=False))
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="dim", no_wrap=True, min_width=14)
+    table.add_column("Value")
+    table.add_row("Events", str(result.event_count))
+    table.add_row("From", result.from_hmac or "(genesis)")
+    table.add_row("To", result.to_hmac or "(latest)")
+    table.add_row("Source files", ", ".join(result.source_files) or "—")
+    table.add_row("Output", str(out_path))
+    console.print(table)
+    console.print()
 
 
 @audit_group.command("query")

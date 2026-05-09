@@ -28,7 +28,7 @@ jobs:
       github.event_name == 'push' ||
       github.event.pull_request.head.repo.full_name == github.repository
     steps:
-      - uses: release-drafter/release-drafter@563bf132657a13ded0b01fcb723c5a58cdd824e2 # v7
+      - uses: release-drafter/release-drafter@c2e2804cc59f45f57076a99af580d0fedb697927 # v7
         with:
           # On PRs, github.ref is refs/pull/N/merge which GitHub rejects
           # as a release target. Always point to main.

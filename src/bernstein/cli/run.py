@@ -6,6 +6,8 @@ Components are imported from :mod:`bernstein.cli.ui`.
 
 from __future__ import annotations
 
+import os
+import sys
 from typing import TYPE_CHECKING, Any, cast
 
 from rich.console import Console, Group
@@ -28,6 +30,80 @@ from bernstein.cli.ui import (
     format_duration,
     make_console,
 )
+
+# ---------------------------------------------------------------------------
+# Footer line (one-shot, opt-out, tty-only)
+# ---------------------------------------------------------------------------
+
+
+def _footer_suppressed() -> bool:
+    """Return True when the post-run footer line must not be printed.
+
+    The footer is suppressed in any of the following cases:
+
+    * ``BERNSTEIN_DISABLE_FOOTER=1`` (canonical opt-out) is set
+    * ``BERNSTEIN_NO_BANNER=1`` (legacy alias) is set
+    * ``NO_COLOR`` is set (footer is purely cosmetic)
+    * stderr is not a tty (pipe / file / non-interactive shell)
+    * a JSON output mode is active (``BERNSTEIN_OUTPUT=json``)
+    * ``BERNSTEIN_QUIET=1`` is set (mirrors the ``--quiet`` flag)
+    """
+
+    def _truthy(name: str) -> bool:
+        return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+    if _truthy("BERNSTEIN_DISABLE_FOOTER"):
+        return True
+    if _truthy("BERNSTEIN_NO_BANNER"):
+        return True
+    if _truthy("BERNSTEIN_QUIET"):
+        return True
+    if os.environ.get("NO_COLOR"):
+        return True
+    if os.environ.get("BERNSTEIN_OUTPUT", "").strip().lower() == "json":
+        return True
+    try:
+        if not sys.stderr.isatty():
+            return True
+    except (AttributeError, ValueError):
+        return True
+    return False
+
+
+def _emit_run_footer(console: Console | None = None) -> None:
+    """Print the one-line bernstein footer at the end of a run.
+
+    The footer is intentionally restrained: a single dim line with the
+    bernstein version and the project URL.  Honours every opt-out
+    documented in :func:`_footer_suppressed`.
+
+    Args:
+        console: Optional Rich Console.  When omitted, a fresh stderr
+            console is created so the footer never collides with
+            machine-readable stdout.
+    """
+    if _footer_suppressed():
+        return
+
+    try:
+        from bernstein import __version__ as _ver
+    except Exception:
+        _ver = "?"
+
+    con = console
+    if con is None:
+        con = Console(stderr=True, soft_wrap=True)
+    elif not con.is_terminal:
+        return
+
+    line = Text()
+    line.append("✓ run signed", style="dim cyan")
+    line.append(" · ", style="dim")
+    line.append(f"bernstein {_ver}", style="dim cyan")
+    line.append(" · ", style="dim")
+    line.append("bernstein.run", style="dim cyan")
+    con.print(line)
+
 
 # ---------------------------------------------------------------------------
 # Live dashboard
@@ -172,6 +248,9 @@ def render_run_summary(stats: RunStats, *, console: Console | None = None) -> No
             (f"${stats.total_cost_usd:.4f}", "bold green"),
         )
     )
+
+    # One-line tasteful footer (tty-only, opt-out via BERNSTEIN_DISABLE_FOOTER=1)
+    _emit_run_footer()
 
 
 def _normalize_agent_entries(payload: object) -> list[dict[str, Any]]:

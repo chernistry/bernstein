@@ -14,6 +14,7 @@
 
 [![CI](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/bernstein)](https://pypi.org/project/bernstein/)
+[![GHCR](https://img.shields.io/badge/ghcr.io-bernstein-2496ed?logo=docker&logoColor=white)](https://ghcr.io/sipyourdrink-ltd/bernstein)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/github/license/sipyourdrink-ltd/bernstein)](LICENSE)
 [![MseeP.ai](https://img.shields.io/badge/MseeP.ai-verified-2496ed)](https://mseep.ai/app/chernistry-bernstein)
@@ -470,6 +471,7 @@ bernstein fingerprint check src/foo.py                 # check generated code ag
 | **Homebrew** | `brew tap chernistry/tap && brew install bernstein` |
 | **Fedora / RHEL** | `sudo dnf copr enable alexchernysh/bernstein && sudo dnf install bernstein` |
 | **npm** (wrapper) | `npx bernstein-orchestrator` |
+| **Docker (GHCR)** | `docker run --rm -v "$PWD:/work" -w /work -e ANTHROPIC_API_KEY ghcr.io/sipyourdrink-ltd/bernstein:latest run -g "fix tests/test_foo.py"` |
 
 The one-liner scripts check for Python 3.12+, bootstrap pipx when it's missing, fix PATH for the current session, and install (or upgrade) `bernstein`. They handle brew-managed macOS environments and the Windows `py -3` launcher fallback. Script sources: [install.sh](scripts/install.sh) · [install.ps1](scripts/install.ps1).
 
@@ -493,6 +495,16 @@ Provider SDKs are optional so the base install stays lean. Pick what you need:
 Combine extras with brackets, e.g. `pip install 'bernstein[openai,docker,s3]'`.
 
 Editor extensions: [VS Marketplace](https://marketplace.visualstudio.com/items?itemName=alex-chernysh.bernstein) &middot; [Open VSX](https://open-vsx.org/extension/alex-chernysh/bernstein)
+
+## "powered by bernstein" badge (optional)
+
+If your project ships diffs that bernstein helped land, you can advertise it:
+
+```markdown
+[![signed by bernstein](https://img.shields.io/badge/signed_by-bernstein-FBBF24?logo=githubactions&logoColor=white&style=flat-square)](https://bernstein.run/?utm_source=badge&utm_medium=readme&utm_campaign=powered-by)
+```
+
+`bernstein init --add-badge` injects it into your README under the existing badge stack. Variants: `signed`, `audited-by`, `orchestrated-by`, `crew-managed-by` — pass via `--badge-variant`. Picky maintainers can keep their READMEs untouched: the flag is opt-in.
 
 ## contributing
 
@@ -548,6 +560,10 @@ Curated lists, newsletters, and peer projects that picked up Bernstein:
 - [**danielvaughan/codex-blog**](https://github.com/danielvaughan/codex-blog/blob/main/_posts/2026-04-09-loki-mode-autonomous-execution.md); comparison article positioning Bernstein on the deterministic end.
 
 </details>
+
+## cite
+
+If Bernstein helps your research or industry work, please cite it. Machine-readable metadata lives in [CITATION.cff](CITATION.cff) (CFF 1.2.0); GitHub renders the "Cite this repository" button automatically. A Zenodo DOI will be minted on the next release once Zenodo's GitHub integration is enabled — see [CITATION.cff](CITATION.cff) for the current canonical citation.
 
 ## license
 

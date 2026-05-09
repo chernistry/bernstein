@@ -497,7 +497,25 @@ def _generate_default_yaml(project_type: str) -> str:
     show_default=True,
     help="Directory to initialise (default: current directory).",
 )
-def init(target_dir: str) -> None:
+@click.option(
+    "--add-badge",
+    "add_badge",
+    is_flag=True,
+    default=False,
+    help=(
+        "Insert a shields.io 'powered by bernstein' badge into README.md. "
+        "Use --badge-variant to pick the wording (default: signed)."
+    ),
+)
+@click.option(
+    "--badge-variant",
+    "badge_variant",
+    default="signed",
+    show_default=True,
+    type=click.Choice(["signed", "audited-by", "orchestrated-by", "crew-managed-by"]),
+    help="Badge variant when --add-badge is passed.",
+)
+def init(target_dir: str, *, add_badge: bool = False, badge_variant: str = "signed") -> None:
     """Init workspace -- create .sdd/ structure."""
     print_banner()
     root = Path(target_dir).resolve()
@@ -557,6 +575,25 @@ def init(target_dir: str) -> None:
     else:
         root_gi_path.write_text(f"{gitignore_entry}\n")
         console.print(f"[green]Created[/green] .gitignore (added {gitignore_entry})")
+
+    # Optional: inject a "powered by bernstein" badge into README.md
+    if add_badge:
+        from bernstein.cli.badge import get_variant, inject_badge
+
+        readme_path = root / "README.md"
+        try:
+            variant = get_variant(badge_variant)
+        except KeyError:
+            console.print(f"[yellow]Skipped[/yellow] badge: unknown variant {badge_variant!r}")
+        else:
+            if not readme_path.exists():
+                console.print("[yellow]Skipped[/yellow] badge: README.md not found")
+            else:
+                changed = inject_badge(readme_path, variant)
+                if changed:
+                    console.print(f"[green]Updated[/green] README.md (added '{variant.name}' badge)")
+                else:
+                    console.print("[dim]README.md already has a bernstein badge — skipped.[/dim]")
 
     # Print clear next steps
     console.print("")

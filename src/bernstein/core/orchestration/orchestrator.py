@@ -4470,7 +4470,7 @@ if __name__ == "__main__":
             resource_limits=agent_rlimits,
             warm_pool=warm_pool,
         )
-        budget_usd = 0.0
+        run_config_budget_usd: float | None = None
         dry_run = False
         approval_mode = "auto"
         merge_strategy = "pr"
@@ -4480,7 +4480,7 @@ if __name__ == "__main__":
         if run_config_path.exists():
             try:
                 run_cfg = json.loads(run_config_path.read_text())
-                budget_usd = float(run_cfg.get("budget_usd", 0.0))
+                run_config_budget_usd = float(run_cfg.get("budget_usd", 0.0))
                 dry_run = bool(run_cfg.get("dry_run", False))
                 approval_mode = str(run_cfg.get("approval", "auto"))
                 merge_strategy = str(run_cfg.get("merge_strategy", "pr"))
@@ -4488,6 +4488,18 @@ if __name__ == "__main__":
                 workflow_mode = run_cfg.get("workflow") or None
             except ValueError:
                 pass
+
+        # KF-6 slice 1: layered budget resolution.
+        #   Precedence: BERNSTEIN_MAX_COST_USD > run_config.json > seed.budget_usd > 0.
+        # The env var is set by the ``bernstein run --max-cost-usd N`` CLI flag.
+        # Off-by-default: if neither flag, run-config, nor seed sets a positive
+        # cap the run remains unbounded (``budget_usd = 0.0``).
+        from bernstein.core.cost_tracker import resolve_run_budget_usd
+
+        budget_usd = resolve_run_budget_usd(
+            run_config_value=run_config_budget_usd,
+            seed_value=seed.budget_usd if seed is not None else None,
+        )
         # Env var override for workflow mode
         workflow_mode = os.environ.get("BERNSTEIN_WORKFLOW", workflow_mode or "") or None
 

@@ -31,7 +31,10 @@ from bernstein.core.server import create_app
 @pytest.fixture()
 def client(tmp_path: Path) -> TestClient:
     os.environ["BERNSTEIN_AUTH_DISABLED"] = "1"
-    _reset_signing_keypair_for_tests()
+    # Point the persistent agent-card keystore at the per-test ``tmp_path``
+    # so the JWKS round-trip generates a fresh keypair without scribbling
+    # into the real ``.bernstein/keys`` directory.
+    _reset_signing_keypair_for_tests(tmp_path / "keys")
     app = create_app(jsonl_path=tmp_path / "tasks.jsonl")
     return TestClient(app)
 
@@ -141,9 +144,7 @@ def test_agent_json_body_is_jcs_canonical(client: TestClient) -> None:
     raw = resp.content
     parsed = json.loads(raw)
     recanonical = canonicalize_jcs(parsed)
-    assert raw == recanonical, (
-        f"body is not JCS-canonical:\n  got: {raw!r}\n  want: {recanonical!r}"
-    )
+    assert raw == recanonical, f"body is not JCS-canonical:\n  got: {raw!r}\n  want: {recanonical!r}"
     # Cache header per ticket spec.
     assert resp.headers.get("cache-control") == "public, max-age=3600"
 
@@ -210,3 +211,84 @@ def test_jwks_endpoint_is_stable_across_calls(client: TestClient) -> None:
     a = client.get("/.well-known/agent.json/keys").json()
     b = client.get("/.well-known/agent.json/keys").json()
     assert a == b
+
+
+# ---------------------------------------------------------------------------
+# Persistent keystore + rotation grace window
+# ---------------------------------------------------------------------------
+
+
+def test_jwks_persists_across_module_resets(tmp_path: Path) -> None:
+    """Resetting the in-process cache must replay the same on-disk keypair.
+
+    This is the production guarantee: restarting the orchestrator does not
+    invalidate verifiers caching the previous JWK — the persistent keystore
+    keeps the ``kid`` stable across process boundaries.
+    """
+    from bernstein.core.routes import well_known as wk
+
+    os.environ["BERNSTEIN_AUTH_DISABLED"] = "1"
+    keys_dir = tmp_path / "keys"
+    wk._reset_signing_keypair_for_tests(keys_dir)
+    app_a = create_app(jsonl_path=tmp_path / "a.jsonl")
+    keys_a = TestClient(app_a).get("/.well-known/agent.json/keys").json()
+
+    # Drop the in-process cache as if we had restarted the orchestrator —
+    # but keep the same on-disk directory.
+    wk._reset_signing_keypair_for_tests(keys_dir)
+    app_b = create_app(jsonl_path=tmp_path / "b.jsonl")
+    keys_b = TestClient(app_b).get("/.well-known/agent.json/keys").json()
+
+    assert keys_a["keys"][0]["x"] == keys_b["keys"][0]["x"], "JWK 'x' must persist across orchestrator restarts"
+    assert keys_a["keys"][0]["kid"] == keys_b["keys"][0]["kid"]
+
+
+def test_jwks_rotation_serves_both_current_and_archived_kid(tmp_path: Path) -> None:
+    """During the 24h grace window the JWKS publishes both keys.
+
+    Verifiers that cached the previous JWKS (max-age=3600 on the agent.json
+    route) keep validating against the archived key by ``kid`` until their
+    HTTP cache ages out. The current key is served first so OAuth clients
+    that pick the first match converge on it.
+    """
+    from bernstein.core.routes import well_known as wk
+    from bernstein.core.security.agent_card_keystore import AgentCardKeystore
+
+    os.environ["BERNSTEIN_AUTH_DISABLED"] = "1"
+    keys_dir = tmp_path / "keys"
+
+    # Pre-populate the keystore + perform a rotation against a freshly
+    # bound directory so the test is deterministic — no race with the
+    # process-wide cache.
+    keystore = AgentCardKeystore(keys_dir)
+    keystore.load_or_generate()
+    keystore.rotate()
+
+    wk._reset_signing_keypair_for_tests(keys_dir)
+    app = create_app(jsonl_path=tmp_path / "tasks.jsonl")
+    client = TestClient(app)
+
+    keys = client.get("/.well-known/agent.json/keys").json()["keys"]
+    assert len(keys) == 2, f"expected current + 1 archived JWK, got: {keys}"
+    kids = [k["kid"] for k in keys]
+    assert kids[0] == "agent-bernstein-orchestrator", "current key must come first"
+    assert kids[1].startswith("agent-bernstein-orchestrator-"), "archived key carries timestamp suffix"
+    # Both JWKs must be valid Ed25519 OKP keys with distinct ``x`` values.
+    assert keys[0]["x"] != keys[1]["x"]
+    assert keys[0]["kty"] == keys[1]["kty"] == "OKP"
+    assert keys[0]["crv"] == keys[1]["crv"] == "Ed25519"
+
+
+def test_rotate_agent_card_keys_helper(tmp_path: Path) -> None:
+    """``rotate_agent_card_keys`` must mint a new keypair + archive the old one."""
+    from bernstein.core.routes import well_known as wk
+
+    keys_dir = tmp_path / "keys"
+    wk._reset_signing_keypair_for_tests(keys_dir)
+    priv_a, pub_a = wk._get_signing_keypair()
+    priv_b, pub_b = wk.rotate_agent_card_keys()
+
+    assert priv_a != priv_b
+    assert pub_a != pub_b
+    assert (keys_dir / "archive").is_dir()
+    assert any((keys_dir / "archive").iterdir()), "rotation must archive the previous keypair"

@@ -14,6 +14,9 @@ build/
 .env.*
 .env.local
 
+# A2A v1.0 agent-card signing keys — minted on first run, must NEVER be committed.
+.bernstein/keys/
+
 # Internal docs (local only — kept on disk, excluded from git)
 docs/superpowers/
 docs/research/

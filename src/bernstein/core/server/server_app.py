@@ -1080,12 +1080,19 @@ def create_app(
     _agent_identity_store = AgentIdentityStore(_auth_dir)
     application.state.identity_store = _agent_identity_store  # type: ignore[attr-defined]
 
+    # RFC 8707: optional resource-indicator binding. Configured via the
+    # ``BERNSTEIN_AUTH_EXPECTED_RESOURCE`` env var or
+    # ``auth.expected_resource`` (comma-separated for multi-audience setups).
+    # Empty string disables the check (legacy behaviour).
+    expected_resource = auth_config.expected_resource or None
+
     application.add_middleware(
         SSOAuthMiddleware,
         auth_service=auth_service,
         legacy_token=legacy_auth_token,
         agent_identity_store=_agent_identity_store,
         auth_disabled=auth_disabled_flag,
+        expected_resource=expected_resource,
     )
 
     # Per-endpoint request rate limiting — reads buckets from app.state.seed_config.

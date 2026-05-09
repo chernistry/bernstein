@@ -175,9 +175,7 @@ def parse_team_hub_yaml(path: Path) -> TeamHubManifest:
         raise TeamHubManifestError(path, f"invalid YAML: {exc}") from exc
 
     if not isinstance(data, dict):
-        raise TeamHubManifestError(
-            path, f"manifest must be a YAML mapping, got {type(data).__name__}"
-        )
+        raise TeamHubManifestError(path, f"manifest must be a YAML mapping, got {type(data).__name__}")
 
     raw_data: dict[Any, Any] = cast("dict[Any, Any]", data)
     cleaned: dict[str, Any] = {}
@@ -240,6 +238,4 @@ def validate_team_hub_dict(data: dict[str, Any]) -> TeamHubManifest:
     try:
         return TeamHubManifest.model_validate(data)
     except ValidationError as exc:
-        raise TeamHubManifestError(
-            placeholder, f"invalid manifest: {exc.errors()}"
-        ) from exc
+        raise TeamHubManifestError(placeholder, f"invalid manifest: {exc.errors()}") from exc

@@ -136,9 +136,7 @@ def load_team_hub(root: Path) -> LoadedTeamHub | None:
     return LoadedTeamHub(root=root, manifest=manifest, entries=entries)
 
 
-def _resolve_entries(
-    root: Path, manifest: TeamHubManifest
-) -> tuple[TeamHubEntry, ...]:
+def _resolve_entries(root: Path, manifest: TeamHubManifest) -> tuple[TeamHubEntry, ...]:
     """Resolve every ``ships`` entry against the hub root.
 
     Args:

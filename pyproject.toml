@@ -50,7 +50,7 @@ dependencies = [
     "pyyaml>=6.0",
     "rich>=13.0",
     "textual>=1.0",
-    "click>=8.1",
+    "click>=8.3.3",
     "openai>=2.29.0",
     "pydantic-settings>=2.13.1",
     "python-dotenv>=1.2.2",
@@ -125,10 +125,11 @@ dev = [
     "beartype>=0.21",  # Test-time runtime type enforcement
     "syrupy>=4.6",  # Snapshot testing for JSONL/audit/prompt drift
     "diff-cover>=9.0",  # Per-PR diff coverage gate
-    # NOTE: semgrep is installed via `uv tool install semgrep` in CI, not as
-    # a dev dep. semgrep pins opentelemetry-sdk<1.38, which conflicts with
-    # our direct opentelemetry-sdk>=1.41.1 dep. Isolating semgrep keeps the
-    # main resolver tree clean. See .github/workflows/ci.yml::semgrep job.
+    # NOTE: semgrep is intentionally NOT a dev dep. Its transitive pins
+    # (click<8.2, opentelemetry-sdk<1.38) collide with our production
+    # floors (click>=8.3.3, opentelemetry-sdk>=1.41.1). Install via
+    # `uv tool install semgrep` (isolated env). See .github/workflows/ci.yml
+    # and docs/contributing/testing.md.
 ]
 grpc = ["grpcio>=1.68", "grpcio-tools>=1.68", "grpcio-reflection>=1.68", "protobuf>=5.29"]
 k8s = ["kubernetes>=31.0"]
@@ -583,6 +584,7 @@ dev = [
     "syrupy>=4.6",
     "diff-cover>=9.0",
     # semgrep installed via `uv tool install semgrep` in CI — pins
-    # opentelemetry-sdk<1.38, conflicts with our >=1.41.1. Mirror of
+    # click<8.2 and opentelemetry-sdk<1.38, conflicts with our
+    # click>=8.3.3 / opentelemetry-sdk>=1.41.1 floors. Mirror of
     # [project.optional-dependencies].dev.
 ]

@@ -42,8 +42,12 @@ uv run pytest tests/snapshot/ -q --no-cov --snapshot-update
 BERNSTEIN_AUTH_DISABLED=1 SCHEMATHESIS_PROFILE=smoke \
   uv run pytest tests/contract/ -q --no-cov
 
-# Semgrep (project rules; ERROR severity is the PR gate)
-uv run semgrep --config .semgrep.yml --severity ERROR --error src/
+# Semgrep (project rules; ERROR severity is the PR gate).
+# Install once via `uv tool install semgrep` — semgrep's transitive
+# pins (click<8.2, opentelemetry-sdk<1.26) conflict with our project
+# floors, so it lives in its own venv outside `uv sync`.
+uv tool install semgrep
+uv tool run semgrep --config .semgrep.yml --severity ERROR --error src/
 
 # Bandit (production HIGH-only with baseline)
 uv run bandit -r src/ -ll --severity-level high -b .bandit-baseline.json

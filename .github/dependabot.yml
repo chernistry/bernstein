@@ -28,7 +28,9 @@ updates:
           - "urllib3"
           - "bandit"
           - "pip-audit"
-          - "semgrep"
+        # semgrep is installed out-of-tree via `uv tool install semgrep`
+        # (see .github/workflows/ci.yml + docs/contributing/testing.md);
+        # not a pip dep so dependabot can't manage it from here.
       minor-and-patch:
         update-types:
           - minor

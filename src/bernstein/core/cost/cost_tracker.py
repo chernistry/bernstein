@@ -38,6 +38,67 @@ from bernstein.core.tenanting import normalize_tenant_id
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# Run-level budget cap (KF-6 cost autopilot, slice 1)
+# ---------------------------------------------------------------------------
+
+# Env var honoured by the orchestrator startup path so a CLI flag
+# (``bernstein run --max-cost-usd N``) can override seed/run-config
+# defaults without a YAML edit. Off-by-default: when unset, behaviour
+# is identical to prior releases.
+ENV_MAX_COST_USD: str = "BERNSTEIN_MAX_COST_USD"
+
+
+def resolve_run_budget_usd(
+    *,
+    run_config_value: float | None = None,
+    seed_value: float | None = None,
+    env: dict[str, str] | None = None,
+    default: float = 0.0,
+) -> float:
+    """Resolve the per-run USD budget cap from layered sources.
+
+    Precedence (highest first):
+      1. ``BERNSTEIN_MAX_COST_USD`` env var (CLI flag propagation).
+      2. ``run_config_value`` (``.sdd/runtime/run_config.json``).
+      3. ``seed_value`` (``bernstein.yaml`` ``budget`` field).
+      4. ``default`` (``0.0`` = unlimited).
+
+    Invalid / non-numeric env values are ignored with a warning so that a
+    typo never silently disables the budget guard or crashes startup.
+    Non-positive values mean "unlimited" and are normalised to ``0.0``.
+
+    Args:
+        run_config_value: Budget read from ``run_config.json``.
+        seed_value: Budget read from ``bernstein.yaml`` (``seed.budget_usd``).
+        env: Optional environment mapping (defaults to :data:`os.environ`).
+            Exposed for tests so they don't have to mutate process state.
+        default: Fallback when no source provides a value.
+
+    Returns:
+        Non-negative budget cap in USD (``0.0`` = unlimited).
+    """
+    env_map = env if env is not None else os.environ
+    raw_env = env_map.get(ENV_MAX_COST_USD)
+    if raw_env is not None and raw_env.strip():
+        try:
+            env_value = float(raw_env)
+            if env_value < 0.0:
+                env_value = 0.0
+            return env_value
+        except ValueError:
+            logger.warning(
+                "Invalid %s=%r; falling back to run_config/seed/default budget.",
+                ENV_MAX_COST_USD,
+                raw_env,
+            )
+    if run_config_value is not None and run_config_value > 0.0:
+        return float(run_config_value)
+    if seed_value is not None and seed_value > 0.0:
+        return float(seed_value)
+    return max(0.0, float(default))
+
+
+# ---------------------------------------------------------------------------
 # Threshold defaults
 # ---------------------------------------------------------------------------
 

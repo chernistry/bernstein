@@ -215,6 +215,7 @@ def _propagate_env_flags(
     auto_pr: bool,
     activity_log_path: str | None,
     audit: bool,
+    max_cost_usd: float | None = None,
 ) -> None:
     """Set environment variables so orchestrator subprocesses inherit CLI flags."""
     _flag_map: list[tuple[bool, str]] = [
@@ -239,6 +240,13 @@ def _propagate_env_flags(
     for val, key in _str_map:
         if val:
             os.environ[key] = val
+
+    # KF-6 slice 1: per-run budget cap. Off-by-default: only propagated when
+    # the operator passes ``--max-cost-usd`` so existing runs are unaffected.
+    if max_cost_usd is not None and max_cost_usd > 0.0:
+        from bernstein.core.cost_tracker import ENV_MAX_COST_USD
+
+        os.environ[ENV_MAX_COST_USD] = f"{max_cost_usd:.6f}"
 
     if sandbox:
         os.environ["BERNSTEIN_CONTAINER"] = "1"
@@ -789,6 +797,17 @@ def exec_restart() -> None:
     default=None,
     help="Write activity to log file (default: .sdd/logs/activity.log).",
 )
+@click.option(
+    "--max-cost-usd",
+    "max_cost_usd",
+    type=float,
+    default=None,
+    help=(
+        "KF-6 cost autopilot: hard cap on total run spend in USD. Aggregated "
+        "across all agents; orchestrator stops spawning when reached. "
+        "Off-by-default (overrides bernstein.yaml ``budget`` and run_config.json)."
+    ),
+)
 def run(
     plan_file: Path | None,
     goal: str | None,
@@ -820,6 +839,7 @@ def run(
     task_filter: str | None = None,
     auto_pr: bool = False,
     activity_log_path: str | None = None,
+    max_cost_usd: float | None = None,
 ) -> None:
     """Parse seed, init workspace, start server, launch agents.
 
@@ -843,6 +863,7 @@ def run(
       bernstein conduct --sandbox docker       # run agents in Docker sandbox
       bernstein conduct --container --two-phase-sandbox  # two-phase sandboxed execution
       bernstein conduct --audit                # SOC 2 audit mode (HMAC-chained log + Merkle seal)
+      bernstein conduct --max-cost-usd 1.50    # hard cap total run spend at $1.50 (KF-6)
     """
     # Banner already printed by cli() — don't duplicate
 
@@ -874,6 +895,7 @@ def run(
         auto_pr=auto_pr,
         activity_log_path=activity_log_path,
         audit=audit,
+        max_cost_usd=max_cost_usd,
     )
 
     _install_network_policy(run_profile=run_profile, allow_network=allow_network)

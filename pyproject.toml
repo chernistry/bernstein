@@ -148,7 +148,7 @@ modal = ["modal>=1.4.2"]
 # SDK needed by the corresponding ArtifactSink. Kept optional so local-only
 # installs stay lean. R2 reuses boto3 under the hood.
 s3 = ["boto3>=1.43.6"]
-gcs = ["google-cloud-storage>=3.0"]
+gcs = ["google-cloud-storage>=3.10.1"]
 azure = ["azure-storage-blob>=12.20"]
 r2 = ["boto3>=1.43.6"]
 # Chat-control bridge backends (op-001). Enable with:

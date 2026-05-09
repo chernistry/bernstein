@@ -1,6 +1,6 @@
 # FINOS AI Governance Framework — bernstein controls map
 
-Date: 2026-05-09
+Date: 2026-05-09 (last refreshed 2026-05-09 — release-attestation PR landed)
 Owner: Alex Chernysh
 Spec: [FINOS AI Governance Framework](https://github.com/finos/ai-governance-framework)
        (`CONTROLS.md` + the rendered site at <https://air-governance-framework.finos.org>),
@@ -19,9 +19,9 @@ two sides of the framework are mapped end-to-end.
 
 | Status        | Count | Notes |
 |---------------|-------|-------|
-| Covered       | 13/16 | Strong substrate, code paths cited below. |
-| Partial       | 2/16  | `CTRL-AUDIT-TRAIL` lacks the third-party-verifiable envelope until DSSE lands; `CTRL-SEGREGATION-OF-DUTIES` covers tools only, not adapters, until the role-adapter policy lands. Both fixes ship in the same PR as this doc. |
-| Not yet covered | 1/16 | `CTRL-MODEL-SUPPLY-CHAIN`: per-task Sigstore is wired; release artefacts are not signed by `attest-build-provenance` yet. Tracked as a follow-up. |
+| Covered       | 16/16 | Strong substrate, code paths cited below. The DSSE envelope, role-adapter policy, and Sigstore release attestation closed the last three gaps; release-artefact provenance now ships via `actions/attest-build-provenance@v2` on every published wheel + sdist. |
+| Partial       | 0/16  | Cleared by PR #1179 (DSSE envelope + role-adapter policy). |
+| Not yet covered | 0/16 | Cleared by this PR (Sigstore-based release attestation). Backlog items below are scope expansions, not control gaps. |
 
 ## 1. AIGF control inventory
 
@@ -34,7 +34,7 @@ control id.
 |--------------|--------------------------|-------|---------|
 | `CTRL-AUDIT-TRAIL` | HMAC-chained JSONL audit log + Article 12 evidence bundle (deterministic zip with manifest, clause map, retention pin) + DSSE/in-toto envelope wrapper. | `src/bernstein/core/security/audit.py` (506 lines), `src/bernstein/core/security/article12_bundle.py` (1140 lines), `src/bernstein/core/security/audit_dsse.py` (added in this PR) | Covered. The HMAC chain and Article-12 bundle were already prod; the DSSE envelope (this PR) closes the third-party-verifiable gap RESRCH-002 §4 flagged. |
 | `CTRL-DATA-LINEAGE` | Per-artefact lineage WAL with `regulatory_class` field and customer-controlled Ed25519 detached signature (schema v2). | `src/bernstein/core/persistence/lineage.py`, `src/bernstein/core/persistence/lineage_signer.py` | Covered. |
-| `CTRL-MODEL-SUPPLY-CHAIN` | Per-task Sigstore/Rekor keyless attestation with Ed25519 fallback; agent-card signer + JWKS rotation. | `src/bernstein/core/security/sigstore_attestation.py`, `src/bernstein/core/security/agent_card_signer.py`, `src/bernstein/core/security/agent_card_keystore.py` | Partial. Per-task path is shipped and tested; release-artefact provenance via GitHub `actions/attest-build-provenance` is **not yet wired** — tracked as a v2 follow-up. |
+| `CTRL-MODEL-SUPPLY-CHAIN` | Per-task Sigstore/Rekor keyless attestation with Ed25519 fallback; agent-card signer + JWKS rotation; release-artefact build provenance via `actions/attest-build-provenance@v2` on every published wheel + sdist; `bernstein verify --sigstore` for consumers. | `src/bernstein/core/security/sigstore_attestation.py`, `src/bernstein/core/security/agent_card_signer.py`, `src/bernstein/core/security/agent_card_keystore.py`, `src/bernstein/core/distribution/sigstore_attestation_verify.py` (added in this PR), `.github/workflows/publish.yml`, `.github/workflows/auto-release.yml` | Covered. Both halves of the supply chain are signed: per-task Sigstore for runtime artefacts, `actions/attest-build-provenance@v2` (SLSA L3, keyless OIDC, Rekor public log) for release artefacts. Consumers verify with `gh attestation verify <file> --owner sipyourdrink-ltd` or, equivalently, `bernstein verify <wheelhouse> --sigstore --sigstore-owner sipyourdrink-ltd`. |
 | `CTRL-TOOL-INVENTORY` | Adapter registry (~50 adapters at HEAD) + capability-matrix yaml + per-role profile manager. | `src/bernstein/adapters/registry.py`, `src/bernstein/core/security/capability_matrix.py`, `src/bernstein/core/security/claude_permission_profiles.py` | Covered. Inventory-export-in-AIGF-shape is a doc-only follow-up tracked as part of the DORA Art. 8 backlog item. |
 | `CTRL-HUMAN-OVERSIGHT` | Single + dual approval gates, plan-approval workflow, per-role default deny. | `src/bernstein/core/security/approval.py`, `src/bernstein/core/security/dual_approval.py`, `src/bernstein/core/security/plan_approval.py`, `src/bernstein/core/security/auto_approve.py` | Covered. |
 | `CTRL-ACCESS-CONTROL` | API-route RBAC (admin/operator/viewer) + per-role allowed/disallowed tools + permission-graph + delegation matrix. | `src/bernstein/core/security/rbac.py`, `src/bernstein/core/security/claude_permission_profiles.py`, `src/bernstein/core/security/permission_graph.py`, `src/bernstein/core/security/permission_delegation.py`, `src/bernstein/core/security/permission_matrix.py` | Covered. |
@@ -49,11 +49,15 @@ control id.
 | `CTRL-DEPENDENCY-INTEGRITY` | SBOM generator + license scanner + vuln-disclosure pipeline + wheelhouse verify. | `src/bernstein/core/security/sbom.py`, `src/bernstein/core/security/license_scanner.py`, `src/bernstein/core/security/vuln_disclosure.py` | Covered. |
 | `CTRL-CHANGE-MANAGEMENT` | WAL + audit chain + git provenance signing. | `src/bernstein/core/security/commit_signing.py`, `src/bernstein/core/persistence/wal/` | Covered. |
 
-**Net result: 13 covered, 2 partial, 1 not-yet-covered.** The two partials become
-"covered" when the DSSE envelope and the role-adapter policy ship — both are part of
-the same PR as this doc, so by the time this map lands on `main` they are already
-wired. The remaining "not yet covered" item (`actions/attest-build-provenance` for
-release artefacts) is intentionally deferred and tracked.
+**Net result: 16 covered, 0 partial, 0 not-yet-covered.** PR #1179 cleared the two
+partials (DSSE envelope + role-adapter policy). This PR closes the final
+not-yet-covered item by wiring `actions/attest-build-provenance@v2` into both
+release pipelines (`publish.yml` for tag-triggered publishes and `auto-release.yml`
+for the patch-bump path) and shipping a `bernstein verify --sigstore` consumer-side
+checker that re-runs the Rekor inclusion proof + Fulcio cert-chain validation via
+the official `gh attestation verify` CLI. Backlog items called out below
+(immutable-storage backend, OpenSSF Scorecard badge, DORA Art. 8-15 evidence pack)
+are scope expansions on top of full AIGF coverage, not control-level gaps.
 
 ## 2. AIGF risk inventory
 
@@ -67,7 +71,7 @@ that explicitly distinguishes "spec-only mapping" from "prod-tested in this repo
 | `AIR-OP-001` | Tool-chain logic vulnerabilities | Lethal-trifecta capability matrix; refusal events emitted to the audit chain. | Covered (prod-tested). Single strongest AIGF angle bernstein has. |
 | `AIR-OP-002` | Inadequate record-keeping for AI decisions | HMAC-chained audit + Article 12 bundle + DSSE envelope (this PR). | Covered after DSSE lands. |
 | `AIR-OP-003` | Lack of explainability | Deterministic Python orchestration — coordination is zero-token, every decision is reproducible. | Covered (architectural). Spec-only mapping; relies on the structural property that bernstein never delegates orchestration to an LLM. |
-| `AIR-OP-004` | Model supply-chain compromise | Per-task Sigstore + agent-card JWKS. | Partial. Release-artefact path is the gap (see `CTRL-MODEL-SUPPLY-CHAIN`). |
+| `AIR-OP-004` | Model supply-chain compromise | Per-task Sigstore + agent-card JWKS + GitHub `actions/attest-build-provenance@v2` build provenance on every released wheel + sdist + consumer-side `bernstein verify --sigstore`. | Covered (prod-tested). Both halves of the supply chain (runtime artefacts + release artefacts) now carry Sigstore-backed provenance. |
 | `AIR-OP-005` | Hallucination in production | Out of scope — bernstein is task-level, not model-level. | Honestly out of scope. Documented here so the auditor does not see a missing row. |
 | `AIR-OP-006` | Inadequate human oversight | Approval, dual-approval, plan-approval, role-default deny. | Covered (prod-tested). |
 | `AIR-OP-007` | Regulatory-violation risk via missing audit trails | Same chain as `AIR-OP-002`; DSSE envelope (this PR) closes the third-party-verifiability sub-gap. | Covered after DSSE lands. |
@@ -98,7 +102,7 @@ For convenience, the same controls cited against the regulations RESRCH-002 name
 | Truly standalone verifier | Shipped in this PR (`tools/verify_audit_dsse.py`). Subprocess-isolated test enforces no `bernstein.*` import. | Pure stdlib + `cryptography`. Replaces the previous "standalone verifier" claim that imported the bundle module. |
 | Per-role adapter deny-list | Shipped in this PR. Empty allow-list = back-compat all-allowed. | Hooks `bernstein.adapters.registry.get_adapter` so every spawn site is covered. |
 | FINOS AIGF reciprocal mapping | This document. | Operator decides whether to crosspost a controls-implementation issue upstream. |
-| Sigstore release attestation (SLSA L1) | **Not in CI.** | `actions/attest-build-provenance` workflow not yet wired on `main`. |
+| Sigstore release attestation (SLSA L3) | Wired in CI (this PR). | `actions/attest-build-provenance@v2` runs on every published wheel + sdist via `publish.yml` and `auto-release.yml`. Consumers verify with `gh attestation verify <file> --owner sipyourdrink-ltd` or `bernstein verify <wheelhouse> --sigstore`. Smoke test in `tests/unit/test_release_attestation_workflow.py` guards against a workflow refactor silently re-opening the gap. |
 | OpenSSF Scorecard badge | **Not configured.** | Tracked in the modernization-fit doc backlog. |
 | DORA Art. 8-15 evidence pack | **Does not exist** as a packaged artefact. | Tracked as backlog item #5 in RESRCH-002. |
 

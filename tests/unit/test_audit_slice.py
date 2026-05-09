@@ -11,9 +11,9 @@ import json
 from pathlib import Path
 
 import pytest
+from bernstein.core.audit import AuditLog
 from click.testing import CliRunner
 
-from bernstein.core.audit import AuditLog
 from bernstein.core.security.audit_slice import (
     AuditSliceError,
     slice_audit_log,

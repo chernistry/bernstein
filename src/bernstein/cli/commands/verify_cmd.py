@@ -1,11 +1,19 @@
-"""Verify CLI — WAL integrity, execution determinism, memory provenance, formal verification, wheelhouse.
+"""Verify CLI -- WAL integrity, execution determinism, memory provenance, wheelhouse.
 
-Commands:
-  bernstein verify <wheelhouse-path>          Verify air-gap wheelhouse manifest + signatures
-  bernstein verify --wal-integrity <run-id>   Verify WAL hash chain
-  bernstein verify --determinism <run-id>     Compute execution fingerprint
-  bernstein verify --memory-audit             Audit lesson memory provenance chain
-  bernstein verify --formal <task-id>         Run Z3/Lean4 formal property checks for a task
+Five verification modes, each with a hard exit-code contract:
+
+* ``bernstein verify <wheelhouse-path>`` -- verify air-gap wheelhouse
+  manifest + signatures (cosign by default; GPG path supported).
+* ``bernstein verify --wal-integrity <run-id>`` -- replay WAL hash chain
+  for a run; non-zero exit on any mismatch.
+* ``bernstein verify --determinism <run-id>`` -- compute execution
+  fingerprint (decision-trace hash) so the run is reproducible.
+* ``bernstein verify --memory-audit`` -- walk lesson-memory provenance
+  for OWASP Agent Security Initiative ASI06 (Memory & Context Poisoning,
+  2026); refuses to OK any unsigned write.
+* ``bernstein verify --formal <task-id>`` -- spawn Z3 / Lean4 property
+  checks against the task contract. The CLI surface is shipped; Z3 / Lean4
+  binaries must be installed separately on PATH (no bundled extra).
 """
 
 from __future__ import annotations

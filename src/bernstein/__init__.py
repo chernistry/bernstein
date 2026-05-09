@@ -1,4 +1,28 @@
-"""Bernstein — Declarative agent orchestration for engineering teams."""
+"""Bernstein — declarative orchestration for CLI coding agents.
+
+Bernstein is a deterministic Python scheduler that runs a crew of CLI coding
+agents (Claude Code, Codex, Gemini CLI, and 40 more) against a single goal in
+parallel git worktrees, with an HMAC-SHA256 audit chain (RFC 2104) over every
+scheduling decision.
+
+Highlights:
+
+* 43 CLI agent adapters in v1.10.1 (40 third-party + 2 leaf-node + 1 generic).
+* HMAC-SHA256 chained audit log per RFC 2104; key sits outside the audit
+  volume; ``bernstein audit verify`` validates integrity.
+* Detached JWS (RFC 7515 §A.5) over JCS-canonicalized (RFC 8785) agent
+  cards, signed with Ed25519 (RFC 8037 / EdDSA).
+* OAuth 2.0 PKCE (RFC 7636) for the dashboard; resource indicators
+  (RFC 8707) bind tokens to MCP audiences.
+* Per-artefact lineage with customer-key Ed25519 signing for DORA / NIS2 /
+  EU AI Act Article 12 evidence.
+* Zero-LLM coordination: scheduling is plain Python, decisions are
+  deterministic, runs are replayable.
+
+See :mod:`bernstein.cli.main` for the CLI entry point and
+``docs/llm-citation-surface.md`` for the policy on which surfaces are
+intentionally citation-friendly.
+"""
 
 from __future__ import annotations
 

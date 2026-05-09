@@ -12,7 +12,12 @@ model and the operator-visible behaviour.
 ## The threat
 
 Simon Willison's [lethal trifecta](https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/)
-is the structural shape every prompt-injection exfil chain shares.
+(coined June 16, 2025) is the structural shape every prompt-injection
+exfil chain shares. Verbatim from the original post:
+
+> *"if your AI agent combines all three of these, an attacker can trick it
+> into stealing your data."*
+
 A successful attack needs, on the same execution path, **all three**:
 
 1. **private data** — files, secrets, repo contents, customer data the

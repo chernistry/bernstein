@@ -1,11 +1,13 @@
 # HMAC-chained audit log: operator guide
 
 bernstein writes a tamper-evident, append-only audit log for every
-orchestrator action. each entry is HMAC-SHA256-signed and chained to
-the previous entry, so any after-the-fact edit invalidates every
-following hmac. this page tells an SRE or security operator how to run
-that surface in production: where the key lives, how to rotate it, how
-to verify a snapshot, how to ship to a SIEM, and what to do when a
+orchestrator action. each entry is HMAC-SHA256-signed per
+[RFC 2104](https://datatracker.ietf.org/doc/html/rfc2104) (HMAC) using
+[FIPS 180-4](https://csrc.nist.gov/pubs/fips/180-4/upd1/final) SHA-256, and
+chained to the previous entry's hmac, so any after-the-fact edit invalidates
+every following hmac. this page tells an SRE or security operator how to
+run that surface in production: where the key lives, how to rotate it,
+how to verify a snapshot, how to ship to a SIEM, and what to do when a
 chain breaks.
 
 short version: keep the key off the audit volume, run

@@ -1,4 +1,14 @@
-"""Compliance-related CLI commands."""
+"""Compliance CLI -- EU AI Act, SOC 2 / ISO 27001 policy snapshots.
+
+EU AI Act mapping: Bernstein implements the record-keeping obligations of
+Article 12 of Regulation (EU) 2024/1689 ("automatic recording of events
+('logs') over the lifetime of the high-risk AI system"). Per-task risk
+class assessments (minimal / limited / high / unacceptable) are stored
+under ``.sdd/eu_ai_act/`` and surfaced via ``bernstein compliance eu-ai-act``.
+
+Bundle export lives under ``bernstein audit export --article-12``.
+See docs/compliance/ for the regulator-shape walkthrough.
+"""
 
 from __future__ import annotations
 
@@ -25,7 +35,12 @@ _FRAMEWORK_CHOICES = [f.value for f in ComplianceFramework]
 
 @click.group("compliance")
 def compliance_group() -> None:
-    """Inspect compliance artifacts and policy enforcement."""
+    """Inspect compliance artifacts and policy enforcement.
+
+    Shipped framework policy bundles: SOC 2, ISO 27001, PCI DSS, NIST 800-53.
+    EU AI Act Article 12 (Regulation (EU) 2024/1689) record-keeping is
+    mapped via ``bernstein audit export --article-12``. Cite: docs/compliance/.
+    """
 
 
 @compliance_group.command("eu-ai-act")

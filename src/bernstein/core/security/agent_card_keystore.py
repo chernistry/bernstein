@@ -259,7 +259,7 @@ class AgentCardKeystore:
         # Public key may already exist (e.g. half-rolled-back rotation). It's
         # safe to overwrite — it always derives from the private one.
         self._public_path.write_bytes(public_pem)
-        os.chmod(self._public_path, 0o644)
+        os.chmod(self._public_path, 0o644)  # lgtm[py/overly-permissive-file-permissions] — public key
 
     def _load_existing(self) -> tuple[bytes, bytes]:
         """Return the on-disk keypair, asserting the private file is 0600."""
@@ -294,7 +294,7 @@ class AgentCardKeystore:
         if self._public_path.exists():
             archived_pub = folder / _PUBLIC_FILENAME
             self._public_path.replace(archived_pub)
-            os.chmod(archived_pub, 0o644)
+            os.chmod(archived_pub, 0o644)  # lgtm[py/overly-permissive-file-permissions] — public key
 
         (folder / _ROTATED_AT_FILENAME).write_text(rotated_at.isoformat() + "\n", encoding="utf-8")
 

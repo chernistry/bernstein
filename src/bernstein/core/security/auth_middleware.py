@@ -8,6 +8,7 @@ that supports:
 - Public path exemptions (health, discovery, login flow)
 - HMAC-authenticated path exemptions (webhooks/hooks validate their own HMAC)
 - User context injection into request.state
+- RFC 8707 resource-indicator validation (audience binding for OAuth tokens)
 
 Secure-by-default
 -----------------
@@ -25,6 +26,19 @@ from the URL path for mutating operations (complete, fail, progress, cancel,
 block) and validates that the task ID appears in the token's ``task_ids``
 claim.  A token without a task scope (``task_ids == []``) is treated as
 unrestricted (manager / orchestrator tokens).
+
+RFC 8707 resource indicators
+----------------------------
+When ``expected_resource`` is configured (single string or list passed to
+:class:`SSOAuthMiddleware`, or ``BERNSTEIN_AUTH_EXPECTED_RESOURCE`` env var,
+or ``auth.expected_resource`` in :class:`SSOConfig`), bearer JWTs that
+carry a ``resource`` claim must match one of the configured values.
+Mismatches are rejected with HTTP 401 and the RFC 6750 ``WWW-Authenticate``
+challenge ``Bearer error="invalid_token", error_description="resource indicator mismatch"``.
+Tokens that omit the claim entirely pass through — the middleware does
+not retroactively require an indicator on legacy tokens. The check is
+skipped wholesale when ``expected_resource`` is unset so upgrading does
+not break deployments minting opaque non-OAuth tokens.
 """
 
 from __future__ import annotations
@@ -134,6 +148,16 @@ _AUTH_DISABLED_TRUTHY = frozenset({"1", "true", "yes", "on"})
 # Read-only methods that viewers can access
 _READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
+# Environment override for the configured RFC 8707 resource indicator(s).
+# Comma-separated; empty disables the check entirely (legacy behaviour).
+AUTH_EXPECTED_RESOURCE_ENV = "BERNSTEIN_AUTH_EXPECTED_RESOURCE"
+
+# RFC 6750 §3 challenge for an audience-mismatched token. Issuer and
+# wording match RFC 8707 §3 ("resource indicator mismatch") so well-known
+# OAuth clients can react with a deterministic error reason.
+_RESOURCE_MISMATCH_CHALLENGE = 'Bearer error="invalid_token", error_description="resource indicator mismatch"'
+_RESOURCE_MALFORMED_CHALLENGE = 'Bearer error="invalid_token", error_description="malformed resource indicator"'
+
 # Route → required permission mapping for write operations.
 #
 # Every write endpoint that Bernstein exposes MUST have an explicit entry
@@ -155,6 +179,95 @@ _ROUTE_PERMISSIONS: dict[str, str] = {
     "/broadcast": _PERM_ADMIN_MANAGE,
     "/drain": _PERM_ADMIN_MANAGE,
 }
+
+
+def _normalise_expected_resource(raw: str | list[str] | tuple[str, ...] | None) -> tuple[str, ...]:
+    """Coerce ``expected_resource`` into a tuple of trimmed values.
+
+    Accepts:
+        - ``None`` or empty string → ``()`` (disables the check).
+        - Single non-empty string → ``(value,)``.
+        - Comma-separated string (e.g. ``"https://a,https://b"``) → tuple
+          of trimmed entries with empty segments stripped.
+        - ``list``/``tuple`` of strings → trimmed tuple.
+
+    The tuple is then matched any-of against the token's ``resource``
+    claim by :func:`_resource_indicator_check`.
+    """
+    if raw is None:
+        return ()
+    if isinstance(raw, list | tuple):
+        return tuple(item.strip() for item in raw if item and item.strip())
+    text = raw.strip()
+    if not text:
+        return ()
+    if "," in text:
+        return tuple(part.strip() for part in text.split(",") if part.strip())
+    return (text,)
+
+
+def expected_resource_from_env() -> tuple[str, ...]:
+    """Resolve the env-var override for the configured resource indicator."""
+    return _normalise_expected_resource(os.environ.get(AUTH_EXPECTED_RESOURCE_ENV, ""))
+
+
+def _resource_indicator_check(
+    claims: dict[str, Any],
+    expected: tuple[str, ...],
+) -> JSONResponse | None:
+    """Validate the JWT's ``resource`` claim against the configured indicators.
+
+    Returns:
+        * ``None`` when the check passes (claim missing, or claim matches
+          one of the expected values, or the indicator is unconfigured).
+        * A :class:`JSONResponse` (HTTP 401) when the claim is malformed or
+          mismatches every configured value. The response carries the
+          RFC 6750 ``WWW-Authenticate`` challenge so OAuth clients can
+          react deterministically.
+
+    Args:
+        claims: Decoded JWT claims dict.
+        expected: Tuple of acceptable resource URIs.  Empty disables the
+            check entirely (legacy behaviour).
+    """
+    if not expected:
+        return None
+
+    resource = claims.get("resource")
+    if resource is None:
+        # Legacy tokens that pre-date RFC 8707 stay valid; the orchestrator
+        # only enforces the audience binding when the claim is actually
+        # present. Enforcing it on every token would lock out existing
+        # legacy bearer flows on upgrade.
+        return None
+
+    # RFC 8707 §2 allows ``resource`` to be a single URI string or a JSON
+    # array of URI strings. Anything else is malformed.
+    if isinstance(resource, str):
+        candidates: tuple[str, ...] = (resource,)
+    elif isinstance(resource, list) and all(isinstance(item, str) for item in resource):
+        candidates = tuple(resource)
+    else:
+        return JSONResponse(
+            status_code=401,
+            content={
+                "detail": "Token resource indicator is not a string or array of strings",
+            },
+            headers={"WWW-Authenticate": _RESOURCE_MALFORMED_CHALLENGE},
+        )
+
+    if any(candidate in expected for candidate in candidates):
+        return None
+
+    return JSONResponse(
+        status_code=401,
+        content={
+            "detail": "Token resource indicator does not match this orchestrator",
+            "expected": list(expected),
+            "actual": list(candidates),
+        },
+        headers={"WWW-Authenticate": _RESOURCE_MISMATCH_CHALLENGE},
+    )
 
 
 def auth_disabled_via_opt_out() -> bool:
@@ -242,6 +355,7 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
         legacy_token: str | None = None,
         agent_identity_store: AgentIdentityStore | None = None,
         auth_disabled: bool | None = None,
+        expected_resource: str | list[str] | tuple[str, ...] | None = None,
     ) -> None:
         super().__init__(app)
         self._auth_service = auth_service
@@ -252,6 +366,11 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
         resolved_disabled = bool(auth_disabled) or auth_disabled_via_opt_out()
         self._auth_disabled = resolved_disabled
         self._auth_configured = self._compute_auth_configured()
+        # RFC 8707 resource-indicator binding. Explicit constructor arg
+        # wins; env var falls back. Empty tuple disables the check.
+        self._expected_resource: tuple[str, ...] = (
+            _normalise_expected_resource(expected_resource) or expected_resource_from_env()
+        )
         if resolved_disabled and not SSOAuthMiddleware._warned_disabled:
             logger.warning(
                 "SECURITY: Bernstein auth is DISABLED — every request is "
@@ -369,6 +488,19 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
             return None
 
         user, claims = result
+
+        # RFC 8707: reject SSO tokens minted for a different audience before
+        # the request reaches its handler. Skipped when ``expected_resource``
+        # is unconfigured, or when the token omits the claim entirely.
+        resource_error = _resource_indicator_check(claims, self._expected_resource)
+        if resource_error is not None:
+            logger.warning(
+                "SSO token rejected: resource indicator mismatch (path=%s, expected=%s)",
+                path,
+                self._expected_resource,
+            )
+            return resource_error
+
         request.state.user = user  # type: ignore[attr-defined]
         request.state.auth_claims = claims  # type: ignore[attr-defined]
 
@@ -395,6 +527,24 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
         agent_identity = self._agent_identity_store.authenticate(token)
         if agent_identity is None:
             return None
+
+        # RFC 8707: enforce the resource-indicator binding on the agent JWT
+        # itself. ``authenticate`` has already verified the signature, so
+        # decoding the unverified body here is safe — the body bytes have
+        # already been authenticated against the JWT secret.
+        if self._expected_resource:
+            from bernstein.core.security.auth import decode_jwt_unverified
+
+            agent_claims = decode_jwt_unverified(token) or {}
+            resource_error = _resource_indicator_check(agent_claims, self._expected_resource)
+            if resource_error is not None:
+                logger.warning(
+                    "Agent %s denied: resource indicator mismatch (path=%s, expected=%s)",
+                    agent_identity.id,
+                    path,
+                    self._expected_resource,
+                )
+                return resource_error
 
         request.state.user = None  # type: ignore[attr-defined]
         request.state.auth_claims = {  # type: ignore[attr-defined]

@@ -158,6 +158,33 @@ def _disable_auth_for_tests(request: pytest.FixtureRequest, monkeypatch: pytest.
 
 
 @pytest.fixture(autouse=True)
+def _isolate_agent_card_keystore(
+    tmp_path_factory: pytest.TempPathFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Point the persistent A2A v1.0 agent-card keystore at a per-test tmpdir.
+
+    The keystore (``bernstein.core.routes.well_known._KEYSTORE``) is process
+    global — without isolation, a single test that pointed it at a
+    ``tmp_path`` directory would leave the cache holding a now-deleted path
+    once pytest cleaned the dir up. Subsequent tests would then hang on the
+    first ``/.well-known/agent.json`` GET as the keystore tried to read its
+    vanished private key.
+
+    Override the env var so every test gets a fresh, durable directory in
+    the per-session tmpdir, and explicitly reset the in-process cache so
+    older tests' bindings don't bleed through.
+    """
+    key_dir = tmp_path_factory.mktemp("agent-card-keys")
+    monkeypatch.setenv("BERNSTEIN_AGENT_CARD_KEY_DIR", str(key_dir))
+    # Reset both the global keystore binding and the cached PEM bytes so the
+    # next call to ``_get_signing_keypair`` re-binds to the freshly-set env.
+    from bernstein.core.routes import well_known as _wk
+
+    _wk._reset_signing_keypair_for_tests(key_dir)
+
+
+@pytest.fixture(autouse=True)
 def _init_git_repo_for_spawner_tmp_path_tests(request: pytest.FixtureRequest) -> None:
     """Initialize a minimal git repo for AgentSpawner tests that use ``tmp_path``.
 

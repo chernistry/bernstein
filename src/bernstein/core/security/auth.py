@@ -343,6 +343,20 @@ class SSOConfig(BaseSettings):
     # Env vars provide a simple comma-separated list: "admins=admin,devs=operator"
     group_role_map: str = ""  # "group1=admin,group2=operator,group3=viewer"
 
+    # RFC 8707 resource indicator(s) the orchestrator expects in tokens.
+    #
+    # When set, any bearer JWT carrying a ``resource`` claim must match one
+    # of the configured values; mismatches are rejected with HTTP 401 and a
+    # ``WWW-Authenticate`` header per RFC 6750. When unset (the default)
+    # the middleware treats the claim as advisory and skips the check, so
+    # existing deployments do not break on upgrade.
+    #
+    # Supplied as a comma-separated list in env vars
+    # (``BERNSTEIN_AUTH_EXPECTED_RESOURCE="https://a.example,https://b.example"``)
+    # or as a single string. Any-match semantics — the token only has to
+    # match one entry in the list.
+    expected_resource: str = ""
+
     # Sub-configs
     oidc: OIDCConfig = Field(default_factory=OIDCConfig)
     saml: SAMLConfig = Field(default_factory=SAMLConfig)

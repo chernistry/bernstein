@@ -27,11 +27,18 @@ network caller can read them without provisioning a token.
 
 Key lifecycle
 -------------
-For now the orchestrator generates a fresh Ed25519 keypair on first request
-and caches it in-process. Persistence (PEM under
-``.sdd/security/keys/agent_signing/``) and rotation are tracked in the same
-ticket family but deferred from this PR — the JWS surface and JWKS shape
-land first so external verifiers can integrate against a stable contract.
+The signing keypair persists at ``.bernstein/keys/agent-card.ed25519`` (and
+its ``.pub`` companion). On first request the keystore atomically mints the
+key with ``O_EXCL`` and ``0o600`` permissions; subsequent requests (and
+restarts) reuse it. Operators rotate via
+:func:`bernstein.core.security.agent_card_keystore.AgentCardKeystore.rotate`,
+which archives the previous keypair under
+``.bernstein/keys/archive/<utc-isoformat>/`` and mints a new one.
+
+During a rotation grace window (24h by default) the JWKS endpoint publishes
+both the current and the archived public key so verifiers cached on the old
+``kid`` keep validating until their HTTP cache (``max-age=3600`` on this
+route) ages out.
 """
 
 from __future__ import annotations
@@ -39,16 +46,20 @@ from __future__ import annotations
 import os
 import threading
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse, Response
 
 from bernstein import __version__ as _BERNSTEIN_VERSION
+from bernstein.core.security.agent_card_keystore import (
+    DEFAULT_KEY_DIR,
+    AgentCardKeystore,
+)
 from bernstein.core.security.agent_card_signer import (
     canonicalize_jcs,
     ed25519_public_jwk,
-    generate_ed25519_keypair,
 )
 
 router = APIRouter()
@@ -114,39 +125,90 @@ _SKILLS: tuple[dict[str, object], ...] = (
 
 
 # ---------------------------------------------------------------------------
-# Process-local Ed25519 keypair cache.
+# Persistent Ed25519 keystore + in-process cache.
 # ---------------------------------------------------------------------------
 #
-# The first GET against either ``/.well-known/agent.json`` or
-# ``/.well-known/agent.json/keys`` lazily mints a keypair and caches it in
-# this module. Subsequent requests reuse the cache so the JWKS contract
-# stays stable across the lifetime of one orchestrator process. Production
-# deployments will plug the persistent ``key_rotation`` substrate in here in
-# a follow-up ticket; the JWKS shape stays unchanged either way so external
-# verifiers do not have to special-case the in-memory mode.
+# The orchestrator persists its signing keypair at ``.bernstein/keys/`` so
+# the ``kid`` advertised in the JWKS stays stable across process restarts.
+# The first GET lazily binds a process-wide :class:`AgentCardKeystore` to
+# that directory; subsequent requests reuse the cached PEM bytes (loading
+# from disk on every request would charge an unnecessary syscall per call).
+# ``_reset_signing_keypair_for_tests`` drops the cache between test cases
+# so each test can point at its own ``tmp_path`` keystore.
 
 _KEY_LOCK = threading.Lock()
+_KEYSTORE: AgentCardKeystore | None = None
 _PRIVATE_PEM: bytes | None = None
 _PUBLIC_PEM: bytes | None = None
 
 
+def _resolve_key_dir() -> Path:
+    """Return the directory backing the persistent keystore.
+
+    Honours ``BERNSTEIN_AGENT_CARD_KEY_DIR`` so production deployments can
+    point at a mounted secret volume; falls back to ``.bernstein/keys`` in
+    the working directory.
+    """
+    override = os.environ.get("BERNSTEIN_AGENT_CARD_KEY_DIR", "").strip()
+    if override:
+        return Path(override)
+    return DEFAULT_KEY_DIR
+
+
+def _get_keystore() -> AgentCardKeystore:
+    """Return the process-wide :class:`AgentCardKeystore`, creating it lazily."""
+    global _KEYSTORE
+    if _KEYSTORE is not None:
+        return _KEYSTORE
+    with _KEY_LOCK:
+        if _KEYSTORE is None:
+            _KEYSTORE = AgentCardKeystore(_resolve_key_dir())
+    return _KEYSTORE
+
+
 def _get_signing_keypair() -> tuple[bytes, bytes]:
-    """Return the cached signing keypair, generating it on first use."""
+    """Return the cached signing keypair, loading from disk on first use."""
     global _PRIVATE_PEM, _PUBLIC_PEM
     if _PRIVATE_PEM is not None and _PUBLIC_PEM is not None:
         return _PRIVATE_PEM, _PUBLIC_PEM
     with _KEY_LOCK:
         if _PRIVATE_PEM is None or _PUBLIC_PEM is None:
-            _PRIVATE_PEM, _PUBLIC_PEM = generate_ed25519_keypair()
+            _PRIVATE_PEM, _PUBLIC_PEM = _get_keystore().load_or_generate()
     return _PRIVATE_PEM, _PUBLIC_PEM
 
 
-def _reset_signing_keypair_for_tests() -> None:
-    """Drop the cached keypair — for tests that want a fresh JWKS per case."""
-    global _PRIVATE_PEM, _PUBLIC_PEM
+def _reset_signing_keypair_for_tests(key_dir: Path | None = None) -> None:
+    """Reset both the keystore binding and the cached PEM bytes.
+
+    Tests pass ``key_dir=tmp_path / "keys"`` so each case gets a fresh
+    directory; production callers leave ``key_dir=None`` (the default
+    persistent directory will be re-bound on next request).
+    """
+    global _KEYSTORE, _PRIVATE_PEM, _PUBLIC_PEM
     with _KEY_LOCK:
+        _KEYSTORE = AgentCardKeystore(key_dir) if key_dir is not None else None
         _PRIVATE_PEM = None
         _PUBLIC_PEM = None
+
+
+def rotate_agent_card_keys() -> tuple[bytes, bytes]:
+    """Rotate the persistent agent-card keypair.
+
+    Archives the current keypair under ``<key_dir>/archive/<isoformat>/`` and
+    mints a fresh one with ``O_EXCL`` + ``0o600`` semantics. The JWKS
+    endpoint will continue to publish the rotated-out public key for the
+    keystore's grace window (24h by default) so verifiers cached on the
+    old ``kid`` keep validating until their HTTP cache ages out.
+
+    Returns:
+        The freshly-generated ``(private_pem, public_pem)`` so callers can
+        log the new ``kid`` or trigger downstream secret-store sync.
+    """
+    global _PRIVATE_PEM, _PUBLIC_PEM
+    with _KEY_LOCK:
+        priv, pub = _get_keystore().rotate()
+        _PRIVATE_PEM, _PUBLIC_PEM = priv, pub
+        return priv, pub
 
 
 # ---------------------------------------------------------------------------
@@ -352,14 +414,21 @@ def agent_json() -> Response:
 def agent_json_keys() -> dict[str, Any]:
     """Return the JWKS for verifying ``/.well-known/agent.json`` signatures.
 
-    JWKS shape per RFC 7517 — ``{"keys": [<jwk>, ...]}``. Today exactly one
-    key is published (the orchestrator's signing key); during rotation
-    windows both old and new keys appear so in-flight tokens keep
-    verifying — see ``key_rotation.py`` for the rotation contract.
+    JWKS shape per RFC 7517 — ``{"keys": [<jwk>, ...]}``. The current
+    orchestrator key always appears first; during a rotation grace window
+    (24h by default) any archived public keys still inside the window are
+    appended so verifiers cached on the old ``kid`` keep validating until
+    their HTTP cache (``Cache-Control: public, max-age=3600`` on the agent
+    card route) ages out and they refetch the fresh JWKS.
     """
+    # Ensure both the cached PEM and the keystore binding exist before we
+    # query the archive — the side-effect of ``_get_signing_keypair`` is
+    # what materialises the on-disk directory on first run.
     _private_pem, public_pem = _get_signing_keypair()
-    jwk = ed25519_public_jwk(public_pem, kid=_DEFAULT_KID)
-    return {"keys": [jwk]}
+    jwks: list[dict[str, str]] = [ed25519_public_jwk(public_pem, kid=_DEFAULT_KID)]
+    for archived in _get_keystore().list_archived():
+        jwks.append(ed25519_public_jwk(archived.public_pem, kid=archived.kid))
+    return {"keys": jwks}
 
 
 @router.get("/llms.txt", include_in_schema=False, response_class=PlainTextResponse)

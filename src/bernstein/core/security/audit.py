@@ -216,16 +216,57 @@ def _compute_hmac(key: bytes, prev_hmac: str, entry: dict[str, Any]) -> str:
     return _hmac.new(key, payload.encode(), hashlib.sha256).hexdigest()
 
 
+def _split_jsonl_bytes(raw_bytes: bytes) -> list[bytes]:
+    """Strictly split a JSONL file's raw bytes on ``b"\\n"`` only.
+
+    ``str.splitlines()`` treats ``\\n``, ``\\r``, ``\\v``, ``\\f``, NEL, and
+    the unicode line/paragraph separators as equivalent; flipping a single
+    byte of the terminator (e.g. ``0x0A`` → ``0x0B``) leaves the lines
+    intact at the parser layer, which would defeat tamper-evidence. By
+    splitting on ``b"\\n"`` only and refusing to accept any other line
+    separator we surface that flip as either a malformed-bytes line or a
+    canonical-form mismatch downstream.
+    """
+    parts = raw_bytes.split(b"\n")
+    # ``write_bytes(json.dumps(...) + "\n")`` always ends the file with a
+    # newline → split() yields an empty trailing element which we drop.
+    if parts and parts[-1] == b"":
+        parts.pop()
+    return parts
+
+
 def _verify_log_file(log_path: Path, prev_hmac: str, key: bytes, errors: list[str]) -> str:
     """Verify all entries in a single JSONL log file, appending errors."""
-    for line_no, raw in enumerate(log_path.read_text().splitlines(), start=1):
-        raw = raw.strip()
-        if not raw:
+    raw_bytes = log_path.read_bytes()
+    if raw_bytes and not raw_bytes.endswith(b"\n"):
+        # The writer always terminates with ``\n``; absence is itself
+        # tamper-evidence (e.g. ``\n`` flipped to ``\v`` at EOF). Continue
+        # into the per-line loop so a truncated last record is still
+        # surfaced as ``invalid JSON`` for callers that key on that
+        # message (test_partial_last_line_flagged_as_invalid_json).
+        errors.append(f"{log_path.name}: missing trailing newline")
+
+    for line_no, raw_line in enumerate(_split_jsonl_bytes(raw_bytes), start=1):
+        if raw_line == b"":
             continue
         try:
-            entry = json.loads(raw)
+            entry = json.loads(raw_line)
         except json.JSONDecodeError as exc:
             errors.append(f"{log_path.name}:{line_no}: invalid JSON — {exc}")
+            continue
+        if not isinstance(entry, dict):
+            errors.append(f"{log_path.name}:{line_no}: entry is not a JSON object")
+            continue
+
+        # Tamper-evidence beyond JSON: ``json.loads`` accepts incidental
+        # whitespace (e.g. a trailing ``\r`` after ``}``) which would
+        # silently survive a single-byte flip of the line terminator. We
+        # re-canonicalise and require a byte-for-byte match against the
+        # on-disk line, so any non-canonical bytes inside the line are
+        # surfaced as a verification failure.
+        canonical = json.dumps(entry, sort_keys=True).encode()
+        if canonical != raw_line:
+            errors.append(f"{log_path.name}:{line_no}: non-canonical line bytes")
             continue
 
         stored_hmac = entry.pop("hmac", "")

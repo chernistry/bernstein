@@ -373,11 +373,13 @@ def test_pipeline_failed_rule_appears_regardless_of_order() -> None:
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
-        # Env var unset → pack is on by default (post-#1153 default-on flip).
+        # No env var → default-on (PR #1153 flipped the runtime contract).
+        # The unit suite pins this via test_is_owasp_asi_enabled_default_on
+        # in tests/unit/test_owasp_asi_detectors.py; we mirror it here so
+        # the property sweep cannot silently drift back to opt-in semantics.
         (None, True),
-        # Any explicitly non-truthy string suppresses the pack so operators
-        # who scripted BERNSTEIN_ENABLE_OWASP_ASI=<falsy|garbage> before the
-        # flip keep their conservative off behaviour.
+        # Explicit falsy values still suppress: operators who scripted
+        # ``BERNSTEIN_ENABLE_OWASP_ASI=0`` keep their off behaviour.
         ("", False),
         ("0", False),
         ("false", False),
@@ -385,6 +387,8 @@ def test_pipeline_failed_rule_appears_regardless_of_order() -> None:
         ("no", False),
         ("off", False),
         ("disabled", False),
+        # Non-empty unrecognised strings are NOT a positive opt-in either;
+        # the legacy var requires a recognised truthy token to enable.
         ("maybe", False),
         ("garbage", False),
         # Whitelisted truthy values leave the pack on.
@@ -397,13 +401,16 @@ def test_pipeline_failed_rule_appears_regardless_of_order() -> None:
     ],
 )
 def test_owasp_env_var_truthy_semantics(value: str | None, expected: bool) -> None:
-    """Property: BERNSTEIN_ENABLE_OWASP_ASI semantics post default-on flip.
+    """Property: env-var truthy parsing is conservative on garbage and
+    falls through to the documented default-on contract when no var is set.
 
-    The pack defaults to on when the env var is unset (#1153). The
-    legacy opt-in env var, when set to any non-truthy string (falsy or
-    unrecognised), suppresses the pack so operators who scripted
-    ``BERNSTEIN_ENABLE_OWASP_ASI=0`` keep their off behaviour after the
-    wave-5 default-on flip.
+    Two invariants pinned here:
+
+    1. With **no env var set** the pack runs (default-on per #1153).
+    2. Explicit non-truthy values for the legacy opt-in still suppress
+       the pack so operators who scripted ``BERNSTEIN_ENABLE_OWASP_ASI=0``
+       keep their disable semantics — garbage strings stay conservative
+       (treated as falsy, not silently truthy).
     """
     env: dict[str, str] = {} if value is None else {"BERNSTEIN_ENABLE_OWASP_ASI": value}
     assert is_owasp_asi_enabled(env) is expected

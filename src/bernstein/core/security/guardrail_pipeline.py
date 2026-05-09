@@ -194,11 +194,49 @@ class GuardrailPipeline:
         return [v for r in results for v in r.violations]
 
     @classmethod
-    def default(cls) -> GuardrailPipeline:
-        """Create pipeline with all built-in guardrails."""
+    def default(cls, *, enable_owasp_asi: bool | None = None) -> GuardrailPipeline:
+        """Create pipeline with all built-in guardrails.
+
+        Args:
+            enable_owasp_asi: When True, append the OWASP Top 10 for
+                Agentic Apps detector pack. When None (the default),
+                fall back to the ``BERNSTEIN_ENABLE_OWASP_ASI`` env
+                var. The pack is **off by default** to preserve
+                pipeline behaviour for callers that have not opted in.
+        """
         pipeline = cls()
         pipeline.add(PromptInjectionGuardrail())
         pipeline.add(ScopeGuardrail())
         pipeline.add(CostGuardrail())
         pipeline.add(SecretLeakGuardrail())
+        opt_in = enable_owasp_asi
+        if opt_in is None:
+            # Late import keeps the OWASP pack optional and avoids
+            # creating an import cycle inside core.security.
+            try:
+                from bernstein.core.security.owasp_asi_detectors import (
+                    is_owasp_asi_enabled,
+                )
+
+                opt_in = is_owasp_asi_enabled()
+            except Exception:
+                logger.exception("Failed to evaluate OWASP ASI opt-in flag; leaving disabled.")
+                opt_in = False
+        if opt_in:
+            pipeline.with_owasp_asi()
         return pipeline
+
+    def with_owasp_asi(self, **kwargs: Any) -> GuardrailPipeline:
+        """Append the OWASP Top 10 for Agentic Apps detector pack.
+
+        Returns ``self`` for fluent chaining. Detector load failures
+        are caught and logged so the orchestrator keeps running with
+        the existing pipeline.
+        """
+        try:
+            from bernstein.core.security.owasp_asi_detectors import OwaspAsiGuardrail
+
+            self.add(OwaspAsiGuardrail(**kwargs))
+        except Exception:
+            logger.exception("Failed to load OWASP ASI detector pack; skipping.")
+        return self

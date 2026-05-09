@@ -98,7 +98,7 @@ def _collect_packages(graph: SemanticGraph) -> dict[str, list[SymbolNode]]:
         Mapping of package label → sorted list of public ``SymbolNode``s.
     """
     by_pkg: dict[str, list[SymbolNode]] = {}
-    for sym_id, node in sorted(graph.nodes.items()):
+    for _sym_id, node in sorted(graph.nodes.items()):
         if not _is_public_symbol(node):
             continue
         if _is_test_file(node.file):

@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
-from click.testing import CliRunner
-
 from bernstein.cli.wiki_cmd import wiki_group
+from click.testing import CliRunner
 
 
 def _init_git_repo(repo: Path) -> None:

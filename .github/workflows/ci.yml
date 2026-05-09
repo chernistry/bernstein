@@ -175,7 +175,7 @@ jobs:
           if [ -n "$ERRORS" ]; then
             exit 1
           fi
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: AGENTS.md cross-CLI sync drift check
@@ -192,7 +192,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - run: uv run ruff check src/
@@ -233,7 +233,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Run pyright (advisory)
@@ -249,7 +249,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - run: uv tool install vulture
@@ -263,7 +263,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Build and check size
@@ -294,7 +294,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Run Hypothesis property suite (smoke profile)
@@ -314,7 +314,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Run snapshot tests
@@ -333,7 +333,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Run Schemathesis smoke profile
@@ -353,7 +353,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Install Semgrep (isolated env)
@@ -380,7 +380,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Run Bandit (HIGH severity gate via baseline)
@@ -403,7 +403,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Export production requirements (no project, hashed)
@@ -436,7 +436,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Run lineage-signer tests under beartype claw
@@ -465,7 +465,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Compute changed src/ files
@@ -516,7 +516,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Download coverage report
@@ -550,7 +550,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Run pyright strict on the curated allow-list
@@ -582,7 +582,7 @@ jobs:
         python-version: ["3.13"]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
@@ -613,7 +613,7 @@ jobs:
             python-version: "3.12"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
@@ -788,7 +788,7 @@ jobs:
             exit 0
           fi
       - if: steps.loop_check.outputs.skip != 'true'
-        uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
       - name: Auto-fix ruff

@@ -446,6 +446,107 @@ def _run_article12_export(
         console.print()
 
 
+@audit_group.command("pack")
+@click.option(
+    "--soc2",
+    "soc2",
+    is_flag=True,
+    default=False,
+    help="Emit a SOC 2 evidence-checklist Markdown pack with per-control evidence references.",
+)
+@click.option(
+    "--include-runs",
+    "include_runs",
+    default=None,
+    help="ISO-8601 timestamp; only include runs newer than this in the run-log evidence row.",
+)
+@click.option(
+    "--period-label",
+    "period_label",
+    default="current",
+    show_default=True,
+    help="Human-readable period label rendered into the markdown header.",
+)
+@click.option(
+    "--stale-after-days",
+    "stale_after_days",
+    default=30,
+    show_default=True,
+    type=int,
+    help="Mark sources whose mtime is older than this window as STALE.",
+)
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    help="Output directory (defaults to .sdd/evidence/soc2/).",
+)
+@click.option("--workdir", "workdir", default=".", show_default=True, help="Project root directory.")
+def pack_cmd(
+    soc2: bool,
+    include_runs: str | None,
+    period_label: str,
+    stale_after_days: int,
+    output: str | None,
+    workdir: str,
+) -> None:
+    """Build a SOC 2 evidence checklist with real per-control evidence refs.
+
+    \b
+    Each Trust Service Criteria row in the output Markdown carries a
+    concrete pointer (path on disk, sha256 hash, or pending marker).
+    Drives auditor walkthroughs without copy-pasting from JSON.
+    """
+    if not soc2:
+        console.print("[red]bernstein audit pack currently supports only --soc2.[/red]")
+        raise SystemExit(2)
+
+    from datetime import UTC, datetime
+
+    from bernstein.core.security.audit_pack import generate_audit_pack
+
+    since: datetime | None = None
+    if include_runs:
+        try:
+            cleaned = include_runs.replace("Z", "+00:00") if include_runs.endswith("Z") else include_runs
+            since = datetime.fromisoformat(cleaned)
+            if since.tzinfo is None:
+                since = since.replace(tzinfo=UTC)
+        except ValueError as exc:
+            console.print(f"[red]Invalid --include-runs timestamp: {exc}[/red]")
+            raise SystemExit(2) from None
+
+    output_path = Path(output).resolve() if output else None
+
+    result = generate_audit_pack(
+        workdir=Path(workdir).resolve(),
+        output_dir=output_path,
+        period_label=period_label,
+        include_since=since,
+        stale_after_days=stale_after_days,
+        write=True,
+    )
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="dim", no_wrap=True, min_width=14)
+    table.add_column("Value")
+    ok_count = sum(1 for r in result.resolved if r.status == "OK")
+    pending_count = sum(1 for r in result.resolved if r.status == "PENDING")
+    stale_count = sum(1 for r in result.resolved if r.status == "STALE")
+    table.add_row("Period", period_label)
+    table.add_row("Sources", str(len(result.resolved)))
+    table.add_row("OK / Pending / Stale", f"{ok_count} / {pending_count} / {stale_count}")
+    if result.markdown_path is not None:
+        table.add_row("Markdown", str(result.markdown_path))
+    if result.manifest_path is not None:
+        table.add_row("Manifest", str(result.manifest_path))
+
+    console.print()
+    console.print(Panel("[bold]SOC 2 Evidence Pack[/bold]", border_style="green", expand=False))
+    console.print(table)
+    console.print()
+
+
 @audit_group.command("capabilities")
 @click.option(
     "--workdir",

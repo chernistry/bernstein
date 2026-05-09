@@ -1,0 +1,102 @@
+name: soc2-evidence-nightly
+
+# Weekly SOC 2 evidence-pack generator.
+#
+# Runs `bernstein audit pack --soc2` against the checked-out repo and
+# uploads the resulting Markdown checklist + JSON manifest as a CI
+# artefact. Gated by the `SOC2_EVIDENCE_ENABLED` repository secret so
+# upstream forks don't accidentally publish empty evidence packs.
+#
+# Deliverable: a per-control Markdown row pointing at the artefact (or
+# sha256 hash) that proves the control. Auditors download the artefact
+# and walk the checklist without round-tripping back to engineering.
+
+on:
+  schedule:
+    # 03:47 UTC every Monday. Offset to avoid colliding with eval-nightly
+    # (04:23) and cluster-e2e (03:17 nightly).
+    - cron: "47 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      include_runs:
+        description: "ISO-8601 lower bound for the run-log evidence row."
+        required: false
+        default: ""
+      period_label:
+        description: "Period label rendered into the markdown header."
+        required: false
+        default: "weekly"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soc2-evidence-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: preflight (gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      enabled: ${{ steps.gate.outputs.enabled }}
+    steps:
+      - id: gate
+        env:
+          SOC2_EVIDENCE_ENABLED: ${{ secrets.SOC2_EVIDENCE_ENABLED }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${SOC2_EVIDENCE_ENABLED:-}" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "SOC2_EVIDENCE_ENABLED detected — running pack generator."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "SOC2_EVIDENCE_ENABLED unset; nothing to do."
+          fi
+
+  pack:
+    name: generate evidence pack
+    needs: preflight
+    if: needs.preflight.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        run: uv sync --frozen
+
+      - name: Generate SOC 2 evidence pack
+        env:
+          INCLUDE_RUNS: ${{ github.event.inputs.include_runs }}
+          PERIOD_LABEL: ${{ github.event.inputs.period_label || 'weekly' }}
+        run: |
+          set -euo pipefail
+          INCLUDE_FLAG=()
+          if [[ -n "${INCLUDE_RUNS:-}" ]]; then
+            INCLUDE_FLAG=(--include-runs "${INCLUDE_RUNS}")
+          fi
+          uv run bernstein audit pack \
+            --soc2 \
+            --period-label "${PERIOD_LABEL}" \
+            --output .sdd/evidence/soc2 \
+            "${INCLUDE_FLAG[@]}"
+
+      - name: Upload evidence pack
+        uses: actions/upload-artifact@v4
+        with:
+          name: soc2-evidence-${{ github.run_id }}
+          path: |
+            .sdd/evidence/soc2/*.md
+            .sdd/evidence/soc2/*.json
+          if-no-files-found: error
+          retention-days: 90

@@ -36,15 +36,20 @@ Deferred (not in this slice; tracked in the originating ticket):
 from __future__ import annotations
 
 import hashlib
+import hmac as _hmac
 import io
 import json
+import logging
 import zipfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from collections.abc import Iterable
+
+logger = logging.getLogger(__name__)
 
 #: Article 12(3) — high-risk AI systems must keep logs for the lifetime
 #: of the system *and* at least 10 years (Article 19(1)).  Bernstein
@@ -62,6 +67,19 @@ BUNDLE_SCHEMA_VERSION: str = "1.0.0"
 RiskClass = Literal["high", "limited", "minimal"]
 
 _GENESIS_HMAC = "0" * 64
+
+#: Per-run audit chain location. Each orchestrator run writes its
+#: HMAC-chained audit slice to ``<sdd>/runtime/audit/<run_id>.audit.jsonl``
+#: in addition to the calendar-rotated daily logs at ``<sdd>/audit/``.
+#: ``assemble_from_run`` reads this file directly so the bundle is anchored
+#: to one run rather than a wall-clock window.
+RUN_AUDIT_DIR_NAME: str = "runtime/audit"
+RUN_AUDIT_FILE_SUFFIX: str = ".audit.jsonl"
+
+#: Default location of the YAML clause map shipped with bernstein.
+#: Overridable via the ``clause_map_path`` argument to
+#: :func:`assemble_from_run`.
+DEFAULT_CLAUSE_MAP_PATH: str = "config/eu_ai_act_clause_map.yaml"
 
 
 @dataclass(frozen=True, slots=True)
@@ -542,15 +560,581 @@ def verify_bundle(archive_path: Path, *, now: datetime | None = None) -> Verific
     return VerificationResult(ok=not errors, errors=errors, manifest=manifest)
 
 
+# ---------------------------------------------------------------------------
+# Run-scoped audit chain reader (assemble_from_run helpers)
+# ---------------------------------------------------------------------------
+
+
+class ChainBreakError(RuntimeError):
+    """Raised when in-line HMAC chain verification fails for a run audit slice."""
+
+
+@dataclass(frozen=True)
+class _ChainEvent:
+    """Internal: an entry pulled from a per-run audit chain file.
+
+    Carries the full raw JSON entry plus the recomputed-vs-stored HMAC
+    used by :func:`_verify_run_chain` so the caller can both detect a
+    break *and* surface the exact line.
+    """
+
+    line_no: int
+    timestamp: str
+    raw: dict[str, Any]
+    stored_hmac: str
+    prev_hmac: str
+
+
+def _verify_run_chain(
+    run_audit_path: Path,
+    *,
+    key: bytes,
+) -> list[_ChainEvent]:
+    """Walk a per-run audit JSONL, verifying HMAC links eagerly.
+
+    The runtime per-run file uses the same canonical HMAC payload as
+    :class:`bernstein.core.security.audit.AuditLog` — ``HMAC(key,
+    prev_hmac + canonical_json(entry_without_hmac))`` — so we can
+    re-derive each event's MAC and refuse to proceed at the first break.
+
+    Args:
+        run_audit_path: Path to ``<run_id>.audit.jsonl``.
+        key: Raw HMAC key bytes (loader's responsibility).
+
+    Returns:
+        Verified events, in file order.
+
+    Raises:
+        ChainBreakError: First verification failure (with line number).
+        FileNotFoundError: When *run_audit_path* does not exist.
+    """
+    if not run_audit_path.is_file():
+        raise FileNotFoundError(f"run audit file not found: {run_audit_path}")
+
+    events: list[_ChainEvent] = []
+    prev = _GENESIS_HMAC
+    for line_no, raw_line in enumerate(run_audit_path.read_text(encoding="utf-8").splitlines(), start=1):
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ChainBreakError(f"{run_audit_path.name}:{line_no}: invalid JSON — {exc}") from None
+
+        if not isinstance(entry, dict):
+            raise ChainBreakError(
+                f"{run_audit_path.name}:{line_no}: expected object, got {type(entry).__name__}",
+            )
+
+        stored_hmac = str(entry.get("hmac", ""))
+        # Compute expected HMAC over the stripped payload (without 'hmac' key).
+        stripped = {k: v for k, v in entry.items() if k != "hmac"}
+        recorded_prev = str(stripped.get("prev_hmac", ""))
+        if recorded_prev != prev:
+            raise ChainBreakError(
+                f"{run_audit_path.name}:{line_no}: prev_hmac mismatch "
+                f"(expected {prev[:16]}…, got {recorded_prev[:16]}…)",
+            )
+
+        payload = prev + json.dumps(stripped, sort_keys=True)
+        expected = _hmac.new(key, payload.encode(), hashlib.sha256).hexdigest()
+        if stored_hmac != expected:
+            raise ChainBreakError(
+                f"{run_audit_path.name}:{line_no}: HMAC mismatch (expected {expected[:16]}…, got {stored_hmac[:16]}…)",
+            )
+
+        events.append(
+            _ChainEvent(
+                line_no=line_no,
+                timestamp=str(entry.get("timestamp", "")),
+                raw=entry,
+                stored_hmac=stored_hmac,
+                prev_hmac=prev,
+            ),
+        )
+        prev = stored_hmac
+
+    return events
+
+
+def _filter_events_by_window(
+    events: Iterable[_ChainEvent],
+    *,
+    since: datetime,
+    until: datetime,
+) -> list[_SourceEvent]:
+    """Project verified events into the ``[since, until)`` window."""
+    out: list[_SourceEvent] = []
+    for ev in events:
+        if not ev.timestamp:
+            continue
+        try:
+            ts_dt = _parse_iso(ev.timestamp)
+        except (ValueError, TypeError):
+            continue
+        if ts_dt < since or ts_dt >= until:
+            continue
+        out.append(_SourceEvent(timestamp=ev.timestamp, raw=ev.raw))
+    out.sort(key=lambda e: (e.timestamp, str(e.raw.get("hmac", ""))))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Lineage / data-catalog cross-reference
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class _CatalogedArtifact:
+    """Internal: lineage record projected into the data-catalog shape."""
+
+    path: str
+    sha256: str
+    regulatory_class: str | None
+    producer_agent_id: str
+    producer_run_id: str
+    producer_tick_id: str | None
+    timestamp: float
+
+
+def _walk_lineage_records(
+    sdd_dir: Path,
+    *,
+    run_id: str,
+    since: datetime,
+    until: datetime,
+) -> list[_CatalogedArtifact]:
+    """Collect lineage records produced inside ``[since, until)`` for *run_id*.
+
+    Reads from the same WAL the orchestrator writes via
+    :class:`bernstein.core.persistence.lineage.LineageWriter`, so the
+    catalog is grounded in the production hash chain — not a parallel
+    file the agent would need to cooperate with separately.
+
+    Args:
+        sdd_dir: Project ``.sdd/`` directory (containing ``runtime/wal``).
+        run_id: Restrict to records produced by this run.
+        since: Inclusive lower bound (UTC).
+        until: Exclusive upper bound (UTC).
+
+    Returns:
+        Stable-ordered list of catalog projections.
+    """
+    # Lazy import — keeps article12_bundle a leaf-importable module for
+    # tooling that doesn't pull the persistence stack.
+    try:
+        from bernstein.core.persistence.lineage import LineageReader
+    except ImportError:  # pragma: no cover — defensive, lineage ships alongside
+        return []
+
+    reader = LineageReader(sdd_dir)
+    since_ts = since.timestamp()
+    until_ts = until.timestamp()
+    seen: set[tuple[str, str]] = set()
+    catalog: list[_CatalogedArtifact] = []
+    for record in reader.iter_records(run_id=run_id):
+        # Records pre-date timestamping in v1; treat 0.0 as "always inside" so
+        # we don't drop them silently.
+        ts = float(record.timestamp or 0.0)
+        if ts and (ts < since_ts or ts >= until_ts):
+            continue
+        out = record.output_artifact
+        if not out.path:
+            continue
+        key = (out.path, out.sha256)
+        if key in seen:
+            continue
+        seen.add(key)
+        catalog.append(
+            _CatalogedArtifact(
+                path=out.path,
+                sha256=out.sha256,
+                regulatory_class=record.regulatory_class,
+                producer_agent_id=record.producer.agent_id,
+                producer_run_id=record.producer.run_id,
+                producer_tick_id=record.producer.tick_id,
+                timestamp=ts,
+            ),
+        )
+    catalog.sort(key=lambda a: (a.path, a.sha256))
+    return catalog
+
+
+def _build_data_catalog_with_lineage(
+    events: list[_SourceEvent],
+    artefacts: list[_CatalogedArtifact],
+) -> bytes:
+    """Build the Article 12(1)(a) catalog enriched with lineage artefacts.
+
+    Combines the per-resource activity counters from
+    :func:`_build_data_catalog` with a flat list of lineage-tracked
+    artefacts so an auditor can correlate event activity with the
+    artefacts the run produced.
+    """
+    catalog: dict[str, dict[str, int]] = {}
+    for ev in events:
+        rtype = str(ev.raw.get("resource_type", "")) or "unknown"
+        rid = str(ev.raw.get("resource_id", "")) or "unknown"
+        bucket = catalog.setdefault(rtype, {})
+        bucket[rid] = bucket.get(rid, 0) + 1
+
+    artefact_payload = [
+        {
+            "path": a.path,
+            "sha256": a.sha256,
+            "regulatory_class": a.regulatory_class,
+            "producer": {
+                "agent_id": a.producer_agent_id,
+                "run_id": a.producer_run_id,
+                "tick_id": a.producer_tick_id,
+            },
+        }
+        for a in artefacts
+    ]
+
+    payload = {
+        "schema_version": BUNDLE_SCHEMA_VERSION,
+        "resources": {rtype: dict(sorted(items.items())) for rtype, items in sorted(catalog.items())},
+        "total_events": len(events),
+        "lineage_artefacts": artefact_payload,
+        "lineage_artefact_count": len(artefact_payload),
+    }
+    return _canonical_json(payload)
+
+
+# ---------------------------------------------------------------------------
+# Clause map loading
+# ---------------------------------------------------------------------------
+
+
+def _load_clause_map_from_yaml(path: Path) -> bytes:
+    """Read the YAML clause-map config and serialise it canonically.
+
+    The on-disk YAML is the source of truth for the operator: the bundle
+    embeds the JSON projection so an auditor reading the bundle does not
+    need a YAML parser.
+
+    Args:
+        path: Path to the YAML clause map.
+
+    Returns:
+        Canonical-JSON bytes ready for inclusion in the bundle.
+
+    Raises:
+        FileNotFoundError: When *path* does not exist.
+        ValueError: When the YAML is structurally invalid for our schema.
+    """
+    if not path.is_file():
+        raise FileNotFoundError(f"clause map config not found: {path}")
+    try:
+        import yaml
+    except ImportError as exc:  # pragma: no cover — yaml ships in core deps
+        raise ImportError(
+            "PyYAML is required for assemble_from_run; install via the core dependency set",
+        ) from exc
+
+    parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(parsed, dict):
+        raise ValueError(f"clause map at {path} is not a YAML mapping")
+    if "mappings" not in parsed or not isinstance(parsed["mappings"], list):
+        raise ValueError(f"clause map at {path} missing 'mappings' list")
+    return _canonical_json(parsed)
+
+
+# ---------------------------------------------------------------------------
+# Public: assemble_from_run
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class RunBundleResult:
+    """Output of :func:`assemble_from_run` — the bundle plus catalog stats.
+
+    Attributes:
+        bundle: The :class:`Article12Bundle` describing the produced pack.
+        run_id: The run id that anchored the bundle.
+        chain_event_count: Total events read from the per-run chain file
+            *before* window filtering — useful for sanity-checking that
+            the window did not drop anything unexpectedly.
+        catalog_artefact_count: Number of lineage artefacts cross-
+            referenced into ``data_catalog.json``.
+    """
+
+    bundle: Article12Bundle
+    run_id: str
+    chain_event_count: int
+    catalog_artefact_count: int
+
+
+def _resolve_clause_map_path(
+    workdir: Path,
+    clause_map_path: Path | None,
+) -> Path:
+    """Pick the on-disk clause map file, falling back to the bundled default."""
+    if clause_map_path is not None:
+        return clause_map_path
+    candidate = workdir / DEFAULT_CLAUSE_MAP_PATH
+    if candidate.is_file():
+        return candidate
+    # Fall back to the package-local default shipped under repo root.
+    package_default = Path(__file__).resolve().parents[4] / DEFAULT_CLAUSE_MAP_PATH
+    return package_default
+
+
+def assemble_from_run(
+    run_id: str,
+    since: datetime,
+    until: datetime,
+    *,
+    sdd_dir: Path | None = None,
+    workdir: Path | None = None,
+    risk_class: RiskClass = "limited",
+    audit_key: bytes | None = None,
+    clause_map_path: Path | None = None,
+    output_dir: Path | None = None,
+    write: bool = True,
+) -> RunBundleResult:
+    """Assemble an Article 12 evidence pack from a real orchestrator run.
+
+    Pipeline:
+
+    1. Resolve the per-run audit chain at
+       ``<sdd>/runtime/audit/<run_id>.audit.jsonl`` and verify every
+       HMAC link in-place. A break aborts the bundle (no partial export).
+    2. Filter the verified events to ``[since, until)``.
+    3. Walk ``LineageReader`` for *run_id* and project each output
+       artefact in-window into ``data_catalog.json`` with the producer's
+       agent / tick ids and any ``regulatory_class``.
+    4. Resolve the clause map from the YAML config (override-friendly).
+    5. Emit a deterministic bundle with the standard manifest plus the
+       lineage-enriched catalog.
+
+    Args:
+        run_id: The run identifier whose chain to bundle.
+        since: Inclusive lower bound of the export window.
+        until: Exclusive upper bound of the export window.
+        sdd_dir: Override for the ``.sdd`` root (defaults to
+            ``workdir / .sdd``).
+        workdir: Project root; used to resolve default config paths.
+            Defaults to ``Path.cwd()``.
+        risk_class: EU AI Act risk classification driving retention.
+        audit_key: HMAC key bytes for chain verification. When ``None``,
+            uses :func:`load_or_create_audit_key` (matches the path the
+            orchestrator's :class:`AuditLog` uses).
+        clause_map_path: Optional override for the YAML clause-map file.
+        output_dir: Where to write the bundle zip. Defaults to
+            ``<sdd>/evidence``.
+        write: When False, build everything in-memory and skip the disk
+            write — useful for ``--dry-run`` and tests.
+
+    Returns:
+        :class:`RunBundleResult` carrying the bundle plus diagnostic
+        counts so callers can assert lineage cross-ref worked.
+
+    Raises:
+        ChainBreakError: HMAC verification of the per-run chain failed.
+        FileNotFoundError: Per-run audit file is missing.
+        ValueError: ``since`` is not strictly less than ``until``.
+    """
+    if since >= until:
+        raise ValueError(f"since={since.isoformat()} must be < until={until.isoformat()}")
+
+    workdir = (workdir or Path.cwd()).resolve()
+    resolved_sdd = (sdd_dir or workdir / ".sdd").resolve()
+    run_audit_path = resolved_sdd / RUN_AUDIT_DIR_NAME / f"{run_id}{RUN_AUDIT_FILE_SUFFIX}"
+
+    if audit_key is None:
+        # Lazy-import to avoid pulling the audit-key environment touch on
+        # callers that only build deterministic bundles from in-memory keys.
+        from bernstein.core.security.audit import load_or_create_audit_key
+
+        audit_key = load_or_create_audit_key()
+
+    chain_events = _verify_run_chain(run_audit_path, key=audit_key)
+    window_events = _filter_events_by_window(chain_events, since=since, until=until)
+
+    last_event_ts = window_events[-1].timestamp if window_events else since.isoformat()
+    chain_anchor = str(window_events[-1].raw.get("hmac", _GENESIS_HMAC)) if window_events else _GENESIS_HMAC
+    retention = compute_retention_pin(risk_class, last_event_ts)
+
+    lineage_artefacts = _walk_lineage_records(
+        resolved_sdd,
+        run_id=run_id,
+        since=since,
+        until=until,
+    )
+
+    event_log = _build_event_log(window_events)
+    data_catalog = _build_data_catalog_with_lineage(window_events, lineage_artefacts)
+    clause_map_file = _resolve_clause_map_path(workdir, clause_map_path)
+    clause_map = _load_clause_map_from_yaml(clause_map_file)
+
+    since_iso = since.isoformat()
+    until_iso = until.isoformat()
+    artefact_hashes = {
+        "events.jsonl": hashlib.sha256(event_log).hexdigest(),
+        "data_catalog.json": hashlib.sha256(data_catalog).hexdigest(),
+        "clause_map.json": hashlib.sha256(clause_map).hexdigest(),
+    }
+    manifest = {
+        "schema_version": BUNDLE_SCHEMA_VERSION,
+        "bundle_id": _bundle_id(since_iso, until_iso, risk_class),
+        "since": since_iso,
+        "until": until_iso,
+        "run_id": run_id,
+        "risk_class": risk_class,
+        "event_count": len(window_events),
+        "chain_anchor": chain_anchor,
+        "retention": retention.to_dict(),
+        "artefacts": dict(sorted(artefact_hashes.items())),
+        "lineage_artefact_count": len(lineage_artefacts),
+        "clause_map_source": str(clause_map_file.relative_to(workdir))
+        if clause_map_file.is_relative_to(workdir)
+        else str(clause_map_file),
+    }
+    manifest_bytes = _canonical_json(manifest)
+
+    archive_bytes = _zip_artefacts(
+        manifest_bytes=manifest_bytes,
+        event_log=event_log,
+        data_catalog=data_catalog,
+        clause_map=clause_map,
+    )
+    archive_sha256 = hashlib.sha256(archive_bytes).hexdigest()
+
+    archive_path: Path | None = None
+    if write:
+        target_dir = output_dir or (resolved_sdd / "evidence")
+        target_dir.mkdir(parents=True, exist_ok=True)
+        archive_path = target_dir / f"article12_run_{run_id}_{manifest['bundle_id']}.zip"
+        archive_path.write_bytes(archive_bytes)
+
+    bundle = Article12Bundle(
+        bundle_id=str(manifest["bundle_id"]),
+        since=since_iso,
+        until=until_iso,
+        risk_class=risk_class,
+        event_count=len(window_events),
+        chain_anchor=chain_anchor,
+        retention=retention,
+        archive_path=archive_path,
+        sha256=archive_sha256,
+    )
+    logger.info(
+        "Article 12 run bundle assembled (run_id=%s, events=%d, lineage=%d)",
+        run_id,
+        len(window_events),
+        len(lineage_artefacts),
+    )
+    return RunBundleResult(
+        bundle=bundle,
+        run_id=run_id,
+        chain_event_count=len(chain_events),
+        catalog_artefact_count=len(lineage_artefacts),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Per-run audit emit helper (used by demo + integration tests)
+# ---------------------------------------------------------------------------
+
+
+def emit_run_audit_event(
+    *,
+    sdd_dir: Path,
+    run_id: str,
+    event_type: str,
+    actor: str,
+    resource_type: str,
+    resource_id: str,
+    details: dict[str, Any] | None = None,
+    audit_key: bytes | None = None,
+) -> dict[str, Any]:
+    """Append one HMAC-chained event to a per-run audit slice.
+
+    The orchestrator's :class:`AuditLog` writes calendar-rotated daily
+    files under ``<sdd>/audit/``. This helper writes to the additional
+    per-run slice at ``<sdd>/runtime/audit/<run_id>.audit.jsonl`` using
+    the same key + payload format, so :func:`assemble_from_run` can read
+    a chain anchored to a run rather than a wall-clock window.
+
+    Args:
+        sdd_dir: Project ``.sdd`` root.
+        run_id: Run identifier (validated for path safety).
+        event_type: Audit event type label.
+        actor: Originating actor.
+        resource_type: Affected resource type.
+        resource_id: Affected resource identifier.
+        details: Optional structured payload.
+        audit_key: HMAC key bytes. Falls back to the operator's keychain.
+
+    Returns:
+        The written entry (post-HMAC), useful for tests.
+
+    Raises:
+        ValueError: When *run_id* contains a path separator.
+    """
+    if "/" in run_id or "\\" in run_id or run_id in {"", ".", ".."}:
+        raise ValueError(f"unsafe run_id: {run_id!r}")
+
+    if audit_key is None:
+        from bernstein.core.security.audit import load_or_create_audit_key
+
+        audit_key = load_or_create_audit_key()
+
+    target_dir = sdd_dir / RUN_AUDIT_DIR_NAME
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / f"{run_id}{RUN_AUDIT_FILE_SUFFIX}"
+
+    prev = _GENESIS_HMAC
+    if target.is_file():
+        for line in reversed(target.read_text(encoding="utf-8").splitlines()):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                last = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(last, dict) and "hmac" in last:
+                prev = str(last["hmac"])
+                break
+
+    ts = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    entry: dict[str, Any] = {
+        "timestamp": ts,
+        "event_type": event_type,
+        "actor": actor,
+        "resource_type": resource_type,
+        "resource_id": resource_id,
+        "details": details or {},
+        "prev_hmac": prev,
+    }
+    payload = prev + json.dumps(entry, sort_keys=True)
+    entry["hmac"] = _hmac.new(audit_key, payload.encode(), hashlib.sha256).hexdigest()
+
+    with target.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(entry, sort_keys=True) + "\n")
+    return entry
+
+
 __all__ = [
     "BUNDLE_SCHEMA_VERSION",
+    "DEFAULT_CLAUSE_MAP_PATH",
     "HIGH_RISK_RETENTION_YEARS",
     "MINIMUM_RETENTION_DAYS",
+    "RUN_AUDIT_DIR_NAME",
+    "RUN_AUDIT_FILE_SUFFIX",
     "Article12Bundle",
+    "ChainBreakError",
     "RetentionPin",
+    "RunBundleResult",
     "VerificationResult",
+    "assemble_from_run",
     "build_article12_bundle",
     "compute_retention_pin",
+    "emit_run_audit_event",
     "validate_retention",
     "verify_bundle",
 ]

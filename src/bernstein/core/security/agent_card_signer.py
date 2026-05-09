@@ -251,6 +251,13 @@ def verify_agent_card(
     except (ValueError, json.JSONDecodeError):
         return False
 
+    # RFC 7515 §4 mandates the JOSE Header be a JSON object. Reject any
+    # other top-level shape (array, scalar, null) defensively — the header
+    # is network-controlled and ``.get()`` would raise on non-dicts,
+    # surfacing as a 500 from the verifier.
+    if not isinstance(header, dict):
+        return False
+
     if header.get("alg") != "EdDSA":
         return False
 

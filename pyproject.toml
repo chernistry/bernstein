@@ -298,6 +298,8 @@ ignore = ["TC006"]
 "sdk/python/src/bernstein_sdk/adapters/github_actions.py" = ["E501"]
 "sdk/python/src/bernstein_sdk/adapters/jira.py" = ["E501"]
 "tests/**/*.py" = ["E402", "E501", "E741", "RUF002", "RUF003", "RUF012", "RUF043", "SIM108", "SIM117", "TC002", "TC003", "TC006"]
+# Bug-hunt suite uses ambiguous unicode (homoglyphs, ZWS) intentionally for bypass tests
+"tests/property/test_capability_matrix_bughunt.py" = ["RUF001", "RUF002", "RUF003"]
 # Example plugins are worked-example packages; runtime imports survive
 # ``TYPE_CHECKING`` blocks because tests rely on them at runtime (e.g.
 # ``pytest.fail``) and the adapter code uses ``Path`` in concrete

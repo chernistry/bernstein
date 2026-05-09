@@ -1,0 +1,78 @@
+# EU AI Act Article 12 conformance clause map.
+#
+# Each obligation is mapped to the concrete Bernstein subsystem (file/module)
+# that delivers the control surface. Auditors quote the `clause` field; the
+# `subsystem` block points them at the source of truth they can grep, the
+# `evidence_artefact` field tells them which file inside the bundle backs it.
+#
+# Schema:
+#   schema_version: monotonic integer (bump on breaking shape changes).
+#   regulation: human label of the source regulation.
+#   article: int — the article number this map covers.
+#   mappings: list of {clause, requirement, subsystem, evidence_artefact}.
+#     subsystem.module: dotted Python path or relative path inside the repo.
+#     subsystem.role: short label describing what the module provides.
+#
+# Operators may override this file by passing `--clause-map=<path>` when
+# calling `assemble_from_run`. Bernstein ships this default so the bundle
+# is self-describing on a fresh checkout.
+
+schema_version: 1
+regulation: "EU AI Act, Regulation (EU) 2024/1689"
+article: 12
+
+mappings:
+  - clause: "12(1)"
+    requirement: "Automatic recording of events ('logs') over the lifetime of the system."
+    subsystem:
+      module: "src/bernstein/core/security/audit.py"
+      role: "AuditLog — HMAC-chained append-only event log with daily rotation."
+    evidence_artefact: "events.jsonl"
+
+  - clause: "12(2)(a)"
+    requirement: >-
+      Identification of situations that may result in the AI system presenting
+      a risk within the meaning of Article 79(1) or in a substantial modification.
+    subsystem:
+      module: "src/bernstein/core/security/audit.py"
+      role: "AuditLog event_type/outcome fields capture risk-bearing transitions."
+    evidence_artefact: "events.jsonl (event_type, outcome fields)"
+
+  - clause: "12(2)(b)"
+    requirement: "Facilitation of the post-market monitoring."
+    subsystem:
+      module: "src/bernstein/core/persistence/lineage.py"
+      role: "Lineage records cross-reference output artefacts with producer + inputs."
+    evidence_artefact: "data_catalog.json"
+
+  - clause: "12(2)(c)"
+    requirement: >-
+      Monitoring of the operation of high-risk AI systems referred to in
+      Article 26(5).
+    subsystem:
+      module: "src/bernstein/core/security/audit.py"
+      role: "AuditLog.verify() establishes a single chain anchor for the slice."
+    evidence_artefact: "events.jsonl + chain_anchor in manifest.json"
+
+  - clause: "12(3)"
+    requirement: >-
+      Logs kept for at least 6 months unless otherwise provided; 10 years for
+      high-risk under Article 19(1).
+    subsystem:
+      module: "src/bernstein/core/security/article12_bundle.py"
+      role: "compute_retention_pin / validate_retention enforce the floor."
+    evidence_artefact: "manifest.json (retention block)"
+
+  - clause: "12 (transmission)"
+    requirement: >-
+      Implicit Article 15(4) obligation that records produced for Article 12
+      are transmitted to the conformity assessment body without compromise.
+    subsystem:
+      module: "src/bernstein/core/protocols/cluster/cluster_tls.py"
+      role: "Native mTLS for cluster transport — secure transmission of records."
+    evidence_artefact: "manifest.json (transmission_security note)"
+
+deferred:
+  - "Agent Card ledger (depends on a2a-v1-signed-agent-card)"
+  - "Storage backends (S3 Object Lock, immutable Postgres)"
+  - "Article 43 conformity-assessment paperwork"

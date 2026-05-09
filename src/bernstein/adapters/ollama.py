@@ -1,8 +1,9 @@
-"""Ollama local LLM adapter — run coding agents without cloud API keys.
+"""Ollama / OpenAI-compatible local LLM adapter — run coding agents without cloud API keys.
 
-Uses Aider as the coding frontend with Ollama as the local LLM backend.
-This enables full code editing capabilities in air-gapped, privacy-sensitive,
-or cost-zero environments.
+Uses Aider as the coding frontend with Ollama (or any OpenAI-compatible
+local server such as vLLM, llama.cpp's HTTP server, LM Studio) as the LLM
+backend.  This enables full code editing capabilities in air-gapped,
+privacy-sensitive, EU-residency, or cost-zero environments.
 
 Last verified against upstream Ollama 0.21.x on 2026-05-05.
 
@@ -11,7 +12,21 @@ Prerequisites:
       ``curl -fsSL https://ollama.com/install.sh | sh``)
     - Aider: ``pip install aider-chat``
     - A pulled model: ``ollama pull qwen2.5-coder:7b`` (or the larger
-      ``qwen3-coder``, ``deepseek-r1:70b``, ``llama3.1`` as VRAM allows).
+      ``qwen3-coder``, ``deepseek-v4-flash``, ``deepseek-r1:70b``,
+      ``llama3.1`` as VRAM allows).
+
+EU-residency / vLLM note:
+    For DeepSeek V4-Pro (1.6T MoE / 49B active) the single-GPU Ollama
+    profile is too small; deploy via vLLM tensor-parallel and point
+    ``OLLAMA_API_BASE`` at the vLLM ``/v1`` endpoint — aider/litellm's
+    OpenAI-compatible path treats the two interchangeably.  Callers
+    that need an EU-residency guarantee MUST pass ``eu_residency=True``
+    AND pin ``base_url`` to a self-hosted (e.g. RFC-1918 / *.internal /
+    EU-located) endpoint.  Combine this adapter with
+    :class:`bernstein.core.security.data_residency.DataResidencyController`
+    (set ``allowed_regions={EU_WEST, EU_CENTRAL}``,
+    ``enforce_strict=True``) for the full Article-12 evidence story.
+    See FEAT ``deepseek-v4-flash-eu`` for the full profile spec.
 """
 
 from __future__ import annotations
@@ -30,8 +45,15 @@ if TYPE_CHECKING:
 # Default Ollama API endpoint
 OLLAMA_BASE_URL = "http://localhost:11434"
 
-# Maps Bernstein abstract model names to Ollama model IDs.
-# Users can also pass native ollama model IDs directly (e.g. "qwen2.5-coder:32b").
+# Maps Bernstein abstract model names to Ollama / OpenAI-compatible model IDs.
+# Users can also pass native model IDs directly (e.g. "qwen2.5-coder:32b").
+#
+# DeepSeek V4 entries (added 2026-05-07 — FEAT deepseek-v4-flash-eu):
+#   - ``deepseek-v4-flash`` — 284B / 13B-active MoE, MIT-licensed, fits a
+#     single H100/A100; primary cheap-first arm for EU-residency runs.
+#   - ``deepseek-v4-pro``   — 1.6T / 49B-active MoE, MIT-licensed, requires
+#     vLLM tensor-parallel deployment (does not fit single-GPU Ollama).
+#     Set ``OLLAMA_API_BASE`` to the vLLM ``/v1`` endpoint to route here.
 _MODEL_MAP: dict[str, str] = {
     # Bernstein tiers → sensible local defaults
     "opus": "deepseek-r1:70b",
@@ -41,6 +63,8 @@ _MODEL_MAP: dict[str, str] = {
     "codellama": "codellama",
     "deepseek-coder": "deepseek-coder-v2",
     "deepseek-r1": "deepseek-r1",
+    "deepseek-v4-flash": "deepseek-v4-flash",
+    "deepseek-v4-pro": "deepseek-v4-pro",
     "qwen2.5-coder": "qwen2.5-coder",
     "qwen3-coder": "qwen3-coder",
     "llama3.1": "llama3.1",
@@ -51,29 +75,107 @@ _MODEL_MAP: dict[str, str] = {
     "starcoder2": "starcoder2",
 }
 
+# Models that require a self-hosted endpoint when invoked under the
+# ``eu-residency`` profile.  These are MIT-licensed open weights; running
+# them against the hosted ``deepseek.com`` API leaks tokens out of the EU
+# and breaks the Article-12 evidence story.  When the requested model is
+# on this set OR the adapter was constructed with ``eu_residency=True``,
+# :meth:`OllamaAdapter.spawn` rejects non-self-hosted endpoints with a
+# structured ``RESIDENCY_VIOLATION`` error.
+_EU_RESIDENCY_MODELS: frozenset[str] = frozenset(
+    {
+        "deepseek-v4-flash",
+        "deepseek-v4-pro",
+    }
+)
+
 
 class OllamaAdapter(CLIAdapter):
-    """Spawn coding agent sessions using local Ollama LLMs.
+    """Spawn coding agent sessions using local Ollama / OpenAI-compatible LLMs.
 
-    Uses Aider as the coding agent with Ollama as the LLM provider, giving
-    full file-editing capabilities without any cloud API keys.
+    Uses Aider as the coding agent with Ollama (or vLLM, llama.cpp, LM
+    Studio, etc.) as the LLM provider, giving full file-editing capabilities
+    without any cloud API keys.
 
     Model selection:
-        - Pass a Bernstein tier name (opus/sonnet/haiku) → maps to a capable local model
-        - Pass a native Ollama model ID (e.g. "qwen2.5-coder:7b") → used as-is
-        - Override OLLAMA_BASE_URL env var to point at a remote Ollama instance
+        - Pass a Bernstein tier name (opus/sonnet/haiku) → maps to a
+          capable local model
+        - Pass a native model ID (e.g. ``"qwen2.5-coder:7b"``,
+          ``"deepseek-v4-flash"``) → used as-is
+        - Override OLLAMA_BASE_URL (or pass ``base_url=``) to point at a
+          remote Ollama / vLLM / OpenAI-compatible inference server
 
     Args:
-        base_url: Ollama API base URL. Defaults to http://localhost:11434.
+        base_url: Ollama / OpenAI-compatible API base URL.  Defaults to
+            ``http://localhost:11434``.
+        eu_residency: When True, the spawn() method enforces that the
+            configured endpoint is self-hosted (i.e. not the public
+            ``deepseek.com`` / ``openrouter.ai`` / etc. hosted APIs).
+            This is the operative deployment mode for FEAT
+            ``deepseek-v4-flash-eu`` and integrates with
+            :class:`bernstein.core.security.data_residency.DataResidencyController`
+            for the full Article-12 evidence story.  Defaults to False so
+            existing callers keep their behaviour.  Note: even when this
+            flag is False, the residency guard still fires for any model
+            in :data:`_EU_RESIDENCY_MODELS` because routing those to a
+            hosted API would silently violate the ticket's promise.
     """
 
-    def __init__(self, *, base_url: str = OLLAMA_BASE_URL) -> None:
+    def __init__(self, *, base_url: str = OLLAMA_BASE_URL, eu_residency: bool = False) -> None:
         super().__init__()
         self._base_url = base_url
+        self._eu_residency = eu_residency
+
+    @property
+    def eu_residency(self) -> bool:
+        """Return whether the EU-residency self-hosted guard is active."""
+        return self._eu_residency
 
     def _resolve_model(self, model_name: str) -> str:
-        """Map Bernstein model name to Ollama model ID."""
+        """Map Bernstein model name to Ollama / OpenAI-compatible model ID."""
         return _MODEL_MAP.get(model_name, model_name)
+
+    def _is_self_hosted_endpoint(self, base_url: str) -> bool:
+        """Return True when ``base_url`` points at a self-hosted endpoint.
+
+        Default-closed: this returns ``True`` only when the host is
+        unambiguously self-hosted (loopback, RFC-1918 private range,
+        ``*.internal`` / ``*.local`` / ``*.svc``).  Any public IP or
+        unrecognised hostname is treated as non-self-hosted because the
+        residency profile cannot prove the endpoint sits inside the EU
+        boundary.  Operators who run a private inference cluster on a
+        public IP must front it with a hostname under one of the
+        recognised internal suffixes (or extend this allow-list).
+
+        Args:
+            base_url: The configured Ollama / OpenAI-compatible base URL.
+
+        Returns:
+            True if the endpoint looks self-hosted, False otherwise.
+        """
+        from urllib.parse import urlparse
+
+        host = (urlparse(base_url).hostname or "").lower()
+        if not host:
+            # Empty / malformed URL — fail closed under residency mode.
+            return False
+        if host in {"localhost", "127.0.0.1", "::1", "0.0.0.0"}:
+            return True
+        # RFC 1918 ranges: 10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12.
+        if host.startswith(("10.", "192.168.")):
+            return True
+        if host.startswith("172."):
+            try:
+                second = int(host.split(".", 2)[1])
+                if 16 <= second <= 31:
+                    return True
+            except (ValueError, IndexError):
+                pass
+        if host.endswith((".internal", ".local", ".svc", ".cluster.local")):
+            return True
+        # Anything else — public IP, hosted-API hostname, or unrecognised
+        # FQDN — is rejected.  We cannot prove EU residency for it.
+        return False
 
     def spawn(
         self,
@@ -103,6 +205,20 @@ class OllamaAdapter(CLIAdapter):
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
         ollama_model = self._resolve_model(model_config.model)
+
+        # FEAT deepseek-v4-flash-eu: when caller activates ``eu_residency``,
+        # OR when the requested model is on the self-hosted-only list,
+        # refuse to spawn against a non-self-hosted endpoint.  Loud,
+        # structured failure: never silently fall back to a public API.
+        residency_active = self._eu_residency or ollama_model in _EU_RESIDENCY_MODELS
+        if residency_active and not self._is_self_hosted_endpoint(self._base_url):
+            raise RuntimeError(
+                "RESIDENCY_VIOLATION: model "
+                f"{ollama_model!r} requires a self-hosted endpoint under the "
+                f"eu-residency profile, got {self._base_url!r}. "
+                "Set OLLAMA_API_BASE / OLLAMA_HOST to a self-hosted (e.g. "
+                "vLLM, Ollama on a private/EU node) endpoint and retry."
+            )
 
         # aider supports ollama via litellm: --model ollama/<model>
         # Smaller repo map keeps local model context usage manageable.

@@ -257,14 +257,24 @@ def verify_hmac_cmd() -> None:
     help="Emit an EU AI Act Article 12 evidence pack (uses --since/--until).",
 )
 @click.option(
+    "--tenant",
+    "tenant",
+    default=None,
+    help=(
+        "Emit a multi-tenant audit-chain export scoped to <tenant_id>. "
+        "Combine with --since/--until. Bundle conforms to "
+        "schemas/audit-multitenant-export-v1.json."
+    ),
+)
+@click.option(
     "--since",
     default=None,
-    help="ISO-8601 inclusive lower bound (Article 12 mode).",
+    help="ISO-8601 inclusive lower bound (Article 12 / tenant mode).",
 )
 @click.option(
     "--until",
     default=None,
-    help="ISO-8601 exclusive upper bound (Article 12 mode).",
+    help="ISO-8601 exclusive upper bound (Article 12 / tenant mode).",
 )
 @click.option(
     "--risk-class",
@@ -283,6 +293,36 @@ def verify_hmac_cmd() -> None:
     help="Output format (SOC 2 mode only; Article 12 always emits a zip).",
 )
 @click.option(
+    "--signature-kind",
+    "signature_kind",
+    default="hmac-chain-only",
+    type=click.Choice(
+        ["hmac-chain-only", "hmac-chain+rfc3161", "hmac-chain+offline-anchor"],
+    ),
+    show_default=True,
+    help=(
+        "Tenant mode: which detached anchor to attach. "
+        "'hmac-chain-only' is the bare HMAC chain. "
+        "'hmac-chain+rfc3161' attaches a TSA timestamp token (--rfc3161-token). "
+        "'hmac-chain+offline-anchor' is an air-gap fallback (deterministic local anchor)."
+    ),
+)
+@click.option(
+    "--rfc3161-token",
+    "rfc3161_token",
+    default=None,
+    help=(
+        "Tenant mode: path to a base64-encoded DER RFC 3161 TimeStampToken "
+        "(required iff --signature-kind=hmac-chain+rfc3161)."
+    ),
+)
+@click.option(
+    "--rfc3161-tsa-url",
+    "rfc3161_tsa_url",
+    default=None,
+    help="Tenant mode: URL of the TSA that issued the token (informational).",
+)
+@click.option(
     "--output",
     "-o",
     default=None,
@@ -292,16 +332,20 @@ def verify_hmac_cmd() -> None:
     "--dry-run",
     is_flag=True,
     default=False,
-    help="Article 12 mode: build the bundle in-memory and print the manifest without writing to disk.",
+    help="Article 12 / tenant modes: build the bundle in-memory and print the manifest without writing to disk.",
 )
 @click.option("--dir", "workdir", default=".", show_default=True, help="Project root directory.")
 def export_cmd(
     period: str | None,
     article_12: bool,
+    tenant: str | None,
     since: str | None,
     until: str | None,
     risk_class: str,
     fmt: str,
+    signature_kind: str,
+    rfc3161_token: str | None,
+    rfc3161_tsa_url: str | None,
     output: str | None,
     dry_run: bool,
     workdir: str,
@@ -309,10 +353,12 @@ def export_cmd(
     """Export an evidence package for auditors.
 
     \b
-    Two modes:
+    Three modes:
       * SOC 2 mode (default): bernstein audit export --period Q1-2026
       * EU AI Act Article 12: bernstein audit export --article-12 \
             --since 2026-08-01T00:00:00+00:00 --until 2026-09-01T00:00:00+00:00
+      * Multi-tenant slice:   bernstein audit export --tenant acme \
+            --since ... --until ... [--signature-kind ...]
 
     \b
     SOC 2 mode collects audit logs, HMAC verification, Merkle seals,
@@ -323,12 +369,33 @@ def export_cmd(
     the audit log slice, a data-governance catalog, and an EU-AI-Act
     clause map (manifest.json contains artefact SHA-256 hashes for
     auditor verification).
+
+    \b
+    Multi-tenant mode emits a deterministic JSON bundle per the schema at
+    schemas/audit-multitenant-export-v1.json: events tagged with the
+    given tenant_id are filtered, then re-chained over a slice-local
+    HMAC so an external auditor can replay-verify offline. Cross-tenant
+    leakage is blocked at filter time and detected at verify time.
     """
     sdd_dir = Path(workdir).resolve() / ".sdd"
     if not sdd_dir.is_dir():
         console.print(f"[red]State directory not found:[/red] {sdd_dir}")
         console.print("[dim]Run [bold]bernstein run[/bold] first to generate audit data.[/dim]")
         raise SystemExit(1)
+
+    if tenant:
+        _run_tenant_export(
+            sdd_dir=sdd_dir,
+            tenant_id=tenant,
+            since=since,
+            until=until,
+            signature_kind=signature_kind,
+            rfc3161_token=rfc3161_token,
+            rfc3161_tsa_url=rfc3161_tsa_url,
+            output=output,
+            dry_run=dry_run,
+        )
+        return
 
     if article_12:
         _run_article12_export(
@@ -342,7 +409,9 @@ def export_cmd(
         return
 
     if not period:
-        console.print("[red]Either --period (SOC 2) or --article-12 (with --since/--until) is required.[/red]")
+        console.print(
+            "[red]One of --period (SOC 2), --article-12, or --tenant is required.[/red]",
+        )
         raise SystemExit(2)
 
     from bernstein.core.compliance import export_soc2_package, parse_period
@@ -450,6 +519,110 @@ def _run_article12_export(
     if dry_run:
         console.print("[dim]Manifest (dry-run):[/dim]")
         console.print(_json.dumps(bundle.to_dict(), indent=2))
+        console.print()
+
+
+def _run_tenant_export(
+    *,
+    sdd_dir: Path,
+    tenant_id: str,
+    since: str | None,
+    until: str | None,
+    signature_kind: str,
+    rfc3161_token: str | None,
+    rfc3161_tsa_url: str | None,
+    output: str | None,
+    dry_run: bool,
+) -> None:
+    """Execute the multi-tenant audit-chain export flow.
+
+    Loads the operator HMAC key from the canonical key path used by
+    :class:`bernstein.core.security.audit.AuditLog`, scopes the bundle
+    to ``tenant_id``, and writes a deterministic JSON bundle conforming
+    to ``schemas/audit-multitenant-export-v1.json``.
+    """
+    import json as _json
+    from typing import cast
+
+    from bernstein.core.security.audit import load_or_create_audit_key
+    from bernstein.core.security.audit_multitenant import (
+        SignatureKind,
+        TenantScopedExport,
+        export_tenant_slice,
+    )
+
+    if not since or not until:
+        console.print("[red]--tenant requires both --since and --until (ISO-8601).[/red]")
+        raise SystemExit(2)
+
+    rfc3161_token_b64: str | None = None
+    if rfc3161_token:
+        token_path = Path(rfc3161_token).expanduser()
+        if not token_path.is_file():
+            console.print(f"[red]--rfc3161-token file not found: {token_path}[/red]")
+            raise SystemExit(1)
+        rfc3161_token_b64 = token_path.read_text(encoding="utf-8").strip()
+
+    if signature_kind == "hmac-chain+rfc3161" and not rfc3161_token_b64:
+        console.print(
+            "[red]--signature-kind=hmac-chain+rfc3161 requires --rfc3161-token <path>.[/red]",
+        )
+        raise SystemExit(2)
+
+    audit_dir = sdd_dir / "audit"
+    output_dir = Path(output).resolve() if output else None
+
+    try:
+        key = load_or_create_audit_key()
+    except OSError as exc:  # pragma: no cover - filesystem race
+        console.print(f"[red]Failed to load audit key: {exc}[/red]")
+        raise SystemExit(1) from None
+
+    try:
+        export: TenantScopedExport = export_tenant_slice(
+            audit_dir=audit_dir,
+            tenant_id=tenant_id,
+            since=since,
+            until=until,
+            key=key,
+            output_dir=output_dir,
+            signature_kind=cast("SignatureKind", signature_kind),
+            rfc3161_token_b64=rfc3161_token_b64,
+            rfc3161_tsa_url=rfc3161_tsa_url,
+            write=not dry_run,
+        )
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from None
+
+    console.print()
+    console.print(
+        Panel(
+            "[bold]Multi-tenant Audit Slice[/bold]",
+            border_style="green",
+            expand=False,
+        ),
+    )
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="dim", no_wrap=True, min_width=18)
+    table.add_column("Value")
+    table.add_row("Tenant", export.tenant_id)
+    table.add_row("Window", f"{export.since} → {export.until}")
+    table.add_row("Events", str(export.event_count))
+    table.add_row("Head HMAC", export.head_hmac[:16] + "…")
+    table.add_row("Head SHA-256", export.head_sha256[:16] + "…")
+    table.add_row("Signature kind", export.signature_kind)
+    if export.bundle_path is not None:
+        table.add_row("Bundle", str(export.bundle_path))
+    elif dry_run:
+        table.add_row("Bundle", "(dry-run, not written)")
+    console.print(table)
+    console.print()
+
+    if dry_run:
+        console.print("[dim]Bundle (dry-run):[/dim]")
+        console.print(_json.dumps(_json.loads(export.bundle_bytes.decode("utf-8")), indent=2))
         console.print()
 
 

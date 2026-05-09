@@ -295,7 +295,8 @@ def print_rich_help() -> None:
     c.print()
     c.print(
         Panel(
-            "[bold]bernstein[/bold]  —  declarative agent orchestration for engineering teams",
+            "[bold]bernstein[/bold]  -  deterministic Python scheduler for CLI coding agents.\n"
+            "  43 adapters, parallel git worktrees, HMAC-SHA256 audit chain (RFC 2104).",
             border_style="blue",
             padding=(0, 2),
             expand=False,
@@ -382,7 +383,8 @@ def print_rich_help() -> None:
     opts.add_row("", "--version", "Show version")
     c.print(opts)
     c.print("\n  [dim]Docs:[/dim] https://chernistry.github.io/bernstein/")
-    c.print("  [dim]Repo:[/dim] https://github.com/sipyourdrink-ltd/bernstein\n")
+    c.print("  [dim]Repo:[/dim] https://github.com/sipyourdrink-ltd/bernstein")
+    c.print("  [dim]Audit chain:[/dim] docs/security/audit-log.md  (RFC 2104 HMAC-SHA256)\n")
 
 
 # ---------------------------------------------------------------------------

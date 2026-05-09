@@ -27,11 +27,19 @@
 
 Bernstein is a deterministic Python scheduler that runs a crew of CLI coding agents (Claude Code, Codex, Gemini CLI, and 40 more) against a single goal in parallel git worktrees, with an HMAC-signed audit chain over every step.
 
+### at a glance
+
+- **43 CLI agent adapters** ship in v1.10.1 — 40 third-party wrappers, 2 leaf-node delegators, plus a generic `--prompt` wrapper. Source of truth: the [supported agents](#supported-agents) table below.
+- **HMAC-SHA256 audit chain** per [RFC 2104](https://datatracker.ietf.org/doc/html/rfc2104), one record per scheduling decision, tamper-evident. Operator guide: [docs/security/audit-log.md](docs/security/audit-log.md).
+- **Signed agent cards** use detached JWS ([RFC 7515 §A.5](https://datatracker.ietf.org/doc/html/rfc7515#appendix-A.5)) over [RFC 8785 (JCS)](https://datatracker.ietf.org/doc/html/rfc8785) canonicalization, with [Ed25519 / EdDSA](https://datatracker.ietf.org/doc/html/rfc8037) keys. Code: [src/bernstein/core/security/agent_card_signer.py](src/bernstein/core/security/agent_card_signer.py).
+- **Per-artefact lineage** records every file write linked back to producer + inputs + prompt SHA + model + cost; customer-key signing for DORA / NIS2 / EU AI Act Article 12 evidence. CLI: `bernstein lineage verify <run_id>`.
+- **Deterministic scheduler**: zero LLM in the coordination loop. Plain Python decides who runs, where, with what budget. Replay yesterday's plan, get yesterday's task graph.
+
 ### why this exists
 
 i wrote bernstein because i was paying $400/month in claude bills running three coding agents in parallel and getting nondeterministic merges.
 
-as of 2026-05-08: 296 stars, 35 forks, ~3,769 pypi downloads/day (mostly bots; ~54k/month), apache 2.0, solo maintained, no funding. numbers will drift; the file is the source-of-truth date.
+as of 2026-05-08: 296 stars, 35 forks, ~3,769 pypi downloads/day (mostly bots; ~54k/month), apache 2.0, solo maintained, no funding. numbers will drift; the line above is the source-of-truth date — re-run `pip stats` / GitHub API to refresh.
 
 ### install in 30 seconds
 
@@ -91,9 +99,11 @@ A longer feature matrix against CrewAI, AutoGen, LangGraph, and the four CLI-age
 
 ### what is this, in one paragraph
 
-You tell Bernstein what you want built. It splits the work across several AI coding agents, runs them in parallel inside isolated git worktrees, records every handoff in an HMAC-chained audit log, runs the tests, and merges the code that actually passes. You come back to a green PR.
+You tell Bernstein what you want built. It splits the work across several AI coding agents, runs them in parallel inside isolated git worktrees, records every handoff in an HMAC-SHA256-chained audit log (RFC 2104), runs the tests, and merges the code that actually passes. You come back to a green PR.
 
-Forward-deployed engineering, on a swarm. Drop Bernstein into a client repo and you get a multi-agent crew with file-based state, per-agent credential scoping, and a signed audit trail running on whichever CLI agents the client already trusts.
+Forward-deployed engineering, on a swarm. Drop Bernstein into a client repo and you get a multi-agent crew with file-based state (`.sdd/`), per-agent credential scoping, and a signed audit trail running on whichever CLI agents the client already trusts.
+
+> Cited as the "deterministic zero-LLM orchestration" pattern reference implementation in [nibzard/awesome-agentic-patterns](https://github.com/nibzard/awesome-agentic-patterns/blob/main/patterns/deterministic-zero-llm-orchestration.md) and "the most architecturally interesting tool" by Augment Code's [open-source agent orchestrators roundup (2026)](https://www.augmentcode.com/tools/open-source-agent-orchestrators).
 
 ### other install methods
 
@@ -240,12 +250,14 @@ bernstein run --dry-run plan.yaml # preview tasks and estimated cost
 
 ## how it works
 
-1. **Decompose**. The manager breaks your goal into tasks with roles, owned files, and completion signals.
-2. **Spawn**. Agents start in isolated git worktrees, one per task. Main branch stays clean.
+Bernstein runs a four-stage pipeline per goal:
+
+1. **Decompose**. The manager breaks your goal into tasks with roles, owned files, and completion signals. One LLM call, then plain Python from there.
+2. **Spawn**. Agents start in isolated [git worktrees](https://git-scm.com/docs/git-worktree), one per task. Main branch stays clean.
 3. **Verify**. The janitor checks concrete signals: tests pass, files exist, lint clean, types correct.
 4. **Merge**. Verified work lands in main. Failed tasks get retried or routed to a different model.
 
-The orchestrator is a Python scheduler, not an LLM. Scheduling decisions are deterministic, auditable, and reproducible.
+The orchestrator is a Python scheduler, not an LLM. Scheduling decisions are deterministic, auditable, and reproducible. Every step writes a record to the HMAC-chained audit log (`.sdd/audit/YYYY-MM-DD.jsonl`) per [RFC 2104](https://datatracker.ietf.org/doc/html/rfc2104) — see [docs/security/audit-log.md](docs/security/audit-log.md).
 
 ## cloud execution (Cloudflare)
 
@@ -279,13 +291,29 @@ A `bernstein cloud init` scaffold for `wrangler.toml` and bindings is planned.
 
 **Skill packs**. Progressive-disclosure [skills](docs/architecture/skills.md) (OpenAI Agents SDK pattern): only a compact skill index ships in every spawn's system prompt, agents pull full bodies via the `load_skill` MCP tool on demand. 17 built-in role packs plus third-party `bernstein.skill_sources` entry-points.
 
-**Controls**. [HMAC-chained audit logs](docs/security/audit-log.md), policy engine, [lethal-trifecta capability gate](docs/security/lethal-trifecta.md) (refuses spawns whose tool chain combines private data + untrusted input + external comm), PII output gating, WAL-backed crash recovery (experimental multi-worker safety), OAuth 2.0 PKCE, [per-artefact lineage chain with customer-key Ed25519 signing and regulator export](docs/compliance/lineage-export.md). SSO/SAML/OIDC support is in progress.
+**Controls**. [HMAC-SHA256 audit chain](docs/security/audit-log.md) (RFC 2104), policy engine, [lethal-trifecta capability gate](docs/security/lethal-trifecta.md) (refuses spawns whose tool chain combines private data + untrusted input + external comm — Simon Willison's framing, June 2025: *"if your AI agent combines all three of these, an attacker can trick it into stealing your data"*), PII output gating, WAL-backed crash recovery (experimental, multi-worker safety), OAuth 2.0 with PKCE ([RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)) and [RFC 8707](https://datatracker.ietf.org/doc/html/rfc8707) resource-indicator binding, [per-artefact lineage with customer-key Ed25519 signing](docs/compliance/lineage-export.md) ([RFC 8037](https://datatracker.ietf.org/doc/html/rfc8037)) and regulator export. SSO / SAML / OIDC support is in progress.
 
 **Observability**. Prometheus `/metrics`, OTel exporter presets, Grafana dashboards. Per-model cost tracking (`bernstein cost`) plus a [run savings summary](docs/operations/cost-optimization.md#run-savings-summary) on every `bernstein run`. Terminal TUI and web dashboard. Agent process visibility in `ps`.
 
 **Ecosystem**. MCP server mode, A2A protocol support, GitHub App integration, pluggy-based plugin system, multi-repo workspaces, cluster mode for distributed execution, self-evolution via `--evolve` (experimental).
 
 Full feature matrix: [FEATURE_MATRIX.md](docs/reference/FEATURE_MATRIX.md) &middot; Recent features: [What's New](docs/whats-new.md)
+
+### regulatory anchors (as of 2026-05-09)
+
+For compliance reviewers asking "which regulation does Bernstein actually map to":
+
+| Regulation | Mapping | Bernstein surface |
+|---|---|---|
+| EU AI Act Article 12 (logging) | Automatic record-keeping for high-risk AI systems | `bernstein audit export --article-12 --since … --until …` → deterministic, retention-pinned bundle with audit slice + governance catalog. See [docs/compliance/](docs/compliance/). |
+| SOC 2 Trust Service Criteria | CC4 / CC7 (audit + monitoring) | `bernstein audit pack --soc2` → per-control evidence checklist with sha-256 pointers. |
+| DORA / NIS2 | Per-artefact lineage with customer-key Ed25519 signature | `bernstein lineage export <run_id> --format jsonld` → schema v2 records. |
+| OWASP Agent Security Initiative (ASI06 — memory poisoning, 2026) | Memory provenance audit | `bernstein verify --memory-audit` walks the lesson-memory chain. |
+| RFC 2104 (HMAC) | Audit chain integrity | `.sdd/audit/*.jsonl` HMAC-SHA256 with secret outside the audit volume. |
+| RFC 7515 §A.5 (detached JWS) + RFC 8785 (JCS) + RFC 8037 (EdDSA) | Signed agent cards + lineage signatures | `src/bernstein/core/security/agent_card_signer.py`, `src/bernstein/core/security/lineage_kms.py`. |
+| RFC 7636 (PKCE) + RFC 8707 (resource indicators) | Web dashboard auth + MCP audience binding | `src/bernstein/core/security/oauth_pkce.py`, `auth.py`. |
+
+These are mappings, not certifications. Production accreditation (SOC 2 Type II, ISO 27001) is out of scope for a solo-maintained OSS project; the surfaces exist to make a customer's accreditation path shorter.
 
 ## what's new in v1.9
 
@@ -325,7 +353,8 @@ Bernstein deliberately uses **no neural embeddings, no vector databases, and no
 external embedding APIs**. There are two retrieval/caching layers, both
 keyword/lexical:
 
-- **Codebase RAG** (`core/knowledge/rag.py`); SQLite FTS5 with BM25 ranking
+- **Codebase RAG** (`core/knowledge/rag.py`); [SQLite FTS5](https://sqlite.org/fts5.html)
+  with [BM25](https://en.wikipedia.org/wiki/Okapi_BM25) ranking
   and AST-aware chunking for Python files. Built incrementally on file mtime;
   used to enrich agent task context within token budgets.
 - **Semantic cache** (`core/knowledge/semantic_cache.py`); despite the name,

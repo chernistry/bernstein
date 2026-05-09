@@ -1,5 +1,11 @@
 """``bernstein lineage`` -- per-artifact lineage trail commands.
 
+Every agent file write emits a signed lineage record linking the output
+(path + byte range + sha-256) back to its producer, the prompt SHA, the
+model name, the cost, and the input artefacts. Schema v2 adds a
+``regulatory_class`` field plus a customer-key Ed25519 signature
+(RFC 8037 / EdDSA) for DORA, NIS2, and EU AI Act Article 12 evidence.
+
 Two surfaces:
 
 * ``bernstein lineage <file>:<line>`` (legacy positional form) -- walks
@@ -12,6 +18,8 @@ Two surfaces:
   produce a regulator-shaped artefact for an audit package.
 * ``bernstein lineage verify <run_id>`` -- one-shot chain verification;
   exits 0 only when every record validates.
+
+Operator guide: docs/compliance/lineage-export.md.
 """
 
 from __future__ import annotations
@@ -67,6 +75,10 @@ class _LineageGroup(click.Group):
 @click.pass_context
 def lineage_cmd(ctx: click.Context) -> None:
     """Per-artifact lineage trail (output -> producer + inputs).
+
+    Records are signed with the customer-supplied Ed25519 key (RFC 8037).
+    Use ``bernstein lineage verify`` in CI to fail any run whose chain
+    breaks; cite: docs/compliance/lineage-export.md.
 
     \b
     Examples:

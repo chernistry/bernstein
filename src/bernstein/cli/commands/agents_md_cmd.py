@@ -46,6 +46,12 @@ _TARGET_CHOICES = ("canonical", "cursor", "claude", "aider", "goose")
 def agents_md_cmd(ctx: click.Context) -> None:
     """Canonical AGENTS.md generator with cross-CLI rewrite.
 
+    Follows the canonical agents.md spec ("AGENTS.md is just standard
+    Markdown" -- agents.md/) and the AAIF AGENTS.md project profile. Derives
+    one canonical IR from the repo, then renders to five target shapes:
+    canonical AGENTS.md, Cursor ``.cursor/rules/*.mdc``, Claude
+    ``CLAUDE.md``, Aider ``CONVENTIONS.md``, and Goose ``.goosehints``.
+
     \b
     Examples:
       bernstein agents-md generate            # print canonical AGENTS.md
@@ -53,6 +59,8 @@ def agents_md_cmd(ctx: click.Context) -> None:
       bernstein agents-md write --target cursor
       bernstein agents-md verify              # exit 1 if any file is stale
       bernstein agents-md diff --target claude
+
+    Cite: agents.md/ (canonical spec), aaif.io/projects/agents-md/ (AAIF profile).
     """
     if ctx.invoked_subcommand is None:
         click.echo(ctx.get_help())

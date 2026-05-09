@@ -1,4 +1,11 @@
-"""Audit CLI — HMAC-chain integrity, Merkle seal, and evidence export.
+"""Audit CLI -- HMAC-chain integrity, Merkle seal, and evidence export.
+
+Bernstein keeps a tamper-evident, append-only audit log under
+``.sdd/audit/YYYY-MM-DD.jsonl``. Every record is HMAC-SHA256-signed
+(RFC 2104) and chained to the previous record's HMAC, so any after-the-fact
+edit invalidates every following entry. The signing key sits outside the
+audit volume; daily files share one chain; ``bernstein audit verify``
+replays the chain and exits non-zero on any break.
 
 Commands:
   bernstein audit show               Show recent audit log events.
@@ -13,6 +20,8 @@ Commands:
   bernstein audit capabilities       Print lethal-trifecta capability matrix.
   bernstein audit slice              Write a deterministic subset (KF-5).
   bernstein audit query              Query audit log events with filters.
+
+Operator guide: docs/security/audit-log.md.
 """
 
 from __future__ import annotations
@@ -32,7 +41,10 @@ MERKLE_DIR = AUDIT_DIR / "merkle"
 
 @click.group("audit")
 def audit_group() -> None:
-    """Audit log integrity tools."""
+    """Audit log integrity tools (RFC 2104 HMAC chain + Merkle seal).
+
+    See docs/security/audit-log.md for the operator runbook.
+    """
 
 
 @audit_group.command("show")
@@ -142,12 +154,15 @@ def seal_cmd(anchor_git: bool) -> None:
 @click.option("--merkle-only", is_flag=True, default=False, help="Only verify Merkle tree (skip HMAC chain).")
 @click.option("--hmac-only", is_flag=True, default=False, help="Only verify HMAC chain (skip Merkle tree).")
 def verify_cmd(merkle_only: bool, hmac_only: bool) -> None:
-    """Verify audit log integrity (HMAC chain + Merkle tree).
+    """Verify audit log integrity (HMAC chain per RFC 2104 + Merkle tree).
 
     \b
       bernstein audit verify              Verify both HMAC chain and Merkle tree
       bernstein audit verify --hmac-only  Verify HMAC chain only
       bernstein audit verify --merkle-only  Verify Merkle tree only
+
+    Exits non-zero on any chain break, missing record, or HMAC mismatch.
+    Run from cron and fail the run on non-zero exit (cite: docs/security/audit-log.md).
     """
     if not AUDIT_DIR.is_dir():
         console.print(f"[red]Audit directory not found:[/red] {AUDIT_DIR}")
@@ -361,14 +376,15 @@ def export_cmd(
             --since ... --until ... [--signature-kind ...]
 
     \b
-    SOC 2 mode collects audit logs, HMAC verification, Merkle seals,
-    compliance config, WAL entries, and SBOM into a single package.
+    SOC 2 mode collects audit logs, HMAC verification (RFC 2104), Merkle
+    seals, compliance config, WAL entries, and SBOM into a single package.
 
     \b
-    Article 12 mode emits a deterministic, retention-pinned bundle with
-    the audit log slice, a data-governance catalog, and an EU-AI-Act
-    clause map (manifest.json contains artefact SHA-256 hashes for
-    auditor verification).
+    Article 12 mode emits a deterministic, retention-pinned bundle for
+    EU AI Act high-risk-system record-keeping (Article 12 of Regulation
+    (EU) 2024/1689): audit log slice, data-governance catalog, and an
+    EU-AI-Act clause map. manifest.json contains artefact SHA-256 hashes
+    for auditor verification.
 
     \b
     Multi-tenant mode emits a deterministic JSON bundle per the schema at

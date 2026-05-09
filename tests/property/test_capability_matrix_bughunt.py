@@ -373,7 +373,11 @@ def test_pipeline_failed_rule_appears_regardless_of_order() -> None:
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
-        (None, False),
+        # Env var unset → pack is on by default (post-#1153 default-on flip).
+        (None, True),
+        # Any explicitly non-truthy string suppresses the pack so operators
+        # who scripted BERNSTEIN_ENABLE_OWASP_ASI=<falsy|garbage> before the
+        # flip keep their conservative off behaviour.
         ("", False),
         ("0", False),
         ("false", False),
@@ -383,6 +387,7 @@ def test_pipeline_failed_rule_appears_regardless_of_order() -> None:
         ("disabled", False),
         ("maybe", False),
         ("garbage", False),
+        # Whitelisted truthy values leave the pack on.
         ("1", True),
         ("true", True),
         ("TRUE", True),
@@ -392,11 +397,13 @@ def test_pipeline_failed_rule_appears_regardless_of_order() -> None:
     ],
 )
 def test_owasp_env_var_truthy_semantics(value: str | None, expected: bool) -> None:
-    """Property: env-var opt-in is conservative.
+    """Property: BERNSTEIN_ENABLE_OWASP_ASI semantics post default-on flip.
 
-    Garbage / non-truthy values must be treated as OFF, not ON. Pins
-    behaviour for the default-on flip — when wave-5 flips the default,
-    callers will rely on garbage-string behaviour staying conservative.
+    The pack defaults to on when the env var is unset (#1153). The
+    legacy opt-in env var, when set to any non-truthy string (falsy or
+    unrecognised), suppresses the pack so operators who scripted
+    ``BERNSTEIN_ENABLE_OWASP_ASI=0`` keep their off behaviour after the
+    wave-5 default-on flip.
     """
     env: dict[str, str] = {} if value is None else {"BERNSTEIN_ENABLE_OWASP_ASI": value}
     assert is_owasp_asi_enabled(env) is expected

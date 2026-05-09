@@ -58,9 +58,7 @@ def _read_audit(audit_dir: Path) -> list[dict[str, object]]:
 
 
 class TestWaitForApprovalSentinel:
-    def test_sentinel_created_on_entry_then_cleared_on_resolve(
-        self, tmp_path: Path, audit_log: AuditLog
-    ) -> None:
+    def test_sentinel_created_on_entry_then_cleared_on_resolve(self, tmp_path: Path, audit_log: AuditLog) -> None:
         spec = ApprovalSpec(prompt="ship?", timeout_seconds=5)
 
         # Drop the approval decision before the gate even starts so the
@@ -89,9 +87,7 @@ class TestWaitForApprovalSentinel:
 
 
 class TestApproveRejectCli:
-    def test_approve_cli_unblocks_gate(
-        self, tmp_path: Path, audit_log: AuditLog
-    ) -> None:
+    def test_approve_cli_unblocks_gate(self, tmp_path: Path, audit_log: AuditLog) -> None:
         spec = ApprovalSpec(prompt="ship?", timeout_seconds=5)
         outcomes: list[str] = []
 
@@ -126,9 +122,7 @@ class TestApproveRejectCli:
         thread.join(timeout=5)
         assert outcomes == ["approved"]
 
-    def test_reject_cli_unblocks_gate(
-        self, tmp_path: Path, audit_log: AuditLog
-    ) -> None:
+    def test_reject_cli_unblocks_gate(self, tmp_path: Path, audit_log: AuditLog) -> None:
         spec = ApprovalSpec(prompt="ship?", timeout_seconds=5)
         outcomes: list[str] = []
 
@@ -186,9 +180,7 @@ class TestApproveRejectCli:
 
 
 class TestTimeoutBehaviour:
-    def test_timeout_default_reject_resolves_to_rejected(
-        self, tmp_path: Path, audit_log: AuditLog
-    ) -> None:
+    def test_timeout_default_reject_resolves_to_rejected(self, tmp_path: Path, audit_log: AuditLog) -> None:
         spec = ApprovalSpec(prompt="?", timeout_seconds=1, default_action="reject")
         # Force the monotonic clock past the deadline immediately.
         clock = iter([0.0, 100.0, 100.0, 100.0])
@@ -205,9 +197,7 @@ class TestTimeoutBehaviour:
         # downstream readers see a terminal state.
         assert (tmp_path / ".sdd" / "runtime" / "approvals" / "T-timeout-reject.rejected").exists()
 
-    def test_timeout_default_approve_resolves_to_approved(
-        self, tmp_path: Path, audit_log: AuditLog
-    ) -> None:
+    def test_timeout_default_approve_resolves_to_approved(self, tmp_path: Path, audit_log: AuditLog) -> None:
         spec = ApprovalSpec(prompt="?", timeout_seconds=1, default_action="approve")
         clock = iter([0.0, 100.0, 100.0, 100.0])
         outcome = wait_for_approval(
@@ -225,9 +215,7 @@ class TestTimeoutBehaviour:
 
 
 class TestAuditChain:
-    def test_pending_then_resolved_events_in_order(
-        self, tmp_path: Path, audit_log: AuditLog
-    ) -> None:
+    def test_pending_then_resolved_events_in_order(self, tmp_path: Path, audit_log: AuditLog) -> None:
         spec = ApprovalSpec(prompt="ship?", timeout_seconds=5)
         # Pre-place an .approved file so the gate resolves on first poll.
         approvals_dir = tmp_path / ".sdd" / "runtime" / "approvals"
@@ -253,9 +241,7 @@ class TestAuditChain:
         valid, errors = audit_log.verify()
         assert valid, errors
 
-    def test_timeout_emits_timeout_default_decision_source(
-        self, tmp_path: Path, audit_log: AuditLog
-    ) -> None:
+    def test_timeout_emits_timeout_default_decision_source(self, tmp_path: Path, audit_log: AuditLog) -> None:
         spec = ApprovalSpec(prompt="?", timeout_seconds=1, default_action="reject")
         clock = iter([0.0, 100.0, 100.0])
         outcome = wait_for_approval(
@@ -279,9 +265,7 @@ class TestAuditChain:
 
 
 class TestPendingCommand:
-    def test_pending_lists_approval_sentinels(
-        self, tmp_path: Path, audit_log: AuditLog
-    ) -> None:
+    def test_pending_lists_approval_sentinels(self, tmp_path: Path, audit_log: AuditLog) -> None:
         spec = ApprovalSpec(prompt="ship A?", timeout_seconds=600)
         write_pending_sentinel(tmp_path, "T-A", spec)
         spec_b = ApprovalSpec(prompt="ship B?", timeout_seconds=600, default_action="approve")

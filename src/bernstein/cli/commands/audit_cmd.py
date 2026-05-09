@@ -1,11 +1,18 @@
-"""Audit CLI — Merkle-tree integrity seal and verification.
+"""Audit CLI — HMAC-chain integrity, Merkle seal, and evidence export.
 
 Commands:
-  bernstein audit show             Show recent audit log events.
-  bernstein audit seal             Compute and store a Merkle root.
+  bernstein audit show               Show recent audit log events.
+  bernstein audit seal               Compute and store a Merkle root.
   bernstein audit seal --anchor-git  Also create a git tag.
-  bernstein audit verify --merkle  Verify the Merkle tree against disk.
-  bernstein audit slice            Write a deterministic subset (KF-5).
+  bernstein audit verify             Verify HMAC chain and Merkle tree.
+  bernstein audit verify --hmac-only Verify HMAC chain only.
+  bernstein audit verify --merkle-only  Verify Merkle tree only.
+  bernstein audit verify-hmac        Verify HMAC chain across all audit files.
+  bernstein audit export             Export a signed Article 12 evidence pack.
+  bernstein audit pack               Build a SOC 2 evidence checklist.
+  bernstein audit capabilities       Print lethal-trifecta capability matrix.
+  bernstein audit slice              Write a deterministic subset (KF-5).
+  bernstein audit query              Query audit log events with filters.
 """
 
 from __future__ import annotations

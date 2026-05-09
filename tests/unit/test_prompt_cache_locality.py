@@ -153,9 +153,7 @@ class TestPromptCacheLocalityDriftCounter:
         )
         loc.observe(role="backend", prefix=prefix_a)
         snap = loc.observe(role="backend", prefix=prefix_b)
-        assert snap.drift_count == 0, (
-            "header field reordering must not break the cache"
-        )
+        assert snap.drift_count == 0, "header field reordering must not break the cache"
 
     def test_first_spawn_never_counts_as_drift(self) -> None:
         """The very first observation establishes the baseline."""

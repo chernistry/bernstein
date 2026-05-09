@@ -69,11 +69,7 @@ class TestSplitRetainedBlocks:
         assert retained == []
 
     def test_extracts_single_retained_block(self) -> None:
-        retained_text = (
-            f"{RETAINED_PREFIX} tool=t turn=0 staleness=0\n"
-            "stderr: boom\n\n"
-            "regular line"
-        )
+        retained_text = f"{RETAINED_PREFIX} tool=t turn=0 staleness=0\nstderr: boom\n\nregular line"
         non_retained, retained = split_retained_blocks(retained_text)
         assert len(retained) == 1
         assert retained[0].startswith(RETAINED_PREFIX)
@@ -83,16 +79,8 @@ class TestSplitRetainedBlocks:
 
     def test_round_trip_through_pipeline_preserves_block(self) -> None:
         """Carved blocks survive media-stripping + summary verbatim."""
-        retained = (
-            f"{RETAINED_PREFIX} tool=run_tests turn=0 staleness=0\n"
-            "Traceback: boom"
-        )
-        original = (
-            "## context header\n"
-            "some prose\n\n"
-            f"{retained}\n\n"
-            "more prose"
-        )
+        retained = f"{RETAINED_PREFIX} tool=run_tests turn=0 staleness=0\nTraceback: boom"
+        original = f"## context header\nsome prose\n\n{retained}\n\nmore prose"
         pipeline = CompactionPipeline(plugin_manager=None)
         result = pipeline.execute(
             session_id="s1",
@@ -152,11 +140,7 @@ class TestBlockFromDict:
 class TestPipelineKeepFailedActionsFlag:
     def test_disabled_by_default_strips_failure_marker(self) -> None:
         """When the flag is off the pipeline behaves exactly as before."""
-        text = (
-            "header\n\n"
-            f"{RETAINED_PREFIX} tool=t turn=0 staleness=0\nerr-body\n\n"
-            "footer"
-        )
+        text = f"header\n\n{RETAINED_PREFIX} tool=t turn=0 staleness=0\nerr-body\n\nfooter"
         pipeline = CompactionPipeline(plugin_manager=None)
         result = pipeline.execute(
             session_id="s",

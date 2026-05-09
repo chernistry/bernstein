@@ -141,9 +141,7 @@ def test_agent_json_body_is_jcs_canonical(client: TestClient) -> None:
     raw = resp.content
     parsed = json.loads(raw)
     recanonical = canonicalize_jcs(parsed)
-    assert raw == recanonical, (
-        f"body is not JCS-canonical:\n  got: {raw!r}\n  want: {recanonical!r}"
-    )
+    assert raw == recanonical, f"body is not JCS-canonical:\n  got: {raw!r}\n  want: {recanonical!r}"
     # Cache header per ticket spec.
     assert resp.headers.get("cache-control") == "public, max-age=3600"
 

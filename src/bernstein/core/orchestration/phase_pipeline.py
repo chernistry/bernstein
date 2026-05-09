@@ -446,7 +446,7 @@ GateLineageHook = Callable[["Task", Phase, tuple[Phase, Phase], list[Any]], None
 """Callback invoked once per boundary with the per-rule :class:`GateResult` list.
 
 Production wiring binds this to
-:func:`bernstein.core.orchestration.phase_pipeline_lineage.emit_phase_gate_event`
+:func:`bernstein.core.orchestration.phase_gate_lineage.build_phase_gate_record`
 which writes a ``phase_gate`` lineage record to the run's WAL.  Tests
 inject a no-op or a list-collecting hook.
 """

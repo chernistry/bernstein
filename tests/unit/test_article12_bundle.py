@@ -147,9 +147,7 @@ class TestArticle12BundleE2E:
         replay_dir = tmp_path / "replay"
         replay_dir.mkdir()
         with zipfile.ZipFile(bundle.archive_path) as zf:
-            (replay_dir / f"{today.isoformat()}.jsonl").write_bytes(
-                zf.read("events.jsonl")
-            )
+            (replay_dir / f"{today.isoformat()}.jsonl").write_bytes(zf.read("events.jsonl"))
         replay_log = AuditLog(replay_dir, key=b"x" * 32)
         replay_ok, replay_errors = replay_log.verify()
         assert replay_ok, replay_errors

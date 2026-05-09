@@ -22,6 +22,7 @@ Aktive = "Aktive"    # correct German word for "Active" (i18n.py)
 # Technical terms used consistently in the codebase
 unparseable = "unparseable"
 Unparseable = "Unparseable"
+empted = "empted"    # `pre-empted` (past tense of pre-empt); typos splits on `-`
 
 # Proper nouns and product names
 Hashi = "Hashi"      # HashiCorp

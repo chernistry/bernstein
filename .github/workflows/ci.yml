@@ -400,11 +400,22 @@ jobs:
       - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
         with:
           enable-cache: true
+      - name: Export production requirements (no project, hashed)
+        # Audit the resolved lockfile without including bernstein itself.
+        # `pip-audit` chokes on editable distributions even with
+        # `--skip-editable` under `--strict`, so we feed it a flat
+        # requirements file generated from `uv.lock`.
+        run: uv export --no-dev --no-emit-project --format requirements-txt -o /tmp/req-prod.txt
+      - name: Export dev requirements (no project, hashed)
+        run: uv export --no-emit-project --format requirements-txt -o /tmp/req-dev.txt
       - name: Production deps (strict)
-        run: uv run pip-audit --strict --skip-editable
+        # `--no-deps` is safe: the exported file is fully pinned and the
+        # transitive closure is resolved by `uv.lock`. `--disable-pip`
+        # avoids spinning up a sub-venv just to run `pip install`.
+        run: uv run pip-audit -r /tmp/req-prod.txt --strict --disable-pip --no-deps
       - name: Dev deps (advisory)
         continue-on-error: true
-        run: uv run pip-audit --strict
+        run: uv run pip-audit -r /tmp/req-dev.txt --strict --disable-pip --no-deps
 
   beartype:
     # Runtime type-check enforcement via beartype.claw. Imports the

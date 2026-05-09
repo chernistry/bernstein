@@ -2,6 +2,14 @@
 
 All notable project changes are tracked here (code + docs).
 
+## Unreleased
+
+### Changed — chat bridge
+
+- **Telegram driver now delegates to the standalone `thisnotabot-router` service.** The 341-line `python-telegram-bot` long-poll loop has been replaced with a thin shim around the new `thisnotabot-bridge` SDK (`bernstein.core.chat.drivers.telegram`). One `@thisnotabot` identity now serves every project on the VPS, the bot survives bernstein restarts, and slash commands are advertised through `setMyCommands` from the router.
+- **Legacy long-poll driver retained as a fallback.** Set `BERNSTEIN_CHAT_USE_LEGACY=1` to reroute the factory back to `bernstein.core.chat.drivers._legacy_telegram` if the bridge is unreachable. No code or YAML changes required to flip back.
+- **Telegram notification sink prefers the bridge SDK by default.** When the SDK is importable and `TELEGRAM_THISNOTABOT_INTERNAL_TOKEN` is set, `TelegramSink` POSTs to `/tg/notify` instead of running its own bridge client. `prefer_bridge: true` (or `BERNSTEIN_NOTIFY_USE_BRIDGE=1`) forces the new path even when a legacy bridge instance is also configured.
+
 ## [1.10.1] — 2026-05-07
 
 ### Added — adapters

@@ -236,37 +236,108 @@ def verify_hmac_cmd() -> None:
 
 
 @audit_group.command("export")
-@click.option("--period", required=True, help="Time period to export (e.g. Q1-2026, 2026-03, 2026).")
+@click.option(
+    "--period",
+    default=None,
+    help="SOC 2 time period to export (e.g. Q1-2026, 2026-03, 2026).",
+)
+@click.option(
+    "--article-12",
+    "article_12",
+    is_flag=True,
+    default=False,
+    help="Emit an EU AI Act Article 12 evidence pack (uses --since/--until).",
+)
+@click.option(
+    "--since",
+    default=None,
+    help="ISO-8601 inclusive lower bound (Article 12 mode).",
+)
+@click.option(
+    "--until",
+    default=None,
+    help="ISO-8601 exclusive upper bound (Article 12 mode).",
+)
+@click.option(
+    "--risk-class",
+    "risk_class",
+    default="limited",
+    type=click.Choice(["high", "limited", "minimal"]),
+    show_default=True,
+    help="EU AI Act risk class driving Article 12(3) retention horizon.",
+)
 @click.option(
     "--format",
     "fmt",
     default="zip",
     type=click.Choice(["zip", "dir"]),
     show_default=True,
-    help="Output format.",
+    help="Output format (SOC 2 mode only; Article 12 always emits a zip).",
 )
-@click.option("--output", "-o", default=None, help="Output directory (defaults to .sdd/evidence/).")
+@click.option(
+    "--output",
+    "-o",
+    default=None,
+    help="Output directory (defaults to .sdd/evidence/).",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Article 12 mode: build the bundle in-memory and print the manifest without writing to disk.",
+)
 @click.option("--dir", "workdir", default=".", show_default=True, help="Project root directory.")
-def export_cmd(period: str, fmt: str, output: str | None, workdir: str) -> None:
-    """Export a SOC 2 evidence package for auditors.
+def export_cmd(
+    period: str | None,
+    article_12: bool,
+    since: str | None,
+    until: str | None,
+    risk_class: str,
+    fmt: str,
+    output: str | None,
+    dry_run: bool,
+    workdir: str,
+) -> None:
+    """Export an evidence package for auditors.
 
     \b
-    Collects audit logs, HMAC verification, Merkle seals, compliance config,
-    WAL entries, and SBOM into a single package.
+    Two modes:
+      * SOC 2 mode (default): bernstein audit export --period Q1-2026
+      * EU AI Act Article 12: bernstein audit export --article-12 \
+            --since 2026-08-01T00:00:00+00:00 --until 2026-09-01T00:00:00+00:00
 
     \b
-    Examples:
-      bernstein audit export --period Q1-2026
-      bernstein audit export --period Q1-2026 --format dir
-      bernstein audit export --period 2026-03 -o /tmp/evidence
+    SOC 2 mode collects audit logs, HMAC verification, Merkle seals,
+    compliance config, WAL entries, and SBOM into a single package.
+
+    \b
+    Article 12 mode emits a deterministic, retention-pinned bundle with
+    the audit log slice, a data-governance catalog, and an EU-AI-Act
+    clause map (manifest.json contains artefact SHA-256 hashes for
+    auditor verification).
     """
-    from bernstein.core.compliance import export_soc2_package, parse_period
-
     sdd_dir = Path(workdir).resolve() / ".sdd"
     if not sdd_dir.is_dir():
         console.print(f"[red]State directory not found:[/red] {sdd_dir}")
         console.print("[dim]Run [bold]bernstein run[/bold] first to generate audit data.[/dim]")
         raise SystemExit(1)
+
+    if article_12:
+        _run_article12_export(
+            sdd_dir=sdd_dir,
+            since=since,
+            until=until,
+            risk_class=risk_class,
+            output=output,
+            dry_run=dry_run,
+        )
+        return
+
+    if not period:
+        console.print("[red]Either --period (SOC 2) or --article-12 (with --since/--until) is required.[/red]")
+        raise SystemExit(2)
+
+    from bernstein.core.compliance import export_soc2_package, parse_period
 
     # Validate period before doing work
     try:
@@ -301,6 +372,77 @@ def export_cmd(period: str, fmt: str, output: str | None, workdir: str) -> None:
     table.add_row("Output", str(result))
     console.print(table)
     console.print()
+
+
+def _run_article12_export(
+    *,
+    sdd_dir: Path,
+    since: str | None,
+    until: str | None,
+    risk_class: str,
+    output: str | None,
+    dry_run: bool,
+) -> None:
+    """Execute the EU AI Act Article 12 evidence-pack flow."""
+    import json as _json
+    from typing import cast
+
+    from bernstein.core.security.article12_bundle import (
+        Article12Bundle,
+        RiskClass,
+        build_article12_bundle,
+    )
+
+    if not since or not until:
+        console.print("[red]--article-12 requires both --since and --until (ISO-8601).[/red]")
+        raise SystemExit(2)
+
+    audit_dir = sdd_dir / "audit"
+    output_dir = Path(output).resolve() if output else None
+
+    try:
+        bundle: Article12Bundle = build_article12_bundle(
+            audit_dir=audit_dir,
+            since=since,
+            until=until,
+            risk_class=cast("RiskClass", risk_class),
+            output_dir=output_dir,
+            write=not dry_run,
+        )
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from None
+
+    console.print()
+    console.print(
+        Panel(
+            "[bold]EU AI Act Article 12 Evidence Pack[/bold]",
+            border_style="green",
+            expand=False,
+        )
+    )
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="dim", no_wrap=True, min_width=18)
+    table.add_column("Value")
+    table.add_row("Bundle ID", bundle.bundle_id)
+    table.add_row("Window", f"{bundle.since} → {bundle.until}")
+    table.add_row("Risk class", bundle.risk_class)
+    table.add_row("Events", str(bundle.event_count))
+    table.add_row("Chain anchor", bundle.chain_anchor[:16] + "…")
+    table.add_row("Retention until", bundle.retention.retention_until)
+    table.add_row("SHA-256", bundle.sha256[:16] + "…")
+    if bundle.archive_path is not None:
+        table.add_row("Archive", str(bundle.archive_path))
+    elif dry_run:
+        table.add_row("Archive", "(dry-run, not written)")
+    console.print(table)
+    console.print()
+
+    if dry_run:
+        console.print("[dim]Manifest (dry-run):[/dim]")
+        console.print(_json.dumps(bundle.to_dict(), indent=2))
+        console.print()
 
 
 @audit_group.command("capabilities")

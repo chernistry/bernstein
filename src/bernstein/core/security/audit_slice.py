@@ -149,9 +149,7 @@ def slice_audit_log(
         end = hmac_to_index[to_hmac]
 
     if start > end:
-        raise AuditSliceError(
-            f"--from must precede --to in the chain (from index {start}, to index {end})"
-        )
+        raise AuditSliceError(f"--from must precede --to in the chain (from index {start}, to index {end})")
 
     sliced = entries[start : end + 1]
     out_events = [entry for _, entry in sliced]
@@ -207,8 +205,6 @@ def verify_slice_chain(result: AuditSliceResult) -> tuple[bool, list[str]]:
         cur_prev = str(entry.get("prev_hmac", ""))
         cur_hmac = str(entry.get("hmac", ""))
         if prev_hmac is not None and cur_prev != prev_hmac:
-            errors.append(
-                f"slice[{idx}]: prev_hmac mismatch (expected {prev_hmac[:16]}…, got {cur_prev[:16]}…)"
-            )
+            errors.append(f"slice[{idx}]: prev_hmac mismatch (expected {prev_hmac[:16]}…, got {cur_prev[:16]}…)")
         prev_hmac = cur_hmac
     return len(errors) == 0, errors

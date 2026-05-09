@@ -413,7 +413,13 @@ class AuditLog:
         day = datetime.now(tz=UTC).strftime("%Y-%m-%d")
         log_path = self._audit_dir / f"{day}.jsonl"
 
-        with log_path.open("a") as fh:
+        # ``newline=""`` disables Python's universal-newline translation so
+        # the literal ``\n`` we append survives byte-for-byte on Windows
+        # (where text mode would otherwise rewrite it to ``\r\n``). The
+        # verifier reads bytes and re-canonicalises against ``\n``-only
+        # frames; without this the ``\r`` stays inside each split line and
+        # the byte-equality tamper check trips.
+        with log_path.open("a", encoding="utf-8", newline="") as fh:
             fh.write(json.dumps(entry_dict, sort_keys=True) + "\n")
 
         self._prev_hmac = computed_hmac

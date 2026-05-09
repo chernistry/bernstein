@@ -128,8 +128,7 @@ def _render_header(repo_name: str) -> list[str]:
         f"# {repo_name} — Repo Wiki",
         "",
         "Auto-generated from the AST symbol graph by `bernstein wiki`.",
-        "Re-run after significant changes; commit only if you want a "
-        "tracked snapshot.",
+        "Re-run after significant changes; commit only if you want a tracked snapshot.",
         "",
     ]
 

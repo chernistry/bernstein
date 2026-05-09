@@ -133,6 +133,7 @@ __all__ = [
     "memo_misses_total",
     "memo_size_bytes",
     "merge_duration",
+    "prompt_cache_drift_total",
     "record_transition_reason",
     "registry",
     "rework_rate_per_model",
@@ -358,6 +359,21 @@ cascade_auto_promotions_total: Counter = Counter(
     "bernstein_cascade_auto_promotions_total",
     "Cascade-router auto-promotion events triggered by rework-rate signal.",
     labelnames=["from_model", "to_model", "reason"],
+    registry=registry,
+)
+
+# ---------------------------------------------------------------------------
+# Prompt-cache locality — see ``bernstein.core.agents.prompt_cache_locality``.
+# Drift events fire when consecutive same-role spawns disagree on the
+# cacheable prefix, breaking Anthropic's 90% / OpenAI's 50% cache discount.
+# Reason labels are bucketed against a closed taxonomy in the locality
+# module; do not pass arbitrary strings.
+# ---------------------------------------------------------------------------
+
+prompt_cache_drift_total: Counter = Counter(
+    "bernstein_prompt_cache_drift_total",
+    "Prompt-cache prefix drift events between consecutive same-role spawns.",
+    labelnames=["role", "reason"],
     registry=registry,
 )
 

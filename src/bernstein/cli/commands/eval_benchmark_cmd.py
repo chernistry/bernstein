@@ -710,5 +710,88 @@ def eval_sync_incidents(workdir: str, dry_run: bool) -> None:
     )
 
 
+@eval_group.command("ab")
+@click.option(
+    "--variant-a",
+    "variant_a_path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False),
+    help="YAML file with the A variant (keys: name, prompt, [model], [metadata]).",
+)
+@click.option(
+    "--variant-b",
+    "variant_b_path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False),
+    help="YAML file with the B variant.",
+)
+@click.option(
+    "--tasks",
+    "tasks_path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False),
+    help="YAML file with a top-level 'tasks: [...]' list.",
+)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Write comparison JSON here (stdout if omitted).",
+)
+@click.option(
+    "--scorer",
+    type=click.Choice(["exact", "none"]),
+    default="exact",
+    show_default=True,
+    help="Built-in scorer to apply (synthetic-friendly).",
+)
+def eval_ab(
+    variant_a_path: str,
+    variant_b_path: str,
+    tasks_path: str,
+    output_path: str | None,
+    scorer: str,
+) -> None:
+    """Run two prompt variants over a task set; emit a comparison JSON.
+
+    Synthetic-only slice (KF-9): uses the deterministic ``echo_executor``
+    so this command runs offline with zero LLM cost. Real executors plug
+    in via the Python API (``bernstein.eval.ab_runner.run_ab``).
+
+    \b
+      bernstein eval ab --variant-a a.yaml --variant-b b.yaml --tasks tasks.yaml
+      bernstein eval ab --variant-a a.yaml --variant-b b.yaml --tasks t.yaml --output report.json
+    """
+    from bernstein.eval.ab_runner import (
+        echo_executor,
+        exact_match_scorer,
+        load_tasks_yaml,
+        load_variant_yaml,
+        run_ab,
+    )
+
+    variant_a = load_variant_yaml(Path(variant_a_path))
+    variant_b = load_variant_yaml(Path(variant_b_path))
+    tasks = load_tasks_yaml(Path(tasks_path))
+
+    chosen_scorer = exact_match_scorer if scorer == "exact" else None
+
+    comparison = run_ab(
+        variant_a,
+        variant_b,
+        tasks,
+        executor=echo_executor,
+        scorer=chosen_scorer,
+    )
+
+    payload = comparison.to_json()
+    if output_path:
+        Path(output_path).write_text(payload + "\n", encoding="utf-8")
+        console.print(f"[green]wrote[/green] {output_path}  winner={comparison.winner}")
+    else:
+        click.echo(payload)
+
+
 # ---------------------------------------------------------------------------
 # workspace — multi-repo workspace management

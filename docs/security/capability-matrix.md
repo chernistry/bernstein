@@ -112,6 +112,8 @@ plus the offending tool list.
 
 ## Related
 
+- [Lethal-trifecta security model](lethal-trifecta.md) — threat model,
+  default capability table, audit behaviour
 - Source: `src/bernstein/core/security/capability_matrix.py`
 - Policy engine: `src/bernstein/core/security/policy_engine.py`
 - Capability declarations: `templates/capabilities/`

@@ -44,6 +44,18 @@ Stop accepting new work and wait for active agents to finish their current tasks
 
 An optimization that skips full planning for simple, single-file tasks. Instead of decomposing into subtasks, the agent handles the work directly. Implemented in `src/bernstein/core/fast_path.py`.
 
+### Lethal Trifecta
+
+The structural shape of a prompt-injection exfiltration: an execution path
+that simultaneously accesses **private data**, ingests **untrusted input**,
+and can **externally communicate**. Bernstein's capability matrix tags
+every tool/MCP server/adapter with which of the three it carries and
+refuses any spawn whose tool chain unions all three. Engine-layer check,
+runs in the spawner before any agent process starts, bypass-immune in the
+policy graph. See [docs/security/lethal-trifecta.md](../security/lethal-trifecta.md)
+for the threat model and default capability table; implementation in
+`src/bernstein/core/security/capability_matrix.py`.
+
 ### Janitor
 
 The verification system that checks whether an agent's work is correct — runs lint, type-checks, tests, and other quality gates before accepting work. Distinct from the **Cross-Model Verifier** (which double-checks output by re-running on a second model) and the **Reviewer** (which performs LLM-based review). Implemented in `src/bernstein/core/quality/janitor.py`.

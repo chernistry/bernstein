@@ -224,6 +224,7 @@ These are the bits a security team should hear plainly:
 - "No external traffic" is only true for the deployment you actually configure. Cloud features, remote storage, webhooks, and hosted model providers change the answer.
 - Compliance tooling helps produce evidence; it does not make an unsafe deployment safe by itself.
 - Provider risk is real. Model policy reduces it, but cannot change a provider's underlying trust model.
+- Prompt-injection exfiltration is structurally refused at spawn time by the [lethal-trifecta capability gate](security/lethal-trifecta.md) — tool chains that combine private data, untrusted input, and external comm are denied before the agent process starts. This narrows the prompt-injection surface but does not remove it.
 
 ## 9. Evaluation checklist
 
@@ -249,6 +250,7 @@ Use this as a practical sign-off sheet.
 - [ ] Decided whether stronger sandboxing is required
 - [ ] Verified secret scoping into child agents
 - [ ] Reviewed policy engine rules for sensitive paths/commands
+- [ ] Reviewed the [lethal-trifecta capability gate](security/lethal-trifecta.md) and confirmed the default capability matrix matches deployment expectations
 
 ### Audit and recovery
 

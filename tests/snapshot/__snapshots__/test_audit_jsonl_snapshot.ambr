@@ -1,0 +1,85 @@
+# serializer version: 1
+# name: test_audit_log_event_structure
+  dict({
+    'actor': 'claude',
+    'details': dict({
+      'reason': 'scheduled',
+    }),
+    'event_type': 'task.start',
+    'hmac': '<masked>',
+    'prev_hmac': '<masked>',
+    'resource_id': 't-1',
+    'resource_type': 'task',
+    'timestamp': '<masked>',
+  })
+# ---
+# name: test_lineage_record_dict_shape
+  dict({
+    'cost_usd': 0.0123,
+    'customer_signature': None,
+    'inputs': list([
+      dict({
+        'byte_end': None,
+        'byte_start': None,
+        'line_end': 5,
+        'line_start': 1,
+        'path': 'src/bar.py',
+        'sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      }),
+    ]),
+    'model': 'claude-sonnet-4.7',
+    'output_artifact': dict({
+      'byte_end': None,
+      'byte_start': None,
+      'line_end': 20,
+      'line_start': 10,
+      'path': 'src/foo.py',
+      'sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    }),
+    'producer': dict({
+      'agent_id': 'claude',
+      'run_id': 'run-1',
+      'tick_id': 'tick-1',
+    }),
+    'prompt_sha': 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    'regulatory_class': 'public',
+    'schema_version': 2,
+    'timestamp': 1700000000.0,
+    'tokens': 42,
+  })
+# ---
+# name: test_lineage_writer_signed_roundtrip
+  dict({
+    'cost_usd': 0.0123,
+    'customer_signature': '<masked>',
+    'inputs': list([
+      dict({
+        'byte_end': None,
+        'byte_start': None,
+        'line_end': 5,
+        'line_start': 1,
+        'path': 'src/bar.py',
+        'sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      }),
+    ]),
+    'model': 'claude-sonnet-4.7',
+    'output_artifact': dict({
+      'byte_end': None,
+      'byte_start': None,
+      'line_end': 20,
+      'line_start': 10,
+      'path': 'src/foo.py',
+      'sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    }),
+    'producer': dict({
+      'agent_id': 'claude',
+      'run_id': 'run-1',
+      'tick_id': 'tick-1',
+    }),
+    'prompt_sha': 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+    'regulatory_class': 'public',
+    'schema_version': 2,
+    'timestamp': 1700000000.0,
+    'tokens': 42,
+  })
+# ---

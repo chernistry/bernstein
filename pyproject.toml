@@ -111,6 +111,15 @@ dev = [
     "ruff>=0.9",
     "pyright>=1.1",
     "import-linter>=2.0",  # Architecture contracts (`uv run lint-imports`)
+    # CI hardening 2026 — see docs/contributing/testing.md.
+    "schemathesis>=3.36",  # OpenAPI fuzz / contract sweep on FastAPI app
+    "crosshair-tool>=0.0.95",  # Concolic execution on pure security fns
+    "bandit>=1.8",  # Static security analyzer (HIGH-severity gate)
+    "pip-audit>=2.7",  # PyPI dep CVE scanner (production strict)
+    "beartype>=0.21",  # Test-time runtime type enforcement
+    "syrupy>=4.6",  # Snapshot testing for JSONL/audit/prompt drift
+    "diff-cover>=9.0",  # Per-PR diff coverage gate
+    "semgrep>=1.85",  # Project-specific static rules (.semgrep.yml)
 ]
 grpc = ["grpcio>=1.68", "grpcio-tools>=1.68", "grpcio-reflection>=1.68", "protobuf>=5.29"]
 k8s = ["kubernetes>=31.0"]
@@ -554,4 +563,13 @@ dev = [
     "scikit-learn>=1.5",
     "mutmut>=2.4",
     "import-linter>=2.0",  # Architecture contracts (`uv run lint-imports`)
+    # CI hardening 2026 — keep this section in sync with [project.optional-dependencies].dev.
+    "schemathesis>=3.36",
+    "crosshair-tool>=0.0.95",
+    "bandit>=1.8",
+    "pip-audit>=2.7",
+    "beartype>=0.21",
+    "syrupy>=4.6",
+    "diff-cover>=9.0",
+    "semgrep>=1.85",
 ]

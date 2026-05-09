@@ -1,0 +1,15 @@
+{
+  "include": [
+    "src/bernstein/core/persistence/lineage.py",
+    "src/bernstein/core/persistence/lineage_signer.py",
+    "src/bernstein/core/persistence/wal.py"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/test_*.py"
+  ],
+  "typeCheckingMode": "strict",
+  "pythonVersion": "3.12",
+  "reportMissingImports": "error",
+  "reportMissingTypeStubs": "warning"
+}

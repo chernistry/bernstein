@@ -39,7 +39,7 @@ import logging
 import shutil
 from dataclasses import asdict, dataclass, field
 from pathlib import Path  # noqa: TC003 -- runtime use in dataclass and helpers
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from bernstein.core.persistence.wal import WALReader, WALWriter
 
@@ -168,26 +168,46 @@ def _artifact_to_dict(ref: ArtifactRef) -> dict[str, Any]:
     return asdict(ref)
 
 
-def _artifact_from_dict(data: dict[str, Any]) -> ArtifactRef:
+def _artifact_from_dict(data: Any) -> ArtifactRef:
     """Reconstruct an :class:`ArtifactRef` from its serialised dict form.
 
     Tolerates missing or malformed v1 fields by defaulting ``path`` and
     ``sha256`` to empty strings: the reader contract guarantees that a
     truncated or partially-written WAL entry yields an ``ArtifactRef("", "")``
-    rather than crashing the entire iterator.  Empty-path records are
+    rather than crashing the entire iterator. Empty-path records are
     still useful in the bundle export and signature-verification paths
     because they keep producer/prompt metadata intact.
+
+    Parameter is typed ``Any`` because callers feed us untyped JSON —
+    a corrupt WAL row could land us a list, scalar, or null. The
+    isinstance narrowing converts the input into a concrete dict
+    before field extraction; non-dict values short-circuit to the
+    empty-ref sentinel.
     """
     if not isinstance(data, dict):
         return ArtifactRef(path="", sha256="")
+    coerced = cast("dict[str, Any]", data)
     return ArtifactRef(
-        path=str(data.get("path", "")),
-        sha256=str(data.get("sha256", "")),
-        byte_start=data.get("byte_start"),
-        byte_end=data.get("byte_end"),
-        line_start=data.get("line_start"),
-        line_end=data.get("line_end"),
+        path=str(coerced.get("path", "")),
+        sha256=str(coerced.get("sha256", "")),
+        byte_start=coerced.get("byte_start"),
+        byte_end=coerced.get("byte_end"),
+        line_start=coerced.get("line_start"),
+        line_end=coerced.get("line_end"),
     )
+
+
+def _coerce_dict(value: Any) -> dict[str, Any]:
+    """Return *value* as a ``dict[str, Any]`` or ``{}`` if non-dict.
+
+    The lineage reader receives untyped JSON; a corrupted entry where
+    ``output_artifact`` is a string or null would otherwise crash
+    ``_artifact_from_dict``. Centralising the narrowing keeps the
+    strict-mode pyright config clean.
+    """
+    if isinstance(value, dict):
+        return cast("dict[str, Any]", value)
+    return {}
 
 
 def _record_to_payload(record: LineageRecord) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -219,8 +239,8 @@ def _record_to_payload(record: LineageRecord) -> tuple[dict[str, Any], dict[str,
 
 
 def _record_from_wal(inputs: dict[str, Any], output: dict[str, Any], ts: float) -> LineageRecord:
-    out_dict = output.get("output_artifact", {})
-    producer_dict = inputs.get("producer", {})
+    out_dict = _coerce_dict(output.get("output_artifact"))
+    producer_dict = _coerce_dict(inputs.get("producer"))
     # v1 records pre-date the explicit field; treat any non-int read as v1
     # so callers can branch on schema_version unconditionally.
     schema_version_raw = output.get("schema_version")
@@ -243,9 +263,11 @@ def _record_from_wal(inputs: dict[str, Any], output: dict[str, Any], ts: float) 
     if customer_signature is not None:
         cs_str = str(customer_signature)
         customer_signature_norm = cs_str if cs_str else None
+    inputs_list_raw = inputs.get("inputs", [])
+    inputs_list: list[Any] = cast("list[Any]", inputs_list_raw) if isinstance(inputs_list_raw, list) else []
     return LineageRecord(
         output_artifact=_artifact_from_dict(out_dict),
-        inputs=[_artifact_from_dict(a) for a in inputs.get("inputs", [])],
+        inputs=[_artifact_from_dict(_coerce_dict(a)) for a in inputs_list],
         producer=AgentRef(
             agent_id=str(producer_dict.get("agent_id", "unknown")),
             run_id=str(producer_dict.get("run_id", "unknown")),

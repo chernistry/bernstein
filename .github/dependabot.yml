@@ -7,6 +7,28 @@ updates:
     labels:
       - "dependencies"
     groups:
+      # Security-critical deps get a dedicated group so a CVE patch
+      # doesn't hide inside a bundle of feature bumps. Each entry must
+      # also appear in pyproject.toml :: dependencies (production) or
+      # dev (CI hardening).
+      security:
+        applies-to: security-updates
+        patterns:
+          - "cryptography"
+          - "signxml"
+          - "defusedxml"
+          - "fastapi"
+          - "starlette"
+          - "uvicorn"
+          - "httpx"
+          - "pyjwt"
+          - "pyyaml"
+          - "lxml"
+          - "requests"
+          - "urllib3"
+          - "bandit"
+          - "pip-audit"
+          - "semgrep"
       minor-and-patch:
         update-types:
           - minor

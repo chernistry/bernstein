@@ -1,0 +1,142 @@
+name: Nightly deep tests
+
+# Heavyweight verification that runs once per day at 03:00 UTC.
+# Every job is advisory (continue-on-error) so a flaky overnight
+# regression doesn't block the next day's PRs. Real failures are
+# tracked through GitHub Issues by the existing bernstein-ci-fix
+# workflow.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-deep-tests
+  cancel-in-progress: true
+
+jobs:
+  hypothesis-deep:
+    name: Hypothesis (deep, 1000 examples)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          enable-cache: true
+      - name: Run property suite under deep profile
+        env:
+          HYPOTHESIS_PROFILE: deep
+        run: uv run pytest tests/property/ -q --no-cov --timeout=300
+
+  schemathesis-deep:
+    name: Schemathesis (deep, full sweep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          enable-cache: true
+      - name: Run Schemathesis deep profile
+        env:
+          SCHEMATHESIS_PROFILE: deep
+          BERNSTEIN_AUTH_DISABLED: "1"
+        run: uv run pytest tests/contract/ -q --no-cov --timeout=120 -p no:warnings
+
+  crosshair-pure-fns:
+    # CrossHair concolic execution on pure security/cluster helpers.
+    # Targets functions with type hints; reports counterexamples that
+    # break implicit invariants. 200 iterations per condition (vs. 20
+    # in the smoke profile that PR-time would use once contracts are
+    # added).
+    name: CrossHair (concolic, deep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          enable-cache: true
+      - name: Run CrossHair on persistence + agents helpers
+        run: |
+          uv run crosshair check \
+            --max_uninteresting_iterations 200 \
+            --per_condition_timeout 30.0 \
+            --analysis_kind asserts \
+            src/bernstein/core/persistence/lineage.py \
+            src/bernstein/core/agents/prompt_cache_locality.py \
+            || true
+
+  mutmut-full:
+    name: Mutation (full repo, advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          enable-cache: true
+      - name: Install dev group (mutmut)
+        run: uv sync --group dev
+      - name: Run mutmut on the configured critical paths
+        run: |
+          uv run mutmut run --no-progress || true
+          uv run mutmut results | tee mutmut_results.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nightly-mutmut-results
+          path: |
+            mutmut_results.txt
+            .mutmut-cache
+          retention-days: 14
+          if-no-files-found: ignore
+
+  bandit-medium-and-high:
+    name: Bandit (full -ll, advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          enable-cache: true
+      - name: Run Bandit at -ll (MEDIUM + HIGH)
+        run: uv run bandit -r src/ -ll | tee bandit-nightly.txt
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nightly-bandit-results
+          path: bandit-nightly.txt
+          retention-days: 14
+          if-no-files-found: ignore
+
+  pip-audit-deep:
+    name: pip-audit (full closure)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+        with:
+          enable-cache: true
+      - name: Run pip-audit including dev deps
+        run: uv run pip-audit --strict

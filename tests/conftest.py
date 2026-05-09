@@ -8,6 +8,12 @@ import platform
 import subprocess
 import sys
 
+# Optional runtime type-check hook. No-op unless BEARTYPE_USE_CLAW is set
+# in the environment; CI's `beartype` job opts in explicitly.
+from tests._beartype_claw import maybe_install_beartype_claw
+
+maybe_install_beartype_claw()
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     """Register custom CLI options for the bernstein test suite."""

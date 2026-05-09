@@ -1,0 +1,19 @@
+[bandit]
+# Skip tests/ — bandit's noise on subprocess+assert in tests dwarfs the
+# signal we care about. Focused production scan instead.
+exclude_dirs = tests,docs,.venv,.sdd,build,dist,packaging
+# Severity: report MEDIUM and HIGH; only HIGH fails CI (configured at
+# job level via `-ll`). See .github/workflows/ci.yml :: bandit job.
+skips =
+    # B101: assert_used. Bernstein's runtime guards routinely use assert
+    # in defensive paths; pyright + tests cover the cases that matter.
+    B101,
+    # B105: hardcoded_password_string. False-positive against the
+    # placeholder string in test fixtures bandit picks up despite the
+    # exclude_dirs (paths leak via re-exports).
+    B105,
+    # B404: import subprocess. We deliberately spawn agent CLIs.
+    B404,
+    # B603: subprocess_without_shell_equals_true. Agent spawns are
+    # explicitly shell=False; the warning fires on every wrapper.
+    B603,

@@ -1,0 +1,166 @@
+# Project-specific Semgrep rules.
+#
+# These rules encode invariants Bernstein learned the hard way --
+# subprocess spawns that miss the env-filter step, eval/exec smuggled
+# into production, etc. Severity contract for the PR job:
+#
+#   ERROR    -> fails CI (only the small set we're confident on)
+#   WARNING  -> advisory annotation (won't block but surfaces in PR)
+#
+# When tightening a rule from WARNING to ERROR: first drive the
+# WARNING count to zero in main, then promote.
+#
+# Path patterns are anchored with ``**/src/...`` for forward-compat with
+# Semgrepignore v2. See https://semgrep.dev/docs/release-notes/2025/.
+
+rules:
+  # ----------------------------------------------------------------------
+  # Hard bans (ERROR — fails PR)
+  # ----------------------------------------------------------------------
+  - id: no-exec-in-production
+    message: >-
+      exec() must not appear in src/. Replace with explicit dispatch maps
+      or call into the bernstein.core.scripting sandbox.
+    severity: ERROR
+    languages: [python]
+    paths:
+      include:
+        - "**/src/bernstein/**"
+      exclude:
+        - "**/src/bernstein/**/__pycache__/**"
+        - "**/src/bernstein/**/test_*.py"
+    pattern: exec(...)
+
+  # ----------------------------------------------------------------------
+  # Strong-warning candidates — currently advisory because main has known
+  # accepted usages. Promote to ERROR after the refactor PRs land:
+  # - cache_cmd.py / fingerprint.py / duration_predictor.py: pickle on
+  #   HMAC-verified local files (trust-boundary documented inline)
+  # - formal_verification.py: eval() inside __builtins__={} sandbox for
+  #   Z3 invariant DSL (design-level decision)
+  # ----------------------------------------------------------------------
+  - id: no-eval-in-production
+    message: >-
+      eval() in src/. Use ast.literal_eval (for pure literals) or the
+      bernstein.core.scripting sandboxed evaluator unless you have a
+      documented trust boundary (e.g. core/quality/formal_verification.py
+      uses __builtins__={} sandbox for the Z3 invariant DSL).
+    severity: WARNING
+    languages: [python]
+    paths:
+      include:
+        - "**/src/bernstein/**"
+      exclude:
+        - "**/src/bernstein/**/__pycache__/**"
+        - "**/src/bernstein/**/test_*.py"
+    pattern: eval(...)
+
+  - id: no-pickle-loads-on-untrusted
+    message: >-
+      pickle.loads / pickle.load is unsafe on untrusted input. Bernstein
+      uses JSON or msgpack with explicit schemas for cross-process state.
+      Local-file pickle (replay cache, memo cache, duration predictor)
+      is acceptable when the file is HMAC-verified or operator-managed —
+      add a `# noqa: pickle-trust` comment with a justification.
+    severity: WARNING
+    languages: [python]
+    paths:
+      include:
+        - "**/src/bernstein/**"
+      exclude:
+        - "**/src/bernstein/**/test_*.py"
+    pattern-either:
+      - pattern: pickle.loads(...)
+      - pattern: pickle.load(...)
+
+  # ----------------------------------------------------------------------
+  # Hygiene (WARNING — advisory; promote to ERROR once main is clean)
+  # ----------------------------------------------------------------------
+  - id: subprocess-popen-without-env-in-spawn-helpers
+    message: >-
+      Functions named `_spawn_*` MUST pass env=... when invoking subprocess.
+      Inheriting the parent environment leaks BERNSTEIN_AUDIT_KEY /
+      OPENAI_API_KEY / cloud creds into agent child processes. Use
+      core.security.subprocess_helpers.build_filtered_env() to construct
+      the env dict.
+    severity: WARNING
+    languages: [python]
+    paths:
+      include:
+        - "**/src/bernstein/core/agents/**"
+        - "**/src/bernstein/core/sandbox/**"
+    patterns:
+      - pattern-inside: |
+          def _spawn_$NAME(...):
+              ...
+      - pattern-either:
+          - pattern: subprocess.Popen(...)
+          - pattern: subprocess.run(...)
+          - pattern: subprocess.check_output(...)
+          - pattern: subprocess.check_call(...)
+      - pattern-not: subprocess.Popen(..., env=$ENV, ...)
+      - pattern-not: subprocess.run(..., env=$ENV, ...)
+      - pattern-not: subprocess.check_output(..., env=$ENV, ...)
+      - pattern-not: subprocess.check_call(..., env=$ENV, ...)
+
+  - id: os-environ-direct-in-spawn
+    message: >-
+      Functions whose name starts with `_spawn_` should not read os.environ
+      directly. Route through build_filtered_env so the spawned agent only
+      sees env vars on the explicit allow-list.
+    severity: WARNING
+    languages: [python]
+    paths:
+      include:
+        - "**/src/bernstein/core/agents/**"
+        - "**/src/bernstein/core/sandbox/**"
+    pattern-either:
+      - patterns:
+          - pattern-inside: |
+              def _spawn_$NAME(...):
+                ...
+          - pattern-either:
+              - pattern: os.environ
+              - pattern: os.getenv(...)
+              - pattern: os.environ.get(...)
+              - pattern: os.environ[$KEY]
+
+  - id: prefer-defusedxml
+    message: >-
+      xml.etree.ElementTree is vulnerable to billion-laughs DoS. Use
+      defusedxml.ElementTree (already in the project deps).
+    severity: WARNING
+    languages: [python]
+    paths:
+      include:
+        - "**/src/bernstein/**"
+      exclude:
+        - "**/src/bernstein/**/test_*.py"
+    pattern: import xml.etree.ElementTree
+
+  - id: requests-without-timeout
+    message: >-
+      HTTP calls must pass an explicit timeout=. Default `requests` /
+      `httpx` calls without timeout can hang indefinitely under network
+      partition.
+    severity: WARNING
+    languages: [python]
+    paths:
+      include:
+        - "**/src/bernstein/**"
+      exclude:
+        - "**/src/bernstein/**/test_*.py"
+    patterns:
+      - pattern-either:
+          - pattern: requests.get(...)
+          - pattern: requests.post(...)
+          - pattern: requests.put(...)
+          - pattern: requests.delete(...)
+          - pattern: httpx.get(...)
+          - pattern: httpx.post(...)
+      - pattern-not: requests.get(..., timeout=$T, ...)
+      - pattern-not: requests.post(..., timeout=$T, ...)
+      - pattern-not: requests.put(..., timeout=$T, ...)
+      - pattern-not: requests.delete(..., timeout=$T, ...)
+      - pattern-not: httpx.get(..., timeout=$T, ...)
+      - pattern-not: httpx.post(..., timeout=$T, ...)

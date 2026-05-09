@@ -473,17 +473,27 @@ class WALReader:
                 except json.JSONDecodeError:
                     logger.warning("WAL line unparseable at %s; skipping", self._path)
                     continue
-                yield WALEntry(
-                    seq=int(data["seq"]),
-                    prev_hash=str(data["prev_hash"]),
-                    entry_hash=str(data["entry_hash"]),
-                    timestamp=float(data["timestamp"]),
-                    decision_type=str(data["decision_type"]),
-                    inputs=dict(data["inputs"]),
-                    output=dict(data["output"]),
-                    actor=str(data["actor"]),
-                    committed=bool(data.get("committed", True)),
-                )
+                # Tampered or torn-write lines may parse as JSON but be
+                # missing required fields. Catch the lookup/cast errors
+                # and skip — verify_chain() reports a chain break via
+                # the integrity hash anyway, so we should not crash the
+                # iterator when a downstream caller (e.g. lineage
+                # verifier) walks a corrupted WAL.
+                try:
+                    yield WALEntry(
+                        seq=int(data["seq"]),
+                        prev_hash=str(data["prev_hash"]),
+                        entry_hash=str(data["entry_hash"]),
+                        timestamp=float(data["timestamp"]),
+                        decision_type=str(data["decision_type"]),
+                        inputs=dict(data["inputs"]),
+                        output=dict(data["output"]),
+                        actor=str(data["actor"]),
+                        committed=bool(data.get("committed", True)),
+                    )
+                except (KeyError, TypeError, ValueError):
+                    logger.warning("WAL line missing/malformed fields at %s; skipping", self._path)
+                    continue
 
     def verify_chain(self) -> tuple[bool, list[str]]:
         """Verify hash chain integrity of the entire WAL.

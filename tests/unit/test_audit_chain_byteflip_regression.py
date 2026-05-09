@@ -122,3 +122,28 @@ def test_canonical_form_drift_is_detected(audit_log: AuditLog) -> None:
     valid, errors = audit_log.verify()
     assert valid is False, "non-canonical whitespace slipped past verify()"
     assert errors, "verify() returned invalid=True with empty errors list"
+
+
+def test_writer_uses_lf_only_terminator(audit_log: AuditLog) -> None:
+    """Writer must emit ``b"\\n"`` even on Windows (no CRLF translation).
+
+    Text-mode ``open("a")`` triggers Python's universal-newline translation
+    on Windows, replacing ``\\n`` with ``\\r\\n`` on disk. The strict
+    ``b"\\n"``-only verifier then sees ``}\\r\\n`` as the line, surfaces a
+    trailing ``\\r`` as ``non-canonical line bytes``, and fresh logs fail
+    verification on the very next read. Pinning binary append mode here so
+    a future refactor cannot silently regress to text mode.
+    """
+    audit_log.log("evt1", "actor", "task", "rid", {})
+    audit_log.log("evt2", "actor", "task", "rid", {})
+
+    target = sorted(audit_log._audit_dir.glob("*.jsonl"))[0]  # pyright: ignore[reportPrivateUsage]
+    raw = target.read_bytes()
+    assert b"\r\n" not in raw, f"writer emitted CRLF terminators (text-mode open?): {raw!r}"
+    # Two events → two LF terminators, the file must end with exactly one.
+    assert raw.count(b"\n") == 2, f"unexpected newline count: {raw!r}"
+    assert raw.endswith(b"\n") and not raw.endswith(b"\r\n"), f"file must end with bare LF, got: {raw[-4:]!r}"
+
+    valid, errors = audit_log.verify()
+    assert valid is True, f"freshly written log failed verify: {errors}"
+    assert errors == [], f"unexpected errors on fresh log: {errors}"

@@ -30,13 +30,16 @@ Failure modes:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from bernstein.core.plugins_core.team_hub_manifest import (
     TeamHubManifest,
     TeamHubManifestError,
     parse_team_hub_yaml,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Convention path inside a hub repo. Keep these in one place so the loader,
 # the future ``bernstein hub init`` CLI, and any docs/examples agree.

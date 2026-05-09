@@ -132,7 +132,7 @@ dev = [
     # and docs/contributing/testing.md.
 ]
 grpc = ["grpcio>=1.68", "grpcio-tools>=1.68", "grpcio-reflection>=1.68", "protobuf>=5.29"]
-k8s = ["kubernetes>=31.0"]
+k8s = ["kubernetes>=35.0.0"]
 ml = ["scikit-learn>=1.5"]
 graphics = []  # term-image disabled: caps pillow<11, conflicts with CVE-2026-25990 fix
 # OpenAI Agents SDK v2 integration (src/bernstein/adapters/openai_agents.py).

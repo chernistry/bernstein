@@ -9,6 +9,7 @@ import tempfile
 from typing import TYPE_CHECKING, Any
 
 from bernstein.adapters.base import DEFAULT_TIMEOUT_SECONDS, CLIAdapter, SpawnResult
+from bernstein.adapters.env_isolation import build_filtered_env
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -115,11 +116,17 @@ class MockAgentAdapter(CLIAdapter):
             task_info,
         ]
 
+        # Pass an explicit ``env=`` (allowlist only) so the mock adapter
+        # cannot leak orchestrator credentials to the child python script.
+        # The mock only needs PATH/HOME/PYTHONPATH which are already on
+        # the base allowlist.
+        env = build_filtered_env([])
         proc = subprocess.Popen(
             cmd,
+            cwd=str(workdir),
+            env=env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            cwd=str(workdir),
         )
 
         result = SpawnResult(pid=proc.pid, log_path=log_path, proc=proc)

@@ -92,6 +92,8 @@ class MistralAdapter(CLIAdapter):
             except PermissionError as exc:
                 raise RuntimeError(f"Permission denied executing vibe: {exc}") from exc
 
+        # ``proc`` MUST be threaded into SpawnResult — see cursor.py header
+        # comment for the regression context (downstream needs poll/wait).
         result = SpawnResult(pid=proc.pid, log_path=log_path, proc=proc)
         if timeout_seconds > 0:
             result.timeout_timer = self._start_timeout_watchdog(proc.pid, timeout_seconds, session_id)

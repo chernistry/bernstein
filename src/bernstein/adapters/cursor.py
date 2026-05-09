@@ -155,6 +155,11 @@ class CursorAdapter(CLIAdapter):
             except PermissionError as exc:
                 raise RuntimeError(f"Permission denied executing cursor-agent: {exc}") from exc
 
+        # ``proc`` MUST be threaded into ``SpawnResult``; downstream
+        # spawner_core uses it for stdin-IPC registration and ``bernstein
+        # adapter run`` calls ``result.proc.wait(...)`` to detect early
+        # exits.  Without it the orchestrator can't observe completion
+        # and zombie pids accumulate until the timeout watchdog fires.
         result = SpawnResult(pid=proc.pid, log_path=log_path, proc=proc)
         if timeout_seconds > 0:
             result.timeout_timer = self._start_timeout_watchdog(proc.pid, timeout_seconds, session_id)

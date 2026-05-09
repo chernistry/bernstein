@@ -24,6 +24,7 @@ from bernstein.adapters.base import (
     SpawnResult,
     build_worker_cmd,
 )
+from bernstein.adapters.env_isolation import build_filtered_env
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -99,11 +100,19 @@ class GooseAdapter(CLIAdapter):
             model=model_id,
         )
 
+        # Always pass an explicit ``env=`` — Popen with env=None inherits
+        # the orchestrator's full environment, which is a credential-leak
+        # vector (DB URLs, internal tokens, unrelated provider keys).
+        # Goose accepts model creds via Anthropic/OpenAI/OpenRouter envs.
+        env = build_filtered_env(
+            ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY", "GOOGLE_API_KEY"],
+        )
         with log_path.open("w") as log_file:
             try:
                 proc = subprocess.Popen(
                     wrapped_cmd,
                     cwd=workdir,
+                    env=env,
                     stdout=log_file,
                     stderr=subprocess.STDOUT,
                     start_new_session=True,

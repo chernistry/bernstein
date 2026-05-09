@@ -687,6 +687,7 @@ def cli(
         task_filter=task_filter,
         auto_pr=auto_pr,
         activity_log_path=activity_log_path,
+        max_cost_usd=None,
     )
 
 

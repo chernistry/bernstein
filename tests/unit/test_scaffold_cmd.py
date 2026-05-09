@@ -16,6 +16,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from click.testing import CliRunner
+
 from bernstein.cli.commands.scaffold_cmd import scaffold_cmd
 from bernstein.cli.scaffold.templates import (
     SCAFFOLD_TEMPLATES,
@@ -24,8 +26,6 @@ from bernstein.cli.scaffold.templates import (
     materialize_template,
     pick_template,
 )
-from click.testing import CliRunner
-
 
 # ---------------------------------------------------------------------------
 # Registry

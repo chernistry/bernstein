@@ -299,22 +299,28 @@ class AuditLog:
     # -- chain recovery -----------------------------------------------------
 
     def _recover_chain_tail(self) -> str:
-        """Walk existing logs to find the last HMAC in the chain."""
+        """Walk existing logs in reverse to find the last valid HMAC.
+
+        Walks every ``*.jsonl`` file from newest to oldest, scanning each
+        file's lines in reverse, and returns the first line that parses
+        to a dict carrying an ``hmac`` field.  Earlier-only inspection of
+        the lex-last file would silently fork the chain when that file is
+        empty/truncated (e.g. a freshly-rotated day with no events yet,
+        or a writer crash mid-line) — see test_truncated_last_file_does_
+        not_fork_chain in tests/property/test_audit_chain_bughunt.py.
+        """
         log_files = sorted(self._audit_dir.glob(_JSONL_GLOB))
-        if not log_files:
-            return _GENESIS_HMAC
-        last_file = log_files[-1]
-        lines = last_file.read_text().strip().splitlines()
-        for line in reversed(lines):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                entry = json.loads(line)
+        for log_path in reversed(log_files):
+            for line in reversed(log_path.read_text().splitlines()):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
                 if isinstance(entry, dict) and "hmac" in entry:
                     return str(entry["hmac"])
-            except (json.JSONDecodeError, KeyError):
-                pass  # Malformed audit line; continue scanning
         return _GENESIS_HMAC
 
     # -- write --------------------------------------------------------------

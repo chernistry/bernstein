@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.chernistry/bernstein",
+  "name": "io.github.sipyourdrink-ltd/bernstein",
   "description": "Multi-agent orchestrator for CLI coding agents (Claude Code, Codex, Gemini CLI, +40 more).",
   "repository": {
     "url": "https://github.com/sipyourdrink-ltd/bernstein",

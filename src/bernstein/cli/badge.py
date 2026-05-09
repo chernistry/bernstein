@@ -25,11 +25,24 @@ content outside the badge block at the top of the README.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+# Detector for shields.io badge image references in markdown.
+# This is **not** URL sanitization — we are looking for the markdown image
+# pattern `![alt](https://img.shields.io/...)` so we can append a new badge
+# to the END of the existing stack.  The regex anchors on the canonical
+# domain pieces so an unrelated string like "shields.io.example.com" cannot
+# match.  Codepath only reads the maintainer's own README and never makes
+# a security decision based on the result.
+_BADGE_URL_PATTERN = re.compile(
+    r"!\[[^\]]*\]\(https?://(?:img\.)?shields\.io/",
+    re.IGNORECASE,
+)
 
 # UTM params let bernstein.run measure inbound badge clicks without
 # touching the maintainer's analytics layer.
@@ -146,7 +159,7 @@ def _insertion_index(readme_text: str) -> int:
 
     last_badge_line = -1
     for idx, raw in enumerate(head):
-        if "shields.io/badge/" in raw or "img.shields.io" in raw:
+        if _BADGE_URL_PATTERN.search(raw):
             last_badge_line = idx
     if last_badge_line >= 0:
         return sum(len(line) for line in lines[: last_badge_line + 1])

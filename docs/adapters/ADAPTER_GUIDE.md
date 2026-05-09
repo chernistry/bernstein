@@ -1,7 +1,7 @@
 # Adapter Selection Guide
 
-Bernstein ships 42 registered CLI agent adapters in `src/bernstein/adapters/`
-(41 named third-party wrappers plus a `generic` catch-all), along with support
+Bernstein ships 43 CLI agent adapters in `src/bernstein/adapters/`
+(42 named adapters plus a `generic` catch-all), along with support
 modules (caching, conformance testing, environment isolation, plugin SDK,
 etc.).
 
@@ -672,7 +672,7 @@ Simulates agent behavior for unit and integration tests. Not for production use.
 
 ## Orchestrator Delegation Adapters
 
-The 31 adapters above wrap **CLI coding agents** — tools that execute one task per invocation. The two below wrap **other CLI orchestrators** as if each were a single agent. Bernstein hands the wrapped tool a prompt or plan and only sees the final exit code and combined log; sub-agent costs and quality gates *inside* the wrapped orchestrator are not visible to Bernstein. This is leaf-node delegation, not deep meta-orchestration.
+The adapters profiled above wrap **CLI coding agents** — tools that execute one task per invocation. Four adapters registered in `registry.py` (`junie`, `q_dev`, `devin_terminal`, `clm`) do not yet have full guide profiles here; they are documented in their respective module docstrings. The two below wrap **other CLI orchestrators** as if each were a single agent. Bernstein hands the wrapped tool a prompt or plan and only sees the final exit code and combined log; sub-agent costs and quality gates *inside* the wrapped orchestrator are not visible to Bernstein. This is leaf-node delegation, not deep meta-orchestration.
 
 Use these when you have an existing workflow built on Composio or ralphex and want to drop it into one step of a larger Bernstein plan, rather than re-implementing it natively.
 
@@ -704,7 +704,7 @@ Use these when you have an existing workflow built on Composio or ralphex and wa
 
 ## Support Modules
 
-In addition to the 42 registered CLI agent adapters above, the adapter package includes
+In addition to the 43 CLI agent adapters above, the adapter package includes
 support modules that provide cross-cutting infrastructure:
 
 | Module | Purpose |

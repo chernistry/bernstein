@@ -108,7 +108,7 @@ $ bernstein -g "Add JWT auth"
 
 Bernstein автоматически обнаруживает установленные CLI-агенты. Смешивайте их в одном запуске. Дешёвые локальные модели — для рутины, более тяжёлые облачные — для архитектуры.
 
-41 адаптеров CLI-агентов: 38 обёрток для сторонних инструментов плюс универсальная обёртка для всего, что принимает `--prompt`.
+43 адаптера CLI-агентов: 40 обёрток для сторонних инструментов плюс универсальная обёртка для всего, что принимает `--prompt`.
 
 | Агент | Модели | Установка |
 |-------|--------|-----------|
@@ -260,7 +260,7 @@ bernstein cloud run plan.yaml  # выполняет план на Cloudflare
 | Возможность | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |-------------|-----------|--------|---------|-----------|
 | Оркестратор | Детерминированный код | На базе LLM (+ code Flows) | На базе LLM | Граф + LLM |
-| Работает с | Любым CLI-агентом (41 адаптеров) | Классами Python SDK | Python-агентами | Узлами LangChain |
+| Работает с | Любым CLI-агентом (43 адаптера) | Классами Python SDK | Python-агентами | Узлами LangChain |
 | Изоляция через git | Worktree на каждого агента | Нет | Нет | Нет |
 | Подключаемые песочницы | Worktree, Docker, E2B, Modal | Нет | Нет | Нет |
 | Верификация | Janitor + quality gates | Guardrails + Pydantic-вывод | Условия завершения | Условные рёбра |
@@ -285,7 +285,7 @@ bernstein cloud run plan.yaml  # выполняет план на Cloudflare
 | Форма | Python CLI + библиотека + MCP-сервер | Python CLI + tmux-сессии + веб-UI | TypeScript CLI + локальный дашборд | Electron-приложение | Go CLI |
 | Основной язык | Python | Python | TypeScript | TypeScript | Go |
 | Установка | `pipx install bernstein` | `uv tool install cli-agent-orchestrator` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / одиночный бинарь |
-| Адаптеры агентов | 41 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (только Claude Code) |
+| Адаптеры агентов | 43 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (только Claude Code) |
 | Параллельное выполнение нескольких агентов | Да | Да (tmux-сессия на агента) | Да | Да | Нет (одна последовательная сессия) |
 | Git worktree на агента | Да | Нет (запланировано, [#100](https://github.com/awslabs/cli-agent-orchestrator/issues/100)) | Да | Да | Опциональный флаг `--worktree` |
 | Режим MCP-сервера (отдаёт сам себя как MCP) | Да (stdio + HTTP/SSE) | Да (межагентные коммуникации) | Нет | Нет | Нет |

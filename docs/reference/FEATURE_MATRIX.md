@@ -79,7 +79,7 @@ Legend:
 
 | Capability | Runtime status | Docs status | Notes |
 |---|---|---|---|
-| Agent catalog/discovery | Shipped | Full | `bernstein agents sync/list/discover/match/showcase` (42 registered CLI agent adapters) |
+| Agent catalog/discovery | Shipped | Full | `bernstein agents sync/list/discover/match/showcase` (43 CLI agent adapters) |
 | GitHub App and CI fix flows | Shipped | Full | `bernstein ci fix <url>`, `github setup` |
 | Trigger sources (`github`, `slack`, `file_watch`, `webhook`) | Partial | Brief | Source adapters exist; authoring docs need detail |
 | Plugin hooks (pluggy) | Shipped | Full | SDK docs in CONTRIBUTING.md |

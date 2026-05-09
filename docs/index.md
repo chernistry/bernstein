@@ -3,7 +3,7 @@ title: Bernstein — Open-Source Multi-Agent Orchestration Platform
 description: >-
   Bernstein is the open-source multi-agent orchestrator for AI coding agents.
   Run Claude Code, Codex, Gemini CLI, and the OpenAI Agents SDK in parallel.
-  Deterministic scheduling, 42 adapters, pluggable sandbox backends,
+  Deterministic scheduling, 43 adapters, pluggable sandbox backends,
   cloud artifact storage, progressive skills, zero vendor lock-in.
 tags:
   - orchestration
@@ -115,7 +115,7 @@ for client compliance review.
 | :material-api: [API Reference](reference/openapi-reference.md) | Task server REST API |
 | :material-sitemap: [Architecture](architecture/ARCHITECTURE.md) | How Bernstein works under the hood |
 | :material-state-machine: [Lifecycle FSM](architecture/LIFECYCLE.md) | Task and agent state machines with transition tables |
-| :material-text-box-check: [What's New](whats-new.md) | Summary of recent releases (1.8 → 1.9) |
+| :material-text-box-check: [What's New](whats-new.md) | Summary of recent releases (1.9 → 1.10) |
 | :material-history: [Changelog](CHANGELOG.md) | Full release history |
 | :material-shield-lock: [Air-gap installation](installation/air-gap.md) | Wheelhouse build, signed verification, `--profile airgap`, deny-all egress |
 

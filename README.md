@@ -25,7 +25,7 @@
 
 ---
 
-Bernstein is a deterministic Python scheduler that runs a crew of CLI coding agents (Claude Code, Codex, Gemini CLI, and 40 more) against a single goal in parallel git worktrees, with an HMAC-signed audit chain over every step.
+Bernstein is a deterministic Python scheduler that runs a crew of CLI coding agents (Claude Code, Codex, Gemini CLI, and 39 more) against a single goal in parallel git worktrees, with an HMAC-signed audit chain over every step.
 
 ### why this exists
 
@@ -83,7 +83,7 @@ equally specific. these are the cases where you should pick something else:
 | Visual workflow YAML                   | yes [^yaml] | yes      | no        |
 | Hosted dashboard / SaaS                | no          | partial  | no        |
 
-[^yaml]: Workflow YAML support lands with [PR #1108](https://github.com/sipyourdrink-ltd/bernstein/pull/1108) (in this batch). Until then, plans are authored as Python or via `bernstein run plan.yaml` against the legacy schema.
+[^yaml]: Workflow YAML shipped in [PR #1117](https://github.com/sipyourdrink-ltd/bernstein/pull/1117) (merged 2026-05-08). Plans are authored as YAML and validated by `bernstein workflow validate`.
 
 A longer feature matrix against CrewAI, AutoGen, LangGraph, and the four CLI-agent orchestrators that share Bernstein's category lives in the [Detailed comparison](#detailed-comparison) section below.
 
@@ -168,7 +168,7 @@ ticket #1110 and currently raises a clear `NotImplementedError`.
 
 Bernstein auto-discovers installed CLI agents. Mix them in the same run. Cheap local models for boilerplate, heavier cloud models for architecture.
 
-44 CLI agent adapters: 41 third-party wrappers, 2 leaf-node delegators (Composio, Ralphex), plus a generic wrapper for anything with `--prompt`.
+43 CLI agent adapters: 40 third-party wrappers, 2 leaf-node delegators (Composio, Ralphex), plus a generic wrapper for anything with `--prompt`.
 
 | Agent | Models | Install |
 |-------|--------|---------|
@@ -342,7 +342,7 @@ performs vector search.
 | Feature | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |---------|-----------|--------|---------|-----------|
 | Orchestrator | Deterministic code | LLM-driven (+ code Flows) | LLM-driven | Graph + LLM |
-| Works with | Any CLI agent (44 adapters) | Python SDK classes | Python agents | LangChain nodes |
+| Works with | Any CLI agent (43 adapters) | Python SDK classes | Python agents | LangChain nodes |
 | Git isolation | Worktrees per agent | No | No | No |
 | Pluggable sandboxes | Worktree, Docker, E2B, Modal | No | No | No |
 | Verification | Janitor + quality gates | Guardrails + Pydantic output | Termination conditions | Conditional edges |
@@ -367,7 +367,7 @@ The table above compares Bernstein against LLM-orchestration frameworks (they or
 | Shape | Python CLI + library + MCP server | Python CLI + tmux sessions + web UI | TypeScript CLI + local dashboard | Electron desktop app | Go CLI |
 | Primary language | Python | Python | TypeScript | TypeScript | Go |
 | Install | `pipx install bernstein` | `uv tool install cli-agent-orchestrator` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / single binary |
-| Agent adapters | 44 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code only) |
+| Agent adapters | 43 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (Claude Code only) |
 | Parallel multi-agent execution | Yes | Yes (tmux session per agent) | Yes | Yes | No (single sequential session) |
 | Git worktree per agent | Yes | No (planned, [#100](https://github.com/awslabs/cli-agent-orchestrator/issues/100)) | Yes | Yes | Optional `--worktree` flag |
 | MCP server mode (exposes self as MCP) | Yes (stdio + HTTP/SSE) | Yes (inter-agent comms) | No | No | No |

@@ -117,7 +117,7 @@ These are genuinely different problems. Paperclip cares about organizational str
 
 **Zero LLM overhead on coordination.** Paperclip uses LLM calls for coordination — managing hierarchies, routing tasks through org structures, heartbeat processing. Every coordination decision costs tokens. Bernstein's orchestrator is ~800 lines of deterministic Python. Coordination cost is zero.
 
-**Agent breadth.** 31 adapters vs. 4 official. If you use Gemini, OpenAI Agents SDK v2, Aider, Amp, Kilo, Kiro, Qwen, Goose, or OpenCode as first-class adapters rather than bash/HTTP shims, Bernstein supports them out of the box.
+**Agent breadth.** 43 adapters vs. 4 official. If you use Gemini, OpenAI Agents SDK v2, Aider, Amp, Kilo, Kiro, Qwen, Goose, or OpenCode as first-class adapters rather than bash/HTTP shims, Bernstein supports them out of the box.
 
 **Git-native isolation.** Each Bernstein agent works in its own git worktree. Conflicts are detected at merge time, not at runtime. Paperclip doesn't provide git-level isolation.
 
@@ -142,7 +142,7 @@ These are genuinely different problems. Paperclip cares about organizational str
 
 - **You want to ship code.** Your goal is "implement these 10 features in parallel and merge them all into a working branch." Bernstein does this. Paperclip doesn't try to.
 - **You want zero coordination overhead.** No LLM tokens spent on figuring out which agent should do what. Deterministic task assignment, deterministic verification.
-- **You use diverse CLI agents.** 31 adapters vs. 4 official. Mix Claude, Codex, OpenAI Agents SDK v2, Gemini, and Aider in the same session without dropping to bash/HTTP shims.
+- **You use diverse CLI agents.** 43 adapters vs. 4 official. Mix Claude, Codex, OpenAI Agents SDK v2, Gemini, and Aider in the same session without dropping to bash/HTTP shims.
 - **You want git-native safety.** Worktree isolation, conflict detection, janitor verification. The output is a tested, linted branch.
 - **You work in terminals.** CLI-native, works over SSH, runs in CI, no browser required.
 - **You don't need org charts.** If the concept of "reporting lines for AI agents" doesn't map to your problem, you don't need Paperclip's primary feature.

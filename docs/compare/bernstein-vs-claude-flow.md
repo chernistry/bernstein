@@ -103,7 +103,7 @@ The orchestrator is ~800 lines of deterministic Python. Agents are short-lived p
 
 ## When Bernstein is the right tool
 
-**You use more than one CLI agent.** 31 adapters vs. Claude-Code-as-the-host. If you actually run Codex, Gemini, Aider, Amp, Goose, Qwen, Kilo, Kiro, OpenCode, Cursor, or Ollama — not as bash shims but as first-class adapters with their own auth and cost models — Bernstein meets you where you are. claude-flow can route to other providers through plugins, but the orchestration substrate is Claude Code.
+**You use more than one CLI agent.** 43 adapters vs. Claude-Code-as-the-host. If you actually run Codex, Gemini, Aider, Amp, Goose, Qwen, Kilo, Kiro, OpenCode, Cursor, or Ollama — not as bash shims but as first-class adapters with their own auth and cost models — Bernstein meets you where you are. claude-flow can route to other providers through plugins, but the orchestration substrate is Claude Code.
 
 **You want zero LLM tokens in the scheduler.** Bernstein's tick pipeline, task assignment, retries, and merge ordering are deterministic Python. claude-flow's coordination uses hooks + routers + a learning loop, all of which spend tokens to make decisions. Both approaches work; the cost and reproducibility profiles are different.
 

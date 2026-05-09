@@ -108,7 +108,7 @@ $ bernstein -g "Add JWT auth"
 
 Bernstein 会自动发现已安装的 CLI 代理。你可以在同一次运行中混用它们。便宜的本地模型干样板代码，更重的云端模型负责架构。
 
-41 个 CLI 代理适配器：38 个第三方封装，加上一个适用于任何带 `--prompt` 的工具的通用封装。
+43 个 CLI 代理适配器：40 个第三方封装，加上一个适用于任何带 `--prompt` 的工具的通用封装。
 
 | Agent | 模型 | 安装 |
 |-------|--------|---------|
@@ -260,7 +260,7 @@ bernstein cloud run plan.yaml  # 在 Cloudflare 上执行计划
 | 功能 | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |---------|-----------|--------|---------|-----------|
 | 编排器 | 确定性代码 | 由 LLM 驱动（外加 code Flows） | 由 LLM 驱动 | 图 + LLM |
-| 兼容对象 | 任意 CLI 代理（41 个适配器） | Python SDK 类 | Python 代理 | LangChain 节点 |
+| 兼容对象 | 任意 CLI 代理（43 个适配器） | Python SDK 类 | Python 代理 | LangChain 节点 |
 | Git 隔离 | 每个代理独立 worktree | 否 | 否 | 否 |
 | 可插拔沙箱 | Worktree、Docker、E2B、Modal | 否 | 否 | 否 |
 | 验证机制 | Janitor + 质量门禁 | Guardrails + Pydantic 输出 | 终止条件 | 条件边 |
@@ -285,7 +285,7 @@ bernstein cloud run plan.yaml  # 在 Cloudflare 上执行计划
 | 形态 | Python CLI + 库 + MCP 服务器 | Python CLI + tmux 会话 + web UI | TypeScript CLI + 本地仪表盘 | Electron 桌面应用 | Go CLI |
 | 主语言 | Python | Python | TypeScript | TypeScript | Go |
 | 安装 | `pipx install bernstein` | `uv tool install cli-agent-orchestrator` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / 单文件二进制 |
-| 代理适配器数量 | 41 | 5（Kiro、Claude Code、Codex、Gemini、Kimi） | 3（Claude Code、Codex、Aider） | 24 | 1（仅 Claude Code） |
+| 代理适配器数量 | 43 | 5（Kiro、Claude Code、Codex、Gemini、Kimi） | 3（Claude Code、Codex、Aider） | 24 | 1（仅 Claude Code） |
 | 多代理并行执行 | 是 | 是（每个代理一个 tmux 会话） | 是 | 是 | 否（单一线性会话） |
 | 每个代理独立 git worktree | 是 | 否（计划中，[#100](https://github.com/awslabs/cli-agent-orchestrator/issues/100)） | 是 | 是 | 可选的 `--worktree` 标志 |
 | MCP 服务器模式（把自身暴露为 MCP） | 是（stdio + HTTP/SSE） | 是（用于代理间通信） | 否 | 否 | 否 |

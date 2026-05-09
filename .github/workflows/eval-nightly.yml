@@ -87,7 +87,7 @@ jobs:
             --badge .sdd/runtime/eval/badge.md
 
       - name: Upload smoke artefacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: eval-nightly-smoke
           path: |
@@ -137,7 +137,7 @@ jobs:
             --badge .sdd/runtime/eval/badge.md
 
       - name: Upload leaderboard artefacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: eval-nightly-${{ github.run_id }}
           path: |

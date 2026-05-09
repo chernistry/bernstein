@@ -81,6 +81,17 @@ MODEL_COSTS_PER_1M_TOKENS: dict[str, ModelUsdPer1MTokens] = {
     MODEL_GEMINI_3_1_PRO: {"input": 0.50, "output": 3.00, "cache_read": 0.02},
     "gemini-3-flash": {"input": 0.15, "output": 1.00, "cache_read": 0.005},
     "qwen3-coder": {"input": 0.22, "output": 0.9},
+    # DeepSeek V4 family (FEAT deepseek-v4-flash-eu, added 2026-05-07).
+    # Hosted prices from deepseek.com release pages; the structural
+    # arbitrage comes from V4-Flash at ~$1.74/MTok input (CAISI 2026-04
+    # evaluation places the model ~8 months behind frontier — adequate
+    # for the 60-70% of agentic workloads that are not the hardest 30%).
+    # Self-hosted runs (Ollama / vLLM via :class:`OllamaAdapter`) reduce
+    # input cost to electricity; the hosted entries below are the
+    # opportunity-cost reference used by ``CostTracker`` to narrate
+    # "saved $X by self-hosting" in the run summary.
+    "deepseek-v4-flash": {"input": 1.74, "output": 0.20},
+    "deepseek-v4-pro": {"input": 4.50, "output": 1.50},
     # Blended-only entries in ``_MODEL_COST_USD_PER_1K`` — approximate 40/60 input/output split of total $/1M.
     "qwen-max": {"input": 0.8, "output": 1.2},
     "qwen-plus": {"input": 0.4, "output": 0.6},
@@ -121,6 +132,14 @@ _MODEL_COST_USD_PER_1K: dict[str, float] = {
     "qwen-max": 0.001,
     "qwen-plus": 0.0005,
     "qwen-turbo": 0.0002,
+    # DeepSeek V4 family — FEAT deepseek-v4-flash-eu.  Self-hosted runs
+    # against vLLM/Ollama drop the marginal cost to electricity; these
+    # blended figures reflect the hosted ``deepseek.com`` API prices and
+    # are used as the opportunity-cost reference.  ``deepseek-v4-flash``
+    # appears before ``deepseek-v4-pro`` so the narrower SKU wins on
+    # left-to-right substring iteration in :func:`_model_cost`.
+    "deepseek-v4-flash": 0.00097,  # ($1.74 + $0.20) / 2 / 1000
+    "deepseek-v4-pro": 0.003,  # ($4.50 + $1.50) / 2 / 1000
 }
 
 # Cascade order — sonnet first (haiku removed: on Max plan sonnet is

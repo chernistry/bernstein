@@ -104,7 +104,7 @@ alwaysApply: false
 | `manager.py`               |  |
 | `mistral.py`               | Mistral Vibe CLI adapter |
 | `mock.py`                  | Mock CLI adapter for zero-API-key demos and testing |
-| `ollama.py`                | Ollama local LLM adapter — run coding agents without cloud API keys |
+| `ollama.py`                | Ollama / OpenAI-compatible local LLM adapter — run coding agents without cloud API keys |
 | `open_interpreter.py`      | Open Interpreter CLI adapter |
 | `openai_agents.py`         | OpenAI Agents SDK v2 adapter |
 | `openai_agents_runner.py`  | Python entrypoint that runs an OpenAI Agents SDK session |

@@ -196,6 +196,7 @@ Bernstein is a deterministic Python scheduler that runs a crew of CLI coding age
 
 | File                      | Purpose |
 |---------------------------|---------|
+| `ab_runner.py`            | A/B runner primitive — deterministic prompt-vs-prompt comparison |
 | `baseline.py`             | Baseline tracking for eval-gated evolution |
 | `golden.py`               | Golden benchmark suite — curated tasks for eval |
 | `harness.py`              | Eval harness — multiplicative scoring, LLM judge, failure taxonomy |

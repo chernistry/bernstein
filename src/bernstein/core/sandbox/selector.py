@@ -115,9 +115,7 @@ class SandboxPolicy:
     override: str | None = None
     allow_paid: bool = False
     required_capabilities: frozenset[SandboxCapability] = field(
-        default_factory=lambda: frozenset(
-            {SandboxCapability.FILE_RW, SandboxCapability.EXEC}
-        )
+        default_factory=lambda: frozenset({SandboxCapability.FILE_RW, SandboxCapability.EXEC})
     )
     required_credentials: frozenset[str] = field(default_factory=frozenset)
     precedence: tuple[str, ...] | None = None
@@ -200,9 +198,7 @@ def select_sandbox(
     effective_env = environment or SandboxEnvironment()
     candidates = list(backends)
     if not candidates:
-        raise SandboxSelectionError(
-            "No sandbox backends registered", attempted=()
-        )
+        raise SandboxSelectionError("No sandbox backends registered", attempted=())
 
     if effective_policy.override is not None:
         return _resolve_override(candidates, effective_policy, effective_env)
@@ -263,10 +259,7 @@ def _filter_eligible(
 ) -> list[SandboxBackend]:
     """Drop backends that cannot satisfy *policy* given *environment*."""
     eligible: list[SandboxBackend] = []
-    out_of_budget = (
-        environment.budget_remaining_usd is not None
-        and environment.budget_remaining_usd <= 0
-    )
+    out_of_budget = environment.budget_remaining_usd is not None and environment.budget_remaining_usd <= 0
     for backend in backends:
         if not policy.allow_paid and backend.name not in FREE_BACKENDS:
             continue

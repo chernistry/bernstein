@@ -50,17 +50,13 @@ def _write_hub(root: Path, *, manifest_yaml: str) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     (root / "team-hub.yaml").write_text(manifest_yaml, encoding="utf-8")
     (root / "team" / "agents" / "reviewer").mkdir(parents=True, exist_ok=True)
-    (root / "team" / "agents" / "reviewer" / "AGENT.md").write_text(
-        "# Reviewer agent\n", encoding="utf-8"
-    )
+    (root / "team" / "agents" / "reviewer" / "AGENT.md").write_text("# Reviewer agent\n", encoding="utf-8")
     (root / "team" / "skills" / "deploy-prod").mkdir(parents=True, exist_ok=True)
     (root / "team" / "skills" / "deploy-prod" / "SKILL.md").write_text(
         "---\nname: deploy-prod\n---\n", encoding="utf-8"
     )
     (root / "team" / "rules").mkdir(parents=True, exist_ok=True)
-    (root / "team" / "rules" / "no-print.md").write_text(
-        "# Rule\nNo print statements.\n", encoding="utf-8"
-    )
+    (root / "team" / "rules" / "no-print.md").write_text("# Rule\nNo print statements.\n", encoding="utf-8")
     return root
 
 

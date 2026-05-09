@@ -47,7 +47,8 @@ class TestWithOverrides:
 
     def test_multi_flag_override(self) -> None:
         new = HarnessPolicy().with_overrides(
-            tool_masking=True, keep_failed_actions=True,
+            tool_masking=True,
+            keep_failed_actions=True,
         )
         assert new.tool_masking is True
         assert new.keep_failed_actions is True

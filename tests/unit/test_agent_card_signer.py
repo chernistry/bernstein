@@ -265,9 +265,7 @@ class TestEd25519PublicJWK:
             serialization.PublicFormat.Raw,
         )
         jwk = ed25519_public_jwk(pub_pem, kid="k")
-        rebuilt = Ed25519PublicKey.from_public_bytes(
-            urlsafe_b64decode(jwk["x"] + "=" * (-len(jwk["x"]) % 4))
-        )
+        rebuilt = Ed25519PublicKey.from_public_bytes(urlsafe_b64decode(jwk["x"] + "=" * (-len(jwk["x"]) % 4)))
         rebuilt_raw = rebuilt.public_bytes(
             serialization.Encoding.Raw,
             serialization.PublicFormat.Raw,

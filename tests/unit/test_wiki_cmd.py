@@ -47,10 +47,7 @@ def fixture_repo(tmp_path: Path) -> Path:
     (tmp_path / "src" / "pkg").mkdir(parents=True)
     (tmp_path / "src" / "pkg" / "__init__.py").write_text("", encoding="utf-8")
     (tmp_path / "src" / "pkg" / "service.py").write_text(
-        '"""Service."""\n\n'
-        "def public_api() -> int:\n"
-        '    """Public entry point."""\n'
-        "    return 1\n",
+        '"""Service."""\n\ndef public_api() -> int:\n    """Public entry point."""\n    return 1\n',
         encoding="utf-8",
     )
     (tmp_path / "tests").mkdir()

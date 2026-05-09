@@ -25,9 +25,7 @@ from bernstein.core.security.audit_slice import (
 def _build_log(audit_dir: Path, count: int = 5) -> list[str]:
     """Seed an audit log with ``count`` events.  Returns each event's HMAC."""
     log = AuditLog(audit_dir, key=b"test-key")
-    return [
-        log.log("evt", "actor", "task", f"id-{i}", {"i": i}).hmac for i in range(count)
-    ]
+    return [log.log("evt", "actor", "task", f"id-{i}", {"i": i}).hmac for i in range(count)]
 
 
 # ---------------------------------------------------------------------------
@@ -209,9 +207,7 @@ def _audit_dir_in_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return audit_dir
 
 
-def test_cli_slice_writes_file(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cli_slice_writes_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """`bernstein audit slice` happy path — exits 0 and writes the events."""
     audit_dir = _audit_dir_in_cwd(tmp_path, monkeypatch)
     hmacs = _build_log(audit_dir, 4)
@@ -231,9 +227,7 @@ def test_cli_slice_writes_file(
     assert [e["hmac"] for e in parsed] == hmacs[1:3]
 
 
-def test_cli_slice_unknown_hash_exits_1(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cli_slice_unknown_hash_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Unknown HMAC bound aborts with a non-zero exit and a helpful message."""
     audit_dir = _audit_dir_in_cwd(tmp_path, monkeypatch)
     _build_log(audit_dir, 2)

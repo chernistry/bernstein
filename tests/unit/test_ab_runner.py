@@ -215,12 +215,8 @@ def test_comparison_to_json_is_byte_stable(variant_a: Variant, variant_b: Varian
 def test_comparison_dict_shape() -> None:
     """``to_dict`` exposes a stable schema for downstream consumers."""
     cmp = Comparison(
-        variant_a=VariantStats(
-            name="A", n=1, pass_count=1, pass_rate=1.0, mean_score=1.0, mean_duration_ms=0.0
-        ),
-        variant_b=VariantStats(
-            name="B", n=1, pass_count=0, pass_rate=0.0, mean_score=0.0, mean_duration_ms=0.0
-        ),
+        variant_a=VariantStats(name="A", n=1, pass_count=1, pass_rate=1.0, mean_score=1.0, mean_duration_ms=0.0),
+        variant_b=VariantStats(name="B", n=1, pass_count=0, pass_rate=0.0, mean_score=0.0, mean_duration_ms=0.0),
         per_task=(),
         winner="a",
         reason="A pass_rate 100.00% beat B 0.00%",

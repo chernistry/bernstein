@@ -148,7 +148,7 @@ CandidateSpawner = Callable[["Task", int], list[str]]
 Concrete implementations create ``n`` worktrees, register subtasks with
 the task store, and return the new task IDs.  The runner is
 agent-agnostic — pass any callable matching this signature.  A typical
-production wiring delegates to :func:`bernstein.core.orchestration.spawner`.
+production wiring delegates to :func:`bernstein.core.agents.spawner`.
 """
 
 

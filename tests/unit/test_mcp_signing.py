@@ -76,8 +76,7 @@ def _make_signed_manifest(
 class TestParseManifest:
     def test_parses_valid_json_manifest(self) -> None:
         manifest = parse_manifest(
-            '{"name": "ex", "version": "1.0", "publisher": '
-            '{"name": "p", "fingerprint": "ed25519/abc"}}'
+            '{"name": "ex", "version": "1.0", "publisher": {"name": "p", "fingerprint": "ed25519/abc"}}'
         )
         assert manifest.name == "ex"
         assert manifest.version == "1.0"
@@ -90,18 +89,12 @@ class TestParseManifest:
 
     def test_rejects_missing_name(self) -> None:
         with pytest.raises(MCPVerificationError) as exc:
-            parse_manifest(
-                '{"version": "1.0", "publisher": '
-                '{"name": "p", "fingerprint": "ed25519/abc"}}'
-            )
+            parse_manifest('{"version": "1.0", "publisher": {"name": "p", "fingerprint": "ed25519/abc"}}')
         assert exc.value.verdict == VerificationVerdict.BAD_MANIFEST
 
     def test_rejects_non_ed25519_fingerprint(self) -> None:
         with pytest.raises(MCPVerificationError) as exc:
-            parse_manifest(
-                '{"name": "ex", "version": "1.0", "publisher": '
-                '{"name": "p", "fingerprint": "rsa/abc"}}'
-            )
+            parse_manifest('{"name": "ex", "version": "1.0", "publisher": {"name": "p", "fingerprint": "rsa/abc"}}')
         assert exc.value.verdict == VerificationVerdict.BAD_MANIFEST
 
     def test_rejects_bad_content_hash_prefix(self) -> None:
@@ -116,18 +109,12 @@ class TestParseManifest:
 
 class TestCanonicalizeManifest:
     def test_is_deterministic(self) -> None:
-        manifest_json = (
-            '{"name": "ex", "version": "1.0", "publisher": '
-            '{"name": "p", "fingerprint": "ed25519/abc"}}'
-        )
+        manifest_json = '{"name": "ex", "version": "1.0", "publisher": {"name": "p", "fingerprint": "ed25519/abc"}}'
         m = parse_manifest(manifest_json)
         assert canonicalize_manifest(m) == canonicalize_manifest(m)
 
     def test_includes_typ_binding(self) -> None:
-        m = parse_manifest(
-            '{"name": "ex", "version": "1.0", "publisher": '
-            '{"name": "p", "fingerprint": "ed25519/abc"}}'
-        )
+        m = parse_manifest('{"name": "ex", "version": "1.0", "publisher": {"name": "p", "fingerprint": "ed25519/abc"}}')
         # The typ binding prevents cross-context signature replay.
         assert b"mcp-server-manifest+ed25519" in canonicalize_manifest(m)
 
@@ -228,9 +215,7 @@ class TestMCPScanner:
         findings = scan_mcp_bundle(
             bundle_files={
                 "tools/read.py": (
-                    "def read(p):\n"
-                    "    with open(os.path.join('/srv', p)) as f:\n"
-                    "        return f.read()\n"
+                    "def read(p):\n    with open(os.path.join('/srv', p)) as f:\n        return f.read()\n"
                 )
             },
         )
@@ -240,9 +225,7 @@ class TestMCPScanner:
         findings = scan_mcp_bundle(
             bundle_files={
                 "tools/read.py": (
-                    "def read(p):\n"
-                    "    target = (Path('/srv') / p).resolve()\n"
-                    "    return target.read_text()\n"
+                    "def read(p):\n    target = (Path('/srv') / p).resolve()\n    return target.read_text()\n"
                 )
             },
         )
@@ -251,12 +234,7 @@ class TestMCPScanner:
 
     def test_shell_injection_pattern_flagged(self) -> None:
         findings = scan_mcp_bundle(
-            bundle_files={
-                "tools/exec.py": (
-                    "def run(cmd):\n"
-                    "    subprocess.run(cmd, shell=True)\n"
-                )
-            },
+            bundle_files={"tools/exec.py": ("def run(cmd):\n    subprocess.run(cmd, shell=True)\n")},
         )
         critical = [f for f in findings if f.rule == "shell_injection"]
         assert critical
@@ -291,10 +269,7 @@ class TestMCPScanner:
     def test_scope_escalation_pattern_flagged(self) -> None:
         findings = scan_mcp_bundle(
             bundle_files={
-                "auth/refresh.py": (
-                    "def refresh(token):\n"
-                    "    return refresh_with(token, scope='admin write')\n"
-                )
+                "auth/refresh.py": ("def refresh(token):\n    return refresh_with(token, scope='admin write')\n")
             },
         )
         assert any(f.rule == "scope_escalation" for f in findings)
@@ -310,12 +285,7 @@ class TestMCPScanner:
 
     def test_clean_bundle_no_findings(self) -> None:
         findings = scan_mcp_bundle(
-            bundle_files={
-                "src/server.py": (
-                    "def hello():\n"
-                    "    return {'msg': 'hi'}\n"
-                )
-            },
+            bundle_files={"src/server.py": ("def hello():\n    return {'msg': 'hi'}\n")},
         )
         assert findings == []
 
@@ -374,9 +344,7 @@ class TestEnforceMCPServerLoad:
         # Remediation message must cite the verify CLI verb
         assert "bernstein mcp verify" in str(exc.value)
 
-    def test_unsigned_warn_only_logs_and_counts(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_unsigned_warn_only_logs_and_counts(self, caplog: pytest.LogCaptureFixture) -> None:
         """(c) Unsigned server in warn-only mode → log + counter tick."""
         manifest, _sig, fp, pem = _make_signed_manifest()
         policy = MCPSigningPolicy(
@@ -431,15 +399,11 @@ class TestEnforceMCPServerLoad:
                 server_name="example",
                 manifest_yaml=manifest,
                 signature_b64=sig,
-                bundle_files={
-                    "tools/exec.py": "subprocess.run(cmd, shell=True)\n"
-                },
+                bundle_files={"tools/exec.py": "subprocess.run(cmd, shell=True)\n"},
                 policy=policy,
             )
 
-    def test_critical_finding_warns_only_in_warn_mode(
-        self, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_critical_finding_warns_only_in_warn_mode(self, caplog: pytest.LogCaptureFixture) -> None:
         manifest, sig, fp, pem = _make_signed_manifest()
         policy = MCPSigningPolicy(
             strict=False,
@@ -451,21 +415,14 @@ class TestEnforceMCPServerLoad:
                 server_name="example",
                 manifest_yaml=manifest,
                 signature_b64=sig,
-                bundle_files={
-                    "tools/exec.py": "subprocess.run(cmd, shell=True)\n"
-                },
+                bundle_files={"tools/exec.py": "subprocess.run(cmd, shell=True)\n"},
                 policy=policy,
             )
         assert decision.allowed is True
-        assert any(
-            f.severity == ScannerSeverity.CRITICAL
-            for f in decision.scanner_findings
-        )
+        assert any(f.severity == ScannerSeverity.CRITICAL for f in decision.scanner_findings)
         assert any("CRITICAL" in r.message for r in caplog.records)
 
-    def test_env_override_forces_warn_only(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_env_override_forces_warn_only(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv(ENV_ALLOW_UNSIGNED, "true")
         policy = MCPSigningPolicy.from_config(
             config={"allow_unsigned": False},

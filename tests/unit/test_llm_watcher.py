@@ -80,9 +80,7 @@ class TestDisabledByDefault:
         cfg = WatcherConfig()
         assert cfg.enabled is False
 
-    def test_build_from_env_disabled_by_default(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_build_from_env_disabled_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Be defensive: clear any leaked env var so the test is hermetic.
         monkeypatch.delenv("BERNSTEIN_LLM_WATCHER_ENABLED", raising=False)
         watcher = build_watcher_from_env()
@@ -220,8 +218,7 @@ class TestReadOnlyContract:
             "agent_registry",
         }
         assert forbidden.isdisjoint(sig.parameters), (
-            f"LLMWatcher must not accept any of {forbidden}; got "
-            f"{set(sig.parameters)}"
+            f"LLMWatcher must not accept any of {forbidden}; got {set(sig.parameters)}"
         )
 
     def test_watcher_event_payload_does_not_carry_callables(self) -> None:
@@ -272,8 +269,7 @@ class TestReadOnlyContract:
         )
         for needle in forbidden_imports:
             assert needle not in source, (
-                f"Watcher module must not import {needle!r}; would break "
-                "the read-only contract."
+                f"Watcher module must not import {needle!r}; would break the read-only contract."
             )
 
 

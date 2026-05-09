@@ -43,9 +43,7 @@ class TestAdversaryRoleFilesExist:
     """The role lives under templates/roles/adversary/ with the standard files."""
 
     def test_role_directory_exists(self) -> None:
-        assert _ADVERSARY_DIR.is_dir(), (
-            f"Expected {_ADVERSARY_DIR} to exist as a directory"
-        )
+        assert _ADVERSARY_DIR.is_dir(), f"Expected {_ADVERSARY_DIR} to exist as a directory"
 
     def test_system_prompt_exists_and_non_empty(self) -> None:
         system_prompt = _ADVERSARY_DIR / "system_prompt.md"

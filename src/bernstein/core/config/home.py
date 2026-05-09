@@ -1,8 +1,16 @@
 """Global ~/.bernstein home directory management.
 
 Provides cross-project config storage, catalog cache, and cost tracking.
+
 Config precedence (highest to lowest):
   session overrides > project .sdd/config.yaml > ~/.bernstein/config.yaml > built-in defaults
+
+Environment overrides (take priority over all file-based config layers):
+  BERNSTEIN_CLI         Default CLI adapter (e.g. claude, codex, gemini, qwen).
+  BERNSTEIN_BUDGET      Spending cap in USD (0 = unlimited).
+  BERNSTEIN_MAX_AGENTS  Maximum concurrent agents (default 6).
+  BERNSTEIN_EFFORT      Default effort level (max | medium | low).
+  BERNSTEIN_MODEL       Default model override (empty = adapter default).
 """
 
 from __future__ import annotations

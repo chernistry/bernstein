@@ -186,11 +186,7 @@ def test_capability_filter_drops_inadequate_backends() -> None:
     ]
     chosen = select_sandbox(
         backends,
-        policy=SandboxPolicy(
-            required_capabilities=frozenset(
-                {SandboxCapability.FILE_RW, SandboxCapability.EXEC}
-            )
-        ),
+        policy=SandboxPolicy(required_capabilities=frozenset({SandboxCapability.FILE_RW, SandboxCapability.EXEC})),
     )
     assert chosen.name == "docker"
 

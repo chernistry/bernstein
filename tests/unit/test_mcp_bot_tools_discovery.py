@@ -37,9 +37,12 @@ from bernstein.core.server import create_app
 
 def test_allowlist_contains_only_read_only_tools() -> None:
     """The four read-only tools, nothing else (no run/approve/stop/subtask)."""
-    assert frozenset(
-        {"bernstein_status", "bernstein_tasks", "bernstein_health", "bernstein_cost"},
-    ) == ALLOWED_BOT_TOOLS
+    assert (
+        frozenset(
+            {"bernstein_status", "bernstein_tasks", "bernstein_health", "bernstein_cost"},
+        )
+        == ALLOWED_BOT_TOOLS
+    )
 
 
 @pytest.mark.parametrize(

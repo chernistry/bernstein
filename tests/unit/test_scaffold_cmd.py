@@ -107,9 +107,7 @@ class TestMaterializeTemplate:
     def test_python_cli_produces_expected_tree(self, tmp_path: Path) -> None:
         dest = tmp_path / "habit-tracker"
         template = SCAFFOLD_TEMPLATES["python-cli"]
-        written = materialize_template(
-            template, dest, prompt="Build me a habit tracker"
-        )
+        written = materialize_template(template, dest, prompt="Build me a habit tracker")
 
         relative = sorted(p.relative_to(dest).as_posix() for p in written)
         assert relative == [

@@ -170,11 +170,7 @@ _NODE_CLI = ScaffoldTemplate(
         ),
         ScaffoldFile(
             relative_path="bin/cli.js",
-            content=(
-                "#!/usr/bin/env node\n"
-                "// Entrypoint for $slug — $prompt.\n"
-                'console.log("hello from $slug");\n'
-            ),
+            content=('#!/usr/bin/env node\n// Entrypoint for $slug — $prompt.\nconsole.log("hello from $slug");\n'),
         ),
         ScaffoldFile(
             relative_path="README.md",
@@ -328,8 +324,7 @@ def materialize_template(
     dest = dest.resolve()
     if dest.exists() and any(dest.iterdir()) and not force:
         raise ScaffoldError(
-            f"Destination {dest} already exists and is not empty; "
-            "pass --force to overwrite.",
+            f"Destination {dest} already exists and is not empty; pass --force to overwrite.",
         )
     dest.mkdir(parents=True, exist_ok=True)
 

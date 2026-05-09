@@ -81,8 +81,7 @@ def scaffold_cmd(
         raise SystemExit(1) from exc
 
     console.print(
-        f"[green]Scaffolded[/green] [bold]{chosen.name}[/bold] "
-        f"into [bold]{dest}[/bold]",
+        f"[green]Scaffolded[/green] [bold]{chosen.name}[/bold] into [bold]{dest}[/bold]",
     )
     for path in created:
         console.print(f"  [dim]-[/dim] {path.relative_to(dest)}")

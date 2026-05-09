@@ -164,7 +164,7 @@ jobs:
       # site. Runs BEFORE the PyPI publish so a transparency-log entry
       # exists before any consumer can pip-install the artefact.
       - name: Attest build provenance (Sigstore)
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: "dist/*"
       - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1

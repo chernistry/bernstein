@@ -378,8 +378,7 @@ def verify_mcp_server(
             ok=False,
             verdict=VerificationVerdict.UNTRUSTED_PUBLISHER,
             failure_reason=(
-                f"publisher fingerprint {manifest.publisher_fingerprint!r} "
-                "is not in the trusted-publisher allowlist"
+                f"publisher fingerprint {manifest.publisher_fingerprint!r} is not in the trusted-publisher allowlist"
             ),
             manifest=manifest,
             publisher_fingerprint=manifest.publisher_fingerprint,
@@ -406,8 +405,7 @@ def verify_mcp_server(
                 ok=False,
                 verdict=VerificationVerdict.CONTENT_HASH_MISMATCH,
                 failure_reason=(
-                    f"content_hash mismatch: manifest declared sha256/{expected!r}, "
-                    f"computed sha256/{actual!r}"
+                    f"content_hash mismatch: manifest declared sha256/{expected!r}, computed sha256/{actual!r}"
                 ),
                 manifest=manifest,
                 publisher_fingerprint=manifest.publisher_fingerprint,

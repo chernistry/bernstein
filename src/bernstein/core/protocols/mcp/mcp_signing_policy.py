@@ -149,9 +149,7 @@ class MCPSigningPolicy:
         forces warn-only mode (equivalent to ``strict=False``).
         """
         cfg = dict(config or {})
-        allow_unsigned_env = (
-            os.environ.get(ENV_ALLOW_UNSIGNED, "").strip().lower() == "true"
-        )
+        allow_unsigned_env = os.environ.get(ENV_ALLOW_UNSIGNED, "").strip().lower() == "true"
         allow_unsigned_cfg = bool(cfg.get("allow_unsigned", False))
         strict = not (allow_unsigned_env or allow_unsigned_cfg)
 
@@ -195,9 +193,7 @@ class MCPLoadDecision:
 
     allowed: bool
     verification: MCPVerificationResult
-    scanner_findings: list[ScannerFinding] = field(
-        default_factory=list[ScannerFinding]
-    )
+    scanner_findings: list[ScannerFinding] = field(default_factory=list[ScannerFinding])
     warnings: list[str] = field(default_factory=list[str])
 
 
@@ -320,9 +316,7 @@ def _decide(
     tick (which we *do* want even in warn-only since that's its purpose).
     """
     warnings: list[str] = []
-    has_critical_finding = any(
-        f.severity == ScannerSeverity.CRITICAL for f in findings
-    )
+    has_critical_finding = any(f.severity == ScannerSeverity.CRITICAL for f in findings)
 
     if verification.ok:
         if has_critical_finding and policy.critical_scan_blocks_load:
@@ -335,8 +329,7 @@ def _decide(
                     warnings=warnings,
                 )
             warnings.append(
-                f"server '{server_name}' has CRITICAL scanner findings "
-                "but warn-only policy permits the load"
+                f"server '{server_name}' has CRITICAL scanner findings but warn-only policy permits the load"
             )
             logger.warning(warnings[-1])
         return MCPLoadDecision(
@@ -419,9 +412,6 @@ def _remediation_message(
     )
     critical = [f for f in findings if f.severity == ScannerSeverity.CRITICAL]
     if critical:
-        bullets = "\n  - ".join(
-            f"{f.rule} ({f.cwe}) at {f.path}:{f.line} — {f.message}"
-            for f in critical[:3]
-        )
+        bullets = "\n  - ".join(f"{f.rule} ({f.cwe}) at {f.path}:{f.line} — {f.message}" for f in critical[:3])
         head += f"\nCRITICAL scanner findings:\n  - {bullets}"
     return head

@@ -183,8 +183,7 @@ _RULES: tuple[_Rule, ...] = (
             "check (CVE-2025-68145 Anthropic Git MCP path-traversal lineage)"
         ),
         remediation=(
-            "call Path(...).resolve() and assert the resolved path "
-            "is_relative_to(allowed_root) before opening"
+            "call Path(...).resolve() and assert the resolved path is_relative_to(allowed_root) before opening"
         ),
     ),
     _Rule(
@@ -198,10 +197,7 @@ _RULES: tuple[_Rule, ...] = (
             re.IGNORECASE,
         ),
         safe_pattern=re.compile(r"shlex\.quote\("),
-        message=(
-            "shell-mode subprocess / exec with non-quoted arg "
-            "(CVE-2026-25253 OpenClaw gateway RCE lineage)"
-        ),
+        message=("shell-mode subprocess / exec with non-quoted arg (CVE-2026-25253 OpenClaw gateway RCE lineage)"),
         remediation=(
             "drop shell=True; pass a list of args, or wrap user input "
             "with shlex.quote() (Python) / use spawn() with array (Node)"
@@ -219,9 +215,7 @@ _RULES: tuple[_Rule, ...] = (
             re.IGNORECASE,
         ),
         # Per-line safe pattern (e.g. inline allowlist check)
-        safe_pattern=re.compile(
-            r"(ALLOWED_REDIRECTS|redirect_allowlist|in\s+ALLOWED_)"
-        ),
+        safe_pattern=re.compile(r"(ALLOWED_REDIRECTS|redirect_allowlist|in\s+ALLOWED_)"),
         # File-level safe pattern: the allow-list is commonly defined a
         # few lines below the assignment, so a per-line check would
         # flag the assignment site even when the file is in fact safe.
@@ -251,10 +245,7 @@ _RULES: tuple[_Rule, ...] = (
             "OAuth flow expands token scope after issuance "
             "(CVE-2026-32922 OpenClaw scope-escalation, CVSS 9.9, lineage)"
         ),
-        remediation=(
-            "request the final scope at initial authorization; never "
-            "broaden scope on token refresh"
-        ),
+        remediation=("request the final scope at initial authorization; never broaden scope on token refresh"),
     ),
 )
 
@@ -300,10 +291,7 @@ def scan_mcp_bundle(
                     "(public CVE / typosquat / compromised publisher)"
                 ),
                 cwe="CWE-1357",
-                remediation=(
-                    "do not install; if the name is a typo, install the "
-                    "intended publisher's package instead"
-                ),
+                remediation=("do not install; if the name is a typo, install the intended publisher's package instead"),
             )
         )
 
@@ -375,10 +363,7 @@ def _scan_source(*, path: str, source: str) -> list[ScannerFinding]:
     """
     findings: list[ScannerFinding] = []
     file_safe_hits: dict[str, bool] = {
-        rule.rule_id: bool(
-            rule.file_safe_pattern is not None
-            and rule.file_safe_pattern.search(source)
-        )
+        rule.rule_id: bool(rule.file_safe_pattern is not None and rule.file_safe_pattern.search(source))
         for rule in _RULES
     }
     for line_no, line in enumerate(source.splitlines(), start=1):

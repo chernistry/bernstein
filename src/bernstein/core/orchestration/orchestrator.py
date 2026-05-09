@@ -745,6 +745,19 @@ class Orchestrator:
         self._ci_autofix_pipeline: Any | None = None
         self._last_ci_poll_ts: float = 0.0
 
+        # LLM watcher (P1 — opt-in advisory observer above the deterministic
+        # orchestrator).  Off by default; the watcher imports the LLM stack
+        # only when ``BERNSTEIN_LLM_WATCHER_ENABLED`` is truthy.  It receives
+        # a frozen ``WatcherEvent`` snapshot only — no orchestrator handle,
+        # no task store, no spawner — so it is structurally read-only.  See
+        # ``bernstein.core.observability.llm_watcher`` for the full contract.
+        from bernstein.core.observability.llm_watcher import build_watcher_from_env
+
+        self._llm_watcher = build_watcher_from_env()
+        # Track signals for ``_log_summary`` / future CLI surfaces; capped
+        # to keep memory bounded under long-lived runs.
+        self._llm_watcher_signals: collections.deque[Any] = collections.deque(maxlen=64)
+
     # -- Hot-reload source detection -----------------------------------------
 
     # Key source files whose modification triggers an orchestrator restart.
@@ -1629,7 +1642,105 @@ class Orchestrator:
         # 11. Record replay events for deterministic replay
         self._record_tick_events(result, tasks_by_status)
 
+        # 12. LLM watcher (opt-in, off by default).  Single hook point that
+        #     hands an immutable ``WatcherEvent`` snapshot to the watcher.
+        #     The watcher receives no orchestrator handle and cannot mutate
+        #     state.  Failures are swallowed — orchestrator stability wins.
+        self._dispatch_watcher_events(result)
+
         return result
+
+    def _dispatch_watcher_events(self, result: TickResult) -> None:
+        """Hand watcher events to the opt-in LLM observer.
+
+        Called once at the end of ``_tick_internal``.  Builds a frozen
+        snapshot per spawned/verified task and passes it to the watcher.
+        The watcher receives no orchestrator handle, no task store, and
+        no spawner — only the snapshot.  This is the single, well-defined
+        hook required by the watcher's read-only contract.
+
+        Args:
+            result: The :class:`TickResult` produced by the current tick.
+
+        Side effects:
+            * Appends any returned :class:`Suggestion` records to
+              ``self._llm_watcher_signals`` for downstream surfaces.
+            * Never mutates ``result``, ``tasks_by_status``, or any
+              orchestrator state besides the bounded signal deque.
+            * Catches every exception so a misbehaving watcher cannot
+              crash the orchestrator.
+        """
+        watcher = getattr(self, "_llm_watcher", None)
+        if watcher is None or not watcher.config.enabled:
+            return
+
+        try:
+            from bernstein.core.observability.llm_watcher import WatcherEvent
+        except Exception:
+            return
+
+        events: list[WatcherEvent] = []
+        now = time.time()
+        for task_id in result.spawned:
+            events.append(
+                WatcherEvent(
+                    kind="task_spawned",
+                    run_id=self._run_id,
+                    timestamp=now,
+                    payload={"task_id": task_id, "tick": self._tick_count},
+                )
+            )
+        for task_id in result.verified:
+            events.append(
+                WatcherEvent(
+                    kind="task_completed",
+                    run_id=self._run_id,
+                    timestamp=now,
+                    payload={"task_id": task_id, "tick": self._tick_count},
+                )
+            )
+
+        if not events:
+            return
+
+        # Schedule observe() coroutines on a short-lived event loop so the
+        # synchronous tick is never blocked by network I/O for longer than
+        # the watcher's per-call timeout.
+        try:
+            import asyncio
+
+            async def _drain() -> list[Any]:
+                drained: list[Any] = []
+                for event in events:
+                    try:
+                        sigs = await watcher.observe(event)
+                    except Exception:
+                        # Defence-in-depth: observe() already swallows
+                        # exceptions, but the watcher contract is too
+                        # important to leave a single uncaught error path.
+                        logger.warning(
+                            "LLM watcher observe() raised for kind=%s",
+                            event.kind,
+                            exc_info=True,
+                        )
+                        sigs = []
+                    drained.extend(sigs)
+                return drained
+
+            try:
+                asyncio.get_running_loop()
+                inside_loop = True
+            except RuntimeError:
+                inside_loop = False
+
+            # If the tick ever runs inside an async context the watcher
+            # is skipped — the dispatcher refuses to nest event loops.
+            signals = asyncio.run(_drain()) if not inside_loop else []
+
+            for sig in signals:
+                self._llm_watcher_signals.append(sig)
+        except Exception:
+            logger.warning("LLM watcher dispatch failed", exc_info=True)
 
     def _check_workflow_approval(self) -> None:
         """Check for file-based workflow approval grant.

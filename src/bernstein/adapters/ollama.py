@@ -139,13 +139,23 @@ class OllamaAdapter(CLIAdapter):
         """Return True when ``base_url`` points at a self-hosted endpoint.
 
         Default-closed: this returns ``True`` only when the host is
-        unambiguously self-hosted (loopback, RFC-1918 private range,
-        ``*.internal`` / ``*.local`` / ``*.svc``).  Any public IP or
-        unrecognised hostname is treated as non-self-hosted because the
-        residency profile cannot prove the endpoint sits inside the EU
-        boundary.  Operators who run a private inference cluster on a
-        public IP must front it with a hostname under one of the
-        recognised internal suffixes (or extend this allow-list).
+        unambiguously self-hosted -- ``localhost``, an IPv4 RFC-1918
+        private address (``10/8``, ``172.16/12``, ``192.168/16``), an
+        IPv4/IPv6 loopback (``127/8`` or ``::1``), an IPv6 unique-local
+        address (``fc00::/7``) or link-local (``fe80::/10``), or an FQDN
+        ending in one of the recognised internal suffixes
+        (``*.internal``, ``*.local``, ``*.svc``, ``*.cluster.local``).
+        Any public IP or unrecognised hostname is treated as
+        non-self-hosted because the residency profile cannot prove the
+        endpoint sits inside the EU boundary.
+
+        Implementation note: prior versions used naive string-prefix
+        matching (``host.startswith("10.")``) which silently accepted
+        public hostnames that *happened* to start with the prefix
+        (``10.example.com``, ``192.168.evil.tld``, ``172.20.foo.com``)
+        as self-hosted -- a residency-bypass for any attacker who
+        controls a domain. Use :mod:`ipaddress` so the check is on the
+        wire-form octet semantics, not the hostname text.
 
         Args:
             base_url: The configured Ollama / OpenAI-compatible base URL.
@@ -153,29 +163,25 @@ class OllamaAdapter(CLIAdapter):
         Returns:
             True if the endpoint looks self-hosted, False otherwise.
         """
+        import ipaddress
         from urllib.parse import urlparse
 
         host = (urlparse(base_url).hostname or "").lower()
         if not host:
             # Empty / malformed URL — fail closed under residency mode.
             return False
-        if host in {"localhost", "127.0.0.1", "::1", "0.0.0.0"}:
+        if host == "localhost":
             return True
-        # RFC 1918 ranges: 10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12.
-        if host.startswith(("10.", "192.168.")):
-            return True
-        if host.startswith("172."):
-            try:
-                second = int(host.split(".", 2)[1])
-                if 16 <= second <= 31:
-                    return True
-            except (ValueError, IndexError):
-                pass
-        # Anything else (public IP, hosted-API hostname, unrecognised FQDN)
-        # is rejected — we cannot prove EU residency for it.  Operators
-        # who run a private inference cluster on a public IP must front
-        # it with a hostname under one of the recognised internal suffixes.
-        return host.endswith((".internal", ".local", ".svc", ".cluster.local"))
+        try:
+            ip = ipaddress.ip_address(host)
+        except ValueError:
+            # Not a literal IP; fall through to FQDN-suffix allow-list.
+            # ``0.0.0.0`` is intentionally NOT in the suffix list -- it is
+            # the IPv4 wildcard, not loopback, and would whitelist any
+            # interface the host happens to bind.
+            return host.endswith((".internal", ".local", ".svc", ".cluster.local"))
+        # IP-literal path: rely on stdlib semantics for v4 + v6.
+        return ip.is_loopback or ip.is_private or ip.is_link_local
 
     def spawn(
         self,

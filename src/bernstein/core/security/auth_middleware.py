@@ -75,6 +75,7 @@ AUTH_PUBLIC_PATHS = frozenset(
         "/alive",
         # Agent / protocol discovery
         "/.well-known/agent.json",
+        "/.well-known/agent.json/keys",
         "/.well-known/acp.json",
         "/llms.txt",
         "/acp/v0/agents",

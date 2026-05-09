@@ -54,6 +54,7 @@ class IPAllowlistMiddleware(BaseHTTPMiddleware):
             "/ready",
             "/alive",
             "/.well-known/agent.json",
+            "/.well-known/agent.json/keys",
             "/docs",
             "/openapi.json",
         }

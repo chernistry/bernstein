@@ -1442,8 +1442,34 @@ class AgentSpawner:
             return "claude"
         return self._adapter.name()
 
-    def _get_adapter_by_name(self, adapter_name: str) -> CLIAdapter:
-        """Return cached adapter instance, creating one when needed."""
+    def _get_adapter_by_name(self, adapter_name: str, *, role: str | None = None) -> CLIAdapter:
+        """Return cached adapter instance, creating one when needed.
+
+        When *role* is supplied, the per-role adapter deny-list
+        (``role_adapter_policy``) is consulted before instantiation. An
+        empty allow-list for a role is back-compat: the spawn proceeds.
+        A non-empty allow-list rejects spawns whose adapter is not on
+        it, raising :exc:`bernstein.core.security.role_adapter_policy.
+        RoleAdapterDenied` and emitting a structured ``role.adapter.
+        denied`` event into the HMAC audit chain.
+
+        Args:
+            adapter_name: Adapter id (``claude``, ``aider``, …).
+            role: Effective role of the spawn site (taken from the
+                primary task's ``role`` field). Optional so legacy
+                call sites that have no role still work.
+        """
+        if role is not None:
+            from bernstein.core.security.audit import AuditLog as _AuditLog
+            from bernstein.core.security.role_adapter_policy import enforce as _enforce_role_adapter
+
+            audit_log: _AuditLog | None = None
+            try:
+                audit_log = _AuditLog(audit_dir=self._workdir / ".sdd" / "audit")
+            except Exception as exc:
+                logger.debug("role_adapter_policy: audit ctor failed (%s); deny will not be logged", exc)
+            _enforce_role_adapter(role, adapter_name, audit_log=audit_log)
+
         cached = self._adapter_cache.get(adapter_name)
         if cached is not None:
             return cached
@@ -2069,7 +2095,7 @@ class AgentSpawner:
                     attempted.add(attempt_key)
 
                     try:
-                        target_adapter = self._get_adapter_by_name(adapter_name)
+                        target_adapter = self._get_adapter_by_name(adapter_name, role=session.role)
                     except Exception as exc:
                         attempt_errors.append(f"{adapter_name}: {exc}")
                         break

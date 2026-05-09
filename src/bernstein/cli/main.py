@@ -56,6 +56,7 @@ from bernstein.cli.checkpoint_cmd import checkpoint_cmd
 from bernstein.cli.ci_cmd import ci_group
 from bernstein.cli.cloud_cmd import cloud_group
 from bernstein.cli.commands.fleet_cmd import fleet_group
+from bernstein.cli.commands.role_adapter_policy_cmd import security_group as _role_adapter_security_group
 from bernstein.cli.commands.skills_cmd import skills_group
 from bernstein.cli.compliance_cmd import compliance_group
 from bernstein.cli.config_path_cmd import config_path_cmd
@@ -753,6 +754,7 @@ cli.add_command(replay_cmd, "replay")
 cli.add_command(github_group)
 cli.add_command(graph_group, "graph")
 cli.add_command(policy_group, "policy")
+cli.add_command(_role_adapter_security_group, "security")
 cli.add_command(mcp_server, "mcp")
 # Wire the release-1.9 community catalog as a subgroup of `bernstein mcp`.
 from bernstein.cli.commands.mcp_catalog_cmd import catalog_group as _catalog_group  # noqa: E402

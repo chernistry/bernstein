@@ -264,20 +264,41 @@ class TestOwaspAsiGuardrailAdapter:
 
 
 class TestPipelineFlagWiring:
-    def test_default_off_when_flag_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_default_on_when_no_env_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Default-on flip: pack loads automatically without any env-var."""
+        monkeypatch.delenv("BERNSTEIN_DISABLE_OWASP_ASI", raising=False)
+        monkeypatch.delenv("BERNSTEIN_ENABLE_OWASP_ASI", raising=False)
+        pipeline = GuardrailPipeline.default()
+        names = [g.name for g in pipeline.guardrails]
+        assert "owasp_asi" in names
+
+    def test_disabled_env_var_skips_pack(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """BERNSTEIN_DISABLE_OWASP_ASI=1 is the documented opt-out."""
+        monkeypatch.setenv("BERNSTEIN_DISABLE_OWASP_ASI", "1")
         monkeypatch.delenv("BERNSTEIN_ENABLE_OWASP_ASI", raising=False)
         pipeline = GuardrailPipeline.default()
         names = [g.name for g in pipeline.guardrails]
         assert "owasp_asi" not in names
 
-    def test_default_on_when_flag_truthy(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_legacy_falsy_enable_var_still_disables(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Operators who scripted BERNSTEIN_ENABLE_OWASP_ASI=0 keep their off semantics."""
+        monkeypatch.delenv("BERNSTEIN_DISABLE_OWASP_ASI", raising=False)
+        monkeypatch.setenv("BERNSTEIN_ENABLE_OWASP_ASI", "0")
+        pipeline = GuardrailPipeline.default()
+        names = [g.name for g in pipeline.guardrails]
+        assert "owasp_asi" not in names
+
+    def test_legacy_truthy_enable_var_is_noop_under_default_on(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The pack is on either way once default flips — the truthy opt-in is harmless."""
+        monkeypatch.delenv("BERNSTEIN_DISABLE_OWASP_ASI", raising=False)
         monkeypatch.setenv("BERNSTEIN_ENABLE_OWASP_ASI", "1")
         pipeline = GuardrailPipeline.default()
         names = [g.name for g in pipeline.guardrails]
         assert "owasp_asi" in names
 
     def test_explicit_override_wins_over_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("BERNSTEIN_ENABLE_OWASP_ASI", "1")
+        monkeypatch.delenv("BERNSTEIN_DISABLE_OWASP_ASI", raising=False)
+        monkeypatch.delenv("BERNSTEIN_ENABLE_OWASP_ASI", raising=False)
         pipeline = GuardrailPipeline.default(enable_owasp_asi=False)
         names = [g.name for g in pipeline.guardrails]
         assert "owasp_asi" not in names
@@ -288,11 +309,23 @@ class TestPipelineFlagWiring:
         assert result is pipeline
         assert "owasp_asi" in [g.name for g in pipeline.guardrails]
 
-    def test_is_owasp_asi_enabled_recognises_truthy(self) -> None:
+    def test_is_owasp_asi_enabled_default_on(self) -> None:
+        """The probe returns True with no env-var set (default-on phase)."""
+        assert is_owasp_asi_enabled({})
+
+    def test_is_owasp_asi_enabled_disable_var(self) -> None:
+        assert not is_owasp_asi_enabled({"BERNSTEIN_DISABLE_OWASP_ASI": "1"})
+        assert not is_owasp_asi_enabled({"BERNSTEIN_DISABLE_OWASP_ASI": "true"})
+
+    def test_is_owasp_asi_enabled_legacy_falsy_disable(self) -> None:
+        """Legacy BERNSTEIN_ENABLE_OWASP_ASI=0 still disables the pack."""
+        assert not is_owasp_asi_enabled({"BERNSTEIN_ENABLE_OWASP_ASI": "0"})
+        assert not is_owasp_asi_enabled({"BERNSTEIN_ENABLE_OWASP_ASI": "false"})
+
+    def test_is_owasp_asi_enabled_legacy_truthy_remains_on(self) -> None:
+        """Legacy truthy opt-in is a no-op under default-on; result stays True."""
+        assert is_owasp_asi_enabled({"BERNSTEIN_ENABLE_OWASP_ASI": "1"})
         assert is_owasp_asi_enabled({"BERNSTEIN_ENABLE_OWASP_ASI": "yes"})
-        assert is_owasp_asi_enabled({"BERNSTEIN_ENABLE_OWASP_ASI": "TRUE"})
-        assert not is_owasp_asi_enabled({"BERNSTEIN_ENABLE_OWASP_ASI": ""})
-        assert not is_owasp_asi_enabled({})
 
 
 class TestOrchestratorRobustness:

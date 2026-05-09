@@ -11,15 +11,104 @@ is complemented by the auto-detection logic in :mod:`bernstein.core.mcp_registry
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from bernstein.core.protocols.mcp.mcp_signing_policy import MCPSigningPolicy
+
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Signing-mode wire-up (Ed25519 verifier integration)
+# ---------------------------------------------------------------------------
+
+#: Permitted signing-mode values for :class:`MCPManager`.
+#: ``"warn"`` is the default — unsigned servers log + tick the
+#: ``mcp_unsigned_loaded_total`` counter but still load.
+#: ``"strict"`` refuses unsigned servers (raises through ``start_all``'s
+#: failure handler so other servers continue).
+#: ``"off"`` skips verification entirely (legacy behaviour).
+SigningMode = Literal["warn", "strict", "off"]
+
+#: Env-var operators set to override ``mcp.signing_mode`` from
+#: bernstein.yaml.  Accepts ``warn``, ``strict``, ``off`` (case-insensitive).
+ENV_MCP_SIGNING_MODE: str = "BERNSTEIN_MCP_SIGNING_MODE"
+
+#: Filenames the manager looks for next to the configured command,
+#: alongside the ``working_dir`` in the server env, and finally next
+#: to the bernstein.yaml.  First match wins.
+_MCP_MANIFEST_FILENAMES: tuple[str, ...] = ("mcp-server.yaml", "mcp-server.yml", "mcp-server.json")
+_MCP_SIGNATURE_FILENAMES: tuple[str, ...] = ("mcp-server.sig",)
+
+
+def _resolve_signing_mode(
+    *,
+    mode: SigningMode | None,
+    env: dict[str, str] | None = None,
+) -> SigningMode:
+    """Pick the effective signing mode given an explicit value + env-var.
+
+    Order: env-var (highest), explicit ``mode``, ``"warn"`` (default).
+    Unrecognised values fall through to ``"warn"`` with a log line so a
+    misconfigured deployment still gets the safe-but-non-blocking path.
+    """
+    src = env if env is not None else os.environ
+    raw = (src.get(ENV_MCP_SIGNING_MODE) or "").strip().lower()
+    candidate: str = raw or (mode if mode else "warn")
+    if candidate not in ("warn", "strict", "off"):
+        logger.warning(
+            "Unrecognised MCP signing mode %r; falling back to 'warn'. Valid values: warn, strict, off.",
+            candidate,
+        )
+        candidate = "warn"
+    return cast("SigningMode", candidate)
+
+
+def _find_first(paths: list[Path], filenames: tuple[str, ...]) -> Path | None:
+    """Return the first existing file from a ``filenames`` set under any path."""
+    for base in paths:
+        if not base or not base.is_dir():
+            continue
+        for name in filenames:
+            candidate = base / name
+            if candidate.is_file():
+                return candidate
+    return None
+
+
+def _candidate_manifest_dirs(config: MCPServerConfig) -> list[Path]:
+    """Build the search path list for a server's signed-manifest sidecar.
+
+    Order: config working dir env var (``MCP_WORKING_DIR``), the directory
+    of the first command-list element when it looks like a path, then the
+    project root (cwd).  Tests can stub :func:`Path.is_dir` to control.
+    """
+    dirs: list[Path] = []
+    working = config.env.get("MCP_WORKING_DIR") or config.env.get("MCP_BUNDLE_DIR")
+    if working:
+        dirs.append(Path(working))
+    if config.command:
+        first = config.command[0]
+        # If the first element looks like a path (contains / or .), use its dir.
+        if "/" in first or first.startswith(".") or first.endswith((".py", ".sh", ".js")):
+            dirs.append(Path(first).resolve().parent)
+    dirs.append(Path.cwd())
+    # De-dupe while preserving order.
+    seen: set[Path] = set()
+    out: list[Path] = []
+    for d in dirs:
+        if d not in seen:
+            seen.add(d)
+            out.append(d)
+    return out
 
 
 @dataclass(frozen=True)
@@ -141,13 +230,42 @@ class MCPManager:
     Starts MCP servers as subprocesses (stdio) or validates SSE endpoints,
     tracks health, and provides per-agent MCP configuration dicts.
 
+    Each ``start_all`` invocation runs the third-party MCP server through
+    :func:`bernstein.core.protocols.mcp.mcp_signing_policy.enforce_mcp_server_load`
+    when the manager is configured with a signing mode of ``"warn"`` or
+    ``"strict"``.  ``"warn"`` (the default) logs unsigned servers and
+    increments the ``mcp_unsigned_loaded_total`` counter but continues
+    the load.  ``"strict"`` aborts the load for the affected server.
+    ``"off"`` skips the check entirely (legacy behaviour, mostly useful
+    for tests).
+
     Args:
         configs: List of MCP server configurations to manage.
+        signing_mode: ``"warn"`` (default), ``"strict"``, or ``"off"``.
+            The ``BERNSTEIN_MCP_SIGNING_MODE`` env var, when set,
+            overrides this value at construction time.
+        signing_policy: Optional :class:`MCPSigningPolicy` used by the
+            verifier.  When omitted the manager builds an empty policy
+            from :meth:`MCPSigningPolicy.from_config`, which is enough
+            for the warn-mode counter path.
     """
 
-    def __init__(self, configs: list[MCPServerConfig] | None = None) -> None:
+    def __init__(
+        self,
+        configs: list[MCPServerConfig] | None = None,
+        *,
+        signing_mode: SigningMode | None = None,
+        signing_policy: MCPSigningPolicy | None = None,
+    ) -> None:
         self._configs: list[MCPServerConfig] = list(configs) if configs else []
         self._servers: dict[str, _ServerState] = {}
+        self._signing_mode: SigningMode = _resolve_signing_mode(mode=signing_mode)
+        self._signing_policy: MCPSigningPolicy | None = signing_policy
+
+    @property
+    def signing_mode(self) -> SigningMode:
+        """Effective signing mode (env-var > ctor arg > default 'warn')."""
+        return self._signing_mode
 
     @property
     def configs(self) -> list[MCPServerConfig]:
@@ -189,6 +307,11 @@ class MCPManager:
         Args:
             config: Server to start.
         """
+        # Pre-flight: verify Ed25519 signature when policy is in warn/strict.
+        # Strict mode raises through start_all's exception handler so other
+        # servers continue.  Warn mode increments the counter but proceeds.
+        self._verify_signed_manifest(config)
+
         state = _ServerState(config=config, started_at=time.monotonic())
 
         if config.transport == "stdio":
@@ -220,6 +343,109 @@ class MCPManager:
                 logger.warning("SSE MCP server '%s' has no URL", config.name)
 
         self._servers[config.name] = state
+
+    def _verify_signed_manifest(self, config: MCPServerConfig) -> None:
+        """Run the Ed25519 verifier against the sidecar manifest, if any.
+
+        The verifier is wired in at the lifecycle layer rather than the
+        registry so that *every* path that lands a server in the runtime
+        — in-process YAML, marketplace install, lazy discovery — flows
+        through the same enforcement gate.  Behaviour is gated on
+        :attr:`signing_mode`:
+
+        * ``"off"`` — no-op, return immediately.
+        * ``"warn"`` — invoke the policy enforcer in warn-only mode.
+          Unsigned/untrusted servers tick the
+          ``mcp_unsigned_loaded_total`` counter and emit one WARN log
+          line; the load proceeds.
+        * ``"strict"`` — invoke the policy enforcer in strict mode.
+          Unsigned servers raise :class:`MCPVerificationError`, which
+          propagates up through ``start_all``'s ``except Exception``
+          branch so the other servers keep loading.
+        """
+        if self._signing_mode == "off":
+            return
+
+        # Late import — keeps the heavy mcp_signing_policy module out of
+        # cold-start paths and avoids an import cycle with mcp_signing_policy
+        # (which already imports mcp_manager indirectly via the public surface).
+        try:
+            from bernstein.core.protocols.mcp.mcp_signing_policy import (
+                MCPSigningPolicy,
+                enforce_mcp_server_load,
+            )
+        except Exception:
+            logger.exception(
+                "MCP signing policy module unavailable; cannot enforce mode=%s for server '%s'",
+                self._signing_mode,
+                config.name,
+            )
+            return
+
+        policy = self._signing_policy
+        if policy is None:
+            policy = MCPSigningPolicy.from_config(config=None)
+        # The strict bit on the policy is gated by our mode, not the
+        # policy's own ``strict`` field — this lets the manager decide
+        # warn vs. strict at runtime without rebuilding the policy.
+        effective_strict = self._signing_mode == "strict"
+        if effective_strict != policy.strict:
+            policy = MCPSigningPolicy(
+                strict=effective_strict,
+                trusted_publishers=policy.trusted_publishers,
+                publisher_keys=dict(policy.publisher_keys),
+                scan_bundle=policy.scan_bundle,
+                critical_scan_blocks_load=policy.critical_scan_blocks_load,
+            )
+
+        manifest_path = _find_first(_candidate_manifest_dirs(config), _MCP_MANIFEST_FILENAMES)
+        sig_path = _find_first(_candidate_manifest_dirs(config), _MCP_SIGNATURE_FILENAMES)
+
+        manifest_text = ""
+        signature_b64 = ""
+        if manifest_path is not None:
+            try:
+                manifest_text = manifest_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                logger.warning(
+                    "MCP server '%s' manifest at %s unreadable: %s",
+                    config.name,
+                    manifest_path,
+                    exc,
+                )
+        if sig_path is not None:
+            try:
+                signature_b64 = sig_path.read_text(encoding="utf-8").strip()
+            except OSError as exc:
+                logger.warning(
+                    "MCP server '%s' signature at %s unreadable: %s",
+                    config.name,
+                    sig_path,
+                    exc,
+                )
+
+        if not manifest_text:
+            # No manifest discoverable.  Synthesize the minimum-shape
+            # body so the verifier returns a structured UNSIGNED verdict
+            # rather than BAD_MANIFEST — that keeps the warn-mode counter
+            # correct (UNSIGNED ticks the counter; BAD_MANIFEST does not).
+            manifest_text = (
+                '{"name": "' + config.name + '", '
+                '"version": "0.0.0", '
+                '"publisher": {"name": "", "fingerprint": "ed25519/unknown"}, '
+                '"content_hash": ""}'
+            )
+
+        # The enforcer raises MCPVerificationError in strict mode; let it
+        # propagate so start_all's ``except Exception`` reports the server
+        # as failed.  In warn mode the call returns and the start proceeds.
+        enforce_mcp_server_load(
+            server_name=config.name,
+            manifest_yaml=manifest_text,
+            signature_b64=signature_b64,
+            bundle_files=None,
+            policy=policy,
+        )
 
     def stop_all(self) -> None:
         """Stop all running MCP servers.

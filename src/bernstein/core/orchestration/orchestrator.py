@@ -4397,6 +4397,20 @@ if __name__ == "__main__":
                 trigger_codes=frozenset(mf.trigger_codes),
             )
 
+        # Resolve + install the per-agent credential policy (audit-051).
+        # Default-on: walks DEFAULT_POLICY_PATHS for a config file and
+        # falls back to the bundled examples/credential-policies/default.yaml
+        # so a fresh checkout still gets fail-closed env-var scoping.
+        # Operators can opt out via BERNSTEIN_DISABLE_CREDENTIAL_SCOPING=1.
+        try:
+            from bernstein.core.credential_scoping import resolve_default_policy
+
+            resolve_default_policy(workdir=workdir)
+        except Exception as exc:
+            # Never let policy load kill the orchestrator — log and fall
+            # through to the legacy unscoped path.
+            logger.warning("Credential policy resolution failed: %s", exc)
+
         # Load MCP config from user global + project seed
         mcp_config = None
         if adapter_name == "claude":
@@ -4420,11 +4434,20 @@ if __name__ == "__main__":
         if seed and seed.mcp_servers:
             mcp_server_configs = parse_server_configs(seed.mcp_servers)
             if mcp_server_configs:
-                mcp_manager = MCPManager(mcp_server_configs)
+                # Pass through the signing mode from bernstein.yaml
+                # (default 'warn' so the new gate is non-blocking).
+                # BERNSTEIN_MCP_SIGNING_MODE env-var still wins inside
+                # MCPManager — see _resolve_signing_mode.
+                signing_mode = getattr(seed, "mcp_signing_mode", "warn")
+                mcp_manager = MCPManager(
+                    mcp_server_configs,
+                    signing_mode=signing_mode,
+                )
                 mcp_manager.start_all()
                 logger.info(
-                    "MCPManager started %d server(s): %s",
+                    "MCPManager started %d server(s) with signing_mode=%s: %s",
                     len(mcp_server_configs),
+                    mcp_manager.signing_mode,
                     ", ".join(mcp_manager.server_names),
                 )
 

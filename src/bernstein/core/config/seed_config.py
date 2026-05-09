@@ -329,6 +329,12 @@ class SeedConfig:
     deployment_strategy: str = "rolling"
     org_policies: list[str] = field(default_factory=list)
     metrics: dict[str, MetricSchema] = field(default_factory=dict)
+    # MCP server signing enforcement mode.  Read from ``mcp.signing_mode``
+    # in bernstein.yaml.  ``BERNSTEIN_MCP_SIGNING_MODE`` overrides at
+    # runtime.  ``"warn"`` (default) ticks the unsigned counter without
+    # blocking; ``"strict"`` raises and the manager skips the affected
+    # server; ``"off"`` disables verification entirely.
+    mcp_signing_mode: Literal["warn", "strict", "off"] = "warn"
 
     def __post_init__(self) -> None:
         """Emit preflight warnings for provider/env mismatches (audit-150)."""

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from bernstein.core.security.guardrail_pipeline import (
     CostGuardrail,
     GuardrailPipeline,
@@ -147,11 +149,22 @@ class TestSecretLeakGuardrail:
 
 
 class TestGuardrailPipeline:
-    def test_runs_all_guardrails_on_clean_input(self) -> None:
+    def test_runs_all_guardrails_on_clean_input(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Pin the OWASP ASI pack off so this test asserts only the four
+        # built-in guardrails — the default-on flip happens elsewhere.
+        monkeypatch.setenv("BERNSTEIN_DISABLE_OWASP_ASI", "1")
         pipeline = GuardrailPipeline.default()
         results = pipeline.check_input("Please fix the bug in auth.py", {})
         assert pipeline.all_passed(results)
         assert len(results) == 4
+
+    def test_default_on_includes_owasp_asi(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The default pipeline now ships the OWASP ASI pack out of the box."""
+        monkeypatch.delenv("BERNSTEIN_DISABLE_OWASP_ASI", raising=False)
+        monkeypatch.delenv("BERNSTEIN_ENABLE_OWASP_ASI", raising=False)
+        pipeline = GuardrailPipeline.default()
+        names = [g.name for g in pipeline.guardrails]
+        assert "owasp_asi" in names
 
     def test_fail_fast_stops_on_first_failure(self) -> None:
         pipeline = GuardrailPipeline(_fail_fast=True)

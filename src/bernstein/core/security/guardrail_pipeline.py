@@ -199,10 +199,11 @@ class GuardrailPipeline:
 
         Args:
             enable_owasp_asi: When True, append the OWASP Top 10 for
-                Agentic Apps detector pack. When None (the default),
-                fall back to the ``BERNSTEIN_ENABLE_OWASP_ASI`` env
-                var. The pack is **off by default** to preserve
-                pipeline behaviour for callers that have not opted in.
+                Agentic Apps detector pack. When False, force the pack
+                off regardless of env. When None (the default), fall
+                back to :func:`bernstein.core.security.owasp_asi_detectors.is_owasp_asi_enabled`,
+                which is **on by default** and respects the
+                ``BERNSTEIN_DISABLE_OWASP_ASI=1`` opt-out.
         """
         pipeline = cls()
         pipeline.add(PromptInjectionGuardrail())
@@ -212,7 +213,8 @@ class GuardrailPipeline:
         opt_in = enable_owasp_asi
         if opt_in is None:
             # Late import keeps the OWASP pack optional and avoids
-            # creating an import cycle inside core.security.
+            # creating an import cycle inside core.security. The probe
+            # itself is on-by-default with an env-var opt-out.
             try:
                 from bernstein.core.security.owasp_asi_detectors import (
                     is_owasp_asi_enabled,
@@ -220,7 +222,10 @@ class GuardrailPipeline:
 
                 opt_in = is_owasp_asi_enabled()
             except Exception:
-                logger.exception("Failed to evaluate OWASP ASI opt-in flag; leaving disabled.")
+                logger.exception(
+                    "Failed to evaluate OWASP ASI opt-out flag; falling back to disabled "
+                    "to keep the pipeline available."
+                )
                 opt_in = False
         if opt_in:
             pipeline.with_owasp_asi()

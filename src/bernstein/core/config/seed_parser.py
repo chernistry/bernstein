@@ -1392,6 +1392,46 @@ def _parse_mcp_servers(data: dict[str, object]) -> object:
     return raw
 
 
+def _parse_mcp_signing_mode(data: dict[str, object]) -> Literal["warn", "strict", "off"]:
+    """Parse the ``mcp.signing_mode`` knob from bernstein.yaml.
+
+    The block is::
+
+        mcp:
+          signing_mode: warn   # warn|strict|off (default: warn)
+
+    Returns ``"warn"`` when no ``mcp:`` block is present so the
+    default-on path keeps working without operator action.
+
+    Note: YAML 1.1 parses bare ``off`` / ``on`` as booleans.  We map
+    ``False -> "off"`` so operators who write ``signing_mode: off``
+    (the obvious form) get the intuitive behaviour without remembering
+    to quote.  The ``on``/``True`` form is rejected because there is
+    no ``on`` mode — they likely meant ``warn`` or ``strict``.
+
+    Raises:
+        SeedError: When the value is not one of the three permitted
+            literals — operators must spell it correctly so a typo
+            doesn't silently downgrade enforcement.
+    """
+    mcp_block = data.get("mcp")
+    if mcp_block is None:
+        return "warn"
+    if not isinstance(mcp_block, dict):
+        raise SeedError(f"mcp must be a mapping, got: {type(mcp_block).__name__}")
+    raw = mcp_block.get("signing_mode", "warn")
+    # YAML 1.1: bare ``off`` -> False; remap so operators who write the
+    # un-quoted form keep getting the documented behaviour.
+    if raw is False:
+        raw = "off"
+    if not isinstance(raw, str):
+        raise SeedError(f"mcp.signing_mode must be a string, got: {type(raw).__name__}")
+    candidate = raw.strip().lower()
+    if candidate not in ("warn", "strict", "off"):
+        raise SeedError(f"mcp.signing_mode must be one of warn|strict|off, got: {raw!r}")
+    return cast("Literal['warn', 'strict', 'off']", candidate)
+
+
 def parse_seed(path: Path) -> SeedConfig:
     """Parse a bernstein.yaml seed file into a validated SeedConfig.
 
@@ -1490,6 +1530,7 @@ def parse_seed(path: Path) -> SeedConfig:
     org_policies: list[str] = [str(p) for p in org_policies_raw]
 
     metrics = _parse_metrics(data.get("metrics"))
+    mcp_signing_mode = _parse_mcp_signing_mode(data)
     _parse_tuning(data)
 
     return SeedConfig(
@@ -1540,4 +1581,5 @@ def parse_seed(path: Path) -> SeedConfig:
         deployment_strategy=deployment_strategy_raw,
         org_policies=org_policies,
         metrics=metrics,
+        mcp_signing_mode=mcp_signing_mode,
     )

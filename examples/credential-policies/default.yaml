@@ -1,0 +1,77 @@
+# Bernstein default credential policy.
+#
+# Each spawned leaf-agent process inherits ONLY the API-key environment
+# variables listed here. All other credentials in the orchestrator's
+# environment (database URLs, CI tokens, billing keys, internal secrets,
+# etc.) are stripped before the child process starts.
+#
+# This file is loaded automatically by ``bernstein.core.credential_scoping``
+# at orchestrator startup when present at one of the default lookup paths
+# (see ``DEFAULT_POLICY_PATHS`` in that module). To opt out and keep the
+# permissive legacy behaviour, either:
+#   - set ``enabled: false`` here, or
+#   - export ``BERNSTEIN_DISABLE_CREDENTIAL_SCOPING=1``, or
+#   - delete / rename this file (the loader logs one warning and falls
+#     back to the legacy unscoped path).
+#
+# The default allowlist is deliberately tight: the four provider keys
+# every supported leaf-agent backend recognises, plus GH_TOKEN/
+# GITHUB_TOKEN so adapters that push branches keep working. Add more
+# keys per agent or per role as needed; new keys must also appear in
+# ``known_keys`` (the loader rejects rules that reference undeclared
+# keys).
+#
+# Schema:
+#   enabled: bool
+#   known_keys: [str, ...]
+#   agents:
+#     <agent-id-or-glob>: [str, ...]
+#   roles:
+#     <role>: [str, ...]
+#
+# Matching order: exact agent_id -> glob agent_id -> role -> fail-closed.
+
+enabled: true
+
+# Every credential env-var the policy might grant. Acts as the
+# spell-check against typos in agent_rules / role_rules below.
+known_keys:
+  - OPENAI_API_KEY
+  - ANTHROPIC_API_KEY
+  - GEMINI_API_KEY
+  - GH_TOKEN
+  - GITHUB_TOKEN
+
+# Per-agent rules (exact id or glob like ``backend-*``). Empty by
+# default — most setups should reach the role fallback below.
+agents: {}
+
+# Default role mapping. Each leaf agent gets its provider key plus the
+# git push tokens (every coding role commits work).
+roles:
+  default:
+    - OPENAI_API_KEY
+    - ANTHROPIC_API_KEY
+    - GEMINI_API_KEY
+    - GH_TOKEN
+    - GITHUB_TOKEN
+  backend:
+    - OPENAI_API_KEY
+    - ANTHROPIC_API_KEY
+    - GEMINI_API_KEY
+    - GH_TOKEN
+    - GITHUB_TOKEN
+  frontend:
+    - OPENAI_API_KEY
+    - ANTHROPIC_API_KEY
+    - GEMINI_API_KEY
+    - GH_TOKEN
+    - GITHUB_TOKEN
+  researcher:
+    - OPENAI_API_KEY
+    - ANTHROPIC_API_KEY
+    - GEMINI_API_KEY
+  analyst:
+    - OPENAI_API_KEY
+    - ANTHROPIC_API_KEY
+    - GEMINI_API_KEY

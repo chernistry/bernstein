@@ -8,12 +8,16 @@ environment credential policy.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 from bernstein.core.credential_scoping import (
+    DEFAULT_POLICY_PATHS,
+    ENV_CREDENTIAL_POLICY_PATH,
+    ENV_DISABLE_CREDENTIAL_SCOPING,
     AgentCredentialPolicy,
     AgentNotScopedError,
     CredentialScope,
@@ -21,9 +25,11 @@ from bernstein.core.credential_scoping import (
     ScopedCredential,
     UnknownCredentialKeyError,
     create_scoped_credential,
+    explain_policy_for_agent,
     get_default_policy,
     get_scope_for_role,
     load_policy_from_file,
+    resolve_default_policy,
     scoped_credential_keys,
     set_default_policy,
     validate_request_against_scope,
@@ -539,3 +545,169 @@ class TestBuildFilteredEnvIntegration:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "anth")
         env = build_filtered_env(["ANTHROPIC_API_KEY"])
         assert env.get("ANTHROPIC_API_KEY") == "anth"
+
+
+# ---------------------------------------------------------------------------
+# resolve_default_policy + bundled examples/credential-policies/default.yaml
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _reset_default_policy() -> Iterator[None]:
+    """Snapshot + restore the module-level default policy around each test."""
+    prior = get_default_policy()
+    try:
+        yield
+    finally:
+        set_default_policy(prior)
+
+
+class TestResolveDefaultPolicy:
+    """The default-on policy resolver, including the env-var opt-out path."""
+
+    def test_opt_out_returns_disabled(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Ship a real policy file so the loader would pick it up if scoping were on.
+        (tmp_path / "credential_policy.yaml").write_text(
+            "enabled: true\nknown_keys: [ANTHROPIC_API_KEY]\nroles:\n  default: [ANTHROPIC_API_KEY]\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv(ENV_DISABLE_CREDENTIAL_SCOPING, "1")
+        policy = resolve_default_policy(workdir=tmp_path, install=False)
+        assert policy.enabled is False
+
+    def test_explicit_path_override(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        policy_file = tmp_path / "custom-policy.yaml"
+        policy_file.write_text(
+            "enabled: true\nknown_keys: [OPENAI_API_KEY]\nroles:\n  default: [OPENAI_API_KEY]\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv(ENV_CREDENTIAL_POLICY_PATH, str(policy_file))
+        monkeypatch.delenv(ENV_DISABLE_CREDENTIAL_SCOPING, raising=False)
+        policy = resolve_default_policy(workdir=tmp_path, install=False)
+        assert policy.enabled is True
+        assert policy.known_keys == frozenset({"OPENAI_API_KEY"})
+
+    def test_first_default_path_wins(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Drop two candidate files; the one earlier in DEFAULT_POLICY_PATHS wins.
+        first_rel = DEFAULT_POLICY_PATHS[0]
+        first_path = tmp_path / first_rel
+        first_path.parent.mkdir(parents=True, exist_ok=True)
+        first_path.write_text(
+            "enabled: true\nknown_keys: [GH_TOKEN]\nroles:\n  default: [GH_TOKEN]\n",
+            encoding="utf-8",
+        )
+        # And the bundled fallback (last entry).
+        bundled_rel = DEFAULT_POLICY_PATHS[-1]
+        bundled_path = tmp_path / bundled_rel
+        bundled_path.parent.mkdir(parents=True, exist_ok=True)
+        bundled_path.write_text(
+            "enabled: true\nknown_keys: [OPENAI_API_KEY]\nroles:\n  default: [OPENAI_API_KEY]\n",
+            encoding="utf-8",
+        )
+        monkeypatch.delenv(ENV_DISABLE_CREDENTIAL_SCOPING, raising=False)
+        monkeypatch.delenv(ENV_CREDENTIAL_POLICY_PATH, raising=False)
+        policy = resolve_default_policy(workdir=tmp_path, install=False)
+        assert policy.known_keys == frozenset({"GH_TOKEN"})
+
+    def test_no_file_warns_and_returns_disabled(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        monkeypatch.delenv(ENV_DISABLE_CREDENTIAL_SCOPING, raising=False)
+        monkeypatch.delenv(ENV_CREDENTIAL_POLICY_PATH, raising=False)
+        with caplog.at_level("WARNING"):
+            policy = resolve_default_policy(workdir=tmp_path, install=False)
+        assert policy.enabled is False
+        assert any("no credential policy file found" in r.message for r in caplog.records)
+
+    def test_install_mutates_module_default(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        policy_file = tmp_path / "custom-policy.yaml"
+        policy_file.write_text(
+            "enabled: true\nknown_keys: [GEMINI_API_KEY]\nroles:\n  default: [GEMINI_API_KEY]\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv(ENV_CREDENTIAL_POLICY_PATH, str(policy_file))
+        monkeypatch.delenv(ENV_DISABLE_CREDENTIAL_SCOPING, raising=False)
+        resolve_default_policy(workdir=tmp_path, install=True)
+        assert get_default_policy().known_keys == frozenset({"GEMINI_API_KEY"})
+
+    def test_bundled_default_loads_at_repo_root(self) -> None:
+        # The bundled examples/credential-policies/default.yaml ships in the
+        # repo as the last fallback. Walk up from this test file until the
+        # repo root and confirm the loader finds it.
+        root = Path(__file__).resolve()
+        for candidate in [root, *root.parents]:
+            if (candidate / "pyproject.toml").exists():
+                root = candidate
+                break
+        bundled = root / "examples" / "credential-policies" / "default.yaml"
+        assert bundled.is_file(), f"bundled default policy missing at {bundled}"
+        policy = load_policy_from_file(bundled)
+        assert policy.enabled is True
+        # Sanity: the four provider keys + git push tokens called out in spec.
+        for required in (
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "GEMINI_API_KEY",
+            "GH_TOKEN",
+        ):
+            assert required in policy.known_keys
+
+
+class TestExplainPolicyForAgent:
+    """Diagnostic snapshot used by ``bernstein doctor scoping``."""
+
+    def test_disabled_policy_reports_disabled(self) -> None:
+        policy = AgentCredentialPolicy()
+        snapshot = explain_policy_for_agent(policy, agent_id="x", role="default", inherited_keys=["A"])
+        assert snapshot["enabled"] is False
+        assert snapshot["stripped"] == []
+
+    def test_flags_inherited_but_unallowed(self, sample_policy: AgentCredentialPolicy) -> None:
+        snapshot = explain_policy_for_agent(
+            sample_policy,
+            agent_id="backend-001",
+            role="backend",
+            inherited_keys=["ANTHROPIC_API_KEY", "OPENAI_API_KEY"],
+        )
+        assert snapshot["enabled"] is True
+        # backend-001 is allowed only ANTHROPIC_API_KEY → OPENAI_API_KEY is stripped.
+        assert "OPENAI_API_KEY" in snapshot["stripped"]
+        assert "ANTHROPIC_API_KEY" in snapshot["allowed"]
+
+    def test_flags_missing_allowlist_entry(self, sample_policy: AgentCredentialPolicy) -> None:
+        snapshot = explain_policy_for_agent(
+            sample_policy,
+            agent_id="backend-001",
+            role="backend",
+            inherited_keys=[],
+        )
+        assert "ANTHROPIC_API_KEY" in snapshot["missing"]
+
+    def test_unscoped_agent_returns_empty_allowed(self, sample_policy: AgentCredentialPolicy) -> None:
+        snapshot = explain_policy_for_agent(
+            sample_policy,
+            agent_id="ghost-1",
+            role="ghostbuster",
+            inherited_keys=["ANTHROPIC_API_KEY"],
+        )
+        assert snapshot["enabled"] is True
+        assert snapshot["allowed"] == []

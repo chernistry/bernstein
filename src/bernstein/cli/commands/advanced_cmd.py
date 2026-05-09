@@ -582,6 +582,77 @@ def doctor_airgap_cmd(ctx: click.Context) -> None:
     raise SystemExit(run_doctor_airgap(workdir=Path.cwd(), as_json=as_json))
 
 
+@doctor.command("scoping")
+@click.option("--agent-id", default="default", show_default=True, help="Agent id to resolve.")
+@click.option("--role", default="default", show_default=True, help="Role hint for fallback.")
+@click.pass_context
+def doctor_scoping_cmd(ctx: click.Context, agent_id: str, role: str) -> None:
+    """Self-check: report the credential policy + flag inherited keys.
+
+    \b
+    Shows:
+      - whether credential scoping is enabled
+      - resolved allowlist for agent_id/role
+      - env-vars in the orchestrator process that the policy WOULD strip
+        from a child agent (potential leak surface if scoping is off)
+      - allowlist entries that are not currently in env (config drift)
+
+    Exit code is 0 when scoping is enabled and there are no stripped
+    keys; 1 when scoping is disabled or some inherited keys would be
+    silently dropped from agent subprocesses.
+    """
+    import os
+
+    from bernstein.core.credential_scoping import (
+        ENV_DISABLE_CREDENTIAL_SCOPING,
+        explain_policy_for_agent,
+        resolve_default_policy,
+    )
+
+    parent = ctx.obj if isinstance(ctx.obj, dict) else {}
+    as_json = bool(parent.get("as_json", False))
+
+    # Resolve without installing — doctor must not mutate process state.
+    policy = resolve_default_policy(workdir=Path.cwd(), install=False)
+    inherited = [k for k in os.environ if "API" in k or "TOKEN" in k or "KEY" in k]
+    snapshot = explain_policy_for_agent(
+        policy,
+        agent_id=agent_id,
+        role=role,
+        inherited_keys=inherited,
+    )
+
+    if as_json:
+        console.print_json(json.dumps(snapshot))
+        if snapshot["enabled"] and not snapshot["stripped"]:
+            raise SystemExit(0)
+        raise SystemExit(1)
+
+    enabled_glyph = "[green]enabled[/green]" if snapshot["enabled"] else "[yellow]disabled[/yellow]"
+    console.print(f"Credential scoping: {enabled_glyph}")
+    console.print(f"  agent_id: [cyan]{snapshot['agent_id']}[/cyan]")
+    console.print(f"  role:     [cyan]{snapshot['role']}[/cyan]")
+    console.print(f"  allowed:  {', '.join(snapshot['allowed']) or '[dim](none)[/dim]'}")
+    if snapshot["stripped"]:
+        console.print(f"  [yellow]would-strip[/yellow]: {', '.join(snapshot['stripped'])}")
+        console.print(
+            "  [dim](these env-vars are present but the policy would not "
+            "pass them to the agent — verify they are intentional)[/dim]"
+        )
+    if snapshot["missing"]:
+        console.print(f"  [yellow]missing[/yellow]: {', '.join(snapshot['missing'])}")
+        console.print("  [dim](allowlist entries not currently in the orchestrator's env)[/dim]")
+    if not snapshot["enabled"]:
+        console.print(
+            f"  [dim]opt-out via {ENV_DISABLE_CREDENTIAL_SCOPING}=1 is currently active "
+            "or no policy file was found[/dim]"
+        )
+        raise SystemExit(1)
+    if snapshot["stripped"]:
+        raise SystemExit(1)
+    raise SystemExit(0)
+
+
 # ---------------------------------------------------------------------------
 # recap
 # ---------------------------------------------------------------------------

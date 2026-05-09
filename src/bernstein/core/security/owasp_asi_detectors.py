@@ -5,10 +5,9 @@ classes from the OWASP Top 10 for Agentic Apps (Dec 2025). Each
 detector is a self-contained heuristic that consumes a uniform
 ``context`` dict and returns an :class:`ASIFinding`. The pack is wired
 into the existing :class:`GuardrailPipeline` via
-:class:`OwaspAsiGuardrail` and is **off by default**; opt-in either
-through ``GuardrailPipeline.with_owasp_asi()`` or by setting the
-``BERNSTEIN_ENABLE_OWASP_ASI`` environment variable to a truthy value
-when calling :meth:`GuardrailPipeline.default`.
+:class:`OwaspAsiGuardrail` and is **on by default** (the post-rollout
+phase). To opt out, set ``BERNSTEIN_DISABLE_OWASP_ASI=1`` or pass
+``enable_owasp_asi=False`` to :meth:`GuardrailPipeline.default`.
 
 Honesty caveats — every detector here is a *heuristic*. Each docstring
 calls out the risk it tries to catch, the known false-positive
@@ -600,11 +599,36 @@ class OwaspAsiGuardrail:
 
 
 def is_owasp_asi_enabled(env: dict[str, str] | None = None) -> bool:
-    """Return True when the OWASP ASI pack is opted in via env var.
+    """Return True when the OWASP ASI pack should run.
 
-    Reads ``BERNSTEIN_ENABLE_OWASP_ASI`` from ``env`` (defaults to
-    ``os.environ``). Truthy values: ``1``, ``true``, ``yes``, ``on``,
-    ``enable``, ``enabled`` (case-insensitive).
+    The pack is **on by default** (post-spec/test → default-on phase).
+    Opt out by setting ``BERNSTEIN_DISABLE_OWASP_ASI=1`` (or any other
+    truthy value such as ``true``, ``yes``, ``on``).
+
+    The legacy ``BERNSTEIN_ENABLE_OWASP_ASI=1`` opt-in remains
+    accepted as a no-op for forward compatibility — explicitly setting
+    it to a falsy value (``0``, ``false``) suppresses the pack so
+    operators who scripted the previous opt-in semantics keep their
+    expected behaviour.
+
+    Resolution (highest priority first):
+
+    1. ``BERNSTEIN_DISABLE_OWASP_ASI`` truthy → pack disabled.
+    2. ``BERNSTEIN_ENABLE_OWASP_ASI`` set to a falsy value
+       (``0``/``false``/``no``/``off``) → pack disabled.
+    3. Otherwise → pack enabled (the new default).
+
+    Args:
+        env: Environment mapping override for tests; defaults to
+            :data:`os.environ`.
+
+    Returns:
+        ``True`` when the pack should be loaded into the pipeline.
     """
     source = env if env is not None else os.environ
-    return _truthy(source.get("BERNSTEIN_ENABLE_OWASP_ASI"))
+    if _truthy(source.get("BERNSTEIN_DISABLE_OWASP_ASI")):
+        return False
+    # Honour an explicitly falsy legacy opt-in (e.g. operators who scripted
+    # BERNSTEIN_ENABLE_OWASP_ASI=0 expect the pack to stay off).
+    legacy_opt_in = source.get("BERNSTEIN_ENABLE_OWASP_ASI")
+    return not (legacy_opt_in is not None and not _truthy(legacy_opt_in))

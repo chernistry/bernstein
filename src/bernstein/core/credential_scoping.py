@@ -53,7 +53,10 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 # ---------------------------------------------------------------------------
 # Exceptions
@@ -674,3 +677,189 @@ def load_policy_from_file(path: str | Path) -> AgentCredentialPolicy:
         agent_rules=agent_rules,
         role_rules=role_rules,
     )
+
+
+# ---------------------------------------------------------------------------
+# Default-on resolver — finds the first available credential policy file
+# from a known-locations chain so operators get fail-closed scoping out of
+# the box, with a clean opt-out path.
+# ---------------------------------------------------------------------------
+
+#: Env-var operators set to ``1`` (or any truthy value accepted by
+#: :func:`_truthy_opt_out`) to disable credential scoping at startup. The
+#: legacy unscoped behaviour is restored — every adapter sees every key
+#: the orchestrator has loaded. Logged once at INFO so the choice is
+#: visible in audit.
+ENV_DISABLE_CREDENTIAL_SCOPING: str = "BERNSTEIN_DISABLE_CREDENTIAL_SCOPING"
+
+#: Env-var operators may set to override the policy lookup path. When set
+#: to a readable file, the loader uses it verbatim and skips
+#: :data:`DEFAULT_POLICY_PATHS`.
+ENV_CREDENTIAL_POLICY_PATH: str = "BERNSTEIN_CREDENTIAL_POLICY_PATH"
+
+#: Ordered list of relative paths checked when resolving the default
+#: policy. Each entry is resolved against the workdir passed to
+#: :func:`resolve_default_policy`. The first existing file wins; missing
+#: files are skipped silently. The bundled
+#: ``examples/credential-policies/default.yaml`` is the last fallback so
+#: a fresh checkout still gets fail-closed behaviour without any
+#: operator action.
+DEFAULT_POLICY_PATHS: tuple[str, ...] = (
+    ".bernstein/credential_policy.yaml",
+    ".bernstein/credential_policy.yml",
+    ".sdd/config/credential_scopes.yaml",
+    ".sdd/config/credential_scopes.yml",
+    "credential_policy.yaml",
+    "examples/credential-policies/default.yaml",
+)
+
+
+def _truthy_opt_out(value: str | None) -> bool:
+    """Return True when an env-var-style string is set to an enabling value."""
+    if not value:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on", "enable", "enabled"}
+
+
+def resolve_default_policy(
+    workdir: str | Path | None = None,
+    *,
+    env: dict[str, str] | None = None,
+    install: bool = True,
+) -> AgentCredentialPolicy:
+    """Resolve the credential policy for the current orchestrator process.
+
+    Resolution order:
+
+    1. ``BERNSTEIN_DISABLE_CREDENTIAL_SCOPING`` set truthy → return an
+       empty (disabled) policy and log one INFO line.  This is the
+       documented opt-out for operators with deployments that depend on
+       inheriting every env-var.
+    2. ``BERNSTEIN_CREDENTIAL_POLICY_PATH`` set to a readable file →
+       load that file (errors propagate so misconfigurations are loud).
+    3. First existing entry in :data:`DEFAULT_POLICY_PATHS` resolved
+       against ``workdir`` → load that file.
+    4. Nothing found → return a disabled policy and log one WARN line so
+       operators know they are running with the legacy unscoped path.
+
+    Args:
+        workdir: Project root used to anchor relative paths in
+            :data:`DEFAULT_POLICY_PATHS`.  Defaults to the current
+            working directory.
+        env: Environment mapping override for tests; defaults to
+            :data:`os.environ`.
+        install: When True, also installs the resolved policy as the
+            module-level default via :func:`set_default_policy` so
+            adapter code-paths that consult :func:`get_default_policy`
+            see it immediately.
+
+    Returns:
+        The resolved (or empty fallback) :class:`AgentCredentialPolicy`.
+    """
+    import os
+
+    source_env = env if env is not None else dict(os.environ)
+    base = Path(workdir) if workdir is not None else Path.cwd()
+
+    # 1. Explicit opt-out — short-circuit before any I/O.
+    if _truthy_opt_out(source_env.get(ENV_DISABLE_CREDENTIAL_SCOPING)):
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.info(
+            "credential scoping disabled via %s=1; spawned agents will inherit the orchestrator's full credential set",
+            ENV_DISABLE_CREDENTIAL_SCOPING,
+        )
+        empty = AgentCredentialPolicy()
+        if install:
+            set_default_policy(empty)
+        return empty
+
+    # 2. Explicit override path.
+    override = source_env.get(ENV_CREDENTIAL_POLICY_PATH, "").strip()
+    candidate_paths: list[Path] = []
+    if override:
+        candidate_paths.append(Path(override))
+    else:
+        candidate_paths.extend(base / rel for rel in DEFAULT_POLICY_PATHS)
+
+    # 3. First existing file wins.
+    for candidate in candidate_paths:
+        if candidate.is_file():
+            policy = load_policy_from_file(candidate)
+            if install:
+                set_default_policy(policy)
+            return policy
+
+    # 4. Nothing found — log once and fall through to the unscoped policy.
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        "no credential policy file found (looked in: %s); spawned agents will "
+        "inherit the orchestrator's full credential set. Ship one at "
+        "examples/credential-policies/default.yaml or set %s to opt out "
+        "explicitly.",
+        ", ".join(str(p) for p in candidate_paths),
+        ENV_DISABLE_CREDENTIAL_SCOPING,
+    )
+    empty = AgentCredentialPolicy()
+    if install:
+        set_default_policy(empty)
+    return empty
+
+
+def explain_policy_for_agent(
+    policy: AgentCredentialPolicy,
+    *,
+    agent_id: str = "default",
+    role: str = "default",
+    inherited_keys: Iterable[str] = (),
+) -> dict[str, Any]:
+    """Return a structured snapshot of the policy for diagnostic output.
+
+    Used by ``bernstein doctor scoping`` (and any future audit surface)
+    to render a human-readable summary of what the policy currently
+    grants vs. what the orchestrator process actually has loaded.
+
+    Args:
+        policy: Policy to inspect.
+        agent_id: Agent identifier to resolve against.  ``"default"``
+            triggers role-only resolution.
+        role: Role hint for fallback resolution.
+        inherited_keys: Iterable of env-var names the orchestrator has
+            in its environment.  Used to flag keys that would be
+            dropped (allowed by env, not by policy) and keys missing
+            (allowed by policy, not in env).
+
+    Returns:
+        Dict with ``enabled``, ``allowed`` (sorted list), ``stripped``
+        (env keys not in the allowlist), and ``missing`` (allowlist
+        keys not currently in env).  Caller renders to text/JSON.
+    """
+    inherited = frozenset(inherited_keys)
+    if not policy.enabled:
+        return {
+            "enabled": False,
+            "allowed": sorted(policy.known_keys),
+            "stripped": [],
+            "missing": [],
+            "agent_id": agent_id,
+            "role": role,
+        }
+
+    try:
+        allowed = policy.allowed_for(agent_id, role=role)
+    except AgentNotScopedError:
+        allowed = frozenset()
+
+    stripped = sorted(inherited & policy.known_keys - allowed)
+    missing = sorted(allowed - inherited)
+    return {
+        "enabled": True,
+        "allowed": sorted(allowed),
+        "stripped": stripped,
+        "missing": missing,
+        "agent_id": agent_id,
+        "role": role,
+    }

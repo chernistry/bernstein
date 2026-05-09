@@ -123,4 +123,4 @@ The other six are infrastructure that makes the first four work cleanly under lo
 
 ---
 
-*Bernstein orchestrates short-lived AI coding agents — Claude Code, Codex, Gemini CLI, and 39 more — through a deterministic Python dispatcher. State lives in files, not in agent memory. The orchestrator is code, not a model. Apache-2.0. [github.com/sipyourdrink-ltd/bernstein](https://github.com/sipyourdrink-ltd/bernstein).*
+*Bernstein orchestrates short-lived AI coding agents — Claude Code, Codex, Gemini CLI, and 40 more — through a deterministic Python dispatcher. State lives in files, not in agent memory. The orchestrator is code, not a model. Apache-2.0. [github.com/sipyourdrink-ltd/bernstein](https://github.com/sipyourdrink-ltd/bernstein).*

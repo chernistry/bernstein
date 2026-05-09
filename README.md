@@ -25,7 +25,7 @@
 
 ---
 
-Bernstein is a deterministic Python scheduler that runs a crew of CLI coding agents (Claude Code, Codex, Gemini CLI, and 39 more) against a single goal in parallel git worktrees, with an HMAC-signed audit chain over every step.
+Bernstein is a deterministic Python scheduler that runs a crew of CLI coding agents (Claude Code, Codex, Gemini CLI, and 40 more) against a single goal in parallel git worktrees, with an HMAC-signed audit chain over every step.
 
 ### why this exists
 

@@ -171,11 +171,11 @@ class OllamaAdapter(CLIAdapter):
                     return True
             except (ValueError, IndexError):
                 pass
-        if host.endswith((".internal", ".local", ".svc", ".cluster.local")):
-            return True
-        # Anything else — public IP, hosted-API hostname, or unrecognised
-        # FQDN — is rejected.  We cannot prove EU residency for it.
-        return False
+        # Anything else (public IP, hosted-API hostname, unrecognised FQDN)
+        # is rejected — we cannot prove EU residency for it.  Operators
+        # who run a private inference cluster on a public IP must front
+        # it with a hostname under one of the recognised internal suffixes.
+        return host.endswith((".internal", ".local", ".svc", ".cluster.local"))
 
     def spawn(
         self,

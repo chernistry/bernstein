@@ -21,19 +21,20 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from bernstein.core.models import ModelConfig
+
 from bernstein.adapters.ollama import (
-    OLLAMA_BASE_URL,
     _EU_RESIDENCY_MODELS,
     _MODEL_MAP,
+    OLLAMA_BASE_URL,
     OllamaAdapter,
 )
 from bernstein.core.cost.cost import (
-    MODEL_COSTS_PER_1M_TOKENS,
     _MODEL_COST_USD_PER_1K,
+    MODEL_COSTS_PER_1M_TOKENS,
     _model_cost,
 )
 from bernstein.core.cost.cost_tracker import estimate_cost
-from bernstein.core.models import ModelConfig
 
 # ---------------------------------------------------------------------------
 # Model-name dispatch

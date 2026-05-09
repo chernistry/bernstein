@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bernstein-example-custom-audit-sink"
+version = "0.1.0"
+description = "Example bernstein plugin: mirror audit events to an MQTT topic"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+dependencies = [
+    "bernstein",
+]
+
+[project.entry-points."bernstein.plugins"]
+custom_audit_sink = "custom_audit_sink:MqttAuditSink"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/custom_audit_sink"]

@@ -612,6 +612,38 @@ class BernsteinSpec:
             labels: Arbitrary key-value labels attached to the point.
         """
 
+    @hookspec(background=True)
+    def on_audit_event(
+        self,
+        event_type: str,
+        actor: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """Called when an audit-relevant event is emitted (audit-sink hook).
+
+        This hook is the canonical extension point for forwarding audit
+        events to external SIEM / observability systems (Splunk, Datadog,
+        Elastic, MQTT brokers, etc). It runs in the background so a slow
+        sink cannot block the orchestrator's main tick loop.
+
+        ``event_type`` is a stable namespaced string. The orchestrator
+        currently emits the following families (the list grows as more
+        surfaces wire the hook):
+
+        * ``task.<lifecycle>`` — task created / completed / failed.
+        * ``agent.<lifecycle>`` — agent spawned / reaped.
+        * ``vault.<op>`` — credential connect / read / revoke.
+        * ``sandbox.<op>`` — sandbox create / destroy / cap-violation.
+
+        Args:
+            event_type: Namespaced event type (e.g. ``"task.completed"``).
+            actor: Logical originator (session id, user id, or
+                ``"orchestrator"`` for orchestrator-side events).
+            payload: Structured event data. Keys are stable per
+                ``event_type`` family but consumers should treat unknown
+                keys as opaque.
+        """
+
     @hookspec(firstresult=True)
     def on_agent_hook(
         self,

@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bernstein-example-custom-adapter"
+version = "0.1.0"
+description = "Example bernstein adapter plugin: claude-mock with deterministic responses"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+dependencies = [
+    "bernstein",
+]
+
+[project.entry-points."bernstein.adapters"]
+claude_mock = "custom_adapter:ClaudeMockAdapter"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/custom_adapter"]

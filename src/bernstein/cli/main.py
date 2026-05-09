@@ -575,6 +575,26 @@ def _validate_evolve_mode(evolve: bool, budget: float, max_cycles: int, yes: boo
     default=None,
     help="Write activity to log file. Default: .sdd/logs/activity.log",
 )
+@click.option(
+    "--sandbox",
+    "sandbox_override",
+    default=None,
+    type=click.Choice(
+        ["docker", "podman", "worktree", "e2b", "modal", "daytona", "blaxel", "runloop", "vercel"],
+        case_sensitive=False,
+    ),
+    help=(
+        "Sandbox backend (overrides selector). Free: worktree, docker, podman. "
+        "Paid (require --allow-paid): e2b, modal, daytona, blaxel, runloop, vercel."
+    ),
+)
+@click.option(
+    "--allow-paid",
+    "allow_paid",
+    is_flag=True,
+    default=False,
+    help="Allow the sandbox selector to consider paid cloud backends.",
+)
 @click.pass_context
 def cli(
     ctx: click.Context,
@@ -603,6 +623,8 @@ def cli(
     task_filter: str | None,
     auto_pr: bool,
     activity_log_path: str | None,
+    sandbox_override: str | None,
+    allow_paid: bool,
 ) -> None:
     """Declarative agent orchestration for engineering teams."""
     setup_json_logging()
@@ -674,7 +696,8 @@ def cli(
         compliance=None,
         container=False,
         container_image=None,
-        sandbox=None,
+        sandbox=sandbox_override,
+        allow_paid=allow_paid,
         two_phase_sandbox=False,
         plan_only=plan_only,
         from_plan=Path(from_plan) if from_plan else None,

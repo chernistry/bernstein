@@ -34,16 +34,30 @@ import pytest
 # fixture stays cheap when many tests request it.
 _FAKE_CLI_PATH: Path = (Path(__file__).resolve().parent / "fake_cli.py").resolve()
 
-# Profiles the harness ships with.  Adding a sixth here is sufficient to
-# enable a new adapter integration test once that adapter's argv shape
-# is added to ``fake_cli._validate_argv``.
-SUPPORTED_PROFILES: tuple[str, ...] = (
-    "claude",
-    "codex",
-    "gemini",
-    "aider",
-    "ollama",
+# Profiles the harness ships with.  Each entry is (profile, [bin names]).
+# A profile may install multiple wrapper binaries when the upstream CLI's
+# argv[0] name differs from the bernstein-side adapter slug — e.g.
+# Cursor's binary is ``cursor-agent`` but the bernstein registry slug is
+# ``cursor``. The fake_cli auto-detects the profile from argv[0]
+# basename via :data:`fake_cli._BINARY_TO_PROFILE`.
+_PROFILE_BINARIES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    # Top-5 (original)
+    ("claude", ("claude",)),
+    ("codex", ("codex",)),
+    ("gemini", ("gemini",)),
+    ("aider", ("aider",)),
+    ("ollama", ("ollama",)),
+    # Top-6 through top-10 (this PR)
+    ("cursor", ("cursor-agent", "cursor")),
+    ("q_dev", ("q", "q_dev")),
+    ("junie", ("junie",)),
+    ("devin_terminal", ("devin", "devin_terminal")),
+    ("mistral", ("vibe", "mistral")),
 )
+
+# Backwards-compatible flat tuple of profile names — older tests reference
+# this directly.
+SUPPORTED_PROFILES: tuple[str, ...] = tuple(profile for profile, _ in _PROFILE_BINARIES)
 
 # Wrapper shell template.  ${PROFILE} is replaced at write-time; the
 # config-file path is read at run-time so a single fixture can rewrite
@@ -147,25 +161,31 @@ def _shell_quote(value: str) -> str:
 
 def _write_wrapper(
     bin_dir: Path,
-    profile: str,
+    binary_name: str,
     *,
     config_path: Path,
+    profile: str | None = None,
 ) -> Path:
     """Write a profile-specific wrapper script and mark it executable.
 
     Args:
         bin_dir: Directory the wrapper is created under.
-        profile: One of :data:`SUPPORTED_PROFILES`.
+        binary_name: Wrapper file name (typically the upstream CLI's
+            argv[0] basename — ``cursor-agent``, ``vibe``, etc.).
         config_path: Path to the shared per-fixture config file.
+        profile: Profile slug to bake into the wrapper. Defaults to
+            ``binary_name`` so callers passing the profile slug directly
+            keep working without code changes.
 
     Returns:
         Path to the newly written wrapper.
     """
     import sys
 
-    wrapper = bin_dir / profile
+    effective_profile = profile if profile is not None else binary_name
+    wrapper = bin_dir / binary_name
     body = (
-        _WRAPPER_TEMPLATE.replace("${PROFILE}", profile)
+        _WRAPPER_TEMPLATE.replace("${PROFILE}", effective_profile)
         .replace("${CONFIG_FILE_PATH}", str(config_path))
         .replace("${FAKE_CLI_PATH}", str(_FAKE_CLI_PATH))
         .replace("${PYTHON_BIN}", sys.executable)
@@ -208,8 +228,15 @@ def fake_cli_fixture(
     )
     handle.configure(mode="success")
 
-    for profile in SUPPORTED_PROFILES:
-        _write_wrapper(bin_dir, profile, config_path=config_path)
+    # Install one wrapper per (profile, binary) pair. Every supported
+    # profile gets at least one wrapper named after the profile slug
+    # itself; profiles whose upstream CLI binary differs (cursor-agent,
+    # vibe, etc.) get an additional wrapper under that physical name so
+    # ``Popen([upstream_binary, ...])`` resolves on PATH without any
+    # shim on the bernstein side.
+    for profile, binaries in _PROFILE_BINARIES:
+        for binary in binaries:
+            _write_wrapper(bin_dir, binary, config_path=config_path, profile=profile)
 
     # Prepend the fake-bin dir onto PATH so adapter Popen calls resolve
     # the wrappers instead of any real CLI on the host.

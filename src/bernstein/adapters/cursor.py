@@ -155,7 +155,7 @@ class CursorAdapter(CLIAdapter):
             except PermissionError as exc:
                 raise RuntimeError(f"Permission denied executing cursor-agent: {exc}") from exc
 
-        result = SpawnResult(pid=proc.pid, log_path=log_path)
+        result = SpawnResult(pid=proc.pid, log_path=log_path, proc=proc)
         if timeout_seconds > 0:
             result.timeout_timer = self._start_timeout_watchdog(proc.pid, timeout_seconds, session_id)
         return result

@@ -298,6 +298,11 @@ ignore = ["TC006"]
 "sdk/python/src/bernstein_sdk/adapters/github_actions.py" = ["E501"]
 "sdk/python/src/bernstein_sdk/adapters/jira.py" = ["E501"]
 "tests/**/*.py" = ["E402", "E501", "E741", "RUF002", "RUF003", "RUF012", "RUF043", "SIM108", "SIM117", "TC002", "TC003", "TC006"]
+# Example plugins are worked-example packages; runtime imports survive
+# ``TYPE_CHECKING`` blocks because tests rely on them at runtime (e.g.
+# ``pytest.fail``) and the adapter code uses ``Path`` in concrete
+# function signatures, not just hints.
+"examples/plugins/**/*.py" = ["TC001", "TC002", "TC003"]
 
 [tool.pyright]
 pythonVersion = "3.12"

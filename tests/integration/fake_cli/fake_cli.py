@@ -122,6 +122,66 @@ _OLLAMA_LINES: tuple[str, ...] = (
     "fake-ollama-output",
 )
 
+# ---------------------------------------------------------------------------
+# Top-6 through top-10 profiles
+# ---------------------------------------------------------------------------
+
+# Cursor Agent emits stream-json NDJSON like Claude Code does. Three event
+# types are enough to exercise the wrapper (init, assistant, result).
+_CURSOR_STREAM: tuple[dict[str, object], ...] = (
+    {"type": "system", "subtype": "init", "session_id": "fake-cursor"},
+    {
+        "type": "assistant",
+        "message": {
+            "role": "assistant",
+            "content": [{"type": "text", "text": "fake-cursor-stream-ok"}],
+        },
+    },
+    {
+        "type": "result",
+        "subtype": "success",
+        "result": "fake-cursor-result",
+    },
+)
+
+# AWS Q Developer's ``q chat --no-interactive`` prints free-form text
+# punctuated by JSON status lines. Four lines are enough to hit the
+# adapter's stdout-capture path.
+_Q_DEV_LINES: tuple[str, ...] = (
+    "Amazon Q Developer (fake)",
+    '{"status":"ready","tools":["fs","exec"]}',
+    "fake-q_dev-output",
+    '{"status":"complete","exit_code":0}',
+)
+
+# JetBrains Junie ships a structured JSON result on stdout when run with
+# ``--headless``. The adapter only reads the result line; the rest is
+# decorative log noise that real Junie emits during plan execution.
+_JUNIE_LINES: tuple[str, ...] = (
+    "Junie v0.5.0 (fake, headless)",
+    "Loaded prompt-file at /tmp/.junie",
+    '{"event":"result","status":"ok","output":"fake-junie-output"}',
+)
+
+# Devin / Windsurf terminal CLI prints framed log lines plus a summary
+# section the adapter parses for the run id. Mirrors the ``--print`` mode
+# shape since that's what the bernstein adapter uses.
+_DEVIN_LINES: tuple[str, ...] = (
+    "[devin] permission-mode=bypass",
+    "[devin] starting session",
+    "fake-devin_terminal-output",
+    "[devin] session.complete run_id=fake-devin-run",
+)
+
+# Mistral / vibe prints conversational text — no JSON envelope. Tests
+# only assert one tagged line is captured so the upstream parser just
+# needs to forward stdout intact.
+_MISTRAL_LINES: tuple[str, ...] = (
+    "vibe v0.3.0 (fake)",
+    "Auto-approve: enabled",
+    "fake-mistral-output",
+)
+
 
 _PROFILE_HANDLERS = {
     "claude": "_emit_claude",
@@ -129,6 +189,26 @@ _PROFILE_HANDLERS = {
     "gemini": "_emit_gemini",
     "aider": "_emit_aider",
     "ollama": "_emit_ollama",
+    "cursor": "_emit_cursor",
+    "q_dev": "_emit_q_dev",
+    "junie": "_emit_junie",
+    "devin_terminal": "_emit_devin_terminal",
+    "mistral": "_emit_mistral",
+}
+
+# CLI binary names (argv[0] basename) → profile name. Lets the fake_cli
+# auto-resolve when invoked through a wrapper script symlinked from the
+# real binary name (``cursor-agent``, ``q``, ``devin``, ``vibe``).
+_BINARY_TO_PROFILE: dict[str, str] = {
+    "cursor-agent": "cursor",
+    "cursor": "cursor",
+    "q": "q_dev",
+    "q_dev": "q_dev",
+    "junie": "junie",
+    "devin": "devin_terminal",
+    "devin_terminal": "devin_terminal",
+    "vibe": "mistral",
+    "mistral": "mistral",
 }
 
 
@@ -166,6 +246,41 @@ def _emit_ollama() -> None:
         sys.stdout.flush()
 
 
+def _emit_cursor() -> None:
+    """Print Cursor Agent's stream-json NDJSON output."""
+    for event in _CURSOR_STREAM:
+        sys.stdout.write(json.dumps(event) + "\n")
+        sys.stdout.flush()
+
+
+def _emit_q_dev() -> None:
+    """Print AWS Q Developer's mixed text + JSON status output."""
+    for line in _Q_DEV_LINES:
+        sys.stdout.write(line + "\n")
+        sys.stdout.flush()
+
+
+def _emit_junie() -> None:
+    """Print JetBrains Junie's headless output."""
+    for line in _JUNIE_LINES:
+        sys.stdout.write(line + "\n")
+        sys.stdout.flush()
+
+
+def _emit_devin_terminal() -> None:
+    """Print Devin / Windsurf terminal CLI's print-mode output."""
+    for line in _DEVIN_LINES:
+        sys.stdout.write(line + "\n")
+        sys.stdout.flush()
+
+
+def _emit_mistral() -> None:
+    """Print Mistral / vibe's conversational output."""
+    for line in _MISTRAL_LINES:
+        sys.stdout.write(line + "\n")
+        sys.stdout.flush()
+
+
 # ---------------------------------------------------------------------------
 # Argument shape validation
 # ---------------------------------------------------------------------------
@@ -188,6 +303,22 @@ def _validate_argv(profile: str, argv: list[str]) -> None:
         required = {"-p", "-m", "--yolo"}
     elif profile in {"aider", "ollama"}:
         required = {"--model", "--message", "--yes"}
+    elif profile == "cursor":
+        # Cursor adapter must request stream-json + workspace trust.
+        required = {"--output-format", "--workspace", "--trust"}
+    elif profile == "q_dev":
+        # AWS Q's headless contract: chat subcommand + non-interactive.
+        required = {"chat", "--no-interactive", "--trust-all-tools"}
+    elif profile == "junie":
+        # Junie's headless contract: run subcommand + headless flag +
+        # prompt file.
+        required = {"run", "--headless", "--prompt-file"}
+    elif profile == "devin_terminal":
+        # Devin print mode: bypass permission + non-interactive flag.
+        required = {"--print", "--permission-mode", "bypass"}
+    elif profile == "mistral":
+        # vibe (Mistral CLI) needs auto-approve + a prompt.
+        required = {"--auto-approve", "--prompt"}
     else:
         return
     missing = required - flags
@@ -202,7 +333,21 @@ def _validate_argv(profile: str, argv: list[str]) -> None:
 
 
 def _resolve_profile(argv0: str) -> str:
-    """Return the profile name based on env var or argv[0] basename."""
+    """Return the profile name based on env var or argv[0] basename.
+
+    Resolution order:
+
+    1. ``BERNSTEIN_FAKE_CLI_PROFILE`` env var (explicit override).
+    2. ``argv[0]`` basename — first checked against the profile-handler
+       table, then against the binary-alias table for cases where the
+       upstream CLI name (e.g. ``cursor-agent``, ``vibe``) does not
+       match the profile slug (``cursor``, ``mistral``).
+    3. Resolved symlink target (fallback for shells that pass the
+       physical path).
+
+    Falls back to ``"claude"`` so the harness behaves like a Claude
+    CLI by default — matches the original top-5 contract.
+    """
     env_profile = os.environ.get("BERNSTEIN_FAKE_CLI_PROFILE", "").strip()
     if env_profile:
         return env_profile
@@ -211,12 +356,18 @@ def _resolve_profile(argv0: str) -> str:
         base = base[:-3]
     if base in _PROFILE_HANDLERS:
         return base
+    if base in _BINARY_TO_PROFILE:
+        return _BINARY_TO_PROFILE[base]
     # Fallback: try resolving the symlink (some shells pass the resolved path)
     try:
         resolved = Path(shutil.which(argv0) or argv0).name.lower()
     except OSError:
         resolved = base
-    return resolved if resolved in _PROFILE_HANDLERS else "claude"
+    if resolved in _PROFILE_HANDLERS:
+        return resolved
+    if resolved in _BINARY_TO_PROFILE:
+        return _BINARY_TO_PROFILE[resolved]
+    return "claude"
 
 
 def _maybe_dump_env() -> None:
@@ -282,6 +433,9 @@ def _run_stream_then_die(profile: str, exit_code: int) -> int:
     """Emit a partial stream then exit non-zero (truncated-output test)."""
     if profile == "claude":
         sys.stdout.write(json.dumps(_CLAUDE_STREAM[0]) + "\n")
+        sys.stdout.flush()
+    elif profile == "cursor":
+        sys.stdout.write(json.dumps(_CURSOR_STREAM[0]) + "\n")
         sys.stdout.flush()
     else:
         sys.stdout.write("partial-output-line\n")

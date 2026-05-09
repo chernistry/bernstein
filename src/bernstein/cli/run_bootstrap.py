@@ -200,6 +200,28 @@ def _confirm_run(*, goal: str | None, seed_file: str | None) -> bool:
     return True
 
 
+# ``--sandbox`` accepts every backend the deterministic selector knows
+# about (KF-4). The list mirrors :data:`bernstein.core.sandbox.selector.DEFAULT_PRECEDENCE`
+# plus the cloud backends that ride entry-point registration.
+SANDBOX_CHOICES: tuple[str, ...] = (
+    "docker",
+    "podman",
+    "worktree",
+    "e2b",
+    "modal",
+    "daytona",
+    "blaxel",
+    "runloop",
+    "vercel",
+)
+
+
+# Subset that the selector considers "free" (no per-second cost, no API key
+# needed). The CLI only widens consideration to the rest when the operator
+# also passes ``--allow-paid``.
+SANDBOX_FREE_CHOICES: tuple[str, ...] = ("docker", "podman", "worktree")
+
+
 def _propagate_env_flags(
     *,
     profile: bool,
@@ -216,6 +238,7 @@ def _propagate_env_flags(
     activity_log_path: str | None,
     audit: bool,
     max_cost_usd: float | None = None,
+    allow_paid: bool = False,
 ) -> None:
     """Set environment variables so orchestrator subprocesses inherit CLI flags."""
     _flag_map: list[tuple[bool, str]] = [
@@ -224,6 +247,7 @@ def _propagate_env_flags(
         (quiet, "BERNSTEIN_QUIET"),
         (auto_pr, "BERNSTEIN_AUTO_PR"),
         (audit, "BERNSTEIN_AUDIT"),
+        (allow_paid, "BERNSTEIN_SANDBOX_ALLOW_PAID"),
     ]
     for flag, key in _flag_map:
         if flag:
@@ -249,8 +273,24 @@ def _propagate_env_flags(
         os.environ[ENV_MAX_COST_USD] = f"{max_cost_usd:.6f}"
 
     if sandbox:
-        os.environ["BERNSTEIN_CONTAINER"] = "1"
-        os.environ["BERNSTEIN_SANDBOX_RUNTIME"] = sandbox.lower()
+        normalized = sandbox.lower()
+        # Only the kernel-isolation backends imply ``--container=1``; cloud
+        # and worktree backends manage their own environment so we leave
+        # the legacy flag alone for them.
+        if normalized in {"docker", "podman"}:
+            os.environ["BERNSTEIN_CONTAINER"] = "1"
+        os.environ["BERNSTEIN_SANDBOX_RUNTIME"] = normalized
+        # Surface the paid-allowed bit so downstream callers (selector,
+        # orchestrator) can honour it without re-parsing argv.
+        if normalized not in SANDBOX_FREE_CHOICES and not allow_paid:
+            from bernstein.cli.errors import BernsteinError
+
+            BernsteinError(
+                what=f"Sandbox {normalized!r} requires --allow-paid",
+                why="Paid cloud backends are gated behind an explicit opt-in to avoid surprise spend",
+                fix="Re-run with --allow-paid, or pick a free backend (worktree, docker, podman)",
+            ).print()
+            raise SystemExit(2)
     elif container:
         os.environ["BERNSTEIN_CONTAINER"] = "1"
 
@@ -674,8 +714,25 @@ def exec_restart() -> None:
 @click.option(
     "--sandbox",
     default=None,
-    type=click.Choice(["docker", "podman"], case_sensitive=False),
-    help="Run agents in a Docker/Podman sandbox. Preferred alias for --container.",
+    type=click.Choice(list(SANDBOX_CHOICES), case_sensitive=False),
+    help=(
+        "Sandbox backend for agent isolation. Free: worktree, docker, podman. "
+        "Paid (require --allow-paid): e2b, modal, daytona, blaxel, runloop, vercel. "
+        "Overrides the selector's deterministic precedence; pass nothing to let "
+        "the selector pick the cheapest backend that satisfies the manifest."
+    ),
+)
+@click.option(
+    "--allow-paid",
+    "allow_paid",
+    is_flag=True,
+    default=False,
+    help=(
+        "Allow the sandbox selector to consider paid cloud backends "
+        "(e2b, modal, daytona, blaxel, runloop, vercel). Off by default so "
+        "selector falls back to free backends only. Required when --sandbox "
+        "names a paid backend explicitly."
+    ),
 )
 @click.option(
     "--two-phase-sandbox/--no-two-phase-sandbox",
@@ -831,6 +888,7 @@ def run(
     skip_gate_reason: str | None,
     audit: bool,
     sandbox: str | None = None,
+    allow_paid: bool = False,
     ab_test: bool = False,
     dry_run: bool = False,
     cprofile: bool = False,
@@ -896,6 +954,7 @@ def run(
         activity_log_path=activity_log_path,
         audit=audit,
         max_cost_usd=max_cost_usd,
+        allow_paid=allow_paid,
     )
 
     _install_network_policy(run_profile=run_profile, allow_network=allow_network)

@@ -37,6 +37,7 @@ _PUBLIC_PATHS = frozenset(
         "/.well-known/agent.json",
         "/.well-known/agent.json/keys",
         "/.well-known/acp.json",
+        "/.well-known/mcp-tools",
         "/acp/v0/agents",
         "/docs",
         "/redoc",

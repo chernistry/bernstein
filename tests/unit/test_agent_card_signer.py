@@ -9,6 +9,7 @@ import pytest
 from bernstein.core.security.agent_card_signer import (
     AgentCardSignature,
     canonicalize_jcs,
+    ed25519_public_jwk,
     generate_ed25519_keypair,
     sign_agent_card,
     verify_agent_card,
@@ -221,3 +222,54 @@ class TestSignVerify:
             kid=sig.kid,
         )
         assert verify_agent_card(card, forged, pub) is False
+
+
+# ---------------------------------------------------------------------------
+# JWK rendering for the JWKS endpoint at /.well-known/agent.json/keys.
+# ---------------------------------------------------------------------------
+
+
+class TestEd25519PublicJWK:
+    def test_jwk_shape_matches_rfc_8037(self) -> None:
+        _, pub = generate_ed25519_keypair()
+        jwk = ed25519_public_jwk(pub, kid="agent-test")
+        assert jwk["kty"] == "OKP"
+        assert jwk["crv"] == "Ed25519"
+        assert jwk["alg"] == "EdDSA"
+        assert jwk["use"] == "sig"
+        assert jwk["kid"] == "agent-test"
+        assert isinstance(jwk["x"], str) and "=" not in jwk["x"]
+
+    def test_x_decodes_to_32_raw_bytes(self) -> None:
+        from base64 import urlsafe_b64decode
+
+        _, pub = generate_ed25519_keypair()
+        jwk = ed25519_public_jwk(pub, kid="k")
+        raw = urlsafe_b64decode(jwk["x"] + "=" * (-len(jwk["x"]) % 4))
+        assert len(raw) == 32
+
+    def test_jwk_round_trips_through_cryptography(self) -> None:
+        """The JWK ``x`` must reconstruct an Ed25519PublicKey byte-identical
+        to the SPKI input — this is what verifiers do at runtime.
+        """
+        from base64 import urlsafe_b64decode
+
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+            Ed25519PublicKey,
+        )
+
+        _, pub_pem = generate_ed25519_keypair()
+        original_raw = serialization.load_pem_public_key(pub_pem).public_bytes(
+            serialization.Encoding.Raw,
+            serialization.PublicFormat.Raw,
+        )
+        jwk = ed25519_public_jwk(pub_pem, kid="k")
+        rebuilt = Ed25519PublicKey.from_public_bytes(
+            urlsafe_b64decode(jwk["x"] + "=" * (-len(jwk["x"]) % 4))
+        )
+        rebuilt_raw = rebuilt.public_bytes(
+            serialization.Encoding.Raw,
+            serialization.PublicFormat.Raw,
+        )
+        assert rebuilt_raw == original_raw

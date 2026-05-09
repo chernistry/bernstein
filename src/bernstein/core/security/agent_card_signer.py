@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 __all__ = [
     "AgentCardSignature",
     "canonicalize_jcs",
+    "ed25519_public_jwk",
     "generate_ed25519_keypair",
     "sign_agent_card",
     "verify_agent_card",
@@ -119,6 +120,41 @@ def generate_ed25519_keypair() -> tuple[bytes, bytes]:
         serialization.PublicFormat.SubjectPublicKeyInfo,
     )
     return private_pem, public_pem
+
+
+def ed25519_public_jwk(public_key_pem: bytes, *, kid: str) -> dict[str, str]:
+    """Render a SPKI Ed25519 public key as a JWK (RFC 8037 §2).
+
+    The JWK shape is what verifiers consume from the orchestrator's JWKS
+    endpoint at ``/.well-known/agent.json/keys``. A2A v1.0 picks the OKP
+    key type with curve ``Ed25519`` for ``EdDSA`` signatures.
+
+    Args:
+        public_key_pem: SPKI PEM bytes as produced by
+            :func:`generate_ed25519_keypair`.
+        kid: Key identifier embedded in the JWS header — must match the
+            ``kid`` from the corresponding :class:`AgentCardSignature` so
+            verifiers can route by key.
+
+    Returns:
+        JWK dict with ``kty``, ``crv``, ``x``, ``alg``, ``use``, ``kid``
+        keys. Caller composes ``{"keys": [<jwk>, ...]}`` for the JWKS.
+    """
+    from cryptography.hazmat.primitives import serialization
+
+    public_key = serialization.load_pem_public_key(public_key_pem)
+    raw = public_key.public_bytes(
+        serialization.Encoding.Raw,
+        serialization.PublicFormat.Raw,
+    )
+    return {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "alg": "EdDSA",
+        "use": "sig",
+        "kid": kid,
+        "x": _b64url(raw),
+    }
 
 
 # ---------------------------------------------------------------------------

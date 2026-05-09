@@ -332,3 +332,9 @@ EU AI Act high-risk classification or a HIPAA covered entity.
 - `[operations/MODEL_POLICY.md](MODEL_POLICY.md)` — provider-policy
   enforcement (CISO-level constraints on which provider sees which
   code).
+- [`compliance/lineage-export.md`](../compliance/lineage-export.md) —
+  operator guide to `bernstein lineage export` / `verify`, including
+  worked DORA / SOC 2 / EU AI Act / HIPAA workflows.
+- [`compliance/regulatory-lineage.md`](../compliance/regulatory-lineage.md)
+  — schema-v2 reference for the per-artefact lineage trail, customer-
+  key signing, and SIEM-webhook tamper-loud configuration.

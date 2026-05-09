@@ -213,6 +213,7 @@ nav:
       - Env isolation: operations/env-isolation.md
       - Compliance: operations/compliance.md
       - Regulator-class lineage: compliance/regulatory-lineage.md
+      - Regulatory lineage export (operator guide): compliance/lineage-export.md
       - Air-gap installation: installation/air-gap.md
       - Incident-to-eval synthesis: eval/incident-synthesis.md
       - Verification tracking: operations/verification-tracking.md

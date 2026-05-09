@@ -279,7 +279,7 @@ A `bernstein cloud init` scaffold for `wrangler.toml` and bindings is planned.
 
 **Skill packs**. Progressive-disclosure [skills](docs/architecture/skills.md) (OpenAI Agents SDK pattern): only a compact skill index ships in every spawn's system prompt, agents pull full bodies via the `load_skill` MCP tool on demand. 17 built-in role packs plus third-party `bernstein.skill_sources` entry-points.
 
-**Controls**. [HMAC-chained audit logs](docs/security/audit-log.md), policy engine, PII output gating, WAL-backed crash recovery (experimental multi-worker safety), OAuth 2.0 PKCE. SSO/SAML/OIDC support is in progress.
+**Controls**. [HMAC-chained audit logs](docs/security/audit-log.md), policy engine, PII output gating, WAL-backed crash recovery (experimental multi-worker safety), OAuth 2.0 PKCE, [per-artefact lineage chain with customer-key Ed25519 signing and regulator export](docs/compliance/lineage-export.md). SSO/SAML/OIDC support is in progress.
 
 **Observability**. Prometheus `/metrics`, OTel exporter presets, Grafana dashboards. Per-model cost tracking (`bernstein cost`) plus a [run savings summary](docs/operations/cost-optimization.md#run-savings-summary) on every `bernstein run`. Terminal TUI and web dashboard. Agent process visibility in `ps`.
 

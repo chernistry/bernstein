@@ -171,11 +171,14 @@ Expect to inspect:
 - task lifecycle records
 - per-agent identity history
 - HMAC-chained audit logs
+- per-artefact lineage chain (output → prompt → inputs), exportable for regulator handoff
 
 Read next:
 - [Security & identity](operations/security-and-identity.md)
 - [HMAC-chained audit log operator guide](security/audit-log.md)
 - `security/AUDIT.md`
+- [Regulatory lineage export (operator guide)](compliance/lineage-export.md)
+- [Regulator-class lineage (schema reference)](compliance/regulatory-lineage.md)
 - [Disaster recovery](operations/disaster-recovery.md)
 
 What to verify:
@@ -266,6 +269,7 @@ Use this as a practical sign-off sheet.
 - [ ] Ran `bernstein compliance check` for the required framework(s)
 - [ ] Generated an evidence package where applicable
 - [ ] Reviewed HIPAA / PHI posture if regulated data is in scope
+- [ ] Walked the [regulatory lineage export](compliance/lineage-export.md) for a sample run and verified the chain with `bernstein lineage verify`
 - [ ] Documented remaining gaps and compensating controls
 
 ## Recommended evaluation flow

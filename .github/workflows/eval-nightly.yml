@@ -1,0 +1,147 @@
+name: eval-nightly
+
+# Nightly contamination-resistant eval against SWE-bench Pro, Terminal-Bench
+# 2.0, and SWE-rebench. Wired but DOES NOT auto-run heavy benchmark suites
+# until the `EVAL_ENABLED` repository secret is set to a truthy value.
+#
+# Why gated: each suite is cost-bounded at ~$5/night with DeepSeek V4-Flash on
+# the cheap path; we never want a stray PR push or schedule tick to spend
+# real money before the operator opts in.
+#
+# Background: see ticket
+# `.sdd/backlog/closed/2026-05-07-feat-swe-bench-pro-terminal-bench-nightly.md`
+# and research note `agentic_systems_v2.md` lines 30-31, 87-88, 397.
+
+on:
+  schedule:
+    # 04:23 UTC nightly. Offset 23 minutes to avoid clobbering cluster-e2e
+    # (03:17), release-drafter (00:00), and CI-fix workflows on the hour.
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: "Run the smoke driver even if EVAL_ENABLED is unset."
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-nightly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: preflight (gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      enabled: ${{ steps.gate.outputs.enabled }}
+    steps:
+      - id: gate
+        # The full benchmark run only proceeds when EVAL_ENABLED is set in
+        # repo secrets. Manual `workflow_dispatch` with `force_run=true` runs
+        # the smoke path only (no API spend).
+        env:
+          EVAL_ENABLED: ${{ secrets.EVAL_ENABLED }}
+          FORCE_RUN: ${{ github.event.inputs.force_run }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${EVAL_ENABLED:-}" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "EVAL_ENABLED secret detected — running full eval path."
+          elif [[ "${FORCE_RUN:-}" == "true" ]]; then
+            echo "enabled=smoke" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch with force_run=true — running smoke path."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "EVAL_ENABLED unset; nothing to do. Set the secret to enable."
+          fi
+
+  smoke:
+    name: smoke (synthetic)
+    needs: preflight
+    if: needs.preflight.outputs.enabled == 'smoke'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies
+        # Smoke path needs no extras — synthetic entry, no HuggingFace fetch.
+        run: uv sync --frozen
+
+      - name: Produce synthetic leaderboard entry
+        run: |
+          uv run python -m bernstein.evals.driver \
+            --out .sdd/runtime/eval \
+            --badge .sdd/runtime/eval/badge.md
+
+      - name: Upload smoke artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-nightly-smoke
+          path: |
+            .sdd/runtime/eval/**/*.jsonl
+            .sdd/runtime/eval/badge.md
+          if-no-files-found: error
+          retention-days: 14
+
+  bench:
+    name: bench (full)
+    needs: preflight
+    if: needs.preflight.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      # Per-suite budget cap protects against runaway spend.
+      EVAL_BUDGET_USD: "5"
+      # Adapter set to evaluate. Override via repo variable EVAL_ADAPTERS.
+      EVAL_ADAPTERS: ${{ vars.EVAL_ADAPTERS || 'claude,codex,ollama' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Sync dependencies (with eval extras)
+        # Full path needs the `eval` extras (HuggingFace datasets etc.) once
+        # the per-suite loaders land. Today this is a no-op extras group;
+        # leaving it wired so the workflow doesn't need touching when the
+        # loaders ship.
+        run: uv sync --frozen --extra eval || uv sync --frozen
+
+      # The per-suite loaders (swe-bench-pro / terminal-bench-2 / swe-rebench)
+      # are deferred to follow-up tickets. Until they land, the full path
+      # produces a single synthetic entry tagged with the canonical run-at
+      # so the leaderboard schema stays exercised end-to-end on the gated
+      # path too.
+      - name: Run nightly eval driver
+        run: |
+          uv run python -m bernstein.evals.driver \
+            --out .sdd/runtime/eval \
+            --badge .sdd/runtime/eval/badge.md
+
+      - name: Upload leaderboard artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-nightly-${{ github.run_id }}
+          path: |
+            .sdd/runtime/eval/**/*.jsonl
+            .sdd/runtime/eval/badge.md
+          if-no-files-found: error
+          retention-days: 30

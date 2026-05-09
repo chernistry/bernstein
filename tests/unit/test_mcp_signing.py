@@ -15,6 +15,8 @@ import base64
 import logging
 
 import pytest
+from cryptography.hazmat.primitives import serialization
+
 from bernstein.core.protocols.mcp.mcp_scanner import (
     DEFAULT_KNOWN_BAD_PACKAGES,
     ScannerSeverity,
@@ -36,7 +38,6 @@ from bernstein.core.protocols.mcp.mcp_verifier import (
     verify_mcp_server,
 )
 from bernstein.core.security.agent_card_signer import generate_ed25519_keypair
-from cryptography.hazmat.primitives import serialization
 
 # ---------------------------------------------------------------------------
 # Test fixtures
@@ -55,9 +56,9 @@ def _make_signed_manifest(
     # the fingerprint as opaque except for the ed25519/ prefix).
     fingerprint = f"ed25519/{name.replace('-', '')}fingerprint00"
     manifest_json = (
-        '{"name": "%s", "version": "%s", "publisher": '
-        '{"name": "%s", "fingerprint": "%s"}, "content_hash": ""}'
-        % (name, version, publisher_name, fingerprint)
+        f'{{"name": "{name}", "version": "{version}", "publisher": '
+        f'{{"name": "{publisher_name}", "fingerprint": "{fingerprint}"}}, '
+        f'"content_hash": ""}}'
     )
     manifest = parse_manifest(manifest_json)
     signing_input = canonicalize_manifest(manifest)
@@ -196,10 +197,10 @@ class TestVerifyMCPServer:
         private_pem, public_pem = generate_ed25519_keypair()
         fp = "ed25519/contenthashtest"
         manifest_json = (
-            '{"name": "ex", "version": "1.0", "publisher": '
-            '{"name": "p", "fingerprint": "%s"}, '
-            '"content_hash": "sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}' % fp
+            f'{{"name": "ex", "version": "1.0", "publisher": '
+            f'{{"name": "p", "fingerprint": "{fp}"}}, '
+            f'"content_hash": "sha256/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+            f'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}'
         )
         m = parse_manifest(manifest_json)
         signing_input = canonicalize_manifest(m)

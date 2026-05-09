@@ -142,7 +142,7 @@ class MCPSigningPolicy:
         *,
         config: dict[str, object] | None,
         publisher_keys: dict[str, bytes] | None = None,
-    ) -> "MCPSigningPolicy":
+    ) -> MCPSigningPolicy:
         """Build a policy from a parsed ``bernstein.yaml`` ``mcp:`` block.
 
         Honours ``BERNSTEIN_MCP_ALLOW_UNSIGNED=true`` as an override that

@@ -84,6 +84,12 @@ dependencies = [
     # transitively by several deps; promoted to a direct dep so the phase
     # pipeline does not silently degrade if a transitive owner drops it.
     "jsonschema>=4.17",
+    # RFC 3161 TimeStampToken ASN.1 parsing for the multi-tenant audit
+    # export verifier (resrch-005 v2). Pure-Python, MIT-licensed, ~250KB
+    # wheel; ships the ``tsp.TSTInfo`` / ``cms.ContentInfo`` types we need
+    # without us hand-rolling a DER parser. Used exclusively by
+    # ``bernstein.core.security.rfc3161_verifier``.
+    "asn1crypto>=1.5",
 ]
 
 [project.urls]

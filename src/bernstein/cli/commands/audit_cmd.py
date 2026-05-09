@@ -278,7 +278,7 @@ def verify_hmac_cmd() -> None:
     help=(
         "Emit a multi-tenant audit-chain export scoped to <tenant_id>. "
         "Combine with --since/--until. Bundle conforms to "
-        "schemas/audit-multitenant-export-v1.json."
+        "schemas/audit-multitenant-export-v2.json (back-compat with v1)."
     ),
 )
 @click.option(
@@ -312,14 +312,23 @@ def verify_hmac_cmd() -> None:
     "signature_kind",
     default="hmac-chain-only",
     type=click.Choice(
-        ["hmac-chain-only", "hmac-chain+rfc3161", "hmac-chain+offline-anchor"],
+        [
+            "hmac-chain-only",
+            "hmac-chain+rfc3161",
+            "hmac-chain+offline-anchor",
+            "hmac-chain+pubkey",
+            "hmac-chain+rfc3161+pubkey",
+        ],
     ),
     show_default=True,
     help=(
         "Tenant mode: which detached anchor to attach. "
         "'hmac-chain-only' is the bare HMAC chain. "
         "'hmac-chain+rfc3161' attaches a TSA timestamp token (--rfc3161-token). "
-        "'hmac-chain+offline-anchor' is an air-gap fallback (deterministic local anchor)."
+        "'hmac-chain+offline-anchor' is an air-gap fallback (deterministic local anchor). "
+        "'hmac-chain+pubkey' (v2) signs head_sha256 with the lineage Ed25519 key "
+        "so a key-less auditor can authenticate the bundle. "
+        "'hmac-chain+rfc3161+pubkey' (v2) attaches both."
     ),
 )
 @click.option(
@@ -328,7 +337,7 @@ def verify_hmac_cmd() -> None:
     default=None,
     help=(
         "Tenant mode: path to a base64-encoded DER RFC 3161 TimeStampToken "
-        "(required iff --signature-kind=hmac-chain+rfc3161)."
+        "(required iff --signature-kind contains 'rfc3161')."
     ),
 )
 @click.option(
@@ -336,6 +345,33 @@ def verify_hmac_cmd() -> None:
     "rfc3161_tsa_url",
     default=None,
     help="Tenant mode: URL of the TSA that issued the token (informational).",
+)
+@click.option(
+    "--head-signing-key-path",
+    "head_signing_key_path",
+    default=None,
+    type=click.Path(dir_okay=False, exists=True, resolve_path=True),
+    help=(
+        "Tenant mode (v2): path to the Ed25519 private key (PEM PKCS#8 or "
+        "raw 32-byte) used to sign head_sha256. Required iff "
+        "--signature-kind contains 'pubkey' and --head-signing-env-var is "
+        "not supplied. Reuses the lineage signer key (see "
+        "src/bernstein/core/security/lineage_kms.py)."
+    ),
+)
+@click.option(
+    "--head-signing-env-var",
+    "head_signing_env_var",
+    default=None,
+    help=(
+        "Tenant mode (v2): env var carrying a PEM Ed25519 private key. Mutually exclusive with --head-signing-key-path."
+    ),
+)
+@click.option(
+    "--head-signing-key-id",
+    "head_signing_key_id",
+    default=None,
+    help="Tenant mode (v2): operator-stable JWK 'kid' for the head signature.",
 )
 @click.option(
     "--output",
@@ -361,6 +397,9 @@ def export_cmd(
     signature_kind: str,
     rfc3161_token: str | None,
     rfc3161_tsa_url: str | None,
+    head_signing_key_path: str | None,
+    head_signing_env_var: str | None,
+    head_signing_key_id: str | None,
     output: str | None,
     dry_run: bool,
     workdir: str,
@@ -408,6 +447,9 @@ def export_cmd(
             signature_kind=signature_kind,
             rfc3161_token=rfc3161_token,
             rfc3161_tsa_url=rfc3161_tsa_url,
+            head_signing_key_path=head_signing_key_path,
+            head_signing_env_var=head_signing_env_var,
+            head_signing_key_id=head_signing_key_id,
             output=output,
             dry_run=dry_run,
         )
@@ -547,6 +589,9 @@ def _run_tenant_export(
     signature_kind: str,
     rfc3161_token: str | None,
     rfc3161_tsa_url: str | None,
+    head_signing_key_path: str | None,
+    head_signing_env_var: str | None,
+    head_signing_key_id: str | None,
     output: str | None,
     dry_run: bool,
 ) -> None:
@@ -555,7 +600,9 @@ def _run_tenant_export(
     Loads the operator HMAC key from the canonical key path used by
     :class:`bernstein.core.security.audit.AuditLog`, scopes the bundle
     to ``tenant_id``, and writes a deterministic JSON bundle conforming
-    to ``schemas/audit-multitenant-export-v1.json``.
+    to ``schemas/audit-multitenant-export-v2.json``. When the operator
+    selects a ``+pubkey`` signature kind, the lineage KMS adapter
+    (file-based or env-based) is also wired up to sign ``head_sha256``.
     """
     import json as _json
     from typing import cast
@@ -565,6 +612,11 @@ def _run_tenant_export(
         SignatureKind,
         TenantScopedExport,
         export_tenant_slice,
+    )
+    from bernstein.core.security.lineage_kms import (
+        EnvBasedKMSAdapter,
+        FileBasedKMSAdapter,
+        KMSAdapter,
     )
 
     if not since or not until:
@@ -579,11 +631,41 @@ def _run_tenant_export(
             raise SystemExit(1)
         rfc3161_token_b64 = token_path.read_text(encoding="utf-8").strip()
 
-    if signature_kind == "hmac-chain+rfc3161" and not rfc3161_token_b64:
+    if "rfc3161" in signature_kind and not rfc3161_token_b64:
         console.print(
-            "[red]--signature-kind=hmac-chain+rfc3161 requires --rfc3161-token <path>.[/red]",
+            f"[red]--signature-kind={signature_kind} requires --rfc3161-token <path>.[/red]",
         )
         raise SystemExit(2)
+
+    head_kms_adapter: KMSAdapter | None = None
+    if "pubkey" in signature_kind:
+        if head_signing_key_path and head_signing_env_var:
+            console.print(
+                "[red]--head-signing-key-path and --head-signing-env-var are mutually exclusive.[/red]",
+            )
+            raise SystemExit(2)
+        from bernstein.core.persistence.lineage_signer import LineageSignerError
+
+        try:
+            if head_signing_key_path:
+                head_kms_adapter = FileBasedKMSAdapter(
+                    Path(head_signing_key_path),
+                    kid=head_signing_key_id,
+                )
+            elif head_signing_env_var:
+                head_kms_adapter = EnvBasedKMSAdapter(
+                    head_signing_env_var,
+                    kid=head_signing_key_id,
+                )
+            else:
+                console.print(
+                    f"[red]--signature-kind={signature_kind} requires either "
+                    "--head-signing-key-path or --head-signing-env-var.[/red]",
+                )
+                raise SystemExit(2)
+        except (LineageSignerError, OSError, ValueError) as exc:
+            console.print(f"[red]Failed to load head signing key: {exc}[/red]")
+            raise SystemExit(1) from None
 
     audit_dir = sdd_dir / "audit"
     output_dir = Path(output).resolve() if output else None
@@ -605,6 +687,7 @@ def _run_tenant_export(
             signature_kind=cast("SignatureKind", signature_kind),
             rfc3161_token_b64=rfc3161_token_b64,
             rfc3161_tsa_url=rfc3161_tsa_url,
+            head_kms_adapter=head_kms_adapter,
             write=not dry_run,
         )
     except ValueError as exc:
@@ -640,6 +723,146 @@ def _run_tenant_export(
         console.print("[dim]Bundle (dry-run):[/dim]")
         console.print(_json.dumps(_json.loads(export.bundle_bytes.decode("utf-8")), indent=2))
         console.print()
+
+
+@audit_group.command("verify-multitenant")
+@click.option(
+    "--bundle",
+    "bundle_path",
+    required=True,
+    type=click.Path(dir_okay=False, exists=True, resolve_path=True),
+    help="Path to a multi-tenant audit-export bundle (JSON) to verify.",
+)
+@click.option(
+    "--rfc3161-trusted-tsa-bundle",
+    "rfc3161_trust_bundle",
+    default=None,
+    type=click.Path(dir_okay=False, exists=True, resolve_path=True),
+    help=(
+        "Path to a PEM/DER X.509 trust bundle (operator-supplied TSA roots "
+        "+ intermediates). Enables RFC 3161 cryptographic chain validation. "
+        "Without this flag, the verifier confirms the token is well-formed "
+        "base64 but does NOT validate the TSA chain."
+    ),
+)
+@click.option(
+    "--head-signing-public-jwk",
+    "head_signing_public_jwk_path",
+    default=None,
+    type=click.Path(dir_okay=False, exists=True, resolve_path=True),
+    help=(
+        "Path to a JSON file containing the trusted Ed25519 verifier JWK "
+        "(RFC 8037 OKP form). When supplied, the bundle's embedded JWK "
+        "must match before the head_signature is trusted."
+    ),
+)
+def verify_multitenant_cmd(
+    bundle_path: str,
+    rfc3161_trust_bundle: str | None,
+    head_signing_public_jwk_path: str | None,
+) -> None:
+    """Verify a multi-tenant audit-export bundle offline.
+
+    \b
+    Runs the full v2 verifier:
+      1. Envelope structure + tenant purity + HMAC chain integrity.
+      2. SHA-256 anchor consistency (catches single-byte flips).
+      3. (opt) RFC 3161 cryptographic chain validation when
+         --rfc3161-trusted-tsa-bundle is supplied.
+      4. (opt) Ed25519 signature over head_sha256 when the bundle
+         carries a head_signature block. Pass
+         --head-signing-public-jwk to pin the verifier key.
+
+    Exits non-zero on any failure; prints every observed error.
+    """
+    import json as _json
+
+    from bernstein.core.security.audit import load_or_create_audit_key
+    from bernstein.core.security.audit_multitenant import verify_tenant_slice
+
+    try:
+        hmac_key = load_or_create_audit_key()
+    except OSError as exc:
+        console.print(f"[red]Failed to load audit key: {exc}[/red]")
+        raise SystemExit(1) from None
+
+    trusted_tsa_certs = None
+    if rfc3161_trust_bundle:
+        from bernstein.core.security.rfc3161_verifier import load_trusted_tsa_certs
+
+        try:
+            trusted_tsa_certs = load_trusted_tsa_certs(Path(rfc3161_trust_bundle))
+        except ValueError as exc:
+            console.print(f"[red]Trust bundle load failed: {exc}[/red]")
+            raise SystemExit(1) from None
+
+    trusted_jwk: dict | None = None
+    if head_signing_public_jwk_path:
+        try:
+            trusted_jwk = _json.loads(
+                Path(head_signing_public_jwk_path).read_text(encoding="utf-8"),
+            )
+        except (OSError, _json.JSONDecodeError) as exc:
+            console.print(f"[red]Trusted JWK load failed: {exc}[/red]")
+            raise SystemExit(1) from None
+        if not isinstance(trusted_jwk, dict):
+            console.print("[red]Trusted JWK must be a JSON object.[/red]")
+            raise SystemExit(1)
+
+    result = verify_tenant_slice(
+        Path(bundle_path),
+        key=hmac_key,
+        rfc3161_trusted_tsa_certs=trusted_tsa_certs,
+        head_signature_trusted_jwk=trusted_jwk,
+    )
+
+    console.print()
+    if result.ok:
+        console.print(
+            Panel(
+                "[bold green]Multi-tenant Audit Slice Verified[/bold green]",
+                border_style="green",
+                expand=False,
+            ),
+        )
+        bundle = result.bundle
+        table = Table(show_header=False, box=None, padding=(0, 2))
+        table.add_column("Key", style="dim", no_wrap=True, min_width=18)
+        table.add_column("Value")
+        table.add_row("Schema version", str(bundle.get("schema_version", "?")))
+        table.add_row("Tenant", str(bundle.get("tenant_id", "?")))
+        table.add_row("Events", str(bundle.get("event_count", "?")))
+        table.add_row(
+            "Signature kind",
+            str((bundle.get("signature") or {}).get("signature_kind", "?")),
+        )
+        rfc3161_state = (
+            "verified"
+            if trusted_tsa_certs
+            and "rfc3161"
+            in str(
+                (bundle.get("signature") or {}).get("signature_kind", ""),
+            )
+            else "skipped"
+        )
+        table.add_row("RFC 3161", rfc3161_state)
+        head_sig_state = "verified" if bundle.get("head_signature") else "absent"
+        table.add_row("Head signature", head_sig_state)
+        console.print(table)
+        console.print()
+        return
+
+    console.print(
+        Panel(
+            "[bold red]Multi-tenant Audit Slice FAILED[/bold red]",
+            border_style="red",
+            expand=False,
+        ),
+    )
+    for err in result.errors:
+        console.print(f"  [red]![/red] {err}")
+    console.print()
+    raise SystemExit(1)
 
 
 @audit_group.command("pack")

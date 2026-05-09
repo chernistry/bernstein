@@ -15,11 +15,27 @@ that:
   replay-verify offline using only the operator's HMAC key.
 - Carries a tamper-evident SHA-256 anchor over the canonical JSONL bytes
   (catches single-byte flips even without the key).
-- Optionally attaches an RFC 3161 TimeStampToken from a third-party TSA,
-  or a deterministic offline anchor for air-gapped deployments.
+- (v2, opt-in) Attaches an Ed25519 signature over `head_sha256` so a
+  key-less auditor can authenticate the bundle's origin without sharing
+  the operator's HMAC key.
+- (v2) Cryptographically validates the optional RFC 3161 token
+  end-to-end — chain, signature, and `messageImprint` — instead of
+  delegating to `openssl ts -verify`.
 
-Bundles are byte-deterministic — the same input window + tenant id
-produces a byte-identical bundle on every run.
+Bundles are byte-deterministic — the same input window + tenant id (+
+same signing key) produces a byte-identical bundle on every run.
+
+## Schema versions
+
+| Version | Status      | Adds                                                                                                            |
+|---------|-------------|-----------------------------------------------------------------------------------------------------------------|
+| 1.0.0   | shipped 2026-04 | HMAC chain, SHA-256 anchor, optional RFC 3161 token (verifier deferred), optional offline anchor.            |
+| 2.0.0   | shipped 2026-05 | Verifiable RFC 3161 chain (PKI walk + CMS signature + messageImprint), optional `head_signature` (Ed25519). |
+
+v1 readers tolerate v2 bundles by ignoring the additional `head_signature`
+field — `additionalProperties: true` at the top level of the schema is
+intentional. v2 readers verify the new fields when they are present and
+the matching trust material is supplied.
 
 ## Tagging events with `tenant_id`
 
@@ -69,10 +85,54 @@ bernstein audit export \
     --rfc3161-tsa-url https://freetsa.org/tsr
 ```
 
-The bundle records the token verbatim. The verifier confirms it is valid
-base64. Cryptographic verification of the token chain (RFC 3161 §2.4.2)
-is delegated to the operator's existing TSA toolchain (e.g. `openssl ts
--verify`).
+The bundle records the token verbatim. **v2 verifier walks the TSA cert
+chain end-to-end** when invoked with `--rfc3161-trusted-tsa-bundle`. The
+old "delegate to `openssl ts -verify`" workflow is still supported for
+operators who want a redundant external check.
+
+### With Ed25519 signature over `head_sha256` (v2)
+
+```bash
+bernstein audit export \
+    --tenant acme \
+    --since 2026-08-01T00:00:00+00:00 \
+    --until 2026-09-01T00:00:00+00:00 \
+    --signature-kind hmac-chain+pubkey \
+    --head-signing-key-path .sdd/keys/lineage.pem \
+    --head-signing-key-id lineage-2026-05
+```
+
+The signing key is shared with the lineage signer (PR #1151) — same
+rotation cadence, same KMS plumbing (file / env / HSM via the
+`KMSAdapter` protocol). Pass `--head-signing-env-var <NAME>` instead of
+`--head-signing-key-path` for a K8s `Secret`-mounted key.
+
+The bundle gains a top-level `head_signature` block:
+
+```json
+"head_signature": {
+    "alg": "EdDSA",
+    "key_id": "lineage-2026-05",
+    "public_key_jwk": {"kty": "OKP", "crv": "Ed25519", "alg": "EdDSA", "x": "..."},
+    "signature_b64": "..."
+}
+```
+
+A key-less auditor can verify the signature by extracting the embedded
+JWK; an auditor who has been handed a pinned JWK out of band can pass it
+to the verifier so a key swap is rejected.
+
+### Both layers
+
+```bash
+bernstein audit export \
+    --tenant acme \
+    --since 2026-08-01T00:00:00+00:00 \
+    --until 2026-09-01T00:00:00+00:00 \
+    --signature-kind hmac-chain+rfc3161+pubkey \
+    --rfc3161-token /path/to/tsa.token.b64 \
+    --head-signing-key-path .sdd/keys/lineage.pem
+```
 
 ### Offline anchor (air-gap deployments)
 
@@ -100,22 +160,24 @@ produce different bundles. To get byte-identical air-gap bundles, pass
 `--dry-run` builds the bundle in-memory and prints the manifest without
 writing to disk. Useful for spot-checking a window before shipping.
 
-## Wire format
+## Wire format (v2)
 
 The bundle is a single JSON object that conforms to
-`schemas/audit-multitenant-export-v1.json` (JSON Schema draft-07).
+`schemas/audit-multitenant-export-v2.json` (JSON Schema draft-07). The
+v1 schema (`audit-multitenant-export-v1.json`) is preserved unchanged.
 
 Top-level fields:
 
-| Field            | Type    | Description                                                         |
-| ---------------- | ------- | ------------------------------------------------------------------- |
-| `schema_version` | string  | Pinned to `1.0.0`. Bumped on any breaking change.                   |
-| `tenant_id`      | string  | Normalized tenant identifier.                                       |
-| `audit_window`   | object  | `{since, until}` — ISO-8601 strings; since < until.                 |
-| `chain_anchor`   | object  | `{genesis_prev_hmac, head_hmac, head_sha256}`.                      |
-| `event_count`    | integer | Number of events in the slice.                                      |
-| `events`         | array   | Slice events in chronological order, with `_original_hmac` witness. |
-| `signature`      | object  | Detached anchor block.                                              |
+| Field            | Required | Type    | Description                                                         |
+| ---------------- | -------- | ------- | ------------------------------------------------------------------- |
+| `schema_version` | yes      | string  | `1.0.0` or `2.0.0`. v2 readers accept both.                         |
+| `tenant_id`      | yes      | string  | Normalized tenant identifier.                                       |
+| `audit_window`   | yes      | object  | `{since, until}` — ISO-8601 strings; since < until.                 |
+| `chain_anchor`   | yes      | object  | `{genesis_prev_hmac, head_hmac, head_sha256}`.                      |
+| `event_count`    | yes      | integer | Number of events in the slice.                                      |
+| `events`         | yes      | array   | Slice events in chronological order, with `_original_hmac` witness. |
+| `signature`      | yes      | object  | Detached anchor block.                                              |
+| `head_signature` | no (v2)  | object  | Ed25519 signature over `head_sha256` (raw 32 bytes).                |
 
 Each event preserves the original orchestrator-wide HMAC at
 `details._original_hmac` so an auditor with access to the source log can
@@ -129,9 +191,17 @@ from pathlib import Path
 
 from bernstein.core.security.audit import load_or_create_audit_key
 from bernstein.core.security.audit_multitenant import verify_tenant_slice
+from bernstein.core.security.rfc3161_verifier import load_trusted_tsa_certs
 
 key = load_or_create_audit_key()  # operator's HMAC key
-result = verify_tenant_slice(Path("path/to/bundle.json"), key=key)
+trust = load_trusted_tsa_certs(Path("path/to/freetsa-bundle.pem"))
+
+result = verify_tenant_slice(
+    Path("path/to/bundle.json"),
+    key=key,
+    rfc3161_trusted_tsa_certs=trust,            # opt-in
+    head_signature_trusted_jwk={"kty": "OKP", "crv": "Ed25519", "x": "..."},
+)
 if not result.ok:
     for err in result.errors:
         print("FAIL:", err)
@@ -139,7 +209,17 @@ if not result.ok:
 print("OK", result.bundle["event_count"], "events")
 ```
 
-The verifier runs five independent checks:
+Or via the CLI:
+
+```bash
+bernstein audit verify-multitenant \
+    --bundle .sdd/evidence/audit-multitenant-acme-2026-08-01-2026-09-01.json \
+    --rfc3161-trusted-tsa-bundle .sdd/trust/freetsa-bundle.pem \
+    --head-signing-public-jwk .sdd/keys/lineage.pub.jwk
+```
+
+The verifier runs up to seven independent checks (the last two are
+opt-in based on which trust material the caller supplies):
 
 1. **Envelope structure** — required fields, schema version, ISO-8601
    ordering of `audit_window`.
@@ -152,32 +232,50 @@ The verifier runs five independent checks:
    JSONL bytes and compare.
 5. **Signature block sanity** — base64 validity for RFC 3161 tokens;
    `sha256(head_sha256 || anchored_at)` for offline anchors.
+6. **(opt) RFC 3161 cryptographic chain** — walks the embedded TSA cert
+   chain against `rfc3161_trusted_tsa_certs`, verifies the CMS signer's
+   signature over `SignedAttributes`, and confirms
+   `TSTInfo.messageImprint == sha256(head_sha256 bytes)`. Skipped with a
+   log warning when no trust bundle is supplied.
+7. **(opt) Head signature** — verifies the Ed25519 signature over
+   `bytes.fromhex(head_sha256)` against the embedded JWK. When
+   `head_signature_trusted_jwk` is supplied, the embedded JWK must
+   match (key pinning).
 
-A failure on any of those checks flips `result.ok` to `False` and
-appends a human-readable message to `result.errors`.
+A failure on any active check flips `result.ok` to `False` and appends a
+human-readable message to `result.errors`.
 
-## What is NOT in v1
+## Trust bundle for RFC 3161
 
-- **Public-key signatures** (cosign, Sigstore, SCITT receipt). The
-  primary proof is HMAC, which requires the auditor to share the key
-  with the operator. Future versions can layer a public-key signature
-  over `head_sha256` so a key-less auditor can still validate
-  authenticity.
-- **In-toto attestation wrapping**. The schema is custom because
-  line-oriented JSONL chains do not fit the in-toto subject/predicate
-  shape cleanly. Migrating later is a `schema_version` bump.
-- **Live RFC 3161 TSA fetch**. The CLI takes a pre-fetched token. Wiring
-  bernstein to call a TSA itself would couple the export to network
-  policy.
+The verifier needs operator-supplied TSA roots — we deliberately do
+**not** honour OS trust stores. Build a bundle once per TSA you trust:
+
+```bash
+# FreeTSA example — root + leaf glued together so both are anchors.
+curl -sS https://freetsa.org/files/cacert.pem -o trust/freetsa.pem
+```
+
+Pass the resulting file to `--rfc3161-trusted-tsa-bundle`. The verifier
+walks the embedded cert chain inside the token against the bundle using
+`cryptography.x509.verification.PolicyBuilder`. The CA policy requires
+`basicConstraints` to be present (criticality is agnostic — many real
+TSAs ship non-critical constraints); the EE policy is permissive
+(TSA leaf certs do not carry CABF SAN constraints). The
+`id-kp-timeStamping` extended-key-usage bit is surfaced on the result so
+operators can enforce the policy themselves.
 
 ## Compliance mapping (one-line)
 
 - **EU AI Act Art. 12** — covered by `bernstein audit export
   --article-12 ...` (see `docs/security/AUDIT.md`); the multi-tenant
   export complements it for slicing per-customer.
-- **DORA Art. 9 / Art. 28** — the slice + RFC 3161 token satisfies
-  third-party register evidence.
-- **SR 11-7** — the chain + sha256 anchor is the model audit trail.
+- **DORA Art. 9 / Art. 28** — the slice + RFC 3161 token + `head_signature`
+  is now end-to-end-verifiable evidence for third-party register sharing.
+- **SR 11-7** — the chain + sha256 anchor + Ed25519 head signature is the
+  model audit trail; the auditor verifies authenticity without holding
+  the operator's HMAC key.
+- **ISO 27001:2022 A.12.4** — the head signature lets the audit log
+  artefact be archived independently of the orchestrator runtime.
 
 ## References
 
@@ -187,7 +285,13 @@ appends a human-readable message to `result.errors`.
   v2 is RDF/JSON-LD-shaped and forces context resolution at verify
   time. Migration path remains open.
 - RFC 3161 — Time-Stamp Protocol
-  (https://www.rfc-editor.org/rfc/rfc3161).
+  (https://www.rfc-editor.org/rfc/rfc3161). v2 verifier walks the chain
+  end-to-end via `bernstein.core.security.rfc3161_verifier`.
+- RFC 5652 — Cryptographic Message Syntax (CMS); the TimeStampToken is
+  a CMS `SignedData`.
+- RFC 8032 — Ed25519 deterministic signatures.
+- RFC 8037 — JOSE OKP curves; the `head_signature.public_key_jwk` block
+  uses this encoding.
 - IETF SCITT — Supply Chain Integrity, Transparency, and Trust
-  (https://datatracker.ietf.org/wg/scitt). Forward-looking direction
-  for transparency-log integration.
+  (https://datatracker.ietf.org/wg/scitt). The Ed25519 head signature
+  drops cleanly into a SCITT envelope when the WG locks v1.

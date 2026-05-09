@@ -32,17 +32,41 @@ exported slice is detectable because:
 * Its ``_original_hmac`` does not appear (or appears with a different
   payload) in the original log.
 
+Schema versions
+---------------
+* **1.0.0** — HMAC chain + optional RFC 3161 token (spec-only, no
+  cryptographic chain validation) + optional offline anchor.
+* **2.0.0** — Adds two regulator-friendly extensions, both opt-in:
+
+  * ``head_signature`` — Ed25519 signature over the raw ``head_sha256``
+    bytes, signed by the operator's lineage KMS adapter (see
+    :mod:`bernstein.core.security.lineage_kms`). Lets a key-less auditor
+    authenticate the bundle's origin without sharing the HMAC key.
+  * RFC 3161 cryptographic chain validation — the existing
+    ``rfc3161_token_b64`` field is now verifiable end-to-end via
+    :mod:`bernstein.core.security.rfc3161_verifier`. The bundle field
+    layout did not change for this; only the verifier surface did.
+
+  v1 readers ignore unknown top-level fields gracefully (see
+  ``additionalProperties: false`` lifted to ``true`` in the v2 schema).
+  v2 readers verify the new fields when they are present and the caller
+  passes the matching trust material.
+
 References:
 
 * W3C Verifiable Credentials Data Model 2.0 — conceptually similar
   citation/proof split, but rejected as the wire format because VC v2 is
   RDF/JSON-LD-shaped and forces JSON-LD context resolution at verify
   time. Audit chains are line-oriented JSONL; a custom schema (see
-  ``schemas/audit-multitenant-export-v1.json``) is leaner. The schema
-  is versioned (``schema_version: 1.0.0``) so future migrations to VC v2
+  ``schemas/audit-multitenant-export-v2.json``) is leaner. The schema
+  is versioned (``schema_version: 2.0.0``) so future migrations to VC v2
   or in-toto attestations stay open.
-* RFC 3161 — Time-Stamp Protocol. Optional third-party timestamp token.
-* IETF SCITT — future direction; not wired in v1.
+* RFC 3161 — Time-Stamp Protocol. The token is now cryptographically
+  validated end-to-end (see :mod:`rfc3161_verifier`).
+* RFC 8037 — JOSE OKP curves. The ``head_signature`` block uses an
+  RFC 8037 JWK to advertise the verifying key.
+* IETF SCITT — future direction; the public-key signature wraps cleanly
+  into a SCITT envelope when the WG locks v1.
 """
 
 from __future__ import annotations
@@ -55,15 +79,29 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
+from bernstein.core.security.audit_head_signature import (
+    build_head_signature,
+    verify_head_signature,
+)
 from bernstein.core.security.tenanting import normalize_tenant_id
+
+if TYPE_CHECKING:
+    from cryptography import x509
+
+    from bernstein.core.security.lineage_kms import KMSAdapter
 
 logger = logging.getLogger(__name__)
 
-#: Schema version emitted in the exported bundle. Bumped on any breaking
-#: change to artefact field ordering, payload format, or HMAC input shape.
-EXPORT_SCHEMA_VERSION: str = "1.0.0"
+#: Schema version emitted in the exported bundle. v2 adds the optional
+#: ``head_signature`` block + verifiable RFC 3161 chain validation;
+#: v1 readers tolerate v2 bundles by ignoring unknown top-level fields.
+EXPORT_SCHEMA_VERSION: str = "2.0.0"
+
+#: Schema versions the verifier will read without erroring out. v1 and v2
+#: differ only in optional fields, so the verifier walks both transparently.
+SUPPORTED_SCHEMA_VERSIONS: frozenset[str] = frozenset({"1.0.0", "2.0.0"})
 
 #: Genesis sentinel matching :mod:`bernstein.core.security.audit`.
 _GENESIS_HMAC: str = "0" * 64
@@ -75,7 +113,19 @@ SignatureKind = Literal[
     "hmac-chain-only",
     "hmac-chain+rfc3161",
     "hmac-chain+offline-anchor",
+    "hmac-chain+pubkey",
+    "hmac-chain+rfc3161+pubkey",
 ]
+
+#: Signature kinds that require a working :class:`KMSAdapter` at export time.
+_PUBKEY_KINDS: frozenset[str] = frozenset(
+    {"hmac-chain+pubkey", "hmac-chain+rfc3161+pubkey"},
+)
+
+#: Signature kinds that require an RFC 3161 token at export time.
+_RFC3161_KINDS: frozenset[str] = frozenset(
+    {"hmac-chain+rfc3161", "hmac-chain+rfc3161+pubkey"},
+)
 
 
 # ---------------------------------------------------------------------------
@@ -352,6 +402,7 @@ def export_tenant_slice(
     rfc3161_token_b64: str | None = None,
     rfc3161_tsa_url: str | None = None,
     offline_anchor_iso: str | None = None,
+    head_kms_adapter: KMSAdapter | None = None,
     write: bool = True,
 ) -> TenantScopedExport:
     """Build a tenant-scoped audit-chain export bundle.
@@ -363,8 +414,12 @@ def export_tenant_slice(
        matches ``tenant_id`` and whose timestamp falls in ``[since, until)``.
     3. Rebuild a slice-local HMAC chain over the filtered events using
        ``key`` so the slice is offline-replay-verifiable.
-    4. Emit a deterministic JSON bundle conforming to
-       ``schemas/audit-multitenant-export-v1.json``.
+    4. Optionally sign the resulting ``head_sha256`` with the operator's
+       lineage KMS adapter (Ed25519) so a key-less auditor can still
+       authenticate the bundle's origin (v2).
+    5. Emit a deterministic JSON bundle conforming to
+       ``schemas/audit-multitenant-export-v2.json`` (v1 readers tolerate
+       the additional ``head_signature`` field gracefully).
 
     Args:
         audit_dir: Directory of HMAC-chained ``YYYY-MM-DD.jsonl`` files
@@ -379,16 +434,27 @@ def export_tenant_slice(
             so existing operators reuse one secret across exports.
         output_dir: Where to write the bundle. Defaults to
             ``audit_dir.parent / 'evidence'`` (``.sdd/evidence/``).
-        signature_kind: Which verifier path the bundle declares. ``hmac-
-            chain-only`` is the default; pass ``hmac-chain+rfc3161`` plus
-            a token to attach a TSA timestamp; pass ``hmac-chain+offline-
-            anchor`` for air-gap deployments.
+        signature_kind: Which verifier path the bundle declares. v2 adds:
+
+            * ``hmac-chain+pubkey`` — HMAC chain + Ed25519 signature
+              over ``head_sha256``. Requires ``head_kms_adapter``.
+            * ``hmac-chain+rfc3161+pubkey`` — both layers.
+
+            v1 kinds remain valid:
+
+            * ``hmac-chain-only`` — bare HMAC.
+            * ``hmac-chain+rfc3161`` — HMAC + TSA token.
+            * ``hmac-chain+offline-anchor`` — air-gap.
         rfc3161_token_b64: Base64-encoded DER TimeStampToken from a TSA.
-            Required iff ``signature_kind == 'hmac-chain+rfc3161'``.
+            Required iff ``signature_kind`` includes ``rfc3161``.
         rfc3161_tsa_url: URL of the TSA that issued the token.
         offline_anchor_iso: Override timestamp for the offline anchor
             (defaults to ``datetime.now(UTC)``). Tests use this for
             deterministic byte output.
+        head_kms_adapter: Lineage KMS adapter (PR #1151). Required iff
+            ``signature_kind`` includes ``pubkey``. Reuses the same key
+            material that signs lineage records so operators do not have
+            to plumb a second signing key.
         write: When False, build everything in-memory and skip the disk
             write — useful for ``--dry-run`` and tests.
 
@@ -398,18 +464,23 @@ def export_tenant_slice(
 
     Raises:
         ValueError: ``since`` is not strictly less than ``until``, or
-            ``tenant_id`` is empty after normalization, or
-            ``rfc3161_token_b64`` is missing when the signature kind
-            requires it.
+            ``tenant_id`` is empty after normalization, or required
+            signing material (``rfc3161_token_b64`` /
+            ``head_kms_adapter``) is missing for the declared kind.
     """
     if since >= until:
         raise ValueError(f"since={since!r} must be < until={until!r}")
     normalized_tenant = normalize_tenant_id(tenant_id)
     if not normalized_tenant:
         raise ValueError("tenant_id resolved to empty value after normalization")
-    if signature_kind == "hmac-chain+rfc3161" and not rfc3161_token_b64:
+    if signature_kind in _RFC3161_KINDS and not rfc3161_token_b64:
         raise ValueError(
-            "signature_kind='hmac-chain+rfc3161' requires rfc3161_token_b64",
+            f"signature_kind={signature_kind!r} requires rfc3161_token_b64",
+        )
+    if signature_kind in _PUBKEY_KINDS and head_kms_adapter is None:
+        raise ValueError(
+            f"signature_kind={signature_kind!r} requires head_kms_adapter "
+            "(pass a configured KMSAdapter — file/env/hsm)",
         )
 
     all_events = _read_audit_events(audit_dir)
@@ -440,6 +511,15 @@ def export_tenant_slice(
         "events": rebuilt,
         "signature": signature_block,
     }
+    if signature_kind in _PUBKEY_KINDS:
+        # The KMS adapter is guaranteed non-None at this point by the
+        # validation above; the cast keeps strict-mode type checkers happy.
+        if head_kms_adapter is None:  # pragma: no cover - branch invariant
+            raise RuntimeError("internal invariant: head_kms_adapter unexpectedly None")
+        bundle["head_signature"] = build_head_signature(
+            head_sha256,
+            kms_adapter=head_kms_adapter,
+        )
     bundle_bytes = _canonical_bundle_bytes(bundle)
 
     bundle_path: Path | None = None
@@ -495,9 +575,9 @@ def _validate_bundle_envelope(bundle: dict[str, Any]) -> list[str]:
     if errors:
         return errors
 
-    if bundle["schema_version"] != EXPORT_SCHEMA_VERSION:
+    if bundle["schema_version"] not in SUPPORTED_SCHEMA_VERSIONS:
         errors.append(
-            f"schema_version mismatch: got {bundle['schema_version']!r}, expected {EXPORT_SCHEMA_VERSION!r}",
+            f"schema_version {bundle['schema_version']!r} not in supported set {sorted(SUPPORTED_SCHEMA_VERSIONS)}",
         )
     window = bundle.get("audit_window") or {}
     since = window.get("since")
@@ -589,24 +669,28 @@ def _verify_chain(
 def _verify_signature_block(bundle: dict[str, Any]) -> list[str]:
     """Light structural checks on the signature block.
 
-    Heavy crypto verification (RFC 3161 token chain) is not done here —
-    operators feed the token to their own toolchain. The bundle merely
-    asserts the kind + that the offline anchor is internally consistent.
+    Cryptographic chain validation for the RFC 3161 token + the v2
+    ``head_signature`` block is performed by :func:`verify_tenant_slice`
+    when the caller supplies the matching trust material. This helper
+    only confirms the block is internally well-formed.
     """
     errors: list[str] = []
     sig = bundle.get("signature") or {}
     kind = sig.get("signature_kind")
-    if kind not in {
+    valid_kinds = {
         "hmac-chain-only",
         "hmac-chain+rfc3161",
         "hmac-chain+offline-anchor",
-    }:
+        "hmac-chain+pubkey",
+        "hmac-chain+rfc3161+pubkey",
+    }
+    if kind not in valid_kinds:
         errors.append(f"unknown signature_kind: {kind!r}")
         return errors
-    if kind == "hmac-chain+rfc3161":
+    if kind in _RFC3161_KINDS:
         token = sig.get("rfc3161_token_b64")
         if not token or not isinstance(token, str):
-            errors.append("rfc3161_token_b64 missing for signature_kind=rfc3161")
+            errors.append(f"rfc3161_token_b64 missing for signature_kind={kind}")
             return errors
         try:
             base64.b64decode(token, validate=True)
@@ -622,6 +706,10 @@ def _verify_signature_block(bundle: dict[str, Any]) -> list[str]:
             errors.append(
                 "offline_anchor.anchor_sha256 does not match sha256(head_sha256 || anchored_at)",
             )
+    if kind in _PUBKEY_KINDS and "head_signature" not in bundle:
+        errors.append(
+            f"signature_kind={kind} requires top-level head_signature block",
+        )
     return errors
 
 
@@ -629,11 +717,15 @@ def verify_tenant_slice(
     bundle_or_path: Path | bytes | dict[str, Any],
     *,
     key: bytes,
+    rfc3161_trusted_tsa_certs: list[x509.Certificate] | None = None,
+    head_signature_trusted_jwk: dict[str, Any] | None = None,
 ) -> TenantSliceVerification:
     """Re-verify a tenant-scoped audit slice offline.
 
     Runs without orchestrator state — the verifier needs only the bundle
-    bytes and the operator's HMAC key. Performs four independent checks:
+    bytes and the operator's HMAC key. Performs the v1 checks plus two
+    optional v2 cryptographic checks when the matching trust material
+    is supplied:
 
     1. Envelope structure (schema_version, required fields, types).
     2. Tenant purity — every event carries the declared tenant id.
@@ -644,11 +736,26 @@ def verify_tenant_slice(
        JSONL and compare. (Catches single-byte flips even when the key
        is leaked or the chain check is somehow bypassed.)
     5. Signature block sanity — base64 validity, offline anchor formula.
+    6. **(v2, opt-in)** RFC 3161 cryptographic chain validation —
+       confirm the embedded TSA token actually covers ``head_sha256``
+       and that the TSA cert chains to the supplied trust anchor. Skipped
+       silently with a log warning when ``rfc3161_trusted_tsa_certs`` is
+       not supplied (back-compat with v1 verifier callers).
+    7. **(v2, opt-in)** Public-key signature — when the bundle carries
+       a ``head_signature`` block, verify the Ed25519 signature against
+       the embedded JWK. When ``head_signature_trusted_jwk`` is also
+       supplied, the embedded JWK must match it (key pinning).
 
     Args:
         bundle_or_path: A path on disk, raw bundle bytes, or a parsed
             dict. The path/bytes branch parses canonical JSON.
         key: Operator HMAC key. Same key used to write the slice.
+        rfc3161_trusted_tsa_certs: Operator-supplied TSA trust anchors.
+            When ``None``, the RFC 3161 cryptographic chain validation
+            is skipped (the existing base64-shape check still runs).
+        head_signature_trusted_jwk: Pinned verifier JWK. When supplied,
+            the embedded ``head_signature.public_key_jwk`` must match
+            this object's ``x`` value before the signature is trusted.
 
     Returns:
         :class:`TenantSliceVerification` carrying the parsed bundle and
@@ -679,12 +786,113 @@ def verify_tenant_slice(
     errors.extend(_verify_tenant_purity(bundle))
     errors.extend(_verify_chain(bundle, key))
     errors.extend(_verify_signature_block(bundle))
+    errors.extend(
+        _verify_rfc3161_chain(bundle, rfc3161_trusted_tsa_certs),
+    )
+    errors.extend(
+        _verify_head_signature(bundle, head_signature_trusted_jwk),
+    )
 
     return TenantSliceVerification(ok=not errors, errors=errors, bundle=bundle)
 
 
+def _verify_rfc3161_chain(
+    bundle: dict[str, Any],
+    trusted_tsa_certs: list[x509.Certificate] | None,
+) -> list[str]:
+    """Cryptographically verify the embedded RFC 3161 token, when present.
+
+    Skipped silently when:
+
+    * The bundle declares no RFC 3161 path (``signature_kind`` does not
+      include ``rfc3161``).
+    * The caller did not supply trust anchors (back-compat — the v1
+      verifier never did chain validation).
+
+    Returns a non-empty list iff trust anchors were supplied AND the
+    chain failed to validate.
+    """
+    sig = bundle.get("signature") or {}
+    kind = sig.get("signature_kind")
+    if kind not in _RFC3161_KINDS:
+        return []
+    if not trusted_tsa_certs:
+        logger.warning(
+            "Bundle declares signature_kind=%s but no rfc3161_trusted_tsa_certs "
+            "were supplied — RFC 3161 chain validation skipped (set "
+            "rfc3161_trusted_tsa_certs to enable).",
+            kind,
+        )
+        return []
+    token_b64 = sig.get("rfc3161_token_b64")
+    if not isinstance(token_b64, str):
+        return ["rfc3161_token_b64 missing or not a string"]
+    try:
+        token_bytes = base64.b64decode(token_b64, validate=True)
+    except (ValueError, TypeError) as exc:
+        return [f"rfc3161_token_b64 not valid base64: {exc}"]
+
+    head_sha256 = str((bundle.get("chain_anchor") or {}).get("head_sha256", ""))
+    if not head_sha256:
+        return ["chain_anchor.head_sha256 missing — cannot validate RFC 3161 imprint"]
+
+    # Lazy import: keeps verifier callers that never enable RFC 3161 free
+    # of the asn1crypto dep at import time.
+    from bernstein.core.security.rfc3161_verifier import verify_rfc3161_token
+
+    try:
+        head_sha256_bytes = bytes.fromhex(head_sha256)
+    except ValueError as exc:
+        return [f"chain_anchor.head_sha256 not valid hex: {exc}"]
+
+    # The TSA's messageImprint covers the ``head_sha256`` digest bytes
+    # directly — the operator timestamps the bundle anchor, not the raw
+    # JSONL. The verifier compares the digest bytes to
+    # ``TSTInfo.messageImprint.hashedMessage`` directly.
+    result = verify_rfc3161_token(
+        token_bytes,
+        payload_hash=head_sha256_bytes,
+        trusted_tsa_certs=trusted_tsa_certs,
+    )
+    if not result.ok:
+        return [f"rfc3161 chain: {err}" for err in result.errors]
+    return []
+
+
+def _verify_head_signature(
+    bundle: dict[str, Any],
+    trusted_public_key_jwk: dict[str, Any] | None,
+) -> list[str]:
+    """Verify the v2 ``head_signature`` block when present.
+
+    Returns a non-empty list iff the bundle declares a pubkey signature
+    kind but the embedded block fails to verify.
+    """
+    sig = bundle.get("signature") or {}
+    kind = sig.get("signature_kind")
+    head_signature = bundle.get("head_signature")
+    if kind not in _PUBKEY_KINDS and head_signature is None:
+        return []
+    if kind in _PUBKEY_KINDS and head_signature is None:
+        return [f"signature_kind={kind} requires head_signature block"]
+    if not isinstance(head_signature, dict):
+        return ["head_signature is not an object"]
+    head_sha256 = str((bundle.get("chain_anchor") or {}).get("head_sha256", ""))
+    if not head_sha256:
+        return ["chain_anchor.head_sha256 missing — cannot verify head_signature"]
+    result = verify_head_signature(
+        head_sha256,
+        head_signature,
+        trusted_public_key_jwk=trusted_public_key_jwk,
+    )
+    if not result.ok:
+        return [f"head_signature: {err}" for err in result.errors]
+    return []
+
+
 __all__ = [
     "EXPORT_SCHEMA_VERSION",
+    "SUPPORTED_SCHEMA_VERSIONS",
     "SignatureKind",
     "TenantScopedExport",
     "TenantSliceVerification",

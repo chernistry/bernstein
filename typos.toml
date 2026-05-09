@@ -4,6 +4,12 @@ extend-ignore-re = [
     "Truncat",
     # Base64-encoded JWT tokens contain fragments that look like typos
     "eyJ[A-Za-z0-9+/=._-]+",
+    # Prompt-injection test payloads embed a zero-width space (U+200B) inside
+    # tokens like "ig​nore" to bypass naive keyword filters. typos splits
+    # on the ZWSP and flags the trailing fragment ("nore") as a misspelling.
+    # Mask any alphanumeric run that contains an embedded ZWSP so fixtures
+    # stay intact without globally allowlisting the fragment.
+    "[A-Za-z]+​[A-Za-z]+",
 ]
 
 [default.extend-words]

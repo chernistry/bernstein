@@ -92,7 +92,7 @@ jobs:
             "${INCLUDE_FLAG[@]}"
 
       - name: Upload evidence pack
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: soc2-evidence-${{ github.run_id }}
           path: |

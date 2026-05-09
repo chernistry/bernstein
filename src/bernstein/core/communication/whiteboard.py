@@ -151,9 +151,7 @@ def _validate_entry(raw: dict[str, Any]) -> None:
     visibility = raw.get("visibility", [])
     if visibility is None:
         return
-    if not isinstance(visibility, list) or any(
-        not isinstance(item, str) for item in visibility
-    ):
+    if not isinstance(visibility, list) or any(not isinstance(item, str) for item in visibility):
         raise ValueError("whiteboard entry 'visibility' must be a list of strings")
 
 

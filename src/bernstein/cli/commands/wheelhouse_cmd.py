@@ -27,8 +27,11 @@ from rich.table import Table
 
 from bernstein.cli.helpers import console
 from bernstein.core.distribution import (
+    DEFAULT_TRUST_DIR,
+    CustomerCountersignError,
     VerifierKind,
     VerifyReport,
+    countersign_bundle,
     select_verifier,
     verify_wheelhouse,
 )
@@ -178,6 +181,21 @@ def build_cmd(version: str | None, output: Path | None, skip_project: bool) -> N
     default=False,
     help="Exit non-zero if any wheel is missing a signature file.",
 )
+@click.option(
+    "--require-customer-sig/--no-require-customer-sig",
+    "require_customer_sig",
+    default=False,
+    help="Exit non-zero if MANIFEST.customer.sig is missing or unverified. "
+    "Use this when a sovereign customer requires a two-key chain "
+    "(org cosign + customer Ed25519 countersignature).",
+)
+@click.option(
+    "--customer-trust-dir",
+    "customer_trust_dir",
+    default=None,
+    type=click.Path(file_okay=False, path_type=Path),
+    help=f"Directory of allowed customer Ed25519 public keys. Defaults to {DEFAULT_TRUST_DIR}.",
+)
 def verify_subcmd(
     wheelhouse_path: Path,
     verifier_kind: str,
@@ -186,6 +204,8 @@ def verify_subcmd(
     cosign_identity: str | None,
     cosign_issuer: str | None,
     require_signatures: bool,
+    require_customer_sig: bool,
+    customer_trust_dir: Path | None,
 ) -> None:
     """Verify an air-gap wheelhouse: sha256s + signatures, every wheel."""
     exit_code = run_verify(
@@ -196,6 +216,8 @@ def verify_subcmd(
         cosign_identity=cosign_identity,
         cosign_issuer=cosign_issuer,
         require_signatures=require_signatures,
+        require_customer_sig=require_customer_sig,
+        customer_trust_dir=customer_trust_dir,
     )
     raise SystemExit(exit_code)
 
@@ -209,6 +231,8 @@ def run_verify(
     cosign_identity: str | None,
     cosign_issuer: str | None,
     require_signatures: bool,
+    require_customer_sig: bool = False,
+    customer_trust_dir: Path | None = None,
 ) -> int:
     """Shared verify implementation used by both ``wheelhouse verify``
     and the legacy ``bernstein verify <path>`` entry point.
@@ -224,9 +248,96 @@ def run_verify(
         wheelhouse_path,
         verifier=verifier,
         require_signatures=require_signatures,
+        require_customer_sig=require_customer_sig,
+        customer_trust_dir=customer_trust_dir,
     )
     _render_verify(report, wheelhouse_path)
     return 0 if report.ok else 1
+
+
+@wheelhouse_group.command("countersign")
+@click.option(
+    "--in",
+    "in_path_arg",
+    required=True,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    help="Wheelhouse directory to countersign.",
+)
+@click.option(
+    "--key",
+    "key_path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Customer Ed25519 PRIVATE key (PEM PKCS#8 or raw 32 bytes).",
+)
+@click.option(
+    "--out",
+    "out_path",
+    default=None,
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+    help="Optional output directory. Defaults to in-place countersign.",
+)
+@click.option(
+    "--org-name",
+    "org_name",
+    default=None,
+    metavar="ORG",
+    help="Logical org name embedded in MANIFEST.customer.json. Defaults to the key file's stem.",
+)
+def countersign_subcmd(
+    in_path_arg: Path,
+    key_path: Path,
+    out_path: Path | None,
+    org_name: str | None,
+) -> None:
+    """Append a customer Ed25519 countersignature to an existing wheelhouse.
+
+    \b
+    The bundle must already carry the org cosign signatures
+    (MANIFEST.sig + per-wheel .sig). This command produces:
+
+      <bundle>/MANIFEST.customer.sig    -- detached Ed25519 signature
+      <bundle>/MANIFEST.customer.json   -- {org_name, alg, public_key_pem, ...}
+
+    Verify the result with:
+
+      bernstein wheelhouse verify <bundle> --require-customer-sig
+    """
+    console.print()
+    try:
+        sig_path = countersign_bundle(
+            in_path_arg,
+            customer_key_path=key_path,
+            org_name=org_name,
+            out_path=out_path,
+        )
+    except CustomerCountersignError as exc:
+        console.print(
+            Panel(
+                f"[bold red]Customer countersign failed:[/bold red] {exc}",
+                border_style="red",
+                expand=False,
+            )
+        )
+        raise SystemExit(1) from exc
+
+    console.print(
+        Panel(
+            "[bold green]Customer countersign: WROTE[/bold green]",
+            border_style="green",
+            expand=False,
+        )
+    )
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="dim", no_wrap=True, min_width=22)
+    table.add_column("Value")
+    table.add_row("Bundle", str(out_path or in_path_arg))
+    table.add_row("Signature", str(sig_path))
+    table.add_row("Org", org_name or key_path.stem)
+    console.print(table)
+    console.print(
+        f"\n  [dim]Verify with:[/dim] bernstein wheelhouse verify {out_path or in_path_arg} --require-customer-sig\n"
+    )
 
 
 def _render_verify(report: VerifyReport, wheelhouse_path: Path) -> None:
@@ -266,5 +377,14 @@ def _render_verify(report: VerifyReport, wheelhouse_path: Path) -> None:
         table.add_row("MANIFEST.sig", "[red]invalid[/red]")
     else:
         table.add_row("MANIFEST.sig", "(absent)")
+    if report.customer_signature_ok is True:
+        org = report.customer_org or "?"
+        table.add_row("Customer sig", f"[green]ok[/green] (org={org})")
+    elif report.customer_signature_ok is False:
+        table.add_row("Customer sig", "[red]invalid[/red]")
+    elif report.customer_signature_present:
+        table.add_row("Customer sig", "[yellow]present, unverified[/yellow]")
+    else:
+        table.add_row("Customer sig", "(absent)")
     console.print(table)
     console.print()

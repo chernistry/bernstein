@@ -71,6 +71,20 @@ SDD_DIR = Path(".sdd")
     default=False,
     help="When set, wheelhouse verify exits non-zero if any signature is missing.",
 )
+@click.option(
+    "--require-customer-sig/--no-require-customer-sig",
+    "require_customer_sig",
+    default=False,
+    help="When set, wheelhouse verify exits non-zero unless MANIFEST.customer.sig "
+    "is present and validates against .bernstein/trust/customer-keys/.",
+)
+@click.option(
+    "--customer-trust-dir",
+    "customer_trust_dir",
+    default=None,
+    type=click.Path(file_okay=False, path_type=Path),
+    help="Override the customer-key trust directory.",
+)
 def verify_cmd(
     wheelhouse_path: Path | None,
     wal_run_id: str | None,
@@ -79,6 +93,8 @@ def verify_cmd(
     formal_task_id: str | None,
     ca_pubkey: Path | None,
     require_signatures: bool,
+    require_customer_sig: bool,
+    customer_trust_dir: Path | None,
 ) -> None:
     """Verify WAL integrity, execution determinism, memory provenance, formal properties, or a wheelhouse.
 
@@ -110,6 +126,8 @@ def verify_cmd(
             wheelhouse_path,
             ca_pubkey=ca_pubkey,
             require_signatures=require_signatures,
+            require_customer_sig=require_customer_sig,
+            customer_trust_dir=customer_trust_dir,
         )
 
     if wal_run_id is not None:
@@ -132,13 +150,17 @@ def _verify_wheelhouse(
     *,
     ca_pubkey: Path | None,
     require_signatures: bool,
+    require_customer_sig: bool = False,
+    customer_trust_dir: Path | None = None,
 ) -> int:
     """Verify an air-gap wheelhouse's MANIFEST.json and per-wheel signatures.
 
     Returns 0 if every wheel matches its sha256 in the manifest and (when
     signature files are present or required) every signature validates
     against ``ca_pubkey``. Returns 1 on the first mismatch with a clear
-    message naming the offending wheel.
+    message naming the offending wheel. When ``require_customer_sig`` is
+    True, also requires the two-key chain (org + customer Ed25519
+    countersignature) to validate before returning success.
     """
     import hashlib
     import json
@@ -236,6 +258,23 @@ def _verify_wheelhouse(
         elif require_signatures:
             failures.append(f"missing signature: {name}")
 
+    # Two-key chain: org signature must pass first, then the optional
+    # customer countersignature is validated against the trust store.
+    from bernstein.core.distribution.customer_countersign import (
+        verify_customer_signature,
+    )
+
+    customer_outcome = verify_customer_signature(
+        wheelhouse_path,
+        trust_dir=customer_trust_dir,
+    )
+    if not customer_outcome.present and require_customer_sig:
+        failures.append("missing customer signature: MANIFEST.customer.sig")
+    elif customer_outcome.present and customer_outcome.valid is False:
+        failures.append(f"customer signature invalid: {customer_outcome.error}")
+    elif customer_outcome.present and customer_outcome.valid is None and require_customer_sig:
+        failures.append(f"customer signature unverified: {customer_outcome.error}")
+
     if failures:
         console.print(
             Panel(
@@ -263,6 +302,12 @@ def _verify_wheelhouse(
     table.add_row("Wheels verified", str(verified))
     table.add_row("Signatures present", str(signed))
     table.add_row("CA pubkey", str(ca_pubkey) if ca_pubkey else "(none — checksum only)")
+    if customer_outcome.valid is True:
+        table.add_row("Customer sig", f"ok (org={customer_outcome.matched_org})")
+    elif customer_outcome.present:
+        table.add_row("Customer sig", "present, unverified")
+    else:
+        table.add_row("Customer sig", "(absent)")
     console.print(table)
     console.print()
     return 0

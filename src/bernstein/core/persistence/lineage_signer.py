@@ -169,18 +169,48 @@ def _load_ed25519_private(data: bytes, source: Path) -> Ed25519PrivateKey:
 def signer_from_config(
     *,
     enabled: bool,
-    key_path: str | None,
+    key_path: str | None = None,
     key_kind: str = "ed25519",
+    kms_adapter: str | None = None,
+    kms_env_var: str | None = None,
+    kms_token_uri: str | None = None,
+    kms_kid: str | None = None,
 ) -> LineageSigner | None:
     """Build a :class:`LineageSigner` from bernstein.yaml-shaped config.
 
+    Two configuration shapes are supported:
+
+    * **Phase-1 file-only** (back-compat): ``enabled=True`` +
+      ``key_path=...`` reads an Ed25519 PEM/raw key off disk. Equivalent
+      to ``kms_adapter='file'`` + ``key_path=...``.
+    * **Phase-2 KMS-pluggable**: ``kms_adapter='file'|'env'|'hsm'``
+      dispatches to the matching ``KMSAdapter`` from
+      :mod:`bernstein.core.security.lineage_kms`. The HSM adapter is a
+      documented stub (raises ``NotImplementedError``) so the wiring is
+      in place even when the customer integration isn't.
+
     Returns ``None`` when signing is disabled or unconfigured. Raises
-    :class:`LineageSignerError` when ``enabled=True`` but the key
-    cannot be loaded — the orchestrator should fail fast rather than
-    silently drop signatures.
+    :class:`LineageSignerError` when ``enabled=True`` but the key cannot
+    be loaded — the orchestrator should fail fast rather than silently
+    drop signatures.
     """
     if not enabled:
         return None
+    # Phase-2 path: explicit kms_adapter selector.
+    if kms_adapter is not None:
+        # Imported lazily so this module stays free of the security
+        # package import cycle (lineage_kms imports back from here).
+        from bernstein.core.security.lineage_kms import kms_adapter_from_config
+
+        return kms_adapter_from_config(
+            enabled=True,
+            kind=kms_adapter,
+            key_path=key_path,
+            env_var=kms_env_var,
+            token_uri=kms_token_uri,
+            kid=kms_kid,
+        )
+    # Phase-1 path: file key by default.
     if key_path is None:
         raise LineageSignerError("lineage.customer_signing.enabled=true requires key_path")
     if key_kind != "ed25519":

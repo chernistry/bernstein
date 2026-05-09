@@ -74,6 +74,14 @@ class VerifyReport:
         signatures_verified: Number of signatures the verifier accepted.
         manifest_signature_ok: True/False/None for ``MANIFEST.sig``;
             ``None`` means the signature file was not present.
+        customer_signature_present: True iff ``MANIFEST.customer.sig``
+            exists alongside the manifest. Set independently of the
+            org signature path.
+        customer_signature_ok: True/False/None for the customer
+            countersignature. ``None`` means the signature was not
+            present and ``require_customer_sig`` was off.
+        customer_org: Name of the trust-store key that validated the
+            customer signature, or ``None`` when no validation occurred.
         outcomes: Per-wheel rows in deterministic (name-sorted) order.
         failures: Human-readable failure messages naming each offender.
     """
@@ -85,6 +93,9 @@ class VerifyReport:
     signatures_present: int
     signatures_verified: int
     manifest_signature_ok: bool | None
+    customer_signature_present: bool = False
+    customer_signature_ok: bool | None = None
+    customer_org: str | None = None
     outcomes: tuple[VerifyOutcome, ...] = ()
     failures: tuple[str, ...] = ()
 
@@ -359,6 +370,8 @@ def verify_wheelhouse(
     *,
     verifier: WheelhouseVerifier | None = None,
     require_signatures: bool = False,
+    require_customer_sig: bool = False,
+    customer_trust_dir: Path | None = None,
 ) -> VerifyReport:
     """Walk every wheel in the bundle and aggregate the result.
 
@@ -366,6 +379,23 @@ def verify_wheelhouse(
     enumerates every offender and surfaces the full damage list via
     :class:`VerifyReport.failures`. Callers translate this into the
     operator-facing CLI output.
+
+    The two-key chain (org signature + customer countersignature) is
+    validated in order:
+
+    1. The org signature(s) -- ``MANIFEST.sig`` and ``<wheel>.sig`` --
+       are validated by *verifier* as before. Failure here short-circuits
+       trust: if Bernstein's signature does not match, the customer
+       countersignature is moot and the bundle is rejected.
+    2. The customer signature -- ``MANIFEST.customer.sig`` -- is
+       validated against ``customer_trust_dir`` (defaults to
+       ``.bernstein/trust/customer-keys/``). Validation succeeds when
+       at least one key in the trust dir matches the signature.
+
+    When *require_customer_sig* is True, the absence of
+    ``MANIFEST.customer.sig`` is treated as a failure -- the operator
+    asked for two-key trust and the bundle only carries one key's
+    signature.
     """
     failures: list[str] = []
 
@@ -541,6 +571,27 @@ def verify_wheelhouse(
         manifest_sig_ok = False
         failures.append("missing signature: MANIFEST.json")
 
+    # Two-key chain: customer countersignature on top of the org
+    # signature. We import lazily so the verifier module stays free of
+    # the Ed25519 dependency cycle for callers that only need cosign /
+    # gpg paths.
+    from bernstein.core.distribution.customer_countersign import (
+        verify_customer_signature,
+    )
+
+    customer_outcome = verify_customer_signature(
+        wheelhouse_path,
+        trust_dir=customer_trust_dir,
+    )
+    if not customer_outcome.present and require_customer_sig:
+        failures.append("missing customer signature: MANIFEST.customer.sig")
+    elif customer_outcome.present and customer_outcome.valid is False:
+        failures.append(f"customer signature invalid: {customer_outcome.error}")
+    elif customer_outcome.present and customer_outcome.valid is None and require_customer_sig:
+        # Sig present but trust store empty/misconfigured AND the
+        # operator asked for it -- treat as failure.
+        failures.append(f"customer signature unverified: {customer_outcome.error}")
+
     return VerifyReport(
         ok=not failures,
         verifier=verifier.name if verifier else "none",
@@ -549,6 +600,9 @@ def verify_wheelhouse(
         signatures_present=sig_present,
         signatures_verified=sig_verified,
         manifest_signature_ok=manifest_sig_ok,
+        customer_signature_present=customer_outcome.present,
+        customer_signature_ok=customer_outcome.valid,
+        customer_org=customer_outcome.matched_org,
         outcomes=tuple(outcomes),
         failures=tuple(failures),
     )

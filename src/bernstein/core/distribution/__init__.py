@@ -15,6 +15,16 @@ failure.
 
 from __future__ import annotations
 
+from bernstein.core.distribution.customer_countersign import (
+    CUSTOMER_META_FILENAME,
+    CUSTOMER_SIG_FILENAME,
+    DEFAULT_TRUST_DIR,
+    CustomerCountersignError,
+    CustomerVerifyOutcome,
+    countersign_bundle,
+    load_trust_store,
+    verify_customer_signature,
+)
 from bernstein.core.distribution.verifier import (
     CosignVerifier,
     GpgVerifier,
@@ -28,13 +38,21 @@ from bernstein.core.distribution.verifier import (
 )
 
 __all__ = [
+    "CUSTOMER_META_FILENAME",
+    "CUSTOMER_SIG_FILENAME",
+    "DEFAULT_TRUST_DIR",
     "CosignVerifier",
+    "CustomerCountersignError",
+    "CustomerVerifyOutcome",
     "GpgVerifier",
     "PythonCryptoVerifier",
     "VerifierKind",
     "VerifyOutcome",
     "VerifyReport",
     "WheelhouseVerifier",
+    "countersign_bundle",
+    "load_trust_store",
     "select_verifier",
+    "verify_customer_signature",
     "verify_wheelhouse",
 ]

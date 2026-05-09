@@ -143,7 +143,7 @@ azure = ["azure-storage-blob>=12.20"]
 r2 = ["boto3>=1.40"]
 # Chat-control bridge backends (op-001). Enable with:
 #   pip install 'bernstein[telegram]'
-telegram = ["python-telegram-bot>=21"]
+telegram = ["python-telegram-bot>=22.7"]
 # Contamination-resistant eval harness (SWE-bench Pro / Terminal-Bench 2.0 /
 # SWE-rebench). Kept optional so production installs don't pull HuggingFace
 # datasets unless the operator opts into the nightly leaderboard path.

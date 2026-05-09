@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from bernstein.core.agents.tool_masking import MaskResult, mask_tools
+from bernstein.core.agents.tool_masking import mask_tools
 
 
 def _entry(name: str, **extra: object) -> dict[str, object]:

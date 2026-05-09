@@ -14,7 +14,7 @@ from bernstein.core.agents.harness_policy import (
 class TestHarnessPolicyDefaults:
     def test_default_policy_is_all_off(self) -> None:
         """All five flags must default to False so existing behaviour is preserved."""
-        assert DEFAULT_POLICY == HarnessPolicy()
+        assert HarnessPolicy() == DEFAULT_POLICY
         assert DEFAULT_POLICY.kv_cache_locality is False
         assert DEFAULT_POLICY.tool_masking is False
         assert DEFAULT_POLICY.filesystem_memory is False

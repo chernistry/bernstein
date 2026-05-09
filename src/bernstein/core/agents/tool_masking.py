@@ -23,10 +23,11 @@ adapter dispatch around the result.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping, Sequence
 
 #: Minimum required keys for a tool entry. Other adapter-specific fields
 #: (``input_schema``, ``cache_control``, ``annotations``, ...) pass through

@@ -17,10 +17,11 @@ summary path (:func:`summarize_context`) preserves the tagged blocks.
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 #: Marker line prefixed to retained failed-action blocks. Two ASCII hyphens
 #: are used (not an em-dash) to keep diff/grep behaviour predictable across

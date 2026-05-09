@@ -135,6 +135,11 @@ r2 = ["boto3>=1.40"]
 # Chat-control bridge backends (op-001). Enable with:
 #   pip install 'bernstein[telegram]'
 telegram = ["python-telegram-bot>=21"]
+# Contamination-resistant eval harness (SWE-bench Pro / Terminal-Bench 2.0 /
+# SWE-rebench). Kept optional so production installs don't pull HuggingFace
+# datasets unless the operator opts into the nightly leaderboard path.
+# Enable with: pip install 'bernstein[eval]'
+eval = ["datasets>=3.0", "huggingface-hub>=0.24"]
 
 [project.scripts]
 bernstein = "bernstein.cli.main:cli"

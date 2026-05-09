@@ -137,7 +137,7 @@ Bernstein is a deterministic Python scheduler that runs a crew of CLI coding age
 | File                    | Purpose |
 |-------------------------|---------|
 | `api_warmup.py`         | API preconnect warmup -- send a minimal request to warm provider connections |
-| `commit_stats.py`       | Commit attribution stats — gather per-role commit stats via git log |
+| `commit_stats.py`       | Commit attribution stats: gather per-role commit stats via git log |
 | `dashboard.py`          | Bernstein TUI -- retro-futuristic agent orchestration dashboard |
 | `dashboard_actions.py`  | Dashboard side panels and expert views |
 | `dashboard_app.py`      | Bernstein TUI application -- main App class and entry point |

@@ -115,6 +115,7 @@ from bernstein.cli.verbosity import apply_verbosity
 from bernstein.cli.verify_cmd import verify_cmd
 from bernstein.cli.voice_cmd import listen_cmd
 from bernstein.cli.watch_cmd import watch_cmd
+from bernstein.cli.wiki_cmd import wiki_group
 from bernstein.cli.worker_cmd import worker
 from bernstein.cli.workflow_cmd import workflow_group
 from bernstein.cli.workspace_cmd import config_group, workspace_group
@@ -209,6 +210,7 @@ __all__ = [
     "test_adapter",
     "trace_cmd",
     "watch_cmd",
+    "wiki_group",
     "worker",
     "workspace_group",
     "wrap_up",
@@ -799,6 +801,7 @@ cli.add_command(workflow_group, "workflow")
 cli.add_command(quickstart_cmd, "quickstart")
 cli.add_command(scaffold_cmd, "scaffold")
 cli.add_command(watch_cmd, "watch")
+cli.add_command(wiki_group, "wiki")
 cli.add_command(listen_cmd, "listen")
 cli.add_command(self_update_cmd, "self-update")
 cli.add_command(undo_cmd, "undo")

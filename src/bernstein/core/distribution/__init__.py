@@ -25,6 +25,13 @@ from bernstein.core.distribution.customer_countersign import (
     load_trust_store,
     verify_customer_signature,
 )
+from bernstein.core.distribution.sigstore_attestation_verify import DEFAULT_OWNER as SIGSTORE_DEFAULT_OWNER
+from bernstein.core.distribution.sigstore_attestation_verify import (
+    SigstoreAttestationVerifier,
+    SigstoreBatchReport,
+    SigstoreVerifyOutcome,
+    verify_artefacts_with_sigstore,
+)
 from bernstein.core.distribution.verifier import (
     CosignVerifier,
     GpgVerifier,
@@ -41,11 +48,15 @@ __all__ = [
     "CUSTOMER_META_FILENAME",
     "CUSTOMER_SIG_FILENAME",
     "DEFAULT_TRUST_DIR",
+    "SIGSTORE_DEFAULT_OWNER",
     "CosignVerifier",
     "CustomerCountersignError",
     "CustomerVerifyOutcome",
     "GpgVerifier",
     "PythonCryptoVerifier",
+    "SigstoreAttestationVerifier",
+    "SigstoreBatchReport",
+    "SigstoreVerifyOutcome",
     "VerifierKind",
     "VerifyOutcome",
     "VerifyReport",
@@ -53,6 +64,7 @@ __all__ = [
     "countersign_bundle",
     "load_trust_store",
     "select_verifier",
+    "verify_artefacts_with_sigstore",
     "verify_customer_signature",
     "verify_wheelhouse",
 ]

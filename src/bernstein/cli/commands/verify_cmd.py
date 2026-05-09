@@ -93,6 +93,48 @@ SDD_DIR = Path(".sdd")
     type=click.Path(file_okay=False, path_type=Path),
     help="Override the customer-key trust directory.",
 )
+@click.option(
+    "--sigstore/--no-sigstore",
+    "sigstore",
+    default=False,
+    help="Additively verify Sigstore build-provenance attestations "
+    "(`actions/attest-build-provenance`) for every wheel via `gh attestation verify`. "
+    "Default behaviour is unchanged when this flag is off.",
+)
+@click.option(
+    "--sigstore-owner",
+    "sigstore_owner",
+    default=None,
+    metavar="OWNER",
+    help="GitHub owner whose attestations are accepted. Defaults to the project owner.",
+)
+@click.option(
+    "--sigstore-repo",
+    "sigstore_repo",
+    default=None,
+    metavar="OWNER/REPO",
+    help="Optional repo to pin attestations to.",
+)
+@click.option(
+    "--sigstore-offline/--no-sigstore-offline",
+    "sigstore_offline",
+    default=False,
+    help="Verify against a local .sigstore bundle next to each artefact (or in --sigstore-bundle-dir). "
+    "Air-gap-friendly path.",
+)
+@click.option(
+    "--sigstore-bundle-dir",
+    "sigstore_bundle_dir",
+    default=None,
+    type=click.Path(file_okay=False, path_type=Path),
+    help="Directory of pre-downloaded .sigstore bundles for offline verification.",
+)
+@click.option(
+    "--require-sigstore/--no-require-sigstore",
+    "require_sigstore",
+    default=False,
+    help="Promote a missing attestation to a hard failure. Implies --sigstore.",
+)
 def verify_cmd(
     wheelhouse_path: Path | None,
     wal_run_id: str | None,
@@ -103,6 +145,12 @@ def verify_cmd(
     require_signatures: bool,
     require_customer_sig: bool,
     customer_trust_dir: Path | None,
+    sigstore: bool,
+    sigstore_owner: str | None,
+    sigstore_repo: str | None,
+    sigstore_offline: bool,
+    sigstore_bundle_dir: Path | None,
+    require_sigstore: bool,
 ) -> None:
     """Verify WAL integrity, execution determinism, memory provenance, formal properties, or a wheelhouse.
 
@@ -136,6 +184,12 @@ def verify_cmd(
             require_signatures=require_signatures,
             require_customer_sig=require_customer_sig,
             customer_trust_dir=customer_trust_dir,
+            sigstore=sigstore or require_sigstore,
+            sigstore_owner=sigstore_owner,
+            sigstore_repo=sigstore_repo,
+            sigstore_offline=sigstore_offline,
+            sigstore_bundle_dir=sigstore_bundle_dir,
+            require_sigstore=require_sigstore,
         )
 
     if wal_run_id is not None:
@@ -160,6 +214,12 @@ def _verify_wheelhouse(
     require_signatures: bool,
     require_customer_sig: bool = False,
     customer_trust_dir: Path | None = None,
+    sigstore: bool = False,
+    sigstore_owner: str | None = None,
+    sigstore_repo: str | None = None,
+    sigstore_offline: bool = False,
+    sigstore_bundle_dir: Path | None = None,
+    require_sigstore: bool = False,
 ) -> int:
     """Verify an air-gap wheelhouse's MANIFEST.json and per-wheel signatures.
 
@@ -169,6 +229,12 @@ def _verify_wheelhouse(
     message naming the offending wheel. When ``require_customer_sig`` is
     True, also requires the two-key chain (org + customer Ed25519
     countersignature) to validate before returning success.
+
+    When ``sigstore`` is True, the function additionally runs
+    ``gh attestation verify`` against every wheel after the cosign /
+    GPG / PEM-key path completes. Sigstore can only escalate the exit
+    code -- existing pass paths stay green when no Sigstore attestation
+    is found and ``require_sigstore`` is off (graceful skip).
     """
     import hashlib
     import json
@@ -318,7 +384,109 @@ def _verify_wheelhouse(
         table.add_row("Customer sig", "(absent)")
     console.print(table)
     console.print()
+
+    if sigstore:
+        rc_sigstore = _verify_sigstore_attestations(
+            wheelhouse_path,
+            owner=sigstore_owner,
+            repo=sigstore_repo,
+            offline=sigstore_offline,
+            bundle_dir=sigstore_bundle_dir,
+            require_attestation=require_sigstore,
+        )
+        if rc_sigstore != 0:
+            return rc_sigstore
+
     return 0
+
+
+def _verify_sigstore_attestations(
+    wheelhouse_path: Path,
+    *,
+    owner: str | None,
+    repo: str | None,
+    offline: bool,
+    bundle_dir: Path | None,
+    require_attestation: bool,
+) -> int:
+    """Run ``gh attestation verify`` against every wheel in *wheelhouse_path*.
+
+    Returns 0 on pass / advisory-skip, 1 on any hard failure (or any
+    skip when ``require_attestation`` is True).
+    """
+    from bernstein.core.distribution import (
+        SIGSTORE_DEFAULT_OWNER,
+        SigstoreAttestationVerifier,
+        verify_artefacts_with_sigstore,
+    )
+
+    wheels = sorted(wheelhouse_path.glob("*.whl"))
+    verifier = SigstoreAttestationVerifier(
+        owner=owner or SIGSTORE_DEFAULT_OWNER,
+        repo=repo,
+        offline=offline,
+        bundle_dir=bundle_dir,
+    )
+    report = verify_artefacts_with_sigstore(
+        wheels,
+        verifier=verifier,
+        require_attestation=require_attestation,
+    )
+
+    console.print()
+    if not report.verifier_available:
+        console.print(
+            Panel(
+                "[bold yellow]Sigstore Verify: SKIPPED[/bold yellow]",
+                border_style="yellow",
+                expand=False,
+            )
+        )
+        console.print("  [yellow]![/yellow] gh CLI not on PATH -- install GitHub CLI to opt in")
+        for fail in report.failures:
+            console.print(f"  [red]![/red] {fail}")
+        console.print()
+        return 1 if report.failures else 0
+
+    if report.ok is True:
+        console.print(
+            Panel(
+                "[bold green]Sigstore Verify: PASSED[/bold green]",
+                border_style="green",
+                expand=False,
+            )
+        )
+    elif report.ok is False:
+        console.print(
+            Panel(
+                "[bold red]Sigstore Verify: FAILED[/bold red]",
+                border_style="red",
+                expand=False,
+            )
+        )
+        for fail in report.failures:
+            console.print(f"  [red]![/red] {fail}")
+    else:
+        console.print(
+            Panel(
+                "[bold yellow]Sigstore Verify: ADVISORY[/bold yellow]",
+                border_style="yellow",
+                expand=False,
+            )
+        )
+        for skip in report.skips:
+            console.print(f"  [dim]-[/dim] {skip}")
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="dim", no_wrap=True, min_width=22)
+    table.add_column("Value")
+    table.add_row("Owner", verifier.owner)
+    table.add_row("Artefacts attested", str(report.passes))
+    table.add_row("Failures", str(len(report.failures)))
+    table.add_row("Skipped", str(len(report.skips)))
+    console.print(table)
+    console.print()
+    return 1 if report.ok is False else 0
 
 
 def _verify_blob_signature(blob: Path, sig: Path, pubkey: Path) -> bool:

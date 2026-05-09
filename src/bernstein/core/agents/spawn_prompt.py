@@ -993,8 +993,14 @@ def render_prompt(
     meta_messages: list[str] | None = None,
     file_ownership: dict[str, str] | None = None,
 ) -> str:
-    """Public wrapper for compatibility-safe prompt rendering."""
-    return _render_prompt(
+    """Public wrapper for compatibility-safe prompt rendering.
+
+    Records the rendered cacheable prefix on the prompt-cache locality
+    tracker so that drift between consecutive same-role spawns surfaces
+    on ``prompt_cache_drift_total{role,reason}`` and in the in-memory
+    snapshot consumed by ``bernstein cache report``.
+    """
+    rendered = _render_prompt(
         tasks,
         templates_dir,
         workdir,
@@ -1007,6 +1013,33 @@ def render_prompt(
         meta_messages=meta_messages,
         file_ownership=file_ownership,
     )
+    _observe_cache_locality(rendered, tasks)
+    return rendered
+
+
+def _observe_cache_locality(prompt: str, tasks: list[Task]) -> None:
+    """Surface prefix drift on the locality tracker; never raises.
+
+    Splits the rendered prompt at the documented dynamic-section
+    boundary (see :func:`bernstein.core.tokens.prompt_caching.
+    extract_system_prefix`) and feeds the static prefix into the
+    per-role drift tracker.  Failures are swallowed so a tracker bug
+    never blocks an agent spawn.
+    """
+    if not tasks:
+        return
+    role = (getattr(tasks[0], "role", "") or "unknown").strip().lower()
+    try:
+        # Local imports keep spawn_prompt.py free of an unconditional
+        # dependency on tokens.prompt_caching, which would create an
+        # import cycle in some Bernstein test fixtures.
+        from bernstein.core.agents.prompt_cache_locality import observe_prefix
+        from bernstein.core.tokens.prompt_caching import extract_system_prefix
+
+        prefix, _suffix = extract_system_prefix(prompt)
+        observe_prefix(role=role, prefix=prefix)
+    except Exception:  # pragma: no cover — defensive, never block spawns
+        logger.debug("prompt cache locality observe failed", exc_info=True)
 
 
 def _render_fallback(

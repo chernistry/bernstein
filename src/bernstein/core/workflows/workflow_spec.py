@@ -441,11 +441,31 @@ def render_blank_template(name: str) -> str:
     Used by ``bernstein workflow init`` to scaffold something a user can
     edit.  Keeping the template inline avoids an extra round-trip to the
     bundled directory and ensures the scaffolded file always parses.
+
+    Optional install-rev fingerprint (RESRCH-001) is prefixed as a yaml
+    comment when ``IDENTITY_EMISSION_ENABLED`` is on and the token is
+    real (not the disabled sentinel).
     """
     if not _ID_PATTERN.match(name):
         raise WorkflowSpecError(f"workflow name {name!r} must match {_ID_PATTERN.pattern}")
+    # Lazy import to avoid a circular at module-load time and to keep
+    # the identity package free of any imports from this module.  Read
+    # the gate flag through the module object (not a re-exported name)
+    # so tests can flip it via ``monkeypatch.setattr(install_rev,
+    # "IDENTITY_EMISSION_ENABLED", True)``.
+    from bernstein.core.identity import install_rev as _identity
+    from bernstein.core.identity.install_rev import (
+        DISABLED_SENTINEL,
+        render_yaml_comment,
+    )
+
+    rev_prefix = ""
+    if _identity.IDENTITY_EMISSION_ENABLED:
+        token_line = render_yaml_comment()
+        if DISABLED_SENTINEL not in token_line:
+            rev_prefix = token_line + "\n"
     return f"""\
-name: {name}
+{rev_prefix}name: {name}
 description: "Describe what this workflow does."
 version: "1.0.0"
 nodes:

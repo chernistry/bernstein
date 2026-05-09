@@ -902,3 +902,8 @@ cli.add_command(cluster_group, "cluster")
 from bernstein.cli.commands.handoff_cmd import handoff_group  # noqa: E402
 
 cli.add_command(handoff_group, "handoff")
+
+# RESRCH-001 wiring: install-rev fingerprint operator helpers.
+from bernstein.cli.commands.identity_cmd import identity_group  # noqa: E402
+
+cli.add_command(identity_group, "identity")

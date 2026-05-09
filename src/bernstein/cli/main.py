@@ -93,6 +93,7 @@ from bernstein.cli.prompts_cmd import prompts_group
 from bernstein.cli.quickstart_cmd import quickstart_cmd
 from bernstein.cli.report_cmd import report_cmd
 from bernstein.cli.run_changelog_cmd import run_changelog_cmd
+from bernstein.cli.scaffold_cmd import scaffold_cmd
 from bernstein.cli.self_update_cmd import self_update_cmd
 from bernstein.cli.slo_cmd import slo_cmd
 from bernstein.cli.task_cmd import (
@@ -197,6 +198,7 @@ __all__ = [
     "review_cmd",
     "run_changelog_cmd",
     "save_session_on_stop",
+    "scaffold_cmd",
     "server_get",
     "server_post",
     "setup_demo_project",
@@ -794,6 +796,7 @@ cli.add_command(slo_cmd, "slo")
 cli.add_command(man_pages_cmd, "man-pages")
 cli.add_command(workflow_group, "workflow")
 cli.add_command(quickstart_cmd, "quickstart")
+cli.add_command(scaffold_cmd, "scaffold")
 cli.add_command(watch_cmd, "watch")
 cli.add_command(listen_cmd, "listen")
 cli.add_command(self_update_cmd, "self-update")

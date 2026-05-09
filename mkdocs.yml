@@ -191,6 +191,7 @@ nav:
       - Plugin SDK: integrations/plugin-sdk.md
       - MCP server injection: integrations/mcp-server-injection.md
       - MCP tool-search lazy loading: protocols/tool-search.md
+      - Cross-CLI agent-context sync (agents-md): agents-md.md
       - .well-known service manifest: protocols/well-known-manifest.md
       - cocoindex-code (MCP catalog): integrations/cocoindex-code.md
       - GitHub Action: integrations/github-action.md

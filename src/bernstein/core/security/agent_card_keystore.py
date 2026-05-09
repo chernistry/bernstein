@@ -18,11 +18,11 @@ Filesystem layout
 
     .bernstein/keys/
         agent-card.ed25519       0600  PKCS#8 PEM private key (current)
-        agent-card.ed25519.pub   0644  SPKI PEM public key  (current)
+        agent-card.ed25519.pub   0600  SPKI PEM public key  (current)
         archive/
             <iso-timestamp>/
                 agent-card.ed25519       0600  rotated-out private
-                agent-card.ed25519.pub   0644  rotated-out public
+                agent-card.ed25519.pub   0600  rotated-out public
                 rotated_at.txt           UTC ISO-8601 timestamp
 
 The JWKS endpoint at ``/.well-known/agent.json/keys`` reads the current
@@ -258,8 +258,11 @@ class AgentCardKeystore:
 
         # Public key may already exist (e.g. half-rolled-back rotation). It's
         # safe to overwrite — it always derives from the private one.
+        # Use owner-only perms even on the public key — external consumers
+        # fetch it via the JWKS HTTP endpoint, never directly off disk, so
+        # there's no operational need to grant other local users FS access.
         self._public_path.write_bytes(public_pem)
-        os.chmod(self._public_path, 0o644)  # lgtm[py/overly-permissive-file-permissions] — public key
+        os.chmod(self._public_path, 0o600)
 
     def _load_existing(self) -> tuple[bytes, bytes]:
         """Return the on-disk keypair, asserting the private file is 0600."""
@@ -294,7 +297,7 @@ class AgentCardKeystore:
         if self._public_path.exists():
             archived_pub = folder / _PUBLIC_FILENAME
             self._public_path.replace(archived_pub)
-            os.chmod(archived_pub, 0o644)  # lgtm[py/overly-permissive-file-permissions] — public key
+            os.chmod(archived_pub, 0o600)
 
         (folder / _ROTATED_AT_FILENAME).write_text(rotated_at.isoformat() + "\n", encoding="utf-8")
 

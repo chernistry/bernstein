@@ -7,6 +7,8 @@ All notable project changes are tracked here (code + docs).
 ### Added — adapters
 
 - **Devin for Terminal (Cognition).** First-class adapter with 558 lines of contract tests covering process tracking, env isolation, and timeout watchdogs. Drop-in for any plan via `cli_agent: devin_terminal`.
+- **JetBrains Junie CLI.** LLM-agnostic BYOK adapter (`cli_agent: junie`) — forwards whichever provider key (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.) the routed model needs and dynamically narrows the network allowlist to that provider's endpoints.
+- **AWS Q Developer CLI.** First-class adapter (`cli_agent: q_dev`) using `q chat --no-interactive --trust-all-tools`. Token bootstrap via `q login` is documented in the adapter docstring; missing token cache surfaces a clear error rather than a silent hang. IAM Identity Center role inheritance noted as a deployment risk.
 - **Cursor adapter rewrite.** Replaced shell to non-existent `cursor agent` binary with the real `cursor-agent` CLI surface (`-p --workspace --output-format stream-json --trust --approve-mcps --force`); 242 lines of new contract tests.
 
 ### Added — operator surfaces

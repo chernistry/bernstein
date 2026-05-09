@@ -332,9 +332,7 @@ class LLMWatcher:
             A frozen :class:`Suggestion`.
         """
         rationale = response.strip().splitlines()[0][:512]
-        suggestion_id = (
-            f"watch-{event.run_id}-{event.kind}-{int(event.timestamp * 1000)}"
-        )
+        suggestion_id = f"watch-{event.run_id}-{event.kind}-{int(event.timestamp * 1000)}"
         return Suggestion(
             suggestion_id=suggestion_id,
             run_id=event.run_id,
@@ -382,10 +380,7 @@ def build_watcher_from_env(
     """
     enabled = _is_truthy(os.environ.get(_ENABLED_ENV_VAR))
     model = os.environ.get(_MODEL_ENV_VAR, _DEFAULT_MODEL).strip() or _DEFAULT_MODEL
-    provider = (
-        os.environ.get(_PROVIDER_ENV_VAR, _DEFAULT_PROVIDER).strip()
-        or _DEFAULT_PROVIDER
-    )
+    provider = os.environ.get(_PROVIDER_ENV_VAR, _DEFAULT_PROVIDER).strip() or _DEFAULT_PROVIDER
     config = WatcherConfig(enabled=enabled, model=model, provider=provider)
     return LLMWatcher(config=config, llm_caller=llm_caller)
 

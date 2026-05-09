@@ -170,6 +170,15 @@ def render_role_prompt(
     Convenience wrapper around ``render_template`` that locates
     ``templates/roles/{role}/system_prompt.md`` automatically.
 
+    Optionally appends an install-rev fingerprint footer (RESRCH-001)
+    as a markdown HTML comment at the very end of the rendered prompt.
+    The footer is appended **after** the existing prompt body, so the
+    cacheable prefix (everything that drives KV-cache locality across
+    spawns of the same role) is byte-identical to what callers got
+    before the wiring landed.  When emission is disabled or the token
+    is the disabled sentinel, the footer is suppressed entirely — we
+    never inject a useless ``<!-- bernstein-rev: 0…0 -->`` line.
+
     Args:
         role: Role name (e.g. "manager", "backend", "qa").
         context: Placeholder values for the template.
@@ -185,4 +194,24 @@ def render_role_prompt(
     """
     base = templates_dir if templates_dir is not None else _DEFAULT_TEMPLATES_DIR
     template_path = base / role / "system_prompt.md"
-    return render_template(template_path, context)
+    rendered = render_template(template_path, context)
+
+    # Lazy import — keeps templates/ importable in stripped test envs and
+    # avoids a cycle if identity ever needs templating.  Reading the gate
+    # via the module attribute (not the re-export) means tests can flip
+    # it with ``monkeypatch.setattr(install_rev, ...)`` and see live
+    # behaviour without rebuilding caches at the import boundary.
+    from bernstein.core.identity import install_rev as _identity
+    from bernstein.core.identity.install_rev import (
+        DISABLED_SENTINEL,
+        render_md_footer,
+    )
+
+    if not _identity.IDENTITY_EMISSION_ENABLED:
+        return rendered
+    footer = render_md_footer()
+    if DISABLED_SENTINEL in footer:
+        return rendered
+    # Append-only — preserves prefix bytes verbatim for KV-cache reuse.
+    sep = "" if rendered.endswith("\n") else "\n"
+    return f"{rendered}{sep}{footer}\n"

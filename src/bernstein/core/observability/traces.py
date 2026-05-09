@@ -357,11 +357,36 @@ class TraceStore:
         - ``{traces_dir}/{task_id}.jsonl`` (one line per trace, appended)
         - ``{traces_dir}/trace-{trace_id}.json`` (single-trace file for direct lookup)
 
+        Embeds the optional install-rev fingerprint (RESRCH-001) into a
+        ``_rev`` field on every persisted trace dict when emission is
+        enabled.  The field is intentionally generic (``_rev``) so it
+        reads as a schema-version marker; survives copy-paste of the
+        jsonl file into GitHub issues; and is skipped entirely when the
+        token resolves to the disabled sentinel — we never persist a
+        useless ``"_rev": "0…0"`` placeholder.
+
         Args:
             trace: The trace to persist.
         """
         self._ensure_dir()
-        data = json.dumps(trace.to_dict())
+        # Lazy import — keeps the observability package free of identity
+        # at module-load (and avoids a cycle if either side grows).
+        # Reading through the module object (not the re-export) so the
+        # gate can be flipped at runtime by monkeypatch in tests.
+        from bernstein.core.identity import install_rev as _identity
+        from bernstein.core.identity.install_rev import (
+            DISABLED_SENTINEL,
+            render_trace_header,
+        )
+
+        payload = trace.to_dict()
+        if _identity.IDENTITY_EMISSION_ENABLED:
+            header = render_trace_header()
+            if header.get("_rev") != DISABLED_SENTINEL:
+                # Single field, top-level, JSON-serialisable.  Doesn't
+                # collide with any existing ``AgentTrace`` field name.
+                payload["_rev"] = header["_rev"]
+        data = json.dumps(payload)
 
         # Write per-trace file (overwrites on update)
         self._path_for_trace(trace.trace_id).write_text(data + "\n")

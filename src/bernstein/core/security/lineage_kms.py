@@ -308,7 +308,7 @@ class _suppressed:
     def __enter__(self) -> _suppressed:
         return self
 
-    def __exit__(self, exc_type: object, exc: object, tb: object) -> bool:
+    def __exit__(self, _exc_type: object, _exc: object, _tb: object) -> bool:
         return True
 
 

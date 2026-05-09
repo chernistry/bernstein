@@ -258,3 +258,14 @@ Bernstein agents have built-in terminal access and can run any command directly.
 4. **Use existing CLI agents.** Do not rewrite custom tools. Claude Code, Codex, and other agents already know how to edit files, run tests, and use git.
 
 5. **Use quality gates instead of LLM-based evaluation.** Instead of asking an LLM "is this good?", run concrete checks: tests pass, lint clean, type check clean.
+
+## Version migrations
+
+### `1.10.0` → `1.10.1`: handoff tokens prefixed with `h_`
+
+`bernstein handoff emit` tokens now start with the literal `h_` (e.g.
+`h_3F8aQ2Kh9-Vb7c1dEs4Z6P-tGmRoYvLk`). If you scripted against the older
+format — regex without the prefix, DB `CHECK` constraint on length or
+starting character, or a fixture hard-coding a `1.10.0` token — update
+them. See
+[session handoff → token format](../operations/session-handoff.md#token-format).

@@ -153,6 +153,58 @@ bernstein cost --json
 
 Cost forecasting is handled by `src/bernstein/core/cost/spend_forecast.py` and `src/bernstein/core/cost/cost_forecast.py`.
 
+### Run savings summary
+
+Every `bernstein run` ends with a summary card. Since `v1.10.1` the card
+includes a **Model routing savings** row that estimates how much spend
+the cascade router avoided versus running the same plan single-shot
+through the most expensive routed model.
+
+```text
+╭─────────────────────── Run Complete ───────────────────────╮
+│ Metric                                          Value      │
+│ Tasks completed                                 12/12      │
+│ Total time                                      4m 18s     │
+│ Total cost                                      $0.4231    │
+│ Cost per task                                   $0.0353    │
+│ Model routing savings                           $1.8742    │
+│ Quality score                                   92%        │
+╰────────────────────────────────────────────────────────────╯
+```
+
+The same number is persisted to `.sdd/runs/<run-id>/summary.json`
+(`routing_savings_usd`) for `bernstein recap` and downstream dashboards.
+
+**Baseline anchor.** The comparison model is **Opus** — the most
+expensive tier in the default cascade (`haiku → sonnet → opus`). Picking
+the top of the cascade gives an intentionally generous "what if I had
+just used the smartest model for everything" number; the buyer-facing
+question the card is built to answer.
+
+**How it is computed.** For every completed task the run priced through
+something other than Opus, multiply its total tokens (prompt +
+completion) by the Opus per-1K rate, subtract the actual spend, and sum
+the positive deltas. Tasks already routed to Opus, fast-path bypasses,
+and zero-token tasks contribute nothing. Implementation:
+`compute_savings_vs_opus()` in `src/bernstein/core/cost/cost.py`,
+wrapped by `calculate_savings()` in
+`src/bernstein/core/cost/savings_calculator.py`.
+
+**Caveats.**
+
+- This is an **estimate**, not a counterfactual replay. Opus would have
+  used a different prompt strategy and likely a different token count;
+  the number assumes identical token usage across tiers.
+- Savings can read as zero on a run that was already 100% Opus or 100%
+  fast-path — there is nothing to compare.
+- Token rates come from the static catalogue in
+  `_MODEL_COST_USD_PER_1K`. When provider pricing changes, the catalogue
+  needs to move with it, otherwise the savings number drifts.
+
+For a multi-run aggregate of the same comparison see `bernstein cost` —
+the `--json` payload includes `savings_vs_opus_usd` over the configured
+window.
+
 ## Peak-hour routing
 
 Route non-urgent tasks to off-peak windows to reduce costs:

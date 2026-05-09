@@ -130,6 +130,11 @@ Run summary — 1 task completed in 1m 47s
 Total: $0.03 · 1 merged · 0 failed
 ```
 
+The summary card also reports a **Model routing savings** number when the
+cascade router downgraded any task off Opus — see
+[run savings summary](../operations/cost-optimization.md#run-savings-summary)
+for how it is computed and what the caveats are.
+
 Inspect a specific task:
 
 ```bash

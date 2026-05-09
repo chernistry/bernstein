@@ -281,7 +281,7 @@ A `bernstein cloud init` scaffold for `wrangler.toml` and bindings is planned.
 
 **Controls**. HMAC-chained audit logs, policy engine, PII output gating, WAL-backed crash recovery (experimental multi-worker safety), OAuth 2.0 PKCE. SSO/SAML/OIDC support is in progress.
 
-**Observability**. Prometheus `/metrics`, OTel exporter presets, Grafana dashboards. Per-model cost tracking (`bernstein cost`). Terminal TUI and web dashboard. Agent process visibility in `ps`.
+**Observability**. Prometheus `/metrics`, OTel exporter presets, Grafana dashboards. Per-model cost tracking (`bernstein cost`) plus a [run savings summary](docs/operations/cost-optimization.md#run-savings-summary) on every `bernstein run`. Terminal TUI and web dashboard. Agent process visibility in `ps`.
 
 **Ecosystem**. MCP server mode, A2A protocol support, GitHub App integration, pluggy-based plugin system, multi-repo workspaces, cluster mode for distributed execution, self-evolution via `--evolve` (experimental).
 

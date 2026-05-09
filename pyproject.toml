@@ -147,10 +147,10 @@ modal = ["modal>=0.65"]
 # Cloud artifact storage sinks (oai-003). Each extra pulls in the provider
 # SDK needed by the corresponding ArtifactSink. Kept optional so local-only
 # installs stay lean. R2 reuses boto3 under the hood.
-s3 = ["boto3>=1.40"]
+s3 = ["boto3>=1.43.6"]
 gcs = ["google-cloud-storage>=3.0"]
 azure = ["azure-storage-blob>=12.20"]
-r2 = ["boto3>=1.40"]
+r2 = ["boto3>=1.43.6"]
 # Chat-control bridge backends (op-001). Enable with:
 #   pip install 'bernstein[telegram]'
 telegram = ["python-telegram-bot>=22.7"]

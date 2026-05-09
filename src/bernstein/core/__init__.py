@@ -253,6 +253,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "lifecycle": "bernstein.core.tasks.lifecycle",
     "lineage": "bernstein.core.persistence.lineage",
     "llm": "bernstein.core.routing.llm",
+    "llm_watcher": "bernstein.core.observability.llm_watcher",
     "load_scaler": "bernstein.core.orchestration.load_scaler",
     "log_redact": "bernstein.core.observability.log_redact",
     "log_search": "bernstein.core.observability.log_search",

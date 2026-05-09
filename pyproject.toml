@@ -141,7 +141,7 @@ graphics = []  # term-image disabled: caps pillow<11, conflicts with CVE-2026-25
 openai = ["openai-agents>=0.4.0"]
 # Sandbox backend extras (oai-002). Each pulls in the provider SDK for the
 # corresponding SandboxBackend. Kept optional so minimal installs stay lean.
-docker = ["docker>=7"]
+docker = ["docker>=7.1.0"]
 e2b = ["e2b-code-interpreter>=1.0"]
 modal = ["modal>=1.4.2"]
 # Cloud artifact storage sinks (oai-003). Each extra pulls in the provider

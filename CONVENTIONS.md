@@ -27,6 +27,7 @@ Bernstein is a deterministic Python scheduler that runs a crew of CLI coding age
 | `git/`                  | git sub-package |
 | `grpc_gen/`             | Generated gRPC stubs — run ``scripts/generate_proto.sh`` to populate |
 | `handoff/`              | Session handoff between terminal and chat/dashboard surfaces (op-005) |
+| `identity/`             | Install-rev identity module — passive, operator-decodable install fingerprint |
 | `integrations/`         | Integrations sub-package |
 | `knowledge/`            | knowledge sub-package |
 | `lifecycle/`            | Lifecycle-hooks subsystem |

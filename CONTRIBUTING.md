@@ -116,7 +116,7 @@ When adding a new CLI command, create a new `*_cmd.py` module in `cli/commands/`
 
 ## Supported CLI Adapters
 
-Bernstein ships with 18 adapters (17 specific + 1 generic). When writing a new adapter, check that it isn't already implemented:
+Bernstein ships with 43 adapters (42 named + 1 generic catch-all). Before writing a new adapter, check `src/bernstein/adapters/registry.py` for the full list — a subset is shown here for orientation:
 
 | Adapter | File | Agent |
 |---------|------|-------|
@@ -128,16 +128,21 @@ Bernstein ships with 18 adapters (17 specific + 1 generic). When writing a new a
 | `cody` | `adapters/cody.py` | [Cody](https://sourcegraph.com/cody) |
 | `continue` | `adapters/continue_dev.py` | [Continue](https://continue.dev) |
 | `cursor` | `adapters/cursor.py` | [Cursor](https://www.cursor.com) |
+| `devin_terminal` | `adapters/devin_terminal.py` | [Devin Terminal](https://devin.ai) (Cognition) |
 | `gemini` | `adapters/gemini.py` | [Gemini CLI](https://github.com/google-gemini/gemini-cli) |
 | `goose` | `adapters/goose.py` | [Goose](https://block.github.io/goose/) |
 | `iac` | `adapters/iac.py` | Infrastructure-as-Code agent |
+| `junie` | `adapters/junie.py` | [JetBrains Junie](https://junie.jetbrains.com) |
 | `kilo` | `adapters/kilo.py` | [Kilo](https://kilo.dev) |
 | `kiro` | `adapters/kiro.py` | [Kiro](https://kiro.dev) |
 | `ollama` | `adapters/ollama.py` | [Ollama](https://ollama.ai) (local models) |
 | `openai_agents` | `adapters/openai_agents.py` | [OpenAI Agents SDK v2](https://openai.github.io/openai-agents-python/) |
 | `opencode` | `adapters/opencode.py` | [OpenCode](https://opencode.ai) |
+| `q_dev` | `adapters/q_dev.py` | [AWS Q Developer CLI](https://docs.aws.amazon.com/amazonq/) |
 | `qwen` | `adapters/qwen.py` | [Qwen Code](https://github.com/QwenLM/qwen-code) |
 | `generic` | `adapters/generic.py` | Any CLI agent (catch-all) |
+
+Full list: `src/bernstein/adapters/registry.py`. Adapter guide: `docs/adapters/ADAPTER_GUIDE.md`.
 
 ### Writing a Custom Adapter
 

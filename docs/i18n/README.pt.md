@@ -108,7 +108,7 @@ $ bernstein -g "Add JWT auth"
 
 O Bernstein descobre automaticamente os agentes CLI instalados. Combine-os na mesma execução. Modelos locais baratos para boilerplate, modelos em nuvem mais robustos para arquitetura.
 
-41 adaptadores de agentes CLI: 38 wrappers de terceiros mais um wrapper genérico para qualquer coisa com `--prompt`.
+43 adaptadores de agentes CLI: 40 wrappers de terceiros mais um wrapper genérico para qualquer coisa com `--prompt`.
 
 | Agente | Modelos | Instalação |
 |-------|--------|---------|
@@ -260,7 +260,7 @@ Comandos que eliminam o código-cola que a maioria dos times acaba escrevendo em
 | Funcionalidade | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |---------|-----------|--------|---------|-----------|
 | Orquestrador | Código determinístico | Conduzido por LLM (+ Flows em código) | Conduzido por LLM | Grafo + LLM |
-| Funciona com | Qualquer agente CLI (41 adaptadores) | Classes do Python SDK | Agentes Python | Nós LangChain |
+| Funciona com | Qualquer agente CLI (43 adaptadores) | Classes do Python SDK | Agentes Python | Nós LangChain |
 | Isolamento via git | Worktrees por agente | Não | Não | Não |
 | Sandboxes plugáveis | Worktree, Docker, E2B, Modal | Não | Não | Não |
 | Verificação | Zelador + portões de qualidade | Guardrails + saída Pydantic | Condições de término | Arestas condicionais |
@@ -285,7 +285,7 @@ A tabela acima compara o Bernstein com frameworks de orquestração de LLMs (ele
 | Forma | Python CLI + biblioteca + servidor MCP | Python CLI + sessões tmux + web UI | TypeScript CLI + dashboard local | Aplicativo desktop Electron | Go CLI |
 | Linguagem principal | Python | Python | TypeScript | TypeScript | Go |
 | Instalação | `pipx install bernstein` | `uv tool install cli-agent-orchestrator` | `npm install -g @aoagents/ao` | `.dmg` / `.msi` / `.AppImage` | `go install` / binário único |
-| Adaptadores de agentes | 41 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (apenas Claude Code) |
+| Adaptadores de agentes | 43 | 5 (Kiro, Claude Code, Codex, Gemini, Kimi) | 3 (Claude Code, Codex, Aider) | 24 | 1 (apenas Claude Code) |
 | Execução paralela multi-agente | Sim | Sim (sessão tmux por agente) | Sim | Sim | Não (sessão única sequencial) |
 | Worktree git por agente | Sim | Não (planejado, [#100](https://github.com/awslabs/cli-agent-orchestrator/issues/100)) | Sim | Sim | Flag `--worktree` opcional |
 | Modo de servidor MCP (expõe-se como MCP) | Sim (stdio + HTTP/SSE) | Sim (comunicação inter-agente) | Não | Não | Não |

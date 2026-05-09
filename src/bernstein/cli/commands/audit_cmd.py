@@ -288,7 +288,7 @@ def verify_hmac_cmd() -> None:
     "without writing to disk.",
 )
 @click.option("--dir", "workdir", default=".", show_default=True, help="Project root directory.")
-def export_cmd(  # noqa: PLR0913 — CLI surface mirrors documented flags
+def export_cmd(
     period: str | None,
     article_12: bool,
     since: str | None,

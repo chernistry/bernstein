@@ -41,8 +41,10 @@ import json
 import zipfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 #: Article 12(3) — high-risk AI systems must keep logs for the lifetime
 #: of the system *and* at least 10 years (Article 19(1)).  Bernstein
@@ -155,11 +157,13 @@ def compute_retention_pin(
         ValueError: If ``last_event_ts`` is not parseable as ISO-8601.
     """
     last_dt = _parse_iso(last_event_ts)
-    if risk_class == "high":
-        # 10 years (Article 19(1)).  365.25 average accounts for leap years.
-        days = int(round(HIGH_RISK_RETENTION_YEARS * 365.25))
-    else:
-        days = MINIMUM_RETENTION_DAYS
+    # 10 years (Article 19(1)) for high-risk; 6-month floor otherwise.
+    # 365.25 average accounts for leap years.
+    days = (
+        round(HIGH_RISK_RETENTION_YEARS * 365.25)
+        if risk_class == "high"
+        else MINIMUM_RETENTION_DAYS
+    )
     until = (last_dt + timedelta(days=days)).date().isoformat()
     return RetentionPin(
         risk_class=risk_class,
@@ -189,7 +193,7 @@ def validate_retention(
     elapsed = (current - last_dt).days
 
     floor = (
-        int(round(HIGH_RISK_RETENTION_YEARS * 365.25))
+        round(HIGH_RISK_RETENTION_YEARS * 365.25)
         if pin.risk_class == "high"
         else MINIMUM_RETENTION_DAYS
     )

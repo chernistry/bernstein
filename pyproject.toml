@@ -143,7 +143,7 @@ openai = ["openai-agents>=0.4.0"]
 # corresponding SandboxBackend. Kept optional so minimal installs stay lean.
 docker = ["docker>=7"]
 e2b = ["e2b-code-interpreter>=1.0"]
-modal = ["modal>=0.65"]
+modal = ["modal>=1.4.2"]
 # Cloud artifact storage sinks (oai-003). Each extra pulls in the provider
 # SDK needed by the corresponding ArtifactSink. Kept optional so local-only
 # installs stay lean. R2 reuses boto3 under the hood.

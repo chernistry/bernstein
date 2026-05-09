@@ -1,26 +1,55 @@
-"""Static service manifest routes — A2A agent card and llms.txt summary.
+"""Static service manifest routes — A2A v1.0 agent card, JWKS, llms.txt.
 
 External agents (Claude Code, Codex, third-party orchestrators) discover the
-Bernstein task API by fetching ``/.well-known/agent.json`` (A2A-compliant
-JSON card) or ``/llms.txt`` (markdown summary).  Both endpoints derive from
-a single in-module ``_ENDPOINTS`` table so the markdown summary cannot drift
-from the structured manifest — the regression test in
+Bernstein task API by fetching ``/.well-known/agent.json`` (A2A v1.0 card,
+JCS-canonical body + detached JWS), ``/.well-known/agent.json/keys`` (JWKS
+of the signing keys), or ``/llms.txt`` (markdown summary).
+
+The structured manifest and the markdown summary derive from the same
+in-module ``_ENDPOINTS`` table so the markdown summary cannot drift from
+the structured manifest — the regression test in
 ``tests/unit/test_well_known.py`` enforces that every entry in the table is
 mentioned in the rendered llms.txt body.
 
+A2A v1.0 conformance
+--------------------
+- ``protocolVersion: "1.0"`` (RFC 8785 + RFC 7515 baseline).
+- ``supportedInterfaces[]`` — the wire formats this server speaks.
+- ``securitySchemes[]`` — Bearer JWT today, with a stub for the upcoming
+  ``mtls`` scheme that ``auth_middleware.py`` will land in a follow-up.
+- ``signatures[]`` — list of detached JWS objects (RFC 7515 §A.5) over the
+  JCS-canonical body bytes (RFC 8785). Verifiers strip ``signatures`` from
+  the body, recompute the canonical bytes, and verify the JWS using the
+  matching ``kid`` from the JWKS endpoint.
+
 Both routes are unauthenticated; they live in ``AUTH_PUBLIC_PATHS`` so any
 network caller can read them without provisioning a token.
+
+Key lifecycle
+-------------
+For now the orchestrator generates a fresh Ed25519 keypair on first request
+and caches it in-process. Persistence (PEM under
+``.sdd/security/keys/agent_signing/``) and rotation are tracked in the same
+ticket family but deferred from this PR — the JWS surface and JWKS shape
+land first so external verifiers can integrate against a stable contract.
 """
 
 from __future__ import annotations
 
+import os
+import threading
 from dataclasses import dataclass
 from typing import Any
 
 from fastapi import APIRouter
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 
 from bernstein import __version__ as _BERNSTEIN_VERSION
+from bernstein.core.security.agent_card_signer import (
+    canonicalize_jcs,
+    ed25519_public_jwk,
+    generate_ed25519_keypair,
+)
 
 router = APIRouter()
 
@@ -31,9 +60,18 @@ _AGENT_DESCRIPTION = (
     "Clients submit tasks, query status, and post cross-agent bulletins "
     "via the documented endpoints below."
 )
-_PROTOCOL_VERSION = "0.2"
+_PROTOCOL_VERSION = "1.0"
 _DEFAULT_BASE_URL = "http://127.0.0.1:8052"
 _DOCS_URL = "https://github.com/sipyourdrink-ltd/bernstein"
+
+#: A2A v1.0 wire formats this server speaks. Today only HTTP+JSON; gRPC and
+#: JSONRPC are tracked in follow-up tickets but listed here as the ticket
+#: enumerates the v1.0 surface.
+_SUPPORTED_INTERFACES: tuple[str, ...] = ("HTTP+JSON",)
+
+#: Stable kid used for the orchestrator's signing key. Format follows the
+#: convention in ``agent_card_signer.sign_agent_card``: ``agent-<id>``.
+_DEFAULT_KID = "agent-bernstein-orchestrator"
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,14 +113,85 @@ _SKILLS: tuple[dict[str, object], ...] = (
 )
 
 
-def _agent_card_payload(base_url: str = _DEFAULT_BASE_URL) -> dict[str, Any]:
-    """Build the A2A agent-card dict served at /.well-known/agent.json.
+# ---------------------------------------------------------------------------
+# Process-local Ed25519 keypair cache.
+# ---------------------------------------------------------------------------
+#
+# The first GET against either ``/.well-known/agent.json`` or
+# ``/.well-known/agent.json/keys`` lazily mints a keypair and caches it in
+# this module. Subsequent requests reuse the cache so the JWKS contract
+# stays stable across the lifetime of one orchestrator process. Production
+# deployments will plug the persistent ``key_rotation`` substrate in here in
+# a follow-up ticket; the JWKS shape stays unchanged either way so external
+# verifiers do not have to special-case the in-memory mode.
+
+_KEY_LOCK = threading.Lock()
+_PRIVATE_PEM: bytes | None = None
+_PUBLIC_PEM: bytes | None = None
+
+
+def _get_signing_keypair() -> tuple[bytes, bytes]:
+    """Return the cached signing keypair, generating it on first use."""
+    global _PRIVATE_PEM, _PUBLIC_PEM
+    if _PRIVATE_PEM is not None and _PUBLIC_PEM is not None:
+        return _PRIVATE_PEM, _PUBLIC_PEM
+    with _KEY_LOCK:
+        if _PRIVATE_PEM is None or _PUBLIC_PEM is None:
+            _PRIVATE_PEM, _PUBLIC_PEM = generate_ed25519_keypair()
+    return _PRIVATE_PEM, _PUBLIC_PEM
+
+
+def _reset_signing_keypair_for_tests() -> None:
+    """Drop the cached keypair — for tests that want a fresh JWKS per case."""
+    global _PRIVATE_PEM, _PUBLIC_PEM
+    with _KEY_LOCK:
+        _PRIVATE_PEM = None
+        _PUBLIC_PEM = None
+
+
+# ---------------------------------------------------------------------------
+# Card body construction.
+# ---------------------------------------------------------------------------
+
+
+def _security_schemes() -> list[dict[str, Any]]:
+    """Return the A2A v1.0 ``securitySchemes`` array.
+
+    Today only ``Bearer`` is fully wired. ``mtls`` is listed as a stub
+    (``"required": false``) because client-cert verification at the
+    middleware layer is the next ticket in the same family — declaring it
+    early lets external clients negotiate it as soon as it lands without a
+    discovery-cache miss.
+    """
+    return [
+        {
+            "id": "bearer-jwt",
+            "type": "http",
+            "scheme": "Bearer",
+            "description": "JWT bearer token in the Authorization header.",
+            "required": True,
+        },
+        {
+            "id": "mtls",
+            "type": "mutualTLS",
+            "scheme": "mtls",
+            "description": "TLS client cert (deferred — declared for forward-compat).",
+            "required": False,
+        },
+    ]
+
+
+def _agent_card_body(base_url: str = _DEFAULT_BASE_URL) -> dict[str, Any]:
+    """Build the A2A v1.0 card body — the bytes the JWS attests to.
+
+    The result excludes the ``signatures`` array; ``_agent_card_payload``
+    appends the JWS list after JCS-canonicalising this body.
 
     Args:
         base_url: Public base URL of the task server.
 
     Returns:
-        JSON-serialisable dict accepted by ``parse_agent_card``.
+        JSON-serialisable dict with the v1.0-mandated fields.
     """
     return {
         "name": _AGENT_NAME,
@@ -91,6 +200,8 @@ def _agent_card_payload(base_url: str = _DEFAULT_BASE_URL) -> dict[str, Any]:
         "protocolVersion": _PROTOCOL_VERSION,
         "url": base_url,
         "documentationUrl": _DOCS_URL,
+        "supportedInterfaces": list(_SUPPORTED_INTERFACES),
+        "securitySchemes": _security_schemes(),
         "capabilities": [
             {"name": "task-crud", "description": "Create / read / complete / fail tasks."},
             {"name": "bulletin", "description": "Post and read cross-agent bulletins."},
@@ -101,7 +212,12 @@ def _agent_card_payload(base_url: str = _DEFAULT_BASE_URL) -> dict[str, Any]:
         "defaultOutputModes": ["application/json"],
         "authentication": {
             "schemes": ["Bearer"],
-            "publicPaths": ["/health", "/.well-known/agent.json", "/llms.txt"],
+            "publicPaths": [
+                "/health",
+                "/.well-known/agent.json",
+                "/.well-known/agent.json/keys",
+                "/llms.txt",
+            ],
             "description": (
                 "Bearer token in Authorization header.  Set BERNSTEIN_AUTH_DISABLED=1 "
                 "for local development (no token required)."
@@ -109,6 +225,77 @@ def _agent_card_payload(base_url: str = _DEFAULT_BASE_URL) -> dict[str, Any]:
         },
         "endpoints": [{"method": e.method, "path": e.path, "summary": e.summary} for e in _ENDPOINTS],
     }
+
+
+def _sign_canonical_body(canonical_body: bytes, private_pem: bytes, *, kid: str) -> str:
+    """Produce a detached JWS over ``canonical_body`` (RFC 7515 §A.5).
+
+    Mirrors :func:`agent_card_signer.sign_agent_card` but operates on the
+    raw canonical bytes — the agent card we publish here is a server-card
+    (not an ``AgentIdentityCard`` instance), so we cannot reuse
+    ``sign_agent_card`` directly without inventing a synthetic dataclass.
+    The signing input shape (header.body) and ``typ`` value match exactly,
+    so verifiers that already understand ``agent-card+jws`` interoperate.
+
+    Args:
+        canonical_body: JCS-canonicalised body bytes.
+        private_pem: PEM PKCS#8 Ed25519 private key.
+        kid: Key identifier — must match the JWK published at
+            ``/.well-known/agent.json/keys``.
+
+    Returns:
+        Compact-form detached JWS string ``header..signature``.
+    """
+    import base64
+
+    from cryptography.hazmat.primitives import serialization
+
+    private_key = serialization.load_pem_private_key(private_pem, password=None)
+    header = {"alg": "EdDSA", "typ": "agent-card+jws", "kid": kid}
+    header_b64 = base64.urlsafe_b64encode(canonicalize_jcs(header)).rstrip(b"=").decode("ascii")
+    body_b64 = base64.urlsafe_b64encode(canonical_body).rstrip(b"=").decode("ascii")
+    signing_input = f"{header_b64}.{body_b64}".encode("ascii")
+    signature = private_key.sign(signing_input)
+    sig_b64 = base64.urlsafe_b64encode(signature).rstrip(b"=").decode("ascii")
+    return f"{header_b64}..{sig_b64}"
+
+
+def _resolve_base_url() -> str:
+    """Return the base URL to advertise in the card.
+
+    Priority: ``BERNSTEIN_PUBLIC_BASE_URL`` env override → default. Keeping
+    this configurable lets reverse-proxied deployments expose the correct
+    canonical URL without hardcoding it at build time.
+    """
+    return os.environ.get("BERNSTEIN_PUBLIC_BASE_URL", _DEFAULT_BASE_URL)
+
+
+def _agent_card_payload(base_url: str = _DEFAULT_BASE_URL) -> dict[str, Any]:
+    """Build the full A2A v1.0 card payload — body plus signatures.
+
+    Verifiers strip ``signatures`` from this payload, JCS-canonicalise the
+    rest, and compare against the ``signatures[].jws`` header+sig segments
+    using the public key fetched from ``/.well-known/agent.json/keys``.
+
+    Args:
+        base_url: Public base URL of the task server.
+
+    Returns:
+        Full v1.0 payload dict ready to JSON-serialise.
+    """
+    body = _agent_card_body(base_url)
+    canonical = canonicalize_jcs(body)
+    private_pem, _public_pem = _get_signing_keypair()
+    jws = _sign_canonical_body(canonical, private_pem, kid=_DEFAULT_KID)
+    body["signatures"] = [
+        {
+            "kid": _DEFAULT_KID,
+            "alg": "EdDSA",
+            "typ": "agent-card+jws",
+            "jws": jws,
+        }
+    ]
+    return body
 
 
 def _render_llms_txt() -> str:
@@ -131,16 +318,48 @@ def _render_llms_txt() -> str:
         "## Auth",
         "",
         "Send `Authorization: Bearer <token>` on every request.  Public paths: "
-        "`/health`, `/.well-known/agent.json`, `/llms.txt`.",
+        "`/health`, `/.well-known/agent.json`, `/.well-known/agent.json/keys`, "
+        "`/llms.txt`.",
         "",
     ]
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
+
 @router.get("/.well-known/agent.json", include_in_schema=False)
-def agent_json() -> dict[str, Any]:
-    """Return the A2A-compliant agent card for this task server."""
-    return _agent_card_payload()
+def agent_json() -> Response:
+    """Return the A2A v1.0 signed agent card for this task server.
+
+    Body bytes are JCS-canonical (RFC 8785) so verifiers can recompute the
+    JWS signing input bit-perfect after stripping the ``signatures`` array.
+    Cache for an hour — the card body changes only when the server config
+    or the orchestrator's signing key rotates.
+    """
+    payload = _agent_card_payload(_resolve_base_url())
+    body = canonicalize_jcs(payload)
+    return Response(
+        content=body,
+        media_type="application/json",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@router.get("/.well-known/agent.json/keys", include_in_schema=False)
+def agent_json_keys() -> dict[str, Any]:
+    """Return the JWKS for verifying ``/.well-known/agent.json`` signatures.
+
+    JWKS shape per RFC 7517 — ``{"keys": [<jwk>, ...]}``. Today exactly one
+    key is published (the orchestrator's signing key); during rotation
+    windows both old and new keys appear so in-flight tokens keep
+    verifying — see ``key_rotation.py`` for the rotation contract.
+    """
+    _private_pem, public_pem = _get_signing_keypair()
+    jwk = ed25519_public_jwk(public_pem, kid=_DEFAULT_KID)
+    return {"keys": [jwk]}
 
 
 @router.get("/llms.txt", include_in_schema=False, response_class=PlainTextResponse)

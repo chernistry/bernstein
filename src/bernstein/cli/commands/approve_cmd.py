@@ -128,7 +128,7 @@ def approve(task_id: str, workdir: str, prompt: bool) -> None:
 
     created = _atomic_write_text(decision_file, "approved")
     if created:
-        console.print(f"[green]Approved:[/green] task [bold]{task_id}[/bold] — Bernstein will continue.")
+        console.print(f"[green]Approved:[/green] task [bold]{task_id}[/bold]: Bernstein will continue.")
     else:
         console.print(f"[dim]Already approved:[/dim] task [bold]{task_id}[/bold] (no-op)")
 

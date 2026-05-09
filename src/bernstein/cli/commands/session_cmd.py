@@ -128,7 +128,7 @@ def session_replay(
             console.print("[red]No recorded sessions found.[/red]")
             console.print(f"[dim]Sessions directory:[/dim] {sdir}")
             raise SystemExit(1)
-        console.print(f"[yellow]SESSION_ID not provided — replaying latest:[/yellow] {ids[0]}")
+        console.print(f"[yellow]SESSION_ID not provided: replaying latest:[/yellow] {ids[0]}")
         session_id = ids[0]
 
     try:
@@ -152,7 +152,7 @@ def session_replay(
     tasks = session.to_tasks()
 
     if dry_run:
-        console.print("\n[yellow]Dry run — tasks that would execute:[/yellow]")
+        console.print("\n[yellow]Dry run: tasks that would execute:[/yellow]")
         for i, task in enumerate(tasks, 1):
             console.print(f"  {i:2}. [{task.role}] {task.title[:70]}")  # type: ignore[union-attr]
         return

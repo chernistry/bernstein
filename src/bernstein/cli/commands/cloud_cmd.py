@@ -34,7 +34,7 @@ _RUNS_PATH = "/runs"
 
 @click.group("cloud")
 def cloud_group() -> None:
-    """Manage Bernstein Cloud — hosted orchestration on Cloudflare."""
+    """Manage Bernstein Cloud: hosted orchestration on Cloudflare."""
 
 
 # ---------------------------------------------------------------------------

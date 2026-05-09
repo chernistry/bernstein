@@ -20,7 +20,7 @@
    - `uv run ruff check src/` (lint)
    - `uv run ruff format --check src/` (format)
    - `uv run python scripts/run_tests.py -x` (tests)
-4. Commit only the files you changed: `fix: resolve CI failure — <brief description>`
+4. Commit only the files you changed: `fix: resolve CI failure: <brief description>`
 
 ## If stuck or blocked
 - If you cannot determine the fix, mark the task as failed:

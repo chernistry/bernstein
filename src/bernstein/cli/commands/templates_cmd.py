@@ -1,4 +1,4 @@
-"""Plan template library — list and scaffold reusable YAML plans."""
+"""Plan template library: list and scaffold reusable YAML plans."""
 
 from __future__ import annotations
 
@@ -84,7 +84,7 @@ def templates_list() -> None:
     console.print()
     console.print(table)
     console.print()
-    console.print("[dim]Templates are in[/dim] [bold]plans/templates/[/bold] — edit the copy after scaffolding.")
+    console.print("[dim]Templates are in[/dim] [bold]plans/templates/[/bold]: edit the copy after scaffolding.")
     console.print()
 
 

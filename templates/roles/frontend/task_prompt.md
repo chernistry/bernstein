@@ -14,7 +14,7 @@
 {{/IF}}
 
 ## Instructions
-1. Read existing components and styles before creating new ones — reuse before adding
+1. Read existing components and styles before creating new ones. Reuse before adding
 2. Keep components small and single-purpose; lift state only when necessary
 3. Use semantic HTML; avoid div soup
 4. Ensure keyboard navigation and basic accessibility (ARIA labels where needed)
@@ -23,7 +23,7 @@
 
 ## If stuck or blocked
 - If a curl to the task server fails, retry up to 3 times with 2-second delays
-- If tests fail after your changes, fix the code — do not skip tests or mark complete with failures
+- If tests fail after your changes, fix the code. Do not skip tests or mark complete with failures
 - If you cannot determine the fix, mark the task as failed:
   ```bash
   curl -s -X POST http://127.0.0.1:8052/tasks/{{TASK_ID}}/fail \

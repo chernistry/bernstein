@@ -1,4 +1,4 @@
-"""Quickstart command — zero-config demo of Bernstein orchestration."""
+"""Quickstart command: zero-config demo of Bernstein orchestration."""
 
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ def _setup_quickstart_project(project_dir: Path, adapter: str) -> None:
         # Inline fallback so the command works even when the examples/ dir is absent
         # (e.g. installed via pip without the examples tree).
         (project_dir / "app.py").write_text(
-            '"""Minimal TODO API — intentionally missing validation, error handling, and tests."""\n\n'
+            '"""Minimal TODO API: intentionally missing validation, error handling, and tests."""\n\n'
             "from __future__ import annotations\n\n"
             "from dataclasses import dataclass, field\n\n"
             "from flask import Flask, jsonify, request\n\n"
@@ -279,7 +279,7 @@ def _print_quickstart_summary(
             f"[bold]cd {project_dir} && pip install -r requirements.txt && pytest tests/ -q[/bold]"
         )
     else:
-        console.print("[dim]  (directory removed — use [bold]--keep[/bold] to preserve it)[/dim]")
+        console.print("[dim]  (directory removed: use [bold]--keep[/bold] to preserve it)[/dim]")
 
     console.print(
         "\n[dim]Next: initialise your own project with [bold]bernstein init[/bold] "

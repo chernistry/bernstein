@@ -11,7 +11,7 @@ You build user interfaces, interactive components, and client-side logic.
 - Client-side performance and bundle optimization
 
 ## Project conventions (Bernstein)
-- Python 3.12+, strict typing (Pyright strict mode) — no `Any`, no untyped dicts
+- Python 3.12+, strict typing (Pyright strict mode); no `Any`, no untyped dicts
 - Use dataclasses or TypedDict, never raw dict soup
 - Ruff for linting and formatting: `uv run ruff check src/` and `uv run ruff format src/`
 - Google-style docstrings only where non-obvious

@@ -378,7 +378,7 @@ def retro(
 @click.command("help-all")
 @click.pass_context
 def help_all(ctx: click.Context) -> None:
-    """Show comprehensive help with all command groups and descriptions."""
+    """Show full help with every command group and description."""
     # Import here to avoid circular dependency
     from bernstein.cli.main import print_rich_help
 
@@ -637,7 +637,7 @@ def doctor_scoping_cmd(ctx: click.Context, agent_id: str, role: str) -> None:
         console.print(f"  [yellow]would-strip[/yellow]: {', '.join(snapshot['stripped'])}")
         console.print(
             "  [dim](these env-vars are present but the policy would not "
-            "pass them to the agent — verify they are intentional)[/dim]"
+            "pass them to the agent: verify they are intentional)[/dim]"
         )
     if snapshot["missing"]:
         console.print(f"  [yellow]missing[/yellow]: {', '.join(snapshot['missing'])}")
@@ -1161,8 +1161,8 @@ def _github_setup() -> None:  # type: ignore[reportUnusedFunction]
     """Configure GitHub integration for Bernstein."""
     console.print("[cyan]GitHub Integration Setup[/cyan]")
     console.print("Set these environment variables:")
-    console.print("  GITHUB_TOKEN — personal access token")
-    console.print("  GITHUB_REPO — owner/repo")
+    console.print("  GITHUB_TOKEN: personal access token")
+    console.print("  GITHUB_REPO: owner/repo")
 
 
 @github_group.command("test-webhook")
@@ -1189,15 +1189,15 @@ def completions(ctx: click.Context, shell: str) -> None:
     """Generate shell completion scripts.
 
     \b
-    For bash — add to ~/.bashrc:
+    For bash, add to ~/.bashrc:
       eval "$(bernstein completions --shell bash)"
 
     \b
-    For zsh — add to ~/.zshrc:
+    For zsh, add to ~/.zshrc:
       eval "$(bernstein completions --shell zsh)"
 
     \b
-    For fish — add to ~/.config/fish/completions/bernstein.fish:
+    For fish, add to ~/.config/fish/completions/bernstein.fish:
       bernstein completions --shell fish | source
     """
     from click.shell_completion import BashComplete, FishComplete, ZshComplete

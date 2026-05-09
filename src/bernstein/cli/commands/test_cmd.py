@@ -1,4 +1,4 @@
-"""Test CLI — run automated tests with optional chaos injection."""
+"""Test CLI: run automated tests with optional chaos injection."""
 
 from __future__ import annotations
 

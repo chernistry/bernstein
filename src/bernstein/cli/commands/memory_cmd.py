@@ -1,4 +1,4 @@
-"""Bernstein memory — manage persistent agent memories."""
+"""Bernstein memory: manage persistent agent memories."""
 
 from __future__ import annotations
 

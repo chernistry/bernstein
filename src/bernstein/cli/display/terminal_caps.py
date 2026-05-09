@@ -156,7 +156,7 @@ class TerminalCaps:
 
     @classmethod
     def null(cls) -> TerminalCaps:
-        """Minimal caps — no color, no graphics (CI / pipe / dumb terminal)."""
+        """Minimal caps: no color, no graphics (CI / pipe / dumb terminal)."""
         return cls(
             is_tty=False,
             supports_truecolor=False,
@@ -214,7 +214,7 @@ class TerminalCaps:
 
     @property
     def best_image_protocol(self) -> Protocol:
-        """Alias for :attr:`best_protocol` — the highest-fidelity available protocol."""
+        """Alias for :attr:`best_protocol`: the highest-fidelity available protocol."""
         return self.best_protocol
 
 

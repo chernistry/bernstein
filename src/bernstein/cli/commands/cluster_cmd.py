@@ -1,4 +1,4 @@
-"""``bernstein cluster`` — cluster lifecycle helpers (mTLS bootstrap, etc.)."""
+"""``bernstein cluster``: cluster lifecycle helpers (mTLS bootstrap, etc.)."""
 
 from __future__ import annotations
 

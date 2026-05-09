@@ -75,7 +75,7 @@ def api_check_cmd(base: str, workdir: str | None) -> None:
 
     if not report.is_compatible:
         n = len(report.breaking_changes)
-        console.print(f"[bold red]API compatibility check FAILED — {n} breaking change(s)[/bold red]")
+        console.print(f"[bold red]API compatibility check FAILED: {n} breaking change(s)[/bold red]")
         raise SystemExit(1)
 
     console.print("[bold green]API compatibility check passed.[/bold green]")

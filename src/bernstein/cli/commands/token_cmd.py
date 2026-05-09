@@ -1,4 +1,4 @@
-"""Bernstein token-report — prompt token usage analysis."""
+"""Bernstein token-report: prompt token usage analysis."""
 
 from __future__ import annotations
 

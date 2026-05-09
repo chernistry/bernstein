@@ -1,4 +1,4 @@
-"""``bernstein skills`` — list / show / verify skill packs (oai-004)."""
+"""``bernstein skills``: list / show / verify skill packs (oai-004)."""
 
 from __future__ import annotations
 

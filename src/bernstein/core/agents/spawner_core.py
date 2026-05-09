@@ -182,7 +182,7 @@ def _render_signal_check(session_id: str) -> str:
         Markdown block instructing the agent to poll signal files.
     """
     return (
-        "\n## Signal files — check periodically\n"
+        "\n## Signal files (check periodically)\n"
         "Every 60 seconds, check for orchestrator signals:\n"
         "```bash\n"
         f"cat .sdd/runtime/signals/{session_id}/WAKEUP 2>/dev/null\n"

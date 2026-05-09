@@ -58,7 +58,7 @@ def _tte_available() -> bool:
 
 
 def _key_pressed() -> bool:
-    """Non-blocking check — True if any stdin input is waiting."""
+    """Non-blocking check: True if any stdin input is waiting."""
     if not sys.stdin.isatty():
         return False
     try:

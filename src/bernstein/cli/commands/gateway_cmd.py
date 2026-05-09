@@ -27,7 +27,7 @@ _SDD_DIR = Path(".sdd")
 
 @click.group("gateway")
 def gateway_group() -> None:
-    """MCP gateway proxy — transparent recording and replay."""
+    """MCP gateway proxy: transparent recording and replay."""
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +98,7 @@ def start_cmd(upstream: str, transport: str, port: int, run_id: str | None, serv
     if transport == "sse":
         console.print(
             f"[bold green]MCP Gateway[/bold green] starting"
-            f" — SSE on [cyan]http://127.0.0.1:{port}[/cyan]"
+            f": SSE on [cyan]http://127.0.0.1:{port}[/cyan]"
             f"  (run-id: [dim]{effective_run_id}[/dim])"
         )
         console.print(f"  Upstream: [cyan]{upstream}[/cyan]")
@@ -158,7 +158,7 @@ def replay_cmd(run_id: str, transport: str, port: int) -> None:
 
     if transport == "sse":
         console.print(
-            f"[bold blue]MCP Replay[/bold blue] — SSE on [cyan]http://127.0.0.1:{port}[/cyan]"
+            f"[bold blue]MCP Replay[/bold blue]: SSE on [cyan]http://127.0.0.1:{port}[/cyan]"
             f"  (source: [dim]{run_id}[/dim], {replay.indexed_count} patterns indexed)"
         )
 

@@ -151,7 +151,7 @@ def _poll_once(
         return
 
     if not failures:
-        console.print(f"[dim]{time.strftime('%H:%M:%S')} — no new failures[/dim]")
+        console.print(f"[dim]{time.strftime('%H:%M:%S')}: no new failures[/dim]")
         return
 
     for failure in failures:

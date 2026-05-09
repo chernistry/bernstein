@@ -126,7 +126,7 @@ def test_render_prompt_falls_back_and_includes_context_sections(tmp_path: Path, 
     assert "Prefer exact parsing." in prompt
     assert "Research auth" in prompt
     assert "Other agents are working in parallel" in prompt
-    assert "Signal files — check periodically" in prompt
+    assert "Signal files (check periodically)" in prompt
 
 
 def test_render_prompt_includes_git_safety_protocol(tmp_path: Path, make_task: Any) -> None:

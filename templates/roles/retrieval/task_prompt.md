@@ -16,7 +16,7 @@
 ## Instructions
 1. Read existing indexing and retrieval code before adding new pipelines
 2. Define the retrieval contract clearly: what goes in (query), what comes out (ranked results with scores)
-3. Choose chunking strategy based on document structure — don't apply one-size-fits-all
+3. Choose chunking strategy based on document structure. Don't apply one-size-fits-all
 4. Log retrieval latency and top-k recall metrics; establish a baseline before optimizing
 5. Write tests with known queries and expected top results to catch regressions
 6. Run tests before marking complete: `uv run python scripts/run_tests.py -x`
@@ -24,7 +24,7 @@
 
 ## If stuck or blocked
 - If a curl to the task server fails, retry up to 3 times with 2-second delays
-- If tests fail after your changes, fix the code — do not skip tests or mark complete with failures
+- If tests fail after your changes, fix the code. Do not skip tests or mark complete with failures
 - If you cannot determine the fix, mark the task as failed:
   ```bash
   curl -s -X POST http://127.0.0.1:8052/tasks/{{TASK_ID}}/fail \

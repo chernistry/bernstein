@@ -62,7 +62,7 @@ def ab_test_cmd(
     )
 
     console.print(
-        f"[bold]A/B Test[/bold] — {model_a} vs {model_b}\n"
+        f"[bold]A/B Test[/bold]: {model_a} vs {model_b}\n"
         f"[dim]Task:[/dim] {task_description}\n"
         f"[dim]Role:[/dim] {role}  [dim]Scope:[/dim] {scope}  "
         f"[dim]Timeout:[/dim] {timeout_seconds}s\n"

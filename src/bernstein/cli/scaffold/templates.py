@@ -108,7 +108,7 @@ _PYTHON_CLI = ScaffoldTemplate(
         ScaffoldFile(
             relative_path="src/$slug/main.py",
             content=(
-                '"""Entrypoint for $slug — $prompt."""\n\n'
+                '"""Entrypoint for $slug: $prompt."""\n\n'
                 "from __future__ import annotations\n\n\n"
                 "def main() -> int:\n"
                 '    """Run the CLI; returns a process exit code."""\n'

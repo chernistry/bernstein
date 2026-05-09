@@ -14,7 +14,7 @@
 {{/IF}}
 
 ## Instructions
-1. Read the code before writing about it — never document assumptions
+1. Read the code before writing about it; never document assumptions
 2. Write for the target audience: engineers, not marketers
 3. Prefer concrete examples over abstract descriptions
 4. Keep language plain and direct; cut filler words
@@ -23,7 +23,7 @@
 
 ## If stuck or blocked
 - If a curl to the task server fails, retry up to 3 times with 2-second delays
-- If tests fail after your changes, fix the code — do not skip tests or mark complete with failures
+- If tests fail after your changes, fix the code. Do not skip tests or mark complete with failures
 - If you cannot determine the fix, mark the task as failed:
   ```bash
   curl -s -X POST http://127.0.0.1:8052/tasks/{{TASK_ID}}/fail \

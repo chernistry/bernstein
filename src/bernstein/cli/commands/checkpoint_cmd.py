@@ -1,4 +1,4 @@
-"""Checkpoint command — snapshot current session progress to disk."""
+"""Checkpoint command: snapshot current session progress to disk."""
 
 from __future__ import annotations
 

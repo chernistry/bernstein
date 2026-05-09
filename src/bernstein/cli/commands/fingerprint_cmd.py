@@ -201,7 +201,7 @@ def fingerprint_check_cmd(
         return
 
     if corpus_index.size == 0:
-        console.print("[yellow]Corpus index is empty — nothing to compare against.[/yellow]")
+        console.print("[yellow]Corpus index is empty: nothing to compare against.[/yellow]")
         return
 
     # Collect files to check
@@ -253,7 +253,7 @@ def fingerprint_check_cmd(
             if flagged_matches:
                 any_flagged = True
                 console.print(
-                    f"\n[bold yellow]{fp}[/bold yellow] — "
+                    f"\n[bold yellow]{fp}[/bold yellow]: "
                     f"[red]{len(flagged_matches)} match(es) above "
                     f"{threshold:.0%} threshold[/red]"
                 )
@@ -273,7 +273,7 @@ def fingerprint_check_cmd(
         console.print(_json.dumps(all_results, indent=2))
 
     if block and any_flagged:
-        console.print("\n[bold red]Fingerprint check FAILED — matches above threshold detected[/bold red]")
+        console.print("\n[bold red]Fingerprint check FAILED: matches above threshold detected[/bold red]")
         raise SystemExit(1)
 
     if not output_json and not any_flagged:

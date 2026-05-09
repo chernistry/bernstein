@@ -109,7 +109,7 @@ def add_task(
         print_json(result)
     else:
         console.print(
-            f"[green]Task added:[/green] [bold]{task_id}[/bold] — {title} ([dim]role={role}, priority={priority}[/dim])"
+            f"[green]Task added:[/green] [bold]{task_id}[/bold]: {title} ([dim]role={role}, priority={priority}[/dim])"
         )
 
 
@@ -154,7 +154,7 @@ def sync(port: int, workdir: str) -> None:
         if result.skipped:
             console.print("[dim]All backlog files already synced.[/dim]")
         else:
-            console.print("[dim]Nothing to sync — backlog/open/ is empty.[/dim]")
+            console.print("[dim]Nothing to sync: backlog/open/ is empty.[/dim]")
 
 
 @click.command()

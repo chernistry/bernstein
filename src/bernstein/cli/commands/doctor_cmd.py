@@ -283,7 +283,7 @@ def run_all_checks() -> list[dict[str, Any]]:
 @click.option("--fix", "auto_fix", is_flag=True, default=False, help="Attempt to auto-fix issues.")
 @click.pass_context
 def doctor_cmd(ctx: click.Context, as_json: bool, auto_fix: bool) -> None:
-    """Run comprehensive health checks on the Bernstein installation.
+    """Run health checks on the Bernstein installation.
 
     \b
     Checks:

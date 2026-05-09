@@ -372,7 +372,7 @@ def _show_dry_run_plan(
     _ = cli  # Part of interface
     from rich.table import Table
 
-    console.print("\n[bold]Dry-run mode — no agents will be spawned.[/bold]\n")
+    console.print("\n[bold]Dry-run mode: no agents will be spawned.[/bold]\n")
 
     tasks = _load_dry_run_tasks(plan_file)
 
@@ -561,7 +561,7 @@ def init(target_dir: str) -> None:
     # Print clear next steps
     console.print("")
     console.print("[green]Done.[/green] Next steps:")
-    console.print("  1. Edit [bold]bernstein.yaml[/bold] — set a goal")
+    console.print("  1. Edit [bold]bernstein.yaml[/bold]: set a goal")
     console.print("  2. Run [bold]bernstein[/bold] to start the orchestra")
     console.print("")
     console.print(

@@ -1,4 +1,4 @@
-"""Wrap-up command — end the current session with a structured brief."""
+"""Wrap-up command: end the current session with a structured brief."""
 
 from __future__ import annotations
 

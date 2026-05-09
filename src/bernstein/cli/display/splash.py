@@ -84,7 +84,7 @@ def splash(
     task_count: int = 0,
     skip_animation: bool = False,
 ) -> None:
-    """Show the startup splash — BIOS-style, compact, all in one block."""
+    """Show the startup splash: BIOS-style, compact, all in one block."""
     width = _detect_terminal_width(console)
     is_animated = not skip_animation and console.is_terminal
 

@@ -170,7 +170,7 @@ def _print_report(report: dict[str, object], as_json: bool) -> None:
     partial = conformity.get("partial", 0)
 
     click.echo("─" * 60)
-    click.echo("  EU AI Act Compliance Assessment — Bernstein")
+    click.echo("  EU AI Act Compliance Assessment: Bernstein")
     click.echo("─" * 60)
     click.echo(f"  Risk Category    : {risk}")
     click.echo(f"  Annex III Domain : {domain}")
@@ -404,7 +404,7 @@ def check_policies(
             )
         )
     else:
-        click.echo(f"Compliance check — {len(results)} policies evaluated")
+        click.echo(f"Compliance check: {len(results)} policies evaluated")
         click.echo(f"  Passing: {len(passing)}   Failing: {len(failing)}")
         click.echo("")
         if failing:

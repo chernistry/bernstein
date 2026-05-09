@@ -632,7 +632,7 @@ def _verify_memory_provenance() -> int:
     if not lessons_path.exists():
         console.print(
             Panel(
-                "[dim]No lesson memory found — nothing to audit.[/dim]",
+                "[dim]No lesson memory found: nothing to audit.[/dim]",
                 border_style="dim",
                 expand=False,
             )
@@ -715,7 +715,7 @@ def _verify_formal(task_id: str) -> int:
     if fv_config is None:
         console.print(
             Panel(
-                "[dim]No formal_verification section in bernstein.yaml — nothing to verify.[/dim]",
+                "[dim]No formal_verification section in bernstein.yaml: nothing to verify.[/dim]",
                 border_style="dim",
                 expand=False,
             )

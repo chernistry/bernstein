@@ -359,7 +359,7 @@ def _generate_sections(workdir: Path, repo_name: str | None) -> tuple[list[Agent
     resolved = workdir.resolve()
     sections = generate(resolved)
     if not sections:
-        click.echo(f"No content derived from {workdir} — is this a repository?", err=True)
+        click.echo(f"No content derived from {workdir}: is this a repository?", err=True)
         sys.exit(2)
     name = repo_name or _infer_repo_name(resolved)
     return sections, name

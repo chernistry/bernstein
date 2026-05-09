@@ -266,7 +266,7 @@ def format_search_results(
 
     parts: list[str] = []
     total_pages = max(1, (total_count + max_results - 1) // max_results)
-    parts.append(f"Found {total_count} match(es) — page {page}/{total_pages}")
+    parts.append(f"Found {total_count} match(es); page {page}/{total_pages}")
     parts.append("")
 
     for i, entry in enumerate(results, 1):

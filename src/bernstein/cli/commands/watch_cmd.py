@@ -1,4 +1,4 @@
-"""Watch command — monitor file changes and re-run affected tasks."""
+"""Watch command: monitor file changes and re-run affected tasks."""
 
 from __future__ import annotations
 

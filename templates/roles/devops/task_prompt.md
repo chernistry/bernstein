@@ -15,7 +15,7 @@
 
 ## Instructions
 1. Read existing CI/CD configs and Dockerfiles before making changes
-2. Make changes idempotent — running the pipeline twice should produce the same result
+2. Make changes idempotent. Running the pipeline twice should produce the same result
 3. Pin tool versions explicitly; never use `latest` tags in production configs
 4. Test pipeline changes locally before committing (e.g. `act` for GitHub Actions)
 5. Document any manual steps required (secrets, env vars, one-time setup) in a comment
@@ -23,7 +23,7 @@
 
 ## If stuck or blocked
 - If a curl to the task server fails, retry up to 3 times with 2-second delays
-- If tests fail after your changes, fix the code — do not skip tests or mark complete with failures
+- If tests fail after your changes, fix the code. Do not skip tests or mark complete with failures
 - If you cannot determine the fix, mark the task as failed:
   ```bash
   curl -s -X POST http://127.0.0.1:8052/tasks/{{TASK_ID}}/fail \

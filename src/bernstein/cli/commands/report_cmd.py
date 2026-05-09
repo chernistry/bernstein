@@ -1,4 +1,4 @@
-"""CLI command: ``bernstein report`` — display the latest run report."""
+"""CLI command: ``bernstein report``: display the latest run report."""
 
 from __future__ import annotations
 

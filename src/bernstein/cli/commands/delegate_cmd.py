@@ -140,7 +140,7 @@ def delegate(
     if as_json:
         click.echo(json.dumps({"task_id": task_id, "status": result.get("status", "open"), "poll_url": poll_url}))
     else:
-        console.print(f"[green]Delegated:[/green] [bold]{task_id}[/bold] — {task_description}")
+        console.print(f"[green]Delegated:[/green] [bold]{task_id}[/bold]: {task_description}")
         console.print(f"[dim]Role: {role}  Priority: {priority}  Scope: {scope}[/dim]")
         console.print(f"[dim]Poll: bernstein delegate --task ... --wait  |  {poll_url}[/dim]")
 

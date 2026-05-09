@@ -97,7 +97,7 @@ def load_usage_budget_config(workdir: Path) -> UsageBudgetConfig | None:
     """
     if _yaml is None:
         logger.debug(
-            "PyYAML not installed — usage budget tracking disabled. Install with: pip install pyyaml",
+            "PyYAML not installed: usage budget tracking disabled. Install with: pip install pyyaml",
         )
         return None
 
@@ -321,7 +321,7 @@ def format_usage_report(budget: UsageBudget) -> str:
     # --- Overall status ---
     if is_over_budget(budget):
         lines.append("")
-        lines.append("  [bold red]OVER BUDGET — stop spawning agents until reset[/bold red]")
+        lines.append("  [bold red]OVER BUDGET. Stop spawning agents until reset[/bold red]")
     else:
         lines.append("")
         lines.append("  [green]Within budget[/green]")

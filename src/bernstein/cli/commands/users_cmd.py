@@ -1,4 +1,4 @@
-"""Bernstein users — manage RBAC users for the task server."""
+"""Bernstein users: manage RBAC users for the task server."""
 
 from __future__ import annotations
 

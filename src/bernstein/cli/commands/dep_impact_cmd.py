@@ -151,7 +151,7 @@ def _check_exit_conditions(report: Any, strict: bool) -> None:
         n_api = len(report.api_breaking)
         n_cs = len(report.call_site_impacts)
         console.print(
-            f"[bold red]Dependency impact check FAILED — {n_api} API break(s), {n_cs} affected call site(s)[/bold red]"
+            f"[bold red]Dependency impact check FAILED: {n_api} API break(s), {n_cs} affected call site(s)[/bold red]"
         )
         raise SystemExit(1)
 

@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 @click.group("acp")
 def acp_group() -> None:
-    """Agent Client Protocol (ACP) bridge — IDE integration surface."""
+    """Agent Client Protocol (ACP) bridge: IDE integration surface."""
 
 
 @acp_group.command("serve")

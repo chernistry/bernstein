@@ -181,7 +181,7 @@ def _slo_watch_loop(
             else:
                 displayer(data)
             if not output_json:
-                console.print(f"\n[dim]Refreshing every {interval}s — Ctrl-C to stop[/dim]")
+                console.print(f"\n[dim]Refreshing every {interval}s: Ctrl-C to stop[/dim]")
             time.sleep(interval)
     except KeyboardInterrupt:
         console.print("\n[dim]Stopped.[/dim]")

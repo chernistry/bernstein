@@ -1,4 +1,4 @@
-"""Bernstein undo — revert agent changes."""
+"""Bernstein undo: revert agent changes."""
 
 from __future__ import annotations
 

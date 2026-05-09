@@ -168,7 +168,7 @@ class _CLIRedirectLoader:
         sys.modules[fullname] = real
 
     def get_code(self, _fullname: str) -> None:
-        """Return None — redirect loaders don't provide code objects."""
+        """Return None: redirect loaders don't provide code objects."""
         return None
 
 

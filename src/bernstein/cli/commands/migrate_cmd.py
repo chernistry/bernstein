@@ -145,7 +145,7 @@ def migrate_cmd(
             return
         _print_plan_summary(plan, targets, chunks, cap)
         _print_dry_run_preview(targets, chunks)
-        console.print("\n[dim]Dry run — no tasks spawned.[/dim]")
+        console.print("\n[dim]Dry run: no tasks spawned.[/dim]")
         return
 
     store = _ServerTaskStore()

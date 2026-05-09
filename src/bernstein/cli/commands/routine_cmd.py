@@ -145,7 +145,7 @@ def routine_provision(scenarios_dir: Path | None, bernstein_url: str) -> None:
 
     console.print("[bold]Available scenarios:[/bold]")
     for idx, s in enumerate(scenarios, start=1):
-        console.print(f"  {idx}. [cyan]{s.scenario_id}[/cyan] — {s.name}")
+        console.print(f"  {idx}. [cyan]{s.scenario_id}[/cyan]: {s.name}")
     raw_choice = click.prompt("Pick a scenario", type=str)
     try:
         choice_idx = int(raw_choice)

@@ -476,7 +476,7 @@ def _render_signal_check(session_id: str) -> str:
         Markdown block instructing the agent to poll signal files.
     """
     return (
-        "\n## Signal files — check periodically\n"
+        "\n## Signal files (check periodically)\n"
         "Every 60 seconds, check for orchestrator signals:\n"
         "```bash\n"
         f"cat .sdd/runtime/signals/{session_id}/WAKEUP 2>/dev/null\n"
@@ -791,8 +791,8 @@ def _render_prompt(
         f"Complete these tasks. When ALL are done, mark each complete on the task server:\n\n"
         f"```bash\n{completion_cmds}\n```\n\n"
         f"**Important:** Only retry on connection refused / network errors. "
-        f"If the server returns HTTP 409 or any other 4xx error, do NOT retry — "
-        f"the task state has changed and retrying will not help. Just exit.\n\n"
+        f"If the server returns HTTP 409 or any other 4xx error, do NOT retry. "
+        f"The task state has changed and retrying will not help. Just exit.\n\n"
         f"Then exit."
     )
 

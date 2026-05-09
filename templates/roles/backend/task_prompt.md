@@ -15,7 +15,7 @@
 
 ## Instructions
 1. Read all listed files before writing any code
-2. Implement the feature with strict typing — no `Any`, no untyped dicts
+2. Implement the feature with strict typing; no `Any`, no untyped dicts
 3. Write or update tests alongside the implementation
 4. Keep functions small; extract helpers when logic gets complex
 5. Run tests before marking complete: `uv run python scripts/run_tests.py -x`
@@ -23,7 +23,7 @@
 
 ## If stuck or blocked
 - If a curl to the task server fails, retry up to 3 times with 2-second delays
-- If tests fail after your changes, fix the code — do not skip tests or mark complete with failures
+- If tests fail after your changes, fix the code. Do not skip tests or mark complete with failures
 - If you cannot determine the fix, mark the task as failed:
   ```bash
   curl -s -X POST http://127.0.0.1:8052/tasks/{{TASK_ID}}/fail \

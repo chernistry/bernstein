@@ -1,4 +1,4 @@
-"""CLI command: ``bernstein postmortem`` — generate a post-mortem report for a failed run."""
+"""CLI command: ``bernstein postmortem``: generate a post-mortem report for a failed run."""
 
 from __future__ import annotations
 

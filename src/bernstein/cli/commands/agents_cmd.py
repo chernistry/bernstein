@@ -78,7 +78,7 @@ def _sync_agency_local_yaml() -> None:
     agency_dir = Path(_AGENCY_DIR)
     console.print(f"\n[cyan]→ agency (local YAML)[/cyan] {agency_dir}")
     if not agency_dir.exists():
-        console.print(f"  [dim]Directory not found — skipping (place Agency YAML files in {agency_dir})[/dim]")
+        console.print(f"  [dim]Directory not found: skipping (place Agency YAML files in {agency_dir})[/dim]")
         return
     from bernstein.core.agency_loader import load_agency_catalog
 
@@ -321,7 +321,7 @@ def _validate_local_definitions(definitions_path: Path, issues: list[str]) -> No
 
     yaml_files = list(definitions_path.glob("*.yaml")) + list(definitions_path.glob("*.yml"))
     if not yaml_files:
-        console.print("  [dim]No YAML files found — catalog is empty[/dim]")
+        console.print("  [dim]No YAML files found: catalog is empty[/dim]")
     for yaml_file in sorted(yaml_files):
         try:
             content = yaml_file.read_text(encoding="utf-8")
@@ -341,13 +341,13 @@ def _validate_agency_catalog(issues: list[str]) -> None:
     agency_dir = Path(_AGENCY_DIR)
     console.print(f"\n[cyan]→ agency[/cyan] {agency_dir}")
     if not agency_dir.exists():
-        console.print("  [dim]Not configured — skipping[/dim]")
+        console.print("  [dim]Not configured: skipping[/dim]")
         return
     from bernstein.core.agency_loader import parse_agency_agent
 
     agency_files = [p for p in sorted(agency_dir.iterdir()) if p.suffix in (".yaml", ".yml")]
     if not agency_files:
-        console.print("  [dim]No YAML files found — catalog is empty[/dim]")
+        console.print("  [dim]No YAML files found: catalog is empty[/dim]")
     for p in agency_files:
         try:
             parse_agency_agent(p)

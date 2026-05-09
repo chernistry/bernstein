@@ -23,10 +23,10 @@
 4. Drop any suspicion you cannot turn into a falsification test, or
    downgrade it to `info`.
 5. Classify each finding's severity:
-   - `critical` — blocks the merge (data loss, security, work loss,
+   - `critical`: blocks the merge (data loss, security, work loss,
      billing error, or a regression of documented behaviour).
-   - `warning` — flaky test, missed edge case, subtle correctness bug.
-   - `info` — design concern, style nit, future-work hint.
+   - `warning`: flaky test, missed edge case, subtle correctness bug.
+   - `info`: design concern, style nit, future-work hint.
 6. Output a single JSON object on stdout with the schema documented in
    your system prompt.
 7. Do NOT modify source files. You produce findings only.

@@ -295,14 +295,14 @@ def print_rich_help() -> None:
     c.print()
     c.print(
         Panel(
-            "[bold]bernstein[/bold]  -  deterministic Python scheduler for CLI coding agents.\n"
+            "[bold]bernstein[/bold]  deterministic Python scheduler for CLI coding agents.\n"
             "  43 adapters, parallel git worktrees, HMAC-SHA256 audit chain (RFC 2104).",
             border_style="blue",
             padding=(0, 2),
             expand=False,
         )
     )
-    c.print("\n  [bold cyan]Quick start[/bold cyan]")
+    c.print("\n  [bold cyan]quick start[/bold cyan]")
     c.print('  [dim]$[/dim] bernstein -g [green]"Add JWT auth with tests"[/green]     [dim]# inline goal[/dim]')
     c.print("  [dim]$[/dim] bernstein                                    [dim]# from bernstein.yaml[/dim]")
     c.print("  [dim]$[/dim] bernstein run plan.yaml                      [dim]# execute a plan file[/dim]")
@@ -311,49 +311,49 @@ def print_rich_help() -> None:
 
     groups: list[tuple[str, list[tuple[str, str]]]] = [
         (
-            "Run & manage",
+            "run & manage",
             [
-                ("bernstein -g [dim]GOAL[/dim]", "Orchestrate agents for an inline goal"),
-                ("bernstein", "Run from bernstein.yaml or backlog"),
-                ("run [dim]plan.yaml[/dim]", "Execute a plan file (stages + steps)"),
-                ("init", "Initialize project (.sdd/ + bernstein.yaml)"),
-                ("stop", "Graceful stop (agents save work first)"),
-                ("stop --force", "Hard stop (kill immediately)"),
-                ("checkpoint", "Save progress for later resume"),
-                ("wrap-up", "End session with summary + learnings"),
+                ("bernstein -g [dim]GOAL[/dim]", "orchestrate agents for an inline goal"),
+                ("bernstein", "run from bernstein.yaml or backlog"),
+                ("run [dim]plan.yaml[/dim]", "execute a plan file (stages + steps)"),
+                ("init", "initialize project (.sdd/ + bernstein.yaml)"),
+                ("stop", "graceful stop (agents save work first)"),
+                ("stop --force", "hard stop (kill immediately)"),
+                ("checkpoint", "save progress for later resume"),
+                ("wrap-up", "end session with summary + learnings"),
             ],
         ),
         (
-            "Monitor",
+            "monitor",
             [
-                ("live", "Interactive TUI dashboard (3 columns)"),
-                ("dashboard", "Open web dashboard in browser"),
-                ("status", "Task summary and agent health"),
-                ("ps", "Running agent processes"),
-                ("cost", "Spend breakdown by model and task"),
-                ("logs", "Tail agent output"),
+                ("live", "interactive TUI dashboard (3 columns)"),
+                ("dashboard", "open web dashboard in browser"),
+                ("status", "task summary and agent health"),
+                ("ps", "running agent processes"),
+                ("cost", "spend breakdown by model and task"),
+                ("logs", "tail agent output"),
             ],
         ),
         (
-            "Diagnostics",
+            "diagnostics",
             [
-                ("doctor", "Pre-flight: adapters, API keys, ports"),
-                ("recap", "Post-run: tasks, pass/fail, cost"),
-                ("retro", "Detailed retrospective report"),
-                ("plan", "Show task backlog"),
-                ("trace [dim]ID[/dim]", "Step-by-step agent decision trace"),
+                ("doctor", "pre-flight: adapters, API keys, ports"),
+                ("recap", "post-run: tasks, pass/fail, cost"),
+                ("retro", "detailed retrospective report"),
+                ("plan", "show task backlog"),
+                ("trace [dim]ID[/dim]", "step-by-step agent decision trace"),
             ],
         ),
         (
-            "Agents & evolution",
+            "agents & evolution",
             [
-                ("agents list", "Available agents and capabilities"),
-                ("agents sync", "Pull latest agent catalog"),
-                ("agents discover", "Auto-detect installed CLI agents"),
-                ("worker", "Join a cluster as a remote worker node"),
-                ("evolve", "Self-improvement proposals"),
-                ("demo", "Zero-to-running demo in 60 seconds"),
-                ("quickstart", "Zero-config demo: 3 tasks on a Flask TODO API"),
+                ("agents list", "available agents and capabilities"),
+                ("agents sync", "pull latest agent catalog"),
+                ("agents discover", "auto-detect installed CLI agents"),
+                ("worker", "join a cluster as a remote worker node"),
+                ("evolve", "self-improvement proposals"),
+                ("demo", "zero-to-running demo in 60 seconds"),
+                ("quickstart", "zero-config demo: 3 tasks on a Flask TODO API"),
             ],
         ),
     ]
@@ -368,23 +368,23 @@ def print_rich_help() -> None:
         c.print(table)
         c.print()
 
-    c.print("  [bold]Options[/bold]")
+    c.print("  [bold]options[/bold]")
     opts = Table(show_header=False, box=None, padding=(0, 1), expand=False, pad_edge=False)
     opts.add_column("", width=2)  # left indent
     opts.add_column("Flag", style="yellow", no_wrap=True, width=26)
     opts.add_column("", style="dim")
-    opts.add_row("", "--budget [dim]N[/dim]", "Cost cap in USD (0 = unlimited)")
-    opts.add_row("", "--dry-run", "Preview task plan without spawning")
-    opts.add_row("", "--plan-only", "Show execution plan without running agents")
-    opts.add_row("", "--from-plan [dim]path[/dim]", "Execute a saved plan file")
-    opts.add_row("", "--auto-approve", "Skip confirmation prompt before execution")
-    opts.add_row("", "--approval [dim]auto|review|pr[/dim]", "Gate before merge")
-    opts.add_row("", "--fresh", "Ignore saved session, start clean")
-    opts.add_row("", "--version", "Show version")
+    opts.add_row("", "--budget [dim]N[/dim]", "cost cap in USD (0 = unlimited)")
+    opts.add_row("", "--dry-run", "preview task plan without spawning")
+    opts.add_row("", "--plan-only", "show execution plan without running agents")
+    opts.add_row("", "--from-plan [dim]path[/dim]", "execute a saved plan file")
+    opts.add_row("", "--auto-approve", "skip confirmation prompt before execution")
+    opts.add_row("", "--approval [dim]auto|review|pr[/dim]", "gate before merge")
+    opts.add_row("", "--fresh", "ignore saved session, start clean")
+    opts.add_row("", "--version", "show version")
     c.print(opts)
-    c.print("\n  [dim]Docs:[/dim] https://chernistry.github.io/bernstein/")
-    c.print("  [dim]Repo:[/dim] https://github.com/sipyourdrink-ltd/bernstein")
-    c.print("  [dim]Audit chain:[/dim] docs/security/audit-log.md  (RFC 2104 HMAC-SHA256)\n")
+    c.print("\n  [dim]docs:[/dim] https://chernistry.github.io/bernstein/")
+    c.print("  [dim]repo:[/dim] https://github.com/sipyourdrink-ltd/bernstein")
+    c.print("  [dim]audit chain:[/dim] docs/security/audit-log.md  (RFC 2104 HMAC-SHA256)\n")
 
 
 # ---------------------------------------------------------------------------

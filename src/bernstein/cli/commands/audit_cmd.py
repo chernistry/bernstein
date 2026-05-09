@@ -814,7 +814,7 @@ def capabilities_cmd(workdir: str) -> None:
         )
     )
     for decision in violations:
-        console.print(f"  [red]![/red] {decision.reason} — tools=[bold]{list(decision.offending_tools)}[/bold]")
+        console.print(f"  [red]![/red] {decision.reason}: tools=[bold]{list(decision.offending_tools)}[/bold]")
     console.print()
     raise SystemExit(1)
 
@@ -824,13 +824,13 @@ def capabilities_cmd(workdir: str) -> None:
     "--from",
     "from_hmac",
     default=None,
-    help="Inclusive lower bound — HMAC of the first event to include.  Omit to start at the earliest recorded event.",
+    help="Inclusive lower bound: HMAC of the first event to include.  Omit to start at the earliest recorded event.",
 )
 @click.option(
     "--to",
     "to_hmac",
     default=None,
-    help="Inclusive upper bound — HMAC of the last event to include.  Omit to run through the latest event.",
+    help="Inclusive upper bound: HMAC of the last event to include.  Omit to run through the latest event.",
 )
 @click.option(
     "--output",

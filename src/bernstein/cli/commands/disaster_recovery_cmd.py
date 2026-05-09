@@ -126,7 +126,7 @@ def dr_restore_cmd(
     sdd = sdd_dir or Path(".sdd")
 
     if dry_run:
-        console.print(f"[bold]Dry run[/bold] — listing contents of {source}:")
+        console.print(f"[bold]Dry run[/bold]: listing contents of {source}:")
     else:
         console.print(f"[bold]Restoring[/bold] {source} [bold]into[/bold] {sdd}...")
         if decrypt:

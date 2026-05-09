@@ -188,7 +188,7 @@ def kill_pid_hard(path: str, label: str) -> None:
         if killed:
             console.print(f"[red]Killed {label} (PID {pid}) with SIGKILL.[/red]")
         else:
-            console.print(f"[yellow]{label} (PID {pid}) resisted SIGKILL — may need manual cleanup.[/yellow]")
+            console.print(f"[yellow]{label} (PID {pid}) resisted SIGKILL: may need manual cleanup.[/yellow]")
     Path(path).unlink(missing_ok=True)
 
 
@@ -280,7 +280,7 @@ def print_dry_run_table(workdir: Path) -> None:
         )
 
     console.print(table)
-    console.print(f"\n[dim]Total: {len(tasks)} task(s) — no agents were spawned.[/dim]")
+    console.print(f"\n[dim]Total: {len(tasks)} task(s): no agents were spawned.[/dim]")
 
 
 _SEED_FILENAMES = ("bernstein.yaml", "bernstein.yml")

@@ -1,4 +1,4 @@
-"""Bernstein cost — spend visibility across all recorded metrics."""
+"""Bernstein cost: spend visibility across all recorded metrics."""
 
 from __future__ import annotations
 

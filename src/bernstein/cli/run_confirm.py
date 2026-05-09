@@ -290,7 +290,7 @@ DEMO_TASKS: list[dict[str, str]] = [
             "**Scope:** small\n"
             "**Complexity:** low\n\n"
             "BUG: `tests/test_app.py::test_hello_returns_200` asserts "
-            "`resp.status_code == 404` — wrong, it should assert 200. "
+            "`resp.status_code == 404`: wrong, it should assert 200. "
             "Fix the assertion so the test suite goes green.\n"
         ),
     },
@@ -374,7 +374,7 @@ def setup_demo_project(project_dir: Path, adapter: str) -> None:
             "def test_hello_returns_200(client):\n"
             '    """BUG 4: asserts 404 instead of 200."""\n'
             '    resp = client.get("/")\n'
-            "    assert resp.status_code == 404  # wrong — should be 200\n\n\n"
+            "    assert resp.status_code == 404  # wrong: should be 200\n\n\n"
             "def test_hello_json_structure(client):\n"
             '    resp = client.get("/")\n'
             "    data = resp.get_json()\n"

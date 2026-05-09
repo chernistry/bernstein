@@ -65,7 +65,7 @@ def _run_swe_bench_command(
         )
         raise SystemExit(1)
 
-    console.print(f"[bold]SWE-Bench evaluation[/bold] — subset={subset} • {len(instances)} instance(s)")
+    console.print(f"[bold]SWE-Bench evaluation[/bold]: subset={subset} • {len(instances)} instance(s)")
 
     table = Table(title="SWE-Bench Results", header_style=_STYLE_BOLD_CYAN, show_lines=False)
     table.add_column("Instance", style="dim", min_width=30)
@@ -211,7 +211,7 @@ def benchmark_run(tier: str, benchmarks_dir: str, save: bool) -> None:
     summary = run_all(bdir) if tier == "all" else run_selected(bdir, tier)  # type: ignore[arg-type]
 
     # ---- Results table ----
-    table = Table(title=f"Benchmarks — tier={tier}", header_style=_STYLE_BOLD_CYAN, show_lines=False)
+    table = Table(title=f"Benchmarks (tier={tier})", header_style=_STYLE_BOLD_CYAN, show_lines=False)
     table.add_column("ID", style="dim", min_width=14)
     table.add_column("Tier", min_width=12)
     table.add_column("Goal", min_width=40)
@@ -285,7 +285,7 @@ def benchmark_compare(tasks_dir: str, modes: tuple[str, ...]) -> None:
         console.print("[yellow]No benchmark tasks found in directory.[/yellow]")
         raise SystemExit(1)
 
-    console.print(f"[bold]Comparative benchmark[/bold] — {len(tasks)} task(s), modes: {', '.join(modes)}")
+    console.print(f"[bold]Comparative benchmark[/bold]: {len(tasks)} task(s), modes: {', '.join(modes)}")
 
     suite = ComparativeBenchmark(tasks=tasks, workdir=Path("."))
     report = suite.run_suite(modes=list(modes))  # type: ignore[arg-type]
@@ -378,7 +378,7 @@ def benchmark_simulate(
     run, report = bench.run_and_compare()
 
     # --- Summary table ---
-    table = Table(title=f"Benchmark simulation — seed={seed}", header_style=_STYLE_BOLD_CYAN, show_lines=False)
+    table = Table(title=f"Benchmark simulation (seed={seed})", header_style=_STYLE_BOLD_CYAN, show_lines=False)
     table.add_column("Metric", min_width=22)
     table.add_column("Value", justify="right", min_width=18)
 
@@ -537,7 +537,7 @@ def eval_run(tier: str | None, compare_prev: bool, save: bool) -> None:
         console.print(f"[dim]Expected at: {state_dir / 'eval' / 'golden'}/<tier>/*.md[/dim]")
         raise SystemExit(1)
 
-    console.print(f"[bold]Eval harness[/bold] — {len(tasks)} golden task(s)")
+    console.print(f"[bold]Eval harness[/bold]: {len(tasks)} golden task(s)")
 
     # Evaluate each task (with empty telemetry for now — real runs
     # would collect telemetry from actual agent execution)
@@ -608,7 +608,7 @@ def eval_report() -> None:
         console.print(_NO_EVAL_RUNS_MSG)
         raise SystemExit(1)
 
-    console.print(f"[bold]Eval Report[/bold] — score: {prev.score:.4f}")
+    console.print(f"[bold]Eval report[/bold]: score: {prev.score:.4f}")
 
     mc = prev.multiplicative_components
     if mc:
@@ -699,7 +699,7 @@ def eval_sync_incidents(workdir: str, dry_run: bool) -> None:
     result = synth.sync(dry_run=dry_run)
 
     if dry_run:
-        console.print(f"[bold]Dry run[/bold] — {len(result.created)} case(s) would be created:")
+        console.print(f"[bold]Dry run[/bold]: {len(result.created)} case(s) would be created:")
     else:
         console.print(f"[bold]{len(result.created)} new incident eval case(s) emitted[/bold]")
     for case in result.created:

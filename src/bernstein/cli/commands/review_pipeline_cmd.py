@@ -71,7 +71,7 @@ def run_review_pipeline_cli(
         _print_pipeline_summary(pipeline)
         console.print(
             Panel(
-                "[bold]Dry run — no agents spawned, no LLM calls.[/bold]",
+                "[bold]Dry run: no agents spawned, no LLM calls.[/bold]",
                 border_style="blue",
                 expand=False,
             )

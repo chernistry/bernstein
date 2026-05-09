@@ -113,7 +113,7 @@ def _build_alert_lines(alerts: list[dict[str, Any]]) -> Text | None:
         text.append(str(alert.get("message", "")), style=color)
         detail = str(alert.get("detail", "") or "")
         if detail:
-            text.append(f" — {detail}", style="dim")
+            text.append(f": {detail}", style="dim")
         text.append("\n")
     return text
 
@@ -213,7 +213,7 @@ def _format_dependency_scan_line(scan: dict[str, Any]) -> str | None:
     if scanned_at > 0:
         age_suffix = f" ({format_duration(max(0.0, time.time() - scanned_at))} ago)"
     if summary:
-        return f"Dependency scan: {status} — {summary}{age_suffix}"
+        return f"Dependency scan: {status}: {summary}{age_suffix}"
     return f"Dependency scan: {status} ({finding_count} findings){age_suffix}"
 
 

@@ -46,7 +46,7 @@ def _wait_for_exit(adapter: Any, result: Any, timeout: int) -> str | int:
     try:
         return result.proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
-        console.print(f"[yellow]Timeout after {timeout}s — killing pid {result.pid}[/yellow]")
+        console.print(f"[yellow]Timeout after {timeout}s: killing pid {result.pid}[/yellow]")
         adapter.kill(result.pid)
         return "timed out"
 

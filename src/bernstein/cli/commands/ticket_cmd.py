@@ -171,7 +171,7 @@ def _do_import(
 
     if dry_run:
         if not is_json():
-            console.print("[yellow]Dry run — payload that would be sent:[/yellow]")
+            console.print("[yellow]Dry run: payload that would be sent:[/yellow]")
         _print_payload(payload)
         return
 

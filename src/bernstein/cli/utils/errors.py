@@ -135,7 +135,7 @@ def seed_parse_error(exc: Exception) -> BernsteinError:
     return BernsteinError(
         what="Cannot parse seed file",
         why=str(exc),
-        fix="Check bernstein.yaml syntax — see 'bernstein help-all' for format",
+        fix="Check bernstein.yaml syntax; see 'bernstein help-all' for format",
         exit_code=ExitCode.CONFIG,
     )
 

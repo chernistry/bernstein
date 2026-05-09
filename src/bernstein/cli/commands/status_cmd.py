@@ -330,7 +330,7 @@ def _doctor_check_postgres(_check: _CheckFn) -> None:
         _check(
             _STORAGE_BACKEND_LABEL,
             False,
-            "postgres — BERNSTEIN_DATABASE_URL not set",
+            "postgres: BERNSTEIN_DATABASE_URL not set",
             "export BERNSTEIN_DATABASE_URL=postgresql://user:pass@localhost/bernstein",
         )
         return
@@ -350,7 +350,7 @@ def _doctor_check_postgres(_check: _CheckFn) -> None:
         _check(
             _STORAGE_BACKEND_LABEL,
             False,
-            "postgres — asyncpg not installed",
+            "postgres: asyncpg not installed",
             "pip install bernstein[postgres]",
         )
     except Exception as exc:
@@ -371,7 +371,7 @@ def _doctor_check_redis(_check: _CheckFn) -> None:
         _check(
             "Storage backend (postgres)",
             False,
-            "redis mode — BERNSTEIN_DATABASE_URL not set",
+            "redis mode: BERNSTEIN_DATABASE_URL not set",
             "export BERNSTEIN_DATABASE_URL=postgresql://user:pass@localhost/bernstein",
         )
         storage_ok = False
@@ -379,7 +379,7 @@ def _doctor_check_redis(_check: _CheckFn) -> None:
         _check(
             "Storage backend (redis)",
             False,
-            "redis mode — BERNSTEIN_REDIS_URL not set",
+            "redis mode: BERNSTEIN_REDIS_URL not set",
             "export BERNSTEIN_REDIS_URL=redis://localhost:6379",
         )
         storage_ok = False
@@ -617,7 +617,7 @@ def _doctor_check_port(checks: list[dict[str, Any]], port: int = 8052) -> None:
         checks,
         f"Port {port}",
         not port_in_use,
-        "in use — server may already be running" if port_in_use else "available",
+        "in use: server may already be running" if port_in_use else "available",
         "Run 'bernstein stop' to free the port" if port_in_use else "",
         fix_id="port_in_use" if port_in_use else "",
     )

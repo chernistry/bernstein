@@ -1,4 +1,4 @@
-"""Commit attribution stats — gather per-role commit stats via git log."""
+"""Commit attribution stats: gather per-role commit stats via git log."""
 
 from __future__ import annotations
 

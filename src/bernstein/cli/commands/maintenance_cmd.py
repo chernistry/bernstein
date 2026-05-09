@@ -173,7 +173,7 @@ def _format_relative_age(timestamp: float) -> str:
     is_flag=True,
     default=False,
     help=(
-        "Also delete agent branches that are NOT merged into main. Dangerous — "
+        "Also delete agent branches that are NOT merged into main. Dangerous: "
         "may discard in-flight work. Only use after manually confirming the "
         "branches contain nothing you want to keep."
     ),

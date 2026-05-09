@@ -1,4 +1,4 @@
-"""changelog command — auto-generate a changelog from conventional commits."""
+"""changelog command: auto-generate a changelog from conventional commits."""
 
 from __future__ import annotations
 
@@ -408,7 +408,7 @@ def changelog_cmd(
         if effective_since:
             console.print(f"[dim]Using latest tag: {effective_since}[/dim]")
         else:
-            console.print("[dim]No tags found — showing all commits.[/dim]")
+            console.print("[dim]No tags found: showing all commits.[/dim]")
 
     # ------------------------------------------------------------------
     # 2. Fetch commits

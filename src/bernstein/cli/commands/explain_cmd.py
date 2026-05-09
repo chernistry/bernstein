@@ -1,4 +1,4 @@
-"""Explain command — show routing rationale, execution trace, and outcome for a task."""
+"""Explain command: show routing rationale, execution trace, and outcome for a task."""
 # Not yet wired into main.py CLI group. Routing explanation reconstructs
 # router logic heuristically and may diverge from live core/router.py
 # decisions. Wire in once _explain_routing is validated against actual
@@ -192,9 +192,9 @@ def explain_cmd(task_id: str, as_json: bool, traces_dir: str) -> None:
 
     \b
     Shows three sections:
-      • Routing decision — why this model/effort was chosen
-      • Execution trace  — what the agent did, step by step
-      • Outcome          — success/failure with result summary
+      • Routing decision: why this model/effort was chosen
+      • Execution trace:  what the agent did, step by step
+      • Outcome:          success/failure with result summary
 
     \b
     Reads task metadata from the running server and traces from
@@ -248,7 +248,7 @@ def explain_cmd(task_id: str, as_json: bool, traces_dir: str) -> None:
         _render_trace_panel(traces[-1])
         if len(traces) > 1:
             console.print(
-                f"[dim]({len(traces) - 1} earlier trace(s) — use 'bernstein trace {task_id}' for full history)[/dim]"
+                f"[dim]({len(traces) - 1} earlier trace(s); use 'bernstein trace {task_id}' for full history)[/dim]"
             )
 
     result = task.get("result_summary")

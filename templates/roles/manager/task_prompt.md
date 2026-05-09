@@ -14,7 +14,7 @@
 {{/IF}}
 
 ## Instructions
-1. Read the codebase and `.sdd/backlog/open/` before planning — understand current state
+1. Read the codebase and `.sdd/backlog/open/` before planning to understand current state
 2. Decompose this goal into tasks of 30-60 min each (max 120 min)
 3. Assign each task the right role; every implementation task needs a paired QA task or inline tests
 4. Set `completion_signals` on every task so the janitor can verify completion

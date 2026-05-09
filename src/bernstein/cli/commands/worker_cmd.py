@@ -336,7 +336,7 @@ class WorkerLoop:
         poll_s = self._poll_config.poll_interval_ms / 1_000.0
         heartbeat_s = (self._poll_config.heartbeat_interval_ms or 15_000) / 1_000.0
 
-        console.print(f"[bold cyan]Bernstein Worker[/bold cyan] — {self._name}")
+        console.print(f"[bold cyan]Bernstein Worker[/bold cyan]: {self._name}")
         console.print(f"  Server: {self._server_url}")
         console.print(f"  Max agents: {self._max_agents}")
         console.print(f"  Roles: {', '.join(self._roles)}")

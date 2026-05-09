@@ -159,11 +159,7 @@ def compute_retention_pin(
     last_dt = _parse_iso(last_event_ts)
     # 10 years (Article 19(1)) for high-risk; 6-month floor otherwise.
     # 365.25 average accounts for leap years.
-    days = (
-        round(HIGH_RISK_RETENTION_YEARS * 365.25)
-        if risk_class == "high"
-        else MINIMUM_RETENTION_DAYS
-    )
+    days = round(HIGH_RISK_RETENTION_YEARS * 365.25) if risk_class == "high" else MINIMUM_RETENTION_DAYS
     until = (last_dt + timedelta(days=days)).date().isoformat()
     return RetentionPin(
         risk_class=risk_class,
@@ -192,24 +188,18 @@ def validate_retention(
     last_dt = _parse_iso(pin.last_event_ts)
     elapsed = (current - last_dt).days
 
-    floor = (
-        round(HIGH_RISK_RETENTION_YEARS * 365.25)
-        if pin.risk_class == "high"
-        else MINIMUM_RETENTION_DAYS
-    )
+    floor = round(HIGH_RISK_RETENTION_YEARS * 365.25) if pin.risk_class == "high" else MINIMUM_RETENTION_DAYS
     if pin.retention_days < floor:
         return (
             False,
-            f"retention_days={pin.retention_days} below Article 12(3) "
-            f"floor of {floor} for risk_class={pin.risk_class}",
+            f"retention_days={pin.retention_days} below Article 12(3) floor of {floor} for risk_class={pin.risk_class}",
         )
 
     horizon = _parse_iso(pin.retention_until + "T00:00:00+00:00")
     if current >= horizon:
         return (
             False,
-            f"retention horizon {pin.retention_until} reached "
-            f"({elapsed}d since last event)",
+            f"retention horizon {pin.retention_until} reached ({elapsed}d since last event)",
         )
 
     return True, ""
@@ -294,9 +284,7 @@ def _build_data_catalog(events: list[_SourceEvent]) -> bytes:
         bucket[rid] = bucket.get(rid, 0) + 1
     payload = {
         "schema_version": BUNDLE_SCHEMA_VERSION,
-        "resources": {
-            rtype: dict(sorted(items.items())) for rtype, items in sorted(catalog.items())
-        },
+        "resources": {rtype: dict(sorted(items.items())) for rtype, items in sorted(catalog.items())},
         "total_events": len(events),
     }
     return _canonical_json(payload)
@@ -315,10 +303,7 @@ def _build_clause_map() -> bytes:
         "mappings": [
             {
                 "clause": "12(1)",
-                "requirement": (
-                    "Automatic recording of events ('logs') over the lifetime "
-                    "of the system."
-                ),
+                "requirement": ("Automatic recording of events ('logs') over the lifetime of the system."),
                 "artefact": "events.jsonl",
             },
             {
@@ -337,10 +322,7 @@ def _build_clause_map() -> bytes:
             },
             {
                 "clause": "12(2)(c)",
-                "requirement": (
-                    "Monitoring of the operation of high-risk AI systems "
-                    "referred to in Article 26(5)."
-                ),
+                "requirement": ("Monitoring of the operation of high-risk AI systems referred to in Article 26(5)."),
                 "artefact": "events.jsonl + chain_anchor in manifest.json",
             },
             {
@@ -406,9 +388,7 @@ def build_article12_bundle(
     clause_map = _build_clause_map()
 
     last_event_ts = events[-1].timestamp if events else since
-    chain_anchor = (
-        str(events[-1].raw.get("hmac", _GENESIS_HMAC)) if events else _GENESIS_HMAC
-    )
+    chain_anchor = str(events[-1].raw.get("hmac", _GENESIS_HMAC)) if events else _GENESIS_HMAC
     retention = compute_retention_pin(risk_class, last_event_ts)
 
     artefact_hashes = {

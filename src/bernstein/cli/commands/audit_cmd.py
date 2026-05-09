@@ -284,8 +284,7 @@ def verify_hmac_cmd() -> None:
     "--dry-run",
     is_flag=True,
     default=False,
-    help="Article 12 mode: build the bundle in-memory and print the manifest "
-    "without writing to disk.",
+    help="Article 12 mode: build the bundle in-memory and print the manifest without writing to disk.",
 )
 @click.option("--dir", "workdir", default=".", show_default=True, help="Project root directory.")
 def export_cmd(
@@ -335,9 +334,7 @@ def export_cmd(
         return
 
     if not period:
-        console.print(
-            "[red]Either --period (SOC 2) or --article-12 (with --since/--until) is required.[/red]"
-        )
+        console.print("[red]Either --period (SOC 2) or --article-12 (with --since/--until) is required.[/red]")
         raise SystemExit(2)
 
     from bernstein.core.compliance import export_soc2_package, parse_period

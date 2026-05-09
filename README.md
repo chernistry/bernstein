@@ -484,6 +484,7 @@ Curated lists, newsletters, and peer projects that picked up Bernstein:
 - [**jim-schwoebel/awesome_ai_agents**](https://github.com/jim-schwoebel/awesome_ai_agents)
 - [**Piebald-AI/awesome-gemini-cli**](https://github.com/Piebald-AI/awesome-gemini-cli)
 - [**ComposioHQ/awesome-codex-skills**](https://github.com/ComposioHQ/awesome-codex-skills)
+- [**punkpeye/awesome-mcp-servers**](https://github.com/punkpeye/awesome-mcp-servers); flagship MCP-server directory.
 - [**jxzhangjhu/Awesome-LLM-RAG**](https://github.com/jxzhangjhu/Awesome-LLM-RAG)
 - [**rohitg00/awesome-claude-code-toolkit**](https://github.com/rohitg00/awesome-claude-code-toolkit)
 - [**numtide/llm-agents.nix**](https://github.com/numtide/llm-agents.nix); Nix flake distribution.
@@ -497,6 +498,8 @@ Curated lists, newsletters, and peer projects that picked up Bernstein:
 - [yaolifeng0629/Awesome-independent-tools](https://github.com/yaolifeng0629/Awesome-independent-tools) (中文 + EN)
 - [caramaschiHG/awesome-ai-agents-2026](https://github.com/caramaschiHG/awesome-ai-agents-2026)
 - [ai-for-developers/awesome-vibe-coding](https://github.com/ai-for-developers/awesome-vibe-coding)
+- [taishi-i/awesome-ChatGPT-repositories](https://github.com/taishi-i/awesome-ChatGPT-repositories) (日本語 + EN)
+- [eudk/awesome-ai-tools](https://github.com/eudk/awesome-ai-tools)
 - [killop/anything_about_game](https://github.com/killop/anything_about_game) (`AI.md`)
 - [Glama MCP Catalog](https://glama.ai/mcp/servers/sipyourdrink-ltd/bernstein); editorial MCP server listing.
 - Mirrors: [icopy-site/awesome](https://github.com/icopy-site/awesome), [icopy-site/awesome-cn](https://github.com/icopy-site/awesome-cn), [trackawesomelist/trackawesomelist](https://github.com/trackawesomelist/trackawesomelist).

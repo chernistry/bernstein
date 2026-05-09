@@ -125,7 +125,10 @@ dev = [
     "beartype>=0.21",  # Test-time runtime type enforcement
     "syrupy>=4.6",  # Snapshot testing for JSONL/audit/prompt drift
     "diff-cover>=9.0",  # Per-PR diff coverage gate
-    "semgrep>=1.85",  # Project-specific static rules (.semgrep.yml)
+    # NOTE: semgrep is installed via `uv tool install semgrep` in CI, not as
+    # a dev dep. semgrep pins opentelemetry-sdk<1.38, which conflicts with
+    # our direct opentelemetry-sdk>=1.41.1 dep. Isolating semgrep keeps the
+    # main resolver tree clean. See .github/workflows/ci.yml::semgrep job.
 ]
 grpc = ["grpcio>=1.68", "grpcio-tools>=1.68", "grpcio-reflection>=1.68", "protobuf>=5.29"]
 k8s = ["kubernetes>=31.0"]
@@ -579,5 +582,7 @@ dev = [
     "beartype>=0.21",
     "syrupy>=4.6",
     "diff-cover>=9.0",
-    "semgrep>=1.85",
+    # semgrep installed via `uv tool install semgrep` in CI — pins
+    # opentelemetry-sdk<1.38, conflicts with our >=1.41.1. Mirror of
+    # [project.optional-dependencies].dev.
 ]

@@ -356,9 +356,14 @@ jobs:
       - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
         with:
           enable-cache: true
+      - name: Install Semgrep (isolated tool install)
+        # semgrep pins opentelemetry-sdk<1.38, which conflicts with our
+        # direct opentelemetry-sdk>=1.41.1 dep. Install in an isolated
+        # tool venv so the main project resolver tree stays clean.
+        run: uv tool install semgrep
       - name: Run Semgrep (ERROR-only fail gate)
         run: |
-          uv run semgrep --config .semgrep.yml --metrics off --severity ERROR --error src/
+          uv tool run semgrep --config .semgrep.yml --metrics off --severity ERROR --error src/
 
   bandit:
     # Bandit static security analyzer. HIGH severity only — there are

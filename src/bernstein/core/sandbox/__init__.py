@@ -65,6 +65,14 @@ from bernstein.core.sandbox.registry import (
     list_backends,
     register_backend,
 )
+from bernstein.core.sandbox.selector import (
+    DEFAULT_PRECEDENCE,
+    FREE_BACKENDS,
+    SandboxEnvironment,
+    SandboxPolicy,
+    SandboxSelectionError,
+    select_sandbox,
+)
 from bernstein.core.security.sandbox import (
     DockerSandbox,
     SandboxRuntime,
@@ -81,6 +89,8 @@ from bernstein.core.security.sandbox import (
 spawn_in_sandbox: _Any = _spawn_in_sandbox  # pyright: ignore[reportUnknownVariableType]
 
 __all__ = [
+    "DEFAULT_PRECEDENCE",
+    "FREE_BACKENDS",
     "ArtifactMount",
     "AzureBlobMount",
     "DockerSandbox",
@@ -92,7 +102,10 @@ __all__ = [
     "S3Mount",
     "SandboxBackend",
     "SandboxCapability",
+    "SandboxEnvironment",
+    "SandboxPolicy",
     "SandboxRuntime",
+    "SandboxSelectionError",
     "SandboxSession",
     "WorkspaceManifest",
     "get_backend",
@@ -100,5 +113,6 @@ __all__ = [
     "list_backends",
     "parse_docker_sandbox",
     "register_backend",
+    "select_sandbox",
     "spawn_in_sandbox",
 ]

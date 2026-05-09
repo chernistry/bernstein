@@ -21,7 +21,6 @@ from bernstein.core.agents.prompt_cache_locality import (
     hash_prefix,
 )
 
-
 # ---------------------------------------------------------------------------
 # build_stable_prefix — header sorting + body verbatim
 # ---------------------------------------------------------------------------

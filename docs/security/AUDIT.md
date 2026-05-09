@@ -2,6 +2,9 @@
 
 Bernstein includes a SOC 2-compatible audit mode that creates a tamper-evident, append-only audit trail of every orchestrator action.
 
+> Operator guide: see [`audit-log.md`](audit-log.md) for key
+> management, rotation, verify/replay procedures, and SIEM setup.
+
 ## Quick Start
 
 ```bash

@@ -116,6 +116,10 @@ The ACP (Agent Client Protocol) adapter that lets ACP-aware editors (e.g. Zed) u
 
 A persistent background process that watches Bernstein-opened PRs for CI failures, pulls the failure logs, and dispatches a scoped repair agent. Caps at three attempts per PR and labels each attempt in the audit log. Implemented in `src/bernstein/core/autofix/`. CLI: `bernstein autofix {start|stop|status|attach}`.
 
+### Audit Chain
+
+The HMAC-SHA256-chained, append-only JSONL log under `.sdd/audit/`. Every orchestrator action is signed with a key concatenated with the prior entry's HMAC, so editing any line invalidates every following signature. Key lives outside `.sdd/` (XDG state default) so a writer of the log can't read or rotate the key. Implemented in `src/bernstein/core/security/audit.py`. Operator guide: [`docs/security/audit-log.md`](../security/audit-log.md). CLI: `bernstein audit {show|verify|seal|query|export}`.
+
 ### Credential Vault
 
 OS-keychain-backed token store for provider credentials (GitHub, OpenAI, Anthropic, etc.). Agents receive scoped credentials at spawn time without touching `.env` files. Implemented in `src/bernstein/core/security/vault/`. CLI: `bernstein connect <provider>`, `bernstein creds {list|revoke|test}`.

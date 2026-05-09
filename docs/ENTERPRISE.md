@@ -174,6 +174,7 @@ Expect to inspect:
 
 Read next:
 - [Security & identity](operations/security-and-identity.md)
+- [HMAC-chained audit log operator guide](security/audit-log.md)
 - `security/AUDIT.md`
 - [Disaster recovery](operations/disaster-recovery.md)
 
@@ -249,7 +250,7 @@ Use this as a practical sign-off sheet.
 ### Audit and recovery
 
 - [ ] Inspected `.sdd/` layout and retention plan
-- [ ] Reviewed HMAC audit-chain handling
+- [ ] Reviewed HMAC audit-chain handling — see [audit-log.md](security/audit-log.md)
 - [ ] Reconstructed a sample run from logs and task state
 - [ ] Tested stop/restart / crash-recovery behavior
 

@@ -136,7 +136,11 @@ _SKILLS: tuple[dict[str, object], ...] = (
 # ``_reset_signing_keypair_for_tests`` drops the cache between test cases
 # so each test can point at its own ``tmp_path`` keystore.
 
-_KEY_LOCK = threading.RLock()  # Reentrant: _get_signing_keypair holds it while calling _get_keystore.
+# Reentrant: ``_get_signing_keypair()`` holds the lock while delegating to
+# ``_get_keystore()``, which on the cold path needs to take the same lock to
+# bind ``_KEYSTORE`` -- a plain ``threading.Lock`` self-deadlocks on the very
+# first JWKS call. ``rotate_agent_card_keys()`` has the same nesting shape.
+_KEY_LOCK = threading.RLock()
 _KEYSTORE: AgentCardKeystore | None = None
 _PRIVATE_PEM: bytes | None = None
 _PUBLIC_PEM: bytes | None = None

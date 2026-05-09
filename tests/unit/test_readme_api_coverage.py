@@ -176,6 +176,14 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "wheelhouse",
         # AAIF AGENTS.md generator (closes #1087)
         "agents-md",
+        # Project bootstrapping from a single goal prompt
+        "scaffold",
+        # Local AST -> WIKI.md renderer (free alternative to Devin/DeepWiki)
+        "wiki",
+        # RESRCH-001: install-rev fingerprint operator helpers
+        "identity",
+        # Per-role adapter allow/deny-list inspection (role-adapter-policy group)
+        "security",
     }
 )
 

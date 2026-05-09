@@ -346,6 +346,10 @@ Commands that eliminate the glue code most teams end up writing around their run
 | `bernstein autofix` | Daemon that monitors open Bernstein PRs; spawns a fixer agent when CI fails and pushes the repair automatically. |
 | `bernstein preview start` | Starts a sandboxed dev server for the current branch and prints a shareable public tunnel URL. |
 | `bernstein agents-md` | Generates a canonical [AAIF AGENTS.md](https://agents.md) for the repo and rewrites it into each CLI's native shape. `generate` (preview), `write` (single file), `sync` (canonical + Cursor `.cursor/rules/*.mdc` + Claude `CLAUDE.md` + Aider `CONVENTIONS.md` + Goose `.goosehints`), `verify` (CI gate), `diff` (shows drift between canonical IR and on-disk files). |
+| `bernstein scaffold "<prompt>"` | Bootstraps a project skeleton from a single goal prompt. `--template auto\|python-cli\|...`, `--output <dir>`, `--force`. |
+| `bernstein wiki build` | Renders `WIKI.md` for the current repo from the AST symbol graph. Local, no LLM call, no cloud round-trip. |
+| `bernstein identity show` / `decode` / `verify` / `disable` | Operator-side helpers for the install-rev fingerprint embedded in shared yaml/trace/role-prompt artefacts. No network egress; discovery uses public `gh search code`. |
+| `bernstein security role-adapter-policy` | Inspects and edits the per-role adapter allow-list (deny-list enforcement at spawn time). |
 
 ### retrieval & caching: what's actually under the hood
 

@@ -15,8 +15,14 @@ import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from bernstein.core.tokens.failed_action_retention import (
+    FailedActionBlock,
+    split_retained_blocks,
+    tag_failed_actions,
+)
+
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +190,9 @@ class CompactionPipeline:
         *,
         llm_call: Callable[[str], str] | None = None,
         strip_media: bool = True,
+        keep_failed_actions: bool = False,
+        retained_failures: Sequence[FailedActionBlock] | None = None,
+        current_turn: int = 0,
     ) -> CompactionResult:
         """Run the full compaction pipeline.
 
@@ -194,6 +203,16 @@ class CompactionPipeline:
             reason: Why compaction was triggered.
             llm_call: Optional async callable for LLM summary.
             strip_media: Whether to strip media blocks before summarizing.
+            keep_failed_actions: When ``True`` (Manus harness pattern #5),
+                tagged failure blocks already in *context_text* are carved
+                out and re-appended verbatim after summarisation, and any
+                additional *retained_failures* are formatted and appended.
+                Default ``False`` preserves current behaviour.
+            retained_failures: Optional explicit list of failure blocks to
+                retain (e.g. from an adapter-side queue). Only used when
+                *keep_failed_actions* is ``True``.
+            current_turn: Turn index used for staleness annotations on
+                explicit *retained_failures*.
 
         Returns:
             CompactionResult with compacted text and metadata.
@@ -209,12 +228,31 @@ class CompactionPipeline:
             reason,
         )
 
+        # Stage 1b (Manus #5): carve out tagged failure blocks before media
+        # stripping / summary so they survive verbatim. Off by default.
+        carved_failures: list[str] = []
+        if keep_failed_actions:
+            working_text, carved_failures = split_retained_blocks(working_text)
+
         # Stage 2: Strip media
         if strip_media:
             working_text = strip_media_blocks(working_text)
 
         # Stage 3: LLM summary (structural if no LLM provided)
         compacted = summarize_context(working_text, llm_call=llm_call)
+
+        # Stage 3b: re-append retained failures + any explicit ones.
+        if keep_failed_actions:
+            tail_blocks: list[str] = list(carved_failures)
+            if retained_failures:
+                rendered = tag_failed_actions(
+                    retained_failures,
+                    current_turn=current_turn,
+                )
+                if rendered:
+                    tail_blocks.append(rendered)
+            if tail_blocks:
+                compacted = compacted + "\n\n" + "\n\n".join(tail_blocks)
 
         tokens_after = _estimate_tokens(compacted)
 

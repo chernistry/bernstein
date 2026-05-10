@@ -349,18 +349,18 @@ requires-dist = [
     { name = "azure-storage-blob", marker = "extra == 'azure'", specifier = ">=12.20" },
     { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "beartype", marker = "extra == 'dev'", specifier = ">=0.21" },
-    { name = "boto3", marker = "extra == 'r2'", specifier = ">=1.40" },
-    { name = "boto3", marker = "extra == 's3'", specifier = ">=1.40" },
+    { name = "boto3", marker = "extra == 'r2'", specifier = ">=1.43.6" },
+    { name = "boto3", marker = "extra == 's3'", specifier = ">=1.43.6" },
     { name = "click", specifier = ">=8.3.3" },
     { name = "crosshair-tool", marker = "extra == 'dev'", specifier = ">=0.0.95" },
-    { name = "cryptography", specifier = ">=45.0.0" },
+    { name = "cryptography", specifier = ">=45.0.7" },
     { name = "datasets", marker = "extra == 'eval'", specifier = ">=4.8.5" },
     { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "diff-cover", marker = "extra == 'dev'", specifier = ">=9.0" },
-    { name = "docker", marker = "extra == 'docker'", specifier = ">=7" },
+    { name = "docker", marker = "extra == 'docker'", specifier = ">=7.1.0" },
     { name = "e2b-code-interpreter", marker = "extra == 'e2b'", specifier = ">=1.0" },
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "google-cloud-storage", marker = "extra == 'gcs'", specifier = ">=3.0" },
+    { name = "google-cloud-storage", marker = "extra == 'gcs'", specifier = ">=3.10.1" },
     { name = "grpcio", marker = "extra == 'grpc'", specifier = ">=1.68" },
     { name = "grpcio-reflection", marker = "extra == 'grpc'", specifier = ">=1.68" },
     { name = "grpcio-tools", marker = "extra == 'grpc'", specifier = ">=1.68" },
@@ -370,13 +370,13 @@ requires-dist = [
     { name = "import-linter", marker = "extra == 'dev'", specifier = ">=2.0" },
     { name = "jsonschema", specifier = ">=4.17" },
     { name = "keyring", specifier = ">=25.0" },
-    { name = "kubernetes", marker = "extra == 'k8s'", specifier = ">=31.0" },
+    { name = "kubernetes", marker = "extra == 'k8s'", specifier = ">=35.0.0" },
     { name = "mcp", specifier = ">=1.0" },
-    { name = "modal", marker = "extra == 'modal'", specifier = ">=0.65" },
-    { name = "openai", specifier = ">=2.29.0" },
+    { name = "modal", marker = "extra == 'modal'", specifier = ">=1.4.2" },
+    { name = "openai", specifier = ">=2.36.0" },
     { name = "openai-agents", marker = "extra == 'openai'", specifier = ">=0.4.0" },
-    { name = "opentelemetry-api", specifier = ">=1.30.0" },
-    { name = "opentelemetry-exporter-otlp", specifier = ">=1.30.0" },
+    { name = "opentelemetry-api", specifier = ">=1.41.1" },
+    { name = "opentelemetry-exporter-otlp", specifier = ">=1.41.1" },
     { name = "opentelemetry-sdk", specifier = ">=1.41.1" },
     { name = "pillow", specifier = ">=12.1.1" },
     { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.7" },
@@ -444,30 +444,30 @@ wheels = [
 
 [[package]]
 name = "boto3"
-version = "1.42.91"
+version = "1.43.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a7/c0/98b8cec7ca22dde776df48c58940ae1abc425593959b7226e270760d726f/boto3-1.42.91.tar.gz", hash = "sha256:03d70532b17f7f84df37ca7e8c21553280454dea53ae12b15d1cfef9b16fcb8a", size = 113181, upload-time = "2026-04-17T19:31:06.251Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0a/37/78c630d1308964aa9abf44951d9c4df776546ff37251ec2434944e205c4e/boto3-1.43.6.tar.gz", hash = "sha256:e6315effaf12b890b99956e6f8e2c3000a3f64e4ee91943cec3895ce9a836afb", size = 113153, upload-time = "2026-05-07T20:49:59.694Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/02/29/faba6521257c34085cc9b439ef98235b581772580f417fa3629728007270/boto3-1.42.91-py3-none-any.whl", hash = "sha256:04e72071cde022951ce7f81bd9933c90095ab8923e8ced61c8dacfe9edac0f5c", size = 140553, upload-time = "2026-04-17T19:31:02.57Z" },
+    { url = "https://files.pythonhosted.org/packages/c8/e2/3c2eef44f55eafab256836d1d9479bd6a74f70c26cbfdc0639a0e23e4327/boto3-1.43.6-py3-none-any.whl", hash = "sha256:179601ec2992726a718053bf41e43c223ceba397d31ceab11f64d9c910d9fc3a", size = 140502, upload-time = "2026-05-07T20:49:57.8Z" },
 ]
 
 [[package]]
 name = "botocore"
-version = "1.42.91"
+version = "1.43.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jmespath" },
     { name = "python-dateutil" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/21/bc/a4b7c46471c2e789ad8c4c7acfd7f302fdb481d93ff870f441249b924ae6/botocore-1.42.91.tar.gz", hash = "sha256:d252e27bc454afdbf5ed3dc617aa423f2c855c081e98b7963093399483ecc698", size = 15213010, upload-time = "2026-04-17T19:30:50.793Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/a7/23d0f5028011455096a1eeac0ddf3cbe147b3e855e127342f8202552194d/botocore-1.43.6.tar.gz", hash = "sha256:b1e395b347356860398da42e61c808cf1e34b6fa7180cf2b9d87d986e1a06ba0", size = 15336070, upload-time = "2026-05-07T20:49:48.14Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b1/fc/24cc0a47c824f13933e210e9ad034b4fba22f7185b8d904c0fbf5a3b2be8/botocore-1.42.91-py3-none-any.whl", hash = "sha256:7a28c3cc6bfab5724ad18899d52402b776a0de7d87fa20c3c5270bcaaf199ce8", size = 14897344, upload-time = "2026-04-17T19:30:44.245Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/c8/6f47223840e8d8cfa8c9f7c0ec1b77970417f257fc885169ff4f6326ce09/botocore-1.43.6-py3-none-any.whl", hash = "sha256:b6d1fdbc6f65a5fe0b7e947823aa37535d3f39f3ba4d21110fab1f55bbbcc04b", size = 15017094, upload-time = "2026-05-07T20:49:44.964Z" },
 ]
 
 [[package]]
@@ -2559,7 +2559,7 @@ wheels = [
 
 [[package]]
 name = "openai"
-version = "2.30.0"
+version = "2.36.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -2571,9 +2571,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/88/15/52580c8fbc16d0675d516e8749806eda679b16de1e4434ea06fb6feaa610/openai-2.30.0.tar.gz", hash = "sha256:92f7661c990bda4b22a941806c83eabe4896c3094465030dd882a71abe80c885", size = 676084, upload-time = "2026-03-25T22:08:59.96Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f4/a1/4d5e84cf51720fc1526cc49e10ac1961abcccb55b0efb3d970db1e9a2728/openai-2.36.0.tar.gz", hash = "sha256:139dea0edd2f1b30c33d46ae1a6929e03906254140318e4608e98fe8c566f2e7", size = 753003, upload-time = "2026-05-07T17:33:17.075Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2a/9e/5bfa2270f902d5b92ab7d41ce0475b8630572e71e349b2a4996d14bdda93/openai-2.30.0-py3-none-any.whl", hash = "sha256:9a5ae616888eb2748ec5e0c5b955a51592e0b201a11f4262db920f2a78c5231d", size = 1146656, upload-time = "2026-03-25T22:08:58.2Z" },
+    { url = "https://files.pythonhosted.org/packages/9d/1c/5d43735b2553baae2a5e899dcbcd0670a86930d993184d72ca909bf11c9b/openai-2.36.0-py3-none-any.whl", hash = "sha256:143f6194b548dbc2c921af1f1b03b9f14c85fed8a75b5b516f5bcc11a2a50c63", size = 1302361, upload-time = "2026-05-07T17:33:15.063Z" },
 ]
 
 [[package]]
@@ -3691,14 +3691,14 @@ wheels = [
 
 [[package]]
 name = "s3transfer"
-version = "0.16.0"
+version = "0.17.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/05/04/74127fc843314818edfa81b5540e26dd537353b123a4edc563109d8f17dd/s3transfer-0.16.0.tar.gz", hash = "sha256:8e990f13268025792229cd52fa10cb7163744bf56e719e0b9cb925ab79abf920", size = 153827, upload-time = "2025-12-01T02:30:59.114Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9b/ec/7c692cde9125b77e84b307354d4fb705f98b8ccad59a036d5957ca75bfc3/s3transfer-0.17.0.tar.gz", hash = "sha256:9edeb6d1c3c2f89d6050348548834ad8289610d886e5bf7b7207728bd43ce33a", size = 155337, upload-time = "2026-04-29T22:07:36.33Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fc/51/727abb13f44c1fcf6d145979e1535a35794db0f6e450a0cb46aa24732fe2/s3transfer-0.16.0-py3-none-any.whl", hash = "sha256:18e25d66fed509e3868dc1572b3f427ff947dd2c56f844a5bf09481ad3f3b2fe", size = 86830, upload-time = "2025-12-01T02:30:57.729Z" },
+    { url = "https://files.pythonhosted.org/packages/87/72/c6c32d2b657fa3dad1de340254e14390b1e334ce38268b7ad51abda3c8c2/s3transfer-0.17.0-py3-none-any.whl", hash = "sha256:ce3801712acf4ad3e89fb9990df97b4972e93f4b3b0004d214be5bce12814c20", size = 86811, upload-time = "2026-04-29T22:07:34.966Z" },
 ]
 
 [[package]]

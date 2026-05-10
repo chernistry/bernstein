@@ -207,6 +207,30 @@ Backing store: `core/agent_identity.py` (`AgentIdentityStore`) under
 (`routes/identities.py:17-27`). Credentials are stored hashed; the API
 strips them before responses (`:82`).
 
+## Install fingerprint (v1.0)
+
+A separate identity surface, off by default, lives at
+`core/identity/install_rev.py`. It produces an 80-bit base32 token
+(16 chars) per install via HMAC-SHA256 over `operator_seed ||
+install_nonce || version_major`. The token is emitted in three slots:
+a `# bernstein-rev:` comment in YAML configs, a top-level `_rev` field
+in trace JSONL, and a `<!-- bernstein-rev: -->` footer in role-prompt
+markdown. The slots are independent so a typical copy-paste round
+preserves at least one of them.
+
+The seed is operator-controlled and never ships to end users; the
+nonce is a random 80-bit value persisted at `~/.bernstein/install_nonce`.
+Without the seed, an end-user install cannot mint tokens that match
+the operator's verifier. There is no telemetry — bernstein never
+opens a network connection to phone home install state.
+
+Kill switch: `BERNSTEIN_DISABLE_IDENTITY=1` short-circuits every
+emit site and returns the fixed sentinel `0000000000000000`.
+
+For the full operator runbook (seed generation, rotation cadence, decode
+utility, discovery via `gh search code`), see
+[install-fingerprint](install-fingerprint.md).
+
 ## Audit log
 
 The audit log is **append-only, daily-rotated, and HMAC-chained**

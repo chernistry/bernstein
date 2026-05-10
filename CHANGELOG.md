@@ -89,7 +89,7 @@ All notable project changes are tracked here (code + docs).
 ## [1.7.0] — 2026-04-14
 
 ### Added
-- **Cloudflare integration platform** (cf-001 through cf-012):
+- **Cloudflare integration platform** (twelve modules):
   - Workers RuntimeBridge (`bridges/cloudflare.py`) — agent execution on Workers + Durable Objects
   - Workflow Bridge (`bridges/cloudflare_workflow.py`) — durable multi-step workflows with auto-retry and approval gates
   - Sandbox Bridge (`bridges/cloudflare_sandbox.py`) — V8 isolate and container sandboxes for isolated code execution

@@ -2,7 +2,7 @@
 
 This page describes practical compatibility boundaries for Bernstein integrations.
 
-Last updated: 2026-04-19
+Last updated: 2026-05-10
 
 ---
 
@@ -10,7 +10,7 @@ Last updated: 2026-04-19
 
 - Python: project targets Python 3.12+.
 - Task server/API: FastAPI-based local or remote server operation.
-- CLI adapters: 41 CLI agent adapters (38 third-party + 2 leaf-node delegators + generic) in `src/bernstein/adapters/`, including the OpenAI Agents SDK v2 adapter (`openai_agents`), CLM gateway adapter (`clm`), and Devin Terminal adapter (`devin_terminal`).
+- CLI adapters: 44 total (43 named adapters in `registry.py` plus the `generic` catch-all) in `src/bernstein/adapters/`, including the OpenAI Agents SDK v2 adapter (`openai_agents`), CLM gateway adapter (`clm`), Devin Terminal adapter (`devin_terminal`), JetBrains Junie (`junie`), AWS Q Developer (`q_dev`), and the DeepSeek V4 family routed through the `ollama` adapter.
 
 ### Supported CLI agent adapters
 
@@ -20,10 +20,14 @@ Last updated: 2026-04-19
 | `codex` | OpenAI | JSON (`--json`) | No |
 | `gemini` | Google | JSON (`--output-format json`) | No |
 | `openai_agents` | OpenAI (Agents SDK v2) | JSONL event stream | Yes (Bernstein-bridged) |
+| `clm` | Customer-side NIM / vLLM gateway | No | No |
+| `devin_terminal` | Cognition | No | No |
+| `junie` | JetBrains (BYOK multi-provider) | No | No |
+| `q_dev` | AWS Q Developer (legacy `q` CLI) | No | No |
 | `aider` | Multi | No | No |
 | `amp` | Sourcegraph | No | No |
 | `qwen` | Multi | No | No |
-| `ollama` | Local | No | No |
+| `ollama` | Local (incl. DeepSeek V4-Flash + V4-Pro) | No | No |
 | `cody` | Sourcegraph | No | No |
 | `cursor` | Cursor | No | Yes |
 | `goose` | Block | No | No |
@@ -34,6 +38,8 @@ Last updated: 2026-04-19
 | `cloudflare` | Cloudflare | No | No |
 | `iac` | N/A (Terraform/Pulumi) | No | No |
 | `generic` | Any | Depends on CLI | No |
+
+The full 44-row matrix with cost tier, reasoning grade, and recommended use cases lives in [`ADAPTER_GUIDE.md`](ADAPTER_GUIDE.md).
 
 ### Support modules
 

@@ -139,3 +139,15 @@ The package includes:
 | `.sdd/audit/.hmac_key` | HMAC signing key |
 | `.sdd/audit/merkle/` | Merkle tree seal records |
 | `.sdd/audit/archive/` | Compressed old logs |
+| `.sdd/evidence/article12_<bundle_id>.zip` | Article 12 evidence bundle (deterministic zip with manifest, events, data catalog, clause map). |
+
+## Related
+
+- [Audit-log operator guide](audit-log.md) — key management, rotation,
+  verify, SIEM, recovery.
+- [Multi-tenant audit-chain export](audit-multitenant.md) — per-tenant
+  slice with optional RFC 3161 timestamping.
+- [DSSE / in-toto envelope](audit-dsse-envelope.md) —
+  third-party-verifiable wrapper over the bundle.
+- [EU AI Act Article 12 evidence pack](../compliance/eu-ai-act-article-12-bundle.md)
+  — operator guide for the bundle this page references.

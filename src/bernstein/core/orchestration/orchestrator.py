@@ -1979,7 +1979,7 @@ class Orchestrator:
         # Identify orphaned claims: uncommitted task_claimed entries with
         # no matching task_spawn_confirmed in the same run.  These are the
         # work-loss cases the prior implementation only logged and acked
-        #. Use a (run_id, seq) key for O(1) membership checks.
+        # . Use a (run_id, seq) key for O(1) membership checks.
         orphaned = WALRecovery.find_orphaned_claims(
             sdd_dir,
             exclude_run_id=self._run_id,

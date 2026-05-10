@@ -1990,7 +1990,7 @@ class AgentSpawner:
         # Write a task-specific CLAUDE.md at the worktree root so the agent
         # inherits its assigned tasks, role constraints, owned file paths,
         # and context files instead of only the generic project CLAUDE.md
-        #. The helper also marks the file as skip-worktree so
+        # . The helper also marks the file as skip-worktree so
         # the override never lands in merge commits.
         _task_context_files: list[str] = []
         for _t in tasks:

@@ -1186,7 +1186,7 @@ class OrchestratorConfig:
     kill_on_memory_leak: bool = False
     evolve_mode: bool = False
     budget_usd: float = 0.0  # Stop spawning when cumulative cost reaches this (0 = unlimited)
-    budget_aware_routing_enabled: bool = True # downgrade opus→sonnet near budget cap
+    budget_aware_routing_enabled: bool = True  # downgrade opus→sonnet near budget cap
     dry_run: bool = False  # Preview planned spawns without actually spawning agents
     auth_token: str | None = None  # Bearer token for authenticated API calls
     merge_strategy: str = "pr"  # "pr" | "direct" — how agent work reaches the main branch
@@ -1240,7 +1240,7 @@ class OrchestratorConfig:
     # while per-tenant caps prevent any tenant from monopolising the worker pool.
     # Default off; enable once multi-tenant workloads exist.
     fair_scheduling_enabled: bool = False
-    cost_autopilot: bool = False # Wire CostAutopilot when True
+    cost_autopilot: bool = False  # Wire CostAutopilot when True
 
     def __post_init__(self) -> None:
         """Parse nested workflow config if dict provided."""

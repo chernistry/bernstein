@@ -544,8 +544,7 @@ class BernsteinConfig(BaseModel):
                 # Auto-disable the defaulted feature so the config validates.
                 object.__setattr__(self, "auto_decompose", False)
                 logger.info(
-                    "internal_llm_provider='%s' — auto_decompose "
-                    "auto-disabled. Set an LLM provider to re-enable.",
+                    "internal_llm_provider='%s' — auto_decompose auto-disabled. Set an LLM provider to re-enable.",
                     self.internal_llm_provider,
                 )
 
@@ -558,8 +557,7 @@ class BernsteinConfig(BaseModel):
             elif self.evolution_enabled:
                 object.__setattr__(self, "evolution_enabled", False)
                 logger.info(
-                    "internal_llm_provider='%s' — evolution_enabled "
-                    "auto-disabled. Set an LLM provider to re-enable.",
+                    "internal_llm_provider='%s' — evolution_enabled auto-disabled. Set an LLM provider to re-enable.",
                     self.internal_llm_provider,
                 )
 

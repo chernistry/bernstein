@@ -500,7 +500,7 @@ class FileHealthTracker:
         )
 
         # Append to health log — rotate before appending to cap disk growth
-        #. get_all()/get() dedupe by path on read so older entries
+        # . get_all()/get() dedupe by path on read so older entries
         # in the rotated backup are naturally replaced by fresher ones.
         rotate_log_file(self._health_path, max_bytes=JANITOR.file_health_rotate_bytes)
         try:

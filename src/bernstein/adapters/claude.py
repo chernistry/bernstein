@@ -623,7 +623,7 @@ class ClaudeCodeAdapter(CLIAdapter):
         # ``kill_process_group_graceful`` sends SIGTERM, polls briefly, and
         # escalates to SIGKILL if the group is still alive.  Without the
         # escalation, agents that trap SIGTERM survive reap paths — see
-        #.
+        # .
         kill_process_group_graceful(pid)
         # Also kill the wrapper process with the same TERM→KILL escalation
         wrapper_pid = self._wrapper_pids.pop(pid, None)

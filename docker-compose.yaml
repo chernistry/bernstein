@@ -8,8 +8,8 @@ version: "3.9"
 #   bernstein-worker      — claims and executes tasks (scale with --scale)
 #   prometheus            — scrapes /metrics from bernstein-server (port 9090)
 #   grafana               — pre-built agent dashboards (port 3000, admin/admin)
-#   postgres              — shared relational state (future: persistent task store)
-#   redis                 — distributed locks + bulletin board (future)
+#   postgres              — shared relational state for the task store
+#   redis                 — distributed locks and bulletin board
 #
 # Usage:
 #   docker compose up -d
@@ -39,7 +39,7 @@ x-bernstein-common: &bernstein-common
     GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
     OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
     TAVILY_API_KEY: ${TAVILY_API_KEY:-}
-    # Future: database / cache URLs
+    # Database / cache URLs
     BERNSTEIN_DATABASE_URL: postgresql://bernstein:bernstein@postgres:5432/bernstein  # NOSONAR — development-only default, not used in production
     BERNSTEIN_REDIS_URL: redis://redis:6379/0
   volumes:

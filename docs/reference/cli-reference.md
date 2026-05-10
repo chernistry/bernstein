@@ -1132,5 +1132,5 @@ To invoke any of them, just type the full path (`bernstein task compose ...`) �
 - [`cli/replay.md`](cli/replay.md) — `replay` + `replay-filter` reference.
 - [`reference/mcp-catalog.md`](mcp-catalog.md) — MCP catalog walkthrough.
 - [`reference/openapi-reference.md`](openapi-reference.md) — REST + WebSocket + ACP/A2A endpoints.
-- [`reference/FEATURE_MATRIX.md`](FEATURE_MATRIX.md) — capability matrix vs other tools.
+- [`reference/FEATURE_MATRIX.md`](FEATURE_MATRIX.md) — capability matrix.
 - [`operations/CONFIG.md`](../operations/CONFIG.md) — every config key Bernstein recognises.

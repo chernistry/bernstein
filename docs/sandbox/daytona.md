@@ -41,9 +41,8 @@ sandbox:
 
 - **Stdin not supported on the REST exec endpoint.** Passing `stdin=`
   raises `NotImplementedError`. For interactive workloads use the
-  Daytona WebSocket exec channel directly; routing it through the
-  Bernstein protocol is tracked as a follow-up because
-  `SandboxSession.exec` is currently unary-response.
+  Daytona WebSocket exec channel directly; the Bernstein
+  `SandboxSession.exec` contract is unary-response.
 - **No exec streaming.** The endpoint returns the buffered
   `stdout`/`stderr` after the command exits.
 

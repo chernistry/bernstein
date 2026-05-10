@@ -38,8 +38,8 @@ sandbox:
 - **Synchronous exec only.** This backend uses
   `POST /devboxes/{id}/execute_sync` which buffers stdout/stderr until
   the command exits. Long-running interactive workloads should use
-  Runloop's WebSocket exec channel — routing it through the unary
-  `SandboxSession.exec` contract is tracked as a follow-up.
+  Runloop's WebSocket exec channel directly; Bernstein's
+  `SandboxSession.exec` contract is unary-response.
 - **No stdin injection.** Passing `stdin=` raises
   `NotImplementedError`.
 

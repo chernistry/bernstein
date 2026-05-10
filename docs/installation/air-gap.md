@@ -345,9 +345,9 @@ running `python scripts/build_airgap_wheelhouse.py` with the same
 
 ## Limitations
 
-- Linux x86_64 wheels only in the shipped wheelhouse build. Other
-  platforms (macOS, Windows, arm64) need their own wheelhouse pass —
-  a follow-up.
+- The shipped wheelhouse build covers Linux x86_64. Other platforms
+  (macOS, Windows, arm64) require building their own wheelhouse
+  against the same pin set.
 - Native deps (cffi, lxml) are pinned to `manylinux_2_28_x86_64`. If
   the customer's distro doesn't have that manylinux variant, rebuild
   on a closer base image.

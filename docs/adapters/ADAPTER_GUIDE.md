@@ -774,8 +774,8 @@ support modules that provide cross-cutting infrastructure:
    - `claude` (deepest), `openai_agents` (Bernstein-bridged), `cursor`, `kilo`
 
 5. **Do you need pluggable sandbox execution (Docker / E2B / Modal)?**
-   - `openai_agents` today; more adapters follow the outer `SandboxBackend`
-     abstraction as phase 2 of the sandbox roadmap lands.
+   - `openai_agents` exposes the SDK-native sandbox providers
+     (`unix_local`, `docker`, `e2b`, `modal`).
 
 6. **Do you need air-gapped / self-hosted?**
    - `ollama` (local Ollama via Aider front-end)

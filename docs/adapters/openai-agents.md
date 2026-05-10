@@ -88,9 +88,8 @@ stages:
         sandbox_provider: unix_local   # unix_local | docker | e2b | modal
 ```
 
-Sandbox provider selection is adapter-internal for now. Once the
-pluggable `SandboxBackend` abstraction ships, this choice will be
-promoted to a top-level Bernstein setting.
+Sandbox provider selection is currently adapter-internal — set it on
+the step that uses the `openai_agents` CLI.
 
 ---
 
@@ -160,9 +159,9 @@ code onto Bernstein's existing back-off (`COST.rate_limit_cooldown_s`).
 
 ---
 
-## Known gaps (tracked separately)
+## Out of scope
 
-* Promote sandbox provider selection to Bernstein's outer
-  `SandboxBackend` once the abstraction lands.
-* Capture per-tool latency breakdown from the SDK's event stream
-  (currently only total tool-call count is recorded).
+* Sandbox provider selection is configured per-step on the adapter,
+  not as a top-level Bernstein setting.
+* The runner records total tool-call count rather than per-tool
+  latency.

@@ -69,27 +69,24 @@ schemas = engine.expand_tools(["gh.diff", "git.diff"])
 |---|--:|---|
 | `defaults.MCP_TOOL_SEARCH_ENABLED` | `true` | Master switch. |
 | `defaults.MCP_TOOL_SEARCH_THRESHOLD_TOKENS` | `6000` | Total catalog token budget; above this, switch to tool_search. |
-| Ranker | BM25 over `name + summary` | No semantic / vector ranking in v1. |
+| Ranker | BM25 over `name + summary` | Lexical ranking only. |
 
 Metric: `mcp_tool_search_invocations_total{outcome}` —
 `hit` / `miss` / `expand`.
 
 ## Limitations
 
-- BM25 ranking only. Semantic / vector search across tool descriptions
-  is a follow-up.
+- BM25 (lexical) ranking only.
 - Tool deduplication across servers (two MCP servers with the same
   tool name) is handled by `mcp_tool_normalization.py`, not by this
   module.
 - Schemas returned by `expand_tools` count against the agent's
   context budget at expansion time. Expanding 50 schemas at once is
   not free.
-- The threshold is a global token count. Per-role thresholds are not
-  in v1.
+- The threshold is a global token count.
 
 ## Related
 
 - Source: `src/bernstein/core/protocols/mcp/mcp_tool_search.py`
 - MCP manager: `src/bernstein/core/protocols/mcp/mcp_manager.py`
 - [MCP server injection](../integrations/mcp-server-injection.md)
-- PR #1009, ticket `2026-04-30-feat-tool-search-lazy-loading.md`

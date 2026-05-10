@@ -47,7 +47,7 @@ sandbox:
   combined `stdout`/`stderr` of the command after the process exits,
   rather than streaming over WebSockets. Long-running interactive
   workloads that need tail-style log streaming should use the
-  `worktree` or `docker` backends until Blaxel ships streaming exec.
+  `worktree` or `docker` backends.
 - **Snapshots not supported.** Provider does not expose
   snapshot/resume; persistent state lives in the workspace volume
   attached to the sandbox.

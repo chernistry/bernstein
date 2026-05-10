@@ -122,7 +122,7 @@ config = D1Config(
 
 ## 5. Deploy the agent Worker (optional)
 
-> Note: Vectorize-backed semantic caching was described in earlier drafts but is not shipped. There is no `wrangler vectorize create` step in the current setup. Prompt caching is delivered via Anthropic's native `cache_control` headers. See [analytics](cloudflare-analytics.md) for context.
+> Note: Prompt caching is delivered via Anthropic's native `cache_control` headers, independent of Cloudflare Vectorize. There is no `wrangler vectorize create` step in this setup. See [analytics](cloudflare-analytics.md) for context.
 
 
 

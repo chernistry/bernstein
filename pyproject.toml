@@ -118,7 +118,7 @@ dev = [
     "pyright>=1.1",
     "import-linter>=2.0",  # Architecture contracts (`uv run lint-imports`)
     # CI hardening 2026 — see docs/contributing/testing.md.
-    "schemathesis>=3.36",  # OpenAPI fuzz / contract sweep on FastAPI app
+    "schemathesis>=4.18.1",  # OpenAPI fuzz / contract sweep on FastAPI app
     "crosshair-tool>=0.0.95",  # Concolic execution on pure security fns
     "bandit>=1.8",  # Static security analyzer (HIGH-severity gate)
     "pip-audit>=2.7",  # PyPI dep CVE scanner (production strict)
@@ -583,7 +583,7 @@ dev = [
     "mutmut>=2.4",
     "import-linter>=2.0",  # Architecture contracts (`uv run lint-imports`)
     # CI hardening 2026 — keep this section in sync with [project.optional-dependencies].dev.
-    "schemathesis>=3.36",
+    "schemathesis>=4.18.1",
     "crosshair-tool>=0.0.95",
     "bandit>=1.8",
     "pip-audit>=2.7",

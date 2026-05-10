@@ -55,6 +55,7 @@ from bernstein.cli.chaos_cmd import chaos_group
 from bernstein.cli.checkpoint_cmd import checkpoint_cmd
 from bernstein.cli.ci_cmd import ci_group
 from bernstein.cli.cloud_cmd import cloud_group
+from bernstein.cli.commands.export_cmd import export_cmd
 from bernstein.cli.commands.fleet_cmd import fleet_group
 from bernstein.cli.commands.role_adapter_policy_cmd import security_group as _role_adapter_security_group
 from bernstein.cli.commands.skills_cmd import skills_group
@@ -92,7 +93,6 @@ from bernstein.cli.postmortem_cmd import postmortem_cmd
 from bernstein.cli.profile_cmd import profile_cmd
 from bernstein.cli.prompts_cmd import prompts_group
 from bernstein.cli.quickstart_cmd import quickstart_cmd
-from bernstein.cli.commands.export_cmd import export_cmd
 from bernstein.cli.report_cmd import report_cmd
 from bernstein.cli.run_changelog_cmd import run_changelog_cmd
 from bernstein.cli.scaffold_cmd import scaffold_cmd

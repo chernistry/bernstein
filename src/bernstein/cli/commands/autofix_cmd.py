@@ -43,6 +43,13 @@ from bernstein.core.autofix.dispatcher import (
     AttemptCounter,
     DispatchResult,
 )
+from bernstein.core.autofix.review_router import (
+    GhInvocationError,
+    ReviewRouter,
+    emit_jsonl,
+    poll_loop,
+    resolve_pr_number,
+)
 from bernstein.core.security.audit import AuditLog
 
 __all__ = ["autofix_group"]
@@ -434,3 +441,101 @@ def attach_cmd(limit: int) -> None:
                 click.echo(json.dumps(fresh, sort_keys=True))
     except KeyboardInterrupt:
         return
+
+
+# ---------------------------------------------------------------------------
+# review — poll a PR for review-comment routing
+# ---------------------------------------------------------------------------
+
+
+_REVIEW_TASK_LOG = Path(".sdd") / "runtime" / "autofix-review-tasks.jsonl"
+
+
+@autofix_group.command("review")
+@click.option(
+    "--pr",
+    "pr_number",
+    type=int,
+    default=None,
+    help="PR number to watch (overrides env / git config).",
+)
+@click.option(
+    "--repo",
+    "repo_slug",
+    default="",
+    help="GitHub owner/name slug; passed to ``gh pr view --repo``.",
+)
+@click.option(
+    "--poll-seconds",
+    type=float,
+    default=60.0,
+    show_default=True,
+    help="Seconds to sleep between polls.",
+)
+@click.option(
+    "--once",
+    is_flag=True,
+    default=False,
+    help="Run a single poll and exit.",
+)
+@click.option(
+    "--task-log",
+    "task_log_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Override the JSONL path the router writes structured tasks to.",
+)
+def review_cmd(
+    pr_number: int | None,
+    repo_slug: str,
+    poll_seconds: float,
+    once: bool,
+    task_log_path: Path | None,
+) -> None:
+    """Poll a PR's review threads and emit structured tasks for new "request changes" comments.
+
+    The command resolves which PR to watch in the following order:
+
+    1. ``--pr`` argument.
+    2. ``BERNSTEIN_REVIEW_PR_NUMBER`` environment variable.
+    3. ``git config bernstein.spawn-pr``.
+
+    Tasks are appended as JSONL to ``.sdd/runtime/autofix-review-tasks.jsonl``
+    relative to the current workspace (override with ``--task-log``).
+    Each task carries the file, line range, comment body, reviewer login,
+    diff hunk and permalink — enough for the spawning agent to address
+    the comment without re-fetching from GitHub.
+    """
+    workdir = _resolve_workdir()
+    resolved_pr = resolve_pr_number(explicit=pr_number, workdir=workdir)
+    if resolved_pr is None:
+        raise click.ClickException(
+            "no PR specified — pass --pr, set BERNSTEIN_REVIEW_PR_NUMBER, or set ``git config bernstein.spawn-pr``."
+        )
+
+    log_path = task_log_path or (workdir / _REVIEW_TASK_LOG)
+    sink = emit_jsonl(log_path)
+    router = ReviewRouter(
+        pr_number=resolved_pr,
+        task_sink=sink,
+        repo=repo_slug,
+    )
+
+    if once:
+        try:
+            outcome = router.poll_once()
+        except GhInvocationError as exc:
+            raise click.ClickException(str(exc)) from exc
+        click.echo(
+            f"review_router: PR #{resolved_pr} emitted {len(outcome.tasks)} task(s); "
+            f"skipped {outcome.skipped_seen} already-seen comment(s); log={log_path}"
+        )
+        return
+
+    click.echo(f"review_router: watching PR #{resolved_pr} every {poll_seconds:.1f}s; log={log_path}")
+    try:
+        polls = poll_loop(router, poll_seconds=poll_seconds)
+    except KeyboardInterrupt:
+        click.echo("review_router: interrupted.")
+        return
+    click.echo(f"review_router: completed after {polls} poll(s).")

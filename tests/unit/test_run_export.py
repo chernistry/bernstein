@@ -5,22 +5,20 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import click
 import pytest
 from click.testing import CliRunner
 
+from bernstein.cli.commands.export_cmd import export_cmd
 from bernstein.core.observability.run_export import (
     MAX_FILE_SIZE,
+    _agent_summary,
     _ExportReport,
-    _TaskRow,
     _fmt_duration,
     _fmt_duration_short,
-    _agent_summary,
     _sequential_estimate,
+    _TaskRow,
     export_run_report,
 )
-from bernstein.cli.commands.export_cmd import export_cmd
-
 
 # ---------------------------------------------------------------------------
 # Helper: set up a minimal .sdd directory with test data

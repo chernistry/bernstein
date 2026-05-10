@@ -9,6 +9,7 @@ Enforces a 500KB file-size limit for offline rendering.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 from dataclasses import dataclass, field
@@ -28,6 +29,7 @@ REPO_URL = "https://github.com/sipyourdrink-ltd/bernstein"
 # ---------------------------------------------------------------------------
 # Minimal data classes (avoid importing from orchestration module)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class _TaskRow:
@@ -76,6 +78,7 @@ class _ExportReport:
 # pulling in the full orchestration module via meta-path redirect).
 # ---------------------------------------------------------------------------
 
+
 def _load_report_data(workdir: Path, run_id: str | None) -> _ExportReport:
     """Load run data from ``.sdd/`` and return a minimal report object."""
     sdd = workdir / ".sdd"
@@ -84,8 +87,13 @@ def _load_report_data(workdir: Path, run_id: str | None) -> _ExportReport:
         run_id = _detect_latest(sdd)
         if run_id == "unknown":
             return _ExportReport(
-                goal="", run_id="unknown", duration_s=0.0, total_cost_usd=0.0,
-                tasks_completed=0, tasks_failed=0, agents_spawned=0,
+                goal="",
+                run_id="unknown",
+                duration_s=0.0,
+                total_cost_usd=0.0,
+                tasks_completed=0,
+                tasks_failed=0,
+                agents_spawned=0,
             )
 
     summary = _load_json(sdd / "runs" / run_id / "summary.json")
@@ -104,10 +112,8 @@ def _load_report_data(workdir: Path, run_id: str | None) -> _ExportReport:
         for line in archive_path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line:
-                try:
+                with contextlib.suppress(json.JSONDecodeError):
                     task_metrics.append(json.loads(line))
-                except json.JSONDecodeError:
-                    pass
 
     # Load agent count
     agents_spawned = 0
@@ -133,10 +139,17 @@ def _load_report_data(workdir: Path, run_id: str | None) -> _ExportReport:
         end_time = float(tm.get("end_time", 0.0))
         dur = end_time - start_time if end_time > start_time else 0.0
 
-        task_rows.append(_TaskRow(
-            title=title, role=role, status="done" if success else "failed",
-            model=model, duration_s=dur, cost_usd=cost, janitor_passed=janitor,
-        ))
+        task_rows.append(
+            _TaskRow(
+                title=title,
+                role=role,
+                status="done" if success else "failed",
+                model=model,
+                duration_s=dur,
+                cost_usd=cost,
+                janitor_passed=janitor,
+            )
+        )
 
         if janitor and end_time > 0:
             quality_pass += 1
@@ -144,11 +157,13 @@ def _load_report_data(workdir: Path, run_id: str | None) -> _ExportReport:
             quality_fail += 1
 
         if start_time > 0 and run_start > 0:
-            timeline_entries.append(_TimelineEntry(
-                title=title,
-                start_offset_s=start_time - run_start,
-                end_offset_s=(end_time - run_start) if end_time > 0 else (start_time - run_start),
-            ))
+            timeline_entries.append(
+                _TimelineEntry(
+                    title=title,
+                    start_offset_s=start_time - run_start,
+                    end_offset_s=(end_time - run_start) if end_time > 0 else (start_time - run_start),
+                )
+            )
 
     # Load cost data
     model_costs: list[_ModelCost] = []
@@ -162,18 +177,28 @@ def _load_report_data(workdir: Path, run_id: str | None) -> _ExportReport:
         if cost_data:
             total_cost_usd = float(cost_data.get("total_spent_usd", total_cost_usd))
             for mc in cost_data.get("per_model", []):
-                model_costs.append(_ModelCost(
-                    model=str(mc.get("model", "")),
-                    total_cost_usd=float(mc.get("total_cost_usd", 0.0)),
-                    invocation_count=int(mc.get("invocation_count", 0)),
-                    total_tokens=int(mc.get("total_tokens", 0)),
-                ))
+                model_costs.append(
+                    _ModelCost(
+                        model=str(mc.get("model", "")),
+                        total_cost_usd=float(mc.get("total_cost_usd", 0.0)),
+                        invocation_count=int(mc.get("invocation_count", 0)),
+                        total_tokens=int(mc.get("total_tokens", 0)),
+                    )
+                )
 
     return _ExportReport(
-        goal=goal, run_id=run_id, duration_s=duration_s, total_cost_usd=total_cost_usd,
-        tasks_completed=tasks_completed, tasks_failed=tasks_failed, agents_spawned=agents_spawned,
-        task_rows=task_rows, model_costs=model_costs, timeline_entries=timeline_entries,
-        quality_pass_count=quality_pass, quality_fail_count=quality_fail,
+        goal=goal,
+        run_id=run_id,
+        duration_s=duration_s,
+        total_cost_usd=total_cost_usd,
+        tasks_completed=tasks_completed,
+        tasks_failed=tasks_failed,
+        agents_spawned=agents_spawned,
+        task_rows=task_rows,
+        model_costs=model_costs,
+        timeline_entries=timeline_entries,
+        quality_pass_count=quality_pass,
+        quality_fail_count=quality_fail,
     )
 
 
@@ -206,6 +231,7 @@ def _detect_latest(sdd: Path) -> str:
 # Formatting helpers
 # ---------------------------------------------------------------------------
 
+
 def _fmt_duration(seconds: float) -> str:
     """Format seconds into a human-readable duration string.
 
@@ -229,7 +255,7 @@ def _fmt_duration_short(seconds: float) -> str:
     s = int(seconds)
     if s < 60:
         return f"{s} seconds"
-    minutes, secs = divmod(s, 60)
+    minutes, _secs = divmod(s, 60)
     hours, remaining_min = divmod(minutes, 60)
     if hours:
         return f"{hours}h {remaining_min}m"
@@ -256,9 +282,13 @@ def _sequential_estimate(report: _ExportReport) -> str:
 # HTML renderer — fully self-contained, inline CSS, no external deps
 # ---------------------------------------------------------------------------
 
+_TIMELINE_EMPTY_ROW = '<tr><td colspan="3" style="color:#6c757d;">No timeline data available.</td></tr>'
+
+
 def _render_html(report: _ExportReport) -> str:
     """Render a self-contained HTML report with inline CSS."""
 
+    # CSS block intentionally on long lines to keep readable; suppress E501.
     css = """\
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 960px; margin: 0 auto; padding: 2rem; color: #1a1a2e; background: #f8f9fa; }
@@ -280,7 +310,7 @@ def _render_html(report: _ExportReport) -> str:
   .badge.pass { background: #d4edda; color: #155724; }
   .badge.fail { background: #f8d7da; color: #721c24; }
 </style>
-"""
+"""  # noqa: E501
 
     date_str = report.run_id[:10] if len(report.run_id) >= 10 else "unknown"
     agent_sum = _agent_summary(report)
@@ -295,9 +325,9 @@ def _render_html(report: _ExportReport) -> str:
         rows_html += f"""\
 <tr>
   <td>{row.title}</td>
-  <td>{row.role or '—'}</td>
+  <td>{row.role or "—"}</td>
   <td>{row.status}</td>
-  <td>{row.model or '—'}</td>
+  <td>{row.model or "—"}</td>
   <td>{_fmt_duration(row.duration_s)}</td>
   <td>${row.cost_usd:.4f}</td>
   <td>{status_badge}</td>
@@ -349,7 +379,7 @@ def _render_html(report: _ExportReport) -> str:
 <p style="color:#6c757d;">Generated by Bernstein v1.7.0</p>
 
 <div class="summary">
-  <p><strong>Goal:</strong> {report.goal or '—'}</p>
+  <p><strong>Goal:</strong> {report.goal or "—"}</p>
   <p><strong>Tasks:</strong> {report.tasks_completed} completed, {report.tasks_failed} failed</p>
   <p><strong>Agents:</strong> {agent_sum}</p>
   <p><strong>Duration:</strong> {_fmt_duration_short(report.duration_s)} (sequential estimate: {seq_est})</p>
@@ -372,7 +402,7 @@ def _render_html(report: _ExportReport) -> str:
 <tr><th>Task</th><th>Start (offset)</th><th>End (offset)</th></tr>
 </thead>
 <tbody>
-{timeline_rows_html if timeline_rows_html else '<tr><td colspan="3" style="color:#6c757d;">No timeline data available.</td></tr>'}</tbody>
+{timeline_rows_html if timeline_rows_html else _TIMELINE_EMPTY_ROW}</tbody>
 </table>
 
 <h2>Quality Gates</h2>
@@ -406,7 +436,7 @@ def _render_html(report: _ExportReport) -> str:
 </table>
 
 <div class="footer">
-  <p>Generated by <a href="{REPO_URL}" target="_blank" rel="noopener">Bernstein</a> — Declarative Agent Orchestration</p>
+  <p>Generated by <a href="{REPO_URL}" target="_blank" rel="noopener">Bernstein</a> — Declarative Orchestration</p>
 </div>
 
 </body>
@@ -418,6 +448,7 @@ def _render_html(report: _ExportReport) -> str:
 # ---------------------------------------------------------------------------
 # Markdown renderer
 # ---------------------------------------------------------------------------
+
 
 def _render_markdown(report: _ExportReport) -> str:
     """Render a Markdown report."""
@@ -465,9 +496,7 @@ def _render_markdown(report: _ExportReport) -> str:
         lines.append("| Task | Start (offset) | End (offset) |")
         lines.append("|------|----------------|--------------|")
         for entry in report.timeline_entries:
-            lines.append(
-                f"| {entry.title} | {entry.start_offset_s:.1f}s | {entry.end_offset_s:.1f}s |"
-            )
+            lines.append(f"| {entry.title} | {entry.start_offset_s:.1f}s | {entry.end_offset_s:.1f}s |")
     else:
         lines.append("No timeline data available.")
     lines.append("")
@@ -516,6 +545,7 @@ def _render_markdown(report: _ExportReport) -> str:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def export_run_report(
     workdir: Path,
     run_id: str | None = None,
@@ -545,10 +575,7 @@ def export_run_report(
     if report.run_id == "unknown":
         raise ValueError("No run data found. Has a run completed in this project?")
 
-    if fmt == "html":
-        raw = _render_html(report)
-    else:
-        raw = _render_markdown(report)
+    raw = _render_html(report) if fmt == "html" else _render_markdown(report)
 
     # Enforce 500KB size limit
     encoded = raw.encode("utf-8")

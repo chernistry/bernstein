@@ -1,0 +1,90 @@
+id: monorepo-extraction
+name: Monorepo Service Extraction
+version: "1.0"
+description: |
+  Extract one bounded context out of a monolith into its own repository or
+  deployable service using the Strangler Fig pattern. Targeted at teams who
+  hit the wall where independent scaling, on-call ownership, or release
+  cadence demand a real boundary the import-graph cannot fake.
+tags:
+  - architecture
+  - refactor
+  - extraction
+tasks:
+  - title: Confirm the bounded context is genuinely separable
+    role: architect
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Validate that the candidate context has a stable interface, owns its
+      data, and meets at least one of: independent scaling, distinct
+      release cadence, regulatory isolation, distinct on-call ownership.
+      A "clean module" is not a service; resist extraction without a
+      hard reason.
+  - title: Define the new service contract
+    role: architect
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Produce an OpenAPI or AsyncAPI contract for the new service. Pin
+      request and response shapes, error model, retry semantics, and
+      idempotency keys. The contract is the boundary; everything else
+      is implementation detail.
+  - title: Stand up the new service in a parallel deployment
+    role: devops
+    priority: 1
+    scope: medium
+    complexity: high
+    description: |
+      Deploy the new service alongside the monolith. Both speak the new
+      contract; only the new service has new behavior. Configure observability,
+      health checks, and the rollout flag so traffic can swing back instantly.
+  - title: Route a small percentage of traffic via a feature flag
+    role: backend
+    priority: 1
+    scope: small
+    complexity: medium
+    description: |
+      Start at one percent of traffic. Compare error rates, latency, and
+      semantic correctness against the monolith path. Hold at each rollout
+      stage long enough for production noise to stabilize.
+  - title: Migrate persistent state to the new service's owned store
+    role: backend
+    priority: 1
+    scope: medium
+    complexity: high
+    description: |
+      Move the data the new service owns into its own database or schema.
+      Keep the monolith reading from the new store via the contract;
+      writes go through the contract too. Data migrations are one-way
+      doors and need a written rollback plan.
+  - title: Cut the monolith over to the contract for one hundred percent of calls
+    role: backend
+    priority: 2
+    scope: small
+    complexity: medium
+    description: |
+      Ramp traffic to one hundred percent. Confirm the monolith no longer
+      reaches the old code path. Keep the old code path in place for one
+      release cycle as a safety net.
+  - title: Delete the old code path and the dual-write infrastructure
+    role: backend
+    priority: 2
+    scope: small
+    complexity: medium
+    description: |
+      Once the new service has run cleanly through one release cycle,
+      delete the old implementation. Remove dual-write logic. Re-tag the
+      release so future maintainers can identify the extraction boundary.
+  - title: Move on-call ownership and document the runbook
+    role: manager
+    priority: 2
+    scope: small
+    complexity: low
+    description: |
+      Update the service catalog with the new ownership. Publish a runbook
+      covering normal operation, incident response, dependency map, and
+      escalation contacts. Verify the new owners can answer a paging
+      drill within target latency.

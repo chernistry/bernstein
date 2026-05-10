@@ -1,0 +1,112 @@
+id: legacy-modernization-program
+name: Legacy Modernization Program
+version: "1.0"
+description: |
+  Multi-quarter program to modernize a legacy estate (mainframe, COBOL,
+  RPG, classic ASP, on-prem ESB) into a target stack while keeping the
+  business running. Built around the Strangler Fig pattern with explicit
+  freeze rules, parallel-run reconciliation, and a regulator-grade audit
+  trail of every transformation.
+tags:
+  - modernization
+  - enterprise
+  - mainframe
+  - strangler-fig
+tasks:
+  - title: Inventory the legacy estate by program, data store, and dependency
+    role: architect
+    priority: 1
+    scope: large
+    complexity: high
+    description: |
+      Catalog every program, copybook, JCL job, screen, table, and external
+      interface. Capture line count, call frequency, business owner, and
+      regulatory classification. The inventory anchors every later
+      decision; treat it as a versioned artifact under source control.
+  - title: Classify each program by translation strategy
+    role: architect
+    priority: 1
+    scope: medium
+    complexity: high
+    description: |
+      For each program, decide between rewrite, refactor in place, encapsulate
+      behind an API, or retire. Prefer retire where business owners cannot
+      name a single live consumer. Document the chosen strategy in a
+      machine-readable manifest.
+  - title: Stand up the parallel-run harness for behavior reconciliation
+    role: devops
+    priority: 1
+    scope: large
+    complexity: high
+    description: |
+      Build a shadow path that replays production inputs through both the
+      legacy system and the modernized target. Compare outputs at the field
+      level. Flag any divergence with sample evidence and a severity tier.
+  - title: Translate one bounded context end-to-end as the pilot
+    role: backend
+    priority: 1
+    scope: large
+    complexity: high
+    description: |
+      Pick the smallest context with a clean external interface and low
+      regulatory exposure. Translate end-to-end. Run through the parallel
+      harness for at least four weeks. Use the pilot to calibrate the
+      cost-per-program estimate.
+  - title: Lock the legacy edit-freeze policy
+    role: manager
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      No change to the legacy code outside critical regulatory or security
+      fixes once a context is in flight. Document the override path. The
+      freeze is the difference between a clean strangler cut and a
+      perpetual divergence.
+  - title: Generate transformation evidence for each translated module
+    role: security
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      For every translated module, capture: source hash, target hash,
+      tooling version, prompt or transformation rule used, validator
+      output, and the parallel-run reconciliation result. This is the
+      auditable evidence chain a regulator will demand.
+  - title: Migrate data with a documented dual-write window
+    role: backend
+    priority: 2
+    scope: large
+    complexity: high
+    description: |
+      For each data store, define the dual-write window, the cutover, and
+      the rollback. Validate the schema map with a samples-against-prod
+      run. Run for at least one full business cycle before cutover.
+  - title: Decommission legacy components on a published schedule
+    role: manager
+    priority: 2
+    scope: medium
+    complexity: medium
+    description: |
+      Publish a per-quarter decommission schedule. Confirm zero traffic
+      against each component for the full preceding quarter before pull.
+      Archive the source, the data, and the runbook.
+  - title: Train the operations team on the modernized stack
+    role: docs
+    priority: 2
+    scope: medium
+    complexity: medium
+    description: |
+      Build runbooks, dashboards, and on-call playbooks for the modernized
+      services. Run a paging drill before every decommission milestone.
+      The legacy operators carry institutional memory that does not
+      survive a pure code translation; capture it in writing.
+  - title: Track program-level metrics and report to executive sponsors
+    role: manager
+    priority: 1
+    scope: medium
+    complexity: low
+    description: |
+      Report monthly: programs translated, programs retired, parallel-run
+      divergence rate, cost-per-program trend, regulator-readiness status.
+      Sponsors lose patience when the dashboard is unclear; keep it
+      one-page and decision-relevant.

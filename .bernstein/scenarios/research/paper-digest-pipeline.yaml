@@ -1,0 +1,58 @@
+id: paper-digest-pipeline
+name: Paper Digest Pipeline
+version: "1.0"
+description: |
+  Build a recurring digest of new arXiv and conference papers in a chosen
+  research area. Each run picks the top candidates, summarizes them with
+  citation, and routes notable findings into a watch list the team can
+  act on without reading every abstract.
+tags:
+  - research
+  - digest
+  - listening
+tasks:
+  - title: Define the topic taxonomy and seed query set
+    role: docs
+    priority: 1
+    scope: small
+    complexity: low
+    description: |
+      List the subtopics the digest should cover. Capture two to four
+      seed queries per subtopic. The taxonomy is what keeps the digest
+      from drifting into noise over weeks.
+  - title: Pull and deduplicate candidates from arXiv and conference proceedings
+    role: backend
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Run the seed queries. Deduplicate against prior runs by DOI,
+      arXiv id, and title hash. Output a candidate list with abstract,
+      authors, and venue.
+  - title: Score candidates by topical fit and signal strength
+    role: backend
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Score each paper on relevance to the taxonomy, novelty against
+      the watch list, and reproducibility signals (open code, dataset).
+      Pick the top decile for the digest.
+  - title: Write a one-paragraph summary per top paper
+    role: docs
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Each summary covers the question, the method, the headline
+      finding, and a calibrated note on confidence. Cite the paper.
+      Keep summaries readable in under one minute.
+  - title: Promote actionable findings to a watch list
+    role: manager
+    priority: 2
+    scope: small
+    complexity: low
+    description: |
+      Anything worth a follow-up reading or an internal experiment lands
+      on the watch list. Each entry has an owner and a target date so
+      the watch list does not become a graveyard.

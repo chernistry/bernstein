@@ -1,0 +1,76 @@
+id: large-codebase-audit
+name: Large Codebase Audit
+version: "1.0"
+description: |
+  Multi-week audit of a sprawling repository. Produces a defensible map of
+  hot-spots, code smells, and architectural drift before any refactor
+  starts. The output is a single report that anyone joining the team can
+  read in one sitting and use to plan work.
+tags:
+  - audit
+  - architecture
+  - quality
+tasks:
+  - title: Build a code-as-crime-scene report
+    role: architect
+    priority: 1
+    scope: large
+    complexity: medium
+    description: |
+      Cross-reference git churn, file-level complexity, and bug-fix history
+      to surface the top decile of risk-bearing files. Produce a sortable
+      table the team can act on directly.
+  - title: Map module boundaries against actual import graph
+    role: architect
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Compare the documented module boundaries to the real import graph.
+      Flag every cross-boundary import that should not exist. Output a
+      list of violations with location and severity.
+  - title: Score every public API surface for breakage risk
+    role: backend
+    priority: 2
+    scope: medium
+    complexity: medium
+    description: |
+      For every public function, class, or endpoint, capture caller count,
+      type-stability, and last-changed date. Highlight surfaces that move
+      frequently but carry many callers; those are the first refactor
+      targets.
+  - title: Identify dead code and orphaned modules
+    role: backend
+    priority: 2
+    scope: medium
+    complexity: low
+    description: |
+      Run static reachability analysis. Confirm with at least two distinct
+      tools per language. Output a candidate-removal list with a written
+      justification per entry; manual review is required before deletion.
+  - title: Evaluate test coverage and mutation score per module
+    role: qa
+    priority: 2
+    scope: medium
+    complexity: medium
+    description: |
+      Compute line and branch coverage. Then run mutation testing on the
+      five most critical modules. Capture the gap between line coverage
+      and mutation score; that gap is where future bugs hide.
+  - title: Surface architecture decision records that have rotted
+    role: docs
+    priority: 3
+    scope: small
+    complexity: low
+    description: |
+      Walk every accepted ADR. Mark any whose decision the codebase no
+      longer reflects as superseded. Open a short note explaining why and
+      proposing a replacement decision.
+  - title: Publish the audit report and a prioritized backlog
+    role: manager
+    priority: 1
+    scope: medium
+    complexity: low
+    description: |
+      Produce a single report with one page per finding category. Link
+      every finding to a backlog entry with owner and target date.

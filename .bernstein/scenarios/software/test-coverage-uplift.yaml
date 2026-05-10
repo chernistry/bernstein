@@ -1,0 +1,76 @@
+id: test-coverage-uplift
+name: Test Coverage Uplift
+version: "1.0"
+description: |
+  Move a low-coverage repository into a known-good state with property
+  tests on invariants, contract tests on public APIs, and a mutation gate
+  on critical modules. Aimed at codebases where line coverage is misleading
+  because the suite tests mocks, not behavior.
+tags:
+  - testing
+  - quality
+  - regression
+tasks:
+  - title: Establish baseline metrics
+    role: qa
+    priority: 1
+    scope: small
+    complexity: low
+    description: |
+      Capture line coverage, branch coverage, and mutation score per module.
+      Identify modules where line coverage exceeds eighty percent but
+      mutation score sits below thirty; those are the priority targets.
+  - title: Add property-based tests for transformation and parsing modules
+    role: qa
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      For every parser, encoder, or pure-function transformation, define
+      two to three invariants and convert them into property tests. Capture
+      seeds for any failure so reproducers stay deterministic.
+  - title: Add consumer-driven contract tests for every public API
+    role: backend
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      For each public HTTP or gRPC API, capture a Pact or Spring Cloud
+      Contract definition. Run can-i-deploy in CI as the merge gate.
+  - title: Replace mock-heavy unit tests with thin integration slices
+    role: backend
+    priority: 2
+    scope: medium
+    complexity: medium
+    description: |
+      Identify unit tests that mock the entire collaborator graph. Replace
+      with a thin integration test running a real implementation against
+      a sandboxed dependency. Prefer dropping the mocked test entirely if
+      coverage stays equivalent.
+  - title: Raise the mutation-score gate on critical modules
+    role: qa
+    priority: 2
+    scope: small
+    complexity: medium
+    description: |
+      For each module flagged as critical, set a mutation-score floor in
+      CI. Start at fifty percent and ratchet up over subsequent sprints.
+      Document the policy in CONTRIBUTING.md.
+  - title: Wire flake-detection and quarantine workflow
+    role: devops
+    priority: 2
+    scope: small
+    complexity: medium
+    description: |
+      Detect flaky tests via repeated runs. Quarantine and assign owners
+      with deadlines. A test that stays quarantined past its deadline is
+      deleted, not paused indefinitely.
+  - title: Update test documentation and onboarding guide
+    role: docs
+    priority: 3
+    scope: small
+    complexity: low
+    description: |
+      Capture the testing pyramid the project commits to, the property-test
+      conventions, and the contract-test workflow. New contributors should
+      reach a productive first PR without slack-asking for context.

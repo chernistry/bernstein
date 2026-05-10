@@ -1,0 +1,71 @@
+id: dead-code-removal
+name: Dead Code Removal
+version: "1.0"
+description: |
+  Identify and remove dead code with confidence. Combines static
+  reachability, runtime coverage from production tracing, and a
+  deprecation window so the deletion does not surprise downstream
+  consumers. Built for repositories where the import graph and the
+  call graph have drifted apart over years.
+tags:
+  - refactor
+  - cleanup
+  - quality
+tasks:
+  - title: Run static reachability analysis with at least two distinct tools
+    role: backend
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Use language-native tools (vulture, ts-prune, deadcode, etc.) plus a
+      second source. Cross-reference results. Anything flagged dead by one
+      tool but live by another goes onto a manual-review list, not the
+      delete queue.
+  - title: Sample production traces to confirm static findings
+    role: devops
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Pull at least thirty days of production traces. For each candidate
+      file, function, or endpoint, confirm it has zero call-count. Endpoints
+      receiving zero calls but still publicly advertised stay on the keep
+      list until a deprecation cycle runs.
+  - title: Walk reflection, dynamic dispatch, and config-driven entry points
+    role: backend
+    priority: 1
+    scope: medium
+    complexity: high
+    description: |
+      Static tools miss reflection, plugin systems, and configuration-driven
+      handlers. Manually walk every reflection or plugin entry point and
+      verify the candidates are not summoned through one. Document each
+      review in a delete-decision log.
+  - title: Remove dead code in batches with bisectable commits
+    role: backend
+    priority: 2
+    scope: medium
+    complexity: low
+    description: |
+      Group deletions by module. Each commit deletes one logical unit so a
+      regression bisect lands on the minimum offending change. Run the full
+      suite after every commit.
+  - title: Re-run static and runtime analysis to verify the floor
+    role: qa
+    priority: 2
+    scope: small
+    complexity: low
+    description: |
+      Repeat the reachability analysis after the sweep. Confirm no new
+      candidates surfaced because of the deletions. Capture the metrics
+      so the next sweep starts from a known baseline.
+  - title: Update documentation and changelog with removed surfaces
+    role: docs
+    priority: 3
+    scope: small
+    complexity: low
+    description: |
+      List removed public surfaces in the changelog. Anything that was
+      not public stays out of the changelog but lands in an internal
+      lessons-learned note.

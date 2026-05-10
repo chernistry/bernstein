@@ -1,0 +1,59 @@
+id: contributor-onboarding
+name: Contributor Onboarding Scaffold
+version: "1.0"
+description: |
+  Stand up the contributor-onboarding surface for an open-source repository:
+  CONTRIBUTING.md, code-of-conduct, development setup script, sample tasks,
+  and a clear path from drive-by interest to first merged PR. Targeted at
+  projects where most new contributors give up before they reach a working
+  local environment.
+tags:
+  - growth
+  - oss
+  - onboarding
+tasks:
+  - title: Write CONTRIBUTING.md with a thirty-minute path to first PR
+    role: docs
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Walk a new contributor from cloning the repo to opening their first
+      PR in under thirty minutes. Capture every step with exact commands.
+      Test by running the path on a fresh machine.
+  - title: Add a one-command development environment setup
+    role: devops
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Provide a single script or devcontainer that installs dependencies,
+      seeds local data, and runs the test suite. Anything more than one
+      command loses contributors.
+  - title: Adopt a code of conduct and document enforcement
+    role: docs
+    priority: 1
+    scope: small
+    complexity: low
+    description: |
+      Adopt a recognized code of conduct (Contributor Covenant). Name the
+      enforcement contact and the response window. Code of conduct
+      without enforcement is decoration.
+  - title: Curate a starter-task list with explicit guidance
+    role: manager
+    priority: 1
+    scope: small
+    complexity: low
+    description: |
+      Pick five tasks that a new contributor can complete in under three
+      hours. Annotate each with the relevant code path and the expected
+      acceptance criteria. Refresh the list weekly.
+  - title: Add a maintainer-response SLA and publish it
+    role: manager
+    priority: 2
+    scope: small
+    complexity: low
+    description: |
+      Commit to a response SLA on new PRs from first-time contributors.
+      Publish it in CONTRIBUTING.md. Track adherence; missed SLAs are
+      the single largest reason contributors do not return.

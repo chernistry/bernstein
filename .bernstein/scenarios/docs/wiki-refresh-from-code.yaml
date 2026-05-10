@@ -1,0 +1,58 @@
+id: wiki-refresh-from-code
+name: Internal Wiki Refresh from Code
+version: "1.0"
+description: |
+  Refresh an internal wiki against the current state of the codebase.
+  Surfaces stale pages, missing pages for new modules, and code samples
+  that no longer compile, then lands a single PR plus a follow-up backlog
+  for the deeper rewrites.
+tags:
+  - docs
+  - wiki
+  - onboarding
+tasks:
+  - title: Diff wiki structure against current module map
+    role: docs
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Crawl the wiki. Compare topics covered against the current module
+      map. Flag every module without a page and every page that points
+      at a removed module.
+  - title: Verify every embedded code sample compiles
+    role: qa
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Extract every code sample. Run them through the project's compiler
+      or interpreter. Any sample that fails routes into the rewrite
+      backlog with the specific error captured.
+  - title: Update the most-trafficked pages first
+    role: docs
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Sort wiki pages by view count. Refresh the top decile in the
+      current change. Lower-traffic pages move to follow-up tickets. The
+      change must be reviewable in one sitting, not gold-plated.
+  - title: Add a freshness header to every refreshed page
+    role: docs
+    priority: 2
+    scope: small
+    complexity: low
+    description: |
+      Stamp each refreshed page with a last-verified date and the source
+      commit hash. Future readers know whether the page can be trusted
+      without reading the entire history.
+  - title: Open follow-up tickets for stale or broken content
+    role: manager
+    priority: 2
+    scope: small
+    complexity: low
+    description: |
+      Convert every flagged stale or broken page into a ticket. Assign
+      owners. The wiki is a living artifact; treat the rewrite backlog
+      as the maintenance pipeline, not a one-time cleanup.

@@ -1,0 +1,78 @@
+id: security-fix-sweep
+name: Security Fix Sweep
+version: "1.0"
+description: |
+  Triage and remediate the open security backlog in priority order. Combines
+  static-analysis findings, dependency CVEs, secret-scan hits, and
+  threat-model gaps into one coordinated sweep that lands behind feature
+  flags where behavior shifts.
+tags:
+  - security
+  - remediation
+  - supply-chain
+tasks:
+  - title: Triage the open security backlog by impact and exploitability
+    role: security
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Cross-reference each finding against CVSS, deployed surface, and
+      whether a working exploit exists in the wild. Drop findings that
+      do not apply with a written justification. The remaining list is
+      the sweep input.
+  - title: Pin and patch transitive dependencies with known CVEs
+    role: security
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Upgrade transitive dependencies to a fixed version. Where no fixed
+      version exists upstream, document the workaround and a watch-list
+      entry. Do not invent custom forks unless an explicit ADR signs off.
+  - title: Eliminate hard-coded secrets and rotate every credential found in history
+    role: security
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Run a full git-history secret scan. Rotate every credential the
+      scanner finds, not only the ones still in HEAD. Capture the
+      rotation evidence in a private channel.
+  - title: Add output validation on every user-influenced LLM tool call
+    role: backend
+    priority: 1
+    scope: medium
+    complexity: high
+    description: |
+      Map every place untrusted input reaches a tool call. Add a structured
+      output validator. Wire prompt-injection canaries that fail loud when
+      a model echoes injected instructions. This is the OWASP LLM Top 10
+      number-one defense layer.
+  - title: Tighten egress allowlists and tool-RBAC scopes
+    role: devops
+    priority: 2
+    scope: medium
+    complexity: medium
+    description: |
+      Move every agent runtime to default-deny network egress. Add an
+      allowlist sourced from declared tool manifests. Remove read-write
+      tool permissions where read-only is sufficient.
+  - title: Re-run the threat model against the patched system
+    role: security
+    priority: 2
+    scope: small
+    complexity: medium
+    description: |
+      Replay STRIDE plus, where personal data is in scope, LINDDUN. Confirm
+      every previously open mitigation now closes. New findings route into
+      the next sweep, not this one.
+  - title: Publish a security-fix changelog and notify downstream consumers
+    role: docs
+    priority: 2
+    scope: small
+    complexity: low
+    description: |
+      Write a public-facing changelog covering the user-visible fixes.
+      Notify downstream consumers via the security advisory channel.
+      Pin the advisory to the project README until the next sweep.

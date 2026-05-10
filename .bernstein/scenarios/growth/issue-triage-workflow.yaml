@@ -1,0 +1,61 @@
+id: issue-triage-workflow
+name: Issue Triage Workflow
+version: "1.0"
+description: |
+  Convert an unstructured GitHub issue queue into a triaged backlog with
+  labels, owners, and SLAs. Targeted at projects where the queue grows
+  faster than maintainers can read it, and good-first-issues stay invisible
+  to drive-by contributors.
+tags:
+  - growth
+  - triage
+  - oss
+tasks:
+  - title: Classify open issues by intent
+    role: manager
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Walk every open issue and tag it as bug, feature, question, or
+      duplicate. Close duplicates with a pointer to the canonical issue.
+      Convert questions into a discussions thread when the platform
+      supports it.
+  - title: Add reproduction-required labels and stale-bot policy
+    role: devops
+    priority: 1
+    scope: small
+    complexity: medium
+    description: |
+      Bug reports without a reproduction get a needs-repro label and a
+      grace window. Stale issues with no response close automatically
+      with a polite note and a path back. Document the policy in the
+      issue template.
+  - title: Surface good-first-issues with explicit guidance
+    role: docs
+    priority: 1
+    scope: medium
+    complexity: low
+    description: |
+      Pick five to ten genuinely good first issues. For each, add a
+      checklist, a pointer to the relevant code, and an estimate. The
+      good-first-issue label without guidance is invisible to drive-by
+      contributors.
+  - title: Define SLA tiers and label backlog accordingly
+    role: manager
+    priority: 2
+    scope: small
+    complexity: low
+    description: |
+      Pick three SLAs: critical, normal, deferred. Apply to the existing
+      backlog. Anything without an SLA gets reviewed at the next triage
+      session, not silently dropped.
+  - title: Run a recurring triage session
+    role: manager
+    priority: 2
+    scope: small
+    complexity: low
+    description: |
+      Calendar a weekly or bi-weekly triage. Two maintainers walk new
+      issues together. The session ends when the queue is current; if
+      it does not end, the SLAs are wrong and need revision.

@@ -357,9 +357,8 @@ class TraceStore:
         - ``{traces_dir}/{task_id}.jsonl`` (one line per trace, appended)
         - ``{traces_dir}/trace-{trace_id}.json`` (single-trace file for direct lookup)
 
-        Embeds the optional install-rev fingerprint (RESRCH-001) into a
-        ``_rev`` field on every persisted trace dict when emission is
-        enabled.  The field is intentionally generic (``_rev``) so it
+        Embeds the optional install-rev fingerprint into a ``_rev`` field
+        on every persisted trace dict when emission is enabled.  The field is intentionally generic (``_rev``) so it
         reads as a schema-version marker; survives copy-paste of the
         jsonl file into GitHub issues; and is skipped entirely when the
         token resolves to the disabled sentinel — we never persist a

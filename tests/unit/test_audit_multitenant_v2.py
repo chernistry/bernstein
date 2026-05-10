@@ -1,4 +1,4 @@
-"""Tests for the v2 multi-tenant audit-export extensions (RESRCH-005 v2).
+"""Tests for the v2 multi-tenant audit-export extensions.
 
 Covers the two deferred items closed in v2:
 

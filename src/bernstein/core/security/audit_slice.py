@@ -1,4 +1,4 @@
-"""KF-5 slice extractor — deterministic subset of the HMAC-chained audit log.
+"""Slice extractor — deterministic subset of the HMAC-chained audit log.
 
 First slice of the time-travel/replay epic.  Given a ``--from`` and ``--to``
 HMAC fence-post, return the contiguous run of audit events whose HMACs fall
@@ -17,8 +17,8 @@ Design notes:
       to start at the genesis event; pass ``to_hmac=None`` to run to the
       last recorded event.
     * No PII redaction in this slice — that is deferred to the
-      ``replay publish`` flow (KF-5 step 6).  Operators slicing locally
-      already trust the audit dir.
+      ``replay publish`` flow.  Operators slicing locally already trust
+      the audit dir.
 
 This module is intentionally CLI-agnostic so future ``replay`` and ``fork``
 commands can reuse the same primitives.

@@ -3168,8 +3168,8 @@ require_human_approval: false
 ## Objective & Definition of Done
 {criteria_lines}
 
-## Claude Code Reference
-- Source: `cloned/claude-code/{t["source_ref"]}`
+## Reference
+- Source: `{t["source_ref"]}`
 
 ## Verification
 - All acceptance criteria met and verified via automated tests or manual inspection

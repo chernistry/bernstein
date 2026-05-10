@@ -1,4 +1,4 @@
-"""Unit tests for :class:`JSONLMemoryLog` — KF-2 append-only memory primitive."""
+"""Unit tests for :class:`JSONLMemoryLog` — append-only memory primitive."""
 
 from __future__ import annotations
 

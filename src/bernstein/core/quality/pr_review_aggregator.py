@@ -19,8 +19,8 @@ Pipeline:
 4. Score each surviving cluster with a deterministic weighted formula
    and rank top-K, grouped by file for readable output.
 
-Designed as the smallest viable slice of KF-3 (multi-pass PR review with
-voting + autofix).  No LLM calls live here — the module is pure logic
+Designed as the smallest viable slice of multi-pass PR review with
+voting + autofix.  No LLM calls live here — the module is pure logic
 over already-collected :class:`AgentVerdict` data so it is fully unit
 testable without network access.
 
@@ -565,8 +565,8 @@ def score_cluster(cluster: FindingCluster, *, n_reviewers: int) -> float:
     Empirically gives security/critical findings a steady lead over
     style nits while still letting unanimous low-severity issues bubble
     above lone-flagger medium ones.  Coefficients are tuned for
-    behaviour, not statistical optimality — revisit when KF-3 ships
-    real telemetry.
+    behaviour, not statistical optimality — revisit when real telemetry
+    is available.
     """
     severity_weight = _SEVERITY_WEIGHT[cluster.severity]
     agreement = cluster.reviewer_count / max(n_reviewers, 1)

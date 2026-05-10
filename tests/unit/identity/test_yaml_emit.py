@@ -1,4 +1,4 @@
-"""Tests for the install-rev fingerprint yaml emit slot (RESRCH-001 wiring).
+"""Tests for the install-rev fingerprint yaml emit slot.
 
 Covers two yaml-render call sites:
 

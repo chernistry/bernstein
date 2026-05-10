@@ -7,10 +7,10 @@ modern Python tooling stack). Everything else is stdlib.
 
 The reason for the strict isolation is auditor reproducibility:
 
-* RESRCH-002 explicitly flagged that the previous "standalone verifier" was not
-  actually standalone — it imported ``bernstein.core.security.article12_bundle``.
-  An auditor handed that script could not run it without the entire bernstein
-  source tree on PYTHONPATH, which defeats the point.
+* The previous "standalone verifier" imported
+  ``bernstein.core.security.article12_bundle``. An auditor handed that script
+  could not run it without the entire bernstein source tree on PYTHONPATH,
+  which defeats the point.
 * The DSSE / in-toto / HMAC formats are open standards. A verifier should be
   re-implementable from the spec alone, and this script is the proof.
 * Tests at ``tests/integration/test_standalone_verifier.py`` run this module

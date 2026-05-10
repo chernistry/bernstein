@@ -38,7 +38,7 @@ from bernstein.core.tenanting import normalize_tenant_id
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Run-level budget cap (KF-6 cost autopilot, slice 1)
+# Run-level budget cap (cost autopilot)
 # ---------------------------------------------------------------------------
 
 # Env var honoured by the orchestrator startup path so a CLI flag

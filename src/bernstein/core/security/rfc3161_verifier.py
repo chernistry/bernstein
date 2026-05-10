@@ -1,10 +1,9 @@
 """RFC 3161 TimeStampToken cryptographic chain validation.
 
-The multi-tenant audit-chain export (PR #1175 / RESRCH-005 v1) ships an
-optional RFC 3161 TimeStampToken alongside the bundle but defers
-cryptographic chain validation to the operator's external toolchain
-(``openssl ts -verify``). v2 closes that gap with a self-contained
-verifier that:
+The multi-tenant audit-chain export (PR #1175) ships an optional RFC 3161
+TimeStampToken alongside the bundle but defers cryptographic chain
+validation to the operator's external toolchain (``openssl ts -verify``).
+v2 closes that gap with a self-contained verifier that:
 
 1. Parses the token (either a bare ``TimeStampToken`` per RFC 3161 §2.4.2
    or the wrapping ``TimeStampResp`` returned by the TSA HTTP endpoint).

@@ -42,8 +42,6 @@ logger = logging.getLogger(__name__)
 class MemoryType(StrEnum):
     """Typed memory categories for lesson classification.
 
-    Inspired by memdir/memoryTypes.ts typed categories.
-
     - USER: Observations from agent workflow — slowest decay.
     - FEEDBACK: Corrections from human review — fastest decay (assumes fix).
     - PROJECT: Project-specific conventions — medium decay.

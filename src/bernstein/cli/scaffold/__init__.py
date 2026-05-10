@@ -1,4 +1,4 @@
-"""Bernstein scaffold subsystem (KF-8 slice).
+"""Bernstein scaffold subsystem.
 
 Public API:
     SCAFFOLD_TEMPLATES, ScaffoldTemplate, ScaffoldError,

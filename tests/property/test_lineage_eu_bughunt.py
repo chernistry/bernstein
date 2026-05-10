@@ -1,18 +1,16 @@
 """Hypothesis bug-hunt — lineage v2 + EU AI Act Article 12 + KMS + EU residency.
 
-Single-file battery the originating bug-hunt session produced. Each
-``Test*`` class corresponds to a *finding bucket* the run surfaced; each
-test maps to a single failure mode (or near-miss) in the production
-surface. The tests are grouped by **interview-blocker risk** rather than
-by module — so a Dream Security probe walking the file from top to
-bottom hits the regulatory-claim violators first, then the operational
-bugs, then the harder-to-explain near-misses.
+Single-file battery. Each ``Test*`` class corresponds to a *finding
+bucket* surfaced during the bug hunt; each test maps to a single failure
+mode (or near-miss) in the production surface. Tests are grouped by
+severity — regulatory-claim violators first, then operational bugs,
+then harder-to-explain near-misses.
 
-Findings index (full root-cause + interviewer Q&A in the PR body):
+Findings index:
 
 * DNS-rebinding-by-naming bypass against the EU residency guard
-  (interview-blocker — fixed; the test pins the fix and documents the
-  attack class so a future regression is loud).
+  (fixed; the test pins the fix and documents the attack class so a
+  future regression is loud).
 * KMS adapter contract drift: the documented protocol promises
   ``public_key_jwk()`` but the only concrete signer exposes
   ``public_key_bytes()``; auditors who consume JWK-shaped attestations
@@ -38,8 +36,7 @@ Findings index (full root-cause + interviewer Q&A in the PR body):
 The file lives under ``tests/property/`` because most assertions use
 Hypothesis to drive adversarial inputs at the residency guard and the
 retention validator. Tests that don't need property-based coverage stay
-inline rather than getting split off so the bug-hunt narrative reads
-top-to-bottom in one place.
+inline so the bug-hunt narrative reads top-to-bottom in one place.
 """
 
 from __future__ import annotations
@@ -142,8 +139,7 @@ def _wal_path(sdd: Path, run_id: str) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #1 — interview-blocker:
-#   DNS-rebinding bypass against EU residency guard.
+# Finding bucket #1: DNS-rebinding bypass against EU residency guard.
 # ---------------------------------------------------------------------------
 
 
@@ -232,8 +228,7 @@ class TestDnsRebindingBypass:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #2 — interview-blocker:
-#   IPv6 residency surface (link-local + ULA + loopback).
+# Finding bucket #2: IPv6 residency surface (link-local + ULA + loopback).
 # ---------------------------------------------------------------------------
 
 
@@ -665,7 +660,7 @@ class TestSoc2EmptyEvidence:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #10 — interview-blocker (xfail):
+# Finding bucket #10 (xfail):
 #   KMS adapter contract drift — public_key_jwk vs public_key_bytes.
 # ---------------------------------------------------------------------------
 
@@ -710,7 +705,7 @@ class TestKmsContractDrift:
 
 
 # ---------------------------------------------------------------------------
-# Finding bucket #11 — interview-blocker (xfail):
+# Finding bucket #11 (xfail):
 #   No HSM-stub raises NotImplementedError with a meaningful docstring.
 # ---------------------------------------------------------------------------
 
@@ -886,7 +881,7 @@ class TestMixedEndpointHandling:
             "doesn't catch the parse error, so a malformed URL crashes "
             "spawn instead of cleanly returning False. Fix: wrap urlparse "
             "in try/except ValueError and fail closed. Tracked as a "
-            "follow-up — not included in this PR's fix budget."
+            "follow-up."
         ),
         strict=True,
     )

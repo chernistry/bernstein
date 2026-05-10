@@ -78,6 +78,13 @@ docs/social/
 docs/content-calendar.md
 docs/research*
 
+# Internal-only design specs / workflow design (never ship to public docs)
+dev/
+docs/internal/
+docs/strategy/
+docs/competitive/
+docs/_internal/
+
 # Marketing
 marketing/*
 

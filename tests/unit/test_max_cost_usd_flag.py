@@ -1,4 +1,4 @@
-"""Tests for KF-6 cost autopilot slice 1: per-run budget cap (--max-cost-usd).
+"""Tests for the cost autopilot per-run budget cap (--max-cost-usd).
 
 Covers:
   * ``resolve_run_budget_usd`` precedence (env > run_config > seed > default).
@@ -253,5 +253,5 @@ class TestCliPropagation:
         import os
 
         # Off-by-default: 0.0 (or None) does not propagate so existing flows
-        # remain identical to the pre-KF-6 behaviour.
+        # remain identical to the pre-flag behaviour.
         assert ENV_MAX_COST_USD not in os.environ

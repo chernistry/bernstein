@@ -9,8 +9,8 @@ Hunts bypasses across three subsystems:
 3. ``owasp_asi_detectors`` — ASI01..ASI10 detector pack.
 
 Each finding is encoded as a *failing* test (xfail with a strict reason
-when no fix is shipped in this PR). Removing the xfail marker after
-fixing the underlying bug is the merge gate.
+when no fix is shipped). Removing the xfail marker after fixing the
+underlying bug is the merge gate.
 
 Output: every test in this file either passes (existing behaviour we
 want to pin) or xfails (known bug — see the docstring's ``Bug:`` block).

@@ -156,9 +156,7 @@ Recommended hygiene before adding a key:
 - Should `build_filtered_env` accept a `mode` flag (e.g. `strict`
   vs `permissive`) for debugging?
 
-These are tracked in the spec at
-`dev/specs/internal-workflows/WORKFLOW-env-var-isolation.md`. If any
-of them block your deployment, open an issue.
+If any of these block your deployment, open an issue.
 
 ---
 
@@ -230,10 +228,6 @@ fails loudly when a new adapter forgets the filter.
 | `src/bernstein/adapters/claude.py` (and siblings)          | Per-adapter `extra_keys` list and Popen call site |
 | `src/bernstein/core/spawner.py`                            | Calls `adapter.spawn()` (Step 1 of the workflow) |
 | `src/bernstein/core/worker.py`                             | The wrapper that inherits the filtered env (Step 4) |
-
-The full engineering spec — including the four Reality-Checker
-findings that motivated the current state — lives at
-`dev/specs/internal-workflows/WORKFLOW-env-var-isolation.md`.
 
 ---
 

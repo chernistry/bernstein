@@ -201,7 +201,7 @@ def _confirm_run(*, goal: str | None, seed_file: str | None) -> bool:
 
 
 # ``--sandbox`` accepts every backend the deterministic selector knows
-# about (KF-4). The list mirrors :data:`bernstein.core.sandbox.selector.DEFAULT_PRECEDENCE`
+# about. The list mirrors :data:`bernstein.core.sandbox.selector.DEFAULT_PRECEDENCE`
 # plus the cloud backends that ride entry-point registration.
 SANDBOX_CHOICES: tuple[str, ...] = (
     "docker",
@@ -265,7 +265,7 @@ def _propagate_env_flags(
         if val:
             os.environ[key] = val
 
-    # KF-6 slice 1: per-run budget cap. Off-by-default: only propagated when
+    # Per-run budget cap. Off-by-default: only propagated when
     # the operator passes ``--max-cost-usd`` so existing runs are unaffected.
     if max_cost_usd is not None and max_cost_usd > 0.0:
         from bernstein.core.cost_tracker import ENV_MAX_COST_USD
@@ -897,7 +897,7 @@ def exec_restart() -> None:
     type=float,
     default=None,
     help=(
-        "KF-6 cost autopilot: hard cap on total run spend in USD. Aggregated "
+        "Cost autopilot: hard cap on total run spend in USD. Aggregated "
         "across all agents; orchestrator stops spawning when reached. "
         "Off-by-default (overrides bernstein.yaml ``budget`` and run_config.json)."
     ),
@@ -958,7 +958,7 @@ def run(
       bernstein conduct --sandbox docker       # run agents in Docker sandbox
       bernstein conduct --container --two-phase-sandbox  # two-phase sandboxed execution
       bernstein conduct --audit                # SOC 2 audit mode (HMAC-chained log + Merkle seal)
-      bernstein conduct --max-cost-usd 1.50    # hard cap total run spend at $1.50 (KF-6)
+      bernstein conduct --max-cost-usd 1.50    # hard cap total run spend at $1.50
     """
     # Banner already printed by cli() — don't duplicate
 

@@ -66,8 +66,8 @@ def generate_yaml(
         YAML content string.
     """
     lines: list[str] = []
-    # Optional install-rev fingerprint (RESRCH-001).  Lands as the first
-    # comment so the operator's GitHub code search picks it up uniformly
+    # Optional install-rev fingerprint.  Lands as the first comment so
+    # the operator's GitHub code search picks it up uniformly
     # regardless of any subsequent yaml resaves that may strip later
     # comments.  Skipped entirely when emission is off or the token is
     # the disabled sentinel — we never emit a useless ``0…0`` placeholder

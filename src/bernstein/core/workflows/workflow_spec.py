@@ -442,9 +442,9 @@ def render_blank_template(name: str) -> str:
     edit.  Keeping the template inline avoids an extra round-trip to the
     bundled directory and ensures the scaffolded file always parses.
 
-    Optional install-rev fingerprint (RESRCH-001) is prefixed as a yaml
-    comment when ``IDENTITY_EMISSION_ENABLED`` is on and the token is
-    real (not the disabled sentinel).
+    Optional install-rev fingerprint is prefixed as a yaml comment when
+    ``IDENTITY_EMISSION_ENABLED`` is on and the token is real (not the
+    disabled sentinel).
     """
     if not _ID_PATTERN.match(name):
         raise WorkflowSpecError(f"workflow name {name!r} must match {_ID_PATTERN.pattern}")

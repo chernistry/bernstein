@@ -739,11 +739,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test]
     continue-on-error: true
-    # Disabled: the chernistry_bernstein SonarCloud project is over the
-    # free-tier 200k-LOC org cap, so every main-branch scan rejects on the
-    # compute engine. Re-enable after rehoming under the sipyourdrink-ltd
-    # SonarCloud org (alongside sipyourdrink-ltd_hireex). Tracked in
-    # `.sdd/backlog/open/2026-05-07-sonar-manual-review.md`.
+    # Disabled: the SonarCloud project is over the free-tier 200k-LOC org
+    # cap, so every main-branch scan rejects on the compute engine.
+    # Re-enable after rehoming under the sipyourdrink-ltd SonarCloud org.
     if: false
     timeout-minutes: 15
     permissions:

@@ -6,7 +6,7 @@ After a tool executes, this module:
 3. Writes structured audit records.
 4. Optionally blocks continuation when dangerous patterns are found.
 
-Inspired by T465 — mirrors pre-tool ``check_secrets`` on tool output.
+Mirrors the pre-tool ``check_secrets`` flow against tool output.
 """
 
 from __future__ import annotations

@@ -1,9 +1,9 @@
-"""Pydantic schema for a team-hub manifest (KF-7 first slice).
+"""Pydantic schema for a team-hub manifest (first slice).
 
 A *team hub* is a git repository that ships shared agents, skills, and
-rules so a whole team works against one source of truth — Continue Hub /
-Cursor Teams parity, but using ``git`` as the substrate (no SaaS dial-in,
-no second auth surface, normal PR review).
+rules so a whole team works against one source of truth — using ``git``
+as the substrate (no SaaS dial-in, no second auth surface, normal PR
+review).
 
 This module defines the smallest contract every hub must satisfy:
 

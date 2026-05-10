@@ -1,4 +1,4 @@
-"""Unit tests for the team-hub schema + convention loader (KF-7 slice).
+"""Unit tests for the team-hub schema + convention loader.
 
 Covers the smallest viable surface:
 

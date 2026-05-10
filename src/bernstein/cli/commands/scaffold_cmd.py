@@ -1,14 +1,14 @@
-"""Prompted-app scaffold generator (KF-8 first slice).
+"""Prompted-app scaffold generator (first slice).
 
 Materialises a small project skeleton from a single goal prompt by picking
 ONE template family via a deterministic keyword heuristic. The CLI verb is
 
     bernstein scaffold "<prompt>" [--template auto|...] [--output DIR]
 
-The full KF-8 ticket envisions an end-to-end flow (architect → backend →
-frontend → reviewer, preview tunnel, deploy adapters). This module ships the
-smallest viable slice: pick a template, render its files, write to disk. The
-heavier flow lives in follow-ups and composes on top of this scaffold.
+The end-to-end flow (architect → backend → frontend → reviewer, preview
+tunnel, deploy adapters) is layered as follow-ups on top of this slice.
+This module ships the smallest viable slice: pick a template, render its
+files, write to disk.
 """
 
 from __future__ import annotations

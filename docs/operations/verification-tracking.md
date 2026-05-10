@@ -189,9 +189,6 @@ JSONL ledger schema (one object per line):
 }
 ```
 
-The full engineering spec lives at
-`dev/specs/internal-workflows/WORKFLOW-verification-nudge.md`.
-
 ---
 
 ## Related

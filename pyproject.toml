@@ -139,19 +139,19 @@ graphics = []  # term-image disabled: caps pillow<11, conflicts with CVE-2026-25
 # Declared as an optional extra so users who don't spawn OpenAI Agents agents
 # don't need the SDK installed.  Enable with: pip install 'bernstein[openai]'.
 openai = ["openai-agents>=0.4.0"]
-# Sandbox backend extras (oai-002). Each pulls in the provider SDK for the
+# Sandbox backend extras. Each pulls in the provider SDK for the
 # corresponding SandboxBackend. Kept optional so minimal installs stay lean.
 docker = ["docker>=7.1.0"]
 e2b = ["e2b-code-interpreter>=1.0"]
 modal = ["modal>=1.4.2"]
-# Cloud artifact storage sinks (oai-003). Each extra pulls in the provider
-# SDK needed by the corresponding ArtifactSink. Kept optional so local-only
+# Cloud artifact storage sinks. Each extra pulls in the provider SDK
+# needed by the corresponding ArtifactSink. Kept optional so local-only
 # installs stay lean. R2 reuses boto3 under the hood.
 s3 = ["boto3>=1.43.6"]
 gcs = ["google-cloud-storage>=3.10.1"]
 azure = ["azure-storage-blob>=12.20"]
 r2 = ["boto3>=1.43.6"]
-# Chat-control bridge backends (op-001). Enable with:
+# Chat-control bridge backends. Enable with:
 #   pip install 'bernstein[telegram]'
 # Standard Telegram bot integration via long-poll: configure the bot
 # token (from @BotFather) and the chat id, no external services.
@@ -188,7 +188,7 @@ bernstein-worker = "bernstein.core.worker:main"
 # slack = "my_package.reporters:SlackReporter"
 
 [project.entry-points."bernstein.sandbox_backends"]
-# Sandbox backends (SandboxBackend protocol implementations, oai-002).
+# Sandbox backends (SandboxBackend protocol implementations).
 # First-party backends (worktree, docker) ship in core and are registered
 # by bernstein.core.sandbox.registry directly; plugin authors register
 # additional backends (e2b, modal, cloud providers ...) via this group.
@@ -197,13 +197,13 @@ bernstein-worker = "bernstein.core.worker:main"
 # modal = "bernstein.core.sandbox.backends.modal:ModalSandboxBackend"
 
 [project.entry-points."bernstein.skill_sources"]
-# Progressive-disclosure skill packs (oai-004). Each entry resolves to a
+# Progressive-disclosure skill packs. Each entry resolves to a
 # zero-arg factory returning a ``bernstein.core.skills.SkillSource``.
 # Example:
 # my-data-pack = "my_pack.skills:source"
 
 [project.entry-points."bernstein.storage_sinks"]
-# Pluggable artifact storage sinks (oai-003). First-party sinks
+# Pluggable artifact storage sinks. First-party sinks
 # (local_fs, s3, gcs, azure_blob, r2) ship in core and are registered
 # eagerly by bernstein.core.storage.registry; plugin authors register
 # additional sinks (custom providers, domain-specific wrappers ...) via

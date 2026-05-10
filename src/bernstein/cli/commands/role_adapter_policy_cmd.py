@@ -1,8 +1,7 @@
 """CLI commands for the per-role adapter deny-list policy.
 
 Wires :mod:`bernstein.core.security.role_adapter_policy` into the user-facing
-``bernstein security role-adapter-policy show|set|test`` verbs called for in
-RESRCH-002 §5.
+``bernstein security role-adapter-policy show|set|test`` verbs.
 
 The policy is persisted to ``.sdd/security/role_adapter_policy.json`` (per
 the module's :data:`DEFAULT_POLICY_PATH`) and reloaded on each invocation —

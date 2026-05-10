@@ -4623,7 +4623,7 @@ if __name__ == "__main__":
             except ValueError:
                 pass
 
-        # KF-6 slice 1: layered budget resolution.
+        # Layered budget resolution.
         #   Precedence: BERNSTEIN_MAX_COST_USD > run_config.json > seed.budget_usd > 0.
         # The env var is set by the ``bernstein run --max-cost-usd N`` CLI flag.
         # Off-by-default: if neither flag, run-config, nor seed sets a positive

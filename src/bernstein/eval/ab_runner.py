@@ -1,6 +1,6 @@
 """A/B runner primitive — deterministic prompt-vs-prompt comparison.
 
-This is the *primitive* layer for KF-9 (eval harness + A/B). It runs two
+This is the *primitive* layer for the eval harness + A/B. It runs two
 prompt variants over the same task set, scores each output, and produces a
 deterministic comparison artefact (JSON-serialisable). Synthetic / dummy
 executors are first-class so this slice has zero LLM-cost test path.

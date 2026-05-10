@@ -1,18 +1,15 @@
 """Bughunt for the A2A v1.0 signed agent card surface.
 
-Each test is structured so it doubles as an interview prompt — if a
-recruiter at Dream Security asks about JWS / JCS pitfalls, the failing test
-name + docstring are the answer.
+Each test pins a specific JWS / JCS failure mode in the verifier
+surface. Findings:
 
-Findings landed alongside this file:
-
-#1 (interview-blocker, FIXED in this PR):
+#1 (FIXED):
     ``verify_agent_card`` raised ``AttributeError`` when a JWS protected
     header decoded to a non-object JSON value (``[]``, ``null``, ``42``,
     ``"str"``). Network-controlled input → 500 / unhandled exception. Now
     returns ``False`` defensively (``isinstance(header, dict)`` guard).
 
-#2 (interview-blocker, xfail — RFC 8785 §3.2.2.3 number divergence):
+#2 (xfail — RFC 8785 §3.2.2.3 number divergence):
     JCS-canonicalised numbers differ from the spec for integer-valued
     floats (``10.0`` → ``"10.0"`` should be ``"10"``), small scientific
     (``1e-7`` → ``"1e-07"`` should be ``"1e-7"``), and negative zero. Cards
@@ -22,7 +19,7 @@ Findings landed alongside this file:
     Verified against the official RFC 8785 reference test vectors —
     ``structures.json`` fails for exactly this reason (``56.0`` ≠ ``56``).
 
-#3 (interview-blocker, xfail — RFC 8785 §3.2.3 key-sort order):
+#3 (xfail — RFC 8785 §3.2.3 key-sort order):
     Object keys are sorted by Unicode code point (Python ``sort_keys``)
     rather than UTF-16 code units (RFC 8785 §3.2.3). For BMP-only keys this
     is identical; once a key crosses U+FFFF (surrogate pair) the bytes
@@ -39,8 +36,7 @@ Findings landed alongside this file:
     Each orchestrator process mints a fresh keypair on first JWKS hit. A
     federated verifier polling JWKS from a different replica than the one
     that signed will fail verification. Tracked in well_known.py docstring
-    ('Persistence ... deferred from this PR') — flagged for the interview
-    rather than fixed here.
+    — persistence is deferred.
 
 #6 (operational, xfail — no JWKS rotation grace window):
     The orchestrator publishes exactly one key today. A rotation event
@@ -55,24 +51,23 @@ Findings landed alongside this file:
     enforces this today. xfailed as a placeholder so when persistence
     arrives the test starts failing and forces the chmod call.
 
-#8 (interview-blocker, xfail — RFC 8707 resource indicators not enforced):
+#8 (xfail — RFC 8707 resource indicators not enforced):
     ``auth_middleware`` does not consult the JWT ``resource``/``aud``
     claim. A token minted for ``https://other.example`` is accepted by
     Bernstein's task API as long as the signature verifies. RFC 8707
     requires audience-binding so a stolen Bearer cannot be replayed at a
     sibling resource server.
 
-#9 (interview-blocker, FIXED in this PR — ``typ`` cross-context replay):
+#9 (FIXED — ``typ`` cross-context replay):
     Confirmed via :class:`TestTypReplayContext`. The verifier rejects any
     JWS whose protected header carries a different ``typ`` value, even if
-    signed by the same Ed25519 key. This is the operator's interview
-    talking point.
+    signed by the same Ed25519 key.
 
 #10 (operational — DOS / archive leak on rotation): no rotation today, so
     no leak — guarded by xfail until rotation lands.
 
-The interview narrative ('typ: agent-card+jws prevents cross-context
-replay') is verified positively in :class:`TestTypReplayContext`.
+The ``typ: agent-card+jws`` cross-context replay invariant is verified
+positively in :class:`TestTypReplayContext`.
 
 RFC 8785 reference vector status (cyberphone/json-canonicalization):
     arrays.json    PASS
@@ -329,14 +324,13 @@ def test_expired_card_signature_should_be_rejected() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Interview narrative: ``typ: agent-card+jws`` blocks cross-context replay
+# ``typ: agent-card+jws`` blocks cross-context replay
 # ---------------------------------------------------------------------------
 
 
 class TestTypReplayContext:
-    """Guards the operator's interview claim that ``typ: agent-card+jws``
-    prevents a signature minted for one JWS context from verifying as an
-    agent card.
+    """Pins the invariant that ``typ: agent-card+jws`` prevents a signature
+    minted for one JWS context from verifying as an agent card.
     """
 
     def test_typ_jwt_rejected(self) -> None:
@@ -474,9 +468,8 @@ def test_dataclass_asdict_roundtrip_is_stable_under_permutation() -> None:
 # ---------------------------------------------------------------------------
 # Source: https://github.com/cyberphone/json-canonicalization/tree/master/testdata
 # These are the canonical interop checks every JCS implementation is expected
-# to pass. The interviewer's most likely follow-up is "did you run the
-# reference vectors?" — the answer is yes, and the PR docstring lists which
-# pass and which xfail with the underlying root cause.
+# to pass. The module docstring lists which pass and which xfail with the
+# underlying root cause.
 
 
 def test_rfc_8785_vector_arrays() -> None:
@@ -523,8 +516,8 @@ def test_rfc_8785_vector_values_numbers() -> None:
         "RFC 8785 reference vector ``structures.json`` uses ``56.0`` as an "
         "integer-valued float and the canonical output is ``56``. Python "
         "json.dumps emits ``56.0``. Same root cause as #2 — flagged "
-        "separately so the interview talking point is the reference vector, "
-        "not just an ad-hoc number we picked."
+        "separately so the failure points at the reference vector, not "
+        "just an ad-hoc number we picked."
     ),
     strict=True,
 )
@@ -577,7 +570,7 @@ def test_rfc_8785_vector_weird() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Numeric equivalence — the interview question
+# Numeric equivalence — the JCS-classic gotcha
 # ---------------------------------------------------------------------------
 # The classic JCS gotcha: per RFC 8785 §3.2.2.3, ``1``, ``1.0``, ``1e0``,
 # ``100e-2`` MUST canonicalise identically. We get this right for the int
@@ -594,7 +587,7 @@ def test_rfc_8785_vector_weird() -> None:
     reason=(
         "RFC 8785 §3.2.2.3 — these float literals must canonicalise to "
         "``1``. Python json.dumps emits ``1.0``. Same root cause as #2; "
-        "flagged separately as the interview-classic question."
+        "flagged separately as the canonical-form gotcha."
     ),
     strict=True,
 )
@@ -608,7 +601,7 @@ def test_rfc_8785_numeric_equivalence_int_one_works() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Unicode in JCS — no NFC normalisation (operator interview talking point)
+# Unicode in JCS — no NFC normalisation
 # ---------------------------------------------------------------------------
 
 
@@ -643,7 +636,7 @@ def test_jcs_emoji_emitted_as_utf8_4_byte_sequence() -> None:
         "Finding #6 — JWKS today publishes exactly one key. RFC 7517 "
         "expects rotation windows to publish BOTH keys so cached verifiers "
         "keep succeeding during the grace period. The orchestrator has no "
-        "rotation hook today; persistence work tracked alongside this PR. "
+        "rotation hook today; persistence work is tracked separately. "
         "Test asserts the desired post-rotation invariant: a verifier "
         "holding the previous public key still validates a card signed by "
         "the previous private key inside the grace window."
@@ -730,7 +723,7 @@ def test_persisted_signing_key_file_mode_is_0600() -> None:
 
 
 # ---------------------------------------------------------------------------
-# RFC 8707 resource indicators (interview-blocker)
+# RFC 8707 resource indicators
 # ---------------------------------------------------------------------------
 
 
@@ -817,7 +810,7 @@ def test_repeated_rotation_does_not_grow_archive_unboundedly() -> None:
 
 
 # ---------------------------------------------------------------------------
-# typ binding in both directions (operator interview talking point)
+# typ binding in both directions
 # ---------------------------------------------------------------------------
 
 

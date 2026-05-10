@@ -1,4 +1,4 @@
-"""Tests for the A/B runner primitive (KF-9 slice).
+"""Tests for the A/B runner primitive.
 
 These tests use synthetic deterministic fixtures only — no LLM calls,
 no httpx, no live tasks. The contract under test is:

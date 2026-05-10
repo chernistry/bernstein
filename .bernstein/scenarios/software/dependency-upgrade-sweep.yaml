@@ -1,0 +1,184 @@
+id: dependency-upgrade-sweep
+name: Dependency Upgrade Sweep
+version: "1.0"
+description: |
+  Coordinated upgrade across a multi-module repository. Drives a single
+  major-version bump (or a batch of minor bumps) through audit, staged
+  remediation, and verification, with a reversible rollout. Built for
+  repositories where naive Renovate auto-merges break compatibility because
+  cross-module type contracts shift in ways static scanners do not catch.
+tags:
+  - dependencies
+  - upgrade
+  - quality
+  - supply-chain
+tasks:
+  - title: Inventory current dependency graph and pin baseline
+    role: backend
+    priority: 1
+    scope: small
+    complexity: low
+    description: |
+      Generate a full lockfile snapshot for every package manager in the repo
+      (uv lock, pnpm-lock, go.sum, poetry.lock). Commit a baseline tag and a
+      machine-readable manifest under reports/deps-baseline.json so later
+      tasks have a single point of comparison.
+  - title: Classify upgrade targets by blast radius
+    role: architect
+    priority: 1
+    scope: small
+    complexity: low
+    description: |
+      For each candidate upgrade, score blast radius across four axes: number
+      of importing modules, presence in public API contracts, transitive
+      surface, and reversibility (one-click revert vs schema migration).
+      Output a CSV the planner uses to sequence work risk-first.
+  - title: Build a dependency-impact graph for the highest-risk targets
+    role: backend
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Run a static call-graph trace (ast-grep / Sourcegraph) for the top
+      five blast-radius dependencies. Capture every call site, every type
+      that crosses a module boundary, and any reflective use. Save under
+      reports/deps-callgraph/<dep>.md.
+  - title: Read each target dependency's CHANGELOG between current and target version
+    role: docs
+    priority: 1
+    scope: medium
+    complexity: low
+    description: |
+      Summarize behavior changes, deprecations, removed APIs, and security
+      fixes for every minor-or-major bump. Annotate which entries map to
+      call sites identified in the impact graph. Output deps-changelog.md.
+  - title: Spike the highest-risk upgrade in a worktree
+    role: backend
+    priority: 1
+    scope: medium
+    complexity: high
+    description: |
+      Pick the dependency with the largest call-graph footprint. Upgrade in
+      isolation. Capture every compile error, runtime stack trace, and
+      type-check failure. Produce a remediation plan that lists each break
+      with a proposed fix and a confidence label.
+  - title: Apply remediations to the spike branch
+    role: backend
+    priority: 2
+    scope: medium
+    complexity: medium
+    description: |
+      Implement the remediation plan one fix per commit. Keep refactors out
+      of feature commits. After each commit, run unit and lint suites to
+      keep the branch green.
+  - title: Add property-based tests for boundary-crossing types
+    role: qa
+    priority: 2
+    scope: medium
+    complexity: medium
+    description: |
+      Identify every type or shape that flows across the upgraded library's
+      API boundary. Add property tests (Hypothesis / fast-check) that pin
+      invariants the previous version held. These tests are the regression
+      gate for every subsequent upgrade in this sweep.
+  - title: Run mutation tests on critical modules touched by the upgrade
+    role: qa
+    priority: 2
+    scope: small
+    complexity: medium
+    description: |
+      Run mutmut / Stryker on the modules whose imports changed. Mutation
+      score under 70% on a critical module blocks the upgrade and routes
+      the work back to test authoring.
+  - title: Verify the spike under a workload replay
+    role: qa
+    priority: 2
+    scope: medium
+    complexity: medium
+    description: |
+      Replay a representative production workload (sanitized request log,
+      load test, or scenario seed) against the spike branch. Compare error
+      rate, p95 latency, and memory footprint against baseline. Fail fast
+      if any regression exceeds a 10% noise band.
+  - title: Sequence remaining upgrades in batches of three to five
+    role: manager
+    priority: 2
+    scope: small
+    complexity: low
+    description: |
+      Group the remaining upgrades by risk and module overlap. Each batch
+      should land independently, ship behind feature-flag-gated paths if
+      runtime behavior shifts, and have an explicit revert plan.
+  - title: Apply each batch with the same audit / remediate / verify loop
+    role: backend
+    priority: 2
+    scope: large
+    complexity: medium
+    description: |
+      Repeat the spike workflow for each batch. Reuse the property tests
+      and the workload replay as the gate. Land batches as separate PRs so
+      review stays under the four-hundred-LOC inspection band.
+  - title: Add a renovate / dependabot configuration that mirrors the new policy
+    role: devops
+    priority: 3
+    scope: small
+    complexity: low
+    description: |
+      Configure auto-update tooling so future minor bumps land continuously
+      while major bumps require human review. Pin renovate schedules to a
+      maintenance window where the workload replay can run.
+  - title: Update SBOM and re-sign release artifacts
+    role: security
+    priority: 2
+    scope: small
+    complexity: low
+    description: |
+      Regenerate CycloneDX or SPDX SBOM for the new dependency set. Re-sign
+      release artifacts with cosign. Verify SLSA provenance attaches to the
+      new artifact set.
+  - title: Add an upgrade postmortem to the ADR log
+    role: docs
+    priority: 3
+    scope: small
+    complexity: low
+    description: |
+      Capture the decisions taken during this sweep as an ADR. Record which
+      dependencies surprised the team, which patterns of break repeated,
+      and what the next sweep should cache. This becomes the input to the
+      next dependency upgrade so that knowledge does not evaporate.
+  - title: Rotate maintenance ownership and schedule the next sweep
+    role: manager
+    priority: 3
+    scope: small
+    complexity: low
+    description: |
+      Assign a primary and secondary owner for the dependency surface.
+      Block out the next sweep on the calendar so this never becomes a
+      twelve-month backlog item again.
+  - title: Backport critical security upgrades to the previous release line
+    role: security
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      For every upgrade in the sweep tagged as a security fix, evaluate
+      whether the previous supported release line needs the same fix.
+      Cherry-pick, run the regression gate, and ship a patch release.
+  - title: Add a guardrail that blocks merges when SBOM diff and lockfile diff disagree
+    role: devops
+    priority: 3
+    scope: small
+    complexity: medium
+    description: |
+      Drift between the lockfile and the SBOM is the most common source of
+      silent supply-chain regressions. Add a CI check that fails when the
+      two go out of sync. Document the override path for emergency fixes.
+  - title: Publish the upgrade summary to the team wiki and changelog
+    role: docs
+    priority: 3
+    scope: small
+    complexity: low
+    description: |
+      Write a one-page summary for downstream consumers: what shipped,
+      which behavior changed, what to watch for in production, and what
+      the next sweep is targeted to land. Link to the ADR.

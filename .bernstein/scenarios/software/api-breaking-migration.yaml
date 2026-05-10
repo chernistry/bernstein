@@ -1,0 +1,77 @@
+id: api-breaking-migration
+name: API Breaking-Change Migration
+version: "1.0"
+description: |
+  Plan and execute a breaking API change with deprecation period, parallel
+  versions, and a documented migration path. The scenario is built for
+  public APIs with external consumers, where flag-flipping the new shape
+  on is not an option.
+tags:
+  - api
+  - migration
+  - deprecation
+tasks:
+  - title: Capture every consumer of the breaking surface
+    role: architect
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Walk telemetry, log analysis, and any registered partner list to
+      enumerate consumers. Output a table of consumers with contact
+      channel, integration depth, and last-seen call rate.
+  - title: Author a deprecation RFC with the new shape and the migration plan
+    role: architect
+    priority: 1
+    scope: medium
+    complexity: medium
+    description: |
+      Document the why, the new shape, the rollout calendar, and the
+      compatibility window. Circulate to consumers for comment before
+      any code lands. Reference any precedent set by the project's prior
+      breaking changes.
+  - title: Implement the new API alongside the old one
+    role: backend
+    priority: 1
+    scope: medium
+    complexity: high
+    description: |
+      Ship the new endpoint or schema. Keep the old surface intact. Both
+      versions write through to the same persistence layer; reject any
+      design that requires data migration before launch.
+  - title: Add deprecation warnings on the old surface with a removal date
+    role: backend
+    priority: 2
+    scope: small
+    complexity: low
+    description: |
+      Emit a structured deprecation warning on every call to the old API.
+      Include the removal date and a link to the migration guide. Surface
+      the warning in OpenAPI metadata.
+  - title: Publish a migration guide with worked examples
+    role: docs
+    priority: 1
+    scope: medium
+    complexity: low
+    description: |
+      Write a guide that takes a consumer through the migration in under
+      thirty minutes. Include before-and-after snippets in every supported
+      language, common gotchas, and a verification checklist.
+  - title: Track consumer migration progress and prompt stragglers
+    role: manager
+    priority: 2
+    scope: medium
+    complexity: low
+    description: |
+      Build a dashboard showing per-consumer call counts by API version.
+      Send a personal note to the slowest decile thirty days before
+      removal. Block-list any consumer that is unreachable.
+  - title: Remove the old surface after the deprecation window closes
+    role: backend
+    priority: 2
+    scope: small
+    complexity: medium
+    description: |
+      Delete the old code path in a single PR. Run the full regression
+      suite. Tag the release with a migration boundary marker so future
+      maintainers can find this moment in history.

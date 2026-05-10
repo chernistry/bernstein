@@ -1,0 +1,97 @@
+# Audit evidence pack generation workflow.
+#
+# Demonstrates:
+#   - Parallel evidence collection (logs, SBOM, attestations) in one phase
+#   - Fan-in to assembly only after every evidence stream lands
+#   - Validator gate: mock-auditor pass blocks delivery if findings are open
+#   - Sign-and-deliver only after validator approves
+
+name: audit-evidence-pack
+version: "1.0.0"
+
+phases:
+  - name: scope
+    allowed_roles: [manager, architect]
+  - name: collect
+  - name: validate
+    allowed_roles: [qa, security]
+  - name: deliver
+    allowed_roles: [security, manager]
+
+nodes:
+  define-control-inventory:
+    phase: scope
+    role: architect
+    description: "Define the control inventory and the evidence map"
+    estimated_minutes: 60
+
+  collect-audit-logs:
+    phase: collect
+    role: security
+    description: "Verify HMAC chain integrity across the audit window"
+    estimated_minutes: 45
+    depends_on:
+      - define-control-inventory
+
+  collect-sboms-and-attestations:
+    phase: collect
+    role: security
+    description: "Generate SBOMs and verify SLSA provenance for every artifact"
+    estimated_minutes: 45
+    depends_on:
+      - define-control-inventory
+
+  collect-runbooks-and-policies:
+    phase: collect
+    role: docs
+    description: "Capture incident runbooks, threat models, and data-governance docs"
+    estimated_minutes: 60
+    depends_on:
+      - define-control-inventory
+
+  collect-eval-results:
+    phase: collect
+    role: qa
+    description: "Run the agent-evaluation harness and capture accuracy plus robustness evidence"
+    estimated_minutes: 60
+    depends_on:
+      - define-control-inventory
+
+  assemble-pack:
+    phase: validate
+    role: docs
+    description: "Build the auditor-navigable index and the zip"
+    estimated_minutes: 45
+    depends_on:
+      - collect-audit-logs
+      - collect-sboms-and-attestations
+      - collect-runbooks-and-policies
+      - collect-eval-results
+
+  mock-auditor-pass:
+    phase: validate
+    role: qa
+    description: "Hand the pack to an internal reviewer who has not worked on the pipeline"
+    estimated_minutes: 60
+    depends_on:
+      - assemble-pack
+
+  remediate-findings:
+    phase: collect
+    role: docs
+    description: "Address mock-auditor findings"
+    depends_on:
+      - source: mock-auditor-pass
+        condition: "status == 'failed'"
+    retry:
+      max_attempts: 3
+      until: "status == 'done'"
+
+  sign-and-deliver:
+    phase: deliver
+    role: security
+    description: "Sign the pack with cosign and deliver via the contracted channel"
+    estimated_minutes: 20
+    depends_on:
+      - source: mock-auditor-pass
+        condition: "status == 'done'"

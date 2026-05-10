@@ -1,0 +1,78 @@
+# Sequential deprecation rollout workflow.
+#
+# Demonstrates:
+#   - Strict sequential phases: announce -> ship-new -> warn -> migrate -> remove
+#   - Wait gates: each phase has a calendar or signal-driven hold
+#   - Conditional retract: roll back if telemetry shows blocked consumers
+#   - Final removal only after the deprecation window closes
+
+name: sequential-deprecation-rollout
+version: "1.0.0"
+
+phases:
+  - name: announce
+    allowed_roles: [manager, docs]
+  - name: ship-new
+  - name: warn
+  - name: migrate
+  - name: remove
+    allowed_roles: [manager]
+
+nodes:
+  publish-rfc:
+    phase: announce
+    role: architect
+    description: "Publish the deprecation RFC with new shape and removal date"
+    estimated_minutes: 60
+
+  notify-consumers:
+    phase: announce
+    role: docs
+    description: "Send notice to every known consumer with the migration link"
+    estimated_minutes: 20
+    depends_on:
+      - publish-rfc
+
+  ship-new-surface:
+    phase: ship-new
+    role: backend
+    description: "Ship the new API alongside the old"
+    estimated_minutes: 90
+    depends_on:
+      - notify-consumers
+
+  emit-deprecation-warnings:
+    phase: warn
+    role: backend
+    description: "Emit deprecation warnings on every old-surface call"
+    estimated_minutes: 30
+    depends_on:
+      - ship-new-surface
+
+  monitor-consumer-migration:
+    phase: migrate
+    role: manager
+    description: "Track consumer migration progress and prompt stragglers"
+    estimated_minutes: 30
+    depends_on:
+      - emit-deprecation-warnings
+    retry:
+      max_attempts: 12
+      until: "status == 'done' or migration_complete >= 0.95"
+
+  retract-deprecation:
+    phase: warn
+    role: backend
+    description: "Roll back if consumer pushback or telemetry blocks the cut"
+    depends_on:
+      - source: monitor-consumer-migration
+        condition: "status == 'blocked'"
+
+  remove-old-surface:
+    phase: remove
+    role: backend
+    description: "Delete the old code path once the window closes"
+    estimated_minutes: 60
+    depends_on:
+      - source: monitor-consumer-migration
+        condition: "status == 'done' or migration_complete >= 0.95"

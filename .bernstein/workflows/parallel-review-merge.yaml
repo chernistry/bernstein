@@ -1,0 +1,74 @@
+# Parallel-review-then-merge workflow.
+#
+# Demonstrates:
+#   - Two reviewers run concurrently in fresh contexts (writer/reviewer pattern)
+#   - Reviewer fan-in: merge waits for both reviewers and the test gate
+#   - Conditional revision: revise-changes only runs if any reviewer requests it
+#   - Retry/loop: revise-changes retries until reviewers approve
+#   - Conditional merge: only when reviewers approve and tests pass
+
+name: parallel-review-merge
+version: "1.0.0"
+
+phases:
+  - name: implement
+  - name: review
+    allowed_roles: [reviewer, qa, security]
+  - name: merge
+    allowed_roles: [manager]
+
+nodes:
+  draft-change:
+    phase: implement
+    role: backend
+    description: "Produce the proposed change as a draft commit"
+    estimated_minutes: 45
+
+  reviewer-correctness:
+    phase: review
+    role: reviewer
+    description: "Review for correctness, scope, and design fit in a fresh context"
+    estimated_minutes: 20
+    depends_on:
+      - draft-change
+
+  reviewer-security:
+    phase: review
+    role: security
+    description: "Review for security regressions and supply-chain impact"
+    estimated_minutes: 15
+    depends_on:
+      - draft-change
+
+  run-tests:
+    phase: review
+    role: qa
+    description: "Run the full test suite plus mutation gate on changed modules"
+    estimated_minutes: 25
+    depends_on:
+      - draft-change
+
+  revise-changes:
+    phase: implement
+    role: backend
+    description: "Address review feedback"
+    depends_on:
+      - source: reviewer-correctness
+        condition: "status == 'changes_requested' or status == 'failed'"
+      - source: reviewer-security
+        condition: "status == 'changes_requested' or status == 'failed'"
+    retry:
+      max_attempts: 3
+      until: "status == 'done'"
+
+  merge:
+    phase: merge
+    role: manager
+    description: "Merge when reviewers approve and tests pass"
+    depends_on:
+      - source: reviewer-correctness
+        condition: "status == 'approved'"
+      - source: reviewer-security
+        condition: "status == 'approved'"
+      - source: run-tests
+        condition: "status == 'done'"

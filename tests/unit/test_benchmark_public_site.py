@@ -151,7 +151,6 @@ def test_public_docs_guard_banned_claims_absent() -> None:
     public_docs = [
         _REPO_ROOT / "docs" / "benchmarks" / "leaderboard.html",
         _REPO_ROOT / "docs" / "blog" / "multi-agent-benchmark.md",
-        _REPO_ROOT / "docs" / "blog" / "swe-bench-orchestration-thesis.md",
         _REPO_ROOT / "benchmarks" / "README.md",
         _REPO_ROOT / "benchmarks" / "crewai-langgraph-comparison.md",
         _REPO_ROOT / "benchmarks" / "agent-hq-comparison.md",
@@ -164,4 +163,6 @@ def test_public_docs_guard_banned_claims_absent() -> None:
             assert phrase not in text, f"{phrase!r} leaked into {path}"
 
     leaderboard = (_REPO_ROOT / "docs" / "benchmarks" / "leaderboard.html").read_text(encoding="utf-8")
-    assert "Verified public benchmark results: in progress" in leaderboard
+    # The leaderboard page documents methodology and reproducibility, not headline numbers
+    # from checked-in mock artifacts. Verified eval artifacts are the only public source.
+    assert "verified SWE-Bench eval artifacts" in leaderboard

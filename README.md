@@ -278,8 +278,6 @@ bernstein cloud deploy     # push agent workers
 bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 ```
 
-A `bernstein cloud init` scaffold for `wrangler.toml` and bindings is planned.
-
 ## capabilities
 
 **Core orchestration**. Parallel execution, git worktree isolation, janitor verification, quality gates (lint, types, PII scan), cross-model code review, circuit breaker for misbehaving agents, token growth monitoring with auto-intervention.
@@ -292,7 +290,7 @@ A `bernstein cloud init` scaffold for `wrangler.toml` and bindings is planned.
 
 **Skill packs**. Progressive-disclosure [skills](docs/architecture/skills.md) (OpenAI Agents SDK pattern): only a compact skill index ships in every spawn's system prompt, agents pull full bodies via the `load_skill` MCP tool on demand. 17 built-in role packs plus third-party `bernstein.skill_sources` entry-points.
 
-**Controls**. [HMAC-SHA256 audit chain](docs/security/audit-log.md) (RFC 2104), policy engine, [lethal-trifecta capability gate](docs/security/lethal-trifecta.md) (refuses spawns whose tool chain combines private data + untrusted input + external comm — Simon Willison's framing, June 2025: *"if your AI agent combines all three of these, an attacker can trick it into stealing your data"*), PII output gating, WAL-backed crash recovery (experimental, multi-worker safety), OAuth 2.0 with PKCE ([RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)) and [RFC 8707](https://datatracker.ietf.org/doc/html/rfc8707) resource-indicator binding, [per-artefact lineage with customer-key Ed25519 signing](docs/compliance/lineage-export.md) ([RFC 8037](https://datatracker.ietf.org/doc/html/rfc8037)) and regulator export. SSO / SAML / OIDC support is in progress.
+**Controls**. [HMAC-SHA256 audit chain](docs/security/audit-log.md) (RFC 2104), policy engine, [lethal-trifecta capability gate](docs/security/lethal-trifecta.md) (refuses spawns whose tool chain combines private data + untrusted input + external comm — Simon Willison's framing, June 2025: *"if your AI agent combines all three of these, an attacker can trick it into stealing your data"*), PII output gating, WAL-backed crash recovery (experimental, multi-worker safety), OAuth 2.0 with PKCE ([RFC 7636](https://datatracker.ietf.org/doc/html/rfc7636)) and [RFC 8707](https://datatracker.ietf.org/doc/html/rfc8707) resource-indicator binding, [per-artefact lineage with customer-key Ed25519 signing](docs/compliance/lineage-export.md) ([RFC 8037](https://datatracker.ietf.org/doc/html/rfc8037)) and regulator export.
 
 **Observability**. Prometheus `/metrics`, OTel exporter presets, Grafana dashboards. Per-model cost tracking (`bernstein cost`) plus a [run savings summary](docs/operations/cost-optimization.md#run-savings-summary) on every `bernstein run`. Terminal TUI and web dashboard. Agent process visibility in `ps`.
 

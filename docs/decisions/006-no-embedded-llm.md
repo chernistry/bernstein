@@ -45,14 +45,14 @@ receives task status updates, reasons about priorities, assigns work to agents,
 and decides when work is done.
 
 This is the model used by CrewAI's hierarchical process and was the model used in
-the rag_challenge competition (the PAPA manager agent).
+the long-running multi-agent pilot (an LLM "manager" agent on top of LLM workers).
 
 **Why rejected:**
 
 ### 1. The single point of failure problem
 
-In rag_challenge, PAPA (the LLM manager agent) was responsible for keeping all
-worker queues filled. PAPA fell asleep regularly. When PAPA fell asleep, every
+In the pilot, the LLM manager agent was responsible for keeping all
+worker queues filled. It fell asleep regularly. When it did, every
 downstream agent starved. The system had a single non-deterministic point of
 failure that could not be fixed with better prompts.
 
@@ -62,7 +62,7 @@ the bug is reproducible and fixable.
 
 ### 2. Token cost of coordination
 
-Every scheduling decision by an LLM costs tokens. In a system running hundreds of tasks over days (the rag_challenge experience), LLM-based scheduling would have spent tens of thousands of tokens on coordination overhead — tokens that produce no code, no tests, no value.
+Every scheduling decision by an LLM costs tokens. In a system running hundreds of tasks over days (the pilot experience), LLM-based scheduling would have spent tens of thousands of tokens on coordination overhead — tokens that produce no code, no tests, no value.
 
 The deterministic orchestrator spends zero tokens on scheduling. The only tokens
 spent are on actual task execution.
@@ -72,7 +72,7 @@ spent are on actual task execution.
 When a LLM orchestrator makes a wrong scheduling decision, you cannot reproduce
 it. The LLM's response depends on its context window, the exact phrasing of the
 task descriptions, the current state of other agent conversations, and sampling
-randomness. You cannot write a unit test for "PAPA will assign the right task
+randomness. You cannot write a unit test for "the LLM manager will assign the right task
 under these conditions."
 
 The deterministic scheduler is a state machine with testable transitions. When it
@@ -83,7 +83,7 @@ verify the correct output.
 
 An LLM manager reading status from 12 agents, reasoning about priorities, and
 issuing instructions has a context window proportional to the number of agents
-and tasks. At 12 agents with a large task backlog, PAPA's context was enormous and
+and tasks. At 12 agents with a large task backlog, the pilot's manager context was enormous and
 expensive. At 30 agents, it would be unmanageable.
 
 A deterministic scheduler's coordination cost is O(1) per agent per tick — a

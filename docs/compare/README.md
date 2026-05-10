@@ -126,7 +126,7 @@ Earlier drafts of this page cited larger deltas that were not reproducible at n=
 - [Bernstein vs. Paperclip](./bernstein-vs-paperclip.md) — engineering orchestrator vs AI-company control plane (Paperclip launched March 4, 2026)
 - [Bernstein vs. Dorothy](./bernstein-vs-dorothy.md) — task dispatch vs desktop Kanban orchestrator with Super Agent
 
-### Deep dive
+### Architecture article
 - [Deterministic vs LLM orchestration](./deterministic-vs-llm-orchestration.md) — architecture comparison
 
 ---

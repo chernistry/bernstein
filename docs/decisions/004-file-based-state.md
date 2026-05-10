@@ -89,7 +89,7 @@ The initial prototype stored tasks in a Python dict in the task server process.
 - Not inspectable. You had to query the REST API to see what was happening.
 - Not auditable. There was no record of what happened after the fact.
 
-In production-like usage (the rag_challenge competition), losing in-progress task
+In production-like usage (the multi-agent pilot), losing in-progress task
 state when an agent crashed caused significant rework. The JSONL checkpoint in
 `runtime/tasks.jsonl` was added specifically to address this.
 

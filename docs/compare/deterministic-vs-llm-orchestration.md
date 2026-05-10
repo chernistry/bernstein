@@ -41,16 +41,16 @@ graph TD
 
 ```mermaid
 graph TD
-    PA["PAPA (Manager LLM)\nfalls asleep →\nall queues drain"]
-    MUFFY["MUFFY\n283 BULLETIN messages\n0 code commits\n138 STARVING/DYING/FEED ME"]
-    SMARTY["SMARTY\n2 real commits / 40 claimed\nconfused its own work\nwith others' after hours of drift"]
-    Phantom["5 phantom agents\n(pido, phoenix, penny, victor, goku)\n200+ noise messages\n0 useful output)"]
+    PA["LLM Manager Agent\nfalls asleep →\nall queues drain"]
+    A1["Worker A\n283 bulletin messages\n0 code commits\n138 idle hunger messages"]
+    A2["Worker B\n2 real commits / 40 claimed\nconfused its own work\nwith others' after hours of drift"]
+    Phantom["5 phantom agents\n(spawned without identity)\n200+ noise messages\n0 useful output"]
     Fail["Result: 737 tasks / 47 hours\n~3 of 12 agents did real work"]
 
-    PA --> MUFFY & SMARTY & Phantom --> Fail
+    PA --> A1 & A2 & Phantom --> Fail
 
     classDef bad fill:#f94144,stroke:#c1121f,color:#fff
-    class PA,MUFFY,SMARTY,Phantom,Fail bad
+    class PA,A1,A2,Phantom,Fail bad
 ```
 
 ---
@@ -165,7 +165,7 @@ sequenceDiagram
 
 | Property | LLM-based | Deterministic (Bernstein) |
 |----------|-----------|--------------------------|
-| **Control plane** | LLM agent (manager/PAPA) | Python scheduler (no LLM calls) |
+| **Control plane** | LLM manager agent | Python scheduler (no LLM calls) |
 | **Scheduling decisions** | LLM reasoning on each tick | Code: priority queue + role grouping |
 | **Token cost of coordination** | Thousands/tick (manager context) | Zero |
 | **Agent lifetime** | Persistent session (indefinite) | Bounded: 1-3 tasks then exit |
@@ -192,7 +192,7 @@ Per scheduling tick:
 
 Per agent per idle hour:
   Hunger polling   ≈ 500–5,000 tokens (spinning, spam, status checks)
-  MUFFY example:     ~50,000 tokens on hunger signaling, 0 code commits
+  Worst-case agent observed: ~50,000 tokens on idle signaling, 0 code commits
 
 For 737 tasks over 47 hours, 12 agents:
   Coordination overhead: tens of millions of tokens
@@ -238,7 +238,7 @@ For 737 tasks over 47 hours, 12 agents:
 
 ## Related documents
 
-- [ADR-001: Agent Lifecycle Model](../decisions/001-agent-lifecycle.md) — Full analysis of hunger vs. pull vs. short-lived models with rag_challenge data
+- [ADR-001: Agent Lifecycle Model](../decisions/001-agent-lifecycle.md) — Full analysis of hunger vs. pull vs. short-lived models with multi-agent pilot data
 - [ADR-006: No Embedded LLM in the Orchestrator](../decisions/006-no-embedded-llm.md) — Why the control plane is deterministic code
 - [Why Deterministic Orchestration](../architecture/WHY_DETERMINISTIC.md) — Narrative explainer with first-principles reasoning
 - [Architecture](../architecture/ARCHITECTURE.md) — Full system diagram and module breakdown

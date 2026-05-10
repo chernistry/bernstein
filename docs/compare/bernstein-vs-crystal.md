@@ -29,8 +29,8 @@ Crystal is a desktop app for one developer running a few parallel agents and wat
 
 Bernstein (Apache 2.0, Python 3.12+, hatchling) is a CLI orchestrator for multi-agent coding workflows. The orchestrator is deterministic Python — no LLM tokens are spent on coordination. Agents are short-lived processes that pick up a task, execute it in an isolated worktree, and exit. State lives in `.sdd/` files (backlog, runtime, metrics, config), inspectable from the shell.
 
-- 31 cooperating CLI agent adapters (Claude Code, Codex, Cursor, Aider, Amp, Cody, Continue, Gemini CLI, Goose, Kilo, Kiro, Ollama, OpenCode, Qwen, plus a generic adapter), with two leaf-node delegation adapters (Composio, Ralphex) shipping in PR #966.
-- Per-step `cli:` field (PR #965) so a plan can pin a specific agent to a step.
+- 31 cooperating CLI agent adapters (Claude Code, Codex, Cursor, Aider, Amp, Cody, Continue, Gemini CLI, Goose, Kilo, Kiro, Ollama, OpenCode, Qwen, plus a generic adapter), and two leaf-node delegation adapters (Composio, Ralphex).
+- Per-step `cli:` field so a plan can pin a specific agent to a step.
 - Janitor module — quality gates for tests, lint, types, file checks. Failures go back into the queue; successful work merges.
 - MCP server first-class, exposing run / status / cost / approve / tasks tools.
 - YAML plan files with stages, dependencies, role assignments — repeatable workflows checked into the repo.

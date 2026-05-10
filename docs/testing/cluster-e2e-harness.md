@@ -93,8 +93,7 @@ These are written to `tests/_artifacts/cluster_e2e/<test_name>/`.
 ## Limitations
 
 - Linux + macOS only (no Windows in CI).
-- Targets STAR topology only. MESH / HIERARCHICAL chaos is a
-  separate workstream — those topologies are unimplemented.
+- Targets STAR topology only.
 - No autoscaler chaos.
 - Throughput / load testing (>2 nodes, hundreds of tasks) is out of
   scope; this harness focuses on correctness under failure.
@@ -107,4 +106,3 @@ These are written to `tests/_artifacts/cluster_e2e/<test_name>/`.
 - CI: `.github/workflows/cluster-e2e.yml`
 - [Cluster mTLS setup](../cluster/mtls-setup.md)
 - [Cluster observability](../observability/cluster.md)
-- PR #1020, ticket `2026-05-05-feat-cluster-real-2node-e2e-harness.md`

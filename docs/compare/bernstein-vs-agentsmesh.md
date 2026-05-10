@@ -39,7 +39,7 @@
 | **Self-evolution** | `bernstein --evolve` | Not documented |
 | **Headless / CI** | Yes — runs in CI, over SSH, in containers | Web-console-first; CI integration not documented |
 | **Audit log** | HMAC-chained, file-based | Enterprise audit logs (mechanism not documented) |
-| **Per-step model/effort routing** | Yes (cascade router, `cli:` field per step in PR #965) | Pod is bound to one agent type |
+| **Per-step model/effort routing** | Yes (cascade router, per-step `cli:` field) | Pod is bound to one agent type |
 | **Cloud execution** | Cloudflare Workers adapter | Self-hosted by design |
 | **Multi-repo orchestration** | Yes | Per-pod git worktree, no documented multi-repo plan |
 
@@ -105,13 +105,13 @@ The unit of work is a short-lived task. Agents are spawned per task, verified by
 
 ## When Bernstein is the right tool
 
-**Adapter breadth.** 31 cooperating adapters plus 2 leaf-node delegation adapters (Composio, Ralphex shipping in PR #966) versus AgentsMesh's five built-ins. If you need Amp, Cursor, Cody, Continue, Goose, Kilo, Kiro, Qwen, Ollama, OpenCode, IaC, or a generic adapter alongside Claude/Codex/Gemini, Bernstein already wires them in. AgentsMesh's "custom terminal-based agent" hook covers this in principle but doesn't ship the integrations.
+**Adapter breadth.** 31 cooperating adapters plus 2 leaf-node delegation adapters (Composio, Ralphex) versus AgentsMesh's five built-ins. If you need Amp, Cursor, Cody, Continue, Goose, Kilo, Kiro, Qwen, Ollama, OpenCode, IaC, or a generic adapter alongside Claude/Codex/Gemini, Bernstein already wires them in. AgentsMesh's "custom terminal-based agent" hook covers this in principle but doesn't ship the integrations.
 
 **Deterministic scheduler with reproducible runs.** Bernstein's orchestrator is Python code, not a hosted service. Ticks, retries, fair scheduling, and cost decisions are all in-process and replayable from the WAL. Audit logs are HMAC-chained on disk. No relay cluster, no Postgres, no Redis.
 
 **File-based state inspectable from the shell.** `.sdd/backlog.json`, `.sdd/runtime/`, `.sdd/metrics/`, `.sdd/config/` — `cat`, `jq`, `grep`. No SQL queries to write to answer "what is task 47 doing." AgentsMesh keeps state in PostgreSQL behind the control plane.
 
-**Plan files with dependencies.** `templates/plan.yaml` describes multi-stage projects with `stages`, `steps`, `depends_on`, per-step `goal`, `role`, `priority`, `scope`, `complexity`, and the new per-step `cli:` field landing in PR #965. AgentsMesh's Kanban model is task-by-task; declarative dependency graphs are not documented.
+**Plan files with dependencies.** `templates/plan.yaml` describes multi-stage projects with `stages`, `steps`, `depends_on`, per-step `goal`, `role`, `priority`, `scope`, `complexity`, and a per-step `cli:` field. AgentsMesh's Kanban model is task-by-task; declarative dependency graphs are not documented.
 
 **MCP server first-class.** Bernstein exposes its task server as an MCP server, so other Claude Code / Codex agents can drive it directly. AgentsMesh's README does not mention MCP.
 

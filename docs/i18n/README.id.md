@@ -202,8 +202,6 @@ bernstein cloud deploy     # push agent workers
 bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 ```
 
-Scaffold `bernstein cloud init` untuk `wrangler.toml` dan binding sedang direncanakan.
-
 ## Kapabilitas
 
 **Orkestrasi inti**. Eksekusi paralel, isolasi git worktree, verifikasi janitor, quality gates (lint, tipe, pemindaian PII), code review lintas-model, circuit breaker untuk agen yang berperilaku buruk, monitoring pertumbuhan token dengan auto-intervention.
@@ -216,7 +214,7 @@ Scaffold `bernstein cloud init` untuk `wrangler.toml` dan binding sedang direnca
 
 **Skill packs**. [Skill](../../docs/architecture/skills.md) dengan progressive-disclosure (pola OpenAI Agents SDK): hanya indeks skill yang ringkas yang disertakan dalam system prompt setiap spawn, agen menarik isi lengkap melalui tool MCP `load_skill` saat dibutuhkan. 17 role pack bawaan ditambah entry-point `bernstein.skill_sources` pihak ketiga.
 
-**Kontrol**. Audit log berantai HMAC, policy engine, gating output PII, pemulihan crash didukung WAL (keamanan multi-worker eksperimental), OAuth 2.0 PKCE. Dukungan SSO/SAML/OIDC sedang dikerjakan.
+**Kontrol**. Audit log berantai HMAC, policy engine, gating output PII, pemulihan crash didukung WAL (keamanan multi-worker eksperimental), OAuth 2.0 PKCE.
 
 **Observabilitas**. Prometheus `/metrics`, preset eksporter OTel, dashboard Grafana. Pelacakan biaya per-model (`bernstein cost`). TUI terminal dan dashboard web. Visibilitas proses agen di `ps`.
 

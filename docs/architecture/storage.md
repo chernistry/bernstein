@@ -96,10 +96,10 @@ still pending).
 
 ## Sandbox integration
 
-`WorkspaceManifest` now carries a tuple of `ArtifactMount` entries
+`WorkspaceManifest` carries a tuple of `ArtifactMount` entries
 (`S3Mount`, `GCSMount`, `AzureBlobMount`, `R2Mount`). Cloud sandbox
-backends (docker, e2b, modal; future: daytona, cloudflare, vercel)
-translate these into provider-native filesystem bindings
+backends (docker, e2b, modal) translate these into provider-native
+filesystem bindings
 (`rclone mount` for S3/R2, `gcsfuse` for GCS, `blobfuse2` for Azure)
 so agent writes to the mount path stream straight into the
 orchestrator's artifact sink. The `worktree` backend ignores the
@@ -150,8 +150,7 @@ lifetime.
 ## Observability
 
 Each sink operation emits Prometheus metrics through the existing
-`bernstein.core.observability` stack (metric names listed in the
-ticket):
+`bernstein.core.observability` stack:
 
 - `storage_write_total{sink, durable}`
 - `storage_write_duration_seconds{sink}`

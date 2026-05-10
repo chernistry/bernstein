@@ -14,9 +14,6 @@ This document covers:
 - The four first-party backends (`worktree`, `docker`, `e2b`, `modal`)
 - The `bernstein.sandbox_backends` entry-point group for third-party
   backends
-- The phased rollout plan (phase 1 lands the protocol and backends;
-  phase 2 refactors the spawner to route adapter exec through
-  `SandboxSession`)
 
 ## Protocol shape
 
@@ -114,8 +111,7 @@ work.
 - **Capabilities.** Only `e2b` and `modal` support snapshot/resume;
   only `modal` exposes GPU today.
 - **Supported exec semantics.** All four backends handle argv-based
-  exec with exit-code, stdout, and stderr capture. `docker` does not
-  support stdin injection in phase 1; phase 2 addresses that.
+  exec with exit-code, stdout, and stderr capture.
 
 ## `plan.yaml` extension
 
@@ -161,44 +157,24 @@ Third-party backends must:
    `TYPE_CHECKING`) so importing the backend module never crashes on
    a missing SDK.
 
-## Phased rollout
-
-### Phase 1
+## Integration
 
 - `SandboxBackend` / `SandboxSession` / `SandboxCapability` /
-  `WorkspaceManifest` land in `src/bernstein/core/sandbox/`.
+  `WorkspaceManifest` live in `src/bernstein/core/sandbox/`.
 - Four first-party backends ship (worktree & docker in core; e2b &
   modal as optional extras).
-- `AgentSpawner` gains an optional `sandbox_session` parameter. When
-  `None` it falls back to the existing direct-worktree path. All 35
-  adapters continue to run unchanged.
+- `AgentSpawner` accepts an optional `sandbox_session` parameter; when
+  `None` it falls back to the direct-worktree path.
 - `bernstein agents sandbox-backends` lists installed backends.
 - `plan.yaml` accepts an optional `sandbox:` block per stage.
 
-### Phase 2
+## Observability
 
-- `AgentSpawner` routes adapter exec through
-  `SandboxSession.exec`, so the selected backend controls where
-  subprocesses actually run.
-- Adapters are refactored one-by-one to use `session.read` /
-  `session.write` for file I/O instead of direct `Path.write_bytes`
-  calls on the worktree directory.
-- Cost metrics and WAL events gain backend-aware labels.
-
-Phase 2 is a mechanical but widespread refactor across 35 adapters;
-keeping it out of phase 1 lets the protocol land independently.
-
-## Observability (phase 1 scaffolding)
-
-Each backend create/destroy cycle should emit WAL + Prometheus
-metrics:
+Each backend create/destroy cycle emits WAL + Prometheus metrics:
 
 - `sandbox_session_created{backend=..., session_id=...}`
 - `sandbox_session_destroyed{backend=..., duration_seconds=...}`
 - `sandbox_exec_count{backend=..., exit_code=...}`
-
-Wiring into the existing metrics/WAL subsystems is part of phase 2;
-phase 1 only exposes the interfaces.
 
 ## Conformance
 

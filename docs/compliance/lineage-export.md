@@ -361,12 +361,12 @@ evidence.
   field — including downstream-derived fields — invalidate the
   signature. This is intentional; operators who need finer-grained
   signing can plug in a custom canonicaliser.
-- `regulatory_class` is unconstrained free text. We document
-  recommended labels; we do not enforce them.
+- `regulatory_class` is unconstrained free text. Recommended labels
+  are documented; they are not enforced.
 - No backfill: writes from before v1.10 have no lineage records.
-- Single-run today: cross-run chain stitching is a follow-up.
+- Single-run scope: cross-run chain stitching is out of scope today.
 - Direct integration with specific GRC vendor APIs (ServiceNow GRC,
-  Archer, etc.) is not shipped — the exporter formats are generic.
+  Archer, etc.) is out of scope — the exporter formats are generic.
 
 ---
 
@@ -374,7 +374,7 @@ evidence.
 
 - [Regulator-class lineage](regulatory-lineage.md) — schema reference,
   customer-signing configuration, tamper-loud SIEM webhook setup.
-- [Artifact lineage trail](../concepts/artifact-lineage.md) — Phase 1
+- [Artifact lineage trail](../concepts/artifact-lineage.md) — base
   schema and chain-walking concepts.
 - [Compliance](../operations/compliance.md) — `bernstein compliance`
   CLI for EU AI Act, SOC 2, ISO 27001, PCI-DSS, NIST 800-53, HIPAA.

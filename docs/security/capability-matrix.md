@@ -119,4 +119,3 @@ plus the offending tool list.
 - Capability declarations: `templates/capabilities/`
 - CLI: `bernstein audit capabilities`
 - Pattern: [Lethal-trifecta threat model](https://github.com/nibzard/awesome-agentic-patterns/blob/main/patterns/lethal-trifecta-threat-model.md)
-- PR #1002, ticket `2026-04-30-feat-lethal-trifecta-capability-matrix.md`

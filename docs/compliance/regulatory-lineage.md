@@ -1,15 +1,14 @@
 # Regulator-class lineage (schema v2)
 
 This document describes the schema-v2 lineage record produced by
-Bernstein from version 1.10 onward. It builds on the per-artifact
-lineage trail shipped in PR #996 and is targeted at customer
+Bernstein from version 1.10 onward. It is targeted at customer
 compliance teams operating under EU DORA, NIS2, or equivalent
 sector-specific regimes.
 
 ## What v2 adds over v1
 
-PR #996 lineage records carry the producer/prompt/cost information
-needed to walk a chain. v2 adds two fields:
+v1 lineage records carry the producer/prompt/cost information needed
+to walk a chain. v2 adds two fields:
 
 | Field | Purpose |
 |---|---|
@@ -82,15 +81,6 @@ chain: a customer auditor with only the public key and the WAL files
 can confirm that every record was signed by the customer's signing
 key, with no Bernstein machinery in the loop.
 
-The dual-signature property is the regulator-class shape: every
-lineage record carries both **bernstein's HMAC chain** (proves "not
-edited inside Bernstein") and **the customer's Ed25519 signature**
-(proves "produced under the customer's own key"). The customer-side
-verification is the countersign — the operator-controlled signature
-keyed off operator-controlled material. An auditor with the public
-key alone can verify the second signature offline without trusting
-Bernstein's HMAC secret.
-
 ### Configuring the file-key signer
 
 ```yaml
@@ -117,45 +107,9 @@ class LineageSigner(Protocol):
 ```
 
 Any HSM / TPM / KMS-backed signer can be implemented to satisfy this
-protocol and injected into `LineageWriter(..., signer=...)`.
-
-`core/security/lineage_kms.py` ships a `KMSAdapter` protocol that
-narrows the integration shape: a sync `sign(payload)` plus a
-`public_key_jwk()` method that returns an RFC 7517 JWK so the auditor
-sees the verifying key without distributing raw bytes. Three concrete
-implementations:
-
-| Adapter | When to use |
-|---|---|
-| `FileBasedKMSAdapter` | Tests, fixtures, single-host deployments where the key file lives next to the config. PEM PKCS#8 or raw 32-byte seed. |
-| `EnvBasedKMSAdapter` | K8s deployments where the customer's key lives in a `Secret` mounted as `LINEAGE_SIGNING_KEY=...`. PEM (literal or `\n`-escaped), `raw:<hex>`, or `rawb64:<base64>`. |
-| `HSMKMSAdapter` | Documentation stub. Subclass and override `sign` / `public_key_jwk` with vendor-specific PKCS#11 / Cloud-KMS calls. |
-
-The `HSMKMSAdapter` docstring covers the recommended driver shape for
-PKCS#11 (`python-pkcs11` against SoftHSM2 or YubiHSM), AWS KMS, GCP
-Cloud KMS, and Azure Key Vault. The pattern is the same across vendors:
-resolve a token URI or cloud KMS resource path; perform the `Sign` /
-`GetPublicKey` operation through the vendor SDK; cache the public key
-bytes and format them as a JWK. Bernstein deliberately does not ship a
-working PKCS#11 / Cloud-HSM client because the integration shape is
-customer-specific (token slot layout, PIN delivery, FIPS mode,
-vendor-specific URI schemes).
-
-Configure the dispatch through `bernstein.yaml`:
-
-```yaml
-tuning:
-  lineage:
-    customer_signing_enabled: true
-    kms_adapter: file       # file | env | hsm
-    kms_adapter_key_path: /etc/bernstein/customer-ed25519.pem  # for kind=file
-    # kms_adapter_env_var: LINEAGE_SIGNING_KEY                 # for kind=env
-    # kms_adapter_token_uri: 'pkcs11:object=lineage-key;type=private'  # for kind=hsm
-    kms_adapter_kid: lineage-2026-05
-```
-
-`kms_adapter_from_config()` returns `None` when the block is disabled,
-so callers can leave the YAML in place during a temporary disable.
+protocol and injected into `LineageWriter(..., signer=...)`. The
+file-key reference implementation ships in core; HSM / KMS adapters
+are operator-provided.
 
 ## Verifying a chain
 
@@ -192,9 +146,9 @@ package. The CSV form is ingestable by any GRC vendor that accepts
 CSV. The JSON-LD form is shaped against schema.org `Action` so a
 verifier with a JSON-LD library can graph-walk the chain.
 
-## Tamper-loud detection (Phase 2)
+## Tamper-loud detection
 
-The janitor's lineage compaction step now runs a chain verification
+The janitor's lineage compaction step runs a chain verification
 pass on every cycle. If verification fails the janitor:
 
 1. Emits an `audit.jsonl` entry of type `lineage_tamper_detected`.
@@ -235,10 +189,10 @@ bernstein lineage verify r-2026-05-05
 Useful for compliance teams running ad-hoc checks against archived
 runs, or for CI gating against the most recent run.
 
-## What is intentionally NOT in this release
+## Out of scope
 
-- Multi-key rotation registry (Phase 3+).
-- AI-generated regulatory-class inference (Phase 3+).
+- Multi-key rotation registry.
+- AI-generated regulatory-class inference.
 - Direct integration with specific GRC vendor APIs (ServiceNow GRC,
   Archer, etc.). The exporter formats are generic; customers ingest
   CSV / JSON-LD / HTML through their existing pipeline.
@@ -261,6 +215,4 @@ runs, or for CI gating against the most recent run.
 - Source: `src/bernstein/core/persistence/lineage.py`,
   `lineage_signer.py`, `core/observability/lineage_alert.py`
 - CLI: `src/bernstein/cli/commands/{lineage_cmd,lineage_export_cmd,lineage_verify_cmd}.py`
-- [Artifact lineage trail](../concepts/artifact-lineage.md) — Phase 1 backbone
-- PRs #996 (Phase 1 backbone), #1013 (Phase 1 regulatory schema), #1017 (Phase 2 tamper-loud + verify)
-- Tickets: `2026-05-05-feat-artifact-lineage-trail.md`, `2026-05-05-feat-regulatory-lineage.md`
+- [Artifact lineage trail](../concepts/artifact-lineage.md) — schema reference and chain-walking concepts.

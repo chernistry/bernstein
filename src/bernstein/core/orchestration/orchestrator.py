@@ -1555,6 +1555,12 @@ class Orchestrator:
         if _run_slow:
             self._watchdog.sync(collect_watchdog_findings(self))
 
+        # 4d-ii.7 Self-healing liveness watchdog (#1224): periodic check for
+        # stuck adapter sessions on pre-approved safety prompts. Off by
+        # default; opt-in via BERNSTEIN_WATCHDOG_ENABLED=1.
+        if _run_slow:
+            self._run_liveness_watchdog()
+
         # 4d-iii. Cost anomaly detection: burn rate projection, stop on budget overrun
         # Gated behind _run_slow — anomaly detection doesn't need every-tick granularity.
         if _run_slow:
@@ -2598,6 +2604,84 @@ class Orchestrator:
             self._stop_spawning = True
         else:
             logger.info("Anomaly [%s]: %s", signal.rule, signal.message)
+
+    def _run_liveness_watchdog(self) -> None:
+        """Run one liveness-watchdog pass over current adapter sessions.
+
+        Off by default; the watchdog short-circuits when
+        ``BERNSTEIN_WATCHDOG_ENABLED`` is not set. Failures are logged
+        and swallowed so a watchdog bug never breaks the tick loop.
+        """
+        from bernstein.core.orchestration.watchdog import (
+            SessionSnapshot,
+        )
+        from bernstein.core.orchestration.watchdog import (
+            is_enabled as _watchdog_enabled,
+        )
+        from bernstein.core.orchestration.watchdog import (
+            tick as _watchdog_tick,
+        )
+
+        if not _watchdog_enabled():
+            return
+
+        snapshots: list[SessionSnapshot] = []
+        for session in self._agents.values():
+            if getattr(session, "status", "") == "dead":
+                continue
+            session_id = str(getattr(session, "id", ""))
+            if not session_id:
+                continue
+            recent_output = str(getattr(session, "last_output_tail", "") or "")
+            is_paused = bool(getattr(session, "awaiting_prompt", False))
+            approved = frozenset(getattr(session, "approved_prompt_classes", frozenset()))
+            snapshots.append(
+                SessionSnapshot(
+                    session_id=session_id,
+                    recent_output=recent_output,
+                    is_paused=is_paused,
+                    approved_prompt_classes=approved,
+                )
+            )
+        if not snapshots:
+            return
+
+        spawner = self._spawner
+
+        def _respond(session_id: str, keystroke: str) -> bool:
+            send = getattr(spawner, "send_keystroke", None)
+            if send is None:
+                return False
+            try:
+                return bool(send(session_id, keystroke))
+            except Exception as exc:  # spawner failures must not break tick
+                logger.warning("watchdog respond failed for %s: %s", session_id, exc)
+                return False
+
+        audit_path = self._workdir / ".sdd" / "audit" / "watchdog_recoveries.jsonl"
+        try:
+            result = _watchdog_tick(snapshots, _respond, audit_path)
+        except Exception as exc:  # tick-level safety net
+            logger.warning("liveness watchdog tick raised: %s", exc)
+            return
+
+        if result.recoveries:
+            logger.info(
+                "Liveness watchdog applied %d recovery action(s): %s",
+                len(result.recoveries),
+                ", ".join(r.session_id for r in result.recoveries),
+            )
+        if result.skipped_model_questions and self._notify is not None:
+            for session_id in result.skipped_model_questions:
+                with contextlib.suppress(Exception):
+                    self._notify(
+                        "approval.needed",
+                        "Watchdog escalation",
+                        f"Model question awaiting operator on session {session_id}",
+                        severity="medium",
+                        source="prompt_waiting",
+                        session_id=session_id,
+                    )
 
     def _record_live_costs(self) -> None:
         """Update live cost tracker from active agent token usage."""

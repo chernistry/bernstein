@@ -167,6 +167,7 @@ nav:
       - Adaptive parallelism: architecture/adaptive-parallelism.md
       - Artifact storage: architecture/storage.md
       - Skill packs: architecture/skills.md
+      - A2A v1.0 signed agent cards: architecture/a2a.md
       - Design notes: architecture/DESIGN.md
       - Glossary: reference/GLOSSARY.md
       - AST-aware reviewer chunks: concepts/ast-aware-chunking.md
@@ -290,6 +291,7 @@ nav:
       - Click for CLI: decisions/008-click-for-cli.md
   - Security:
       - Hardening: security/security-hardening.md
+      - Agent-card keystore: security/keystore.md
       - SOC 2 audit: security/AUDIT.md
       - Bug bounty: security/bug-bounty.md
       - Acknowledgments: security/security-acknowledgments.md

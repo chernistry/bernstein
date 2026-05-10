@@ -64,7 +64,7 @@ is tracked alongside any other LLM call.
 - The summary is LLM-generated. It is not a formal proof that the
   pseudocode matches the real code — confidence scoring + drill-down
   are the safety net.
-- No control-flow / data-flow diagrams in v1.
+- Control-flow / data-flow diagrams are out of scope for the summariser.
 - This augments the PR body. It does **not** replace the rubric-based
   review verdict — the existing reviewer gate still runs.
 - Diffs > 50 files fall back to a top-level summary, not per-file
@@ -75,4 +75,4 @@ is tracked alongside any other LLM call.
 - Source: `src/bernstein/core/quality/review_pipeline/abstract_diff.py`
 - PR generation: `src/bernstein/core/review_responder/pr_gen.py`
 - [Quality Pipeline](../architecture/quality-pipeline.md)
-- PR #1005, ticket `2026-04-30-feat-abstracted-code-review.md`
+- PR #1005

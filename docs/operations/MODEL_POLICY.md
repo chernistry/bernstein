@@ -361,14 +361,6 @@ for name, info in summary.items():
 
 Peak-hour routing (`src/bernstein/core/cost/peak_hour_router.py`) extends model policy with time-based constraints. It can automatically shift non-urgent tasks to cheaper providers or off-peak windows, complementing the static allow/deny policy.
 
-## Future: Dynamic Policy Updates
-
-Model Policy is currently static (loaded at startup). Future versions may support:
-
-- **Hot reload**: Update policy without restarting
-- **Task-specific constraints**: "Role=security must use opus-only"
-- **A/B testing**: "50% requests to anthropic, 50% to ollama"
-
 ## Related
 
 - **Router** — `src/bernstein/core/routing/router.py` (re-exports from `router_core.py` and `router_policies.py`) — Core routing engine

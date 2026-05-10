@@ -72,8 +72,7 @@ Metrics:
 
 - One level of branching per task. No nested best-of-N inside a
   candidate.
-- Auto-decision of when to escalate K (e.g., raise to 5 if confidence
-  is low) is not in v1 — set `best_of_n` manually.
+- The operator sets `best_of_n` explicitly; there is no auto-escalation.
 - All candidates run the same model unless you also set per-candidate
   `mode_profile` overrides.
 - K worktrees mean K times the disk and parallel agent budget; the
@@ -85,4 +84,4 @@ Metrics:
 - Tick pipeline: `src/bernstein/core/orchestration/tick_pipeline.py`
 - [Adaptive parallelism](../architecture/adaptive-parallelism.md)
 - [Quality Pipeline](../architecture/quality-pipeline.md)
-- PR #1011, ticket `2026-04-30-feat-best-of-n-delegation.md`
+- PR #1011

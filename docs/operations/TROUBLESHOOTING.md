@@ -507,7 +507,7 @@ bernstein cost --by model                    # breakdown by model
 bernstein cost --last 24h                    # last 24 hours only
 cat .sdd/runtime/cost_report.json | python3 -m json.tool
 
-# Run tests (NEVER use `uv run pytest tests/` — leaks 100+ GB RAM)
+# Run tests via the sharded runner
 uv run python scripts/run_tests.py -x
 
 # Prune stale worktrees (safe to run any time)

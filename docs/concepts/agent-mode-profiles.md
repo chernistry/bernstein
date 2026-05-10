@@ -87,4 +87,4 @@ graph `spawns_total{mode_profile="deep"}` to see distribution.
 - Profiles: `templates/mode_profiles/`
 - Spawner: `src/bernstein/core/agents/spawner_prompt.py`
 - [Model Routing](../architecture/model-routing.md)
-- PR #1007, ticket `2026-04-30-feat-agent-modes-by-personality.md`
+- PR #1007

@@ -70,7 +70,7 @@ Metrics:
   writes, network calls). The cache covers the LLM and read-only tool
   layer; bash is recorded but not replayed.
 - Single host. Cross-machine cache sharing rides on
-  `core/storage/sink.py` plumbing if you need it; not in v1.
+  `core/storage/sink.py` plumbing if you need it.
 - Replay is byte-comparison strict. A different timestamp in a
   recorded log is a "drift" finding even if functionally equivalent.
 
@@ -81,4 +81,4 @@ Metrics:
   store)
 - CLI: `src/bernstein/cli/commands/cache_cmd.py`,
   `replay_filter_cmd.py`
-- PR #999, ticket `2026-04-30-feat-action-caching-replay.md`
+- PR #999

@@ -33,9 +33,7 @@ of the agent in the first place.
 Bernstein's answer is `build_filtered_env()`: a pure function that
 returns a fresh `dict[str, str]` containing only the keys on a known
 base allowlist plus a small set of per-adapter extras. Every spawn
-adapter must pass this dict explicitly to `subprocess.Popen(env=...)`.
-Adapters that previously did `os.environ.copy()` were the source of
-RC-2 / RC-3 / RC-4 in the spec audit and have all been fixed.
+adapter passes this dict explicitly to `subprocess.Popen(env=...)`.
 
 ---
 
@@ -105,8 +103,8 @@ harmlessly so a single env build serves both spawns.
 The `bernstein-worker` subprocess itself is launched with the
 filtered env. When it then spawns the agent CLI, it does so with no
 explicit `env=` parameter — the agent CLI inherits the already-filtered
-env via OS-level process inheritance. This is the intended design
-(RC-1 in the spec), not a leak.
+env via OS-level process inheritance. This is the intended design,
+not a leak.
 
 ---
 
@@ -146,17 +144,6 @@ Recommended hygiene before adding a key:
    prompt log.
 3. If it is a secret, prefer feeding it through the credential vault
    (`bernstein creds`) rather than the env.
-
-### Open questions in the current spec
-
-- Should `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY` be in the base
-  allowlist for corporate proxy environments?
-- Should a per-role override mechanism be wired from `SeedConfig`
-  through the spawner to adapters?
-- Should `build_filtered_env` accept a `mode` flag (e.g. `strict`
-  vs `permissive`) for debugging?
-
-If any of these block your deployment, open an issue.
 
 ---
 

@@ -222,7 +222,7 @@ tails, metrics counts). Cost ledger and audit chain are preserved.
 
 ## Cross-region considerations
 
-The supported pattern in production today:
+The supported cross-region pattern today is scheduled backup + restore:
 
 1. **Schedule** `bernstein dr backup --to s3://...` from cron (or your
    scheduler of choice) every 1 h. Push to a different region than the
@@ -247,4 +247,3 @@ Treat backup cadence as your RPO floor.
 - `src/bernstein/core/persistence/wal.py:1-67` — WAL writer, hash-chain, fsync invariants
 - `src/bernstein/core/persistence/wal_replay.py:1-78` — replay pipeline + `IdempotencyStore`
 - `src/bernstein/core/persistence/checkpoint.py:1-79` — `Checkpoint` (atomic) + `PartialState` (operator)
-- `src/bernstein/core/persistence/wal_replication.py:1-60` — replication scaffold

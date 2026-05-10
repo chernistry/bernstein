@@ -6,8 +6,8 @@ read, the model, the run, and the cost. The chain is HMAC-signed and
 artefact-indexed, so "which agent run, which prompt, which source
 files produced this broken line?" becomes a one-command lookup.
 
-This page covers schema-v1 lineage. The customer-key signature and
-regulator-class fields shipped on top of v1 live in
+This page covers the base schema. Customer-key signing and
+regulator-class fields are documented in
 [Regulator-class lineage](../compliance/regulatory-lineage.md).
 
 ## Why it exists
@@ -43,7 +43,7 @@ bernstein lineage export r-2026-05-05 --format html  --output /tmp/audit.html
 bernstein lineage export r-2026-05-05 --format csv   --output /tmp/audit.csv
 bernstein lineage export r-2026-05-05 --format jsonld --output /tmp/audit.jsonld
 
-# Re-verify the HMAC + customer-key chain (Phase 2)
+# Re-verify the HMAC + customer-key chain
 bernstein lineage verify r-2026-05-05
 ```
 
@@ -67,8 +67,9 @@ Each `LineageRecord` carries:
 - `inputs` — list of `ArtifactRef`
 - `producer` — `agent_id`, `run_id`, `tick_id`
 - `prompt_sha`, `model`, `cost_usd`, `tokens`, `timestamp`
-- `regulatory_class`, `customer_signature` (schema v2; null for v1
-  records)
+- `regulatory_class`, `customer_signature` (only populated when
+  customer-key signing is enabled; see
+  [Regulator-class lineage](../compliance/regulatory-lineage.md))
 
 ## Configuration
 
@@ -76,18 +77,18 @@ Each `LineageRecord` carries:
 |---|--:|---|
 | `lineage.enabled` | `true` | Emit records on every write. |
 | `lineage.compaction.enabled` | `true` | Janitor gzips per-day files at compaction time. |
-| `lineage.regulatory_class.default` | `null` | Pin a default class for the run (Phase 2 / regulator-class). |
-| `lineage.customer_signing.*` | see [regulator doc](../compliance/regulatory-lineage.md) | Customer-key signing (Phase 2). |
+| `lineage.regulatory_class.default` | `null` | Pin a default regulatory class for the run. |
+| `lineage.customer_signing.*` | see [regulator doc](../compliance/regulatory-lineage.md) | Customer-key signing knobs. |
 
 `bernstein debug bundle` includes the lineage graph for the run.
 
 ## Limitations
 
-- Single-run today. Cross-run stitching across multiple `bernstein
-  run` invocations is a follow-up.
-- No backfill. Historical writes from before the feature shipped have
-  no records.
-- No GUI. CLI text and the HTML exporter only.
+- Single-run scope. Cross-run stitching is operator-driven (export the
+  per-run records, join externally).
+- No backfill. Historical writes from before the feature was enabled
+  have no records.
+- CLI text and HTML/CSV/JSON-LD exporters; no GUI.
 - PII redaction lives in `core/security/pii_gating.py`; lineage
   records inherit whatever redaction the audit log already applies —
   no extra layer.
@@ -97,5 +98,5 @@ Each `LineageRecord` carries:
 - Source: `src/bernstein/core/persistence/lineage.py`
 - CLI: `src/bernstein/cli/commands/lineage_cmd.py`,
   `lineage_export_cmd.py`, `lineage_verify_cmd.py`
-- [Regulator-class lineage](../compliance/regulatory-lineage.md) — schema-v2 add-ons (regulatory class, customer signature, tamper-loud surface)
-- PRs #996, #1013, #1017; tickets `2026-05-05-feat-artifact-lineage-trail.md`, `2026-05-05-feat-regulatory-lineage.md`
+- [Regulator-class lineage](../compliance/regulatory-lineage.md) — regulatory class, customer signature, tamper-loud surface
+- PRs #996, #1013, #1017

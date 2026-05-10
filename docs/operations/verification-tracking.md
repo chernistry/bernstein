@@ -140,8 +140,7 @@ You see a red ALERT in `bernstein status`. What now?
 3. **Spot-check one.** Pick a flagged task ID. Open its log summary
    and confirm: did it really skip tests, or is the agent's log
    summary missing the evidence Bernstein looks for? The latter is
-   a parsing miss (assumption A1 in the spec) — fix the adapter, not
-   the threshold.
+   a parsing miss — fix the adapter, not the threshold.
 
 4. **If the agent is genuinely skipping verification**, look at:
    - The plan: did the YAML omit a `verify` step?

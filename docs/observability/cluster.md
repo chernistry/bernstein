@@ -6,12 +6,11 @@ server's `/metrics` endpoint and ship the audit JSONL to your SIEM.
 
 ## Why it exists
 
-Before this batch, cluster mode emitted no Prometheus signal and no
-audit event for register / heartbeat / steal / scale operations. That
-made production debugging impossible: the audit log wasn't there to
-replay, and the metrics weren't there to graph. This change adds five
-metrics and six event types, both rolled into the existing
-infrastructure (no new chain, no new endpoint).
+Cluster mutations (register / heartbeat / steal / scale) emit Prometheus
+metrics and HMAC-chained audit events through the existing
+observability and audit infrastructure (no new chain, no new endpoint).
+That gives operators replayable audit trails and graphable metrics for
+production debugging.
 
 ## How to scrape
 
@@ -76,16 +75,14 @@ Point it at any Prometheus datasource that scrapes Bernstein.
 | `audit.cluster_events.enabled` | `true` | Emit cluster events into the chain. |
 | `observability.label_cardinality_cap` | `unknown`-bucket | Outside-vocabulary label values get collapsed. |
 
-## Limitations
+## Scope
 
-- No distributed tracing yet. OTel spans for cluster ops are tracked
-  as a separate ticket; counters + gauge are the floor.
-- The audit log lives on the central node only. Workers do not keep
-  a local copy of cluster events in v1 (audit volume tradeoff).
-- The Grafana JSON is one example dashboard, not a product. Customise
-  freely.
-- No alert rules ship with this — recommended alerting will land
-  after we observe the metrics in real deployments.
+- The metrics are counters + a gauge; OTel spans for cluster ops are
+  not part of this surface.
+- The audit log lives on the central node; workers do not keep a local
+  copy of cluster events (audit volume tradeoff).
+- The Grafana JSON is one example dashboard. Customise freely.
+- Operators define their own alerting rules on top of the metrics.
 
 ## Related
 
@@ -94,4 +91,4 @@ Point it at any Prometheus datasource that scrapes Bernstein.
 - [Cluster mTLS setup](../cluster/mtls-setup.md)
 - [Cluster deployment patterns](../cluster/deployment-patterns.md)
 - [Operations / Observability overview](../operations/observability-overview.md)
-- PR #1021, ticket `2026-05-05-feat-cluster-observability.md`
+- PR #1021

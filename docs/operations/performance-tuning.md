@@ -434,13 +434,13 @@ Source: `src/bernstein/core/observability/debug_bundle.py`
 
 ### Running tests
 
-Use the isolated test runner to avoid memory leaks:
+Use the isolated test runner:
 
 ```bash
 uv run python scripts/run_tests.py -x
 ```
 
-**Never** run `uv run pytest tests/` directly — it leaks 100+ GB RAM across 2000+ tests.
+The runner shards pytest invocations to keep per-shard memory bounded.
 
 ---
 

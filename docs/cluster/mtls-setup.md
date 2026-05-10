@@ -95,7 +95,7 @@ its `ClusterConfig.tls` at them.
 
 ## Rotation
 
-Phase 1 ships with **manual rotation only**. Steps:
+Rotation is manual. Steps:
 
 1. Generate a new server cert + key from the same CA. Replace the files
    on the central node. Restart the central server — the new cert is
@@ -107,9 +107,9 @@ Phase 1 ships with **manual rotation only**. Steps:
    the bundle, then phase out the old root. This is operator
    responsibility — Bernstein loads whatever CA bundle you point it at.
 
-Automated rotation (cert-manager hooks, ACME, etc.) is tracked as a
-follow-up. If you need it now, run a sidecar that writes the cert files
-into place and SIGHUP/restart the Bernstein server when they change.
+For automated rotation (cert-manager hooks, ACME, etc.), run a sidecar
+that writes the cert files into place and SIGHUP/restart the Bernstein
+server when they change.
 
 ## Verifying it works
 
@@ -144,11 +144,11 @@ curl --cacert ~/.bernstein/cluster/ca.crt https://localhost:8052/cluster/health
   `ClusterConfig.tls` before they'll re-register. Stage the rollout via
   `verify_mode="optional"` to catch stragglers.
 
-## Limitations
+## Scope
 
-- Manual cert rotation only in v1. ACME / cert-manager hooks are a
-  follow-up.
-- Single CA per cluster. Per-tenant cert isolation is not in v1.
+- Cert rotation is manual; automate it via a sidecar that writes the
+  files and SIGHUP/restarts the server.
+- One CA per cluster.
 - mTLS authenticates the channel; the JWT bearer token still
   authorises the action. They compose; neither is removed.
 - `bootstrap-ca` produces a self-signed CA suitable for self-hosted

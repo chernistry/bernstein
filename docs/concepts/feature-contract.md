@@ -81,9 +81,9 @@ weakened to `assert True`), the janitor flags it as
 
 ## Limitations
 
-- The operator authors `acceptance_steps` and `acceptance_check`. No
-  LLM-generated suggestions in v1.
-- No cross-project feature library. Contracts live with the plan.
+- The operator authors `acceptance_steps` and `acceptance_check`.
+- Contracts live with the plan; there is no cross-project feature
+  library.
 - CLI table output only — no visual board UI.
 - Acceptance checks run as shell commands; supply them with care
   (the existing command allowlist still applies).
@@ -94,4 +94,4 @@ weakened to `assert True`), the janitor flags it as
 - Audit hook: `src/bernstein/core/security/audit.py`
 - Janitor integration: `src/bernstein/core/quality/janitor.py`
 - CLI: `bernstein contract status`, `bernstein contract verify`
-- PR #997, ticket `2026-04-30-feat-feature-list-immutable-contract.md`
+- PR #997

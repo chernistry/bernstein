@@ -80,4 +80,4 @@ Re-running the same plan ID skips already-completed chunks
 - CLI: `src/bernstein/cli/commands/migrate_cmd.py`
 - Plan templates: `templates/migrations/`
 - [Adaptive parallelism](../architecture/adaptive-parallelism.md)
-- PR #1010, ticket `2026-04-30-feat-swarm-migration.md`
+- PR #1010

@@ -65,7 +65,7 @@ Metrics exposed on `/metrics`:
 
 ## Limitations
 
-- Single host. No cross-machine cache sharing in v1.
+- Single host. The store is on-disk and not shared across machines.
 - The fingerprint hashes the *immediate* function body only — not the
   transitive closure of called helpers. If you rely on a helper that
   changed, decorate that helper too, or invalidate manually.
@@ -78,5 +78,4 @@ Metrics exposed on `/metrics`:
 ## Related
 
 - Source: `src/bernstein/core/persistence/fingerprint.py`
-- Inspired by [cocoindex memo_fingerprint](https://github.com/cocoindex-io/cocoindex/blob/main/python/cocoindex/_internal/memo_fingerprint.py) (Apache-2.0).
-- PR #995, ticket `2026-05-05-feat-fingerprint-memoization-for-recomputes.md`
+- PR #995

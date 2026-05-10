@@ -83,4 +83,4 @@ Override per task via the existing `model:` field on the step.
 - Source: `src/bernstein/core/orchestration/phase_pipeline.py`
 - Plan loader: `src/bernstein/core/planning/plan_loader.py`
 - Routing: `src/bernstein/core/routing/router.py`
-- PR #1000, ticket `2026-04-30-feat-discrete-phase-separation.md`
+- PR #1000

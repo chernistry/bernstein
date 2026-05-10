@@ -288,16 +288,14 @@ All three patterns work with the existing `bernstein cluster worker
 networking code; they pick the tunnel/overlay that fits their
 operations and point the worker at the resulting hostname.
 
-## What's not covered here
+## Out of scope
 
 - **Peer-to-peer worker traffic.** The STAR topology routes through the
   central server. Workers don't talk to each other.
 - **ZeroTier / WireGuard / Headscale.** Same shape as Tailscale; adapt
-  the example accordingly. We'll ship first-class samples when a
-  customer asks.
-- **Automated cert rotation.** See the rotation section of
-  `mtls-setup.md` — manual today, ACME/cert-manager hooks tracked as a
-  follow-up.
+  the example accordingly.
+- **Automated cert rotation.** Rotation is manual today — see the
+  rotation section of `mtls-setup.md`.
 - **In-cluster service mesh.** If you're already running Istio/Linkerd,
   Bernstein's plain HTTP works fine behind the mesh; you don't need
   any of the patterns above.

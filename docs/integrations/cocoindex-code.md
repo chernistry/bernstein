@@ -89,7 +89,7 @@ in `bernstein mcp catalog list` for future re-enable.
 
 ## Limitations
 
-- Local index only — no shared index across hosts in v1.
+- Local index only — no shared index across hosts.
 - Disabled by default. Catalog entry exists; servers are not started
   until the operator explicitly enables.
 - The default embedding model is the upstream SentenceTransformer
@@ -105,6 +105,6 @@ in `bernstein mcp catalog list` for future re-enable.
 
 - Manifest: `src/bernstein/core/protocols/mcp_catalog/manifests/cocoindex_code.yaml`
 - [MCP server injection](mcp-server-injection.md)
-- [AST-aware reviewer chunking](../concepts/ast-aware-chunking.md) — sibling cocoindex-derived feature
-- [Fingerprint memoization](../concepts/fingerprint-memoization.md) — sibling cocoindex-derived feature
-- PR #994, ticket `2026-05-05-feat-cocoindex-code-mcp-catalog.md`
+- [AST-aware reviewer chunking](../concepts/ast-aware-chunking.md)
+- [Fingerprint memoization](../concepts/fingerprint-memoization.md)
+- PR #994

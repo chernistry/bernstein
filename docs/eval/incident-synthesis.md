@@ -69,12 +69,13 @@ Metrics:
 - `bernstein_incident_evals_total{severity}`
 - `bernstein_incident_recurrence_rate`
 
-## Limitations
+## Scope
 
-- No LLM-driven fuzz expansion (one incident = one case).
-- No corpus auto-pruning — old cases accumulate until manually
-  trimmed; tracked as a follow-up.
-- Cross-tenant incident sharing is out of scope.
+- One incident produces one case (no LLM-driven fuzz expansion).
+- The corpus is operator-pruned: old cases accumulate until manually
+  trimmed.
+- Each project keeps its own corpus; cross-project incident sharing is
+  not part of this surface.
 - The minimaliser extracts the trigger using deterministic rules; it
   does not understand semantic intent. For unusual incident shapes
   the case may need hand-editing.
@@ -86,4 +87,4 @@ Metrics:
   `core/observability/postmortem.py`
 - Quality gate: `core/quality/gate_pipeline.py`
 - CLI: `bernstein eval sync-incidents`
-- PR #1001, ticket `2026-04-30-feat-incident-to-eval-synthesis.md`
+- PR #1001

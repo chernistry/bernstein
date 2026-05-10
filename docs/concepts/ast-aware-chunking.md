@@ -43,9 +43,9 @@ model sees structure before code.
 
 ## Configuration
 
-There are no user-facing knobs in v1. The chunker reads
-`defaults.REVIEW_BUDGET_TOKENS` (the same budget the line-based
-fallback used) and is otherwise self-contained.
+The chunker reads `defaults.REVIEW_BUDGET_TOKENS` (the same budget the
+line-based fallback uses) and is otherwise self-contained — no
+user-facing knobs.
 
 ## Limitations
 
@@ -63,4 +63,4 @@ fallback used) and is otherwise self-contained.
 - Source: `src/bernstein/core/quality/review_pipeline/ast_chunker.py`
 - Symbol graph: `src/bernstein/core/knowledge/ast_symbol_graph.py`
 - Quality pipeline: [Quality Pipeline](../architecture/quality-pipeline.md)
-- PR #993, ticket `2026-05-05-feat-ast-aware-chunking-for-reviewer.md`
+- PR #993

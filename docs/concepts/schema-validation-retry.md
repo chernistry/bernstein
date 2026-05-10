@@ -81,4 +81,4 @@ prior validation failure, not just the most recent.
 - Source: `src/bernstein/core/tasks/schema_retry.py`
 - Wired in: `core/orchestration/manager_parsing.py`,
   `core/protocols/mcp/mcp_tool_normalization.py`
-- PR #998, ticket `2026-04-30-feat-schema-validation-retry.md`
+- PR #998

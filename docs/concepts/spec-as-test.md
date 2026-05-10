@@ -85,4 +85,4 @@ warning.
 - Source: `src/bernstein/core/planning/spec_assertions.py`
 - Drain hook: `src/bernstein/core/orchestration/drain.py`
 - Run flag: `src/bernstein/cli/commands/run_cmd.py`
-- PR #1003, ticket `2026-04-30-feat-spec-as-test-loop.md`
+- PR #1003

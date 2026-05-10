@@ -39,8 +39,7 @@ sandbox:
 - **No exec streaming on the synchronous endpoint.** The Vercel
   Sandbox HTTP API returns the buffered `stdout`/`stderr` after the
   command exits. For interactive workloads (tail-style log
-  streaming), use the `worktree` or `docker` backends until Vercel's
-  WebSocket exec channel ships GA.
+  streaming), use the `worktree` or `docker` backends.
 - **No stdin on the sync exec route.** Passing `stdin=` raises
   `NotImplementedError`.
 - **Snapshots not supported.** Persist state via Vercel-managed

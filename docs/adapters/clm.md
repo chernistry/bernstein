@@ -6,11 +6,9 @@ telemetry and served behind NVIDIA NIM (TensorRT-LLM + Triton).
 NIM exposes an OpenAI-compatible HTTP API; the adapter is a thin
 shim that points `aider` at a customer-side CLM gateway.
 
-Phase 1 shipped the adapter MVP. Phase 2 partial added the
-tool-calling allowlist + streaming regression. Phase 2.5 (this
-document includes it) adds opt-in **mTLS** to the customer gateway,
-reusing the `TLSConfig` plumbing introduced by the
-`cluster-mtls-transport` ticket.
+The adapter ships an MVP with a tool-calling allowlist, streaming
+support, and opt-in **mTLS** to the customer gateway, reusing the
+`TLSConfig` plumbing shared with the cluster transport.
 
 ---
 
@@ -99,8 +97,9 @@ The adapter spawns `aider` configured to talk to the gateway via
 standard `OPENAI_API_BASE` / `OPENAI_API_KEY` variables, with the
 scoped `CLM_TOKEN` riding as the Bearer credential.
 
-If a customer is running CLM behind a non-OpenAI-shaped wrapper, that
-is a v2 follow-up — not in scope for Phase 1.
+If a customer is running CLM behind a non-OpenAI-shaped wrapper, the
+adapter does not connect to it; the OpenAI-compatible HTTP shape is
+the supported integration point.
 
 ---
 
@@ -117,7 +116,7 @@ is a v2 follow-up — not in scope for Phase 1.
 
 ---
 
-## mTLS (Phase 2.5)
+## mTLS
 
 Sovereign customers commonly require the worker side of any agent
 session to present a client certificate signed by their internal CA
@@ -182,7 +181,7 @@ export CLM_CA_FILE=/etc/bernstein/pki/customer-ca.bundle.crt
 ### Tested handshake paths
 
 The integration suite (`tests/integration/adapters/test_adapter_clm_with_fake_nim.py`)
-covers two acceptance criteria from the Phase 2.5 ticket:
+covers two scenarios:
 
 * **Positive** — a worker carrying the matching client cert completes
   the TLS handshake against a `verify_mode='required'` fake NIM and
@@ -195,16 +194,16 @@ covers two acceptance criteria from the Phase 2.5 ticket:
 
 ## Limitations
 
-* OpenAI-compatible HTTP only. A non-OpenAI-shaped CLM gateway is a v2
-  follow-up — not in scope here.
+* OpenAI-compatible HTTP only. Non-OpenAI-shaped CLM gateways are not
+  supported.
 * Aider is the spawned subprocess. Switching to a different driver
   CLI requires a separate adapter shim.
-* mTLS uses one client cert per spawn. Per-request cert rotation is
-  not supported — lifecycle is the operator's PKI's job.
+* mTLS uses one client cert per spawn. Cert lifecycle is the operator's
+  PKI's job; the adapter does not rotate certs per-request.
 * Token issuance is the customer's identity layer. Bernstein consumes
   whatever JWT the customer issues and does no rotation of its own.
 * Streaming responses are assembled and emitted to lineage as a
-  single record. Per-chunk lineage is not in v1.
+  single record.
 
 ## Related
 
@@ -215,7 +214,3 @@ covers two acceptance criteria from the Phase 2.5 ticket:
   the cluster transport uses
 * [Artifact lineage trail](../concepts/artifact-lineage.md) — what
   the adapter produces per agent invocation
-* PRs #1012 (Phase 1), #1016 (Phase 2 partial — tools + streaming),
-  #1022 (Phase 2.5 — mTLS)
-* Tickets: `2026-05-05-feat-clm-agent-adapter.md`,
-  `2026-05-05-feat-clm-adapter-phase-2-5-mtls.md`

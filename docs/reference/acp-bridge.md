@@ -83,10 +83,9 @@ byte-identical (modulo timestamp + chain HMAC) to the entry the CLI
 surface emits for the same operation. See
 `tests/integration/acp/test_audit_parity.py` for the parity guard.
 
-## Out of scope (v1.9)
+## Out of scope
 
 - Windows named-pipe transport — POSIX stdio + HTTP only.
-- Bidirectional file-edit primitives that are not in the ratified ACP
-  spec — those track in a follow-up.
+- File-edit primitives that are not in the ratified ACP spec.
 - ACP authentication beyond loopback — remote HTTP usage rides the
   existing tunnel wrapper.

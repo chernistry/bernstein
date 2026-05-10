@@ -10,7 +10,7 @@ locally without waiting for the cloud runner.
 | --------------------------- | ----------------------------------------------------------------- | ------------------- |
 | **Hypothesis** (property)   | Hash-chain breaks, signature roundtrip, canonical-bytes drift     | PR (smoke), nightly (deep)  |
 | **Schemathesis**            | 5xx leaks against fuzzed REST inputs                              | PR (allow-list), nightly (full)  |
-| **CrossHair**               | Logic errors in pure helpers (concolic execution, assert checks)  | nightly only (until contracts added)         |
+| **CrossHair**               | Logic errors in pure helpers (concolic execution, assert checks)  | nightly only         |
 | **mutmut diff-only**        | Test-effectiveness gaps on PR-changed lines                       | PR (advisory)       |
 | **mutmut full**             | Test-effectiveness gaps across the whole repo                     | nightly (advisory)  |
 | **Semgrep** (custom rules)  | eval/exec/pickle in production, env-leak in `_spawn_*`            | PR (ERROR fails)    |

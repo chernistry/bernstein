@@ -4,11 +4,11 @@ Bernstein ships a lot of functionality, but several constraints still matter in 
 
 ---
 
-## 1) Process and adapter parity is not perfect
+## 1) Adapter parity is not perfect
 
 **What:** Bernstein ships 43 CLI adapters, but different CLI agents expose different capabilities and process semantics.
 
-**Impact:** Stop/restart behavior, output shape, structured output support, and error handling can vary by adapter. The conformance harness (`adapters/conformance.py`) helps catch regressions, but not all adapters have full golden-transcript coverage.
+**Impact:** Stop/restart behavior, output shape, structured output support, and error handling can vary by adapter. The conformance harness (`adapters/conformance.py`) helps catch regressions across adapters.
 
 **Workaround:**
 - Run `bernstein doctor` before long runs.
@@ -18,7 +18,7 @@ Bernstein ships a lot of functionality, but several constraints still matter in 
 
 ---
 
-## 2) Multi-node execution is still a careful/advanced path
+## 2) Multi-node execution is an advanced path
 
 **What:** Bernstein has worker/cluster primitives and container execution support, but default operation remains single-host orchestration.
 
@@ -58,9 +58,9 @@ Bernstein ships a lot of functionality, but several constraints still matter in 
 
 ## 5) Verification quality depends on project quality
 
-**What:** Bernstein’s gates and janitor checks can only validate what your project exposes (tests, linters, static checks, completion signals).
+**What:** Bernstein's gates and janitor checks can only validate what your project exposes (tests, linters, static checks, completion signals).
 
-**Impact:** Weak test suites reduce confidence in “done” outcomes.
+**Impact:** Weak test suites reduce confidence in "done" outcomes.
 
 **Workaround:**
 - Maintain strong tests and static checks.
@@ -83,11 +83,9 @@ Bernstein ships a lot of functionality, but several constraints still matter in 
 
 ---
 
-## 7) Documentation and fast-moving features can drift
+## 7) Documentation lag
 
 **What:** Bernstein evolves quickly; some docs may lag short-term behind newly shipped features.
-
-**Impact:** Teams can accidentally treat shipped features as roadmap items (or vice versa).
 
 **Workaround:**
 - Cross-check CLI (`bernstein --help`) and API routes when implementing automation.
@@ -96,24 +94,7 @@ Bernstein ships a lot of functionality, but several constraints still matter in 
 
 ---
 
-## 8) Several shipped subsystems are off by default or undocumented
-
-**What:** Recent surface-area additions ship working but are not surfaced in the default UX:
-
-- `cross_model_verifier` (`core/quality/cross_model_verifier.py`) — currently disabled by default; opt-in via config.
-- `warm_pool` (`core/agents/warm_pool.py`) — pre-spawn pool cutting agent latency; tuning surface is internal.
-- `cas_store` (`core/persistence/cas_store.py`) — content-addressed artifact dedup; reachable through persistence APIs only.
-- `behavior_anomaly` (`core/observability/behavior_anomaly.py`) — statistical agent anomaly detection; alerts not yet wired into the default notifier set.
-- `adaptive_parallelism` (`core/orchestration/adaptive_parallelism.py`) — dynamic `max_agents` tuning is enabled but observability is minimal.
-- Hidden task subcommands (`bernstein task compose / sync / notes / parts`) — not surfaced in CLI `--help`; reachable only by reading `cli/commands/task_cmd.py`.
-
-**Impact:** Capabilities exist but new users won't discover them; ops teams should treat them as opt-in until docs catch up.
-
-**Workaround:** Read the cited source modules; flip relevant config flags; track issues in CHANGELOG for surfaced rollouts.
-
----
-
-## 9) Protocol negotiation is best-effort
+## 8) Protocol negotiation is best-effort
 
 **What:** Protocol negotiation (`protocol_negotiation.py`) detects version compatibility at connection time, but not all agents support all protocol versions.
 

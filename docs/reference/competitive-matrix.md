@@ -1,6 +1,6 @@
-# Competitive Feature Matrix
+# Feature Comparison
 
-How Bernstein compares to other multi-agent frameworks, as of April 2026.
+How Bernstein's feature set lines up against other multi-agent frameworks, as of April 2026.
 
 ## Feature comparison
 
@@ -20,24 +20,18 @@ How Bernstein compares to other multi-agent frameworks, as of April 2026.
 | **Ecosystem / integrations** | Adapters for major CLI agents; MCP server registry | LangChain ecosystem, many tool integrations | Microsoft ecosystem, Azure integration | Full LangChain/LangSmith ecosystem | OpenAI platform (tools, retrieval, code interpreter) | Google Cloud, Vertex AI, A2A protocol |
 | **Open source license** | Apache 2.0 | Apache 2.0 | Apache 2.0 (with CC-BY-SA docs) | MIT | MIT | Apache 2.0 |
 
-## Where Bernstein is different
+## Bernstein's design choices
 
-**CLI-native, not API-native.** Most frameworks require you to build agents in Python using their SDK. Bernstein wraps CLI tools you already have installed. If you can run `claude`, `codex`, `gemini`, `kiro`, or `opencode` in your terminal, Bernstein can orchestrate it. No new abstractions to learn, no vendor SDK to import.
+**CLI-native, not API-native.** Bernstein wraps CLI tools you already have installed. If you can run `claude`, `codex`, `gemini`, `kiro`, or `opencode` in your terminal, Bernstein can orchestrate it.
 
-**No LLM tokens wasted on coordination.** The orchestrator is deterministic Python code. Task assignment, scheduling, health checks, and retries are all regular control flow. LLM calls happen only inside the agents doing actual work. This is a deliberate architectural choice — LLM-based schedulers are expensive, non-deterministic, and hard to debug.
+**Deterministic orchestrator.** The orchestrator is regular Python code. Task assignment, scheduling, health checks, and retries are all standard control flow. LLM calls happen only inside the agents doing actual work.
 
-**Agents are disposable.** Each agent spawns fresh, works in an isolated git worktree, and exits. No context window drift across tasks. No accumulated hallucinations. The janitor independently verifies each result (tests pass, files exist, no regressions) before merging. Response-cache reuse is also verification-gated, so cached completions cannot bypass that safety bar.
+**Disposable agents.** Each agent spawns fresh, works in an isolated git worktree, and exits. The janitor verifies each result (tests pass, files exist, no regressions) before merging. Response-cache reuse is verification-gated, so cached completions cannot bypass that safety bar.
 
-**Cost optimization is learned, not configured.** The epsilon-greedy bandit tracks which model gives the best success-rate-to-cost ratio for each task type. It starts by exploring, then converges on the cheapest model that still meets quality thresholds. Model cascade (cheap to expensive) handles failures automatically.
+**Learned cost optimization.** The epsilon-greedy bandit tracks which model gives the best success-rate-to-cost ratio for each task type. It starts by exploring, then converges on the cheapest model that still meets quality thresholds. Model cascade (cheap to expensive) handles failures automatically.
 
-**Self-evolution is built in.** Running `bernstein --evolve` analyzes metrics from past runs, identifies improvement opportunities, and generates upgrade proposals. The system can improve its own prompts, routing logic, and templates over time.
+**Self-evolution.** Running `bernstein --evolve` analyzes metrics from past runs, identifies improvement opportunities, and generates upgrade proposals.
 
-## Where competitors are stronger
+## Different design goals
 
-**Multi-turn agent conversations.** AutoGen and CrewAI are purpose-built for agents that discuss problems back and forth. Bernstein's short-lived agent model is intentionally simpler but cannot replicate multi-party brainstorming or negotiation patterns.
-
-**Ecosystem breadth.** LangGraph inherits the full LangChain ecosystem — hundreds of tool integrations, document loaders, vector stores. Google ADK connects natively to Google Cloud services and supports the A2A (Agent-to-Agent) protocol. If you need deep integration with a specific platform, these frameworks have a head start.
-
-**Visual development.** AutoGen Studio and LangGraph Studio offer visual workflow builders for designing and debugging agent pipelines. Bernstein is CLI-first with no GUI.
-
-**Permissive licensing.** All frameworks in this comparison, including Bernstein, use permissive open source licenses (Apache 2.0 or MIT).
+The matrix above compares features, not fitness for purpose. Bernstein is purpose-built for multi-agent software development orchestration — multiple CLI coding agents working in parallel git worktrees on a codebase. Frameworks aimed at multi-turn agent conversations (AutoGen, CrewAI), graph-based stateful LLM apps (LangGraph), or platform-specific deployments (OpenAI Agents SDK, Google ADK) optimise for different workloads.

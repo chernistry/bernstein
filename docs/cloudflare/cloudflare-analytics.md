@@ -2,7 +2,7 @@
 
 Bernstein's Cloudflare integration uses **D1** -- Cloudflare's serverless SQLite -- as the persistence layer for usage analytics, metering, and billing-tier enforcement. This is the data backbone of the hosted Bernstein SaaS but is usable by any deployment that needs durable per-user usage tracking.
 
-> **Removed in 1.9.x.** Earlier drafts of this page described a `VectorizeSemanticCache` for embedding-based LLM response reuse. That class is not in the codebase and the corresponding feature is not shipped. Prompt caching is delivered via Anthropic's native `cache_control` headers (see `core/agents/prompt_cache.py`), not Vectorize.
+> **Prompt caching note.** Bernstein's prompt caching is delivered via Anthropic's native `cache_control` headers (`core/agents/prompt_cache.py`), independent of Cloudflare Vectorize.
 
 ---
 

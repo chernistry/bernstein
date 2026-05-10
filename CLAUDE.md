@@ -166,7 +166,7 @@ Bernstein is a deterministic Python scheduler that runs a crew of CLI coding age
 | `commands/`             | commands sub-package |
 | `display/`              | ui sub-package |
 | `plan/`                 | plan sub-package |
-| `scaffold/`             | Bernstein scaffold subsystem (KF-8 slice) |
+| `scaffold/`             | Bernstein scaffold subsystem |
 | `utils/`                | utils sub-package |
 
 ### `src/bernstein/evolution/` — self-evolution engine

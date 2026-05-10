@@ -152,7 +152,7 @@ Bernstein is a deterministic Python scheduler that runs a crew of CLI coding age
 | `notebook_traces.py`    | Notebook-aware traces — detect and track Jupyter notebook cell edits |
 | `release_notes.py`      | Release notes display — fetch and format CHANGELOG.md for terminal output |
 | `run.py`                | Enhanced run output for ``bernstein run`` |
-| `run_archive.py`        | CLI-020: Export full run archive as ZIP |
+| `run_archive.py`        | Export full run archive as ZIP |
 | `run_bootstrap.py`      | Main Click commands and execution bootstrap for Bernstein runs |
 | `run_cmd.py`            | Run commands: init, conduct, downbeat (legacy start), and the main CLI group |
 | `run_confirm.py`        | Recipe/cook commands, demo, and confirmation helpers for Bernstein runs |

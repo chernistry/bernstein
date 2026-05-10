@@ -5,20 +5,16 @@ Applies to: all CLI adapters spawned by Bernstein.
 
 ## Motivation
 
-Before this work every agent spawn loaded the full ``templates/roles/<role>/system_prompt.md``
-into the system prompt, whether or not the agent actually exercised the
-deep guidance. Across 17 roles the bodies averaged ~40 lines each; the
-token bill was paid on every spawn, including retries and forks.
+Loading the full ``templates/roles/<role>/system_prompt.md`` into every
+agent spawn pays the token bill on every retry and fork, whether or
+not the agent exercises the deep guidance. Across 17 roles the bodies
+average ~40 lines each.
 
-OpenAI's Agents SDK v2 published the **Skills** pattern: a capability
-pack is a directory with ``SKILL.md`` (YAML frontmatter + markdown body)
-and optional ``references/``, ``scripts/``, ``assets/`` siblings.
-Callers receive only an index (``name + description`` per skill) and
-pull the full body on demand via ``load_skill``.
-
-Bernstein adopts the same shape. Roles are migrated to skill packs and
-the resolver injects just the index into the system prompt. Agents
-``load_skill`` when they decide a capability is relevant.
+A capability pack is a directory with ``SKILL.md`` (YAML frontmatter +
+markdown body) and optional ``references/``, ``scripts/``, ``assets/``
+siblings. The resolver injects only an index (``name + description``
+per skill) into the system prompt; agents pull the full body on demand
+via ``load_skill`` when they decide a capability is relevant.
 
 ## Directory layout
 
@@ -226,5 +222,4 @@ All 17 roles migrated to skill packs:
 | ``ci-fixer``      | —                                                           | single-purpose skill           |
 
 Legacy ``templates/roles/<role>/system_prompt.md`` files remain on disk
-for backwards compat. A follow-up ticket will deprecate the legacy path
-two minor versions after this change ships.
+for backwards compat.

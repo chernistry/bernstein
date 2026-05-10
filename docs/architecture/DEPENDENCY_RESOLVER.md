@@ -1,9 +1,5 @@
 # Bernstein Dependency Conflict Resolver
 
-**Status**: Complete ✓
-**Task**: 705e — Dependency Conflict Resolver
-**Commit**: eec8be6
-
 ## Overview
 
 The dependency conflict resolver is an automated system for detecting, resolving, and testing dependency updates. It integrates with GitHub Actions to run daily security scans and automatically propose tested fixes via pull requests.
@@ -175,14 +171,6 @@ This ensures:
 - No breaking changes in updated dependencies
 - All unit/integration tests still pass
 - Protocol compatibility maintained
-
-## Future Enhancements
-
-1. **Pinned CVE Tracking**: Maintain a list of known CVEs with status
-2. **Severity Scoring**: Prioritize high-severity CVEs for immediate fixing
-3. **Transitive Dependency Analysis**: Better tracking of indirect vulnerabilities
-4. **Automated Patching**: For zero-day CVEs, attempt micro-patch generation
-5. **License Scanning**: Integrate license compliance checks
 
 ## See Also
 

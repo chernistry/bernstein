@@ -192,7 +192,6 @@ The default reviewer mapping (`cross_model_verifier.py:37-43`):
 `CrossModelVerifierConfig` (`:84-106`) is `enabled=True` *as a class
 default*, but the orchestrator config wires it off by default — operators
 must enable it explicitly via `quality_gates.cross_model.enabled: true`.
-This is the "shipped but off by default" behaviour A2 surfaced.
 
 The reviewer is asked for one of two verdicts (`:120-123`):
 

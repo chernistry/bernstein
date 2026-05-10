@@ -153,13 +153,8 @@ azure = ["azure-storage-blob>=12.20"]
 r2 = ["boto3>=1.43.6"]
 # Chat-control bridge backends (op-001). Enable with:
 #   pip install 'bernstein[telegram]'
-# The default driver delegates to the standalone ``thisnotabot-router``
-# service via the ``thisnotabot-bridge`` SDK; ``python-telegram-bot``
-# stays in the extra so an operator who sets
-# ``BERNSTEIN_CHAT_USE_LEGACY=1`` still has a working long-poll driver.
-# ``thisnotabot-bridge`` is currently distributed as a path-install
-# from ``personal_core_services/thisnotabot``; once it is published to
-# the private index we will pin it explicitly here.
+# Standard Telegram bot integration via long-poll: configure the bot
+# token (from @BotFather) and the chat id, no external services.
 telegram = ["python-telegram-bot>=22.7"]
 # Contamination-resistant eval harness (SWE-bench Pro / Terminal-Bench 2.0 /
 # SWE-rebench). Kept optional so production installs don't pull HuggingFace

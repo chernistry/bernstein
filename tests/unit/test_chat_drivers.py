@@ -1,9 +1,7 @@
-"""Unit tests for chat drivers: legacy Telegram + Discord/Slack stubs.
+"""Unit tests for chat drivers: Telegram long-poll + Discord/Slack stubs.
 
-The Telegram cases here exercise the long-poll fallback driver
-(:mod:`bernstein.core.chat.drivers._legacy_telegram`). The new
-bridge-based default driver is covered by
-:mod:`tests.unit.test_chat_telegram_bridge`.
+The Telegram cases exercise the standard ``python-telegram-bot``
+long-poll driver at :mod:`bernstein.core.chat.drivers.telegram`.
 """
 
 from __future__ import annotations
@@ -179,7 +177,7 @@ async def _async_noop() -> None:  # NOSONAR — async-signature required by prot
 
 
 def test_telegram_empty_token_rejected() -> None:
-    from bernstein.core.chat.drivers._legacy_telegram import TelegramBridge
+    from bernstein.core.chat.drivers.telegram import TelegramBridge
 
     with pytest.raises(ValueError):
         TelegramBridge(token="")
@@ -187,7 +185,7 @@ def test_telegram_empty_token_rejected() -> None:
 
 def test_telegram_run_command_routes_to_registered_handler(fake_telegram: None) -> None:
     """A ``/run`` update must be dispatched to the registered handler."""
-    from bernstein.core.chat.drivers._legacy_telegram import TelegramBridge
+    from bernstein.core.chat.drivers.telegram import TelegramBridge
 
     received: list[ChatMessage] = []
 
@@ -217,7 +215,7 @@ def test_telegram_run_command_routes_to_registered_handler(fake_telegram: None) 
 
 def test_telegram_approval_button_round_trip(fake_telegram: None) -> None:
     """A callback_query with ``approve:<id>`` should fire the button handler."""
-    from bernstein.core.chat.drivers._legacy_telegram import TelegramBridge
+    from bernstein.core.chat.drivers.telegram import TelegramBridge
 
     decisions: list[tuple[str, str, str]] = []
 
@@ -246,7 +244,7 @@ def test_telegram_approval_button_round_trip(fake_telegram: None) -> None:
 
 def test_telegram_push_approval_renders_inline_keyboard(fake_telegram: None) -> None:
     """push_approval must attach an InlineKeyboardMarkup with two buttons."""
-    from bernstein.core.chat.drivers._legacy_telegram import TelegramBridge
+    from bernstein.core.chat.drivers.telegram import TelegramBridge
 
     bridge = TelegramBridge(token="dummy")
 
@@ -277,7 +275,7 @@ def test_telegram_push_approval_renders_inline_keyboard(fake_telegram: None) -> 
 
 def test_telegram_edit_throttle_collapses_rapid_updates(fake_telegram: None) -> None:
     """Five rapid edits to the same message must produce exactly one API call."""
-    from bernstein.core.chat.drivers._legacy_telegram import TelegramBridge
+    from bernstein.core.chat.drivers.telegram import TelegramBridge
 
     bridge = TelegramBridge(token="dummy")
 

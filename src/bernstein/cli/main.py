@@ -45,7 +45,7 @@ from bernstein.cli.advanced_cmd import (
 )
 from bernstein.cli.agents_cmd import agents_group
 
-# New CLI commands (CLI-004 through CLI-013)
+# New CLI commands
 from bernstein.cli.aliases import ALIASES, aliases_cmd
 from bernstein.cli.audit_cmd import audit_group
 from bernstein.cli.auth_cmd import auth_group, auth_login
@@ -395,7 +395,7 @@ def print_rich_help() -> None:
 class _RichGroup(click.Group):
     """Click group that renders help with Rich instead of plain text.
 
-    Also resolves short aliases (CLI-013) so ``bernstein s`` maps to
+    Also resolves short aliases  so ``bernstein s`` maps to
     ``bernstein status``, etc.
     """
 
@@ -403,7 +403,7 @@ class _RichGroup(click.Group):
         print_rich_help()
 
     def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
-        # Resolve alias first (CLI-013)
+        # Resolve alias first
         resolved = ALIASES.get(cmd_name)
         if resolved is not None:
             return super().get_command(ctx, resolved)
@@ -634,7 +634,7 @@ def cli(
     ctx.ensure_object(dict)
     # --json flag or --output json both enable JSON output mode
     ctx.obj["JSON"] = output_json or (output_format == "json")
-    # Apply --verbose / --quiet (CLI-005)
+    # Apply --verbose / --quiet
     if verbose and quiet:
         raise click.UsageError("Cannot use --verbose and --quiet together.")
     apply_verbosity(verbose, quiet)
@@ -848,7 +848,7 @@ cli.add_command(fingerprint_group, "fingerprint")
 cli.add_command(fleet_group, "fleet")
 cli.add_command(triggers_group, "triggers")
 
-# New CLI commands (CLI-004 through CLI-013)
+# New CLI commands
 cli.add_command(dry_run_cmd, "dry-run")
 cli.add_command(explain_help_cmd, "explain")
 cli.add_command(config_path_cmd, "config-path")

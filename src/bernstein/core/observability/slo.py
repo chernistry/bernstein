@@ -8,7 +8,7 @@ SLO targets:
 - Merge success rate: >= 95%
 - P95 task duration: < 30 minutes
 
-OBS-150: Burn-down rate visualization — tracks burn rate over time to project
+Burn-down rate visualization — tracks burn rate over time to project
 SLO breach date using linear extrapolation on the error budget.
 """
 
@@ -242,7 +242,7 @@ class SLOTracker:
     Reads from MetricsCollector and computes SLO status. Persists
     state to .sdd/metrics/slos.json.
 
-    OBS-150: Maintains a rolling window of burn rate snapshots for
+    Maintains a rolling window of burn rate snapshots for
     burn-down rate visualization and SLO breach projection.
     """
 
@@ -273,7 +273,7 @@ class SLOTracker:
             self._burn_history = self._burn_history[-_MAX_BURN_HISTORY:]
 
     def get_burndown_dashboard(self) -> dict[str, object]:
-        """Return burn-down rate data for SLO visualization (OBS-150).
+        """Return burn-down rate data for SLO visualization .
 
         Computes:
         - Current burn rate and SLO compliance
@@ -381,7 +381,7 @@ class SLOTracker:
         self.error_budget.total_tasks = total
         self.error_budget.failed_tasks = total - successes
 
-        # OBS-150: Record burn rate snapshot for burn-down visualization
+        # Record burn rate snapshot for burn-down visualization
         self._record_burn_snapshot()
 
     def get_dashboard(self) -> dict[str, object]:

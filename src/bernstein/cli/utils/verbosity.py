@@ -1,6 +1,6 @@
 """Global --verbose / --quiet flag support for all CLI commands.
 
-CLI-005: --verbose and --quiet flags.
+--verbose and --quiet flags.
 
 Provides a Click callback and context helpers that configure Python
 logging levels based on the flags.  ``--verbose`` sets DEBUG level;

@@ -1,6 +1,6 @@
 """``bernstein init`` interactive wizard.
 
-CLI-012: Ask questions and generate bernstein.yaml interactively.
+Ask questions and generate bernstein.yaml interactively.
 """
 
 from __future__ import annotations

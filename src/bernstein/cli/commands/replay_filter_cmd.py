@@ -1,6 +1,6 @@
 """``bernstein replay`` with filtering and search.
 
-CLI-010: Replay events from a previous run with --filter, --search,
+Replay events from a previous run with --filter, --search,
 --event-type, and --agent filtering options.
 
 This module provides the enhanced replay command with filtering

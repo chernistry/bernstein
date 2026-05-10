@@ -529,7 +529,7 @@ class ToolObserverWidget(Static):
 
 
 # ---------------------------------------------------------------------------
-# SLO burn-down rate widget (OBS-150)
+# SLO burn-down rate widget
 # ---------------------------------------------------------------------------
 
 
@@ -623,7 +623,7 @@ def build_slo_burndown_text(burndown: dict[str, object]) -> Text:
 
 
 class SLOBurnDownWidget(Static):
-    """TUI widget showing SLO burn-down rate and breach projection (OBS-150).
+    """TUI widget showing SLO burn-down rate and breach projection .
 
     Displays the current SLO compliance, error budget consumption, burn rate
     sparkline, and a linear projection of when the SLO will be breached.

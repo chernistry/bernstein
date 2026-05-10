@@ -65,7 +65,7 @@ def get_error_budget(request: Request) -> JSONResponse:
 
 @router.get("/slo/burndown")
 def get_slo_burndown(request: Request) -> JSONResponse:
-    """Return SLO burn-down rate visualization data (OBS-150).
+    """Return SLO burn-down rate visualization data .
 
     Provides:
     - Current SLO compliance and error budget fraction

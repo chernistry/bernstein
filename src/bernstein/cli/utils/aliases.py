@@ -1,6 +1,6 @@
 """Command aliases and shortcuts for Bernstein CLI.
 
-CLI-013: e.g. ``bernstein s`` = ``bernstein status``.
+e.g. ``bernstein s`` = ``bernstein status``.
 
 Provides a Click Group subclass that resolves short aliases to
 full command names, plus a registry of built-in aliases.

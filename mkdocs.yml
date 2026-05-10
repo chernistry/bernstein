@@ -186,6 +186,7 @@ nav:
       - Adapter guide: adapters/ADAPTER_GUIDE.md
       - OpenAI Agents SDK: adapters/openai-agents.md
       - CLM (Cyber Language Model): adapters/clm.md
+      - DeepSeek V4 (self-hosted): adapters/deepseek.md
       - Compatibility: adapters/compatibility.md
       - Deferred adapters: adapter-deferred.md
       - Hook system: integrations/hook-system.md
@@ -292,6 +293,9 @@ nav:
   - Security:
       - Hardening: security/security-hardening.md
       - Agent-card keystore: security/keystore.md
+      - OWASP ASI01-10 detector pack: security/owasp-asi.md
+      - MCP server signing + supply-chain scan: security/mcp-signing.md
+      - Credential scoping (default-on): security/credential-scoping.md
       - SOC 2 audit: security/AUDIT.md
       - Bug bounty: security/bug-bounty.md
       - Acknowledgments: security/security-acknowledgments.md

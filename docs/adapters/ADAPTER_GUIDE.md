@@ -1,7 +1,7 @@
 # Adapter Selection Guide
 
-Bernstein ships 43 CLI agent adapters in `src/bernstein/adapters/`
-(42 named adapters plus a `generic` catch-all), along with support
+Bernstein ships 44 CLI agent adapters in `src/bernstein/adapters/`
+(43 named adapters plus a `generic` catch-all), along with support
 modules (caching, conformance testing, environment isolation, plugin SDK,
 etc.).
 
@@ -43,7 +43,7 @@ This means you can run Bernstein with **zero Claude Code dependency** — use `q
 | `aider` | Multi | Any (Anthropic/OpenAI/Azure) | Inherited from model | $–$$$ | File editing | No | Commit-per-change workflows; focused file edits |
 | `amp` | Sourcegraph | Anthropic + OpenAI models | ★★★★★ (opus/o3) | $$–$$$ | Full | No | Sourcegraph-integrated teams; codebase-aware context |
 | `qwen` | Multi | qwen3-coder, qwen3.6-plus | ★★★ | Free–$$ | Full | No | Cost-sensitive; low-complexity tasks; free OpenRouter |
-| `ollama` | Local | deepseek-r1, qwen2.5-coder, phi4 | ★★★ (r1:70b) / ★★ (7b) | Free | File editing (via Aider) | No | Air-gapped; privacy-sensitive; zero API cost |
+| `ollama` | Local | deepseek-r1, qwen2.5-coder, phi4, deepseek-v4-flash, deepseek-v4-pro | ★★★★ (v4-pro) / ★★★ (r1:70b) / ★★ (7b) | Free | File editing (via Aider) | No | Air-gapped; privacy-sensitive; zero API cost; EU-residency profile via DeepSeek V4 — see [deepseek.md](deepseek.md) |
 | `cody` | Sourcegraph | Anthropic/OpenAI/Google (via SG) | Inherited from model | $$ | Chat only | No | Sourcegraph-integrated with codebase-level context |
 | `cursor` | Cursor | Cursor's model routing | ★★★★ | $$ | Full | No | Teams with Cursor subscriptions |
 | `goose` | Block | Anthropic models | ★★★★ | $$–$$$ | Full | No | Teams already using Block's Goose |
@@ -235,6 +235,7 @@ curl -fsSL https://ollama.ai/install.sh | sh
 ollama pull qwen2.5-coder:7b      # fast, low VRAM
 ollama pull qwen2.5-coder:32b     # best quality
 ollama pull deepseek-r1:70b       # strongest reasoning (requires 40+ GB VRAM)
+ollama pull deepseek-v4-flash     # 284B / 13B-active MoE, fits a single H100/A100
 # Install aider as the coding frontend
 pip install aider-chat
 ```
@@ -244,22 +245,25 @@ pip install aider-chat
 - Uses Aider as the coding frontend with Ollama as the LLM backend
 - Works in air-gapped and privacy-sensitive environments
 - Supports all Ollama-compatible models
+- **DeepSeek V4 + EU-residency guard** — when the requested model is `deepseek-v4-flash` or `deepseek-v4-pro` (or the adapter is constructed with `eu_residency=True`), `spawn()` refuses to dispatch against any host that is not loopback, RFC-1918, IPv6 unique-local, or an internal-suffix FQDN. Octet-aware host parsing catches the `10.example.com` / `192.168.evil.tld` rebinding shape. See the [DeepSeek V4 page](deepseek.md) for the full guard surface.
 
 **Model mapping:**
-| Short name | Ollama model |
-|------------|-------------|
+| Short name | Ollama / vLLM model |
+|------------|--------------------|
 | `opus` | `deepseek-r1:70b` |
 | `sonnet` | `qwen2.5-coder:32b` |
 | `haiku` | `qwen2.5-coder:7b` |
 | `codellama` | `codellama` |
 | `deepseek-r1` | `deepseek-r1` |
+| `deepseek-v4-flash` | `deepseek-v4-flash` (single-GPU Ollama) |
+| `deepseek-v4-pro` | `deepseek-v4-pro` (vLLM tensor-parallel) |
 | `phi4` | `phi4` |
 
-**Env vars:** None required. `OLLAMA_BASE_URL` (optional, default `http://localhost:11434`).
+**Env vars:** None required. `OLLAMA_BASE_URL` / `OLLAMA_API_BASE` (optional, default `http://localhost:11434`). For `deepseek-v4-pro`, point either env var at the vLLM `/v1` endpoint — aider/litellm treats Ollama and vLLM interchangeably over the OpenAI-compatible wire format.
 
 **Prerequisites:** `ollama` running locally + `aider-chat` installed + model pulled (`ollama pull qwen2.5-coder:7b`).
 
-**Best for:** Air-gapped environments, privacy-sensitive code, cost-zero experimentation, local development without API keys.
+**Best for:** Air-gapped environments, privacy-sensitive code, cost-zero experimentation, local development without API keys, EU-residency deployments running DeepSeek V4 inside the customer perimeter.
 
 ---
 
@@ -664,6 +668,36 @@ Runs OpenAI Codex inside Cloudflare sandboxes for isolated, scalable execution.
 
 ---
 
+### junie (JetBrains Junie)
+
+**Install:** `curl -fsSL https://junie.jetbrains.com/install.sh | bash`
+
+**Env vars:** Provider-keyed by routed model — `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`, `OPENROUTER_API_KEY`, `GH_COPILOT_TOKEN`, `MISTRAL_API_KEY`. Set `JUNIE_PROVIDER=<name>` so the adapter forwards the right key bundle.
+
+**Invocation:** `junie run --headless --model <id> --prompt-file <path>`. The prompt lives on disk under `.sdd/runtime/` so multi-line prompts and shell metacharacters round-trip cleanly; `--headless` suppresses the interactive TUI so the process exits when the model finishes the response.
+
+**Network policy:** the adapter pins the network allowlist to the provider-specific endpoint (`api.anthropic.com`, `api.openai.com`, `generativelanguage.googleapis.com`, etc.) for whichever provider env was forwarded, so a routed `JUNIE_PROVIDER=anthropic` run cannot accidentally reach OpenAI.
+
+**Best for:** JetBrains-shop teams that already run Junie's BYOK multi-provider router and want Bernstein to drive parallel sessions across providers without re-implementing the routing layer.
+
+---
+
+### q_dev (AWS Q Developer, legacy `q` CLI)
+
+**Install:** `brew install --cask amazon-q` (macOS) or the AWS-hosted `.deb`/`.rpm` packages (Linux). The Linux AppImage works for sandboxed installs.
+
+**Env vars:** none directly — `q` reads its bearer token from the on-disk login cache that `q login` writes. Cache lives under XDG paths on Linux/macOS and `%LOCALAPPDATA%` on Windows. The adapter refuses to spawn when no plausible cache directory is present and surfaces a clear "run `q login`" message rather than letting the CLI dump an authentication stack-trace into the agent log.
+
+**Invocation:** `q chat --no-interactive --trust-all-tools "<prompt>"`. Both flags are required for unattended runs — missing either deadlocks the CLI on stdin (upstream issue #1951).
+
+**Auth backends:** AWS Builder ID (free, personal account) or IAM Identity Center (enterprise SSO). When the spawn env carries an Identity Center session, `q`'s tool calls execute with **the user's IAM Identity Center role** — route infra-touching tasks (Terraform plans, AWS resource mutations) through `iac` or scope the role narrowly instead.
+
+**Project status:** the upstream `aws/amazon-q-developer-cli` repo is deprecated and rebranded as Kiro CLI (`kiro-cli`, see [`kiro` adapter](#kiro-aws)). The legacy `q` binary continues to ship for existing installs and the documented `--no-interactive --trust-all-tools` surface is unchanged; this adapter targets that legacy surface so users on the original Builder ID flow keep working without a forced Kiro migration.
+
+**Best for:** AWS shops on the original Builder ID flow that have not yet migrated to Kiro CLI, and Identity Center deployments that already scope a narrow role for the agent session.
+
+---
+
 ### mock (Testing only)
 
 Simulates agent behavior for unit and integration tests. Not for production use.
@@ -672,7 +706,7 @@ Simulates agent behavior for unit and integration tests. Not for production use.
 
 ## Orchestrator Delegation Adapters
 
-The adapters profiled above wrap **CLI coding agents** — tools that execute one task per invocation. Four adapters registered in `registry.py` (`junie`, `q_dev`, `devin_terminal`, `clm`) do not yet have full guide profiles here; they are documented in their respective module docstrings. The two below wrap **other CLI orchestrators** as if each were a single agent. Bernstein hands the wrapped tool a prompt or plan and only sees the final exit code and combined log; sub-agent costs and quality gates *inside* the wrapped orchestrator are not visible to Bernstein. This is leaf-node delegation, not deep meta-orchestration.
+The adapters profiled above wrap **CLI coding agents** — tools that execute one task per invocation. The `devin_terminal` and `clm` adapters live alongside them in `registry.py`; their module docstrings carry the full configuration surface, and `clm` has its own [page](clm.md). The two below wrap **other CLI orchestrators** as if each were a single agent. Bernstein hands the wrapped tool a prompt or plan and only sees the final exit code and combined log; sub-agent costs and quality gates *inside* the wrapped orchestrator are not visible to Bernstein. This is leaf-node delegation, not deep meta-orchestration.
 
 Use these when you have an existing workflow built on Composio or ralphex and want to drop it into one step of a larger Bernstein plan, rather than re-implementing it natively.
 
@@ -704,7 +738,7 @@ Use these when you have an existing workflow built on Composio or ralphex and wa
 
 ## Support Modules
 
-In addition to the 43 CLI agent adapters above, the adapter package includes
+In addition to the 44 CLI agent adapters above, the adapter package includes
 support modules that provide cross-cutting infrastructure:
 
 | Module | Purpose |
@@ -745,6 +779,8 @@ support modules that provide cross-cutting infrastructure:
 
 6. **Do you need air-gapped / self-hosted?**
    - `ollama` (local Ollama via Aider front-end)
+   - `ollama` with `deepseek-v4-flash` (single-GPU) or `deepseek-v4-pro` (vLLM tensor-parallel) for the EU-residency profile — see [DeepSeek V4](deepseek.md)
+   - `clm` for sovereign-AI customer-side gateways behind mTLS — see [CLM (Cyber Language Model)](clm.md)
 
 7. **Do you need multi-provider diversity?**
    - Primary: `claude`, Secondary: `codex` or `gemini`, Tertiary: `qwen`

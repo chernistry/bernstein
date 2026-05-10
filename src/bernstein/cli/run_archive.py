@@ -1,4 +1,4 @@
-"""CLI-020: Export full run archive as ZIP.
+"""Export full run archive as ZIP.
 
 Collects all run state from ``.sdd/`` (tasks, logs, costs, audit, metrics,
 traces, config) plus the top-level ``bernstein.yaml`` and packages them into

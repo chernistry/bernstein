@@ -1,6 +1,6 @@
 """Comprehensive health-check command for Bernstein.
 
-CLI-006: ``bernstein doctor`` comprehensive health checks.
+``bernstein doctor`` comprehensive health checks.
 
 Checks: adapters installed, API keys set, config valid, disk space,
 git installed, server reachable, and more.  Delegates to the existing

@@ -1,6 +1,6 @@
 """Config path display in help output.
 
-CLI-009: Show where bernstein.yaml is loaded from.
+Show where bernstein.yaml is loaded from.
 
 Adds a ``bernstein config path`` subcommand and a helper that resolves
 the active configuration file path.

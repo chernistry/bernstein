@@ -1,4 +1,4 @@
-"""Custom metric definition language for domain-specific KPIs (OBS-148).
+"""Custom metric definition language for domain-specific KPIs .
 
 Users define custom metrics in bernstein.yaml::
 

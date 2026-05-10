@@ -1,6 +1,6 @@
 """Expanded --dry-run support: show exact tasks, roles, models, estimated cost.
 
-CLI-007: --dry-run expansion.
+--dry-run expansion.
 
 Provides a standalone ``dry-run`` subcommand as well as a reusable
 helper that prints the full execution plan without spawning agents.

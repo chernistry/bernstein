@@ -1,6 +1,6 @@
 """``bernstein explain <command>`` -- detailed help with examples.
 
-CLI-008: Provide extended help for any Bernstein command, including
+Provide extended help for any Bernstein command, including
 usage examples, common patterns, and related commands.
 """
 

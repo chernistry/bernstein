@@ -3,7 +3,7 @@
 Generates shell-specific completion scripts using Click's built-in
 completion support.  Users source the output in their shell profile.
 
-CLI-004: Shell completions for bash, zsh, fish.
+Shell completions for bash, zsh, fish.
 """
 
 from __future__ import annotations

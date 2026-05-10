@@ -297,7 +297,7 @@ class SmtpSchema(BaseModel):
 
 
 class CustomMetricSchema(BaseModel):
-    """A single custom metric definition for domain-specific KPIs (OBS-148).
+    """A single custom metric definition for domain-specific KPIs .
 
     Example in bernstein.yaml::
 

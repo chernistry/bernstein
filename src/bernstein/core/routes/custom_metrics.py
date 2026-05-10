@@ -1,4 +1,4 @@
-"""HTTP routes for custom metric definitions and computed KPI values (OBS-148).
+"""HTTP routes for custom metric definitions and computed KPI values .
 
 Exposes:
 - GET /metrics/custom — evaluate all configured custom metrics and return results.

@@ -1,7 +1,6 @@
 # We ran Bernstein's self-evolution on itself for 30 days. Here's what happened.
 
 **Published:** 2026-03-28
-**Target:** HN, Reddit r/programming, Dev.to
 
 ---
 
@@ -255,17 +254,13 @@ The system did not:
 
 ---
 
-## What comes next
+## What this run produced
 
-The three queued proposals — two L1 template changes — need 3 more A/B cycles before the system
-has enough data to act. The loop continues running. By week 8, if the acceptance rate on L1 changes is
->80%, the system enters Phase 4: auto-apply for L0 and L1.
+The three queued proposals — two L1 template changes — need additional A/B cycles before the
+system has enough data to act on them. The loop continues running.
 
-That's the milestone worth watching. When the system is autonomously adjusting its agent prompts
-based on real performance data, with A/B testing, rollback, and human notification for confidence
-<85% — that's the loop fully closed.
-
-The 30-day run was the observation and analysis phases. The interesting part starts in month two.
+The 30-day run is the observation and analysis phases. The artefact shipped is the metrics
+dataset, the safety spec, and the single L0 change that landed on day 29.
 
 ---
 

@@ -202,8 +202,6 @@ bernstein cloud deploy     # Agenten-Worker pushen
 bernstein cloud run plan.yaml  # Plan auf Cloudflare ausführen
 ```
 
-Ein `bernstein cloud init`-Scaffold für `wrangler.toml` und Bindings ist geplant.
-
 ## Funktionen
 
 **Kern-Orchestrierung.** Parallele Ausführung, Git-Worktree-Isolation, Janitor-Verifizierung, Quality Gates (Lint, Typen, PII-Scan), Cross-Modell-Code-Review, Circuit Breaker für fehlerhafte Agenten, Token-Wachstums-Monitoring mit Auto-Intervention.
@@ -216,7 +214,7 @@ Ein `bernstein cloud init`-Scaffold für `wrangler.toml` und Bindings ist geplan
 
 **Skill-Packs.** Progressive-Disclosure-[Skills](../../docs/architecture/skills.md) (OpenAI-Agents-SDK-Pattern): Im System-Prompt jedes Spawns landet nur ein kompakter Skill-Index, Agenten ziehen die vollständigen Inhalte bei Bedarf über das `load_skill`-MCP-Tool nach. 17 eingebaute Rollen-Packs plus Drittanbieter-`bernstein.skill_sources`-Entry-Points.
 
-**Kontrolle.** HMAC-verkettete Audit-Logs, Policy-Engine, PII-Output-Gating, WAL-gestützte Crash-Recovery (experimentelle Multi-Worker-Sicherheit), OAuth 2.0 PKCE. SSO/SAML/OIDC-Support ist in Arbeit.
+**Kontrolle.** HMAC-verkettete Audit-Logs, Policy-Engine, PII-Output-Gating, WAL-gestützte Crash-Recovery (experimentelle Multi-Worker-Sicherheit), OAuth 2.0 PKCE.
 
 **Observability.** Prometheus-`/metrics`, OTel-Exporter-Presets, Grafana-Dashboards. Pro-Modell-Kostentracking (`bernstein cost`). Terminal-TUI und Web-Dashboard. Agentenprozesse sind in `ps` sichtbar.
 

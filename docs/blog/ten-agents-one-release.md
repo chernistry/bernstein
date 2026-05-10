@@ -1,7 +1,6 @@
 # Ten worktrees, ten agents, one merge train
 
 **Published:** 2026-04-25
-**Target:** Dev.to, HN follow-up, Python Weekly
 **Reading time:** ~7 minutes
 
 ---
@@ -80,7 +79,7 @@ After merging the first six PRs cleanly, the seventh — the credential vault PR
 
 The same conflict shape repeated for #948 (review-responder) and #949 (notifications). Total resolution time: under two minutes per conflict. Each was a "keep both" — the two added imports/registrations were independent and both belonged.
 
-What this told me: parallel agents are bottlenecked not by their code quality but by the **convergence points** in the codebase. `cli/main.py`'s flat list of `cli.add_command(...)` calls is one. A more conflict-resistant design would split command registration into per-package files that the entry point auto-discovers, eliminating the single edit hotspot. That's a Bernstein follow-up ticket for 1.10, not a 1.9 problem.
+What this told me: parallel agents are bottlenecked not by their code quality but by the **convergence points** in the codebase. `cli/main.py`'s flat list of `cli.add_command(...)` calls is one. A more conflict-resistant design would split command registration into per-package files that the entry point auto-discovers, eliminating the single edit hotspot. Worth keeping in mind when you design module boundaries for parallel-agent work.
 
 ## Numbers
 
@@ -94,7 +93,7 @@ I ran this as a stress test, not as a "how cheap is parallel agent execution" be
 - **Tests added:** ~360
 - **Net source LOC added:** ~12,000
 
-The cost-aware bandit router (the thing that picks model + effort per task) wasn't engaged here. The next iteration will be — half these tickets are config and CRUD shape; Haiku would have written them faster and ten times cheaper, with no quality delta.
+The cost-aware bandit router (the thing that picks model + effort per task) wasn't engaged here. Half these tickets are config and CRUD shape; Haiku would have written them faster and ten times cheaper, with no quality delta — that's the kind of run the bandit router is built for.
 
 ## What this is and isn't
 

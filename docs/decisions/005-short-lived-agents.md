@@ -21,7 +21,7 @@ the right balance?
 
 ADR-001 evaluated four lifecycle models in detail. This ADR documents the final
 implemented model and its rationale, building on the data from ADR-001's
-production analysis of the rag_challenge system (multi-agent sprint with 12 agents; see ADR-001 Appendix for full metrics).
+production analysis of the long-running multi-agent pilot (12 agents over a multi-day sprint; see ADR-001 Appendix for full metrics).
 
 ---
 
@@ -73,40 +73,40 @@ Orchestrator collects results, runs quality gates, spawns next batch
 
 4. **No inter-agent messaging during execution**: Agents write results to files
    and exit. The orchestrator reads results between spawns. This eliminates the
-   "hunger spam" problem (138 `STARVING/DYING/FEED ME` messages from the
-   rag_challenge analysis).
+   "hunger spam" problem (138 idle status messages observed in the pilot
+   analysis).
 
 ---
 
 ## Rejected alternatives
 
-### Option A: Persistent sessions (the rag_challenge model)
+### Option A: Persistent sessions (the original pilot model)
 
 Agents run indefinitely. They poll a task queue. When the queue is empty, they
 either sleep or post status messages.
 
 **Why rejected:**
 
-The rag_challenge data is definitive. A multi-day sprint with 12 agents.
+The pilot data is definitive. A multi-day sprint with 12 agents.
 Observed failure modes:
 
 - **Sleep problem**: Agents that exhausted their task queue stopped working
   silently. Anti-sleep instructions in the system prompt ("NEVER sleep, NEVER
   stop") did not reliably prevent this. The failure mode is a fundamental
   property of long-lived LLM sessions, not a prompt engineering problem.
-- **Hunger spam**: MUFFY produced 283 bulletin messages, the vast majority
-  being idle status reports (`STARVING/DYING/FEED ME`). Zero code commits.
+- **Hunger spam**: the worst-case agent produced 283 bulletin messages, the
+  vast majority being idle status reports. Zero code commits.
   ~50,000 tokens consumed on signaling rather than work.
 - **Context drift**: After hours of operation, agents confused their own work
-  with others' (SMARTY claimed credit for PAPA's commits), accumulated stale
-  context, and degraded in output quality. There is no mechanism to "refresh"
-  an agent's context without killing and respawning.
-- **LLM orchestrator single point of failure**: The PAPA manager agent was
-  responsible for keeping all worker queues filled. When PAPA fell asleep, the
+  with others' (one agent claimed credit for the manager agent's commits),
+  accumulated stale context, and degraded in output quality. There is no
+  mechanism to "refresh" an agent's context without killing and respawning.
+- **LLM orchestrator single point of failure**: the LLM manager agent was
+  responsible for keeping all worker queues filled. When it fell asleep, the
   entire system stalled. This is not fixable with better prompts — it is an
   architectural single point of failure.
 
-Only 3 of 12 agents (FRANKY, SISSY, ROCKY) were reliable producers. The rest
+Only 3 of 12 agents were reliable producers. The rest
 were net consumers of tokens.
 
 ### Option B: Pure pull (spawn per task, exit after one)
@@ -134,11 +134,11 @@ where task isolation matters more than efficiency.
 simply doesn't exist. There is no idle state to drift into.
 
 **Token efficiency.** Spawn overhead is ~3–5K tokens per batch. Amortized over
-2–3 tasks, that's ~1.5–2.5K tokens per task. The rag_challenge model spent
-more than this on idle signaling per agent.
+2–3 tasks, that's ~1.5–2.5K tokens per task. The pilot's persistent-session
+model spent more than this on idle signaling per agent.
 
 **Bounded context degradation.** A 30-minute wall-clock limit ensures agents
-never accumulate the stale context that caused identity drift in rag_challenge.
+never accumulate the stale context that caused identity drift in the pilot.
 Fresh agents read current file state; they don't carry stale assumptions.
 
 **Deterministic orchestration.** The orchestrator is Python code, not an LLM.

@@ -106,21 +106,19 @@
 
 <div class="container" style="margin-top: var(--space-12); margin-bottom: var(--space-16);">
   <div class="status-banner">
-    <h2 style="margin-top: 0;">Publication Status</h2>
-    <ul><li>Verified public benchmark results: in progress</li><li>Current page shows methodology, harness coverage, and reproducibility path.</li><li>Checked-in artifacts are treated as preview data until verified eval results are published.</li></ul>
+    <h2 style="margin-top: 0;">Methodology</h2>
+    <ul><li>Public benchmark claims are sourced only from <code>benchmarks/swe_bench/run.py eval</code> with <code>verified=true</code> artifacts.</li><li>Checked-in mock or simulation outputs are preview data and are not used for public claims.</li><li>This page documents methodology, harness coverage, and reproducibility — not headline numbers.</li></ul>
   </div>
 
   <div class="metric-grid">
-    <div class="metric-card"><div class="metric-label">Publication status</div><div class="metric-copy">Verified public benchmark results: in progress</div></div>
 <div class="metric-card"><div class="metric-label">Public claim source</div><div class="metric-copy">benchmarks/swe_bench/run.py eval only</div></div>
-<div class="metric-card"><div class="metric-label">Publication scope</div><div class="metric-copy">Bernstein vs solo baselines on SWE-Bench Lite until third-party live harnesses exist.</div></div>
-<div class="metric-card"><div class="metric-label">Next publication target</div><div class="metric-copy">Verified Pilot Results (n=50)</div></div>
+<div class="metric-card"><div class="metric-label">Comparison scope</div><div class="metric-copy">Bernstein vs solo single-agent baselines on SWE-Bench Lite.</div></div>
   </div>
 
 
   <section id="artifact-state" style="padding: 0; margin-bottom: var(--space-16);">
     <h2>Current Artifact State</h2>
-    <p>This page suppresses headline benchmark claims until all four public scenarios are present as verified SWE-Bench eval artifacts.</p>
+    <p>This page does not show headline benchmark numbers from the checked-in artifacts because they are mock/preview only.</p>
     <div class="comparison-wrap">
       <table class="comparison-table">
         <thead>
@@ -140,16 +138,12 @@
         </tbody>
       </table>
     </div>
-    <div class="callout callout-info" style="margin-top: var(--space-4);">
-      <strong>Publication blockers</strong>
-      <ul><li>At least one required scenario is not marked as a verified `eval` artifact.</li></ul>
-    </div>
   </section>
 
 
   <section id="scope" style="padding: 0; margin-bottom: var(--space-16);">
-    <h2>V1 Publication Scope</h2>
-    <p>Public benchmark publication is intentionally narrow in this phase: Bernstein vs real single-agent baselines on SWE-Bench Lite.</p>
+    <h2>Comparison Scope</h2>
+    <p>Verified comparisons are narrow: Bernstein vs real single-agent baselines on SWE-Bench Lite.</p>
     <div class="comparison-wrap">
       <table class="comparison-table">
         <thead>
@@ -189,13 +183,13 @@
 
   <section id="reproduce" style="padding: 0;">
     <h2>Reproduce</h2>
-    <p>Simulation/modeling harnesses remain useful for workflow exploration, but only the SWE-Bench eval path is eligible for public benchmark publication.</p>
+    <p>Simulation/modeling harnesses remain useful for workflow exploration, but only the SWE-Bench eval path is eligible for public benchmark numbers.</p>
     <div class="code-block">
       <pre><code class="language-bash"># Simulation/modeling harnesses (preview only)
 uv run python benchmarks/run_benchmark.py
 uv run python benchmarks/run_benchmark.py --issues-file benchmarks/issues.json
 
-# Verified evaluation harness for public benchmark publication
+# Verified evaluation harness for public benchmark numbers
 uv run python benchmarks/swe_bench/run.py eval \
     --scenarios solo-sonnet solo-opus bernstein-sonnet bernstein-mixed \
     --limit 50

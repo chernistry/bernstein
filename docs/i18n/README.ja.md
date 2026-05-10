@@ -202,8 +202,6 @@ bernstein cloud deploy     # push agent workers
 bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 ```
 
-`wrangler.toml` とバインディングを足場として作成する `bernstein cloud init` も計画中です。
-
 ## 機能
 
 **コアオーケストレーション**。並列実行、Git worktree 分離、ジャニターによる検証、品質ゲート (Lint、型、PII スキャン)、クロスモデルコードレビュー、挙動が怪しいエージェント向けのサーキットブレーカー、自動介入付きのトークン増加監視。
@@ -216,7 +214,7 @@ bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 
 **スキルパック**。漸進開示型の [スキル](../../docs/architecture/skills.md) (OpenAI Agents SDK パターン): すべての起動時のシステムプロンプトにはコンパクトなスキルインデックスのみが載り、エージェントは必要に応じて `load_skill` MCP ツールで本体を取得します。組み込みのロールパック 17 個に加え、サードパーティの `bernstein.skill_sources` エントリーポイントもあります。
 
-**コントロール**。HMAC でチェーンされた監査ログ、ポリシーエンジン、PII 出力ゲーティング、WAL によるクラッシュ復旧 (実験的なマルチワーカー安全性)、OAuth 2.0 PKCE。SSO/SAML/OIDC 対応は進行中です。
+**コントロール**。HMAC でチェーンされた監査ログ、ポリシーエンジン、PII 出力ゲーティング、WAL によるクラッシュ復旧 (実験的なマルチワーカー安全性)、OAuth 2.0 PKCE。
 
 **可観測性**。Prometheus `/metrics`、OTel エクスポーターのプリセット、Grafana ダッシュボード。モデル別のコストトラッキング (`bernstein cost`)。ターミナル TUI と Web ダッシュボード。`ps` 上でのエージェントプロセス可視化。
 

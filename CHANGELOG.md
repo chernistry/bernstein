@@ -151,7 +151,7 @@ All notable project changes are tracked here (code + docs).
 - TUI keyboard help (`?`) shortcut support.
 
 ### Changed
-- Issue triage and documentation alignment pass to reduce roadmap vs shipped-feature drift.
+- Issue triage and documentation alignment pass so docs match shipped behaviour.
 - Retry, lifecycle, and observability narratives updated to better reflect current implementation boundaries.
 
 ## [1.4.0] — 2026-03-31

@@ -122,3 +122,27 @@ docs/openapi.json
 benchmarks/results/
 benchmarks/swe_bench/results/
 .cache/
+
+# Internal-only research / strategy / audit material (never ship to public docs)
+docs/internal/
+docs/strategy/
+docs/competitive/
+docs/_internal/
+docs/**/_internal/
+docs/**/INTERNAL_*.md
+docs/**/*-internal.md
+docs/**/*-strategy.md
+docs/**/*-roadmap.md
+docs/**/*-deep-audit*.md
+docs/**/*-deep-dive*.md
+docs/**/*-analysis-v*.md
+docs/**/*-roadmap-signals*.md
+docs/**/*-inheritance*.md
+docs/**/*-gap-map*.md
+docs/**/*-backlog-*.md
+docs/**/RESRCH-*.md
+docs/**/KF-*.md
+docs/**/MT-*.md
+docs/**/OAI-*.md
+docs/**/SDD-*.md
+docs/**/RAG-*.md

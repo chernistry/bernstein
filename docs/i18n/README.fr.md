@@ -202,8 +202,6 @@ bernstein cloud deploy     # push agent workers
 bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 ```
 
-Un échafaudage `bernstein cloud init` pour `wrangler.toml` et les bindings est prévu.
-
 ## Capacités
 
 **Orchestration centrale**. Exécution parallèle, isolation par git worktree, vérification par le janitor, contrôles qualité (lint, types, scan PII), revue de code multi-modèles, disjoncteur pour les agents au comportement déviant, surveillance de la croissance des tokens avec intervention automatique.
@@ -216,7 +214,7 @@ Un échafaudage `bernstein cloud init` pour `wrangler.toml` et les bindings est 
 
 **Packs de compétences**. [Compétences](../../docs/architecture/skills.md) à divulgation progressive (modèle OpenAI Agents SDK) : seul un index compact des compétences est embarqué dans le system prompt de chaque spawn, les agents récupèrent les corps complets via l'outil MCP `load_skill` à la demande. 17 packs de rôles intégrés plus des entry-points tiers `bernstein.skill_sources`.
 
-**Contrôles**. Journaux d'audit chaînés HMAC, moteur de politiques, filtrage des sorties PII, reprise après crash adossée au WAL (sécurité multi-worker expérimentale), OAuth 2.0 PKCE. Le support SSO/SAML/OIDC est en cours.
+**Contrôles**. Journaux d'audit chaînés HMAC, moteur de politiques, filtrage des sorties PII, reprise après crash adossée au WAL (sécurité multi-worker expérimentale), OAuth 2.0 PKCE.
 
 **Observabilité**. Prometheus `/metrics`, presets d'exporteur OTel, tableaux de bord Grafana. Suivi des coûts par modèle (`bernstein cost`). TUI terminal et tableau de bord web. Visibilité des processus agents dans `ps`.
 

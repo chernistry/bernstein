@@ -202,8 +202,6 @@ bernstein cloud deploy     # 推送代理 worker
 bernstein cloud run plan.yaml  # 在 Cloudflare 上执行计划
 ```
 
-为 `wrangler.toml` 和绑定提供脚手架的 `bernstein cloud init` 已在规划中。
-
 ## 能力一览
 
 **核心编排**。并行执行、git worktree 隔离、janitor 验证、质量门禁（lint、类型、PII 扫描）、跨模型代码评审、面向行为异常代理的熔断器、带自动干预的 token 增长监控。
@@ -216,7 +214,7 @@ bernstein cloud run plan.yaml  # 在 Cloudflare 上执行计划
 
 **技能包**。渐进式披露的 [skills](../../docs/architecture/skills.md)（OpenAI Agents SDK 模式）：每次派生的系统提示词中只携带紧凑的技能索引，代理按需通过 `load_skill` MCP 工具拉取完整内容。内置 17 个角色包，外加第三方的 `bernstein.skill_sources` 入口点。
 
-**控制面**。HMAC 链式审计日志、策略引擎、PII 输出闸门、基于 WAL 的崩溃恢复（实验性的多 worker 安全机制）、OAuth 2.0 PKCE。SSO / SAML / OIDC 支持正在推进中。
+**控制面**。HMAC 链式审计日志、策略引擎、PII 输出闸门、基于 WAL 的崩溃恢复（实验性的多 worker 安全机制）、OAuth 2.0 PKCE。
 
 **可观测性**。Prometheus 的 `/metrics`、OTel exporter 预设、Grafana 仪表盘。按模型 / 任务的成本追踪（`bernstein cost`）。终端 TUI 与 web 仪表盘。在 `ps` 中可见代理进程。
 

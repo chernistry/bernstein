@@ -204,8 +204,6 @@ bernstein cloud deploy     # push agent workers
 bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 ```
 
-מתוכננת תשתית `bernstein cloud init` עבור `wrangler.toml` ו-bindings.
-
 ## יכולות
 
 **תזמור ליבה**. הרצה מקבילית, בידוד git worktree, אימות janitor, שערי איכות (lint, טיפוסים, סריקת PII), סקירת קוד צולבת בין מודלים, מאלץ נתיכים (circuit breaker) לסוכנים שמתנהגים לא כשורה, ניטור צמיחת טוקנים עם התערבות אוטומטית.
@@ -218,7 +216,7 @@ bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 
 **חבילות מיומנויות (Skill packs)**. [מיומנויות](../../docs/architecture/skills.md) בחשיפה הדרגתית (דפוס OpenAI Agents SDK): רק אינדקס מיומנויות קומפקטי נשלח בכל הנחיית מערכת של spawn, סוכנים מושכים את הגוף המלא דרך כלי MCP `load_skill` לפי דרישה. 17 חבילות תפקיד מובנות בתוספת נקודות כניסה `bernstein.skill_sources` של צד שלישי.
 
-**בקרות**. יומני ביקורת משורשרים ב-HMAC, מנוע מדיניות, שיגור פלט PII, התאוששות מקריסה הנתמכת ב-WAL (בטיחות multi-worker ניסיונית), OAuth 2.0 PKCE. תמיכה ב-SSO/SAML/OIDC בפיתוח.
+**בקרות**. יומני ביקורת משורשרים ב-HMAC, מנוע מדיניות, שיגור פלט PII, התאוששות מקריסה הנתמכת ב-WAL (בטיחות multi-worker ניסיונית), OAuth 2.0 PKCE.
 
 **ניטור (Observability)**. `/metrics` של Prometheus, ערכות יצואן OTel מוכנות, לוחות מחוונים של Grafana. מעקב עלות לכל מודל (`bernstein cost`). TUI טרמינל ולוח מחוונים אינטרנטי. נראות תהליכי הסוכן ב-`ps`.
 

@@ -72,7 +72,7 @@ uv run python benchmarks/swe_bench/run.py eval \
 uv run python benchmarks/swe_bench/run.py report
 ```
 
-Only artifacts marked `verified=true` from `benchmarks/swe_bench/run.py eval` are eligible for public benchmark claims. Our publication policy: Bernstein-vs-solo baselines only, no cross-framework tables until we own a live harness for competitors.
+Only artifacts marked `verified=true` from `benchmarks/swe_bench/run.py eval` are eligible for public benchmark claims. Public comparisons are kept narrow — Bernstein versus solo-agent baselines on SWE-Bench Lite. Cross-framework numbers belong only on harnesses we run end-to-end.
 
 ---
 
@@ -142,14 +142,6 @@ Bernstein keeps CrewAI and LangGraph here as architecture context only. We do no
 CrewAI and LangGraph work with any model via API wrappers but require you to write Python code to orchestrate. Bernstein works with installed CLI agents — no API key plumbing, no SDK.
 
 See [benchmarks/crewai-langgraph-comparison.md](../benchmarks/crewai-langgraph-comparison.md) and [benchmarks/agent-hq-comparison.md](../benchmarks/agent-hq-comparison.md) for detailed comparisons.
-
----
-
-## Performance targets (Q2 2026)
-
-- [ ] Reduce orchestrator tick overhead by optimizing signal file polling
-- [ ] Implement bulk claim/complete in a single HTTP request to reduce RTT
-- [ ] Goal: < 500ms tick latency with 10 active agents
 
 ---
 

@@ -41,17 +41,6 @@ All on SWE-Bench Lite, all under one Bernstein-owned harness.
 
 CrewAI and LangGraph remain in the docs as architecture context, not as public numeric benchmark rows. Until Bernstein can reproduce those systems under a live, documented harness, publishing "we beat X by Y%" is marketing theater.
 
-## Publication roadmap
-
-The first acceptable public result is a clearly labeled pilot:
-
-- `Verified Pilot Results (n=50)`
-- date shown
-- commit SHA shown
-- methodology and reproduction path shown next to the numbers
-
-After that, the next step is a full 300-instance SWE-Bench Lite run. Only then does it make sense to talk about stronger public benchmark positioning.
-
 ## Reproducing the real path
 
 ```bash

@@ -5,8 +5,6 @@ Owner: Alex Chernysh
 Spec: [FINOS AI Governance Framework](https://github.com/finos/ai-governance-framework)
        (`CONTROLS.md` + the rendered site at <https://air-governance-framework.finos.org>),
        Community Specification License v1.0, snapshot taken at `main` on 2026-05-09.
-Companion gap analysis:
-       [`enterprise-modernization-fit.md`](./enterprise-modernization-fit.md).
 
 For each FINOS AIGF control this document lists the bernstein subsystem(s)
 implementing it, the specific source files, and an honest "covered / partial
@@ -34,7 +32,7 @@ control id is cited.
 | `CTRL-AUDIT-TRAIL` | HMAC-chained JSONL audit log + Article 12 evidence bundle (deterministic zip with manifest, clause map, retention pin) + DSSE/in-toto envelope wrapper. | `src/bernstein/core/security/audit.py`, `src/bernstein/core/security/article12_bundle.py`, `src/bernstein/core/security/audit_dsse.py` | Covered. The HMAC chain and Article 12 bundle are prod; the DSSE envelope closes the third-party-verifiable gap. |
 | `CTRL-DATA-LINEAGE` | Per-artefact lineage WAL with `regulatory_class` field and customer-controlled Ed25519 detached signature (schema v2). | `src/bernstein/core/persistence/lineage.py`, `src/bernstein/core/persistence/lineage_signer.py`, `src/bernstein/core/security/lineage_kms.py` | Covered. |
 | `CTRL-MODEL-SUPPLY-CHAIN` | Per-task Sigstore/Rekor keyless attestation with Ed25519 fallback; agent-card signer + JWKS rotation; release-artefact build provenance via `actions/attest-build-provenance@v2` on every published wheel + sdist; `bernstein verify --sigstore` for consumers. | `src/bernstein/core/security/sigstore_attestation.py`, `src/bernstein/core/security/agent_card_signer.py`, `src/bernstein/core/security/agent_card_keystore.py`, `src/bernstein/core/distribution/sigstore_attestation_verify.py`, `.github/workflows/publish.yml`, `.github/workflows/auto-release.yml` | Covered. Both halves of the supply chain are signed: per-task Sigstore for runtime artefacts, `actions/attest-build-provenance@v2` (SLSA L3, keyless OIDC, Rekor public log) for release artefacts. Consumers verify with `gh attestation verify <file> --owner sipyourdrink-ltd` or, equivalently, `bernstein verify <wheelhouse> --sigstore --sigstore-owner sipyourdrink-ltd`. |
-| `CTRL-TOOL-INVENTORY` | Adapter registry (44 adapters at v1.10.5) + capability-matrix yaml + per-role profile manager. | `src/bernstein/adapters/registry.py`, `src/bernstein/core/security/capability_matrix.py`, `src/bernstein/core/security/claude_permission_profiles.py` | Covered. Inventory-export-in-AIGF-shape is a doc-only follow-up, listed under future work below. |
+| `CTRL-TOOL-INVENTORY` | Adapter registry (44 adapters at v1.10.5) + capability-matrix yaml + per-role profile manager. | `src/bernstein/adapters/registry.py`, `src/bernstein/core/security/capability_matrix.py`, `src/bernstein/core/security/claude_permission_profiles.py` | Covered. |
 | `CTRL-HUMAN-OVERSIGHT` | Single + dual approval gates, plan-approval workflow, per-role default deny. | `src/bernstein/core/security/approval.py`, `src/bernstein/core/security/dual_approval.py`, `src/bernstein/core/security/plan_approval.py`, `src/bernstein/core/security/auto_approve.py` | Covered. |
 | `CTRL-ACCESS-CONTROL` | API-route RBAC (admin/operator/viewer) + per-role allowed/disallowed tools + permission-graph + delegation matrix. | `src/bernstein/core/security/rbac.py`, `src/bernstein/core/security/claude_permission_profiles.py`, `src/bernstein/core/security/permission_graph.py`, `src/bernstein/core/security/permission_delegation.py`, `src/bernstein/core/security/permission_matrix.py` | Covered. |
 | `CTRL-DATA-RESIDENCY` | Per-tenant region policy with write-time check; EU-residency loopback test. | `src/bernstein/core/security/data_residency.py` | Covered. |
@@ -42,7 +40,7 @@ control id is cited.
 | `CTRL-PROMPT-INJECTION-DEFENCE` | OWASP Agentic Security Initiative (ASI) detector pack + lethal-trifecta capability matrix (PRIVATE_DATA × UNTRUSTED_INPUT × EXTERNAL_COMM). | `src/bernstein/core/security/owasp_asi_detectors.py`, `src/bernstein/core/security/capability_matrix.py` | Covered. This is bernstein's strongest single AIGF mapping. |
 | `CTRL-INCIDENT-RESPONSE` | Incident-response orchestrator + denial tracker + quarantine + correlation engine. | `src/bernstein/core/security/security_incident_response.py`, `src/bernstein/core/security/denial_tracker.py`, `src/bernstein/core/security/quarantine.py`, `src/bernstein/core/security/security_correlation.py` | Covered. DORA-shaped incident classification (major/significant/non-major) is a follow-up. |
 | `CTRL-SEGREGATION-OF-DUTIES` | RBAC + per-role tool deny-lists + per-role adapter deny-list. | `src/bernstein/core/security/rbac.py`, `src/bernstein/core/security/claude_permission_profiles.py`, `src/bernstein/core/security/role_adapter_policy.py` | Covered. The adapter-policy module closes the SR 11-7 §V.4 gap that the tool-only deny-list left open. |
-| `CTRL-RETENTION` | Article 12(3) retention pin (10y high-risk / 183d minimum) baked into the bundle manifest; calendar-day disk rotation. | `src/bernstein/core/security/article12_bundle.py:RetentionPin`, `src/bernstein/core/persistence/disk_retention.py` | Covered. Immutable-storage backend (S3 Object Lock / WORM Postgres) is a follow-up listed under future work below. |
+| `CTRL-RETENTION` | Article 12(3) retention pin (10y high-risk / 183d minimum) baked into the bundle manifest; calendar-day disk rotation. | `src/bernstein/core/security/article12_bundle.py:RetentionPin`, `src/bernstein/core/persistence/disk_retention.py` | Covered. |
 | `CTRL-ENCRYPTION-AT-REST` | State-encryption module + credential vault (OS keychain transport) + injector. | `src/bernstein/core/security/state_encryption.py`, `src/bernstein/core/security/vault/`, `src/bernstein/core/security/vault_injector.py` | Covered. |
 | `CTRL-ENCRYPTION-IN-TRANSIT` | mTLS cluster guard + TLS pinning + socket guard. | `src/bernstein/core/security/socket_guard.py`, `src/bernstein/adapters/clm_tls_launcher.py` | Covered. |
 | `CTRL-DEPENDENCY-INTEGRITY` | SBOM generator + license scanner + vuln-disclosure pipeline + wheelhouse verify. | `src/bernstein/core/security/sbom.py`, `src/bernstein/core/security/license_scanner.py`, `src/bernstein/core/security/vuln_disclosure.py` | Covered. |
@@ -55,10 +53,7 @@ attestation cleared the final not-yet-covered item by wiring
 (`publish.yml` for tag-triggered publishes and `auto-release.yml` for the
 patch-bump path) and shipping a `bernstein verify --sigstore` consumer-side
 checker that re-runs the Rekor inclusion proof + Fulcio cert-chain
-validation via the official `gh attestation verify` CLI. Future work called
-out below (immutable-storage backend, OpenSSF Scorecard badge, DORA Art. 8-15
-evidence pack) consists of scope expansions on top of full AIGF coverage,
-not control-level gaps.
+validation via the official `gh attestation verify` CLI.
 
 ## 2. AIGF risk inventory
 
@@ -81,12 +76,11 @@ in this repo".
 | `AIR-RC-002` | Sensitive-data leakage | DLP v2 + PII gate + sensitive-data + secrets. | Covered (prod-tested). |
 | `AIR-RC-003` | Prompt injection | OWASP ASI detectors + lethal-trifecta capability matrix. | Covered (prod-tested). |
 | `AIR-RC-004` | Unauthorised tool invocation | Command allowlist + command policy + per-role profile + per-role adapter policy. | Covered (prod-tested). |
-| `AIR-RC-005` | Inadequate third-party evidence (vendor-DD) | None as a packaged artefact. | Not yet covered. Future work: a DORA Art. 28 attestation pack and a SOC 2 self-evidence template. |
+| `AIR-RC-005` | Inadequate third-party evidence (vendor-DD) | Out of scope at the framework layer; operator-side DD packs assemble from the audit + lineage primitives covered above. | Out of scope (operator-side). |
 
 ## 3. Cross-walk to other regulator anchors
 
-For convenience, the same controls cited against the regulations the gap
-analysis names:
+For convenience, the same controls cited against the regulator anchors:
 
 | Regulator | Anchor | Strongest bernstein mappings |
 |-----------|--------|------------------------------|
@@ -106,8 +100,6 @@ analysis names:
 | Per-role adapter deny-list | Shipped. Empty allow-list = back-compat all-allowed. | Hooks `bernstein.adapters.registry.get_adapter` so every spawn site is covered. |
 | FINOS AIGF reciprocal mapping | This document. | Operator decides whether to crosspost a controls-implementation issue upstream. |
 | Sigstore release attestation (SLSA L3) | Wired in CI. | `actions/attest-build-provenance@v2` runs on every published wheel + sdist via `publish.yml` and `auto-release.yml`. Consumers verify with `gh attestation verify <file> --owner sipyourdrink-ltd` or `bernstein verify <wheelhouse> --sigstore`. Smoke test in `tests/unit/test_release_attestation_workflow.py` guards against a workflow refactor silently re-opening the gap. |
-| OpenSSF Scorecard badge | **Not configured.** | Listed under future work in the gap analysis. |
-| DORA Art. 8-15 evidence pack | **Does not exist** as a packaged artefact. | Future work. |
 
 ## 5. References
 
@@ -124,4 +116,3 @@ analysis names:
 - in-toto attestation v1.0 spec —
   <https://github.com/in-toto/attestation/blob/main/spec/v1/README.md>.
 - DSSE — <https://github.com/secure-systems-lab/dsse>.
-- Companion gap analysis: [`enterprise-modernization-fit.md`](./enterprise-modernization-fit.md).

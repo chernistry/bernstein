@@ -222,7 +222,6 @@ nav:
       - Compliance: operations/compliance.md
       - EU AI Act Article 12 evidence pack: compliance/eu-ai-act-article-12-bundle.md
       - FINOS AIGF mapping: compliance/finos-aigf-mapping.md
-      - Enterprise modernization-fit: compliance/enterprise-modernization-fit.md
       - Regulator-class lineage: compliance/regulatory-lineage.md
       - Regulatory lineage export (operator guide): compliance/lineage-export.md
       - Air-gap installation: installation/air-gap.md

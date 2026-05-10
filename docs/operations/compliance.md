@@ -346,5 +346,3 @@ EU AI Act high-risk classification or a HIPAA covered entity.
   verifier.
 - [`compliance/finos-aigf-mapping.md`](../compliance/finos-aigf-mapping.md)
   — bernstein's coverage of the 16 AIGF controls and 14 AIR risks.
-- [`compliance/enterprise-modernization-fit.md`](../compliance/enterprise-modernization-fit.md)
-  — gap analysis against EU AI Act Art. 12, DORA, SR 11-7, and ISO 42001.

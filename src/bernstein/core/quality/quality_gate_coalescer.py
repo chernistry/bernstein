@@ -15,7 +15,7 @@ Flow:
   wakes up and returns its own real result.
 
 Previously this class returned a lightweight ``passed=True`` for coalesced
-callers — a silent gate bypass under concurrent completions (audit-037).  The
+callers — a silent gate bypass under concurrent completions. The
 "trailing-run-only" optimisation is unsafe because each task has its own
 worktree and its own diff; reusing one run's result for another task means
 gates are never actually executed against the second task's changes.

@@ -1,4 +1,4 @@
-"""Adapter auto-detection (AGENT-015).
+"""Adapter auto-detection.
 
 Scans PATH for known CLI tools and auto-registers discovered adapters
 with the adapter registry.  This allows ``bernstein run`` to work

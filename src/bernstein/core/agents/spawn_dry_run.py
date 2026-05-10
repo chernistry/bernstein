@@ -1,4 +1,4 @@
-"""Spawn dry-run mode (AGENT-017).
+"""Spawn dry-run mode.
 
 Validates adapter availability, model configuration, prompt rendering,
 worktree setup, and MCP config without actually spawning any agents.

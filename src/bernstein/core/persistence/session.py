@@ -19,7 +19,7 @@ from bernstein.core.persistence.atomic_write import write_atomic_json
 from bernstein.core.persistence.checkpoint import PartialState
 from bernstein.core.persistence.runtime_state import rotate_log_file
 
-# Back-compat alias (audit-084): ``CheckpointState`` is the legacy name for
+# Back-compat alias: ``CheckpointState`` is the legacy name for
 # the operator-visible progress slice.  Canonical home is
 # :class:`bernstein.core.persistence.checkpoint.PartialState`.  The alias is
 # preserved so the ``bernstein checkpoint`` CLI and existing tests keep
@@ -386,7 +386,7 @@ def record_bridge_event(workdir: Path, event: BridgeTransportEvent) -> None:
     """Append a bridge transport event to the lineage JSONL file (T549, T550, T551).
 
     The file is rotated once it crosses
-    :attr:`JanitorDefaults.bridge_lineage_rotate_bytes` (audit-081).
+    :attr:`JanitorDefaults.bridge_lineage_rotate_bytes`.
 
     Args:
         workdir: Project root directory.
@@ -486,7 +486,7 @@ def emit_task_notification(workdir: Path, notification: TaskStatusNotification) 
     """Append a task status notification to the JSONL log (T574).
 
     The file is rotated once it crosses
-    :attr:`JanitorDefaults.task_notifications_rotate_bytes` (audit-081).
+    :attr:`JanitorDefaults.task_notifications_rotate_bytes`.
 
     Args:
         workdir: Project root directory.

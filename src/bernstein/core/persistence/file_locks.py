@@ -330,7 +330,7 @@ class FileLockManager:
             self._locks = {}
 
     def _save(self) -> None:
-        """Persist current lock state to disk atomically (audit-076, audit-077).
+        """Persist current lock state to disk atomically ().
 
         Callers must hold the cross-process OS lock (via :meth:`_guard`).
         Routes through :func:`write_atomic_json` which does temp-file +

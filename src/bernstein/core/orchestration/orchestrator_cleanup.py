@@ -160,7 +160,7 @@ def cleanup(orch: Any) -> None:
     # Save session state before releasing resources
     save_session_state(orch)
 
-    # audit-081: prune old runs/ and runtime/wal/ entries so long-running
+    # prune old runs/ and runtime/wal/ entries so long-running
     # bernstein instances do not accumulate unbounded per-run state.
     try:
         from bernstein.core.persistence.disk_retention import run_retention

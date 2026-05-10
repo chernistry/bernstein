@@ -1,7 +1,7 @@
 """Discovery endpoint for the bernstein.run docs-bot tool surface.
 
 Exposes ``GET /.well-known/mcp-tools`` so the bernstein_landing docs bot
-(RAG-001..004) can probe whether this Bernstein cluster is willing to be
+can probe whether this Bernstein cluster is willing to be
 called by the bot, and which read-only tools are on offer.
 
 Off by default. Enabled by setting the env var

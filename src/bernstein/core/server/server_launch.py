@@ -234,7 +234,7 @@ def _start_server(
         cluster_enabled: Enable cluster endpoints and node reaper.
         auth_token: Bearer token for API auth.
         evolve_mode: Retained for signature compatibility. Uvicorn
-            ``--reload`` was removed 2026-04-17 per audit-115 because
+            ``--reload`` was removed 2026-04-17 per because
             auto-reload is catastrophic in self-modifying runs
             (file writes → restart → dropped HTTP connections → WAL
             replay duplicate claims). The flag no longer affects the
@@ -247,16 +247,16 @@ def _start_server(
         RuntimeError: If a server is already running on the PID file.
         SystemExit: If ``BERNSTEIN_WORKERS`` / ``WEB_CONCURRENCY`` request
             more than one uvicorn worker. Bernstein's ``TaskStore`` is
-            single-process (audit-025) and multi-worker mode corrupts
+            single-process and multi-worker mode corrupts
             JSONL and allows double-claims.
     """
-    # audit-025: refuse to launch multi-worker in the parent process so the
+    # refuse to launch multi-worker in the parent process so the
     # operator sees the error on the bernstein CLI instead of in server.log
     # after a silent subprocess crash.
     from bernstein.core.server.server_app import preflight_multi_worker_guard
 
     preflight_multi_worker_guard()
-    logger.info("Starting task server on %s:%d (single-worker mode, audit-025)", bind_host, port)
+    logger.info("Starting task server on %s:%d (single-worker mode)", bind_host, port)
 
     pid_path = workdir / ".sdd" / "runtime" / "server.pid"
     existing = _read_pid(pid_path)
@@ -272,7 +272,7 @@ def _start_server(
     env["BERNSTEIN_BIND_HOST"] = bind_host
     if auth_token:
         env["BERNSTEIN_AUTH_TOKEN"] = auth_token
-    # audit-025: pin the child to single-worker even if the parent env had
+    # pin the child to single-worker even if the parent env had
     # WEB_CONCURRENCY set (the preflight above already rejected that case,
     # but we belt-and-braces here in case a future code path bypasses it).
     env["BERNSTEIN_WORKERS"] = "1"
@@ -313,7 +313,7 @@ def _start_server(
                     "2" if cluster_tls.verify_mode == "required" else "1",
                 ]
             )
-    # ``--reload`` was removed 2026-04-17 per audit-115 / incident
+    # ``--reload`` was removed 2026-04-17 per / incident
     # 2026-04-11.  Bernstein agents continuously edit src/bernstein/*.py,
     # so auto-reload causes a uvicorn restart on every write — in-flight
     # requests drop, the bind port races, and WAL replay produces

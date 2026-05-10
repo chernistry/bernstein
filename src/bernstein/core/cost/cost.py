@@ -3,7 +3,7 @@
 Provides:
 - EpsilonGreedyBandit: thin facade over ``BanditRouter`` (LinUCB) used for
   legacy callers that still speak the per-(role, model) arm API. The epsilon-
-  greedy learning logic itself was retired in audit-071; the class now
+  greedy learning logic itself was retired in ; the class now
   delegates selection, reward recording, and persistence to the canonical
   bandit so cost forecasts and model selection can never disagree.
 - ModelCascade: provides cascade config (cheapest viable → escalate on failure)
@@ -147,7 +147,7 @@ _MODEL_COST_USD_PER_1K: dict[str, float] = {
 CASCADE: list[str] = ["sonnet", "opus"]
 
 # Additional cheap, provably-adequate arms the bandit may explore once it
-# has been given priors (audit-069). Kept outside :data:`CASCADE` to preserve
+# has been given priors. Kept outside :data:`CASCADE` to preserve
 # the cheapest-first ordering used by :func:`get_cascade_model`. Callers that
 # want to let the bandit explore beyond the cascade should request
 # :func:`get_all_bandit_arms` when building the candidate list.
@@ -213,7 +213,7 @@ class BanditArm:
     @property
     def success_rate(self) -> float:
         if self.observations == 0:
-            # Pessimistic cold-start (audit-069): a never-observed arm should
+            # Pessimistic cold-start: a never-observed arm should
             # not greedily win selection just because its nominal price is
             # low. Returning 0.5 keeps it below ``QUALITY_THRESHOLD`` (0.8)
             # so new arms must earn their way in through explicit
@@ -315,7 +315,7 @@ def _migrate_legacy_bandit_state(metrics_dir: Path, routing_dir: Path) -> list[B
             except Exception as exc:
                 logger.debug("Skipping malformed legacy arm entry: %s", exc)
         logger.info(
-            "audit-071: migrated %d legacy bandit arms from %s → %s",
+            "migrated %d legacy bandit arms from %s → %s",
             len(arms),
             legacy_path,
             routing_dir,
@@ -334,7 +334,7 @@ def _migrate_legacy_bandit_state(metrics_dir: Path, routing_dir: Path) -> list[B
 class EpsilonGreedyBandit:
     """Facade over :class:`BanditRouter` for legacy per-(role, model) callers.
 
-    The epsilon-greedy learning loop was retired in audit-071 to unify model
+    The epsilon-greedy learning loop was retired in to unify model
     selection and cost forecasting on a single store. This class preserves
     the original API — ``select``, ``record``, ``seed_arm``, ``get_arm``,
     ``summary``, ``save``, ``load`` — but every mutation is now mirrored into
@@ -387,7 +387,7 @@ class EpsilonGreedyBandit:
     def load(cls, metrics_dir: Path) -> EpsilonGreedyBandit:
         """Load bandit state from disk, returning a fresh instance on error.
 
-        Also runs the audit-071 migration: if a legacy
+        Also runs the migration: if a legacy
         ``.sdd/metrics/bandit_state.json`` exists while no unified
         ``.sdd/routing/policy.json`` is present yet, its observations are
         copied into the in-memory arms and the LinUCB policy is seeded with
@@ -500,7 +500,7 @@ class EpsilonGreedyBandit:
 
         # Exploitation: pick cheapest arm that meets the quality threshold.
         #
-        # Cold-start policy (audit-069): a truly unseen arm (observations==0)
+        # Cold-start policy: a truly unseen arm (observations==0)
         # has a pessimistic ``success_rate`` of 0.5, which sits below
         # ``QUALITY_THRESHOLD``. That prevents new cheap arms (e.g. freshly
         # added ``gemini-3-flash`` / ``qwen3-coder``) from greedily winning
@@ -646,7 +646,7 @@ class EpsilonGreedyBandit:
         """Return the canonical ``BanditRouter`` for this facade, if any.
 
         Lazy-imported because ``BanditRouter`` now lives in
-        ``bernstein.core.routing`` (audit-193); delaying the import avoids
+        ``bernstein.core.routing``; delaying the import avoids
         triggering routing package initialization just to load cost tables.
         """
         if self._routing_dir is None:

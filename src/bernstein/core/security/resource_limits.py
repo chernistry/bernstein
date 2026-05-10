@@ -1,4 +1,4 @@
-"""Agent process resource limits (AGENT-013).
+"""Agent process resource limits.
 
 Applies CPU, memory, and disk I/O limits to agent processes using
 ``resource.setrlimit`` (POSIX) or advisory tracking when OS-level

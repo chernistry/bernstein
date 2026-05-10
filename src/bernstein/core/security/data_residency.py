@@ -1,4 +1,4 @@
-"""ENT-009: Data residency controls.
+"""Data residency controls.
 
 Ensures task data, logs, and agent outputs stay within configured geographic
 regions.  Provides region tagging, residency validation, and attestation

@@ -85,7 +85,7 @@ class TaskRecord(TypedDict):
     parent_session_id: str | None
     subtask_wait_started_at: float | None
     parent_context: str | None
-    # audit-017: typed retry bookkeeping (optional for backward compat).
+    # typed retry bookkeeping (optional for backward compat).
     retry_count: NotRequired[int]
     max_retries: NotRequired[int]
     retry_delay_s: NotRequired[float]
@@ -184,7 +184,7 @@ class TaskCreateRequest(Protocol):
     parent_session_id: str | None
     parent_context: str | None
 
-    # Retry bookkeeping (audit-017): typed retry fields are the single source
+    # Retry bookkeeping: typed retry fields are the single source
     # of truth.  When orchestrator clones a task for retry, it passes
     # ``retry_count=previous+1`` in the request.  These fields are optional on
     # the wire (``None`` / missing => fall back to the Task dataclass default).
@@ -259,10 +259,10 @@ DEFAULT_ARCHIVE_PATH = Path(".sdd/archive/tasks.jsonl")
 # before any cleanup pass may evict them from the active task set.
 PANEL_GRACE_MS: int = 30_000
 
-# audit-028: reason used when auto-failing a task due to empty result_summary.
+# reason used when auto-failing a task due to empty result_summary.
 _EMPTY_COMPLETION_REASON = "completion missing summary"
 
-# audit-023: rotate the per-task progress JSONL file once it exceeds 5 MiB.
+# rotate the per-task progress JSONL file once it exceeds 5 MiB.
 # Old rollovers become ``{task_id}.jsonl.1``; replay also reads them so no
 # history is silently dropped between restarts.
 _PROGRESS_ROTATE_BYTES: int = 5 * 1024 * 1024
@@ -292,7 +292,7 @@ class TaskStore:
 
     All mutations go through this class so the JSONL log stays consistent.
 
-    Concurrency model (audit-025):
+    Concurrency model:
         Mutations are coordinated by an in-process ``asyncio.Lock`` and the
         JSONL append path does NOT take an OS-level file lock (no
         ``fcntl.flock``). The store is therefore **single-process only** —
@@ -339,7 +339,7 @@ class TaskStore:
         self._cost_cache_offset: int = 0
         # In-memory progress snapshots for stall detection (last 10 per task)
         self._progress_snapshots: dict[str, deque[ProgressSnapshot]] = {}
-        # audit-023: directory for per-task progress JSONL files.  Each
+        # directory for per-task progress JSONL files. Each
         # ``add_progress``/``add_snapshot`` call appends (and fsyncs) a line
         # here so that progress history survives a server crash.  Rebuilt on
         # startup by ``replay_progress()``.
@@ -374,7 +374,7 @@ class TaskStore:
         Each line is a JSON object with at least ``id`` and ``status``.
         Lines are replayed in order so the last write wins.
 
-        audit-023: after the task log is replayed we also replay the
+        after the task log is replayed we also replay the
         per-task progress JSONL files so ``progress_log`` and
         ``_progress_snapshots`` survive a server restart.  Progress replay
         runs unconditionally so fresh installations with only progress on
@@ -425,7 +425,7 @@ class TaskStore:
         during startup.
 
         The release is persisted to the JSONL log synchronously (bug
-        ``audit-015``): without this, the in-memory reset is lost on crash and
+        ````): without this, the in-memory reset is lost on crash and
         the stale CLAIMED line replays on the next restart, enabling duplicate
         execution.
 
@@ -625,7 +625,7 @@ class TaskStore:
 
         await _retry_io(_write)
 
-    # -- audit-023: per-task progress JSONL persistence ---------------------
+    # -- per-task progress JSONL persistence ---------------------
 
     def _progress_file(self, task_id: str) -> Path:
         """Return the JSONL file storing progress/snapshot records for *task_id*.
@@ -775,7 +775,7 @@ class TaskStore:
             "claimed_by_session": task.claimed_by_session,
             "parent_session_id": task.parent_session_id,
             "subtask_wait_started_at": task.subtask_wait_started_at,
-            # audit-017: retry bookkeeping (typed source of truth).
+            # retry bookkeeping (typed source of truth).
             "retry_count": task.retry_count,
             "max_retries": task.max_retries,
             "retry_delay_s": task.retry_delay_s,
@@ -871,7 +871,7 @@ class TaskStore:
             _cls = classify_task(_probe)
             batch_eligible = _cls.level in (TaskLevel.L0, TaskLevel.L1)
 
-        # audit-017: Forward retry bookkeeping so the typed fields survive
+        # Forward retry bookkeeping so the typed fields survive
         # across task clones.  ``None`` => keep Task dataclass default.
         retry_count_raw = getattr(req, "retry_count", None)
         max_retries_raw = getattr(req, "max_retries", None)
@@ -1230,7 +1230,7 @@ class TaskStore:
                     f"role mismatch: task {task_id} requires role '{task.role}', agent has role '{agent_role}'"
                 )
             if task.status != TaskStatus.OPEN:
-                # audit-014: never silently re-return an already-claimed or
+                # never silently re-return an already-claimed or
                 # terminal task — that enables double-claim. Raise so the
                 # HTTP layer can map it to 409 Conflict.
                 raise ValueError(
@@ -1313,14 +1313,14 @@ class TaskStore:
 
         Raises:
             KeyError: If task_id does not exist.
-            EmptyCompletionError: If *result_summary* is empty (audit-028).
+            EmptyCompletionError: If *result_summary* is empty.
                 The task is auto-transitioned to ``FAILED`` with
                 ``reason='completion missing summary'`` before this is
                 raised, so the slot is released atomically and the
                 watchdog does not need to intervene.  The HTTP layer
                 maps this to a 422 response.
         """
-        # audit-028: when result_summary is empty/None, auto-fail the task
+        # when result_summary is empty/None, auto-fail the task
         # under the lock so the slot is freed atomically.  A caller that
         # bailed out of ``complete()`` previously left the task CLAIMED
         # until the watchdog flipped it, allowing a fresh agent to
@@ -1478,7 +1478,7 @@ class TaskStore:
         re-entering ``self._lock`` (``asyncio.Lock`` is not re-entrant) and the
         ``visited`` set guards against parent_task_id cycles from bad data.
 
-        Fix for audit-029: previously only the immediate parent was promoted, so
+        Fix for previously only the immediate parent was promoted, so
         a grandparent G never bubbled up and stayed ``WAITING_FOR_SUBTASKS``
         until timeout escalation forced it to ``BLOCKED``.
         """
@@ -1530,7 +1530,7 @@ class TaskStore:
             entry: ProgressEntry = {"timestamp": time.time(), "message": message, "percent": percent}
             progress: list[ProgressEntry] = cast("list[ProgressEntry]", task.progress_log)  # type: ignore[reportUnknownMemberType]
             progress.append(entry)
-            # audit-023: durably record the entry so progress history survives
+            # durably record the entry so progress history survives
             # a server crash.  I/O happens inside the lock (like
             # ``_append_jsonl``) to preserve ordering with in-memory state.
             await asyncio.to_thread(
@@ -1569,7 +1569,7 @@ class TaskStore:
         )
         q = self._progress_snapshots.setdefault(task_id, deque(maxlen=10))
         q.append(snap)
-        # audit-023: persist alongside progress entries so snapshot history
+        # persist alongside progress entries so snapshot history
         # is recovered after a crash.  Keeping snapshots and entries in the
         # same file simplifies replay (one pass per task).
         self._append_progress_record(

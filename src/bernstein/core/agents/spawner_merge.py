@@ -92,7 +92,7 @@ def _do_merge(
 
     When ``merge_queue`` is provided, the job is enqueued and processed in
     strict FIFO order under :attr:`MergeQueue.merge_lock` -- this fixes
-    audit-091 where the queue was instantiated but never fed.  The legacy
+    where the queue was instantiated but never fed. The legacy
     per-repo ``merge_locks`` path is kept as a fallback for callers (and
     tests) that don't plumb a queue through.
 

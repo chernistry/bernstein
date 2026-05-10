@@ -1,4 +1,4 @@
-"""Cluster protocol modules (audit-191 split).
+"""Cluster protocol modules ( split).
 
 Re-exports from ``.cluster`` so ``from bernstein.core.protocols.cluster
 import NodeRegistry`` keeps working for callers that previously imported

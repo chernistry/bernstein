@@ -1,4 +1,4 @@
-"""ENT-014: Enterprise license management with feature gates.
+"""Enterprise license management with feature gates.
 
 Manages license keys, validates entitlements, and enforces feature gates.
 Licenses are signed JSON payloads with expiration dates, seat counts, and

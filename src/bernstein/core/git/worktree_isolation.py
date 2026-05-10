@@ -1,4 +1,4 @@
-"""Worktree isolation validation after creation (AGENT-002).
+"""Worktree isolation validation after creation.
 
 Validates that a newly-created worktree is properly isolated:
 1. .sdd/ directory is NOT shared (not a symlink into the parent repo).

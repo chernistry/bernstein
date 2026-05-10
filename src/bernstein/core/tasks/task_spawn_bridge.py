@@ -54,7 +54,7 @@ def should_auto_decompose(
     if task.title.startswith("[DECOMPOSE]"):
         return False
 
-    # audit-017: prefer the typed retry counter; fall back to a legacy
+    # prefer the typed retry counter; fall back to a legacy
     # ``[RETRY N]`` title prefix only when the typed field is 0.
     import re
 

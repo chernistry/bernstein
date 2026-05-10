@@ -103,7 +103,7 @@ def extract_remote_ip(request: Request) -> str:
 class StructuredAccessLogMiddleware(BaseHTTPMiddleware):
     """Emit one structured JSONL access record for every API response.
 
-    Performance notes (audit-080):
+    Performance notes:
         Rotation is debounced — we call :func:`rotate_log_file` (which stats
         the file) at most once per :data:`_ROTATE_CHECK_INTERVAL_SECONDS`
         OR after cumulative in-memory byte writes cross

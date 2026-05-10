@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 _WORKTREE_BASE = ".sdd/worktrees"
 _SETUP_COMMAND_TIMEOUT_S = 300  # 5 minutes max for setup commands
 
-# Graveyard for unmerged commits rescued from crashed agents (audit-097).
+# Graveyard for unmerged commits rescued from crashed agents.
 _GRAVEYARD_DIR_REL = ".sdd/graveyard"
 _GRAVEYARD_REF_PREFIX = "refs/graveyard/"
 _GRAVEYARD_GIT_TIMEOUT_S = 30
@@ -337,7 +337,7 @@ def setup_worktree_env(
 
 
 def _count_unmerged_commits(repo_root: Path, branch: str, base: str = "main") -> int:
-    """Return how many commits on *branch* are not reachable from *base* (audit-097).
+    """Return how many commits on *branch* are not reachable from *base*.
 
     Uses ``git rev-list <branch> ^<base> --count``.  If the branch is missing
     or the command fails, returns ``0`` — callers treat that as "nothing to
@@ -413,7 +413,7 @@ def preserve_branch_to_graveyard(
     branch: str | None = None,
     now: float | None = None,
 ) -> Path | None:
-    """Move *branch* to ``refs/graveyard/<sid>-<ts>`` and export a bundle (audit-097).
+    """Move *branch* to ``refs/graveyard/<sid>-<ts>`` and export a bundle.
 
     Called before a destructive worktree cleanup when the session branch has
     unmerged commits.  The rescue path is:
@@ -516,7 +516,7 @@ def preserve_branch_to_graveyard(
 
 
 def purge_graveyard(repo_root: Path, older_than_days: int = _GRAVEYARD_DEFAULT_PURGE_DAYS) -> int:
-    """Remove graveyard refs and bundles older than *older_than_days* (audit-097).
+    """Remove graveyard refs and bundles older than *older_than_days*.
 
     Intended for operator-driven cleanup — never called automatically.  Both
     the ``refs/graveyard/*`` ref and the on-disk ``.sdd/graveyard/*.bundle``
@@ -734,7 +734,7 @@ class WorktreeManager:
         Before the destructive ``git worktree remove --force`` call, any
         uncommitted work in the worktree is salvaged via
         :func:`~bernstein.core.git.salvage.salvage_worktree` so the diff is
-        recoverable post-cleanup (audit-088).  The salvage step is purely
+        recoverable post-cleanup. The salvage step is purely
         best-effort: on failure the original cleanup proceeds as before.
 
         Args:
@@ -743,7 +743,7 @@ class WorktreeManager:
         worktree_path = self._base_dir / session_id
         branch_name = f"agent/{session_id}"
 
-        # 0. Salvage uncommitted work BEFORE anything destructive happens (audit-088).
+        # 0. Salvage uncommitted work BEFORE anything destructive happens.
         self._last_salvage = None
         if self._salvage_on_cleanup and worktree_path.exists():
             try:
@@ -814,7 +814,7 @@ class WorktreeManager:
         reachable from ``main`` is preserved to
         ``refs/graveyard/<sid>-<ts>`` with an accompanying bundle at
         ``.sdd/graveyard/<sid>-<ts>.bundle`` *before* the destructive
-        cleanup runs (audit-097).  This prevents ``kill -9`` / OOM of a
+        cleanup runs. This prevents ``kill -9`` / OOM of a
         prior orchestrator from silently wiping unmerged agent work on
         the next startup.
 
@@ -845,7 +845,7 @@ class WorktreeManager:
                     continue
 
                 # Preserve unmerged commits to the graveyard before we nuke
-                # the branch (audit-097).  A crashed agent may have committed
+                # the branch. A crashed agent may have committed
                 # work locally that never reached main; ``git worktree
                 # remove --force`` followed by ``git branch -D`` would make
                 # those commits unreachable and gc-eligible.

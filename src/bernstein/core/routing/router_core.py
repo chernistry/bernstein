@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 _CAST_DICT_STR_ANY = "dict[str, Any]"
 
 # ---------------------------------------------------------------------------
-# audit-102: budget-aware routing
+# budget-aware routing
 # ---------------------------------------------------------------------------
 #
 # When the run is close to its budget cap, ``_check_opus_override`` refuses to
@@ -901,7 +901,7 @@ def route_task(
     approximately 50% cost reduction.  Critical tasks (priority=1) and
     manager-specified overrides are never routed to batch.
 
-    audit-102: when ``budget_aware_routing_enabled`` is True and the
+    when ``budget_aware_routing_enabled`` is True and the
     remaining budget cannot absorb another opus task, high-stakes tasks are
     routed to sonnet instead of opus.  Defaults come from the module-level
     ``set_budget_context`` state when not passed explicitly.
@@ -910,8 +910,8 @@ def route_task(
         task: Task to route.
         bandit_metrics_dir: Optional path to ``.sdd/metrics`` for bandit state.
         workdir: Optional project root for effectiveness scorer data.
-        budget_remaining_usd: Remaining run budget in USD (audit-102).
-        budget_aware_routing_enabled: Feature flag for audit-102 downgrade.
+        budget_remaining_usd: Remaining run budget in USD.
+        budget_aware_routing_enabled: Feature flag for downgrade.
 
     Returns:
         ModelConfig with selected model and effort (and is_batch flag).
@@ -941,7 +941,7 @@ def _check_opus_override(
 ) -> str | None:
     """Return a reason string if the task requires opus/max, otherwise None.
 
-    audit-102: when ``budget_aware_routing_enabled`` (default: module-level
+    when ``budget_aware_routing_enabled`` (default: module-level
     flag) is True and ``budget_remaining_usd`` < 2x estimated opus task cost,
     the override returns None so the caller routes to sonnet instead — a
     single opus task near the cap can overshoot by 150%+.  Explicit keyword
@@ -1095,7 +1095,7 @@ def _select_model_config(
     """Internal: select model/effort without applying batch flag.
 
     When ``budget_aware_routing_enabled`` is True and remaining budget cannot
-    absorb another opus task (audit-102), the opus override is skipped and
+    absorb another opus task, the opus override is skipped and
     the task lands on sonnet via the heuristic path.
     """
     # Manager-specified overrides take precedence
@@ -1114,7 +1114,7 @@ def _select_model_config(
         return ModelConfig(model=model, effort=effort)
 
     # High-stakes roles/scope/priority skip bandit — always use premium models
-    # (unless budget-aware routing downgrades the call: audit-102).
+    # (unless budget-aware routing downgrades the call: ).
     opus_reason = _check_opus_override(
         task,
         budget_remaining_usd=budget_remaining_usd,

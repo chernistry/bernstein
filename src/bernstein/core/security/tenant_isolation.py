@@ -1,4 +1,4 @@
-"""ENT-001: Multi-tenant task isolation.
+"""Multi-tenant task isolation.
 
 Adds tenant_id scoping to task queries, WAL paths, and metrics directories.
 Data paths follow the layout: ``.sdd/{tenant_id}/``.

@@ -4,7 +4,7 @@ The coverage gate compares the current branch's measured coverage against a
 baseline captured from the configured base ref (usually ``main``). Measuring
 baseline synchronously during a task completion is expensive — it requires a
 full test run against a freshly checked-out worktree and historically blocked
-agent progress for 5+ minutes (see audit-032).
+agent progress for 5+ minutes (see prior audit).
 
 Behavior now:
 

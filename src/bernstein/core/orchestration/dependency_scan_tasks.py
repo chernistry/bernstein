@@ -1,7 +1,7 @@
 """Scheduled dependency-scan helpers for the orchestrator.
 
 Extracted from the retired ``orchestrator_tick`` module as part of
-audit-002 (orchestrator_tick zombie). Only these three helpers were ever
+(orchestrator_tick zombie). Only these three helpers were ever
 imported from the outside; the rest of ``orchestrator_tick`` duplicated
 ``Orchestrator.tick`` without being called.
 

@@ -11,7 +11,7 @@ Effort level (``low``/``high``/``max``) is learned by a separate UCB1
 model-derived heuristic until it has seen at least
 ``_EFFORT_MIN_PULLS_PER_KEY`` completions for the active key.  Rewards for
 both bandits are fed from the same ``record_outcome`` call, so effort
-preferences converge alongside model preferences (see audit-111).
+preferences converge alongside model preferences (see prior audit).
 
 Feature vector (``TaskContext.to_vector()``):
     [complexity_norm, scope_norm, priority_norm, log_repo_size,
@@ -787,7 +787,7 @@ class EffortBandit:
     arm maximises reward for a given context vector. Effort level was
     historically a fixed ``if/else`` on the chosen model, so the system never
     explored whether ``"max"`` beats ``"high"`` on a given task type (see
-    audit-111).  This class closes that loop with a lightweight, independent
+    ). This class closes that loop with a lightweight, independent
     policy: one UCB1 bandit per ``(task_type, model)`` key over the effort
     arms defined in :data:`_EFFORT_ARMS`.
 
@@ -1062,7 +1062,7 @@ class BanditRouter:
         self._selection_counts: dict[str, int] = {}
         # Arms seeded via ``seed_arm()`` keyed by ``(role, model)``. Persists
         # metadata so cost forecasts can refine estimates without keeping a
-        # second state store (audit-071).
+        # second state store.
         self._seeded_arms: dict[tuple[str, str], dict[str, float | int]] = {}
         self._exploration_history: dict[str, list[float]] = {}
         self._shadow_pending: dict[str, dict[str, Any]] = {}
@@ -1132,7 +1132,7 @@ class BanditRouter:
         Cold-start delegates to static cascade routing. Once warmed up, the
         LinUCB bandit chooses the arm and the result is clamped to a
         per-task :func:`_capability_floor` so high-stakes work still cannot
-        drop below a safe minimum (see audit-112). Whenever the clamp kicks
+        drop below a safe minimum (see prior audit). Whenever the clamp kicks
         in, the bandit's raw pick is recorded as a shadow decision so the
         override can be evaluated against observed rewards.
 
@@ -1291,7 +1291,7 @@ class BanditRouter:
     ) -> None:
         """Seed a ``(role, model)`` arm with prior knowledge.
 
-        Ported from ``EpsilonGreedyBandit.seed_arm`` in audit-071 so
+        Ported from ``EpsilonGreedyBandit.seed_arm`` in so
         effectiveness data (role/model success rates from
         :class:`EffectivenessScorer`) feeds a single, unified bandit state
         rather than the retired parallel epsilon-greedy store.
@@ -1376,7 +1376,7 @@ class BanditRouter:
 
         Invoked from :meth:`select` whenever :func:`_clamp_to_floor` lifts a
         bandit pick to satisfy the per-task capability floor. We persist the
-        clamp to the standard shadow-decisions stream so audit-112 can
+        clamp to the standard shadow-decisions stream so can
         evaluate over time whether the override cost us reward.
         """
         self._shadow_counters["floor_clamp_count"] += 1.0
@@ -1677,7 +1677,7 @@ def _is_high_stakes(task: Task) -> bool:
     Used by :func:`_static_select` during cold-start to keep high-stakes
     work off ``haiku`` before the bandit has any signal. Post-warmup the
     softer :func:`_capability_floor` / :func:`_clamp_to_floor` pair takes
-    over (audit-112) so the bandit can still learn on high-stakes tasks.
+    over so the bandit can still learn on high-stakes tasks.
     """
     return (
         task.role in _HIGH_STAKES_ROLES

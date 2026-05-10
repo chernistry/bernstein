@@ -1,4 +1,4 @@
-"""Disk-level retention janitor for per-run artifacts (audit-081).
+"""Disk-level retention janitor for per-run artifacts.
 
 Retains the newest N run directories and WAL files, deleting older ones.
 Called from the orchestrator cleanup path so that long-running bernstein
@@ -178,7 +178,7 @@ def run_retention(
     run_retention_count: int | None = None,
     wal_retention_count: int | None = None,
 ) -> RetentionResult:
-    """Sweep both runs/ and runtime/wal/ in a single pass (audit-081).
+    """Sweep both runs/ and runtime/wal/ in a single pass.
 
     Args:
         sdd_dir: The ``.sdd`` directory root.

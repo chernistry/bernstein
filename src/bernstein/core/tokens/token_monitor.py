@@ -303,7 +303,7 @@ class TokenGrowthMonitor:
         self._nudge_text: str = nudge_text if nudge_text is not None else self._DEFAULT_NUDGE_TEXT
         self._history: dict[str, AgentTokenHistory] = {}
         self._compaction_breakers: dict[str, AutoCompactCircuitBreaker] = {}
-        #: Per-tenant kill-threshold overrides (audit-070).  Mutable so callers
+        #: Per-tenant kill-threshold overrides. Mutable so callers
         #: can update the map at runtime without rebuilding the monitor.
         self.tenant_kill_thresholds: dict[str, int] = dict(tenant_kill_thresholds or {})
         self._warn_reset_clean_samples: int = warn_reset_clean_samples
@@ -505,7 +505,7 @@ class TokenGrowthMonitor:
         Called from the orchestrator tick when quadratic growth is *not*
         detected for a session.  After ``warn_reset_clean_samples`` consecutive
         clean observations, the warned flag is cleared so the next burst of
-        quadratic growth can fire the warning again (audit-070).
+        quadratic growth can fire the warning again.
 
         Args:
             session_id: Agent session identifier.
@@ -797,7 +797,7 @@ def _handle_auto_kill(orch: Any, session: Any, monitor: Any, total: int) -> bool
 
     Resolves the kill threshold per-tenant via ``TOKEN_CFG`` (module-level
     override) or the monitor's own ``tenant_kill_thresholds`` map so
-    multi-tenant deployments can diverge limits between tiers (audit-070).
+    multi-tenant deployments can diverge limits between tiers.
     """
     files_changed = _get_files_changed(orch, session, orch._config.server_url)
     tenant_id = _resolve_tenant_id(session)

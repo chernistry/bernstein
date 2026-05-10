@@ -401,7 +401,7 @@ async def create_task(body: TaskCreate, request: Request) -> TaskResponse:
     )
 
     with start_span("task.create", {"task.role": effective_body.role, "task.title": effective_body.title}):
-        # ENT-001: Tenant quota enforcement
+        # Tenant quota enforcement
         from bernstein.core.tenant_isolation import TenantIsolationManager  # noqa: TC001
 
         tenant_mgr: TenantIsolationManager | None = getattr(
@@ -697,7 +697,7 @@ async def complete_task(task_id: str, body: TaskCompleteRequest, request: Reques
     """Mark a task as done with a result summary.
 
     If ``result_summary`` is empty the task is auto-transitioned to
-    ``FAILED`` with ``reason='completion missing summary'`` (audit-028) and
+    ``FAILED`` with ``reason='completion missing summary'`` and
     a 422 is returned with the failed task payload so the client knows the
     slot was released.
     """
@@ -717,7 +717,7 @@ async def complete_task(task_id: str, body: TaskCompleteRequest, request: Reques
         except KeyError:
             raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found") from None
         except EmptyCompletionError as exc:
-            # audit-028: empty summary is handled inside ``complete()``
+            # empty summary is handled inside ``complete()``
             # (task is auto-failed under the lock).  Surface a structured
             # 422 so the client knows the slot was released.
             failed_task = exc.task

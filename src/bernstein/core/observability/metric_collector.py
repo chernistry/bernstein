@@ -951,7 +951,7 @@ class MetricsCollector:
             try:
                 # Bound per-file growth: rotate *before* appending so the new
                 # write starts a fresh file once the threshold is crossed.
-                # See audit-068 — previously these JSONL files grew unbounded.
+                # See — previously these JSONL files grew unbounded.
                 rotate_log_file(
                     filepath,
                     max_bytes=_METRIC_FILE_ROTATE_BYTES,

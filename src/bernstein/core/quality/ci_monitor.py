@@ -181,7 +181,7 @@ class CIMonitor:
         *,
         per_page: int = 10,
     ) -> list[str]:
-        """Synchronous poll: discover new failures, create fix tasks (audit-035).
+        """Synchronous poll: discover new failures, create fix tasks.
 
         Runs the full CLI-style cycle (list failing runs -> parse each log
         -> invoke ``pipeline.create_fix_task``) inside a blocking call so

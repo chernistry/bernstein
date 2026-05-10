@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# audit-117: body-size cap middleware
+# body-size cap middleware
 # ---------------------------------------------------------------------------
 
 # Default cap for request bodies.  Starlette accepts unlimited bodies by
@@ -313,7 +313,7 @@ def task_to_response(task: Task) -> TaskResponse:
         progress_log=list(cast("list[ProgressEntry]", task.progress_log)),  # type: ignore[reportUnknownMemberType]
         version=task.version,
         parent_session_id=task.parent_session_id,
-        # audit-017: expose typed retry bookkeeping so clients read the
+        # expose typed retry bookkeeping so clients read the
         # single source of truth rather than regex-ing the title.
         retry_count=task.retry_count,
         max_retries=task.max_retries,
@@ -339,25 +339,25 @@ class SSEBus:
     - Queue buffer size limit prevents unbounded memory growth.
     - Heartbeat pings enable disconnect detection.
     - Stale subscriber cleanup prevents leaked queue references.
-    - audit-122: reconnect-frequency limiter blocks IPs that churn
+    - reconnect-frequency limiter blocks IPs that churn
       subscribe/unsubscribe faster than ``RECONNECT_MAX_PER_WINDOW``
       inside ``RECONNECT_WINDOW_S``.
-    - audit-122: per-IP buffer budget caps total events across all
+    - per-IP buffer budget caps total events across all
       queues belonging to the same IP (defends slow-client DoS).
-    - audit-122: dropped-event counter with warn logging to flag
+    - dropped-event counter with warn logging to flag
       slow clients without killing the orchestrator.
     """
 
     # Maximum events buffered per subscriber before dropping
     MAX_BUFFER_SIZE: int = 256
-    # Maximum total events buffered per IP across all its queues (audit-122)
+    # Maximum total events buffered per IP across all its queues
     MAX_BUFFER_PER_IP: int = 1024
     # Seconds after which a subscriber with no reads is considered stale
-    # (audit-122: lowered from 120s to 30s for /events slow-client DoS)
+    # (lowered from 120s to 30s for /events slow-client DoS)
     STALE_TIMEOUT_S: float = 30.0
     # Heartbeat interval for SSE keep-alive pings
     HEARTBEAT_INTERVAL_S: float = 15.0
-    # audit-122: reconnect-frequency limiter parameters. Three clean
+    # reconnect-frequency limiter parameters. Three clean
     # reconnects inside RECONNECT_WINDOW_S tolerates a flaky wifi drop
     # (heartbeat timeout ~= 60s so one cycle per minute is realistic).
     RECONNECT_MAX_PER_WINDOW: int = 3
@@ -376,26 +376,26 @@ class SSEBus:
     ) -> None:
         self._subscribers: list[asyncio.Queue[str]] = []
         self._subscriber_last_read: dict[int, float] = {}
-        # audit-122: map queue id -> owning IP so per-IP accounting works
+        # map queue id -> owning IP so per-IP accounting works
         self._subscriber_ip: dict[int, str] = {}
         self._max_buffer = max_buffer
         self._stale_timeout_s = stale_timeout_s
         self._max_buffer_per_ip = max_buffer_per_ip
-        # audit-122: sliding-window record of recent subscribe() timestamps
+        # sliding-window record of recent subscribe() timestamps
         # per IP. Bounded by RECONNECT_MAX_PER_WINDOW + 1 to avoid unbounded
         # growth for abusive clients.
         _max_hist = reconnect_max_per_window + 1
         self._recent_connects: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=_max_hist))
-        # audit-122: cooldown expiry per IP (monotonic timestamp)
+        # cooldown expiry per IP (monotonic timestamp)
         self._reconnect_cooldown_until: dict[str, float] = {}
         self._reconnect_max_per_window = reconnect_max_per_window
         self._reconnect_window_s = reconnect_window_s
         self._reconnect_cooldown_s = reconnect_cooldown_s
-        # audit-122: dropped-event counters (total + last warn ts)
+        # dropped-event counters (total + last warn ts)
         self._dropped_events_total: int = 0
         self._last_drop_warning_ts: float = 0.0
 
-    # ---- reconnect tracking (audit-122) -----------------------------------
+    # ---- reconnect tracking -----------------------------------
 
     def is_blocked(self, ip: str, *, now: float | None = None) -> bool:
         """Return ``True`` when *ip* is inside its reconnect-cooldown window."""
@@ -444,7 +444,7 @@ class SSEBus:
 
         Args:
             client_ip: Optional remote IP string. When provided, the
-                connection is subject to the audit-122 reconnect-frequency
+                connection is subject to the reconnect-frequency
                 limiter and the per-IP buffer budget. ``None`` opts out
                 (used by synthetic callers — heartbeat loop, unit tests).
 
@@ -496,7 +496,7 @@ class SSEBus:
         """Push an event to all subscribers (non-blocking).
 
         If a subscriber's queue is full, or pushing would exceed the
-        per-IP buffer budget (audit-122), the event is dropped for that
+        per-IP buffer budget, the event is dropped for that
         subscriber. A warning is logged when drops are observed.
         """
         message = f"event: {event_type}\ndata: {data}\n\n"
@@ -553,7 +553,7 @@ class SSEBus:
 
 
 # ---------------------------------------------------------------------------
-# audit-122: SSE reconnect limiter middleware
+# SSE reconnect limiter middleware
 # ---------------------------------------------------------------------------
 
 
@@ -701,7 +701,7 @@ def _split_cors_origins(
 
     ``starlette.middleware.cors.CORSMiddleware`` compares ``allow_origins``
     literally — ``"http://localhost:*"`` never matches a real browser
-    origin such as ``"http://localhost:3000"``.  audit-118 requires us to
+    origin such as ``"http://localhost:3000"``. requires us to
     translate glob-style origins into an ``allow_origin_regex`` that
     CORSMiddleware actually honors.
 
@@ -829,7 +829,7 @@ def preflight_multi_worker_guard() -> None:
     Bernstein's ``TaskStore`` coordinates mutations with an in-process
     ``asyncio.Lock`` and appends to JSONL without ``fcntl.flock`` — running
     under ``uvicorn --workers N`` (or ``WEB_CONCURRENCY>1``) causes torn
-    JSONL lines and duplicate task claims (audit-025).
+    JSONL lines and duplicate task claims.
 
     The guard fires at app-factory time so each uvicorn worker subprocess
     re-runs it on import and bails out with a clear message instead of
@@ -884,7 +884,7 @@ def create_app(
         SystemExit: Via ``preflight_multi_worker_guard`` when the operator
             requests more than one uvicorn worker — the ``TaskStore`` is
             single-process and multi-worker mode corrupts state
-            (audit-025).
+            .
     """
     preflight_multi_worker_guard()
     setup_json_logging()
@@ -924,7 +924,7 @@ def create_app(
         _nodes_persist = _runtime_dir / "nodes.json"
     node_registry = NodeRegistry(effective_cluster, persist_path=_nodes_persist)
 
-    # Cluster JWT authentication (ENT-002)
+    # Cluster JWT authentication
     from bernstein.core.cluster_auth import ClusterAuthConfig, ClusterAuthenticator
 
     _cluster_auth_secret = effective_cluster.auth_token or ""
@@ -993,7 +993,7 @@ def create_app(
         ):
             signal.signal(signal.SIGHUP, previous_sighup)
         await store.flush_buffer()
-        # Close the persistent access-log file handle (audit-080).
+        # Close the persistent access-log file handle.
         middleware_stack = getattr(app, "middleware_stack", None)
         while middleware_stack is not None:
             if isinstance(middleware_stack, StructuredAccessLogMiddleware):
@@ -1041,7 +1041,7 @@ def create_app(
     # Crash guard — outermost middleware, catches unhandled exceptions
     application.add_middleware(CrashGuardMiddleware)
 
-    # audit-117: body-size cap.  Added BEFORE auth/rate-limit so oversized bodies
+    # body-size cap. Added BEFORE auth/rate-limit so oversized bodies
     # are rejected with 413 without ever being buffered into memory.  Starlette
     # orders ``add_middleware`` calls from innermost (first to handle the
     # response) to outermost (first to see the request), so registering this
@@ -1098,7 +1098,7 @@ def create_app(
     # Per-endpoint request rate limiting — reads buckets from app.state.seed_config.
     application.add_middleware(RequestRateLimitMiddleware)
 
-    # audit-122: SSE reconnect-frequency limiter. Rejects /events clients that
+    # SSE reconnect-frequency limiter. Rejects /events clients that
     # reconnect faster than 3 times per 60 s for a 5-minute cooldown.
     application.add_middleware(SSEReconnectLimiterMiddleware)
 
@@ -1122,7 +1122,7 @@ def create_app(
 
     from starlette.middleware.cors import CORSMiddleware
 
-    # audit-118: starlette.middleware.cors.CORSMiddleware compares
+    # starlette.middleware.cors.CORSMiddleware compares
     # ``allow_origins`` LITERALLY — so ``http://localhost:*`` never matches
     # a real ``http://localhost:3000``.  Detect glob patterns, strip them
     # from the literal list, and translate them to a regex passed via
@@ -1171,7 +1171,7 @@ def create_app(
     application.state.seed_config = None  # type: ignore[attr-defined]
     application.state.tenant_registry = None  # type: ignore[attr-defined]
 
-    # ENT-001: Multi-tenant task isolation manager
+    # Multi-tenant task isolation manager
     from bernstein.core.tenant_isolation import TenantIsolationManager
 
     tenant_isolation_mgr = TenantIsolationManager(sdd_dir)

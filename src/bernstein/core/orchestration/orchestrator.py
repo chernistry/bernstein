@@ -480,7 +480,7 @@ class Orchestrator:
         self._budget_policy: BudgetPolicy = BudgetPolicy.default()
         # Track last-seen policy action so we only notify on transitions.
         self._last_budget_action: BudgetAction = BudgetAction.CONTINUE
-        # audit-056: kill-switch state.  When ``should_stop`` transitions
+        # kill-switch state. When ``should_stop`` transitions
         # True we record the timestamp here and SHUTDOWN all live agents;
         # subsequent ticks that run ``kill_grace_period_s`` seconds later
         # SIGKILL any session still alive so budget overrun stays bounded.
@@ -737,7 +737,7 @@ class Orchestrator:
                 capacity_fn=self._current_capacity,
             )
 
-        # CI autofix poller (audit-035): lazily constructed on first use so
+        # CI autofix poller: lazily constructed on first use so
         # the orchestrator doesn't import httpx-async machinery unless the
         # flag is enabled.  _last_ci_poll_ts enforces the poll_interval_s
         # cadence regardless of tick frequency.
@@ -1164,7 +1164,7 @@ class Orchestrator:
             except Exception as exc:
                 logger.warning("Stale claim release failed: %s", exc)
 
-        # 1b-i.6. Priority aging (audit-020): boost long-waiting open/blocked tasks
+        # 1b-i.6. Priority aging: boost long-waiting open/blocked tasks
         # so that lower-priority work does not starve behind a steady stream of
         # P1 tickets. Gated behind the ``priority_aging_enabled`` config flag
         # (default OFF) and run every ``priority_aging_interval_ticks`` ticks.
@@ -1398,7 +1398,7 @@ class Orchestrator:
                 spent_usd=round(_bs.spent_usd, 4),
                 percent_used=round(_bs.percentage_used * 100, 1),
             )
-            # audit-056: ABORT used to only skip spawn, so in-flight agents
+            # ABORT used to only skip spawn, so in-flight agents
             # kept draining budget until they completed on their own.  Now
             # we SHUTDOWN every live session and (after ``kill_grace_period_s``)
             # SIGKILL any still alive so overruns stay bounded.
@@ -1564,7 +1564,7 @@ class Orchestrator:
         # 4d-iv. Real-time cost recording: update budget status from live tokens
         self._record_live_costs()
 
-        # 4d-v. CI autofix poll (audit-035): opt-in via config.ci_autofix.enabled.
+        # 4d-v. CI autofix poll: opt-in via config.ci_autofix.enabled.
         # _maybe_poll_ci_autofix internally rate-limits to poll_interval_s
         # (default 60s) and short-circuits when the flag is off, so calling
         # every tick is cheap.
@@ -1583,7 +1583,7 @@ class Orchestrator:
         #     or no heartbeat for idle threshold). SHUTDOWN → 30s grace → SIGKILL.
         recycle_idle_agents(self, tasks_by_status)
 
-        # 4e-ii. Log-growth idle heuristic (audit-006): catch agents wedged in a
+        # 4e-ii. Log-growth idle heuristic: catch agents wedged in a
         #     dead MCP/tool call that still emit heartbeats from a side thread but
         #     produce no log output or git activity. Complements recycle_idle_agents
         #     (heartbeat-based) — gated behind _run_normal since the log tail scan
@@ -1935,13 +1935,13 @@ class Orchestrator:
         ``task_spawn_confirmed``) are actively retried: a ``task_retry`` WAL
         entry is recorded and ``POST /tasks/{id}/force-claim`` is called with
         reason ``crash_recovery`` so the task returns to the *open* queue
-        instead of being silently abandoned (audit-001).  Any prior
+        instead of being silently abandoned. Any prior
         worktrees with uncommitted work are moved to
         ``.sdd/worktrees/preserved/`` and surfaced on the bulletin board so
         fresh agents can resume that work.
 
         Before the legacy acknowledgement path runs, the
-        :class:`WALReplayEngine` (audit-073) performs an idempotent replay:
+        :class:`WALReplayEngine` performs an idempotent replay:
         uncommitted ``task_claimed`` entries whose task the server still
         reports as *claimed* are transitioned to FAILED with reason
         ``claimed but never spawned`` so the standard retry machinery picks
@@ -1952,7 +1952,7 @@ class Orchestrator:
             List of (run_id, WALEntry) tuples for all uncommitted entries found.
         """
         sdd_dir = self._workdir / ".sdd"
-        # audit-073: run the WALReplayEngine first so uncommitted task_claimed
+        # run the WALReplayEngine first so uncommitted task_claimed
         # entries that are still claimed on the server are transitioned to
         # FAILED (reason "claimed but never spawned") with idempotency
         # protection.  Any failure is logged and swallowed so startup is never
@@ -1979,7 +1979,7 @@ class Orchestrator:
         # Identify orphaned claims: uncommitted task_claimed entries with
         # no matching task_spawn_confirmed in the same run.  These are the
         # work-loss cases the prior implementation only logged and acked
-        # (audit-001).  Use a (run_id, seq) key for O(1) membership checks.
+        #. Use a (run_id, seq) key for O(1) membership checks.
         orphaned = WALRecovery.find_orphaned_claims(
             sdd_dir,
             exclude_run_id=self._run_id,
@@ -1989,7 +1989,7 @@ class Orchestrator:
         # Identify orphaned claim_confirmed entries: the spawn created a
         # worktree but the process was SIGKILL'd before task_spawn_confirmed
         # was written.  These represent potentially valuable WIP on disk
-        # that must not be silently reaped (audit-013).
+        # that must not be silently reaped.
         crashed_spawns = self._find_orphaned_claim_confirmed(sdd_dir)
         crashed_spawn_keys = {(run_id, entry.seq) for run_id, entry in crashed_spawns}
         # task_ids that already have a claim_confirmed crash entry -- skip
@@ -2033,7 +2033,7 @@ class Orchestrator:
                 logger.debug("WAL write failed for recovery ack (run=%s seq=%d)", run_id, entry.seq)
 
         # Actively retry orphaned claims so each task returns to the open
-        # queue instead of being silently abandoned (audit-001 fix part a).
+        # queue instead of being silently abandoned ( fix part a).
         # Skip tasks that also have a claim_confirmed crash entry -- those
         # are handled by the crashed-spawn path below so the worktree is
         # preserved to the graveyard before the task is /fail'd.
@@ -2047,18 +2047,18 @@ class Orchestrator:
         # For claim_confirmed orphans: preserve the materialised worktree to
         # ``.sdd/graveyard/<task_id>/<ts>/`` (if dirty or has commits) then
         # POST /tasks/{id}/fail so the task returns to the open queue with a
-        # clear reason operators can review (audit-013).
+        # clear reason operators can review.
         crashed_recovered = 0
         for run_id, entry in crashed_spawns:
             if self._recover_crashed_spawn(run_id, entry):
                 crashed_recovered += 1
 
         # Preserve any prior worktrees that still have uncommitted changes
-        # so a fresh agent can resume them (audit-001 fix part b).
+        # so a fresh agent can resume them ( fix part b).
         preserved_paths = self._preserve_prior_worktrees_with_wip()
 
         # Close every prior-run WAL we observed so future boots do not
-        # re-scan the same uncommitted entries forever (audit-072).
+        # re-scan the same uncommitted entries forever.
         # We close the union of run_ids that held uncommitted entries and
         # run_ids that held orphaned claims -- in practice these are the
         # only WALs whose entries were returned by the scan helpers.
@@ -2109,7 +2109,7 @@ class Orchestrator:
     def _replay_wal_with_engine(self, sdd_dir: Path) -> None:
         """Run :class:`WALReplayEngine` to transition orphaned claims to FAILED.
 
-        audit-073: wires :meth:`WALReplayEngine.scan_and_replay` into startup
+        wires :meth:`WALReplayEngine.scan_and_replay` into startup
         so uncommitted ``task_claimed`` entries from a crashed prior run are
         not only logged.  For each orphan whose task is still reported as
         *claimed* on the server, the engine's replay handler:
@@ -2130,7 +2130,7 @@ class Orchestrator:
         # Fetch the set of task IDs currently marked as claimed on the
         # server.  If the server is unreachable we treat the set as empty
         # which means the replay handler will decline to fail anything and
-        # fall back to the legacy force-claim path (audit-001) below.
+        # fall back to the legacy force-claim path below.
         claimed_on_server: set[str] = set()
         try:
             resp = self._client.get(f"{self._config.server_url}/tasks?status=claimed")
@@ -2284,9 +2284,9 @@ class Orchestrator:
         materialised but BEFORE ``task_spawn_confirmed``.  On a SIGKILL in
         that window the worktree exists on disk but no committed entry
         exists.  The returned tuples drive graveyard preservation + /fail
-        so no work is silently reaped (audit-013).
+        so no work is silently reaped.
 
-        WALs with a ``.closed`` sidecar marker are skipped (audit-072) so
+        WALs with a ``.closed`` sidecar marker are skipped so
         crashed spawns handled by a prior recovery are not retried forever.
 
         Args:
@@ -2329,7 +2329,7 @@ class Orchestrator:
         return crashed
 
     def _recover_crashed_spawn(self, run_id: str, entry: Any) -> bool:
-        """Preserve a crashed-spawn worktree and /fail the task (audit-013).
+        """Preserve a crashed-spawn worktree and /fail the task.
 
         Moves the materialised worktree (recorded in ``entry.inputs``) to
         ``.sdd/graveyard/<task_id>/<ts>/`` when it contains unsaved work
@@ -2767,7 +2767,7 @@ class Orchestrator:
     def _enforce_budget_killswitch(self) -> None:
         """Terminate in-flight agents once the budget kill-switch has fired.
 
-        audit-056: prior to this hook the ABORT branch only blocked new
+        prior to this hook the ABORT branch only blocked new
         spawns, so any agents still running when ``should_stop`` flipped
         kept consuming budget (overruns of 150%+ observed).  The new
         contract is:
@@ -2926,7 +2926,7 @@ class Orchestrator:
             self._task_to_session.pop(tid, None)
 
     def _maybe_poll_ci_autofix(self) -> list[str]:
-        """Poll GitHub Actions for failing runs if the feature flag is enabled (audit-035).
+        """Poll GitHub Actions for failing runs if the feature flag is enabled.
 
         Calls :meth:`CIMonitor.poll` at most once per ``poll_interval_s`` seconds,
         tracked via ``_last_ci_poll_ts``.  Lazily constructs the monitor and
@@ -4383,7 +4383,7 @@ if __name__ == "__main__":
             elif seed_path.exists():
                 load_model_policy_from_yaml(seed_path, router)
 
-        # Configure model fallback tracker from bernstein.yaml (AGENT-004).
+        # Configure model fallback tracker from bernstein.yaml.
         # Reads model_fallback: section and wires the configurable chain into
         # the process-global singleton before any agents are spawned.
         if seed and getattr(seed, "model_fallback", None):
@@ -4397,7 +4397,7 @@ if __name__ == "__main__":
                 trigger_codes=frozenset(mf.trigger_codes),
             )
 
-        # Resolve + install the per-agent credential policy (audit-051).
+        # Resolve + install the per-agent credential policy.
         # Default-on: walks DEFAULT_POLICY_PATHS for a config file and
         # falls back to the bundled examples/credential-policies/default.yaml
         # so a fresh checkout still gets fail-closed env-var scoping.
@@ -4563,7 +4563,7 @@ if __name__ == "__main__":
                 workdir=workdir,
             )
 
-        # Parse agent resource limits from config (AGENT-013)
+        # Parse agent resource limits from config
         from bernstein.core.resource_limits import DEFAULT_AGENT_LIMITS
         from bernstein.core.resource_limits import ResourceLimits as _ResourceLimits
 

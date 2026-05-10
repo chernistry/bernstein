@@ -130,7 +130,7 @@ class JWTManager:
         Verifies the header ``alg`` claim against ``self._algorithm`` *before*
         computing any HMAC. This blocks the classic ``{"alg": "none"}``
         bypass and future alg-confusion attacks (e.g. an RS256 token forged
-        under an HS256 verifier). See security audit-053.
+        under an HS256 verifier). See security.
 
         Args:
             token: JWT token string.

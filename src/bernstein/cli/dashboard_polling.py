@@ -272,7 +272,7 @@ _RETRY_PATTERNS = (
 def _task_retry_count(task: dict[str, Any]) -> int:
     """Return the retry count for a task dict from the API.
 
-    audit-017: prefer the typed ``retry_count`` field (single source of
+    prefer the typed ``retry_count`` field (single source of
     truth).  Fall back to scanning legacy ``[RETRY N]`` / ``[retry:N]``
     markers in the title or description when the typed field is missing
     or zero, so historical tasks still render a correct counter in the

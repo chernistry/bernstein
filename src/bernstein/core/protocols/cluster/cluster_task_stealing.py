@@ -1,4 +1,4 @@
-"""ENT-007: Cluster task stealing for load balancing.
+"""Cluster task stealing for load balancing.
 
 Idle nodes claim tasks from busy nodes to balance work across the cluster.
 The stealing algorithm uses a pull-based approach: idle nodes periodically

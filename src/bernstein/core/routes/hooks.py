@@ -6,7 +6,7 @@ adapter injects these hooks into ``.claude/settings.local.json`` before
 spawning so every tool invocation and lifecycle event is reported in
 real time.
 
-Authentication (audit-113)
+Authentication
 --------------------------
 The endpoint is mounted outside the bearer-auth gate because Claude Code's
 hook runner cannot carry Bearer tokens.  Instead, each request is signed
@@ -15,7 +15,7 @@ with HMAC-SHA256 using the shared secret configured via
 Requests without a matching ``X-Bernstein-Hook-Signature-256`` header are
 rejected with 401.
 
-Security (audit-114)
+Security
 --------------------
 ``session_id`` is strictly validated before any filesystem work.  Values
 containing path separators, ``..``, null bytes, or anything outside
@@ -130,8 +130,8 @@ async def receive_hook(session_id: str, request: Request) -> JSONResponse:
     ``X-Bernstein-Hook-Signature-256`` (HMAC-SHA256 over the raw body,
     keyed with ``BERNSTEIN_HOOK_SECRET``) *before* any parsing or
     filesystem work — this is the authentication boundary for the
-    endpoint (audit-113).  The ``session_id`` is then validated against
-    a strict allowlist to prevent path traversal (audit-114).
+    endpoint. The ``session_id`` is then validated against
+    a strict allowlist to prevent path traversal.
 
     Args:
         session_id: Agent session identifier from the URL path.

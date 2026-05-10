@@ -5,7 +5,7 @@ subagents need Bernstein's task context and file ownership rules.  This
 module writes configuration to CLAUDE.md and .claude/settings.local.json
 in the worktree so subagents inherit the parent agent's constraints.
 
-Extended for AGENT-012: full parent context inheritance including role
+Extended for full parent context inheritance including role
 constraints, environment variables, and resource limits.
 """
 
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Inherited context dataclass (AGENT-012)
+# Inherited context dataclass
 # ---------------------------------------------------------------------------
 
 

@@ -1,4 +1,4 @@
-"""MCP server readiness probe before agent spawn (AGENT-005).
+"""MCP server readiness probe before agent spawn.
 
 After starting an MCP server subprocess, the orchestrator should verify that
 the server is actually ready to accept connections before spawning an agent

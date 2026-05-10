@@ -1,6 +1,6 @@
 """MCP config loading and merging for the Claude Code adapter.
 
-Extracted from :mod:`bernstein.adapters.claude` in audit-142.  Keeps the
+Extracted from :mod:`bernstein.adapters.claude` in. Keeps the
 loader and env-var resolver in a focused module so the adapter shell stays
 readable.  The public entry points :func:`load_mcp_config` and
 :func:`_resolve_env_vars` are re-exported from ``claude`` for backwards

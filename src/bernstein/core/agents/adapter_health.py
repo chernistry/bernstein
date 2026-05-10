@@ -1,4 +1,4 @@
-"""Per-adapter health monitoring (AGENT-009).
+"""Per-adapter health monitoring.
 
 Tracks success/failure rates per adapter.  Adapters that exceed a 50%
 failure rate are automatically disabled.  They are re-enabled after a

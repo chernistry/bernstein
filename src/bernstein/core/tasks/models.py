@@ -1116,7 +1116,7 @@ class ConvergenceGuardConfig:
 
 @dataclass(frozen=True)
 class CIAutofixConfig:
-    """Configuration for orchestrator-driven CI autofix polling (audit-035).
+    """Configuration for orchestrator-driven CI autofix polling.
 
     When ``enabled`` is True, the orchestrator tick periodically polls the
     GitHub Actions API for failing workflow runs and creates Bernstein fix
@@ -1172,7 +1172,7 @@ class OrchestratorConfig:
     # via ``tuning.orchestrator.tick_interval_s`` actually change the tick rate.
     poll_interval_s: int = field(default_factory=_default_poll_interval_s)
     smtp: SmtpConfig | None = None
-    # Unified with AGENT.heartbeat_stale_s (audit-147). Previously 900s; now defaults to 120s.
+    # Unified with AGENT.heartbeat_stale_s. Previously 900s; now defaults to 120s.
     # Deployments that explicitly relied on the 900s value must set this field explicitly.
     heartbeat_timeout_s: int = field(default_factory=lambda: int(AGENT.heartbeat_stale_s))
     heartbeat_enabled: bool = True
@@ -1186,7 +1186,7 @@ class OrchestratorConfig:
     kill_on_memory_leak: bool = False
     evolve_mode: bool = False
     budget_usd: float = 0.0  # Stop spawning when cumulative cost reaches this (0 = unlimited)
-    budget_aware_routing_enabled: bool = True  # audit-102: downgrade opus→sonnet near budget cap
+    budget_aware_routing_enabled: bool = True # downgrade opus→sonnet near budget cap
     dry_run: bool = False  # Preview planned spawns without actually spawning agents
     auth_token: str | None = None  # Bearer token for authenticated API calls
     merge_strategy: str = "pr"  # "pr" | "direct" — how agent work reaches the main branch
@@ -1230,17 +1230,17 @@ class OrchestratorConfig:
     drain_timeout_s: float = field(
         default_factory=lambda: _defaults.ORCHESTRATOR.drain_timeout_s,
     )  # Seconds to wait for agents during drain before cleanup
-    # Priority-aging janitor (audit-020): boost long-waiting low-priority tasks
+    # Priority-aging janitor: boost long-waiting low-priority tasks
     # so they do not starve behind a steady stream of P1 work.  Default off
     # until run data confirms behaviour; interval is measured in orchestrator ticks.
     priority_aging_enabled: bool = False
     priority_aging_interval_ticks: int = 60
-    # Weighted fair scheduling across tenants (audit-020): re-order batches by
+    # Weighted fair scheduling across tenants: re-order batches by
     # deficit round-robin so high-weight tenants get proportionally more slots
     # while per-tenant caps prevent any tenant from monopolising the worker pool.
     # Default off; enable once multi-tenant workloads exist.
     fair_scheduling_enabled: bool = False
-    cost_autopilot: bool = False  # Wire CostAutopilot when True (audit-060)
+    cost_autopilot: bool = False # Wire CostAutopilot when True
 
     def __post_init__(self) -> None:
         """Parse nested workflow config if dict provided."""

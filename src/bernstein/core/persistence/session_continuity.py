@@ -1,4 +1,4 @@
-"""Agent session continuity across retries (AGENT-016).
+"""Agent session continuity across retries.
 
 Preserves conversation context, file state, and partial work when
 retrying a failed agent.  Captures a snapshot before failure and

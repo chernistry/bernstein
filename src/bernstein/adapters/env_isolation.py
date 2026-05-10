@@ -151,7 +151,7 @@ def build_filtered_env(
     When ``agent_id`` is provided, ``extra_keys`` is further filtered
     through the :class:`~bernstein.core.credential_scoping.AgentCredentialPolicy`
     so each agent only inherits the credential env vars it is
-    authorised to see (audit-051).  If no ``credential_policy`` is
+    authorised to see. If no ``credential_policy`` is
     supplied the module-level default is consulted.
 
     Args:

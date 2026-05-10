@@ -95,7 +95,7 @@ class IdempotencyStore:
         """Load previously recorded execution markers from disk.
 
         Scans the live ``idempotency.jsonl`` plus any rotated ``.N`` backups
-        (audit-081) so that rotation never silently forgets a marker.
+        so that rotation never silently forgets a marker.
         """
         candidates: list[Path] = []
         if self._path.exists():
@@ -155,7 +155,7 @@ class IdempotencyStore:
 
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            # audit-081: cap unbounded idempotency.jsonl. _load() scans
+            # cap unbounded idempotency.jsonl. _load() scans
             # rotated .N backups as well so rotation does not lose markers.
             rotate_log_file(self._path, max_bytes=JANITOR.idempotency_rotate_bytes)
             with self._path.open("a", encoding="utf-8") as f:

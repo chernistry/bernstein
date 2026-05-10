@@ -1,6 +1,6 @@
 """Anthropic API cache-control block builder for the Claude Code adapter.
 
-Extracted from :mod:`bernstein.adapters.claude` in audit-142.  The builder
+Extracted from :mod:`bernstein.adapters.claude` in. The builder
 is a pure function and has no side effects, so moving it out keeps the
 adapter shell focused on spawn orchestration.  The public entry point
 :func:`build_cacheable_system_blocks` is re-exported from ``claude`` for

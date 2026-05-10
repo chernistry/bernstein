@@ -289,7 +289,7 @@ class MergeQueue:
         job is dequeued, the lock is released, and other waiters are woken.
 
         This is the intended entry point for production callers — it
-        guarantees ``enqueue`` is actually called (fixing audit-091) and
+        guarantees ``enqueue`` is actually called (fixing ) and
         keeps the ordering invariant even when multiple threads contend.
 
         Usage::

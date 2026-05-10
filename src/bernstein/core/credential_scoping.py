@@ -9,7 +9,7 @@ Provides two layers of scoping:
 
 2. **Environment credential policy** (:class:`AgentCredentialPolicy`) —
    restrict which OS-level API-key env vars an agent subprocess is allowed
-   to inherit.  This closes the audit-051 gap where every agent received
+   to inherit. This closes the gap where every agent received
    the full provider key set from ``build_filtered_env``'s ``extra_keys``.
 
 The policy is fail-closed: agents not explicitly listed receive **no**
@@ -438,7 +438,7 @@ _default_manager = CredentialScopeManager()
 
 
 # ---------------------------------------------------------------------------
-# Environment-level per-agent credential policy (audit-051)
+# Environment-level per-agent credential policy
 # ---------------------------------------------------------------------------
 
 

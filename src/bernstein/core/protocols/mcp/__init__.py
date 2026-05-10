@@ -1,1 +1,1 @@
-"""MCP protocol modules (audit-191 split)."""
+"""MCP protocol modules ( split)."""

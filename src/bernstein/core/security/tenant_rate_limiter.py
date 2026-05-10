@@ -1,4 +1,4 @@
-"""ENT-008: Per-tenant rate limiting and quota enforcement.
+"""Per-tenant rate limiting and quota enforcement.
 
 Provides tenant-scoped rate limiting with configurable quotas per tenant.
 Each tenant gets independent rate limit windows, task quotas, and agent

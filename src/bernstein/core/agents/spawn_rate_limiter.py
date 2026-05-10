@@ -1,4 +1,4 @@
-"""Spawn rate limiter — prevent API throttling from too-rapid spawns (AGENT-007).
+"""Spawn rate limiter — prevent API throttling from too-rapid spawns.
 
 Limits the number of agent spawns per provider within a configurable time
 window.  Default: max 2 spawns per 10 seconds per provider.

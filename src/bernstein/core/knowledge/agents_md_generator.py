@@ -459,7 +459,7 @@ def _build_architecture(repo_path: Path) -> AgentsMdSection | None:
     operator wants ~5 starting points, not the full call graph.
 
     The redirect-map detection covers a load-bearing audit invariant
-    (audit-012): when a project ships a ``sys.meta_path`` finder for
+    : when a project ships a ``sys.meta_path`` finder for
     legacy import paths, the AGENTS.md surface must point readers at
     the real mechanism so the documentation never drifts back to
     "shim file lives at <name>.py" claims that aren't true.

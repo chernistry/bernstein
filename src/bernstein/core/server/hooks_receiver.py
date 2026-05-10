@@ -16,7 +16,7 @@ Design:
 - ``PostToolUse`` events update an activity timestamp file so the heartbeat
   monitor has a second source of liveness signals.
 
-Security (audit-114):
+Security:
 - ``session_id`` arrives from an untrusted URL path parameter and is used
   verbatim as a filename for marker/sidecar/heartbeat files.  An attacker
   who can reach the endpoint (which is explicitly public because hooks

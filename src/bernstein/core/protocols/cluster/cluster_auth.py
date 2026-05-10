@@ -1,4 +1,4 @@
-"""ENT-002: Cluster node registration hardening with JWT authentication.
+"""Cluster node registration hardening with JWT authentication.
 
 Adds JWT-based authentication for node registration and heartbeats.
 Unauthenticated nodes are rejected. Tokens carry a ``node`` scope and

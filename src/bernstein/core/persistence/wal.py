@@ -68,7 +68,7 @@ def _compute_entry_hash(payload: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# UncommittedIndex (audit-085)
+# UncommittedIndex
 # ---------------------------------------------------------------------------
 
 
@@ -200,7 +200,7 @@ class UncommittedIndex:
         """Remove every row whose ``run_id`` matches *run_id*.
 
         Returns the number of rows removed.  Called after a run's WAL is
-        closed (audit-072) so that subsequent scans are not slowed by
+        closed so that subsequent scans are not slowed by
         stale rows pointing at an already-recovered WAL.
         """
         try:
@@ -238,7 +238,7 @@ class WALWriter:
         self._path = sdd_dir / "runtime" / "wal" / f"{run_id}.wal.jsonl"
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._seq, self._prev_hash = self._load_tail()
-        # Sidecar index of uncommitted entries (audit-085). Lazily instantiated
+        # Sidecar index of uncommitted entries. Lazily instantiated
         # so tests that only exercise the reader do not create the index file.
         self._index: UncommittedIndex | None = None
 
@@ -253,7 +253,7 @@ class WALWriter:
 
         Returns (-1, GENESIS_HASH) for a new or empty WAL.
 
-        Implementation (audit-082): seeks to end and reads backward in
+        Implementation: seeks to end and reads backward in
         fixed-size chunks until a complete non-empty line is recovered
         (or the start of the file is reached). Avoids an O(N) full-file
         read on every construction of a ``WALWriter``.
@@ -391,7 +391,7 @@ class WALWriter:
             f.flush()
             os.fsync(f.fileno())
 
-        # audit-085: update the sidecar index after the WAL line has been
+        # update the sidecar index after the WAL line has been
         # durably written. Index corruption only degrades startup speed
         # (scan_all_uncommitted falls back to a full scan and rebuilds)
         # so we swallow the error rather than failing the append.
@@ -452,7 +452,7 @@ class WALReader:
     def iter_entries(self) -> Iterator[WALEntry]:
         """Yield all :class:`WALEntry` objects in write order.
 
-        Streams the WAL file line-by-line (audit-082): entries are parsed
+        Streams the WAL file line-by-line: entries are parsed
         lazily so memory usage is O(1) in the WAL size. A malformed
         trailing line (e.g. torn write after a crash) is logged and
         skipped rather than aborting the iteration.
@@ -502,7 +502,7 @@ class WALReader:
         1. Each entry's ``prev_hash`` equals the previous entry's ``entry_hash``.
         2. Each entry's ``entry_hash`` matches the SHA-256 of its payload.
 
-        Streams the WAL line-by-line (audit-082): only the running
+        Streams the WAL line-by-line: only the running
         ``prev_hash`` and the collected error list are held in memory,
         so verification is O(1) in working set regardless of WAL size.
 
@@ -581,7 +581,7 @@ class WALRecovery:
     Once ``close_wal`` has been called, subsequent scans (via
     :meth:`scan_all_uncommitted` / :meth:`find_orphaned_claims`) skip the
     WAL so the same uncommitted entries are not re-reported forever
-    (audit-072).
+    .
     """
 
     def __init__(self, run_id: str, sdd_dir: Path) -> None:
@@ -598,7 +598,7 @@ class WALRecovery:
             return []
 
     # ------------------------------------------------------------------
-    # Closed-WAL sidecar marker (audit-072)
+    # Closed-WAL sidecar marker
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -613,7 +613,7 @@ class WALRecovery:
         A closed marker signals that a previous recovery cycle has
         already observed and handled every uncommitted entry in the
         corresponding WAL — future scans must skip it to prevent
-        unbounded re-scanning of the same entries (audit-072).
+        unbounded re-scanning of the same entries.
         """
         return WALRecovery._closed_marker_path(run_id, sdd_dir).exists()
 
@@ -664,7 +664,7 @@ class WALRecovery:
             f.flush()
             os.fsync(f.fileno())
 
-        # audit-085: drop stale uncommitted-index rows for the now-closed
+        # drop stale uncommitted-index rows for the now-closed
         # run so future scans do not have to filter them out.
         try:
             UncommittedIndex(sdd_dir).remove_run(run_id)
@@ -682,7 +682,7 @@ class WALRecovery:
 
         Iterates over every ``*.wal.jsonl`` file in the WAL directory, skipping
         *exclude_run_id* (typically the current run) and any WAL whose
-        ``.closed`` sidecar marker is present (audit-072 — prevents
+        ``.closed`` sidecar marker is present ( — prevents
         unbounded re-scanning of already-recovered WALs). Returns a flat
         list of ``(run_id, WALEntry)`` pairs for every entry with
         ``committed=False``.
@@ -729,7 +729,7 @@ class WALRecovery:
         task would otherwise sit in *claimed* forever (or be abandoned by
         ``_reconcile_claimed_tasks`` without a dedicated retry audit trail).
 
-        WALs with a ``.closed`` sidecar marker are skipped (audit-072) so
+        WALs with a ``.closed`` sidecar marker are skipped so
         that orphans handled by a prior recovery are not retried forever.
 
         Args:

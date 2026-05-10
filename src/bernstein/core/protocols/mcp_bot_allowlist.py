@@ -1,6 +1,6 @@
 """Read-only MCP-tool allowlist for the bernstein.run docs bot.
 
-The bernstein.run docs bot (RAG-001..004 in the bernstein_landing repo) may
+The bernstein.run docs bot may
 optionally consult the live cluster when answering operational questions
 ("how many tasks are open", "what's the cluster health"). To keep that
 surface narrow we expose **only** the four read-only tools below; write

@@ -356,7 +356,7 @@ class CLIAdapter(ABC):
         Sends SIGTERM first, polls for exit for a short grace period, then
         escalates to SIGKILL if the group is still alive.  Without this
         escalation, agents that trap SIGTERM survive reap paths (wall-clock
-        timeout and stale heartbeat) — see audit-011.
+        timeout and stale heartbeat) — see prior audit.
         """
         kill_process_group_graceful(pid)
 

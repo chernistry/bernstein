@@ -307,7 +307,7 @@ def _scan_line(
     each reported, while exact duplicates (same rule hitting the same span —
     possible if scans ever overlap) are not counted twice. This prevents the
     scanner-evasion bug where a single rule's dedup would silently drop the
-    second/third secret of the same type (audit-044).
+    second/third secret of the same type.
     """
     if _is_allowlisted(line, allowlist_prefixes):
         return

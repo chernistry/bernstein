@@ -849,7 +849,7 @@ def _verify_saml_signature(xml_bytes: bytes, idp_x509_cert: str) -> bytes:
     cert_pem = _normalize_idp_cert(idp_x509_cert)
 
     try:
-        # resolve_entities=False mitigates XXE; see audit-054.
+        # resolve_entities=False mitigates XXE; see prior audit.
         parser = etree.XMLParser(resolve_entities=False, no_network=True)
         root = etree.fromstring(xml_bytes, parser=parser)
     except etree.XMLSyntaxError as exc:
@@ -1116,7 +1116,7 @@ class AuthService:
         DTDs, external entities, and *internal* entity expansion are refused
         outright. stdlib ``xml.etree`` happily expands nested internal entities,
         which is sufficient for a billion-laughs / quadratic-blowup DoS even
-        though ``xml.etree`` blocks external entities by default (audit-054).
+        though ``xml.etree`` blocks external entities by default.
         """
         # defusedxml.ElementTree is a drop-in for xml.etree.ElementTree and
         # re-exports stdlib ``ParseError``; it additionally raises

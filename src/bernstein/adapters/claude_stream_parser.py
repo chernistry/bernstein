@@ -42,7 +42,7 @@ _EVENT_SYSTEM = "system"
 _CAST_DICT_STR_ANY = "dict[str, Any]"
 
 # Maximum number of text blocks retained for deduplication.  Bounded LRU
-# prevents unbounded growth in long-running sessions (audit-143).
+# prevents unbounded growth in long-running sessions.
 _SEEN_TEXT_MAX: int = 10_000
 
 
@@ -120,7 +120,7 @@ class ClaudeStreamParser:
 
     def __init__(self) -> None:
         self.state = StreamParserState()
-        # Bounded LRU of recently-seen text blocks (audit-143).  OrderedDict
+        # Bounded LRU of recently-seen text blocks. OrderedDict
         # gives O(1) membership test, O(1) move-to-end on hit, and O(1)
         # FIFO eviction via popitem(last=False).
         self._seen_text: OrderedDict[str, None] = OrderedDict()

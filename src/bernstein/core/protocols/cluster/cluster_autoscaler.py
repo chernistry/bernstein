@@ -1,4 +1,4 @@
-"""ENT-013: Cluster auto-scaling based on task queue depth.
+"""Cluster auto-scaling based on task queue depth.
 
 Monitors the task queue depth across cluster nodes and recommends scaling
 decisions (scale-up or scale-down).  Integrates with the load scaler for

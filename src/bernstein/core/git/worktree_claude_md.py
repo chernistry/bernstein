@@ -170,7 +170,7 @@ def write_claude_md(
     # The project-level CLAUDE.md is tracked, so .gitignore alone does not
     # suppress the modification.  Mark it as skip-worktree in the worktree's
     # index — git will then ignore local edits and salvage's ``git add -A``
-    # will not stage the override (audit-095).
+    # will not stage the override.
     _mark_claude_md_skip_worktree(worktree_path)
 
     return claude_md_path

@@ -49,7 +49,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "agent_trust": "bernstein.core.agents.agent_trust",
     "agent_turn_state": "bernstein.core.agents.agent_turn_state",
     "agent_utilization": "bernstein.core.agents.agent_utilization",
-    # alert_rules: removed in audit-170 — dead code, no production importers.
+    # alert_rules: removed — dead code, no production importers.
     "always_allow": "bernstein.core.security.always_allow",
     "api_compat": "bernstein.core.server.api_compat",
     "api_compat_checker": "bernstein.core.server.api_compat_checker",
@@ -59,7 +59,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "apm_integration": "bernstein.core.observability.apm_integration",
     "approval": "bernstein.core.security.approval",
     "arch_conformance": "bernstein.core.quality.arch_conformance",
-    # audit-177: new primary name for the AST-derived symbol graph.
+    # new primary name for the AST-derived symbol graph.
     "ast_symbol_graph": "bernstein.core.knowledge.ast_symbol_graph",
     "audit": "bernstein.core.security.audit",
     "audit_export": "bernstein.core.security.audit_export",
@@ -73,9 +73,9 @@ _REDIRECT_MAP: dict[str, str] = {
     "backlog_parser": "bernstein.core.tasks.backlog_parser",
     "bandit_router": "bernstein.core.routing.bandit_router",
     "batch_api": "bernstein.core.tasks.batch_api",
-    # batch_mode: removed in audit-026 — dead code, no production importers.
+    # batch_mode: removed — dead code, no production importers.
     "batch_router": "bernstein.core.tasks.batch_router",
-    # batch_transitions: removed in audit-026 — dead code, no production importers.
+    # batch_transitions: removed — dead code, no production importers.
     "behavior_anomaly": "bernstein.core.observability.behavior_anomaly",
     "benchmark_gate": "bernstein.core.quality.benchmark_gate",
     "blocking_hooks": "bernstein.core.security.blocking_hooks",
@@ -159,13 +159,13 @@ _REDIRECT_MAP: dict[str, str] = {
     "cross_agent_consistency": "bernstein.core.agents.cross_agent_consistency",
     "cross_model_verifier": "bernstein.core.quality.cross_model_verifier",
     "custom_metrics": "bernstein.core.observability.custom_metrics",
-    # cycle_detector: removed in audit-192 — dead code, no production importers.
+    # cycle_detector: removed — dead code, no production importers.
     "dashboard_auth": "bernstein.core.server.dashboard_auth",
     "data_residency": "bernstein.core.security.data_residency",
     "datadog_export": "bernstein.core.observability.datadog_export",
     "dead_code_detector": "bernstein.core.quality.dead_code_detector",
     "dead_letter_queue": "bernstein.core.tasks.dead_letter_queue",
-    # degraded_mode: removed in audit-170 — dead code, no production importers.
+    # degraded_mode: removed — dead code, no production importers.
     "denial_tracker": "bernstein.core.security.denial_tracker",
     "dep_impact": "bernstein.core.quality.dep_impact",
     "dep_validator": "bernstein.core.quality.dep_validator",
@@ -176,17 +176,17 @@ _REDIRECT_MAP: dict[str, str] = {
     "disaster_recovery": "bernstein.core.persistence.disaster_recovery",
     "dlp_scanner": "bernstein.core.security.dlp_scanner",
     "dlp_scanner_v2": "bernstein.core.security.dlp_scanner_v2",
-    # doc_generator: removed in audit-169 — dead code, no production importers.
+    # doc_generator: removed — dead code, no production importers.
     "dp_telemetry": "bernstein.core.security.dp_telemetry",
     "drain": "bernstein.core.orchestration.drain",
     "drain_merge": "bernstein.core.orchestration.drain_merge",
     "dual_approval": "bernstein.core.security.dual_approval",
-    # duplicate_detector: removed in audit-192 — dead code, no production importers.
+    # duplicate_detector: removed — dead code, no production importers.
     "duration_predictor": "bernstein.core.planning.duration_predictor",
     "education_tier": "bernstein.core.cost.education_tier",
     "effectiveness": "bernstein.core.quality.effectiveness",
-    # embedding_scorer: removed in audit-169 — dead code, no production importers.
-    # error_classifier: removed in audit-170 — dead code, no production importers.
+    # embedding_scorer: removed — dead code, no production importers.
+    # error_classifier: removed — dead code, no production importers.
     "eu_ai_act": "bernstein.core.security.eu_ai_act",
     "evolution": "bernstein.core.orchestration.evolution",
     "external_policy_hook": "bernstein.core.security.external_policy_hook",
@@ -200,7 +200,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "formal_verification": "bernstein.core.quality.formal_verification",
     "frame_headers": "bernstein.core.server.frame_headers",
     "free_tier": "bernstein.core.cost.free_tier",
-    # gate_cache: removed in audit-192 — dead mixin, no production importers.
+    # gate_cache: removed — dead mixin, no production importers.
     "gate_commands": "bernstein.core.quality.gate_commands",
     "gate_pipeline": "bernstein.core.quality.gate_pipeline",
     "gate_plugins": "bernstein.core.quality.gate_plugins",
@@ -212,15 +212,15 @@ _REDIRECT_MAP: dict[str, str] = {
     "git_ops": "bernstein.core.git.git_ops",
     "git_pr": "bernstein.core.git.git_pr",
     "github": "bernstein.core.git.github",
-    # graduated_memory_guard: removed in audit-169 — dead code, no production importers.
+    # graduated_memory_guard: removed — dead code, no production importers.
     "graduation": "bernstein.core.quality.graduation",
     "grafana_dashboard": "bernstein.core.observability.grafana_dashboard",
-    # audit-177: graph.py -> task_graph.py. Shim kept for back-compat callers.
+    # graph.py -> task_graph.py. Shim kept for back-compat callers.
     "graph": "bernstein.core.knowledge.task_graph",
     "grpc_client": "bernstein.core.protocols.grpc.grpc_client",
     "grpc_server": "bernstein.core.protocols.grpc.grpc_server",
     "guardrails": "bernstein.core.security.guardrails",
-    # health_score: removed in audit-170 — dead code, no production importers.
+    # health_score: removed — dead code, no production importers.
     "heartbeat": "bernstein.core.agents.heartbeat",
     "heartbeat_escalation": "bernstein.core.agents.heartbeat_escalation",
     "hijacker": "bernstein.core.routing.hijacker",
@@ -258,7 +258,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "log_redact": "bernstein.core.observability.log_redact",
     "log_search": "bernstein.core.observability.log_search",
     "loop_detector": "bernstein.core.observability.loop_detector",
-    # mailbox: removed in audit-176 — dead code, superseded by bulletin.py +
+    # mailbox: removed — dead code, superseded by bulletin.py +
     # signals.py; no production importers.
     "manager": "bernstein.core.orchestration.manager",
     "manager_models": "bernstein.core.orchestration.manager_models",
@@ -293,7 +293,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "mcp_usage_analytics": "bernstein.core.protocols.mcp.mcp_usage_analytics",
     "mcp_verifier": "bernstein.core.protocols.mcp.mcp_verifier",
     "mcp_version_compat": "bernstein.core.protocols.mcp.mcp_version_compat",
-    # audit-191: back-compat shims for old ``bernstein.core.protocols.
+    # back-compat shims for old ``bernstein.core.protocols.
     # <mcp_*|a2a_*|cluster_*|grpc_*>`` import paths. Modules now live in
     # subpackages (protocols.mcp.mcp_foo etc.) but external plugins and
     # test files may import from the old top-level path. These dotted
@@ -332,11 +332,11 @@ _REDIRECT_MAP: dict[str, str] = {
     "protocols.mcp_usage_analytics": "bernstein.core.protocols.mcp.mcp_usage_analytics",
     "protocols.mcp_verifier": "bernstein.core.protocols.mcp.mcp_verifier",
     "protocols.mcp_version_compat": "bernstein.core.protocols.mcp.mcp_version_compat",
-    # memory_extractor: removed in audit-169 — dead code, no production importers.
+    # memory_extractor: removed — dead code, no production importers.
     "memory_guard": "bernstein.core.knowledge.memory_guard",
     "memory_integrity": "bernstein.core.knowledge.memory_integrity",
     "memory_lock_protocol": "bernstein.core.knowledge.memory_lock_protocol",
-    # memory_sanitizer: removed in audit-169 — dead code, no production importers.
+    # memory_sanitizer: removed — dead code, no production importers.
     "merge_queue": "bernstein.core.git.merge_queue",
     "merkle": "bernstein.core.persistence.merkle",
     "metric_collector": "bernstein.core.observability.metric_collector",
@@ -369,7 +369,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "orphan_tool_result": "bernstein.core.agents.orphan_tool_result",
     "outcome_pricing": "bernstein.core.cost.outcome_pricing",
     "output_fingerprint": "bernstein.core.quality.output_fingerprint",
-    # output_normalizer: removed in audit-192 — dead code, no production importers.
+    # output_normalizer: removed — dead code, no production importers.
     "permission_delegation": "bernstein.core.security.permission_delegation",
     "permission_graph": "bernstein.core.security.permission_graph",
     "permission_matrix": "bernstein.core.security.permission_matrix",
@@ -418,11 +418,11 @@ _REDIRECT_MAP: dict[str, str] = {
     "quota_probe": "bernstein.core.protocols.quota_probe",
     "rag": "bernstein.core.knowledge.rag",
     "rate_limit_tracker": "bernstein.core.observability.rate_limit_tracker",
-    # rate_limited_logger: removed in audit-170 — dead code, no production importers.
+    # rate_limited_logger: removed — dead code, no production importers.
     "rbac": "bernstein.core.security.rbac",
     "readme_reminder": "bernstein.core.quality.readme_reminder",
     "recorder": "bernstein.core.persistence.recorder",
-    # repo_index: removed in audit-169 — dead code, no production importers.
+    # repo_index: removed — dead code, no production importers.
     "request_dedup": "bernstein.core.server.request_dedup",
     "request_logging": "bernstein.core.server.request_logging",
     "researcher": "bernstein.core.knowledge.researcher",
@@ -431,7 +431,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "retry_budget": "bernstein.core.cost.planned.retry_budget",
     "review_rubric": "bernstein.core.quality.review_rubric",
     "rework_ledger": "bernstein.core.routing.rework_ledger",
-    # reviewer: removed in audit-192 — dead code, no production importers.
+    # reviewer: removed — dead code, no production importers.
     "roadmap_runtime": "bernstein.core.planning.roadmap_runtime",
     "role_classifier": "bernstein.core.routing.role_classifier",
     "rolling_restart": "bernstein.core.orchestration.rolling_restart",
@@ -454,7 +454,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "sanitize": "bernstein.core.security.sanitize",
     "sbom": "bernstein.core.security.sbom",
     "scenario_library": "bernstein.core.planning.scenario_library",
-    # scratchpad: removed in audit-176 — dead code, cross-worker state
+    # scratchpad: removed — dead code, cross-worker state
     # superseded by bulletin.py + signals.py; no production importers.
     "sdk_generator": "bernstein.core.plugins_core.sdk_generator",
     "seccomp_profiles": "bernstein.core.security.seccomp_profiles",
@@ -467,7 +467,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "seed_config": "bernstein.core.config.seed_config",
     "seed_parser": "bernstein.core.config.seed_parser",
     "semantic_cache": "bernstein.core.knowledge.semantic_cache",
-    # audit-177: semantic_graph.py -> ast_symbol_graph.py. Shim kept for back-compat.
+    # semantic_graph.py -> ast_symbol_graph.py. Shim kept for back-compat.
     "semantic_graph": "bernstein.core.knowledge.ast_symbol_graph",
     "sensitive_data": "bernstein.core.security.sensitive_data",
     "sensitive_file_detector": "bernstein.core.security.sensitive_file_detector",
@@ -477,7 +477,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "server_models": "bernstein.core.server.server_models",
     "server_supervisor": "bernstein.core.server.server_supervisor",
     "session": "bernstein.core.persistence.session",
-    # session_checkpoint: removed in audit-084 — SessionCheckpoint had zero
+    # session_checkpoint: removed — SessionCheckpoint had zero
     # production callers; CheckpointState (now aliased to
     # checkpoint.PartialState) is the operator-visible progress slice.
     "session_continuity": "bernstein.core.persistence.session_continuity",
@@ -487,7 +487,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "skill_badges": "bernstein.core.plugins_core.skill_badges",
     "skill_discovery": "bernstein.core.plugins_core.skill_discovery",
     "skill_md": "bernstein.core.plugins_core.skill_md",
-    # sla_monitor: removed in audit-170 — dead code, no production importers.
+    # sla_monitor: removed — dead code, no production importers.
     "slo": "bernstein.core.observability.slo",
     "soc2_report": "bernstein.core.security.soc2_report",
     "spawn_analyzer": "bernstein.core.agents.spawn_analyzer",
@@ -503,9 +503,9 @@ _REDIRECT_MAP: dict[str, str] = {
     "spend_forecast": "bernstein.core.cost.spend_forecast",
     "ssh_backend": "bernstein.core.protocols.ssh_backend",
     "sso_oidc": "bernstein.core.security.sso_oidc",
-    # stack_detector: removed in audit-170 — dead code, no production importers.
+    # stack_detector: removed — dead code, no production importers.
     "staggered_shutdown": "bernstein.core.orchestration.staggered_shutdown",
-    # startup_selftest: removed in audit-170 — dead code, no production importers.
+    # startup_selftest: removed — dead code, no production importers.
     "state_encryption": "bernstein.core.security.state_encryption",
     "store": "bernstein.core.persistence.store",
     "store_factory": "bernstein.core.persistence.store_factory",
@@ -513,33 +513,33 @@ _REDIRECT_MAP: dict[str, str] = {
     "store_redis": "bernstein.core.persistence.store_redis",
     "swarm_migration": "bernstein.core.tasks.swarm_migration",
     "sync": "bernstein.core.persistence.sync",
-    # synthesis: removed in audit-169 — dead code, no production importers.
+    # synthesis: removed — dead code, no production importers.
     "task_claim": "bernstein.core.tasks.task_claim",
-    # task_completion: removed in audit-018 — collect_completion_data lives in
+    # task_completion: removed — collect_completion_data lives in
     # bernstein.core.tasks.task_lifecycle; no shim is provided to keep the
     # duplicate implementation from re-appearing.
-    # task_diff_preview: removed in audit-026 — dead code, no production importers.
-    # task_event_store: removed in audit-026 — dead code, no production importers.
-    # audit-177: new primary name for the task-dependency DAG.
+    # task_diff_preview: removed — dead code, no production importers.
+    # task_event_store: removed — dead code, no production importers.
+    # new primary name for the task-dependency DAG.
     "task_graph": "bernstein.core.knowledge.task_graph",
     "task_grouping": "bernstein.core.tasks.task_grouping",
     "task_lifecycle": "bernstein.core.tasks.task_lifecycle",
     "task_retry": "bernstein.core.tasks.task_retry",
     "task_spawn_bridge": "bernstein.core.tasks.task_spawn_bridge",
     "task_splitter": "bernstein.core.tasks.task_splitter",
-    # task_status_history: removed in audit-026 — dead code, no production importers.
+    # task_status_history: removed — dead code, no production importers.
     "task_store": "bernstein.core.tasks.task_store",
     "task_store_core": "bernstein.core.tasks.task_store_core",
-    # task_tagging: removed in audit-026 — dead code, no production importers.
-    # task_templates: removed in audit-026 — dead code, no production importers.
+    # task_tagging: removed — dead code, no production importers.
+    # task_templates: removed — dead code, no production importers.
     "task_tools": "bernstein.core.tasks.task_tools",
     "team_state": "bernstein.core.persistence.team_state",
     "telemetry": "bernstein.core.observability.telemetry",
     "tenant_isolation": "bernstein.core.security.tenant_isolation",
     "tenant_rate_limiter": "bernstein.core.security.tenant_rate_limiter",
     "tenanting": "bernstein.core.security.tenanting",
-    # test_data_gen: removed in audit-192 — dead code, no production importers.
-    # test_expansion: removed in audit-192 — dead code, no production importers.
+    # test_data_gen: removed — dead code, no production importers.
+    # test_expansion: removed — dead code, no production importers.
     "test_impact": "bernstein.core.quality.test_impact",
     "tick_anomaly": "bernstein.core.orchestration.tick_anomaly",
     "tick_budget": "bernstein.core.orchestration.tick_budget",
@@ -553,13 +553,13 @@ _REDIRECT_MAP: dict[str, str] = {
     "token_estimation": "bernstein.core.tokens.token_estimation",
     "token_monitor": "bernstein.core.tokens.token_monitor",
     "token_waste_report": "bernstein.core.tokens.token_waste_report",
-    # tool_timing: removed in audit-170 — dead code, no production importers.
+    # tool_timing: removed — dead code, no production importers.
     "tool_use_context": "bernstein.core.agents.tool_use_context",
-    # trace_correlation: removed in audit-170 — dead code, no production importers.
+    # trace_correlation: removed — dead code, no production importers.
     "traces": "bernstein.core.observability.traces",
     "trigger_manager": "bernstein.core.orchestration.trigger_manager",
     "upgrade_executor": "bernstein.core.config.upgrade_executor",
-    # usage_telemetry: removed in audit-170 — dead code, no production importers.
+    # usage_telemetry: removed — dead code, no production importers.
     "vault_injector": "bernstein.core.security.vault_injector",
     "verification_nudge": "bernstein.core.quality.verification_nudge",
     "vertical_packs": "bernstein.core.plugins_core.vertical_packs",
@@ -571,7 +571,7 @@ _REDIRECT_MAP: dict[str, str] = {
     "wal_replication": "bernstein.core.persistence.wal_replication",
     "warm_pool": "bernstein.core.agents.warm_pool",
     "watchdog": "bernstein.core.observability.watchdog",
-    # web_graph: removed in audit-169 — dead code, no production importers.
+    # web_graph: removed — dead code, no production importers.
     "webhook_handler": "bernstein.core.server.webhook_handler",
     "webhook_signatures": "bernstein.core.server.webhook_signatures",
     "webhook_verify": "bernstein.core.server.webhook_verify",
@@ -592,7 +592,7 @@ class _CoreRedirectFinder(MetaPathFinder):
     """Redirect ``bernstein.core.<old_name>`` to ``bernstein.core.<subpkg>.<old_name>``.
 
     Most keys in ``_REDIRECT_MAP`` are direct children of ``bernstein.core``
-    (e.g. ``mcp_manager`` → ``protocols.mcp.mcp_manager``). audit-191 added
+    (e.g. ``mcp_manager`` → ``protocols.mcp.mcp_manager``). added
     dotted keys (``protocols.mcp_manager``) so callers that still import via
     the old ``bernstein.core.protocols.<mcp_*|a2a_*|cluster_*|grpc_*>`` paths
     after the subpackage split keep working. Dotted keys match submodule

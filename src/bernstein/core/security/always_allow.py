@@ -9,7 +9,7 @@ Rules take **highest precedence** — an ALLOW from this engine overrides
 any ASK or DENY from other guardrails (except IMMUNE and SAFETY which
 remain bypass-immune).
 
-Security model (audit-046):
+Security model:
     ALLOW decisions from this engine override almost every other guardrail,
     so the rules file must be *read-only from the agent's perspective*. The
     loader enforces this by:

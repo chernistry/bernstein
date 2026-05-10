@@ -158,7 +158,7 @@ def _launch_server(state: _SupervisorState) -> int:
         "--port",
         str(port),
     ]
-    # ``--reload`` was removed 2026-04-17 per audit-115 / incident 2026-04-11.
+    # ``--reload`` was removed 2026-04-17 per / incident 2026-04-11.
     # In a self-modifying system (bernstein agents constantly edit
     # src/bernstein/*.py) uvicorn --reload is catastrophic: every file write
     # triggers a uvicorn restart, which drops in-flight HTTP connections,
@@ -166,7 +166,7 @@ def _launch_server(state: _SupervisorState) -> int:
     # with duplicate task claims. Evolve cycles already restart via the
     # supervisor on real crashes — auto-reload is never wanted here.
     # ``state.evolve_mode`` is intentionally not consulted when building the
-    # uvicorn argv; if you're tempted to re-add --reload, read audit-115
+    # uvicorn argv; if you're tempted to re-add --reload, read
     # first.
 
     log_path = workdir / ".sdd" / "runtime" / "server.log"

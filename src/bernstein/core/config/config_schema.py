@@ -336,7 +336,7 @@ class CustomMetricSchema(BaseModel):
 
 
 class ModelFallbackSchema(BaseModel):
-    """Model fallback chain configuration (AGENT-004).
+    """Model fallback chain configuration.
 
     Controls which HTTP error types trigger a model switch and which
     fallback models to try in sequence.
@@ -458,7 +458,7 @@ class BernsteinConfig(BaseModel):
     )
 
     # --- LLM provider ---
-    # audit-150: default 'none' so a fresh clone without OPENROUTER_API_KEY_*
+    # default 'none' so a fresh clone without OPENROUTER_API_KEY_*
     # env vars no longer crashes on first auto_decompose/evolution LLM call.
     # When set to 'none', evolution_enabled and auto_decompose are auto-disabled
     # unless the user explicitly enabled them (in which case we raise so the
@@ -526,7 +526,7 @@ class BernsteinConfig(BaseModel):
                 f"budget is {budget_val} which is negative. Use 0 or '$0' for unlimited, or a positive value for a cap."
             )
 
-        # audit-150: When internal_llm_provider is 'none' (or ""), features that
+        # When internal_llm_provider is 'none' (or ""), features that
         # require an LLM must be disabled. If the user did not explicitly opt in
         # to the feature, silently disable it; if they explicitly enabled it,
         # surface a loud error so the misconfig is obvious.
@@ -544,7 +544,7 @@ class BernsteinConfig(BaseModel):
                 # Auto-disable the defaulted feature so the config validates.
                 object.__setattr__(self, "auto_decompose", False)
                 logger.info(
-                    "audit-150: internal_llm_provider='%s' — auto_decompose "
+                    "internal_llm_provider='%s' — auto_decompose "
                     "auto-disabled. Set an LLM provider to re-enable.",
                     self.internal_llm_provider,
                 )
@@ -558,19 +558,19 @@ class BernsteinConfig(BaseModel):
             elif self.evolution_enabled:
                 object.__setattr__(self, "evolution_enabled", False)
                 logger.info(
-                    "audit-150: internal_llm_provider='%s' — evolution_enabled "
+                    "internal_llm_provider='%s' — evolution_enabled "
                     "auto-disabled. Set an LLM provider to re-enable.",
                     self.internal_llm_provider,
                 )
 
         # Preflight: openrouter_free requires OPENROUTER_API_KEY_FREE or _PAID.
         # Emit a loud warning (not a hard error) so fresh clones see the hint
-        # before the first LLM call crashes. See audit-150.
+        # before the first LLM call crashes. See.
         if self.internal_llm_provider == "openrouter_free" and not (
             os.environ.get("OPENROUTER_API_KEY_FREE") or os.environ.get("OPENROUTER_API_KEY_PAID")
         ):
             logger.warning(
-                "audit-150: internal_llm_provider='openrouter_free' but neither "
+                "internal_llm_provider='openrouter_free' but neither "
                 "OPENROUTER_API_KEY_FREE nor OPENROUTER_API_KEY_PAID is set. "
                 "LLM calls will fail at runtime. Set one of those env vars, or "
                 "switch to 'internal_llm_provider: none' in bernstein.yaml to "

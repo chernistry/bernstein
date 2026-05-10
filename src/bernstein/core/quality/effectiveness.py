@@ -296,7 +296,7 @@ class EffectivenessScorer:
     def _retry_count(self, task: Task) -> int:
         """Return the retry count for a task.
 
-        audit-017: prefer the typed ``task.retry_count`` field; fall back to
+        prefer the typed ``task.retry_count`` field; fall back to
         a legacy ``[RETRY N]`` title prefix only when the typed field is 0
         so historical tasks still score correctly.
         """

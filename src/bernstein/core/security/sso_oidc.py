@@ -1,4 +1,4 @@
-"""ENT-006: SSO/OIDC authentication for web dashboard.
+"""SSO/OIDC authentication for web dashboard.
 
 Standard OpenID Connect Authorization Code flow with configurable provider.
 Supports auto-discovery via ``.well-known/openid-configuration``, PKCE,

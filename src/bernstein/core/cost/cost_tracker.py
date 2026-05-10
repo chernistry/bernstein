@@ -106,13 +106,13 @@ DEFAULT_WARN_THRESHOLD: float = 0.80
 DEFAULT_CRITICAL_THRESHOLD: float = 0.95
 DEFAULT_HARD_STOP_THRESHOLD: float = 1.00
 
-# audit-056: default grace window between SHUTDOWN signals and SIGKILL
+# default grace window between SHUTDOWN signals and SIGKILL
 # once ``should_stop`` flips.  Kept here (rather than on OrchestratorConfig)
 # because the kill-switch semantics are owned by the cost tracker.
 DEFAULT_KILL_GRACE_PERIOD_S: int = 30
 
 # ---------------------------------------------------------------------------
-# Usage history buffer (audit-057)
+# Usage history buffer
 # ---------------------------------------------------------------------------
 
 # Default number of recent ``TokenUsage`` records kept in memory per tracker.
@@ -346,13 +346,13 @@ class CostTracker:
     warn_threshold: float = DEFAULT_WARN_THRESHOLD
     critical_threshold: float = DEFAULT_CRITICAL_THRESHOLD
     hard_stop_threshold: float = DEFAULT_HARD_STOP_THRESHOLD
-    # audit-056: once ``should_stop`` transitions True the orchestrator
+    # once ``should_stop`` transitions True the orchestrator
     # sends SHUTDOWN to every live agent, waits ``kill_grace_period_s``
     # for them to commit WIP, and SIGKILLs any still alive afterwards.
     # 0 disables the grace window (immediate SIGKILL — not recommended
     # outside tests).
     kill_grace_period_s: int = DEFAULT_KILL_GRACE_PERIOD_S
-    # audit-057: bound in-memory usage history. ``None`` → resolve from
+    # bound in-memory usage history. ``None`` → resolve from
     # ``BERNSTEIN_COST_USAGE_BUFFER`` env var (default 10_000). 0 disables
     # the cap (unbounded) for legacy/test use only; not recommended.
     usage_buffer_size: int | None = None
@@ -470,7 +470,7 @@ class CostTracker:
         evicted: TokenUsage | None = None
         with self._lock:
             # Ring-buffer append: capture the row that would be evicted so we
-            # can rotate it to JSONL before it falls off the end (audit-057).
+            # can rotate it to JSONL before it falls off the end.
             if self._usages.maxlen is not None and len(self._usages) >= self._usages.maxlen:
                 evicted = self._usages[0]
             self._usages.append(usage)
@@ -626,7 +626,7 @@ class CostTracker:
         """Recent token usage entries (read-only copy).
 
         Returns at most :attr:`usage_buffer_size` rows; older rows are
-        evicted to keep memory bounded (see audit-057). Per-agent and
+        evicted to keep memory bounded (see prior audit). Per-agent and
         per-model analytics remain exact via accumulators, but anyone
         iterating this list for raw per-row analysis should consult the
         JSONL rotation files under :attr:`rotation_dir` if full history is
@@ -715,7 +715,7 @@ class CostTracker:
                     tracker._spent_by_agent.get(usage.agent_id, 0.0) + usage.cost_usd
                 )
                 tracker._spent_by_model[usage.model] = tracker._spent_by_model.get(usage.model, 0.0) + usage.cost_usd
-                # audit-057: rebuild running accumulators so breakdowns survive
+                # rebuild running accumulators so breakdowns survive
                 # across reload (otherwise model_breakdowns() returns empty).
                 tracker._update_accumulators(usage)
 
@@ -753,7 +753,7 @@ class CostTracker:
         Returns:
             Multi-line markdown string.
         """
-        # audit-057: consult the running accumulator so the summary reflects
+        # consult the running accumulator so the summary reflects
         # the entire run history even after older rows are evicted from the
         # in-memory ring buffer.
         savings = max(0.0, self._opus_baseline_savings_usd)
@@ -782,7 +782,7 @@ class CostTracker:
         """Build per-agent cost summaries from the accumulators.
 
         Uses the running per-agent accumulator so that summaries stay exact
-        even after older ``_usages`` have been evicted (audit-057).
+        even after older ``_usages`` have been evicted.
 
         Returns:
             List of :class:`AgentCostSummary` sorted by total cost descending.
@@ -801,7 +801,7 @@ class CostTracker:
         """Build per-model cost breakdowns from the accumulators.
 
         Uses the running per-model accumulator so that breakdowns stay
-        exact even after older ``_usages`` have been evicted (audit-057).
+        exact even after older ``_usages`` have been evicted.
 
         Returns:
             List of :class:`ModelCostBreakdown` sorted by total cost descending.
@@ -858,7 +858,7 @@ class CostTracker:
 
         Uses the running :attr:`_cache_savings_usd` accumulator so the
         reported figure covers every usage ever recorded — not just the
-        ones currently held in the bounded in-memory buffer (audit-057).
+        ones currently held in the bounded in-memory buffer.
 
         Returns:
             Estimated savings in USD (always >= 0).
@@ -918,7 +918,7 @@ class CostTracker:
 
         Called under :attr:`_lock` so callers do not need additional
         synchronisation. The accumulators let analytics survive eviction of
-        older rows from the bounded :attr:`_usages` buffer (audit-057).
+        older rows from the bounded :attr:`_usages` buffer.
 
         Args:
             usage: The newly-recorded :class:`TokenUsage`.
@@ -985,7 +985,7 @@ class CostTracker:
         Does nothing when :attr:`rotation_dir` is unset — in that case the
         row is simply dropped (its stats are still carried in the
         accumulators). Failures are logged and swallowed so that telemetry
-        IO never blocks the orchestrator hot path (audit-057).
+        IO never blocks the orchestrator hot path.
         """
         rotation_dir = self.rotation_dir
         if rotation_dir is None:

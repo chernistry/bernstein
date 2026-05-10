@@ -577,7 +577,7 @@ def _patch_retry_with_compaction(
         logger.warning("Failed to list open tasks for compaction patch: %s", exc)
         return
 
-    # audit-017: look the retry task up by metadata.original_task_id and an
+    # look the retry task up by metadata.original_task_id and an
     # incremented retry_count.  Falls back to a title-prefix match for
     # legacy tasks whose retry clones still carry the old ``[RETRY N]``
     # prefix (no new ones are created by the orchestrator).
@@ -743,7 +743,7 @@ def _handle_failure_detection(
 def _resolve_budget_remaining_usd(orch: Any) -> float | None:
     """Return the orchestrator's current remaining budget in USD, or None.
 
-    audit-102: used to wire budget-awareness into both the cascade fallback
+    used to wire budget-awareness into both the cascade fallback
     manager and the module-level router guard.  Returns ``None`` when the
     orchestrator has no cost tracker, the budget is unlimited, or the
     lookup fails for any reason — callers must treat ``None`` as "unknown"
@@ -776,7 +776,7 @@ def _run_cascade_fallback(
     from bernstein.core.cascade import CascadeDecision, CascadeFallbackManager
     from bernstein.core.routing.router_core import set_budget_context
 
-    # audit-102: thread budget awareness into cascade + module-level router
+    # thread budget awareness into cascade + module-level router
     # guard so that a single opus task near the cap cannot overshoot by 150%+.
     _budget_remaining = _resolve_budget_remaining_usd(orch)
     _budget_flag = bool(getattr(orch._config, "budget_aware_routing_enabled", True))
@@ -1515,7 +1515,7 @@ def reap_dead_agents(
 # from the bottom of this module (see the ``from agent_recycling import ...``
 # block at EOF) so existing importers of ``bernstein.core.agent_lifecycle``
 # continue to work while the constants and algorithm have a single source
-# of truth.  This closes audit-010 — previously ``_detect_idle_reason`` and
+# of truth. This closes — previously ``_detect_idle_reason`` and
 # its four ``_IDLE_*`` thresholds existed in parallel copies that could
 # (and did) silently diverge when one was tuned and the other was not.
 #
@@ -1622,7 +1622,7 @@ def _release_task_to_session(orch: Any, task_ids: list[str]) -> None:
 # Re-exports: canonical idle-detection / recycling implementation.
 #
 # Deferred to end-of-module to avoid a circular import via
-# ``agent_recycling -> agent_reaping -> agent_lifecycle``.  See audit-010.
+# ``agent_recycling -> agent_reaping -> agent_lifecycle``. See.
 # ---------------------------------------------------------------------------
 
 from bernstein.core.agents.agent_recycling import (  # noqa: E402, F401 — re-exported for back-compat

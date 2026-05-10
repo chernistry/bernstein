@@ -29,7 +29,7 @@ _GENERIC_WEBHOOK_SECRET_ENV = "BERNSTEIN_WEBHOOK_SECRET"
 _GENERIC_WEBHOOK_SIGNATURE_HEADER = "x-bernstein-webhook-signature-256"
 _GENERIC_WEBHOOK_TIMESTAMP_HEADER = "x-bernstein-timestamp"
 # Replay window: reject requests whose timestamp drifts more than this
-# many seconds from the server clock (audit-121).  Five minutes matches
+# many seconds from the server clock. Five minutes matches
 # the Slack v0 and AWS SigV4 recommendations — short enough to bound
 # replay risk while tolerating modest clock skew between sender and
 # receiver.
@@ -60,7 +60,7 @@ def _parse_timestamp_header(raw: str) -> int | None:
 def _verify_generic_webhook_secret(request: Request, body: bytes) -> JSONResponse | None:
     """Verify the HMAC signature + timestamp freshness for POST ``/webhook``.
 
-    Fail-closed semantics (audit-042 + audit-121): when
+    Fail-closed semantics ( + ): when
     ``BERNSTEIN_WEBHOOK_SECRET`` is not configured the endpoint is
     disabled and every POST returns 503.  When a secret *is*
     configured, callers MUST supply:
@@ -74,7 +74,7 @@ def _verify_generic_webhook_secret(request: Request, body: bytes) -> JSONRespons
       capturing a valid pair.
 
     The plaintext ``X-Bernstein-Webhook-Secret`` fallback has been
-    removed (audit-121) — there is no remaining code path that
+    removed — there is no remaining code path that
     compares the raw secret against a request header.
     """
 
@@ -160,10 +160,10 @@ async def generic_webhook(body: WebhookTaskCreate, request: Request) -> WebhookT
 
     The endpoint is intentionally small and separate from the trigger-manager
     flow: callers POST a task-shaped payload and Bernstein creates one task.
-    ``BERNSTEIN_WEBHOOK_SECRET`` must be configured (fail-closed; audit-042)
+    ``BERNSTEIN_WEBHOOK_SECRET`` must be configured (fail-closed; )
     and each request must carry a fresh ``X-Bernstein-Timestamp`` header
     plus a matching ``X-Bernstein-Webhook-Signature-256`` HMAC over
-    ``f"{timestamp}.".encode() + body`` (audit-121).  The plaintext
+    ``f"{timestamp}.".encode() + body``. The plaintext
     ``X-Bernstein-Webhook-Secret`` fallback has been removed; callers
     relying on it must upgrade to the HMAC + timestamp flow.
     """
@@ -307,10 +307,10 @@ async def github_webhook(request: Request) -> JSONResponse:
       ``MAX_CI_RETRIES`` active attempts per branch.
 
     Reads ``GITHUB_WEBHOOK_SECRET`` from environment for HMAC verification.
-    Fail-closed (audit-042): when the secret is not configured the
+    Fail-closed: when the secret is not configured the
     endpoint is disabled and returns 503; unsigned GitHub webhooks are
     never accepted.
-    Replay protection (audit-121): if the caller includes an
+    Replay protection: if the caller includes an
     ``X-Bernstein-Timestamp`` header the request is additionally
     checked for freshness — drift greater than five minutes returns
     401.  Real GitHub deliveries omit this header and continue to
@@ -325,7 +325,7 @@ async def github_webhook(request: Request) -> JSONResponse:
     store = _get_store(request)
     body = await request.body()
 
-    # Verify HMAC signature — secret MUST be configured (audit-042).
+    # Verify HMAC signature — secret MUST be configured.
     gh_webhook_secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
     if not gh_webhook_secret:
         logger.error(
@@ -343,7 +343,7 @@ async def github_webhook(request: Request) -> JSONResponse:
                 ),
             },
         )
-    # audit-121: opt-in timestamp freshness check.  GitHub itself does
+    # opt-in timestamp freshness check. GitHub itself does
     # not send ``X-Bernstein-Timestamp``, but bernstein-internal relays
     # and test harnesses can, and when they do we enforce the same
     # five-minute skew window as the generic webhook.
@@ -486,11 +486,11 @@ def _gitlab_pipeline_to_task(payload: dict[str, Any], retry_count: int) -> dict[
 def _verify_gitlab_token(request: Request) -> JSONResponse | None:
     """Verify the GitLab webhook token and optional timestamp freshness.
 
-    Fail-closed semantics (audit-042): when ``GITLAB_WEBHOOK_TOKEN`` is
+    Fail-closed semantics: when ``GITLAB_WEBHOOK_TOKEN`` is
     not configured the endpoint is disabled and every POST returns 503;
     unsigned / unauthenticated GitLab webhooks are never accepted.
     Missing / mismatched tokens return 401.  Replay protection
-    (audit-121): when the caller includes ``X-Bernstein-Timestamp`` the
+    : when the caller includes ``X-Bernstein-Timestamp`` the
     request is rejected if its drift exceeds five minutes — GitLab
     itself never sends this header, so real deliveries are unaffected;
     the check hardens bernstein-internal relays.
@@ -517,7 +517,7 @@ def _verify_gitlab_token(request: Request) -> JSONResponse | None:
         return JSONResponse(status_code=401, content={"detail": "Missing GitLab webhook token"})
     if not hmac.compare_digest(provided_token, gitlab_token):
         return JSONResponse(status_code=401, content={"detail": "Invalid GitLab webhook token"})
-    # audit-121: opt-in timestamp freshness check — mirrors the generic
+    # opt-in timestamp freshness check — mirrors the generic
     # webhook.  Real GitLab deliveries never send this header; internal
     # relays may and, when they do, we fail closed on stale timestamps.
     ts_raw = request.headers.get(_GENERIC_WEBHOOK_TIMESTAMP_HEADER, "")

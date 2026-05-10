@@ -864,7 +864,7 @@ def _render_prompt(
         named_sections.append(("lessons", f"\n{lesson_context}\n"))
     if rich_context:
         named_sections.append(("context", f"\n{rich_context}\n"))
-    # Parent context inheritance (AGENT-012): inject parent's context summary
+    # Parent context inheritance: inject parent's context summary
     parent_ctx_parts: list[str] = []
     for t in tasks:
         if t.parent_context:

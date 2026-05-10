@@ -208,7 +208,7 @@ def check_file_overlap(
 def prepare_speculative_warm_pool(orch: Any, task_graph: Any, tasks: list[Task]) -> None:
     """Pre-create warm-pool capacity for tasks that are one dependency away.
 
-    This keeps AGENT-022 aligned with Bernstein's short-lived-agent invariant:
+    This keeps aligned with Bernstein's short-lived-agent invariant:
     only worktrees/adapter capacity are prepared ahead of time. No task is
     claimed and no sleeping agent process is created.
 
@@ -420,7 +420,7 @@ def maybe_retry_task(
     if task.id in retried_task_ids:
         return False
 
-    # audit-017: ``task.retry_count`` is the single source of truth.  Title
+    # ``task.retry_count`` is the single source of truth. Title
     # prefixes and ``[retry:N]`` description markers are no longer consulted
     # or written.  Legacy tasks with a stale ``[RETRY N]`` prefix retain it
     # in the title until they complete, but the counter they report is the
@@ -551,7 +551,7 @@ def _enqueue_dlq_if_workdir(
     reason: str,
     original_error: str,
 ) -> None:
-    """Record a permanently-failed task in the Dead Letter Queue (audit-019).
+    """Record a permanently-failed task in the Dead Letter Queue.
 
     Looks up ``<workdir>/.sdd`` and appends an entry to ``runtime/dlq.jsonl``.
     A ``None`` workdir preserves legacy behaviour (no DLQ), and any OS or
@@ -626,11 +626,11 @@ def retry_or_fail_task(
     """Re-queue a task for retry, or fail it permanently if max retries reached.
 
     Reads the current retry count from the typed ``task.retry_count`` field —
-    the single source of truth (audit-017).  Title and description are copied
+    the single source of truth. Title and description are copied
     verbatim; no ``[RETRY N]`` / ``[retry:N]`` markers are written.  If the
     typed counter is below ``min(task.max_retries, dynamic_limit(reason))`` a
     new open task is created with ``retry_count`` incremented; otherwise the
-    task is moved to the Dead Letter Queue (audit-019) and failed with a
+    task is moved to the Dead Letter Queue and failed with a
     ``"Max retries exceeded"`` reason.
 
     Args:
@@ -645,7 +645,7 @@ def retry_or_fail_task(
             extra HTTP round-trip when the task is already in cache.
         workdir: Orchestrator working directory.  When provided, tasks that
             exhaust their retry budget are also enqueued into the Dead Letter
-            Queue under ``<workdir>/.sdd/runtime/dlq.jsonl`` (audit-019).
+            Queue under ``<workdir>/.sdd/runtime/dlq.jsonl``.
             Callers without a workdir (e.g. ad-hoc scripts or legacy tests)
             fall back to the historical behaviour of plain failure.
     """
@@ -680,7 +680,7 @@ def retry_or_fail_task(
         return
     retried_task_ids.add(task_id)
 
-    # audit-017: source of truth is ``task.retry_count`` (typed field).
+    # source of truth is ``task.retry_count`` (typed field).
     retry_count = task.retry_count
     per_task_limit = task.max_retries if task.max_retries > 0 else max_task_retries
     effective_limit = min(per_task_limit, dynamic_limit)
@@ -786,7 +786,7 @@ def retry_or_fail_task(
         with contextlib.suppress(httpx.HTTPError):
             fail_task(client, base, task_id, f"Retried: {reason}")
     else:
-        # audit-019: retry budget exhausted — move to Dead Letter Queue
+        # retry budget exhausted — move to Dead Letter Queue
         # before marking the task failed so permanently-failed work is not
         # silently dropped.
         _enqueue_dlq_if_workdir(
@@ -839,7 +839,7 @@ def should_auto_decompose(
     if task.title.startswith("[DECOMPOSE]"):
         return False
 
-    # audit-017: use the typed retry counter (source of truth), falling back
+    # use the typed retry counter (source of truth), falling back
     # to a legacy ``[RETRY N]`` title prefix only when the typed field is 0
     # (so in-flight pre-migration tasks still decompose correctly).
     import re
@@ -1140,7 +1140,7 @@ def _pre_spawn_checks_pass(orch: Any, alive_count: int) -> bool:
 
 
 def _apply_fair_scheduling(orch: Any, batches: list[list[Task]]) -> list[list[Task]]:
-    """Re-order batches using the weighted fair scheduler (audit-020).
+    """Re-order batches using the weighted fair scheduler.
 
     Feeds one representative task per batch into a :class:`FairScheduler`
     keyed by ``task.tenant_id``.  The scheduler emits a deficit-round-robin
@@ -1241,7 +1241,7 @@ def claim_and_spawn_batches(
     if not _pre_spawn_checks_pass(orch, alive_count):
         return
 
-    # Fair scheduling (audit-020): when enabled, re-order batches using
+    # Fair scheduling: when enabled, re-order batches using
     # weighted deficit round-robin across tenants so multi-tenant workloads
     # get proportional service instead of FIFO starvation.  Runs before
     # the HTTP /claim calls below. Default-off via ``fair_scheduling_enabled``.
@@ -1500,7 +1500,7 @@ def claim_and_spawn_batches(
         # WAL: record pre-execution intent BEFORE the HTTP POST /claim so a
         # SIGKILL between the server-side claim transition and the local WAL
         # write can never produce a server-side "claimed" task with no WAL
-        # trace (audit-013).  The legacy ``task_claimed`` decision_type is
+        # trace. The legacy ``task_claimed`` decision_type is
         # reused so existing recovery wiring (``find_orphaned_claims``)
         # continues to force-claim abandoned tasks back to the open queue.
         # Worktree path is not yet known -- it is recorded in the follow-up
@@ -1800,7 +1800,7 @@ def claim_and_spawn_batches(
                 len(batch),
                 [t.id for t in batch],
             )
-            # WAL: record the worktree materialisation (audit-013).
+            # WAL: record the worktree materialisation.
             # This intermediate ``claim_confirmed`` entry ties every claimed
             # task_id to its concrete worktree_path BEFORE the final commit.
             # A SIGKILL between here and ``task_spawn_confirmed`` leaves an

@@ -274,7 +274,7 @@ def _parse_network_config(raw: object) -> NetworkConfig | None:
     return NetworkConfig(allowed_ips=allowed_ips)
 
 
-# audit-118: Accepted glob origin shape — scheme and host are literal, only
+# Accepted glob origin shape — scheme and host are literal, only
 # the port may be a ``*`` wildcard (e.g. ``http://localhost:*``).  Anything
 # outside this shape is rejected with a clear error because
 # ``starlette.middleware.cors.CORSMiddleware`` compares ``allow_origins``

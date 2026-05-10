@@ -1,4 +1,4 @@
-"""Categorized spawn failure errors with retry strategy metadata (AGENT-001).
+"""Categorized spawn failure errors with retry strategy metadata.
 
 Each error type maps to a retry strategy that the spawner can use to decide
 how to recover:

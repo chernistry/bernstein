@@ -1,10 +1,10 @@
-"""Model fallback tracker — consecutive provider errors trigger model switch (T444, AGENT-004).
+"""Model fallback tracker — consecutive provider errors trigger model switch (T444).
 
 After consecutive error responses (529, 429, 503, timeouts) from a provider,
 the tracker signals that the agent should switch to a configured fallback
 model.  Counters are scoped per session to avoid cross-talk between agents.
 
-AGENT-004 extends the original 529-only tracker to handle all common error
+Extends the original 529-only tracker to handle all common error
 types with a configurable fallback chain.
 """
 
@@ -57,7 +57,7 @@ def is_model_unavailable_error(text: str) -> bool:
 
 @dataclass
 class FallbackChainConfig:
-    """Configuration for a model fallback chain (AGENT-004).
+    """Configuration for a model fallback chain.
 
     Defines which status codes trigger fallback, the strike limit, and
     an ordered list of fallback models to try in sequence.
@@ -140,7 +140,7 @@ def _classify_error_type(status_code: int) -> str:
 
 
 class ModelFallbackTracker:
-    """Track consecutive provider errors per session and signal fallback (T444, AGENT-004).
+    """Track consecutive provider errors per session and signal fallback (T444).
 
     When a session hits the configured number of consecutive error responses
     (429, 503, 529, or timeouts), ``record_response()`` returns a

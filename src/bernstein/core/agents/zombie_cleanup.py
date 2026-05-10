@@ -1,4 +1,4 @@
-"""Zombie process cleanup on orchestrator startup (AGENT-006).
+"""Zombie process cleanup on orchestrator startup.
 
 On startup, scans ``.sdd/runtime/pids/`` for PID files from prior runs,
 checks if the recorded processes are still alive, and sends SIGTERM to

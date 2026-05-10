@@ -1,4 +1,4 @@
-"""ENT-004: SOC 2 compliance reporting.
+"""SOC 2 compliance reporting.
 
 Transforms the raw audit export into a structured compliance package with:
 - Control mappings (SOC 2 Type II trust service criteria)

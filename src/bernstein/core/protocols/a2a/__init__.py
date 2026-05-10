@@ -1,4 +1,4 @@
-"""A2A protocol modules (audit-191 split).
+"""A2A protocol modules ( split).
 
 Re-exports from ``.a2a`` so ``from bernstein.core.protocols.a2a import X``
 keeps working for callers that previously imported from the ``a2a.py``

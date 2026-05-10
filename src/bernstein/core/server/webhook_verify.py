@@ -62,7 +62,7 @@ class WebhookSignatureVerifier:
     async def __call__(self, request: Request) -> None:
         """Verify the webhook signature or raise 401/403/503.
 
-        Fail-closed (audit-042): when no secret is configured (neither
+        Fail-closed: when no secret is configured (neither
         constructor argument, ``request.app.state.webhook_secret``, nor
         the configured environment variable) the dependency raises HTTP
         503 — the endpoint is considered disabled and unsigned requests

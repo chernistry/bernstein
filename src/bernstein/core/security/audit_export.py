@@ -1,4 +1,4 @@
-"""ENT-012: Audit log export to external SIEM systems.
+"""Audit log export to external SIEM systems.
 
 Exports Bernstein audit log entries to Splunk (HEC), Elasticsearch,
 AWS CloudWatch Logs, syslog, webhook, and local files.  Each exporter

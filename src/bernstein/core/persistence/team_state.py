@@ -127,7 +127,7 @@ class TeamStateStore:
             return {}
 
     def _write_all(self, members: dict[str, TeamMember]) -> None:
-        """Atomically persist the full team roster (audit-076)."""
+        """Atomically persist the full team roster."""
         payload = {
             "updated_at": time.time(),
             "members": [m.to_dict() for m in members.values()],

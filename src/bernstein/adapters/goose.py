@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Model mapping: Bernstein logical names → Goose model IDs
-# Updated 2026-04-17 (audit-140) — keep Opus alias in sync with claude.py canonical ID.
+# Updated 2026-04-17 — keep Opus alias in sync with claude.py canonical ID.
 _MODEL_MAP: dict[str, str] = {
     "opus": "claude-opus-4-7",
     "opus-4-6": "claude-opus-4-6",  # pinned fallback

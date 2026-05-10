@@ -1,4 +1,4 @@
-"""Salvage uncommitted agent work before worktree cleanup (audit-088).
+"""Salvage uncommitted agent work before worktree cleanup.
 
 When an agent fails, is killed, or its worktree is otherwise reaped while it
 still has dirty state, ``git worktree remove --force`` silently discards the
@@ -186,7 +186,7 @@ def _write_patch_fallback(
     # 3. Human-readable marker so operators can spot the salvage at a glance.
     try:
         (out_dir / "README.txt").write_text(
-            "Salvaged uncommitted worktree state (audit-088).\n"
+            "Salvaged uncommitted worktree state.\n"
             f"session_id: {session_id}\n"
             f"timestamp: {ts}\n"
             f"untracked_count: {len(untracked_payload)}\n"
@@ -244,7 +244,7 @@ def _try_salvage_branch(
 
     # 2. Commit.  --allow-empty so we leave a breadcrumb even when the diff
     #    is purely whitespace or already staged-and-reverted.
-    msg = f"WIP: salvage {session_id} (audit-088)"
+    msg = f"WIP: salvage {session_id}"
     commit_r = run_git(
         [
             "-c",

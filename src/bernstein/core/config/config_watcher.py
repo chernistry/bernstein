@@ -153,9 +153,9 @@ def discover_config_paths(workdir: Path) -> list[tuple[str, Path]]:
     The returned list has six entries, one per cascade layer actually consumed
     by :func:`bernstein.core.config.config_schema.load_and_validate`: user,
     project, project_alt, local, cli_overrides, managed.  The legacy
-    ``sdd_project`` slot (``.sdd/config.yaml``) was dropped in audit-157 because
+    ``sdd_project`` slot (``.sdd/config.yaml``) was dropped in because
     no loader reads it -- the earlier ``settings_cascade`` reference was
-    removed by audit-151.
+    removed by.
 
     Args:
         workdir: Project root directory.

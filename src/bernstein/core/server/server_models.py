@@ -27,11 +27,11 @@ class CompletionSignalSchema(BaseModel):
     value: str
 
 
-# audit-117: input-size caps for TaskCreate (prevents OOM via 200MB descriptions).
+# input-size caps for TaskCreate (prevents OOM via 200MB descriptions).
 # Titles are short human-readable summaries; descriptions can carry a plan but must
 # stay below the per-request body cap (1MB) enforced by ContentLengthMiddleware.
 _MAX_TITLE_LEN = 500  # Raised from 200 — real backlog/audit tickets use
-# long descriptive titles (audit-169-… runs to 206 chars). 500 still caps
+# long descriptive titles (-… runs to 206 chars). 500 still caps
 # abusive multi-MB titles but stops ingest_backlog batch POSTs 422-ing every
 # 20 s whenever the backlog carries any title > 200.
 _MAX_DESCRIPTION_LEN = 100_000
@@ -67,7 +67,7 @@ def _enforce_dict_size(value: dict[str, Any] | None, *, field_name: str) -> dict
 class TaskCreate(BaseModel):
     """Body for POST /tasks."""
 
-    # audit-117: bounded string lengths prevent trivial memory exhaustion.
+    # bounded string lengths prevent trivial memory exhaustion.
     title: str = Field(max_length=_MAX_TITLE_LEN)
     description: str = Field(max_length=_MAX_DESCRIPTION_LEN)
     role: str = Field(default="auto", max_length=_MAX_SHORT_STR_LEN)
@@ -97,7 +97,7 @@ class TaskCreate(BaseModel):
     deadline: float | None = None  # Epoch timestamp when task must be complete
     parent_session_id: str | None = Field(default=None, max_length=_MAX_SHORT_STR_LEN)
     parent_context: str | None = Field(default=None, max_length=_MAX_DESCRIPTION_LEN)
-    # Retry bookkeeping (audit-017): retry_count is the single source of truth.
+    # Retry bookkeeping: retry_count is the single source of truth.
     # When a retry task is created, the orchestrator sets retry_count=previous+1.
     retry_count: int | None = None  # Current retry attempt number (0 = first attempt)
     max_retries: int | None = None  # Per-task override of default retry limit
@@ -106,7 +106,7 @@ class TaskCreate(BaseModel):
     max_output_tokens: int | None = None  # Per-task output-token cap (escalated on retry)
     meta_messages: list[str] | None = Field(default=None, max_length=_MAX_LIST_LEN)
 
-    # audit-117: cap serialized size of dict-of-any fields to block deeply-nested
+    # cap serialized size of dict-of-any fields to block deeply-nested
     # or very wide payloads from wedging the server at pydantic-validation time.
     def model_post_init(self, _context: Any) -> None:
         """Enforce serialized-size caps on dict fields and meta_messages entries."""
@@ -187,7 +187,7 @@ class TaskResponse(BaseModel):
     progress_log: list[ProgressEntry] = Field(default_factory=list)
     version: int = 1
     parent_session_id: str | None = None  # Coordinator session that owns this task
-    # Retry bookkeeping (audit-017): typed fields are the single source of truth.
+    # Retry bookkeeping: typed fields are the single source of truth.
     retry_count: int = 0
     max_retries: int = 3
     retry_delay_s: float = 0.0

@@ -1,6 +1,6 @@
 """plugins_core sub-package.
 
-audit-173: the previous implementation exposed a ``__getattr__`` that walked
+the previous implementation exposed a ``__getattr__`` that walked
 ``pkgutil.iter_modules`` and lazy-imported every submodule on first attribute
 access. That magic defeated static analysis tools (Pyright, Vulture, unimport)
 because any attribute could be resolved at runtime, so dead submodules in this

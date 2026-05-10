@@ -1,4 +1,4 @@
-"""Prompt size pre-check before agent spawn (AGENT-003).
+"""Prompt size pre-check before agent spawn.
 
 Estimates prompt token count using a simple chars-per-token heuristic (~4
 chars/token) and compares against the model's context limit.  Two thresholds:

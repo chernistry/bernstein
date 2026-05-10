@@ -179,7 +179,7 @@ class CachingAdapter(CLIAdapter):
         # Forward ALL kwargs from the base CLIAdapter.spawn interface explicitly
         # so that type checkers catch future drift — missing budget_multiplier
         # or system_addendum silently broke retry budgets and role-scoped
-        # system prompts (audit-129).
+        # system prompts.
         return self._inner.spawn(
             prompt=prompt,
             workdir=workdir,

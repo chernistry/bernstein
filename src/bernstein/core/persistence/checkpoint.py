@@ -1,6 +1,6 @@
 """Orchestrator checkpoint/restore for long-running plans.
 
-Two complementary checkpoint shapes live here (audit-084):
+Two complementary checkpoint shapes live here:
 
 1. :class:`Checkpoint` — the canonical, atomic full-snapshot written by the
    orchestrator for crash recovery.  Captures task graph, agent sessions,
@@ -14,7 +14,7 @@ Two complementary checkpoint shapes live here (audit-084):
 :class:`bernstein.core.persistence.session.CheckpointState` is a
 back-compat alias for :class:`PartialState` so the CLI and existing tests
 keep working.  The older ``session_checkpoint.SessionCheckpoint`` was
-removed in audit-084 (no production callers).
+removed in (no production callers).
 """
 
 from __future__ import annotations
@@ -272,7 +272,7 @@ def _checkpoint_from_dict(data: dict[str, Any]) -> Checkpoint:
 
 
 # ---------------------------------------------------------------------------
-# PartialState — operator-visible progress slice (audit-084)
+# PartialState — operator-visible progress slice
 # ---------------------------------------------------------------------------
 
 

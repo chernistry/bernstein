@@ -1,6 +1,6 @@
 """Inline wrapper script source + assembly for the Claude Code adapter.
 
-Extracted from :mod:`bernstein.adapters.claude` in audit-142.  The wrapper
+Extracted from :mod:`bernstein.adapters.claude` in. The wrapper
 script is a short Python program that reads Claude Code's stream-json
 NDJSON output, prints human-readable text to the adapter's log file,
 records token usage to a sidecar, touches a heartbeat file on every
@@ -10,7 +10,7 @@ event.  Keeping it in its own module leaves the adapter shell free of
 
 The public entry point :func:`build_wrapper_script` preserves the exact
 behaviour of the original ``ClaudeCodeAdapter._wrapper_script`` staticmethod
-so golden-replay tests from audit-141 pass unchanged.
+so golden-replay tests from pass unchanged.
 """
 
 from __future__ import annotations

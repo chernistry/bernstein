@@ -676,7 +676,7 @@ def _render_prompt(
         sections.append(f"\n{rich_context}\n")
     if file_scope_context:
         sections.append(deduplicate_section(f"\n## File-scope context\n{file_scope_context}\n"))
-    # Parent context inheritance (AGENT-012): inject parent's context summary
+    # Parent context inheritance: inject parent's context summary
     # when a task was created from decomposing a larger parent task.
     parent_ctx_parts: list[str] = []
     for t in tasks:
@@ -888,7 +888,7 @@ class AgentSpawner:
         # Set by the orchestrator via :meth:`set_merge_queue` after construction.
         # When present, merges are serialised through the FIFO queue so the
         # dashboard can observe pending jobs and so merge-tree conflict checks
-        # can be inserted on the queue's boundary (audit-091 fix).
+        # can be inserted on the queue's boundary ( fix).
         self._merge_queue: Any = None
         self._traces: dict[str, AgentTrace] = {}
         self._trace_store = TraceStore(workdir / ".sdd" / "traces")
@@ -1070,7 +1070,7 @@ class AgentSpawner:
         Called after construction because the orchestrator owns the queue
         and constructs the spawner before itself.  When set, all agent
         merges enqueue through this queue instead of using the ad-hoc
-        per-repo lock dict -- fixing audit-091.
+        per-repo lock dict -- fixing.
         """
         self._merge_queue = merge_queue
 
@@ -1877,7 +1877,7 @@ class AgentSpawner:
         except Exception as _token_exc:
             logger.warning("Zero-trust token issuance failed for %s: %s", session_id, _token_exc)
 
-        # Prompt size pre-check (AGENT-003): estimate token count and reject or
+        # Prompt size pre-check: estimate token count and reject or
         # truncate before spending a worktree + adapter spawn on an oversized prompt.
         from bernstein.core.prompt_precheck import PromptAction, check_prompt_size, truncate_prompt
 
@@ -1990,7 +1990,7 @@ class AgentSpawner:
         # Write a task-specific CLAUDE.md at the worktree root so the agent
         # inherits its assigned tasks, role constraints, owned file paths,
         # and context files instead of only the generic project CLAUDE.md
-        # (audit-095).  The helper also marks the file as skip-worktree so
+        #. The helper also marks the file as skip-worktree so
         # the override never lands in merge commits.
         _task_context_files: list[str] = []
         for _t in tasks:

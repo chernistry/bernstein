@@ -296,7 +296,7 @@ def _register_ci_parsers() -> None:
 
     Without this call the registry is empty at runtime, so
     ``bernstein ci fix --parser gitlab_ci`` and the self-healing CI
-    pipeline silently no-op (see audit-031). The helper in
+    pipeline silently no-op (see prior audit). The helper in
     :mod:`bernstein.adapters.ci` is idempotent, so calling it here on
     top of the import-time side-effect is safe.
     """
@@ -431,7 +431,7 @@ def bootstrap_from_seed(
         remote: If True, bind to 0.0.0.0 for remote access.
         force_fresh: Ignore any saved session and start from scratch.
         evolve_mode: Retained for back-compat. Uvicorn ``--reload`` was
-            removed 2026-04-17 (audit-115); this flag no longer alters
+            removed 2026-04-17 ; this flag no longer alters
             the server launch. Agents pick up source changes only when
             the supervisor restarts the server for real (crash/health).
         cli: Optional CLI override (e.g. "claude", "codex"). Overrides seed config.
@@ -485,7 +485,7 @@ def bootstrap_from_seed(
     _apply_compliance_env()
 
     # Populate CI log parser registry so `bernstein ci fix` and pipeline
-    # self-healing can find GitHub Actions / GitLab CI parsers (audit-031).
+    # self-healing can find GitHub Actions / GitLab CI parsers.
     _register_ci_parsers()
 
     # 3. Load secrets provider if configured
@@ -990,7 +990,7 @@ def _bootstrap_from_goal_impl(
                 console.print(f"  [red]{v}[/red]")
         write_lockfile(workdir)
 
-    # Populate CI log parser registry (audit-031).
+    # Populate CI log parser registry.
     _register_ci_parsers()
 
     bind_host = _resolve_bind_host()

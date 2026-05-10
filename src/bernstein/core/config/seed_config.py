@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 def check_internal_llm_preflight(provider: str) -> str | None:
     """Return a migration hint if ``provider`` needs env vars that are missing.
 
-    audit-150: a fresh clone with ``internal_llm_provider: openrouter_free``
+    a fresh clone with ``internal_llm_provider: openrouter_free``
     but no ``OPENROUTER_API_KEY_FREE`` / ``OPENROUTER_API_KEY_PAID`` crashes
     on the first LLM call. Callers (seed parser, orchestrator bootstrap) can
     invoke this to emit the hint early and suggest switching to ``'none'``.
@@ -199,7 +199,7 @@ class RateLimitConfig:
 
 @dataclass(frozen=True)
 class ModelFallbackSeedConfig:
-    """Model fallback chain configuration from bernstein.yaml (AGENT-004).
+    """Model fallback chain configuration from bernstein.yaml.
 
     Attributes:
         fallback_chain: Ordered list of model names to try in sequence.
@@ -317,7 +317,7 @@ class SeedConfig:
     network: NetworkConfig | None = None
     rate_limit: RateLimitConfig | None = None
     tenants: tuple[TenantConfig, ...] = ()
-    # audit-150: default 'none' disables evolution/auto_decompose gracefully
+    # default 'none' disables evolution/auto_decompose gracefully
     # on fresh clones without OPENROUTER_API_KEY_* env vars. Callers that want
     # the previous behavior must set 'internal_llm_provider: openrouter_free'
     # explicitly and export the matching API key.
@@ -337,7 +337,7 @@ class SeedConfig:
     mcp_signing_mode: Literal["warn", "strict", "off"] = "warn"
 
     def __post_init__(self) -> None:
-        """Emit preflight warnings for provider/env mismatches (audit-150)."""
+        """Emit preflight warnings for provider/env mismatches."""
         hint = check_internal_llm_preflight(self.internal_llm_provider)
         if hint is not None:
-            logger.warning("audit-150 preflight: %s", hint)
+            logger.warning(" preflight: %s", hint)

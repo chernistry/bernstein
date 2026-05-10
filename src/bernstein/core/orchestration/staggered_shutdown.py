@@ -1,4 +1,4 @@
-"""Staggered agent shutdown during drain (AGENT-014).
+"""Staggered agent shutdown during drain.
 
 Kills agents in reverse-priority order with configurable intervals
 between each kill, giving high-priority agents the most time to

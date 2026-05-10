@@ -1,10 +1,10 @@
 """quality sub-package.
 
-audit-192: the previous implementation exposed a ``__getattr__`` that walked
+the previous implementation exposed a ``__getattr__`` that walked
 ``pkgutil.iter_modules`` and lazy-imported every submodule on first attribute
 access. That magic defeated static analysis tools (Pyright, Vulture, unimport)
 because any attribute could be resolved at runtime, so dead submodules in this
-package could accrete undetected (see audit-033, audit-036, audit-040, audit-192).
+package could accrete undetected (see prior audit,, ).
 
 All production importers use fully-qualified submodule paths
 (``from bernstein.core.quality.<submodule> import X``) or submodule-style

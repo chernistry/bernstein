@@ -2,8 +2,7 @@
 
 The heavy-lifting helpers for MCP config merging, cache-control block
 construction, and the inline wrapper-script source live in three sibling
-modules extracted by audit-142:
-
+modules extracted by
 * :mod:`bernstein.adapters.claude_mcp_loader` — ``load_mcp_config`` / ``_resolve_env_vars``
 * :mod:`bernstein.adapters.claude_cache_control` — ``build_cacheable_system_blocks``
 * :mod:`bernstein.adapters.claude_wrapper_script` — ``build_wrapper_script``
@@ -29,7 +28,7 @@ from typing import Any, ClassVar, cast
 from bernstein.adapters.base import DEFAULT_TIMEOUT_SECONDS, CLIAdapter, SpawnResult, build_worker_cmd
 from bernstein.adapters.claude_agents import build_agents_json
 
-# Re-export helpers that were inlined here before audit-142 split them
+# Re-export helpers that were inlined here before split them
 # into sibling modules.  Callers and tests import these names directly
 # from ``bernstein.adapters.claude`` so the re-exports MUST stay.  The
 # explicit ``as`` aliases tell Pyright these are intentional re-exports
@@ -186,7 +185,7 @@ class ClaudeCodeAdapter(CLIAdapter):
     # Scope → base budget mapping.  Opus tasks get a 2x multiplier because
     # opus input/output tokens cost roughly twice as much as sonnet.
     # Widened to ``Mapping`` because ``defaults.COST`` returns a
-    # ``MappingProxyType`` view (audit-155).
+    # ``MappingProxyType`` view.
     _SCOPE_BUDGET_USD: ClassVar[Mapping[str, float]] = COST.scope_budget_usd
 
     # Scope multipliers: large tasks get proportionally more turns so they
@@ -325,7 +324,7 @@ class ClaudeCodeAdapter(CLIAdapter):
         :mod:`bernstein.adapters.claude_wrapper_script`.  Kept as a
         ``@staticmethod`` on the adapter so tests and external callers
         that reference ``ClaudeCodeAdapter._wrapper_script`` continue
-        to work unchanged after the audit-142 extraction.
+        to work unchanged after the extraction.
 
         Args:
             session_id: Agent session ID, accepted for API parity.
@@ -624,7 +623,7 @@ class ClaudeCodeAdapter(CLIAdapter):
         # ``kill_process_group_graceful`` sends SIGTERM, polls briefly, and
         # escalates to SIGKILL if the group is still alive.  Without the
         # escalation, agents that trap SIGTERM survive reap paths — see
-        # audit-011.
+        #.
         kill_process_group_graceful(pid)
         # Also kill the wrapper process with the same TERM→KILL escalation
         wrapper_pid = self._wrapper_pids.pop(pid, None)

@@ -72,7 +72,7 @@ class RunRecorder:
             "event": event,
         }
         entry.update(data)
-        # audit-081: cap unbounded replay.jsonl. `bernstein replay` may stitch
+        # cap unbounded replay.jsonl. `bernstein replay` may stitch
         # live + rotated backups if needed — see load_replay_events.
         rotate_log_file(self._path, max_bytes=JANITOR.replay_rotate_bytes)
         try:

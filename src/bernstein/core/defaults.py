@@ -13,7 +13,7 @@ To override at runtime (e.g., from parsed bernstein.yaml)::
     from bernstein.core.defaults import override
     override("orchestrator", {"drain_timeout_s": 120.0})
 
-Safety model (audit-155)
+Safety model
 ------------------------
 All ``*Defaults`` dataclasses are ``frozen=True`` — direct attribute mutation
 (``COST.foo = 1``) raises :class:`dataclasses.FrozenInstanceError`.  Dict
@@ -403,7 +403,7 @@ class TriggerDefaults:
 
 
 # ---------------------------------------------------------------------------
-# Janitor / retention defaults (audit-081)
+# Janitor / retention defaults
 # ---------------------------------------------------------------------------
 
 
@@ -412,7 +412,7 @@ class JanitorDefaults:
     """Disk retention policy for long-running orchestrator artifacts.
 
     Controls both JSONL append-log rotation thresholds and directory-level
-    pruning of per-run artifacts. See audit-081.
+    pruning of per-run artifacts. See.
     """
 
     # Per-run directory retention

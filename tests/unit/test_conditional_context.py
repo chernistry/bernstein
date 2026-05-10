@@ -415,6 +415,7 @@ def test_section_rules_table_covers_expected_sections() -> None:
         "heartbeat",
         "recommendations",
         "lessons",
+        "memory_lessons",
         "predecessor",
         "project",
         "meta nudges",

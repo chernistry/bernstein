@@ -279,10 +279,20 @@ def _read_event_window(
 
 
 def _build_event_log(events: list[_SourceEvent]) -> bytes:
-    """Serialise events as canonical JSONL (sorted keys, ``\\n`` newlines)."""
+    """Serialise events as canonical JSONL (sorted keys, ``\\n`` newlines).
+
+    Must match the on-disk byte layout produced by
+    :class:`bernstein.core.security.audit.AuditLog` because
+    ``AuditLog.verify`` re-canonicalises each line and demands
+    byte-equality as anti-tamper evidence (see
+    ``security/audit.py::_canonical_line_check``). The audit writer uses
+    Python's default ``json.dumps`` separators (``', '`` / ``': '``);
+    we match that here so a bundle replayed through ``AuditLog.verify``
+    does not surface as ``non-canonical line bytes``.
+    """
     buf = io.BytesIO()
     for ev in events:
-        line = json.dumps(ev.raw, sort_keys=True, separators=(",", ":"))
+        line = json.dumps(ev.raw, sort_keys=True)
         buf.write(line.encode("utf-8"))
         buf.write(b"\n")
     return buf.getvalue()

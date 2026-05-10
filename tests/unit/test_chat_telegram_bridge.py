@@ -21,6 +21,14 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+# ``thisnotabot-bridge`` is currently distributed as a path install from
+# ``personal_core_services/thisnotabot`` (see ``pyproject.toml`` for the
+# tracking note). CI runners — and any contributor who does not have the
+# sibling repo checked out — will not have it on ``sys.path``. Skip the
+# whole module rather than fail collection so the rest of the suite stays
+# green until the SDK lands on the private index and we can pin it.
+pytest.importorskip("thisnotabot_bridge")
+
 if TYPE_CHECKING:
     from bernstein.core.chat.bridge import ChatMessage
 

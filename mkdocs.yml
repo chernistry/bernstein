@@ -220,6 +220,9 @@ nav:
       - Secrets & creds: operations/secrets.md
       - Env isolation: operations/env-isolation.md
       - Compliance: operations/compliance.md
+      - EU AI Act Article 12 evidence pack: compliance/eu-ai-act-article-12-bundle.md
+      - FINOS AIGF mapping: compliance/finos-aigf-mapping.md
+      - Enterprise modernization-fit: compliance/enterprise-modernization-fit.md
       - Regulator-class lineage: compliance/regulatory-lineage.md
       - Regulatory lineage export (operator guide): compliance/lineage-export.md
       - Air-gap installation: installation/air-gap.md
@@ -305,6 +308,11 @@ nav:
       - MCP server signing + supply-chain scan: security/mcp-signing.md
       - Credential scoping (default-on): security/credential-scoping.md
       - SOC 2 audit: security/AUDIT.md
+      - Audit log (operator guide): security/audit-log.md
+      - Multi-tenant audit-chain export: security/audit-multitenant.md
+      - DSSE / in-toto envelope: security/audit-dsse-envelope.md
+      - Lethal-trifecta security model: security/lethal-trifecta.md
+      - Capability matrix: security/capability-matrix.md
       - Bug bounty: security/bug-bounty.md
       - Acknowledgments: security/security-acknowledgments.md
   - Benchmarks: benchmarks/BENCHMARKS.md

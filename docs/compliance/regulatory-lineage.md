@@ -82,6 +82,15 @@ chain: a customer auditor with only the public key and the WAL files
 can confirm that every record was signed by the customer's signing
 key, with no Bernstein machinery in the loop.
 
+The dual-signature property is the regulator-class shape: every
+lineage record carries both **bernstein's HMAC chain** (proves "not
+edited inside Bernstein") and **the customer's Ed25519 signature**
+(proves "produced under the customer's own key"). The customer-side
+verification is the countersign — the operator-controlled signature
+keyed off operator-controlled material. An auditor with the public
+key alone can verify the second signature offline without trusting
+Bernstein's HMAC secret.
+
 ### Configuring the file-key signer
 
 ```yaml
@@ -108,9 +117,45 @@ class LineageSigner(Protocol):
 ```
 
 Any HSM / TPM / KMS-backed signer can be implemented to satisfy this
-protocol and injected into `LineageWriter(..., signer=...)`. Phase 1
-ships only the file-key reference implementation; HSM / KMS adapters
-are operator-provided.
+protocol and injected into `LineageWriter(..., signer=...)`.
+
+`core/security/lineage_kms.py` ships a `KMSAdapter` protocol that
+narrows the integration shape: a sync `sign(payload)` plus a
+`public_key_jwk()` method that returns an RFC 7517 JWK so the auditor
+sees the verifying key without distributing raw bytes. Three concrete
+implementations:
+
+| Adapter | When to use |
+|---|---|
+| `FileBasedKMSAdapter` | Tests, fixtures, single-host deployments where the key file lives next to the config. PEM PKCS#8 or raw 32-byte seed. |
+| `EnvBasedKMSAdapter` | K8s deployments where the customer's key lives in a `Secret` mounted as `LINEAGE_SIGNING_KEY=...`. PEM (literal or `\n`-escaped), `raw:<hex>`, or `rawb64:<base64>`. |
+| `HSMKMSAdapter` | Documentation stub. Subclass and override `sign` / `public_key_jwk` with vendor-specific PKCS#11 / Cloud-KMS calls. |
+
+The `HSMKMSAdapter` docstring covers the recommended driver shape for
+PKCS#11 (`python-pkcs11` against SoftHSM2 or YubiHSM), AWS KMS, GCP
+Cloud KMS, and Azure Key Vault. The pattern is the same across vendors:
+resolve a token URI or cloud KMS resource path; perform the `Sign` /
+`GetPublicKey` operation through the vendor SDK; cache the public key
+bytes and format them as a JWK. Bernstein deliberately does not ship a
+working PKCS#11 / Cloud-HSM client because the integration shape is
+customer-specific (token slot layout, PIN delivery, FIPS mode,
+vendor-specific URI schemes).
+
+Configure the dispatch through `bernstein.yaml`:
+
+```yaml
+tuning:
+  lineage:
+    customer_signing_enabled: true
+    kms_adapter: file       # file | env | hsm
+    kms_adapter_key_path: /etc/bernstein/customer-ed25519.pem  # for kind=file
+    # kms_adapter_env_var: LINEAGE_SIGNING_KEY                 # for kind=env
+    # kms_adapter_token_uri: 'pkcs11:object=lineage-key;type=private'  # for kind=hsm
+    kms_adapter_kid: lineage-2026-05
+```
+
+`kms_adapter_from_config()` returns `None` when the block is disabled,
+so callers can leave the YAML in place during a temporary disable.
 
 ## Verifying a chain
 

@@ -337,4 +337,14 @@ EU AI Act high-risk classification or a HIPAA covered entity.
   worked DORA / SOC 2 / EU AI Act / HIPAA workflows.
 - [`compliance/regulatory-lineage.md`](../compliance/regulatory-lineage.md)
   — schema-v2 reference for the per-artefact lineage trail, customer-
-  key signing, and SIEM-webhook tamper-loud configuration.
+  key signing, KMS-adapter dispatch, and SIEM-webhook tamper-loud
+  configuration.
+- [`compliance/eu-ai-act-article-12-bundle.md`](../compliance/eu-ai-act-article-12-bundle.md)
+  — operator guide for the deterministic Article 12 evidence pack.
+- [`security/audit-dsse-envelope.md`](../security/audit-dsse-envelope.md)
+  — DSSE / in-toto v1 envelope wrapper plus the standalone stdlib-only
+  verifier.
+- [`compliance/finos-aigf-mapping.md`](../compliance/finos-aigf-mapping.md)
+  — bernstein's coverage of the 16 AIGF controls and 14 AIR risks.
+- [`compliance/enterprise-modernization-fit.md`](../compliance/enterprise-modernization-fit.md)
+  — gap analysis against EU AI Act Art. 12, DORA, SR 11-7, and ISO 42001.

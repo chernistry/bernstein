@@ -92,6 +92,7 @@ from bernstein.cli.postmortem_cmd import postmortem_cmd
 from bernstein.cli.profile_cmd import profile_cmd
 from bernstein.cli.prompts_cmd import prompts_group
 from bernstein.cli.quickstart_cmd import quickstart_cmd
+from bernstein.cli.commands.export_cmd import export_cmd
 from bernstein.cli.report_cmd import report_cmd
 from bernstein.cli.run_changelog_cmd import run_changelog_cmd
 from bernstein.cli.scaffold_cmd import scaffold_cmd
@@ -820,6 +821,7 @@ cli.add_command(prompts_group, "prompts")
 cli.add_command(ci_group, "ci")
 cli.add_command(cloud_group, "cloud")
 cli.add_command(gateway_group, "gateway")
+cli.add_command(export_cmd, "export")
 cli.add_command(report_cmd, "report")
 cli.add_command(postmortem_cmd, "postmortem")
 cli.add_command(slo_cmd, "slo")

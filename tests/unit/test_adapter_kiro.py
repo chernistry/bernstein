@@ -7,14 +7,16 @@ import sys
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from bernstein.core.models import ApiTier, ModelConfig, ProviderType
 
 from bernstein.adapters.kiro import KiroAdapter
 
+pytestmark = pytest.mark.usefixtures("no_watchdog_threads")
+
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import pytest
 
 
 def _make_popen_mock(pid: int) -> MagicMock:

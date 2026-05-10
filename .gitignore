@@ -85,6 +85,16 @@ docs/strategy/
 docs/competitive/
 docs/_internal/
 
+# Release-notes drafts and outreach copy (live in /pr/, never the repo)
+.release-notes-*.draft.md
+.release-notes-*.outreach.md
+.release-notes-*.internal.md
+.release-notes-*.wip.md
+.release-*.md
+*-outreach.md
+*-draft.md
+*.draft.md
+
 # Marketing
 marketing/*
 

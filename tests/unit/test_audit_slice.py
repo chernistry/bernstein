@@ -1,4 +1,4 @@
-"""Tests for the KF-5 audit-slice extractor.
+"""Tests for the audit-slice extractor.
 
 Slice semantics: ``--from`` and ``--to`` name the HMAC of an event already
 recorded in the log; both bounds are inclusive.  The slice must remain

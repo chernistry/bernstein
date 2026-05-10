@@ -1,7 +1,7 @@
 """Tests for the install-rev fingerprint trace JSONL emit slot.
 
-Backup #1 (RESRCH-001 wiring): ``TraceStore.write`` embeds a top-level
-``_rev`` field into every persisted trace dict when emission is on.
+``TraceStore.write`` embeds a top-level ``_rev`` field into every
+persisted trace dict when emission is on.
 
 Covers: round-trip emit+decode, kill-switch suppress, operator-seed-
 unset suppress, the field is absent under default off-state, and the

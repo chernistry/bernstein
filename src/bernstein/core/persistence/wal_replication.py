@@ -1,4 +1,4 @@
-"""ENT-010: Disaster recovery with cross-region WAL replication.
+"""Disaster recovery with cross-region WAL replication.
 
 Replicates Write-Ahead Log (WAL) entries to one or more remote regions
 for disaster recovery.  Uses a pull-based replication model where follower

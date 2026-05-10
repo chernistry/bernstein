@@ -218,10 +218,6 @@ rule 1 still denies, rule 2 relaxes to `allow`, rule 3 relaxes to
 | `src/bernstein/core/security/approval.py`               | Approval gate — honours `bypass_enabled` when mode is `bypass` |
 | `tests/unit/test_permission_mode.py`                    | 62 tests covering every cell of the matrix |
 
-The full engineering spec lives at
-`dev/specs/internal-workflows/WORKFLOW-permission-mode-hierarchy.md`
-and is the single source of truth for the resolution rules.
-
 ---
 
 ## Related

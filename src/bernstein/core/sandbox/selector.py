@@ -1,4 +1,4 @@
-"""Sandbox backend selection policy (KF-4 slice).
+"""Sandbox backend selection policy.
 
 Picks a sandbox backend deterministically given a task spec, a cost
 budget, the operator's policy, and the credentials currently visible
@@ -96,8 +96,8 @@ class SandboxPolicy:
         allow_paid: When ``False`` (default), only backends listed in
             :data:`FREE_BACKENDS` are considered. Setting ``True``
             unlocks paid cloud backends (``e2b``, ``modal`` ...). The
-            cost autopilot ticket KF-6 will eventually flip this based
-            on remaining budget.
+            cost autopilot will eventually flip this based on remaining
+            budget.
         required_capabilities: Capabilities the chosen backend MUST
             advertise. Backends missing any of these are dropped from
             consideration.

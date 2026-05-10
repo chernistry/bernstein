@@ -1,4 +1,4 @@
-"""Unit tests for the sandbox selection policy (KF-4 slice).
+"""Unit tests for the sandbox selection policy.
 
 The selector is pure, so the tests use lightweight stub backends —
 duck-typing against :class:`SandboxBackend` rather than spinning up

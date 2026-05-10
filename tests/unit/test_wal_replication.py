@@ -1,4 +1,4 @@
-"""Tests for ENT-010: Disaster recovery with cross-region WAL replication."""
+"""Tests for disaster recovery with cross-region WAL replication."""
 
 from __future__ import annotations
 

@@ -1,8 +1,8 @@
 """Tests for the install-rev fingerprint role-prompt md emit slot.
 
-Backup #2 (RESRCH-001 wiring): ``render_role_prompt`` appends an
-HTML-comment footer ``<!-- bernstein-rev: <token> -->`` to every
-rendered system prompt when emission is on.
+``render_role_prompt`` appends an HTML-comment footer
+``<!-- bernstein-rev: <token> -->`` to every rendered system prompt
+when emission is on.
 
 Covers:
 

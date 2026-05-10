@@ -755,7 +755,7 @@ def eval_ab(
 ) -> None:
     """Run two prompt variants over a task set; emit a comparison JSON.
 
-    Synthetic-only slice (KF-9): uses the deterministic ``echo_executor``
+    Synthetic-only slice: uses the deterministic ``echo_executor``
     so this command runs offline with zero LLM cost. Real executors plug
     in via the Python API (``bernstein.eval.ab_runner.run_ab``).
 

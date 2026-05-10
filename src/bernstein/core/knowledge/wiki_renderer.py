@@ -1,10 +1,10 @@
 """Deterministic ``WIKI.md`` renderer derived from the AST symbol graph.
 
-This is the smallest-viable slice of KF-1 (repo wiki + code search). It
+This is the smallest-viable slice of repo-wiki + code-search. It
 materialises a single Markdown page summarising a repository's top-level
 structure, public API by sub-package, and test layout. It does **not**
-ship HTTP routes, MCP tools, or git-hook re-indexing — those remain in
-follow-up tickets per the parent paid-tier-parity epic.
+ship HTTP routes, MCP tools, or git-hook re-indexing — those remain
+follow-ups.
 
 The renderer is a pure function over a :class:`SemanticGraph` plus the
 list of repo files; callers own all IO. This keeps the output trivially

@@ -6,15 +6,15 @@ learnings), this module provides a flat *append-only* event log keyed by a
 short identifier.  Each key maps to exactly one JSONL file at
 ``<root>/<key>.jsonl`` (default root: ``.bernstein/memory/``).
 
-Design goals (KF-2 smallest-viable slice):
+Design goals (smallest-viable slice):
 
 - No retrieval / scoring / decay — that lives in the SQLite layer.
 - No locking primitives beyond what append-write to a POSIX file gives us;
   callers needing strict cross-process serialisation should use the SQLite
   store instead.
 - Pure ``json`` + ``pathlib``; no third-party deps; no DB schema migrations.
-- Off-by-default: nothing in the orchestrator reads or writes here yet.  The
-  spawner-injection wiring listed in the parent ticket is deferred.
+- Off-by-default: nothing in the orchestrator reads or writes here yet.
+  Spawner-injection wiring is deferred.
 
 Typical usage::
 

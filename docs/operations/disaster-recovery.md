@@ -222,15 +222,7 @@ tails, metrics counts). Cost ledger and audit chain are preserved.
 
 ## Cross-region considerations
 
-Multi-region replication of the WAL is **draft / not shipped** as
-of 2026-05-04. The design lives in
-`dev/specs/internal-workflows/WORKFLOW-disaster-recovery-cross-region.md`
-(ENT-010, status: Draft) and is partially scaffolded in
-`src/bernstein/core/persistence/wal_replication.py:1-12` (pull-based
-follower model, `LEADER_ONLY` / `QUORUM` / `ALL` ack policies, lag
-tracking).
-
-In production today the supported pattern is:
+The supported pattern in production today:
 
 1. **Schedule** `bernstein dr backup --to s3://...` from cron (or your
    scheduler of choice) every 1 h. Push to a different region than the
@@ -240,9 +232,7 @@ In production today the supported pattern is:
 3. **Drill** restore quarterly into a scratch host. A backup you have
    not restored is not a backup.
 
-When ENT-010 lands the operational picture changes — followers maintain
-a continuous WAL stream and the RPO target drops to "lag entries". Until
-then, treat backup cadence as your RPO floor.
+Treat backup cadence as your RPO floor.
 
 ---
 
@@ -257,5 +247,4 @@ then, treat backup cadence as your RPO floor.
 - `src/bernstein/core/persistence/wal.py:1-67` — WAL writer, hash-chain, fsync invariants
 - `src/bernstein/core/persistence/wal_replay.py:1-78` — replay pipeline + `IdempotencyStore`
 - `src/bernstein/core/persistence/checkpoint.py:1-79` — `Checkpoint` (atomic) + `PartialState` (operator)
-- `src/bernstein/core/persistence/wal_replication.py:1-60` — ENT-010 scaffold (Draft)
-- `dev/specs/internal-workflows/WORKFLOW-disaster-recovery-cross-region.md` — full ENT-010 design (internal)
+- `src/bernstein/core/persistence/wal_replication.py:1-60` — replication scaffold

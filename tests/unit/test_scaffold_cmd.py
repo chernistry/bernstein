@@ -1,4 +1,4 @@
-"""Tests for the prompted-app scaffold generator (KF-8 first slice).
+"""Tests for the prompted-app scaffold generator.
 
 Covers:
 * Template registry contract — every template renders into a non-empty

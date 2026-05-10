@@ -1,14 +1,11 @@
 """``bernstein wiki`` — emit a deterministic ``WIKI.md`` for the repo.
 
-Smallest-viable slice of KF-1 (repo wiki + code search). Builds the AST
-symbol graph in-process and renders a Markdown summary to stdout, or
-writes it to ``WIKI.md`` at the repo root with ``--write``. HTTP routes,
-MCP exposure, and post-commit re-indexing remain follow-ups; see the
-parent ticket ``2026-05-06-paid-tier-parity-killer-features.md``.
+Smallest-viable slice of repo-wiki + code-search. Builds the AST symbol
+graph in-process and renders a Markdown summary to stdout, or writes it
+to ``WIKI.md`` at the repo root with ``--write``. HTTP routes, MCP
+exposure, and post-commit re-indexing remain follow-ups.
 
-Devin Wiki / DeepWiki (paid: $20/mo Pro, $500/mo Teams, ACU billing)
-ships the same surface area behind a hosted SaaS. This command renders
-locally on every invocation, for free, against a private repo.
+The command renders locally on every invocation against a private repo.
 """
 
 from __future__ import annotations

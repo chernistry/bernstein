@@ -1,6 +1,6 @@
 """Unit tests for ``bernstein run --sandbox`` / ``--allow-paid`` flags.
 
-The flags expose the sandbox selector (KF-4) on the ``run`` command so
+The flags expose the sandbox selector on the ``run`` command so
 operators can override the deterministic precedence and unlock paid
 backends. The tests below confirm:
 
@@ -107,7 +107,7 @@ class TestSandboxFlag:
     ) -> None:
         """Without ``--sandbox``, no runtime env is exported.
 
-        The selector (KF-4) is responsible for picking ``worktree`` as
+        The selector is responsible for picking ``worktree`` as
         the default in this case; the CLI must NOT force a value because
         plan/seed-file overrides need first-write rights to the same env.
         """

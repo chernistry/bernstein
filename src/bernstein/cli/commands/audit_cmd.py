@@ -18,7 +18,7 @@ Commands:
   bernstein audit export             Export a signed Article 12 evidence pack.
   bernstein audit pack               Build a SOC 2 evidence checklist.
   bernstein audit capabilities       Print lethal-trifecta capability matrix.
-  bernstein audit slice              Write a deterministic subset (KF-5).
+  bernstein audit slice              Write a deterministic subset.
   bernstein audit query              Query audit log events with filters.
 
 Operator guide: docs/security/audit-log.md.
@@ -1066,7 +1066,7 @@ def slice_cmd(from_hmac: str | None, to_hmac: str | None, output: str) -> None:
     """Write a deterministic subset of the audit log between two HMACs.
 
     \b
-    Foundation for KF-5 time-travel replay.  The output is byte-stable
+    Foundation for time-travel replay.  The output is byte-stable
     JSONL — each line is sort-keys-serialised — so downstream replayers
     can hash the slice directly.  The HMAC chain inside the slice is
     re-verified before writing; a structural mismatch aborts the export.

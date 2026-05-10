@@ -523,7 +523,7 @@ class TestRecoverChainTailEdgeCases:
         "without the ground-truth prev_hmac (which is supplied implicitly "
         "in the slice but the slice ships no signed assertion that this "
         "anchor itself is authentic).  Fixing requires shipping a signed "
-        "anchor manifest alongside the slice (KF-5 step 6 deferred)."
+        "anchor manifest alongside the slice (deferred follow-up)."
     ),
     strict=False,
 )

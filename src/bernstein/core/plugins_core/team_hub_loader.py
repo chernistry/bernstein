@@ -1,4 +1,4 @@
-"""Convention loader for a team-hub repository (KF-7 first slice).
+"""Convention loader for a team-hub repository (first slice).
 
 A team hub on disk is just a directory tree::
 

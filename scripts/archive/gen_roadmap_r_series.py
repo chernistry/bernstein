@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Generate 100 R-series roadmap tickets based on research signals.
 
-Organized by impact on adoption/revenue/recognition:
-- R01-R20: Developer Adoption (make devs CHOOSE Bernstein)
-- R21-R35: Cost & ROI (make it UNDENIABLY cheaper)
-- R36-R50: Quality & Trust (make output RELIABLY good)
-- R51-R65: Enterprise Ready (unlock PAID customers)
-- R66-R80: Ecosystem & Moat (create NETWORK EFFECTS)
-- R81-R90: Thought Leadership (make Alex FAMOUS)
-- R91-R100: Moonshots (differentiate from EVERYONE)
+Organised by theme:
+- R01-R20: Developer adoption
+- R21-R35: Cost and ROI
+- R36-R50: Quality and trust
+- R51-R65: Enterprise readiness
+- R66-R80: Ecosystem
+- R81-R90: Thought leadership
+- R91-R100: Moonshots
 """
 
 from pathlib import Path
@@ -213,7 +213,7 @@ Don't override user's workflow — augment it. Acceptance: existing TODO.md item
         "backend",
         """Add adapter for Block's Goose (30.8K stars). Official roadmap item: Goose wants to be orchestrated.
 GitHub goose#6973: 'goose should evolve beyond single chat agent into meta-agent orchestrator'.
-Bernstein is that meta-agent orchestrator. This is a strategic partnership opportunity.
+Bernstein covers that orchestration layer.
 Acceptance: `bernstein agents discover` detects Goose. Tasks can route to Goose.""",
     ),
     (
@@ -1043,7 +1043,6 @@ Methodology: open, reproducible, fair. Acceptance: published comparison with met
         "small",
         "backend",
         """Write and publish 'The Agentic Engineering Manifesto' — defining the discipline.
-Position Alex as the thought leader who named and defined the practice.
 Principles: deterministic scheduling, verified output, provider-agnostic, human oversight.
 Publish on alexchernysh.com + Medium + Dev.to. Acceptance: published, shareable.""",
     ),

@@ -1,8 +1,8 @@
 """Subprocess-isolated test that the standalone verifier really is standalone.
 
-RESRCH-002 §2 explicitly flagged that the previous "standalone" verifier
-imported ``bernstein.core.security.article12_bundle``. The promise of this
-module is that the new tool at ``tools/verify_audit_dsse.py`` runs against
+The previous "standalone" verifier imported
+``bernstein.core.security.article12_bundle``. The promise of this module is
+that the tool at ``tools/verify_audit_dsse.py`` runs against
 **stdlib + cryptography only** — no ``bernstein`` package on PYTHONPATH.
 
 The test:

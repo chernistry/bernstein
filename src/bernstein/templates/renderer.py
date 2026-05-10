@@ -170,8 +170,8 @@ def render_role_prompt(
     Convenience wrapper around ``render_template`` that locates
     ``templates/roles/{role}/system_prompt.md`` automatically.
 
-    Optionally appends an install-rev fingerprint footer (RESRCH-001)
-    as a markdown HTML comment at the very end of the rendered prompt.
+    Optionally appends an install-rev fingerprint footer as a markdown
+    HTML comment at the very end of the rendered prompt.
     The footer is appended **after** the existing prompt body, so the
     cacheable prefix (everything that drives KV-cache locality across
     spawns of the same role) is byte-identical to what callers got

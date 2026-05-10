@@ -242,7 +242,7 @@ class CompletionSignal:
 class ApprovalSpec:
     """Explicit human-in-the-loop approval gate spec attached to a task.
 
-    Inspired by Archon's ``loop: interactive: true`` UX. When a task carries
+    Models the ``loop: interactive: true`` UX pattern. When a task carries
     an :class:`ApprovalSpec`, the orchestrator pauses *before* spawning the
     agent body, emits an ``approval_pending`` event into the HMAC-chained
     audit log, writes a ``.pending`` sentinel under
@@ -384,8 +384,8 @@ class Task:
     )
     # Issue #1109: when True, retries spawn a fresh agent with NO accumulated
     # state (no log carryover, no failure-context replay, no warm-pool reuse).
-    # Inspired by Archon's ``context: fresh`` per-node semantics applied to
-    # retry attempts.  Default False preserves existing retry behaviour.
+    # Mirrors a ``context: fresh`` per-node semantic applied to retry
+    # attempts.  Default False preserves existing retry behaviour.
     agent_restart_between_retries: bool = False
 
     @classmethod

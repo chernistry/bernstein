@@ -1,11 +1,11 @@
 """Per-role adapter deny-list policy.
 
-RESRCH-002 §5 calls out the enterprise need: the existing per-role tool
-deny-list (``claude_permission_profiles.py``) operates at the *tool*
-granularity ("backend role can't run ``Bash``") but cannot say "security
-role cannot spawn the cloud-LLM ``claude_routine`` adapter". This module
-adds the missing layer: a role → allow-list of adapters, enforced at the
-adapter-spawn site (``bernstein.adapters.registry.get_adapter``).
+The existing per-role tool deny-list (``claude_permission_profiles.py``)
+operates at the *tool* granularity ("backend role can't run ``Bash``")
+but cannot say "security role cannot spawn the cloud-LLM
+``claude_routine`` adapter". This module adds the missing layer: a role
+→ allow-list of adapters, enforced at the adapter-spawn site
+(``bernstein.adapters.registry.get_adapter``).
 
 Default semantics — back-compat:
 

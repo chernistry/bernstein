@@ -1,4 +1,4 @@
-"""Scaffold template registry and rendering (first slice).
+"""Scaffold template registry and rendering.
 
 A scaffold template is a small, deterministic recipe: a tuple of files plus
 the keywords that route a free-form prompt to it. Rendering is a plain
@@ -12,7 +12,7 @@ Three template families ship today, one per common stack shape:
 * ``static-site`` — index.html + style.css + README.
 
 Richer scaffolds (Next.js + SQLite, FastAPI + React, Streamlit) and a
-multi-stage plan land as follow-ups and plug into this same registry.
+multi-stage flow plug into this same registry as follow-ups.
 """
 
 from __future__ import annotations

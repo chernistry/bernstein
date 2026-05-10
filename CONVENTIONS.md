@@ -166,7 +166,7 @@ Bernstein is a deterministic Python scheduler that runs a crew of CLI coding age
 | `commands/`             | commands sub-package |
 | `display/`              | ui sub-package |
 | `plan/`                 | plan sub-package |
-| `scaffold/`             | Bernstein scaffold subsystem (KF-8 slice) |
+| `scaffold/`             | Bernstein scaffold subsystem |
 | `utils/`                | utils sub-package |
 
 ### `src/bernstein/evolution/` — self-evolution engine
@@ -376,37 +376,3 @@ Bernstein ships agent role prompts under `templates/roles/`. The orchestrator lo
 - `security`
 - `visionary`
 - `vp`
-
-## AGENTS.md auto-gen leak: KF-8 ticket reference
-
-**Slice**: docs-audit slice 4 (blog/decisions/plans/root + docs HTML)
-**Date**: 2026-05-10
-**Status**: open
-
-## What
-
-`AGENTS.md` (auto-generated) line 169:
-```
-| `scaffold/`             | Bernstein scaffold subsystem (KF-8 slice) |
-```
-
-Same string in `CONVENTIONS.md` line 169 (manually edited in this PR — `KF-8 slice` removed). `AGENTS.md` was left alone per slice instructions ("auto-generated; do not edit it directly").
-
-## Why it matters
-
-`KF-8` is an internal ticket / spec id. Public docs should not reveal internal tracker shorthand.
-
-## Fix
-
-Update the AGENTS.md generator (likely `scripts/build_agents_md.py` or similar) so the `scaffold/` row description does not leak the `KF-8 slice` annotation. Either:
-
-1. Strip `(KF-* slice)` / `(MT-* slice)` / `(RESRCH-* slice)` etc. patterns from emitted descriptions; or
-2. Source the description from a sanitised mapping rather than from per-package docstrings that may carry internal tags.
-
-Re-run the generator after the fix and verify with:
-
-```bash
-grep -nE "KF-[0-9]|MT-[0-9]|RESRCH-[0-9]|OAI-[0-9]|SDD-[0-9]|RAG-[0-9]" AGENTS.md
-```
-
-Expected: zero matches.

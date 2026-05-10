@@ -226,6 +226,30 @@ note that `query` does not re-verify hmacs — pair it with
 `bernstein audit verify` if the question is "is this trustworthy",
 not "what happened".
 
+## Slicing a deterministic subset
+
+`bernstein audit slice` writes a deterministic JSONL subset of the
+audit log between two HMAC anchors. The output is byte-stable —
+each line is `sort_keys`-serialised — so a downstream replayer can
+hash the slice directly. The HMAC chain inside the slice is
+re-verified before the file is written; a structural mismatch
+aborts the export.
+
+```bash
+# Slice a closed range
+bernstein audit slice --from <hash> --to <hash> -o /tmp/slice.jsonl
+
+# Head-anchored: from genesis through a known checkpoint
+bernstein audit slice --to <hash> -o /tmp/head.jsonl
+
+# Tail-anchored: from a known checkpoint through the latest entry
+bernstein audit slice --from <hash> -o /tmp/tail.jsonl
+```
+
+The slice CLI pairs with the multi-tenant export in
+[Multi-tenant audit slices](audit-multitenant.md) when an auditor
+needs a tenant-scoped, signed bundle rather than the raw JSONL.
+
 ## Retention and rotation
 
 daily rotation happens on every `log()` call (the file path is
@@ -361,6 +385,10 @@ rare benign causes:
 ## Cross-references
 
 - [SOC 2 audit mode quick start](AUDIT.md)
+- [Multi-tenant audit-chain export](audit-multitenant.md)
+- [DSSE / in-toto envelope](audit-dsse-envelope.md) — third-party-verifiable
+  wrapper over the Article 12 bundle.
+- [EU AI Act Article 12 evidence pack](../compliance/eu-ai-act-article-12-bundle.md)
 - [Security hardening guide](security-hardening.md)
 - [Disaster recovery runbook](../operations/disaster-recovery.md)
 - [Enterprise evaluation checklist](../ENTERPRISE.md#audit-and-recovery)

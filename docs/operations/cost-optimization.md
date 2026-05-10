@@ -87,6 +87,34 @@ budget:
 
 When a task exceeds its token budget, it is terminated gracefully with partial results saved. The orchestrator can retry with a cheaper model.
 
+### Hard cap via `--max-cost-usd`
+
+For a hard ceiling that aborts the whole run rather than the
+single offending task, use the per-run flag:
+
+```bash
+bernstein run plan.yaml --max-cost-usd 1.50
+```
+
+The flag writes its value to `BERNSTEIN_MAX_COST_USD` before
+bootstrap. The orchestrator resolves the effective cap from
+the following precedence chain:
+
+1. `BERNSTEIN_MAX_COST_USD` env var (set by the CLI flag).
+2. `.sdd/runtime/run_config.json` (`per_run_max_cost_usd`).
+3. `bernstein.yaml` `seed.budget_usd`.
+4. Default `0.0` (= unlimited).
+
+Three thresholds fire as cumulative spend rises: warn at 80%,
+critical at 95%, hard stop at 100%. On hard stop the orchestrator
+drains live agents, persists state, and exits. Non-positive values
+normalise to `0.0` (unlimited); invalid env values are logged at
+warning level so a typo never silently disables the guard.
+
+This pairs with the soft-threshold `budget` block above: keep the
+soft block for early signals during the run, set `--max-cost-usd`
+for the line you do not want crossed.
+
 ### Cheaper retry strategy
 
 ```yaml

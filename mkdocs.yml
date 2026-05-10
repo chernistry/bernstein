@@ -182,6 +182,12 @@ nav:
       - Agent mode profiles: concepts/agent-mode-profiles.md
       - Best-of-N delegation: concepts/best-of-n.md
       - Swarm migration: concepts/swarm-migration.md
+      - Wiki build: concepts/wiki-build.md
+      - JSONL memory log: concepts/jsonl-memory-log.md
+      - Sandbox backend selector: concepts/sandbox-selector.md
+      - Prompt-to-repo scaffold: concepts/scaffold.md
+      - Team-hub conventions: concepts/team-hub.md
+      - Orchestrator hardening: concepts/orchestrator-hardening.md
   - Adapters & integrations:
       - Adapter guide: adapters/ADAPTER_GUIDE.md
       - OpenAI Agents SDK: adapters/openai-agents.md
@@ -218,8 +224,10 @@ nav:
       - Regulatory lineage export (operator guide): compliance/lineage-export.md
       - Air-gap installation: installation/air-gap.md
       - Incident-to-eval synthesis: eval/incident-synthesis.md
+      - A/B runner primitive: eval/ab-runner.md
       - Verification tracking: operations/verification-tracking.md
       - Observability: operations/observability-overview.md
+      - LLM watcher (opt-in): observability/llm-watcher.md
       - Notifications: operations/notifications.md
       - Cost optimization: operations/cost-optimization.md
       - Performance tuning: operations/performance-tuning.md

@@ -95,6 +95,7 @@ The full flag list is large (28 flags inherited from the root group and re-expos
 |---|---|---|
 | `PLAN_FILE` | none | A YAML plan to execute. Optional. |
 | `--budget USD` | 0.0 | Cost cap. 0 = unlimited. |
+| `--max-cost-usd N` | unset | Hard cap on cumulative routed model spend; aborts the run when crossed. Sets `BERNSTEIN_MAX_COST_USD`. |
 | `--cli` | auto | Force agent (claude/codex/gemini/qwen/auto). |
 | `--model` | none | Force a specific model. |
 | `--approval {auto\|review\|pr}` | auto | Approval gate. |
@@ -105,6 +106,13 @@ The full flag list is large (28 flags inherited from the root group and re-expos
 | `--task PATTERN` | none | Run only matching backlog tasks. |
 | `--port N` | 8052 | Task server port. |
 | `-v / -q` | off | Verbosity. |
+
+`--max-cost-usd` is a hard cap, separate from the soft `--budget`
+threshold model. It writes the value to `BERNSTEIN_MAX_COST_USD`
+before bootstrap; the orchestrator drains live agents and aborts
+when cumulative routed spend crosses the threshold. Precedence is
+`BERNSTEIN_MAX_COST_USD` > `run_config.json` > `seed.budget_usd`
+> default (0 = unlimited). Non-positive values normalise to 0.
 
 #### `bernstein stop`
 
@@ -685,10 +693,13 @@ Multi-project dashboard.
 | `tail` | Recent audit events. `--limit N`. |
 | `verify` | Verify audit log integrity. `--merkle-only`, `--hmac-only`. |
 | `anchor` | Anchor the Merkle root as a git tag. `--anchor-git`. |
-| `export PERIOD` | Export evidence for a period. `--output DIR`, `--dir WORKDIR`. |
+| `export PERIOD` | Export evidence for a period. `--output DIR`, `--dir WORKDIR`. Tenant-scoped slice via `--tenant`. |
+| `slice` | Write a deterministic JSONL subset between two HMAC anchors. `--from`, `--to`, `-o PATH`. |
 | `query` | Query audit events. `--event-type`, `--actor`, `--since`, `--limit`. |
 
-(`cli/commands/audit_cmd.py:25+`.)
+(`cli/commands/audit_cmd.py:25+`. The `slice` verb is the
+deterministic-subset extractor described in
+[HMAC-chained audit log](../security/audit-log.md#slicing-a-deterministic-subset).)
 
 #### `bernstein quarantine`
 
@@ -1003,7 +1014,9 @@ See [`reference/mcp-catalog.md`](mcp-catalog.md) for the full reference.
 | `bernstein install-hooks` | Install git hooks. | `cli/commands/advanced_cmd.py:448` |
 | `bernstein ab-test` | A/B model comparison. | `cli/commands/ab_test_cmd.py:14` |
 | `bernstein acp serve` | Run an ACP server. | `cli/commands/acp_cmd.py:33` |
+| `bernstein scaffold "<prompt>"` | Bootstrap a project from a prompt. | `cli/commands/scaffold_cmd.py` |
 | `bernstein test` | Run the project's test suite. | `cli/test_cmd.py:13` |
+| `bernstein wiki build` | Render `WIKI.md` from the AST symbol graph. | `cli/commands/wiki_cmd.py` |
 | `bernstein workflow` | Workflow mgmt (group). | `cli/workflow_cmd.py:15` |
 
 #### `bernstein ab-test`
@@ -1072,6 +1085,30 @@ Experimental voice control (see [`operations/voice-control.md`](../operations/vo
 
 Convenience wrapper for the project's test suite. Honours the project's configured test runner (`bernstein.yaml: quality_gates.tests`); typically just delegates to `pytest -q` or equivalent.
 
+#### `bernstein wiki build`
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--repo PATH` | current directory | Repo root to scan. |
+| `--write` | off | Write to `WIKI.md` at the repo root. |
+| `--output PATH` | unset | Custom output path; implies `--write`. |
+
+Renders a deterministic Markdown wiki from the AST symbol graph
+plus the `agents.md` IR. Streams to stdout by default. See
+[Wiki build](../concepts/wiki-build.md) for the operator guide.
+
+#### `bernstein scaffold`
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `PROMPT` | required | Free-form goal prompt. |
+| `--template NAME` | `auto` | Pin a template; `auto` runs the keyword heuristic. |
+| `--output DIR` | `./<slug>` | Destination directory. |
+| `--force` | off | Allow writing into a non-empty directory. |
+
+First slice of the prompt-to-repo scaffolder. See
+[Prompt-to-repo scaffold](../concepts/scaffold.md).
+
 ---
 
 ## Hidden commands
@@ -1081,7 +1118,7 @@ Four task-related commands are wired but hidden from `--help`. They are stable a
 | Command | Source | Replacement |
 |---|---|---|
 | `bernstein task compose TITLE` | `cli/commands/task_cmd.py:37` | Use `bernstein add-task TITLE` (it's the same command, registered with a different name at `cli/main.py:696`). |
-| `bernstein task sync` | `cli/commands/task_cmd.py:116` | Reconciles `.sdd/backlog/open/*.md` with the running server. Use when you've hand-edited backlog files and want them registered without restarting. |
+| `bernstein task sync` | `cli/commands/task_cmd.py:116` | Reconciles on-disk task files with the running server. Use when you've hand-edited backlog files and want them registered without restarting. |
 | `bernstein task notes` | `cli/commands/task_cmd.py:614` | Tail server / spawner logs. Prefer `bernstein logs tail`. |
 | `bernstein task parts` | `cli/commands/task_cmd.py:637` | Same as `bernstein list-tasks`. |
 

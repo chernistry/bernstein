@@ -6,9 +6,8 @@ All notable project changes are tracked here (code + docs).
 
 ### Changed — chat bridge
 
-- **Telegram driver now delegates to the standalone `thisnotabot-router` service.** The 341-line `python-telegram-bot` long-poll loop has been replaced with a thin shim around the new `thisnotabot-bridge` SDK (`bernstein.core.chat.drivers.telegram`). One `@thisnotabot` identity now serves every project on the VPS, the bot survives bernstein restarts, and slash commands are advertised through `setMyCommands` from the router.
-- **Legacy long-poll driver retained as a fallback.** Set `BERNSTEIN_CHAT_USE_LEGACY=1` to reroute the factory back to `bernstein.core.chat.drivers._legacy_telegram` if the bridge is unreachable. No code or YAML changes required to flip back.
-- **Telegram notification sink prefers the bridge SDK by default.** When the SDK is importable and `TELEGRAM_THISNOTABOT_INTERNAL_TOKEN` is set, `TelegramSink` POSTs to `/tg/notify` instead of running its own bridge client. `prefer_bridge: true` (or `BERNSTEIN_NOTIFY_USE_BRIDGE=1`) forces the new path even when a legacy bridge instance is also configured.
+- **Telegram driver simplified to a single long-poll path.** The `python-telegram-bot` v22 long-poll driver at `bernstein.core.chat.drivers.telegram` is the only Telegram driver. Configure a bot API token from `@BotFather` and a chat id; no external services. The earlier optional bridge-router architecture has been removed.
+- **Telegram notification sink simplified.** `TelegramSink` accepts a live `TelegramBridge` via `config["bridge"]` or a token string via `config["token"]` and routes through the standard long-poll path.
 
 ## [1.10.1] — 2026-05-07
 

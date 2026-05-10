@@ -1,22 +1,25 @@
 """Telegram notification sink.
 
-Two transports are supported:
+Sends notifications via the standard ``python-telegram-bot`` long-poll
+driver at :class:`bernstein.core.chat.drivers.telegram.TelegramBridge`.
+One bot identity per sink, one chat id per sink. Plug in a bot API
+token (from ``@BotFather``) and a chat id and you are done.
 
-  * ``thisnotabot-bridge`` (default) -- the sink POSTs to the router's
-    ``/tg/notify`` endpoint via :class:`thisnotabot_bridge.BridgeNotifier`.
-    This shares one bot identity across every project on the VPS.
-  * Legacy chat bridge -- if ``BERNSTEIN_CHAT_USE_LEGACY=1`` (or the
-    operator passes a live ``TelegramBridge`` via ``config["bridge"]``),
-    fall back to :meth:`TelegramBridge.send_message` so the historical
-    edit-throttle behaviour is preserved.
+Required config keys::
 
-Both paths converge on the same chat id so an operator can flip
-between them without losing notifications.
+    id: <unique sink id>
+    kind: telegram
+    chat_id: "-100123456"
+
+One transport must be configured, either by passing a live bridge or
+by giving the sink a token to build one with::
+
+    bridge: <live TelegramBridge instance>     # share the chat-server bridge
+    token:  "${BERNSTEIN_TG_TOKEN}"            # build our own on first deliver
 """
 
 from __future__ import annotations
 
-import importlib
 import os
 from typing import TYPE_CHECKING, Any
 
@@ -27,29 +30,13 @@ from bernstein.core.notifications.protocol import (
 )
 
 if TYPE_CHECKING:
-    from bernstein.core.chat.drivers._legacy_telegram import TelegramBridge
+    from bernstein.core.chat.drivers.telegram import TelegramBridge
 
 __all__ = ["TelegramSink"]
 
 
 class TelegramSink:
-    """Send notifications via the existing Telegram chat bridge.
-
-    Required config keys::
-
-        id: <unique sink id>
-        kind: telegram
-        chat_id: "-100123456"
-
-    Optional config keys (one of them must be set unless the bridge
-    SDK is on PYTHONPATH and the bernstein-bridge env vars are
-    present)::
-
-        bridge: <live TelegramBridge instance>
-        token:  "${BERNSTEIN_TG_TOKEN}"  # legacy long-poll only
-        project: "bernstein"             # bridge namespace; defaults to bernstein
-        prefer_bridge: true              # force the bridge SDK path
-    """
+    """Send notifications via the Telegram long-poll bridge."""
 
     kind: str = "telegram"
 
@@ -61,79 +48,20 @@ class TelegramSink:
                 f"telegram sink {self.sink_id!r} requires 'chat_id'",
             )
         self._chat_id = str(chat_id)
-        self._project = str(config.get("project") or os.environ.get("THISNOTABOT_PROJECT") or "bernstein")
-        self._prefer_bridge = bool(
-            config.get("prefer_bridge")
-            or os.environ.get("BERNSTEIN_NOTIFY_USE_BRIDGE", "").lower() in {"1", "true", "yes"}
-        )
 
         bridge = config.get("bridge")
         token = _resolve(config.get("token"))
-        # No bridge, no token, no SDK env => permanent config error.
-        if bridge is None and not token and not _bridge_env_configured():
+        if bridge is None and not token:
             raise NotificationPermanentError(
-                f"telegram sink {self.sink_id!r} requires either 'bridge', 'token', "
-                "or the thisnotabot-bridge env vars "
-                "(THISNOTABOT_NOTIFY_URL + TELEGRAM_THISNOTABOT_INTERNAL_TOKEN).",
+                f"telegram sink {self.sink_id!r} requires either 'bridge' or 'token'.",
             )
         self._bridge: TelegramBridge | None = bridge
         self._token: str | None = token
         self._owns_bridge = bridge is None
-        self._notifier: Any = None
 
     async def deliver(self, event: NotificationEvent) -> None:
         """Push the event headline + body to the configured chat."""
-        if self._should_use_bridge():
-            await self._deliver_via_bridge(event)
-            return
-        await self._deliver_via_legacy(event)
-
-    async def close(self) -> None:
-        """Stop the legacy bridge if we constructed it ourselves."""
-        if self._bridge is not None and self._owns_bridge:
-            try:
-                await self._bridge.stop()
-            finally:
-                self._bridge = None
-        self._notifier = None
-
-    # ------------------------------------------------------------------
-    # Routing
-    # ------------------------------------------------------------------
-
-    def _should_use_bridge(self) -> bool:
-        """Pick between the SDK and the legacy long-poll bridge."""
-        if self._bridge is not None:
-            # Explicit bridge wins -- caller wants the legacy path.
-            return False
-        if self._prefer_bridge:
-            return True
-        # Default: prefer the bridge whenever the SDK is importable and
-        # the env is configured. Otherwise fall back to the legacy path
-        # which builds its own ``TelegramBridge`` lazily.
-        return _bridge_available() and _bridge_env_configured()
-
-    async def _deliver_via_bridge(self, event: NotificationEvent) -> None:
-        notifier = self._ensure_notifier()
-        try:
-            chat_override: int | None
-            try:
-                chat_override = int(self._chat_id)
-            except (TypeError, ValueError):
-                chat_override = None
-            await notifier.notify(
-                event.title,
-                event.body or "",
-                severity=_event_severity(event),
-                chat_id_override=chat_override,
-            )
-        except Exception as exc:
-            raise NotificationDeliveryError(
-                f"telegram bridge notify failed: {exc}",
-            ) from exc
-
-    async def _deliver_via_legacy(self, event: NotificationEvent) -> None:
-        bridge = await self._ensure_legacy_bridge()
+        bridge = await self._ensure_bridge()
         text = event.title
         if event.body:
             text = f"{text}\n\n{event.body}"
@@ -144,38 +72,26 @@ class TelegramSink:
         except Exception as exc:
             raise NotificationDeliveryError(f"telegram send failed: {exc}") from exc
 
-    # ------------------------------------------------------------------
-    # Lazy construction
-    # ------------------------------------------------------------------
+    async def close(self) -> None:
+        """Stop the bridge if we constructed it ourselves."""
+        if self._bridge is not None and self._owns_bridge:
+            try:
+                await self._bridge.stop()
+            finally:
+                self._bridge = None
 
-    def _ensure_notifier(self) -> Any:
-        """Build the SDK's :class:`BridgeNotifier` on first use."""
-        if self._notifier is not None:
-            return self._notifier
-        try:
-            sdk: Any = importlib.import_module("thisnotabot_bridge")
-        except ImportError as exc:
-            raise NotificationDeliveryError(
-                "thisnotabot-bridge is not installed; set BERNSTEIN_CHAT_USE_LEGACY=1 to use the long-poll driver",
-            ) from exc
-        notifier_cls: Any = sdk.BridgeNotifier
-        self._notifier = notifier_cls.from_env(project=self._project)
-        return self._notifier
-
-    async def _ensure_legacy_bridge(self) -> TelegramBridge:
+    async def _ensure_bridge(self) -> TelegramBridge:
         if self._bridge is not None:
             return self._bridge
         # Lazy construction so importing the sink doesn't require
         # python-telegram-bot to be installed.
-        from bernstein.core.chat.drivers._legacy_telegram import (
-            TelegramBridge as LegacyTelegramBridge,
-        )
+        from bernstein.core.chat.drivers.telegram import TelegramBridge as Bridge
 
         if self._token is None:  # pragma: no cover - defensive, validated in __init__
             raise NotificationPermanentError(
                 f"telegram sink {self.sink_id!r} has no transport configured",
             )
-        bridge = LegacyTelegramBridge(token=self._token)
+        bridge = Bridge(token=self._token)
         await bridge.start()
         self._bridge = bridge
         return bridge
@@ -187,32 +103,3 @@ def _resolve(value: Any) -> str | None:
     if value.startswith("${") and value.endswith("}"):
         return os.environ.get(value[2:-1])
     return value
-
-
-def _bridge_available() -> bool:
-    """Return True iff the SDK package is importable in this venv."""
-    try:
-        importlib.import_module("thisnotabot_bridge")
-    except ImportError:
-        return False
-    return True
-
-
-def _bridge_env_configured() -> bool:
-    """Confirm the env vars the SDK expects are at least populated."""
-    return bool(os.environ.get("TELEGRAM_THISNOTABOT_INTERNAL_TOKEN"))
-
-
-def _event_severity(event: NotificationEvent) -> str:
-    """Map bernstein severity strings to the SDK's ``NotifySeverity``.
-
-    Returned as plain strings so the SDK does the StrEnum conversion
-    itself; saves us a hard import in the type-only branch.
-    """
-    raw = getattr(event, "severity", "info") or "info"
-    normalised = raw.lower() if isinstance(raw, str) else str(raw).lower()
-    if normalised in {"critical", "error", "fatal"}:
-        return "critical"
-    if normalised in {"warning", "warn"}:
-        return "warning"
-    return "info"

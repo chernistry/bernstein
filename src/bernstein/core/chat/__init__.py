@@ -55,20 +55,8 @@ def load_driver(platform: str) -> type[BridgeProtocol]:
     """
     normalised = platform.strip().lower()
     if normalised == "telegram":
-        # The new default delegates to the standalone thisnotabot-router
-        # via the bridge SDK. ``BERNSTEIN_CHAT_USE_LEGACY=1`` forces the
-        # in-process python-telegram-bot long-poll driver as a fallback.
-        from bernstein.core.chat.drivers.telegram import (
-            TelegramBridge,
-            is_legacy_mode_enabled,
-        )
+        from bernstein.core.chat.drivers.telegram import TelegramBridge
 
-        if is_legacy_mode_enabled():
-            from bernstein.core.chat.drivers._legacy_telegram import (
-                TelegramBridge as LegacyTelegramBridge,
-            )
-
-            return LegacyTelegramBridge
         return TelegramBridge
     if normalised == "discord":
         from bernstein.core.chat.drivers.discord import DiscordBridge

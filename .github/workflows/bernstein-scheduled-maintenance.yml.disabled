@@ -1,0 +1,45 @@
+# =====================================================================
+# DISABLED — DO NOT RE-ENABLE WITHOUT REVIEW.
+#
+# This workflow orchestrated a paid LLM agent (Claude) on a weekly cron.
+# It must not run in this repository's CI: project policy forbids paid
+# LLM integrations in own pipelines, and the workflow failed every Monday
+# for 4+ weeks because no `ANTHROPIC_API_KEY` is configured by design.
+#
+# Defense-in-depth — three independent guards keep it dormant:
+#   1. File renamed to `.yml.disabled` — GitHub Actions only parses
+#      `*.yml` / `*.yaml` under `.github/workflows/`, so this file is
+#      invisible to the runner.
+#   2. `schedule:` trigger removed — even if renamed back to `.yml`,
+#      there is no cron to fire it.
+#   3. `if: false` on the job — even if 1 and 2 are reverted and the
+#      workflow is dispatched manually, the job is a no-op.
+#
+# If you ever need a maintenance run, do it locally via `bernstein run …`
+# against your own keys; do not wire keys into this repo.
+# =====================================================================
+
+name: "Bernstein Scheduled Maintenance (DISABLED)"
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: bernstein-maintenance-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  maintenance:
+    name: Weekly maintenance with Bernstein (disabled)
+    if: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Disabled
+        run: |
+          echo "This workflow is intentionally disabled."
+          echo "See the header comment in this file for details."
+          exit 0

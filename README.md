@@ -10,6 +10,8 @@
 
 > *"To achieve great things, two things are needed: a plan and not quite enough time."* — Leonard Bernstein
 
+*Named for Leonard Bernstein, the original orchestrator.*
+
 ### orchestrate any AI coding agent. any model. one command.
 
 [![CI](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml/badge.svg)](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/ci.yml)

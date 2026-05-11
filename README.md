@@ -10,7 +10,13 @@
 
 > *"To achieve great things, two things are needed: a plan and not quite enough time."* — Leonard Bernstein
 
-*Named for Leonard Bernstein, the original orchestrator.*
+</div>
+
+### why the name?
+
+Bernstein is named after Leonard Bernstein, the American conductor and composer. The project orchestrates a crew of CLI coding agents the way Bernstein conducted the New York Philharmonic — every player on cue, the score deterministic, the conductor accountable for the result. He is the original orchestrator the project takes its name from.
+
+<div align="center">
 
 ### orchestrate any AI coding agent. any model. one command.
 

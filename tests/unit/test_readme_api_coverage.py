@@ -110,6 +110,7 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "gateway",
         "templates",
         # Reports & profiling
+        "export",
         "man-pages",
         "profile",
         "report",

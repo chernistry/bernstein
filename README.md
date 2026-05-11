@@ -439,6 +439,7 @@ bernstein ps         # running agents
 bernstein cost       # spend by model/task
 bernstein doctor     # pre-flight checks
 bernstein recap      # post-run summary
+bernstein export     # shareable HTML/Markdown report of the latest run
 bernstein trace <ID> # agent decision trace
 bernstein run-changelog --hours 48  # changelog from agent-produced diffs
 bernstein explain <cmd>  # detailed help with examples

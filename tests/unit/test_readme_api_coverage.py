@@ -292,28 +292,32 @@ def test_readme_has_three_line_install_block() -> None:
 
 
 def test_readme_has_top_section_comparison_table() -> None:
-    """README.md must contain the Bernstein/Archon/LangGraph comparison.
+    """README.md must contain the modern-competitor comparison table.
 
-    The 3-column table sits between the demo and the architecture body and
-    is the first competitive context a visitor sees. Its rows are the
-    promise the rest of the README has to deliver.
+    The table sits between the demo and the architecture body and is the
+    first competitive context a visitor sees. Its rows are the promise the
+    rest of the README has to deliver. Competitors updated in the
+    compliance-buyer reposition (commit ecfb4b4e) — now benchmarks against
+    claude-flow / Archon / vibe-kanban / claude-squad / Composio AO instead
+    of LangGraph / generic frameworks.
     """
     readme = (_REPO_ROOT / "README.md").read_text()
     required_cells = (
         "| Bernstein",
+        "| claude-flow",
         "| Archon",
-        "| LangGraph",
-        "Multi-agent crew (parallel adapters)",
-        "Signed lineage / audit chain",
-        "Air-gap / sovereign deploy",
-        "Visual workflow YAML",
-        "Hosted dashboard / SaaS",
+        "| vibe-kanban",
+        "HMAC-chained audit log",
+        "Signed agent cards (detached JWS)",
+        "Air-gap / on-prem profile",
+        "MCP server mode",
     )
     missing = [cell for cell in required_cells if cell not in readme]
     if missing:
         pytest.fail(
             "README.md is missing required cells from the top-section "
             f"comparison table: {missing}\n"
-            "The Bernstein/Archon/LangGraph table is part of the first-screen "
-            "promise (closes #1112)."
+            "The modern-competitor (claude-flow / Archon / vibe-kanban) table "
+            "is part of the first-screen promise (closes #1112, updated for "
+            "compliance-buyer reposition)."
         )

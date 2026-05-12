@@ -100,9 +100,6 @@ jobs:
     permissions:
       contents: write
       packages: write
-      # Required so the bump step can open a PR + enable auto-merge when
-      # branch protection on main blocks a direct push from GITHUB_TOKEN.
-      pull-requests: write
       # Sigstore keyless OIDC (Fulcio cert + Rekor log entry) for the
       # build-provenance attestation step. Closes the FINOS AIGF
       # CTRL-MODEL-SUPPLY-CHAIN release-artefact gap. See
@@ -136,48 +133,28 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Only bump if tag already exists (means this is a new CI pass on same
-      # version). The bump goes via a short-lived PR + auto-merge — pushing
-      # straight to main is rejected by branch protection (13 required status
-      # checks; GITHUB_TOKEN can't bypass). The PR's CI satisfies those
-      # checks; once it merges, the next auto-release run will see the new
-      # pyproject.toml version with no tag yet and proceed to tag + publish.
-      - name: Bump patch (via auto-merge PR)
+      # Tag-already-exists path: no-op success, not auto-bump.
+      #
+      # Previous logic tried to open an auto-merge bump PR via `gh pr create`.
+      # The `sipyourdrink-ltd` org blocks GitHub Actions from creating pull
+      # requests (`GraphQL: GitHub Actions is not permitted to create or
+      # approve pull requests`), so every CI run on main after a release tag
+      # has shipped failed at this step — painting the pypi deployment red
+      # weekly even when nothing was wrong with the code.
+      #
+      # New behaviour: when the current pyproject.toml version is already
+      # tagged, exit cleanly with a notice. The operator can ship the next
+      # release by manually bumping `pyproject.toml` in any PR (the bump
+      # commit itself triggers a fresh CI → auto-release run that finds an
+      # untagged version and proceeds to tag + build + publish).
+      - name: No-op when current version is already tagged
         if: steps.check.outputs.exists == 'true'
         id: bump
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           IFS='.' read -r MAJOR MINOR PATCH <<< "${{ steps.ver.outputs.current }}"
-          NEW="${MAJOR}.${MINOR}.$((PATCH + 1))"
-          BRANCH="auto/bump-v${NEW}"
-
-          # If a previous failed run left an open bump PR for the same target
-          # version, re-use it instead of fighting an existing branch.
-          EXISTING=$(gh pr list --state open --head "$BRANCH" \
-            --json number --jq '.[0].number // empty')
-          if [ -n "$EXISTING" ]; then
-            echo "::notice::Bump PR #$EXISTING for v${NEW} already open — letting it ride."
-            echo "version=$NEW" >> "$GITHUB_OUTPUT"
-            echo "deferred=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          sed -i "s/^version = \"${{ steps.ver.outputs.current }}\"/version = \"${NEW}\"/" pyproject.toml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git add pyproject.toml
-          git commit -m "chore: auto-bump to v${NEW}"
-          git push -u origin "$BRANCH"
-
-          PR_URL=$(gh pr create \
-            --title "chore: auto-bump to v${NEW}" \
-            --body "Automated patch bump from v${{ steps.ver.outputs.current }} → v${NEW}. Auto-merge enabled; the next auto-release run on main will tag + publish v${NEW}." \
-            --head "$BRANCH" --base main)
-          gh pr merge --auto --squash --delete-branch "$PR_URL"
-
-          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+          NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))"
+          echo "::notice::v${{ steps.ver.outputs.current }} is already tagged. Skipping auto-release. To ship the next patch, manually bump pyproject.toml to v${NEXT} (or higher) in any PR — auto-release will pick it up on merge."
+          echo "version=${{ steps.ver.outputs.current }}" >> "$GITHUB_OUTPUT"
           echo "deferred=true" >> "$GITHUB_OUTPUT"
 
       # Final version (bumped or current). When the bump was deferred to a

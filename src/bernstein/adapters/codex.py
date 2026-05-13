@@ -54,7 +54,8 @@ class CodexAdapter(CLIAdapter):
         cmd = [
             "codex",
             "exec",
-            "--full-auto",
+            "--sandbox",
+            "workspace-write",
             "-m",
             model_config.model,
             "--json",

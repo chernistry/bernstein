@@ -40,7 +40,7 @@ Bernstein is a deterministic Python scheduler that runs a crew of CLI coding age
 
 ### at a glance
 
-- **43 CLI agent adapters** ship in v1.10.1 — 40 third-party wrappers, 2 leaf-node delegators, plus a generic `--prompt` wrapper. Source of truth: the [supported agents](#supported-agents) table below.
+- **44 CLI agent adapters** ship in v1.10.7 — 40 third-party wrappers, 2 leaf-node delegators, plus a generic `--prompt` wrapper. Source of truth: the [supported agents](#supported-agents) table below.
 - **HMAC-SHA256 audit chain** per [RFC 2104](https://datatracker.ietf.org/doc/html/rfc2104), one record per scheduling decision, tamper-evident. Operator guide: [docs/security/audit-log.md](docs/security/audit-log.md).
 - **Signed agent cards** use detached JWS ([RFC 7515 §A.5](https://datatracker.ietf.org/doc/html/rfc7515#appendix-A.5)) over [RFC 8785 (JCS)](https://datatracker.ietf.org/doc/html/rfc8785) canonicalization, with [Ed25519 / EdDSA](https://datatracker.ietf.org/doc/html/rfc8037) keys. Code: [src/bernstein/core/security/agent_card_signer.py](src/bernstein/core/security/agent_card_signer.py).
 - **Per-artefact lineage** records every file write linked back to producer + inputs + prompt SHA + model + cost; customer-key signing for DORA / NIS2 / EU AI Act Article 12 evidence. CLI: `bernstein lineage verify <run_id>`.
@@ -50,7 +50,7 @@ Bernstein is a deterministic Python scheduler that runs a crew of CLI coding age
 
 i wrote bernstein because i was paying $400/month in claude bills running three coding agents in parallel and getting nondeterministic merges.
 
-as of 2026-05-08: 296 stars, 35 forks, ~3,769 pypi downloads/day (mostly bots; ~54k/month), apache 2.0, solo maintained, no funding. numbers will drift; the line above is the source-of-truth date — re-run `pip stats` / GitHub API to refresh.
+as of 2026-05-08: 338 stars, 35 forks, ~3,769 pypi downloads/day (mostly bots; ~54k/month), apache 2.0, solo maintained, no funding. numbers will drift; the line above is the source-of-truth date — re-run `pip stats` / GitHub API to refresh.
 
 ### install in 30 seconds
 
@@ -108,7 +108,7 @@ The honest read: Bernstein is the smaller player on stars in this category. What
 | Python library (importable)      | yes             | no                  | no             | no                  | no                     | no                 |
 | Primary surface                  | CLI + lib + MCP | CLI + web           | CLI + web      | desktop board       | TUI                    | CLI + dashboard    |
 
-Star counts captured 2026-05-12; numbers drift. Source memo: [`.sdd/competitors.md`](.sdd/competitors.md). The "hook they sell" column is each project's own framing, not a Bernstein opinion.
+Star counts captured 2026-05-12; numbers drift. Source memo: [`docs/competitors.md`](docs/competitors.md). The "hook they sell" column is each project's own framing, not a Bernstein opinion.
 
 Workflow YAML shipped in [PR #1117](https://github.com/sipyourdrink-ltd/bernstein/pull/1117) (merged 2026-05-08); plans are authored as YAML and validated by `bernstein workflow validate`. The longer feature matrix and the previous-generation Python multi-agent frameworks (CrewAI, AutoGen, LangGraph) are in the [Detailed comparison](#detailed-comparison) section below; that comparison is kept for completeness, but Bernstein and those projects are different shapes — they orchestrate Python LLM calls, Bernstein orchestrates CLI coding agents in git worktrees.
 
@@ -195,7 +195,7 @@ ticket #1110 and currently raises a clear `NotImplementedError`.
 
 Bernstein auto-discovers installed CLI agents. Mix them in the same run. Cheap local models for boilerplate, heavier cloud models for architecture.
 
-43 CLI agent adapters: 40 third-party wrappers, 2 leaf-node delegators (Composio, Ralphex), plus a generic wrapper for anything with `--prompt`.
+44 CLI agent adapters: 40 third-party wrappers, 2 leaf-node delegators (Composio, Ralphex), plus a generic wrapper for anything with `--prompt`.
 
 | Agent | Models | Install |
 |-------|--------|---------|
@@ -330,7 +330,7 @@ For compliance reviewers asking "which regulation does Bernstein actually map to
 
 These are mappings, not certifications. Production accreditation (SOC 2 Type II, ISO 27001) is out of scope for a solo-maintained OSS project; the surfaces exist to make a customer's accreditation path shorter.
 
-## what's new in v1.9
+## recent releases
 
 **ACP bridge**. `bernstein acp serve --stdio` exposes Bernstein to any editor that speaks the Agent Communication Protocol (Zed, etc.). No plugin code needed on the editor side.
 
@@ -394,7 +394,7 @@ The table immediately below covers **previous-generation Python multi-agent fram
 | Feature | Bernstein | CrewAI | AutoGen [^autogen] | LangGraph |
 |---------|-----------|--------|---------|-----------|
 | Orchestrator | Deterministic code | LLM-driven (+ code Flows) | LLM-driven | Graph + LLM |
-| Works with | Any CLI agent (43 adapters) | Python SDK classes | Python agents | LangChain nodes |
+| Works with | Any CLI agent (44 adapters) | Python SDK classes | Python agents | LangChain nodes |
 | Git isolation | Worktrees per agent | No | No | No |
 | Pluggable sandboxes | Worktree, Docker, E2B, Modal | No | No | No |
 | Verification | Janitor + quality gates | Guardrails + Pydantic output | Termination conditions | Conditional edges |
@@ -434,7 +434,7 @@ The table above compares Bernstein against LLM-orchestration frameworks (they or
 | Autonomous CI-fix / PR flow | Yes (`bernstein autofix`) | No | No | No | No | Yes |
 | License | Apache 2.0 | MIT | MIT | Apache 2.0 | MIT | MIT |
 
-Star counts and capability snapshots captured 2026-05-12. Earlier-generation CLI-orchestrator competitors (awslabs/cli-agent-orchestrator, emdash, umputun/ralphex) are in [`.sdd/competitors.md`](.sdd/competitors.md) with the same matrix.
+Star counts and capability snapshots captured 2026-05-12. Earlier-generation CLI-orchestrator competitors (awslabs/cli-agent-orchestrator, emdash, umputun/ralphex) are in [`docs/competitors.md`](docs/competitors.md) with the same matrix.
 
 Bernstein's wedge in this category is the auditability column — HMAC-chained audit, signed agent cards, per-artefact lineage, air-gap profile — plus Python-library shape and the widest adapter coverage. None of the bigger projects has the audit-chain stack; that's the column the regulated-buyer cares about. We are not winning on stars or polish. If you want the polished Go TUI for parallel Claude on your Mac, claude-squad is the right tool. If you want the swarm framing with the broadest MCP tool surface, claude-flow is. If you want a kanban board UI, vibe-kanban is. If you want the workflow-YAML primitive with web UI and chat integration, Archon is. If you need to ship a regulator-ready audit export and run on-prem behind a firewall, Bernstein.
 

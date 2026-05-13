@@ -374,7 +374,8 @@ class TestCodexEndToEnd:
         # Codex argv contains the prompt as a positional after flags
         argv = fake_cli_fixture.read_argv()
         assert "exec" in argv
-        assert "--full-auto" in argv
+        assert "--sandbox" in argv
+        assert argv[argv.index("--sandbox") + 1] == "workspace-write"
         assert "--json" in argv
 
     def test_fast_exit_with_nonzero_raises_spawn_error(

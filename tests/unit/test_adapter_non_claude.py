@@ -123,7 +123,7 @@ class TestCodexAdapterSpawn:
         assert "-m" in inner
         assert inner[inner.index("-m") + 1] == "gpt-5.4-mini"
 
-    def test_exec_mode_full_auto(self, tmp_path: Path) -> None:
+    def test_exec_mode_sandbox(self, tmp_path: Path) -> None:
         adapter = CodexAdapter()
         proc_mock = _make_popen_mock(pid=103)
         with patch("bernstein.adapters.codex.subprocess.Popen", return_value=proc_mock) as popen:
@@ -134,7 +134,7 @@ class TestCodexAdapterSpawn:
                 session_id="s3",
             )
         inner = _inner_cmd(popen.call_args.args[0])
-        assert inner[:3] == ["codex", "exec", "--full-auto"]
+        assert inner[:4] == ["codex", "exec", "--sandbox", "workspace-write"]
 
     def test_json_output_file_flags(self, tmp_path: Path) -> None:
         adapter = CodexAdapter()

@@ -71,7 +71,7 @@ class TestCodexAdapterSpawn:
         assert "-m" in inner
         assert inner[inner.index("-m") + 1] == "o3-mini"
 
-    def test_full_auto_flag_present(self, tmp_path: Path) -> None:
+    def test_sandbox_flag_present(self, tmp_path: Path) -> None:
         adapter = CodexAdapter()
         proc_mock = _make_popen_mock(pid=102)
         with patch("bernstein.adapters.codex.subprocess.Popen", return_value=proc_mock) as popen:
@@ -82,7 +82,10 @@ class TestCodexAdapterSpawn:
                 session_id="codex-s3",
             )
         inner = _inner_cmd(popen.call_args.args[0])
-        assert "--full-auto" in inner
+        assert "--sandbox" in inner
+        assert inner[inner.index("--sandbox") + 1] == "workspace-write"
+        # Upstream codex 0.130+ deprecated --full-auto; ensure we no longer emit it.
+        assert "--full-auto" not in inner
 
     def test_json_output_flag_present(self, tmp_path: Path) -> None:
         adapter = CodexAdapter()

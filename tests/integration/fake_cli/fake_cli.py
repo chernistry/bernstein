@@ -298,7 +298,7 @@ def _validate_argv(profile: str, argv: list[str]) -> None:
         # Adapter must request stream-json output and bypass permissions
         required = {"--output-format", "--permission-mode"}
     elif profile == "codex":
-        required = {"exec", "--full-auto", "--json"}
+        required = {"exec", "--sandbox", "workspace-write", "--json"}
     elif profile == "gemini":
         required = {"-p", "-m", "--yolo"}
     elif profile in {"aider", "ollama"}:

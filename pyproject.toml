@@ -603,3 +603,18 @@ dev = [
     # click>=8.3.3 / opentelemetry-sdk>=1.41.1 floors. Mirror of
     # [project.optional-dependencies].dev.
 ]
+
+[tool.mutmut]
+# Lineage v1 mutation testing — see scripts/mutmut_lineage.py for the
+# focused runner that exercises only the three lineage modules. The
+# project-wide conftest pulls heavyweight imports that mutmut 3's
+# `mutants/` shadow tree can't satisfy, so we ship a thin custom
+# harness alongside the standard config for ad-hoc deep runs.
+paths_to_mutate = [
+    "src/bernstein/core/lineage/gate.py",
+    "src/bernstein/core/lineage/tips.py",
+    "src/bernstein/core/lineage/merge.py",
+]
+tests_dir = ["tests/unit/lineage/"]
+pytest_add_cli_args = ["--no-cov", "-p", "no:cacheprovider"]
+do_not_mutate = []

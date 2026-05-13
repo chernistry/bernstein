@@ -340,3 +340,160 @@ def test_gate_verifies_hmac_when_secret_provided(tmp_path: Path) -> None:
     # Right operator secret → OK.
     good = check(log_path=log, agent_cards_dir=cards, operator_secret=b"op-secret")
     assert good.ok is True, good.failures
+
+
+# ── Mutation-killing tests (close survivor gaps) ────────────────────────────
+
+
+def test_gate_rejects_malformed_agent_card_with_non_string_field(tmp_path: Path) -> None:
+    """`_load_cards` must skip cards where any of agent_id/kid/public_key_pem
+    is not a string. Kills the `and -> or` mutation in the isinstance chain."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    card_dir = cards / "agent:bad"
+    card_dir.mkdir(parents=True, exist_ok=True)
+    (card_dir / "card.json").write_text(
+        json.dumps(
+            {
+                "protocolVersion": "a2a/1.0",
+                "agent_id": "agent:bad",
+                "kid": None,  # ← invalid; should cause card to be skipped
+                "public_key_pem": a.pub,
+            }
+        )
+    )
+    # Also a valid card for agent:a so we can issue a real entry.
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "x.py", _h("1"), [], ts_ns=1)
+    _write_log_and_sigs(log, [(g, None)], {a.agent_id: a})
+    # The bad card was skipped, but agent:a is fine → gate passes.
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is True
+    # Now write an entry from agent:bad with no valid card → gate fails.
+    bad = _TestAgent("agent:bad", "k1")
+    g2 = _entry_for(bad, "y.py", _h("2"), [], ts_ns=2)
+    _write_log_and_sigs(log, [(g, None), (g2, None)], {a.agent_id: a, bad.agent_id: bad})
+    result2 = check(log_path=log, agent_cards_dir=cards)
+    assert result2.ok is False
+    assert any("agent:bad" in f and ("card" in f.lower() or "unknown" in f.lower()) for f in result2.failures)
+
+
+def test_gate_steward_allowlist_does_not_check_non_merge_entries(tmp_path: Path) -> None:
+    """The steward allow-list only applies when parent_hashes length >= 2.
+    A genesis or single-parent entry from a non-allowed agent must NOT
+    trigger the privilege check. Kills the `>= 2 -> >= 1` mutation."""
+    a = _TestAgent("agent:worker", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "x.py", _h("1"), [], ts_ns=1)
+    c1 = _entry_for(a, "x.py", _h("2"), [entry_hash(g)], ts_ns=2)
+    _write_log_and_sigs(log, [(g, None), (c1, None)], {a.agent_id: a})
+    # Allowlist excludes "agent:worker", but no merge entries exist → pass.
+    result = check(
+        log_path=log,
+        agent_cards_dir=cards,
+        steward_allowlist=frozenset({"agent:steward"}),
+    )
+    assert result.ok is True, result.failures
+
+
+def test_gate_failure_count_appears_in_failure_message(tmp_path: Path) -> None:
+    """The open-tip failure message must contain the actual count, not zero.
+    Kills the `len( -> 0 * len(` mutation."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "x.py", _h("1"), [], ts_ns=1)
+    f1 = _entry_for(a, "x.py", _h("2"), [entry_hash(g)], ts_ns=2)
+    f2 = _entry_for(a, "x.py", _h("3"), [entry_hash(g)], ts_ns=3)
+    f3 = _entry_for(a, "x.py", _h("4"), [entry_hash(g)], ts_ns=4)
+    _write_log_and_sigs(
+        log,
+        [(g, None), (f1, None), (f2, None), (f3, None)],
+        {a.agent_id: a},
+    )
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False
+    # Match exact count "3 unresolved" — kills the zero-count mutation.
+    tip_msgs = [f for f in result.failures if "unresolved" in f and "tips" in f]
+    assert tip_msgs, result.failures
+    assert "3" in tip_msgs[0]
+
+
+def test_gate_fork_resolved_flag_initial_false_not_true(tmp_path: Path) -> None:
+    """The `resolved = False` initialisation must be False, not True, so that
+    forks without a covering merge entry are reported. Kills the
+    `False -> True` flip on the resolved sentinel.
+
+    We construct a scenario where the open-tip count is OK (1) but a
+    historical fork is still unresolved — that forces the gate to rely on
+    the resolved=False initial value.
+
+    Concretely: after a merge, write another genesis-style child of the
+    pre-merge state. The merge is the open tip; the fork is technically
+    closed in compute_tips terms, but detect_forks still surfaces it.
+    Easier test: use the existing unresolved-fork shape and check the
+    fork-level message appears alongside the tip-level one.
+    """
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    g = _entry_for(a, "x.py", _h("1"), [], ts_ns=1)
+    f1 = _entry_for(a, "x.py", _h("2"), [entry_hash(g)], ts_ns=2)
+    f2 = _entry_for(a, "x.py", _h("3"), [entry_hash(g)], ts_ns=3)
+    _write_log_and_sigs(log, [(g, None), (f1, None), (f2, None)], {a.agent_id: a})
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False
+    # The gate must produce a fork-level message too — both classes of
+    # message must appear if the initial `resolved = False` is intact.
+    fork_msgs = [f for f in result.failures if "unresolved fork" in f]
+    assert fork_msgs, f"no fork-level message: {result.failures}"
+
+
+def test_gate_dangling_parent_hash_count_matches_input(tmp_path: Path) -> None:
+    """Multiple dangling parents must each produce a distinct failure message."""
+    a = _TestAgent("agent:a", "k1")
+    cards = tmp_path / "agents"
+    _write_card(cards, a)
+    log = tmp_path / "lineage" / "log.jsonl"
+    o1 = _entry_for(a, "x.py", _h("2"), [_h("ghost-1")], ts_ns=2)
+    o2 = _entry_for(a, "y.py", _h("3"), [_h("ghost-2"), _h("ghost-3")], ts_ns=3)
+    _write_log_and_sigs(log, [(o1, None), (o2, None)], {a.agent_id: a})
+    result = check(log_path=log, agent_cards_dir=cards)
+    assert result.ok is False
+    dangling = [f for f in result.failures if "dangling parent_hash" in f]
+    # o1 has 1 ghost, o2 has 2 ghosts → 3 dangling-parent messages.
+    assert len(dangling) == 3
+
+
+def test_compute_tips_distinguishes_open_vs_merged(tmp_path: Path) -> None:
+    """Ensure compute_tips classifies merge parents as 'merged', not 'open'.
+    Kills mutations that confuse the two sets in tips.py."""
+    from bernstein.core.lineage.tips import compute_tips
+
+    a = _TestAgent("agent:a", "k1")
+    g = _entry_for(a, "x.py", _h("1"), [], ts_ns=1)
+    f1 = _entry_for(a, "x.py", _h("2"), [entry_hash(g)], ts_ns=2)
+    f2 = _entry_for(a, "x.py", _h("3"), [entry_hash(g)], ts_ns=3)
+    m = _entry_for(a, "x.py", _h("4"), [entry_hash(f1), entry_hash(f2)], ts_ns=4)
+    tips = compute_tips([g, f1, f2, m])
+    assert entry_hash(f1) not in tips["x.py"]["open"]
+    assert entry_hash(f2) not in tips["x.py"]["open"]
+    assert entry_hash(m) in tips["x.py"]["open"]
+    assert entry_hash(f1) in tips["x.py"]["merged"]
+    assert entry_hash(f2) in tips["x.py"]["merged"]
+
+
+def test_detect_forks_requires_at_least_two_children(tmp_path: Path) -> None:
+    """A parent with one child must NOT be reported as a fork.
+    Kills the `< 2 -> < 1` mutation in detect_forks."""
+    from bernstein.core.lineage.tips import detect_forks
+
+    a = _TestAgent("agent:a", "k1")
+    g = _entry_for(a, "x.py", _h("1"), [], ts_ns=1)
+    only_child = _entry_for(a, "x.py", _h("2"), [entry_hash(g)], ts_ns=2)
+    assert detect_forks([g, only_child]) == []

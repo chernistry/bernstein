@@ -21,21 +21,48 @@ from bernstein.core.lineage.entry import (
     canonicalise,
     entry_hash,
 )
+from bernstein.core.lineage.gate import GateResult
+from bernstein.core.lineage.gate import check as gate_check
 from bernstein.core.lineage.identity import (
     AgentCard,
     generate_keypair,
     sign_detached,
     verify_detached,
 )
+from bernstein.core.lineage.merge import (
+    AgentPolicy,
+    FirstWriterPolicy,
+    HumanPolicy,
+    LineageConflict,
+    MergePolicy,
+    StewardKey,
+    build_merge_entry,
+    resolve_policy,
+)
+from bernstein.core.lineage.tips import Fork, TipSet, compute_tips, detect_forks
 
 __all__ = [
     "ARTEFACT_KINDS",
     "LINEAGE_ENTRY_VERSION",
     "AgentCard",
+    "AgentPolicy",
+    "FirstWriterPolicy",
+    "Fork",
+    "GateResult",
+    "HumanPolicy",
+    "LineageConflict",
     "LineageEntry",
+    "MergePolicy",
+    "StewardKey",
+    "TipSet",
+    "build_merge_entry",
     "canonicalise",
+    "compute_tips",
+    "detect_forks",
     "entry_hash",
+    "gate_check",
     "generate_keypair",
+    "resolve_policy",
     "sign_detached",
     "verify_detached",
 ]

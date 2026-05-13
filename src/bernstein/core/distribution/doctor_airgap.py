@@ -244,16 +244,38 @@ def check_no_external_hostnames(workdir: Path) -> Check:
 
 
 def check_runtime_socket_guard_active() -> Check:
-    """Verify the process-wide runtime socket guard is patched in.
+    """Verify the process-wide runtime socket guard can be patched in.
 
     Under ``--profile airgap`` the orchestrator installs a
     :class:`socket.socket.connect` hook so an un-declared outbound dial
     raises :class:`NetworkPolicyDenied`. The hook only patches when
     ``BERNSTEIN_PROFILE_MODE=airgap`` is set; outside airgap it is a
-    no-op. The doctor surfaces both a missing patch (FAIL) and a
-    "we're not in airgap right now" state (WARN).
+    no-op.
+
+    Standalone ``bernstein doctor airgap`` is the documented pre-flight
+    workflow -- it runs *before* ``bernstein run``. The guard is therefore
+    not yet installed in the doctor's own process. Reporting FAIL on
+    that legitimate state used to mislead operators (bughunt 2026-05-13).
+
+    We pick option (A) from the bughunt brief: install the guard for
+    the duration of this check and uninstall right after. The guard is
+    documented idempotent (see ``socket_guard.install_runtime_socket_guard``
+    docstring), ``uninstall_runtime_socket_guard()`` fully restores the
+    original ``socket.socket.connect``, and the doctor command is a
+    short-lived CLI process with no concurrent socket work to disturb.
+    Bonus: round-tripping install/uninstall actually *exercises* the
+    guard's monkeypatch logic, so a regression in the guard itself
+    would surface here -- a strictly stronger signal than option (B)'s
+    "code-path inventory only" WARN.
+
+    Outside airgap the check still WARNs (the guard is intentionally a
+    no-op there; nothing to assert).
     """
-    from bernstein.core.security.socket_guard import is_runtime_socket_guard_installed
+    from bernstein.core.security.socket_guard import (
+        install_runtime_socket_guard,
+        is_runtime_socket_guard_installed,
+        uninstall_runtime_socket_guard,
+    )
 
     if os.environ.get(ENV_PROFILE_MODE, "").strip().lower() != PROFILE_AIRGAP:
         return Check(
@@ -267,13 +289,29 @@ def check_runtime_socket_guard_active() -> Check:
             status=CheckStatus.PASS,
             detail="socket.socket.connect is patched to consult the network policy",
         )
-    return Check(
-        name="runtime socket guard active",
-        status=CheckStatus.FAIL,
-        detail="airgap profile is active but socket.socket.connect is NOT patched",
-        fix="rerun bernstein run --profile airgap (re-installs the guard) or "
-        "import bernstein.core.security.socket_guard and call install_runtime_socket_guard()",
-    )
+    # Pre-flight scenario: airgap profile is set in the operator's
+    # shell but ``bernstein run`` has not yet been invoked, so the
+    # run-bootstrap installer has not fired. Install the guard
+    # ourselves, verify the patch, then restore. If any step fails,
+    # surface that as a real FAIL.
+    installed_here = False
+    try:
+        installed_here = install_runtime_socket_guard()
+        if not installed_here or not is_runtime_socket_guard_installed():
+            return Check(
+                name="runtime socket guard active",
+                status=CheckStatus.FAIL,
+                detail="install_runtime_socket_guard() did not patch socket.socket.connect",
+                fix="inspect bernstein.core.security.socket_guard for import-time errors",
+            )
+        return Check(
+            name="runtime socket guard active",
+            status=CheckStatus.PASS,
+            detail="socket.socket.connect patch verified (installed-and-restored by doctor)",
+        )
+    finally:
+        if installed_here:
+            uninstall_runtime_socket_guard()
 
 
 def check_policy_blocks_known_endpoints() -> Check:

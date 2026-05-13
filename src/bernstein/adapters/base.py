@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import signal
 import subprocess
 import sys
@@ -12,6 +13,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
+from bernstein.core.lineage.recorder import LineageRecorder
+from bernstein.core.lineage.store import LineageStore
 from bernstein.core.platform_compat import (
     kill_process_group,
     kill_process_group_graceful,
@@ -23,6 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
+    from bernstein.core.lineage.identity import AgentCard
     from bernstein.core.models import AbortReason, ApiTierInfo, ModelConfig
 
 logger = logging.getLogger(__name__)
@@ -394,3 +398,75 @@ class CLIAdapter(ABC):
             _session_id: Agent session ID.
             _batch_id: The batch identifier to cancel.
         """
+
+
+# ---------------------------------------------------------------------------
+# Lineage v1 post-write hook (ADR-009 §11.2)
+# ---------------------------------------------------------------------------
+
+#: Env var that gates the lineage hook. Treated as on by default (soft mode).
+#: Use ``BERNSTEIN_LINEAGE_ENABLED=0`` / ``false`` / ``no`` to disable.
+LINEAGE_ENABLED_ENV = "BERNSTEIN_LINEAGE_ENABLED"
+
+
+def _lineage_enabled() -> bool:
+    """Return whether the lineage post-write hook is active.
+
+    Default is on; the flag flips off only when the env var is set to a
+    recognisable falsey value. Anything else (including missing) keeps the
+    hook live so adapters cannot accidentally drop lineage by forgetting to
+    set the variable.
+    """
+    raw = os.environ.get(LINEAGE_ENABLED_ENV)
+    if raw is None:
+        return True
+    return raw.strip().lower() not in {"0", "false", "no", "off", ""}
+
+
+def post_write_lineage_hook(
+    *,
+    artefact_path: str,
+    new_content: bytes,
+    agent_id: str,
+    agent_card: AgentCard,
+    private_key_pem: str,
+    tool_call_id: str,
+    span_id: str,
+    lineage_root: Path,
+    operator_hmac_key: bytes,
+    artefact_kind: str = "file",
+) -> str | None:
+    """Record one artefact write to the lineage log.
+
+    Called by adapters after they have persisted bytes for an artefact.
+
+    Soft mode (the v1 default): any failure inside the recorder is caught,
+    logged at WARNING level, and the function returns ``None``. Lineage is
+    additive — a recorder bug must never block a successful write from
+    completing.
+
+    Returns:
+        The entry hash on success, ``None`` when disabled or on caught error.
+    """
+    if not _lineage_enabled():
+        return None
+    try:
+        store = LineageStore(lineage_root)
+        recorder = LineageRecorder(store=store, operator_hmac_key=operator_hmac_key)
+        return recorder.record_write(
+            artefact_path=artefact_path,
+            new_content=new_content,
+            agent_id=agent_id,
+            agent_card=agent_card,
+            private_key_pem=private_key_pem,
+            tool_call_id=tool_call_id,
+            span_id=span_id,
+            artefact_kind=artefact_kind,
+        )
+    except Exception as exc:
+        logger.warning(
+            "lineage post-write hook failed for %s (soft mode — write proceeds): %s",
+            artefact_path,
+            exc,
+        )
+        return None

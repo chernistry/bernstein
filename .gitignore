@@ -46,11 +46,6 @@ node_modules/
 
 # Bernstein workspace state — .sdd must NEVER be committed to git (CI enforced)
 .sdd/
-# Exception: golden benchmark fixtures are versioned source-of-truth, not runtime state
-!.sdd/
-!.sdd/eval/
-!.sdd/eval/golden/
-!.sdd/eval/golden/**
 
 # MkDocs build output
 site/

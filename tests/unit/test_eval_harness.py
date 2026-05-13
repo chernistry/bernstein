@@ -164,13 +164,33 @@ class TestEvalHarnessInit:
 
 
 class TestLoadGoldenTasks:
-    def test_load_from_empty_dir(self, tmp_path: Path) -> None:
+    def test_load_from_empty_dir_falls_back_to_packaged(self, tmp_path: Path) -> None:
+        """When the override dir is empty, the loader falls back to
+        wheel-shipped fixtures so a fresh ``pip install bernstein`` has a
+        runnable smoke tier without seeding ``.sdd/``.
+        """
         state_dir = tmp_path / ".sdd"
         state_dir.mkdir()
         golden = state_dir / "eval" / "golden"
         golden.mkdir(parents=True)
         h = EvalHarness(state_dir)
-        tasks = h.load_golden_tasks()
+        tasks = h.load_golden_tasks(tier_filter="smoke")
+        # Packaged defaults ship at least one smoke fixture.
+        assert tasks, "packaged smoke fallback returned no tasks"
+        for t in tasks:
+            assert t.tier == "smoke"
+
+    def test_load_from_empty_dir_no_packaged_tier_returns_empty(self, tmp_path: Path) -> None:
+        """Tiers without packaged defaults (e.g. ``stretch``) still return
+        an empty list when the override dir is empty.  Keeps the
+        backward-compatible "no data → empty" contract for non-smoke tiers.
+        """
+        state_dir = tmp_path / ".sdd"
+        state_dir.mkdir()
+        golden = state_dir / "eval" / "golden"
+        golden.mkdir(parents=True)
+        h = EvalHarness(state_dir)
+        tasks = h.load_golden_tasks(tier_filter="stretch")
         assert tasks == []
 
     def test_load_smoke_tasks(self, tmp_path: Path) -> None:

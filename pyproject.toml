@@ -240,6 +240,16 @@ exclude = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bernstein"]
+# Eval golden fixtures live INSIDE src/bernstein/eval/golden_data/ so they
+# ship by virtue of being inside the package tree.  ``artifacts`` is listed
+# explicitly to pin the *.md inclusion even if a future ``include`` /
+# ``exclude`` rewrite tries to whitelist only *.py.  Loader:
+# ``bernstein.eval.golden._packaged_tier_files`` (importlib.resources).
+# .sdd/ MUST stay out of the repo (Repo hygiene CI gate); the operator
+# override path .sdd/eval/golden/<tier>/*.md is still consulted first.
+artifacts = [
+    "src/bernstein/eval/golden_data/**/*.md",
+]
 
 [tool.hatch.build.targets.wheel.force-include]
 "templates/prompts" = "bernstein/_default_templates/prompts"

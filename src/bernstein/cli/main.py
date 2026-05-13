@@ -886,6 +886,7 @@ cli.add_command(lineage_cmd, "lineage")
 
 # Canonical AGENTS.md generator + cross-CLI rewrite (cursor / claude / aider / goose).
 from bernstein.cli.commands.agents_md_cmd import agents_md_cmd  # noqa: E402
+from bernstein.cli.commands.analyze_cmd import analyze_cmd  # noqa: E402
 
 cli.add_command(agents_md_cmd, "agents-md")
 
@@ -913,3 +914,4 @@ cli.add_command(handoff_group, "handoff")
 from bernstein.cli.commands.identity_cmd import identity_group  # noqa: E402
 
 cli.add_command(identity_group, "identity")
+cli.add_command(analyze_cmd, "analyze")  # noqa: E402  (issue #768)

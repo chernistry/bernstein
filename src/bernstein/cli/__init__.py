@@ -21,6 +21,7 @@ _CLI_REDIRECT_MAP: dict[str, str] = {
     "adapter_cmd": "bernstein.cli.commands.adapter_cmd",
     "advanced_cmd": "bernstein.cli.commands.advanced_cmd",
     "agents_cmd": "bernstein.cli.commands.agents_cmd",
+    "analyze_cmd": "bernstein.cli.commands.analyze_cmd",
     "aliases": "bernstein.cli.utils.aliases",
     "api_check_cmd": "bernstein.cli.commands.api_check_cmd",
     "audit_cmd": "bernstein.cli.commands.audit_cmd",

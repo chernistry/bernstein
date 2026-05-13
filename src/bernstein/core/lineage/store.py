@@ -28,14 +28,24 @@ Everything except ``log.jsonl`` is rebuildable: ``reindex`` re-derives
 from __future__ import annotations
 
 import contextlib
-import fcntl
 import hashlib
 import json
 import os
+import sys
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+# ``fcntl`` is POSIX-only. On Windows the module doesn't exist; the lock
+# context manager below becomes a no-op (Windows CI runs are single-process
+# so cross-process serialisation isn't load-bearing for our tests). Real
+# multi-process safety on Windows would route through ``msvcrt.locking`` —
+# wire that in when the orchestrator actually runs on Windows in anger.
+if sys.platform == "win32":
+    fcntl = None  # type: ignore[assignment]
+else:
+    import fcntl  # type: ignore[no-redef]
 
 from bernstein.core.lineage.entry import LineageEntry, canonicalise, entry_hash
 
@@ -95,11 +105,13 @@ def _exclusive_lock(path: Path) -> Iterator[int]:
     # CodeQL py/overly-permissive-file flags 0o644 as world-readable.
     fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o600)
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        if fcntl is not None:
+            fcntl.flock(fd, fcntl.LOCK_EX)
         try:
             yield fd
         finally:
-            fcntl.flock(fd, fcntl.LOCK_UN)
+            if fcntl is not None:
+                fcntl.flock(fd, fcntl.LOCK_UN)
     finally:
         os.close(fd)
 

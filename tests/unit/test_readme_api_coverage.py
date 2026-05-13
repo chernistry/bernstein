@@ -185,6 +185,9 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "identity",
         # Per-role adapter allow/deny-list inspection (role-adapter-policy group)
         "security",
+        # Bughunt 2026-05-13 release wave
+        "adapters",
+        "analyze",
     }
 )
 

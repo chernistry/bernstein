@@ -30,13 +30,13 @@ from bernstein.adapters.registry import _ADAPTERS, get_adapter
 
 
 def _all_adapter_names() -> list[str]:
-    """Return names of all registered adapters (including generic)."""
-    return sorted([*_ADAPTERS.keys(), "generic"])
+    """Return names of all registered adapters."""
+    return sorted(_ADAPTERS.keys())
 
 
 def _instantiate_adapter(name: str) -> CLIAdapter:
     """Instantiate an adapter by name, handling special cases."""
-    # GenericAdapter is not in _ADAPTERS but is a valid adapter
+    # Generic adapter needs cli_command + display_name; route through get_adapter.
     if name == "generic":
         return get_adapter("generic")
     entry = _ADAPTERS[name]

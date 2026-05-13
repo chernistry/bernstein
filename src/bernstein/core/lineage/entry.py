@@ -13,9 +13,7 @@ from dataclasses import asdict, dataclass
 
 LINEAGE_ENTRY_VERSION = 1
 
-ARTEFACT_KINDS: frozenset[str] = frozenset(
-    {"file", "sdd-runtime", "mcp-result", "config"}
-)
+ARTEFACT_KINDS: frozenset[str] = frozenset({"file", "sdd-runtime", "mcp-result", "config"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,14 +42,10 @@ class LineageEntry:
         if self.artefact_kind not in ARTEFACT_KINDS:
             raise ValueError(f"unknown artefact_kind: {self.artefact_kind!r}")
         if not self.content_hash.startswith("sha256:"):
-            raise ValueError(
-                f"content_hash must start with 'sha256:', got {self.content_hash!r}"
-            )
+            raise ValueError(f"content_hash must start with 'sha256:', got {self.content_hash!r}")
         for p in self.parent_hashes:
             if not p.startswith("sha256:"):
-                raise ValueError(
-                    f"parent_hash must start with 'sha256:', got {p!r}"
-                )
+                raise ValueError(f"parent_hash must start with 'sha256:', got {p!r}")
 
 
 def canonicalise(entry: LineageEntry) -> bytes:

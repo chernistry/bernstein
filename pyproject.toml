@@ -90,6 +90,10 @@ dependencies = [
     # hand-rolling a DER parser. Used exclusively by
     # ``bernstein.core.security.rfc3161_verifier``.
     "asn1crypto>=1.5",
+    # Pure-Python PDF generation for the EU AI Act Article 12 evidence pack
+    # rendered by `bernstein compliance pack`. MIT-licensed, no native deps.
+    # Used exclusively by ``bernstein.core.compliance.article12``.
+    "reportlab>=4.0,<5",
 ]
 
 [project.urls]

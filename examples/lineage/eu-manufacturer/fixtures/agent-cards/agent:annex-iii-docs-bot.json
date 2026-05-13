@@ -1,0 +1,20 @@
+{
+  "capabilities": [
+    "lineage.sign",
+    "lineage.record"
+  ],
+  "keys": [
+    {
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "kid": "key-2026-mfg-003",
+      "kty": "OKP",
+      "pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAbNKpod3BSwympfH0CBkHcST1PyJ1b+Oy+PD6sBZe2yE=\n-----END PUBLIC KEY-----\n",
+      "use": "sig"
+    }
+  ],
+  "name": "agent:annex-iii-docs-bot",
+  "protocolVersion": "a2a/1.0",
+  "signatures": [],
+  "url": "local://agents/agent:annex-iii-docs-bot"
+}

@@ -40,7 +40,7 @@ Bernstein is a deterministic Python scheduler that runs a crew of CLI coding age
 
 ### at a glance
 
-- **44 CLI agent adapters** ship in v1.10.7 — 40 third-party wrappers, 2 leaf-node delegators, plus a generic `--prompt` wrapper. Source of truth: the [supported agents](#supported-agents) table below.
+- **44 CLI agent adapters** ship in v1.10.7 — 41 third-party wrappers, 2 leaf-node delegators, plus a generic `--prompt` wrapper. Source of truth: the [supported agents](#supported-agents) table below.
 - **HMAC-SHA256 audit chain** per [RFC 2104](https://datatracker.ietf.org/doc/html/rfc2104), one record per scheduling decision, tamper-evident. Operator guide: [docs/security/audit-log.md](docs/security/audit-log.md).
 - **Signed agent cards** use detached JWS ([RFC 7515 §A.5](https://datatracker.ietf.org/doc/html/rfc7515#appendix-A.5)) over [RFC 8785 (JCS)](https://datatracker.ietf.org/doc/html/rfc8785) canonicalization, with [Ed25519 / EdDSA](https://datatracker.ietf.org/doc/html/rfc8037) keys. Code: [src/bernstein/core/security/agent_card_signer.py](src/bernstein/core/security/agent_card_signer.py).
 - **Per-artefact lineage** records every file write linked back to producer + inputs + prompt SHA + model + cost; customer-key signing for DORA / NIS2 / EU AI Act Article 12 evidence. CLI: `bernstein lineage verify <run_id>`.
@@ -50,7 +50,7 @@ Bernstein is a deterministic Python scheduler that runs a crew of CLI coding age
 
 i wrote bernstein because i was paying $400/month in claude bills running three coding agents in parallel and getting nondeterministic merges.
 
-as of 2026-05-08: 338 stars, 35 forks, ~3,769 pypi downloads/day (mostly bots; ~54k/month), apache 2.0, solo maintained, no funding. numbers will drift; the line above is the source-of-truth date — re-run `pip stats` / GitHub API to refresh.
+as of 2026-05-13: 338 stars, 37 forks, ~3,769 pypi downloads/day (mostly bots; ~54k/month), apache 2.0, solo maintained, no funding. numbers will drift; the line above is the source-of-truth date — re-run `pip stats` / GitHub API to refresh.
 
 ### install in 30 seconds
 
@@ -99,7 +99,7 @@ The honest read: Bernstein is the smaller player on stars in this category. What
 |----------------------------------|-----------------|---------------------|----------------|---------------------|------------------------|--------------------|
 | Hook they sell                   | regulated / on-prem / audit | swarm intelligence, hive-mind, 314 MCP tools | deterministic + repeatable workflow YAML, web UI | kanban board UI for parallel Claude | polished Go TUI, tmux-native | TypeScript dashboard, CI fixer |
 | LLM in scheduling loop           | no              | yes (swarm)         | partial        | yes                 | no                     | yes                |
-| CLI adapter count                | 43              | ~5                  | ~10            | ~6                  | ~5                     | 3                  |
+| CLI adapter count                | 44              | ~5                  | ~10            | ~6                  | ~5                     | 3                  |
 | HMAC-chained audit log           | yes             | no                  | no             | no                  | no                     | no                 |
 | Signed agent cards (detached JWS) | yes            | no                  | no             | no                  | no                     | no                 |
 | Per-artefact lineage, customer-key signed | yes    | no                  | no             | no                  | no                     | no                 |
@@ -195,7 +195,7 @@ ticket #1110 and currently raises a clear `NotImplementedError`.
 
 Bernstein auto-discovers installed CLI agents. Mix them in the same run. Cheap local models for boilerplate, heavier cloud models for architecture.
 
-44 CLI agent adapters: 40 third-party wrappers, 2 leaf-node delegators (Composio, Ralphex), plus a generic wrapper for anything with `--prompt`.
+44 CLI agent adapters: 41 third-party wrappers, 2 leaf-node delegators (Composio, Ralphex), plus a generic wrapper for anything with `--prompt`.
 
 | Agent | Models | Install |
 |-------|--------|---------|
@@ -416,12 +416,12 @@ The table above compares Bernstein against LLM-orchestration frameworks (they or
 
 | Feature | Bernstein | [claude-flow](https://github.com/ruvnet/claude-flow) | [Archon](https://github.com/coleam00/Archon) | [vibe-kanban](https://github.com/BloopAI/vibe-kanban) | [claude-squad](https://github.com/smtg-ai/claude-squad) | [Composio AO](https://github.com/ComposioHQ/agent-orchestrator) |
 |---------|-----------|-----------|-----------|-----------|-----------|-----------|
-| Stars (2026-05-12) | 321 | 49k | 21k | 26k | 7.4k | 7k |
+| Stars (2026-05-13) | 338 | 49k | 21k | 26k | 7.4k | 7k |
 | Their hook | regulated / on-prem / audit | swarm intelligence + 314 MCP tools | deterministic + repeatable, web UI | kanban board UI | polished Go TUI, tmux-native | TypeScript dashboard, CI fixer |
 | Shape | Python CLI + library + MCP server | CLI + web | CLI + web | desktop board | Go TUI | TypeScript CLI + dashboard |
 | Primary language | Python | TypeScript / Node | Python | TypeScript | Go | TypeScript |
 | Install | `pipx install bernstein` | `npm install -g claude-flow` | self-host | `npm install -g vibe-kanban` | `brew install claude-squad` | `npm install -g @aoagents/ao` |
-| Agent adapters | 43 | ~5 | ~10 | ~6 | ~5 (Claude family) | 3 (Claude Code, Codex, Aider) |
+| Agent adapters | 44 | ~5 | ~10 | ~6 | ~5 (Claude family) | 3 (Claude Code, Codex, Aider) |
 | Parallel multi-agent execution | Yes | Yes (swarm) | Yes | Yes | Yes (tmux multiplex) | Yes |
 | Git worktree per agent | Yes | No (swarm-based) | Yes | Yes | Yes | Yes |
 | Coordinator | Deterministic Python scheduler | LLM swarm | Workflow + partial LLM | LLM-driven | Plan executor (no LLM in loop) | LLM-driven |

@@ -118,17 +118,26 @@ def check_context_files(workdir: Path) -> list[DoctorWarning]:
     for rel_path, fmt in _CONTEXT_FILES:
         _check_single_context_file(workdir, rel_path, fmt, results)
 
-    # Check for role template references that don't exist
+    # Check for role template references that don't exist.
+    # Role templates live in per-role subdirs (templates/roles/<role>/) and use
+    # multiple extensions: .md (system_prompt.md, task_prompt.md), .yaml
+    # (config.yaml), and historically .j2/.jinja2. The check passes when at least
+    # one role template file of any supported extension is present anywhere
+    # under templates/roles/.
     templates_dir = workdir / "templates" / "roles"
-    if templates_dir.exists() and not list(templates_dir.glob("*.md")):
-        results.append(
-            DoctorWarning(
-                name="Role templates",
-                ok=False,
-                detail="templates/roles/ exists but contains no .md files",
-                fix="Add role template files to templates/roles/",
+    if templates_dir.exists():
+        role_template_exts = ("*.md", "*.yaml", "*.yml", "*.j2", "*.jinja2")
+        has_role_files = any(next(templates_dir.rglob(pat), None) is not None for pat in role_template_exts)
+        if not has_role_files:
+            results.append(
+                DoctorWarning(
+                    name="Role templates",
+                    ok=False,
+                    detail="templates/roles/ exists but contains no role template files (.md/.yaml/.j2)",
+                    fix="Add role template files (system_prompt.md, task_prompt.md, config.yaml) "
+                    "under templates/roles/<role>/",
+                )
             )
-        )
 
     _check_large_context_files(workdir, results)
 

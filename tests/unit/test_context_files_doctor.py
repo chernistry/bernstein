@@ -63,7 +63,44 @@ class TestCheckContextFiles:
         roles_dir.mkdir(parents=True)
         results = check_context_files(project_dir)
         warn = _first_bad(results)
-        assert "no .md files" in warn.detail
+        assert "no role template files" in warn.detail
+
+    def test_template_roles_dir_with_md_and_yaml_passes(self, project_dir: Path) -> None:
+        """Real layout: per-role subdir with .md prompts and .yaml config."""
+        role_dir = project_dir / "templates" / "roles" / "backend"
+        role_dir.mkdir(parents=True)
+        (role_dir / "system_prompt.md").write_text("# backend\n")
+        (role_dir / "task_prompt.md").write_text("# backend task\n")
+        (role_dir / "config.yaml").write_text("name: backend\n")
+        results = check_context_files(project_dir)
+        assert all(w.ok for w in results), f"unexpected warnings: {results}"
+
+    def test_template_roles_dir_with_only_yaml_passes(self, project_dir: Path) -> None:
+        """YAML-only role still counts as a present role template."""
+        role_dir = project_dir / "templates" / "roles" / "manager"
+        role_dir.mkdir(parents=True)
+        (role_dir / "config.yaml").write_text("name: manager\n")
+        results = check_context_files(project_dir)
+        assert all(w.ok for w in results), f"unexpected warnings: {results}"
+
+    def test_template_roles_dir_with_only_j2_passes(self, project_dir: Path) -> None:
+        """Legacy Jinja2 templates still count."""
+        role_dir = project_dir / "templates" / "roles" / "qa"
+        role_dir.mkdir(parents=True)
+        (role_dir / "prompt.j2").write_text("{{ task }}")
+        results = check_context_files(project_dir)
+        assert all(w.ok for w in results), f"unexpected warnings: {results}"
+
+    def test_real_repo_templates_roles_passes(self) -> None:
+        """Doctor must accept the real repo's templates/roles/ as-is."""
+        repo_root = Path(__file__).resolve().parents[2]
+        roles_dir = repo_root / "templates" / "roles"
+        if not roles_dir.exists():
+            pytest.skip("templates/roles/ not present in this checkout")
+        results = check_context_files(repo_root)
+        role_warns = [w for w in results if w.name == "Role templates"]
+        # Either no warning at all (passes silently), or only OK warnings.
+        assert all(w.ok for w in role_warns), f"Role templates check failed: {role_warns}"
 
 
 # --- TestCheckMcpServers ---

@@ -76,6 +76,7 @@ _ADAPTERS: dict[str, type[CLIAdapter] | CLIAdapter] = {
     "droid": DroidAdapter,
     "forge": ForgeAdapter,
     "gemini": GeminiAdapter,
+    "generic": GenericAdapter,
     "goose": GooseAdapter,
     "gptme": GptmeAdapter,
     "hermes": HermesAdapter,

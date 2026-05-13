@@ -222,6 +222,29 @@ jobs:
         with:
           reporter: github-check
 
+  lineage-gate:
+    # ADR-009 Lineage Gate — required check. Verifies the on-disk lineage
+    # log (.sdd/lineage/log.jsonl) is internally consistent: every entry
+    # signature verifies, no unresolved forks, parent_hashes resolve.
+    # No-op PASS when the log does not exist (pre-bootstrap state).
+    name: Lineage Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
+        with:
+          enable-cache: true
+      - name: Run lineage gate
+        run: |
+          if [ -f .sdd/lineage/log.jsonl ]; then
+            uv run python scripts/check_lineage.py
+          else
+            echo "::notice::No .sdd/lineage/log.jsonl — lineage gate is a no-op PASS."
+          fi
+
   # ─── Medium checks (cancel old runs, 5-20 min) ────────────────────────
 
   typecheck:

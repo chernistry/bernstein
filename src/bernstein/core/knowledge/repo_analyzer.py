@@ -13,7 +13,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 # Reuse the file-discovery exclusion rules so `analyze` and `run` see the
 # same project surface.
@@ -83,13 +86,11 @@ def _is_test_file(path: Path) -> bool:
     stem = path.stem  # filename without extension
     if name.startswith("test_") or name.endswith("_test.py"):
         return True
-    if stem.endswith(".test") or stem.endswith(".spec"):
-        return True
-    return False
+    return stem.endswith(".test") or stem.endswith(".spec")
 
 
 def _should_skip_dir(name: str) -> bool:
-    return name in _IGNORED_DIRS or name.startswith(".") and name != ".github"
+    return name in _IGNORED_DIRS or (name.startswith(".") and name != ".github")
 
 
 # ---------------------------------------------------------------------------
@@ -180,9 +181,8 @@ def analyze_repo(root: Path) -> RepoAnalysis:
 
         if _is_test_file(path):
             analysis.test_files += 1
-        elif lang == "Python":
-            if not _has_type_hints(path):
-                analysis.python_files_without_type_hints += 1
+        elif lang == "Python" and not _has_type_hints(path):
+            analysis.python_files_without_type_hints += 1
 
     # Language ranking.
     total_for_pct = max(analysis.total_source_files, 1)
@@ -264,7 +264,7 @@ def _has_type_hints(path: Path) -> bool:
         return True  # don't penalize unreadable files
     # Simple substring checks — `: ` after an open-paren or `-> ` before `:`
     # is enough to indicate at least one annotation.
-    return ") -> " in text or ": " in text and "def " in text
+    return ") -> " in text or (": " in text and "def " in text)
 
 
 def _modules_without_tests(root: Path, analysis: RepoAnalysis) -> list[Path]:
@@ -410,7 +410,8 @@ def _compute_score_and_narrative(a: RepoAnalysis) -> None:
 
     if c_typed is not None and c_typed < 7:
         opps.append(
-            f"~{a.python_files_without_type_hints} Python files lack type annotations; consider `bernstein -g \"add type hints\"`"
+            f"~{a.python_files_without_type_hints} Python files lack type annotations; "
+            'consider `bernstein -g "add type hints"`'
         )
     elif c_typed is not None and c_typed >= 9:
         strengths.append("Type annotations broadly present — agents can use them as machine-readable specs")

@@ -156,5 +156,5 @@ def _render_rich(a: RepoAnalysis) -> None:
         console.print()
 
     # Cost hint — keep loose; we don't try to predict actual model cost.
-    console.print("  [dim]Estimated cost: ~$2.50 (5 agents × ~500 tokens each)[/dim]")
+    console.print("  [dim]Estimated cost: ~$2.50 (5 agents x ~500 tokens each)[/dim]")
     console.print()

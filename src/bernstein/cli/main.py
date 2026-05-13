@@ -914,4 +914,4 @@ cli.add_command(handoff_group, "handoff")
 from bernstein.cli.commands.identity_cmd import identity_group  # noqa: E402
 
 cli.add_command(identity_group, "identity")
-cli.add_command(analyze_cmd, "analyze")  # noqa: E402  (issue #768)
+cli.add_command(analyze_cmd, "analyze")  # issue #768

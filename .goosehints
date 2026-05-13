@@ -19,6 +19,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `autofix/`              | Bernstein autofix daemon — auto-repair CI failures on Bernstein PRs |
 | `chat/`                 | Chat-control bridges for driving Bernstein agents from messaging apps |
 | `communication/`        | communication sub-package |
+| `compliance/`           | Compliance subpackage |
 | `config/`               | Config: seed parsing, config management, settings, feature gates |
 | `cost/`                 | cost sub-package |
 | `daemon/`               | Daemon installation helpers for Bernstein |
@@ -31,6 +32,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `integrations/`         | Integrations sub-package |
 | `knowledge/`            | knowledge sub-package |
 | `lifecycle/`            | Lifecycle-hooks subsystem |
+| `lineage/`              | Lineage v1 — Sigstore-style per-artefact transparency log |
 | `memory/`               | memory sub-package — persistent memory stores |
 | `notifications/`        | Outbound notification subsystem (release 1.9) |
 | `observability/`        | observability sub-package |
@@ -295,6 +297,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `remote_transport.py` | Streamable HTTP transport for Bernstein MCP server |
 | `routine_tools.py`    | MCP tools for the rt-003 Routine <-> Scenario bridge |
 | `server.py`           | Bernstein MCP server |
+| `resources/`          | MCP resource registrars for Bernstein |
 
 ### `src/bernstein/benchmark/` — SWE-bench
 

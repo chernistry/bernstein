@@ -125,14 +125,8 @@ def _render_rich(a: RepoAnalysis) -> None:
     console.print()
 
     # Score block
-    score_color = (
-        "green"
-        if a.readiness_score >= 7
-        else ("yellow" if a.readiness_score >= 4 else "red")
-    )
-    console.print(
-        f"  [bold]Orchestration readiness[/bold]: [{score_color}]{a.readiness_score:.1f}/10[/{score_color}]"
-    )
+    score_color = "green" if a.readiness_score >= 7 else ("yellow" if a.readiness_score >= 4 else "red")
+    console.print(f"  [bold]Orchestration readiness[/bold]: [{score_color}]{a.readiness_score:.1f}/10[/{score_color}]")
     console.print()
 
     # Strengths

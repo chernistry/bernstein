@@ -188,8 +188,7 @@ def analyze_repo(root: Path) -> RepoAnalysis:
     total_for_pct = max(analysis.total_source_files, 1)
     ranked = sorted(files_by_language.items(), key=lambda x: x[1], reverse=True)
     analysis.languages = [
-        LanguageBreakdown(name=name, files=count, pct=round(count / total_for_pct * 100, 1))
-        for name, count in ranked
+        LanguageBreakdown(name=name, files=count, pct=round(count / total_for_pct * 100, 1)) for name, count in ranked
     ]
 
     # Test coverage estimate (count-based, not line-based).
@@ -388,20 +387,14 @@ def _compute_score_and_narrative(a: RepoAnalysis) -> None:
     elif c_tests > 0:
         n = len(a.modules_without_tests)
         if n > 0:
-            opps.append(
-                f"{n} module{'s' if n != 1 else ''} have no tests; consider `bernstein -g \"add tests\"`"
-            )
+            opps.append(f'{n} module{"s" if n != 1 else ""} have no tests; consider `bernstein -g "add tests"`')
     else:
-        opps.append("No test files detected; consider `bernstein -g \"add tests for the public API\"` first")
+        opps.append('No test files detected; consider `bernstein -g "add tests for the public API"` first')
 
     if c_mod >= 8:
-        strengths.append(
-            f"Modular structure — no large monolith files (max: {a.largest_file_lines} lines)"
-        )
+        strengths.append(f"Modular structure — no large monolith files (max: {a.largest_file_lines} lines)")
     elif a.files_over_300_lines:
-        opps.append(
-            f"{len(a.files_over_300_lines)} files over 300 lines could benefit from decomposition"
-        )
+        opps.append(f"{len(a.files_over_300_lines)} files over 300 lines could benefit from decomposition")
 
     if c_ci == 10:
         strengths.append("CI configured — quality gates will work out of the box")

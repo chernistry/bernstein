@@ -14,11 +14,13 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import click
 
 from bernstein.compliance.eu_ai_act import ComplianceEngine, bernstein_descriptor
+from bernstein.core.compliance.pack import build_pack
 from bernstein.core.compliance_policies import (
     ALL_POLICIES,
     ComplianceFramework,
@@ -448,3 +450,94 @@ def export_rego(framework: str, output_dir: Path | None, workdir: Path) -> None:
     lib = CompliancePolicyLibrary()
     paths = lib.export_rego(fw, dest_dir=dest)
     click.echo(f"Exported {len(paths)} Rego policies to: {dest}")
+
+
+# ---------------------------------------------------------------------------
+# `bernstein compliance pack` — EU AI Act Article 12 evidence bundle
+# ---------------------------------------------------------------------------
+
+
+def _parse_iso_date(value: str) -> datetime:
+    try:
+        return datetime.strptime(value, "%Y-%m-%d")
+    except ValueError as exc:
+        raise click.BadParameter(f"expected YYYY-MM-DD, got {value!r}") from exc
+
+
+@compliance_group.command("pack")
+@click.option("--since", required=True, help="Window start date (YYYY-MM-DD, inclusive).")
+@click.option("--until", required=True, help="Window end date (YYYY-MM-DD, inclusive).")
+@click.option("--org", required=True, help="Organisation name (printed on the cover page).")
+@click.option(
+    "--output",
+    required=True,
+    type=click.Path(path_type=Path),
+    help="Destination .zip path.",
+)
+@click.option(
+    "--workdir",
+    default=".",
+    show_default=True,
+    type=click.Path(path_type=Path),
+    help="Project root (used to locate .sdd/lineage and .sdd/agents).",
+)
+@click.option(
+    "--lineage-dir",
+    default=None,
+    type=click.Path(path_type=Path),
+    help="Override path to lineage directory (default: <workdir>/.sdd/lineage).",
+)
+@click.option(
+    "--agent-cards-dir",
+    default=None,
+    type=click.Path(path_type=Path),
+    help="Override path to Agent Cards directory (default: <workdir>/.sdd/agents).",
+)
+@click.option(
+    "--operator-key",
+    default=None,
+    type=click.Path(path_type=Path),
+    help=("Path to PEM PKCS#8 Ed25519 operator key for manifest signing (default: <workdir>/.sdd/keys/operator.key)."),
+)
+def pack(
+    since: str,
+    until: str,
+    org: str,
+    output: Path,
+    workdir: Path,
+    lineage_dir: Path | None,
+    agent_cards_dir: Path | None,
+    operator_key: Path | None,
+) -> None:
+    """Build a one-command EU AI Act Article 12 evidence bundle.
+
+    Filters the lineage log to ``[since, until]``, packages the human-
+    readable PDF + machine-readable CSV + raw JSONL + per-entry signatures
+    + Agent Cards, and emits an operator-signed SLSA-style manifest.
+    """
+    since_date = _parse_iso_date(since).date()
+    until_date = _parse_iso_date(until).date()
+    if since_date > until_date:
+        raise click.BadParameter("--since must be <= --until")
+
+    resolved_lineage = lineage_dir or (workdir / ".sdd" / "lineage")
+    resolved_cards = agent_cards_dir or (workdir / ".sdd" / "agents")
+    resolved_key = operator_key or (workdir / ".sdd" / "keys" / "operator.key")
+
+    if not resolved_key.exists():
+        raise click.ClickException(
+            f"Operator signing key not found at {resolved_key}.\n"
+            "Generate one with `openssl genpkey -algorithm Ed25519 -out "
+            f"{resolved_key}` or pass --operator-key <path>.",
+        )
+
+    out_path = build_pack(
+        since=since_date,
+        until=until_date,
+        org=org,
+        lineage_dir=resolved_lineage,
+        agent_cards_dir=resolved_cards,
+        output_path=output,
+        operator_key_path=resolved_key,
+    )
+    click.echo(f"Compliance pack written to: {out_path}")

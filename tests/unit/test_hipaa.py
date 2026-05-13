@@ -17,7 +17,6 @@ import os
 from pathlib import Path
 
 import pytest
-from bernstein.core.compliance import ComplianceConfig, CompliancePreset
 from bernstein.core.hipaa import (
     HIPAAMode,
     PHICategory,
@@ -30,6 +29,8 @@ from bernstein.core.hipaa import (
     load_or_create_hipaa_encryption_key,
     save_hipaa_report,
 )
+
+from bernstein.core.compliance import ComplianceConfig, CompliancePreset
 
 # ---------------------------------------------------------------------------
 # PHIDetector — pattern matching

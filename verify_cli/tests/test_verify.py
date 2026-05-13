@@ -101,9 +101,9 @@ def test_verify_jws_detached_happy_path():
 
 def test_verify_jws_detached_tamper_payload_fails():
     priv, pub = bernstein_generate_keypair()
-    payload = b"abc"
+    payload = b"original"
     jws = bernstein_sign_detached(payload, priv, kid="k1")
-    assert verify_jws_detached(b"abd", jws, pub, expected_kid="k1") is False
+    assert verify_jws_detached(b"tampered", jws, pub, expected_kid="k1") is False
 
 
 def test_verify_jws_detached_wrong_kid_fails():

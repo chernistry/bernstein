@@ -23,7 +23,7 @@ from pathlib import Path
 
 import click
 
-from bernstein.cli.adapter_cmd import test_adapter
+from bernstein.cli.adapter_cmd import adapters_group, test_adapter
 
 # Import commands from decomposed modules (NEW)
 from bernstein.cli.advanced_cmd import (
@@ -141,6 +141,7 @@ __all__ = [
     "SERVER_URL",
     "STATUS_COLORS",
     # Commands from task_cmd
+    "adapters_group",
     "add_task",
     "approve",
     "auth_group",
@@ -803,6 +804,7 @@ cli.add_command(ps_cmd, "ps")
 cli.add_command(commit_stats_cmd, "commit-stats")
 cli.add_command(stop)
 cli.add_command(test_adapter, "test-adapter")
+cli.add_command(adapters_group, "adapters")
 cli.add_command(run, "run")  # visible: `bernstein run [plan.yaml]`
 cli.add_command(cook, "cook")
 cli.add_command(init)

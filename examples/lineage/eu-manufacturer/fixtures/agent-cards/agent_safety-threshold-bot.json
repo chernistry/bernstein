@@ -1,0 +1,20 @@
+{
+  "capabilities": [
+    "lineage.sign",
+    "lineage.record"
+  ],
+  "keys": [
+    {
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "kid": "key-2026-mfg-001",
+      "kty": "OKP",
+      "pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAQX81+rQ0n9JaKZ74zPR/ej3Ico11Gvq6Ieh8Ogv3LzQ=\n-----END PUBLIC KEY-----\n",
+      "use": "sig"
+    }
+  ],
+  "name": "agent:safety-threshold-bot",
+  "protocolVersion": "a2a/1.0",
+  "signatures": [],
+  "url": "local://agents/agent:safety-threshold-bot"
+}

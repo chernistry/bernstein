@@ -1,0 +1,20 @@
+{
+  "capabilities": [
+    "lineage.sign",
+    "lineage.record"
+  ],
+  "keys": [
+    {
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "kid": "key-2026-hc-003",
+      "kty": "OKP",
+      "pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEATS2IbO1Z9p5oYfvKtFdKgcj4f4n0sPZghRedxj0LL2g=\n-----END PUBLIC KEY-----\n",
+      "use": "sig"
+    }
+  ],
+  "name": "agent:article11-docs-bot",
+  "protocolVersion": "a2a/1.0",
+  "signatures": [],
+  "url": "local://agents/agent:article11-docs-bot"
+}

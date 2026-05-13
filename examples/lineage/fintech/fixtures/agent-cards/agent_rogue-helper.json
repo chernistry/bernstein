@@ -1,0 +1,20 @@
+{
+  "capabilities": [
+    "lineage.sign",
+    "lineage.record"
+  ],
+  "keys": [
+    {
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "kid": "key-2026-rogue-001",
+      "kty": "OKP",
+      "pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAPUN1yCMRw0CPmeJf+Wcph/AUr3XyF1LRwl7FCTezn3M=\n-----END PUBLIC KEY-----\n",
+      "use": "sig"
+    }
+  ],
+  "name": "agent:rogue-helper",
+  "protocolVersion": "a2a/1.0",
+  "signatures": [],
+  "url": "local://agents/agent:rogue-helper"
+}

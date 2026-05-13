@@ -1,0 +1,20 @@
+{
+  "capabilities": [
+    "lineage.sign",
+    "lineage.record"
+  ],
+  "keys": [
+    {
+      "alg": "EdDSA",
+      "crv": "Ed25519",
+      "kid": "key-2026-fintech-004",
+      "kty": "OKP",
+      "pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAySQyJjjPcVw9H3tRx3/TVEHcdTyqRRCfLvBb4StU6nQ=\n-----END PUBLIC KEY-----\n",
+      "use": "sig"
+    }
+  ],
+  "name": "agent:docs-bot",
+  "protocolVersion": "a2a/1.0",
+  "signatures": [],
+  "url": "local://agents/agent:docs-bot"
+}

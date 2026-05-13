@@ -90,6 +90,10 @@ dependencies = [
     # hand-rolling a DER parser. Used exclusively by
     # ``bernstein.core.security.rfc3161_verifier``.
     "asn1crypto>=1.5",
+    # Pure-Python PDF generation for the EU AI Act Article 12 evidence pack
+    # rendered by `bernstein compliance pack`. MIT-licensed, no native deps.
+    # Used exclusively by ``bernstein.core.compliance.article12``.
+    "reportlab>=4.0,<5",
 ]
 
 [project.urls]
@@ -125,6 +129,9 @@ dev = [
     "beartype>=0.21",  # Test-time runtime type enforcement
     "syrupy>=4.6",  # Snapshot testing for JSONL/audit/prompt drift
     "diff-cover>=9.0",  # Per-PR diff coverage gate
+    # PDF re-parse for tests that assert reportlab-emitted Article 12
+    # PDFs are well-formed (tests/unit/compliance/test_article12.py).
+    "pypdf>=4.0",
     # NOTE: semgrep is intentionally NOT a dev dep. Its transitive pins
     # (click<8.2, opentelemetry-sdk<1.38) collide with our production
     # floors (click>=8.3.3, opentelemetry-sdk>=1.41.1). Install via
@@ -594,8 +601,26 @@ dev = [
     "beartype>=0.21",
     "syrupy>=4.6",
     "diff-cover>=9.0",
+    # PDF re-parse for Article 12 evidence tests (mirror of
+    # [project.optional-dependencies].dev).
+    "pypdf>=4.0",
     # semgrep installed via `uv tool install semgrep` in CI — pins
     # click<8.2 and opentelemetry-sdk<1.38, conflicts with our
     # click>=8.3.3 / opentelemetry-sdk>=1.41.1 floors. Mirror of
     # [project.optional-dependencies].dev.
 ]
+
+[tool.mutmut]
+# Lineage v1 mutation testing — see scripts/mutmut_lineage.py for the
+# focused runner that exercises only the three lineage modules. The
+# project-wide conftest pulls heavyweight imports that mutmut 3's
+# `mutants/` shadow tree can't satisfy, so we ship a thin custom
+# harness alongside the standard config for ad-hoc deep runs.
+paths_to_mutate = [
+    "src/bernstein/core/lineage/gate.py",
+    "src/bernstein/core/lineage/tips.py",
+    "src/bernstein/core/lineage/merge.py",
+]
+tests_dir = ["tests/unit/lineage/"]
+pytest_add_cli_args = ["--no-cov", "-p", "no:cacheprovider"]
+do_not_mutate = []

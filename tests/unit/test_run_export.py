@@ -51,11 +51,13 @@ def _setup_sdd(tmp_path: Path, run_id: str = "run-001") -> Path:
     archive_dir.mkdir(parents=True)
     base_ts = 1700000000.0
     task_lines = []
-    for i, (success, janitor, model) in enumerate([
-        (True, True, "claude-opus"),
-        (True, True, "claude-sonnet"),
-        (False, False, "codex"),
-    ]):
+    for i, (success, janitor, model) in enumerate(
+        [
+            (True, True, "claude-opus"),
+            (True, True, "claude-sonnet"),
+            (False, False, "codex"),
+        ]
+    ):
         task_data = {
             "task_id": f"T-{i + 1}",
             "role": ["backend", "frontend", "qa"][i],
@@ -145,8 +147,13 @@ def test_fmt_duration_short_hours() -> None:
 def test_agent_summary() -> None:
     """_agent_summary builds correct agent summary string."""
     report = _ExportReport(
-        goal="", run_id="x", duration_s=0, total_cost_usd=0,
-        tasks_completed=3, tasks_failed=0, agents_spawned=3,
+        goal="",
+        run_id="x",
+        duration_s=0,
+        total_cost_usd=0,
+        tasks_completed=3,
+        tasks_failed=0,
+        agents_spawned=3,
         task_rows=[
             _TaskRow("a", "backend", "done", "claude-opus", 10.0, 1.0, True),
             _TaskRow("b", "frontend", "done", "claude-sonnet", 20.0, 0.5, True),
@@ -163,8 +170,13 @@ def test_agent_summary() -> None:
 def test_agent_summary_duplicates() -> None:
     """_agent_summary groups by model name with counts."""
     report = _ExportReport(
-        goal="", run_id="x", duration_s=0, total_cost_usd=0,
-        tasks_completed=3, tasks_failed=0, agents_spawned=5,
+        goal="",
+        run_id="x",
+        duration_s=0,
+        total_cost_usd=0,
+        tasks_completed=3,
+        tasks_failed=0,
+        agents_spawned=5,
         task_rows=[
             _TaskRow("a", "backend", "done", "claude-opus", 10.0, 1.0, True),
             _TaskRow("b", "backend", "done", "claude-opus", 20.0, 1.5, True),
@@ -184,8 +196,13 @@ def test_agent_summary_duplicates() -> None:
 def test_sequential_estimate() -> None:
     """_sequential_estimate sums individual task durations."""
     report = _ExportReport(
-        goal="", run_id="x", duration_s=0, total_cost_usd=0,
-        tasks_completed=2, tasks_failed=0, agents_spawned=2,
+        goal="",
+        run_id="x",
+        duration_s=0,
+        total_cost_usd=0,
+        tasks_completed=2,
+        tasks_failed=0,
+        agents_spawned=2,
         task_rows=[
             _TaskRow("a", "backend", "done", "model-a", 60.0, 1.0, True),
             _TaskRow("b", "frontend", "done", "model-b", 5400.0, 2.0, True),
@@ -225,7 +242,7 @@ def test_export_html_basic(tmp_path: Path) -> None:
 
     # Inline CSS (no external stylesheets)
     assert "<style>" in content
-    assert 'href="http' not in content.lower() or 'github' in content.lower()
+    assert 'href="http' not in content.lower() or "github" in content.lower()
 
     # Footer link
     assert "github.com/sipyourdrink-ltd/bernstein" in content
@@ -371,19 +388,31 @@ def test_size_limit_enforced(tmp_path: Path) -> None:
     # Create a mock report and directly call the render function with oversized data
     large_rows = []
     for i in range(3000):
-        large_rows.append(_TaskRow(
-            title=f"Very long task title number {i} with extra padding to make it much larger so we exceed the limit",
-            role="backend", status="done", model="test-model",
-            duration_s=60.0, cost_usd=0.01, janitor_passed=True,
-        ))
+        large_rows.append(
+            _TaskRow(
+                title=f"Very long task title number {i} with extra padding to make it much larger so we exceed the limit",
+                role="backend",
+                status="done",
+                model="test-model",
+                duration_s=60.0,
+                cost_usd=0.01,
+                janitor_passed=True,
+            )
+        )
 
     report = _ExportReport(
-        goal="", run_id="big-run", duration_s=120000.0, total_cost_usd=999.99,
-        tasks_completed=3000, tasks_failed=0, agents_spawned=10,
+        goal="",
+        run_id="big-run",
+        duration_s=120000.0,
+        total_cost_usd=999.99,
+        tasks_completed=3000,
+        tasks_failed=0,
+        agents_spawned=10,
         task_rows=large_rows,
     )
 
     from bernstein.core.observability.run_export import _render_html
+
     html_content = _render_html(report)
 
     assert len(html_content.encode("utf-8")) > MAX_FILE_SIZE

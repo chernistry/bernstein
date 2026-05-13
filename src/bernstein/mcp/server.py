@@ -380,15 +380,36 @@ def _register_skill_tools(mcp: FastMCP[None]) -> None:
             return _error_response(exc, hint="Skill not found or templates missing")
 
 
+#: Env override for the lineage MCP exposure. When unset the default is
+#: ``True`` for stdio and ``False`` for SSE (ADR-009 §7.3).
+_LINEAGE_MCP_ENV = "BERNSTEIN_LINEAGE_MCP_ENABLED"
+
+
+def _lineage_mcp_default(*, default: bool) -> bool:
+    """Resolve whether the lineage MCP resources should be registered."""
+    raw = os.environ.get(_LINEAGE_MCP_ENV)
+    if raw is None:
+        return default
+    return raw.strip().lower() not in {"0", "false", "no", "off", ""}
+
+
 def create_mcp_server(
     server_url: str = _DEFAULT_SERVER_URL,
     name: str = "bernstein",
+    *,
+    lineage_enabled: bool = False,
+    lineage_root: Path | None = None,
 ) -> FastMCP[None]:
     """Build and return the Bernstein FastMCP server instance.
 
     Args:
         server_url: Base URL of the Bernstein task server.
         name: MCP server name advertised to clients.
+        lineage_enabled: When ``True``, register the lineage resources +
+            ``verify_chain`` tool. Defaults to ``False`` — callers running
+            stdio should pass ``True`` explicitly (``run_stdio`` does).
+        lineage_root: Override the lineage store path. Defaults to
+            ``<cwd>/.sdd/lineage``.
 
     Returns:
         Configured FastMCP instance with all Bernstein tools registered.
@@ -402,28 +423,48 @@ def create_mcp_server(
     from bernstein.mcp.routine_tools import register_scenario_tools
 
     register_scenario_tools(mcp, server_url)
+
+    if lineage_enabled:
+        from bernstein.mcp.resources.lineage import register_lineage_resources
+
+        root = lineage_root if lineage_root is not None else Path.cwd() / ".sdd" / "lineage"
+        register_lineage_resources(mcp, lineage_root=root, enabled=True)
+
     return mcp
 
 
 def run_stdio(server_url: str = _DEFAULT_SERVER_URL) -> None:
     """Start the MCP server in stdio transport mode (for local IDE integration).
 
+    Lineage MCP resources default ON for local stdio (ADR-009 §7.3) and can
+    be opted out via ``BERNSTEIN_LINEAGE_MCP_ENABLED=0``.
+
     Args:
         server_url: Bernstein task server URL.
     """
-    mcp = create_mcp_server(server_url=server_url)
+    mcp = create_mcp_server(
+        server_url=server_url,
+        lineage_enabled=_lineage_mcp_default(default=True),
+    )
     mcp.run(transport="stdio")
 
 
 def run_sse(server_url: str = _DEFAULT_SERVER_URL, host: str = "127.0.0.1", port: int = 8053) -> None:
     """Start the MCP server in SSE transport mode (for remote/web integration).
 
+    Lineage MCP resources default OFF for SSE (ADR-009 §7.3) — operators
+    that explicitly want to expose them remotely can set
+    ``BERNSTEIN_LINEAGE_MCP_ENABLED=1``.
+
     Args:
         server_url: Bernstein task server URL.
         host: Host to bind the SSE server to.
         port: Port to bind the SSE server to.
     """
-    mcp = create_mcp_server(server_url=server_url)
+    mcp = create_mcp_server(
+        server_url=server_url,
+        lineage_enabled=_lineage_mcp_default(default=False),
+    )
     import uvicorn
 
     uvicorn.run(mcp.sse_app(), host=host, port=port)

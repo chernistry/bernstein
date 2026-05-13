@@ -31,6 +31,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `integrations/`         | Integrations sub-package |
 | `knowledge/`            | knowledge sub-package |
 | `lifecycle/`            | Lifecycle-hooks subsystem |
+| `lineage/`              | Lineage v1 — Sigstore-style per-artefact transparency log |
 | `memory/`               | memory sub-package — persistent memory stores |
 | `notifications/`        | Outbound notification subsystem (release 1.9) |
 | `observability/`        | observability sub-package |

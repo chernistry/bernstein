@@ -10,6 +10,10 @@ extend-ignore-re = [
     # Mask any alphanumeric run that contains an embedded ZWSP so fixtures
     # stay intact without globally allowlisting the fragment.
     "[A-Za-z]+​[A-Za-z]+",
+    # Lineage v1 byte-tamper fixtures intentionally case-flip "bytes" to
+    # exercise the per-byte signature-failure path; see
+    # tests/unit/lineage/test_identity.py.
+    "bytEs",
 ]
 
 [default.extend-words]

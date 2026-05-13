@@ -8,7 +8,6 @@ scoring branch deterministically.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 
@@ -17,10 +16,6 @@ from bernstein.core.knowledge.repo_analyzer import (
     _is_test_file,
     analyze_repo,
 )
-
-if TYPE_CHECKING:
-    pass
-
 
 # ---------------------------------------------------------------------------
 # Helpers

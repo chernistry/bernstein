@@ -749,14 +749,19 @@ def test_doctor_airgap_runtime_socket_guard_check_passes_when_installed(airgap_e
     assert guard_row.status is CheckStatus.PASS
 
 
-def test_doctor_airgap_runtime_socket_guard_check_fails_when_missing(
+def test_doctor_airgap_runtime_socket_guard_check_self_installs_when_missing(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Inside airgap without the guard the check must FAIL.
+    """Inside airgap without the guard, the doctor self-installs for the check.
 
-    Operators who set the env vars but skipped the guard install (e.g. a
-    third-party bootstrap that forgot to call install_runtime_socket_guard)
-    need to see the boundary is incomplete.
+    Standalone ``bernstein doctor airgap`` is the documented pre-flight
+    workflow (run before ``bernstein run``), so the run-bootstrap installer
+    has not yet fired. Per bughunt 2026-05-13 fix, the check installs the
+    guard, verifies the monkeypatch, then restores -- exercising the guard's
+    install/uninstall logic round-trip so a regression in the guard itself
+    would still surface here.
+
+    Cleanup: the doctor must restore ``socket.socket.connect`` after the check.
     """
     monkeypatch.setenv(ENV_PROFILE_MODE, PROFILE_AIRGAP)
     monkeypatch.setenv(ENV_NETWORK_POLICY, "none")
@@ -766,7 +771,8 @@ def test_doctor_airgap_runtime_socket_guard_check_fails_when_missing(
     report = run_airgap_checks(workdir=workdir)
     by_name = {c.name: c for c in report.checks}
     guard_row = by_name["runtime socket guard active"]
-    assert guard_row.status is CheckStatus.FAIL
+    assert guard_row.status is CheckStatus.PASS
+    assert not is_runtime_socket_guard_installed()
 
 
 def test_doctor_airgap_cli_exit_code(airgap_env: None, tmp_path: Path) -> None:

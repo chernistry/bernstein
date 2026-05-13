@@ -25,7 +25,7 @@ def test_tampered_payload_fails_verify():
     card = AgentCard(agent_id="agent:test", kid="k1", public_key_pem=pub)
     payload = b"some canonical bytes"
     jws = sign_detached(payload, priv, kid="k1")
-    assert verify_detached(b"some canonical bytEs", jws, card) is False
+    assert verify_detached(b"tampered canonical bytes", jws, card) is False
 
 
 def test_wrong_kid_fails():

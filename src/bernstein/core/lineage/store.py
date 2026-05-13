@@ -91,7 +91,9 @@ def _exclusive_lock(path: Path) -> Iterator[int]:
     path.parent.mkdir(parents=True, exist_ok=True)
     # ``os.open`` with ``O_CREAT`` to make the lockfile if absent. We lock the
     # log file itself (per the spec), so re-opening the same path here is fine.
-    fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o644)
+    # 0o600 — lineage log holds signed audit entries; operator-only readable.
+    # CodeQL py/overly-permissive-file flags 0o644 as world-readable.
+    fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o600)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX)
         try:

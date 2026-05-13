@@ -153,7 +153,11 @@ def write_agent_card(out_dir: Path, agent_id: str, kid: str, public_key_pem: str
         ],
     }
     out_dir.mkdir(parents=True, exist_ok=True)
-    p = out_dir / f"{agent_id}.json"
+    # Filenames replace ":" with "_" so the fixtures check out on Windows
+    # (NTFS rejects ":" in paths). The canonical agent_id inside the card
+    # body retains the original colon — only the on-disk filename is changed.
+    safe_id = agent_id.replace(":", "_")
+    p = out_dir / f"{safe_id}.json"
     p.write_text(
         json.dumps(card_obj, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

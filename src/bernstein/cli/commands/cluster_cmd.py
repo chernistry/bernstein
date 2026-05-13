@@ -50,13 +50,14 @@ def _write_pem(path: Path, data: bytes, *, mode: int) -> None:
 
 def _build_ca(out_dir: Path) -> tuple[x509.Certificate, rsa.RSAPrivateKey]:
     key = _generate_key()
+    public_key = key.public_key()
     name = _build_name("Bernstein Self-Signed CA")
     now = datetime.datetime.now(datetime.UTC)
     cert = (
         x509.CertificateBuilder()
         .subject_name(name)
         .issuer_name(name)
-        .public_key(key.public_key())
+        .public_key(public_key)
         .serial_number(x509.random_serial_number())
         .not_valid_before(now)
         .not_valid_after(now + datetime.timedelta(days=CA_VALID_DAYS))
@@ -74,6 +75,14 @@ def _build_ca(out_dir: Path) -> tuple[x509.Certificate, rsa.RSAPrivateKey]:
                 decipher_only=False,
             ),
             critical=True,
+        )
+        .add_extension(
+            x509.SubjectKeyIdentifier.from_public_key(public_key),
+            critical=False,
+        )
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(public_key),
+            critical=False,
         )
         .sign(key, hashes.SHA256())
     )
@@ -101,6 +110,7 @@ def _issue_leaf(
     is_server: bool,
 ) -> None:
     key = _generate_key()
+    public_key = key.public_key()
     now = datetime.datetime.now(datetime.UTC)
     eku = (
         x509.ExtendedKeyUsage([x509.ExtendedKeyUsageOID.SERVER_AUTH, x509.ExtendedKeyUsageOID.CLIENT_AUTH])
@@ -111,14 +121,36 @@ def _issue_leaf(
         x509.CertificateBuilder()
         .subject_name(_build_name(common_name))
         .issuer_name(ca_cert.subject)
-        .public_key(key.public_key())
+        .public_key(public_key)
         .serial_number(x509.random_serial_number())
         .not_valid_before(now)
         .not_valid_after(now + datetime.timedelta(days=LEAF_VALID_DAYS))
         .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=True,
+                content_commitment=False,
+                key_encipherment=True,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=False,
+                crl_sign=False,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
         .add_extension(eku, critical=False)
         .add_extension(
             x509.SubjectAlternativeName([x509.DNSName(d) for d in san_dns]),
+            critical=False,
+        )
+        .add_extension(
+            x509.SubjectKeyIdentifier.from_public_key(public_key),
+            critical=False,
+        )
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()),
             critical=False,
         )
         .sign(ca_key, hashes.SHA256())

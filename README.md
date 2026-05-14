@@ -30,7 +30,7 @@ Multi-agent CLI orchestration with an HMAC-signed audit chain, signed agent card
 [![MseeP.ai](https://img.shields.io/badge/MseeP.ai-verified-2496ed)](https://mseep.ai/app/chernistry-bernstein)
 [![CodeTrendy](https://img.shields.io/badge/CodeTrendy-listed-FBBF24)](https://codetrendy.com/listing/bernstein)
 
-[website](https://bernstein.run) &middot; [docs](https://bernstein.readthedocs.io/) &middot; [install](docs/getting-started/install.md) &middot; [first run](docs/getting-started/first-run.md) &middot; [enterprise eval](docs/ENTERPRISE.md) &middot; [glossary](docs/reference/GLOSSARY.md) &middot; [limitations](docs/reference/KNOWN_LIMITATIONS.md) &middot; [sponsor](https://github.com/sponsors/chernistry)
+[website](https://bernstein.run?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme) &middot; [docs](https://bernstein.readthedocs.io/) &middot; [install](docs/getting-started/install.md) &middot; [first run](docs/getting-started/first-run.md) &middot; [enterprise eval](docs/ENTERPRISE.md) &middot; [glossary](docs/reference/GLOSSARY.md) &middot; [limitations](docs/reference/KNOWN_LIMITATIONS.md) &middot; [sponsor](https://github.com/sponsors/chernistry)
 
 </div>
 
@@ -66,7 +66,7 @@ if bernstein routed a model that saved you a claude bill, $25 covers a month of 
 
 [github.com/sponsors/chernistry →](https://github.com/sponsors/chernistry)
 
-tier ladder, escalation thresholds, and what each tier gets you live at [bernstein.run/sponsors](https://bernstein.run/sponsors).
+tier ladder, escalation thresholds, and what each tier gets you live at [bernstein.run/sponsors](https://bernstein.run/sponsors?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme).
 
 ## who this is for
 
@@ -594,7 +594,7 @@ If Bernstein helps your research or industry work, please cite it. Machine-reada
 
 ---
 
-Made with love by [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
+Made with love by [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme)
 
 ## translations
 

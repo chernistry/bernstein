@@ -20,7 +20,7 @@
 [![License](https://img.shields.io/github/license/sipyourdrink-ltd/bernstein)](../../LICENSE)
 [![MseeP.ai](https://img.shields.io/badge/MseeP.ai-verified-2496ed)](https://mseep.ai/app/chernistry-bernstein)
 
-[Сайт](https://bernstein.run) &middot; [Документация](https://bernstein.readthedocs.io/) &middot; [Быстрый старт](../../docs/getting-started/GETTING_STARTED.md) &middot; [Глоссарий](../../docs/reference/GLOSSARY.md) &middot; [Ограничения](../../docs/reference/KNOWN_LIMITATIONS.md)
+[Сайт](https://bernstein.run?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme) &middot; [Документация](https://bernstein.readthedocs.io/) &middot; [Быстрый старт](../../docs/getting-started/GETTING_STARTED.md) &middot; [Глоссарий](../../docs/reference/GLOSSARY.md) &middot; [Ограничения](../../docs/reference/KNOWN_LIMITATIONS.md)
 
 </div>
 
@@ -425,6 +425,6 @@ PR'ы приветствуются. См. [CONTRIBUTING.md](../../CONTRIBUTING.m
 
 ---
 
-Сделано с любовью — [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
+Сделано с любовью — [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->

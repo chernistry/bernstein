@@ -53,6 +53,43 @@ _TICKET_SUFFIX_RE = re.compile(r" \((?:audit|rt)-\d+\)$", re.IGNORECASE)
 _TICKET_SCOPE_RE = re.compile(r"^(?:audit|rt)-\d+$", re.IGNORECASE)
 _CC_RE = re.compile(r"^(?P<type>[a-z]+)(?:\((?P<scope>[^)\n]+)\))?!?: (?P<subject>[^\n]+)$")
 
+# Linear-time URL matcher for bernstein.run links inside the rendered notes.
+# Captures the host plus any path or query string up to the first whitespace
+# or unbalanced ``)``. Bounded character class with no alternation under a
+# quantifier — linear regardless of input.
+_BERNSTEIN_URL_RE = re.compile(r"https://bernstein\.run[^\s)]*")
+
+
+def _with_release_utm(body: str, version: str) -> str:
+    """Append per-release UTM parameters to bernstein.run URLs in ``body``.
+
+    Idempotent: a URL that already carries any ``utm_`` parameter is left
+    untouched, so re-running on previously-tagged output does not double-tag.
+
+    Args:
+        body: Rendered markdown release-notes body.
+        version: Release version string (e.g. ``"1.8.5"``); the leading
+            ``v`` is stripped if present so the campaign reads
+            ``v<MAJOR>.<MINOR>.<PATCH>`` regardless of caller convention.
+
+    Returns:
+        ``body`` with every bernstein.run URL UTM-tagged for this release.
+    """
+    clean_version = version[1:] if version.startswith("v") else version
+    campaign = f"v{clean_version}"
+    utm_params = (
+        f"utm_source=github.com&utm_medium=release-note&utm_campaign={campaign}"
+    )
+
+    def _sub(match: re.Match[str]) -> str:
+        url = match.group(0)
+        if "utm_" in url:
+            return url
+        sep = "&" if "?" in url else "?"
+        return f"{url}{sep}{utm_params}"
+
+    return _BERNSTEIN_URL_RE.sub(_sub, body)
+
 
 def _is_batch_summary(subject: str) -> bool:
     """Detect "Audit batch 6 (final): 9 tickets (142, 154, ...)" merge lines.
@@ -159,7 +196,8 @@ def format_notes(version: str, prev_tag: str, repo: str, commits: list[str]) -> 
     if prev_tag:
         out.append(f"**Full changelog:** https://github.com/{repo}/compare/{prev_tag}...v{version}")
 
-    return "\n".join(out).rstrip() + "\n"
+    body = "\n".join(out).rstrip() + "\n"
+    return _with_release_utm(body, version)
 
 
 def main() -> int:

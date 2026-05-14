@@ -22,7 +22,7 @@
 [![License](https://img.shields.io/github/license/sipyourdrink-ltd/bernstein)](../../LICENSE)
 [![MseeP.ai](https://img.shields.io/badge/MseeP.ai-verified-2496ed)](https://mseep.ai/app/chernistry-bernstein)
 
-[אתר](https://bernstein.run) &middot; [תיעוד](https://bernstein.readthedocs.io/) &middot; [צעדים ראשונים](../../docs/getting-started/GETTING_STARTED.md) &middot; [מילון מונחים](../../docs/reference/GLOSSARY.md) &middot; [מגבלות](../../docs/reference/KNOWN_LIMITATIONS.md)
+[אתר](https://bernstein.run?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme) &middot; [תיעוד](https://bernstein.readthedocs.io/) &middot; [צעדים ראשונים](../../docs/getting-started/GETTING_STARTED.md) &middot; [מילון מונחים](../../docs/reference/GLOSSARY.md) &middot; [מגבלות](../../docs/reference/KNOWN_LIMITATIONS.md)
 
 </div>
 
@@ -427,7 +427,7 @@ PRs מתקבלים בברכה. ראו [CONTRIBUTING.md](../../CONTRIBUTING.md) �
 
 ---
 
-נוצר באהבה על ידי [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
+נוצר באהבה על ידי [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->
 

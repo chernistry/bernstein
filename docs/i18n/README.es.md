@@ -20,7 +20,7 @@
 [![License](https://img.shields.io/github/license/sipyourdrink-ltd/bernstein)](../../LICENSE)
 [![MseeP.ai](https://img.shields.io/badge/MseeP.ai-verified-2496ed)](https://mseep.ai/app/chernistry-bernstein)
 
-[Sitio web](https://bernstein.run) &middot; [Documentación](https://bernstein.readthedocs.io/) &middot; [Primeros pasos](../../docs/getting-started/GETTING_STARTED.md) &middot; [Glosario](../../docs/reference/GLOSSARY.md) &middot; [Limitaciones](../../docs/reference/KNOWN_LIMITATIONS.md)
+[Sitio web](https://bernstein.run?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme) &middot; [Documentación](https://bernstein.readthedocs.io/) &middot; [Primeros pasos](../../docs/getting-started/GETTING_STARTED.md) &middot; [Glosario](../../docs/reference/GLOSSARY.md) &middot; [Limitaciones](../../docs/reference/KNOWN_LIMITATIONS.md)
 
 </div>
 
@@ -425,6 +425,6 @@ Listas curadas, newsletters y proyectos pares que han recogido a Bernstein:
 
 ---
 
-Hecho con cariño por [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
+Hecho con cariño por [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->

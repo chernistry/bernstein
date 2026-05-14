@@ -20,7 +20,7 @@
 [![License](https://img.shields.io/github/license/sipyourdrink-ltd/bernstein)](../../LICENSE)
 [![MseeP.ai](https://img.shields.io/badge/MseeP.ai-verified-2496ed)](https://mseep.ai/app/chernistry-bernstein)
 
-[官网](https://bernstein.run) &middot; [文档](https://bernstein.readthedocs.io/) &middot; [快速入门](../../docs/getting-started/GETTING_STARTED.md) &middot; [术语表](../../docs/reference/GLOSSARY.md) &middot; [已知限制](../../docs/reference/KNOWN_LIMITATIONS.md)
+[官网](https://bernstein.run?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme) &middot; [文档](https://bernstein.readthedocs.io/) &middot; [快速入门](../../docs/getting-started/GETTING_STARTED.md) &middot; [术语表](../../docs/reference/GLOSSARY.md) &middot; [已知限制](../../docs/reference/KNOWN_LIMITATIONS.md)
 
 </div>
 
@@ -425,6 +425,6 @@ bernstein fingerprint check src/foo.py                 # 用索引检查生成�
 
 ---
 
-由 [Alex Chernysh](https://alexchernysh.com) 倾心打造 &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
+由 [Alex Chernysh](https://alexchernysh.com) 倾心打造 &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->

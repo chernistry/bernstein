@@ -20,7 +20,7 @@
 [![License](https://img.shields.io/github/license/sipyourdrink-ltd/bernstein)](../../LICENSE)
 [![MseeP.ai](https://img.shields.io/badge/MseeP.ai-verified-2496ed)](https://mseep.ai/app/chernistry-bernstein)
 
-[Website](https://bernstein.run) &middot; [Dokumentasi](https://bernstein.readthedocs.io/) &middot; [Memulai](../../docs/getting-started/GETTING_STARTED.md) &middot; [Glosarium](../../docs/reference/GLOSSARY.md) &middot; [Keterbatasan](../../docs/reference/KNOWN_LIMITATIONS.md)
+[Website](https://bernstein.run?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme) &middot; [Dokumentasi](https://bernstein.readthedocs.io/) &middot; [Memulai](../../docs/getting-started/GETTING_STARTED.md) &middot; [Glosarium](../../docs/reference/GLOSSARY.md) &middot; [Keterbatasan](../../docs/reference/KNOWN_LIMITATIONS.md)
 
 </div>
 
@@ -425,6 +425,6 @@ Daftar terkurasi, newsletter, dan proyek sejawat yang menyorot Bernstein:
 
 ---
 
-Dibuat dengan cinta oleh [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run)
+Dibuat dengan cinta oleh [Alex Chernysh](https://alexchernysh.com) &middot; [GitHub](https://github.com/chernistry) &middot; [X](https://x.com/alex_chernysh) &middot; [bernstein.run](https://bernstein.run?utm_source=github.com&utm_medium=readme&utm_campaign=bernstein-readme)
 
 <!-- mcp-name: io.github.sipyourdrink-ltd/bernstein -->

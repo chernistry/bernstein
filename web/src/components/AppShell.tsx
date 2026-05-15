@@ -35,6 +35,13 @@ const NAV = [
   { to: '/costs', label: 'Costs', icon: DollarSign, key: 'costs' as const },
 ] as const;
 
+// Routes reachable via topbar / user-menu but not in the sidebar — used to
+// label the topbar when the user is on these screens.
+const TOPBAR_LABELS: Record<string, string> = {
+  '/fleet': 'Fleet',
+  '/settings': 'Settings',
+};
+
 interface FooterStats {
   agentsTotal: number;
   agentsRunning: number;
@@ -44,6 +51,15 @@ interface FooterStats {
   apiHealthy: boolean;
 }
 
+// Backends sometimes return a bare list, sometimes an envelope `{items: [...]}`.
+function coerceList<T>(raw: unknown): T[] {
+  if (Array.isArray(raw)) return raw as T[];
+  if (raw && typeof raw === 'object' && Array.isArray((raw as { items?: unknown }).items)) {
+    return (raw as { items: T[] }).items;
+  }
+  return [];
+}
+
 function useFooterStats(): FooterStats {
   type AgentLite = { status?: string };
   type CostsLite = { today_usd?: number; budget_usd?: number };
@@ -51,7 +67,7 @@ function useFooterStats(): FooterStats {
 
   const agentsQ = useQuery({
     queryKey: ['agents', 'list'],
-    queryFn: () => apiGet<AgentLite[]>('/agents').catch((): AgentLite[] => []),
+    queryFn: () => apiGet<unknown>('/agents').catch(() => [] as unknown),
     refetchInterval: 15_000,
   });
   const costsQ = useQuery({
@@ -66,13 +82,19 @@ function useFooterStats(): FooterStats {
       apiGet<TasksLite>('/tasks?status=pending&page_size=1').catch((): TasksLite => ({})),
     refetchInterval: 30_000,
   });
+  // Health: only count as healthy when we get a JSON object back. A 200 OK
+  // from a misconfigured proxy that returns text/html would otherwise resolve
+  // to `undefined` from apiGet and be reported as healthy.
   const healthQ = useQuery({
     queryKey: ['health', 'deps'],
-    queryFn: () => apiGet<unknown>('/health/deps').then(() => true).catch(() => false),
+    queryFn: () =>
+      apiGet<unknown>('/health/deps')
+        .then((data) => data != null && typeof data === 'object')
+        .catch(() => false),
     refetchInterval: 60_000,
   });
 
-  const agents = agentsQ.data ?? [];
+  const agents = coerceList<AgentLite>(agentsQ.data);
   return {
     agentsTotal: agents.length,
     agentsRunning: agents.filter((a) => a.status === 'running').length,
@@ -85,20 +107,48 @@ function useFooterStats(): FooterStats {
 
 function useApprovalsBadge(): number {
   type ApprovalsLite = { pending?: unknown[]; items?: unknown[] };
+  // NOTE: do not swallow errors in the queryFn — let React Query mark the
+  // query as errored so its retry/backoff machinery can recover. Otherwise a
+  // single failed first fetch would leave the badge stuck at 0 forever even
+  // when the API recovers (because returning {} looks like a successful empty
+  // response and there's nothing to retry).
   const q = useQuery({
     queryKey: ['approvals', 'queue'],
-    queryFn: () =>
-      apiGet<ApprovalsLite>('/approvals/queue').catch((): ApprovalsLite => ({})),
+    queryFn: () => apiGet<ApprovalsLite>('/approvals/queue'),
     refetchInterval: 10_000,
+    retry: 3,
   });
   return q.data?.pending?.length ?? q.data?.items?.length ?? 0;
 }
 
+function useGuiMetaLabel(): string {
+  // Was a one-shot `fetch` with no retry + no auth header — a single 401/5xx
+  // would lock the build chip on "connecting…" forever. React Query gives us
+  // exponential backoff for free, and apiGet attaches the bearer token.
+  const q = useQuery({
+    queryKey: ['gui-meta'],
+    queryFn: () => apiGet<GuiMeta>('/gui-meta'),
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30_000),
+    staleTime: 5 * 60_000,
+  });
+  if (q.data) {
+    const commit = q.data.commit ? ` · ${q.data.commit.slice(0, 7)}` : '';
+    return `v${q.data.version}${commit}`;
+  }
+  // While the very first fetch is still in flight show "connecting…"; once
+  // every retry is exhausted, fall back to "version unknown" so the chip
+  // doesn't pretend to still be working.
+  if (q.isFetching && !q.isFetched) return 'connecting…';
+  if (q.isError) return 'version unknown';
+  return 'connecting…';
+}
+
 export default function AppShell({ children }: { children: ReactNode }) {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
-  const [meta, setMeta] = useState<GuiMeta | null>(null);
+  const metaText = useGuiMetaLabel();
   const [fleetMode, setFleetMode] = useState<boolean>(
     () => typeof window !== 'undefined' && window.localStorage.getItem('bernstein-fleet-mode') === '1',
   );
@@ -109,19 +159,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const stats = useFooterStats();
 
   useEffect(() => {
-    fetch('/api/v1/gui-meta')
-      .then((r) => (r.ok ? (r.json() as Promise<GuiMeta>) : null))
-      .then(setMeta)
-      .catch(() => setMeta(null));
-  }, []);
-
-  useEffect(() => {
     if (!menuOpen) return;
     const onClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
     window.addEventListener('mousedown', onClick);
-    return () => window.removeEventListener('mousedown', onClick);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onClick);
+      window.removeEventListener('keydown', onKey);
+    };
   }, [menuOpen]);
 
   // ⌘K opens the command palette.
@@ -136,18 +186,53 @@ export default function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const current = NAV.find((n) => n.to === location.pathname);
+  // Close the palette on any route change so it doesn't stay overlaying the
+  // new screen if navigation happened from outside the palette callback.
+  useEffect(() => {
+    setPaletteOpen(false);
+    setMenuOpen(false);
+  }, [location.pathname]);
+
+  // Active-route lookup for sidebar / topbar — match either exact or nested.
+  const matchNavItem = (path: string) =>
+    NAV.find((n) => path === n.to || path.startsWith(`${n.to}/`));
+  const current = matchNavItem(location.pathname);
   const breadcrumb = useMemo<[string, string] | null>(() => {
     const segs = location.pathname.split('/').filter(Boolean);
     if (segs.length < 2) return null;
     const root = NAV.find((n) => n.to === `/${segs[0]}`);
-    return root ? [root.label, segs.slice(1).join(' / ')] : null;
+    if (!root) return null;
+    // Use just the deepest segment so deeply-nested paths don't render an
+    // unreadable "verify / abc / xyz" string.
+    const last = segs[segs.length - 1] ?? '';
+    return [root.label, last];
   }, [location.pathname]);
+
+  // Topbar title: prefer breadcrumb on nested routes, otherwise fall back to
+  // the matched NAV label, the well-known TOPBAR_LABELS mapping, or the
+  // capitalised first segment so screens like /fleet and /settings aren't
+  // rendered with a blank header.
+  const topbarLabel = useMemo(() => {
+    if (current) return current.label;
+    const seg = location.pathname.split('/').filter(Boolean)[0] ?? '';
+    if (!seg) return '';
+    const known = TOPBAR_LABELS[`/${seg}`];
+    if (known) return known;
+    return seg.charAt(0).toUpperCase() + seg.slice(1);
+  }, [current, location.pathname]);
 
   const toggleFleet = () => {
     const next = !fleetMode;
     setFleetMode(next);
     window.localStorage.setItem('bernstein-fleet-mode', next ? '1' : '0');
+    // Actually re-route: enabling Fleet should jump to the fleet view; turning
+    // it off from the fleet screen returns the operator to the default Tasks
+    // view. From any other screen we leave the user where they are.
+    if (next) {
+      if (location.pathname !== '/fleet') navigate('/fleet');
+    } else if (location.pathname === '/fleet') {
+      navigate('/tasks');
+    }
   };
 
   return (
@@ -182,6 +267,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                       ? 'bg-card text-foreground font-medium'
                       : 'text-muted-foreground hover:text-foreground hover:bg-card/60',
                   )}
+                  aria-current={active ? 'page' : undefined}
                 >
                   <Icon className="size-3.5 shrink-0" strokeWidth={1.5} />
                   <span className="flex-1">{item.label}</span>
@@ -207,7 +293,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               )}
               title={stats.apiHealthy ? 'API healthy' : 'API degraded'}
             />
-            {meta ? `v${meta.version} · ${meta.commit.slice(0, 7)}` : 'connecting…'}
+            {metaText}
           </div>
         </aside>
 
@@ -223,9 +309,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   <span className="text-foreground font-medium">{breadcrumb[1]}</span>
                 </div>
               ) : (
-                <div className="text-[15px] font-semibold -tracking-[0.005em]">
-                  {current?.label ?? ''}
-                </div>
+                <div className="text-[15px] font-semibold -tracking-[0.005em]">{topbarLabel}</div>
               )}
             </div>
 
@@ -284,6 +368,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   className="size-8 grid place-items-center rounded-md bg-card border border-border text-muted-foreground hover:text-foreground"
                   aria-label="User menu"
                   aria-expanded={menuOpen}
+                  aria-haspopup="menu"
                 >
                   <User className="size-3.5" strokeWidth={1.5} />
                 </button>
@@ -295,15 +380,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     <button
                       type="button"
                       role="menuitem"
-                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                      onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
                       className="w-full flex items-center gap-3 px-3 py-2 text-[13px] text-popover-foreground hover:bg-secondary text-left"
                     >
-                      {theme === 'dark' ? (
+                      {resolvedTheme === 'dark' ? (
                         <Sun className="size-3.5" strokeWidth={1.5} />
                       ) : (
                         <Moon className="size-3.5" strokeWidth={1.5} />
                       )}
-                      {theme === 'dark' ? 'Light theme' : 'Dark theme'}
+                      {resolvedTheme === 'dark' ? 'Light theme' : 'Dark theme'}
                     </button>
                     <Link
                       to="/settings"
@@ -331,7 +416,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                     </button>
                     <div className="border-t border-border-subtle my-1" />
                     <div className="px-3 py-2 text-[10.5px] text-meta-foreground font-mono">
-                      {meta ? `v${meta.version} · ${meta.commit.slice(0, 7)}` : 'connecting…'}
+                      {metaText}
                     </div>
                   </div>
                 )}
@@ -391,8 +476,7 @@ function FooterBar({ stats }: { stats: FooterStats }) {
           )}
         </span>
         <span>
-          queue · <span className="tabular-nums">{stats.queueDepth ?? '—'}</span>{' '}
-          {stats.queueDepth === 1 ? 'pending' : 'pending'}
+          queue · <span className="tabular-nums">{stats.queueDepth ?? '—'}</span> pending
         </span>
       </div>
     </footer>

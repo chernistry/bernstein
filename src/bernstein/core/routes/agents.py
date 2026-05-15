@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException, Request
 from starlette.responses import StreamingResponse
@@ -25,6 +25,79 @@ _POLL_INTERVAL = 1.0
 
 def _runtime_dir(request: Request) -> Path:
     return request.app.state.runtime_dir  # type: ignore[no-any-return]
+
+
+# ---------------------------------------------------------------------------
+# GET /agents — list of all known agent sessions (web GUI list view)
+# ---------------------------------------------------------------------------
+
+
+def _task_store(request: Request) -> Any:
+    return request.app.state.store
+
+
+@router.get("/agents")
+def list_agents(request: Request) -> list[dict[str, Any]]:
+    """Return a flat list of agent sessions for the web GUI grid.
+
+    Serializes ``TaskStore.agents()`` into a JSON-friendly shape that
+    matches the Agents screen's expectations (status, role, duration,
+    tokens, current task title).
+    """
+    import time as _time
+
+    store = _task_store(request)
+    # ``agents`` is a @property on TaskStore returning dict[str, AgentSession].
+    sessions = getattr(store, "agents", {}) or {}
+
+    now = _time.time()
+    out: list[dict[str, Any]] = []
+    for sid, s in sessions.items():
+        spawn_ts = getattr(s, "spawn_ts", 0.0) or 0.0
+        duration_ms = max(0, int((now - spawn_ts) * 1000)) if spawn_ts else None
+        task_ids = list(getattr(s, "task_ids", []) or [])
+        current_task_title: str | None = None
+        if task_ids and hasattr(store, "get_task"):
+            try:
+                t = store.get_task(task_ids[0])
+                if t is not None:
+                    current_task_title = getattr(t, "title", None)
+            except Exception:
+                current_task_title = None
+        out.append(
+            {
+                "id": sid,
+                "session_id": sid,
+                "role": getattr(s, "role", ""),
+                "status": getattr(s, "status", "starting"),
+                "spawn_ts": spawn_ts,
+                "heartbeat_ts": getattr(s, "heartbeat_ts", 0.0),
+                "duration_ms": duration_ms,
+                "tokens_used": getattr(s, "tokens_used", 0),
+                "tokens_in": getattr(s, "tokens_used", 0),
+                "tokens_out": 0,
+                "context_utilization_pct": getattr(s, "context_utilization_pct", 0.0),
+                "task_ids": task_ids,
+                "current_task_id": task_ids[0] if task_ids else None,
+                "current_task_title": current_task_title,
+                "model": getattr(getattr(s, "model_config", None), "name", None),
+                "provider": getattr(s, "provider", None),
+                "cost_usd": 0.0,
+                "exit_code": getattr(s, "exit_code", None),
+            }
+        )
+    return out
+
+
+# ---------------------------------------------------------------------------
+# GET /agents/comparison — placeholder for compare-two view (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/agents/comparison")
+def agents_comparison(request: Request) -> dict[str, Any]:
+    """Placeholder comparison endpoint — returns the same shape as `/agents`."""
+    return {"agents": list_agents(request)}
 
 
 # ---------------------------------------------------------------------------

@@ -135,3 +135,53 @@ async def query_audit_log(
         "page": page,
         "page_size": page_size,
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /audit/verify — chain integrity status (web GUI banner)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/audit/verify")
+def audit_verify(_request: Request) -> dict[str, Any]:
+    """Lightweight HMAC chain integrity probe for the web GUI banner.
+
+    Walks ``.sdd/audit/*.jsonl`` events; returns the last event id, total
+    walked, and a chain-status string. Full Sigstore / Merkle reconciliation
+    happens elsewhere — this endpoint exists so the GUI banner has something
+    to render and is not a substitute for the lineage-v1 verifier CLI.
+    """
+    audit_dir = Path(".sdd/audit")
+    events: list[dict[str, Any]] = []
+    if audit_dir.is_dir():
+        for log_file in sorted(audit_dir.glob("*.jsonl")):
+            try:
+                for line in log_file.read_text().splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        events.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+            except OSError:
+                continue
+
+    head_id: str | None = None
+    head_hash: str | None = None
+    last_ts: str | None = None
+    if events:
+        last = events[-1]
+        head_id = str(last.get("id", "")) or None
+        head_hash = str(last.get("hash", last.get("sha", ""))) or None
+        last_ts = str(last.get("ts", last.get("timestamp", ""))) or None
+
+    return {
+        "status": "verified" if events else "empty",
+        "head_id": head_id,
+        "head_hash": head_hash,
+        "last_verified_ts": last_ts,
+        "walked": len(events),
+        "sigstore_anchor": None,
+        "rotated_chunk": None,
+    }

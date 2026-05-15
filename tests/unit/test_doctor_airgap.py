@@ -224,9 +224,18 @@ def test_run_doctor_airgap_returns_zero_on_pass(
     assert rc == 0
 
 
-def test_run_doctor_airgap_returns_one_on_fail(lax_env: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_run_doctor_airgap_returns_one_on_fail(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """The renderer returns non-zero when a FAIL is present.
+
+    The bughunt 2026-05-15 standalone fix makes the doctor self-activate
+    airgap defaults when env vars are absent, so to trigger a FAIL we
+    set ``BERNSTEIN_NETWORK_POLICY=any`` explicitly — that is a real
+    "the operator overrode the airgap default with allow-all" condition
+    the doctor must surface.
+    """
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.setenv(ENV_NETWORK_POLICY, "any")
     rc = run_doctor_airgap(workdir=tmp_path, as_json=False)
     assert rc == 1
 
@@ -243,12 +252,47 @@ def test_doctor_airgap_cli_invokes_subcommand(
     assert "PASSED" in result.output
 
 
-def test_doctor_airgap_cli_fails_outside_profile(
+def test_doctor_airgap_cli_passes_standalone_without_env(
     lax_env: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    """Bughunt 2026-05-15: standalone pre-flight must succeed without pre-set env vars.
+
+    Before the fix, invoking ``bernstein doctor airgap`` outside a live
+    ``bernstein run --profile airgap`` reported FAIL on profile-active,
+    deny-all and (originally) socket-guard rows even when the host was
+    clean — the four spec-mandated green checks could not be produced.
+
+    Post-fix, the renderer activates the airgap env vars for the
+    duration of the battery (option A extended to all three checks),
+    so a clean host reports PASSED and exits 0. The user-facing notice
+    in the output tells the operator the activation was simulated.
+    """
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(doctor_group, ["airgap"])
+    assert result.exit_code == 0, result.output
+    assert "PASSED" in result.output
+    assert "simulated" in result.output.lower()
+
+
+def test_doctor_airgap_cli_fails_when_operator_opts_into_allow_all(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """If the operator has already chosen ``--allow-network any`` we must NOT silently fix it.
+
+    The doctor's simulated-airgap context manager only fills in env
+    vars when they are absent. When the operator has explicitly opted
+    out of airgap (``BERNSTEIN_NETWORK_POLICY=any``) the doctor must
+    keep their choice and report the real FAIL state.
+    """
+    monkeypatch.delenv(ENV_PROFILE_MODE, raising=False)
+    monkeypatch.setenv(ENV_NETWORK_POLICY, "any")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    monkeypatch.chdir(tmp_path)
+    uninstall_runtime_socket_guard()
     runner = CliRunner()
     result = runner.invoke(doctor_group, ["airgap"])
     assert result.exit_code == 1

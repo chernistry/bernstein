@@ -10,8 +10,6 @@ import {
   Cell,
   ResponsiveContainer,
   Tooltip,
-  XAxis,
-  YAxis,
 } from 'recharts';
 
 import { apiGet, ApiError } from '@/lib/api';
@@ -22,23 +20,37 @@ import { cn } from '@/lib/utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types — match server contract documented in handoff §6.05.
+// The live backend (release ≤1.9) uses a slightly different shape than the
+// Variant A spec; we tolerate both via `normalizeCurrent` / `normalizeHistory`.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface CostsCurrent {
   today_usd: number;
   week_usd: number;
   projected_month_usd: number;
-  budget_usd: number;
-  used_pct: number;
+  budget_usd: number | null;
+  used_pct: number | null;
   prior_week_usd?: number;
   delta_hour_usd?: number;
   resets_at?: string;
   last_sync_at?: string;
 }
 
+/** Raw shape returned by `/api/v1/costs/current` on the current backend. */
+interface CostsCurrentRaw extends Partial<CostsCurrent> {
+  spent_usd?: number;
+  percentage_used?: number;
+  timestamp?: number;
+}
+
 interface CostsHistoryPoint {
   ts: string;
   usd: number;
+}
+
+/** Raw history wrapper returned by `/api/v1/costs/history`. */
+interface CostsHistoryRaw {
+  history?: CostsHistoryPoint[];
 }
 
 interface CostsAdapterRow {
@@ -63,40 +75,91 @@ interface CostsTopTask {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Normalisers — defend against live-backend shape drift (BUG #6, #11, #12).
+// ─────────────────────────────────────────────────────────────────────────────
+
+function normalizeCurrent(raw: unknown): CostsCurrent | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as CostsCurrentRaw;
+  const today = r.today_usd ?? r.spent_usd;
+  if (today == null) return undefined;
+  const usedPct =
+    r.used_pct ?? (typeof r.percentage_used === 'number' ? r.percentage_used : null);
+  const budget = r.budget_usd ?? null;
+  const lastSync =
+    r.last_sync_at ??
+    (typeof r.timestamp === 'number' && Number.isFinite(r.timestamp)
+      ? new Date(r.timestamp * 1000).toISOString()
+      : undefined);
+  return {
+    today_usd: today,
+    week_usd: r.week_usd ?? today,
+    projected_month_usd: r.projected_month_usd ?? today * 30,
+    budget_usd: budget,
+    used_pct: usedPct,
+    prior_week_usd: r.prior_week_usd,
+    delta_hour_usd: r.delta_hour_usd,
+    resets_at: r.resets_at,
+    last_sync_at: lastSync,
+  };
+}
+
+function normalizeHistory(raw: unknown): CostsHistoryPoint[] {
+  if (Array.isArray(raw)) return raw as CostsHistoryPoint[];
+  if (raw && typeof raw === 'object') {
+    const wrapped = (raw as CostsHistoryRaw).history;
+    if (Array.isArray(wrapped)) return wrapped;
+  }
+  return [];
+}
+
+function normalizeRows<T>(raw: unknown): T[] {
+  if (Array.isArray(raw)) return raw as T[];
+  return [];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Costs() {
   const qc = useQueryClient();
 
-  const current = useQuery<CostsCurrent>({
+  const current = useQuery<CostsCurrent | undefined>({
     queryKey: ['costs', 'current'],
-    queryFn: () => apiGet<CostsCurrent>('/costs/current'),
+    queryFn: async () => normalizeCurrent(await apiGet<unknown>('/costs/current')),
     refetchInterval: 60_000,
   });
 
   const history = useQuery<CostsHistoryPoint[]>({
     queryKey: ['costs', 'history'],
-    queryFn: () =>
-      apiGet<CostsHistoryPoint[]>('/costs/history?hours=24&granularity=hour'),
+    queryFn: async () =>
+      normalizeHistory(await apiGet<unknown>('/costs/history?hours=24&granularity=hour')),
     refetchInterval: 60_000,
   });
 
   const breakdown = useQuery<CostsAdapterRow[]>({
     queryKey: ['costs', 'breakdown'],
-    queryFn: () => apiGet<CostsAdapterRow[]>('/costs/by-tag'),
+    queryFn: async () => normalizeRows<CostsAdapterRow>(await apiGet<unknown>('/costs/by-tag')),
     refetchInterval: 120_000,
+    retry: false, // live backend can 500 when no data — show EmptyState fast (BUG #3)
   });
 
   const topTasks = useQuery<CostsTopTask[]>({
     queryKey: ['costs', 'top-tasks'],
-    queryFn: () => apiGet<CostsTopTask[]>('/costs/top-tasks?limit=10'),
+    queryFn: async () =>
+      normalizeRows<CostsTopTask>(await apiGet<unknown>('/costs/top-tasks?limit=10')),
     refetchInterval: 120_000,
+    retry: false,
   });
 
-  const forecast = useQuery<CostsForecast>({
+  const forecast = useQuery<CostsForecast | undefined>({
     queryKey: ['costs', 'forecast'],
-    queryFn: () => apiGet<CostsForecast>('/costs/forecast'),
+    queryFn: async () => {
+      const raw = await apiGet<unknown>('/costs/forecast');
+      if (!raw || typeof raw !== 'object') return undefined;
+      return raw as CostsForecast;
+    },
     refetchInterval: 300_000,
     retry: false,
   });
@@ -161,6 +224,7 @@ export default function Costs() {
         <AdapterCard
           rows={breakdown.data}
           loading={breakdown.isLoading}
+          fetched={breakdown.isFetched}
           error={
             breakdown.isError
               ? breakdown.error instanceof ApiError
@@ -174,6 +238,7 @@ export default function Costs() {
         <TopTasksCard
           rows={topTasks.data}
           loading={topTasks.isLoading}
+          fetched={topTasks.isFetched}
           error={
             topTasks.isError
               ? topTasks.error instanceof ApiError
@@ -260,13 +325,21 @@ function KpiRow({ data, forecast, loading }: KpiRowProps) {
     );
   }
 
-  const usedPct = clampPct(data.used_pct);
-  const gaugeColor =
-    usedPct >= 90 ? 'bg-destructive' : usedPct >= 60 ? 'bg-warning' : 'bg-success';
+  // BUG #2: budget gauge NaN% when budget_usd is null → render `—` and grey bar.
+  const hasBudget =
+    data.budget_usd != null && Number.isFinite(data.budget_usd) && data.budget_usd > 0;
+  const usedPct = hasBudget ? clampPct(data.used_pct) : 0;
+  const gaugeColor = !hasBudget
+    ? 'bg-border'
+    : usedPct >= 90
+      ? 'bg-destructive'
+      : usedPct >= 60
+        ? 'bg-warning'
+        : 'bg-success';
 
   const deltaHour = data.delta_hour_usd;
   const todaySub =
-    deltaHour != null
+    deltaHour != null && Number.isFinite(deltaHour)
       ? `${deltaHour >= 0 ? '+' : '−'}${formatUSD(Math.abs(deltaHour))} since hour ago`
       : 'live tick · 6/min';
 
@@ -284,11 +357,14 @@ function KpiRow({ data, forecast, loading }: KpiRowProps) {
         }`
       : 'rolling 7-day window';
 
+  // BUG #15: monthSub guarded against budget_usd null/0 → no NaN comparison.
   const monthSub =
     forecast?.trend_label ??
-    (data.projected_month_usd <= data.budget_usd * 30
-      ? 'trend within budget'
-      : 'trending above budget');
+    (hasBudget
+      ? data.projected_month_usd <= (data.budget_usd as number) * 30
+        ? 'trend within budget'
+        : 'trending above budget'
+      : 'no monthly budget set');
 
   const resets = data.resets_at ? `resets ${formatResetsAt(data.resets_at)}` : 'resets 04:00 UTC';
 
@@ -324,16 +400,18 @@ function KpiRow({ data, forecast, loading }: KpiRowProps) {
       <KpiCardShell label="daily budget">
         <div className="text-stat-lg font-mono tabular-nums text-accent">
           {formatUSD(data.today_usd)}{' '}
-          <span className="text-meta-foreground">/ {formatUSD(data.budget_usd)}</span>
+          <span className="text-meta-foreground">
+            / {hasBudget ? formatUSD(data.budget_usd) : '—'}
+          </span>
         </div>
         <div className="mt-2 h-[5px] w-full overflow-hidden rounded-sm bg-border-subtle">
           <div
             className={cn('h-full rounded-sm transition-[width]', gaugeColor)}
-            style={{ width: `${usedPct}%` }}
+            style={{ width: `${hasBudget ? usedPct : 0}%` }}
           />
         </div>
         <div className="mt-1.5 font-mono text-[11px] tabular-nums text-meta-foreground">
-          {usedPct.toFixed(0)}% used · {resets}
+          {hasBudget ? `${usedPct.toFixed(0)}% used` : '— used'} · {resets}
         </div>
       </KpiCardShell>
     </div>
@@ -358,7 +436,7 @@ function KpiCardShell({
 }
 
 function clampPct(n: number | null | undefined): number {
-  if (n == null || Number.isNaN(n)) return 0;
+  if (n == null || Number.isNaN(n) || !Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(100, n));
 }
 
@@ -382,13 +460,16 @@ interface SparklineCardProps {
 }
 
 function SparklineCard({ data, loading, error, refetch }: SparklineCardProps) {
+  // BUG #1: guard against non-array / null `data` defensively.
   const series = useMemo(() => {
-    if (!data) return [];
-    return data.map((p, i) => ({
-      ts: p.ts,
-      usd: p.usd,
-      isLast: i === data.length - 1,
-    }));
+    if (!Array.isArray(data) || data.length === 0) return [];
+    return data
+      .filter((p) => p && typeof p.usd === 'number' && Number.isFinite(p.usd))
+      .map((p, i, arr) => ({
+        ts: p.ts,
+        usd: p.usd,
+        isLast: i === arr.length - 1,
+      }));
   }, [data]);
 
   const total = useMemo(
@@ -418,8 +499,9 @@ function SparklineCard({ data, loading, error, refetch }: SparklineCardProps) {
               <span className="text-stat-lg font-mono tabular-nums text-foreground">
                 {formatUSD(total)}
               </span>
-              {peak && (
-                <span className="font-mono text-[11px] tabular-nums text-success">
+              {peak && peak.usd > 0 && (
+                // BUG #14: peak is informational, not a "good" event — neutral colour.
+                <span className="font-mono text-[11px] tabular-nums text-meta-foreground">
                   ↑ peak {peakLabel} · {formatUSD(peak.usd)}/hr
                 </span>
               )}
@@ -430,13 +512,19 @@ function SparklineCard({ data, loading, error, refetch }: SparklineCardProps) {
       </header>
 
       {loading ? (
-        <div className="h-16 w-full animate-pulse rounded-sm bg-muted/40" />
+        <div className="h-24 w-full animate-pulse rounded-sm bg-muted/40" />
       ) : error ? (
         <ErrorState message={error} retry={refetch} />
       ) : series.length === 0 ? (
-        <EmptyState title="No data" description="No cost ticks recorded for the last 24h." />
+        // BUG #1 follow-on: render placeholder of the same height instead of crashing
+        // the BarChart with an empty series.
+        <EmptyState
+          title="No data yet"
+          description="No cost ticks recorded for the last 24h."
+        />
       ) : (
         <>
+          {/* BUG #5: explicit fixed-height parent so ResponsiveContainer can resolve. */}
           <div className="h-24 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -450,8 +538,8 @@ function SparklineCard({ data, loading, error, refetch }: SparklineCardProps) {
                   vertical={false}
                   horizontalPoints={[18, 36, 54]}
                 />
-                <XAxis dataKey="ts" hide />
-                <YAxis hide />
+                {/* BUG #10: hidden XAxis/YAxis components were dead weight; drop them.
+                    Recharts will infer scales from <Bar dataKey>. */}
                 <Tooltip
                   cursor={{ fill: 'hsl(var(--muted) / 0.4)' }}
                   contentStyle={{
@@ -463,7 +551,10 @@ function SparklineCard({ data, loading, error, refetch }: SparklineCardProps) {
                     color: 'hsl(var(--foreground))',
                     padding: '6px 8px',
                   }}
-                  labelFormatter={(label) => formatHourLabel(String(label))}
+                  labelFormatter={(_label, payload) => {
+                    const ts = payload?.[0]?.payload?.ts;
+                    return ts ? formatHourLabel(String(ts)) : '';
+                  }}
                   formatter={(value) => [formatUSD(Number(value)), 'spend']}
                   separator=" "
                 />
@@ -487,11 +578,12 @@ function SparklineCard({ data, loading, error, refetch }: SparklineCardProps) {
               </BarChart>
             </ResponsiveContainer>
           </div>
+          {/* BUG #9: middle hour markers overlap on small viewports — hide them <sm. */}
           <div className="mt-1 flex justify-between font-mono text-[10px] tabular-nums text-meta-foreground">
             <span>−24h</span>
-            <span>−18h</span>
-            <span>−12h</span>
-            <span>−6h</span>
+            <span className="hidden sm:inline">−18h</span>
+            <span className="hidden sm:inline">−12h</span>
+            <span className="hidden sm:inline">−6h</span>
             <span>now</span>
           </div>
         </>
@@ -515,15 +607,25 @@ function formatHourLabel(iso: string): string {
 interface AdapterCardProps {
   rows: CostsAdapterRow[] | undefined;
   loading: boolean;
+  fetched: boolean;
   error: string | null;
   refetch: () => void;
   totalToday: number | undefined;
 }
 
-function AdapterCard({ rows, loading, error, refetch, totalToday }: AdapterCardProps) {
+function AdapterCard({
+  rows,
+  loading,
+  fetched,
+  error,
+  refetch,
+  totalToday,
+}: AdapterCardProps) {
+  // BUG #3: distinguish "loading" from "fetched-but-no-rows".
+  const safeRows = Array.isArray(rows) ? rows : [];
   const headerRight =
-    rows && rows.length > 0 && totalToday != null
-      ? `${formatUSD(totalToday)} across ${formatCount(rows.length)} adapters`
+    safeRows.length > 0 && totalToday != null
+      ? `${formatUSD(totalToday)} across ${formatCount(safeRows.length)} adapters`
       : 'Drill down · Export breakdown';
 
   return (
@@ -543,9 +645,16 @@ function AdapterCard({ rows, loading, error, refetch, totalToday }: AdapterCardP
         <div className="p-4">
           <ErrorState message={error} retry={refetch} />
         </div>
-      ) : !rows || rows.length === 0 ? (
+      ) : fetched && safeRows.length === 0 ? (
         <div className="p-4">
-          <EmptyState title="No data" description="No adapter spend recorded yet." />
+          <EmptyState
+            title="No adapter spend yet"
+            description="Adapter cost rows will appear once agents have run."
+          />
+        </div>
+      ) : safeRows.length === 0 ? (
+        <div className="p-4">
+          <LoadingState rows={6} />
         </div>
       ) : (
         <table className="w-full border-collapse">
@@ -560,8 +669,8 @@ function AdapterCard({ rows, loading, error, refetch, totalToday }: AdapterCardP
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
-              <AdapterRow key={r.adapter} row={r} />
+            {safeRows.map((r, i) => (
+              <AdapterRow key={`${r.adapter}-${i}`} row={r} />
             ))}
           </tbody>
         </table>
@@ -572,15 +681,20 @@ function AdapterCard({ rows, loading, error, refetch, totalToday }: AdapterCardP
 
 function AdapterRow({ row }: { row: CostsAdapterRow }) {
   const share = clampPct(row.share_pct);
-  const delta = row.delta_7d_pct ?? 0;
+  const delta = Number.isFinite(row.delta_7d_pct) ? row.delta_7d_pct : 0;
   const deltaLabel =
     delta === 0 ? '±0%' : `${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(0)}%`;
+  // BUG #4: spec — drop = green, rose >+20% = warning, rose >+50% = destructive.
+  // Original code matched the inversion direction but lacked the upper destructive
+  // band; without it a runaway adapter looks indistinguishable from "minor uptick".
   const deltaColor =
     delta < 0
       ? 'text-success'
-      : delta > 20
-        ? 'text-warning'
-        : 'text-meta-foreground';
+      : delta > 50
+        ? 'text-destructive'
+        : delta > 20
+          ? 'text-warning'
+          : 'text-meta-foreground';
 
   return (
     <tr className="border-b border-border-subtle last:border-b-0">
@@ -674,11 +788,13 @@ function Td({
 interface TopTasksCardProps {
   rows: CostsTopTask[] | undefined;
   loading: boolean;
+  fetched: boolean;
   error: string | null;
   refetch: () => void;
 }
 
-function TopTasksCard({ rows, loading, error, refetch }: TopTasksCardProps) {
+function TopTasksCard({ rows, loading, fetched, error, refetch }: TopTasksCardProps) {
+  const safeRows = Array.isArray(rows) ? rows : [];
   return (
     <div className="overflow-hidden rounded-md border border-border bg-card">
       <header className="flex items-center justify-between border-b border-border px-4 py-2.5">
@@ -696,15 +812,24 @@ function TopTasksCard({ rows, loading, error, refetch }: TopTasksCardProps) {
         <div className="p-4">
           <ErrorState message={error} retry={refetch} />
         </div>
-      ) : !rows || rows.length === 0 ? (
+      ) : fetched && safeRows.length === 0 ? (
+        // BUG #7: top-10 needs an EmptyState only when fetched returned 0 rows.
         <div className="p-4">
-          <EmptyState title="No data" description="No task spend recorded yet." />
+          <EmptyState
+            title="No top-tasks yet"
+            description="Per-task spend appears once agents emit cost rows."
+          />
+        </div>
+      ) : safeRows.length === 0 ? (
+        <div className="p-4">
+          <LoadingState rows={6} />
         </div>
       ) : (
         <ol className="divide-y divide-border-subtle">
-          {rows.slice(0, 10).map((t, i) => (
+          {safeRows.slice(0, 10).map((t, i) => (
+            // BUG #13: fall back to index when ids collide / are missing.
             <li
-              key={t.id}
+              key={t.id ? `${t.id}-${i}` : `task-${i}`}
               className="grid grid-cols-[28px_1fr_auto] items-center gap-3 px-4 py-2.5"
             >
               <span className="font-mono text-[10.5px] tabular-nums text-meta-foreground">

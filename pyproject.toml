@@ -168,6 +168,12 @@ telegram = ["python-telegram-bot>=22.7"]
 # datasets unless the operator opts into the nightly leaderboard path.
 # Enable with: pip install 'bernstein[eval]'
 eval = ["datasets>=4.8.5", "huggingface-hub>=0.24"]
+# Web GUI (Vite + React SPA + FastAPI mount). Static assets ship with the
+# wheel under src/bernstein/gui/static/ (see artifacts). Python deps stay
+# minimal so TUI users keep zero overhead. Enable with:
+#   pip install 'bernstein[gui]'
+# then: bernstein gui serve
+gui = ["sse-starlette>=2.1.0"]
 
 [project.scripts]
 bernstein = "bernstein.cli.main:cli"
@@ -256,6 +262,9 @@ packages = ["src/bernstein"]
 # override path .sdd/eval/golden/<tier>/*.md is still consulted first.
 artifacts = [
     "src/bernstein/eval/golden_data/**/*.md",
+    # Web GUI built assets — Vite output committed to the package tree so
+    # the wheel ships pre-built. Rebuild with: cd web && npm run build.
+    "src/bernstein/gui/static/**/*",
 ]
 
 [tool.hatch.build.targets.wheel.force-include]

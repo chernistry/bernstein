@@ -839,6 +839,17 @@ def exec_restart() -> None:
     help="Show scheduling plan without executing: which agent/model/tier each task would be assigned to.",
 )
 @click.option(
+    "--idle",
+    is_flag=True,
+    default=False,
+    help=(
+        "GUI-dev mode: force every adapter to ``mock`` and have each spawned "
+        "agent sleep for BERNSTEIN_MOCK_IDLE_MIN_S..MAX_S seconds (default 15-120) "
+        "instead of calling an LLM. Zero token spend — used to populate the web "
+        "GUI with live state. Mutually exclusive with --dry-run."
+    ),
+)
+@click.option(
     "--cprofile",
     "cprofile",
     is_flag=True,
@@ -928,6 +939,7 @@ def run(
     allow_paid: bool = False,
     ab_test: bool = False,
     dry_run: bool = False,
+    idle: bool = False,
     cprofile: bool = False,
     run_profile: str | None = None,
     allow_network: tuple[str, ...] = (),
@@ -1002,6 +1014,21 @@ def run(
         skip_gate=skip_gate,
         skip_gate_reason=skip_gate_reason,
     )
+
+    # --idle: GUI-development mode — force mock adapter + idle behavior on every spawn.
+    if idle:
+        if dry_run:
+            raise click.UsageError("--idle and --dry-run are mutually exclusive.")
+        os.environ["BERNSTEIN_MOCK_IDLE"] = "1"
+        # Force mock adapter regardless of seed/config. ``cli`` is the
+        # already-bound override forwarded into bootstrap; if not set, we
+        # inject "mock" so the seed's adapter pick is overridden.
+        if cli is None:
+            cli = "mock"
+        click.echo(
+            "Bernstein --idle mode: every agent will be spawned via the mock adapter and sleep "
+            "BERNSTEIN_MOCK_IDLE_MIN_S..MAX_S seconds (default 15-120). Zero LLM spend."
+        )
 
     # --dry-run: show scheduling plan without executing
     if dry_run:

@@ -753,6 +753,12 @@ cli.add_command(cache_group, "cache")
 cli.add_command(eval_group)
 cli.add_command(dashboard)
 cli.add_command(live)
+# Web GUI subcommand. The group itself ships with core (so `bernstein gui --help`
+# always works); `bernstein gui serve` performs a runtime check for the [gui]
+# extra and exits with a friendly install hint when missing.
+from bernstein.gui.cli import gui_group as _gui_group  # noqa: E402
+
+cli.add_command(_gui_group)
 cli.add_command(trace_cmd, "trace")
 cli.add_command(replay_cmd, "replay")
 cli.add_command(github_group)

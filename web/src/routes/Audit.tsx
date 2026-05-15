@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet } from '@/lib/api';
 import { formatCount, formatRelative, truncateHash } from '@/lib/format';
 import {
   EmptyState,
@@ -25,12 +25,12 @@ import {
 import { cn } from '@/lib/utils';
 
 type AuditEvent = {
-  id: string;
+  id?: string | null;
   ts: string;
   actor: string;
   action: string;
   resource: string;
-  hash: string;
+  hash?: string | null;
   prev_hash?: string | null;
   chain_status?: 'verified' | 'rebuilt' | 'broken';
   event_type?: string;
@@ -43,21 +43,18 @@ type AuditPage = {
   page_size: number;
 };
 
+// Backend response shape (GET /audit/verify):
+//   { status, head_id, head_hash, last_verified_ts, walked, sigstore_anchor, rotated_chunk }
+// `head_id`/`head_hash`/`last_verified_ts`/`sigstore_anchor`/`rotated_chunk` may be null
+// when the chain is empty (`status === 'empty'`).
 type ChainVerify = {
-  status: 'verified' | 'rebuilt' | 'broken';
-  head_id: string;
-  head_hash: string;
-  total_entries: number;
-  last_verified_at: string;
-  walked_from?: string | null;
-  walked_to?: string | null;
-  rotated_at?: string | null;
-  rotated_chunk?: number | null;
-  sigstore?: {
-    status: 'ok' | 'pending' | 'missing';
-    rekor_log_index?: number | null;
-    rekor_uuid?: string | null;
-  } | null;
+  status: 'verified' | 'rebuilt' | 'broken' | 'empty';
+  head_id: string | number | null;
+  head_hash: string | null;
+  last_verified_ts: string | null;
+  walked: number | null;
+  sigstore_anchor: string | null;
+  rotated_chunk: number | null;
 };
 
 const PAGE_SIZE_DEFAULT = 25;
@@ -65,6 +62,23 @@ const OPERATOR_PREFIX = 'operator';
 
 function isOperator(actor: string): boolean {
   return actor.toLowerCase().startsWith(OPERATOR_PREFIX);
+}
+
+/**
+ * Convert a `<input type="datetime-local">` value (local wall-clock, no zone)
+ * to a UTC ISO string the backend expects. Returns `null` for empty/invalid.
+ */
+function localDateTimeToUtcIso(local: string | null | undefined): string | null {
+  if (!local) return null;
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+/** Coerce arbitrary value to a hash-display-safe string before truncating. */
+function safeHash(s: unknown, head = 8): string {
+  if (s == null) return '—';
+  return truncateHash(String(s), head);
 }
 
 function buildAuditPath(params: URLSearchParams): string {
@@ -97,15 +111,23 @@ export default function Audit() {
   const [fromInput, setFromInput] = useState(searchParams.get('from') ?? '');
   const [toInput, setToInput] = useState(searchParams.get('to') ?? '');
 
+  // Re-sync local form state ONLY when filter params themselves change in the URL
+  // (e.g. external nav, deep-link). Pagination changes (page/page_size) must not
+  // wipe an input the user is currently typing.
+  const urlSearch = searchParams.get('search') ?? '';
+  const urlActor = searchParams.get('actor') ?? '';
+  const urlAction = searchParams.get('event_type') ?? '';
+  const urlFrom = searchParams.get('from') ?? '';
+  const urlTo = searchParams.get('to') ?? '';
   useEffect(() => {
-    setSearchInput(searchParams.get('search') ?? '');
-    setActorInput(searchParams.get('actor') ?? '');
-    setActionInput(searchParams.get('event_type') ?? '');
-    setFromInput(searchParams.get('from') ?? '');
-    setToInput(searchParams.get('to') ?? '');
-  }, [searchParams]);
+    setSearchInput(urlSearch);
+    setActorInput(urlActor);
+    setActionInput(urlAction);
+    setFromInput(urlFrom);
+    setToInput(urlTo);
+  }, [urlSearch, urlActor, urlAction, urlFrom, urlTo]);
 
-  // Close export dropdown on outside click.
+  // Close export dropdown on outside click or Escape.
   useEffect(() => {
     if (!exportMenuOpen) return;
     const onClick = (e: MouseEvent) => {
@@ -113,8 +135,15 @@ export default function Audit() {
         setExportMenuOpen(false);
       }
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExportMenuOpen(false);
+    };
     window.addEventListener('mousedown', onClick);
-    return () => window.removeEventListener('mousedown', onClick);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onClick);
+      window.removeEventListener('keydown', onKey);
+    };
   }, [exportMenuOpen]);
 
   const path = useMemo(() => buildAuditPath(searchParams), [searchParams]);
@@ -131,14 +160,13 @@ export default function Audit() {
     refetchInterval: 60_000,
   });
 
+  // Backend `/audit/verify` only accepts GET — re-verification is just a refetch
+  // (the server walks the chain on every request). POST returned 405.
   const reverifyMutation = useMutation({
-    mutationFn: (chunk: number | null) =>
-      apiPost<ChainVerify>('/audit/verify', chunk != null ? { from_chunk: chunk } : {}),
-    onSuccess: (data) => {
-      // Refetch verify + audit list so the banner reflects the new walk.
-      verifyQuery.refetch();
-      auditQuery.refetch();
-      return data;
+    mutationFn: async (_chunk: number | null) => {
+      const res = await verifyQuery.refetch();
+      void auditQuery.refetch();
+      return res.data ?? null;
     },
   });
 
@@ -165,7 +193,7 @@ export default function Audit() {
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = objectUrl;
-      a.download = `audit-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '')}.${format}`;
+      a.download = `audit-${Date.now()}.${format}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -194,8 +222,9 @@ export default function Audit() {
       search: searchInput || null,
       actor: actorInput || null,
       event_type: actionInput || null,
-      from: fromInput || null,
-      to: toInput || null,
+      // datetime-local emits naive ISO ("2026-05-15T08:30") — backend expects UTC.
+      from: localDateTimeToUtcIso(fromInput),
+      to: localDateTimeToUtcIso(toInput),
       page: '1',
     });
   };
@@ -239,13 +268,16 @@ export default function Audit() {
             <div className="mt-1.5 font-mono text-[12px] text-muted-foreground">
               HMAC-chained ·{' '}
               <span>
-                last sync {verifyQuery.data ? formatRelative(verifyQuery.data.last_verified_at) : 'just now'}
+                last sync{' '}
+                {verifyQuery.data?.last_verified_ts
+                  ? formatRelative(verifyQuery.data.last_verified_ts)
+                  : '—'}
               </span>
-              {verifyQuery.data && (
+              {verifyQuery.data && verifyQuery.data.walked != null && (
                 <>
                   {' · '}
-                  <span className="tabular-nums">{formatCount(verifyQuery.data.total_entries)}</span>{' '}
-                  entries
+                  <span className="tabular-nums">{formatCount(verifyQuery.data.walked)}</span>{' '}
+                  walked
                 </>
               )}
             </div>
@@ -333,7 +365,7 @@ export default function Audit() {
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   onBlur={applyFilters}
-                  placeholder="actor:claude action:patch.* T-0419"
+                  placeholder="search audit events"
                   className="w-full bg-transparent font-mono text-[12px] text-foreground placeholder:text-meta-foreground focus:outline-none"
                 />
               </div>
@@ -453,11 +485,14 @@ export default function Audit() {
               )}
               {!isLoading &&
                 !isError &&
-                items.map((row) => {
+                items.map((row, idx) => {
                   const operator = isOperator(row.actor);
                   const verified = (row.chain_status ?? 'verified') === 'verified';
+                  // Stable key: prefer id, fall back to hash+ts, finally row index
+                  // (guards against null/undefined hash producing "undefinedundefined").
+                  const rowKey = row.id ?? (row.hash ? `${row.hash}-${row.ts}` : `row-${idx}-${row.ts}`);
                   return (
-                    <tr key={row.id ?? row.hash + row.ts} className="h-[42px] hover:bg-secondary/40">
+                    <tr key={rowKey} className="h-[42px] hover:bg-secondary/40">
                       <Td className="font-mono text-[11.5px] tabular-nums text-foreground">
                         {row.ts}
                       </Td>
@@ -472,7 +507,7 @@ export default function Audit() {
                       <Td className="font-mono text-[11.5px] text-foreground">{row.action}</Td>
                       <Td className="truncate text-[12px] text-foreground">{row.resource}</Td>
                       <Td className="font-mono text-[11px] text-meta-foreground">
-                        {truncateHash(row.hash, 8)}
+                        {safeHash(row.hash, 8)}
                       </Td>
                       <Td>
                         <span className="inline-flex items-center gap-1.5 text-[11px]">
@@ -621,10 +656,11 @@ function ChainStatusBanner({ verify }: ChainStatusBannerProps) {
 
   const v = verify.data;
   const chainOk = v.status === 'verified';
-  const sigOk = v.sigstore?.status === 'ok';
-  const rekorRef =
-    v.sigstore?.rekor_uuid ??
-    (v.sigstore?.rekor_log_index != null ? `entry ${v.sigstore.rekor_log_index}` : '—');
+  const chainEmpty = v.status === 'empty';
+  const sigOk = !!v.sigstore_anchor;
+  const headIdNum = v.head_id == null ? null : Number(v.head_id);
+  const headIdLabel =
+    headIdNum != null && Number.isFinite(headIdNum) ? `#${formatCount(headIdNum)}` : '—';
 
   const cells: Array<{
     label: string;
@@ -634,13 +670,13 @@ function ChainStatusBanner({ verify }: ChainStatusBannerProps) {
     {
       label: 'chain status',
       value: (
-        <Pill kind={chainOk ? 'success' : 'warning'}>
+        <Pill kind={chainOk ? 'success' : chainEmpty ? 'default' : 'warning'}>
           {chainOk ? '✓ verified' : v.status}
         </Pill>
       ),
       sub: (
         <span>
-          rebuilt {v.last_verified_at ? formatRelative(v.last_verified_at) : '—'}
+          rebuilt {v.last_verified_ts ? formatRelative(v.last_verified_ts) : '—'}
         </span>
       ),
     },
@@ -648,10 +684,10 @@ function ChainStatusBanner({ verify }: ChainStatusBannerProps) {
       label: 'head',
       value: (
         <span className="font-mono text-[18px] font-medium tabular-nums text-foreground">
-          #{formatCount(Number(v.head_id) || 0)}
+          {headIdLabel}
         </span>
       ),
-      sub: <span className="font-mono">{truncateHash(v.head_hash, 8)}</span>,
+      sub: <span className="font-mono">{safeHash(v.head_hash, 8)}</span>,
     },
     {
       label: 'sigstore anchor',
@@ -662,21 +698,21 @@ function ChainStatusBanner({ verify }: ChainStatusBannerProps) {
             sigOk ? 'text-success' : 'text-muted-foreground',
           )}
         >
-          {sigOk ? 'ok' : v.sigstore?.status ?? '—'}
+          {sigOk ? 'ok' : '—'}
         </span>
       ),
-      sub: <span className="truncate font-mono">{rekorRef}</span>,
+      sub: <span className="truncate font-mono">{safeHash(v.sigstore_anchor, 10)}</span>,
     },
     {
-      label: 'rotated',
+      label: 'rotated chunk',
       value: (
         <span className="font-mono text-[18px] font-medium tabular-nums text-foreground">
-          {v.rotated_at ? formatRelative(v.rotated_at) : '—'}
+          {v.rotated_chunk != null ? `#${formatCount(v.rotated_chunk)}` : '—'}
         </span>
       ),
       sub: (
         <span className="font-mono">
-          {v.rotated_chunk != null ? `chunk #${formatCount(v.rotated_chunk)}` : '—'}
+          walked {v.walked != null ? formatCount(v.walked) : '—'}
         </span>
       ),
     },
@@ -765,52 +801,48 @@ function VerifyChainModal({
           {!loading && !error && verify && (
             <>
               <KV label="status">
-                <Pill kind={verify.status === 'verified' ? 'success' : 'warning'}>
+                <Pill
+                  kind={
+                    verify.status === 'verified'
+                      ? 'success'
+                      : verify.status === 'empty'
+                        ? 'default'
+                        : 'warning'
+                  }
+                >
                   {verify.status === 'verified' ? '✓ verified' : verify.status}
                 </Pill>
               </KV>
               <KV label="last verified head">
                 <span className="font-mono text-[12px] tabular-nums text-foreground">
-                  #{formatCount(Number(verify.head_id) || 0)} ·{' '}
-                  {truncateHash(verify.head_hash, 10)}
+                  {verify.head_id != null
+                    ? `#${formatCount(Number(verify.head_id))} · ${safeHash(verify.head_hash, 10)}`
+                    : '—'}
                 </span>
               </KV>
               <KV label="last verified at">
                 <span className="font-mono text-[12px] text-foreground">
-                  {verify.last_verified_at
-                    ? `${formatRelative(verify.last_verified_at)} (${verify.last_verified_at})`
+                  {verify.last_verified_ts
+                    ? `${formatRelative(verify.last_verified_ts)} (${verify.last_verified_ts})`
                     : '—'}
                 </span>
               </KV>
-              <KV label="walked range">
-                <span className="font-mono text-[12px] text-foreground">
-                  {verify.walked_from && verify.walked_to
-                    ? `${truncateHash(verify.walked_from, 8)} → ${truncateHash(
-                        verify.walked_to,
-                        8,
-                      )}`
-                    : '—'}
+              <KV label="walked">
+                <span className="font-mono text-[12px] tabular-nums text-foreground">
+                  {verify.walked != null ? `${formatCount(verify.walked)} entries` : '—'}
                 </span>
               </KV>
               <KV label="sigstore anchor">
                 <span className="font-mono text-[12px] text-foreground">
-                  {verify.sigstore
-                    ? `${verify.sigstore.status}${
-                        verify.sigstore.rekor_uuid
-                          ? ` · ${truncateHash(verify.sigstore.rekor_uuid, 10)}`
-                          : verify.sigstore.rekor_log_index != null
-                            ? ` · entry ${verify.sigstore.rekor_log_index}`
-                            : ''
-                      }`
+                  {verify.sigstore_anchor
+                    ? `ok · ${safeHash(verify.sigstore_anchor, 10)}`
                     : '—'}
                 </span>
               </KV>
               <KV label="rotated chunk">
                 <span className="font-mono text-[12px] text-foreground">
                   {verify.rotated_chunk != null
-                    ? `#${formatCount(verify.rotated_chunk)}${
-                        verify.rotated_at ? ` · ${formatRelative(verify.rotated_at)}` : ''
-                      }`
+                    ? `#${formatCount(verify.rotated_chunk)}`
                     : '—'}
                 </span>
               </KV>

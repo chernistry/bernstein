@@ -33,6 +33,7 @@ export function EmptyState({ title, description, action, icon, className }: Empt
           onClick={action.onClick}
           className={cn(
             'mt-1 rounded-md border px-3 py-1.5 text-body-md transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
             (action.variant ?? 'primary') === 'primary'
               ? 'border-primary bg-primary text-primary-foreground hover:bg-primary/90'
               : 'border-border bg-card text-foreground hover:bg-secondary',
@@ -101,7 +102,10 @@ export function ErrorState({
           <button
             type="button"
             onClick={retry}
-            className="rounded-md border border-border bg-card px-3 py-1.5 text-body-md text-foreground hover:bg-secondary"
+            className={cn(
+              'rounded-md border border-border bg-card px-3 py-1.5 text-body-md text-foreground hover:bg-secondary',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+            )}
           >
             Retry
           </button>
@@ -111,7 +115,10 @@ export function ErrorState({
             href={helpHref}
             target="_blank"
             rel="noreferrer"
-            className="rounded-md px-3 py-1.5 text-body-md text-muted-foreground hover:text-foreground"
+            className={cn(
+              'rounded-md px-3 py-1.5 text-body-md text-muted-foreground hover:text-foreground',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+            )}
           >
             Open docs
           </a>

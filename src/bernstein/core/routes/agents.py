@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -22,9 +23,49 @@ router = APIRouter()
 _MAX_IDLE_TICKS = 30
 _POLL_INTERVAL = 1.0
 
+# Session-id sanitiser — only allow chars that can legitimately appear in an
+# agent session id (role, dashes, hex). Blocks path traversal payloads such as
+# ``../../etc/passwd`` and absolute paths like ``/etc/shadow``.
+_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_\-]{1,128}$")
+
+# Synthetic session ids are emitted as "<role>-<task_short>" by the fallback
+# path in :func:`list_agents` and never correspond to a real log file.
+_SYNTHETIC_PREFIX = "synthetic-"
+
+# Map TaskStatus → AgentSession-like status string the GUI understands.
+_TASK_TO_AGENT_STATUS: dict[str, str] = {
+    "open": "idle",
+    "claimed": "spawning",
+    "in_progress": "running",
+    "done": "completed",
+    "closed": "completed",
+    "failed": "failed",
+    "blocked": "stalled",
+    "waiting_for_subtasks": "stalled",
+    "cancelled": "dead",
+    "orphaned": "dead",
+    "pending_approval": "merging",
+    "planned": "idle",
+}
+
 
 def _runtime_dir(request: Request) -> Path:
     return request.app.state.runtime_dir  # type: ignore[no-any-return]
+
+
+def _validate_session_id(session_id: str) -> None:
+    """Reject any session_id that could escape the runtime dir.
+
+    Raises:
+        HTTPException 400 when the value contains path separators or other
+        characters not permitted in a session identifier.
+    """
+    if not _SESSION_ID_RE.match(session_id):
+        raise HTTPException(status_code=400, detail="Invalid session_id")
+
+
+def _is_synthetic(session_id: str) -> bool:
+    return session_id.startswith(_SYNTHETIC_PREFIX)
 
 
 # ---------------------------------------------------------------------------
@@ -36,68 +77,174 @@ def _task_store(request: Request) -> Any:
     return request.app.state.store
 
 
+def _cost_for_role(store: Any, role: str) -> float:
+    """Best-effort role-aggregated cost lookup that never raises."""
+    try:
+        getter = getattr(store, "cost_by_role", None)
+        if getter is None:
+            return 0.0
+        costs = getter()
+        if isinstance(costs, dict):
+            value = costs.get(role)
+            if isinstance(value, (int, float)):
+                return float(value)
+    except Exception:
+        return 0.0
+    return 0.0
+
+
+def _serialize_agent(store: Any, sid: str, s: Any, now: float) -> dict[str, Any]:
+    spawn_ts = getattr(s, "spawn_ts", 0.0) or 0.0
+    duration_ms = max(0, int((now - spawn_ts) * 1000)) if spawn_ts else None
+    task_ids = list(getattr(s, "task_ids", []) or [])
+    current_task_title: str | None = None
+    if task_ids and hasattr(store, "get_task"):
+        try:
+            t = store.get_task(task_ids[0])
+            if t is not None:
+                current_task_title = getattr(t, "title", None)
+        except Exception:
+            current_task_title = None
+    role = getattr(s, "role", "")
+    tokens_used = int(getattr(s, "tokens_used", 0) or 0)
+    tokens_in = int(getattr(s, "tokens_in", 0) or 0) or tokens_used
+    tokens_out = int(getattr(s, "tokens_out", 0) or 0)
+    return {
+        "id": sid,
+        "session_id": sid,
+        "name": getattr(s, "name", None) or sid,
+        "role": role,
+        "status": getattr(s, "status", "starting"),
+        "spawn_ts": spawn_ts,
+        "heartbeat_ts": getattr(s, "heartbeat_ts", 0.0),
+        "duration_ms": duration_ms,
+        "tokens_used": tokens_used,
+        "tokens_in": tokens_in,
+        "tokens_out": tokens_out,
+        "context_utilization_pct": getattr(s, "context_utilization_pct", 0.0),
+        "task_ids": task_ids,
+        "current_task_id": task_ids[0] if task_ids else None,
+        "current_task_title": current_task_title,
+        "current_task": current_task_title,  # alias the GUI uses
+        "model": getattr(getattr(s, "model_config", None), "name", None),
+        "provider": getattr(s, "provider", None),
+        "cost_usd": _cost_for_role(store, role),
+        "exit_code": getattr(s, "exit_code", None),
+        "synthetic": False,
+    }
+
+
+def _synthesize_agents_from_tasks(store: Any, now: float) -> list[dict[str, Any]]:
+    """Fabricate one agent entry per claimed/in-progress task.
+
+    Mock adapters never call ``TaskStore.heartbeat()``, so ``store.agents`` is
+    empty even when the orchestrator has obviously claimed work. Without this
+    fallback the GUI would render an empty grid and the "live" counter would
+    perpetually read zero, despite the backlog clearly being in flight.
+    """
+    if not hasattr(store, "list_tasks"):
+        return []
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for status_value in ("claimed", "in_progress"):
+        try:
+            tasks = store.list_tasks(status=status_value)
+        except Exception:
+            tasks = []
+        for t in tasks:
+            role = getattr(t, "role", "") or "agent"
+            task_id = str(getattr(t, "id", "") or "")
+            if not task_id:
+                continue
+            short = task_id.replace("-", "")[:8]
+            sid = f"{_SYNTHETIC_PREFIX}{role}-{short}"
+            if sid in seen:
+                continue
+            seen.add(sid)
+            claimed_at = getattr(t, "claimed_at", None) or getattr(t, "created_at", None) or 0.0
+            duration_ms = max(0, int((now - claimed_at) * 1000)) if claimed_at else None
+            agent_status = _TASK_TO_AGENT_STATUS.get(status_value, "running")
+            out.append(
+                {
+                    "id": sid,
+                    "session_id": sid,
+                    "name": f"{role}-{short}",
+                    "role": role,
+                    "status": agent_status,
+                    "spawn_ts": claimed_at,
+                    "heartbeat_ts": 0.0,
+                    "duration_ms": duration_ms,
+                    "tokens_used": 0,
+                    "tokens_in": 0,
+                    "tokens_out": 0,
+                    "context_utilization_pct": 0.0,
+                    "task_ids": [task_id],
+                    "current_task_id": task_ids_first(t),
+                    "current_task_title": getattr(t, "title", None),
+                    "current_task": getattr(t, "title", None),
+                    "model": getattr(t, "model", None),
+                    "provider": None,
+                    "cost_usd": _cost_for_role(store, role),
+                    "exit_code": None,
+                    "synthetic": True,
+                }
+            )
+    return out
+
+
+def task_ids_first(task: Any) -> str | None:
+    return str(getattr(task, "id", "")) or None
+
+
 @router.get("/agents")
 def list_agents(request: Request) -> list[dict[str, Any]]:
     """Return a flat list of agent sessions for the web GUI grid.
 
-    Serializes ``TaskStore.agents()`` into a JSON-friendly shape that
-    matches the Agents screen's expectations (status, role, duration,
-    tokens, current task title).
+    When ``TaskStore.agents`` is empty (e.g. only mock adapters spawned and
+    they never heartbeat) we fall back to synthesising one entry per
+    claimed/in-progress task, marked with ``"synthetic": true``. That keeps
+    the GUI grid populated during demos and avoids the dreaded "0 sessions"
+    empty state when work is obviously in flight.
     """
-    import time as _time
-
     store = _task_store(request)
-    # ``agents`` is a @property on TaskStore returning dict[str, AgentSession].
     sessions = getattr(store, "agents", {}) or {}
 
-    now = _time.time()
-    out: list[dict[str, Any]] = []
-    for sid, s in sessions.items():
-        spawn_ts = getattr(s, "spawn_ts", 0.0) or 0.0
-        duration_ms = max(0, int((now - spawn_ts) * 1000)) if spawn_ts else None
-        task_ids = list(getattr(s, "task_ids", []) or [])
-        current_task_title: str | None = None
-        if task_ids and hasattr(store, "get_task"):
-            try:
-                t = store.get_task(task_ids[0])
-                if t is not None:
-                    current_task_title = getattr(t, "title", None)
-            except Exception:
-                current_task_title = None
-        out.append(
-            {
-                "id": sid,
-                "session_id": sid,
-                "role": getattr(s, "role", ""),
-                "status": getattr(s, "status", "starting"),
-                "spawn_ts": spawn_ts,
-                "heartbeat_ts": getattr(s, "heartbeat_ts", 0.0),
-                "duration_ms": duration_ms,
-                "tokens_used": getattr(s, "tokens_used", 0),
-                "tokens_in": getattr(s, "tokens_used", 0),
-                "tokens_out": 0,
-                "context_utilization_pct": getattr(s, "context_utilization_pct", 0.0),
-                "task_ids": task_ids,
-                "current_task_id": task_ids[0] if task_ids else None,
-                "current_task_title": current_task_title,
-                "model": getattr(getattr(s, "model_config", None), "name", None),
-                "provider": getattr(s, "provider", None),
-                "cost_usd": 0.0,
-                "exit_code": getattr(s, "exit_code", None),
-            }
-        )
+    now = time.time()
+    out: list[dict[str, Any]] = [_serialize_agent(store, sid, s, now) for sid, s in sessions.items()]
+
+    if not out:
+        out = _synthesize_agents_from_tasks(store, now)
+
     return out
 
 
 # ---------------------------------------------------------------------------
-# GET /agents/comparison — placeholder for compare-two view (Phase 2)
+# GET /agents/comparison — pairwise compare two sessions for the GUI overlay
 # ---------------------------------------------------------------------------
 
 
 @router.get("/agents/comparison")
-def agents_comparison(request: Request) -> dict[str, Any]:
-    """Placeholder comparison endpoint — returns the same shape as `/agents`."""
-    return {"agents": list_agents(request)}
+def agents_comparison(
+    request: Request,
+    left: str | None = None,
+    right: str | None = None,
+) -> dict[str, Any]:
+    """Return the {left, right, series} shape the GUI comparison overlay
+    expects.
+
+    The legacy version of this endpoint returned ``{"agents": [...]}``, which
+    silently produced an empty render in the comparison drawer. We now look
+    each session up by id, return the same agent dicts the grid uses, and
+    emit a placeholder ``series`` (Phase 2 will populate it from metrics).
+    """
+    agents = list_agents(request)
+    by_id = {a["session_id"]: a for a in agents}
+    return {
+        "left": by_id.get(left or ""),
+        "right": by_id.get(right or ""),
+        "series": [],
+        "agents": agents,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -125,8 +272,14 @@ def agent_logs(
         JSON with ``session_id``, ``content`` string, and ``size`` in bytes.
 
     Raises:
-        HTTPException: 404 when no log file exists for the session.
+        HTTPException: 400 when session_id contains illegal characters,
+            404 when no log file exists for the session.
     """
+    _validate_session_id(session_id)
+    if _is_synthetic(session_id):
+        # Synthetic agents have no on-disk log — return an empty payload
+        # rather than 404 so the GUI can render a friendly placeholder.
+        return AgentLogsResponse(session_id=session_id, content="", size=0)
     runtime_dir = _runtime_dir(request)
     log_path = runtime_dir / f"{session_id}.log"
     if not log_path.exists():
@@ -156,7 +309,16 @@ def agent_kill(request: Request, session_id: str) -> AgentKillResponse:
 
     Returns:
         JSON with ``session_id`` and ``kill_requested: true``.
+
+    Raises:
+        HTTPException 400 when session_id contains illegal characters.
     """
+    _validate_session_id(session_id)
+    if _is_synthetic(session_id):
+        # Synthetic sessions don't correspond to a real spawned process —
+        # acknowledge the request so the UI doesn't show a hard failure,
+        # but mark it as a no-op.
+        return AgentKillResponse(session_id=session_id, kill_requested=False)
     runtime_dir = _runtime_dir(request)
     kill_file = runtime_dir / f"{session_id}.kill"
     kill_file.write_text(str(time.time()), encoding="utf-8")
@@ -176,23 +338,35 @@ def agent_stream(request: Request, session_id: str) -> StreamingResponse:
     lines.  Closes automatically after ``_MAX_IDLE_TICKS`` consecutive
     polls with no new data (or no log file).
 
+    For synthetic agents (no real log file) the stream emits a single
+    ``unavailable`` event and closes immediately, avoiding an infinite
+    reconnect loop in the browser.
+
     SSE event format::
 
         data: {"type": "connected", "session_id": "<id>"}
 
         data: {"line": "<log line>"}
 
-    Args:
-        session_id: Agent session to stream output for.
+        data: {"type": "unavailable", "reason": "synthetic"}
 
-    Returns:
-        StreamingResponse with ``text/event-stream`` media type.
+    Raises:
+        HTTPException 400 when session_id contains illegal characters.
     """
+    _validate_session_id(session_id)
     runtime_dir = _runtime_dir(request)
     log_path = runtime_dir / f"{session_id}.log"
+    synthetic = _is_synthetic(session_id)
 
     async def _generate() -> AsyncGenerator[str, None]:
         yield f"data: {json.dumps({'type': 'connected', 'session_id': session_id})}\n\n"
+
+        if synthetic:
+            yield (
+                "event: unavailable\n"
+                f"data: {json.dumps({'type': 'unavailable', 'reason': 'synthetic', 'session_id': session_id})}\n\n"
+            )
+            return
 
         offset = 0
         idle_ticks = 0
@@ -206,8 +380,10 @@ def agent_stream(request: Request, session_id: str) -> StreamingResponse:
                 idle_ticks += 1
                 continue
 
-            new_size = log_path.stat().st_size
             content = read_log_tail(log_path, offset)
+            # Recompute the offset *after* reading so we never skip bytes
+            # written between ``stat()`` and ``read()``.
+            new_offset = offset + len(content.encode("utf-8")) if content else log_path.stat().st_size
 
             if not content:
                 idle_ticks += 1
@@ -217,7 +393,7 @@ def agent_stream(request: Request, session_id: str) -> StreamingResponse:
             for line in content.splitlines():
                 if line:
                     yield f"data: {json.dumps({'line': line})}\n\n"
-            offset = new_size
+            offset = new_offset
             idle_ticks = 0
 
             await asyncio.sleep(_POLL_INTERVAL)

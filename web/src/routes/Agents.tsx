@@ -2,7 +2,7 @@
 // Source: design_handoff_bernstein_phase1/design-source/screens/screen-agents.jsx + README §6.02 / §8.
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { apiGet, apiPost } from '@/lib/api';
 import { useEventStream } from '@/lib/sse';
@@ -11,7 +11,19 @@ import { prefersReducedMotion } from '@/lib/motion';
 import { EmptyState, LoadingState, ErrorState, StatusDot, Pill, SectionLabel } from '@/lib/states';
 import { cn } from '@/lib/utils';
 
-type AgentState = 'spawning' | 'running' | 'stalled' | 'merging' | 'dead' | 'idle';
+// Canonical front-end agent state. Backend sometimes returns the raw
+// AgentSession status enum (`starting`/`working`/`dead`) and sometimes
+// task-derived synthetic statuses (`completed`/`failed`/etc.) — every
+// inbound status passes through `normalizeStatus` below.
+type AgentState =
+  | 'spawning'
+  | 'running'
+  | 'stalled'
+  | 'merging'
+  | 'dead'
+  | 'failed'
+  | 'completed'
+  | 'idle';
 
 interface Agent {
   session_id: string;
@@ -19,6 +31,7 @@ interface Agent {
   role: string;
   status: AgentState;
   current_task?: string | null;
+  current_task_title?: string | null;
   duration_ms?: number | null;
   tokens_in?: number | null;
   tokens_out?: number | null;
@@ -28,6 +41,8 @@ interface Agent {
   tokens_tools?: number | null;
   tokens_total?: number | null;
   tokens_cap?: number | null;
+  /** True when this entry was synthesised from a claimed task (no real log). */
+  synthetic?: boolean;
 }
 
 type LogLevel = 'INFO' | 'PLAN' | 'PASS' | 'WARN' | 'WAIT' | 'LIVE';
@@ -47,29 +62,38 @@ interface ToolCall {
 }
 
 interface ComparisonResponse {
-  left: Agent;
-  right: Agent;
-  series: Array<{ t: string; left_tokens: number; right_tokens: number; left_cost: number; right_cost: number }>;
+  left?: Agent | null;
+  right?: Agent | null;
+  series?: Array<{ t: string; left_tokens: number; right_tokens: number; left_cost: number; right_cost: number }>;
 }
 
-const ANSI_RE = /\x1b\[[0-9;]*m/g;
+// Strip a broader set of ANSI sequences than just SGR (`\x1b[…m`).  Real
+// agent logs include cursor moves (`\x1b[2J`, `\x1b[K`, `\x1b[?25l`) and OSC
+// sequences (`\x1b]…\x07` / `\x1b]…\x1b\\`). Matching only `…m` left those
+// raw bytes in the rendered log line.
+// eslint-disable-next-line no-control-regex
+const ANSI_RE = /\x1b(?:\[[0-?]*[ -/]*[@-~]|\][\s\S]*?(?:\x07|\x1b\\)|[@-Z\\-_])/g;
 const LOG_BUFFER_MAX = 500;
 
-const STATE_PILL_KIND: Record<AgentState, 'default' | 'success' | 'warning' | 'accent' | 'danger'> = {
+const STATE_PILL_KIND: Record<AgentState, 'default' | 'success' | 'warning' | 'accent' | 'danger' | 'ghost'> = {
   spawning: 'default',
   running: 'success',
   stalled: 'warning',
   merging: 'accent',
   dead: 'danger',
+  failed: 'danger',
+  completed: 'ghost',
   idle: 'default',
 };
 
-const STATE_DOT_KIND: Record<AgentState, 'running' | 'queued' | 'stalled' | 'failed' | 'merging' | 'idle'> = {
+const STATE_DOT_KIND: Record<AgentState, 'running' | 'queued' | 'stalled' | 'failed' | 'merging' | 'idle' | 'done'> = {
   spawning: 'queued',
   running: 'running',
   stalled: 'stalled',
   merging: 'merging',
   dead: 'failed',
+  failed: 'failed',
+  completed: 'done',
   idle: 'idle',
 };
 
@@ -79,8 +103,48 @@ const STATE_LABEL: Record<AgentState, string> = {
   stalled: 'stalled',
   merging: 'merging',
   dead: 'dead',
+  failed: 'failed',
+  completed: 'completed',
   idle: 'idle',
 };
+
+// Backend → frontend status normaliser. Backend hands us the raw AgentSession
+// enum (`starting`/`working`/`idle`/`dead`) or a task-derived value, and our
+// pill/dot tables only know the canonical set above. Anything unknown maps
+// safely to `idle` so we never throw on render.
+function normalizeStatus(raw: string | null | undefined): AgentState {
+  switch ((raw ?? '').toLowerCase()) {
+    case 'starting':
+    case 'spawning':
+      return 'spawning';
+    case 'working':
+    case 'running':
+    case 'in_progress':
+      return 'running';
+    case 'stalled':
+    case 'blocked':
+    case 'waiting_for_subtasks':
+      return 'stalled';
+    case 'merging':
+    case 'pending_approval':
+      return 'merging';
+    case 'dead':
+    case 'cancelled':
+    case 'orphaned':
+      return 'dead';
+    case 'failed':
+      return 'failed';
+    case 'completed':
+    case 'done':
+    case 'closed':
+      return 'completed';
+    case 'idle':
+    case 'planned':
+    case 'open':
+    default:
+      return 'idle';
+  }
+}
 
 const LEVEL_CLASS: Record<LogLevel, string> = {
   INFO: 'text-muted-foreground',
@@ -98,19 +162,48 @@ function inferLevel(line: string): LogLevel {
   return 'INFO';
 }
 
-function avatarLabel(name: string): string {
-  const n = name.toLowerCase();
+// Avatar label resolution — first try the agent role (matches TUI worker
+// badges), then fall back to the model/CLI family in the agent name. This
+// fixes the empty / generic avatar that appeared whenever an agent name
+// didn't start with claude/codex/gemini/aider.
+const ROLE_INITIALS: Record<string, string> = {
+  backend: 'BE',
+  frontend: 'FE',
+  qa: 'QA',
+  manager: 'MG',
+  security: 'SE',
+  devops: 'DO',
+  docs: 'DC',
+  reviewer: 'RV',
+  architect: 'AR',
+  analyst: 'AN',
+  resolver: 'RS',
+  retrieval: 'RT',
+  'ml-engineer': 'ML',
+  'ci-fixer': 'CI',
+  'prompt-engineer': 'PE',
+  adversary: 'AD',
+  visionary: 'VS',
+  vp: 'VP',
+};
+
+function avatarLabel(role: string, name: string): string {
+  const r = (role ?? '').toLowerCase();
+  if (ROLE_INITIALS[r]) return ROLE_INITIALS[r];
+  const n = (name ?? '').toLowerCase();
   if (n.startsWith('claude')) return 'AN';
   if (n.startsWith('codex')) return 'OX';
   if (n.startsWith('gemini')) return 'GE';
   if (n.startsWith('aider')) return 'AI';
-  const letters = name.replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase();
+  const letters = (name ?? '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase();
   return letters.length === 2 ? letters : '··';
 }
 
 function durationColor(state: AgentState, ms: number | null | undefined): string {
-  if (ms == null) return 'text-foreground';
-  if (state === 'stalled') return 'text-warning';
+  if (ms == null || !Number.isFinite(ms)) return 'text-foreground';
+  if (state === 'stalled' || state === 'failed') return 'text-warning';
+  if (state === 'dead') return 'text-destructive';
+  if (state === 'completed') return 'text-meta-foreground';
   const min = ms / 60_000;
   if (min < 10) return 'text-success';
   if (min < 30) return 'text-warning';
@@ -155,9 +248,48 @@ const HISTORY_FALLBACK: LogLine[] = [
   { ts: '16:42:08.013', level: 'WAIT', text: 'waiting for approval id=apr_4f9a (queue depth 7)' },
 ];
 
+// Normalise raw `/agents` payloads — both legacy [Agent] and any future
+// `{agents: [...]}` envelope. Status is canonicalised here so consumers can
+// rely on the union type.
+function normalizeAgents(raw: unknown): Agent[] {
+  const list: unknown[] = Array.isArray(raw)
+    ? raw
+    : Array.isArray((raw as { agents?: unknown[] } | null)?.agents)
+      ? (raw as { agents: unknown[] }).agents
+      : [];
+  return list
+    .filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === 'object')
+    .map((o) => {
+      const sid =
+        typeof o.session_id === 'string'
+          ? o.session_id
+          : typeof o.id === 'string'
+            ? o.id
+            : '';
+      return {
+        ...(o as object),
+        session_id: sid,
+        name: typeof o.name === 'string' && o.name ? o.name : sid,
+        role: typeof o.role === 'string' ? o.role : '',
+        status: normalizeStatus(typeof o.status === 'string' ? o.status : null),
+        current_task:
+          typeof o.current_task === 'string'
+            ? o.current_task
+            : typeof o.current_task_title === 'string'
+              ? o.current_task_title
+              : null,
+        synthetic: o.synthetic === true,
+      } as Agent;
+    })
+    .filter((a) => a.session_id);
+}
+
 export default function Agents() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Tracks an explicit user-dismiss so the auto-select effect doesn't
+  // immediately re-pop the drawer.  Cleared whenever the agent set changes.
+  const [drawerDismissed, setDrawerDismissed] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string>('All roles');
   const [comparisonOpen, setComparisonOpen] = useState(false);
   const [killingId, setKillingId] = useState<string | null>(null);
@@ -165,8 +297,11 @@ export default function Agents() {
 
   const agentsQuery = useQuery<Agent[]>({
     queryKey: ['agents'],
-    queryFn: () => apiGet<Agent[]>('/agents'),
+    queryFn: async () => normalizeAgents(await apiGet<unknown>('/agents')),
     refetchInterval: 30_000,
+    // Tab refocus refetches were causing the agent grid to jump and reset
+    // scroll. Polling already covers staleness; refocus is unnecessary.
+    refetchOnWindowFocus: false,
   });
 
   // Fleet event-stream → invalidate agents on agent_update.
@@ -183,23 +318,47 @@ export default function Agents() {
     ? agents
     : agents.filter((a) => a.role === roleFilter);
 
-  // Auto-select first agent once data lands.
+  // Auto-select first agent once data lands, but only if the user hasn't
+  // explicitly dismissed the drawer this session and the previous selection
+  // is still around. Drops a stale `selectedId` if the underlying session
+  // disappears (e.g. agent killed mid-poll).
   useEffect(() => {
-    if (!selectedId && visibleAgents.length > 0) setSelectedId(visibleAgents[0].session_id);
-  }, [selectedId, visibleAgents]);
+    if (drawerDismissed) return;
+    if (visibleAgents.length === 0) return;
+    if (selectedId && visibleAgents.some((a) => a.session_id === selectedId)) return;
+    setSelectedId(visibleAgents[0].session_id);
+  }, [selectedId, visibleAgents, drawerDismissed]);
+
+  const handleCloseDrawer = useCallback(() => {
+    setSelectedId(null);
+    setDrawerDismissed(true);
+  }, []);
+
+  const handleSelect = useCallback((sid: string) => {
+    setSelectedId(sid);
+    setDrawerDismissed(false);
+  }, []);
 
   const selected = agents.find((a) => a.session_id === selectedId) ?? null;
 
-  const liveAgents = agents.filter((a) => a.status === 'running').length;
+  // Live counter must include both `running` and any spawning/merging
+  // intermediate states the operator considers "in flight"; the original
+  // implementation only counted `running` and missed half the fleet whenever
+  // workers were warming up. We keep `running` strict for the burn-rate calc.
+  const liveAgents = agents.filter(
+    (a) => a.status === 'running' || a.status === 'spawning' || a.status === 'merging',
+  ).length;
   const burnPerHour = agents.reduce((acc, a) => {
     const dur = a.duration_ms ?? 0;
-    if (dur <= 0 || a.cost_usd == null) return acc;
+    if (dur <= 0 || a.cost_usd == null || !Number.isFinite(a.cost_usd)) return acc;
     return acc + (a.cost_usd * 3_600_000) / dur;
   }, 0);
 
   const roles = useMemo(() => {
     const set = new Set<string>();
-    agents.forEach((a) => set.add(a.role));
+    agents.forEach((a) => {
+      if (a.role) set.add(a.role);
+    });
     return ['All roles', ...Array.from(set).sort()];
   }, [agents]);
 
@@ -212,6 +371,8 @@ export default function Agents() {
       setKillingId(null);
     }
   };
+
+  const canCompare = agents.length >= 2;
 
   // Header content.
   const header = (
@@ -230,10 +391,15 @@ export default function Agents() {
       <div className="flex items-center gap-1.5">
         <button
           type="button"
-          onClick={() => setComparisonOpen((v) => !v)}
-          className="rounded-md border border-border bg-card px-2.5 py-1.5 text-[11.5px] text-foreground hover:bg-secondary"
+          onClick={() => canCompare && setComparisonOpen((v) => !v)}
+          disabled={!canCompare}
+          title={canCompare ? undefined : 'Need at least 2 agents to compare'}
+          className={cn(
+            'rounded-md border border-border bg-card px-2.5 py-1.5 text-[11.5px] text-foreground hover:bg-secondary',
+            !canCompare && 'cursor-not-allowed opacity-50 hover:bg-card',
+          )}
         >
-          {comparisonOpen ? 'Close comparison' : 'View comparison'}
+          {comparisonOpen ? 'Close comparison' : 'Compare two'}
         </button>
       </div>
     </div>
@@ -285,7 +451,7 @@ export default function Agents() {
             key={a.session_id}
             agent={a}
             selected={a.session_id === selectedId}
-            onSelect={() => setSelectedId(a.session_id)}
+            onSelect={() => handleSelect(a.session_id)}
           />
         ))}
       </div>
@@ -300,7 +466,7 @@ export default function Agents() {
         {roleChips}
         {bodyContent}
 
-        {comparisonOpen && (
+        {comparisonOpen && canCompare && (
           <ComparisonOverlay
             primary={selected}
             agents={agents}
@@ -315,7 +481,7 @@ export default function Agents() {
         reduceMotion={reduceMotion}
         killing={killingId === selected?.session_id}
         onKill={selected ? () => onKill(selected.session_id) : undefined}
-        onClose={() => setSelectedId(null)}
+        onClose={handleCloseDrawer}
       />
     </div>
   );
@@ -334,7 +500,7 @@ interface AgentCardProps {
 function AgentCard({ agent, selected, onSelect }: AgentCardProps) {
   const pillKind = STATE_PILL_KIND[agent.status];
   const dotKind = STATE_DOT_KIND[agent.status];
-  const idle = agent.status === 'idle';
+  const idle = agent.status === 'idle' || agent.status === 'completed';
 
   return (
     <button
@@ -350,12 +516,13 @@ function AgentCard({ agent, selected, onSelect }: AgentCardProps) {
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="grid size-[26px] place-items-center rounded-md border border-border bg-muted font-mono text-[10px] tracking-[0.05em] text-muted-foreground">
-            {avatarLabel(agent.name)}
+            {avatarLabel(agent.role, agent.name)}
           </span>
           <div className="min-w-0">
             <div className="truncate text-[13px] font-medium text-foreground">{agent.name}</div>
             <div className="mt-px font-mono text-[10.5px] text-meta-foreground">
-              {agent.session_id} · {agent.role}
+              {agent.session_id} · {agent.role || '—'}
+              {agent.synthetic && ' · synthetic'}
             </div>
           </div>
         </div>
@@ -429,17 +596,26 @@ function AgentDrawer({ agent, reduceMotion, killing, onKill, onClose }: AgentDra
   // Local log buffer — capped at LOG_BUFFER_MAX, fed by SSE.
   const [liveLog, setLiveLog] = useState<LogLine[]>([]);
   const [recentTools, setRecentTools] = useState<ToolCall[]>([]);
+  const [streamUnavailable, setStreamUnavailable] = useState(false);
   const logScrollRef = useRef<HTMLDivElement>(null);
   const sessionId = agent?.session_id ?? null;
+  const isSynthetic = Boolean(agent?.synthetic);
 
   // Reset buffer when switching sessions.
   useEffect(() => {
     setLiveLog([]);
     setRecentTools([]);
-  }, [sessionId]);
+    setStreamUnavailable(isSynthetic);
+  }, [sessionId, isSynthetic]);
 
-  useEventStream(sessionId ? `/api/v1/agents/${sessionId}/stream` : '', {
-    enabled: Boolean(sessionId),
+  // Only open the SSE stream for real on-disk sessions. Synthetic agents
+  // don't have a log file, so opening the stream just triggers an infinite
+  // reconnect loop (closes -> backoff -> reconnect -> closes...). We
+  // short-circuit the stream and surface a friendly placeholder instead.
+  const streamUrl = sessionId && !isSynthetic ? `/api/v1/agents/${sessionId}/stream` : '';
+
+  useEventStream(streamUrl, {
+    enabled: Boolean(streamUrl),
     on: {
       log: (data) => {
         const line = parseLogPayload(data);
@@ -461,6 +637,9 @@ function AgentDrawer({ agent, reduceMotion, killing, onKill, onClose }: AgentDra
             : 'ok';
         const call: ToolCall = { ts, name, status };
         setRecentTools((prev) => [call, ...prev].slice(0, 5));
+      },
+      unavailable: () => {
+        setStreamUnavailable(true);
       },
     },
   });
@@ -487,11 +666,13 @@ function AgentDrawer({ agent, reduceMotion, killing, onKill, onClose }: AgentDra
   const statusLabel = agent.status === 'running' ? 'live' : STATE_LABEL[agent.status];
 
   // Token meter values with sensible fallbacks for incomplete payloads.
-  const prompt = agent.tokens_prompt ?? 0;
-  const context = agent.tokens_context ?? 0;
-  const tools = agent.tokens_tools ?? 0;
-  const total = agent.tokens_total ?? prompt + context + tools;
-  const cap = agent.tokens_cap ?? 0;
+  const safeNum = (v: number | null | undefined) =>
+    typeof v === 'number' && Number.isFinite(v) ? v : 0;
+  const prompt = safeNum(agent.tokens_prompt);
+  const context = safeNum(agent.tokens_context);
+  const tools = safeNum(agent.tokens_tools);
+  const total = safeNum(agent.tokens_total) || prompt + context + tools;
+  const cap = safeNum(agent.tokens_cap);
   const sumForBar = Math.max(prompt + context + tools, 1);
   const promptPct = (prompt / sumForBar) * 100;
   const contextPct = (context / sumForBar) * 100;
@@ -533,7 +714,14 @@ function AgentDrawer({ agent, reduceMotion, killing, onKill, onClose }: AgentDra
           <button
             type="button"
             onClick={onKill}
-            disabled={killing || agent.status === 'dead' || agent.status === 'idle'}
+            disabled={
+              killing ||
+              isSynthetic ||
+              agent.status === 'dead' ||
+              agent.status === 'completed' ||
+              agent.status === 'idle'
+            }
+            title={isSynthetic ? 'Cannot kill a synthetic agent' : undefined}
             className={cn(
               'ml-auto rounded-md border border-destructive bg-transparent px-2.5 py-1.5 text-[11.5px] text-destructive hover:bg-destructive/10',
               'disabled:cursor-not-allowed disabled:opacity-50',
@@ -563,8 +751,8 @@ function AgentDrawer({ agent, reduceMotion, killing, onKill, onClose }: AgentDra
           <div className="bg-warning" style={{ width: `${toolsPct}%` }} />
         </div>
         <div className="mt-1.5 font-mono text-[10.5px] tabular-nums text-meta-foreground">
-          {(agent.tokens_in ?? 0).toLocaleString('en-US')} in /{' '}
-          {(agent.tokens_out ?? 0).toLocaleString('en-US')} out
+          {safeNum(agent.tokens_in).toLocaleString('en-US')} in /{' '}
+          {safeNum(agent.tokens_out).toLocaleString('en-US')} out
           {contextOfBudgetPct != null && ` · ${contextOfBudgetPct}% context`}
         </div>
         <div className="mt-1 flex justify-between font-mono text-[10.5px] tabular-nums text-meta-foreground">
@@ -579,29 +767,37 @@ function AgentDrawer({ agent, reduceMotion, killing, onKill, onClose }: AgentDra
         ref={logScrollRef}
         className="min-h-0 flex-1 overflow-auto border border-border-subtle bg-background px-3.5 py-2.5 font-mono text-log text-foreground"
       >
-        {history.length > 0 && (
+        {isSynthetic || streamUnavailable ? (
+          <div className="text-meta-foreground">
+            log unavailable for synthetic agent — spawn a real session to tail output
+          </div>
+        ) : (
           <>
-            {history.map((l, i) => (
-              <LogRow key={`h-${i}`} line={l} />
+            {history.length > 0 && (
+              <>
+                {history.map((l, i) => (
+                  <LogRow key={`h-${i}`} line={l} />
+                ))}
+                <SeparatorRow />
+              </>
+            )}
+            {tail.map((l, i) => (
+              <LogRow key={`t-${i}-${l.ts}`} line={l} />
             ))}
-            <SeparatorRow />
+            {tail.length === 0 && history.length === 0 && (
+              <div className="text-meta-foreground">stream open · awaiting events</div>
+            )}
+            {/* Static caret — no idle motion, honor reduce-motion. */}
+            <div className="mt-0.5 flex items-baseline gap-2.5">
+              <span className="min-w-[92px] text-[10.5px] text-meta-foreground">
+                {new Date().toISOString().slice(11, 19)}.
+              </span>
+              {!reduceMotion && (
+                <span aria-hidden className="inline-block h-3 w-[7px] bg-accent" />
+              )}
+            </div>
           </>
         )}
-        {tail.map((l, i) => (
-          <LogRow key={`t-${i}-${l.ts}`} line={l} />
-        ))}
-        {tail.length === 0 && history.length === 0 && (
-          <div className="text-meta-foreground">stream open · awaiting events</div>
-        )}
-        {/* Static caret — no idle motion, honor reduce-motion. */}
-        <div className="mt-0.5 flex items-baseline gap-2.5">
-          <span className="min-w-[92px] text-[10.5px] text-meta-foreground">
-            {new Date().toISOString().slice(11, 19)}.
-          </span>
-          {!reduceMotion && (
-            <span aria-hidden className="inline-block h-3 w-[7px] bg-accent" />
-          )}
-        </div>
       </div>
 
       {/* Recent tool calls strip */}
@@ -667,21 +863,32 @@ interface ComparisonOverlayProps {
 }
 
 function ComparisonOverlay({ primary, agents, onClose }: ComparisonOverlayProps) {
-  const [otherId, setOtherId] = useState<string | null>(() => {
-    const fallback = agents.find((a) => a.session_id !== primary?.session_id);
-    return fallback?.session_id ?? null;
-  });
+  const [otherId, setOtherId] = useState<string | null>(null);
+
+  // Keep `otherId` valid as the agents list changes — initialise once when
+  // we first see a viable peer, drop it if the chosen peer disappears.
+  useEffect(() => {
+    if (!primary) return;
+    if (otherId && agents.some((a) => a.session_id === otherId && a.session_id !== primary.session_id)) {
+      return;
+    }
+    const fallback = agents.find((a) => a.session_id !== primary.session_id);
+    setOtherId(fallback?.session_id ?? null);
+  }, [primary, agents, otherId]);
 
   const comparisonQuery = useQuery<ComparisonResponse>({
     queryKey: ['agents', 'comparison', primary?.session_id, otherId],
     queryFn: () =>
       apiGet<ComparisonResponse>(
-        `/agents/comparison?left=${primary?.session_id ?? ''}&right=${otherId ?? ''}`,
+        `/agents/comparison?left=${encodeURIComponent(primary?.session_id ?? '')}&right=${encodeURIComponent(
+          otherId ?? '',
+        )}`,
       ),
     enabled: Boolean(primary?.session_id && otherId),
   });
 
-  const other = agents.find((a) => a.session_id === otherId) ?? null;
+  const other = agents.find((a) => a.session_id === otherId) ?? comparisonQuery.data?.right ?? null;
+  const left = primary ?? comparisonQuery.data?.left ?? null;
 
   return (
     <details
@@ -734,7 +941,7 @@ function ComparisonOverlay({ primary, agents, onClose }: ComparisonOverlayProps)
         )}
         {!comparisonQuery.isLoading && !comparisonQuery.isError && (
           <div className="grid grid-cols-2 gap-3">
-            <ComparisonPane agent={primary} side="left" />
+            <ComparisonPane agent={left} side="left" />
             <ComparisonPane agent={other} side="right" />
           </div>
         )}

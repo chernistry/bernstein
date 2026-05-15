@@ -123,11 +123,17 @@ function approvalTaskId(a: QueuedApproval): string {
   return pickString(a.tool_args, 'task_id', 'task') || a.session_id.slice(0, 8);
 }
 
-/** Risk score 0..1; defaults to 0.5 if backend hasn't enriched the payload. */
+/** Risk score 0..1; defaults to 0.5 if backend hasn't enriched the payload.
+ *
+ * Backends may emit either a 0..1 float (`risk: 0.74`) or a 0..100 integer
+ * (`risk_score: 74`). Anything > 1.5 is assumed to be a percent and divided
+ * by 100 before clamping. Negative values clamp to 0.
+ */
 function approvalRisk(a: QueuedApproval): number {
   const r = pickNumber(a.tool_args, 'risk', 'risk_score', 'score');
   if (r == null) return 0.5;
-  return Math.max(0, Math.min(1, r));
+  const normalized = r > 1.5 ? r / 100 : r;
+  return Math.max(0, Math.min(1, normalized));
 }
 
 function approvalReasons(a: QueuedApproval): ApprovalReason[] {
@@ -142,15 +148,34 @@ function approvalReasons(a: QueuedApproval): ApprovalReason[] {
   ];
 }
 
-function approvalDiff(a: QueuedApproval): string {
-  const diff = pickString(a.tool_args, 'diff', 'patch');
-  if (diff) return diff;
-  // Fall back to a JSON view of the args so operators can still inspect.
-  try {
-    return JSON.stringify(a.tool_args, null, 2);
-  } catch {
-    return '';
+/** Result of resolving the diff payload for an approval.
+ *
+ * `kind` distinguishes a real diff from a JSON-args fallback or an absent
+ * payload entirely so the UI can render the correct affordance. The previous
+ * implementation conflated all three into a single string and crashed when
+ * `diff` was explicitly `null` or a non-string value.
+ */
+type DiffPayload =
+  | { kind: 'diff'; text: string }
+  | { kind: 'args'; text: string }
+  | { kind: 'empty' };
+
+function approvalDiff(a: QueuedApproval): DiffPayload {
+  // Defensive: `diff` / `patch` may be null, a number, or a non-string object.
+  const raw = a.tool_args?.diff ?? a.tool_args?.patch;
+  if (typeof raw === 'string' && raw.length > 0) {
+    return { kind: 'diff', text: raw };
   }
+  // Fall back to a JSON view of the args so operators can still inspect,
+  // but only when there are actually args worth showing.
+  if (a.tool_args && Object.keys(a.tool_args).length > 0) {
+    try {
+      return { kind: 'args', text: JSON.stringify(a.tool_args, null, 2) };
+    } catch {
+      return { kind: 'empty' };
+    }
+  }
+  return { kind: 'empty' };
 }
 
 function diffCounts(diff: string): { plus: number; minus: number } {
@@ -171,24 +196,43 @@ function diffFilename(a: QueuedApproval): string {
 // Screen
 // ---------------------------------------------------------------------------
 
+/** Inline toast severity — only `error` extends the default 2s window. */
+type ToastKind = 'info' | 'error';
+interface ToastState {
+  message: string;
+  kind: ToastKind;
+}
+
+const QUEUE_KEY = ['approvals', 'queue'] as const;
+
 export default function Approvals() {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Re-render once a second so wait timers tick without refetching.
   const [now, setNow] = useState<number>(() => Date.now());
+  // Track approvals optimistically removed by an in-flight mutation so the
+  // queue length, badge, and keyboard navigation stay accurate during the
+  // network round-trip. Cleared on settle (success or rollback on error).
+  const [optimisticallyResolved, setOptimisticallyResolved] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const queueQ = useQuery<QueuedApprovalsResponse>({
-    queryKey: ['approvals', 'queue'],
+    queryKey: QUEUE_KEY,
     queryFn: () => apiGet<QueuedApprovalsResponse>('/approvals/queue'),
     refetchInterval: 10_000,
   });
 
-  const pending: QueuedApproval[] = useMemo(
-    () => queueQ.data?.pending ?? [],
-    [queueQ.data?.pending],
-  );
+  // Drop optimistically-resolved rows from the displayed list so badges and
+  // keyboard navigation stay in sync with the user's last action. Defensive
+  // against missing/malformed `pending`; backends sometimes wrap the list.
+  const pending: QueuedApproval[] = useMemo(() => {
+    const raw = Array.isArray(queueQ.data?.pending) ? queueQ.data!.pending : [];
+    if (optimisticallyResolved.size === 0) return raw;
+    return raw.filter((a) => !optimisticallyResolved.has(a.id));
+  }, [queueQ.data?.pending, optimisticallyResolved]);
 
   // Auto-select the first row whenever the queue changes and the current
   // selection has fallen out of the list.
@@ -213,16 +257,18 @@ export default function Approvals() {
   useEventStream('/api/v1/events', {
     on: {
       approval_pending: () => {
-        queryClient.invalidateQueries({ queryKey: ['approvals', 'queue'] });
+        queryClient.invalidateQueries({ queryKey: QUEUE_KEY });
         queryClient.invalidateQueries({ queryKey: ['approvals'] });
       },
     },
   });
 
-  const showToast = (msg: string) => {
-    setToast(msg);
+  // Errors deserve a longer dwell so operators can read what failed; happy-path
+  // confirmations stay snappy at 2s.
+  const showToast = (message: string, kind: ToastKind = 'info') => {
+    setToast({ message, kind });
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 2000);
+    toastTimer.current = setTimeout(() => setToast(null), kind === 'error' ? 5000 : 2000);
   };
 
   useEffect(
@@ -246,8 +292,22 @@ export default function Approvals() {
         `/approvals/${encodeURIComponent(approvalId)}/resolve`,
         reason ? { decision, reason } : { decision },
       ),
+    // Optimistically drop the row so the badge count, keyboard navigation, and
+    // selection auto-advance immediately. We track the id locally instead of
+    // mutating the cached query to keep React Query's refetch in charge of the
+    // canonical list — the optimistic id is rolled back on error.
+    onMutate: ({ approvalId }) => {
+      setOptimisticallyResolved((prev) => {
+        const next = new Set(prev);
+        next.add(approvalId);
+        return next;
+      });
+      return { approvalId };
+    },
     onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['approvals', 'queue'] });
+      // Force a refetch so we converge on the server's canonical list and the
+      // optimistic id naturally drops out below.
+      queryClient.invalidateQueries({ queryKey: QUEUE_KEY });
       queryClient.invalidateQueries({ queryKey: ['approvals'] });
       const verb =
         vars.decision === 'allow'
@@ -257,9 +317,26 @@ export default function Approvals() {
             : 'Saved always-rule for';
       showToast(`${verb} ${vars.approvalId}`);
     },
-    onError: (err: unknown) => {
+    onError: (err: unknown, vars) => {
+      // Roll the optimistic removal back so the row reappears.
+      setOptimisticallyResolved((prev) => {
+        if (!prev.has(vars.approvalId)) return prev;
+        const next = new Set(prev);
+        next.delete(vars.approvalId);
+        return next;
+      });
       const msg = err instanceof Error ? err.message : 'Could not resolve approval';
-      showToast(msg);
+      showToast(msg, 'error');
+    },
+    onSettled: (_data, _err, vars) => {
+      // Clear the optimistic id once the cache has had a chance to refetch so
+      // we don't accidentally hide a still-pending row if the server kept it.
+      setOptimisticallyResolved((prev) => {
+        if (!prev.has(vars.approvalId)) return prev;
+        const next = new Set(prev);
+        next.delete(vars.approvalId);
+        return next;
+      });
     },
   });
 
@@ -309,8 +386,8 @@ export default function Approvals() {
 
   if (queueQ.isLoading) {
     return (
-      <div className="grid h-full grid-cols-[440px_1fr] overflow-hidden">
-        <div className="flex flex-col border-r border-border bg-secondary p-4">
+      <div className="grid h-full grid-cols-1 overflow-hidden md:grid-cols-[440px_1fr]">
+        <div className="flex flex-col border-b border-border bg-secondary p-4 md:border-b-0 md:border-r">
           <SectionLabel className="mb-3">Approvals queue</SectionLabel>
           <LoadingState rows={5} />
         </div>
@@ -345,9 +422,10 @@ export default function Approvals() {
   const selected = pending.find((a) => a.id === selectedId) ?? null;
 
   return (
-    <div className="grid h-full grid-cols-[440px_1fr] overflow-hidden">
-      {/* LEFT — queue list */}
-      <aside className="flex flex-col overflow-hidden border-r border-border bg-secondary">
+    <div className="grid h-full grid-cols-1 overflow-hidden md:grid-cols-[440px_1fr]">
+      {/* LEFT — queue list. On narrow viewports we stack and cap height so the
+          selected approval still gets screen real estate below. */}
+      <aside className="flex max-h-[40vh] flex-col overflow-hidden border-b border-border bg-secondary md:max-h-none md:border-b-0 md:border-r">
         <header className="px-[18px] pb-3 pt-[18px]">
           <h2 className="text-h2 text-foreground">Approvals queue</h2>
           <div className="mt-1 text-[12px] text-muted-foreground">
@@ -405,14 +483,22 @@ export default function Approvals() {
         )}
       </section>
 
-      {/* Inline toast — bottom-right, auto-clears after 2s. */}
+      {/* Inline toast — bottom-right; success auto-clears after 2s, errors 5s. */}
       <div
-        aria-live="polite"
+        aria-live={toast?.kind === 'error' ? 'assertive' : 'polite'}
+        role={toast?.kind === 'error' ? 'alert' : 'status'}
         className="pointer-events-none fixed bottom-10 right-6 z-50"
       >
         {toast && (
-          <div className="pointer-events-auto rounded-md border border-border bg-card px-3 py-2 text-body shadow-md">
-            {toast}
+          <div
+            className={cn(
+              'pointer-events-auto rounded-md border px-3 py-2 text-body shadow-md',
+              toast.kind === 'error'
+                ? 'border-destructive/50 bg-destructive/15 text-destructive'
+                : 'border-border bg-card text-foreground',
+            )}
+          >
+            {toast.message}
           </div>
         )}
       </div>
@@ -436,16 +522,28 @@ function QueueRow({ approval, selected, waitS, onClick }: QueueRowProps) {
   const rclass = classifyRisk(risk);
   const target = approvalTarget(approval);
   const taskId = approvalTaskId(approval);
+  // Scroll the keyboard-focused row into view and surface a visible focus ring
+  // so arrow-key navigation is observable. We focus the inner button rather
+  // than the <li> because buttons get the platform-native focus ring.
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (!selected) return;
+    const el = buttonRef.current;
+    if (!el) return;
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [selected]);
 
   return (
-    <li>
+    // role="option" must live on the listbox child element itself, not on a
+    // descendant button — otherwise screen readers see an empty listbox.
+    <li role="option" aria-selected={selected}>
       <button
+        ref={buttonRef}
         type="button"
-        role="option"
-        aria-selected={selected}
         onClick={onClick}
         className={cn(
           'group flex w-full items-start justify-between gap-2.5 border-b border-border-subtle px-4 py-3 text-left transition-colors',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           selected
             ? 'border-l-2 border-l-accent bg-secondary'
             : 'border-l-2 border-l-transparent hover:bg-card/40',
@@ -505,13 +603,27 @@ function SelectedApproval({
   const risk = approvalRisk(approval);
   const rclass = classifyRisk(risk);
   const reasons = approvalReasons(approval);
-  const diff = approvalDiff(approval);
-  const { plus, minus } = diffCounts(diff);
+  const diffPayload = approvalDiff(approval);
+  // Only count +/- from real diff text; JSON-args fallback would otherwise
+  // produce confusing "+12 −0" badges from quoted property syntax.
+  const { plus, minus } =
+    diffPayload.kind === 'diff' ? diffCounts(diffPayload.text) : { plus: 0, minus: 0 };
   const filename = diffFilename(approval);
   const taskId = approvalTaskId(approval);
   const target = approvalTarget(approval);
   const sloS = approval.ttl_seconds;
   const waitS = waitSeconds(approval.created_at, now);
+
+  // Destructive policy actions get a confirmation step. We use window.confirm
+  // to avoid pulling in @radix-ui/react-alert-dialog as a new dep.
+  const confirmAndDecide = (
+    decision: Decision,
+    reason: string,
+    confirmMessage: string,
+  ) => {
+    if (typeof window !== 'undefined' && !window.confirm(confirmMessage)) return;
+    onDecision(decision, reason);
+  };
 
   return (
     <>
@@ -578,35 +690,50 @@ function SelectedApproval({
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-surface-raised px-3.5 py-2.5">
           <div className="font-mono text-[11.5px] text-foreground">
             {filename}
-            <span className="ml-2.5 tabular-nums text-meta-foreground">
-              <span className="text-success">+{plus}</span>{' '}
-              <span className="text-destructive">−{minus}</span>
-            </span>
+            {diffPayload.kind === 'diff' ? (
+              <span className="ml-2.5 tabular-nums text-meta-foreground">
+                <span className="text-success">+{plus}</span>{' '}
+                <span className="text-destructive">−{minus}</span>
+              </span>
+            ) : (
+              <span className="ml-2.5 text-meta-foreground">
+                {diffPayload.kind === 'args' ? '· tool args' : '· no diff available'}
+              </span>
+            )}
           </div>
         </div>
-        <pre
-          className="m-0 max-h-[240px] overflow-auto bg-background px-3.5 py-2.5 font-mono text-log text-foreground"
-          aria-label="Approval diff"
-        >
-          {diff
-            ? diff.split('\n').map((line, i) => (
-                <span
-                  key={i}
-                  className={cn(
-                    'block',
+        {diffPayload.kind === 'empty' ? (
+          <div className="px-3.5 py-6">
+            <EmptyState
+              title="No diff available"
+              description="This tool call did not include a diff or patch payload."
+            />
+          </div>
+        ) : (
+          <pre
+            className="m-0 max-h-[240px] overflow-auto bg-background px-3.5 py-2.5 font-mono text-log text-foreground"
+            aria-label={diffPayload.kind === 'diff' ? 'Approval diff' : 'Approval tool args'}
+          >
+            {diffPayload.text.split('\n').map((line, i) => (
+              <span
+                key={i}
+                className={cn(
+                  'block',
+                  diffPayload.kind === 'diff' &&
                     line.startsWith('+') &&
-                      !line.startsWith('+++') &&
-                      'bg-success/20 text-success',
+                    !line.startsWith('+++') &&
+                    'bg-success/20 text-success',
+                  diffPayload.kind === 'diff' &&
                     line.startsWith('-') &&
-                      !line.startsWith('---') &&
-                      'bg-destructive/15 text-destructive',
-                  )}
-                >
-                  {line || ' '}
-                </span>
-              ))
-            : <span className="text-meta-foreground">no diff</span>}
-        </pre>
+                    !line.startsWith('---') &&
+                    'bg-destructive/15 text-destructive',
+                )}
+              >
+                {line || ' '}
+              </span>
+            ))}
+          </pre>
+        )}
       </div>
 
       {/* Action bar */}
@@ -643,21 +770,43 @@ function SelectedApproval({
         <div className="flex flex-1 flex-wrap items-center gap-1.5">
           <GhostAction
             disabled={pending}
-            onClick={() => onDecision('always', `tool:${approval.tool_name}`)}
+            onClick={() =>
+              confirmAndDecide(
+                'always',
+                `policy:always_allow:tool:${approval.tool_name}`,
+                `Always allow tool "${approval.tool_name}" without future review?`,
+              )
+            }
           >
             Always allow · this tool
           </GhostAction>
           <GhostAction
             disabled={pending}
-            onClick={() => onDecision('always', `agent:${approval.agent_role}`)}
+            onClick={() =>
+              confirmAndDecide(
+                'always',
+                `policy:always_allow:agent:${approval.agent_role}`,
+                `Always allow agent "${approval.agent_role}" without future review?`,
+              )
+            }
           >
             Always allow · this agent
           </GhostAction>
           <GhostAction
             disabled={pending}
-            onClick={() => onDecision('reject', 'pattern')}
+            onClick={() =>
+              confirmAndDecide(
+                // Distinguish always-deny from a one-off Deny so the backend
+                // can persist a deny rule when policy support lands. The
+                // structured `policy:always_deny:*` reason survives even when
+                // the API still treats `decision` as the leading signal.
+                'always',
+                `policy:always_deny:tool:${approval.tool_name}`,
+                `Always deny tool "${approval.tool_name}" for future calls? This is destructive.`,
+              )
+            }
           >
-            Always deny · pattern
+            Always deny · this tool
           </GhostAction>
         </div>
         <div className="font-mono text-[10.5px] text-meta-foreground">

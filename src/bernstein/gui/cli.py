@@ -1,8 +1,10 @@
 """CLI commands for the Bernstein web GUI.
 
-Always registered (so ``bernstein gui --help`` works without extras), but
-``bernstein gui serve`` performs a runtime check for the ``[gui]`` extras
-and exits with a friendly install hint when they are missing.
+The GUI ships with the wheel: pre-built static SPA in ``src/bernstein/gui/static/``
+plus the Python mount in ``bernstein.gui``. The ``[gui]`` extras label is kept
+in pyproject for forward-compat (so the install spec stays stable), but no
+runtime gate is needed today — ``sse-starlette`` arrives transitively via core
+deps and ``fastapi`` / ``uvicorn`` are already required.
 """
 
 from __future__ import annotations
@@ -14,7 +16,8 @@ import click
 def gui_group() -> None:
     """Bernstein web GUI — operator dashboard.
 
-    Requires the ``gui`` extra: ``pip install bernstein[gui]``.
+    ``bernstein gui serve`` boots a FastAPI server with the SPA mounted at
+    ``/ui`` and the full ``/api/v1/*`` surface attached.
     """
 
 
@@ -35,8 +38,6 @@ def serve(host: str, port: int, no_open: bool, dev: bool, minimal: bool) -> None
     ``bernstein.core.server.server_app.create_app``. Pass ``--minimal`` to
     skip the full API (faster boot for smoke tests).
     """
-    _check_gui_extras()
-
     import uvicorn
     from fastapi import FastAPI
 
@@ -66,13 +67,3 @@ def serve(host: str, port: int, no_open: bool, dev: bool, minimal: bool) -> None
             pass
 
     uvicorn.run(app, host=host, port=port, log_level="info")
-
-
-def _check_gui_extras() -> None:
-    """Exit non-zero with a friendly install hint if ``[gui]`` extras missing."""
-    try:
-        import sse_starlette  # noqa: F401
-    except ImportError:
-        click.echo("Bernstein GUI requires the `gui` extra:", err=True)
-        click.echo("    pip install 'bernstein[gui]'", err=True)
-        raise SystemExit(1) from None

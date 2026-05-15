@@ -1,52 +1,77 @@
+/* Bernstein · Variant A · Decision-Grade Quiet Command
+   Tokens from design_handoff_bernstein_phase1/design-source/tokens.css.
+   HSL space-separated to match shadcn convention. */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
-    --radius: 0.5rem;
+    /* shadcn core (light) */
+    --background:              40 37.5% 96.9%;
+    --foreground:              40 13% 9%;
+    --card:                    0 0% 100%;
+    --card-foreground:         40 13% 9%;
+    --popover:                 0 0% 100%;
+    --popover-foreground:      40 13% 9%;
+    --primary:                 40 13% 9%;
+    --primary-foreground:      40 37.5% 96.9%;
+    --secondary:               42 27.8% 92.9%;
+    --secondary-foreground:    40 13% 9%;
+    --muted:                   48 38.5% 97.5%;
+    --muted-foreground:        38.8 10.2% 32.7%;
+    --accent:                  178.6 33.3% 24.7%;
+    --accent-foreground:       40 37.5% 96.9%;
+    --destructive:             4.5 59.6% 34.9%;
+    --destructive-foreground:  40 37.5% 96.9%;
+    --border:                  41.7 24.7% 81.8%;
+    --input:                   41.7 24.7% 81.8%;
+    --ring:                    40 13% 9%;
+    --radius:                  0.375rem;
+
+    /* Bernstein additions */
+    --surface-raised:          48 38.5% 97.5%;
+    --border-subtle:           40 27.3% 89.2%;
+    --border-strong:           40.6 17.9% 66.1%;
+    --meta-foreground:         40 9.6% 51%;
+    --success:                 130 28.9% 32.5%;
+    --success-foreground:      40 37.5% 96.9%;
+    --warning:                 42.6 63.3% 33.1%;
+    --warning-foreground:      40 37.5% 96.9%;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 5.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --radius: 0.5rem;
+    --background:              60 11.8% 6.7%;
+    --foreground:              45 31.6% 92.5%;
+    --card:                    60 10.6% 9.2%;
+    --card-foreground:         45 31.6% 92.5%;
+    --popover:                 60 10.7% 11%;
+    --popover-foreground:      45 31.6% 92.5%;
+    --primary:                 45 31.6% 92.5%;
+    --primary-foreground:      60 11.8% 6.7%;
+    --secondary:               60 14.3% 4.1%;
+    --secondary-foreground:    45 31.6% 92.5%;
+    --muted:                   60 3% 12.9%;
+    --muted-foreground:        44.3 11.1% 59.4%;
+    --accent:                  175.1 38.2% 62.5%;
+    --accent-foreground:       60 14.3% 4.1%;
+    --destructive:             6.5 65.9% 64.3%;
+    --destructive-foreground:  60 11.8% 6.7%;
+    --border:                  60 8.5% 18.4%;
+    --input:                   60 8.5% 18.4%;
+    --ring:                    45 31.6% 92.5%;
+
+    --surface-raised:          60 3% 12.9%;
+    --border-subtle:           60 8.6% 13.7%;
+    --border-strong:           60 6.3% 31%;
+    --meta-foreground:         45 10.3% 38%;
+    --success:                 129.4 37.6% 63.5%;
+    --success-foreground:      60 14.3% 4.1%;
+    --warning:                 38.7 59.1% 63.5%;
+    --warning-foreground:      60 14.3% 4.1%;
   }
 }
 
@@ -56,6 +81,14 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: 'rlig' 1, 'calt' 1;
+    font-family: 'Inter Tight', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.005em;
+    font-feature-settings: 'rlig' 1, 'calt' 1, 'cv11' 1, 'ss01' 1;
+  }
+  .font-num,
+  .num,
+  .tabular {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
   }
 }

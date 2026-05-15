@@ -9,6 +9,24 @@ All notable project changes are tracked here (code + docs).
 - **Telegram driver simplified to a single long-poll path.** The `python-telegram-bot` v22 long-poll driver at `bernstein.core.chat.drivers.telegram` is the only Telegram driver. Configure a bot API token from `@BotFather` and a chat id; no external services. The earlier optional bridge-router architecture has been removed.
 - **Telegram notification sink simplified.** `TelegramSink` accepts a live `TelegramBridge` via `config["bridge"]` or a token string via `config["token"]` and routes through the standard long-poll path.
 
+## [2.0.0] — 2026-05-15
+
+### Added — operator GUI
+
+- **Web GUI ships as `pip install bernstein[gui]` extras.** Five operator screens (Tasks / Agents / Approvals / Audit / Costs) served by `bernstein gui serve`. The historical TUI / dashboard surfaces remain available; the GUI is an additive surface for operators who prefer a browser.
+- **`bernstein run --idle` mode for GUI development without LLM token spend.** Forces the mock adapter with sleep 15-120s heartbeats so the operator UI can be exercised end-to-end against a populated `.sdd/` runtime without burning real provider quota.
+- **`bernstein_playground/` recipe for zero-cost orchestrator demos.** Pre-baked plan + mock-adapter wiring lets a fresh clone show the GUI populated with realistic tasks/agents/approvals in under one minute.
+
+### Changed — operator surface
+
+- **Sidebar information architecture reduced 8 → 5 items.** Settings collapsed into the user menu; Fleet promoted to a topbar toggle; Overview folded into Tasks. The flat top-level list is now scannable on a 13" laptop without horizontal scroll.
+- **Default theme follows system preference (was hardcoded dark).** `prefers-color-scheme` is honoured on first load; the operator override (light/dark/system) persists in localStorage.
+
+### Internal
+
+- **New `src/bernstein/gui/` package.** FastAPI router modules feed the GUI screens off the existing `.sdd/` runtime; no new persistence layer.
+- **Vite 6 + React 18 + Tailwind 3 + shadcn/ui scaffold under `web/`.** Built artefacts ship inside the wheel under the `[gui]` extra; no Node toolchain required at install time.
+
 ## [1.10.1] — 2026-05-07
 
 ### Added — adapters

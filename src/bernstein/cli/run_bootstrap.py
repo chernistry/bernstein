@@ -844,9 +844,13 @@ def exec_restart() -> None:
     default=False,
     help=(
         "GUI-dev mode: force every adapter to ``mock`` and have each spawned "
-        "agent sleep for BERNSTEIN_MOCK_IDLE_MIN_S..MAX_S seconds (default 15-120) "
-        "instead of calling an LLM. Zero token spend — used to populate the web "
-        "GUI with live state. Mutually exclusive with --dry-run."
+        "agent sleep for $BERNSTEIN_MOCK_IDLE_MIN_S..MAX_S seconds (defaults: "
+        "min=15, max=120) instead of calling an LLM. Zero token spend — used "
+        "to populate the web GUI with live state. NOTE: the orchestrator "
+        "subprocess otherwise defaults to ``--adapter claude``; pin "
+        "``cli: mock`` at the top of bernstein.yaml in your workdir so the "
+        "orchestrator picks the mock backend too. Mutually exclusive with "
+        "--dry-run."
     ),
 )
 @click.option(

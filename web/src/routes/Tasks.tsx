@@ -197,7 +197,16 @@ export default function Tasks() {
 
   const listQ = useQuery({
     queryKey: ['tasks', 'list', listPath],
-    queryFn: () => apiGet<TasksListResponse>(listPath),
+    queryFn: async (): Promise<TasksListResponse> => {
+      // Backend returns either a wrapped {items, total, ...} OR a raw list
+      // (legacy /tasks endpoint shape). Normalize here so the rest of the
+      // component can assume the wrapped shape.
+      const raw = await apiGet<TasksListResponse | TaskRow[]>(listPath);
+      if (Array.isArray(raw)) {
+        return { items: raw, total: raw.length, page: 1, page_size: raw.length };
+      }
+      return raw;
+    },
   });
 
   const detailQ = useQuery({

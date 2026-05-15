@@ -23,7 +23,13 @@ def gui_group() -> None:
 
 @gui_group.command("serve")
 @click.option("--host", default="127.0.0.1", show_default=True, help="Bind host.")
-@click.option("--port", default=8000, show_default=True, type=int, help="Bind port.")
+@click.option(
+    "--port",
+    default=8052,
+    show_default=True,
+    type=int,
+    help="Bind port. Defaults to 8052 (canonical Bernstein orchestrator port).",
+)
 @click.option("--no-open", is_flag=True, help="Do not auto-open the browser.")
 @click.option("--dev", is_flag=True, help="Dev mode — expect Vite on :5173 (no browser auto-open).")
 @click.option(

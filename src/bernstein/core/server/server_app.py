@@ -1302,6 +1302,18 @@ def create_app(
 
     application.include_router(api_v1_router)
 
+    # Web GUI auto-mount (best-effort): if the SPA build is present in the
+    # wheel, expose it at /ui/* and add /api/v1/gui-meta. Failure is silent —
+    # source-checkout installs without `cd web && npm run build` simply do
+    # not get the GUI mounted, and `bernstein gui serve` is the explicit
+    # entry point in that case.
+    try:
+        from bernstein.gui import mount as _gui_mount
+
+        _gui_mount(application)
+    except Exception:
+        pass
+
     return application
 
 

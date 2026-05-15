@@ -26,26 +26,49 @@ import {
 import { cn } from '@/lib/utils';
 
 // ── Domain types ────────────────────────────────────────────────────────────
-
+// UI status vocabulary — the visual states the table/drawer render.
 type TaskStatus = 'running' | 'queued' | 'stalled' | 'failed' | 'done';
+
+// Backend status vocabulary (see core/tasks/models.py::TaskStatus).
+type BackendStatus =
+  | 'planned'
+  | 'open'
+  | 'claimed'
+  | 'in_progress'
+  | 'done'
+  | 'closed'
+  | 'failed'
+  | 'blocked'
+  | 'waiting_for_subtasks'
+  | 'cancelled'
+  | 'orphaned'
+  | 'pending_approval';
 
 interface TaskRow {
   id: string;
   title: string;
-  agent: string;
+  /** Server-side raw status string. */
+  status: BackendStatus | string;
   role: string;
-  status: TaskStatus;
-  /** Duration in milliseconds. */
-  duration_ms: number | null;
-  /** 0–100 progress percent. */
-  progress: number;
+  /** Backend uses ``assigned_agent``; older shape used ``agent``. Either may be present. */
+  assigned_agent?: string | null;
+  agent?: string | null;
+  /** Duration in milliseconds. May be omitted; we derive from claimed_at when needed. */
+  duration_ms?: number | null;
+  /** 0–100 progress percent. May be missing; show "—" when so. */
+  progress?: number | null;
   /** Total tokens consumed so far. */
-  tokens: number | null;
-  /** Working git branch. */
-  branch: string | null;
-  /** Cost in USD. */
-  cost_usd: number | null;
+  tokens?: number | null;
+  /** Working git branch. May live on the row or inside ``metadata``. */
+  branch?: string | null;
+  /** Cost in USD. May live on the row or inside ``metadata.cost_usd``. */
+  cost_usd?: number | null;
+  /** Free-form metadata bag from the orchestrator. */
+  metadata?: Record<string, unknown> | null;
   updated_at?: string | null;
+  /** Unix epoch seconds when the task was claimed. */
+  claimed_at?: number | null;
+  created_at?: number | null;
 }
 
 interface TasksListResponse {
@@ -53,7 +76,7 @@ interface TasksListResponse {
   total?: number;
   page?: number;
   page_size?: number;
-  counts?: Partial<Record<TaskStatus | 'all' | 'done_24h', number>>;
+  counts?: Partial<Record<TaskStatus | BackendStatus | 'all' | 'done_24h', number>>;
 }
 
 interface PlanStep {
@@ -73,16 +96,106 @@ interface TaskDetail extends TaskRow {
   plan?: PlanStep[];
 }
 
+// Map every backend status onto a UI bucket. Unknown strings fall to 'queued'
+// (the safest neutral state).
+function toUiStatus(s: string | null | undefined): TaskStatus {
+  switch (s) {
+    case 'running':
+    case 'in_progress':
+    case 'claimed':
+      return 'running';
+    case 'planned':
+    case 'open':
+    case 'queued':
+    case 'waiting_for_subtasks':
+    case 'pending_approval':
+      return 'queued';
+    case 'stalled':
+    case 'blocked':
+    case 'orphaned':
+      return 'stalled';
+    case 'failed':
+    case 'cancelled':
+      return 'failed';
+    case 'done':
+    case 'closed':
+      return 'done';
+    default:
+      return 'queued';
+  }
+}
+
+// Cost may live on the row or inside ``metadata.cost_usd`` depending on
+// orchestrator version. Coerce strings/numbers, ignore garbage.
+function readCostUsd(row: TaskRow): number | null {
+  if (typeof row.cost_usd === 'number' && Number.isFinite(row.cost_usd)) return row.cost_usd;
+  const md = row.metadata;
+  if (md && typeof md === 'object') {
+    const v = (md as Record<string, unknown>).cost_usd;
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string') {
+      const n = Number.parseFloat(v);
+      if (Number.isFinite(n)) return n;
+    }
+  }
+  return null;
+}
+
+function readBranch(row: TaskRow): string | null {
+  if (typeof row.branch === 'string' && row.branch) return row.branch;
+  const md = row.metadata;
+  if (md && typeof md === 'object') {
+    const v = (md as Record<string, unknown>).branch;
+    if (typeof v === 'string' && v) return v;
+  }
+  return null;
+}
+
+function readAgent(row: TaskRow): string | null {
+  if (typeof row.agent === 'string' && row.agent) return row.agent;
+  if (typeof row.assigned_agent === 'string' && row.assigned_agent) return row.assigned_agent;
+  return null;
+}
+
+function readTokens(row: TaskRow): number | null {
+  if (typeof row.tokens === 'number' && Number.isFinite(row.tokens)) return row.tokens;
+  const md = row.metadata;
+  if (md && typeof md === 'object') {
+    const v = (md as Record<string, unknown>).tokens;
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+  }
+  return null;
+}
+
+function readDurationMs(row: TaskRow): number | null {
+  if (typeof row.duration_ms === 'number' && Number.isFinite(row.duration_ms)) return row.duration_ms;
+  const claimed = row.claimed_at;
+  if (typeof claimed === 'number' && Number.isFinite(claimed)) {
+    const nowMs = Date.now();
+    const claimedMs = claimed * 1000;
+    const delta = nowMs - claimedMs;
+    return delta >= 0 ? delta : null;
+  }
+  return null;
+}
+
 // ── Filter chips ────────────────────────────────────────────────────────────
 
 type ChipKey = 'all' | 'running' | 'queued' | 'stalled' | 'done_24h' | 'failed';
 
+// statusParam goes straight to the backend ``?status=`` filter. The closest
+// backend status to "running" is ``in_progress`` (Tasks the orchestrator has
+// actively claimed); ``open`` is the queue.
+//
+// NB: the original ``Done · 24h`` label promised a 24h time-window filter
+// that the server doesn't expose. Dropping the suffix to keep the chip
+// honest until the time-window endpoint lands.
 const CHIPS: { key: ChipKey; label: string; statusParam?: string }[] = [
   { key: 'all', label: 'All' },
-  { key: 'running', label: 'Running', statusParam: 'running' },
-  { key: 'queued', label: 'Queued', statusParam: 'queued' },
-  { key: 'stalled', label: 'Stalled', statusParam: 'stalled' },
-  { key: 'done_24h', label: 'Done · 24h', statusParam: 'done_24h' },
+  { key: 'running', label: 'Running', statusParam: 'in_progress' },
+  { key: 'queued', label: 'Queued', statusParam: 'open' },
+  { key: 'stalled', label: 'Stalled', statusParam: 'blocked' },
+  { key: 'done_24h', label: 'Done', statusParam: 'done' },
   { key: 'failed', label: 'Failed', statusParam: 'failed' },
 ];
 
@@ -99,7 +212,13 @@ const TOKEN_RE = /(agent:|status:|role:)/gi;
 
 function HighlightedQuery({ value }: { value: string }) {
   if (!value) {
-    return <span className="text-meta-foreground">filter:</span>;
+    // Subtle ghost hint of the syntax — purely visual, the input itself is empty.
+    // Parent already renders the literal ``filter:`` label, so do not duplicate it here.
+    return (
+      <span className="text-meta-foreground/60">
+        agent:claude status:running role:backend
+      </span>
+    );
   }
   const parts: ReactNode[] = [];
   let last = 0;
@@ -145,12 +264,20 @@ function parseQuery(q: string): ParsedQuery {
   const free: string[] = [];
   for (const tok of q.split(/\s+/).filter(Boolean)) {
     const lower = tok.toLowerCase();
-    if (lower.startsWith('agent:')) agent = tok.slice('agent:'.length) || null;
-    else if (lower.startsWith('role:')) role = tok.slice('role:'.length) || null;
-    else if (lower.startsWith('status:')) {
+    if (lower.startsWith('agent:')) {
+      // Trailing-colon (`agent:`) is a partial token while typing — keep the
+      // existing free-text behaviour off, but do not assign agent='' either.
+      const rest = tok.slice('agent:'.length);
+      if (rest) agent = rest;
+    } else if (lower.startsWith('role:')) {
+      const rest = tok.slice('role:'.length);
+      if (rest) role = rest;
+    } else if (lower.startsWith('status:')) {
       // status is driven by chip selection, not the query bar
       continue;
-    } else free.push(tok);
+    } else {
+      free.push(tok);
+    }
   }
   return { agent, role, text: free.join(' ').trim() };
 }
@@ -178,8 +305,8 @@ function buildListPath(opts: {
 export default function Tasks() {
   const qc = useQueryClient();
 
-  const [queryStr, setQueryStr] = useState<string>('agent:claude role:implementer');
-  const [activeChip, setActiveChip] = useState<ChipKey>('running');
+  const [queryStr, setQueryStr] = useState<string>('');
+  const [activeChip, setActiveChip] = useState<ChipKey>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [page] = useState<number>(1);
   const [activeTab, setActiveTab] = useState<DetailTab>('Summary');
@@ -236,12 +363,20 @@ export default function Tasks() {
   });
 
   // Mutations (per-task).
+  // NB: /cancel requires a JSON body (TaskCancelRequest{reason}); the legacy
+  // empty-POST returned 422. Keep ``reason`` short and honest.
+  // NB: there is no `/tasks/{id}/retry` or `/tasks/{id}/kill` endpoint —
+  // ``force-claim`` is the closest "re-run" semantic (resets the row back to
+  // open with priority 0); kill maps to ``/tasks/{id}/cancel`` until a
+  // session-level kill lands.
   const cancelMut = useMutation({
-    mutationFn: (id: string) => apiPost<unknown>(`/tasks/${encodeURIComponent(id)}/cancel`),
+    mutationFn: (id: string) =>
+      apiPost<unknown>(`/tasks/${encodeURIComponent(id)}/cancel`, { reason: 'cancelled from gui' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
   });
   const rerunMut = useMutation({
-    mutationFn: (id: string) => apiPost<unknown>(`/tasks/${encodeURIComponent(id)}/retry`),
+    mutationFn: (id: string) =>
+      apiPost<unknown>(`/tasks/${encodeURIComponent(id)}/force-claim`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
   });
   const prioritizeMut = useMutation({
@@ -250,33 +385,51 @@ export default function Tasks() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
   });
   const killMut = useMutation({
-    mutationFn: (id: string) => apiPost<unknown>(`/tasks/${encodeURIComponent(id)}/kill`),
+    mutationFn: (id: string) =>
+      apiPost<unknown>(`/tasks/${encodeURIComponent(id)}/cancel`, { reason: 'killed from gui' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
   });
 
   // Derived
   const items = listQ.data?.items ?? [];
   const counts = listQ.data?.counts ?? {};
+  // Counts may be reported under either UI keys (running/stalled) or backend
+  // keys (in_progress/blocked). Read both, prefer the explicit one.
   const totalCount = counts.all ?? listQ.data?.total ?? items.length;
-  const runningCount = counts.running ?? items.filter((t) => t.status === 'running').length;
-  const stalledCount = counts.stalled ?? items.filter((t) => t.status === 'stalled').length;
+  const runningCount =
+    counts.running ??
+    counts.in_progress ??
+    items.filter((t) => toUiStatus(t.status) === 'running').length;
+  const stalledCount =
+    counts.stalled ??
+    counts.blocked ??
+    items.filter((t) => toUiStatus(t.status) === 'stalled').length;
   const lastSync = listQ.dataUpdatedAt ? new Date(listQ.dataUpdatedAt).toISOString() : null;
 
   const selected = items.find((t) => t.id === selectedId) ?? null;
 
-  // Auto-select first row when the list loads and nothing is selected.
+  // Selection lifecycle:
+  // (a) auto-select first row when nothing is selected and the list arrives
+  // (b) clear selection if the previously-selected row no longer exists
+  //     (e.g. SSE invalidation removed it). Otherwise the detail query keeps
+  //     thrashing on a 404 and the drawer renders stale fallback data.
   useEffect(() => {
-    if (selectedId === null && items.length > 0) {
-      setSelectedId(items[0].id);
+    if (!listQ.data) return;
+    if (selectedId === null) {
+      if (items.length > 0) setSelectedId(items[0].id);
+      return;
     }
-  }, [selectedId, items]);
+    if (!items.some((t) => t.id === selectedId)) {
+      setSelectedId(null);
+    }
+  }, [selectedId, items, listQ.data]);
 
   const refetchList = () => {
     listQ.refetch();
   };
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-[1fr_380px]">
+    <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[1fr_380px]">
       {/* ── LEFT: query + table ─────────────────────────────────────────── */}
       <section className="flex min-w-0 flex-col overflow-hidden px-[22px] py-[18px]">
         <Header
@@ -332,7 +485,7 @@ export default function Tasks() {
 
       {/* ── RIGHT: detail drawer ────────────────────────────────────────── */}
       <aside
-        className="flex flex-col overflow-hidden border-l border-border bg-secondary"
+        className="flex flex-col overflow-hidden border-t border-border bg-secondary lg:border-l lg:border-t-0"
         style={
           {
             animation: `drawer-in ${duration.panel * 1000}ms cubic-bezier(${ease.out.join(',')})`,
@@ -342,7 +495,7 @@ export default function Tasks() {
         {selectedId === null ? (
           <DrawerEmpty />
         ) : detailQ.isLoading && !detailQ.data ? (
-          <DrawerLoading id={selectedId} fallback={selected} />
+          <DrawerLoading id={selectedId} fallback={selected} onClose={() => setSelectedId(null)} />
         ) : detailQ.isError && !detailQ.data ? (
           <DrawerError
             id={selectedId}
@@ -471,20 +624,35 @@ function SearchBar({
 
 // ── Chips row ──────────────────────────────────────────────────────────────
 
+// Map a ChipKey to the backend ``counts`` keys it would prefer to read, in
+// fallback order. The backend may emit either UI-flavoured keys (running) or
+// raw backend statuses (in_progress, blocked, …).
+const CHIP_COUNT_KEYS: Record<ChipKey, readonly string[]> = {
+  all: ['all'],
+  running: ['running', 'in_progress'],
+  queued: ['queued', 'open'],
+  stalled: ['stalled', 'blocked'],
+  done_24h: ['done_24h', 'done'],
+  failed: ['failed'],
+};
+
 function ChipsRow({
   active,
   counts,
   onSelect,
 }: {
   active: ChipKey;
-  counts: Partial<Record<TaskStatus | 'all' | 'done_24h', number>>;
+  counts: Partial<Record<TaskStatus | BackendStatus | 'all' | 'done_24h', number>>;
   onSelect: (k: ChipKey) => void;
 }) {
   return (
     <div className="mt-[10px] flex flex-wrap items-center gap-1.5">
       {CHIPS.map((c) => {
         const isActive = c.key === active;
-        const n = counts[c.key as keyof typeof counts];
+        const lookups = CHIP_COUNT_KEYS[c.key];
+        const n = lookups
+          .map((k) => counts[k as keyof typeof counts])
+          .find((v): v is number => typeof v === 'number');
         return (
           <button
             type="button"
@@ -557,6 +725,14 @@ function TasksTable({
         <tbody>
           {items.map((tk) => {
             const sel = tk.id === selectedId;
+            const ui = toUiStatus(tk.status);
+            const agent = readAgent(tk);
+            const branch = readBranch(tk);
+            const cost = readCostUsd(tk);
+            const dur = readDurationMs(tk);
+            const progress = typeof tk.progress === 'number' && Number.isFinite(tk.progress)
+              ? tk.progress
+              : null;
             return (
               <tr
                 key={tk.id}
@@ -577,26 +753,29 @@ function TasksTable({
                 aria-selected={sel}
               >
                 <Td className="pl-[14px]">
-                  <StatusDot kind={tk.status} />
+                  <StatusDot kind={ui} />
                 </Td>
-                <Td className="font-mono text-[11.5px] text-muted-foreground">{tk.id}</Td>
+                <Td className="font-mono text-[11.5px] text-muted-foreground">
+                  <span className="block truncate" title={tk.id}>{tk.id}</span>
+                </Td>
                 <Td className="min-w-0">
                   <div
                     className={cn(
                       'truncate text-[12.5px]',
                       sel ? 'font-medium text-foreground' : 'text-foreground',
                     )}
+                    title={tk.title}
                   >
                     {tk.title}
                   </div>
-                  {tk.branch && (
-                    <div className="mt-0.5 truncate font-mono text-[10.5px] text-meta-foreground">
-                      ↳ {tk.branch}
+                  {branch && (
+                    <div className="mt-0.5 truncate font-mono text-[10.5px] text-meta-foreground" title={branch}>
+                      ↳ {branch}
                     </div>
                   )}
                 </Td>
                 <Td className="font-mono text-[11.5px] text-muted-foreground">
-                  <span className="block truncate">{tk.agent}</span>
+                  <span className="block truncate" title={agent ?? undefined}>{agent ?? '—'}</span>
                 </Td>
                 <Td>
                   <Pill kind="ghost">{tk.role}</Pill>
@@ -605,29 +784,33 @@ function TasksTable({
                   align="right"
                   className={cn(
                     'font-mono tabular-nums text-[11.5px]',
-                    tk.status === 'stalled' ? 'text-warning' : 'text-foreground',
+                    ui === 'stalled' ? 'text-warning' : 'text-foreground',
                   )}
                 >
-                  {tk.status === 'queued'
-                    ? '—'
-                    : formatDuration(tk.duration_ms)}
+                  {ui === 'queued' ? '—' : formatDuration(dur)}
                 </Td>
                 <Td>
-                  {tk.status === 'queued' ? (
+                  {ui === 'queued' || progress === null ? (
                     <span className="font-mono text-[11px] text-meta-foreground">—</span>
                   ) : (
-                    <ProgressCell status={tk.status} value={tk.progress} />
+                    <ProgressCell status={ui} value={progress} />
                   )}
                 </Td>
                 <Td align="right" className="font-mono tabular-nums text-[11.5px]">
-                  {formatUSD(tk.cost_usd)}
+                  {formatUSD(cost)}
                 </Td>
                 <Td align="right" className="pr-3 text-meta-foreground">
                   <button
                     type="button"
                     className="grid size-6 place-items-center rounded-sm text-meta-foreground transition-colors hover:bg-muted hover:text-foreground"
                     aria-label="Row actions"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Selecting the row opens the drawer where every per-task
+                      // action (cancel/rerun/kill) lives. Keep the kebab affordance
+                      // visible but route to the same target until a popover lands.
+                      onSelect(tk.id);
+                    }}
                   >
                     <MoreHorizontal className="size-3.5" strokeWidth={1.5} />
                   </button>
@@ -682,17 +865,27 @@ function DrawerEmpty() {
 function DrawerLoading({
   id,
   fallback,
+  onClose,
 }: {
   id: string;
   fallback: TaskRow | null;
+  onClose: () => void;
 }) {
   return (
     <>
       <div className="border-b border-border px-[18px] pb-[10px] pt-[14px]">
-        <div className="flex items-center justify-between">
-          <span className="font-mono text-[11px] tracking-[0.1em] text-meta-foreground">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate font-mono text-[11px] tracking-[0.1em] text-meta-foreground">
             TASK · {id}
           </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 text-meta-foreground transition-colors hover:text-foreground"
+            aria-label="Close detail"
+          >
+            <X className="size-3" strokeWidth={1.5} />
+          </button>
         </div>
         <div className="mt-1.5 text-[14px] font-medium leading-snug text-foreground">
           {fallback?.title ?? '—'}
@@ -768,17 +961,20 @@ function DetailDrawer({
   isKilling: boolean;
 }) {
   const detail = task as TaskDetail;
-  const durLabel =
-    task.status === 'queued' ? 'queued' : `${task.status} · ${formatDuration(task.duration_ms)}`;
+  const ui = toUiStatus(task.status);
+  const durMs = readDurationMs(task);
+  const durLabel = ui === 'queued' ? 'queued' : `${ui} · ${formatDuration(durMs)}`;
+  const agent = readAgent(task);
 
-  // KPI: tokens, cost, branch, approvals.
+  // KPI: tokens, cost, branch, approvals — all tolerate field-shape variance.
   const tokensIn = detail.tokens_in ?? null;
   const tokensOut = detail.tokens_out ?? null;
+  const tokensRow = readTokens(task);
   const tokensTotal =
-    detail.tokens ?? (tokensIn != null && tokensOut != null ? tokensIn + tokensOut : null);
-  const costUsd = task.cost_usd;
+    tokensRow ?? (tokensIn != null && tokensOut != null ? tokensIn + tokensOut : null);
+  const costUsd = readCostUsd(task);
   const costCap = detail.cost_cap_usd ?? null;
-  const branch = task.branch;
+  const branch = readBranch(task);
   const diffAdd = detail.diff_added;
   const diffDel = detail.diff_removed;
   const apTotal = detail.approvals_total;
@@ -791,14 +987,14 @@ function DetailDrawer({
     <>
       {/* Header */}
       <div className="border-b border-border px-[18px] pb-[10px] pt-[14px]">
-        <div className="flex items-center justify-between">
-          <span className="font-mono text-[11px] tracking-[0.1em] text-meta-foreground">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate font-mono text-[11px] tracking-[0.1em] text-meta-foreground">
             TASK · {task.id}
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="text-meta-foreground transition-colors hover:text-foreground"
+            className="shrink-0 text-meta-foreground transition-colors hover:text-foreground"
             aria-label="Close detail"
           >
             <X className="size-3" strokeWidth={1.5} />
@@ -808,11 +1004,11 @@ function DetailDrawer({
           {task.title}
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          <Pill kind={statusToPillKind(task.status)}>
-            <StatusDot kind={task.status} />
+          <Pill kind={statusToPillKind(ui)}>
+            <StatusDot kind={ui} />
             {durLabel}
           </Pill>
-          <Pill>{task.agent}</Pill>
+          {agent && <Pill>{agent}</Pill>}
           <Pill kind="ghost">{task.role}</Pill>
         </div>
       </div>
@@ -866,7 +1062,7 @@ function DetailDrawer({
                 sub={
                   diffAdd != null && diffDel != null
                     ? `+${formatCount(diffAdd)} −${formatCount(diffDel)} lines`
-                    : '—'
+                    : 'no diff yet'
                 }
                 valueMono
               />
@@ -877,7 +1073,11 @@ function DetailDrawer({
                     ? `${formatCount(apDone)} / ${formatCount(apTotal)}`
                     : '—'
                 }
-                sub={apPending != null ? `${formatCount(apPending)} pending` : '—'}
+                sub={
+                  apPending != null && apPending > 0
+                    ? `${formatCount(apPending)} pending`
+                    : 'none pending'
+                }
               />
             </div>
 
@@ -917,7 +1117,9 @@ function DetailDrawer({
               )}
             </div>
 
-            {/* Action stack */}
+            {/* Action stack. ``Change model`` / ``Change role`` are not yet wired
+                to a backend mutation; do not silently fall through to the
+                prioritize endpoint (that's a different action with side-effects). */}
             <div className="mt-5 grid grid-cols-2 gap-1.5">
               <ActionButton onClick={onCancel} pending={isCancelling}>
                 Cancel run
@@ -926,10 +1128,10 @@ function DetailDrawer({
                 Re-run
               </ActionButton>
               <ActionButton onClick={onPrioritize} pending={isPrioritizing}>
-                Change model
+                Prioritize
               </ActionButton>
-              <ActionButton onClick={onPrioritize} pending={isPrioritizing}>
-                Change role
+              <ActionButton onClick={() => undefined} pending={false} disabledReason="Not wired in this build">
+                Change model
               </ActionButton>
               <ActionButton
                 className="col-span-2 border-destructive text-destructive hover:bg-destructive/10"
@@ -959,7 +1161,6 @@ function statusToPillKind(s: TaskStatus): 'success' | 'warning' | 'danger' | 'de
     case 'queued':
       return 'ghost';
     case 'done':
-    default:
       return 'default';
   }
 }
@@ -1000,19 +1201,24 @@ function ActionButton({
   onClick,
   pending,
   className,
+  disabledReason,
 }: {
   children: ReactNode;
   onClick: () => void;
   pending: boolean;
   className?: string;
+  disabledReason?: string;
 }) {
+  const disabled = pending || disabledReason != null;
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={pending}
+      disabled={disabled}
+      title={disabledReason}
+      aria-disabled={disabled}
       className={cn(
-        'rounded-md border border-border bg-card px-2.5 py-1.5 text-[12px] font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-60',
+        'rounded-md border border-border bg-card px-2.5 py-1.5 text-[12px] font-medium text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-60',
         className,
       )}
     >

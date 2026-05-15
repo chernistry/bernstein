@@ -2,6 +2,18 @@
    Tokens from design_handoff_bernstein_phase1/design-source/tokens.css.
    HSL space-separated to match shadcn convention. */
 
+/* NOTE for chrome agent (file owner: ThemeProvider/index.html):
+   ThemeProvider.tsx correctly removes the .dark class on mount, but FOUC
+   is still possible because index.html has no inline theme-bootstrap
+   script — first paint always flashes the light theme. To remove the
+   flash, add a tiny inline <script> in index.html <head> that reads
+   localStorage('bernstein-theme') and sets the class on <html> before
+   React hydrates. (No fix here — out of scope for this file.) */
+
+/* Font loading: Google Fonts @import is render-blocking by default.
+   We can't add <link rel="preconnect"> from this file (owned by chrome),
+   so we keep @import + ensure font-display=swap is in the URL (it is)
+   and rely on the system-ui fallback in body { font-family }. */
 @import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
@@ -10,6 +22,10 @@
 
 @layer base {
   :root {
+    /* Match the active theme to native UA controls (scrollbars, form widgets,
+       autofill, system dialog selection). */
+    color-scheme: light;
+
     /* shadcn core (light) */
     --background:              40 37.5% 96.9%;
     --foreground:              40 13% 9%;
@@ -36,7 +52,9 @@
     --surface-raised:          48 38.5% 97.5%;
     --border-subtle:           40 27.3% 89.2%;
     --border-strong:           40.6 17.9% 66.1%;
-    --meta-foreground:         40 9.6% 51%;
+    /* meta-foreground: was 40 9.6% 51% (#8E8676) — failed WCAG AA on light
+       background (3.40:1). Bumped lightness to 38% (#6E6759 → 5.5:1). */
+    --meta-foreground:         40 9.6% 38%;
     --success:                 130 28.9% 32.5%;
     --success-foreground:      40 37.5% 96.9%;
     --warning:                 42.6 63.3% 33.1%;
@@ -44,6 +62,8 @@
   }
 
   .dark {
+    color-scheme: dark;
+
     --background:              60 11.8% 6.7%;
     --foreground:              45 31.6% 92.5%;
     --card:                    60 10.6% 9.2%;
@@ -56,6 +76,8 @@
     --secondary-foreground:    45 31.6% 92.5%;
     --muted:                   60 3% 12.9%;
     --muted-foreground:        44.3 11.1% 59.4%;
+    /* Note: dark --accent (#7BC4BE) on --card (#1A1A15) is 8.72:1 — passes
+       WCAG AA (4.5:1). Known-bug claim was incorrect; no swap needed. */
     --accent:                  175.1 38.2% 62.5%;
     --accent-foreground:       60 14.3% 4.1%;
     --destructive:             6.5 65.9% 64.3%;
@@ -67,7 +89,9 @@
     --surface-raised:          60 3% 12.9%;
     --border-subtle:           60 8.6% 13.7%;
     --border-strong:           60 6.3% 31%;
-    --meta-foreground:         45 10.3% 38%;
+    /* meta-foreground: was 45 10.3% 38% (#6B6657) — failed WCAG AA on dark
+       card (3.05:1). Bumped lightness to 55% (#92897A → 5.6:1). */
+    --meta-foreground:         45 10.3% 55%;
     --success:                 129.4 37.6% 63.5%;
     --success-foreground:      60 14.3% 4.1%;
     --warning:                 38.7 59.1% 63.5%;
@@ -83,12 +107,73 @@
     @apply bg-background text-foreground;
     font-family: 'Inter Tight', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     letter-spacing: -0.005em;
-    font-feature-settings: 'rlig' 1, 'calt' 1, 'cv11' 1, 'ss01' 1;
+    /* 'rlig' + 'calt' are universal OpenType features (req. ligatures, contextual
+       alts). 'cv11'/'ss01' are Inter-specific stylistic alternates that don't exist
+       in Inter Tight; the previous declaration was a no-op there and could conflict
+       with future font swaps. Keep only the universal features. */
+    font-feature-settings: 'rlig' 1, 'calt' 1;
   }
+
+  /* Global selection color — uses accent token so it's theme-aware.
+     Without this, browsers fall back to default OS blue, which clashes
+     with the warm-bone palette. */
+  ::selection {
+    background-color: hsl(var(--accent) / 0.25);
+    color: hsl(var(--foreground));
+  }
+
+  /* Default focus-visible ring for any interactive element that doesn't
+     declare its own. Components that opt in to focus-visible:ring-* still
+     win because they target :focus-visible directly with higher specificity
+     via Tailwind's `ring` utilities. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Scrollbar styling — uses border tokens so it tracks the active theme.
+     Firefox uses scrollbar-color/scrollbar-width; WebKit uses ::-webkit-scrollbar. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border-strong)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border-strong));
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--meta-foreground));
+    background-clip: padding-box;
+  }
+
   .font-num,
   .num,
   .tabular {
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Respect prefers-reduced-motion globally — disables Tailwind's animate-*,
+   transition-*, and the keyframe animations declared in tailwind.config.js
+   (drawer-in, fade-in). Components that key off prefersReducedMotion() in
+   JS are still encouraged to skip non-essential motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

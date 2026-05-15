@@ -297,15 +297,44 @@ def _idle_mode(log_path: Path) -> None:
     ``BERNSTEIN_MOCK_IDLE_MAX_S`` (default 120). With probability
     ``BERNSTEIN_MOCK_FAIL_RATE`` (default 0.05) the agent exits non-zero so
     the GUI shows a mix of completed/failed states.
+
+    Env vars that fail to parse fall back to defaults instead of crashing
+    so a typo (e.g. ``BERNSTEIN_MOCK_IDLE_MIN_S=180s``) does not silently
+    abort GUI demo agents.
     """
     import os
     import random
 
-    lo = int(os.environ.get("BERNSTEIN_MOCK_IDLE_MIN_S", "15"))
-    hi = int(os.environ.get("BERNSTEIN_MOCK_IDLE_MAX_S", "120"))
-    fail_rate = float(os.environ.get("BERNSTEIN_MOCK_FAIL_RATE", "0.05"))
+    def _int_env(key: str, default: int) -> int:
+        raw = os.environ.get(key, "").strip()
+        if not raw:
+            return default
+        try:
+            return int(raw)
+        except ValueError:
+            write_log(log_path, f"idle: WARN bad {key}={raw!r}; using default {default}")
+            return default
+
+    def _float_env(key: str, default: float) -> float:
+        raw = os.environ.get(key, "").strip()
+        if not raw:
+            return default
+        try:
+            return float(raw)
+        except ValueError:
+            write_log(log_path, f"idle: WARN bad {key}={raw!r}; using default {default}")
+            return default
+
+    lo = _int_env("BERNSTEIN_MOCK_IDLE_MIN_S", 15)
+    hi = _int_env("BERNSTEIN_MOCK_IDLE_MAX_S", 120)
+    # Clamp to non-negative to avoid random.randint(0, 0) edge crashes.
+    lo = max(0, lo)
+    hi = max(0, hi)
+    if hi < lo:
+        lo, hi = hi, lo
+    fail_rate = _float_env("BERNSTEIN_MOCK_FAIL_RATE", 0.05)
     will_fail = random.random() < fail_rate
-    sleep_s = random.randint(min(lo, hi), max(lo, hi))
+    sleep_s = random.randint(lo, hi) if hi > 0 else 0
 
     write_log(log_path, f"idle: sleeping {sleep_s}s (will_fail={will_fail})")
     chunk = max(1, sleep_s // 6)

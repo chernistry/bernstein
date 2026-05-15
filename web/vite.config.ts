@@ -14,6 +14,13 @@ export default defineConfig({
     proxy: {
       // Canonical Bernstein orchestrator port (DEFAULT 8052 — see run_bootstrap).
       '/api': { target: 'http://127.0.0.1:8052', changeOrigin: true },
+      // Proxy FastAPI's auto-generated docs surface so an operator hitting
+      // ``/openapi.json``, ``/docs``, ``/redoc`` through the dev server gets
+      // a real response instead of a Vite 404 + ``no fallback for /openapi.json``
+      // confusion.  These paths live OUTSIDE ``/api/v1`` on the backend.
+      '/openapi.json': { target: 'http://127.0.0.1:8052', changeOrigin: true },
+      '/docs': { target: 'http://127.0.0.1:8052', changeOrigin: true },
+      '/redoc': { target: 'http://127.0.0.1:8052', changeOrigin: true },
     },
   },
   build: {

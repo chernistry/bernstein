@@ -20,6 +20,7 @@ Commands:
   bernstein audit capabilities       Print lethal-trifecta capability matrix.
   bernstein audit slice              Write a deterministic subset.
   bernstein audit query              Query audit log events with filters.
+  bernstein audit archive            Safely archive corrupt / pre-rotation jsonl files.
 
 Operator guide: docs/security/audit-log.md.
 """
@@ -28,12 +29,16 @@ from __future__ import annotations
 
 import contextlib
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from rich.panel import Panel
 from rich.table import Table
 
 from bernstein.cli.helpers import console
+
+if TYPE_CHECKING:
+    from datetime import date
 
 AUDIT_DIR = Path(".sdd/audit")
 MERKLE_DIR = AUDIT_DIR / "merkle"
@@ -1157,3 +1162,428 @@ def query_cmd(event_type: str | None, actor: str | None, since: str | None, limi
     console.print()
     console.print(table)
     console.print(f"\n[dim]Showing {len(events)} event(s)[/dim]\n")
+
+
+# ---------------------------------------------------------------------------
+# bernstein audit archive
+# ---------------------------------------------------------------------------
+# Safe, idempotent move of corrupt / pre-rotation jsonl files out of the
+# active audit chain so ``bernstein doctor airgap`` reports clean again.
+#
+# Design notes:
+#   * Move-only (never delete). Original is moved to <archive-dir>/<name>;
+#     a sibling ``<name>.archived.json`` metadata file records who/why/when.
+#   * Idempotent: refuses to overwrite an existing archived file with the
+#     same name. Operator gets a clear error and the source stays in place.
+#   * Refuses to touch the live archive subdirectory used by the rotation
+#     code path (``archive/``) and never operates on files outside the
+#     resolved audit dir.
+#   * Defaults to "show plan, then ask for --yes". ``--dry-run`` skips both
+#     the prompt and the actual move; ``--yes`` performs the move.
+
+
+_ARCHIVE_REASON_CORRUPT = "corrupt-hmac"
+_ARCHIVE_REASON_BEFORE = "before-date"
+_ARCHIVE_REASON_OPERATOR = "operator-archive"
+
+
+def _hmac_corrupt_files(audit_dir: Path, key: bytes | None = None) -> set[str]:
+    """Return the set of jsonl filenames whose HMACs do NOT match ``key``.
+
+    A file is corrupt iff ``_verify_log_file`` reports an HMAC mismatch
+    when its starting ``prev_hmac`` is taken from the file's own first
+    line. This isolates *internal* HMAC failures (the live-symptom case
+    from the 2026-05-13 ticket: entries written under a rotated key)
+    from downstream drift (a clean file whose chain anchor shifted
+    because an earlier file was archived). Operators want to remove the
+    former and keep the latter.
+
+    Args:
+        audit_dir: The audit directory to scan.
+        key: Optional HMAC key. When ``None``, the canonical key is
+            resolved via :func:`load_or_create_audit_key`.
+    """
+    import json as _json
+
+    from bernstein.core.security.audit import _verify_log_file, load_or_create_audit_key
+
+    if not audit_dir.is_dir():
+        return set()
+
+    if key is None:
+        key = load_or_create_audit_key()
+
+    corrupt: set[str] = set()
+    for log_path in sorted(audit_dir.glob("*.jsonl")):
+        # Read the file's own first prev_hmac so we don't penalise a
+        # downstream-clean file for an upstream archive event.
+        try:
+            first_line = next(
+                (ln for ln in log_path.read_text().splitlines() if ln.strip()),
+                None,
+            )
+        except OSError:
+            corrupt.add(log_path.name)
+            continue
+        if first_line is None:
+            continue
+        try:
+            first_entry = _json.loads(first_line)
+        except ValueError:
+            corrupt.add(log_path.name)
+            continue
+        start_prev = str(first_entry.get("prev_hmac", "0" * 64))
+
+        per_file_errors: list[str] = []
+        _verify_log_file(log_path, start_prev, key, per_file_errors)
+        # Only HMAC-content errors count as "corrupt"; a prev_hmac
+        # mismatch at line 1 against the chain head is upstream drift,
+        # not internal corruption.
+        for err in per_file_errors:
+            if "HMAC mismatch" in err or "non-canonical line bytes" in err or "invalid JSON" in err:
+                corrupt.add(log_path.name)
+                break
+    return corrupt
+
+
+def _parse_filename_date(name: str) -> date | None:
+    """Return the date encoded in ``YYYY-MM-DD.jsonl`` or ``None``."""
+    from datetime import datetime
+
+    stem = name[: -len(".jsonl")] if name.endswith(".jsonl") else name
+    try:
+        return datetime.strptime(stem, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _sha256_of_file(path: Path) -> str:
+    """Return the hex SHA-256 digest of ``path``."""
+    import hashlib
+
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _is_safe_audit_dir(audit_dir: Path) -> tuple[bool, str]:
+    """Refuse archive on suspicious audit-dir locations (best-effort)."""
+    try:
+        resolved = audit_dir.resolve()
+    except OSError as exc:
+        return False, f"cannot resolve {audit_dir}: {exc}"
+    # Reject tmpfs-style paths the operator almost certainly didn't mean.
+    suspicious_prefixes = ("/dev/", "/proc/", "/sys/")
+    s = str(resolved)
+    for pref in suspicious_prefixes:
+        if s.startswith(pref):
+            return False, f"refusing to operate on {pref}* path: {resolved}"
+    return True, ""
+
+
+def _plan_archive(
+    audit_dir: Path,
+    *,
+    before: str | None,
+    corrupt_only: bool,
+) -> tuple[list[Path], dict[str, str], list[str]]:
+    """Return ``(files, reason_by_name, warnings)`` for the archive plan.
+
+    ``files`` is the ordered list of jsonl paths matching the filter.
+    ``reason_by_name`` maps filename -> archive reason string.
+    ``warnings`` collects non-fatal notes (e.g. malformed filename).
+    """
+    warnings: list[str] = []
+    if not audit_dir.is_dir():
+        return [], {}, [f"audit dir not found: {audit_dir}"]
+
+    candidates = sorted(audit_dir.glob("*.jsonl"))
+    if not candidates:
+        return [], {}, []
+
+    before_date = None
+    if before is not None:
+        from datetime import datetime
+
+        try:
+            before_date = datetime.strptime(before, "%Y-%m-%d").date()
+        except ValueError as exc:
+            raise click.BadParameter(
+                f"--before must be YYYY-MM-DD (got {before!r}): {exc}",
+            ) from None
+
+    corrupt = _hmac_corrupt_files(audit_dir) if corrupt_only else set()
+
+    selected: list[Path] = []
+    reason_by_name: dict[str, str] = {}
+    for path in candidates:
+        file_date = _parse_filename_date(path.name)
+        if before_date is not None:
+            if file_date is None:
+                warnings.append(
+                    f"{path.name}: cannot parse date from filename, skipping --before filter",
+                )
+                continue
+            if file_date >= before_date:
+                continue
+        if corrupt_only and path.name not in corrupt:
+            continue
+        # Pick a reason — corrupt wins over before-date if both flags set.
+        if corrupt_only and path.name in corrupt:
+            reason_by_name[path.name] = _ARCHIVE_REASON_CORRUPT
+        elif before_date is not None:
+            reason_by_name[path.name] = _ARCHIVE_REASON_BEFORE
+        else:
+            reason_by_name[path.name] = _ARCHIVE_REASON_OPERATOR
+        selected.append(path)
+    return selected, reason_by_name, warnings
+
+
+def _default_archive_dir(audit_dir: Path) -> Path:
+    """Return ``<audit_dir>/_archived/<ISO-timestamp>/``."""
+    from datetime import UTC, datetime
+
+    stamp = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")
+    return audit_dir / "_archived" / stamp
+
+
+def _format_size(num_bytes: int) -> str:
+    for unit in ("B", "KiB", "MiB", "GiB"):
+        if num_bytes < 1024:
+            return f"{num_bytes:.0f} {unit}" if unit == "B" else f"{num_bytes:.1f} {unit}"
+        num_bytes = int(num_bytes / 1024)
+    return f"{num_bytes:.1f} TiB"
+
+
+@audit_group.command("archive")
+@click.option(
+    "--before",
+    default=None,
+    metavar="YYYY-MM-DD",
+    help="Archive jsonl files whose filename date is strictly earlier than this date.",
+)
+@click.option(
+    "--corrupt",
+    "corrupt_only",
+    is_flag=True,
+    default=False,
+    help="Archive only files whose HMAC chain currently fails verification.",
+)
+@click.option(
+    "--archive-dir",
+    "archive_dir_opt",
+    default=None,
+    type=click.Path(file_okay=False, resolve_path=True),
+    help="Destination directory. Defaults to .sdd/audit/_archived/<UTC timestamp>/.",
+)
+@click.option(
+    "--audit-dir",
+    "audit_dir_opt",
+    default=None,
+    type=click.Path(file_okay=False, resolve_path=True),
+    help="Override the audit directory (default: .sdd/audit/). Mostly for tests.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Print the plan; move nothing.",
+)
+@click.option(
+    "--yes",
+    "assume_yes",
+    is_flag=True,
+    default=False,
+    help="Skip the interactive confirmation. Required for a real move outside --dry-run.",
+)
+def archive_cmd(
+    before: str | None,
+    corrupt_only: bool,
+    archive_dir_opt: str | None,
+    audit_dir_opt: str | None,
+    dry_run: bool,
+    assume_yes: bool,
+) -> None:
+    """Safely archive corrupt / pre-rotation audit chain files.
+
+    \b
+    Use when ``bernstein doctor airgap`` reports HMAC mismatches on old
+    jsonl files (typically because the audit key was rotated without
+    re-hashing prior entries). This command MOVES the offending files to
+    an out-of-chain archive directory and writes a sibling metadata file
+    so the operator can later reconstruct context. It never deletes.
+
+    \b
+    Examples:
+      bernstein audit archive --corrupt --dry-run
+      bernstein audit archive --before 2026-05-01 --yes
+      bernstein audit archive --corrupt --yes
+
+    \b
+    Exits 0 when the post-move audit chain verifies cleanly. Exits 1 if
+    archiving failed, or if the chain still has errors after the move.
+    """
+    import json as _json
+    from datetime import UTC, datetime
+
+    audit_dir = Path(audit_dir_opt).resolve() if audit_dir_opt else AUDIT_DIR
+
+    safe, reason = _is_safe_audit_dir(audit_dir)
+    if not safe:
+        console.print(f"[red]Refusing to archive:[/red] {reason}")
+        raise SystemExit(1)
+
+    if not audit_dir.is_dir():
+        console.print(f"[red]Audit directory not found:[/red] {audit_dir}")
+        raise SystemExit(1)
+
+    try:
+        files, reason_by_name, warnings = _plan_archive(
+            audit_dir,
+            before=before,
+            corrupt_only=corrupt_only,
+        )
+    except click.BadParameter as exc:
+        console.print(f"[red]{exc.message}[/red]")
+        raise SystemExit(2) from None
+
+    for warn in warnings:
+        console.print(f"[yellow]warn:[/yellow] {warn}")
+
+    if not files:
+        console.print(
+            "[green]Nothing to archive.[/green]  No jsonl files matched the given filter.",
+        )
+        # Still run a verify so the operator sees the chain state.
+        _print_post_archive_verify(audit_dir)
+        raise SystemExit(0)
+
+    # Resolve archive dir.
+    archive_dir = Path(archive_dir_opt).resolve() if archive_dir_opt else _default_archive_dir(audit_dir)
+
+    # Print plan.
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("File", style="bold")
+    table.add_column("Size", justify="right")
+    table.add_column("sha256", style="dim")
+    table.add_column("Reason")
+    plan_rows: list[tuple[Path, int, str, str]] = []
+    for path in files:
+        try:
+            size = path.stat().st_size
+            digest = _sha256_of_file(path)
+        except OSError as exc:
+            console.print(f"[red]Failed to read {path}: {exc}[/red]")
+            raise SystemExit(1) from None
+        plan_rows.append((path, size, digest, reason_by_name[path.name]))
+        table.add_row(path.name, _format_size(size), digest[:16] + "…", reason_by_name[path.name])
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold]Audit archive plan[/bold]  →  {archive_dir}",
+            border_style="cyan",
+            expand=False,
+        ),
+    )
+    console.print(table)
+    console.print(f"\n[dim]{len(files)} file(s) selected.[/dim]\n")
+
+    if dry_run:
+        console.print("[yellow]--dry-run set, no files moved.[/yellow]\n")
+        raise SystemExit(0)
+
+    if not assume_yes:
+        console.print(
+            "[yellow]Refusing to move without --yes. "
+            "Re-run with --yes to proceed, or --dry-run to preview only.[/yellow]\n",
+        )
+        raise SystemExit(2)
+
+    # Idempotency / safety: refuse to overwrite an existing destination.
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    for path, _size, _digest, _reason in plan_rows:
+        dest = archive_dir / path.name
+        if dest.exists():
+            console.print(
+                f"[red]Refusing to overwrite[/red] {dest} — a file with the same name "
+                "already exists in the archive directory. Aborting before moving "
+                "anything else.",
+            )
+            raise SystemExit(1)
+
+    # Do the move + write metadata sidecar.
+    moved: list[str] = []
+    for path, size, digest, file_reason in plan_rows:
+        dest = archive_dir / path.name
+        try:
+            path.rename(dest)
+        except OSError:
+            # Cross-device move fallback — copy then unlink.
+            import shutil
+
+            try:
+                shutil.copy2(str(path), str(dest))
+                path.unlink()
+            except OSError as exc:
+                console.print(f"[red]Failed to archive {path.name}: {exc}[/red]")
+                raise SystemExit(1) from None
+
+        meta = {
+            "archived_at_utc": datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "reason": file_reason,
+            "original_path": str(path),
+            "archived_path": str(dest),
+            "size_bytes": size,
+            "sha256_of_archived_file": digest,
+        }
+        meta_path = archive_dir / f"{path.name}.archived.json"
+        meta_path.write_text(
+            _json.dumps(meta, sort_keys=True, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        moved.append(path.name)
+        console.print(f"  [green]archived[/green] {path.name}  →  {dest}")
+
+    console.print(
+        f"\n[bold green]Archived {len(moved)} file(s)[/bold green] to {archive_dir}\n",
+    )
+
+    rc = _print_post_archive_verify(audit_dir)
+    raise SystemExit(rc)
+
+
+def _print_post_archive_verify(audit_dir: Path) -> int:
+    """Re-run AuditLog.verify() against ``audit_dir`` and print the result.
+
+    Returns 0 if the chain verifies cleanly (or there is nothing to
+    verify), 1 otherwise.
+    """
+    from bernstein.core.security.audit import AuditLog
+
+    audit_log = AuditLog(audit_dir)
+    valid, errors = audit_log.verify()
+    console.print()
+    if valid:
+        console.print(
+            Panel(
+                "[bold green]Post-archive HMAC chain verification PASSED[/bold green]",
+                border_style="green",
+                expand=False,
+            ),
+        )
+        console.print()
+        return 0
+    console.print(
+        Panel(
+            "[bold red]Post-archive HMAC chain verification FAILED[/bold red]",
+            border_style="red",
+            expand=False,
+        ),
+    )
+    for err in errors:
+        console.print(f"  [red]![/red] {err}")
+    console.print()
+    return 1

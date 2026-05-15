@@ -57,9 +57,11 @@ def mount(app: FastAPI) -> None:
 
     @app.get("/ui", include_in_schema=False)
     @app.get("/ui/{full_path:path}", include_in_schema=False)
-    def gui_index(full_path: str = "") -> FileResponse:  # noqa: ARG001
+    def gui_index(full_path: str = "") -> FileResponse:
         # Client-side routing: every /ui/* request returns index.html unless
         # it's an asset (handled by the StaticFiles mount above).
+        # full_path is FastAPI path-capture; consumed by the SPA router, not Python.
+        del full_path
         return FileResponse(STATIC_DIR / "index.html")
 
 

@@ -8,6 +8,10 @@ import { MoreHorizontal, Play, Command as CommandIcon, Search, X } from 'lucide-
 import { apiGet, apiPost, ApiError } from '@/lib/api';
 import { useEventStream } from '@/lib/sse';
 import { TaskLogsPanel } from '@/components/logs';
+import { TaskDiffPanel } from '@/components/diff/TaskDiffPanel';
+import { TaskGatesPanel } from '@/components/gates/TaskGatesPanel';
+import { TaskDepsPanel } from '@/components/deps/TaskDepsPanel';
+import { TaskTracePanel } from '@/components/trace/TaskTracePanel';
 import {
   formatUSD,
   formatDuration,
@@ -1145,11 +1149,8 @@ function DetailDrawer({
           </>
         )}
 
-        {activeTab === 'Logs' && (
-          <TaskLogsPanel taskId={String(task.id)} active />
-        )}
-        {activeTab !== 'Summary' && activeTab !== 'Logs' && (
-          <TabPlaceholder tab={activeTab} />
+        {activeTab !== 'Summary' && (
+          <TaskTabContent task={task} activeTab={activeTab} />
         )}
       </div>
     </>
@@ -1231,6 +1232,35 @@ function ActionButton({
       {children}
     </button>
   );
+}
+
+// Tab content router. Each tab owns its own panel module under
+// `web/src/components/{kind}/`. To wire a new tab, add a case here and
+// implement the corresponding panel — no other changes to Tasks.tsx needed.
+function TaskTabContent({
+  task,
+  activeTab,
+}: {
+  task: TaskDetail | TaskRow;
+  activeTab: DetailTab;
+}) {
+  const taskId = String(task.id);
+  switch (activeTab) {
+    case 'Logs':
+      return <TaskLogsPanel taskId={taskId} active />;
+    case 'Diff':
+      return <TaskDiffPanel taskId={taskId} active />;
+    case 'Gates':
+      return <TaskGatesPanel taskId={taskId} active />;
+    case 'Deps':
+      return <TaskDepsPanel taskId={taskId} active />;
+    case 'Trace':
+      return <TaskTracePanel taskId={taskId} active />;
+    case 'Summary':
+      return null;
+    default:
+      return <TabPlaceholder tab={activeTab} />;
+  }
 }
 
 function TabPlaceholder({ tab }: { tab: DetailTab }) {

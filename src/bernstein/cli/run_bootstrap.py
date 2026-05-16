@@ -976,7 +976,14 @@ def run(
       bernstein conduct --audit                # SOC 2 audit mode (HMAC-chained log + Merkle seal)
       bernstein conduct --max-cost-usd 1.50    # hard cap total run spend at $1.50
     """
-    # Banner already printed by cli() — don't duplicate
+    # Print the startup banner unless the parent ``cli()`` group already
+    # rendered the premium splash for this invocation. Regressed by commit
+    # 1e5c13013 ("fix: ... double banner ..."), which mistakenly removed the
+    # call assuming cli() always printed it -- cli() actually early-returns
+    # for subcommand invocations, so `bernstein run` lost the banner entirely.
+    ctx = click.get_current_context(silent=True)
+    if ctx is None or not (ctx.obj and ctx.obj.get("_BANNER_PRINTED")):
+        print_banner()
 
     # Set process title so orchestrator is visible in Activity Monitor / ps
     try:

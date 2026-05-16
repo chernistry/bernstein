@@ -666,6 +666,9 @@ def cli(
         budget=budget,
         task_count=0,
     )
+    # Mark that the premium splash has been shown so the inner ``run`` callback
+    # invoked below does not also print the compact banner (double-banner).
+    ctx.obj["_BANNER_PRINTED"] = True
 
     # Show immediate feedback while background finishes — no black screen.
     console.print("[dim]Preparing...[/dim]", end="\r")

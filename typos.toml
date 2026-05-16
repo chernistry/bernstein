@@ -53,6 +53,12 @@ extend-exclude = [
     # fixtures tree; review still applies to the human-authored README/Makefile.
     "examples/lineage/*/fixtures/**",
     "examples/lineage/*/expected-pack.zip",
+    # Vite-built SPA bundle and its source map ship inside the wheel. The
+    # minifier mangles identifiers (e.g. ``bimap``, ``botto``) and embeds
+    # third-party library symbols (recharts ``Archtype``) that typos reads
+    # as misspellings. There's no human-edited content in these files —
+    # everything reviewable lives under ``web/src/``.
+    "src/bernstein/gui/static/assets/**",
 ]
 
 [type.md]

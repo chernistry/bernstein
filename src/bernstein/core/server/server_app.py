@@ -1232,6 +1232,7 @@ def create_app(
     from bernstein.core.routes.sbom import router as sbom_router
     from bernstein.core.routes.slo import router as slo_router
     from bernstein.core.routes.task_detail import router as task_detail_router
+    from bernstein.core.routes.task_trace import router as task_trace_router
     from bernstein.core.routes.team import router as team_router
     from bernstein.core.routes.websocket import router as ws_router
     from bernstein.core.routes.well_known import router as well_known_router
@@ -1277,6 +1278,7 @@ def create_app(
         export_router,
         grafana_router,
         task_detail_router,
+        task_trace_router,
         health_deps_router,
         batch_ops_router,
         agent_comparison_router,

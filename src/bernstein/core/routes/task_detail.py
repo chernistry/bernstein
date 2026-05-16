@@ -350,9 +350,9 @@ def _parse_unified_diff(text: str) -> list[DiffFile]:
             continue
         if line.startswith("rename from "):
             cur.status = "renamed"
-            cur.old_path = line[len("rename from "):]
+            cur.old_path = line[len("rename from ") :]
         elif line.startswith("rename to "):
-            cur.path = line[len("rename to "):]
+            cur.path = line[len("rename to ") :]
             cur.language = _language_for(cur.path)
         elif line.startswith("new file mode"):
             cur.status = "added"
@@ -385,7 +385,12 @@ def _parse_unified_diff(text: str) -> list[DiffFile]:
                 )
             else:
                 cur_hunk = DiffHunk(
-                    header=line, old_start=0, old_lines=0, new_start=0, new_lines=0, lines=[],
+                    header=line,
+                    old_start=0,
+                    old_lines=0,
+                    new_start=0,
+                    new_lines=0,
+                    lines=[],
                 )
         else:
             if cur_hunk is not None:
@@ -478,15 +483,9 @@ def task_diff(request: Request, task_id: str) -> TaskDiffResponse:
             timeout=_DIFF_TIMEOUT_S,
         )
         if task.assigned_agent:
-            note = (
-                "No agent worktree branch found; showing working-tree diff "
-                "against HEAD."
-            )
+            note = "No agent worktree branch found; showing working-tree diff against HEAD."
         else:
-            note = (
-                "Task is not yet assigned to an agent; showing the current "
-                "working-tree diff against HEAD."
-            )
+            note = "Task is not yet assigned to an agent; showing the current working-tree diff against HEAD."
 
     if rc not in (0, 1):  # git diff returns 1 when there are differences
         # Non-zero, non-1 → real failure. Surface as empty diff with note.

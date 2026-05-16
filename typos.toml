@@ -53,6 +53,11 @@ extend-exclude = [
     # fixtures tree; review still applies to the human-authored README/Makefile.
     "examples/lineage/*/fixtures/**",
     "examples/lineage/*/expected-pack.zip",
+    # Bundled SPA assets are minified output from `vite build`; typos in
+    # one-letter minified identifiers ("ue", "OT", "Ue") are noise.
+    "src/bernstein/gui/static/assets/*.js",
+    "src/bernstein/gui/static/assets/*.css",
+    "src/bernstein/gui/static/assets/*.map",
 ]
 
 [type.md]

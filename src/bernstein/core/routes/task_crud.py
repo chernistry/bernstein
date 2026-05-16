@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import time
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -1264,6 +1265,27 @@ def get_task_gates(task_id: str, request: Request) -> JSONResponse:
         payload = json.loads(report_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise HTTPException(status_code=500, detail=f"Gate report for task '{task_id}' is unreadable") from exc
+
+    # Annotate the response with a `generated_at` ISO-8601 UTC timestamp derived
+    # from the report file mtime. The on-disk GateReport dataclass does not carry
+    # its own timestamp, so the UI needs the file mtime to render "last run" /
+    # relative-time strings. We only inject the field when missing to preserve
+    # any future server-side overrides. Also surface the current task lifecycle
+    # status so the client can stop polling for terminal tasks.
+    if isinstance(payload, dict) and "generated_at" not in payload:
+        try:
+            mtime = report_path.stat().st_mtime
+            payload["generated_at"] = (
+                datetime.fromtimestamp(mtime, tz=timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z")
+            )
+        except OSError:
+            # Filesystems that block stat() after a successful read are exotic
+            # enough that omitting the field is the right fallback.
+            pass
+    if isinstance(payload, dict) and "task_status" not in payload:
+        payload["task_status"] = task.status.value
     return JSONResponse(content=payload)
 
 

@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -1276,9 +1276,7 @@ def get_task_gates(task_id: str, request: Request) -> JSONResponse:
         try:
             mtime = report_path.stat().st_mtime
             payload["generated_at"] = (
-                datetime.fromtimestamp(mtime, tz=timezone.utc)
-                .isoformat()
-                .replace("+00:00", "Z")
+                datetime.fromtimestamp(mtime, tz=UTC).isoformat().replace("+00:00", "Z")
             )
         except OSError:
             # Filesystems that block stat() after a successful read are exotic

@@ -1246,6 +1246,66 @@ def get_task(task_id: str, request: Request) -> TaskResponse:
 
 
 @router.get(
+    "/tasks/{task_id}/graph-neighbors",
+    responses={404: {"description": "Task not found"}},
+)
+def get_task_graph_neighbors(task_id: str, request: Request) -> dict[str, Any]:
+    """Return immediate dependency neighbours for a single task.
+
+    Powers the dashboard Deps tab: upstream tasks the requested one waits
+    on (its ``depends_on`` list) and downstream tasks that declare it as a
+    dependency.  Depth is intentionally fixed at 1 — the panel renders two
+    flat lists, not a transitive graph.
+    """
+    store = _get_store(request)
+    task = store.get_task(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
+    _require_task_access(task, request)
+
+    all_tasks = store.list_tasks()
+    by_id = {t.id: t for t in all_tasks}
+
+    def _neighbor(other: Task) -> dict[str, Any]:
+        return {
+            "id": other.id,
+            "title": other.title,
+            "status": other.status.value if hasattr(other.status, "value") else str(other.status),
+            "role": other.role,
+        }
+
+    upstream: list[dict[str, Any]] = []
+    seen_up: set[str] = set()
+    for dep_id in task.depends_on:
+        if dep_id in seen_up:
+            continue
+        seen_up.add(dep_id)
+        dep = by_id.get(dep_id)
+        if dep is None:
+            # Missing dep — surface the ID so the operator can see the gap
+            # without a hard 404.
+            upstream.append({"id": dep_id, "title": None, "status": "missing", "role": None})
+        else:
+            upstream.append(_neighbor(dep))
+
+    downstream: list[dict[str, Any]] = []
+    seen_down: set[str] = set()
+    for other in all_tasks:
+        if other.id == task.id or other.id in seen_down:
+            continue
+        if task.id in other.depends_on:
+            seen_down.add(other.id)
+            downstream.append(_neighbor(other))
+
+    return {
+        "task_id": task.id,
+        "depth": 1,
+        "upstream": upstream,
+        "downstream": downstream,
+    }
+
+
+@router.get(
     "/tasks/{task_id}/gates",
     responses={404: {"description": "Task or gate report not found"}, 500: {"description": "Gate report unreadable"}},
 )

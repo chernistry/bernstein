@@ -116,9 +116,17 @@ def _select_batch_config(
     Returns:
         ModelConfig suitable for the entire batch.
     """
-    # If a role-level config.yaml exists, use it as the baseline
+    # Per-task model/effort declared on the plan step take absolute precedence
+    # over the role's default config.yaml.  Otherwise a plan that says
+    # ``model: haiku`` for one step and ``model: flash`` for another would
+    # silently collapse onto the role's default (e.g. qa/config.yaml ->
+    # sonnet), defeating per-step routing for plan-driven runs.
     role = tasks[0].role
-    if templates_dir is not None:
+    if any(t.model or t.effort for t in tasks):
+        # Fall through to the per-task router below; do NOT short-circuit
+        # to the role's config.yaml.
+        pass
+    elif templates_dir is not None:
         role_config = _load_role_config(role, templates_dir)
         if role_config is not None:
             return role_config

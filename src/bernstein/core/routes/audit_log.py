@@ -226,7 +226,9 @@ def _build_verify_payload(audit_dir: Path, events: list[dict[str, Any]]) -> dict
         chunks = sorted(audit_dir.glob("*.jsonl"))
         if len(chunks) >= 2:
             try:
-                rotated_at = datetime.fromtimestamp(chunks[-1].stat().st_mtime, tz=UTC).isoformat()
+                rotated_at = datetime.fromtimestamp(
+                    chunks[-1].stat().st_mtime, tz=UTC
+                ).isoformat()
                 rotated_chunk = len(chunks)
             except OSError:
                 rotated_at, rotated_chunk = None, None

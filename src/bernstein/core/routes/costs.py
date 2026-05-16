@@ -393,9 +393,13 @@ def get_cost_current(request: Request) -> JSONResponse:
     # numbers don't reset when a new run rotates the active cost file.
     today_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=today_start)
     week_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=week_start)
-    prior_week_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=prior_week_start, until_ts=week_start)
+    prior_week_usd, _ = _aggregate_window_spend(
+        sdd_dir, costs_dir, since_ts=prior_week_start, until_ts=week_start
+    )
     last_hour_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=last_hour_start)
-    prior_hour_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=prior_hour_start, until_ts=last_hour_start)
+    prior_hour_usd, _ = _aggregate_window_spend(
+        sdd_dir, costs_dir, since_ts=prior_hour_start, until_ts=last_hour_start
+    )
     _, latest_usage_ts = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=0.0)
 
     daily_budget = float(budget_status.budget_usd or 0.0)
@@ -404,7 +408,9 @@ def get_cost_current(request: Request) -> JSONResponse:
     projected_month_usd = (week_usd / 7.0) * 30.0 if week_usd > 0 else 0.0
     delta_hour_usd = last_hour_usd - prior_hour_usd
     last_sync_iso = (
-        datetime.fromtimestamp(latest_usage_ts, tz=UTC).isoformat() if latest_usage_ts is not None else _now_iso()
+        datetime.fromtimestamp(latest_usage_ts, tz=UTC).isoformat()
+        if latest_usage_ts is not None
+        else _now_iso()
     )
 
     return JSONResponse(
@@ -1017,7 +1023,9 @@ def _build_adapter_breakdown(sdd_dir: Any, costs_dir: Any, *, hours: int) -> lis
             ts = float(getattr(usage, "timestamp", 0.0) or 0.0)
             adapter = str(getattr(usage, "model", "") or "unknown")
             cost = float(usage.cost_usd)
-            tokens = int(getattr(usage, "input_tokens", 0) or 0) + int(getattr(usage, "output_tokens", 0) or 0)
+            tokens = int(getattr(usage, "input_tokens", 0) or 0) + int(
+                getattr(usage, "output_tokens", 0) or 0
+            )
             if ts >= window_start:
                 cur_calls[adapter] += 1
                 cur_tokens[adapter] += tokens

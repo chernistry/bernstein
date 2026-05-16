@@ -39,8 +39,16 @@ def mount(app: FastAPI) -> None:
 
     router = APIRouter(prefix="/api/v1", tags=["gui"])
 
-    @router.get("/gui-meta")
-    def gui_meta() -> JSONResponse:
+    # NB: ``from __future__ import annotations`` (top of this file) turns every
+    # return annotation into a string. FastAPI's OpenAPI builder then tries to
+    # resolve ``JSONResponse`` / ``FileResponse`` as response *models* (via
+    # pydantic ``TypeAdapter``), fails, and crashes ``/openapi.json`` with a
+    # PydanticUserError. Declaring them as ``response_class`` instead — and
+    # dropping the return annotation — keeps the endpoint's runtime behaviour
+    # identical while signalling to FastAPI that the response is a Starlette
+    # ``Response`` subclass that should NOT be schema-modelled.
+    @router.get("/gui-meta", response_class=JSONResponse)
+    def gui_meta():
         return JSONResponse(
             {
                 "version": _package_version(),
@@ -55,9 +63,9 @@ def mount(app: FastAPI) -> None:
     if assets_dir.exists():
         app.mount("/ui/assets", StaticFiles(directory=assets_dir), name="gui-assets")
 
-    @app.get("/ui", include_in_schema=False)
-    @app.get("/ui/{full_path:path}", include_in_schema=False)
-    def gui_index(full_path: str = "") -> FileResponse:
+    @app.get("/ui", include_in_schema=False, response_class=FileResponse)
+    @app.get("/ui/{full_path:path}", include_in_schema=False, response_class=FileResponse)
+    def gui_index(full_path: str = ""):
         # Client-side routing: every /ui/* request returns index.html unless
         # it's an asset (handled by the StaticFiles mount above).
         # full_path is FastAPI path-capture; consumed by the SPA router, not Python.

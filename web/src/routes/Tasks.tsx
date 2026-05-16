@@ -2,7 +2,17 @@
 // Source of truth: design_handoff_bernstein_phase1/design-source/screens/screen-tasks.jsx
 // + README §6.01 (Tasks specs) + §8 (states contract).
 
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { MoreHorizontal, Play, Command as CommandIcon, Search, X } from 'lucide-react';
 import { apiGet, apiPost, ApiError } from '@/lib/api';
@@ -19,7 +29,7 @@ import {
   formatRelative,
   formatCount,
 } from '@/lib/format';
-import { duration, ease } from '@/lib/motion';
+import { duration, ease, prefersReducedMotion } from '@/lib/motion';
 import {
   EmptyState,
   LoadingState,
@@ -99,6 +109,8 @@ interface TaskDetail extends TaskRow {
   approvals_done?: number | null;
   approvals_pending?: number | null;
   plan?: PlanStep[];
+  /** Server-side ``progress_log`` entries — used as a Plan fallback. */
+  progress_log?: Array<{ timestamp?: number; message?: string; percent?: number }>;
 }
 
 // Map every backend status onto a UI bucket. Unknown strings fall to 'queued'
@@ -170,6 +182,90 @@ function readTokens(row: TaskRow): number | null {
     if (typeof v === 'number' && Number.isFinite(v)) return v;
   }
   return null;
+}
+
+// Tokens in/out may live as top-level fields on the detail response or
+// inside ``metadata`` as ``tokens_in``/``tokens_out`` (orchestrator-version
+// dependent). Read either shape.
+function readTokensIn(detail: TaskDetail): number | null {
+  if (typeof detail.tokens_in === 'number' && Number.isFinite(detail.tokens_in)) return detail.tokens_in;
+  const md = detail.metadata;
+  if (md && typeof md === 'object') {
+    const v = (md as Record<string, unknown>).tokens_in;
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    const vp = (md as Record<string, unknown>).tokens_prompt;
+    if (typeof vp === 'number' && Number.isFinite(vp)) return vp;
+  }
+  return null;
+}
+
+function readTokensOut(detail: TaskDetail): number | null {
+  if (typeof detail.tokens_out === 'number' && Number.isFinite(detail.tokens_out)) return detail.tokens_out;
+  const md = detail.metadata;
+  if (md && typeof md === 'object') {
+    const v = (md as Record<string, unknown>).tokens_out;
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    const vc = (md as Record<string, unknown>).tokens_completion;
+    if (typeof vc === 'number' && Number.isFinite(vc)) return vc;
+  }
+  return null;
+}
+
+// Approval counters live in ``metadata`` (no top-level Task field exists yet).
+function readApprovalsTriple(detail: TaskDetail): {
+  total: number | null;
+  done: number | null;
+  pending: number | null;
+} {
+  const md = (detail.metadata ?? null) as Record<string, unknown> | null;
+  const readNum = (key: string, top: number | null | undefined): number | null => {
+    if (typeof top === 'number' && Number.isFinite(top)) return top;
+    if (md && typeof md === 'object') {
+      const v = md[key];
+      if (typeof v === 'number' && Number.isFinite(v)) return v;
+    }
+    return null;
+  };
+  return {
+    total: readNum('approvals_total', detail.approvals_total),
+    done: readNum('approvals_done', detail.approvals_done),
+    pending: readNum('approvals_pending', detail.approvals_pending),
+  };
+}
+
+// Derive the working branch when the server didn't pin it on the row.
+// Backend convention (see ``core/git/`` worktree branch naming): one branch per
+// agent session, formatted ``agent/{role}-{session-prefix}``.
+function deriveBranch(row: TaskRow): string | null {
+  const direct = readBranch(row);
+  if (direct) return direct;
+  const agent = readAgent(row);
+  if (!agent) return null;
+  const prefix = agent.slice(0, 8);
+  const role = (row.role || 'agent').toLowerCase();
+  return `agent/${role}-${prefix}`;
+}
+
+// Last-resort plan: walk ``progress_log`` and synthesize one step per
+// progress entry. The most recent entry that isn't 100 % is "running"; all
+// earlier entries are "done". A 100 % entry collapses everything to "done".
+function planFromProgress(detail: TaskDetail): PlanStep[] {
+  const log = detail.progress_log;
+  if (!Array.isArray(log) || log.length === 0) return [];
+  // Sort by timestamp ascending so the rendered order matches execution order.
+  const sorted = [...log].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+  const last = sorted[sorted.length - 1];
+  const finished = typeof last?.percent === 'number' && last.percent >= 100;
+  return sorted.map((entry, idx) => {
+    const isLast = idx === sorted.length - 1;
+    const text = String(entry.message ?? '').trim() || `step ${idx + 1}`;
+    const status: TaskStatus = finished
+      ? 'done'
+      : isLast
+        ? 'running'
+        : 'done';
+    return { text, status };
+  });
 }
 
 function readDurationMs(row: TaskRow): number | null {
@@ -433,8 +529,10 @@ export default function Tasks() {
     listQ.refetch();
   };
 
+  const closeDrawer = useCallback(() => setSelectedId(null), []);
+
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 lg:grid-cols-[1fr_380px]">
+    <div className="grid h-full min-h-0 grid-cols-1">
       {/* ── LEFT: query + table ─────────────────────────────────────────── */}
       <section className="flex min-w-0 flex-col overflow-hidden px-[22px] py-[18px]">
         <Header
@@ -488,19 +586,10 @@ export default function Tasks() {
         </div>
       </section>
 
-      {/* ── RIGHT: detail drawer ────────────────────────────────────────── */}
-      <aside
-        className="flex flex-col overflow-hidden border-t border-border bg-secondary lg:border-l lg:border-t-0"
-        style={
-          {
-            animation: `drawer-in ${duration.panel * 1000}ms cubic-bezier(${ease.out.join(',')})`,
-          } as CSSProperties
-        }
-      >
-        {selectedId === null ? (
-          <DrawerEmpty />
-        ) : detailQ.isLoading && !detailQ.data ? (
-          <DrawerLoading id={selectedId} fallback={selected} onClose={() => setSelectedId(null)} />
+      {/* ── Detail drawer (overlay) ─────────────────────────────────────── */}
+      <DrawerShell open={selectedId !== null} onClose={closeDrawer}>
+        {selectedId === null ? null : detailQ.isLoading && !detailQ.data ? (
+          <DrawerLoading id={selectedId} fallback={selected} onClose={closeDrawer} />
         ) : detailQ.isError && !detailQ.data ? (
           <DrawerError
             id={selectedId}
@@ -510,14 +599,14 @@ export default function Tasks() {
                 : 'Could not load task detail.'
             }
             retry={() => detailQ.refetch()}
-            onClose={() => setSelectedId(null)}
+            onClose={closeDrawer}
           />
         ) : (
           <DetailDrawer
             task={(detailQ.data ?? selected) as TaskDetail | TaskRow}
             activeTab={activeTab}
             onTabChange={setActiveTab}
-            onClose={() => setSelectedId(null)}
+            onClose={closeDrawer}
             onCancel={() => selectedId && cancelMut.mutate(selectedId)}
             onRerun={() => selectedId && rerunMut.mutate(selectedId)}
             onPrioritize={() => selectedId && prioritizeMut.mutate(selectedId)}
@@ -528,8 +617,255 @@ export default function Tasks() {
             isKilling={killMut.isPending}
           />
         )}
-      </aside>
+      </DrawerShell>
     </div>
+  );
+}
+
+// ── Drawer shell ───────────────────────────────────────────────────────────
+// Overlay container that owns the cross-cutting drawer behaviours:
+//   • mounts via portal so click-outside (backdrop) really intercepts the
+//     task list underneath
+//   • ESC + backdrop click → close
+//   • focus trap while open; restore focus to the trigger element on close
+//   • left-edge drag handle to resize; width persists in localStorage
+//   • respects prefers-reduced-motion (the slide-in animation collapses)
+//   • role="dialog" + aria-modal + aria-labelledby for assistive tech
+
+const DRAWER_WIDTH_KEY = 'bernstein.tasks.drawerWidth.v1';
+const DRAWER_MIN_W = 360;
+const DRAWER_MAX_W = 880;
+const DRAWER_DEFAULT_W = 460;
+
+function loadDrawerWidth(): number {
+  if (typeof window === 'undefined') return DRAWER_DEFAULT_W;
+  try {
+    const raw = window.localStorage.getItem(DRAWER_WIDTH_KEY);
+    if (!raw) return DRAWER_DEFAULT_W;
+    const n = Number.parseFloat(raw);
+    if (!Number.isFinite(n)) return DRAWER_DEFAULT_W;
+    return Math.max(DRAWER_MIN_W, Math.min(DRAWER_MAX_W, n));
+  } catch {
+    return DRAWER_DEFAULT_W;
+  }
+}
+
+function saveDrawerWidth(w: number): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(DRAWER_WIDTH_KEY, String(Math.round(w)));
+  } catch {
+    /* private mode etc. — ignore */
+  }
+}
+
+function DrawerShell({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<Element | null>(null);
+  const [width, setWidth] = useState<number>(() => loadDrawerWidth());
+  const dragStateRef = useRef<{ startX: number; startW: number } | null>(null);
+
+  // Capture the element that had focus when the drawer opens so we can
+  // restore focus to it on close (modal-best-practice).
+  useLayoutEffect(() => {
+    if (!open) return;
+    triggerRef.current = document.activeElement;
+    // Move focus into the panel — the first focusable element wins.
+    const node = panelRef.current;
+    if (!node) return;
+    const firstFocusable = node.querySelector<HTMLElement>(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    if (firstFocusable) {
+      firstFocusable.focus();
+    } else {
+      node.focus();
+    }
+  }, [open]);
+
+  // ESC closes; Tab is trapped within the panel.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const node = panelRef.current;
+      if (!node) return;
+      const focusables = Array.from(
+        node.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.hasAttribute('aria-hidden') && el.offsetParent !== null);
+      if (focusables.length === 0) {
+        e.preventDefault();
+        node.focus();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey) {
+        if (active === first || !node.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [open, onClose]);
+
+  // Restore focus to the trigger on close (best-effort).
+  useEffect(() => {
+    if (open) return;
+    const trigger = triggerRef.current as HTMLElement | null;
+    triggerRef.current = null;
+    if (trigger && typeof trigger.focus === 'function') {
+      trigger.focus();
+    }
+  }, [open]);
+
+  // Drag-to-resize handle. Width is the distance from the right edge of the
+  // viewport to the drawer's left edge, so dragging the handle leftward
+  // grows the drawer.
+  const onResizePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      dragStateRef.current = { startX, startW: width };
+      const onMove = (ev: PointerEvent) => {
+        const drag = dragStateRef.current;
+        if (!drag) return;
+        const next = drag.startW + (drag.startX - ev.clientX);
+        const clamped = Math.max(DRAWER_MIN_W, Math.min(DRAWER_MAX_W, next));
+        setWidth(clamped);
+      };
+      const onUp = () => {
+        dragStateRef.current = null;
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        setWidth((w) => {
+          saveDrawerWidth(w);
+          return w;
+        });
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    },
+    [width],
+  );
+
+  // Keyboard resize (operators who can't drag): ←/→ on the handle adjusts
+  // width in 24 px increments; Home/End jump to extremes.
+  const onResizeKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    const STEP = 24;
+    let delta = 0;
+    if (e.key === 'ArrowLeft') delta = STEP;
+    else if (e.key === 'ArrowRight') delta = -STEP;
+    else if (e.key === 'Home') {
+      e.preventDefault();
+      setWidth(DRAWER_MAX_W);
+      saveDrawerWidth(DRAWER_MAX_W);
+      return;
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setWidth(DRAWER_MIN_W);
+      saveDrawerWidth(DRAWER_MIN_W);
+      return;
+    } else {
+      return;
+    }
+    e.preventDefault();
+    setWidth((w) => {
+      const next = Math.max(DRAWER_MIN_W, Math.min(DRAWER_MAX_W, w + delta));
+      saveDrawerWidth(next);
+      return next;
+    });
+  }, []);
+
+  if (!open) return null;
+  if (typeof document === 'undefined') return null;
+
+  const reduceMotion = prefersReducedMotion();
+  const animation = reduceMotion
+    ? undefined
+    : `drawer-in ${duration.panel * 1000}ms cubic-bezier(${ease.out.join(',')})`;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-40"
+      role="presentation"
+      // Backdrop click anywhere outside the panel closes the drawer.
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      {/* Backdrop: semi-transparent, lets the task list show through but
+          provides clear visual separation. Click anywhere on it closes. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-foreground/20 backdrop-blur-[1px] animate-fade-in"
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+      />
+
+      <aside
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="task-drawer-title"
+        tabIndex={-1}
+        className="absolute right-0 top-0 flex h-full flex-col overflow-hidden border-l border-border bg-secondary shadow-2xl outline-none"
+        style={
+          {
+            width,
+            animation,
+          } as CSSProperties
+        }
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle — sits on the panel's left edge */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize task detail drawer"
+          aria-valuemin={DRAWER_MIN_W}
+          aria-valuemax={DRAWER_MAX_W}
+          aria-valuenow={Math.round(width)}
+          tabIndex={0}
+          onPointerDown={onResizePointerDown}
+          onKeyDown={onResizeKeyDown}
+          className="group absolute left-0 top-0 z-10 h-full w-1.5 -translate-x-1/2 cursor-col-resize select-none"
+        >
+          <div className="absolute left-1/2 top-1/2 h-12 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-border transition-colors group-hover:bg-accent group-focus-visible:bg-accent" />
+        </div>
+
+        {children}
+      </aside>
+    </div>,
+    document.body,
   );
 }
 
@@ -856,17 +1192,6 @@ function ProgressCell({ status, value }: { status: TaskStatus; value: number }) 
 
 // ── Drawer states ──────────────────────────────────────────────────────────
 
-function DrawerEmpty() {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 px-6 py-10 text-center">
-      <SectionLabel>Task</SectionLabel>
-      <div className="text-[13px] text-muted-foreground">
-        Select a task to inspect its plan, gates, and trace.
-      </div>
-    </div>
-  );
-}
-
 function DrawerLoading({
   id,
   fallback,
@@ -892,7 +1217,10 @@ function DrawerLoading({
             <X className="size-3" strokeWidth={1.5} />
           </button>
         </div>
-        <div className="mt-1.5 text-[14px] font-medium leading-snug text-foreground">
+        <div
+          id="task-drawer-title"
+          className="mt-1.5 text-[14px] font-medium leading-snug text-foreground"
+        >
           {fallback?.title ?? '—'}
         </div>
       </div>
@@ -917,7 +1245,10 @@ function DrawerError({
   return (
     <>
       <div className="flex items-center justify-between border-b border-border px-[18px] pb-[10px] pt-[14px]">
-        <span className="font-mono text-[11px] tracking-[0.1em] text-meta-foreground">
+        <span
+          id="task-drawer-title"
+          className="font-mono text-[11px] tracking-[0.1em] text-meta-foreground"
+        >
           TASK · {id}
         </span>
         <button
@@ -972,21 +1303,27 @@ function DetailDrawer({
   const agent = readAgent(task);
 
   // KPI: tokens, cost, branch, approvals — all tolerate field-shape variance.
-  const tokensIn = detail.tokens_in ?? null;
-  const tokensOut = detail.tokens_out ?? null;
+  // Tokens: prefer typed in/out (sum), fall back to the row's metadata.tokens.
+  const tokensIn = readTokensIn(detail);
+  const tokensOut = readTokensOut(detail);
   const tokensRow = readTokens(task);
   const tokensTotal =
-    tokensRow ?? (tokensIn != null && tokensOut != null ? tokensIn + tokensOut : null);
+    tokensIn != null && tokensOut != null
+      ? tokensIn + tokensOut
+      : tokensIn ?? tokensOut ?? tokensRow;
   const costUsd = readCostUsd(task);
   const costCap = detail.cost_cap_usd ?? null;
-  const branch = readBranch(task);
+  // Branch: pin > metadata.branch > derived ``agent/{role}-{session-prefix}``.
+  const branch = deriveBranch(task);
   const diffAdd = detail.diff_added;
   const diffDel = detail.diff_removed;
-  const apTotal = detail.approvals_total;
-  const apDone = detail.approvals_done;
-  const apPending = detail.approvals_pending;
+  const approvals = readApprovalsTriple(detail);
+  const apTotal = approvals.total;
+  const apDone = approvals.done;
+  const apPending = approvals.pending;
 
-  const plan: PlanStep[] = detail.plan ?? [];
+  // Plan: server-supplied if present, else synthesized from ``progress_log``.
+  const plan: PlanStep[] = detail.plan && detail.plan.length > 0 ? detail.plan : planFromProgress(detail);
 
   return (
     <>
@@ -1005,7 +1342,10 @@ function DetailDrawer({
             <X className="size-3" strokeWidth={1.5} />
           </button>
         </div>
-        <div className="mt-1.5 text-[14px] font-medium leading-snug text-foreground">
+        <div
+          id="task-drawer-title"
+          className="mt-1.5 text-[14px] font-medium leading-snug text-foreground"
+        >
           {task.title}
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-1.5">

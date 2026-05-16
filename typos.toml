@@ -53,6 +53,10 @@ extend-exclude = [
     # fixtures tree; review still applies to the human-authored README/Makefile.
     "examples/lineage/*/fixtures/**",
     "examples/lineage/*/expected-pack.zip",
+    # Vite-built SPA bundle — minified JS / sourcemaps / CSS that mangle
+    # identifiers down to 1–2 chars. typos cannot meaningfully scan this.
+    # Human-authored React/TS sources under web/src/ remain checked.
+    "src/bernstein/gui/static/**",
 ]
 
 [type.md]

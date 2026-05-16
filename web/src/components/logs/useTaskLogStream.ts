@@ -174,8 +174,10 @@ export function useTaskLogStream({
     }
     setFallbackChecked(true);
     let cancelled = false;
+    // ``apiGet`` prepends ``/api/v1`` via ``buildUrl``; pass the bare path so
+    // there's no risk of a future regression producing ``/api/v1/api/v1/...``.
     apiGet<{ log_tail?: string }>(
-      `/api/v1/dashboard/tasks/${encodeURIComponent(taskId)}`,
+      `/dashboard/tasks/${encodeURIComponent(taskId)}`,
     )
       .then((detail) => {
         if (cancelled) return;

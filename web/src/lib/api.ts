@@ -1,7 +1,50 @@
 // Single fetch wrapper for /api/v1/* — bearer auth from localStorage.
+//
+// Path-resolution contract (FE-PROXY-001):
+//   The Bernstein backend mounts every router twice — at `/<path>` AND at
+//   `/api/v1/<path>` (see ``src/bernstein/core/server/server_app.py``'s
+//   ``all_routers`` loop). In production the SPA is served by the backend so
+//   both shapes resolve. In dev the SPA is served by Vite on a different port,
+//   and ``vite.config.ts`` only proxies the ``/api`` prefix to the backend —
+//   so the frontend MUST send every request under ``/api/v1`` for it to
+//   reach the orchestrator.
+//
+//   To keep the call sites readable (`apiGet('/agents')` rather than
+//   `apiGet('/api/v1/agents')`) and to make accidental double-prefixing
+//   harmless when a caller copies an SSE-shaped URL into apiGet, this wrapper:
+//     - prepends ``BASE`` to bare paths;
+//     - returns an already-prefixed ``/api/v1/...`` path unchanged
+//       (idempotent);
+//     - passes through absolute ``http(s)://`` URLs untouched.
+//
+//   Smoke check (no framework configured, so this stays as a doc-test):
+//     buildUrl('/agents')                === '/api/v1/agents'
+//     buildUrl('/api/v1/agents')         === '/api/v1/agents'
+//     buildUrl('/audit/verify')          === '/api/v1/audit/verify'
+//     buildUrl('https://x.test/y')       === 'https://x.test/y'
+//     buildUrl('/api/v1/dashboard/x')    === '/api/v1/dashboard/x'
+//     buildUrl('')                       === '/api/v1'
+//
+// SSE endpoints constructed in ``web/src/lib/sse.ts`` go through
+// ``new EventSource(url)`` directly — those callers pass fully-qualified
+// ``/api/v1/...`` URLs because EventSource has no shared base.
 
 const TOKEN_KEY = 'bernstein_token';
 const BASE = '/api/v1';
+
+/**
+ * Resolve a caller-supplied path to a concrete URL. Idempotent: passing an
+ * already-prefixed ``/api/v1/...`` path is a no-op so accidental double-
+ * prefixing in a future caller can't silently produce ``/api/v1/api/v1/...``.
+ *
+ * Exported for ergonomics (e.g. building blob-download URLs that bypass the
+ * JSON wrapper but still need the same base resolution).
+ */
+export function buildUrl(path: string): string {
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  if (path === BASE || path.startsWith(`${BASE}/`)) return path;
+  return `${BASE}${path}`;
+}
 
 export class ApiError extends Error {
   constructor(public status: number, public body: unknown, message: string) {
@@ -46,7 +89,7 @@ export async function api<T = unknown>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const url = path.startsWith('http') ? path : `${BASE}${path}`;
+  const url = buildUrl(path);
   // Only set Content-Type when we actually send a body — some servers reject
   // GET/DELETE with a content-type header, and 204/202 responses confuse CORS preflights.
   const hasBody = init.body != null;

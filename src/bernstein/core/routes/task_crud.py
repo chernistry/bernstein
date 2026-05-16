@@ -1275,9 +1275,7 @@ def get_task_gates(task_id: str, request: Request) -> JSONResponse:
     if isinstance(payload, dict) and "generated_at" not in payload:
         try:
             mtime = report_path.stat().st_mtime
-            payload["generated_at"] = (
-                datetime.fromtimestamp(mtime, tz=UTC).isoformat().replace("+00:00", "Z")
-            )
+            payload["generated_at"] = datetime.fromtimestamp(mtime, tz=UTC).isoformat().replace("+00:00", "Z")
         except OSError:
             # Filesystems that block stat() after a successful read are exotic
             # enough that omitting the field is the right fallback.

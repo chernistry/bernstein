@@ -7,6 +7,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { MoreHorizontal, Play, Command as CommandIcon, Search, X } from 'lucide-react';
 import { apiGet, apiPost, ApiError } from '@/lib/api';
 import { useEventStream } from '@/lib/sse';
+import { TaskLogsPanel } from '@/components/logs';
 import {
   formatUSD,
   formatDuration,
@@ -1144,7 +1145,12 @@ function DetailDrawer({
           </>
         )}
 
-        {activeTab !== 'Summary' && <TabPlaceholder tab={activeTab} />}
+        {activeTab === 'Logs' && (
+          <TaskLogsPanel taskId={String(task.id)} active />
+        )}
+        {activeTab !== 'Summary' && activeTab !== 'Logs' && (
+          <TabPlaceholder tab={activeTab} />
+        )}
       </div>
     </>
   );

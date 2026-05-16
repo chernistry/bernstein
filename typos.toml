@@ -53,6 +53,11 @@ extend-exclude = [
     # fixtures tree; review still applies to the human-authored README/Makefile.
     "examples/lineage/*/fixtures/**",
     "examples/lineage/*/expected-pack.zip",
+    # Built GUI bundle — minified JS uses short identifiers like ``ue`` / ``ot``
+    # / ``Iy`` / ``Archtype`` that collide with dictionary entries. Reviewing
+    # the minifier's output isn't useful; the source under ``web/src/`` is the
+    # human-authored surface and remains in scope.
+    "src/bernstein/gui/static/**",
 ]
 
 [type.md]

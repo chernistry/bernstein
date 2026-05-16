@@ -33,8 +33,7 @@ def mount(app: FastAPI) -> None:
 
     if not STATIC_DIR.exists() or not (STATIC_DIR / "index.html").exists():
         raise RuntimeError(
-            f"GUI static assets not found at {STATIC_DIR}. "
-            "Build them with: `cd web && npm install && npm run build`"
+            f"GUI static assets not found at {STATIC_DIR}. Build them with: `cd web && npm install && npm run build`"
         )
 
     router = APIRouter(prefix="/api/v1", tags=["gui"])

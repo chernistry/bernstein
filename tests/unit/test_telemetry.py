@@ -6,6 +6,7 @@ from dataclasses import FrozenInstanceError
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from bernstein.core.telemetry import (
     BUILTIN_PRESETS,
     get_meter,

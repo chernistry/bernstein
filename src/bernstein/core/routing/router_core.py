@@ -1114,6 +1114,43 @@ def _seed_bandit_with_effectiveness(
         logger.debug("Effectiveness seeding failed for role %s: %s", task.role, exc)
 
 
+def _try_criterion_profile_bias(task: Task) -> ModelConfig | None:
+    """Apply operator-supplied criterion-profile bias for *task* (issue #1346).
+
+    Returns a forced :class:`ModelConfig` when the task carries a valid
+    ``metadata['criterion_profile']`` value and the feature is enabled.
+    Returns ``None`` when:
+
+    * The feature flag ``BERNSTEIN_CRITERION_PROFILE`` is disabled.
+    * The task has no ``criterion_profile`` metadata.
+    * The metadata is malformed (a warning is logged in that case).
+    * The derived bias did not set a forced model.
+    """
+    from bernstein.core.routing.criterion_profile import (
+        derive_bias,
+        extract_from_task,
+    )
+
+    profile = extract_from_task(task)
+    if profile is None:
+        return None
+
+    bias = derive_bias(profile)
+    if bias.forced_model is None:
+        return None
+
+    effort = bias.forced_effort or "high"
+    logger.info(
+        "Task %s: Selected %s/%s (criterion-profile bias: preset=%s, %s)",
+        task.id,
+        bias.forced_model,
+        effort,
+        profile.name,
+        bias.rationale,
+    )
+    return ModelConfig(model=bias.forced_model, effort=effort)
+
+
 def _select_model_config(
     task: Task,
     bandit_metrics_dir: Path | None = None,
@@ -1142,6 +1179,14 @@ def _select_model_config(
             task.complexity.value,
         )
         return ModelConfig(model=model, effort=effort)
+
+    # Operator-supplied criterion profile (issue #1346): hard bias ahead of
+    # bandit/cascade so the four-axis weight vector translates into a
+    # deterministic model+effort pin.  Disabled when
+    # ``BERNSTEIN_CRITERION_PROFILE=0`` or when the task has no profile.
+    criterion_result = _try_criterion_profile_bias(task)
+    if criterion_result is not None:
+        return criterion_result
 
     # High-stakes roles/scope/priority skip bandit — always use premium models
     # (unless budget-aware routing downgrades the call: ).

@@ -308,6 +308,10 @@ artifacts = [
 # license-audit, regenerate-docs).  Shipped in the wheel so
 # `bernstein recipes list|show|run` resolves immediately.
 "templates/recipes" = "bernstein/_default_templates/recipes"
+# Per-task criterion profile presets (issue #1346).  Shipped in the
+# wheel so `bernstein run --criterion-profile safety-first` resolves
+# without a source checkout, mirroring the mode_profile pattern.
+"templates/criterion_profiles" = "bernstein/_default_templates/criterion_profiles"
 # ascii_logo.md now lives in-package at src/bernstein/_default_templates/ —
 # no force-include needed. The dev-repo copy at docs/assets/ascii_logo.md is
 # the display fallback read by cli/display/splash_v2.py when running from a

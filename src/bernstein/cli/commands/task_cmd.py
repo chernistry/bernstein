@@ -121,6 +121,17 @@ def claim_backlog(
 )
 @click.option("--depends-on", multiple=True, metavar="TASK_ID", help="Task IDs this depends on.")
 @click.option(
+    "--criterion-profile",
+    "criterion_profile",
+    default=None,
+    metavar="PRESET",
+    help=(
+        "Per-task criterion profile (issue #1346): a named preset such as "
+        "'safety-first', 'speed-first', 'balanced', 'cost-first'.  Biases "
+        "model selection and the per-task blast radius."
+    ),
+)
+@click.option(
     "--dry-run",
     is_flag=True,
     help="Print the JSON payload that would be sent without actually calling the API.",
@@ -135,6 +146,7 @@ def add_task(
     scope: str,
     complexity: str,
     depends_on: tuple[str, ...],
+    criterion_profile: str | None,
     dry_run: bool,
 ) -> None:
     """Add a task to the running server.
@@ -150,6 +162,19 @@ def add_task(
         "complexity": complexity,
         "depends_on": list(depends_on),
     }
+    if criterion_profile is not None:
+        # Validate early so operator typos surface before the payload
+        # leaves the CLI.  The server simply forwards metadata blindly.
+        from bernstein.core.routing.criterion_profile import (
+            CriterionProfileError,
+            resolve,
+        )
+
+        try:
+            resolve(criterion_profile)
+        except CriterionProfileError as exc:
+            raise click.UsageError(f"--criterion-profile {criterion_profile!r}: {exc}") from None
+        payload.setdefault("metadata", {})["criterion_profile"] = criterion_profile
 
     if dry_run:
         if is_json():

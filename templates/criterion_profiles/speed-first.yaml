@@ -1,0 +1,10 @@
+# Speed-first criterion profile (issue #1346).
+#
+# Use this when wall-clock turnaround matters more than perfection —
+# throwaway exploration, ephemeral scaffolding, smoke tests.  The
+# vector biases the router toward fast-tier models.
+name: speed-first
+correctness: 0.2
+cost: 0.1
+latency: 0.6
+reversibility: 0.1

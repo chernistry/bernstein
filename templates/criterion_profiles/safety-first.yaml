@@ -1,0 +1,10 @@
+# Safety-first criterion profile (issue #1346).
+#
+# Use this when the task touches production data, security-sensitive
+# code paths, or anything an incident review would care about.  The
+# vector pins routing to deep-tier models with a tight blast radius.
+name: safety-first
+correctness: 0.6
+cost: 0.1
+latency: 0.1
+reversibility: 0.2

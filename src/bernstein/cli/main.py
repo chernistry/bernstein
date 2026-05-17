@@ -55,6 +55,7 @@ from bernstein.cli.chaos_cmd import chaos_group
 from bernstein.cli.checkpoint_cmd import checkpoint_cmd
 from bernstein.cli.ci_cmd import ci_group
 from bernstein.cli.cloud_cmd import cloud_group
+from bernstein.cli.commands.criterion_profile_cmd import criterion_profile_group
 from bernstein.cli.commands.decisions_cmd import decisions_group
 from bernstein.cli.commands.export_cmd import export_cmd
 from bernstein.cli.commands.fleet_cmd import fleet_group
@@ -809,6 +810,7 @@ cli.add_command(daemon_group, "daemon")
 cli.add_command(autofix_group, "autofix")
 cli.add_command(connect_cmd, "connect")
 cli.add_command(creds_group, "creds")
+cli.add_command(criterion_profile_group, "criterion-profile")
 cli.add_command(review_responder_group, "review-responder")
 
 # Already registered elsewhere

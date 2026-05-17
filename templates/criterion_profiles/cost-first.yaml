@@ -1,0 +1,11 @@
+# Cost-first criterion profile (issue #1346).
+#
+# Use this when budget is the binding constraint — backlog cleanup,
+# wide-fanout exploration, or anything where the same task will run
+# many times.  The vector biases the router toward the cheapest
+# available tier.
+name: cost-first
+correctness: 0.1
+cost: 0.6
+latency: 0.2
+reversibility: 0.1

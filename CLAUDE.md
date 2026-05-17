@@ -390,3 +390,15 @@ Bernstein ships agent role prompts under `templates/roles/`. The orchestrator lo
 - `security`
 - `visionary`
 - `vp`
+
+## Documentation duty
+
+Every PR that adds or changes a feature MUST update docs in the same PR:
+
+- User-visible behaviour: update the relevant `README.md` section.
+- Operator workflows: update `docs/operations/<area>.md`.
+- Public API surface: regenerate `docs/api/` schemas.
+- Architecture or new module: update `docs/sdd/` and run `bernstein agents-md sync` so AGENTS.md, CLAUDE.md, `.goosehints`, `CONVENTIONS.md`, and `.cursor/rules/*.mdc` stay aligned.
+- New test layer: also update `docs/contributing/testing.md`.
+
+PRs without the matching docs change will be sent back. Docs and code ship together.

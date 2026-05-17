@@ -4,6 +4,10 @@ This page documents the test tooling we run on every PR and overnight,
 what bug class each tool catches, and how to reproduce a CI failure
 locally without waiting for the cloud runner.
 
+> **Docs duty for test PRs.** Any PR that adds a new test layer, tool, or
+> harness MUST update this page in the same PR. See the project-wide
+> [Documentation duty](../../CONTRIBUTING.md#docs-alongside-code) rule.
+
 ## Tool ↔ bug-class matrix
 
 | Tool                        | Bug class                                                         | When                |

@@ -43,6 +43,18 @@ All three must pass before committing. No exceptions, no "fix later."
 4. Commit with a clear message
 5. Open a PR against `main`
 
+### Docs alongside code
+
+Every PR that adds or changes a feature MUST update docs in the same PR:
+
+- User-visible behaviour: update the relevant `README.md` section.
+- Operator workflows: update `docs/operations/<area>.md`.
+- Public API surface: regenerate `docs/api/` schemas.
+- Architecture or new module: update `docs/sdd/` and run `uv run bernstein agents-md sync` so AGENTS.md, CLAUDE.md, `.goosehints`, `CONVENTIONS.md`, and `.cursor/rules/*.mdc` stay aligned.
+- New test layer: also update `docs/contributing/testing.md`.
+
+PRs without the matching docs change will be sent back. Docs and code ship together.
+
 ### Pre-push hook
 
 Install the versioned pre-push hook to catch lint and architecture-contract

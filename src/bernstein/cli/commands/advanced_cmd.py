@@ -1175,8 +1175,7 @@ def replay_cmd(
 
     if len(args) != 1:
         console.print(
-            "[red]Usage:[/red] bernstein replay <RUN_ID | latest | list> "
-            "OR bernstein replay diff RUN_A RUN_B",
+            "[red]Usage:[/red] bernstein replay <RUN_ID | latest | list> OR bernstein replay diff RUN_A RUN_B",
         )
         raise SystemExit(2)
 

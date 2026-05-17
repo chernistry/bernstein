@@ -145,10 +145,7 @@ def test_record_then_replay_produces_identical_outputs(
     def _explode() -> object:
         raise AssertionError("replay must not call invoke()")
 
-    replayed = [
-        replay.dispatch(kind="llm", key=f"llm-{i}", invoke=_explode)
-        for i in range(3)
-    ]
+    replayed = [replay.dispatch(kind="llm", key=f"llm-{i}", invoke=_explode) for i in range(3)]
     tool_replayed = replay.dispatch(kind="tool", key="run_tests", invoke=_explode)
 
     assert replayed == recorded
@@ -224,14 +221,20 @@ def test_diff_identical_runs(tmp_path: Path) -> None:
 def test_diff_value_mismatch(tmp_path: Path) -> None:
     a = tmp_path / "a" / EVENTS_FILENAME
     b = tmp_path / "b" / EVENTS_FILENAME
-    _write_events(a, [
-        {"seq": 1, "kind": "llm", "key": "k", "response": "alpha"},
-        {"seq": 2, "kind": "llm", "key": "k", "response": "beta"},
-    ])
-    _write_events(b, [
-        {"seq": 1, "kind": "llm", "key": "k", "response": "alpha"},
-        {"seq": 2, "kind": "llm", "key": "k", "response": "GAMMA"},
-    ])
+    _write_events(
+        a,
+        [
+            {"seq": 1, "kind": "llm", "key": "k", "response": "alpha"},
+            {"seq": 2, "kind": "llm", "key": "k", "response": "beta"},
+        ],
+    )
+    _write_events(
+        b,
+        [
+            {"seq": 1, "kind": "llm", "key": "k", "response": "alpha"},
+            {"seq": 2, "kind": "llm", "key": "k", "response": "GAMMA"},
+        ],
+    )
     result = diff_event_logs(a, b)
     assert result.diverged is True
     assert result.index == 1
@@ -242,13 +245,19 @@ def test_diff_value_mismatch(tmp_path: Path) -> None:
 def test_diff_length_mismatch(tmp_path: Path) -> None:
     a = tmp_path / "a" / EVENTS_FILENAME
     b = tmp_path / "b" / EVENTS_FILENAME
-    _write_events(a, [
-        {"seq": 1, "kind": "llm", "key": "k", "response": "x"},
-        {"seq": 2, "kind": "llm", "key": "k", "response": "y"},
-    ])
-    _write_events(b, [
-        {"seq": 1, "kind": "llm", "key": "k", "response": "x"},
-    ])
+    _write_events(
+        a,
+        [
+            {"seq": 1, "kind": "llm", "key": "k", "response": "x"},
+            {"seq": 2, "kind": "llm", "key": "k", "response": "y"},
+        ],
+    )
+    _write_events(
+        b,
+        [
+            {"seq": 1, "kind": "llm", "key": "k", "response": "x"},
+        ],
+    )
     result = diff_event_logs(a, b)
     assert result.diverged is True
     assert result.index == 1

@@ -103,10 +103,7 @@ def diff_event_logs(path_a: Path, path_b: Path) -> DivergenceResult:
             return DivergenceResult(
                 diverged=True,
                 index=i,
-                reason=(
-                    f"event #{i} differs: "
-                    f"kind/key/response triple does not match"
-                ),
+                reason=(f"event #{i} differs: kind/key/response triple does not match"),
                 a_event=a[i],
                 b_event=b[i],
             )
@@ -122,10 +119,7 @@ def diff_event_logs(path_a: Path, path_b: Path) -> DivergenceResult:
     return DivergenceResult(
         diverged=True,
         index=limit,
-        reason=(
-            f"run_{longer} has {abs(len(a) - len(b))} extra event(s) "
-            f"after index {limit - 1 if limit else 0}"
-        ),
+        reason=(f"run_{longer} has {abs(len(a) - len(b))} extra event(s) after index {limit - 1 if limit else 0}"),
         a_event=a[limit] if limit < len(a) else None,
         b_event=b[limit] if limit < len(b) else None,
     )

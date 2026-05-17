@@ -1,0 +1,244 @@
+name: "Contract Drift Autofix"
+
+# Refs: #1273 — CI hardening, bucket CI-E.
+#
+# Why this workflow exists
+# ------------------------
+# Three contract tests in tests/unit/ act as drift detectors:
+#
+#   * test_readme_api_coverage.py::test_all_cli_commands_are_documented
+#     fails when a new top-level CLI command is registered but not added to
+#     DOCUMENTED_COMMANDS.
+#   * test_api_v1_routing.py::TestVersionedRoutesParity::test_every_root_route_has_v1_counterpart
+#     fails when a new root-mounted FastAPI route is added without either a
+#     /api/v1/* mirror or an entry in _INFRASTRUCTURE_PATHS.
+#   * test_cli_run_params.py::test_run_params_match_cli_call
+#     fails when run() gains a new parameter that the cli() click callback
+#     does not forward.
+#
+# Every one of these is a 1-2 line allow-list / forward-arg edit. They are
+# real signals (new public surface needs explicit acknowledgement) but the
+# fix is mechanical — perfectly suited for an autofix bot.
+#
+# This workflow watches the CI workflow_run for PRs, runs just these three
+# tests, and if any fail invokes scripts/regen_contract_drift.py to
+# regenerate the allow-list / forward-arg list, then opens a follow-up PR
+# via peter-evans/create-pull-request.
+#
+# Recursion guards
+# ----------------
+#   * Skips when the head branch is main (autofix only applies to PRs).
+#   * Skips when the PR author is the bot itself (no infinite loops).
+#   * Diff size capped at 30 LOC by the regen script; larger diffs imply
+#     a real change and are escalated by opening an issue instead.
+#   * No `actions: write` permission, so the autofix PR cannot recursively
+#     trigger more workflows in this file.
+#
+# Secret requirements
+# -------------------
+#   * BOT_PAT (optional, recommended): a fine-grained PAT with `contents:
+#     write` + `pull-requests: write` on this repo. When present, the
+#     autofix PR triggers CI runs (GITHUB_TOKEN-authored PRs are otherwise
+#     muted by GitHub's recursion protection). When absent, falls back to
+#     GITHUB_TOKEN — the bot PR opens but CI must be kicked manually by
+#     closing/reopening it.
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+concurrency:
+  group: contract-drift-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  autofix:
+    name: Detect and patch contract drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Recursion guard: don't run on PRs the bot itself opened. The matchers
+    # are intentionally broad (covers default GITHUB_TOKEN authorship via
+    # `github-actions[bot]` AND any of our bot identities used elsewhere).
+    if: >
+      github.event.pull_request.user.login != 'github-actions[bot]' &&
+      github.event.pull_request.user.login != 'bernstein[bot]' &&
+      github.event.pull_request.user.login != 'bernstein-orchestrator[bot]' &&
+      !startsWith(github.event.pull_request.head.ref, 'bot/contract-drift-')
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          # Use BOT_PAT if present so the eventual autofix PR can trigger
+          # CI. GITHUB_TOKEN-authored PRs are muted by GitHub.
+          token: ${{ secrets.BOT_PAT || secrets.GITHUB_TOKEN }}
+
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
+
+      - name: Sync project (dev group)
+        run: uv sync --group dev
+
+      - name: Run drift tests (capture failures, don't fail the job)
+        id: drift
+        run: |
+          set +e
+          uv run pytest \
+            tests/unit/test_readme_api_coverage.py::test_all_cli_commands_are_documented \
+            tests/unit/test_api_v1_routing.py::TestVersionedRoutesParity::test_every_root_route_has_v1_counterpart \
+            tests/unit/test_cli_run_params.py::test_run_params_match_cli_call \
+            --tb=short
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" -eq 0 ]; then
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No contract drift detected."
+          else
+            echo "drift=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Contract drift detected — running regen."
+          fi
+          exit 0
+
+      - name: Regenerate drift fixtures
+        if: steps.drift.outputs.drift == 'true'
+        id: regen
+        run: |
+          set +e
+          uv run python scripts/regen_contract_drift.py --fixture all
+          # The regen script returns 0 only when at least one fixture was
+          # patched. Any non-zero exit means nothing was patched — either
+          # because the drift wasn't one of the three known patterns or
+          # because the diff exceeded the 30-LOC safety cap.
+          regen_status=$?
+          echo "regen_status=$regen_status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Verify regen produced something
+        if: steps.drift.outputs.drift == 'true'
+        id: verify
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Drift was detected but regen produced no diff. Likely an unhandled drift pattern or LOC-cap trip — opening tracking issue."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            # Compute a coarse summary of what was regenerated.
+            CHANGED_FILES=$(git diff --name-only | sort -u)
+            {
+              echo "changed_files<<EOF"
+              echo "$CHANGED_FILES"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            # Compute LOC delta (added+removed) for the safety report.
+            STAT=$(git diff --shortstat)
+            INS=$(echo "$STAT" | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
+            DEL=$(echo "$STAT" | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
+            LOC=$((INS + DEL))
+            echo "loc_delta=${LOC}" >> "$GITHUB_OUTPUT"
+            echo "::notice::Regen produced ${LOC:-0} LOC of changes across:"
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              echo "  $f"
+            done <<< "$CHANGED_FILES"
+          fi
+
+      - name: Re-run drift tests to confirm regen fixed them
+        if: steps.drift.outputs.drift == 'true' && steps.verify.outputs.changed == 'true'
+        id: reverify
+        run: |
+          set +e
+          uv run pytest \
+            tests/unit/test_readme_api_coverage.py::test_all_cli_commands_are_documented \
+            tests/unit/test_api_v1_routing.py::TestVersionedRoutesParity::test_every_root_route_has_v1_counterpart \
+            tests/unit/test_cli_run_params.py::test_run_params_match_cli_call \
+            --tb=short
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" -ne 0 ]; then
+            echo "::warning::Regen ran but drift tests still fail. Bot will open an issue instead of a PR."
+          fi
+          exit 0
+
+      - name: Open autofix PR
+        if: >
+          steps.drift.outputs.drift == 'true' &&
+          steps.verify.outputs.changed == 'true' &&
+          steps.reverify.outputs.status == '0'
+        id: cpr
+        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
+        with:
+          token: ${{ secrets.BOT_PAT || secrets.GITHUB_TOKEN }}
+          branch: bot/contract-drift-pr-${{ github.event.pull_request.number }}
+          base: ${{ github.event.pull_request.head.ref }}
+          commit-message: |
+            chore(ci): regenerate contract drift allow-lists
+
+            Drift detected on PR #${{ github.event.pull_request.number }}.
+            Regenerated via scripts/regen_contract_drift.py.
+            Refs #1273.
+          title: "bot(contract-drift): regenerate ${{ steps.verify.outputs.changed_files }}"
+          body: |
+            Auto-generated patch from `contract-drift-autofix.yml`.
+
+            Three contract tests act as drift detectors against the public CLI / API surface:
+
+            - `tests/unit/test_readme_api_coverage.py::test_all_cli_commands_are_documented`
+            - `tests/unit/test_api_v1_routing.py::TestVersionedRoutesParity::test_every_root_route_has_v1_counterpart`
+            - `tests/unit/test_cli_run_params.py::test_run_params_match_cli_call`
+
+            One or more failed on PR #${{ github.event.pull_request.number }}; this PR regenerates the
+            corresponding allow-list / forward-arg list via
+            `scripts/regen_contract_drift.py`.
+
+            **Files changed:**
+            ```
+            ${{ steps.verify.outputs.changed_files }}
+            ```
+            **LOC delta:** ${{ steps.verify.outputs.loc_delta }} (cap: 30)
+
+            **Source CI run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Refs #1273.
+
+            > [!NOTE]
+            > If the `BOT_PAT` secret is not configured, this PR was opened
+            > with the default `GITHUB_TOKEN`, which means CI workflows will
+            > NOT run automatically on it. Close and reopen the PR (or push
+            > an empty commit) to trigger CI manually.
+          delete-branch: true
+          labels: |
+            ci
+            contract-drift
+            bot
+
+      - name: Fall back to issue when regen could not fix the drift
+        if: >
+          steps.drift.outputs.drift == 'true' && (
+            steps.verify.outputs.changed != 'true' ||
+            steps.reverify.outputs.status != '0'
+          )
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Title is idempotent on PR number so re-runs don't spam issues.
+          TITLE="Contract drift on PR #${{ github.event.pull_request.number }} could not be auto-patched"
+          EXISTING=$(gh issue list --search "$TITLE in:title" --state open --json number --jq '.[0].number // ""')
+          if [ -n "$EXISTING" ]; then
+            echo "::notice::Issue #$EXISTING already tracks this drift — skipping."
+            exit 0
+          fi
+          gh issue create \
+            --title "$TITLE" \
+            --label ci,contract-drift,bot \
+            --body "Contract drift was detected on PR #${{ github.event.pull_request.number }} but \`scripts/regen_contract_drift.py\` could not produce a clean patch.
+
+          Possible reasons:
+          - Drift exceeded the 30-LOC safety cap (real semantic change, not drift).
+          - Drift pattern is not one of the three the script handles.
+          - Regen ran but the targeted tests still fail (regen bug).
+
+          See workflow run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} for details. Refs #1273."

@@ -1,0 +1,118 @@
+# serializer version: 1
+# name: test_ranking_single_candidate_snapshot
+  dict({
+    'criteria': list([
+      dict({
+        'direction': 'benefit',
+        'name': 'x',
+        'weight': 1.0,
+      }),
+    ]),
+    'method': 'topsis',
+    'ranking': list([
+      dict({
+        'closeness': 1.0,
+        'key': 'only',
+        'normalised_scores': dict({
+          'x': 0.0,
+        }),
+        'rank': 1,
+      }),
+    ]),
+    'winner': 'only',
+  })
+# ---
+# name: test_ranking_winner_speed_first_snapshot
+  dict({
+    'criteria': list([
+      dict({
+        'direction': 'benefit',
+        'name': 'correctness',
+        'weight': 1.0,
+      }),
+      dict({
+        'direction': 'cost',
+        'name': 'latency',
+        'weight': 10.0,
+      }),
+    ]),
+    'method': 'topsis',
+    'ranking': list([
+      dict({
+        'closeness': 0.972134,
+        'key': 'fast-risky',
+        'normalised_scores': dict({
+          'correctness': 0.038569,
+          'latency': 0.007538,
+        }),
+        'rank': 1,
+      }),
+      dict({
+        'closeness': 0.906572,
+        'key': 'mid',
+        'normalised_scores': dict({
+          'correctness': 0.051426,
+          'latency': 0.090455,
+        }),
+        'rank': 2,
+      }),
+      dict({
+        'closeness': 0.027866,
+        'key': 'slow-safe',
+        'normalised_scores': dict({
+          'correctness': 0.064282,
+          'latency': 0.904548,
+        }),
+        'rank': 3,
+      }),
+    ]),
+    'winner': 'fast-risky',
+  })
+# ---
+# name: test_ranking_winner_three_candidate_snapshot
+  dict({
+    'criteria': list([
+      dict({
+        'direction': 'benefit',
+        'name': 'correctness',
+        'weight': 2.0,
+      }),
+      dict({
+        'direction': 'cost',
+        'name': 'cost',
+        'weight': 1.0,
+      }),
+    ]),
+    'method': 'topsis',
+    'ranking': list([
+      dict({
+        'closeness': 0.581582,
+        'key': 'gamma',
+        'normalised_scores': dict({
+          'correctness': 0.392534,
+          'cost': 0.148478,
+        }),
+        'rank': 1,
+      }),
+      dict({
+        'closeness': 0.560751,
+        'key': 'beta',
+        'normalised_scores': dict({
+          'correctness': 0.26169,
+          'cost': 0.029696,
+        }),
+        'rank': 2,
+      }),
+      dict({
+        'closeness': 0.439249,
+        'key': 'alpha',
+        'normalised_scores': dict({
+          'correctness': 0.471041,
+          'cost': 0.296957,
+        }),
+        'rank': 3,
+      }),
+    ]),
+    'winner': 'gamma',
+  })
+# ---

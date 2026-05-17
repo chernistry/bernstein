@@ -31,6 +31,12 @@ from typing import TYPE_CHECKING
 from bernstein.core import defaults as _defaults
 
 if TYPE_CHECKING:
+    from bernstein.core.orchestration.multi_criteria_rank import (
+        Candidate as _RankCandidateT,
+    )
+    from bernstein.core.orchestration.multi_criteria_rank import (
+        CriterionProfile as _RankCriterionProfile,
+    )
     from bernstein.core.tasks.models import Task
 
 logger = logging.getLogger(__name__)
@@ -223,6 +229,80 @@ def select_best(
             c.task_id,
         ),
     )
+
+
+def select_winner(
+    candidates: list[CandidateResult],
+    weights: ScoreWeights = _DEFAULT_WEIGHTS,
+    *,
+    profile: object | None = None,
+) -> CandidateResult:
+    """Pick the winner using either TOPSIS or the legacy blended score.
+
+    When *profile* is None this delegates to :func:`select_best` and
+    preserves bit-for-bit the legacy code path — that is the regression
+    invariant required by issue #1347.
+
+    When *profile* is a :class:`CriterionProfile`, candidates are ranked
+    by :func:`bernstein.core.orchestration.multi_criteria_rank.rank_candidates`
+    over the same axes the runner already collects today: ``correctness``
+    (tests + judge), ``cost`` (lint inverse — proxy for blast radius),
+    ``latency`` (runtime), ``reversibility`` (currently a constant 1.0
+    until the runner emits a real signal).  Fewer than two candidates is
+    a no-op: the lone candidate is returned as-is.
+
+    Raises:
+        ValueError: When *candidates* is empty.
+    """
+    if not candidates:
+        raise ValueError("select_winner requires at least one candidate")
+    if profile is None or len(candidates) < 2:
+        return select_best(candidates, weights)
+
+    # Lazy import — keeps the module import graph cycle-free.
+    from bernstein.core.orchestration.multi_criteria_rank import (
+        CriterionProfile as _CriterionProfile,
+    )
+    from bernstein.core.orchestration.multi_criteria_rank import (
+        rank_candidates,
+    )
+
+    if not isinstance(profile, _CriterionProfile):
+        raise TypeError("profile must be a multi_criteria_rank.CriterionProfile or None")
+
+    ranked_inputs = [_to_rank_candidate(c, profile) for c in candidates]
+    ranked = rank_candidates(ranked_inputs, profile)
+    if not ranked:  # pragma: no cover - empty handled above
+        return select_best(candidates, weights)
+    winner_key = ranked[0].key
+    by_id = {c.task_id: c for c in candidates}
+    return by_id.get(winner_key, select_best(candidates, weights))
+
+
+def _to_rank_candidate(result: CandidateResult, profile: _RankCriterionProfile) -> _RankCandidateT:
+    """Project a :class:`CandidateResult` onto the TOPSIS score vector."""
+    from bernstein.core.orchestration.multi_criteria_rank import (
+        Candidate as _RankCandidate,
+    )
+
+    correctness = 1.0 if result.tests_passing else 0.0
+    judge = result.judge_score if result.judge_score is not None else correctness
+    correctness = max(0.0, min(1.0, 0.5 * correctness + 0.5 * judge))
+
+    scores: dict[str, float] = {
+        "correctness": correctness,
+        "cost": max(0.0, 1.0 - max(0.0, min(1.0, result.lint_score))),
+        "latency": max(0.0, result.runtime_s),
+        # No runtime signal yet for blast-radius; surface a neutral 1.0
+        # so the axis exists for callers who weight it down to 0.
+        "reversibility": 1.0,
+    }
+    # Drop axes the profile does not ask for so we never feed extras to
+    # the ranker.  Inject neutral values for axes we do not yet collect.
+    projected: dict[str, float] = {}
+    for name in profile.names:
+        projected[name] = scores.get(name, 0.0)
+    return _RankCandidate(key=result.task_id, scores=projected)
 
 
 def judge_candidates(
@@ -456,5 +536,6 @@ __all__ = [
     "judge_candidates",
     "score_candidate",
     "select_best",
+    "select_winner",
     "task_n",
 ]

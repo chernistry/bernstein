@@ -55,6 +55,7 @@ from bernstein.cli.chaos_cmd import chaos_group
 from bernstein.cli.checkpoint_cmd import checkpoint_cmd
 from bernstein.cli.ci_cmd import ci_group
 from bernstein.cli.cloud_cmd import cloud_group
+from bernstein.cli.commands.best_of_n_rank_cmd import best_of_n_group
 from bernstein.cli.commands.criterion_profile_cmd import criterion_profile_group
 from bernstein.cli.commands.decisions_cmd import decisions_group
 from bernstein.cli.commands.export_cmd import export_cmd
@@ -767,6 +768,7 @@ cli.add_command(config_group)
 cli.add_command(benchmark_group)
 cli.add_command(cache_group, "cache")
 cli.add_command(eval_group)
+cli.add_command(best_of_n_group)
 cli.add_command(dashboard)
 cli.add_command(live)
 # Web GUI subcommand. The group itself ships with core (so `bernstein gui --help`

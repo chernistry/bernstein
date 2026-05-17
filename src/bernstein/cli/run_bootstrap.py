@@ -239,6 +239,7 @@ def _propagate_env_flags(
     audit: bool,
     max_cost_usd: float | None = None,
     allow_paid: bool = False,
+    permission_profile: str | None = None,
 ) -> None:
     """Set environment variables so orchestrator subprocesses inherit CLI flags."""
     _flag_map: list[tuple[bool, str]] = [
@@ -260,6 +261,7 @@ def _propagate_env_flags(
         (container_image, "BERNSTEIN_CONTAINER_IMAGE"),
         (task_filter, "BERNSTEIN_TASK_FILTER"),
         (activity_log_path, "BERNSTEIN_ACTIVITY_LOG"),
+        (permission_profile, "BERNSTEIN_PERMISSION_PROFILE"),
     ]
     for val, key in _str_map:
         if val:
@@ -885,6 +887,21 @@ def exec_restart() -> None:
     ),
 )
 @click.option(
+    "--permission-profile",
+    "permission_profile",
+    default=None,
+    type=click.Choice(
+        ["read-only", "builder", "reviewer", "custom"],
+        case_sensitive=False,
+    ),
+    help=(
+        "Per-tool permission profile (roadmap #1318). 'read-only' = review/explore "
+        "agents only; 'builder' = write + shell on an allowlist; 'reviewer' = "
+        "read + diff only; 'custom' = honour [permissions.custom] in "
+        "bernstein.yaml/bernstein.toml. Off by default to preserve existing behaviour."
+    ),
+)
+@click.option(
     "--task",
     "-t",
     "task_filter",
@@ -947,6 +964,7 @@ def run(
     cprofile: bool = False,
     run_profile: str | None = None,
     allow_network: tuple[str, ...] = (),
+    permission_profile: str | None = None,
     task_filter: str | None = None,
     auto_pr: bool = False,
     activity_log_path: str | None = None,
@@ -1015,6 +1033,7 @@ def run(
         audit=audit,
         max_cost_usd=max_cost_usd,
         allow_paid=allow_paid,
+        permission_profile=permission_profile,
     )
 
     _install_network_policy(run_profile=run_profile, allow_network=allow_network)

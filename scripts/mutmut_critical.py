@@ -77,6 +77,7 @@ MODULES: tuple[Module, ...] = (
         tests=(
             "tests/unit/test_audit_chain_byteflip_regression.py",
             "tests/unit/test_audit_key.py",
+            "tests/unit/test_audit_log_mutation_kill.py",
         ),
         threshold=0.70,
         budget_seconds=1200,
@@ -86,7 +87,10 @@ MODULES: tuple[Module, ...] = (
     Module(
         key="audit_integrity",
         source="src/bernstein/core/security/audit_integrity.py",
-        tests=("tests/unit/test_audit_integrity.py",),
+        tests=(
+            "tests/unit/test_audit_integrity.py",
+            "tests/unit/test_audit_integrity_mutation_kill.py",
+        ),
         threshold=0.70,
         budget_seconds=900,
         max_candidates=60,
@@ -122,7 +126,10 @@ MODULES: tuple[Module, ...] = (
     Module(
         key="config_seed_parser",
         source="src/bernstein/core/config/seed_parser.py",
-        tests=("tests/unit/test_config_schema.py",),
+        tests=(
+            "tests/unit/test_config_schema.py",
+            "tests/unit/test_seed_parser_mutation_kill.py",
+        ),
         threshold=0.70,
         budget_seconds=1200,
         max_candidates=80,

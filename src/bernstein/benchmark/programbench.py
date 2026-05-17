@@ -430,6 +430,116 @@ def save_results(report: ProgramBenchReport, sdd_dir: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
+# Subprocess assert sandbox
+# ---------------------------------------------------------------------------
+
+
+_SANDBOX_DEFAULT_TIMEOUT_SECONDS = 30
+
+
+_SANDBOX_RUNNER = """\
+import json
+import sys
+
+payload = json.loads(sys.stdin.read())
+setup_code = payload.get("setup_code", "")
+candidate_code = payload.get("candidate_code", "")
+assert_exprs = payload.get("asserts", [])
+task_id = payload.get("task_id", "task")
+
+namespace = {}
+error = None
+try:
+    if setup_code.strip():
+        exec(compile(setup_code, "<" + task_id + ":setup>", "exec"), namespace)
+    if candidate_code.strip():
+        exec(compile(candidate_code, "<" + task_id + ":candidate>", "exec"), namespace)
+except BaseException as exc:
+    error = "setup/candidate error: " + repr(exc)
+
+passed = 0
+if error is None:
+    for expr in assert_exprs:
+        try:
+            result = eval(compile(expr, "<" + task_id + ":assert>", "eval"), namespace)
+            if bool(result):
+                passed += 1
+        except BaseException:
+            continue
+
+print(json.dumps({"passed": passed, "total": len(assert_exprs), "error": error}))
+"""
+
+
+def _run_assert_sandbox(
+    *,
+    task_id: str,
+    setup_code: str,
+    candidate_code: str,
+    asserts: list[str],
+    timeout_seconds: int = _SANDBOX_DEFAULT_TIMEOUT_SECONDS,
+) -> tuple[int, int, str | None]:
+    """Evaluate a candidate's asserts in an isolated Python subprocess.
+
+    The runner script reads JSON on stdin, executes the setup and candidate
+    code in a fresh namespace, then evaluates each assert expression. The
+    harness process never executes candidate code; isolation is provided by
+    the subprocess boundary plus the timeout. This mirrors the call shape
+    used by :mod:`bernstein.core.sandbox` for runtime evaluation.
+
+    Args:
+        task_id: Task identifier used for diagnostic filenames.
+        setup_code: Initial setup Python source.
+        candidate_code: Candidate Python source.
+        asserts: List of Python expressions to evaluate.
+        timeout_seconds: Subprocess timeout in seconds.
+
+    Returns:
+        Tuple of ``(asserts_passed, asserts_total, error_or_None)``.
+    """
+    import subprocess
+    import sys
+
+    payload = json.dumps(
+        {
+            "task_id": task_id,
+            "setup_code": setup_code,
+            "candidate_code": candidate_code,
+            "asserts": list(asserts),
+        }
+    )
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", _SANDBOX_RUNNER],
+            input=payload,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_seconds,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return 0, len(asserts), "sandbox timeout"
+    except OSError as exc:
+        return 0, len(asserts), f"sandbox spawn error: {exc!r}"
+
+    if proc.returncode != 0:
+        return 0, len(asserts), f"sandbox exit {proc.returncode}: {proc.stderr[:200]}"
+
+    try:
+        result_data = json.loads(proc.stdout.strip().splitlines()[-1])
+    except (json.JSONDecodeError, IndexError) as exc:
+        return 0, len(asserts), f"sandbox output parse error: {exc!r}"
+
+    passed = int(result_data.get("passed", 0))
+    total = int(result_data.get("total", len(asserts)))
+    error: str | None = result_data.get("error")
+    return passed, total, error
+
+
+# ---------------------------------------------------------------------------
 # Harness
 # ---------------------------------------------------------------------------
 
@@ -573,10 +683,12 @@ class ProgramBenchHarness:
         task: ProgramBenchTask,
         candidate_code: str,
     ) -> tuple[int, int, str | None]:
-        """Run a candidate solution against task asserts.
+        """Run a candidate solution against task asserts in a subprocess sandbox.
 
         Each assert is a Python expression evaluated against a namespace
-        containing the candidate's exec'd globals plus the task's setup.
+        containing the candidate's globals plus the task's setup. Evaluation
+        runs in a fresh Python interpreter subprocess so the harness process
+        is not contaminated by candidate code or imports.
 
         Args:
             task: The task whose asserts to evaluate.
@@ -589,28 +701,12 @@ class ProgramBenchHarness:
         if not all_asserts:
             return 0, 0, "no asserts defined"
 
-        namespace: dict[str, Any] = {}
-        try:
-            if task.setup_code.strip():
-                exec(compile(task.setup_code, f"<{task.task_id}:setup>", "exec"), namespace)
-            if candidate_code.strip():
-                exec(compile(candidate_code, f"<{task.task_id}:candidate>", "exec"), namespace)
-        except Exception as exc:
-            return 0, len(all_asserts), f"setup/candidate error: {exc!r}"
-
-        passed = 0
-        for expr in all_asserts:
-            try:
-                result = eval(
-                    compile(expr, f"<{task.task_id}:assert>", "eval"),
-                    namespace,
-                )
-                if bool(result):
-                    passed += 1
-            except Exception:
-                continue
-
-        return passed, len(all_asserts), None
+        return _run_assert_sandbox(
+            task_id=task.task_id,
+            setup_code=task.setup_code,
+            candidate_code=candidate_code,
+            asserts=all_asserts,
+        )
 
     # ------------------------------------------------------------------
     # Adapter invocation

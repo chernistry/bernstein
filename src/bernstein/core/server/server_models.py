@@ -479,6 +479,8 @@ class TaskCountsResponse(BaseModel):
     pending_approval: int = 0
     waiting_for_subtasks: int = 0
     orphaned: int = 0
+    abandoned: int = 0
+    blocked_by_abandon: int = 0
     total: int = 0
 
 

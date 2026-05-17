@@ -158,9 +158,13 @@ class TestConfigureDatadog:
         assert cfg.env == "test"
         assert cfg.agent_host == "custom-host"
 
-    @patch("bernstein.core.telemetry.init_telemetry_from_preset")
+    @patch("bernstein.core.observability.telemetry.init_telemetry_from_preset")
     def test_otlp_fallback_calls_preset(self, mock_preset: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
-        """When ddtrace is missing, falls back to OTLP preset."""
+        """When ddtrace is missing, falls back to OTLP preset.
+
+        ``configure_datadog`` does a local import of ``init_telemetry_from_preset``
+        from ``bernstein.core.observability.telemetry``, so we patch that path.
+        """
         monkeypatch.delenv("DD_API_KEY", raising=False)
         monkeypatch.delenv("DATADOG_API_KEY", raising=False)
         cfg = DatadogConfig(use_otlp=False, agent_host="dd-host")
@@ -170,11 +174,11 @@ class TestConfigureDatadog:
             result = configure_datadog(cfg)
 
         # Should have attempted the OTLP fallback
-        if result:
-            mock_preset.assert_called_once()
-            call_args = mock_preset.call_args
-            assert call_args[0][0] == "datadog"
-            assert "dd-host" in call_args[1].get("endpoint_override", "")
+        assert result is True
+        mock_preset.assert_called_once()
+        call_args = mock_preset.call_args
+        assert call_args[0][0] == "datadog"
+        assert "dd-host" in call_args[1].get("endpoint_override", "")
 
 
 # ---------------------------------------------------------------------------

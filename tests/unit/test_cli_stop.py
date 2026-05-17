@@ -318,11 +318,22 @@ class TestHardStopFallbacks:
         killed: set[int] = set()
 
         def _record_agent(pid: int, label: str, seen: set[int]) -> None:
-            del label, seen
+            del label
+            # Mirror real ``_kill_agent_pid`` semantics: the function is
+            # idempotent because it tracks killed pids in ``seen`` and bails
+            # out on a second call.  Without this update the two-pass scan in
+            # ``_collect_repo_processes`` looks like it kills the same pid
+            # twice when in fact the second call short-circuits in
+            # production.
+            if pid in seen:
+                return
+            seen.add(pid)
             agent_calls.append(pid)
 
         def _record_infra(pid: int, label: str, seen: set[int]) -> None:
-            del seen
+            if pid in seen:
+                return
+            seen.add(pid)
             infra_calls.append((pid, label))
 
         with (

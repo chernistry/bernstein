@@ -723,6 +723,7 @@ def cli(
         auto_pr=auto_pr,
         activity_log_path=activity_log_path,
         max_cost_usd=None,
+        idle=False,
     )
 
 

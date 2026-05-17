@@ -109,13 +109,26 @@ on:
       - "scripts/gen_roadmap_*.py"
       - "scripts/generate_benchmark_docs.py"
 
-# On branch pushes (incl. main after PR merges): cancel the old run so only
-# the latest commit's CI matters. auto-release.yml depends on success on the
-# final commit; keeping older runs alive delays or skips the release.
-# On pull_request: also cancel — reviewers only care about the latest push.
+# Concurrency policy (split PR vs main pushes — see #1273):
+#
+#   - Pull requests: per-PR group (keyed off pull_request.number, stable
+#     across pushes to the same PR), cancel-in-progress=true. New commits
+#     on the same PR cancel older CI runs so reviewers only ever wait on
+#     the latest push and we don't burn minutes on stale SHAs.
+#
+#   - Pushes to main (incl. squash-merges from auto/bump-* PRs): per-SHA
+#     group, cancel-in-progress=false. Each merged commit gets its own
+#     un-cancellable CI run so the `workflow_run` listener in
+#     auto-release.yml always observes a real success/failure conclusion
+#     for that SHA — never `cancelled`-by-newer-push. This is the v2-merge
+#     unblocker: a tag/publish race that previously dropped the release
+#     when two merges landed in quick succession.
+#
+# The conditional in `group:` selects the right key per event type, and
+# `cancel-in-progress` only fires for pull_request events.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('sha-{0}', github.sha) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # ─── Fast checks (never cancelled, <2 min each) ───────────────────────

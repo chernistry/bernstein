@@ -228,6 +228,91 @@ def _slug(text: str, max_len: int = 40) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Vertical-slice shape check on YAML plans
+# ---------------------------------------------------------------------------
+
+
+def _yaml_steps_to_pseudo_tasks(plan_data: dict[str, Any]) -> list[Any]:
+    """Convert YAML plan steps into lightweight pseudo-Task objects.
+
+    The shape checker reads ``title``, ``owned_files``, and ``scope``.
+    We provide a minimal stand-in so ``plan generate`` can reuse the
+    same checker without importing the full Task dataclass.
+    """
+    from dataclasses import dataclass
+
+    @dataclass
+    class _PseudoScope:
+        value: str
+
+    @dataclass
+    class _PseudoTask:
+        title: str
+        owned_files: list[str]
+        scope: _PseudoScope
+
+    pseudo: list[Any] = []
+    for stage in plan_data.get("stages", []) or []:
+        for step in stage.get("steps", []) or []:
+            pseudo.append(
+                _PseudoTask(
+                    title=str(step.get("title", "")),
+                    owned_files=list(step.get("owned_files", []) or []),
+                    scope=_PseudoScope(value=str(step.get("scope", "medium"))),
+                )
+            )
+    return pseudo
+
+
+def _shape_check_yaml_plan(
+    plan_data: dict[str, Any],
+    *,
+    max_loc: int | None,
+    max_files: int | None,
+) -> None:
+    """Run the vertical-slice shape checker against a YAML plan.
+
+    Prints violations to the console for operator visibility.  Does not
+    raise — the YAML is still written so the operator can edit it; the
+    diagnostics make the issues obvious.
+    """
+    from bernstein.core.planning.vertical_slice import (
+        ShapeConfig,
+        check_plan,
+        load_shape_config,
+    )
+
+    base = load_shape_config(Path("."))
+    cfg = ShapeConfig(
+        enforce_vertical=True,
+        max_loc_hard=max_loc if max_loc is not None else base.max_loc_hard,
+        max_loc_ideal=base.max_loc_ideal,
+        max_files=max_files if max_files is not None else base.max_files,
+        max_modules=base.max_modules,
+    )
+    pseudo = _yaml_steps_to_pseudo_tasks(plan_data)
+    if not pseudo:
+        return
+    violations = check_plan(pseudo, cfg)
+    if not violations:
+        console.print("[dim]Vertical-slice shape check passed.[/dim]")
+        return
+    errors = [v for v in violations if v.severity == "error"]
+    warns = [v for v in violations if v.severity == "warn"]
+    if errors:
+        console.print(f"[red]Vertical-slice shape check found {len(errors)} error(s):[/red]")
+        for v in errors:
+            console.print(f"  - [{v.rule}] {v.message}")
+        console.print(
+            "[dim]Re-run with --no-enforce-vertical to bypass, or edit the YAML to split oversized stages.[/dim]"
+        )
+    if warns:
+        console.print(f"[yellow]{len(warns)} shape warning(s):[/yellow]")
+        for v in warns:
+            console.print(f"  - [{v.rule}] {v.message}")
+
+
+# ---------------------------------------------------------------------------
 # Click command
 # ---------------------------------------------------------------------------
 
@@ -265,6 +350,30 @@ def _slug(text: str, max_len: int = 40) -> str:
     type=click.Path(exists=True, file_okay=False, path_type=Path),
     help="Project root directory to analyse.",
 )
+@click.option(
+    "--enforce-vertical/--no-enforce-vertical",
+    default=True,
+    show_default=True,
+    help=(
+        "Enforce vertical-slice shape checks on the generated plan "
+        "(issue #1321). Default on in the 2.x line; use "
+        "``--no-enforce-vertical`` to opt out."
+    ),
+)
+@click.option(
+    "--max-loc",
+    "max_loc",
+    type=int,
+    default=None,
+    help="Hard LOC cap per slice. Overrides bernstein.yaml [plan].max_loc.",
+)
+@click.option(
+    "--max-files",
+    "max_files",
+    type=int,
+    default=None,
+    help="Max files per slice. Overrides bernstein.yaml [plan].max_files.",
+)
 def plan_generate(
     description: str,
     output: str | None,
@@ -272,6 +381,9 @@ def plan_generate(
     provider: str,
     dry_run: bool,
     workdir: Path,
+    enforce_vertical: bool,
+    max_loc: int | None,
+    max_files: int | None,
 ) -> None:
     """Generate a multi-stage YAML plan from a natural language description.
 
@@ -318,6 +430,13 @@ def plan_generate(
         plan_data["name"] = description[:60]
     if not plan_data.get("description"):
         plan_data["description"] = description
+
+    # Vertical-slice shape check (issue #1321).  Operates on the YAML
+    # steps directly; reports violations but does not abort by default
+    # — the LLM-generated YAML is then surfaced to the operator who can
+    # re-run with ``--no-enforce-vertical`` if appropriate.
+    if enforce_vertical:
+        _shape_check_yaml_plan(plan_data, max_loc=max_loc, max_files=max_files)
 
     step_count, estimated_usd = _estimate_cost(plan_data)
     stage_count = len(plan_data.get("stages", []))

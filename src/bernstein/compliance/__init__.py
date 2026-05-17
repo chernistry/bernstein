@@ -19,16 +19,30 @@ from bernstein.compliance.eu_ai_act import (
     TechDoc,
     TechDocGenerator,
 )
+from bernstein.compliance.evidence_pack import (
+    SCHEMA_VERSION as EVIDENCE_PACK_SCHEMA_VERSION,
+)
+from bernstein.compliance.evidence_pack import (
+    SUPPORTED_STANDARDS,
+    EvidencePack,
+    build_evidence_pack,
+    get_standard_map,
+)
 
 __all__ = [
+    "EVIDENCE_PACK_SCHEMA_VERSION",
+    "SUPPORTED_STANDARDS",
     "AnnexIIIDomain",
     "ClassificationResult",
     "ComplianceEngine",
     "ConformityAssessor",
     "ConformityCheck",
     "ConformityResult",
+    "EvidencePack",
     "RiskCategory",
     "SystemDescriptor",
     "TechDoc",
     "TechDocGenerator",
+    "build_evidence_pack",
+    "get_standard_map",
 ]

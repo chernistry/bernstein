@@ -28,6 +28,9 @@ class AgentTelemetry:
         tests_failed: Number of tests that failed.
         completion_signals_checked: Signals the harness checked.
         completion_signals_passed: Signals that passed.
+        compare_run_id: Optional grouping id linking this telemetry record
+            to a ``bernstein compare`` run. Empty string when the task was
+            not produced by a compare invocation.
     """
 
     task_id: str
@@ -43,6 +46,7 @@ class AgentTelemetry:
     tests_failed: int = 0
     completion_signals_checked: int = 0
     completion_signals_passed: int = 0
+    compare_run_id: str = ""
 
 
 _REQUIRED_FIELDS: frozenset[str] = frozenset(
@@ -146,4 +150,5 @@ def parse_telemetry(raw: dict[str, object]) -> AgentTelemetry:
         tests_failed=_int("tests_failed"),
         completion_signals_checked=_int("completion_signals_checked"),
         completion_signals_passed=_int("completion_signals_passed"),
+        compare_run_id=str(raw.get("compare_run_id", "") or ""),
     )

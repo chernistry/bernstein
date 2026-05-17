@@ -360,6 +360,17 @@ class CostTracker:
     # evicted rows are dropped (accumulators still carry their stats).
     rotation_dir: Path | None = None
 
+    # Optional hard-cap kill switch (issue #1320). When > 0 and reached,
+    # ``status().should_stop`` flips True regardless of soft budget %.
+    # Independent of ``budget_usd`` so the operator can run
+    # ``--budget 5usd --hard-budget 10usd`` and trip the kill switch only
+    # at the higher band.
+    hard_budget_usd: float = 0.0
+    # Optional rolling JSONL ledger. When set, every ``record()`` writes
+    # one row tagged with ``task_id|agent_id|role|feature_label`` so
+    # ``bernstein cost --by ...`` can attribute spend post-hoc.
+    spend_ledger: Any | None = None  # SpendLedger; typed as Any to avoid import cycle
+
     # Mutable tracking state (not constructor args)
     _spent_usd: float = field(default=0.0, init=False, repr=False)
     _usages: deque[TokenUsage] = field(
@@ -427,6 +438,9 @@ class CostTracker:
         tenant_id: str = "default",
         cache_read_tokens: int = 0,
         cache_write_tokens: int = 0,
+        role: str = "",
+        feature_label: str = "",
+        cost_tags: dict[str, str] | None = None,
     ) -> BudgetStatus:
         """Record token usage for an agent and return updated budget status.
 
@@ -456,6 +470,12 @@ class CostTracker:
                 cache_write_tokens=cache_write_tokens,
             )
 
+        merged_tags: dict[str, str] = dict(cost_tags or {})
+        if role and "role" not in merged_tags:
+            merged_tags["role"] = role
+        if feature_label and "feature_label" not in merged_tags:
+            merged_tags["feature_label"] = feature_label
+
         usage = TokenUsage(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
@@ -466,6 +486,7 @@ class CostTracker:
             tenant_id=normalized_tenant,
             cache_read_tokens=cache_read_tokens,
             cache_write_tokens=cache_write_tokens,
+            cost_tags=merged_tags,
         )
         evicted: TokenUsage | None = None
         with self._lock:
@@ -484,6 +505,33 @@ class CostTracker:
         if evicted is not None:
             self._rotate_evicted(evicted)
         self._emit_threshold_warnings(status)
+
+        # Push to the rolling spend ledger (issue #1320). Best-effort:
+        # ledger IO must never block the record() hot path. Import locally
+        # so the cost_tracker module stays import-cycle-free.
+        if self.spend_ledger is not None:
+            from bernstein.core.cost.spend_ledger import CallTags  # local import
+
+            tags = CallTags(
+                task_id=task_id,
+                agent_id=agent_id,
+                role=str(merged_tags.get("role", "")),
+                feature_label=str(merged_tags.get("feature_label", "")),
+                extra={k: v for k, v in merged_tags.items() if k not in {"role", "feature_label"}},
+            )
+            try:
+                self.spend_ledger.record(
+                    tags=tags,
+                    model=model,
+                    cost_usd=cost_usd,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    cache_read_tokens=cache_read_tokens,
+                    cache_write_tokens=cache_write_tokens,
+                    ts=usage.timestamp,
+                )
+            except Exception as exc:  # pragma: no cover - belt-and-braces
+                logger.debug("SpendLedger write failed: %s", exc)
         return status
 
     def record_cumulative(
@@ -498,6 +546,9 @@ class CostTracker:
         tenant_id: str = "default",
         total_cache_read_tokens: int = 0,
         total_cache_write_tokens: int = 0,
+        role: str = "",
+        feature_label: str = "",
+        cost_tags: dict[str, str] | None = None,
     ) -> float:
         """Record cumulative token usage for one agent/task pair.
 
@@ -562,6 +613,9 @@ class CostTracker:
             tenant_id=normalize_tenant_id(tenant_id),
             cache_read_tokens=delta_cache_read,
             cache_write_tokens=delta_cache_write,
+            role=role,
+            feature_label=feature_label,
+            cost_tags=cost_tags,
         )
         self._cumulative_tokens[key] = (cur_input, cur_output, cur_cache_read, cur_cache_write)
         return self._spent_usd - before
@@ -578,6 +632,9 @@ class CostTracker:
             threshold.
         """
         with self._lock:
+            # Hard cap (issue #1320) trips independently of the soft cap.
+            if self.hard_budget_usd > 0 and self._spent_usd >= self.hard_budget_usd:
+                return False
             if self.budget_usd <= 0:
                 return True
             pct = self._spent_usd / self.budget_usd
@@ -592,16 +649,20 @@ class CostTracker:
             Immutable ``BudgetStatus`` with remaining budget, percentage
             used, and stop/warn flags.
         """
+        # Hard cap kill-switch (issue #1320). When the hard cap is hit we
+        # always advertise ``should_stop=True`` so the orchestrator stops
+        # spawning, even when the soft budget is unlimited or unset.
+        hard_trip = self.hard_budget_usd > 0 and self._spent_usd >= self.hard_budget_usd
+
         if self.budget_usd <= 0:
-            # Unlimited budget — never warn or stop
             return BudgetStatus(
                 run_id=self.run_id,
                 budget_usd=0.0,
                 spent_usd=self._spent_usd,
                 remaining_usd=float("inf"),
                 percentage_used=0.0,
-                should_warn=False,
-                should_stop=False,
+                should_warn=hard_trip,
+                should_stop=hard_trip,
             )
 
         pct = self._spent_usd / self.budget_usd
@@ -612,8 +673,8 @@ class CostTracker:
             spent_usd=self._spent_usd,
             remaining_usd=remaining,
             percentage_used=pct,
-            should_warn=pct >= self.warn_threshold,
-            should_stop=pct >= self.hard_stop_threshold,
+            should_warn=pct >= self.warn_threshold or hard_trip,
+            should_stop=pct >= self.hard_stop_threshold or hard_trip,
         )
 
     @property
@@ -638,6 +699,30 @@ class CostTracker:
     def total_usages_recorded(self) -> int:
         """Total usage records ever appended, including evicted rows."""
         return self._total_usages_recorded
+
+    def cheaper_model_for(self, model: str) -> str | None:
+        """Suggest a cheaper model when ``>=80%`` of the soft cap is spent.
+
+        Returns ``None`` when the soft cap is unset or not yet warning.
+        Delegates to :class:`SpendLedger.cheaper_model` when a ledger is
+        attached so the reroute table stays in one place; otherwise uses
+        a local 80% check against the soft cap.
+        """
+        if self.spend_ledger is not None:
+            return self.spend_ledger.cheaper_model(model)  # type: ignore[no-any-return]
+        # Fallback: local 80% check
+        if self.budget_usd <= 0:
+            return None
+        pct = self._spent_usd / self.budget_usd
+        if pct < self.warn_threshold:
+            return None
+        from bernstein.core.cost.spend_ledger import _REROUTE, DEFAULT_CHEAP_MODEL
+
+        m = model.lower()
+        for k, v in _REROUTE.items():
+            if k in m and k != v:
+                return v
+        return DEFAULT_CHEAP_MODEL if DEFAULT_CHEAP_MODEL not in m else None
 
     def spent_for_agent(self, agent_id: str) -> float:
         """Return cumulative spend for one agent session."""
@@ -668,6 +753,7 @@ class CostTracker:
         data: dict[str, Any] = {
             "run_id": self.run_id,
             "budget_usd": self.budget_usd,
+            "hard_budget_usd": self.hard_budget_usd,
             "spent_usd": round(self._spent_usd, 6),
             "warn_threshold": self.warn_threshold,
             "critical_threshold": self.critical_threshold,
@@ -703,6 +789,7 @@ class CostTracker:
             tracker = cls(
                 run_id=data["run_id"],
                 budget_usd=float(data.get("budget_usd", 0.0)),
+                hard_budget_usd=float(data.get("hard_budget_usd", 0.0)),
                 warn_threshold=float(data.get("warn_threshold", DEFAULT_WARN_THRESHOLD)),
                 critical_threshold=float(data.get("critical_threshold", DEFAULT_CRITICAL_THRESHOLD)),
                 hard_stop_threshold=float(data.get("hard_stop_threshold", DEFAULT_HARD_STOP_THRESHOLD)),

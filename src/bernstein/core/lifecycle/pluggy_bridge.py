@@ -15,7 +15,13 @@ from typing import TYPE_CHECKING, Any
 
 import pluggy
 
-from bernstein.core.lifecycle.hooks import HookFailure, HookRegistry, LifecycleContext, LifecycleEvent
+from bernstein.core.lifecycle.hooks import (
+    HookDenied,
+    HookFailure,
+    HookRegistry,
+    LifecycleContext,
+    LifecycleEvent,
+)
 from bernstein.plugins import hookspec
 
 if TYPE_CHECKING:
@@ -63,6 +69,40 @@ class LifecycleHookSpec:
     def post_spawn(self, ctx: LifecycleContext) -> None:
         """Fires after an agent session has been spawned."""
 
+    # ------------------------------------------------------------------
+    # Cross-CLI standardised lifecycle events (T1323). camelCase keeps
+    # the hookspec attribute name in sync with the event value used in
+    # pluggy dispatch (``getattr(pm.hook, event.value)``).
+    # ------------------------------------------------------------------
+
+    @hookspec
+    def sessionStart(self, ctx: LifecycleContext) -> None:
+        """Fires when an agent session begins (cross-CLI event)."""
+
+    @hookspec
+    def userPromptSubmitted(self, ctx: LifecycleContext) -> None:
+        """Fires when a human submits a prompt to a session."""
+
+    @hookspec
+    def preToolUse(self, ctx: LifecycleContext) -> None:
+        """Fires before a tool runs; ``deny`` blocks the tool call."""
+
+    @hookspec
+    def postToolUse(self, ctx: LifecycleContext) -> None:
+        """Fires after a tool finishes, regardless of outcome."""
+
+    @hookspec
+    def errorOccurred(self, ctx: LifecycleContext) -> None:
+        """Fires whenever a structured error surfaces in a session."""
+
+    @hookspec
+    def idle(self, ctx: LifecycleContext) -> None:
+        """Fires when a session has been idle longer than the threshold."""
+
+    @hookspec
+    def sessionEnd(self, ctx: LifecycleContext) -> None:
+        """Fires when an agent session terminates (any reason)."""
+
 
 def make_plugin_manager() -> pluggy.PluginManager:
     """Create a pluggy manager preloaded with :class:`LifecycleHookSpec`.
@@ -93,7 +133,7 @@ def build_pluggy_dispatcher(
             return
         try:
             hook_caller(ctx=context)
-        except HookFailure:
+        except (HookFailure, HookDenied):
             raise
         except Exception as exc:
             raise HookFailure(event, f"pluggy:{event.value}", cause=exc) from exc

@@ -727,6 +727,8 @@ def cli(
         activity_log_path=activity_log_path,
         max_cost_usd=None,
         idle=False,
+        budget_spec=None,
+        hard_budget_spec=None,
     )
 
 
@@ -937,3 +939,8 @@ cli.add_command(analyze_cmd, "analyze")  # issue #768
 from bernstein.cli.commands.session_cmd import session_group  # noqa: E402
 
 cli.add_command(session_group, "session")
+
+# Side-by-side adapter comparison (feat-cli-comparison-mode).
+from bernstein.cli.commands.compare_cmd import compare_cmd  # noqa: E402
+
+cli.add_command(compare_cmd, "compare")

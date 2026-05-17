@@ -35,6 +35,13 @@ from bernstein.core.security.always_allow import (
     load_always_allow_rules,
 )
 from bernstein.core.security.guardrails import check_always_allow_tool
+from bernstein.core.security.permission_policy import (
+    PermissionProfile,
+    PolicyChecker,
+    ToolCall,
+    resolve_profile,
+)
+from bernstein.core.security.policy_engine import DecisionType
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +99,48 @@ def _always_allow_hit(
     return check_always_allow_tool(tool_name, tool_args, engine).matched
 
 
+def _policy_reject(
+    *,
+    session_id: str,
+    agent_role: str,
+    tool_name: str,
+    tool_args: dict[str, Any],
+    workdir: Path | None,
+    profile: PermissionProfile | None = None,
+) -> ResolvedApproval | None:
+    """Run the per-tool permission policy ahead of the approval queue.
+
+    Returns a synthetic :class:`ResolvedApproval` carrying
+    :class:`ApprovalDecision.REJECT` when the active profile denies the
+    invocation. Returns ``None`` when there is no profile or when the
+    profile allows the call (i.e. continue with the legacy approval
+    flow). Denials are logged to the audit trail by
+    :class:`PolicyChecker`.
+    """
+    effective = profile if profile is not None else resolve_profile(workdir=workdir)
+    if effective is None:
+        return None
+
+    checker = PolicyChecker(effective)
+    call = ToolCall(
+        tool=tool_name,
+        path=tool_args.get("path") or tool_args.get("file_path"),
+        host=tool_args.get("host") or tool_args.get("url_host"),
+        shell_cmd=tool_args.get("command") or tool_args.get("shell_cmd"),
+        session_id=session_id,
+        actor=agent_role,
+        extra={"tool_args_keys": sorted(tool_args.keys())},
+    )
+    decision = checker.check_and_record(call, workdir=workdir)
+    if decision.type == DecisionType.DENY:
+        return ResolvedApproval(
+            approval_id=f"policy-deny:{effective.name}",
+            decision=ApprovalDecision.REJECT,
+            reason=decision.reason,
+        )
+    return None
+
+
 async def await_tool_call(
     *,
     session_id: str,
@@ -114,6 +163,19 @@ async def await_tool_call(
         ApprovalTimeoutError: When the TTL expires without an operator
             decision. The caller MUST treat this as a rejection.
     """
+    # Per-tool permission policy runs first — it must apply regardless
+    # of whether the interactive approval queue is on, so a fail-closed
+    # profile cannot be bypassed by disabling approvals.
+    policy_decision = _policy_reject(
+        session_id=session_id,
+        agent_role=agent_role,
+        tool_name=tool_name,
+        tool_args=tool_args,
+        workdir=workdir,
+    )
+    if policy_decision is not None:
+        return policy_decision
+
     cfg = config if config is not None else load_approval_config(workdir)
     if not cfg.interactive:
         return None

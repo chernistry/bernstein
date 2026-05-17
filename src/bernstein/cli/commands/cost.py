@@ -236,6 +236,40 @@ def _aggregate_by_day(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]
     return dict(rows)
 
 
+def _aggregate_from_ledger_or_tasks(
+    ledger_path: Path,
+    task_records: list[dict[str, Any]],
+    dimension: str,
+    cutoff: float,
+) -> dict[str, dict[str, Any]]:
+    """Aggregate spend by *dimension* using the JSONL ledger when present.
+
+    Issue #1320: ``role`` and ``feature_label`` are first-class tags
+    written by the LLM-adapter pre-call hook into ``.sdd/cost/ledger.jsonl``.
+    When the ledger is unavailable we degrade to ``task_records`` so older
+    runs still show a sensible breakdown.
+    """
+    from bernstein.core.cost.spend_ledger import SpendLedger, aggregate_entries
+
+    if ledger_path.exists():
+        entries = SpendLedger.load_entries(ledger_path)
+        if cutoff > 0:
+            entries = [e for e in entries if e.ts >= cutoff]
+        grouped = aggregate_entries(entries, dimension)
+        return {k: {"tasks": v["calls"], "cost_usd": v["cost_usd"]} for k, v in grouped.items()}
+
+    rows: dict[str, dict[str, Any]] = defaultdict(lambda: {"tasks": 0, "cost_usd": 0.0})
+    for rec in task_records:
+        if dimension == "role":
+            label = str(rec.get("role", "") or "unknown")
+        else:
+            tags = rec.get("cost_tags") or {}
+            label = str(tags.get("feature_label", "") or "unknown") if isinstance(tags, dict) else "unknown"
+        rows[label]["tasks"] += 1
+        rows[label]["cost_usd"] += float(rec.get("cost_usd", 0.0) or 0.0)
+    return dict(rows)
+
+
 def _compute_downgrade_tip(records: list[dict[str, Any]]) -> tuple[str, float] | None:
     """Estimate potential savings from downgrading simple opus tasks to sonnet.
 
@@ -546,16 +580,48 @@ def _cost_render_grouped(
 )
 @click.option("--last", "last", type=str, default=None, help="Time range: 1h, 24h, 7d, 30d.")
 @click.option(
+    "--since",
+    "since",
+    type=str,
+    default=None,
+    help="Anchor for --last (e.g. ``today``, ``yesterday``); shorthand for ``--last 24h`` etc.",
+)
+@click.option(
     "--by",
     "group_by",
-    type=click.Choice(["agent", "model", "task", "day"]),
+    type=click.Choice(["agent", "model", "task", "day", "role", "feature_label"]),
     default=None,
-    help="Group breakdown by agent, model, task, or day.",
+    help="Group breakdown by agent, model, task, day, role, or feature_label (issue #1320).",
+)
+@click.option(
+    "--ledger",
+    "ledger_path",
+    type=str,
+    default=".sdd/cost/ledger.jsonl",
+    show_default=True,
+    help="Path to the rolling spend ledger (issue #1320). Used when --by is role|feature_label.",
 )
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
 @click.option("--share", is_flag=True, default=False, help="Print only the shareable summary snippet.")
-def cost_cmd(metrics_dir: str, last: str | None, group_by: str | None, as_json: bool, share: bool) -> None:
+def cost_cmd(
+    metrics_dir: str,
+    last: str | None,
+    since: str | None,
+    group_by: str | None,
+    ledger_path: str,
+    as_json: bool,
+    share: bool,
+) -> None:
     """Show cost breakdown for recent runs."""
+    # --since is a convenience: ``today`` ≈ ``--last 24h``,
+    # ``yesterday`` ≈ ``--last 48h``. When both are provided ``--last`` wins.
+    if last is None and since is not None:
+        s = since.strip().lower()
+        last = {"today": "24h", "yesterday": "48h", "week": "7d", "month": "30d"}.get(s, last)
+        if last is None:
+            # Treat unknown --since values as a direct time range (e.g. ``7d``).
+            last = since
+
     mdir = Path(metrics_dir)
     if not mdir.exists():
         if as_json or is_json():
@@ -643,6 +709,16 @@ def cost_cmd(metrics_dir: str, last: str | None, group_by: str | None, as_json: 
         grouped_data = _aggregate_by_task(task_records)
     elif group_by == "day":
         grouped_data = _aggregate_by_day(task_records)
+    elif group_by in ("role", "feature_label"):
+        # Issue #1320: role / feature_label are tagged dimensions that live
+        # in the rolling spend ledger. Fall back to task_records when the
+        # ledger is missing so old runs still show a sensible view.
+        grouped_data = _aggregate_from_ledger_or_tasks(
+            Path(ledger_path),
+            task_records,
+            group_by,
+            cutoff,
+        )
     # group_by == "model" or None => use the default rows (by model)
 
     if as_json or is_json():

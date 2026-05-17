@@ -25,6 +25,13 @@ from bernstein.core.manager_parsing import (
 from bernstein.core.manager_prompts import render_plan_prompt
 from bernstein.core.metrics import get_collector
 from bernstein.core.models import Complexity, Scope, Task, TaskStatus, TaskType
+from bernstein.core.planning.vertical_slice import (
+    ShapeConfig,
+    check_plan,
+    format_violations_for_reprompt,
+    load_shape_config,
+    summarise_slice,
+)
 from bernstein.core.semantic_cache import SemanticCacheManager
 
 if TYPE_CHECKING:
@@ -155,6 +162,68 @@ async def _fetch_existing_tasks(
     return tasks
 
 
+async def _run_shape_check_with_retry(
+    *,
+    tasks: list[Task],
+    prompt: str,
+    model: str,
+    provider: str,
+    shape_config: ShapeConfig,
+) -> list[Task]:
+    """Apply :func:`check_plan`; re-prompt the LLM once on violations.
+
+    The retry is best-effort: if the second LLM call fails to parse, or
+    still produces an invalid plan, we fall back to the original tasks
+    and log the violations as warnings.  This keeps existing plans from
+    breaking hard when the LLM cannot satisfy the new constraints —
+    operators still have the ``--no-enforce-vertical`` escape valve.
+    """
+    violations = check_plan(tasks, shape_config)
+    error_violations = [v for v in violations if v.severity == "error"]
+    if not error_violations:
+        for warn in violations:
+            logger.warning("plan shape warning [%s]: %s", warn.rule, warn.message)
+        return tasks
+
+    logger.warning(
+        "Plan rejected by vertical-slice shape check (%d violation(s)); re-prompting LLM",
+        len(error_violations),
+    )
+    for v in error_violations:
+        logger.warning("  [%s] %s", v.rule, v.message)
+
+    correction = format_violations_for_reprompt(violations)
+    retry_prompt = f"{prompt}\n\n---\n\n{correction}"
+    try:
+        retry_response = await call_llm(retry_prompt, model=model, provider=provider)
+    except Exception as exc:
+        logger.error("Re-prompt for vertical-slice correction failed: %s", exc)
+        return tasks
+
+    try:
+        retry_raw = parse_tasks_response(retry_response)
+        retry_tasks = raw_dicts_to_tasks(retry_raw)
+    except Exception as exc:
+        logger.error("Re-prompt response could not be parsed: %s", exc)
+        return tasks
+
+    if not retry_tasks:
+        logger.warning("Re-prompt returned no usable tasks; keeping original plan")
+        return tasks
+
+    retry_violations = [v for v in check_plan(retry_tasks, shape_config) if v.severity == "error"]
+    if retry_violations:
+        logger.warning(
+            "Re-prompt still violates vertical-slice caps (%d issue(s)); accepting with warnings",
+            len(retry_violations),
+        )
+        for v in retry_violations:
+            logger.warning("  [%s] %s", v.rule, v.message)
+    else:
+        logger.info("Re-prompt produced a vertical-sliced plan with %d task(s)", len(retry_tasks))
+    return retry_tasks
+
+
 async def plan(
     goal: str,
     server_url: str,
@@ -162,6 +231,9 @@ async def plan(
     templates_dir: Path,
     model: str,
     provider: str,
+    *,
+    enforce_vertical: bool | None = None,
+    shape_config: ShapeConfig | None = None,
 ) -> list[Task]:
     """Decompose a goal into tasks using the LLM.
 
@@ -172,8 +244,10 @@ async def plan(
         4. Build prompt with goal + context + roles + existing tasks
         5. Call Claude via CLI subprocess
         6. Parse JSON response into Task objects
-        7. Resolve dependency titles to IDs
-        8. POST each task to the server
+        7. Run the vertical-slice shape checker; re-prompt once if the
+           plan violates the configured caps (issue #1321).
+        8. Resolve dependency titles to IDs
+        9. POST each task to the server
 
     Args:
         goal: Free-text project goal to decompose.
@@ -182,6 +256,15 @@ async def plan(
         templates_dir: Root templates/ directory (contains roles/ and prompts/).
         model: LLM model to use for planning.
         provider: LLM provider.
+        enforce_vertical: When set, override the repo-level
+            ``[plan].enforce_vertical`` from ``bernstein.yaml``.  ``True``
+            forces the shape-check pass on, ``False`` disables it
+            (operator opt-out for plans that legitimately do not fit the
+            vertical-slice mould).  When ``None``, the repo config wins.
+        shape_config: Explicit :class:`ShapeConfig` override; mostly used
+            by tests.  When provided it short-circuits both the
+            ``enforce_vertical`` argument and the ``bernstein.yaml``
+            lookup.
 
     Returns:
         List of created Task objects (with server-assigned IDs).
@@ -190,6 +273,17 @@ async def plan(
         RuntimeError: If the LLM call fails.
         ValueError: If the LLM response cannot be parsed.
     """
+    # Resolve shape config: explicit > CLI/API flag > bernstein.yaml > defaults.
+    if shape_config is None:
+        shape_config = load_shape_config(workdir)
+    if enforce_vertical is not None:
+        shape_config = ShapeConfig(
+            enforce_vertical=enforce_vertical,
+            max_loc_hard=shape_config.max_loc_hard,
+            max_loc_ideal=shape_config.max_loc_ideal,
+            max_files=shape_config.max_files,
+            max_modules=shape_config.max_modules,
+        )
     # 0. Semantic cache — skip LLM if we've planned a similar goal before
     sem_cache = SemanticCacheManager(workdir)
 
@@ -294,6 +388,23 @@ async def plan(
             logger.warning("LLM returned no valid tasks")
             return []
 
+        # 6.5 Vertical-slice shape check (issue #1321).  When enabled,
+        # reject plans that violate the LOC / file / module caps or that
+        # are horizontally phased.  Retry once with a corrective prompt
+        # before giving up and accepting the original plan with a warning.
+        if shape_config.enforce_vertical:
+            tasks = await _run_shape_check_with_retry(
+                tasks=tasks,
+                prompt=prompt,
+                model=model,
+                provider=provider,
+                shape_config=shape_config,
+            )
+
+        # Log a one-line shape summary per slice for operator visibility.
+        for idx, task in enumerate(tasks, start=1):
+            logger.info("slice %d: %s · %s", idx, task.title, summarise_slice(task))
+
         # 7. Resolve dependency titles to IDs
         _resolve_depends_on(tasks)
 
@@ -319,6 +430,8 @@ async def replan(
     templates_dir: Path,
     model: str,
     provider: str,
+    *,
+    enforce_vertical: bool | None = None,
 ) -> list[Task]:
     """Adjust the plan based on progress.
 
@@ -351,4 +464,12 @@ async def replan(
         "Create only the NEW tasks needed to get back on track. "
         "Do not duplicate remaining tasks."
     )
-    return await plan(progress, server_url, workdir, templates_dir, model, provider)
+    return await plan(
+        progress,
+        server_url,
+        workdir,
+        templates_dir,
+        model,
+        provider,
+        enforce_vertical=enforce_vertical,
+    )

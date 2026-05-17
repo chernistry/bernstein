@@ -976,30 +976,7 @@ def _replay_task_trace(task_id: str, sdd_path: Path, *, override_model: str | No
         console.print("[dim]Replay completed with no result-summary diff.[/dim]")
 
 
-@click.command("replay")
-@click.argument("run_id")
-@click.option(
-    "--sdd-dir",
-    default=".sdd",
-    show_default=True,
-    help="Path to .sdd state directory.",
-)
-@click.option(
-    "--as-json",
-    "as_json",
-    is_flag=True,
-    default=False,
-    help="Output raw JSONL events.",
-)
-@click.option(
-    "--limit",
-    type=int,
-    default=None,
-    help="Show only the first N events.",
-)
-@click.option("--model", default=None, help="Override model for task-trace replay.")
-@click.option("--extra-context", default=None, help="Append additional hint text to the replayed task description.")
-def replay_cmd(
+def _replay_run_impl(
     run_id: str,
     sdd_dir: str,
     as_json: bool,
@@ -1007,21 +984,11 @@ def replay_cmd(
     model: str | None,
     extra_context: str | None,
 ) -> None:
-    """Replay a past orchestration run step-by-step.
+    """Body of ``bernstein replay <run_id>`` — replay one run.
 
-    \b
-    Reads .sdd/runs/{run_id}/replay.jsonl and displays events in a
-    Rich table showing timing, event type, agent, task, and details.
-
-    \b
-    If run_id is "latest", replays the most recent run. Use "list" to
-    show all available run IDs.
-
-    \b
-      bernstein replay list               # list available runs
-      bernstein replay latest              # replay most recent run
-      bernstein replay 20240315-143022     # replay a specific run
-      bernstein replay latest --as-json    # raw JSONL output
+    Extracted so the new ``replay`` :class:`click.Group` can dispatch to
+    it from its top-level invocation while also exposing subcommands
+    (``diff``) via the same group object.
     """
     sdd_path = Path(sdd_dir)
     runs_dir = sdd_path / "runs"
@@ -1144,6 +1111,138 @@ def replay_cmd(
     # Footer with fingerprint
     console.print(f"\n[dim]SHA-256 fingerprint:[/dim] [bold]{fingerprint}[/bold]")
     console.print("[dim]This fingerprint proves the exact sequence of events in this run.[/dim]")
+
+
+@click.command("replay")
+@click.argument("run_id", nargs=-1, required=True)
+@click.option(
+    "--sdd-dir",
+    default=".sdd",
+    show_default=True,
+    help="Path to .sdd state directory.",
+)
+@click.option(
+    "--as-json",
+    "as_json",
+    is_flag=True,
+    default=False,
+    help="Output raw JSONL events.",
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=None,
+    help="Show only the first N events.",
+)
+@click.option("--model", default=None, help="Override model for task-trace replay.")
+@click.option(
+    "--extra-context",
+    default=None,
+    help="Append additional hint text to the replayed task description.",
+)
+def replay_cmd(
+    run_id: tuple[str, ...],
+    sdd_dir: str,
+    as_json: bool,
+    limit: int | None,
+    model: str | None,
+    extra_context: str | None,
+) -> None:
+    """Replay a past orchestration run step-by-step.
+
+    \b
+    Reads .sdd/runs/{run_id}/replay.jsonl and displays events in a
+    Rich table showing timing, event type, agent, task, and details.
+
+    \b
+    If run_id is "latest", replays the most recent run. Use "list" to
+    show all available run IDs. Use ``diff`` to localise the first
+    divergence between two recorded runs (events.jsonl).
+
+    \b
+      bernstein replay list                       # list available runs
+      bernstein replay latest                     # replay most recent run
+      bernstein replay 20240315-143022            # replay a specific run
+      bernstein replay diff RUN_A RUN_B           # first-divergence finder
+    """
+    # ``nargs=-1`` lets us implement the pseudo-subcommand ``diff`` without
+    # converting ``replay`` to a full :class:`click.Group` (which would
+    # break the back-compat ``bernstein replay <RUN_ID>`` shape).
+    args = list(run_id)
+    if args and args[0] == "diff":
+        _replay_diff_dispatch(args[1:], sdd_dir=sdd_dir, as_json=as_json)
+        return
+
+    if len(args) != 1:
+        console.print(
+            "[red]Usage:[/red] bernstein replay <RUN_ID | latest | list> OR bernstein replay diff RUN_A RUN_B",
+        )
+        raise SystemExit(2)
+
+    _replay_run_impl(
+        run_id=args[0],
+        sdd_dir=sdd_dir,
+        as_json=as_json,
+        limit=limit,
+        model=model,
+        extra_context=extra_context,
+    )
+
+
+def _replay_diff_dispatch(
+    args: list[str],
+    *,
+    sdd_dir: str,
+    as_json: bool,
+) -> None:
+    """Implementation of ``bernstein replay diff <run_a> <run_b>``."""
+    if len(args) != 2:
+        console.print(
+            "[red]Usage:[/red] bernstein replay diff RUN_A RUN_B",
+        )
+        raise SystemExit(2)
+
+    from bernstein.core.replay import EVENTS_FILENAME, diff_event_logs
+
+    run_a, run_b = args
+    runs_dir = Path(sdd_dir) / "runs"
+    path_a = runs_dir / run_a / EVENTS_FILENAME
+    path_b = runs_dir / run_b / EVENTS_FILENAME
+
+    for label, path in (("run_a", path_a), ("run_b", path_b)):
+        if not path.exists():
+            console.print(f"[red]{label} events log not found:[/red] {path}")
+            raise SystemExit(2)
+
+    result = diff_event_logs(path_a, path_b)
+
+    if as_json:
+        payload = {
+            "diverged": result.diverged,
+            "index": result.index,
+            "reason": result.reason,
+            "a_event": result.a_event,
+            "b_event": result.b_event,
+        }
+        console.print_json(json.dumps(payload, default=str))
+        if result.diverged:
+            raise SystemExit(1)
+        return
+
+    if not result.diverged:
+        console.print(f"[green]No divergence:[/green] {result.reason}")
+        return
+
+    console.print(
+        f"[yellow]Divergence at event index {result.index}:[/yellow] {result.reason}",
+    )
+    if result.a_event is not None:
+        console.print(f"\n[dim]run_a[/dim] [bold]{run_a}[/bold]:")
+        console.print_json(json.dumps(result.a_event, default=str))
+    if result.b_event is not None:
+        console.print(f"\n[dim]run_b[/dim] [bold]{run_b}[/bold]:")
+        console.print_json(json.dumps(result.b_event, default=str))
+    raise SystemExit(1)
 
 
 # ---------------------------------------------------------------------------

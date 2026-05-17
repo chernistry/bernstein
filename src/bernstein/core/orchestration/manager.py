@@ -220,12 +220,18 @@ class ManagerAgent:
         templates_dir: Path,
         model: str = "nvidia/nemotron-3-super-120b-a12b",
         provider: str = "openrouter_free",
+        *,
+        enforce_vertical: bool | None = None,
     ) -> None:
         self._server_url = server_url
         self._workdir = workdir
         self._templates_dir = templates_dir
         self._model = model
         self._provider = provider
+        # ``None`` defers to ``bernstein.yaml`` ``[plan].enforce_vertical``;
+        # explicit ``True``/``False`` overrides the repo-level value.
+        # Default-on in the 2.x line per issue #1321.
+        self._enforce_vertical = enforce_vertical
 
     async def plan(self, goal: str) -> list[Task]:
         """Decompose a goal into tasks using the LLM.
@@ -330,6 +336,47 @@ class ManagerAgent:
             if not tasks:
                 logger.warning("LLM returned no valid tasks")
                 return []
+
+            # 6.5 Vertical-slice shape check (issue #1321).
+            from bernstein.core.planning.vertical_slice import (
+                ShapeConfig,
+                check_plan,
+                format_violations_for_reprompt,
+                load_shape_config,
+                summarise_slice,
+            )
+
+            shape_cfg = load_shape_config(self._workdir)
+            if self._enforce_vertical is not None:
+                shape_cfg = ShapeConfig(
+                    enforce_vertical=self._enforce_vertical,
+                    max_loc_hard=shape_cfg.max_loc_hard,
+                    max_loc_ideal=shape_cfg.max_loc_ideal,
+                    max_files=shape_cfg.max_files,
+                    max_modules=shape_cfg.max_modules,
+                )
+
+            if shape_cfg.enforce_vertical:
+                violations = check_plan(tasks, shape_cfg)
+                error_violations = [v for v in violations if v.severity == "error"]
+                if error_violations:
+                    logger.warning(
+                        "Plan rejected by vertical-slice shape check (%d error(s)); re-prompting",
+                        len(error_violations),
+                    )
+                    correction = format_violations_for_reprompt(violations)
+                    retry_prompt = f"{prompt}\n\n---\n\n{correction}"
+                    try:
+                        retry_raw = await call_llm(retry_prompt, model=self._model, provider=self._provider)
+                        retry_parsed = parse_tasks_response(retry_raw)
+                        retry_tasks = raw_dicts_to_tasks(retry_parsed)
+                        if retry_tasks:
+                            tasks = retry_tasks
+                    except Exception as exc:
+                        logger.error("Vertical-slice re-prompt failed: %s", exc)
+
+            for idx, task in enumerate(tasks, start=1):
+                logger.info("slice %d: %s · %s", idx, task.title, summarise_slice(task))
 
             # 7. Resolve dependency titles to IDs
             _resolve_depends_on(tasks)

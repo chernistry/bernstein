@@ -509,18 +509,13 @@ export default function Tasks() {
 
   const selected = items.find((t) => t.id === selectedId) ?? null;
 
-  // Selection lifecycle:
-  // (a) auto-select first row when nothing is selected and the list arrives
-  // (b) clear selection if the previously-selected row no longer exists
-  //     (e.g. SSE invalidation removed it). Otherwise the detail query keeps
-  //     thrashing on a 404 and the drawer renders stale fallback data.
+  // Selection lifecycle: clear selection if the previously-selected row no
+  // longer exists (e.g. SSE invalidation removed it). Otherwise the detail
+  // query keeps thrashing on a 404 and the drawer renders stale fallback data.
+  // The drawer only opens on explicit user action — never auto-select.
   useEffect(() => {
     if (!listQ.data) return;
-    if (selectedId === null) {
-      if (items.length > 0) setSelectedId(items[0].id);
-      return;
-    }
-    if (!items.some((t) => t.id === selectedId)) {
+    if (selectedId !== null && !items.some((t) => t.id === selectedId)) {
       setSelectedId(null);
     }
   }, [selectedId, items, listQ.data]);

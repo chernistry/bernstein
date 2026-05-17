@@ -327,7 +327,7 @@ bernstein cloud run plan.yaml  # execute a plan on Cloudflare
 
 **Observability**. Prometheus `/metrics`, OTel exporter presets, Grafana dashboards. Per-model cost tracking (`bernstein cost`) plus a [run savings summary](docs/operations/cost-optimization.md#run-savings-summary) on every `bernstein run`. Terminal TUI and web dashboard. Agent process visibility in `ps`.
 
-**Ecosystem**. MCP server mode, A2A protocol support, GitHub App integration, pluggy-based plugin system, multi-repo workspaces, cluster mode for distributed execution, self-evolution via `--evolve` (experimental).
+**Ecosystem**. MCP server mode, A2A protocol support, GitHub App integration, GitLab App integration (parity surface for self-managed + gitlab.com), pluggy-based plugin system, multi-repo workspaces, cluster mode for distributed execution, self-evolution via `--evolve` (experimental).
 
 Full feature matrix: [FEATURE_MATRIX.md](docs/reference/FEATURE_MATRIX.md) &middot; Recent features: [What's New](docs/whats-new.md)
 

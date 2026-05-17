@@ -1,0 +1,24 @@
+{
+  "object_kind": "merge_request",
+  "user": {
+    "id": 17,
+    "name": "Alice",
+    "username": "alice"
+  },
+  "project": {
+    "id": 42,
+    "name": "widgets",
+    "path_with_namespace": "acme/widgets"
+  },
+  "object_attributes": {
+    "id": 12345,
+    "iid": 7,
+    "title": "feat: add LRU cache",
+    "description": "Closed without merge.",
+    "state": "closed",
+    "action": "close",
+    "source_branch": "feat/cache",
+    "target_branch": "main",
+    "labels": []
+  }
+}

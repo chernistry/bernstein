@@ -1,0 +1,28 @@
+{
+  "object_kind": "note",
+  "event_type": "note",
+  "user": {
+    "id": 18,
+    "name": "Carol Reviewer",
+    "username": "carol"
+  },
+  "project_id": 42,
+  "project": {
+    "id": 42,
+    "name": "widgets",
+    "path_with_namespace": "acme/widgets"
+  },
+  "object_attributes": {
+    "id": 9001,
+    "note": "Please fix the null pointer on line 42 — it crashes on Windows.",
+    "noteable_type": "MergeRequest",
+    "noteable_id": 12345,
+    "url": "https://gitlab.example.com/acme/widgets/-/merge_requests/7#note_9001"
+  },
+  "merge_request": {
+    "id": 12345,
+    "iid": 7,
+    "title": "feat: add LRU cache",
+    "state": "opened"
+  }
+}

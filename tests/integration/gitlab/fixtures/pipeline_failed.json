@@ -1,0 +1,56 @@
+{
+  "object_kind": "pipeline",
+  "object_attributes": {
+    "id": 99876,
+    "iid": 12,
+    "ref": "feat/cache",
+    "tag": false,
+    "sha": "deadbeef1234567890abcdef1234567890abcdef",
+    "before_sha": "0000000000000000000000000000000000000000",
+    "source": "push",
+    "status": "failed",
+    "stages": ["build", "test", "deploy"],
+    "url": "https://gitlab.example.com/acme/widgets/-/pipelines/99876",
+    "duration": 312
+  },
+  "user": {
+    "id": 17,
+    "name": "Alice",
+    "username": "alice"
+  },
+  "project": {
+    "id": 42,
+    "name": "widgets",
+    "path_with_namespace": "acme/widgets"
+  },
+  "commit": {
+    "id": "deadbeef1234567890abcdef1234567890abcdef",
+    "message": "feat: add LRU cache",
+    "author": {"name": "Alice", "email": "alice@example.com"}
+  },
+  "builds": [
+    {
+      "id": 700001,
+      "stage": "build",
+      "name": "compile",
+      "status": "success",
+      "created_at": "2026-05-17T10:00:00Z"
+    },
+    {
+      "id": 700002,
+      "stage": "test",
+      "name": "pytest",
+      "status": "failed",
+      "created_at": "2026-05-17T10:05:00Z",
+      "finished_at": "2026-05-17T10:09:00Z"
+    },
+    {
+      "id": 700003,
+      "stage": "test",
+      "name": "lint",
+      "status": "failed",
+      "created_at": "2026-05-17T10:05:00Z",
+      "finished_at": "2026-05-17T10:06:00Z"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "object_kind": "note",
+  "user": {
+    "id": 18,
+    "username": "carol"
+  },
+  "project": {
+    "id": 42,
+    "path_with_namespace": "acme/widgets"
+  },
+  "object_attributes": {
+    "id": 9002,
+    "note": "/bernstein plan break this down into independent tasks",
+    "noteable_type": "Issue",
+    "noteable_id": 100
+  },
+  "issue": {
+    "id": 100,
+    "iid": 33,
+    "title": "Decompose the cache refactor"
+  }
+}

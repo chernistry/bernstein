@@ -1,0 +1,13 @@
+{
+  "object_kind": "pipeline",
+  "object_attributes": {
+    "id": 99877,
+    "ref": "main",
+    "sha": "feedbeef1234567890abcdef1234567890abcdef",
+    "status": "success",
+    "url": "https://gitlab.example.com/acme/widgets/-/pipelines/99877"
+  },
+  "user": {"username": "alice"},
+  "project": {"id": 42, "path_with_namespace": "acme/widgets"},
+  "builds": []
+}

@@ -1,0 +1,36 @@
+{
+  "object_kind": "merge_request",
+  "event_type": "merge_request",
+  "user": {
+    "id": 17,
+    "name": "Alice Example",
+    "username": "alice",
+    "email": "alice@example.com"
+  },
+  "project": {
+    "id": 42,
+    "name": "widgets",
+    "path_with_namespace": "acme/widgets",
+    "web_url": "https://gitlab.example.com/acme/widgets",
+    "default_branch": "main"
+  },
+  "object_attributes": {
+    "id": 12345,
+    "iid": 7,
+    "title": "feat: add LRU cache to the widget service",
+    "description": "Adds a small LRU cache so repeated widget reads avoid the round-trip to Redis. Closes #321.",
+    "state": "opened",
+    "action": "open",
+    "source_branch": "feat/cache",
+    "target_branch": "main",
+    "url": "https://gitlab.example.com/acme/widgets/-/merge_requests/7",
+    "labels": [
+      {"id": 1, "title": "backend"},
+      {"id": 2, "title": "enhancement"}
+    ]
+  },
+  "labels": [
+    {"id": 1, "title": "backend"},
+    {"id": 2, "title": "enhancement"}
+  ]
+}

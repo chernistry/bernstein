@@ -1,0 +1,12 @@
+{
+  "object_kind": "note",
+  "user": {"username": "dan"},
+  "project": {"id": 42, "path_with_namespace": "acme/widgets"},
+  "object_attributes": {
+    "id": 9003,
+    "note": "Looks great to me. Thanks!",
+    "noteable_type": "MergeRequest",
+    "noteable_id": 12345
+  },
+  "merge_request": {"iid": 7, "title": "feat: add LRU cache"}
+}

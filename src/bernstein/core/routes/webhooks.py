@@ -570,6 +570,37 @@ def _handle_gitlab_job(data: dict[str, Any]) -> list[dict[str, Any]]:
     return [task] if task is not None else []
 
 
+def _handle_gitlab_merge_request(
+    headers: dict[str, str],
+    body: bytes,
+) -> list[dict[str, Any]]:
+    """Map a GitLab MR webhook event to task payloads via ``gitlab_app``."""
+    from bernstein.gitlab_app.mapper import merge_request_to_tasks
+    from bernstein.gitlab_app.webhooks import parse_webhook
+
+    try:
+        event = parse_webhook(headers, body)
+    except ValueError:
+        return []
+    return list(merge_request_to_tasks(event))
+
+
+def _handle_gitlab_note(
+    headers: dict[str, str],
+    body: bytes,
+) -> list[dict[str, Any]]:
+    """Map a GitLab note (MR/issue comment) event to a task payload."""
+    from bernstein.gitlab_app.mapper import note_to_task
+    from bernstein.gitlab_app.webhooks import parse_webhook
+
+    try:
+        event = parse_webhook(headers, body)
+    except ValueError:
+        return []
+    task = note_to_task(event)
+    return [task] if task is not None else []
+
+
 @router.post("/webhooks/gitlab", status_code=200)
 async def gitlab_webhook(request: Request) -> JSONResponse:
     """Receive a GitLab CI webhook, verify token, and create ci-fix tasks.
@@ -599,12 +630,17 @@ async def gitlab_webhook(request: Request) -> JSONResponse:
         return JSONResponse(status_code=400, content={"detail": "Bad JSON payload"})
 
     event_type = data.get("object_kind", "")
+    raw_headers: dict[str, str] = {k: v for k, v in request.headers.items()}
 
     match event_type:
         case "pipeline":
             result = _handle_gitlab_pipeline(data, store)
         case "job":
             result = _handle_gitlab_job(data)
+        case "merge_request":
+            result = _handle_gitlab_merge_request(raw_headers, body_bytes)
+        case "note":
+            result = _handle_gitlab_note(raw_headers, body_bytes)
         case _:
             result = []
 

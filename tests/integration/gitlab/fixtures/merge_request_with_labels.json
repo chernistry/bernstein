@@ -1,0 +1,15 @@
+{
+  "object_kind": "merge_request",
+  "user": {"username": "alice"},
+  "project": {"id": 42, "path_with_namespace": "acme/widgets"},
+  "object_attributes": {
+    "iid": 99,
+    "title": "security: patch CVE",
+    "description": "Patches a remote-code-execution vector.",
+    "action": "open",
+    "labels": [
+      {"id": 5, "title": "security"},
+      {"id": 6, "title": "critical"}
+    ]
+  }
+}

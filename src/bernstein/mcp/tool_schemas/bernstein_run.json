@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "bernstein_run",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["goal"],
+  "properties": {
+    "goal": {"type": "string", "minLength": 1, "maxLength": 8192},
+    "role": {"type": "string", "minLength": 1, "maxLength": 64},
+    "priority": {"type": "integer", "minimum": 1, "maximum": 3},
+    "scope": {"type": "string", "enum": ["small", "medium", "large"]},
+    "complexity": {"type": "string", "enum": ["low", "medium", "high"]},
+    "estimated_minutes": {"type": "integer", "minimum": 0, "maximum": 100000}
+  }
+}

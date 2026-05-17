@@ -26,6 +26,12 @@ from bernstein.core.planning.routine_bridge import build_task_payloads, estimate
 from bernstein.core.planning.scenario_library import (
     load_scenario_library,
 )
+from bernstein.mcp.input_validation import (
+    ValidatedPayload,
+    ValidationError,
+    to_jsonrpc_error,
+    validate_tool_call,
+)
 
 if TYPE_CHECKING:
     from mcp.server.fastmcp import FastMCP
@@ -234,6 +240,20 @@ def _error_response(exc: Exception) -> str:
     return json.dumps({"error": str(exc)})
 
 
+def _validation_error_response(err: ValidationError) -> str:
+    """Render a validation failure as the JSON string FastMCP tools return."""
+    return json.dumps({"error": err.message, "jsonrpc_error": to_jsonrpc_error(err)})
+
+
+def _validate_or_error(tool_name: str, params: dict[str, Any]) -> ValidationError | None:
+    """Run schema validation, returning the failure or ``None``."""
+    cleaned = {k: v for k, v in params.items() if v is not None}
+    result = validate_tool_call(tool_name, cleaned)
+    if isinstance(result, ValidatedPayload):
+        return None
+    return result
+
+
 def register_scenario_tools(mcp: FastMCP[None], server_url: str) -> None:
     """Register the ``bernstein_scenario(s|_status)`` MCP tools.
 
@@ -276,6 +296,17 @@ def register_scenario_tools(mcp: FastMCP[None], server_url: str) -> None:
             JSON with ``orchestration_id``, ``scenario_id``, ``task_count``,
             ``estimated_minutes`` and ``task_ids``.
         """
+        err = _validate_or_error(
+            "bernstein_scenario",
+            {
+                "scenario_id": scenario_id,
+                "context": context,
+                "pr_number": pr_number,
+                "branch": branch,
+            },
+        )
+        if err is not None:
+            return _validation_error_response(err)
         try:
             result = await invoke_scenario_via_server(
                 scenario_id,
@@ -300,6 +331,9 @@ def register_scenario_tools(mcp: FastMCP[None], server_url: str) -> None:
         Returns:
             JSON with status counts and per-task details.
         """
+        err = _validate_or_error("bernstein_scenario_status", {"orchestration_id": orchestration_id})
+        if err is not None:
+            return _validation_error_response(err)
         try:
             result = await fetch_scenario_status(orchestration_id, server_url=server_url)
             return json.dumps(result, indent=2)

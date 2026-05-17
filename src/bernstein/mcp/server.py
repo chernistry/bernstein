@@ -30,6 +30,13 @@ from typing import Any
 import httpx
 from mcp.server.fastmcp import FastMCP
 
+from bernstein.mcp.input_validation import (
+    ValidatedPayload,
+    ValidationError,
+    to_jsonrpc_error,
+    validate_tool_call,
+)
+
 _DEFAULT_SERVER_URL = "http://127.0.0.1:8052"
 
 # Timeout for all httpx calls to the task server (seconds).
@@ -69,6 +76,32 @@ def _error_response(exc: Exception, *, hint: str = "Task server may be restartin
     """
     logger.warning("MCP tool error: %s", exc)
     return json.dumps({"error": str(exc), "hint": hint})
+
+
+def _validation_error_response(err: ValidationError) -> str:
+    """Render a validation failure as the JSON string FastMCP tools return.
+
+    Carries the full structured error so MCP clients can show users which
+    field failed and why, without leaking server internals.
+    """
+    payload = {"error": err.message, "jsonrpc_error": to_jsonrpc_error(err)}
+    return json.dumps(payload)
+
+
+def _validate_or_error(tool_name: str, params: dict[str, Any]) -> ValidationError | None:
+    """Validate ``params`` against ``tool_name``'s schema.
+
+    Returns ``None`` when the call is allowed, or a ``ValidationError`` the
+    caller should render via :func:`_validation_error_response`. Stripping
+    ``None`` values from the params dict keeps every tool's optional-arg
+    convention working; the schema can still mark them as nullable when
+    that's the intended contract.
+    """
+    cleaned = {k: v for k, v in params.items() if v is not None}
+    result = validate_tool_call(tool_name, cleaned)
+    if isinstance(result, ValidatedPayload):
+        return None
+    return result
 
 
 def _register_health_tool(mcp: FastMCP[None]) -> None:
@@ -112,6 +145,19 @@ def _register_query_tools(mcp: FastMCP[None], server_url: str) -> None:
         Returns:
             JSON with the created task ID, title, and status.
         """
+        err = _validate_or_error(
+            "bernstein_run",
+            {
+                "goal": goal,
+                "role": role,
+                "priority": priority,
+                "scope": scope,
+                "complexity": complexity,
+                "estimated_minutes": estimated_minutes,
+            },
+        )
+        if err is not None:
+            return _validation_error_response(err)
         try:
             payload: dict[str, Any] = {
                 "title": goal[:120],
@@ -164,6 +210,9 @@ def _register_query_tools(mcp: FastMCP[None], server_url: str) -> None:
         Returns:
             JSON array of task objects.
         """
+        err = _validate_or_error("bernstein_tasks", {"status": status})
+        if err is not None:
+            return _validation_error_response(err)
         try:
             params: dict[str, str] = {}
             if status:
@@ -217,6 +266,9 @@ def _register_action_tools(mcp: FastMCP[None], server_url: str) -> None:
         Returns:
             Confirmation message.
         """
+        err = _validate_or_error("bernstein_stop", {"workdir": workdir})
+        if err is not None:
+            return _validation_error_response(err)
         try:
             signals_dir = Path(workdir) / ".sdd" / "runtime" / "signals"
             signals_dir.mkdir(parents=True, exist_ok=True)
@@ -243,6 +295,9 @@ def _register_action_tools(mcp: FastMCP[None], server_url: str) -> None:
         Returns:
             JSON with the updated task status.
         """
+        err = _validate_or_error("bernstein_approve", {"task_id": task_id, "note": note})
+        if err is not None:
+            return _validation_error_response(err)
         try:
             payload: dict[str, Any] = {"result_summary": note}
             async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
@@ -288,6 +343,20 @@ def _register_action_tools(mcp: FastMCP[None], server_url: str) -> None:
         Returns:
             JSON with the created subtask ID, parent_task_id, title, and status.
         """
+        err = _validate_or_error(
+            "bernstein_create_subtask",
+            {
+                "parent_task_id": parent_task_id,
+                "goal": goal,
+                "role": role,
+                "priority": priority,
+                "scope": scope,
+                "complexity": complexity,
+                "estimated_minutes": estimated_minutes,
+            },
+        )
+        if err is not None:
+            return _validation_error_response(err)
         try:
             payload: dict[str, Any] = {
                 "parent_task_id": parent_task_id,
@@ -354,6 +423,12 @@ def _register_skill_tools(mcp: FastMCP[None]) -> None:
             JSON with ``name``, ``body``, ``available_references``,
             ``available_scripts``, and the optional fetched content.
         """
+        err = _validate_or_error(
+            "load_skill",
+            {"name": name, "reference": reference, "script": script},
+        )
+        if err is not None:
+            return _validation_error_response(err)
         try:
             # Local import so the MCP module stays cheap to import even when
             # the skills tree is missing (e.g. dev CLI without templates).

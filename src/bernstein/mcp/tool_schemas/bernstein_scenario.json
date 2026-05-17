@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "bernstein_scenario",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["scenario_id"],
+  "properties": {
+    "scenario_id": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[A-Za-z0-9_.:-]+$"},
+    "context": {"type": "string", "maxLength": 16384},
+    "pr_number": {"type": ["integer", "null"], "minimum": 0, "maximum": 1000000000},
+    "branch": {"type": ["string", "null"], "maxLength": 256}
+  }
+}

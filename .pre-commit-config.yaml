@@ -1,0 +1,52 @@
+# Pre-commit hooks for Bernstein.
+#
+# Local: `pre-commit install && pre-commit run --all-files`.
+# In CI: pre-commit.ci (https://pre-commit.ci/) auto-fixes formatting / lint
+# drift on PRs by pushing follow-up commits. No new repo secret required.
+# Heavy checks (mypy / pyright / pytest) stay in GitHub Actions on purpose.
+#
+# Refs: #1273.
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Keep in sync with `ruff>=0.9` pinned in pyproject.toml.
+    rev: v0.9.10
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        # Some workflow files use GitHub Actions tag expressions (`!!`) that
+        # break strict YAML parsing; rely on actionlint elsewhere.
+        args: [--allow-multiple-documents]
+        exclude: ^\.github/workflows/
+      - id: check-toml
+      - id: check-json
+        exclude: |
+          (?x)^(
+            \.bandit-baseline\.json|
+            \.vscode/.*\.json|
+            .*\.ipynb
+          )$
+      - id: end-of-file-fixer
+        exclude: |
+          (?x)^(
+            \.bandit-baseline\.json|
+            .*\.svg|
+            .*\.snap
+          )$
+      - id: trailing-whitespace
+        # Markdown uses two trailing spaces for a soft line break.
+        args: [--markdown-linebreak-ext=md]
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+ci:
+  autofix_commit_msg: |
+    style: pre-commit auto-fix
+  autofix_prs: true
+  autoupdate_schedule: weekly

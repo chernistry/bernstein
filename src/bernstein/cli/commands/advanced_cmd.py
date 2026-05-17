@@ -653,6 +653,88 @@ def doctor_scoping_cmd(ctx: click.Context, agent_id: str, role: str) -> None:
     raise SystemExit(0)
 
 
+@doctor.command("extended")
+@click.option(
+    "--json",
+    "as_json",
+    is_flag=True,
+    default=False,
+    help="Emit JSON instead of the Rich table.",
+)
+@click.option(
+    "--adapter",
+    "adapter_filter",
+    multiple=True,
+    help="Restrict adapter checks to this name (repeatable).",
+)
+@click.option(
+    "--provider",
+    "provider_filter",
+    multiple=True,
+    help="Restrict network checks to this provider (repeatable).",
+)
+def doctor_extended_cmd(
+    as_json: bool,
+    adapter_filter: tuple[str, ...],
+    provider_filter: tuple[str, ...],
+) -> None:
+    """Run the extended doctor: adapter binaries, network, environment.
+
+    \b
+    Categories:
+      - installation: legacy install_check (preserved behavior)
+      - adapter:     `which <bin>` + `<bin> --version` per adapter
+      - network:     TCP/443 reachability per provider (honors BERNSTEIN_OFFLINE)
+      - environment: GitHub Actions / GitLab CI / Buildkite / Docker / devcontainer / systemd-run
+
+    \b
+    Examples:
+      bernstein doctor extended
+      bernstein doctor extended --json
+      bernstein doctor extended --adapter claude --provider anthropic
+    """
+    import asyncio
+    import json as _json
+    import sys
+
+    from bernstein.cli.doctor import exit_code_for, render_report, run_all, summarize
+
+    results = asyncio.run(
+        run_all(
+            adapter_names=list(adapter_filter) or None,
+            provider_names=list(provider_filter) or None,
+        )
+    )
+
+    if as_json:
+        payload = {
+            "results": [
+                {
+                    "name": r.name,
+                    "category": r.category,
+                    "status": r.status,
+                    "detail": r.detail,
+                    "remediation": r.remediation,
+                }
+                for r in results
+            ],
+            "summary": summarize(results),
+        }
+        console.print_json(_json.dumps(payload))
+    else:
+        rendered = render_report(results, console=console)
+        if rendered:  # captured text - only set when console was None
+            pass
+
+    counts = summarize(results)
+    if counts["fail"] == 0 and counts["warn"] > 0:
+        sys.stderr.write(
+            f"doctor: {counts['warn']} warning(s); see report above.\n",
+        )
+
+    raise SystemExit(exit_code_for(results))
+
+
 # ---------------------------------------------------------------------------
 # recap
 # ---------------------------------------------------------------------------

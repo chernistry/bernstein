@@ -278,7 +278,7 @@ def test_high_contention_each_task_claimed_once(tmp_path: Path) -> None:
         while True:
             cid = claim_next(
                 backlog_path,
-                claimer_id=f"thr-{idx}",
+                claimer_id=f"thread-{idx}",
                 filter=ClaimFilter(role="backend"),
             )
             if cid is None:

@@ -167,6 +167,191 @@ def benchmark_swe_bench(
     )
 
 
+def _run_programbench_command(
+    *,
+    adapter: str,
+    subset: str,
+    tasks_limit: int | None,
+    task_id: str | None,
+    dataset_path: str | None,
+    out_json: str | None,
+    save: bool,
+) -> None:
+    """Run the ProgramBench harness and print a report.
+
+    Args:
+        adapter: Adapter slug for invocation.
+        subset: Dataset subset slug.
+        tasks_limit: Optional sample size cap.
+        task_id: Optional single task id to evaluate.
+        dataset_path: Optional local JSONL path.
+        out_json: Optional path to write JSON output.
+        save: Whether to persist results under ``.sdd/``.
+    """
+    import json as _json
+
+    from rich.table import Table
+
+    from bernstein.benchmark.programbench import (
+        ProgramBenchHarness,
+        TaskResult,
+        compute_report,
+        report_to_dict,
+        save_results,
+    )
+
+    workdir = Path(".")
+    harness = ProgramBenchHarness(
+        workdir=workdir,
+        sample=tasks_limit,
+        task_id=task_id,
+        subset=subset,
+    )
+
+    dpath = Path(dataset_path) if dataset_path else None
+    tasks = harness.load_dataset(dpath)
+
+    if not tasks:
+        console.print(
+            "[yellow]No ProgramBench tasks found. Pass --dataset <path.jsonl>, "
+            "set BERNSTEIN_PROGRAMBENCH_DATASET, or install the 'datasets' package.[/yellow]"
+        )
+        raise SystemExit(1)
+
+    console.print(f"[bold]ProgramBench evaluation[/bold]: subset={subset} • adapter={adapter} • {len(tasks)} task(s)")
+
+    table = Table(title="ProgramBench Results", header_style=_STYLE_BOLD_CYAN, show_lines=False)
+    table.add_column("Task", style="dim", min_width=24)
+    table.add_column("Adapter", min_width=12)
+    table.add_column("Score", justify="right", min_width=10)
+    table.add_column("Asserts", justify="right", min_width=10)
+    table.add_column("Cost (USD)", justify="right", min_width=12)
+    table.add_column("Time (s)", justify="right", min_width=10)
+
+    results: list[TaskResult] = []
+    for task in tasks:
+        console.print(f"  Running [cyan]{task.task_id}[/cyan]…", end="")
+        result = harness.run_task(adapter, task)
+        results.append(result)
+        if result.fully_solved:
+            icon = "[green]100%[/green]"
+        elif result.score >= 0.5:
+            icon = f"[yellow]{result.score:.0%}[/yellow]"
+        else:
+            icon = f"[red]{result.score:.0%}[/red]"
+        console.print(f" {icon}")
+        table.add_row(
+            task.task_id,
+            result.adapter,
+            f"{result.score:.2f}",
+            f"{result.asserts_passed}/{result.asserts_total}",
+            f"${result.cost_usd:.4f}",
+            f"{result.duration_seconds:.1f}",
+        )
+
+    report = compute_report(results)
+    console.print(table)
+    console.print(
+        f"\n[bold]Mean partial credit:[/bold] {report.mean_partial_credit:.2%}  "
+        f"[green]{report.fully_solved} fully[/green]  "
+        f"[yellow]{report.near_solved} near[/yellow]  "
+        f"[red]{report.failed} failed[/red]  "
+        f"[dim]total cost ${report.total_cost_usd:.4f}[/dim]"
+    )
+
+    if report.per_adapter_breakdown:
+        adapter_table = Table(title="Per-Adapter Breakdown", header_style="bold magenta", show_lines=False)
+        adapter_table.add_column("Adapter", min_width=12)
+        adapter_table.add_column("Total", justify="right")
+        adapter_table.add_column("Fully", justify="right")
+        adapter_table.add_column("Near", justify="right")
+        adapter_table.add_column("Failed", justify="right")
+        adapter_table.add_column("Mean", justify="right")
+        adapter_table.add_column("Cost/Task", justify="right")
+        for b in report.per_adapter_breakdown:
+            adapter_table.add_row(
+                b.adapter,
+                str(b.total),
+                str(b.fully_solved),
+                str(b.near_solved),
+                str(b.failed),
+                f"{b.mean_partial_credit:.2%}",
+                f"${b.cost_per_task:.4f}",
+            )
+        console.print(adapter_table)
+
+    if out_json:
+        Path(out_json).write_text(_json.dumps(report_to_dict(report), indent=2), encoding="utf-8")
+        console.print(f"[dim]JSON report saved → {out_json}[/dim]")
+
+    if save:
+        sdd_dir = Path(".sdd")
+        save_results(report, sdd_dir)
+        console.print(f"[dim]Results saved → {sdd_dir / 'metrics' / 'programbench_results.jsonl'}[/dim]")
+
+
+@benchmark_group.command("programbench")
+@click.option(
+    "--adapter",
+    required=True,
+    help="Adapter slug (e.g. claude, codex, mock).",
+)
+@click.option(
+    "--subset",
+    default="lite",
+    show_default=True,
+    help="ProgramBench subset slug.",
+)
+@click.option(
+    "--tasks",
+    "tasks_limit",
+    type=int,
+    default=None,
+    help="Evaluate a random sample of N tasks.",
+)
+@click.option("--task", "task_id", default=None, help="Evaluate a single task by ID.")
+@click.option("--dataset", "dataset_path", default=None, help="Path to local JSONL dataset file.")
+@click.option(
+    "--out",
+    "out_json",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Write JSON report to this path.",
+)
+@click.option(
+    "--save/--no-save",
+    default=True,
+    show_default=True,
+    help="Persist results to .sdd/metrics/programbench_results.jsonl.",
+)
+def benchmark_programbench(
+    adapter: str,
+    subset: str,
+    tasks_limit: int | None,
+    task_id: str | None,
+    dataset_path: str | None,
+    out_json: str | None,
+    save: bool,
+) -> None:
+    """Run Bernstein against ProgramBench tasks with partial-credit scoring.
+
+    \b
+      bernstein benchmark programbench --adapter claude
+      bernstein benchmark programbench --adapter mock --tasks 5
+      bernstein benchmark programbench --adapter claude --task programbench-001
+      bernstein benchmark programbench --adapter claude --out report.json
+    """
+    _run_programbench_command(
+        adapter=adapter,
+        subset=subset,
+        tasks_limit=tasks_limit,
+        task_id=task_id,
+        dataset_path=dataset_path,
+        out_json=out_json,
+        save=save,
+    )
+
+
 @benchmark_group.command("run")
 @click.option(
     "--tier",

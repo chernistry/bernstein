@@ -119,8 +119,17 @@ class MockAgentAdapter(CLIAdapter):
         # Pass an explicit ``env=`` (allowlist only) so the mock adapter
         # cannot leak orchestrator credentials to the child python script.
         # The mock only needs PATH/HOME/PYTHONPATH which are already on
-        # the base allowlist.
-        env = build_filtered_env([])
+        # the base allowlist; the BERNSTEIN_MOCK_* vars opt the embedded
+        # script into idle mode (used by ``bernstein run --idle`` for GUI
+        # development).
+        env = build_filtered_env(
+            [
+                "BERNSTEIN_MOCK_IDLE",
+                "BERNSTEIN_MOCK_IDLE_MIN_S",
+                "BERNSTEIN_MOCK_IDLE_MAX_S",
+                "BERNSTEIN_MOCK_FAIL_RATE",
+            ]
+        )
         proc = subprocess.Popen(
             cmd,
             cwd=str(workdir),
@@ -281,14 +290,81 @@ def fix_broken_test(workdir: Path, log_path: Path) -> None:
         write_log(log_path, "⚠ broken test pattern not found (already fixed?)")
 
 
+def _idle_mode(log_path: Path) -> None:
+    """Sleep for a randomized interval, optionally fail at the end.
+
+    Driven by ``BERNSTEIN_MOCK_IDLE_MIN_S`` (default 15) and
+    ``BERNSTEIN_MOCK_IDLE_MAX_S`` (default 120). With probability
+    ``BERNSTEIN_MOCK_FAIL_RATE`` (default 0.05) the agent exits non-zero so
+    the GUI shows a mix of completed/failed states.
+
+    Env vars that fail to parse fall back to defaults instead of crashing
+    so a typo (e.g. ``BERNSTEIN_MOCK_IDLE_MIN_S=180s``) does not silently
+    abort GUI demo agents.
+    """
+    import os
+    import random
+
+    def _int_env(key: str, default: int) -> int:
+        raw = os.environ.get(key, "").strip()
+        if not raw:
+            return default
+        try:
+            return int(raw)
+        except ValueError:
+            write_log(log_path, f"idle: WARN bad {key}={raw!r}; using default {default}")
+            return default
+
+    def _float_env(key: str, default: float) -> float:
+        raw = os.environ.get(key, "").strip()
+        if not raw:
+            return default
+        try:
+            return float(raw)
+        except ValueError:
+            write_log(log_path, f"idle: WARN bad {key}={raw!r}; using default {default}")
+            return default
+
+    lo = _int_env("BERNSTEIN_MOCK_IDLE_MIN_S", 15)
+    hi = _int_env("BERNSTEIN_MOCK_IDLE_MAX_S", 120)
+    # Clamp to non-negative to avoid random.randint(0, 0) edge crashes.
+    lo = max(0, lo)
+    hi = max(0, hi)
+    if hi < lo:
+        lo, hi = hi, lo
+    fail_rate = _float_env("BERNSTEIN_MOCK_FAIL_RATE", 0.05)
+    will_fail = random.random() < fail_rate
+    sleep_s = random.randint(lo, hi) if hi > 0 else 0
+
+    write_log(log_path, f"idle: sleeping {sleep_s}s (will_fail={will_fail})")
+    chunk = max(1, sleep_s // 6)
+    elapsed = 0
+    while elapsed < sleep_s:
+        time.sleep(min(chunk, sleep_s - elapsed))
+        elapsed += chunk
+        write_log(log_path, f"idle: heartbeat {elapsed}/{sleep_s}s")
+    if will_fail:
+        write_log(log_path, "idle: simulated failure — exiting non-zero")
+        sys.exit(1)
+    write_log(log_path, "idle: completed")
+
+
 def main():
     """Main entry point."""
+    import os
+
     task_info = json.loads(sys.argv[1])
     workdir = Path(task_info["workdir"])
     task_name = task_info["task_name"]
     log_path = Path(task_info["log_path"])
 
     write_log(log_path, f"Mock agent started for task: {task_name}")
+
+    # Idle mode: GUI dev path — `bernstein run --idle` sets BERNSTEIN_MOCK_IDLE=1
+    # so each spawned mock just sleeps + emits heartbeat lines instead of doing fixes.
+    if os.environ.get("BERNSTEIN_MOCK_IDLE") == "1":
+        _idle_mode(log_path)
+        return
 
     # Simulate realistic agent work time
     time.sleep(1.5)

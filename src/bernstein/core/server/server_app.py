@@ -1232,6 +1232,7 @@ def create_app(
     from bernstein.core.routes.sbom import router as sbom_router
     from bernstein.core.routes.slo import router as slo_router
     from bernstein.core.routes.task_detail import router as task_detail_router
+    from bernstein.core.routes.task_trace import router as task_trace_router
     from bernstein.core.routes.team import router as team_router
     from bernstein.core.routes.websocket import router as ws_router
     from bernstein.core.routes.well_known import router as well_known_router
@@ -1277,6 +1278,7 @@ def create_app(
         export_router,
         grafana_router,
         task_detail_router,
+        task_trace_router,
         health_deps_router,
         batch_ops_router,
         agent_comparison_router,
@@ -1301,6 +1303,18 @@ def create_app(
     application.state.mcp_gateway = None  # type: ignore[attr-defined]
 
     application.include_router(api_v1_router)
+
+    # Web GUI auto-mount (best-effort): if the SPA build is present in the
+    # wheel, expose it at /ui/* and add /api/v1/gui-meta. Failure is silent —
+    # source-checkout installs without `cd web && npm run build` simply do
+    # not get the GUI mounted, and `bernstein gui serve` is the explicit
+    # entry point in that case.
+    try:
+        from bernstein.gui import mount as _gui_mount
+
+        _gui_mount(application)
+    except Exception:
+        pass
 
     return application
 

@@ -73,6 +73,20 @@ def _classify_batches(batches: list[list[Task]]) -> list[int]:
     return [i for i, batch in enumerate(batches) if batch and all(_is_small_task(t) for t in batch)]
 
 
+def _routing_hints_compatible(batch: list[Task], candidate: list[Task]) -> bool:
+    """Return False when two batches carry incompatible per-step routing hints.
+
+    The spawner only consults ``tasks[0].cli`` / ``tasks[0].model`` from a
+    batch, so merging tasks that disagree on adapter or model would silently
+    drop the second task's routing directives.
+    """
+    models = {t.model.strip().lower() for t in (batch + candidate) if isinstance(t.model, str) and t.model.strip()}
+    if len(models) > 1:
+        return False
+    clis = {t.cli.strip().lower() for t in (batch + candidate) if isinstance(t.cli, str) and t.cli.strip()}
+    return len(clis) <= 1
+
+
 def _can_merge_batches(
     batch: list[Task],
     candidate: list[Task],
@@ -84,6 +98,8 @@ def _can_merge_batches(
     if len(batch) + len(candidate) > effective_max:
         return False
     if _estimated_sum(batch) + _estimated_sum(candidate) > TASK.max_combined_estimated_minutes:
+        return False
+    if not _routing_hints_compatible(batch, candidate):
         return False
     return not _batch_files_conflict(batch, candidate)
 

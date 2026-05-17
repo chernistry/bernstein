@@ -77,8 +77,16 @@ async def _post_task_to_server(
         "task_type": task.task_type.value,
     }
     # Forward routing hints declared on the task (per-step plan fields).
+    # ``cli`` selects the adapter (claude, gemini, codex …) and ``model`` /
+    # ``effort`` pin the model variant.  Dropping ``model`` here causes
+    # plan-driven runs to collapse onto the orchestrator default (sonnet),
+    # which silently violates per-step ``cli:``/``model:`` directives.
     if task.cli:
         body["cli"] = task.cli
+    if task.model:
+        body["model"] = task.model
+    if task.effort:
+        body["effort"] = task.effort
     # Include upgrade_details if present
     if task.upgrade_details:
         body["upgrade_details"] = asdict(task.upgrade_details)

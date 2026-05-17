@@ -11,6 +11,7 @@ import io
 import json
 import time
 from collections import defaultdict
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -274,18 +275,75 @@ def get_cost_live(request: Request, tenant: str | None = None) -> JSONResponse:
     return JSONResponse(content=result)
 
 
+def _next_utc_reset_iso() -> str:
+    """Return the next 04:00 UTC reset time as an ISO 8601 timestamp."""
+    now = datetime.now(UTC)
+    reset_today = now.replace(hour=4, minute=0, second=0, microsecond=0)
+    reset = reset_today if now < reset_today else reset_today + timedelta(days=1)
+    return reset.isoformat()
+
+
+def _now_iso() -> str:
+    """Return the current UTC timestamp as ISO 8601."""
+    return datetime.now(UTC).isoformat()
+
+
+def _aggregate_window_spend(
+    sdd_dir: Any, costs_dir: Any, *, since_ts: float, until_ts: float | None = None
+) -> tuple[float, float | None]:
+    """Sum cost-tracker usages whose ``timestamp`` falls within the window.
+
+    Returns:
+        Tuple of (cost_usd, latest_usage_ts) — ``latest_usage_ts`` is ``None``
+        when the window saw no usages.
+    """
+    from bernstein.core.cost_tracker import CostTracker
+
+    if not costs_dir.exists():
+        return 0.0, None
+
+    upper = until_ts if until_ts is not None else float("inf")
+    total = 0.0
+    latest_ts: float | None = None
+    for cost_file in sorted(costs_dir.glob(_JSON_GLOB)):
+        tracker = CostTracker.load(sdd_dir, cost_file.stem)
+        if tracker is None:
+            continue
+        for usage in tracker.usages:
+            ts = float(getattr(usage, "timestamp", 0.0) or 0.0)
+            if ts < since_ts or ts >= upper:
+                continue
+            total += float(usage.cost_usd)
+            if latest_ts is None or ts > latest_ts:
+                latest_ts = ts
+    return total, latest_ts
+
+
 @router.get("/costs/current")
 def get_cost_current(request: Request) -> JSONResponse:
-    """Return real-time cost snapshot for the active run.
+    """Return real-time cost snapshot for the active run + GUI rollups.
 
     Updated after each agent completion.  Designed for TUI sidebar polling
     and lightweight dashboard widgets.  Returns per-model input/output/cache
     token breakdown alongside spend and budget status.
+
+    Web GUI (Costs.tsx §6.05) consumes the additive ``today_usd``,
+    ``week_usd``, ``projected_month_usd``, ``budget_usd``, ``used_pct``,
+    ``prior_week_usd``, ``delta_hour_usd``, ``resets_at`` and
+    ``last_sync_at`` fields. Existing TUI/CLI callers keep reading
+    ``spent_usd`` / ``percentage_used`` etc. unchanged.
     """
     from bernstein.core.cost_tracker import CostTracker
 
     sdd_dir = _get_sdd_dir(request)
     costs_dir = sdd_dir / "runtime" / "costs"
+
+    now_epoch = time.time()
+    today_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    week_start = today_start - 7 * 86_400
+    prior_week_start = week_start - 7 * 86_400
+    last_hour_start = now_epoch - 3600
+    prior_hour_start = last_hour_start - 3600
 
     empty: dict[str, Any] = {
         "spent_usd": 0.0,
@@ -296,7 +354,17 @@ def get_cost_current(request: Request) -> JSONResponse:
         "should_stop": False,
         "per_model": [],
         "per_agent": {},
-        "timestamp": time.time(),
+        "timestamp": now_epoch,
+        # Web GUI additive fields — friendly defaults so the dashboard
+        # never sees ``null`` and breaks the KPI cards.
+        "today_usd": 0.0,
+        "week_usd": 0.0,
+        "prior_week_usd": 0.0,
+        "delta_hour_usd": 0.0,
+        "projected_month_usd": 0.0,
+        "used_pct": 0.0,
+        "resets_at": _next_utc_reset_iso(),
+        "last_sync_at": _now_iso(),
     }
     if not costs_dir.exists():
         return JSONResponse(content=empty)
@@ -321,6 +389,24 @@ def get_cost_current(request: Request) -> JSONResponse:
 
     remaining = budget_status.remaining_usd if math.isfinite(budget_status.remaining_usd) else 0.0
 
+    # Web GUI rollups — derived from on-disk usages across all runs so the
+    # numbers don't reset when a new run rotates the active cost file.
+    today_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=today_start)
+    week_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=week_start)
+    prior_week_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=prior_week_start, until_ts=week_start)
+    last_hour_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=last_hour_start)
+    prior_hour_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=prior_hour_start, until_ts=last_hour_start)
+    _, latest_usage_ts = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=0.0)
+
+    daily_budget = float(budget_status.budget_usd or 0.0)
+    used_pct = (today_usd / daily_budget * 100.0) if daily_budget > 0 else 0.0
+    # Trailing-30 projection: scale the rolling 7-day spend out to 30 days.
+    projected_month_usd = (week_usd / 7.0) * 30.0 if week_usd > 0 else 0.0
+    delta_hour_usd = last_hour_usd - prior_hour_usd
+    last_sync_iso = (
+        datetime.fromtimestamp(latest_usage_ts, tz=UTC).isoformat() if latest_usage_ts is not None else _now_iso()
+    )
+
     return JSONResponse(
         content={
             "run_id": run_id,
@@ -332,7 +418,16 @@ def get_cost_current(request: Request) -> JSONResponse:
             "should_stop": budget_status.should_stop,
             "per_model": [m.to_dict() for m in model_breakdowns],
             "per_agent": {k: round(v, 6) for k, v in per_agent.items()},
-            "timestamp": time.time(),
+            "timestamp": now_epoch,
+            # Web GUI additive fields.
+            "today_usd": round(today_usd, 6),
+            "week_usd": round(week_usd, 6),
+            "prior_week_usd": round(prior_week_usd, 6),
+            "delta_hour_usd": round(delta_hour_usd, 6),
+            "projected_month_usd": round(projected_month_usd, 6),
+            "used_pct": round(used_pct, 2),
+            "resets_at": _next_utc_reset_iso(),
+            "last_sync_at": last_sync_iso,
         }
     )
 
@@ -374,20 +469,78 @@ def get_cost_alerts(request: Request) -> JSONResponse:
     )
 
 
-@router.get("/costs/history")
-def get_cost_history(request: Request) -> JSONResponse:
-    """Return daily cost history with burn rate for chart visualization.
+def _bucket_usages(
+    sdd_dir: Any,
+    costs_dir: Any,
+    *,
+    since_ts: float,
+    granularity: str,
+) -> list[dict[str, Any]]:
+    """Bucket cost-tracker usages by hour or day for sparkline rendering."""
+    from bernstein.core.cost_tracker import CostTracker
 
-    Loads daily snapshots from ``.sdd/metrics/cost_history.jsonl`` and computes
-    a burn rate from the most recent 7 days.  Burn rate is expressed both as
-    USD/day (7-day trailing average) and USD/hour.
+    bucket_seconds = 3600 if granularity == "hour" else 86_400
+    buckets: dict[int, float] = defaultdict(float)
+    if not costs_dir.exists():
+        return []
+    for cost_file in sorted(costs_dir.glob(_JSON_GLOB)):
+        tracker = CostTracker.load(sdd_dir, cost_file.stem)
+        if tracker is None:
+            continue
+        for usage in tracker.usages:
+            ts = float(getattr(usage, "timestamp", 0.0) or 0.0)
+            if ts < since_ts:
+                continue
+            slot = int(ts // bucket_seconds) * bucket_seconds
+            buckets[slot] += float(usage.cost_usd)
+
+    series: list[dict[str, Any]] = []
+    for slot in sorted(buckets):
+        series.append(
+            {
+                "ts": datetime.fromtimestamp(slot, tz=UTC).isoformat(),
+                "usd": round(buckets[slot], 6),
+            }
+        )
+    return series
+
+
+@router.get("/costs/history")
+def get_cost_history(
+    request: Request,
+    hours: int | None = None,
+    granularity: str = "day",
+    envelope: int = 0,
+) -> JSONResponse:
+    """Return cost history for chart visualization.
+
+    Two response modes share one endpoint:
+
+    * ``GET /costs/history?hours=24&granularity=hour`` (web GUI sparkline) —
+      returns a flat ``[{ts, usd}]`` array bucketed from cost-tracker
+      usages over the last *hours* window.
+    * ``GET /costs/history`` *or* ``?envelope=1`` (legacy/CLI) — returns the
+      original ``{history, trend, burn_rate_*, history_days}`` envelope
+      built from ``.sdd/metrics/cost_history.jsonl`` daily snapshots.
+
+    The sparkline branch lets the GUI feed `recharts` directly without
+    unwrapping a ``.history`` field.
     """
     from bernstein.core.cost_history import compute_trends, load_history
 
     sdd_dir = _get_sdd_dir(request)
+
+    # Web GUI sparkline branch — array form bucketed from live usages.
+    if hours is not None and not envelope:
+        gran = granularity if granularity in {"hour", "day"} else "hour"
+        since = time.time() - max(1, hours) * 3600
+        costs_dir = sdd_dir / "runtime" / "costs"
+        series = _bucket_usages(sdd_dir, costs_dir, since_ts=since, granularity=gran)
+        return JSONResponse(content=series)
+
+    # Legacy envelope — unchanged shape so TUI / CLI keep working.
     history = load_history(sdd_dir)
     trend = compute_trends(history)
-
     recent_7d = history[-7:] if len(history) >= 7 else history
     daily_avg = sum(s.spent_usd for s in recent_7d) / len(recent_7d) if recent_7d else 0.0
 
@@ -400,25 +553,6 @@ def get_cost_history(request: Request) -> JSONResponse:
             "history_days": len(history),
         }
     )
-
-
-@router.get("/costs/{run_id}", responses={404: {"description": "No cost data for run"}})
-def get_cost_budget(run_id: str, request: Request) -> JSONResponse:
-    """Return budget status for a specific run.
-
-    Loads the persisted cost tracker from ``.sdd/runtime/costs/{run_id}.json``
-    and returns its ``BudgetStatus`` as JSON.
-    """
-    from bernstein.core.cost_tracker import CostTracker
-
-    sdd_dir = _get_sdd_dir(request)
-    tracker = CostTracker.load(sdd_dir, run_id)
-    if tracker is None:
-        raise HTTPException(status_code=404, detail=f"No cost data for run '{run_id}'")
-
-    result = tracker.status().to_dict()
-    result.update(_build_breakdowns(tracker))
-    return JSONResponse(content=result)
 
 
 @router.get("/costs/export")
@@ -493,15 +627,24 @@ def export_costs(request: Request, format: str = "json") -> Response:
 
 @router.get("/costs/forecast")
 def forecast_costs(request: Request) -> JSONResponse:
-    """Forecast cost for next hour based on current burn rate.
+    """Forecast cost for next hour and project monthly spend.
 
-    Extrapolates current spending rate to predict next hour's cost.
-    Uses recent task completion rate and average cost per task.
+    Extrapolates current spending rate to predict next hour's cost AND
+    rolls the trailing 7-day spend out to a 30-day projection
+    (``projected_month_usd``) for the web GUI's "projected month" KPI
+    card. The legacy fields (``forecast_next_hour_usd``,
+    ``burn_rate_*``, ``confidence``, ``data_points``) remain unchanged
+    for the TUI / CLI.
     """
     from bernstein.core.cost_tracker import CostTracker
 
     sdd_dir = _get_sdd_dir(request)
     costs_dir = sdd_dir / "runtime" / "costs"
+
+    week_start = time.time() - 7 * 86_400
+    week_usd, _ = _aggregate_window_spend(sdd_dir, costs_dir, since_ts=week_start)
+    projected_month_usd = round((week_usd / 7.0) * 30.0, 6) if week_usd > 0 else 0.0
+    trend_label = "trending within budget" if projected_month_usd >= 0 else "trend unknown"
 
     if not costs_dir.exists():
         return JSONResponse(
@@ -510,6 +653,8 @@ def forecast_costs(request: Request) -> JSONResponse:
                 "burn_rate_usd_per_minute": 0.0,
                 "confidence": "low",
                 "data_points": 0,
+                "projected_month_usd": projected_month_usd,
+                "trend_label": trend_label,
             }
         )
 
@@ -537,6 +682,8 @@ def forecast_costs(request: Request) -> JSONResponse:
                 "confidence": "low",
                 "data_points": len(recent_costs),
                 "message": "Insufficient data for forecasting",
+                "projected_month_usd": projected_month_usd,
+                "trend_label": trend_label,
             }
         )
 
@@ -568,6 +715,8 @@ def forecast_costs(request: Request) -> JSONResponse:
             "confidence": confidence,
             "data_points": len(recent_costs),
             "time_span_minutes": round(time_span / 60.0, 1),
+            "projected_month_usd": projected_month_usd,
+            "trend_label": trend_label,
         }
     )
 
@@ -838,35 +987,174 @@ def token_efficiency(request: Request) -> JSONResponse:
     )
 
 
-@router.get("/costs/by-tag")
-def get_costs_by_tag(request: Request, tag_key: str | None = None) -> JSONResponse:
-    """Aggregate costs grouped by cost allocation tag keys/values.
+def _build_adapter_breakdown(sdd_dir: Any, costs_dir: Any, *, hours: int) -> list[dict[str, Any]]:
+    """Build a per-adapter cost-tracker breakdown for the web GUI Costs tab.
 
-    When ``tag_key`` is provided, returns costs broken down by values of
-    that specific tag.  Without ``tag_key``, returns costs grouped by
-    every tag key found across all usages.
-
-    Args:
-        request: FastAPI request.
-        tag_key: Optional tag key to filter by.
-
-    Returns:
-        JSON with ``by_tag`` mapping of tag keys to value-cost dicts.
+    "Adapter" here is the model id (sonnet, opus, gpt-4, …); these are the
+    units the cost tracker keeps. Window is the trailing *hours* hours.
+    Each row carries the share of total spend and the 7-day delta the GUI
+    sparkline + delta column expects.
     """
+    from bernstein.core.cost_tracker import CostTracker
 
+    if not costs_dir.exists():
+        return []
+
+    now = time.time()
+    window_start = now - max(1, hours) * 3600
+    prior_window_start = window_start - 7 * 86_400
+
+    cur_calls: dict[str, int] = defaultdict(int)
+    cur_tokens: dict[str, int] = defaultdict(int)
+    cur_cost: dict[str, float] = defaultdict(float)
+    prior_cost: dict[str, float] = defaultdict(float)
+
+    for cost_file in sorted(costs_dir.glob(_JSON_GLOB)):
+        tracker = CostTracker.load(sdd_dir, cost_file.stem)
+        if tracker is None:
+            continue
+        for usage in tracker.usages:
+            ts = float(getattr(usage, "timestamp", 0.0) or 0.0)
+            adapter = str(getattr(usage, "model", "") or "unknown")
+            cost = float(usage.cost_usd)
+            tokens = int(getattr(usage, "input_tokens", 0) or 0) + int(getattr(usage, "output_tokens", 0) or 0)
+            if ts >= window_start:
+                cur_calls[adapter] += 1
+                cur_tokens[adapter] += tokens
+                cur_cost[adapter] += cost
+            elif ts >= prior_window_start:
+                prior_cost[adapter] += cost
+
+    total_cost = sum(cur_cost.values())
+    rows: list[dict[str, Any]] = []
+    for adapter, cost in sorted(cur_cost.items(), key=lambda kv: kv[1], reverse=True):
+        share = (cost / total_cost * 100.0) if total_cost > 0 else 0.0
+        prior = prior_cost.get(adapter, 0.0)
+        delta = ((cost - prior) / prior * 100.0) if prior > 0 else 0.0
+        rows.append(
+            {
+                "adapter": adapter,
+                "calls": cur_calls.get(adapter, 0),
+                "tokens": cur_tokens.get(adapter, 0),
+                "cost_usd": round(cost, 6),
+                "share_pct": round(share, 2),
+                "delta_7d_pct": round(delta, 2),
+            }
+        )
+    return rows
+
+
+@router.get("/costs/by-tag")
+def get_costs_by_tag(
+    request: Request,
+    tag_key: str | None = None,
+    hours: int = 24,
+    shape: str = "auto",
+) -> JSONResponse:
+    """Aggregate cost data grouped by allocation tag *or* by adapter.
+
+    The endpoint serves three callers:
+
+    * Web GUI (``Costs.tsx`` adapter table) — calls ``GET /costs/by-tag``
+      and expects an array of ``{adapter, calls, tokens, cost_usd,
+      share_pct, delta_7d_pct}`` rows. With ``shape=auto`` (default) and
+      no ``tag_key``, this is what we return.
+    * Legacy callers passing ``tag_key=…`` — receive the existing
+      ``{by_tag: {key: {value: cost}}}`` envelope.
+    * Legacy callers wanting the envelope explicitly — pass
+      ``shape=tags`` and get the envelope without supplying a key.
+
+    The ``hours`` parameter controls the GUI window (default 24h).
+    """
     sdd_dir = _get_sdd_dir(request)
     costs_dir = sdd_dir / "runtime" / "costs"
 
-    # tag_key -> tag_value -> accumulated cost
-    by_tag: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+    if shape == "tags" or tag_key is not None:
+        by_tag: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        if costs_dir.exists():
+            _accumulate_tag_costs(sdd_dir, costs_dir, tag_key, by_tag)
+        result: dict[str, dict[str, float]] = {
+            k: {v: round(c, 6) for v, c in vals.items()} for k, vals in by_tag.items()
+        }
+        return JSONResponse(content={"by_tag": result})
 
-    if costs_dir.exists():
-        _accumulate_tag_costs(sdd_dir, costs_dir, tag_key, by_tag)
+    # Default (web GUI) — adapter array.
+    rows = _build_adapter_breakdown(sdd_dir, costs_dir, hours=hours)
+    return JSONResponse(content=rows)
 
-    # Round values for output
-    result: dict[str, dict[str, float]] = {k: {v: round(c, 6) for v, c in vals.items()} for k, vals in by_tag.items()}
 
-    return JSONResponse(content={"by_tag": result})
+@router.get("/costs/by-adapter")
+def get_costs_by_adapter(request: Request, hours: int = 24) -> JSONResponse:
+    """Per-adapter cost breakdown for the web GUI Costs tab.
+
+    Returns the same array shape as ``GET /costs/by-tag`` (default mode);
+    exists as a clearer alias so the frontend doesn't have to know about
+    the legacy "by-tag" naming.
+    """
+    sdd_dir = _get_sdd_dir(request)
+    costs_dir = sdd_dir / "runtime" / "costs"
+    rows = _build_adapter_breakdown(sdd_dir, costs_dir, hours=hours)
+    return JSONResponse(content=rows)
+
+
+@router.get("/costs/top-tasks")
+def get_costs_top_tasks(request: Request, limit: int = 10, hours: int = 24) -> JSONResponse:
+    """Top *limit* most-expensive tasks within the trailing *hours* window.
+
+    Web GUI Costs.tsx renders this as the "Top 10 tasks" card. Each item:
+    ``{id, title, agent, cost_usd}``. Empty list when no usage data is
+    present so the card can show its empty-state cleanly.
+    """
+    from bernstein.core.cost_tracker import CostTracker
+
+    sdd_dir = _get_sdd_dir(request)
+    costs_dir = sdd_dir / "runtime" / "costs"
+    if not costs_dir.exists():
+        return JSONResponse(content=[])
+
+    since = time.time() - max(1, hours) * 3600
+
+    # task_id -> {cost, agent}
+    task_cost: dict[str, dict[str, Any]] = defaultdict(lambda: {"cost": 0.0, "agent": ""})
+    for cost_file in sorted(costs_dir.glob(_JSON_GLOB)):
+        tracker = CostTracker.load(sdd_dir, cost_file.stem)
+        if tracker is None:
+            continue
+        for usage in tracker.usages:
+            ts = float(getattr(usage, "timestamp", 0.0) or 0.0)
+            if ts < since:
+                continue
+            task_id = str(getattr(usage, "task_id", "") or "")
+            if not task_id:
+                continue
+            task_cost[task_id]["cost"] += float(usage.cost_usd)
+            if not task_cost[task_id]["agent"]:
+                task_cost[task_id]["agent"] = str(getattr(usage, "agent_id", "") or "")
+
+    # Resolve titles from the task store when available.
+    store = getattr(request.app.state, "store", None)
+    titles: dict[str, str] = {}
+    if store is not None:
+        try:
+            for task in store.list_tasks():
+                titles[task.id] = task.title
+        except Exception:
+            titles = {}
+
+    rows = sorted(
+        (
+            {
+                "id": task_id,
+                "title": titles.get(task_id, task_id),
+                "agent": data["agent"] or "—",
+                "cost_usd": round(float(data["cost"]), 6),
+            }
+            for task_id, data in task_cost.items()
+        ),
+        key=lambda r: r["cost_usd"],
+        reverse=True,
+    )
+    return JSONResponse(content=rows[: max(1, limit)])
 
 
 def _accumulate_tag_costs(
@@ -986,33 +1274,6 @@ def get_token_breakdown(request: Request, session_id: str | None = None) -> JSON
             "summary": summary,
         }
     )
-
-
-@router.get("/costs/efficiency")
-async def cost_efficiency(request: Request) -> dict[str, object]:
-    """Get cost-per-line efficiency metrics."""
-    import dataclasses
-
-    from bernstein.core.cost_per_line import CostLineTask, compute_efficiency
-
-    store = request.app.state.store
-    archive = store.read_archive(limit=100)
-
-    tasks: list[CostLineTask] = [
-        {
-            "lines_changed": _read_lines_for_agent(
-                request.app.state.sdd_dir / "runtime" / "lines",
-                r.get("claimed_by_session", "") or "",
-            ),
-            "cost_usd": r.get("cost_usd", 0) or 0,
-        }
-        for r in archive
-    ]
-    tracker = request.app.state.cost_tracker
-    total = sum(u.cost_usd for u in tracker.usages)
-
-    result = compute_efficiency(tasks, total)
-    return dataclasses.asdict(result)
 
 
 def _read_lines_for_agent(lines_dir: Any, agent_id: str) -> int:
@@ -1181,3 +1442,33 @@ def get_cost_efficiency(request: Request) -> JSONResponse:
             "message": message,
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# /costs/{run_id} — must be registered LAST.
+#
+# FastAPI matches routes in registration order. Putting the path-parameter
+# route ahead of any sibling like /costs/by-tag, /costs/forecast, … makes
+# every literal path get caught by ``run_id`` (e.g. requesting
+# ``/costs/forecast`` returns ``404 No cost data for run 'forecast'``).
+# Keeping this last guarantees the literals win.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/costs/{run_id}", responses={404: {"description": "No cost data for run"}})
+def get_cost_budget(run_id: str, request: Request) -> JSONResponse:
+    """Return budget status for a specific run.
+
+    Loads the persisted cost tracker from ``.sdd/runtime/costs/{run_id}.json``
+    and returns its ``BudgetStatus`` as JSON.
+    """
+    from bernstein.core.cost_tracker import CostTracker
+
+    sdd_dir = _get_sdd_dir(request)
+    tracker = CostTracker.load(sdd_dir, run_id)
+    if tracker is None:
+        raise HTTPException(status_code=404, detail=f"No cost data for run '{run_id}'")
+
+    result = tracker.status().to_dict()
+    result.update(_build_breakdowns(tracker))
+    return JSONResponse(content=result)

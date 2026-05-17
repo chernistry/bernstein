@@ -131,6 +131,90 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # ─── Planner (determines which downstream jobs may legitimately skip) ──
+  #
+  # Inspired by pypa/pip's CI: a planner job classifies the PR (or push)
+  # diff and emits boolean outputs. Downstream skips are then either
+  # "intentional" (planner said so) or suspicious (cancelled / crashed).
+  # The aggregator gate at the bottom uses these outputs to distinguish
+  # the two and refuses to pass on suspicious skips. See #1273.
+  determine-changes:
+    name: Determine changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    outputs:
+      python_changed: ${{ steps.classify.outputs.python_changed }}
+      tests_changed: ${{ steps.classify.outputs.tests_changed }}
+      gha_workflows_changed: ${{ steps.classify.outputs.gha_workflows_changed }}
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+      - id: classify
+        name: Classify changed paths
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          # On pull_request, diff against the base branch. On push to main
+          # (or any other push event), diff against the previous commit so
+          # the planner stays useful for filter-skipped downstream jobs.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}" || true
+            CHANGED=$(git diff --name-only "origin/${BASE_REF}...HEAD")
+          else
+            # `before` may be 000... on first push of a branch; fall back to HEAD~1.
+            BEFORE="${{ github.event.before }}"
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              CHANGED=$(git diff --name-only "HEAD~1...HEAD" || git ls-files)
+            else
+              CHANGED=$(git diff --name-only "${BEFORE}...HEAD" || git ls-files)
+            fi
+          fi
+          echo "Changed files:"
+          printf '%s\n' "$CHANGED" | sed 's/^/  /'
+
+          # Pure-shell classification — auditable in `actionlint`, no
+          # sub-shell variable round-tripping through python.
+          python_changed=false
+          tests_changed=false
+          gha_workflows_changed=false
+          docs_only=true
+          # Classify each changed path via grep. Using grep instead of
+          # bash `case` to avoid linter warnings on overlapping patterns
+          # (case-globs cannot cross slashes anyway).
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            matched_meta=false
+            if printf '%s\n' "$f" | grep -Eq '^src/.*\.py$'; then
+              python_changed=true; docs_only=false; matched_meta=true
+            fi
+            if printf '%s\n' "$f" | grep -Eq '^tests/'; then
+              tests_changed=true; docs_only=false; matched_meta=true
+            fi
+            if printf '%s\n' "$f" | grep -Eq '^\.github/workflows/.*\.(yml|yaml)$'; then
+              gha_workflows_changed=true; docs_only=false; matched_meta=true
+            fi
+            if printf '%s\n' "$f" | grep -Eq '^docs/|\.md$|^LICENSE$|^CONTRIBUTORS\.md$'; then
+              matched_meta=true
+            fi
+            if [ "$matched_meta" = "false" ]; then
+              docs_only=false
+            fi
+          done <<< "$CHANGED"
+          # If nothing changed at all (e.g. workflow_dispatch on a clean ref),
+          # treat as "not docs-only" so we don't intentionally skip tests.
+          if [ -z "$CHANGED" ]; then
+            docs_only=false
+          fi
+          echo "python_changed=$python_changed"        | tee -a "$GITHUB_OUTPUT"
+          echo "tests_changed=$tests_changed"          | tee -a "$GITHUB_OUTPUT"
+          echo "gha_workflows_changed=$gha_workflows_changed" | tee -a "$GITHUB_OUTPUT"
+          echo "docs_only=$docs_only"                  | tee -a "$GITHUB_OUTPUT"
+
   # ─── Fast checks (never cancelled, <2 min each) ───────────────────────
 
   repo-hygiene:
@@ -636,6 +720,9 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: read
+      # Required by mikepenz/action-junit-report to create check-run
+      # annotations surfaced in the PR Checks tab.
+      checks: write
     strategy:
       fail-fast: false
       matrix:
@@ -745,6 +832,23 @@ jobs:
           if [ ! -f junit.xml ]; then
             echo "::warning::junit.xml was not generated"
           fi
+      - name: Publish JUnit + flake summary
+        # Surfaces test results and flaky-test annotations in the PR check
+        # tab. `flaky_summary: true` lists tests that passed on a retry —
+        # pair with `pytest-rerunfailures` (separate PR) for full coverage.
+        # `fail_on_failure: false` so we don't double-fail; the test job
+        # already reports its own non-zero exit.
+        #
+        # Gated to ubuntu/3.13 on push because that is the only matrix cell
+        # currently emitting junit.xml (see the coverage step above).
+        if: always() && !cancelled() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && github.event_name == 'push'
+        uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6.4.0
+        with:
+          report_paths: '**/junit.xml'
+          flaky_summary: true
+          check_retries: true
+          fail_on_failure: false
+          require_tests: false
       - name: Upload coverage artifact
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && github.event_name == 'push'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -939,9 +1043,12 @@ jobs:
   #     Either condition can let a red commit reach `main`.
   #
   # This job fails on ANY non-success result — including `cancelled`,
-  # `timed_out`, `action_required`, or a job that never ran. `skipped` is
-  # treated as a pass because several jobs here are intentionally gated
-  # on `if: github.event_name == 'pull_request'` or `if: false`.
+  # `timed_out`, `action_required`, or a job that never ran. `skipped`
+  # passes ONLY when the planner job (``determine-changes``) classified
+  # the diff in a way that makes the skip intentional (docs-only PRs,
+  # event-gated jobs, etc.). A `skipped` result for a job that should
+  # have run is treated as a failure — pattern borrowed from pypa/pip's
+  # CI aggregator (see PR #1273 for the discussion).
   #
   # Operator: after this PR merges, replace every required check in
   # branch protection with this single context (name shown in UI:
@@ -960,6 +1067,7 @@ jobs:
     # report "cancelled" on a manually aborted run).
     if: always() && !cancelled()
     needs:
+      - determine-changes
       - repo-hygiene
       - lint
       - spelling
@@ -986,32 +1094,78 @@ jobs:
       contents: read
     steps:
       - id: roll-up
-        name: Roll up needs.*.result
+        name: Roll up needs.*.result with conditional allowed-skips
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
+          PLAN_JSON: ${{ toJSON(needs.determine-changes.outputs) }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          # Write the JSON to disk so the python heredoc can read it
+          # Write JSONs to disk so the python heredoc can read them
           # without worrying about shell quoting on multiline content.
           printf '%s' "$NEEDS_JSON" > results.json
+          printf '%s' "$PLAN_JSON" > plan.json
           python3 - <<'PY'
-          import json, sys
+          import json, os, sys
           data = json.load(open("results.json"))
-          # `skipped` is intentionally tolerated: some jobs only run on
-          # PRs (`mutmut-diff`, `pr-summary`), and some only on push-to-main
-          # (`close-ci-issues`). A real regression in any of those
-          # surfaces as a non-skipped failure elsewhere.
-          bad = [
-              name
-              for name, info in data.items()
-              if info.get("result") not in ("success", "skipped")
-          ]
+          plan = json.load(open("plan.json"))
+          event = os.environ.get("EVENT_NAME", "")
+
+          # Jobs that intentionally skip on docs-only changes (no python
+          # / tests / workflows touched). Mirrors paths-ignore at the top.
+          DOCS_ONLY_SKIPPABLE = {
+              "test",
+              "schemathesis-smoke",
+              "snapshot-tests",
+              "property-tests",
+              "beartype",
+              "adapter-integration",
+              "diff-coverage",
+              "mutmut-diff",
+              "pyright-strict-zone",
+              "semgrep",
+              "bandit",
+              "pip-audit",
+              "typecheck",
+              "dead-code",
+              "dist-size",
+          }
+          # Jobs intentionally gated by `if:` on event / branch — `skipped`
+          # is the expected outcome under these conditions.
+          ALWAYS_SKIPPABLE = {
+              # Only on push to main.
+              "close-ci-issues",
+          }
+          # PR-only jobs: skipped on push events is intentional.
+          PR_ONLY = {"mutmut-diff", "diff-coverage"}
+          # Push-to-main-only jobs: skipped on PRs is intentional.
+          PUSH_ONLY = {"close-ci-issues"}
+
+          docs_only = plan.get("docs_only") == "true"
+
+          bad = []
+          for name, info in data.items():
+              r = info.get("result")
+              if r == "success":
+                  continue
+              if r == "skipped":
+                  if name in ALWAYS_SKIPPABLE:
+                      continue
+                  if event == "pull_request" and name in PUSH_ONLY:
+                      continue
+                  if event != "pull_request" and name in PR_ONLY:
+                      continue
+                  if docs_only and name in DOCS_ONLY_SKIPPABLE:
+                      continue
+              bad.append((name, r))
+
           if bad:
-              print("::error::CI gate FAILED — these jobs were not success:")
-              for n in bad:
-                  info = data[n]
-                  print(f"  - {n}: result={info.get('result')}")
+              print("::error::CI gate FAILED — these jobs were not success "
+                    "and not intentionally skipped:")
+              for n, r in bad:
+                  print(f"  - {n}: result={r}")
               sys.exit(1)
-          print("CI gate: all required jobs passed.")
+          print(f"CI gate: all required jobs passed "
+                f"(or intentionally skipped). docs_only={docs_only}, event={event}")
           for n, info in sorted(data.items()):
               print(f"  {n}: {info.get('result')}")
           PY

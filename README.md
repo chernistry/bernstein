@@ -549,6 +549,7 @@ If your project ships diffs that bernstein helped land, you can advertise it:
 ## contributing
 
 PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and code style.
+Maintainers: [docs/maintainers/ci-apps.md](docs/maintainers/ci-apps.md) — one-time operator playbook for free CI integrations.
 
 ## support
 

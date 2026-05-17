@@ -137,20 +137,38 @@ def _resolve_model_and_cli(
         return est_model, est_cli, est_role
 
     try:
+        from bernstein.core.cost.cost import _model_cost
         from bernstein.core.seed import parse_seed
 
         seed = parse_seed(seed_path)
         if seed.model:
             est_model = seed.model
         if seed.role_model_policy:
+            # Pick the role with the most expensive model so the preflight
+            # estimate is an upper bound on actual spend.  Previously the
+            # loop took only the first dict entry and ``break``-ed, which
+            # is non-deterministic when role insertion order varies and,
+            # worse, can under-report cost by orders of magnitude when a
+            # cheap role (e.g. qa on gemini) shadows an expensive role
+            # (e.g. backend on opus) in the same seed.
+            best_role = est_role
+            best_cli = est_cli
+            best_model = est_model
+            best_cost = _model_cost(est_model)
             for _role, _policy in seed.role_model_policy.items():
-                if isinstance(_role, str):
-                    est_role = _role
-                if "cli" in _policy:
-                    est_cli = _policy["cli"]
-                if "model" in _policy:
-                    est_model = _policy["model"]
-                break
+                if not isinstance(_role, str):
+                    continue
+                role_cli = _policy.get("cli", est_cli)
+                role_model = _policy.get("model", est_model)
+                role_cost = _model_cost(role_model)
+                if role_cost > best_cost:
+                    best_role = _role
+                    best_cli = role_cli
+                    best_model = role_model
+                    best_cost = role_cost
+            est_role = best_role
+            est_cli = best_cli
+            est_model = best_model
         if seed.cli and seed.cli != "auto":
             est_cli = seed.cli
     except Exception:

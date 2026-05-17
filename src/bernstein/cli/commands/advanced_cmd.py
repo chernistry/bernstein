@@ -735,6 +735,61 @@ def doctor_extended_cmd(
     raise SystemExit(exit_code_for(results))
 
 
+@doctor.command("promptware-scan")
+@click.argument("run_id", required=True)
+@click.option(
+    "--workdir",
+    "workdir",
+    default=".",
+    show_default=True,
+    help="Project root to look up traces under .sdd/traces/.",
+)
+@click.option(
+    "--threshold",
+    "threshold",
+    type=float,
+    default=0.7,
+    show_default=True,
+    help="Only print outputs at or above this score.",
+)
+@click.option(
+    "--json",
+    "as_json",
+    is_flag=True,
+    default=False,
+    help="Emit JSON instead of the Rich table.",
+)
+def doctor_promptware_scan_cmd(
+    run_id: str,
+    workdir: str,
+    threshold: float,
+    as_json: bool,
+) -> None:
+    """Replay tool output for ``run_id`` and report suspicious entries.
+
+    \b
+    Looks under ``<workdir>/.sdd/traces/<run_id>.jsonl`` for trace records
+    that carry tool output, runs the promptware detector against each,
+    and prints any output whose score reaches the supplied ``--threshold``
+    (default ``0.7``, matching the WARN band).
+
+    \b
+    Examples:
+      bernstein doctor promptware-scan abc123
+      bernstein doctor promptware-scan abc123 --threshold 0.9 --json
+    """
+    from bernstein.cli.commands.doctor_promptware_cmd import run_promptware_scan
+
+    raise SystemExit(
+        run_promptware_scan(
+            run_id=run_id,
+            workdir=Path(workdir),
+            threshold=threshold,
+            as_json=as_json,
+        )
+    )
+
+
 # ---------------------------------------------------------------------------
 # recap
 # ---------------------------------------------------------------------------

@@ -30,6 +30,8 @@ Aktive = "Aktive"    # correct German word for "Active" (i18n.py)
 unparseable = "unparseable"
 Unparseable = "Unparseable"
 empted = "empted"    # `pre-empted` (past tense of pre-empt); typos splits on `-`
+noteable = "noteable" # GitLab webhook field name (`noteable_type`, `noteable_id`)
+Noteable = "Noteable" # GitLab webhook field name, capitalised form
 
 # Proper nouns and product names
 Hashi = "Hashi"      # HashiCorp

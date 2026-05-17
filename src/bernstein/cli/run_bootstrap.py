@@ -1005,6 +1005,20 @@ def exec_restart() -> None:
         "Distinct from --max-cost-usd / --hard-budget, which are enforced at runtime."
     ),
 )
+@click.option(
+    "--retry-budget",
+    "retry_budget_spec",
+    type=str,
+    default=None,
+    metavar="SPEC",
+    help=(
+        "Criterion-aware retry budget (issue #1352). Accepts "
+        "``'3 retries, degrade: coverage>tests>style'``. Each retry "
+        "dials down the next criterion rather than burning identical "
+        "rerun budget. Validated eagerly; the parsed spec is exported "
+        "to ``BERNSTEIN_RETRY_BUDGET_SPEC`` for the orchestrator."
+    ),
+)
 def run(
     plan_file: Path | None,
     goal: str | None,
@@ -1043,6 +1057,7 @@ def run(
     budget_spec: str | None = None,
     hard_budget_spec: str | None = None,
     budget_cap: float | None = None,
+    retry_budget_spec: str | None = None,
 ) -> None:
     """Parse seed, init workspace, start server, launch agents.
 
@@ -1077,6 +1092,21 @@ def run(
     if budget_value is not None and max_cost_usd is None:
         max_cost_usd = budget_value
     hard_budget_usd = _parse_budget_spec(hard_budget_spec)
+    # Issue #1352: validate the criterion-aware retry budget eagerly so
+    # the operator sees parse errors before any process is spawned.  The
+    # parsed budget itself is reconstructed by the orchestrator from the
+    # env var; we only need to confirm the spec is well-formed here.
+    if retry_budget_spec is not None:
+        from bernstein.core.cost.retry_budget import (
+            RetryBudgetError,
+            parse_retry_budget_spec,
+        )
+
+        try:
+            parse_retry_budget_spec(retry_budget_spec)
+        except (RetryBudgetError, ValueError) as exc:
+            raise click.UsageError(f"invalid --retry-budget value: {exc}") from exc
+        os.environ["BERNSTEIN_RETRY_BUDGET_SPEC"] = retry_budget_spec
     # Print the startup banner unless the parent ``cli()`` group already
     # rendered the premium splash for this invocation. Regressed by commit
     # 1e5c13013 ("fix: ... double banner ..."), which mistakenly removed the

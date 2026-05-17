@@ -1085,6 +1085,25 @@ class CostTracker:
         except OSError as exc:  # pragma: no cover - best-effort IO
             logger.debug("Failed to rotate evicted cost usage for run %s: %s", self.run_id, exc)
 
+    def attach_retry_budget(self, budget: object) -> None:
+        """Attach a :class:`~bernstein.core.cost.retry_budget.RetryBudget`.
+
+        Imported lazily so importing ``cost_tracker`` does not pull in
+        the retry budget module (and vice versa).  The attachment is a
+        back-reference — the tracker does not mutate the budget.
+
+        Args:
+            budget: Any object that exposes ``attempts_left`` /
+                ``is_exhausted``.  Typically a ``RetryBudget`` from
+                :mod:`bernstein.core.cost.retry_budget`.
+        """
+        self._retry_budget = budget
+
+    @property
+    def retry_budget(self) -> object | None:
+        """The attached retry budget, if any."""
+        return getattr(self, "_retry_budget", None)
+
     def _emit_threshold_warnings(self, status: BudgetStatus) -> None:
         """Log warnings when budget thresholds are crossed.
 

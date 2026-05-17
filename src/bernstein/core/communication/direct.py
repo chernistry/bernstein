@@ -66,12 +66,23 @@ class Message:
     @classmethod
     def from_dict(cls, d: dict[str, object]) -> Message:
         """Deserialise from a dict produced by :meth:`to_dict`."""
+        raw_ts = d.get("timestamp", 0.0)
+        ts: float
+        if isinstance(raw_ts, (int, float)):
+            ts = float(raw_ts)
+        elif isinstance(raw_ts, str) and raw_ts:
+            try:
+                ts = float(raw_ts)
+            except ValueError:
+                ts = 0.0
+        else:
+            ts = 0.0
         return cls(
             id=str(d.get("id", "")),
             from_session=str(d.get("from_session", "")),
             to_session=str(d.get("to_session", "")),
             body=str(d.get("body", "")),
-            timestamp=float(d.get("timestamp", 0.0) or 0.0),
+            timestamp=ts,
         )
 
 

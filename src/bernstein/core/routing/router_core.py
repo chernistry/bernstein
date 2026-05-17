@@ -925,8 +925,38 @@ def route_task(
     )
     if task.batch_eligible and task.priority != 1:
         logger.debug("Batch routing task %s (%s/%s)", task.id, cfg.model, cfg.effort)
-        return ModelConfig(model=cfg.model, effort=cfg.effort, max_tokens=cfg.max_tokens, is_batch=True)
+        cfg = ModelConfig(model=cfg.model, effort=cfg.effort, max_tokens=cfg.max_tokens, is_batch=True)
+    _emit_route_decision(task, cfg)
     return cfg
+
+
+def _emit_route_decision(task: Task, cfg: ModelConfig) -> None:
+    """Append a structured decision-log entry for this routing call.
+
+    Failures inside the writer are swallowed: routing must never break
+    because the decision log could not be persisted. The writer itself
+    is also guarded by ``BERNSTEIN_DECISION_LOG=0`` for full disable.
+    """
+    try:
+        from bernstein.core.observability.decision_log import record_decision
+
+        rationale = f"role={getattr(task, 'role', '')} priority={getattr(task, 'priority', '')}"
+        record_decision(
+            kind="model_route",
+            chosen=cfg.model,
+            rationale=rationale,
+            confidence=0.0,
+            policy_path=("route_task",),
+            inputs={
+                "task_id": getattr(task, "id", ""),
+                "role": getattr(task, "role", ""),
+                "priority": getattr(task, "priority", None),
+                "effort": cfg.effort,
+                "is_batch": cfg.is_batch,
+            },
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("decision-log emit failed for task=%s: %s", getattr(task, "id", "?"), exc)
 
 
 _HIGH_STAKES_ROLES = frozenset({"manager", "architect", "security"})

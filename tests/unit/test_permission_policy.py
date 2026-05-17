@@ -252,7 +252,9 @@ class TestResolveProfile:
         assert profile.name == PROFILE_REVIEWER
 
     def test_unknown_profile_yields_deny_all(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.delenv(ENV_PROFILE, raising=False)
         profile = resolve_profile(workdir=tmp_path, cli_override="banana")
@@ -317,7 +319,9 @@ class TestCheckToolCall:
     """Top-level helper behaves like a no-op when nothing is configured."""
 
     def test_no_profile_returns_allow(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.delenv(ENV_PROFILE, raising=False)
         decision = check_tool_call(
@@ -329,7 +333,9 @@ class TestCheckToolCall:
         assert "legacy default" in decision.reason
 
     def test_active_profile_enforced(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         monkeypatch.setenv(ENV_PROFILE, PROFILE_READ_ONLY)
         decision = check_tool_call(

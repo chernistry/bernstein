@@ -418,11 +418,7 @@ class PolicyChecker:
             )
 
         # Host allowlist (network tools).
-        if (
-            call.host is not None
-            and not _match_host(call.host, prof.allow_hosts)
-            and prof.is_fail_closed
-        ):
+        if call.host is not None and not _match_host(call.host, prof.allow_hosts) and prof.is_fail_closed:
             return PermissionDecision(
                 type=DecisionType.DENY,
                 reason=f"host {call.host!r} not in allow_hosts for profile {prof.name!r}",
@@ -434,10 +430,7 @@ class PolicyChecker:
             if token not in prof.shell_allowlist:
                 return PermissionDecision(
                     type=DecisionType.DENY,
-                    reason=(
-                        f"shell command {token!r} not in shell_allowlist "
-                        f"for profile {prof.name!r}"
-                    ),
+                    reason=(f"shell command {token!r} not in shell_allowlist for profile {prof.name!r}"),
                 )
 
         return PermissionDecision(

@@ -132,9 +132,7 @@ def test_adversarial_unicode_query_round_trips(payloads: list[dict[str, Any]]) -
     rows = log.query()
     assert len(rows) == len(payloads)
     for source, persisted in zip(payloads, rows, strict=False):
-        assert source == persisted.details, (
-            f"direct equality failed: source={source!r} persisted={persisted.details!r}"
-        )
+        assert source == persisted.details, f"direct equality failed: source={source!r} persisted={persisted.details!r}"
         assert json.loads(json.dumps(source, sort_keys=True)) == json.loads(
             json.dumps(persisted.details, sort_keys=True),
         )

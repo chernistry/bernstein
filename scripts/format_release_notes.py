@@ -77,9 +77,7 @@ def _with_release_utm(body: str, version: str) -> str:
     """
     clean_version = version[1:] if version.startswith("v") else version
     campaign = f"v{clean_version}"
-    utm_params = (
-        f"utm_source=github.com&utm_medium=release-note&utm_campaign={campaign}"
-    )
+    utm_params = f"utm_source=github.com&utm_medium=release-note&utm_campaign={campaign}"
 
     def _sub(match: re.Match[str]) -> str:
         url = match.group(0)

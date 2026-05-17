@@ -508,7 +508,9 @@ def test_gate_passes_when_all_resolve() -> None:
 
 def test_gate_fails_when_unresolved(tmp_path: Path) -> None:
     passed, details = gate_verify_citations(
-        "changed src/missing.py", offline=True, repo_root=tmp_path,
+        "changed src/missing.py",
+        offline=True,
+        repo_root=tmp_path,
     )
     assert not passed
     assert "unresolved" in details
@@ -570,8 +572,7 @@ def test_multiple_kinds_in_same_text(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "foo.py").touch()
     text = (
-        "fix in src/foo.py per arXiv:2401.12345 (10.1038/nature12373) "
-        "see https://example.com chernistry/bernstein#1402"
+        "fix in src/foo.py per arXiv:2401.12345 (10.1038/nature12373) see https://example.com chernistry/bernstein#1402"
     )
     report = verify_citations(text, offline=True, repo_root=tmp_path)
     assert report.ok

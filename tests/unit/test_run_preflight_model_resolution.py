@@ -75,9 +75,7 @@ def test_model_override_short_circuits(seed_file: Path) -> None:
     """An explicit ``--model`` override bypasses seed inspection entirely."""
     _write_seed(
         seed_file,
-        'goal: "ship"\n'
-        "role_model_policy:\n"
-        "  backend: {cli: claude, model: opus}\n",
+        'goal: "ship"\nrole_model_policy:\n  backend: {cli: claude, model: opus}\n',
     )
     model, cli, _role = _resolve_model_and_cli(str(seed_file), "haiku")
     assert model == "haiku"

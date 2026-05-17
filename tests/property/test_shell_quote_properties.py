@@ -59,9 +59,7 @@ _TOKEN_ALPHABET = st.characters(
 # Characters known to be hostile to shells. The point of the property
 # is to confirm shlex still produces a single token when the input
 # embeds them verbatim.
-_INJECTION_CHARS = st.sampled_from(
-    [";", "&", "|", "$", "`", "(", ")", "<", ">", "\\", '"', "'"]
-)
+_INJECTION_CHARS = st.sampled_from([";", "&", "|", "$", "`", "(", ")", "<", ">", "\\", '"', "'"])
 
 
 def _argv_strategy() -> st.SearchStrategy[list[str]]:
@@ -122,8 +120,7 @@ def test_injection_chars_do_not_escape_quoting(
     payload = f"{prefix}{injection}{suffix}"
     parts = shlex.split(shell_quote(payload))
     assert parts == [payload], (
-        f"injection char {injection!r} escaped quoting: "
-        f"shlex.split({shell_quote(payload)!r}) = {parts!r}"
+        f"injection char {injection!r} escaped quoting: shlex.split({shell_quote(payload)!r}) = {parts!r}"
     )
 
 

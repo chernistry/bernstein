@@ -53,9 +53,7 @@ def test_consume_at_most_retries_times(retries: int, names: list[str]) -> None:
 
 
 @given(retries=_RETRIES, names=_unique_names(max_size=6))
-def test_attempts_left_plus_used_equals_retries_until_exhausted(
-    retries: int, names: list[str]
-) -> None:
+def test_attempts_left_plus_used_equals_retries_until_exhausted(retries: int, names: list[str]) -> None:
     """``attempts_left + attempts_used`` is invariant up to the cap."""
     b = RetryBudget.from_names(retries=retries, names=names)
     for _ in range(retries):
@@ -71,9 +69,7 @@ def test_degradation_targets_match_policy_order(names: list[str]) -> None:
     retries = len(names)
     b = RetryBudget.from_names(retries=retries, names=names)
     decisions = [b.consume() for _ in range(retries)]
-    targeted = [
-        d.degraded_criterion.name for d in decisions if d.degraded_criterion is not None
-    ]
+    targeted = [d.degraded_criterion.name for d in decisions if d.degraded_criterion is not None]
     assert targeted == names
 
 
@@ -92,9 +88,7 @@ def test_levels_monotonically_non_increase(retries: int, names: list[str]) -> No
 
 
 @given(retries=_RETRIES, names=_unique_names(max_size=6))
-def test_decision_either_retries_or_exhausts(
-    retries: int, names: list[str]
-) -> None:
+def test_decision_either_retries_or_exhausts(retries: int, names: list[str]) -> None:
     """Every consume call yields a retry OR an exhausted decision."""
     b = RetryBudget.from_names(retries=retries, names=names)
     for _ in range(retries + 3):

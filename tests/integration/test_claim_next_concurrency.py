@@ -234,10 +234,7 @@ def test_subprocesses_never_double_claim(tmp_path: Path) -> None:
         [BacklogEntry(id=f"task-{i:03d}", role="backend") for i in range(n_tasks)],
     )
 
-    procs = [
-        _run_claimer_process(backlog_path, f"worker-{i}", role="backend")
-        for i in range(n_workers)
-    ]
+    procs = [_run_claimer_process(backlog_path, f"worker-{i}", role="backend") for i in range(n_workers)]
 
     all_claimed: list[str] = []
     for proc in procs:

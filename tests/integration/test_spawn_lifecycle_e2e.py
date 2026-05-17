@@ -210,9 +210,7 @@ def test_worker_crash_mid_run_is_detected(tmp_path: Path) -> None:
         # has been reverted to open by the reaper. Either way it must
         # not be ``done``.
         final = client.get(f"/tasks/{task_id}").json()
-        assert final["status"] != "done", (
-            f"crashed worker must NOT auto-mark task done; got {final['status']}"
-        )
+        assert final["status"] != "done", f"crashed worker must NOT auto-mark task done; got {final['status']}"
 
 
 # ---------------------------------------------------------------------------
@@ -285,10 +283,7 @@ def test_concurrent_agents_no_double_assignment(tmp_path: Path) -> None:
     the same task into multiple sessions on a single tick."""
     app = create_app(jsonl_path=tmp_path / "tasks.jsonl")
 
-    sessions = [
-        _make_session(session_id=f"agent-conc-{i:02d}", role="backend", pid=6000 + i)
-        for i in range(5)
-    ]
+    sessions = [_make_session(session_id=f"agent-conc-{i:02d}", role="backend", pid=6000 + i) for i in range(5)]
 
     spawner = MagicMock(spec=AgentSpawner)
     spawn_call_log: list[list[str]] = []
@@ -309,16 +304,12 @@ def test_concurrent_agents_no_double_assignment(tmp_path: Path) -> None:
             assert resp.status_code == 201
             task_ids.append(resp.json()["id"])
 
-        orch = _make_orchestrator(
-            tmp_path, client, spawner, max_agents=5, max_tasks_per_agent=1
-        )
+        orch = _make_orchestrator(tmp_path, client, spawner, max_agents=5, max_tasks_per_agent=1)
         orch.tick()
 
         # Every spawned task ID must be unique across all spawn calls.
         all_assigned = [tid for batch in spawn_call_log for tid in batch]
-        assert len(all_assigned) == len(set(all_assigned)), (
-            f"task assigned to multiple agents: {sorted(all_assigned)}"
-        )
+        assert len(all_assigned) == len(set(all_assigned)), f"task assigned to multiple agents: {sorted(all_assigned)}"
 
 
 def test_reap_clears_active_session_after_death(tmp_path: Path) -> None:
@@ -356,9 +347,7 @@ def test_reap_clears_active_session_after_death(tmp_path: Path) -> None:
         # First agent dies, second must spawn.
         spawner.check_alive.return_value = False
         r2 = orch.tick()
-        assert r2.active_agents == 0, (
-            f"old agent must be reaped after death; got active_agents={r2.active_agents}"
-        )
+        assert r2.active_agents == 0, f"old agent must be reaped after death; got active_agents={r2.active_agents}"
 
         # Make the new spawn alive.
         spawner.check_alive.return_value = True
@@ -376,10 +365,7 @@ def test_max_agents_caps_spawns_per_tick(tmp_path: Path) -> None:
     app = create_app(jsonl_path=tmp_path / "tasks.jsonl")
 
     spawner = MagicMock(spec=AgentSpawner)
-    sessions = [
-        _make_session(session_id=f"agent-cap-{i:02d}", role="backend", pid=8000 + i)
-        for i in range(3)
-    ]
+    sessions = [_make_session(session_id=f"agent-cap-{i:02d}", role="backend", pid=8000 + i) for i in range(3)]
     spawner.spawn_for_tasks.side_effect = sessions
     spawner.check_alive.return_value = True
     spawner.get_worktree_path.return_value = None
@@ -388,12 +374,8 @@ def test_max_agents_caps_spawns_per_tick(tmp_path: Path) -> None:
         for i in range(3):
             client.post("/tasks", json=_payload(title=f"cap-{i}"))
 
-        orch = _make_orchestrator(
-            tmp_path, client, spawner, max_agents=1, max_tasks_per_agent=1
-        )
+        orch = _make_orchestrator(tmp_path, client, spawner, max_agents=1, max_tasks_per_agent=1)
         result = orch.tick()
 
         # Only one spawn this tick (the other two open tasks must wait).
-        assert len(result.spawned) <= 1, (
-            f"max_agents=1 should permit at most one spawn per tick; got {result.spawned}"
-        )
+        assert len(result.spawned) <= 1, f"max_agents=1 should permit at most one spawn per tick; got {result.spawned}"

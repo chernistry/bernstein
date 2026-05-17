@@ -357,6 +357,12 @@ These are mappings, not certifications. Production accreditation (SOC 2 Type II,
 
 **Preview tunnels**. `bernstein preview start` boots a sandboxed dev server and prints a public URL. Useful for sharing a running branch with a reviewer without deploying to staging.
 
+**Opt-in telemetry**. `bernstein telemetry on` (default off; honours `DO_NOT_TRACK`). Status, export, and off via `bernstein telemetry status|export|off`. See [docs/telemetry.md](docs/telemetry.md).
+
+**Extended doctor**. `bernstein doctor extended` runs adapter, network, and CI checks beyond the base `bernstein doctor` pre-flight. See [docs/operations/doctor.md](docs/operations/doctor.md).
+
+**Adapter check**. `bernstein adapters check` reports conformance plus the capability matrix for every installed adapter. See [docs/operations/adapters.md](docs/operations/adapters.md).
+
 Full changelog: [docs/whats-new.md](docs/whats-new.md)
 
 ## operator commands
@@ -388,10 +394,13 @@ Commands that eliminate the glue code most teams end up writing around their run
 | `bernstein recipes list / show / run` | First-class workflow library. Parameterised recipes (`refactor-glob`, `bump-dependency`, `add-tests-for-module`, `license-audit`, `regenerate-docs`) live in `templates/recipes/*.yaml`; `--dry-run` previews the resolved plan. See [docs/operations/recipes.md](docs/operations/recipes.md). |
 | `bernstein resume <task-id>` | Pick up a task from its last `checkpoint.json` instead of restarting. `--dry-run` validates and bumps `resume_count` without dispatching. Exit codes distinguish missing / corrupt / hook failure. See [docs/operations/resume.md](docs/operations/resume.md). |
 | `bernstein worktrees list / gc` | Inspect and reap orphan worktrees. Four-state classifier (`active` / `orphan` / `stale` / `corrupt`); GC holds a single-file lock at `.sdd/runtime/worktree-gc.lock`. See [docs/operations/worktrees.md](docs/operations/worktrees.md). |
-| `bernstein decisions tail / search` | Inspect `.sdd/runtime/decisions.jsonl`: every routing / criterion-profile / gate-fire decision. `--kind`, `--since 1h`, `--path`. Disable with `BERNSTEIN_DECISION_LOG=0`. See [docs/operations/decision-log.md](docs/operations/decision-log.md). |
-| `bernstein abandonments list / stats` | Read-side of the agent-abandon ledger at `.sdd/runtime/abandonments.jsonl`. Closed 12-value reason taxonomy; roll-ups by reason / role / adapter. See [docs/operations/abandonments.md](docs/operations/abandonments.md). |
-| `bernstein criterion-profile list / show` | Inspect per-task criterion profile (correctness / cost / latency / reversibility). Apply at run time with `bernstein run --criterion-profile {safety-first,speed-first,balanced,cost-first}`. Disable with `BERNSTEIN_CRITERION_PROFILE=0`. See [docs/operations/criterion-profiles.md](docs/operations/criterion-profiles.md). |
-| `bernstein eval calibration report` | Brier score + ECE + reliability buckets over `.sdd/metrics/calibration.jsonl`. Filters: `--since 7d`, `--kind model_route`, `--bins N`. See [docs/operations/calibration.md](docs/operations/calibration.md). |
+| `bernstein telemetry on / off / status / export` | Opt-in operator telemetry. Default off; honours `DO_NOT_TRACK` and `BERNSTEIN_TELEMETRY=0`. Example: `bernstein telemetry on` writes `~/.bernstein/telemetry.yaml`; `bernstein telemetry export --days 30` dumps the local queue. See [docs/telemetry.md](docs/telemetry.md). |
+| `bernstein doctor extended` | Extended pre-flight on top of `bernstein doctor`: adapter conformance, network reachability, and CI integration probes. `--json` for machine output, `--adapter <name> --provider <id>` to scope; `BERNSTEIN_OFFLINE=1` skips network probes. See [docs/operations/doctor.md](docs/operations/doctor.md). |
+| `bernstein adapters check / list-status` | Conformance plus capability matrix for installed adapters. `check` prints the full table (binary, version, capabilities, conformance, notes); `list-status` is the compact view. `--format json` for CI, `--strict` exits non-zero on any `conformance == "fail"`. See [docs/operations/adapters.md](docs/operations/adapters.md). |
+| `bernstein decisions tail / search` | Inspect `.sdd/runtime/decisions.jsonl`: every routing / criterion-profile / gate-fire decision. Example: `bernstein decisions tail --kind model_route --since 1h --path src/`. Disable with `BERNSTEIN_DECISION_LOG=0`. See [docs/operations/decision-log.md](docs/operations/decision-log.md). |
+| `bernstein abandonments list / stats` | Read-side of the agent-abandon ledger at `.sdd/runtime/abandonments.jsonl`. Closed 12-value reason taxonomy; roll-ups by reason / role / adapter. Example: `bernstein abandonments stats --since 7d --by reason`. See [docs/operations/abandonments.md](docs/operations/abandonments.md). |
+| `bernstein criterion-profile list / show` | Inspect per-task criterion profile (correctness / cost / latency / reversibility). Example: `bernstein criterion-profile show <task-id>`. Apply at run time with `bernstein run --criterion-profile {safety-first,speed-first,balanced,cost-first}`. Disable with `BERNSTEIN_CRITERION_PROFILE=0`. See [docs/operations/criterion-profiles.md](docs/operations/criterion-profiles.md). |
+| `bernstein eval calibration report` | Brier score + ECE + reliability buckets over `.sdd/metrics/calibration.jsonl`. Example: `bernstein eval calibration report --since 7d --kind model_route --bins 10`. See [docs/operations/calibration.md](docs/operations/calibration.md). |
 | `bernstein lineage v2 show / verify / export` | Opt-in two-layer lineage store (parent timeline + detached children) with HMAC chains on both layers and content-addressed `child_sha` join pointers. Enable with `BERNSTEIN_LINEAGE_V2=1` or `bernstein.yaml` `lineage.version: 2`. See [docs/operations/lineage-v2.md](docs/operations/lineage-v2.md). |
 | `bernstein run --retry-budget SPEC` | Criterion-aware retry budget: `'3 retries, degrade: coverage>tests>style'`. Each retry dials down the next criterion instead of burning identical rerun budget. See [docs/operations/retry-budget.md](docs/operations/retry-budget.md). |
 

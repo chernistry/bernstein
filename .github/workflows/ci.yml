@@ -224,6 +224,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           # Full clone so ``bernstein agents-md verify`` can resolve the
@@ -288,6 +292,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -304,6 +312,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: crate-ci/typos@f06b85043a5ab470afbb0a5592456e733243983a # v1
 
@@ -314,6 +326,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: reviewdog/action-actionlint@6fb7acc99f4a1008869fa8a0f09cfca740837d9d # v1
         with:
@@ -330,6 +346,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -352,6 +372,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -368,6 +392,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -382,6 +410,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -413,6 +445,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -433,6 +469,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -452,6 +492,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -472,6 +516,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -499,6 +547,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -522,6 +574,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -555,6 +611,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -582,6 +642,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
@@ -633,6 +697,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
@@ -669,6 +737,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -701,6 +773,10 @@ jobs:
         os: [ubuntu-latest, macos-latest]
         python-version: ["3.13"]
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -735,6 +811,10 @@ jobs:
           - os: windows-latest
             python-version: "3.12"
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -886,6 +966,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 5
@@ -937,6 +1021,10 @@ jobs:
       contents: read
       issues: write
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Close ci-fix issues
         env:
@@ -977,6 +1065,10 @@ jobs:
     permissions:
       pull-requests: write
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -1093,6 +1185,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
       - id: roll-up
         name: Roll up needs.*.result with conditional allowed-skips
         env:

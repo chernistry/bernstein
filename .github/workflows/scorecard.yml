@@ -9,9 +9,13 @@ name: OSSF Scorecard
 # Ref: #1273
 
 on:
+  # Scorecard scores rolling repo posture (signed releases, branch protection,
+  # pinned actions, fuzzing, etc.) — designed for weekly tracking, not
+  # per-commit gating. Triggering on every push-to-main produces noisy
+  # "failures" when individual high-severity findings exist (expected during
+  # first-time setup). Restricted to schedule + dispatch + branch-protection
+  # changes per https://github.com/ossf/scorecard-action#installation.
   branch_protection_rule:
-  push:
-    branches: [main]
   schedule:
     - cron: "11 5 * * 1"  # Weekly, Monday 05:11 UTC
   workflow_dispatch:

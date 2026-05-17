@@ -46,7 +46,14 @@ def _pref(task: str, run: str, summary: str = "s", ts: int = 0) -> ParentRef:
     )
 
 
-def _cbody(task: str, run: str, seq: int = 0, kind: str = "subagent.started", payload: dict[str, object] | None = None, ts: int = 0) -> ChildBody:
+def _cbody(
+    task: str,
+    run: str,
+    seq: int = 0,
+    kind: str = "subagent.started",
+    payload: dict[str, object] | None = None,
+    ts: int = 0,
+) -> ChildBody:
     return ChildBody(
         v=LINEAGE_V2_ENTRY_VERSION,
         task_id=task,
@@ -332,7 +339,14 @@ def test_integration_sigstore_snapshot_shape(tmp_path: Path) -> None:
     store = LineageV2Store(tmp_path / "v2", hmac_key=_KEY)
     store.append(
         _pref("task-fixed", "run-fixed", "snap-summary", ts=1_700_000_000_000_000_000),
-        _cbody("task-fixed", "run-fixed", seq=0, kind="subagent.started", payload={"fixed": True}, ts=1_700_000_000_000_000_000),
+        _cbody(
+            "task-fixed",
+            "run-fixed",
+            seq=0,
+            kind="subagent.started",
+            payload={"fixed": True},
+            ts=1_700_000_000_000_000_000,
+        ),
     )
     atts = store.export_sigstore("task-fixed")
     assert len(atts) == 1

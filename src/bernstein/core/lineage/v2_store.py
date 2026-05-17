@@ -538,9 +538,7 @@ class LineageV2Store:
                     )
                     actual_sha = compute_child_sha(seed)
                     if actual_sha != ref.child_sha:
-                        failures.append(
-                            f"parent[{idx}] child_sha mismatch (expected {ref.child_sha} got {actual_sha})"
-                        )
+                        failures.append(f"parent[{idx}] child_sha mismatch (expected {ref.child_sha} got {actual_sha})")
 
                 expected_body_hmac = _compute_hmac(self._hmac_key, _child_body_for_hmac(body))
                 if body.hmac != expected_body_hmac:

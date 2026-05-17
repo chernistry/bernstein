@@ -455,10 +455,7 @@ def v2_show_cmd(task_id: str, root: Path | None, output_json: bool) -> None:
     if output_json:
         from dataclasses import asdict
 
-        payload = [
-            {"parent": asdict(ref), "bodies": [asdict(b) for b in bodies]}
-            for ref, bodies in timeline
-        ]
+        payload = [{"parent": asdict(ref), "bodies": [asdict(b) for b in bodies]} for ref, bodies in timeline]
         click.echo(_json.dumps(payload, indent=2, sort_keys=True))
         return
 
@@ -514,9 +511,7 @@ def v2_verify_cmd(root: Path | None, output_json: bool) -> None:
             )
         )
     elif result.ok:
-        console.print(
-            f"[green]Lineage v2:[/green] OK ({result.parent_count} parent / {result.child_count} child)"
-        )
+        console.print(f"[green]Lineage v2:[/green] OK ({result.parent_count} parent / {result.child_count} child)")
     else:
         console.print(f"[red]Lineage v2:[/red] FAIL ({len(result.failures)} issue(s))")
         for f in result.failures:

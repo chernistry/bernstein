@@ -349,12 +349,8 @@ def test_property_child_sha_distinguishes_distinct_seeds(
     seq_a: int,
     seq_b: int,
 ) -> None:
-    sa = compute_child_sha(
-        ChildBody(v=2, task_id="t", child_run_id="r", seq=seq_a, kind="x", payload=dict(a))
-    )
-    sb = compute_child_sha(
-        ChildBody(v=2, task_id="t", child_run_id="r", seq=seq_b, kind="x", payload=dict(b))
-    )
+    sa = compute_child_sha(ChildBody(v=2, task_id="t", child_run_id="r", seq=seq_a, kind="x", payload=dict(a)))
+    sb = compute_child_sha(ChildBody(v=2, task_id="t", child_run_id="r", seq=seq_b, kind="x", payload=dict(b)))
     if (a, seq_a) == (b, seq_b):
         assert sa == sb
     else:

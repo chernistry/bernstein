@@ -180,8 +180,11 @@ jobs:
     if: needs.gate.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Distribution (PyPI, npm, GHCR Docker) is owned by `publish.yml`,
-    # which runs on the tag push emitted by the `Tag` step below.
+    # Distribution is split across two workflows that both fire from this job:
+    #   - `publish.yml`        — runs on tag push; owns PyPI, npm, GitHub Release
+    #   - `publish-docker.yml` — runs on `release: published`; owns GHCR image
+    # The tag push emitted by the `Tag` step below triggers `publish.yml`,
+    # which then creates the GitHub Release that triggers `publish-docker.yml`.
     # This job's responsibility is now narrowed to:
     #   1. Decide whether to tag (gate already passed),
     #   2. Push the tag,
@@ -261,8 +264,9 @@ jobs:
           fi
 
       # Push the tag. `publish.yml` is triggered by `push: tags: v*` and
-      # owns the Build / Sigstore attestation / PyPI / npm / GHCR steps
-      # from here.
+      # owns Build / Sigstore attestation / PyPI / npm / GitHub Release.
+      # GHCR Docker is owned by `publish-docker.yml`, which fires on the
+      # `release: published` event emitted by `publish.yml::github-release`.
       - name: Tag
         if: steps.final.outputs.deferred != 'true'
         run: |

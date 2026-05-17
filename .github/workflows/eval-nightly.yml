@@ -14,9 +14,9 @@ name: eval-nightly
 
 on:
   schedule:
-    # 04:23 UTC nightly. Offset 23 minutes to avoid clobbering cluster-e2e
-    # (03:17), release-drafter (00:00), and CI-fix workflows on the hour.
-    - cron: "23 4 * * *"
+    # 04:37 UTC nightly. Offset 14 minutes from cluster-tunnel-e2e (04:23)
+    # so the two nightly workflows don't compete for the same runner pool.
+    - cron: "37 4 * * *"
   workflow_dispatch:
     inputs:
       force_run:

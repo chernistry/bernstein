@@ -1,0 +1,63 @@
+name: OSSF Scorecard
+
+# OSSF Scorecard scores the repository against the OpenSSF best-practice
+# checks (branch protection, signed releases, pinned actions, fuzzing, etc.)
+# and uploads results to GitHub Code Scanning. A badge can be added to the
+# README using:
+#   https://api.securityscorecards.dev/projects/github.com/sipyourdrink-ltd/bernstein/badge
+#
+# Ref: #1273
+
+on:
+  branch_protection_rule:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "11 5 * * 1"  # Weekly, Monday 05:11 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: scorecard-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      # Required by scorecard-action to upload SARIF + OIDC-sign results
+      security-events: write
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@99c09fe975337306107572b4fdf4db224cf8e2f2  # v2.4.3
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # publish_results: true enables the Scorecard API to ingest results
+          # so the README badge stays current. Only effective on the default
+          # branch of public repos.
+          publish_results: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: scorecard-results
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to Code Scanning
+        uses: github/codeql-action/upload-sarif@d4b3ca9fa7f69d38bfcd667bdc45bc373d16277e  # v4
+        with:
+          sarif_file: results.sarif

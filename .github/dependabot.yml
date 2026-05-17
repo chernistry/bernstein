@@ -43,6 +43,13 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      day: tuesday
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "ci"
+    groups:
+      actions-minor-patch:
+        update-types:
+          - minor
+          - patch

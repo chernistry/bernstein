@@ -175,28 +175,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
 
   release:
-    name: Patch release
+    name: Tag and create GitHub Release
     needs: gate
     if: needs.gate.outputs.should_release == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # Binding to the "pypi" environment makes every successful publish
-    # create a green deployment marker (visible in the repo sidebar
-    # Deployments view). Without this, recent v1.10.x publishes succeed
-    # but the sidebar still shows whatever the last environment-bound
-    # run left behind — which was a stale failure from April 26.
-    environment:
-      name: pypi
-      url: https://pypi.org/p/bernstein/
+    timeout-minutes: 15
+    # Distribution (PyPI, npm, GHCR Docker) is owned by `publish.yml`,
+    # which runs on the tag push emitted by the `Tag` step below.
+    # This job's responsibility is now narrowed to:
+    #   1. Decide whether to tag (gate already passed),
+    #   2. Push the tag,
+    #   3. Author rich, conventional-commit-grouped release notes for the
+    #      tag. `publish.yml::github-release` is idempotent and tolerates
+    #      a pre-existing release, so the notes authored here win.
     permissions:
       contents: write
-      packages: write
-      # Sigstore keyless OIDC (Fulcio cert + Rekor log entry) for the
-      # build-provenance attestation step. Closes the FINOS AIGF
-      # CTRL-MODEL-SUPPLY-CHAIN release-artefact gap. See
-      # docs/compliance/finos-aigf-mapping.md.
-      id-token: write
-      attestations: write
     steps:
       - name: Harden runner (audit mode)
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
@@ -206,10 +199,6 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
-        with:
-          enable-cache: true
 
       # Read current version
       - name: Get version
@@ -241,7 +230,7 @@ jobs:
       # tagged, exit cleanly with a notice. The operator can ship the next
       # release by manually bumping `pyproject.toml` in any PR (the bump
       # commit itself triggers a fresh CI → auto-release run that finds an
-      # untagged version and proceeds to tag + build + publish).
+      # untagged version and proceeds to tag and hand off to publish.yml).
       - name: No-op when current version is already tagged
         if: steps.check.outputs.exists == 'true'
         id: bump
@@ -254,8 +243,8 @@ jobs:
 
       # Final version (bumped or current). When the bump was deferred to a
       # PR, every subsequent step short-circuits via the ``deferred`` output
-      # below — the actual tag + publish will happen on the next workflow
-      # run after the PR's CI passes and auto-merge fires.
+      # below — the actual tag will happen on the next workflow run after
+      # the PR's CI passes and auto-merge fires.
       - name: Set version
         id: final
         run: |
@@ -271,36 +260,14 @@ jobs:
             echo "version=${{ steps.ver.outputs.current }}" >> "$GITHUB_OUTPUT"
           fi
 
-      # Tag + build + publish — all skipped when the bump was deferred to a PR.
+      # Push the tag. `publish.yml` is triggered by `push: tags: v*` and
+      # owns the Build / Sigstore attestation / PyPI / npm / GHCR steps
+      # from here.
       - name: Tag
         if: steps.final.outputs.deferred != 'true'
         run: |
           git tag "v${{ steps.final.outputs.version }}"
           git push origin "v${{ steps.final.outputs.version }}"
-
-      - name: Build
-        if: steps.final.outputs.deferred != 'true'
-        run: uv build
-
-      # Sigstore build-provenance attestation. Closes the FINOS AIGF
-      # CTRL-MODEL-SUPPLY-CHAIN release-artefact gap previously deferred
-      # in docs/compliance/finos-aigf-mapping.md. Every wheel + sdist
-      # gets a SLSA-3 attestation, recorded in the public Rekor log,
-      # verifiable via:
-      #   gh attestation verify <file> --owner sipyourdrink-ltd
-      # Runs BEFORE the PyPI publish so the transparency-log entry
-      # exists before any consumer can pip-install the artefact.
-      - name: Attest build provenance (Sigstore)
-        if: steps.final.outputs.deferred != 'true'
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
-        with:
-          subject-path: "dist/*"
-
-      - name: Publish to PyPI
-        if: steps.final.outputs.deferred != 'true'
-        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
-        with:
-          password: ${{ secrets.PYPI_TOKEN }}
 
       - name: GitHub Release
         if: steps.final.outputs.deferred != 'true'
@@ -335,56 +302,14 @@ jobs:
             --commits /tmp/commits.txt \
             > RELEASE_NOTES.md
 
-          gh release create "v${VERSION}" dist/* \
-            --title "v${VERSION}" \
-            --notes-file RELEASE_NOTES.md
-
-      # --- npm wrapper ---
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
-        if: steps.final.outputs.deferred != 'true'
-        with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org
-      # The npm publish is intentionally fire-and-forget. After the
-      # repo transfer to sipyourdrink-ltd, NPM_TOKEN does not have
-      # permission to publish bernstein-orchestrator (the package is
-      # owned by alexchernysh on npm). Until a fresh token with
-      # publish rights is provisioned and stored as NPM_TOKEN, we
-      # absorb the failure here so it does not poison the release
-      # job's deployment status. PyPI / GitHub Release / GHCR are
-      # unaffected — they ran in earlier steps.
-      - name: Publish npm wrapper
-        if: steps.final.outputs.deferred != 'true'
-        continue-on-error: true
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          cd packaging/npm
-          npm version "${{ steps.final.outputs.version }}" --no-git-tag-version
-          if ! npm publish --access public; then
-            echo "::warning::npm publish failed for v${{ steps.final.outputs.version }} — continuing release. Likely cause: NPM_TOKEN needs to be re-issued with publish rights for bernstein-orchestrator. PyPI/GHCR/GitHub Release already succeeded in earlier steps."
+          # Create the release without uploading dist artefacts — those are
+          # uploaded by `publish.yml::github-release` once the tag-push
+          # workflow finishes its build step. If publish.yml ran first
+          # (race), this `gh release create` will exit non-zero and we
+          # fall back to editing the existing release's notes.
+          if ! gh release create "v${VERSION}" \
+              --title "v${VERSION}" \
+              --notes-file RELEASE_NOTES.md; then
+            echo "::notice::Release v${VERSION} already exists (publish.yml beat us). Updating notes only."
+            gh release edit "v${VERSION}" --notes-file RELEASE_NOTES.md
           fi
-
-      # --- Docker / OCI ---
-      - name: Log in to GitHub Container Registry
-        if: steps.final.outputs.deferred != 'true'
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set up Docker Buildx
-        if: steps.final.outputs.deferred != 'true'
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-      - name: Build and push Docker image
-        if: steps.final.outputs.deferred != 'true'
-        continue-on-error: true
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
-        with:
-          context: .
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ steps.final.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

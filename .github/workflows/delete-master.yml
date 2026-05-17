@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  # Deleting a branch ref via the REST API requires the administration scope.
+  administration: write
 
 jobs:
   delete:
@@ -23,4 +25,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "::warning::Branch 'master' was pushed. Deleting — use 'main' instead."
+          # '|| true' kept so the workflow remains green if the branch was
+          # already deleted by a concurrent run; surface the API error first.
           gh api repos/${{ github.repository }}/git/refs/heads/master -X DELETE || true

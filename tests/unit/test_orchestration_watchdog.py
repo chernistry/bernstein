@@ -60,8 +60,9 @@ def test_classify_prompt_flags_model_question() -> None:
 
 
 def test_classify_prompt_model_question_wins_over_safety() -> None:
-    # If both look-alikes appear, the model question must win — auto-answering
-    # a model question is the failure mode this primitive must never hit.
+    # If both lookalike patterns appear, the model question must win —
+    # auto-answering a model question is the failure mode this primitive
+    # must never hit.
     text = "Which file did you mean?\nContinue? [y/N]"
     assert classify_prompt(text) == "safety"
     text2 = "Continue? [y/N]\nWhich file did you mean"

@@ -203,3 +203,107 @@ def test_tick_records_failed_delivery(tmp_path: Path) -> None:
         "watchdog.recover.detected",
         "watchdog.recover.failed",
     ]
+
+
+def test_tick_isolates_respond_exceptions(tmp_path: Path) -> None:
+    """An exception from respond must not bubble out of the tick."""
+    snapshot = SessionSnapshot(
+        session_id="s1",
+        recent_output="Continue? [y/N]",
+        is_paused=True,
+        approved_prompt_classes=frozenset({"safety"}),
+    )
+    audit = tmp_path / "watchdog.jsonl"
+    env = {FEATURE_FLAG_ENV: "1"}
+
+    def _raising_respond(session_id: str, keystroke: str) -> bool:
+        raise RuntimeError("simulated adapter write failure")
+
+    # Should not raise.
+    result = tick([snapshot], _raising_respond, audit, env=env)
+    assert len(result.recoveries) == 1
+    events = _read_audit(audit)
+    assert [e["event"] for e in events] == [
+        "watchdog.recover.detected",
+        "watchdog.recover.failed",
+    ]
+
+
+def test_tick_handles_multiple_sessions(tmp_path: Path) -> None:
+    """Each paused session is evaluated independently in a single tick."""
+    captured: list[tuple[str, str]] = []
+    audit = tmp_path / "watchdog.jsonl"
+    env = {FEATURE_FLAG_ENV: "1"}
+    snapshots = [
+        # Eligible safety prompt — auto-answered.
+        SessionSnapshot(
+            session_id="s-safety",
+            recent_output="Continue? [y/N]",
+            is_paused=True,
+            approved_prompt_classes=frozenset({"safety"}),
+        ),
+        # Model question — escalated, not answered.
+        SessionSnapshot(
+            session_id="s-question",
+            recent_output="Which file did you mean?",
+            is_paused=True,
+            approved_prompt_classes=frozenset({"safety"}),
+        ),
+        # Running session — skipped entirely.
+        SessionSnapshot(
+            session_id="s-running",
+            recent_output="Continue? [y/N]",
+            is_paused=False,
+            approved_prompt_classes=frozenset({"safety"}),
+        ),
+        # No safety approval — skipped.
+        SessionSnapshot(
+            session_id="s-noapproval",
+            recent_output="Continue? [y/N]",
+            is_paused=True,
+            approved_prompt_classes=frozenset(),
+        ),
+    ]
+
+    result = tick(snapshots, _record_calls(captured), audit, env=env)
+
+    assert [r.session_id for r in result.recoveries] == ["s-safety"]
+    assert result.skipped_model_questions == ("s-question",)
+    assert captured == [("s-safety", "y\n")]
+
+
+def test_tick_audit_recovery_id_is_unique_per_session(tmp_path: Path) -> None:
+    """Two recoveries in the same tick must get distinct recovery_id values."""
+    captured: list[tuple[str, str]] = []
+    audit = tmp_path / "watchdog.jsonl"
+    env = {FEATURE_FLAG_ENV: "1"}
+    snapshots = [
+        SessionSnapshot(
+            session_id="s1",
+            recent_output="Continue? [y/N]",
+            is_paused=True,
+            approved_prompt_classes=frozenset({"safety"}),
+        ),
+        SessionSnapshot(
+            session_id="s2",
+            recent_output="Proceed? [y/N]",
+            is_paused=True,
+            approved_prompt_classes=frozenset({"safety"}),
+        ),
+    ]
+
+    result = tick(snapshots, _record_calls(captured), audit, env=env)
+    assert len(result.recoveries) == 2
+    ids = {r.recovery_id for r in result.recoveries}
+    assert len(ids) == 2
+
+    events = _read_audit(audit)
+    # detected + succeeded per session.
+    assert len(events) == 4
+    # Every detected event must be paired with a succeeded event sharing
+    # the same recovery_id.
+    by_id: dict[str, list[str]] = {}
+    for ev in events:
+        by_id.setdefault(str(ev["recovery_id"]), []).append(str(ev["event"]))
+    for rid, evs in by_id.items():
+        assert evs == ["watchdog.recover.detected", "watchdog.recover.succeeded"], rid

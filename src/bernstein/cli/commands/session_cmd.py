@@ -1,16 +1,21 @@
-"""Session command group — record and replay deterministic run sessions.
+"""Session command group — record, replay, and fork deterministic run sessions.
 
 Every ``bernstein run`` that completes task planning records a session to
 ``.sdd/runtime/sessions/<session_id>.json``.  The session captures the
 goal, a random seed, and the full task list so that the exact same run can
 be reproduced at any time.
 
+``bernstein session fork`` (#1222) clones a recorded session into a sibling
+git worktree branched from the parent's current commit so an operator can
+explore an alternate path without disturbing the parent.
+
 Usage::
 
     bernstein session list                        # list recorded sessions
     bernstein session show 20240101-120000-abc123 # inspect a session
     bernstein session replay 20240101-120000-abc123  # re-run a session
-    bernstein session replay --dry-run 20240101-120000-abc123  # preview
+    bernstein session replay --dry-run <session_id>  # preview
+    bernstein session fork <session_id> --label use-yaml  # sibling worktree
 """
 
 from __future__ import annotations
@@ -175,3 +180,57 @@ def session_replay(
         raise SystemExit(1) from exc
 
     console.print("[green]Replay complete.[/green]")
+
+
+@session_group.command("fork")
+@click.argument("session_id")
+@click.option(
+    "--label",
+    "fork_label",
+    default="",
+    show_default=False,
+    help="Short label baked into the fork branch / session id (a-z, 0-9, '.-_').",
+)
+@click.option(
+    "--json",
+    "as_json",
+    is_flag=True,
+    default=False,
+    help="Emit the fork descriptor as JSON instead of human-readable output.",
+)
+def session_fork(session_id: str, fork_label: str, as_json: bool) -> None:
+    """Fork a recorded session into a sibling git worktree.
+
+    Creates a new worktree under ``.sdd/worktrees/<fork_session_id>``
+    branched from the parent's current HEAD commit and writes a snapshot
+    of the parent's task state into the fork's sessions directory.  The
+    parent session is untouched.
+
+    Example::
+
+        bernstein session fork 20240101-120000-abc123 --label use-yaml
+    """
+    from bernstein.core.sessions.fork import SessionForkError, fork_session
+
+    workdir = Path.cwd()
+    try:
+        fork = fork_session(
+            parent_session_id=session_id,
+            fork_label=fork_label,
+            repo_root=workdir,
+        )
+    except SessionForkError as exc:
+        console.print(f"[red]Fork failed:[/red] {exc}")
+        raise SystemExit(1) from exc
+
+    if as_json:
+        click.echo(json.dumps(fork.to_dict(), indent=2, sort_keys=True))
+        return
+
+    console.print("[green]Forked session.[/green]")
+    console.print(f"  [bold]parent:[/bold]    {fork.parent_session_id}")
+    console.print(f"  [bold]fork:[/bold]      {fork.fork_session_id}")
+    console.print(f"  [bold]branch:[/bold]    {fork.fork_branch}")
+    console.print(f"  [bold]worktree:[/bold]  {fork.fork_worktree}")
+    console.print(f"  [bold]commit:[/bold]    {fork.fork_commit[:12]}")
+    console.print(f"  [bold]snapshot:[/bold]  {fork.snapshot_path}")

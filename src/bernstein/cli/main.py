@@ -930,3 +930,8 @@ from bernstein.cli.commands.identity_cmd import identity_group  # noqa: E402
 
 cli.add_command(identity_group, "identity")
 cli.add_command(analyze_cmd, "analyze")  # issue #768
+
+# Recorded run-session inspection + fork (#1222).
+from bernstein.cli.commands.session_cmd import session_group  # noqa: E402
+
+cli.add_command(session_group, "session")

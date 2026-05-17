@@ -1019,6 +1019,21 @@ def exec_restart() -> None:
         "to ``BERNSTEIN_RETRY_BUDGET_SPEC`` for the orchestrator."
     ),
 )
+@click.option(
+    "--criterion-profile",
+    "criterion_profile",
+    type=str,
+    default=None,
+    metavar="PRESET",
+    help=(
+        "Per-task criterion profile applied to every task in this run (issue "
+        "#1346).  A named preset such as 'safety-first', 'speed-first', "
+        "'balanced', or 'cost-first'.  Stamps the chosen preset onto each "
+        "task's metadata so the router biases model selection accordingly. "
+        "Individual tasks may still override by setting "
+        "metadata['criterion_profile'] explicitly."
+    ),
+)
 def run(
     plan_file: Path | None,
     goal: str | None,
@@ -1058,6 +1073,7 @@ def run(
     hard_budget_spec: str | None = None,
     budget_cap: float | None = None,
     retry_budget_spec: str | None = None,
+    criterion_profile: str | None = None,
 ) -> None:
     """Parse seed, init workspace, start server, launch agents.
 
@@ -1085,6 +1101,23 @@ def run(
       bernstein run plan.yaml --budget 5usd --hard-budget 10usd  # soft + hard caps (#1320)
       bernstein conduct --budget-cap 5.00      # abort spawn if preflight p90 > $5
     """
+    # Issue #1346: validate the run-level criterion profile early so a
+    # typo aborts the run before agents spawn.  The resolved name is
+    # propagated to spawning code via an env var so child processes
+    # pick it up without threading another argument through the
+    # orchestrator bootstrap surface.
+    if criterion_profile is not None:
+        from bernstein.core.routing.criterion_profile import (
+            CriterionProfileError,
+            resolve,
+        )
+
+        try:
+            resolve(criterion_profile)
+        except CriterionProfileError as exc:
+            raise click.UsageError(f"--criterion-profile {criterion_profile!r}: {exc}") from None
+        os.environ["BERNSTEIN_RUN_CRITERION_PROFILE"] = criterion_profile
+
     # Issue #1320: ``--budget`` is the friendlier alias of ``--max-cost-usd``
     # and shares the same env var. When both are set, the operator's
     # explicit ``--max-cost-usd`` wins for backward compat.

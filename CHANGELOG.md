@@ -33,6 +33,10 @@ Hand-curated release notes: [`docs/release-notes/v2.0.0.md`](docs/release-notes/
 
 ## Unreleased
 
+### Added — routing
+
+- **Per-task criterion profile (#1346).** Operators can now stamp a four-axis weight vector (`correctness`, `cost`, `latency`, `reversibility`) onto individual tasks to bias model selection.  Named presets (`safety-first`, `speed-first`, `balanced`, `cost-first`) ship in `templates/criterion_profiles/` and force-include into the wheel.  Inline dicts work too: `metadata['criterion_profile'] = {"correctness": 0.6, ...}`.  Surfaced via `bernstein add-task --criterion-profile <preset>`, `bernstein run --criterion-profile <preset>`, and `bernstein criterion-profile show <task_id> | list`.  Feature flag `BERNSTEIN_CRITERION_PROFILE=0` reverts to pre-existing routing.  Child tasks inherit the parent's profile unless explicitly overridden.
+
 ### Changed — chat bridge
 
 - **Telegram driver simplified to a single long-poll path.** The `python-telegram-bot` v22 long-poll driver at `bernstein.core.chat.drivers.telegram` is the only Telegram driver. Configure a bot API token from `@BotFather` and a chat id; no external services. The earlier optional bridge-router architecture has been removed.

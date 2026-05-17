@@ -1,0 +1,10 @@
+# Balanced criterion profile (issue #1346).
+#
+# Uniform weights across all four axes.  Useful as the operator default
+# when no axis clearly dominates; the router falls back to its normal
+# bandit/cascade path under this profile.
+name: balanced
+correctness: 0.25
+cost: 0.25
+latency: 0.25
+reversibility: 0.25

@@ -10,6 +10,12 @@ tags:
 
 Five routes. Source: `web/src/routes/`. Design reference: `.sdd/backlog/open/frontend/design_handoff_bernstein_phase1/README.md` §6.
 
+## Screenshots
+
+![Tasks page with Diff drawer open](../assets/webui-agents-diffs.png)
+
+![Agents grid with token meter drawer](../assets/webui-agents-panel.png)
+
 ## Tasks (`/ui/tasks`, default route)
 
 - **Source:** `web/src/routes/Tasks.tsx`.

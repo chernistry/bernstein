@@ -96,8 +96,16 @@ class TestMockIdleEnvValidation:
             "BERNSTEIN_MOCK_FAIL_RATE": "nan-please",  # not a float
         }
         rc, log = _run_idle_mock_script(env, tmp_path=tmp_path)
-        assert rc == 0, f"crash on malformed FAIL_RATE; log:\n{log}"
-        assert "WARN bad BERNSTEIN_MOCK_FAIL_RATE" in log
+        # The script must tolerate the malformed FAIL_RATE — log a warning and
+        # fall back to the default. After that the simulated-failure dice
+        # roll (default 5%) may legitimately exit non-zero; that is a
+        # separate concern from "did the parse error crash us?", so we only
+        # assert the parse warning was emitted, not the exit code.
+        assert "WARN bad BERNSTEIN_MOCK_FAIL_RATE" in log, f"missing warn; log:\n{log}"
+        # Cap-stone: rc must be a clean 0 (no failure dice) or 1 (the
+        # default fail_rate hit). A traceback would surface as a non-{0,1}
+        # exit or an empty log.
+        assert rc in (0, 1), f"unexpected crash rc={rc}; log:\n{log}"
 
     def test_idle_clamps_inverted_range(self, tmp_path: Path) -> None:
         # Original code used random.randint(min(lo,hi), max(lo,hi)) which works

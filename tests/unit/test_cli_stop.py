@@ -318,11 +318,15 @@ class TestHardStopFallbacks:
         killed: set[int] = set()
 
         def _record_agent(pid: int, label: str, seen: set[int]) -> None:
-            del label, seen
+            del label
+            # Mirror the real helper: add the PID to ``killed`` so the
+            # second-pass orphan-shell sweep skips it instead of double-
+            # counting (#1397 introduced the second pass).
+            seen.add(pid)
             agent_calls.append(pid)
 
         def _record_infra(pid: int, label: str, seen: set[int]) -> None:
-            del seen
+            seen.add(pid)
             infra_calls.append((pid, label))
 
         with (

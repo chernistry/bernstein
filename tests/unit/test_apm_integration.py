@@ -131,12 +131,12 @@ class TestConfigureDatadog:
         assert result is False
 
     def test_falls_back_to_otlp_preset_when_ddtrace_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Without ddtrace, falls back to OTLP preset using bernstein.core.telemetry."""
+        """Without ddtrace, falls back to OTLP preset using bernstein.core.observability.telemetry."""
         cfg = DatadogConfig(use_otlp=False, agent_host="dd-agent", agent_port=8126)
 
         with (
             patch.dict("sys.modules", {"ddtrace": None}),
-            patch("bernstein.core.telemetry.init_telemetry_from_preset") as mock_preset,
+            patch("bernstein.core.observability.telemetry.init_telemetry_from_preset") as mock_preset,
         ):
             mock_preset.return_value = None
             result = configure_datadog(cfg)
@@ -158,9 +158,14 @@ class TestConfigureDatadog:
         assert cfg.env == "test"
         assert cfg.agent_host == "custom-host"
 
-    @patch("bernstein.core.telemetry.init_telemetry_from_preset")
+    @patch("bernstein.core.observability.telemetry.init_telemetry_from_preset")
     def test_otlp_fallback_calls_preset(self, mock_preset: MagicMock, monkeypatch: pytest.MonkeyPatch) -> None:
-        """When ddtrace is missing, falls back to OTLP preset."""
+        """When ddtrace is missing, falls back to OTLP preset.
+
+        The apm module imports init_telemetry_from_preset lazily from
+        bernstein.core.observability.telemetry inside the fallback branch,
+        so the patch target has to match that source module.
+        """
         monkeypatch.delenv("DD_API_KEY", raising=False)
         monkeypatch.delenv("DATADOG_API_KEY", raising=False)
         cfg = DatadogConfig(use_otlp=False, agent_host="dd-host")

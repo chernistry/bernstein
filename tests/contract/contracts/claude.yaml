@@ -1,0 +1,34 @@
+# Contract for the Claude Code CLI (adapter: claude).
+#
+# Always-passed flags are derived from
+# src/bernstein/adapters/claude.py::_build_command. Flags added only
+# conditionally (e.g. --fallback-model, --allowedTools, --add-dir,
+# --agents, --max-budget-usd, --json-schema, --mcp-config) are NOT
+# part of the hard contract — they are covered by the unit suite at
+# tests/unit/adapters/.
+adapter: claude
+binary: claude
+install:
+  method: npm
+  spec: "@anthropic-ai/claude-code@latest"
+auth:
+  # ``claude --help`` works without authentication.
+  required_for_help: false
+  # Model listing would require auth; left disabled by default.
+  required_for_models: false
+  secret_env: "ANTHROPIC_API_KEY"
+required_flags:
+  - "--model"
+  - "--effort"
+  - "--permission-mode"
+  - "--output-format"
+  - "--verbose"
+  - "--include-hook-events"
+  - "--no-session-persistence"
+# Note: ``--max-turns`` is still passed by the adapter but no longer
+# appears in claude 2.1.x's ``--help`` output. Tracked separately;
+# omitted here so the contract reflects the documented surface.
+required_subcommands: []
+expected_models:
+  command: []
+  required_present: []

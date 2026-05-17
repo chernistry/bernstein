@@ -1,0 +1,26 @@
+# Contract for the AWS Q Developer CLI (adapter: q_dev, binary: q).
+#
+# Always-passed surface from src/bernstein/adapters/q_dev.py:
+# ``q chat --no-interactive --trust-all-tools <prompt>``.
+adapter: q_dev
+binary: q
+install:
+  method: curl
+  spec: "https://desktop-release.q.us-east-1.amazonaws.com/latest/q-x86_64-linux.zip"
+auth:
+  # ``q --help`` works without login. ``q chat`` needs the local
+  # bearer-token cache produced by ``q login``; that is outside
+  # CI's reach so we leave the model check disabled.
+  required_for_help: false
+  required_for_models: true
+  secret_env: "AMAZON_Q_TOKEN"
+required_flags:
+  - "--no-interactive"
+  - "--trust-all-tools"
+required_subcommands:
+  - "chat"
+# q sub-flags live under ``q chat --help``.
+help_command: ["q", "chat", "--help"]
+expected_models:
+  command: []
+  required_present: []

@@ -1,0 +1,19 @@
+# Contract for the AIChat CLI (adapter: aichat).
+#
+# Always-passed surface from src/bernstein/adapters/aichat.py:
+# ``aichat -m <model> -- <prompt>``.
+adapter: aichat
+binary: aichat
+install:
+  method: cargo
+  spec: "aichat"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "OPENAI_API_KEY"
+required_flags:
+  - "-m"
+required_subcommands: []
+expected_models:
+  command: []
+  required_present: []

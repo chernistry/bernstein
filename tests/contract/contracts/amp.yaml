@@ -1,0 +1,20 @@
+# Contract for the Sourcegraph Amp CLI (adapter: amp).
+#
+# Always-passed flags from src/bernstein/adapters/amp.py.
+adapter: amp
+binary: amp
+install:
+  method: npm
+  spec: "@sourcegraph/amp@latest"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "SRC_ACCESS_TOKEN"
+required_flags:
+  - "--model"
+  - "--prompt"
+  - "--headless"
+required_subcommands: []
+expected_models:
+  command: []
+  required_present: []

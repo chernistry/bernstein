@@ -16,6 +16,7 @@ on:
       - "eval-nightly"
       - "soc2-evidence-nightly"
       - "Adversarial Pen-Test Suite"
+      - "Adapter contract drift"
     types: [completed]
 
 concurrency:

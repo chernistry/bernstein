@@ -203,26 +203,48 @@ def _render_auth_section(token_path: Path) -> str:
     The token file path is referenced by path rather than embedding the raw
     token so that credentials do not appear in prompt logs.
 
+    The path is coerced to absolute form so the ``cat`` examples resolve
+    correctly even when the agent's spawn cwd differs from the orchestrator
+    workdir (the worktree case — see #1261). ``resolve(strict=False)``
+    keeps the call cheap when the file has not yet been written and never
+    fails on missing intermediates.
+
     Args:
         token_path: Path to the session-scoped JWT token file (mode 0600).
 
     Returns:
         Markdown block instructing the agent to authenticate all requests.
     """
+    absolute = token_path if token_path.is_absolute() else token_path.resolve(strict=False)
     return (
         "\n## Task Server Authentication\n"
-        "Your agent token is stored at (do NOT print or log its contents):\n"
-        f"```\n{token_path}\n```\n"
-        "Include this header in **all** task server requests:\n"
+        "Your agent token is stored at this absolute path (do NOT print or "
+        "log its contents):\n"
+        f"```\n{absolute}\n```\n"
+        "Include this header in **all** task server requests — the path is "
+        "absolute, so it works regardless of your current shell directory:\n"
         "```bash\n"
-        f'-H "Authorization: Bearer $(cat {token_path})"\n'
+        f'-H "Authorization: Bearer $(cat {absolute})"\n'
+        "```\n"
+        "Example — creating a subtask:\n"
+        "```bash\n"
+        f"curl -s -X POST http://127.0.0.1:8052/tasks \\\n"
+        f'  -H "Authorization: Bearer $(cat {absolute})" \\\n'
+        '  -H "Content-Type: application/json" \\\n'
+        '  -d \'{"title": "...", "role": "backend", "description": "..."}\'\n'
         "```\n"
         "Example — marking a task complete:\n"
         "```bash\n"
         f"curl -s -X POST http://127.0.0.1:8052/tasks/<TASK_ID>/complete \\\n"
-        f'  -H "Authorization: Bearer $(cat {token_path})" \\\n'
+        f'  -H "Authorization: Bearer $(cat {absolute})" \\\n'
         '  -H "Content-Type: application/json" \\\n'
         '  -d \'{"result_summary": "Done"}\'\n'
+        "```\n"
+        "If the token file is unreadable for any reason, fall back to the\n"
+        "`BERNSTEIN_AUTH_TOKEN` environment variable, which is exported into\n"
+        "your shell:\n"
+        "```bash\n"
+        '-H "Authorization: Bearer $BERNSTEIN_AUTH_TOKEN"\n'
         "```\n"
     )
 
@@ -951,13 +973,22 @@ class AgentSpawner:
         The token file path is recorded in ``_agent_token_files`` for cleanup
         when the agent is reaped.
 
+        The returned path is resolved to an absolute path (#1261) — agents
+        spawn with cwd set to a git worktree under
+        ``.sdd/worktrees/<session>/``, so a relative path here would resolve
+        against the worktree at ``cat`` time and miss the real token that
+        lives under the orchestrator's project root. The auth section
+        injected into the prompt by :func:`_render_auth_section` then ends
+        up pointing at a non-existent file, the agent loops on
+        ``find ... -name "*.token"``, and every ``POST /tasks`` returns 401.
+
         Args:
             session_id: The agent session ID (used as identity ID).
             role: The agent's role.
             task_ids: Task IDs the agent is authorised to act on.
 
         Returns:
-            Path to the written token file.
+            Absolute path to the written token file.
         """
         import os
 
@@ -968,7 +999,11 @@ class AgentSpawner:
             metadata={"source": "spawner"},
         )
 
-        tokens_dir = self._workdir / ".sdd" / "runtime" / "agent_tokens"
+        # ``resolve(strict=False)`` returns an absolute path even when the
+        # directory does not yet exist on disk, so the prompt injection
+        # always references the canonical project-root location regardless
+        # of the agent's spawn cwd (worktree, container, sandbox).
+        tokens_dir = (self._workdir / ".sdd" / "runtime" / "agent_tokens").resolve(strict=False)
         tokens_dir.mkdir(parents=True, exist_ok=True)
         token_path = tokens_dir / f"{session_id}.token"
 

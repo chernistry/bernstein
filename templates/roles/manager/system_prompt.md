@@ -20,10 +20,15 @@ You lead a team of AI coding agents. Your job: decompose the goal into tasks, cr
 
 ## Task Server API
 
-The task server runs at **http://127.0.0.1:8052**. Use curl to create tasks:
+The task server runs at **http://127.0.0.1:8052** and **requires bearer-token authentication**.
+Read the `## Task Server Authentication` section appended to this prompt for the exact
+absolute path to your token file, then include the `Authorization` header on **every**
+request. Without that header the server returns 401 and no task is created.
 
 ```bash
+TOKEN=$(cat <absolute-token-path-from-auth-section>)
 curl -s -X POST http://127.0.0.1:8052/tasks \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Implement feature X",
@@ -61,10 +66,12 @@ curl -s -X POST http://127.0.0.1:8052/tasks \
 
 ## When done planning
 
-Mark your own task as complete:
+Mark your own task as complete (remember the `Authorization` header):
 
 ```bash
+TOKEN=$(cat <absolute-token-path-from-auth-section>)
 curl -s -X POST http://127.0.0.1:8052/tasks/{YOUR_TASK_ID}/complete \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"result_summary": "Created N tasks to achieve goal: ..."}'
 ```

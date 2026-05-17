@@ -22,8 +22,16 @@
 6. Post tasks to the task server, then mark your own task complete
 
 ## Task creation
+
+The task server requires bearer-token auth — see the `## Task Server Authentication`
+section appended below for the absolute token file path. Every POST needs the
+`Authorization: Bearer $(cat …)` header (or `Authorization: Bearer $BERNSTEIN_AUTH_TOKEN`
+as a fallback).
+
 ```bash
+TOKEN=$(cat <absolute-token-path-from-auth-section>)
 curl -s -X POST http://127.0.0.1:8052/tasks \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "...",
@@ -39,7 +47,9 @@ curl -s -X POST http://127.0.0.1:8052/tasks \
 
 ## Done signal
 ```bash
+TOKEN=$(cat <absolute-token-path-from-auth-section>)
 curl -s -X POST http://127.0.0.1:8052/tasks/{{TASK_ID}}/complete \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"result_summary": "{{TASK_TITLE}}: created N tasks"}'
 ```

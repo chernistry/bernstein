@@ -127,7 +127,19 @@ jobs:
           #   - Workflow lint                  (actionlint via reviewdog)
           #   - Repo hygiene                   (.sdd not tracked, no merge markers, etc.)
           #   - Dead code (Vulture)            (unused vars/imports)
-          ALLOWED='^(Lint|Spelling \(typos\)|Workflow lint|Repo hygiene|Dead code \(Vulture\))$'
+          #   - Test (...)                     (contract-drift fixtures only,
+          #                                     guarded by a strict max-LOC cap
+          #                                     downstream — see #1273.)
+          #
+          # `Test (...)` matrix legs were added so trivial contract drift
+          # (e.g. "expected gui in DOCUMENTED_COMMANDS",
+          # "_INFRASTRUCTURE_PATHS missing /ui", "idle param not forwarded")
+          # can be auto-PR'd instead of escalated to a manual issue. The
+          # downstream max-LOC guard (see "Enforce small-diff cap" step in
+          # job `fix`) refuses to open a PR if the Gemini diff exceeds 50
+          # lines added+removed, which keeps the model away from anything
+          # that isn't a one-shot fixture edit.
+          ALLOWED='^(Lint|Spelling \(typos\)|Workflow lint|Repo hygiene|Dead code \(Vulture\)|Test \()'
 
           FAILED=$(gh run view "$RUN_ID" \
             --repo "${{ github.repository }}" \
@@ -178,7 +190,10 @@ jobs:
     outputs:
       pr_url: ${{ steps.open-pr.outputs.pr_url }}
       pr_number: ${{ steps.open-pr.outputs.pr_number }}
-      result: ${{ steps.open-pr.outputs.result }}
+      # Surface whichever sub-step actually set a result. open-pr only fires
+      # when the diff is small and non-empty; otherwise no-changes-result
+      # or oversized-result wins.
+      result: ${{ steps.open-pr.outputs.result || steps.oversized-result.outputs.result || steps.no-changes-result.outputs.result }}
     steps:
       - name: Checkout failing commit
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -245,9 +260,36 @@ jobs:
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Enforce small-diff cap (max 50 LOC)
+        id: size-check
+        if: steps.diff.outputs.has_changes == 'true'
+        run: |
+          # Auto-heal is only safe for trivial deterministic fixes. We cap
+          # the diff at 50 LOC added+removed (excluding the diff header) so
+          # the Test allowlist entry can't turn into an open invitation for
+          # the model to rewrite production code. Anything larger drops to
+          # the fallback-issue path for human triage. See #1273.
+          MAX_LOC=50
+          # Sum the added + removed columns. Binary files report '-' for
+          # both columns; treat those as oversized to force human review.
+          if git diff HEAD --numstat | awk '{ if ($1 == "-" || $2 == "-") { exit 2 } added+=$1; removed+=$2 } END { exit (added+removed > '"$MAX_LOC"') ? 1 : 0 }'; then
+            TOTAL=$(git diff HEAD --numstat | awk '{ added+=$1; removed+=$2 } END { print added+removed }')
+            echo "::notice::Auto-heal diff is ${TOTAL} LOC (cap ${MAX_LOC}) — within cap."
+            echo "within_cap=true" >> "$GITHUB_OUTPUT"
+          else
+            STATUS=$?
+            if [ "$STATUS" = "2" ]; then
+              echo "::warning::Auto-heal diff contains binary changes — refusing to auto-PR."
+            else
+              TOTAL=$(git diff HEAD --numstat | awk '{ added+=$1; removed+=$2 } END { print added+removed }')
+              echo "::warning::Auto-heal diff is ${TOTAL} LOC, exceeds cap ${MAX_LOC} — escalating to fallback issue."
+            fi
+            echo "within_cap=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Push auto-heal branch and open PR
         id: open-pr
-        if: steps.diff.outputs.has_changes == 'true'
+        if: steps.diff.outputs.has_changes == 'true' && steps.size-check.outputs.within_cap == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AUTO_HEAL_BRANCH: ${{ needs.triage.outputs.auto_heal_branch }}
@@ -301,6 +343,11 @@ jobs:
         if: steps.diff.outputs.has_changes != 'true'
         run: echo "result=no_changes" >> "$GITHUB_OUTPUT"
 
+      - name: Mark oversized-diff outcome
+        id: oversized-result
+        if: steps.diff.outputs.has_changes == 'true' && steps.size-check.outputs.within_cap != 'true'
+        run: echo "result=oversized_diff" >> "$GITHUB_OUTPUT"
+
   fallback-issue:
     name: Open ci-fix issue (fallback)
     needs: [triage, fix]
@@ -310,7 +357,8 @@ jobs:
       (needs.triage.outputs.safe_for_gemini != 'true' ||
        needs.fix.result == 'failure' ||
        needs.fix.result == 'skipped' ||
-       needs.fix.outputs.result == 'no_changes')
+       needs.fix.outputs.result == 'no_changes' ||
+       needs.fix.outputs.result == 'oversized_diff')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -330,6 +378,8 @@ jobs:
           REASON="Bernstein auto-heal could not produce a fix in 3 iterations within \$5 budget."
           if [ "$OUTCOME" = "no_changes" ]; then
             REASON="Bernstein auto-heal ran but produced no diff (likely a transient/infrastructural failure or out-of-scope error)."
+          elif [ "$OUTCOME" = "oversized_diff" ]; then
+            REASON="Bernstein auto-heal produced a diff larger than the 50 LOC safety cap. Refusing to auto-PR; human review required (see #1273 for the cap rationale)."
           fi
           BODY=$(cat <<EOF
           CI failure on commit \`${HEAD_SHA}\`. Run: $RUN_URL

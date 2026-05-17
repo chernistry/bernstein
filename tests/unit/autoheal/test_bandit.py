@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from bernstein.core.autoheal.bandit import (
+    ENV_SEED,
     ArmState,
     BanditState,
     load_state,
@@ -165,3 +166,32 @@ def test_save_state_is_atomic(tmp_path: Path) -> None:
     data = json.loads(p.read_text(encoding="utf-8"))
     assert data["v"] == 1
     assert "arms" in data
+
+
+def test_env_seed_makes_select_reproducible(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Setting ``BERNSTEIN_AUTOHEAL_BANDIT_SEED`` pins the picked arm."""
+    monkeypatch.setenv(ENV_SEED, "42")
+    s1 = BanditState()
+    pick1 = s1.select(["a", "b", "c", "d"])
+    s2 = BanditState()
+    pick2 = s2.select(["a", "b", "c", "d"])
+    assert pick1 == pick2
+
+
+def test_env_seed_invalid_falls_back_to_fresh(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A non-integer seed must not break select."""
+    monkeypatch.setenv(ENV_SEED, "not-an-int")
+    s = BanditState()
+    pick = s.select(["a", "b"])
+    assert pick in {"a", "b"}
+
+
+def test_explicit_rng_overrides_env_seed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When the caller passes ``rng=`` the env seed is ignored."""
+    monkeypatch.setenv(ENV_SEED, "1")
+    s = BanditState()
+    pick = s.select(["a", "b", "c"], rng=random.Random(99))
+    # Compute the expected pick deterministically.
+    s2 = BanditState()
+    expected = s2.select(["a", "b", "c"], rng=random.Random(99))
+    assert pick == expected

@@ -64,9 +64,9 @@ shipped, workflow wiring deferred), `deferred` (planned for v3).
 | 13 | Cost circuit-breaker | shipped | `core.autoheal.cost_guard` |
 | 14 | Adversarial pre-merge test | deferred | adversary role exists, wiring v3 |
 | 15 | Blast-radius gate | partial | import-guarded in workflow; threshold tuning v3 |
-| 16 | Lineage v2 attestation | shipped | `core.autoheal.lineage_writer` |
-| 17 | Decision-log entry | partial | import asserted; record write deferred |
-| 18 | Calibration tracking | partial | import asserted; record write deferred |
+| 16 | Lineage v2 attestation | shipped | `core.autoheal.lineage_writer` (extensible `meta` channel) |
+| 17 | Decision-log entry | shipped | `core.autoheal.wire` writes `autoheal_strategy` rows |
+| 18 | Calibration tracking | shipped | `core.autoheal.wire` writes predicted/observed pairs |
 | 19 | SLSA build-provenance attestation | shipped | `actions/attest-build-provenance` |
 | 20 | Structured Telegram alert | shipped | workflow step |
 | 21 | Operator-readable audit ledger | shipped | `.sdd/autoheal-history.jsonl` |
@@ -76,7 +76,22 @@ shipped, workflow wiring deferred), `deferred` (planned for v3).
 | 25 | Cordon-zone enforcement (pre-commit) | partial | CLI + module shipped; pre-commit hook deferred to v3 |
 | 26 | Cost-aware degradation | shipped | `cost_guard.llm_globally_disabled` |
 
-Shipped: 14. Partial: 7. Deferred: 5. Total surface: 26.
+Shipped: 16. Partial: 5. Deferred: 5. Total surface: 26.
+
+## Forward-compat env knobs
+
+Operators can route observability sidecars to alternative storage
+without forking this package:
+
+| Env var | Purpose | Default |
+|---------|---------|---------|
+| `BERNSTEIN_AUTOHEAL_LOG_PATH` | Audit ledger destination | `.sdd/autoheal-history.jsonl` |
+| `BERNSTEIN_AUTOHEAL_DECISION_LOG_PATH` | Decision-log destination | `.sdd/runtime/decisions.jsonl` |
+| `BERNSTEIN_AUTOHEAL_CALIBRATION_LOG_PATH` | Calibration log destination | `.sdd/metrics/calibration.jsonl` |
+| `BERNSTEIN_AUTOHEAL_CORDON_EXTRA` | Colon-separated extra exact-allow paths | (empty) |
+| `BERNSTEIN_AUTOHEAL_BANDIT_SEED` | Integer seed for reproducible bandit picks | (fresh RNG) |
+| `BERNSTEIN_AUTOHEAL_BUDGET_USD` | Daily LLM budget cap | `1.00` |
+| `BERNSTEIN_AUTOHEAL_DISABLE_LLM` | Any non-empty value globally disables LLM paths | (unset) |
 
 ## State files
 

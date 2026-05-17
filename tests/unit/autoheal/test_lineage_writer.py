@@ -6,6 +6,7 @@ import json
 
 from bernstein.core.autoheal.lineage_writer import (
     LINEAGE_KIND,
+    PAYLOAD_SCHEMA_VERSION,
     AutohealLineagePayload,
     render_canonical_bytes,
     render_payload,
@@ -56,3 +57,34 @@ def test_render_canonical_bytes_compact_separators() -> None:
     s = raw.decode("utf-8")
     assert ", " not in s
     assert ": " not in s
+
+
+def test_payload_includes_schema_version() -> None:
+    """Forward-compat: schema_version is part of the canonical shape."""
+    out = render_payload(_mk())
+    assert out["schema_version"] == PAYLOAD_SCHEMA_VERSION
+
+
+def test_payload_meta_extension_is_merged_at_top_level() -> None:
+    """Extension via ``meta`` surfaces new keys without a schema bump."""
+    payload = _mk(meta={"decision_id": "dec-xyz", "replay_seed": 42})
+    out = render_payload(payload)
+    assert out["decision_id"] == "dec-xyz"
+    assert out["replay_seed"] == 42
+    # Core fields still authoritative.
+    assert out["strategy"] == "ruff-format"
+
+
+def test_payload_meta_cannot_overwrite_core_field() -> None:
+    """A buggy caller must not be able to poison the canonical shape."""
+    payload = _mk(meta={"strategy": "EVIL"})
+    out = render_payload(payload)
+    assert out["strategy"] == "ruff-format"
+
+
+def test_payload_default_meta_is_independent() -> None:
+    """Default-factory ``meta`` is not shared across instances."""
+    a = _mk()
+    b = _mk()
+    a.meta["x"] = 1
+    assert "x" not in b.meta

@@ -117,10 +117,12 @@ def iter_records(path: Path) -> Iterator[HealRecord]:
             continue
 
 
-def _coerce_outcome(value: object) -> Outcome:
+def coerce_outcome(value: object) -> Outcome:
     """Map an arbitrary value to one of the Outcome literals.
 
     Unknown values map to ``"skipped_no_jobs"`` as a safe default.
+    Public alias of :func:`_coerce_outcome` for cross-module callers
+    (e.g. :mod:`bernstein.core.autoheal.wire`).
     """
     allowed: tuple[Outcome, ...] = (
         "applied",
@@ -136,6 +138,11 @@ def _coerce_outcome(value: object) -> Outcome:
     if isinstance(value, str) and value in allowed:
         return value  # type: ignore[return-value]
     return "skipped_no_jobs"
+
+
+def _coerce_outcome(value: object) -> Outcome:
+    """Back-compat alias preserved for in-tree callers; prefer :func:`coerce_outcome`."""
+    return coerce_outcome(value)
 
 
 def now_record(
@@ -173,6 +180,7 @@ __all__ = [
     "HealRecord",
     "Outcome",
     "append",
+    "coerce_outcome",
     "iter_records",
     "now_record",
 ]

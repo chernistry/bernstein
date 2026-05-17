@@ -19,11 +19,20 @@ Cordon allowlist
 The whitespace-only carve-out is enforced by the workflow, not this
 module - we just expose the allowlist so the pre-commit hook can
 decline non-whitespace touches outside the explicit list.
+
+Operator extensions
+-------------------
+``BERNSTEIN_AUTOHEAL_CORDON_EXTRA`` is a colon-separated env var that
+adds *exact* paths to :data:`CORDON_EXACT` at evaluation time. This
+lets a repo carry per-fork additions (e.g. a custom typo allowlist
+file) without forking this module. The env is read lazily so tests
+can scope the override with ``monkeypatch``.
 """
 
 from __future__ import annotations
 
 import fnmatch
+import os
 import re
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -40,6 +49,19 @@ CORDON_EXACT: Final[frozenset[str]] = frozenset(
 )
 
 CORDON_GLOBS: Final[tuple[str, ...]] = (".cursor/rules/*.mdc",)
+
+ENV_CORDON_EXTRA: Final[str] = "BERNSTEIN_AUTOHEAL_CORDON_EXTRA"
+"""Colon-separated extra exact-allow paths, e.g. ``"extra/typos.lst:CODEOWNERS"``."""
+
+
+def _extra_exact() -> frozenset[str]:
+    """Resolve the operator-extended exact-allow set."""
+    raw = os.environ.get(ENV_CORDON_EXTRA, "").strip()
+    if not raw:
+        return frozenset()
+    parts = [p.strip() for p in raw.split(":") if p.strip()]
+    return frozenset(parts)
+
 
 WHITESPACE_OK_GLOBS: Final[tuple[str, ...]] = (
     "src/bernstein/**/*.py",
@@ -125,6 +147,8 @@ def evaluate(path: str, *, whitespace_only: bool = False) -> CordonDecision:
     norm = str(PurePosixPath(path))
     if norm in CORDON_EXACT:
         return CordonDecision(path=norm, allowed=True, rule="cordon_exact")
+    if norm in _extra_exact():
+        return CordonDecision(path=norm, allowed=True, rule="cordon_exact_env")
     for pattern in CORDON_GLOBS:
         if fnmatch.fnmatchcase(norm, pattern):
             return CordonDecision(path=norm, allowed=True, rule=f"cordon_glob:{pattern}")
@@ -156,6 +180,7 @@ def evaluate_many(
 __all__ = [
     "CORDON_EXACT",
     "CORDON_GLOBS",
+    "ENV_CORDON_EXTRA",
     "WHITESPACE_OK_GLOBS",
     "CordonDecision",
     "evaluate",

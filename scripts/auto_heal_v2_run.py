@@ -39,11 +39,11 @@ import sys
 from pathlib import Path
 
 from bernstein.core.autoheal import (
-    audit_log,
     bandit,
     bayesian,
     categorizer,
     kill_switch,
+    wire,
 )
 from bernstein.core.autoheal.audit_log import HealRecord
 
@@ -115,7 +115,14 @@ def cmd_record_outcome(args: argparse.Namespace) -> int:
 
 
 def cmd_log(_args: argparse.Namespace) -> int:
-    """Append one HealRecord from stdin JSON to the ledger."""
+    """Append one HealRecord from stdin JSON to the ledger.
+
+    Also mirrors the row to the decision log (kind ``autoheal_strategy``)
+    and the calibration log so ``bernstein decisions tail`` and the
+    weekly Brier report include autoheal actions. All sidecar writes
+    are best-effort: failures are warned and the audit append still
+    proceeds.
+    """
     try:
         body = json.load(sys.stdin)
     except json.JSONDecodeError as e:
@@ -125,20 +132,39 @@ def cmd_log(_args: argparse.Namespace) -> int:
         sys.stderr.write("expected a JSON object on stdin\n")
         return 2
 
-    record = audit_log.now_record(
+    candidates_raw = body.get("candidates", [])
+    candidates: tuple[str, ...] = (
+        tuple(str(c) for c in candidates_raw if str(c).strip()) if isinstance(candidates_raw, list) else ()
+    )
+
+    result = wire.record_heal(
         run_id=str(body.get("run_id", "")),
         head_sha=str(body.get("head_sha", "")),
         strategy=str(body.get("strategy", "")),
         cls=str(body.get("cls", "unknown")),
         confidence=float(body.get("confidence", 0.0)),
-        outcome=audit_log._coerce_outcome(body.get("outcome", "skipped_no_jobs")),
+        outcome=str(body.get("outcome", "skipped_no_jobs")),
         cost_usd=float(body.get("cost_usd", 0.0)),
         llm_calls=int(body.get("llm_calls", 0)),
         patch_sha=str(body.get("patch_sha", "")),
-        decision_id=str(body.get("decision_id", "")),
         rationale=str(body.get("rationale", "")),
+        candidates=candidates,
+        sdd_dir=_sdd_path(),
     )
-    audit_log.append(record, _sdd_path("autoheal-history.jsonl"))
+    if not result.audit_written:
+        sys.stderr.write("warning: audit ledger write failed\n")
+    sys.stdout.write(
+        json.dumps(
+            {
+                "decision_id": result.decision_id,
+                "decision_log": result.decision_log_written,
+                "calibration": result.calibration_written,
+                "audit": result.audit_written,
+            },
+            sort_keys=True,
+        )
+        + "\n",
+    )
     return 0
 
 

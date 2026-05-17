@@ -7,6 +7,7 @@ import pytest
 from bernstein.core.autoheal.cordon import (
     CORDON_EXACT,
     CORDON_GLOBS,
+    ENV_CORDON_EXTRA,
     WHITESPACE_OK_GLOBS,
     evaluate,
     evaluate_many,
@@ -76,3 +77,22 @@ def test_path_normalization_via_purelib() -> None:
     # Forward slashes; PurePosixPath normalises duplicates.
     d = evaluate("./typos.toml")
     assert d.allowed is True
+
+
+def test_env_extra_paths_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Operator can extend the exact allowlist via env without forking."""
+    monkeypatch.setenv(ENV_CORDON_EXTRA, "extra/typos.lst:CODEOWNERS")
+    d1 = evaluate("extra/typos.lst")
+    assert d1.allowed is True
+    assert d1.rule == "cordon_exact_env"
+    d2 = evaluate("CODEOWNERS")
+    assert d2.allowed is True
+    # A path NOT listed must still reject.
+    d3 = evaluate("random.toml")
+    assert d3.allowed is False
+
+
+def test_env_extra_paths_empty_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(ENV_CORDON_EXTRA, "")
+    d = evaluate("extra/typos.lst")
+    assert d.allowed is False

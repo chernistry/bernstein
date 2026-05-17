@@ -9,6 +9,7 @@ All commands are registered with the main CLI group in main.py.
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 from typing import Any, cast
@@ -32,6 +33,67 @@ def _set_cli(cli_group: Any) -> None:  # type: ignore[reportUnusedFunction]
     """Set the main CLI group (called by main.py)."""
     global _cli
     _cli = cli_group
+
+
+@click.group("task")
+def task_group() -> None:
+    """Direct task queue primitives for external workers."""
+
+
+@task_group.command("claim")
+@click.option(
+    "--backlog",
+    "backlog_path",
+    default=Path(".sdd/runtime/task-backlog.json"),
+    show_default=True,
+    type=click.Path(dir_okay=False, path_type=Path),
+    help="Path to the shared JSON backlog.",
+)
+@click.option("--role", default=None, help="Only claim tasks for this role.")
+@click.option("--capability", default=None, help="Only claim tasks requiring this capability.")
+@click.option("--project", default=None, help="Only claim tasks for this project namespace.")
+@click.option("--done", "completed_ids", multiple=True, metavar="TASK_ID", help="Dependency already completed.")
+@click.option("--max-attempts", default=None, type=int, help="Skip rows at or above this attempt count.")
+@click.option(
+    "--agent-id",
+    default=None,
+    envvar="BERNSTEIN_AGENT_ID",
+    help="Claiming worker identity. Defaults to a process-scoped CLI id.",
+)
+@click.option("--json", "as_json", is_flag=True, default=False, help="Print the claimed row as JSON.")
+def claim_task(
+    backlog_path: Path,
+    role: str | None,
+    capability: str | None,
+    project: str | None,
+    completed_ids: tuple[str, ...],
+    max_attempts: int | None,
+    agent_id: str | None,
+    as_json: bool,
+) -> None:
+    """Atomically claim the next eligible task from a shared backlog."""
+    from bernstein.core.tasks.claim import ClaimFilter, claim_next_entry
+
+    claimer_id = agent_id or f"cli-{os.getpid()}"
+    claimed = claim_next_entry(
+        backlog_path,
+        claimer_id=claimer_id,
+        filter=ClaimFilter(
+            project=project,
+            role=role,
+            capability=capability,
+            completed_ids=set(completed_ids),
+            max_attempts=max_attempts,
+        ),
+    )
+
+    if as_json or is_json():
+        print_json(claimed.to_dict() if claimed is not None else None)
+        return
+    if claimed is None:
+        console.print("[dim]No eligible task.[/dim]")
+        return
+    console.print(claimed.id)
 
 
 @click.command("compose", hidden=True)

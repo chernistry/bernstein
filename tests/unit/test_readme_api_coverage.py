@@ -65,6 +65,7 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "pending",
         "list-tasks",
         "sync",
+        "task",
         # Agents
         "agents",
         # Skills (oai-004)
@@ -260,7 +261,7 @@ def test_readme_mentions_core_commands() -> None:
     This guards against accidentally wiping the command reference section
     from the README.
     """
-    readme = (_REPO_ROOT / "README.md").read_text()
+    readme = (_REPO_ROOT / "README.md").read_text(encoding="utf-8")
     core_commands = ["bernstein run", "bernstein init", "bernstein status", "bernstein stop"]
     missing = [cmd for cmd in core_commands if cmd not in readme]
     if missing:
@@ -280,7 +281,7 @@ def test_readme_mentions_core_commands() -> None:
 
 def test_readme_has_three_line_install_block() -> None:
     """README.md must contain the canonical 3-line install block."""
-    readme = (_REPO_ROOT / "README.md").read_text()
+    readme = (_REPO_ROOT / "README.md").read_text(encoding="utf-8")
     required_lines = (
         "pipx install bernstein",
         "bernstein init",
@@ -306,7 +307,7 @@ def test_readme_has_top_section_comparison_table() -> None:
     claude-flow / Archon / vibe-kanban / claude-squad / Composio AO instead
     of LangGraph / generic frameworks.
     """
-    readme = (_REPO_ROOT / "README.md").read_text()
+    readme = (_REPO_ROOT / "README.md").read_text(encoding="utf-8")
     required_cells = (
         "| Bernstein",
         "| claude-flow",

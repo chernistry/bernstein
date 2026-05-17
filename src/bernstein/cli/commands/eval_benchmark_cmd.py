@@ -218,9 +218,7 @@ def _run_programbench_command(
         )
         raise SystemExit(1)
 
-    console.print(
-        f"[bold]ProgramBench evaluation[/bold]: subset={subset} • adapter={adapter} • {len(tasks)} task(s)"
-    )
+    console.print(f"[bold]ProgramBench evaluation[/bold]: subset={subset} • adapter={adapter} • {len(tasks)} task(s)")
 
     table = Table(title="ProgramBench Results", header_style=_STYLE_BOLD_CYAN, show_lines=False)
     table.add_column("Task", style="dim", min_width=24)

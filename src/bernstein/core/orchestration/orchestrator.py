@@ -1555,6 +1555,16 @@ class Orchestrator:
         if _run_slow:
             self._watchdog.sync(collect_watchdog_findings(self))
 
+        # 4d-ii.7 Stalled-manager detector (#1261). Run BEFORE the generic
+        # supervisor times out and emits a misleading "Server unresponsive"
+        # kill so operators see the real cause + remediation pointer.
+        from bernstein.core.orchestration.stalled_manager import handle_stalled_manager
+
+        if handle_stalled_manager(self) is not None:
+            # Diagnostic already logged + persisted; _running is now False so
+            # _run_loop will exit cleanly on its next iteration.
+            return result
+
         # 4d-iii. Cost anomaly detection: burn rate projection, stop on budget overrun
         # Gated behind _run_slow — anomaly detection doesn't need every-tick granularity.
         if _run_slow:

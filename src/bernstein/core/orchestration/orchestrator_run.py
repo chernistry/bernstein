@@ -35,10 +35,19 @@ def run(orch: Any) -> None:
 
     Args:
         orch: The orchestrator instance.
+
+    Raises:
+        SystemExit(2): If the stalled-manager detector (#1261) tripped during
+            the run. The orchestrator drains and persists state first; the
+            non-zero exit makes the failure visible to the parent CLI without
+            having to grep the orchestrator log.
     """
     _run_startup(orch)
     _run_loop(orch)
     _run_shutdown(orch)
+    diagnostic = getattr(orch, "_stalled_manager_diagnostic", None)
+    if diagnostic is not None:
+        raise SystemExit(2)
 
 
 def _run_startup(orch: Any) -> None:

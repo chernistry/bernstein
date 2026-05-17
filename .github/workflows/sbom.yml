@@ -38,9 +38,12 @@ jobs:
           persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45  # v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
         with:
-          enable-cache: true
+          # SBOMs ship as release assets — the cache is shared across the
+          # repo, so an attacker who can write to PR caches could poison
+          # a release-time build. Disable on this workflow specifically.
+          enable-cache: false
 
       - name: Build wheel + sdist
         run: uv build

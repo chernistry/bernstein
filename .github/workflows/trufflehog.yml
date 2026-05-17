@@ -1,0 +1,47 @@
+name: trufflehog (secret scanning)
+
+# Scan commits and PRs for accidentally-committed secrets (API keys,
+# private keys, tokens). trufflehog is OSS / free for orgs too —
+# gitleaks-action requires a paid GITLEAKS_LICENSE for organization
+# accounts, so we use trufflehog as the public-org-friendly alternative.
+#
+# Ref: #1273
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 6 * * 1"  # Weekly, Monday 06:23 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: trufflehog-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  trufflehog:
+    name: trufflehog scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          # Full history so trufflehog can scan all commits introduced by
+          # the PR (it diffs base..head).
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Run trufflehog
+        uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab  # v3.95.3
+        with:
+          # Only report verified secrets — keeps signal-to-noise high and
+          # lets the job act as a hard gate.
+          extra_args: --results=verified,unknown

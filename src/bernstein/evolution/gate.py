@@ -31,6 +31,17 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
+from bernstein.evolution.oscillation_guard import (
+    OscillationGuard,
+    OscillationResult,
+    OscillationVerdict,
+)
+from bernstein.evolution.predicted_delta import (
+    PatchProposal,
+    PatchVerdict,
+    PredictedDeltaGate,
+    PredictedDeltaResult,
+)
 from bernstein.evolution.types import RiskLevel, UpgradeProposal
 
 logger = logging.getLogger(__name__)
@@ -707,3 +718,262 @@ def eval_gate(
         promotion_threshold=promotion_threshold,
     )
     return gate.evaluate(proposal, risk_level, sandbox_dir=sandbox_dir)
+
+
+# ======================================================================
+# PromptPatchGate — predicted-delta + oscillation guard wiring
+# ======================================================================
+
+# Veto message format. Pinned so the snapshot test can detect regressions.
+_VETO_MESSAGE_TEMPLATE: str = (
+    "[prompt-patch-gate] prompt={prompt} proposal_id={proposal_id} verdict={verdict} reason={reason}"
+)
+
+
+class PromptPatchOutcome(Enum):
+    """Top-level outcome of a :class:`PromptPatchGate` evaluation."""
+
+    APPLIED = "applied"
+    """Both sub-gates approved and the patch is queued for application."""
+
+    PENDING = "pending_confirmation"
+    """Oscillation guard wants one more consecutive cycle."""
+
+    REJECTED_DELTA = "below_threshold"
+    """Predicted delta did not clear the threshold."""
+
+    REJECTED_OSCILLATION = "flip_back"
+    """Patch would oscillate against a recent applied change."""
+
+    REJECTED_SESSION_CAP = "session_cap"
+    """Per-session accepted-patch cap reached."""
+
+    REJECTED_INVALID_DELTA = "invalid_delta"
+    """``predicted_delta`` was not finite and the predictor could not fix it."""
+
+
+@dataclass
+class PromptPatchDecision:
+    """Composite verdict of :class:`PromptPatchGate`.
+
+    Attributes:
+        proposal_id: ID of the evaluated patch proposal.
+        outcome: Top-level outcome.
+        applied: True iff this decision results in the patch being applied.
+        delta_result: Underlying predicted-delta verdict.
+        oscillation_result: Underlying oscillation verdict
+            (``None`` if the delta gate vetoed first).
+        veto_message: Standardised veto message (empty if accepted).
+        decided_at: Unix timestamp of the decision.
+    """
+
+    proposal_id: str
+    outcome: PromptPatchOutcome
+    applied: bool
+    delta_result: PredictedDeltaResult
+    oscillation_result: OscillationResult | None
+    veto_message: str
+    decided_at: float = field(default_factory=time.time)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise for the per-cycle audit row."""
+        return {
+            "proposal_id": self.proposal_id,
+            "outcome": self.outcome.value,
+            "applied": self.applied,
+            "delta": {
+                "verdict": self.delta_result.verdict.value,
+                "predicted_delta": self.delta_result.predicted_delta,
+                "threshold": self.delta_result.threshold,
+                "reason": self.delta_result.reason,
+            },
+            "oscillation": (
+                {
+                    "verdict": self.oscillation_result.verdict.value,
+                    "confirmations": self.oscillation_result.confirmations,
+                    "applied_count": self.oscillation_result.applied_count,
+                    "reason": self.oscillation_result.reason,
+                }
+                if self.oscillation_result is not None
+                else None
+            ),
+            "veto_message": self.veto_message,
+            "decided_at": self.decided_at,
+        }
+
+
+class PromptPatchGate:
+    """Combined predicted-delta + oscillation gate for prompt patches.
+
+    This is the wiring point requested by issue #1348. It owns two
+    sub-gates and an optional JSONL audit log under
+    ``<audit_dir>/<session>.jsonl``. Decision flow:
+
+    1. Run :class:`PredictedDeltaGate`. If the patch fails, write an
+       audit row and short-circuit with
+       :attr:`PromptPatchOutcome.REJECTED_DELTA` or
+       :attr:`PromptPatchOutcome.REJECTED_INVALID_DELTA`.
+    2. Run :class:`OscillationGuard`. Translate its verdict into a
+       :class:`PromptPatchOutcome`. Audit-log the result.
+    3. On :attr:`PromptPatchOutcome.APPLIED`, the caller is expected
+       to invoke :meth:`mark_applied` once the patch has actually
+       been written.
+
+    Args:
+        delta_gate: Override the predicted-delta gate.
+        oscillation_guard: Override the oscillation guard.
+        audit_dir: Optional directory for the per-cycle audit JSONL.
+            When ``None``, no audit file is written.
+        session_id: Stable id used for the audit filename. Defaults
+            to ``"default"``.
+    """
+
+    def __init__(
+        self,
+        delta_gate: PredictedDeltaGate | None = None,
+        oscillation_guard: OscillationGuard | None = None,
+        audit_dir: Path | None = None,
+        session_id: str = "default",
+    ) -> None:
+        self._delta_gate = delta_gate or PredictedDeltaGate()
+        self._oscillation = oscillation_guard or OscillationGuard()
+        self._audit_dir = audit_dir
+        self._session_id = session_id
+        if self._audit_dir is not None:
+            self._audit_dir.mkdir(parents=True, exist_ok=True)
+
+    # ------------------------------------------------------------------
+    # Introspection
+    # ------------------------------------------------------------------
+
+    @property
+    def delta_gate(self) -> PredictedDeltaGate:
+        return self._delta_gate
+
+    @property
+    def oscillation_guard(self) -> OscillationGuard:
+        return self._oscillation
+
+    @property
+    def audit_path(self) -> Path | None:
+        if self._audit_dir is None:
+            return None
+        return self._audit_dir / f"{self._session_id}.jsonl"
+
+    # ------------------------------------------------------------------
+    # Evaluation
+    # ------------------------------------------------------------------
+
+    def evaluate(self, proposal: PatchProposal) -> PromptPatchDecision:
+        """Evaluate ``proposal`` through both sub-gates.
+
+        Returns:
+            :class:`PromptPatchDecision` describing the combined verdict.
+            Audit-logged exactly once.
+        """
+        delta_result = self._delta_gate.evaluate(proposal)
+        if delta_result.verdict == PatchVerdict.REJECTED_BELOW_THRESHOLD:
+            decision = PromptPatchDecision(
+                proposal_id=proposal.proposal_id,
+                outcome=PromptPatchOutcome.REJECTED_DELTA,
+                applied=False,
+                delta_result=delta_result,
+                oscillation_result=None,
+                veto_message=self._format_veto(
+                    prompt=proposal.prompt_name,
+                    proposal_id=proposal.proposal_id,
+                    outcome=PromptPatchOutcome.REJECTED_DELTA,
+                    reason=delta_result.reason,
+                ),
+            )
+            self._log_decision(decision)
+            return decision
+
+        if delta_result.verdict == PatchVerdict.REJECTED_INVALID_DELTA:
+            decision = PromptPatchDecision(
+                proposal_id=proposal.proposal_id,
+                outcome=PromptPatchOutcome.REJECTED_INVALID_DELTA,
+                applied=False,
+                delta_result=delta_result,
+                oscillation_result=None,
+                veto_message=self._format_veto(
+                    prompt=proposal.prompt_name,
+                    proposal_id=proposal.proposal_id,
+                    outcome=PromptPatchOutcome.REJECTED_INVALID_DELTA,
+                    reason=delta_result.reason,
+                ),
+            )
+            self._log_decision(decision)
+            return decision
+
+        # Delta passed — run the oscillation guard.
+        osc_result = self._oscillation.evaluate(proposal)
+        outcome = _oscillation_to_outcome(osc_result.verdict)
+        applied = outcome == PromptPatchOutcome.APPLIED
+        veto = (
+            ""
+            if applied
+            else self._format_veto(
+                prompt=proposal.prompt_name,
+                proposal_id=proposal.proposal_id,
+                outcome=outcome,
+                reason=osc_result.reason,
+            )
+        )
+        decision = PromptPatchDecision(
+            proposal_id=proposal.proposal_id,
+            outcome=outcome,
+            applied=applied,
+            delta_result=delta_result,
+            oscillation_result=osc_result,
+            veto_message=veto,
+        )
+        self._log_decision(decision)
+        return decision
+
+    def mark_applied(self, proposal: PatchProposal) -> None:
+        """Mark ``proposal`` as applied. Forwards to the oscillation guard."""
+        self._oscillation.record_applied(proposal)
+
+    def reset_session(self) -> None:
+        """Reset the per-session counters on the oscillation guard."""
+        self._oscillation.reset_session()
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _format_veto(
+        *,
+        prompt: str,
+        proposal_id: str,
+        outcome: PromptPatchOutcome,
+        reason: str,
+    ) -> str:
+        return _VETO_MESSAGE_TEMPLATE.format(
+            prompt=prompt,
+            proposal_id=proposal_id,
+            verdict=outcome.value,
+            reason=reason,
+        )
+
+    def _log_decision(self, decision: PromptPatchDecision) -> None:
+        path = self.audit_path
+        if path is None:
+            return
+        with path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(decision.to_dict()) + "\n")
+
+
+def _oscillation_to_outcome(verdict: OscillationVerdict) -> PromptPatchOutcome:
+    """Translate an :class:`OscillationVerdict` to a :class:`PromptPatchOutcome`."""
+    match verdict:
+        case OscillationVerdict.ACCEPTED:
+            return PromptPatchOutcome.APPLIED
+        case OscillationVerdict.PENDING_CONFIRMATION:
+            return PromptPatchOutcome.PENDING
+        case OscillationVerdict.REJECTED_FLIP_BACK:
+            return PromptPatchOutcome.REJECTED_OSCILLATION
+        case OscillationVerdict.REJECTED_SESSION_CAP:
+            return PromptPatchOutcome.REJECTED_SESSION_CAP

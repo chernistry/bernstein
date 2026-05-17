@@ -47,7 +47,12 @@ from bernstein.evolution.detector import (
     OpportunityDetector,
     UpgradeCategory,
 )
-from bernstein.evolution.gate import ApprovalGate
+from bernstein.evolution.gate import (
+    ApprovalGate,
+    PromptPatchDecision,
+    PromptPatchGate,
+    PromptPatchOutcome,
+)
 from bernstein.evolution.invariants import (
     check_proposal_targets,
     compute_invariants,
@@ -55,6 +60,19 @@ from bernstein.evolution.invariants import (
     write_lockfile,
 )
 from bernstein.evolution.loop import EvolutionLoop, ExperimentResult
+from bernstein.evolution.oscillation_guard import (
+    OscillationGuard,
+    OscillationResult,
+    OscillationVerdict,
+)
+from bernstein.evolution.predicted_delta import (
+    DeltaPredictor,
+    HeuristicDeltaPredictor,
+    PatchProposal,
+    PatchVerdict,
+    PredictedDeltaGate,
+    PredictedDeltaResult,
+)
 from bernstein.evolution.proposals import (
     AnalysisTrigger,
     ApprovalMode,
@@ -92,6 +110,7 @@ __all__ = [
     "CircuitState",
     "CostMetrics",
     "CreativePipeline",
+    "DeltaPredictor",
     "EvolutionCoordinator",
     "EvolutionLoop",
     "ExperimentResult",
@@ -100,13 +119,24 @@ __all__ = [
     "FailureRecord",
     "FileMetricsCollector",
     "FileUpgradeExecutor",
+    "HeuristicDeltaPredictor",
     "ImprovementOpportunity",
     "MetricRecord",
     "MetricsAggregator",
     "MetricsCollector",
     "MetricsRecord",
     "OpportunityDetector",
+    "OscillationGuard",
+    "OscillationResult",
+    "OscillationVerdict",
+    "PatchProposal",
+    "PatchVerdict",
     "PipelineResult",
+    "PredictedDeltaGate",
+    "PredictedDeltaResult",
+    "PromptPatchDecision",
+    "PromptPatchGate",
+    "PromptPatchOutcome",
     "ProposalGenerator",
     "ProposalRiskScore",
     "ProposalStatus",

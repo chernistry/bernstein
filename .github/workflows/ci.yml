@@ -163,17 +163,54 @@ jobs:
           # On pull_request, diff against the base branch. On push to main
           # (or any other push event), diff against the previous commit so
           # the planner stays useful for filter-skipped downstream jobs.
+          #
+          # NOTE: checkout above uses fetch-depth: 0, so HEAD has full history.
+          # However, origin/${BASE_REF} is NOT fetched by default in the PR
+          # checkout (which is on the merge ref) — we must fetch it explicitly.
+          # Using --depth=1 here previously caused `...` (merge-base) diffs to
+          # fail when the merge-base wasn't in the shallow window, especially
+          # after parallel main merges. Fetch the base ref WITHOUT --depth.
+          CHANGED=""
+          diff_failed=false
           if [ "$EVENT_NAME" = "pull_request" ]; then
-            git fetch --no-tags --depth=1 origin "refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}" || true
-            CHANGED=$(git diff --name-only "origin/${BASE_REF}...HEAD")
+            # Fetch base ref with full history (no --depth) so merge-base resolves.
+            git fetch --no-tags origin "refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}" || true
+            # If the local clone is still shallow for any reason, unshallow it.
+            if [ -f "$(git rev-parse --git-dir)/shallow" ]; then
+              git fetch --unshallow origin "${BASE_REF}" || git fetch origin "${BASE_REF}" || true
+            fi
+            # Diagnostic output — keeps future flakes debuggable in the action log.
+            echo "::group::git diagnostic"
+            git remote -v || true
+            git log --oneline -5 || true
+            echo "origin/${BASE_REF} -> $(git rev-parse "origin/${BASE_REF}" 2>&1 || echo UNRESOLVED)"
+            echo "HEAD            -> $(git rev-parse HEAD 2>&1 || echo UNRESOLVED)"
+            echo "::endgroup::"
+            if ! CHANGED=$(git diff --name-only "origin/${BASE_REF}...HEAD" 2>&1); then
+              echo "::warning::git diff failed against origin/${BASE_REF}; falling back to safe over-broad result"
+              echo "diff stderr: $CHANGED"
+              diff_failed=true
+            fi
           else
             # `before` may be 000... on first push of a branch; fall back to HEAD~1.
             BEFORE="${{ github.event.before }}"
             if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-              CHANGED=$(git diff --name-only "HEAD~1...HEAD" || git ls-files)
+              CHANGED=$(git diff --name-only "HEAD~1...HEAD" 2>/dev/null || git ls-files)
             else
-              CHANGED=$(git diff --name-only "${BEFORE}...HEAD" || git ls-files)
+              CHANGED=$(git diff --name-only "${BEFORE}...HEAD" 2>/dev/null || git ls-files)
             fi
+          fi
+          # Fail-safe fallback: when diff fails for any reason, emit the safe
+          # over-broad classification so downstream jobs run anyway. Correctness
+          # wins over efficiency — never fail this job for a clone-shape issue.
+          if [ "$diff_failed" = "true" ]; then
+            {
+              echo "python_changed=true"
+              echo "tests_changed=true"
+              echo "gha_workflows_changed=true"
+              echo "docs_only=false"
+            } | tee -a "$GITHUB_OUTPUT"
+            exit 0
           fi
           echo "Changed files:"
           printf '%s\n' "$CHANGED" | sed 's/^/  /'

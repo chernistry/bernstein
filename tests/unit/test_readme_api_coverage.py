@@ -190,6 +190,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         # Bughunt 2026-05-13 release wave
         "adapters",
         "analyze",
+        # Recorded run-session inspection + fork (#1222)
+        "session",
     }
 )
 

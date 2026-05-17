@@ -132,6 +132,11 @@ class QualityGatesSchema(BaseModel):
     type_check_command: str = "pyright ."
     tests: bool = False
     test_command: str = "pytest tests/ -x -q"
+    # Citation/reference existence verifier (issue #1402). Off by default to
+    # keep the hot path zero-cost; opt in per project by setting to true.
+    verify_citations: bool = False
+    verify_citations_offline: bool = False
+    verify_citations_allowed_hosts: list[str] | None = None
 
 
 class RoleModelPolicyEntry(BaseModel):

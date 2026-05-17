@@ -56,6 +56,7 @@ from bernstein.cli.checkpoint_cmd import checkpoint_cmd
 from bernstein.cli.ci_cmd import ci_group
 from bernstein.cli.cloud_cmd import cloud_group
 from bernstein.cli.commands.best_of_n_rank_cmd import best_of_n_group
+from bernstein.cli.commands.citation_cmd import quality_group as citation_quality_group
 from bernstein.cli.commands.criterion_profile_cmd import criterion_profile_group
 from bernstein.cli.commands.decisions_cmd import decisions_group
 from bernstein.cli.commands.export_cmd import export_cmd
@@ -889,6 +890,9 @@ cli.add_command(dep_impact_cmd, "dep-impact")
 cli.add_command(fingerprint_group, "fingerprint")
 cli.add_command(fleet_group, "fleet")
 cli.add_command(triggers_group, "triggers")
+
+# Citation/reference existence verifier (closes #1402)
+cli.add_command(citation_quality_group, "quality")
 
 # New CLI commands
 cli.add_command(dry_run_cmd, "dry-run")

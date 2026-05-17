@@ -7,6 +7,7 @@ with or if the chain is broken.
 
 from __future__ import annotations
 
+import hmac as _hmac
 import json
 import logging
 import time
@@ -182,7 +183,12 @@ def _verify_entry_chain(
         stored_hmac = entry.get("hmac", "")
         entry_prev_hmac = entry.get("prev_hmac", "")
 
-        if prev_hmac is not None and entry_prev_hmac != prev_hmac:
+        # Constant-time compare on the chain link and entry HMAC. Audit
+        # verification runs offline today but the same code path is reused
+        # by the runtime tamper-evidence guard; keeping the compares
+        # timing-safe avoids regressing the contract when verification
+        # moves onto a network surface.
+        if prev_hmac is not None and not _hmac.compare_digest(entry_prev_hmac, prev_hmac):
             errors.append(
                 f"{filename}:{line_no}: chain broken — "
                 f"prev_hmac {entry_prev_hmac[:16]}... != expected {prev_hmac[:16]}..."
@@ -191,7 +197,7 @@ def _verify_entry_chain(
         payload = {k: v for k, v in entry.items() if k != "hmac"}
         expected_hmac = _compute_hmac(key, entry_prev_hmac, payload)
 
-        if stored_hmac != expected_hmac:
+        if not _hmac.compare_digest(stored_hmac, expected_hmac):
             errors.append(
                 f"{filename}:{line_no}: HMAC mismatch — "
                 f"stored {stored_hmac[:16]}... != computed {expected_hmac[:16]}..."

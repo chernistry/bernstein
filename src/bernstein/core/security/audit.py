@@ -270,14 +270,18 @@ def _verify_log_file(log_path: Path, prev_hmac: str, key: bytes, errors: list[st
             continue
 
         stored_hmac = entry.pop("hmac", "")
-        if entry.get("prev_hmac") != prev_hmac:
+        entry_prev = str(entry.get("prev_hmac", ""))
+        # Constant-time compare on the chain link — verification is offline
+        # but a leaky compare in audit code is a CodeQL/Bandit smell and
+        # masks regressions when the same helper is later reused on a
+        # network surface.
+        if not _hmac.compare_digest(entry_prev, prev_hmac):
             errors.append(
-                f"{log_path.name}:{line_no}: prev_hmac mismatch "
-                f"(expected {prev_hmac[:16]}…, got {str(entry.get('prev_hmac', ''))[:16]}…)"
+                f"{log_path.name}:{line_no}: prev_hmac mismatch (expected {prev_hmac[:16]}…, got {entry_prev[:16]}…)"
             )
 
         expected_hmac = _compute_hmac(key, prev_hmac, entry)
-        if stored_hmac != expected_hmac:
+        if not _hmac.compare_digest(stored_hmac, expected_hmac):
             errors.append(
                 f"{log_path.name}:{line_no}: HMAC mismatch (expected {expected_hmac[:16]}…, got {stored_hmac[:16]}…)"
             )

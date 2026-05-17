@@ -247,3 +247,30 @@ For request-time permission enforcement inside a single project, see
 - `core/fleet/tui.py` — `build_textual_app`, `build_rows`,
   `format_footer`.
 - `core/fleet/web.py` — `build_fleet_app` (FastAPI factory).
+
+---
+
+## Web UI: multi-project grid view (PR #1338)
+
+The web view ships a grid that pairs with the topbar `Single ↔ Fleet`
+toggle. The toggle is sticky in `localStorage` and accepts a `?fleet=1`
+URL parameter so deep links and back / forward navigation behave.
+
+- `/ui/fleet` - grid; one card per project showing health icon, active
+  agents, today's spend, pending approvals.
+- Clicking a card drills into `/tasks?project=<slug>` while preserving
+  the fleet flag so the topbar returns the operator to the grid.
+- Cross-project search syntax: `agent:claude status:running across:all`
+  with live filter chips.
+
+Backend stubs that land first and harden behind the same routes:
+
+- `GET /api/v1/fleet/projects` - per-project snapshot list.
+- `GET /api/v1/fleet/search` - cross-project query.
+
+Both endpoints respond with an empty list + `{"stub": true}` until a
+`FleetAggregator` is attached to the process.
+
+Cache-key hygiene: every fleet-mode query is namespaced under
+`['fleet', ...]`; existing single-project keys are untouched, so a
+mode flip never invalidates the wrong cache.

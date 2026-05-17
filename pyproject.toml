@@ -83,7 +83,7 @@ dependencies = [
     # ``src/bernstein/core/orchestration/phase_schemas.py``.  Already pulled in
     # transitively by several deps; promoted to a direct dep so the phase
     # pipeline does not silently degrade if a transitive owner drops it.
-    "jsonschema>=4.17",
+    "jsonschema>=4.20",
     # RFC 3161 TimeStampToken ASN.1 parsing for the multi-tenant audit
     # export verifier. Pure-Python, MIT-licensed, ~250KB wheel; ships the
     # ``tsp.TSTInfo`` / ``cms.ContentInfo`` types we need without us
@@ -94,6 +94,12 @@ dependencies = [
     # rendered by `bernstein compliance pack`. MIT-licensed, no native deps.
     # Used exclusively by ``bernstein.core.compliance.article12``.
     "reportlab>=4.0,<5",
+    # YAML frontmatter parsing for `bernstein ticket validate` (SDD ticket
+    # schema). Lightweight, MIT-licensed; piggybacks on the already-pinned
+    # PyYAML for the YAML body. The validator gracefully falls back to a
+    # PyYAML-only parser so the dep is not strictly required at runtime,
+    # but pinning it here keeps downstream behaviour consistent.
+    "python-frontmatter>=1.1",
 ]
 
 [project.urls]
@@ -282,6 +288,10 @@ artifacts = [
     # Web GUI built assets — Vite output committed to the package tree so
     # the wheel ships pre-built. Rebuild with: cd web && npm run build.
     "src/bernstein/gui/static/**/*",
+    # SDD ticket schemas. Shipped alongside the validator so downstream
+    # projects can lint their .sdd/backlog tickets via importlib.resources
+    # without a source checkout. Loader: bernstein.sdd.validator.load_schema.
+    "src/bernstein/sdd/schema/*.json",
 ]
 
 [tool.hatch.build.targets.wheel.force-include]

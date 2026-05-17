@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bernstein.run/schema/sdd/ticket.v1.json",
+  "title": "Bernstein SDD Ticket v1",
+  "description": "Frontmatter schema for .sdd/backlog tickets used by Bernstein and downstream projects.",
+  "type": "object",
+  "required": ["id", "created", "status", "priority", "effort"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{2,80}$",
+      "description": "Lowercase slug. 3-81 chars, must start with [a-z0-9]."
+    },
+    "created": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO-8601 calendar date (YYYY-MM-DD)."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "claimed",
+        "in_progress",
+        "blocked",
+        "closed",
+        "closed_hit",
+        "closed_miss",
+        "closed_partial",
+        "deduped",
+        "superseded"
+      ]
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["P0", "P1", "P2"]
+    },
+    "effort": {
+      "type": "string",
+      "enum": ["S", "M", "L"]
+    },
+    "owner": {
+      "type": ["string", "null"]
+    },
+    "success_metric": {
+      "type": "object",
+      "required": ["name", "current", "target", "window_days"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "current": {},
+        "target": {},
+        "window_days": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": true
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source"],
+        "properties": {
+          "source": {"type": "string", "minLength": 1},
+          "rows_cited": {"type": ["integer", "string"]},
+          "value": {}
+        },
+        "additionalProperties": true
+      }
+    },
+    "risk": {"type": "string"},
+    "rice": {
+      "type": "object",
+      "properties": {
+        "reach": {"type": "number", "minimum": 0},
+        "impact": {"type": "number", "minimum": 0},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "effort_days": {"type": "number", "minimum": 0.25},
+        "score": {"type": "number"}
+      },
+      "additionalProperties": true
+    },
+    "ladder_to": {"type": "string"},
+    "tags": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "title": {"type": "string"},
+    "role": {"type": "string"},
+    "scope": {"type": "string"},
+    "complexity": {"type": "string"},
+    "type": {"type": "string"}
+  },
+  "additionalProperties": true
+}

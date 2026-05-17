@@ -1,18 +1,20 @@
-"""`bernstein from-ticket <url>` CLI command.
+"""`bernstein from-ticket <url>` and `bernstein ticket ...` CLI commands.
 
 Imports a task into Bernstein from a supported ticket URL (Linear web URL or
 ``linear://`` shortcut, GitHub issue URL, or Jira Cloud ``/browse/KEY-N`` URL).
 
-The heavy lifting lives in :mod:`bernstein.core.integrations.tickets`; this
-module only handles CLI plumbing, role/scope inference, and POSTing to the
-task server.
+The heavy lifting for the importer lives in
+:mod:`bernstein.core.integrations.tickets`; the ``bernstein ticket validate``
+sub-command delegates to :mod:`bernstein.sdd.validator`.
 """
 
 from __future__ import annotations
 
+import glob as _glob
 import json
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 import click
@@ -24,8 +26,13 @@ from bernstein.core.integrations.tickets import (
     TicketPayload,
     fetch_ticket,
 )
+from bernstein.sdd.validator import (
+    SchemaNotFoundError,
+    ValidationReport,
+    validate_ticket,
+)
 
-__all__ = ["from_ticket", "ticket_group"]
+__all__ = ["from_ticket", "ticket_group", "ticket_validate"]
 
 
 # ---------------------------------------------------------------------------
@@ -253,3 +260,121 @@ def ticket_group() -> None:
 def ticket_import(url: str, role: str | None, priority: str | None, dry_run: bool, run: bool) -> None:
     """Alias for `bernstein from-ticket`. Imports a task from a ticket URL."""
     _do_import(url, role=role, priority=priority, dry_run=dry_run, run=run)
+
+
+# ---------------------------------------------------------------------------
+# bernstein ticket validate
+# ---------------------------------------------------------------------------
+
+
+def _expand_targets(patterns: tuple[str, ...]) -> list[Path]:
+    """Expand a sequence of file paths / globs into a deterministic list."""
+    seen: dict[Path, None] = {}
+    for pat in patterns:
+        if not pat:
+            continue
+        candidate = Path(pat)
+        if candidate.exists():
+            seen.setdefault(candidate.resolve(), None)
+            continue
+        matches = sorted(_glob.glob(pat, recursive=True))
+        if not matches:
+            # Still record the literal path so the report shows a missing-file
+            # error instead of silently swallowing the input.
+            seen.setdefault(candidate.resolve(), None)
+            continue
+        for m in matches:
+            seen.setdefault(Path(m).resolve(), None)
+    return list(seen.keys())
+
+
+def _render_human(report: ValidationReport) -> str:
+    if report.errors:
+        tag = "[red][FAIL][/red]"
+    elif report.warnings:
+        tag = "[yellow][WARN][/yellow]"
+    else:
+        tag = "[green][OK]  [/green]"
+    lines = [f"{tag} {report.path}"]
+    for err in report.errors:
+        lines.append(f"        - {err.render()}")
+    for warn in report.warnings:
+        lines.append(f"        - warning: {warn.render()}")
+    return "\n".join(lines)
+
+
+@ticket_group.command("validate")
+@click.argument("paths", nargs=-1, required=True)
+@click.option(
+    "--strict",
+    is_flag=True,
+    default=False,
+    help="Promote recommended-key warnings to errors.",
+)
+@click.option(
+    "--schema",
+    "schema_version",
+    default="v1",
+    show_default=True,
+    help="Schema version label (e.g. v1).",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["human", "json"]),
+    default="human",
+    show_default=True,
+    help="Output format.",
+)
+def ticket_validate(
+    paths: tuple[str, ...],
+    strict: bool,
+    schema_version: str,
+    output_format: str,
+) -> None:
+    """Validate one or more SDD ticket files against the packaged JSON schema.
+
+    PATHS may be one or more file paths or glob patterns. Exit codes:
+
+    \b
+      0  all files pass
+      1  at least one file failed
+      2  schema version not found
+    """
+    targets = _expand_targets(paths)
+    if not targets:
+        if output_format == "json":
+            print_json({"status": "fail", "error": "no input paths"})
+        else:
+            console.print("[red]No input paths.[/red]")
+        raise SystemExit(1)
+
+    try:
+        reports = [validate_ticket(p, schema_version=schema_version, strict=strict) for p in targets]
+    except SchemaNotFoundError as exc:
+        if output_format == "json":
+            print_json({"status": "schema_not_found", "error": str(exc)})
+        else:
+            console.print(f"[red]Schema not found:[/red] {exc}")
+        raise SystemExit(2) from exc
+
+    any_failed = any(not r.ok for r in reports)
+
+    if output_format == "json":
+        payload = {
+            "schema": schema_version,
+            "strict": strict,
+            "reports": [r.to_dict() for r in reports],
+            "summary": {
+                "total": len(reports),
+                "ok": sum(1 for r in reports if r.status == "ok"),
+                "warn": sum(1 for r in reports if r.status == "warn"),
+                "fail": sum(1 for r in reports if r.status == "fail"),
+            },
+        }
+        print_json(payload)
+    else:
+        for rep in reports:
+            console.print(_render_human(rep))
+
+    raise SystemExit(1 if any_failed else 0)

@@ -24,30 +24,45 @@ name: "Contract Drift Autofix"
 # ------------------
 # This workflow runs on PR open/sync, runs just these three tests, and if
 # any fail invokes scripts/regen_contract_drift.py to regenerate the
-# allow-list / forward-arg list. Instead of opening a follow-up PR (which
-# is blocked at the org level: "GitHub Actions is not permitted to create
-# or approve pull requests"), the workflow **posts the proposed patch as a
-# PR comment** on the offending PR — the operator can then apply it
-# locally with a single command.
+# allow-list / forward-arg list. Recovery ladder:
 #
-# Why a comment and not a PR
-# --------------------------
-# The org-level setting "Allow GitHub Actions to create and approve pull
-# requests" is OFF. Any attempt to call peter-evans/create-pull-request or
-# `gh pr create` from a workflow fails with
-# `GitHub Actions is not permitted to create or approve pull requests`,
-# which marked this check as failed on every PR and blocked the entire PR
-# landing wave. Soft-degrading to a comment preserves the actual value
-# (operator sees the exact patch + reproducer) without needing org-level
-# policy changes.
+#   1. Primary — open a follow-up PR via peter-evans/create-pull-request.
+#      The org-level setting "Allow GitHub Actions to create and approve
+#      pull requests" is ON, so this is the preferred path.
+#   2. Fallback — if PR creation fails for any reason (e.g. transient API
+#      issue, branch protection conflict), post the same patch body as a
+#      PR comment with an idempotent marker so the operator can apply it
+#      locally.
+#   3. Ledger of last resort — if both PR-create and comment fail, or the
+#      regen script could not produce a clean diff, open a tracking issue.
 #
-# Recursion guards (still in place)
-# ---------------------------------
+# Why the primary path was previously a comment
+# ---------------------------------------------
+# PR #1345 historically switched to comment-only because the org-level
+# setting "Allow GitHub Actions to create and approve pull requests" was
+# OFF, and any call to peter-evans/create-pull-request or `gh pr create`
+# failed with `GitHub Actions is not permitted to create or approve pull
+# requests`. The operator flipped that setting on, so we restore PR
+# creation as the primary path while keeping the comment path as a
+# zero-cost fallback.
+#
+# Recursion guards
+# ----------------
 #   * Skips when the head branch is main (autofix only applies to PRs).
-#   * Skips when the PR author is the bot itself (legacy guard; left in
-#     place defensively in case PR-create is ever re-enabled).
+#   * Skips when the PR author is the bot itself (no infinite loops).
 #   * Diff size capped at 30 LOC by the regen script; larger diffs imply
 #     a real change and are escalated by opening an issue instead.
+#   * No `actions: write` permission, so the autofix PR cannot recursively
+#     trigger more workflows in this file.
+#
+# Secret requirements
+# -------------------
+#   * BOT_PAT (optional, recommended): a fine-grained PAT with `contents:
+#     write` + `pull-requests: write` on this repo. When present, the
+#     autofix PR triggers CI runs (GITHUB_TOKEN-authored PRs are otherwise
+#     muted by GitHub's recursion protection). When absent, falls back to
+#     GITHUB_TOKEN — the bot PR opens but CI must be kicked manually by
+#     closing/reopening it.
 on:
   pull_request:
     types: [opened, synchronize]
@@ -57,7 +72,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   issues: write
 
@@ -66,10 +81,9 @@ jobs:
     name: Detect and patch contract drift
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Recursion guard: defensive — kept from the legacy PR-creating version
-    # in case PR-create is ever re-enabled. The matchers cover default
-    # GITHUB_TOKEN authorship via `github-actions[bot]` AND any of our bot
-    # identities used elsewhere.
+    # Recursion guard: don't run on PRs the bot itself opened. The matchers
+    # are intentionally broad (covers default GITHUB_TOKEN authorship via
+    # `github-actions[bot]` AND any of our bot identities used elsewhere).
     if: >
       github.event.pull_request.user.login != 'github-actions[bot]' &&
       github.event.pull_request.user.login != 'bernstein[bot]' &&
@@ -80,8 +94,6 @@ jobs:
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
         with:
           egress-policy: audit
-      # No git push from this job: it only reads the PR head and posts a
-      # comment via the GitHub API.
       - name: Checkout PR head
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -155,11 +167,11 @@ jobs:
               [ -z "$f" ] && continue
               echo "  $f"
             done <<< "$CHANGED_FILES"
-            # Persist the actual diff to disk so the comment step can read
-            # it via github-script. The comment body is hard-capped at
-            # ~60k chars (GitHub limit is 65536) — the 30-LOC regen cap
-            # makes this comfortable but we truncate defensively just in
-            # case the script is ever loosened.
+            # Persist the actual diff to disk so the comment-fallback step
+            # can read it via github-script if PR-create fails. The comment
+            # body is hard-capped at ~60k chars (GitHub limit is 65536) —
+            # the 30-LOC regen cap makes this comfortable but we truncate
+            # defensively just in case the script is ever loosened.
             git diff > "${RUNNER_TEMP}/contract-drift.patch"
           fi
 
@@ -180,16 +192,78 @@ jobs:
           fi
           exit 0
 
-      - name: Post drift patch as PR comment
-        # Soft-degrade path. Org-level policy "Allow GitHub Actions to
-        # create and approve pull requests" is OFF, so we cannot open a
-        # follow-up PR from a workflow. Instead we paste the regenerated
-        # diff directly onto the offending PR so the operator can apply
-        # it locally and push in a single `git apply` + `git push`.
+      - name: Open autofix PR
+        # Primary recovery path. The org-level setting "Allow GitHub
+        # Actions to create and approve pull requests" is ON, so we open
+        # a real follow-up PR with the regenerated diff. `continue-on-error`
+        # lets the workflow fall through to the comment-fallback step if
+        # PR creation itself fails (e.g. transient API outage, branch
+        # protection conflict, or the setting being toggled off again).
         if: >
           steps.drift.outputs.drift == 'true' &&
           steps.verify.outputs.changed == 'true' &&
           steps.reverify.outputs.status == '0'
+        id: cpr
+        continue-on-error: true
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.BOT_PAT || secrets.GITHUB_TOKEN }}
+          branch: bot/contract-drift-pr-${{ github.event.pull_request.number }}
+          base: ${{ github.event.pull_request.head.ref }}
+          commit-message: |
+            chore(ci): regenerate contract drift allow-lists
+
+            Drift detected on PR #${{ github.event.pull_request.number }}.
+            Regenerated via scripts/regen_contract_drift.py.
+            Refs #1273.
+          title: "bot(contract-drift): regenerate ${{ steps.verify.outputs.changed_files }}"
+          body: |
+            Auto-generated patch from `contract-drift-autofix.yml`.
+
+            Three contract tests act as drift detectors against the public CLI / API surface:
+
+            - `tests/unit/test_readme_api_coverage.py::test_all_cli_commands_are_documented`
+            - `tests/unit/test_api_v1_routing.py::TestVersionedRoutesParity::test_every_root_route_has_v1_counterpart`
+            - `tests/unit/test_cli_run_params.py::test_run_params_match_cli_call`
+
+            One or more failed on PR #${{ github.event.pull_request.number }}; this PR regenerates the
+            corresponding allow-list / forward-arg list via
+            `scripts/regen_contract_drift.py`.
+
+            **Files changed:**
+            ```
+            ${{ steps.verify.outputs.changed_files }}
+            ```
+            **LOC delta:** ${{ steps.verify.outputs.loc_delta }} (cap: 30)
+
+            **Source CI run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Refs #1273.
+
+            > [!NOTE]
+            > If the `BOT_PAT` secret is not configured, this PR was opened
+            > with the default `GITHUB_TOKEN`, which means CI workflows will
+            > NOT run automatically on it. Close and reopen the PR (or push
+            > an empty commit) to trigger CI manually.
+          delete-branch: true
+          labels: |
+            ci
+            contract-drift
+            bot
+
+      - name: Post drift patch as PR comment (fallback)
+        # Fallback path. Only fires when the PR-create step above either
+        # failed outright (e.g. org setting toggled off mid-flight, branch
+        # protection rejected the push) or produced no PR number. The body
+        # mirrors the PR body so the operator gets the same payload either
+        # way and can apply it locally with a single `git apply` + push.
+        if: >
+          steps.drift.outputs.drift == 'true' &&
+          steps.verify.outputs.changed == 'true' &&
+          steps.reverify.outputs.status == '0' && (
+            steps.cpr.outcome == 'failure' ||
+            steps.cpr.outputs.pull-request-number == ''
+          )
         id: comment
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
@@ -223,7 +297,7 @@ jobs:
 
             const body = [
               marker,
-              '## Contract drift detected — proposed patch',
+              '## Contract drift detected — proposed patch (PR-create fallback)',
               '',
               'Three contract tests act as drift detectors against the public CLI / API surface:',
               '',
@@ -271,7 +345,7 @@ jobs:
               '',
               `**Source CI run:** ${runUrl}`,
               '',
-              '_Why a comment and not a PR: the org-level setting "Allow GitHub Actions to create and approve pull requests" is OFF, so workflows cannot open PRs. Refs #1273._',
+              '_Comment posted because the primary PR-create path failed. Check the workflow run for the underlying error. Refs #1273._',
             ].join('\n');
 
             // Idempotency: edit the existing autofix comment in place

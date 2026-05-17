@@ -300,6 +300,7 @@ nav:
       - Click for CLI: decisions/008-click-for-cli.md
   - Security:
       - Hardening: security/security-hardening.md
+      - Manager → task server auth: security/manager-auth.md
       - Agent-card keystore: security/keystore.md
       - OWASP ASI01-10 detector pack: security/owasp-asi.md
       - MCP server signing + supply-chain scan: security/mcp-signing.md

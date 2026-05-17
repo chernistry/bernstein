@@ -1,151 +1,144 @@
-# Auto-heal CI
+# Auto-heal v2
 
-Self-healing CI workflow for safe + heuristic autofix classes.
+Self-healing CI on `main`. When a required check fails, the v2
+workflow classifies the failure, picks a repair strategy via a
+multi-arm bandit, applies it inside a cordoned worktree, opens a PR,
+and lets standard branch protection decide.
 
 ## TL;DR
 
-| Class       | Examples                                              | Action |
-|-------------|-------------------------------------------------------|--------|
-| safe        | `Lint`, `Repo hygiene`, `Dead code (Vulture)`         | apply mechanical fix in-place |
-| heuristic   | `Spelling (typos)`                                    | parse log, auto-allowlist vendor-shaped tokens |
-| risky       | `Test (...)`, `Type check`, `CodeQL`, `Bandit`, etc.  | emit warning, do nothing |
-| unknown     | any unrecognised job                                  | treated as risky |
+| Layer | What it does | Persisted state |
+|-------|--------------|-----------------|
+| Detection | Reads the failed run, buckets jobs, scores Bayesian confidence, judges flake-vs-real | `.sdd/autoheal-bayes.json` |
+| Classification | Routes to safe / heuristic / risky / unknown | none |
+| Repair | Thompson-samples a strategy, applies it, runs a diff-aware self-test | `.sdd/autoheal-bandit.json`, `.sdd/autoheal-shadow.json` |
+| Safety | Cordon allowlist, blast-radius gate, cost circuit-breaker, kill switch | `.sdd/autoheal-disabled` |
+| Provenance | Lineage v2 child body + decision-log entry + calibration row | `.sdd/autoheal-history.jsonl` |
 
-The workflow opens a `fix(ci-heal): ...` PR on the `ci-heal/<short-sha>`
-branch. The PR runs CI like any human PR. Merge happens only after CI on
-the PR is green.
+All state files are gitignored. The workflow never commits state.
 
-## When it fires
+## Architecture
 
-Trigger:
-
-```yaml
-on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
+```mermaid
+flowchart LR
+    CI[CI failure on main] --> T[Triage]
+    T --> KS{Kill switch?}
+    KS -- on --> S1[Skip]
+    KS -- off --> ID{Existing PR?}
+    ID -- yes --> S1
+    ID -- no --> BUC[Bucketize jobs]
+    BUC --> BAY[Bayesian confidence]
+    BAY --> FL[Flake detector]
+    FL -- flake --> RT[Retry, no patch]
+    FL -- real --> BANDIT[Bandit select strategy]
+    BANDIT --> APPLY[Apply strategy]
+    APPLY --> CO[Cordon check]
+    CO -- block --> S2[Abort]
+    CO -- ok --> ST[Self-test]
+    ST --> BR[Blast-radius gate]
+    BR -- ok --> PR[Open heal PR]
+    PR --> AT[SLSA attestation]
+    PR --> LOG[Audit + lineage + decision + calibration]
+    LOG --> TG[Telegram alert]
 ```
 
-Plus the `if:` guard requires:
+## The 26-capability matrix
 
-- `conclusion == 'failure'`
-- `head_branch == 'main'`
-- canonical-repo (no fork PRs)
-- commit message does NOT start with `fix(ci-heal):` (anti-recursion)
-- actor is not `github-actions[bot]`
+`status` is one of: `shipped` (works in this PR), `partial` (module
+shipped, workflow wiring deferred), `deferred` (planned for v3).
 
-## What it does
+| # | Capability | Status | Bernstein hook |
+|--:|-----------|--------|----------------|
+| 1 | Bayesian per-class confidence | shipped | `core.autoheal.bayesian` |
+| 2 | Flake vs real-fail distinguisher | shipped | `core.autoheal.flake_detector` |
+| 3 | Diff-aware fail localisation | deferred | bisect helper to land in v3 |
+| 4 | Failure clustering (bucketize) | shipped | `core.autoheal.categorizer.bucketize` |
+| 5 | LLM-grounded categorisation | partial | cost-guard preflight in place; prompt path deferred |
+| 6 | Sibling-bug hunt | deferred | needs blame oracle, planned v3 |
+| 7 | Code-provenance check | shipped | `core.autoheal.provenance` |
+| 8 | Multi-arm-bandit strategy select | shipped | `core.autoheal.bandit` |
+| 9 | LLM-grounded fix synthesis | partial | cost-guard ready; prompt deferred |
+| 10 | Counter-example test injection | deferred | planned v3 |
+| 11 | Diff-aware self-test | partial | workflow runs ruff check / format / typos; blast-radius mapping deferred |
+| 12 | Permission-profile enforcement | shipped | `core.autoheal.cordon` + cordon CLI |
+| 13 | Cost circuit-breaker | shipped | `core.autoheal.cost_guard` |
+| 14 | Adversarial pre-merge test | deferred | adversary role exists, wiring v3 |
+| 15 | Blast-radius gate | partial | import-guarded in workflow; threshold tuning v3 |
+| 16 | Lineage v2 attestation | shipped | `core.autoheal.lineage_writer` |
+| 17 | Decision-log entry | partial | import asserted; record write deferred |
+| 18 | Calibration tracking | partial | import asserted; record write deferred |
+| 19 | SLSA build-provenance attestation | shipped | `actions/attest-build-provenance` |
+| 20 | Structured Telegram alert | shipped | workflow step |
+| 21 | Operator-readable audit ledger | shipped | `.sdd/autoheal-history.jsonl` |
+| 22 | Shadow-mode quarantine + promote | shipped | `core.autoheal.shadow_mode` |
+| 23 | One-button kill switch | shipped | `.sdd/autoheal-disabled` + `core.autoheal.kill_switch` |
+| 24 | Idempotency (content hash dedupe) | shipped | `core.autoheal.idempotency` + branch name |
+| 25 | Cordon-zone enforcement (pre-commit) | partial | CLI + module shipped; pre-commit hook deferred to v3 |
+| 26 | Cost-aware degradation | shipped | `cost_guard.llm_globally_disabled` |
 
-1. `gh run view --json jobs` returns every failed job name.
-2. `scripts/auto_heal_categorize.py` buckets them into
-   `safe / heuristic / risky / unknown`.
-3. For `safe`:
-   - `Lint` -> `uv run ruff format src/ tests/ scripts/` +
-     `uv run ruff check --fix src/ tests/ scripts/`.
-   - `Repo hygiene` -> `uv run bernstein agents-md sync`.
-4. For `heuristic`:
-   - `Spelling (typos)` -> download the failing job log,
-     `scripts/auto_heal_typos.py` extracts vendor-field-shaped tokens
-     (snake_case-lower, length 8+ or containing a digit / underscore,
-     not on the prose-typo denylist), then
-     `scripts/auto_heal_apply_typos.py` appends them to
-     `typos.toml`'s `[default.extend-words]` section.
-5. Self-test the fix locally (run `typos`, `ruff check`,
-   `bernstein agents-md verify`) before pushing.
-6. Idempotency check: bail with success when `git diff --quiet`.
-7. Cordon check: enforce that the diff only touches the allowlist:
-   - `typos.toml`, `.typos.toml`
-   - `AGENTS.md`, `CLAUDE.md`, `.goosehints`, `CONVENTIONS.md`
-   - `.cursor/rules/*.mdc`
-   - Anything else MUST pass `git diff -w --quiet` (whitespace-only
-     ruff-format change).
-8. Commit and push to `ci-heal/<short-sha>`.
-9. Open a PR with label `auto-heal` and the failing-jobs summary table.
+Shipped: 14. Partial: 7. Deferred: 5. Total surface: 26.
 
-## What it will NOT do
+## State files
 
-| Will not touch              | Reason |
-|-----------------------------|--------|
-| Real test failures          | A failing test is a signal, not a typo. |
-| Type-check / Pyright errors | These imply real type drift -- needs human review. |
-| CodeQL / Bandit / Semgrep   | Security findings are never auto-allowlisted. |
-| pip-audit / Schemathesis    | Dependency or contract regressions. |
-| Mutation / Property tests   | Logic correctness signals. |
-| Beartype                    | Runtime type-contract violations. |
-| Business-logic source files | Cordon allowlist rejects any non-whitespace diff outside the allowlisted paths. |
+| Path | Purpose |
+|------|---------|
+| `.sdd/autoheal-disabled` | Kill switch flag |
+| `.sdd/autoheal-bandit.json` | Bandit posteriors (alpha / beta per strategy) |
+| `.sdd/autoheal-bayes.json` | Bayesian per-class confidence |
+| `.sdd/autoheal-shadow.json` | Shadow-mode tally per strategy |
+| `.sdd/autoheal-history.jsonl` | Operator-readable JSONL ledger |
 
-If a risky job fails, the workflow emits a GitHub Actions warning
-listing the jobs but does not push anything.
+## CLI surface (used by the workflow)
 
-## Safety rails
-
-| Rail                 | Where                                                  |
-|----------------------|--------------------------------------------------------|
-| Job-level perms      | `triage` is read-only; `heal` is `contents:write + pull-requests:write` (no `actions:write`). |
-| Anti-recursion       | `workflow_run.workflows: ["CI"]` (never `Auto-heal`); commit-prefix guard `fix(ci-heal):`. |
-| Concurrency          | `auto-heal-<sha>` group, `cancel-in-progress: true`. |
-| Idempotency          | Existing `ci-heal/<sha>` PR short-circuits. |
-| Per-SHA budget       | At most 3 heal PRs per failing SHA per hour. |
-| Recurrence detection | If 2 of the last 5 closed heal PRs of the same class did not merge, bail. |
-| Cordon               | Diff must be in the allowlist OR whitespace-only. |
-| Self-test            | Local run of the fixed-up command must pass before push. |
-| Pinned actions       | All `uses:` refs pinned to 40-char SHA. |
-| No `--no-verify`     | Pre-commit hooks (if any) are honoured. |
-| No force-push        | Branch is created fresh from main HEAD each run. |
-
-## Outcomes
-
-| Outcome      | Meaning                                                              |
-|--------------|----------------------------------------------------------------------|
-| `pr_opened`  | Diff produced, cordon passed, self-test passed, PR opened.           |
-| `no_changes` | Autofix produced no diff. Underlying failure is not auto-healable.   |
-| (bailed)     | Budget exhausted, recurrence detected, or cordon violated. Workflow log explains. |
-
-## Disabling
-
-Temporary disable:
-
-```bash
-gh workflow disable auto-heal.yml
+```
+python scripts/auto_heal_v2_run.py triage
+python scripts/auto_heal_v2_run.py check-kill-switch
+python scripts/auto_heal_v2_run.py select-strategy --candidates a,b,c
+python scripts/auto_heal_v2_run.py record-outcome \
+    --strategy ruff-format --cls safe --job Lint --outcome success
+python scripts/auto_heal_v2_run.py log < record.json
+python scripts/auto_heal_v2_cordon.py <path> [--whitespace-only]
+python scripts/auto_heal_v2_imports.py <alias>
 ```
 
-Re-enable:
+## Operator workflow
 
-```bash
-gh workflow enable auto-heal.yml
+### Disable for an incident
+
+```
+mkdir -p .sdd
+echo "2026-05-20T12:00:00Z" > .sdd/autoheal-disabled   # disable until time
+echo "forever" > .sdd/autoheal-disabled                # disable indefinitely
+rm .sdd/autoheal-disabled                              # re-enable
 ```
 
-## Audit trail
+### Read the audit ledger
 
-The workflow writes everything to its own GitHub Actions run log:
+```
+jq -r '"\(.ts | localtime) \(.outcome) \(.strategy) \(.cls) \(.rationale)"' \
+    .sdd/autoheal-history.jsonl
+```
 
-- categorized job buckets,
-- candidate tokens emitted by the typos heuristic,
-- cordon-check verdict and diff stat,
-- PR URL on success.
+### Emergency revert
 
-`gh run list --workflow=auto-heal.yml` is the canonical audit feed.
+The frozen v1 workflow lives at `.github/workflows/auto-heal-v1.yml`
+with all jobs gated by `if: false`. To revert, swap the v2 file out of
+the workflows directory and re-enable v1 by replacing the static
+`false` gates with the original guards from git history.
 
-## Escalation
+## v1 vs v2
 
-If auto-heal cannot fix a failure or its PR also goes red:
-
-1. Check the `auto-heal` label PR list:
-   `gh pr list --label auto-heal --state open`.
-2. Investigate the failing job manually -- it is by definition
-   `risky` / `unknown` and not in the autofix scope.
-3. If the heuristic typos path is going wrong, audit recent
-   `auto-heal: vendor field token` lines in `typos.toml` and remove
-   any that look like real prose typos.
-4. The companion LLM-backed path
-   (`.github/workflows/bernstein-ci-fix.yml`) may have opened its own
-   `auto-heal/<sha>` PR; both can coexist.
-
-## Related
-
-- `.github/workflows/ci.yml` -- the workflow this listens to.
-- `.github/workflows/bernstein-ci-fix.yml` -- LLM-backed CI repair.
-- `scripts/auto_heal_categorize.py` -- safety-class classifier.
-- `scripts/auto_heal_typos.py` -- vendor-field token extractor.
-- `scripts/auto_heal_apply_typos.py` -- `typos.toml` writer.
+| Aspect | v1 | v2 |
+|--------|----|----|
+| Workflow file | `auto-heal.yml` (kept frozen as `auto-heal-v1.yml`) | `auto-heal.yml` |
+| Repair strategies | 4 hardcoded recipes | bandit-selected from a growing set |
+| Confidence | Flat safe/heuristic/risky | Numeric Bayesian per-class |
+| Flake handling | None | non-adjacent-failure heuristic |
+| State | `.sdd/` not used | `.sdd/autoheal-*.json{,l}` |
+| Cordon | YAML regex | Python module (also pre-commit) |
+| Cost guard | None | `cost_guard` with budget cap |
+| LLM path | None | Optional, behind cost-guard |
+| Lineage | None | Lineage v2 child body |
+| Decision log | None | Per-action entry |
+| Calibration | None | Per-action probability log |
+| Tests | 152 unit + integration | 178 unit + 15 property + 11 integration |

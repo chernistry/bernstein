@@ -8,8 +8,14 @@ name: Telegram nightly-fanout notifications
 # `telegram-notify.yml`. No new secret required.
 #
 # Refs: #1273.
-
-on:
+#
+# Safety note (zizmor dangerous-triggers): this workflow uses `workflow_run`
+# because it must observe completion of the upstream nightly workflows.
+# It runs on the canonical repo only, never checks out code, never reads
+# fork-controlled inputs into a `run:` block, and only forwards a fixed set
+# of metadata fields (workflow name, conclusion, run id) to Telegram. No
+# attacker-controlled value reaches a shell here.
+on:  # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows:
       - "Nightly deep tests"

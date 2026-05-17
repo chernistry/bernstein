@@ -2,7 +2,14 @@ name: Auto-release
 
 # Triggers after CI passes on main — bumps patch version and publishes
 # Only releases when meaningful source/test/template files changed.
-on:
+#
+# Safety note (zizmor dangerous-triggers): this workflow is intentionally
+# `workflow_run`-driven. It runs in the context of the canonical repo, only
+# fires on the `main` branch (fork PRs are filtered out by the
+# `branches: [main]` selector), and never checks out untrusted PR head code
+# — it only reads commit metadata via `gh api` and tags releases from main.
+# No fork-controlled inputs reach a `run:` script.
+on:  # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: ["CI"]
     types: [completed]
@@ -118,9 +125,13 @@ jobs:
           egress-policy: audit
       - name: Check for meaningful changes
         id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           # Skip bot commits (prevents release loop)
-          AUTHOR=$(gh api repos/${{ github.repository }}/commits/${{ github.event.workflow_run.head_sha }} \
+          AUTHOR=$(gh api "repos/${REPO}/commits/${HEAD_SHA}" \
             --jq '.author.login // ""')
           if [ "$AUTHOR" = "bernstein-orchestrator[bot]" ]; then
             echo "should_release=false" >> "$GITHUB_OUTPUT"
@@ -129,7 +140,7 @@ jobs:
           fi
 
           # Find latest release tag
-          PREV_TAG=$(gh api repos/${{ github.repository }}/releases/latest \
+          PREV_TAG=$(gh api "repos/${REPO}/releases/latest" \
             --jq '.tag_name' 2>/dev/null || echo "")
           if [ -z "$PREV_TAG" ]; then
             echo "should_release=true" >> "$GITHUB_OUTPUT"
@@ -149,7 +160,7 @@ jobs:
           #   Dockerfile*  — container builds
           #   requirements*— dependency pins
           #   pyproject.toml — version, deps, config
-          CHANGED=$(gh api "repos/${{ github.repository }}/compare/${PREV_TAG}...${{ github.event.workflow_run.head_sha }}" \
+          CHANGED=$(gh api "repos/${REPO}/compare/${PREV_TAG}...${HEAD_SHA}" \
             --jq '[.files[].filename | select(
               test("^src/") or
               test("^tests/") or
@@ -171,8 +182,6 @@ jobs:
           else
             echo "should_release=true" >> "$GITHUB_OUTPUT"
           fi
-        env:
-          GH_TOKEN: ${{ github.token }}
 
   release:
     name: Tag and create GitHub Release
@@ -210,8 +219,10 @@ jobs:
       # Skip if this version is already tagged
       - name: Check tag
         id: check
+        env:
+          CURRENT_VERSION: ${{ steps.ver.outputs.current }}
         run: |
-          if git tag -l "v${{ steps.ver.outputs.current }}" | grep -q .; then
+          if git tag -l "v${CURRENT_VERSION}" | grep -q .; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -234,11 +245,13 @@ jobs:
       - name: No-op when current version is already tagged
         if: steps.check.outputs.exists == 'true'
         id: bump
+        env:
+          CURRENT_VERSION: ${{ steps.ver.outputs.current }}
         run: |
-          IFS='.' read -r MAJOR MINOR PATCH <<< "${{ steps.ver.outputs.current }}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${CURRENT_VERSION}"
           NEXT="${MAJOR}.${MINOR}.$((PATCH + 1))"
-          echo "::notice::v${{ steps.ver.outputs.current }} is already tagged. Skipping auto-release. To ship the next patch, manually bump pyproject.toml to v${NEXT} (or higher) in any PR — auto-release will pick it up on merge."
-          echo "version=${{ steps.ver.outputs.current }}" >> "$GITHUB_OUTPUT"
+          echo "::notice::v${CURRENT_VERSION} is already tagged. Skipping auto-release. To ship the next patch, manually bump pyproject.toml to v${NEXT} (or higher) in any PR — auto-release will pick it up on merge."
+          echo "version=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
           echo "deferred=true" >> "$GITHUB_OUTPUT"
 
       # Final version (bumped or current). When the bump was deferred to a
@@ -247,17 +260,22 @@ jobs:
       # the PR's CI passes and auto-merge fires.
       - name: Set version
         id: final
+        env:
+          BUMP_DEFERRED: ${{ steps.bump.outputs.deferred }}
+          BUMP_VERSION: ${{ steps.bump.outputs.version }}
+          CHECK_EXISTS: ${{ steps.check.outputs.exists }}
+          CURRENT_VERSION: ${{ steps.ver.outputs.current }}
         run: |
-          if [ "${{ steps.bump.outputs.deferred }}" = "true" ]; then
-            echo "::notice::Auto-release deferred — bump PR for v${{ steps.bump.outputs.version }} will trigger the publish run on merge."
+          if [ "${BUMP_DEFERRED}" = "true" ]; then
+            echo "::notice::Auto-release deferred — bump PR for v${BUMP_VERSION} will trigger the publish run on merge."
             echo "deferred=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "deferred=false" >> "$GITHUB_OUTPUT"
-          if [ "${{ steps.check.outputs.exists }}" = "true" ]; then
-            echo "version=${{ steps.bump.outputs.version }}" >> "$GITHUB_OUTPUT"
+          if [ "${CHECK_EXISTS}" = "true" ]; then
+            echo "version=${BUMP_VERSION}" >> "$GITHUB_OUTPUT"
           else
-            echo "version=${{ steps.ver.outputs.current }}" >> "$GITHUB_OUTPUT"
+            echo "version=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
           fi
 
       # Push the tag. `publish.yml` is triggered by `push: tags: v*` and
@@ -265,9 +283,11 @@ jobs:
       # from here.
       - name: Tag
         if: steps.final.outputs.deferred != 'true'
+        env:
+          FINAL_VERSION: ${{ steps.final.outputs.version }}
         run: |
-          git tag "v${{ steps.final.outputs.version }}"
-          git push origin "v${{ steps.final.outputs.version }}"
+          git tag "v${FINAL_VERSION}"
+          git push origin "v${FINAL_VERSION}"
 
       - name: GitHub Release
         if: steps.final.outputs.deferred != 'true'

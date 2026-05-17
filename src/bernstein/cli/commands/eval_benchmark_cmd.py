@@ -794,4 +794,88 @@ def eval_ab(
 
 
 # ---------------------------------------------------------------------------
+# eval calibration — Brier + ECE report over the on-disk calibration log
+# ---------------------------------------------------------------------------
+
+
+@eval_group.group("calibration")
+def calibration_group() -> None:
+    """Inspect calibration of router/judge probability outputs."""
+
+
+@calibration_group.command("report")
+@click.option(
+    "--since",
+    "since",
+    default=None,
+    help="Restrict to records within this duration (e.g. '7d', '30m', '24h').",
+)
+@click.option(
+    "--kind",
+    "decision_kind",
+    default=None,
+    help="Filter records by decision_kind (e.g. 'model_route').",
+)
+@click.option(
+    "--log-path",
+    "log_path",
+    default=None,
+    type=click.Path(dir_okay=False),
+    help="Override the calibration JSONL log path.",
+)
+@click.option(
+    "--bins",
+    "bin_count",
+    type=click.IntRange(min=1),
+    default=10,
+    show_default=True,
+    help="Number of reliability buckets.",
+)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Write report JSON to this file (stdout if omitted).",
+)
+def calibration_report(
+    since: str | None,
+    decision_kind: str | None,
+    log_path: str | None,
+    bin_count: int,
+    output_path: str | None,
+) -> None:
+    """Print a Brier + ECE + reliability report for the calibration log.
+
+    \b
+      bernstein eval calibration report --since 7d
+      bernstein eval calibration report --since 24h --kind model_route
+    """
+    import json as _json
+
+    from bernstein.eval.calibration import (
+        DEFAULT_LOG_PATH,
+        compute_report,
+        load_log,
+        parse_duration,
+    )
+
+    path = Path(log_path) if log_path else DEFAULT_LOG_PATH
+    since_seconds = parse_duration(since) if since else None
+    records = load_log(path, since_seconds=since_seconds, decision_kind=decision_kind)
+    report = compute_report(
+        records,
+        bin_count=bin_count,
+        decision_kind=decision_kind,
+        since=since,
+    )
+    payload = _json.dumps(report.to_dict(), indent=2, sort_keys=True)
+    if output_path:
+        Path(output_path).write_text(payload + "\n", encoding="utf-8")
+        console.print(f"[green]wrote[/green] {output_path}  decisions={report.decisions}")
+    else:
+        click.echo(payload)
+
+
+# ---------------------------------------------------------------------------
 # workspace — multi-repo workspace management

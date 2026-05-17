@@ -8,7 +8,7 @@ import re
 import time
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import click
 from rich.console import Console
@@ -262,6 +262,13 @@ def _aggregate_from_ledger_or_tasks(
     for rec in task_records:
         if dimension == "role":
             label = str(rec.get("role", "") or "unknown")
+        elif dimension == "envelope":
+            raw_tags_env: object = rec.get("cost_tags") or {}
+            if isinstance(raw_tags_env, dict):
+                tags_env = cast("dict[str, Any]", raw_tags_env)
+                label = str(tags_env.get("quota_envelope", "") or "subscription")
+            else:
+                label = "subscription"
         else:
             tags = rec.get("cost_tags") or {}
             label = str(tags.get("feature_label", "") or "unknown") if isinstance(tags, dict) else "unknown"
@@ -589,9 +596,9 @@ def _cost_render_grouped(
 @click.option(
     "--by",
     "group_by",
-    type=click.Choice(["agent", "model", "task", "day", "role", "feature_label"]),
+    type=click.Choice(["agent", "model", "task", "day", "role", "feature_label", "envelope"]),
     default=None,
-    help="Group breakdown by agent, model, task, day, role, or feature_label (issue #1320).",
+    help="Group breakdown by agent, model, task, day, role, feature_label, or envelope (issue #1405).",
 )
 @click.option(
     "--ledger",
@@ -709,10 +716,11 @@ def cost_cmd(
         grouped_data = _aggregate_by_task(task_records)
     elif group_by == "day":
         grouped_data = _aggregate_by_day(task_records)
-    elif group_by in ("role", "feature_label"):
-        # Issue #1320: role / feature_label are tagged dimensions that live
-        # in the rolling spend ledger. Fall back to task_records when the
-        # ledger is missing so old runs still show a sensible view.
+    elif group_by in ("role", "feature_label", "envelope"):
+        # Issue #1320 + #1405: role / feature_label / envelope are tagged
+        # dimensions that live in the rolling spend ledger. Fall back to
+        # task_records when the ledger is missing so old runs still show
+        # a sensible view.
         grouped_data = _aggregate_from_ledger_or_tasks(
             Path(ledger_path),
             task_records,
@@ -845,3 +853,174 @@ def cost_cmd(
         tasks_failed=tasks_failed,
         total_duration_s=total_dur,
     )
+
+
+# ---------------------------------------------------------------------------
+# `bernstein cost-envelopes` subcommand group (issue #1405)
+# ---------------------------------------------------------------------------
+
+
+def _load_envelope_rollup_from_ledger(
+    ledger_path: Path,
+    envelopes_cfg: dict[str, dict[str, Any]],
+    cutoff: float,
+) -> dict[str, dict[str, Any]]:
+    """Build a per-envelope rollup from the spend ledger.
+
+    Falls back to an empty mapping when the ledger is missing. The
+    operator-supplied ``envelopes_cfg`` is consulted for caps + model
+    allowlists; envelopes seen in the ledger but absent from config show
+    up as uncapped buckets so dashboards never lose attribution.
+    """
+    from bernstein.core.cost.cost_rollup_by_envelope import rollup
+    from bernstein.core.cost.cost_tracker import EnvelopeConfig, TokenUsage
+    from bernstein.core.cost.spend_ledger import SpendLedger
+
+    if not ledger_path.exists():
+        return {}
+    entries = SpendLedger.load_entries(ledger_path)
+    if cutoff > 0:
+        entries = [e for e in entries if e.ts >= cutoff]
+    records = [
+        TokenUsage(
+            input_tokens=e.input_tokens,
+            output_tokens=e.output_tokens,
+            model=e.model,
+            cost_usd=e.cost_usd,
+            agent_id=e.agent_id or "unknown",
+            task_id=e.task_id or "unknown",
+            timestamp=e.ts,
+            cache_read_tokens=e.cache_read_tokens,
+            cache_write_tokens=e.cache_write_tokens,
+            quota_envelope=e.quota_envelope or "subscription",
+        )
+        for e in entries
+    ]
+    envelope_objs = {name: EnvelopeConfig.from_dict(name, cfg) for name, cfg in envelopes_cfg.items()}
+    rows = rollup(records, envelope_objs)
+    return {name: row.to_dict() for name, row in rows.items()}
+
+
+def _read_envelopes_from_yaml(yaml_path: Path) -> dict[str, dict[str, Any]]:
+    """Parse the ``cost.envelopes`` block from ``bernstein.yaml``.
+
+    Returns an empty mapping when the file is missing, malformed, or
+    lacks the block. PyYAML is imported lazily so the CLI module stays
+    cheap to load.
+    """
+    if not yaml_path.exists():
+        return {}
+    try:
+        import yaml  # local import: optional for non-CLI callers
+
+        data_raw: object = yaml.safe_load(yaml_path.read_text()) or {}
+    except (OSError, ValueError, TypeError):
+        return {}
+    if not isinstance(data_raw, dict):
+        return {}
+    data = cast("dict[str, Any]", data_raw)
+    cost_block_raw: object = data.get("cost") or {}
+    if not isinstance(cost_block_raw, dict):
+        return {}
+    cost_block = cast("dict[str, Any]", cost_block_raw)
+    envelopes_block_raw: object = cost_block.get("envelopes") or {}
+    if not isinstance(envelopes_block_raw, dict):
+        return {}
+    envelopes_block = cast("dict[str, Any]", envelopes_block_raw)
+    out: dict[str, dict[str, Any]] = {}
+    for name, payload in envelopes_block.items():
+        if isinstance(payload, dict):
+            payload_d = cast("dict[str, Any]", payload)
+            out[str(name)] = {str(k): v for k, v in payload_d.items()}
+    return out
+
+
+@click.group("cost-envelopes")
+def cost_envelopes_group() -> None:
+    """Inspect per-quota-envelope cost attribution (issue #1405)."""
+
+
+@cost_envelopes_group.command("show")
+@click.option(
+    "--ledger",
+    "ledger_path",
+    type=str,
+    default=".sdd/cost/ledger.jsonl",
+    show_default=True,
+    help="Path to the rolling spend ledger JSONL.",
+)
+@click.option(
+    "--config",
+    "config_path",
+    type=str,
+    default="bernstein.yaml",
+    show_default=True,
+    help="Path to the bernstein.yaml file holding ``cost.envelopes``.",
+)
+@click.option("--last", "last", type=str, default=None, help="Time range: 1h, 24h, 7d, 30d.")
+@click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
+def cost_envelopes_show_cmd(
+    ledger_path: str,
+    config_path: str,
+    last: str | None,
+    as_json: bool,
+) -> None:
+    """Render the per-envelope rollup table."""
+    cutoff = _parse_time_range(last) if last else 0.0
+    envelopes_cfg = _read_envelopes_from_yaml(Path(config_path))
+    rollup_data = _load_envelope_rollup_from_ledger(Path(ledger_path), envelopes_cfg, cutoff)
+
+    if as_json or is_json():
+        print_json(
+            {
+                "ledger": ledger_path,
+                "config": config_path,
+                "envelopes": rollup_data,
+            }
+        )
+        return
+
+    if not rollup_data:
+        console.print(
+            "[dim]No envelope data found. Configure ``cost.envelopes`` in bernstein.yaml "
+            "and run at least one task to populate the ledger.[/dim]"
+        )
+        return
+
+    from rich.table import Table
+
+    table = Table(title="Bernstein Cost Envelopes", header_style="bold cyan", show_lines=False)
+    table.add_column("Envelope", min_width=18, no_wrap=True)
+    table.add_column("Spent", justify="right", min_width=10)
+    table.add_column("Cap", justify="right", min_width=10)
+    table.add_column("Pct", justify="right", min_width=6)
+    table.add_column("Hard cap", justify="right", min_width=10)
+    table.add_column("Calls", justify="right", min_width=6)
+    table.add_column("Status", min_width=10)
+
+    for name in sorted(rollup_data):
+        row = rollup_data[name]
+        cap = float(row.get("cap", 0.0) or 0.0)
+        hard_cap = float(row.get("hard_cap", 0.0) or 0.0)
+        spent = float(row.get("total_spend", 0.0) or 0.0)
+        pct = float(row.get("pct_used", 0.0) or 0.0)
+        calls = int(row.get("calls", 0) or 0)
+        if row.get("hard_breached"):
+            status = "[red]HARD BREACH[/red]"
+        elif row.get("threshold_reached"):
+            status = "[yellow]threshold[/yellow]"
+        else:
+            status = "[green]ok[/green]"
+        table.add_row(
+            name,
+            f"${spent:.4f}",
+            f"${cap:.4f}" if cap > 0 else "-",
+            f"{pct * 100:.0f}%" if cap > 0 else "-",
+            f"${hard_cap:.4f}" if hard_cap > 0 else "-",
+            str(calls),
+            status,
+        )
+    console.print(table)
+
+
+__all__ = ["cost_cmd", "cost_envelopes_group", "estimate_cmd"]

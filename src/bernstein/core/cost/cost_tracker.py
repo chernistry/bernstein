@@ -148,6 +148,160 @@ def _resolve_usage_buffer_size() -> int:
 
 
 # ---------------------------------------------------------------------------
+# Quota envelopes (issue #1405)
+# ---------------------------------------------------------------------------
+
+# Default envelope when an adapter does not classify a call. Existing
+# behaviour is preserved: all spend rolls up under a single bucket named
+# ``"subscription"``.
+DEFAULT_QUOTA_ENVELOPE: str = "subscription"
+
+# Threshold (fraction of envelope cap) at which the
+# ``envelope_threshold_reached`` budget hook fires. Operators can override
+# per-envelope via ``EnvelopeConfig.threshold_pct``.
+DEFAULT_ENVELOPE_THRESHOLD: float = 0.80
+
+
+@dataclass(frozen=True)
+class EnvelopeConfig:
+    """Per-envelope budget configuration loaded from ``bernstein.yaml``.
+
+    Attributes:
+        name: Envelope identifier (e.g. ``"subscription"``).
+        budget_usd: Soft cap for this envelope in USD (``0`` = unlimited).
+        hard_budget_usd: Hard cap for this envelope. Reaching this cap
+            refuses further spawns / records for the envelope.
+        model_allowlist: Optional whitelist of model substrings permitted
+            on this envelope. Empty tuple means any model is allowed.
+        threshold_pct: Fraction of ``budget_usd`` at which the
+            ``envelope_threshold_reached`` hook fires.
+    """
+
+    name: str
+    budget_usd: float = 0.0
+    hard_budget_usd: float = 0.0
+    model_allowlist: tuple[str, ...] = ()
+    threshold_pct: float = DEFAULT_ENVELOPE_THRESHOLD
+
+    def __post_init__(self) -> None:
+        # Frozen dataclass with validation. Use object.__setattr__ to
+        # normalise non-positive caps to zero (no cap) so callers can pass
+        # negative defaults without surprises.
+        if self.budget_usd < 0:
+            object.__setattr__(self, "budget_usd", 0.0)
+        if self.hard_budget_usd < 0:
+            object.__setattr__(self, "hard_budget_usd", 0.0)
+        if not (0.0 < self.threshold_pct <= 1.0):
+            object.__setattr__(self, "threshold_pct", DEFAULT_ENVELOPE_THRESHOLD)
+
+    def model_allowed(self, model: str) -> bool:
+        """Return True when ``model`` is permitted on this envelope.
+
+        Empty ``model_allowlist`` means "no restriction". Otherwise the
+        check is substring-based and case-insensitive so concrete model
+        names (``"claude-sonnet-4"``) match the configured family
+        prefixes (``"sonnet"``).
+        """
+        if not self.model_allowlist:
+            return True
+        m = model.lower()
+        return any(allowed.lower() in m for allowed in self.model_allowlist)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise to a JSON-safe dict."""
+        return {
+            "name": self.name,
+            "budget_usd": self.budget_usd,
+            "hard_budget_usd": self.hard_budget_usd,
+            "model_allowlist": list(self.model_allowlist),
+            "threshold_pct": self.threshold_pct,
+        }
+
+    @classmethod
+    def from_dict(cls, name: str, d: dict[str, Any]) -> EnvelopeConfig:
+        """Build from a parsed ``bernstein.yaml`` mapping."""
+        raw_allow = d.get("model_allowlist") or ()
+        allow_iter: list[str] = []
+        if isinstance(raw_allow, list | tuple):
+            allow_iter = [str(x) for x in cast("list[Any]", raw_allow) if str(x).strip()]
+        return cls(
+            name=str(name),
+            budget_usd=float(d.get("budget_usd", 0.0) or 0.0),
+            hard_budget_usd=float(d.get("hard_budget_usd", 0.0) or 0.0),
+            model_allowlist=tuple(allow_iter),
+            threshold_pct=float(d.get("threshold_pct", DEFAULT_ENVELOPE_THRESHOLD) or DEFAULT_ENVELOPE_THRESHOLD),
+        )
+
+
+class EnvelopeBudgetError(RuntimeError):
+    """Raised when a record/spawn would breach a per-envelope hard cap.
+
+    The orchestrator catches this and refuses to admit the call without
+    crashing the run. The exception carries the offending envelope name
+    and the policy reason so callers can log a structured event.
+    """
+
+    def __init__(self, envelope: str, reason: str, *, spent_usd: float, cap_usd: float) -> None:
+        super().__init__(f"envelope {envelope!r} refused: {reason} (spent=${spent_usd:.4f} cap=${cap_usd:.4f})")
+        self.envelope = envelope
+        self.reason = reason
+        self.spent_usd = spent_usd
+        self.cap_usd = cap_usd
+
+
+@dataclass(frozen=True)
+class EnvelopeReport:
+    """Snapshot of one envelope's spend, cap, and burn state.
+
+    Attributes:
+        name: Envelope identifier.
+        spent_usd: Cumulative spend attributed to this envelope.
+        cap_usd: Soft cap from :class:`EnvelopeConfig.budget_usd`.
+        hard_cap_usd: Hard cap from :class:`EnvelopeConfig.hard_budget_usd`.
+        pct_used: ``spent_usd / cap_usd`` (``0.0`` when cap is unset).
+        threshold_pct: Configured fire-the-hook fraction.
+        calls: Number of LLM calls recorded against this envelope.
+        remaining_usd: Soft-cap remaining (``inf`` when uncapped).
+        hard_remaining_usd: Hard-cap remaining (``inf`` when uncapped).
+        threshold_reached: ``True`` when ``pct_used >= threshold_pct``.
+        hard_breached: ``True`` when the hard cap has been hit.
+    """
+
+    name: str
+    spent_usd: float
+    cap_usd: float
+    hard_cap_usd: float
+    pct_used: float
+    threshold_pct: float
+    calls: int
+    remaining_usd: float
+    hard_remaining_usd: float
+    threshold_reached: bool
+    hard_breached: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise to a JSON-safe dict (``inf`` rendered as ``None``)."""
+        import math
+
+        def _safe(v: float) -> float | None:
+            return v if math.isfinite(v) else None
+
+        return {
+            "name": self.name,
+            "spent_usd": round(self.spent_usd, 6),
+            "cap_usd": self.cap_usd,
+            "hard_cap_usd": self.hard_cap_usd,
+            "pct_used": round(self.pct_used, 4),
+            "threshold_pct": self.threshold_pct,
+            "calls": self.calls,
+            "remaining_usd": _safe(self.remaining_usd),
+            "hard_remaining_usd": _safe(self.hard_remaining_usd),
+            "threshold_reached": self.threshold_reached,
+            "hard_breached": self.hard_breached,
+        }
+
+
+# ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
 
@@ -181,6 +335,10 @@ class TokenUsage:
     cache_read_tokens: int = 0
     cache_write_tokens: int = 0
     cost_tags: dict[str, str] = field(default_factory=dict)
+    # Per-quota-envelope attribution (issue #1405). Defaults to
+    # ``"subscription"`` so existing single-envelope rollups remain
+    # backwards compatible.
+    quota_envelope: str = DEFAULT_QUOTA_ENVELOPE
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise to a JSON-safe dict."""
@@ -198,6 +356,7 @@ class TokenUsage:
             "cache_read_tokens": self.cache_read_tokens,
             "cache_write_tokens": self.cache_write_tokens,
             "cost_tags": self.cost_tags,
+            "quota_envelope": self.quota_envelope,
         }
 
     @classmethod
@@ -209,6 +368,8 @@ class TokenUsage:
             tags = {str(k): str(v) for k, v in cast("dict[str, Any]", raw_tags).items()}
         else:
             tags = {}
+        env_raw: object = d.get("quota_envelope", DEFAULT_QUOTA_ENVELOPE)
+        envelope = str(env_raw) if env_raw else DEFAULT_QUOTA_ENVELOPE
         return cls(
             input_tokens=int(d["input_tokens"]),
             output_tokens=int(d["output_tokens"]),
@@ -223,6 +384,7 @@ class TokenUsage:
             cache_read_tokens=int(d.get("cache_read_tokens", 0)),
             cache_write_tokens=int(d.get("cache_write_tokens", 0)),
             cost_tags=tags,
+            quota_envelope=envelope,
         )
 
 
@@ -371,6 +533,13 @@ class CostTracker:
     # ``bernstein cost --by ...`` can attribute spend post-hoc.
     spend_ledger: Any | None = None  # SpendLedger; typed as Any to avoid import cycle
 
+    # Per-envelope budgets (issue #1405). Maps envelope name to its
+    # :class:`EnvelopeConfig`. When the dict is empty the legacy
+    # single-envelope behaviour is preserved. Hard caps are enforced
+    # inside ``record()``; the budget hook fires when an envelope crosses
+    # its configured threshold.
+    envelopes: dict[str, EnvelopeConfig] = field(default_factory=dict[str, EnvelopeConfig])
+
     # Mutable tracking state (not constructor args)
     _spent_usd: float = field(default=0.0, init=False, repr=False)
     _usages: deque[TokenUsage] = field(
@@ -407,6 +576,17 @@ class CostTracker:
         init=False,
         repr=False,
     )
+    # Per-envelope spend totals + invocation counts (issue #1405). Updated
+    # under ``_lock`` so envelope rollups stay consistent with ``record()``.
+    _spent_by_envelope: dict[str, float] = field(default_factory=dict[str, float], init=False, repr=False)
+    _calls_by_envelope: dict[str, int] = field(default_factory=dict[str, int], init=False, repr=False)
+    # Envelopes that have already fired the threshold hook so we don't
+    # spam observers each call once they're over the watermark.
+    _envelope_warned: set[str] = field(default_factory=set[str], init=False, repr=False)
+    # Optional hook fired when an envelope crosses its threshold. The hook
+    # receives the offending :class:`EnvelopeReport` so observers can route
+    # the event to logs / dashboards / Slack without re-querying state.
+    _envelope_hook: object | None = field(default=None, init=False, repr=False)
     # Thread-safe lock for atomic budget check-and-record (COST-001).
     # Prevents race where two concurrent agents both pass the budget check
     # before either's cost is recorded, causing budget overshoot.
@@ -441,6 +621,7 @@ class CostTracker:
         role: str = "",
         feature_label: str = "",
         cost_tags: dict[str, str] | None = None,
+        quota_envelope: str = DEFAULT_QUOTA_ENVELOPE,
     ) -> BudgetStatus:
         """Record token usage for an agent and return updated budget status.
 
@@ -456,9 +637,17 @@ class CostTracker:
             cost_usd: Explicit cost override; estimated if omitted.
             cache_read_tokens: Tokens read from prompt cache.
             cache_write_tokens: Tokens written to prompt cache.
+            quota_envelope: Quota envelope tag attributed to this call
+                (issue #1405). Defaults to ``"subscription"`` so legacy
+                callers keep working unchanged.
 
         Returns:
             Current ``BudgetStatus`` after recording.
+
+        Raises:
+            EnvelopeBudgetError: When the envelope has a configured
+                ``hard_budget_usd`` and admitting this call would breach
+                it, or when ``model`` is not in the envelope's allowlist.
         """
         normalized_tenant = normalize_tenant_id(tenant_id)
         if cost_usd is None:
@@ -470,11 +659,35 @@ class CostTracker:
                 cache_write_tokens=cache_write_tokens,
             )
 
+        envelope = quota_envelope or DEFAULT_QUOTA_ENVELOPE
+        env_cfg = self.envelopes.get(envelope)
+
+        # Hard-cap + allowlist gates fire before we mutate any state so a
+        # rejected record never partially updates the totals.
+        if env_cfg is not None:
+            if not env_cfg.model_allowed(model):
+                raise EnvelopeBudgetError(
+                    envelope,
+                    f"model {model!r} not in allowlist {list(env_cfg.model_allowlist)!r}",
+                    spent_usd=self._spent_by_envelope.get(envelope, 0.0),
+                    cap_usd=env_cfg.hard_budget_usd,
+                )
+            if env_cfg.hard_budget_usd > 0:
+                projected = self._spent_by_envelope.get(envelope, 0.0) + cost_usd
+                if projected > env_cfg.hard_budget_usd:
+                    raise EnvelopeBudgetError(
+                        envelope,
+                        "hard budget exhausted",
+                        spent_usd=projected,
+                        cap_usd=env_cfg.hard_budget_usd,
+                    )
+
         merged_tags: dict[str, str] = dict(cost_tags or {})
         if role and "role" not in merged_tags:
             merged_tags["role"] = role
         if feature_label and "feature_label" not in merged_tags:
             merged_tags["feature_label"] = feature_label
+        merged_tags.setdefault("quota_envelope", envelope)
 
         usage = TokenUsage(
             input_tokens=input_tokens,
@@ -487,8 +700,10 @@ class CostTracker:
             cache_read_tokens=cache_read_tokens,
             cache_write_tokens=cache_write_tokens,
             cost_tags=merged_tags,
+            quota_envelope=envelope,
         )
         evicted: TokenUsage | None = None
+        envelope_fired: EnvelopeReport | None = None
         with self._lock:
             # Ring-buffer append: capture the row that would be evicted so we
             # can rotate it to JSONL before it falls off the end.
@@ -499,12 +714,17 @@ class CostTracker:
             self._spent_usd += cost_usd
             self._spent_by_agent[agent_id] = self._spent_by_agent.get(agent_id, 0.0) + cost_usd
             self._spent_by_model[model] = self._spent_by_model.get(model, 0.0) + cost_usd
+            self._spent_by_envelope[envelope] = self._spent_by_envelope.get(envelope, 0.0) + cost_usd
+            self._calls_by_envelope[envelope] = self._calls_by_envelope.get(envelope, 0) + 1
             self._update_accumulators(usage)
             status = self.status()
+            envelope_fired = self._maybe_fire_envelope_threshold_locked(envelope)
 
         if evicted is not None:
             self._rotate_evicted(evicted)
         self._emit_threshold_warnings(status)
+        if envelope_fired is not None:
+            self._invoke_envelope_hook(envelope_fired)
 
         # Push to the rolling spend ledger (issue #1320). Best-effort:
         # ledger IO must never block the record() hot path. Import locally
@@ -517,7 +737,8 @@ class CostTracker:
                 agent_id=agent_id,
                 role=str(merged_tags.get("role", "")),
                 feature_label=str(merged_tags.get("feature_label", "")),
-                extra={k: v for k, v in merged_tags.items() if k not in {"role", "feature_label"}},
+                quota_envelope=envelope,
+                extra={k: v for k, v in merged_tags.items() if k not in {"role", "feature_label", "quota_envelope"}},
             )
             try:
                 self.spend_ledger.record(
@@ -549,6 +770,7 @@ class CostTracker:
         role: str = "",
         feature_label: str = "",
         cost_tags: dict[str, str] | None = None,
+        quota_envelope: str = DEFAULT_QUOTA_ENVELOPE,
     ) -> float:
         """Record cumulative token usage for one agent/task pair.
 
@@ -616,16 +838,22 @@ class CostTracker:
             role=role,
             feature_label=feature_label,
             cost_tags=cost_tags,
+            quota_envelope=quota_envelope,
         )
         self._cumulative_tokens[key] = (cur_input, cur_output, cur_cache_read, cur_cache_write)
         return self._spent_usd - before
 
-    def can_spawn(self) -> bool:
+    def can_spawn(self, *, quota_envelope: str | None = None) -> bool:
         """Atomically check whether the budget permits spawning another agent.
 
         This method acquires the internal lock so that no concurrent
         ``record()`` can change the spend between the caller's check and
         their subsequent spawn decision.
+
+        Args:
+            quota_envelope: Optional envelope to check against in addition
+                to the run-wide caps. When set and the envelope has
+                exhausted its per-envelope hard cap, returns ``False``.
 
         Returns:
             ``True`` if budget is unlimited or spend is below the hard-stop
@@ -635,10 +863,133 @@ class CostTracker:
             # Hard cap (issue #1320) trips independently of the soft cap.
             if self.hard_budget_usd > 0 and self._spent_usd >= self.hard_budget_usd:
                 return False
+            if quota_envelope is not None:
+                env_cfg = self.envelopes.get(quota_envelope)
+                if env_cfg is not None and env_cfg.hard_budget_usd > 0:
+                    spent_env = self._spent_by_envelope.get(quota_envelope, 0.0)
+                    if spent_env >= env_cfg.hard_budget_usd:
+                        return False
             if self.budget_usd <= 0:
                 return True
             pct = self._spent_usd / self.budget_usd
             return pct < self.hard_stop_threshold
+
+    # ---- envelopes (issue #1405) ----------------------------------------
+
+    def configure_envelopes(self, envelopes: dict[str, EnvelopeConfig]) -> None:
+        """Replace the envelope configuration map.
+
+        Convenience setter so callers building a tracker from
+        ``bernstein.yaml`` need not assign ``tracker.envelopes`` directly.
+        Existing envelope spend totals are preserved — the new
+        configuration only affects future records.
+        """
+        self.envelopes = dict(envelopes)
+
+    def set_envelope_threshold_hook(self, hook: object) -> None:
+        """Register a callable fired when an envelope crosses its threshold.
+
+        The hook receives the :class:`EnvelopeReport` for the offending
+        envelope. Callers typically wire this into the
+        :mod:`bernstein.core.cost.budget_actions` envelope-threshold hook.
+        Failures inside the hook are logged and swallowed so observers
+        never break the record hot path.
+        """
+        self._envelope_hook = hook
+
+    def spent_by_envelope(self) -> dict[str, float]:
+        """Return a shallow copy of the per-envelope spend map."""
+        with self._lock:
+            return dict(self._spent_by_envelope)
+
+    def calls_by_envelope(self) -> dict[str, int]:
+        """Return a shallow copy of the per-envelope invocation map."""
+        with self._lock:
+            return dict(self._calls_by_envelope)
+
+    def envelope_report(self, name: str) -> EnvelopeReport:
+        """Return the live :class:`EnvelopeReport` for ``name``.
+
+        Reads spend and the configured cap under the tracker lock so the
+        returned report is consistent with a single record() snapshot.
+        """
+        with self._lock:
+            return self._envelope_report_locked(name)
+
+    def envelope_reports(self) -> dict[str, EnvelopeReport]:
+        """Return a per-envelope report for every observed envelope.
+
+        Both spent-only envelopes (no config) and configured-but-unspent
+        envelopes show up in the map so dashboards can render the full
+        picture without merging two sources.
+        """
+        with self._lock:
+            seen = set(self._spent_by_envelope) | set(self.envelopes)
+            return {name: self._envelope_report_locked(name) for name in sorted(seen)}
+
+    def _envelope_report_locked(self, name: str) -> EnvelopeReport:
+        cfg = self.envelopes.get(name)
+        spent = self._spent_by_envelope.get(name, 0.0)
+        calls = self._calls_by_envelope.get(name, 0)
+        cap = cfg.budget_usd if cfg is not None else 0.0
+        hard_cap = cfg.hard_budget_usd if cfg is not None else 0.0
+        pct = (spent / cap) if cap > 0 else 0.0
+        threshold = cfg.threshold_pct if cfg is not None else DEFAULT_ENVELOPE_THRESHOLD
+        remaining = max(cap - spent, 0.0) if cap > 0 else float("inf")
+        hard_remaining = max(hard_cap - spent, 0.0) if hard_cap > 0 else float("inf")
+        return EnvelopeReport(
+            name=name,
+            spent_usd=spent,
+            cap_usd=cap,
+            hard_cap_usd=hard_cap,
+            pct_used=pct,
+            threshold_pct=threshold,
+            calls=calls,
+            remaining_usd=remaining,
+            hard_remaining_usd=hard_remaining,
+            threshold_reached=cap > 0 and pct >= threshold,
+            hard_breached=hard_cap > 0 and spent >= hard_cap,
+        )
+
+    def _maybe_fire_envelope_threshold_locked(self, envelope: str) -> EnvelopeReport | None:
+        """Return the EnvelopeReport when the threshold has just been crossed.
+
+        Called under ``self._lock``. Does not invoke the hook — the
+        caller fires the hook *after* releasing the lock so a slow
+        observer never blocks other writers.
+        """
+        cfg = self.envelopes.get(envelope)
+        if cfg is None or cfg.budget_usd <= 0:
+            return None
+        spent = self._spent_by_envelope.get(envelope, 0.0)
+        pct = spent / cfg.budget_usd
+        if pct < cfg.threshold_pct:
+            return None
+        if envelope in self._envelope_warned:
+            return None
+        self._envelope_warned.add(envelope)
+        return self._envelope_report_locked(envelope)
+
+    def _invoke_envelope_hook(self, report: EnvelopeReport) -> None:
+        """Best-effort fire the registered envelope-threshold hook.
+
+        Default behaviour (no hook attached) logs a structured warning so
+        operators can see threshold crossings without bespoke wiring.
+        """
+        hook = self._envelope_hook
+        if hook is None:
+            logger.warning(
+                "envelope_threshold_reached envelope=%s spent=$%.4f cap=$%.4f pct=%.2f",
+                report.name,
+                report.spent_usd,
+                report.cap_usd,
+                report.pct_used,
+            )
+            return
+        try:
+            cast("Any", hook)(report)
+        except Exception as exc:  # pragma: no cover - best-effort hook
+            logger.debug("envelope threshold hook raised: %s", exc)
 
     # ---- status -----------------------------------------------------------
 
@@ -765,6 +1116,9 @@ class CostTracker:
                 "|".join(k): list(v)
                 for k, v in self._cumulative_tokens.items()
             },
+            "envelopes": {name: cfg.to_dict() for name, cfg in self.envelopes.items()},
+            "spent_by_envelope": dict(self._spent_by_envelope),
+            "calls_by_envelope": dict(self._calls_by_envelope),
         }
         file_path.write_text(json.dumps(data, indent=2))
         return file_path
@@ -812,6 +1166,35 @@ class CostTracker:
                 key = tuple(k_str.split("|"))
                 if len(key) == 3:
                     tracker._cumulative_tokens[key] = tuple(v_list)  # type: ignore[assignment]
+
+            # Restore envelope state (issue #1405). Backwards compatible:
+            # older snapshots without envelope blocks load as zero-state.
+            raw_env_cfg = data.get("envelopes", {})
+            if isinstance(raw_env_cfg, dict):
+                env_map: dict[str, EnvelopeConfig] = {}
+                for name, payload in cast("dict[str, Any]", raw_env_cfg).items():
+                    if isinstance(payload, dict):
+                        env_map[str(name)] = EnvelopeConfig.from_dict(str(name), cast("dict[str, Any]", payload))
+                tracker.envelopes = env_map
+            raw_env_spent = data.get("spent_by_envelope", {})
+            if isinstance(raw_env_spent, dict):
+                tracker._spent_by_envelope = {
+                    str(k): float(v) for k, v in cast("dict[str, Any]", raw_env_spent).items()
+                }
+            raw_env_calls = data.get("calls_by_envelope", {})
+            if isinstance(raw_env_calls, dict):
+                tracker._calls_by_envelope = {str(k): int(v) for k, v in cast("dict[str, Any]", raw_env_calls).items()}
+
+            # If we loaded usages but not envelope spend, derive it from
+            # usage records so old snapshots still aggregate by envelope.
+            if not tracker._spent_by_envelope and tracker._usages:
+                for u in tracker._usages:
+                    tracker._spent_by_envelope[u.quota_envelope] = (
+                        tracker._spent_by_envelope.get(u.quota_envelope, 0.0) + u.cost_usd
+                    )
+                    tracker._calls_by_envelope[u.quota_envelope] = (
+                        tracker._calls_by_envelope.get(u.quota_envelope, 0) + 1
+                    )
 
             return tracker
         except Exception as exc:

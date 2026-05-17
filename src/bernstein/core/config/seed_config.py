@@ -326,6 +326,12 @@ class SeedConfig:
     model_fallback: ModelFallbackSeedConfig | None = None
     cost_tags: dict[str, str] = field(default_factory=dict)
     cost_autopilot: bool = False
+    # Per-quota-envelope budgets (issue #1405). Parsed from the
+    # ``cost.envelopes`` block of ``bernstein.yaml`` into a mapping of
+    # envelope-name -> raw config dict (``budget_usd``, ``hard_budget_usd``,
+    # ``model_allowlist``, ``threshold_pct``). Empty dict preserves
+    # legacy single-envelope behaviour.
+    cost_envelopes: dict[str, dict[str, Any]] = field(default_factory=dict[str, dict[str, Any]])
     deployment_strategy: str = "rolling"
     org_policies: list[str] = field(default_factory=list)
     metrics: dict[str, MetricSchema] = field(default_factory=dict)

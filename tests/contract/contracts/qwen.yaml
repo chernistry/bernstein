@@ -1,0 +1,21 @@
+# Contract for the Qwen CLI (adapter: qwen).
+#
+# Always-passed surface from src/bernstein/adapters/qwen.py::_build_command:
+# ``qwen -y --model <resolved> [--auth-type openai] [--tavily-api-key ...]``.
+# Only ``-y`` and ``--model`` are unconditional.
+adapter: qwen
+binary: qwen
+install:
+  method: npm
+  spec: "@qwen-code/qwen-code@latest"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "DASHSCOPE_API_KEY"
+required_flags:
+  - "-y"
+  - "--model"
+required_subcommands: []
+expected_models:
+  command: []
+  required_present: []

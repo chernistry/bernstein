@@ -15,7 +15,13 @@ jobs:
   auto-merge:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: github.actor == 'dependabot[bot]'
+    # Spoof-resistant check: github.actor can be impersonated by a setting
+    # the User-Agent on the API call. Validate both the bot type and the
+    # immutable Dependabot user id (49699333). See zizmor `bot-conditions`.
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.pull_request.user.id == 49699333 &&
+      github.event.pull_request.user.type == 'Bot'
     steps:
       - name: Harden runner (audit mode)
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3

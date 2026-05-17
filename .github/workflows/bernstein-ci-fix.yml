@@ -15,7 +15,14 @@ name: "Bernstein CI Fix"
 #     workflow so it stays off until explicitly enabled per environment.
 #   - No `actions: write` permission — auto-heal cannot trigger more
 #     workflows recursively.
-on:
+#
+# Safety note (zizmor dangerous-triggers): this workflow uses `workflow_run`
+# intentionally so it can fix CI failures landed on main. The canonical-repo
+# gate (head_repository.full_name == github.repository), the `branches: [main]`
+# selector, and the recursion guard above ensure fork PRs and auto-heal
+# commits never reach the LLM. The auto-heal job operates on a fresh branch
+# from the trusted main HEAD, not on attacker-supplied PR head code.
+on:  # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: ["CI"]
     types: [completed]
@@ -226,15 +233,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUN_ID: ${{ needs.triage.outputs.run_id }}
+          HEAD_SHA: ${{ needs.triage.outputs.head_sha }}
+          SERVER_URL: ${{ github.server_url }}
+          REPO: ${{ github.repository }}
         run: |
           mkdir -p /tmp/ci-failure
           gh run view "$RUN_ID" --log-failed > /tmp/ci-failure/logs.txt 2>&1 || true
           # Truncate to last 200 lines so the model gets the relevant tail.
           tail -n 200 /tmp/ci-failure/logs.txt > /tmp/ci-failure/logs-tail.txt
           {
-            echo "# CI failure on commit ${{ needs.triage.outputs.head_sha }}"
+            echo "# CI failure on commit ${HEAD_SHA}"
             echo
-            echo "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ needs.triage.outputs.run_id }}"
+            echo "Run: ${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}"
             echo
             echo "## Failing job tail (last 200 lines)"
             echo

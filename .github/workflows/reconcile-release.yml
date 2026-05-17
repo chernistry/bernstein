@@ -159,5 +159,8 @@ jobs:
 
       - name: No drift
         if: steps.cmp.outputs.drift != 'true'
+        env:
+          PJ_VERSION: ${{ steps.cmp.outputs.pj_version }}
+          PYPI_VERSION: ${{ steps.cmp.outputs.pypi_version }}
         run: |
-          echo "::notice::No release drift detected (pyproject=${{ steps.cmp.outputs.pj_version }}, pypi=${{ steps.cmp.outputs.pypi_version }})."
+          echo "::notice::No release drift detected (pyproject=${PJ_VERSION}, pypi=${PYPI_VERSION})."

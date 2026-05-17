@@ -685,9 +685,11 @@ jobs:
           enable-cache: true
       - name: Compute changed src/ files
         id: diff
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
           CHANGED=$(git diff --name-only \
-            "origin/${{ github.base_ref }}...HEAD" \
+            "origin/${BASE_REF}...HEAD" \
             | grep '^src/.*\.py$' | tr '\n' ',' | sed 's/,$//')
           if [ -z "$CHANGED" ]; then
             echo "no Python files changed; skipping mutation step"
@@ -699,13 +701,15 @@ jobs:
       - name: Run mutmut on changed files
         if: steps.diff.outputs.skip != 'true'
         continue-on-error: true  # advisory — score reported, not enforced
+        env:
+          DIFF_PATHS: ${{ steps.diff.outputs.paths }}
         run: |
           uv sync --group dev
           # mutmut 3.x reads paths_to_mutate from pyproject.toml /
           # mutmut_config.py instead of CLI; we rewrite the config to
           # the diff paths for this run only, then revert.
           cp mutmut_config.py mutmut_config.py.bak
-          PATHS=$(echo "${{ steps.diff.outputs.paths }}" | tr ',' '\n' | sed 's/.*/    "&",/')
+          PATHS=$(echo "${DIFF_PATHS}" | tr ',' '\n' | sed 's/.*/    "&",/')
           {
             echo "paths_to_mutate = ["
             echo "$PATHS"
@@ -746,10 +750,12 @@ jobs:
         continue-on-error: true  # main may not have generated coverage on the PR's commit
       - name: Run diff-cover
         continue-on-error: true  # advisory until all PRs reliably have coverage.xml
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
           if [ -f coverage.xml ]; then
             uv run diff-cover coverage.xml \
-              --compare-branch=origin/${{ github.base_ref }} \
+              --compare-branch="origin/${BASE_REF}" \
               --fail-under=80 \
               --markdown-report diff-coverage.md
             cat diff-coverage.md >> "$GITHUB_STEP_SUMMARY" || true
@@ -860,15 +866,20 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Fetch base ref for impacted-test selection
         if: github.event_name == 'pull_request' && runner.os != 'Windows'
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
           git fetch --no-tags --depth=1 origin \
-            "refs/heads/${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+            "refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
       - name: Run isolated test suite (Linux/macOS)
         if: runner.os != 'Windows'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && \
-             git rev-parse --verify "refs/remotes/origin/${{ github.base_ref }}" >/dev/null 2>&1; then
-            uv run python scripts/run_tests.py --parallel 4 --affected "refs/remotes/origin/${{ github.base_ref }}"
+          if [ "${EVENT_NAME}" = "pull_request" ] && \
+             git rev-parse --verify "refs/remotes/origin/${BASE_REF}" >/dev/null 2>&1; then
+            uv run python scripts/run_tests.py --parallel 4 --affected "refs/remotes/origin/${BASE_REF}"
           else
             uv run python scripts/run_tests.py --parallel 4
           fi

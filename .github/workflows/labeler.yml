@@ -1,6 +1,16 @@
 name: PR Labeler
 
-on:
+# Safety note (zizmor dangerous-triggers): this workflow uses
+# `pull_request_target` intentionally so PRs opened from forks can still be
+# labelled by maintainers (the default `pull_request` event runs with a
+# read-only token on fork PRs and cannot write labels). The job:
+#   - Does NOT check out PR head code (no `actions/checkout` with `ref:`).
+#   - Only consumes path-based label rules from the trusted base ref via
+#     `actions/labeler`, which fetches the config from `github.sha` (base).
+#   - Has narrowly scoped `pull-requests: write` permission and no secrets
+#     beyond `GITHUB_TOKEN`.
+# Attacker-controlled PR content never reaches a `run:` block here.
+on:  # zizmor: ignore[dangerous-triggers]
   pull_request_target:
 
 concurrency:

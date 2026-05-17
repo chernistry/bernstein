@@ -55,7 +55,9 @@ jobs:
 
       - name: Save report
         if: always()
-        run: echo '${{ steps.license_check_report.outputs.report }}' > license-report.json
+        env:
+          REPORT: ${{ steps.license_check_report.outputs.report }}
+        run: printf '%s' "$REPORT" > license-report.json
 
       - name: Upload license report
         if: always()

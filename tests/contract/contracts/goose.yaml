@@ -1,0 +1,22 @@
+# Contract for the Block Goose CLI (adapter: goose).
+#
+# Always-passed surface from src/bernstein/adapters/goose.py:
+# ``goose run --instruction <prompt> [--model <id>]``.
+adapter: goose
+binary: goose
+install:
+  method: curl
+  spec: "https://github.com/block/goose/releases/latest/download/download_cli.sh"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "ANTHROPIC_API_KEY"
+required_flags:
+  - "--instruction"
+required_subcommands:
+  - "run"
+# Goose sub-flags live under ``goose run --help``.
+help_command: ["goose", "run", "--help"]
+expected_models:
+  command: []
+  required_present: []

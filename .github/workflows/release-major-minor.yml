@@ -86,8 +86,11 @@ jobs:
       # Apply version bump
       - name: Update pyproject.toml
         if: inputs.dry_run == false
+        env:
+          OLD_VERSION: ${{ steps.bump.outputs.old }}
+          NEW_VERSION: ${{ steps.bump.outputs.new }}
         run: |
-          sed -i "s/^version = \"${{ steps.bump.outputs.old }}\"/version = \"${{ steps.bump.outputs.new }}\"/" pyproject.toml
+          sed -i "s/^version = \"${OLD_VERSION}\"/version = \"${NEW_VERSION}\"/" pyproject.toml
 
       # Generate changelog section
       - name: Generate changelog
@@ -108,14 +111,16 @@ jobs:
       # Commit, tag, build, publish
       - name: Commit and tag
         if: inputs.dry_run == false
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.new }}
         run: |
           git config user.name "bernstein[bot]"
           git config user.email "bernstein-bot@users.noreply.github.com"
           git add pyproject.toml
-          git commit -m "release: v${{ steps.bump.outputs.new }}"
-          git tag "v${{ steps.bump.outputs.new }}"
+          git commit -m "release: v${NEW_VERSION}"
+          git tag "v${NEW_VERSION}"
           git push
-          git push origin "v${{ steps.bump.outputs.new }}"
+          git push origin "v${NEW_VERSION}"
 
       - name: Build
         run: uv build

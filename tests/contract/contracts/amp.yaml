@@ -1,0 +1,25 @@
+# Contract for the Sourcegraph / Ampcode Amp CLI (adapter: amp).
+#
+# Upstream renamed the npm package to ``@ampcode/cli`` and restructured
+# the flag surface — what the adapter calls ``--model`` is now
+# ``--mode``, ``--prompt`` is now ``--execute``, ``--headless`` is now
+# ``--stream-json``. This contract pins to the **current** upstream
+# surface so the drift detector stays useful; updating
+# src/bernstein/adapters/amp.py to match is tracked separately (the
+# adapter still launches a broken process today).
+adapter: amp
+binary: amp
+install:
+  method: npm
+  spec: "@ampcode/cli@latest"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "AMP_API_KEY"
+required_flags:
+  - "--mode"
+  - "--execute"
+required_subcommands: []
+expected_models:
+  command: []
+  required_present: []

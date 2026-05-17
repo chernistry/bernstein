@@ -181,7 +181,8 @@ def load_history(
         if not isinstance(parsed, dict):
             continue
         record: dict[str, object] = {
-            str(k): v for k, v in parsed.items()  # type: ignore[reportUnknownVariableType]
+            str(k): v
+            for k, v in parsed.items()  # type: ignore[reportUnknownVariableType]
         }
         if not _matches(record, role_norm, adapter_norm):
             continue

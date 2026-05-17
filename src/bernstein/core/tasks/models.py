@@ -384,6 +384,10 @@ class Task:
     best_of_n: int | None = (
         None  # Opt-in best-of-N candidate fan-out (K in [2, BEST_OF_N.max_candidates]); None/<=1 = single agent
     )
+    # Iterative self-refinement loop (issue #1403). Opt-in: N in
+    # [2, MAX_REFINEMENT_ROUNDS]; None/<=1 = single-shot path. Mutually
+    # exclusive with ``best_of_n``; the runner asserts the invariant.
+    refinement_rounds: int | None = None
     # Issue #1109: when True, retries spawn a fresh agent with NO accumulated
     # state (no log carryover, no failure-context replay, no warm-pool reuse).
     # Mirrors a ``context: fresh`` per-node semantic applied to retry
@@ -484,6 +488,7 @@ class Task:
             parent_context=raw.get("parent_context"),
             requires=list(raw.get("requires", [])),
             best_of_n=(lambda v: None if v is None else int(v))(raw.get("best_of_n")),
+            refinement_rounds=(lambda v: None if v is None else int(v))(raw.get("refinement_rounds")),
             agent_restart_between_retries=bool(raw.get("agent_restart_between_retries", False)),
         )
 

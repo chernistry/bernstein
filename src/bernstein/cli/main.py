@@ -609,6 +609,15 @@ def _validate_evolve_mode(evolve: bool, budget: float, max_cycles: int, yes: boo
     default=False,
     help="Allow the sandbox selector to consider paid cloud backends.",
 )
+@click.option(
+    "--refine",
+    "refine_spec",
+    default=None,
+    metavar="SPEC",
+    help=(
+        "Iterative self-refinement loop (issue #1403). Format: 'rounds:N,critic:adversary,stop:plateau,threshold:0.9'."
+    ),
+)
 @click.pass_context
 def cli(
     ctx: click.Context,
@@ -639,6 +648,7 @@ def cli(
     activity_log_path: str | None,
     sandbox_override: str | None,
     allow_paid: bool,
+    refine_spec: str | None,
 ) -> None:
     """Declarative agent orchestration for engineering teams."""
     setup_json_logging()
@@ -652,6 +662,19 @@ def cli(
     # whether to render the original traceback below the hint panel.
     ctx.obj["VERBOSE"] = bool(verbose)
     apply_verbosity(verbose, quiet)
+
+    # Parse the iterative-refinement spec (issue #1403). Failing fast on a
+    # malformed value matches Click's other parser behaviours and surfaces
+    # operator typos before any agent invocation cost is incurred.
+    if refine_spec:
+        from bernstein.core.orchestration.refinement_loop import parse_refine_spec
+
+        try:
+            ctx.obj["REFINE_SPEC"] = parse_refine_spec(refine_spec)
+        except ValueError as exc:
+            raise click.UsageError(f"Invalid --refine spec: {exc}") from exc
+    else:
+        ctx.obj["REFINE_SPEC"] = None
 
     if ctx.invoked_subcommand is not None:
         return

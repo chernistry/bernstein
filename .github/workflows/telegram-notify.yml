@@ -1,6 +1,12 @@
 name: Telegram CI Notifications
 
-on:
+# Safety note (zizmor dangerous-triggers): this workflow uses `workflow_run`
+# so it can notify on completion of the upstream CI run. It runs only on the
+# `main` branch of the canonical repo (fork PRs are excluded by the
+# `branches: [main]` selector), never checks out any code, and only forwards
+# a fixed metadata set (conclusion, branch, sha, run id) to Telegram. No
+# attacker-controlled value reaches a `run:` block.
+on:  # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: ["CI"]
     types: [completed]

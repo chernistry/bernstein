@@ -29,6 +29,8 @@ jobs:
           enable-cache: true
 
       - name: Run protocol compatibility check
+        env:
+          RELEASE_REF: ${{ github.ref_name }}
         run: |
           # Install test dependencies
           uv pip install mcp a2a || true
@@ -39,7 +41,7 @@ jobs:
           # Generate results
           python << 'EOF'
           import json
-          import subprocess
+          import os
 
           results = []
           test_output = open('test-output.log').read()
@@ -57,7 +59,7 @@ jobs:
 
           compat_data = {
             "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "release": "${{ github.ref_name }}",
+            "release": os.environ.get("RELEASE_REF", ""),
             "results": results
           }
 

@@ -152,6 +152,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          persist-credentials: false
           fetch-depth: 0
       - id: classify
         name: Classify changed paths
@@ -230,6 +231,7 @@ jobs:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          persist-credentials: false
           # Full clone so ``bernstein agents-md verify`` can resolve the
           # default branch via ``git rev-parse --verify origin/main``.
           # The default depth=1 single-ref fetch leaves origin/main
@@ -297,6 +299,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -317,6 +321,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: crate-ci/typos@f06b85043a5ab470afbb0a5592456e733243983a # v1
 
   actionlint:
@@ -331,6 +337,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: reviewdog/action-actionlint@6fb7acc99f4a1008869fa8a0f09cfca740837d9d # v1
         with:
           reporter: github-check
@@ -351,6 +359,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -377,6 +387,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -397,6 +409,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -415,6 +429,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -450,6 +466,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -474,6 +492,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -497,6 +517,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -521,6 +543,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -552,6 +576,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -579,6 +605,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -616,6 +644,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -648,6 +678,7 @@ jobs:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          persist-credentials: false
           fetch-depth: 0
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -707,6 +738,7 @@ jobs:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          persist-credentials: false
           fetch-depth: 0
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
@@ -748,6 +780,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -784,6 +818,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -822,6 +858,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
         with:
           enable-cache: true
@@ -983,6 +1021,7 @@ jobs:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          persist-credentials: false
           fetch-depth: 5
       - name: Check for autofix loop
         id: loop_check
@@ -1037,6 +1076,8 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - name: Close ci-fix issues
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

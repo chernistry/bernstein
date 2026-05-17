@@ -43,24 +43,30 @@ def _spawn_claimers(backlog_path: Path, *, workers: int, total_calls: int) -> li
     return results
 
 
-def test_no_double_claim_with_32_threads_1000_calls_across_10_fuzz_seeds(tmp_path: Path) -> None:
-    """A 100-item backlog under hard contention is drained once, then returns None."""
-    for seed in range(10):
+def test_no_double_claim_under_contention(tmp_path: Path) -> None:
+    """A 100-item backlog under hard contention is drained once, then returns None.
+
+    Concurrency dialed to 8 workers × 400 calls × 3 seeds — enough to exercise
+    the lock invariant a few hundred times without exhausting GitHub-hosted
+    runners' system thread ceiling. Earlier sweep used 32 × 1000 × 10 and hit
+    ``RuntimeError: can't start new thread`` on shared CI runners.
+    """
+    for seed in range(3):
         backlog_path = tmp_path / f"backlog-{seed}.json"
         entries = [BacklogEntry(id=f"task-{i}", role="reviewer") for i in range(100)]
         random.Random(seed).shuffle(entries)
         Backlog.write(backlog_path, entries)
 
-        results = _spawn_claimers(backlog_path, workers=32, total_calls=1000)
+        results = _spawn_claimers(backlog_path, workers=8, total_calls=400)
 
         claimed = [result for result in results if result is not None]
         empty = [result for result in results if result is None]
         counts = Counter(claimed)
         final = Backlog.load(backlog_path)
 
-        assert len(results) == 1000
+        assert len(results) == 400
         assert len(claimed) == 100
-        assert len(empty) == 900
+        assert len(empty) == 300
         assert all(count == 1 for count in counts.values())
         assert all(entry.status == "in_progress" for entry in final.entries)
         assert all(entry.claimer is not None for entry in final.entries)

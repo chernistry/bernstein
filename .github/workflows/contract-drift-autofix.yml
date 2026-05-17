@@ -20,28 +20,34 @@ name: "Contract Drift Autofix"
 # real signals (new public surface needs explicit acknowledgement) but the
 # fix is mechanical — perfectly suited for an autofix bot.
 #
-# This workflow watches the CI workflow_run for PRs, runs just these three
-# tests, and if any fail invokes scripts/regen_contract_drift.py to
-# regenerate the allow-list / forward-arg list, then opens a follow-up PR
-# via peter-evans/create-pull-request.
+# Behaviour on drift
+# ------------------
+# This workflow runs on PR open/sync, runs just these three tests, and if
+# any fail invokes scripts/regen_contract_drift.py to regenerate the
+# allow-list / forward-arg list. Instead of opening a follow-up PR (which
+# is blocked at the org level: "GitHub Actions is not permitted to create
+# or approve pull requests"), the workflow **posts the proposed patch as a
+# PR comment** on the offending PR — the operator can then apply it
+# locally with a single command.
 #
-# Recursion guards
-# ----------------
+# Why a comment and not a PR
+# --------------------------
+# The org-level setting "Allow GitHub Actions to create and approve pull
+# requests" is OFF. Any attempt to call peter-evans/create-pull-request or
+# `gh pr create` from a workflow fails with
+# `GitHub Actions is not permitted to create or approve pull requests`,
+# which marked this check as failed on every PR and blocked the entire PR
+# landing wave. Soft-degrading to a comment preserves the actual value
+# (operator sees the exact patch + reproducer) without needing org-level
+# policy changes.
+#
+# Recursion guards (still in place)
+# ---------------------------------
 #   * Skips when the head branch is main (autofix only applies to PRs).
-#   * Skips when the PR author is the bot itself (no infinite loops).
+#   * Skips when the PR author is the bot itself (legacy guard; left in
+#     place defensively in case PR-create is ever re-enabled).
 #   * Diff size capped at 30 LOC by the regen script; larger diffs imply
 #     a real change and are escalated by opening an issue instead.
-#   * No `actions: write` permission, so the autofix PR cannot recursively
-#     trigger more workflows in this file.
-#
-# Secret requirements
-# -------------------
-#   * BOT_PAT (optional, recommended): a fine-grained PAT with `contents:
-#     write` + `pull-requests: write` on this repo. When present, the
-#     autofix PR triggers CI runs (GITHUB_TOKEN-authored PRs are otherwise
-#     muted by GitHub's recursion protection). When absent, falls back to
-#     GITHUB_TOKEN — the bot PR opens but CI must be kicked manually by
-#     closing/reopening it.
 on:
   pull_request:
     types: [opened, synchronize]
@@ -51,7 +57,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
   issues: write
 
@@ -60,9 +66,10 @@ jobs:
     name: Detect and patch contract drift
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Recursion guard: don't run on PRs the bot itself opened. The matchers
-    # are intentionally broad (covers default GITHUB_TOKEN authorship via
-    # `github-actions[bot]` AND any of our bot identities used elsewhere).
+    # Recursion guard: defensive — kept from the legacy PR-creating version
+    # in case PR-create is ever re-enabled. The matchers cover default
+    # GITHUB_TOKEN authorship via `github-actions[bot]` AND any of our bot
+    # identities used elsewhere.
     if: >
       github.event.pull_request.user.login != 'github-actions[bot]' &&
       github.event.pull_request.user.login != 'bernstein[bot]' &&
@@ -73,15 +80,14 @@ jobs:
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
         with:
           egress-policy: audit
-      # persist-credentials kept: this job pushes the autofix branch back to git.
+      # No git push from this job: it only reads the PR head and posts a
+      # comment via the GitHub API.
       - name: Checkout PR head
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6  # zizmor: ignore[artipacked]
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
-          # Use BOT_PAT if present so the eventual autofix PR can trigger
-          # CI. GITHUB_TOKEN-authored PRs are muted by GitHub.
-          token: ${{ secrets.BOT_PAT || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
 
@@ -149,6 +155,12 @@ jobs:
               [ -z "$f" ] && continue
               echo "  $f"
             done <<< "$CHANGED_FILES"
+            # Persist the actual diff to disk so the comment step can read
+            # it via github-script. The comment body is hard-capped at
+            # ~60k chars (GitHub limit is 65536) — the 30-LOC regen cap
+            # makes this comfortable but we truncate defensively just in
+            # case the script is ever loosened.
+            git diff > "${RUNNER_TEMP}/contract-drift.patch"
           fi
 
       - name: Re-run drift tests to confirm regen fixed them
@@ -164,61 +176,131 @@ jobs:
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
           if [ "$status" -ne 0 ]; then
-            echo "::warning::Regen ran but drift tests still fail. Bot will open an issue instead of a PR."
+            echo "::warning::Regen ran but drift tests still fail. Bot will open a tracking issue."
           fi
           exit 0
 
-      - name: Open autofix PR
+      - name: Post drift patch as PR comment
+        # Soft-degrade path. Org-level policy "Allow GitHub Actions to
+        # create and approve pull requests" is OFF, so we cannot open a
+        # follow-up PR from a workflow. Instead we paste the regenerated
+        # diff directly onto the offending PR so the operator can apply
+        # it locally and push in a single `git apply` + `git push`.
         if: >
           steps.drift.outputs.drift == 'true' &&
           steps.verify.outputs.changed == 'true' &&
           steps.reverify.outputs.status == '0'
-        id: cpr
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        id: comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CHANGED_FILES: ${{ steps.verify.outputs.changed_files }}
+          LOC_DELTA: ${{ steps.verify.outputs.loc_delta }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
-          token: ${{ secrets.BOT_PAT || secrets.GITHUB_TOKEN }}
-          branch: bot/contract-drift-pr-${{ github.event.pull_request.number }}
-          base: ${{ github.event.pull_request.head.ref }}
-          commit-message: |
-            chore(ci): regenerate contract drift allow-lists
+          script: |
+            const fs = require('fs');
+            const path = require('path');
 
-            Drift detected on PR #${{ github.event.pull_request.number }}.
-            Regenerated via scripts/regen_contract_drift.py.
-            Refs #1273.
-          title: "bot(contract-drift): regenerate ${{ steps.verify.outputs.changed_files }}"
-          body: |
-            Auto-generated patch from `contract-drift-autofix.yml`.
+            const marker = '<!-- contract-drift-autofix:patch -->';
+            const prNumber = Number(process.env.PR_NUMBER);
+            const changedFiles = (process.env.CHANGED_FILES || '').trim();
+            const locDelta = process.env.LOC_DELTA || '?';
+            const runUrl = process.env.RUN_URL;
 
-            Three contract tests act as drift detectors against the public CLI / API surface:
+            const patchPath = path.join(process.env.RUNNER_TEMP, 'contract-drift.patch');
+            let patch = fs.readFileSync(patchPath, 'utf-8');
 
-            - `tests/unit/test_readme_api_coverage.py::test_all_cli_commands_are_documented`
-            - `tests/unit/test_api_v1_routing.py::TestVersionedRoutesParity::test_every_root_route_has_v1_counterpart`
-            - `tests/unit/test_cli_run_params.py::test_run_params_match_cli_call`
+            // Defensive cap: GitHub comment body limit is 65536 chars.
+            // The regen script caps the diff at 30 LOC so we are nowhere
+            // near this, but keep a guard in case the cap is ever raised.
+            const PATCH_CAP = 50000;
+            let truncated = false;
+            if (patch.length > PATCH_CAP) {
+              patch = patch.slice(0, PATCH_CAP);
+              truncated = true;
+            }
 
-            One or more failed on PR #${{ github.event.pull_request.number }}; this PR regenerates the
-            corresponding allow-list / forward-arg list via
-            `scripts/regen_contract_drift.py`.
+            const body = [
+              marker,
+              '## Contract drift detected — proposed patch',
+              '',
+              'Three contract tests act as drift detectors against the public CLI / API surface:',
+              '',
+              '- `tests/unit/test_readme_api_coverage.py::test_all_cli_commands_are_documented`',
+              '- `tests/unit/test_api_v1_routing.py::TestVersionedRoutesParity::test_every_root_route_has_v1_counterpart`',
+              '- `tests/unit/test_cli_run_params.py::test_run_params_match_cli_call`',
+              '',
+              `One or more failed on this PR. \`scripts/regen_contract_drift.py\` produced the patch below (${locDelta} LOC, cap: 30).`,
+              '',
+              '**Files changed:**',
+              '```',
+              changedFiles || '(none)',
+              '```',
+              '',
+              '### How to apply',
+              '',
+              'Either run the regen script locally:',
+              '',
+              '```bash',
+              'uv run python scripts/regen_contract_drift.py --fixture all',
+              'git add -A && git commit -m "chore(ci): regenerate contract drift allow-lists"',
+              'git push',
+              '```',
+              '',
+              'Or apply the patch directly:',
+              '',
+              '```bash',
+              `gh pr checkout ${prNumber}`,
+              'git apply <<\'PATCH\'',
+              patch.trimEnd(),
+              'PATCH',
+              'git add -A && git commit -m "chore(ci): regenerate contract drift allow-lists"',
+              'git push',
+              '```',
+              '',
+              truncated ? '_Patch truncated to fit comment limit; re-run regen locally for the full diff._' : '',
+              '',
+              '<details><summary>Full diff</summary>',
+              '',
+              '```diff',
+              patch.trimEnd(),
+              '```',
+              '',
+              '</details>',
+              '',
+              `**Source CI run:** ${runUrl}`,
+              '',
+              '_Why a comment and not a PR: the org-level setting "Allow GitHub Actions to create and approve pull requests" is OFF, so workflows cannot open PRs. Refs #1273._',
+            ].join('\n');
 
-            **Files changed:**
-            ```
-            ${{ steps.verify.outputs.changed_files }}
-            ```
-            **LOC delta:** ${{ steps.verify.outputs.loc_delta }} (cap: 30)
+            // Idempotency: edit the existing autofix comment in place
+            // rather than spamming a new one on every push.
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
 
-            **Source CI run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            Refs #1273.
-
-            > [!NOTE]
-            > If the `BOT_PAT` secret is not configured, this PR was opened
-            > with the default `GITHUB_TOKEN`, which means CI workflows will
-            > NOT run automatically on it. Close and reopen the PR (or push
-            > an empty commit) to trigger CI manually.
-          delete-branch: true
-          labels: |
-            ci
-            contract-drift
-            bot
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+              core.info(`Updated existing drift-patch comment #${existing.id}.`);
+            } else {
+              const { data: created } = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+              core.info(`Created drift-patch comment #${created.id}.`);
+            }
 
       - name: Fall back to issue when regen could not fix the drift
         if: >

@@ -88,12 +88,12 @@ jobs:
           enable-cache: true
 
       - name: Install bernstein
-        # We only need the CLI entry-point; install with --no-deps then
-        # add the runtime deps the checker actually uses.
+        # ``bernstein.cli.main`` imports cryptography/lineage transitively
+        # at module load, so we install the package with its runtime
+        # dependencies. Cache hits keep this under 30s per matrix job.
         run: |
           set -euo pipefail
-          uv pip install --system "click>=8.0" "pyyaml>=6.0"
-          uv pip install --system --no-deps -e .
+          uv pip install --system -e .
 
       - name: Read contract metadata
         id: contract
@@ -156,21 +156,36 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ADAPTER_CONTRACT_ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.ADAPTER_CONTRACT_OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.ADAPTER_CONTRACT_GEMINI_API_KEY }}
+          ADAPTER: ${{ matrix.adapter }}
         run: |
           set -euo pipefail
           mkdir -p drift-out
           set +e
-          bernstein adapters contract-check "${{ matrix.adapter }}" --json > "drift-out/${{ matrix.adapter }}.json"
+          bernstein adapters contract-check "$ADAPTER" --json > "drift-out/$ADAPTER.json" 2> "drift-out/$ADAPTER.err"
           rc=$?
           set -e
           echo "exit=$rc" >> "$GITHUB_OUTPUT"
-          cat "drift-out/${{ matrix.adapter }}.json"
-          # Capture pass/fail without aborting — the aggregator handles
-          # the cross-adapter rollup.
-          if [ "$rc" -eq 2 ]; then
-            echo "::error::contract drift in ${{ matrix.adapter }}"
-            exit 1
-          fi
+          echo "--- stdout ---"
+          cat "drift-out/$ADAPTER.json" || true
+          echo "--- stderr ---"
+          cat "drift-out/$ADAPTER.err" || true
+          # Exit codes:
+          #   0 — contract holds.
+          #   2 — capability/model drift (hard fail by design).
+          # Anything else means the checker itself broke; treat it as
+          # a workflow error so we don't silently green-light drift.
+          case "$rc" in
+            0)
+              ;;
+            2)
+              echo "::error::contract drift in $ADAPTER"
+              exit 1
+              ;;
+            *)
+              echo "::error::contract-check exited $rc for $ADAPTER (checker error, not drift)"
+              exit 1
+              ;;
+          esac
 
       - name: Upload result
         if: always()

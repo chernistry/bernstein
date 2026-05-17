@@ -207,6 +207,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "simulate",
         # Bot-added: drift autofix (regen_contract_drift.py)
         "telemetry",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "quality",
     }
 )
 

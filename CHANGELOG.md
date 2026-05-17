@@ -42,6 +42,10 @@ Hand-curated release notes: [`docs/release-notes/v2.0.0.md`](docs/release-notes/
 - **Telegram driver simplified to a single long-poll path.** The `python-telegram-bot` v22 long-poll driver at `bernstein.core.chat.drivers.telegram` is the only Telegram driver. Configure a bot API token from `@BotFather` and a chat id; no external services. The earlier optional bridge-router architecture has been removed.
 - **Telegram notification sink simplified.** `TelegramSink` accepts a live `TelegramBridge` via `config["bridge"]` or a token string via `config["token"]` and routes through the standard long-poll path.
 
+### Repo hygiene
+
+- **Worktree-debris cleanup (2026-05-17).** Reaped 50 stale parent-level `bernstein-wt-*` worktrees plus `bernstein-audit-6e` (hireex/rebirth worktree on a bernstein-named path). Every branch tip was tag-rescued under `rescue/<branch>-20260517T152307Z` and pushed to origin before the worktree was force-removed and the local branch deleted. Three active-agent worktrees were preserved (`bernstein-wt-fix-determine-changes`, `bernstein-wt-fix-reviewer-prompts`, `bernstein-wt-syn-gitlab`). `git worktree list` is back to canonical: the main checkout plus the in-repo `.claude/worktrees/` registry.
+
 ## [1.10.1] — 2026-05-07
 
 ### Added — adapters

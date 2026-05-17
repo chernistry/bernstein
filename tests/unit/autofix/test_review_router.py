@@ -14,10 +14,14 @@ from bernstein.core.autofix.review_router import (
     GhInvocationError,
     ReviewRouter,
     ReviewTask,
+    WorktreeRecord,
+    WorktreeRegistry,
+    default_registry_path,
     emit_jsonl,
     make_list_sink,
     parse_review_threads,
     poll_loop,
+    reply_to_review_thread,
     resolve_pr_number,
 )
 
@@ -482,3 +486,185 @@ def test_resolve_pr_number_ignores_non_integer_env() -> None:
         )
         == 55
     )
+
+
+# ---------------------------------------------------------------------------
+# WorktreeRegistry — pr_number -> worktree_path mapping
+# ---------------------------------------------------------------------------
+
+
+def _make_record(pr: int, path: str, **overrides: Any) -> WorktreeRecord:
+    """Build a :class:`WorktreeRecord` for tests with sensible defaults."""
+    kwargs: dict[str, Any] = {
+        "pr_number": pr,
+        "worktree_path": path,
+        "run_id": "run-1",
+        "repo": "owner/repo",
+        "created_at": 0.0,
+    }
+    kwargs.update(overrides)
+    return WorktreeRecord(**kwargs)
+
+
+def test_worktree_registry_round_trip(tmp_path: Path) -> None:
+    reg = WorktreeRegistry(tmp_path / "wt.jsonl")
+    reg.register(_make_record(7, "/tmp/wt-7"))
+
+    found = reg.lookup(7)
+
+    assert found is not None
+    assert found.pr_number == 7
+    assert found.worktree_path == "/tmp/wt-7"
+    assert found.run_id == "run-1"
+    assert found.repo == "owner/repo"
+    # ``register`` stamps a timestamp when the input has the default 0.0.
+    assert found.created_at > 0.0
+
+
+def test_worktree_registry_returns_none_when_unknown(tmp_path: Path) -> None:
+    reg = WorktreeRegistry(tmp_path / "wt.jsonl")
+    reg.register(_make_record(7, "/tmp/wt-7"))
+
+    assert reg.lookup(99) is None
+
+
+def test_worktree_registry_returns_none_when_file_missing(tmp_path: Path) -> None:
+    reg = WorktreeRegistry(tmp_path / "nonexistent.jsonl")
+    assert reg.lookup(1) is None
+    assert reg.all_records() == []
+
+
+def test_worktree_registry_last_record_wins(tmp_path: Path) -> None:
+    reg = WorktreeRegistry(tmp_path / "wt.jsonl")
+    reg.register(_make_record(5, "/old/path"))
+    reg.register(_make_record(5, "/new/path", run_id="run-2"))
+
+    found = reg.lookup(5)
+    assert found is not None
+    assert found.worktree_path == "/new/path"
+    assert found.run_id == "run-2"
+
+
+def test_worktree_registry_creates_parent_dir(tmp_path: Path) -> None:
+    nested = tmp_path / "a" / "b" / "wt.jsonl"
+    reg = WorktreeRegistry(nested)
+    reg.register(_make_record(1, "/x"))
+
+    assert nested.exists()
+    assert reg.lookup(1) is not None
+
+
+def test_worktree_registry_rejects_invalid_record(tmp_path: Path) -> None:
+    reg = WorktreeRegistry(tmp_path / "wt.jsonl")
+    with pytest.raises(ValueError):
+        reg.register(_make_record(0, "/x"))
+    with pytest.raises(ValueError):
+        reg.register(_make_record(1, ""))
+
+
+def test_worktree_registry_skips_malformed_lines(tmp_path: Path) -> None:
+    target = tmp_path / "wt.jsonl"
+    target.write_text(
+        '{"pr_number": 9, "worktree_path": "/ok"}\n'
+        "not-json\n"
+        '{"pr_number": 9, "worktree_path": ""}\n'
+        '{"pr_number": 9, "worktree_path": "/later"}\n',
+        encoding="utf-8",
+    )
+    reg = WorktreeRegistry(target)
+    found = reg.lookup(9)
+    assert found is not None
+    assert found.worktree_path == "/later"
+
+
+def test_worktree_registry_all_records_preserves_order(tmp_path: Path) -> None:
+    reg = WorktreeRegistry(tmp_path / "wt.jsonl")
+    reg.register(_make_record(1, "/a"))
+    reg.register(_make_record(2, "/b"))
+    reg.register(_make_record(1, "/a2"))
+
+    records = reg.all_records()
+    assert [r.pr_number for r in records] == [1, 2, 1]
+    assert [r.worktree_path for r in records] == ["/a", "/b", "/a2"]
+
+
+def test_default_registry_path_lives_under_sdd_runtime(tmp_path: Path) -> None:
+    p = default_registry_path(tmp_path)
+    assert p == tmp_path / ".sdd" / "runtime" / "autofix-review-worktrees.jsonl"
+
+
+def test_worktree_record_from_payload_round_trip() -> None:
+    rec = WorktreeRecord(
+        pr_number=12,
+        worktree_path="/wt/12",
+        run_id="r",
+        repo="o/r",
+        created_at=100.0,
+    )
+    same = WorktreeRecord.from_payload(rec.to_payload())
+    assert same == rec
+
+
+def test_worktree_record_from_payload_rejects_missing_path() -> None:
+    with pytest.raises(ValueError):
+        WorktreeRecord.from_payload({"pr_number": 5})
+
+
+# ---------------------------------------------------------------------------
+# reply_to_review_thread
+# ---------------------------------------------------------------------------
+
+
+def _task(comment_id: str = "C1", pr: int = 42) -> ReviewTask:
+    return ReviewTask(
+        pr_number=pr,
+        thread_id="T1",
+        comment_id=comment_id,
+        reviewer="alice",
+        verdict="CHANGES_REQUESTED",
+        path="x.py",
+        line_start=1,
+        line_end=1,
+        body="please fix",
+        diff_hunk="",
+        url="https://example.invalid/c",
+    )
+
+
+def test_reply_to_review_thread_invokes_gh_api() -> None:
+    spy = _GhSpy(payloads=[""])
+    reply_to_review_thread(
+        _task(),
+        body="addressed in abc123",
+        repo="owner/repo",
+        gh_runner=spy,
+    )
+    argv = spy.captured[0]
+    assert argv[0] == "gh"
+    assert argv[1] == "api"
+    assert "--method" in argv
+    assert "POST" in argv
+    assert "repos/owner/repo/pulls/42/comments/C1/replies" in argv
+    assert "body=addressed in abc123" in argv
+
+
+def test_reply_to_review_thread_validates_inputs() -> None:
+    spy = _GhSpy(payloads=[])
+    with pytest.raises(ValueError):
+        reply_to_review_thread(_task(), body="ok", repo="", gh_runner=spy)
+    with pytest.raises(ValueError):
+        reply_to_review_thread(_task(), body="  ", repo="o/r", gh_runner=spy)
+    with pytest.raises(ValueError):
+        reply_to_review_thread(_task(comment_id=""), body="ok", repo="o/r", gh_runner=spy)
+    assert spy.captured == []
+
+
+def test_reply_to_review_thread_propagates_gh_errors() -> None:
+    spy = _GhSpy(payloads=[GhInvocationError("403")])
+    with pytest.raises(GhInvocationError):
+        reply_to_review_thread(
+            _task(),
+            body="hi",
+            repo="o/r",
+            gh_runner=spy,
+        )

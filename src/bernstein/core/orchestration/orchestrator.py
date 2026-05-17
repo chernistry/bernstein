@@ -509,6 +509,17 @@ class Orchestrator:
         # Deterministic replay recorder: appends events to
         # .sdd/runs/{run_id}/replay.jsonl for post-hoc debugging.
         self._recorder = RunRecorder(run_id=run_id, sdd_dir=workdir / ".sdd")
+
+        # Replay gateway: captures LLM + tool dispatch responses into
+        # .sdd/runs/{run_id}/events.jsonl so a run can be re-executed
+        # against recorded fixtures. OFF by default — opt in with
+        # BERNSTEIN_RECORD=1 to avoid bloating .sdd/ for casual runs.
+        from bernstein.core.replay import ReplayGateway as _ReplayGateway
+
+        self._replay_gateway = _ReplayGateway(
+            run_id=run_id,
+            sdd_dir=workdir / ".sdd",
+        )
         _seed_path = workdir / _BERNSTEIN_YAML
         self._replay_metadata = SessionReplayMetadata(
             run_id=run_id,

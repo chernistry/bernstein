@@ -241,3 +241,111 @@ class TestAdapterFailure:
 
         with pytest.raises(RuntimeError, match="adapter offline"):
             asyncio.run(run_perspectives(cfg, "diff", adapter_call=boom))
+
+
+# ---------------------------------------------------------------------------
+# Chain position + declaration-order preservation
+# ---------------------------------------------------------------------------
+
+
+class TestChainPosition:
+    def test_sequential_assigns_dense_chain_positions(self) -> None:
+        cfg = load_perspectives_yaml(_GOOD)
+        adapter = _fake_adapter_call({}, {})
+
+        verdicts = asyncio.run(run_perspectives(cfg, "diff", adapter_call=adapter))
+
+        assert [v.chain_position for v in verdicts] == [0, 1, 2]
+
+    def test_parallel_preserves_declaration_order_even_if_adapters_complete_out_of_order(
+        self,
+    ) -> None:
+        """Slowest adapter is declared first; gather must still return it first."""
+        cfg = PerspectiveConfig(
+            perspectives=[
+                PerspectiveSpec(name="security", adapter="claude"),
+                PerspectiveSpec(name="performance", adapter="codex"),
+                PerspectiveSpec(name="ux", adapter="gemini"),
+            ],
+            chain=ChainMode.PARALLEL,
+        )
+
+        # First adapter sleeps longest, last sleeps least → reverse
+        # completion order under PARALLEL. Result list must still match
+        # declaration order.
+        delays = {"security": 0.03, "performance": 0.02, "ux": 0.01}
+
+        async def slow_adapter(
+            spec: PerspectiveSpec,
+            _input: str,
+            _prior: list[PerspectiveVerdict],
+        ) -> str:
+            await asyncio.sleep(delays[spec.name])
+            return f"verdict[{spec.name}]"
+
+        verdicts = asyncio.run(run_perspectives(cfg, "diff", adapter_call=slow_adapter))
+
+        assert [v.perspective for v in verdicts] == [
+            "security",
+            "performance",
+            "ux",
+        ]
+        assert [v.chain_position for v in verdicts] == [0, 1, 2]
+
+
+# ---------------------------------------------------------------------------
+# Audit records — replay determinism
+# ---------------------------------------------------------------------------
+
+
+class TestAuditRecords:
+    def test_audit_record_is_timestamp_free_and_replay_stable(self) -> None:
+        cfg = load_perspectives_yaml(_GOOD)
+        adapter = _fake_adapter_call({}, {})
+
+        first = asyncio.run(run_perspectives(cfg, "diff", adapter_call=adapter))
+        second = asyncio.run(run_perspectives(cfg, "diff", adapter_call=adapter))
+
+        first_records = [v.audit_record(chain=cfg.chain) for v in first]
+        second_records = [v.audit_record(chain=cfg.chain) for v in second]
+
+        # Two independent runs against the same fake adapter must produce
+        # byte-identical audit records — that is the issue's
+        # replay-determinism acceptance criterion.
+        assert first_records == second_records
+        # And the dict must NOT carry the wall-clock timestamp.
+        for record in first_records:
+            assert "timestamp" not in record
+
+    def test_audit_record_shape(self) -> None:
+        cfg = load_perspectives_yaml(_GOOD)
+        adapter = _fake_adapter_call({}, {})
+
+        verdicts = asyncio.run(run_perspectives(cfg, "diff", adapter_call=adapter))
+
+        record = verdicts[1].audit_record(chain=cfg.chain)
+        assert record == {
+            "produced_by_adapter": "codex",
+            "produced_with_perspective": "performance",
+            "chain_position": 1,
+            "prior_count": 1,
+            "coordination": "sequential",
+            "content": "verdict[performance/codex]",
+        }
+
+    def test_audit_record_parallel_marks_coordination(self) -> None:
+        cfg = PerspectiveConfig(
+            perspectives=[
+                PerspectiveSpec(name="security", adapter="claude"),
+                PerspectiveSpec(name="performance", adapter="codex"),
+            ],
+            chain=ChainMode.PARALLEL,
+        )
+        adapter = _fake_adapter_call({}, {})
+
+        verdicts = asyncio.run(run_perspectives(cfg, "diff", adapter_call=adapter))
+        records = [v.audit_record(chain=cfg.chain) for v in verdicts]
+
+        assert all(r["coordination"] == "parallel" for r in records)
+        assert all(r["prior_count"] == 0 for r in records)
+        assert [r["chain_position"] for r in records] == [0, 1]

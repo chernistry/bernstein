@@ -149,14 +149,50 @@ class PerspectiveVerdict:
         prior_count: How many prior verdicts were visible to this adapter
             (``0`` for ``parallel`` and for the head of a ``sequential``
             chain). Recorded so the audit chain can replay the envelope.
-        timestamp: Unix epoch when the verdict was produced.
+        chain_position: Zero-based slot of this verdict in the
+            declaration order of the originating
+            :class:`PerspectiveConfig`. Always populated, including in
+            ``parallel`` mode, so audit records keep a stable ordering
+            key independent of completion time.
+        timestamp: Unix epoch when the verdict was produced. Excluded
+            from :meth:`audit_record` so replays remain bit-stable.
     """
 
     perspective: str
     adapter: str
     content: str
     prior_count: int = 0
+    chain_position: int = 0
     timestamp: float = field(default_factory=time.time)
+
+    def audit_record(self, *, chain: ChainMode) -> dict[str, object]:
+        """Return a deterministic, JSON-safe audit record for this verdict.
+
+        The returned mapping is intentionally narrow and excludes the
+        non-deterministic ``timestamp`` field so that re-running the
+        same chain with the same adapter responses yields byte-identical
+        audit output (issue #1223 acceptance criterion: "replaying
+        yesterday's chain run with the same seeds produces the same
+        finding order and the same aggregator verdict").
+
+        Args:
+            chain: Coordination mode the verdict was produced under.
+                Surfaced as ``coordination`` so downstream tooling can
+                grep for ``coordination=sequential`` runs.
+
+        Returns:
+            A dict with keys: ``produced_by_adapter``,
+            ``produced_with_perspective``, ``chain_position``,
+            ``prior_count``, ``coordination``, ``content``.
+        """
+        return {
+            "produced_by_adapter": self.adapter,
+            "produced_with_perspective": self.perspective,
+            "chain_position": self.chain_position,
+            "prior_count": self.prior_count,
+            "coordination": chain.value,
+            "content": self.content,
+        }
 
 
 # Adapter callable signature. The runner only consumes this protocol; the
@@ -245,7 +281,7 @@ async def _run_sequential(
 ) -> list[PerspectiveVerdict]:
     """Run perspectives in declared order, threading prior verdicts."""
     out: list[PerspectiveVerdict] = []
-    for spec in config.perspectives:
+    for position, spec in enumerate(config.perspectives):
         envelope = _build_envelope(diff, out)
         started = time.monotonic()
         content = await adapter_call(spec, envelope, list(out))
@@ -255,6 +291,7 @@ async def _run_sequential(
             adapter=spec.adapter,
             content=content,
             prior_count=len(out),
+            chain_position=position,
         )
         out.append(verdict)
         logger.info(
@@ -272,9 +309,15 @@ async def _run_parallel(
     diff: str,
     adapter_call: PerspectiveAdapterCall,
 ) -> list[PerspectiveVerdict]:
-    """Run perspectives concurrently with no cross-context."""
+    """Run perspectives concurrently with no cross-context.
 
-    async def _call(spec: PerspectiveSpec) -> PerspectiveVerdict:
+    The returned list always follows the declaration order from
+    ``config.perspectives``, even if adapters complete out of order.
+    ``asyncio.gather`` preserves input order in its result list, so we
+    rely on that rather than re-sorting after the fact.
+    """
+
+    async def _call(position: int, spec: PerspectiveSpec) -> PerspectiveVerdict:
         started = time.monotonic()
         content = await adapter_call(spec, diff, [])
         elapsed = time.monotonic() - started
@@ -289,9 +332,10 @@ async def _run_parallel(
             adapter=spec.adapter,
             content=content,
             prior_count=0,
+            chain_position=position,
         )
 
-    return list(await asyncio.gather(*[_call(s) for s in config.perspectives]))
+    return list(await asyncio.gather(*[_call(i, s) for i, s in enumerate(config.perspectives)]))
 
 
 # ---------------------------------------------------------------------------

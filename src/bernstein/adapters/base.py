@@ -399,6 +399,35 @@ class CLIAdapter(ABC):
             _batch_id: The batch identifier to cancel.
         """
 
+    def resume(
+        self,
+        _session_id: str,
+        _context: dict[str, Any],
+    ) -> SpawnResult | None:
+        """Reattach to a prior agent session for ``bernstein resume``.
+
+        Optional capability declared in
+        :mod:`bernstein.adapters._contract` (see
+        ``RESUME_CAPABILITY_MATRIX``). Adapters that can stitch back into a
+        provider-side session override this method and return a
+        :class:`SpawnResult`. The default returns ``None`` to signal "I
+        cannot resume natively — please fall back to a fresh spawn with
+        scratchpad reinjection".
+
+        Args:
+            _session_id: The adapter session id captured in the
+                checkpoint at the time the task was first spawned.
+            _context: Adapter-opaque resume context. Typically contains
+                ``{"prompt": str, "workdir": Path, "model_config": ...,
+                "recovered_scratchpad": str}``. Adapters may consume any
+                subset they understand.
+
+        Returns:
+            ``SpawnResult`` on a successful reattach, ``None`` to fall
+            back to a fresh spawn.
+        """
+        return None
+
 
 # ---------------------------------------------------------------------------
 # Lineage v1 post-write hook (ADR-009 §11.2)

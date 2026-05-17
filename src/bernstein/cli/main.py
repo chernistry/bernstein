@@ -57,6 +57,7 @@ from bernstein.cli.ci_cmd import ci_group
 from bernstein.cli.cloud_cmd import cloud_group
 from bernstein.cli.commands.export_cmd import export_cmd
 from bernstein.cli.commands.fleet_cmd import fleet_group
+from bernstein.cli.commands.resume_cmd import resume_cmd
 from bernstein.cli.commands.role_adapter_policy_cmd import security_group as _role_adapter_security_group
 from bernstein.cli.commands.skills_cmd import skills_group
 from bernstein.cli.compliance_cmd import compliance_group
@@ -827,6 +828,7 @@ cli.add_command(run, "run")
 cli.add_command(start)
 cli.add_command(demo)
 cli.add_command(checkpoint_cmd, "checkpoint")
+cli.add_command(resume_cmd, "resume")
 cli.add_command(wrap_up, "wrap-up")
 cli.add_command(audit_group, "audit")
 cli.add_command(compliance_group, "compliance")

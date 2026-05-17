@@ -81,6 +81,10 @@ class LifecycleEvent(StrEnum):
     POST_SPAWN = "post_spawn"
     PRE_ARCHIVE = "pre_archive"
     POST_ARCHIVE = "post_archive"
+    # feat-resume-from-checkpoint: fires when ``bernstein resume <task-id>``
+    # successfully loads a checkpoint and is about to re-spawn the task.
+    # Plugins can react to track resume metrics, gate flaky tasks, etc.
+    TASK_RESUME = "task.resume"
 
     # ------------------------------------------------------------------
     # Cross-CLI lifecycle events (camelCase, T1323).

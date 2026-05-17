@@ -321,3 +321,85 @@ def list_contracts(contracts_dir: Path | None = None) -> list[str]:
     if not base.exists():
         return []
     return sorted(p.stem for p in base.glob("*.yaml"))
+
+
+# ---------------------------------------------------------------------------
+# Capability matrix — resume-from-checkpoint (feat-resume-from-checkpoint)
+# ---------------------------------------------------------------------------
+#
+# Adapters opt into the resume protocol by implementing
+# :py:meth:`bernstein.adapters.base.CLIAdapter.resume`. The default
+# implementation declines via :data:`RESUME_FALLBACK_FRESH`, which signals
+# the CLI to spawn a fresh session and reinject the recovered scratchpad
+# (see ``bernstein.core.persistence.resume_prompt``).
+#
+# Keep this table in sync with adapter overrides. It is consulted by
+# ``bernstein adapters resume-matrix`` and surfaced in ``bernstein doctor``.
+
+#: Adapter resume capability — adapter inherits :class:`CLIAdapter.resume`'s
+#: default and the CLI falls back to a fresh session.
+RESUME_FALLBACK_FRESH: str = "fallback-fresh"
+
+#: Adapter overrides :class:`CLIAdapter.resume` to attach to the prior
+#: session via a provider-side session/resume id. The adapter is
+#: responsible for reinjecting any context it considers necessary.
+RESUME_NATIVE: str = "native"
+
+#: Tri-state capability rendered as ``adapter -> capability``. Adapters
+#: absent from this table are assumed :data:`RESUME_FALLBACK_FRESH`.
+RESUME_CAPABILITY_MATRIX: dict[str, str] = {
+    # Native resume — these adapters expose a stable session id that
+    # survives process restart and can be reattached.
+    "claude": RESUME_NATIVE,
+    "claude_routine": RESUME_NATIVE,
+    "openai_agents": RESUME_NATIVE,
+    # Everyone else — explicit "no native resume; fall back to fresh
+    # session with scratchpad reinjection".
+    "aichat": RESUME_FALLBACK_FRESH,
+    "aider": RESUME_FALLBACK_FRESH,
+    "amp": RESUME_FALLBACK_FRESH,
+    "auggie": RESUME_FALLBACK_FRESH,
+    "autohand": RESUME_FALLBACK_FRESH,
+    "charm": RESUME_FALLBACK_FRESH,
+    "cline": RESUME_FALLBACK_FRESH,
+    "codebuff": RESUME_FALLBACK_FRESH,
+    "codex": RESUME_FALLBACK_FRESH,
+    "cody": RESUME_FALLBACK_FRESH,
+    "composio": RESUME_FALLBACK_FRESH,
+    "continue_dev": RESUME_FALLBACK_FRESH,
+    "copilot": RESUME_FALLBACK_FRESH,
+    "cursor": RESUME_FALLBACK_FRESH,
+    "devin_terminal": RESUME_FALLBACK_FRESH,
+    "droid": RESUME_FALLBACK_FRESH,
+    "forge": RESUME_FALLBACK_FRESH,
+    "gemini": RESUME_FALLBACK_FRESH,
+    "generic": RESUME_FALLBACK_FRESH,
+    "goose": RESUME_FALLBACK_FRESH,
+    "gptme": RESUME_FALLBACK_FRESH,
+    "hermes": RESUME_FALLBACK_FRESH,
+    "junie": RESUME_FALLBACK_FRESH,
+    "kilo": RESUME_FALLBACK_FRESH,
+    "kimi": RESUME_FALLBACK_FRESH,
+    "kiro": RESUME_FALLBACK_FRESH,
+    "letta_code": RESUME_FALLBACK_FRESH,
+    "mistral": RESUME_FALLBACK_FRESH,
+    "mock": RESUME_FALLBACK_FRESH,
+    "ollama": RESUME_FALLBACK_FRESH,
+    "open_interpreter": RESUME_FALLBACK_FRESH,
+    "opencode": RESUME_FALLBACK_FRESH,
+    "openhands": RESUME_FALLBACK_FRESH,
+    "pi": RESUME_FALLBACK_FRESH,
+    "plandex": RESUME_FALLBACK_FRESH,
+    "q_dev": RESUME_FALLBACK_FRESH,
+    "qwen": RESUME_FALLBACK_FRESH,
+    "ralphex": RESUME_FALLBACK_FRESH,
+    "rovo": RESUME_FALLBACK_FRESH,
+}
+
+
+def resume_capability(adapter_name: str) -> str:
+    """Return the declared resume capability for ``adapter_name``.
+
+    Unknown adapters default to :data:`RESUME_FALLBACK_FRESH`.
+    """
+    return RESUME_CAPABILITY_MATRIX.get(adapter_name, RESUME_FALLBACK_FRESH)

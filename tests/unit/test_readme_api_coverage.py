@@ -199,6 +199,11 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "recipes",
         "resume",
         "worktrees",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "abandonments",
+        "best-of-n",
+        "blast-radius",
+        "criterion-profile",
     }
 )
 

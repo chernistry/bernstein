@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import hashlib
-import hmac
 import json
 from dataclasses import asdict
 from pathlib import Path
 
-from bernstein.core.lineage.entry import LineageEntry, canonicalise, entry_hash
+from bernstein.core.lineage.entry import LineageEntry, canonicalise, compute_operator_hmac, entry_hash
 from bernstein.core.lineage.gate import GateResult, check
 from bernstein.core.lineage.identity import AgentCard, generate_keypair, sign_detached
 
@@ -32,8 +31,20 @@ def _entry_for(
     ts_ns: int = 1_715_600_000_000_000_000,
     operator_secret: bytes = b"op-secret",
 ) -> LineageEntry:
-    body = json.dumps({"p": parent_hashes, "h": content_hash, "ts": ts_ns}).encode()
-    op_hmac = hmac.new(operator_secret, body, hashlib.sha256).hexdigest()
+    unsigned = LineageEntry(
+        v=1,
+        artefact_path=artefact_path,
+        artefact_kind="file",
+        content_hash=content_hash,
+        parent_hashes=parent_hashes,
+        agent_id=agent.agent_id,
+        agent_card_kid=agent.kid,
+        tool_call_id="tc-x",
+        span_id="span-x",
+        ts_ns=ts_ns,
+        operator_hmac="",
+    )
+    op_hmac = compute_operator_hmac(unsigned, operator_secret)
     return LineageEntry(
         v=1,
         artefact_path=artefact_path,
@@ -340,6 +351,57 @@ def test_gate_verifies_hmac_when_secret_provided(tmp_path: Path) -> None:
     # Right operator secret → OK.
     good = check(log_path=log, agent_cards_dir=cards, operator_secret=b"op-secret")
     assert good.ok is True, good.failures
+
+
+def test_gate_accepts_recorder_emitted_entries_under_operator_secret(tmp_path: Path) -> None:
+    """Regression: recorder and gate must agree on the operator-HMAC body.
+
+    Previously the gate computed HMAC over a 3-field body (``{p, h, ts}``)
+    while the recorder used the full JCS-canonical entry body with the
+    ``operator_hmac`` field blanked. Production gate runs against real
+    recorder output failed 100% of entries. Pin the agreement end-to-end.
+    """
+    from bernstein.core.lineage.identity import generate_keypair
+    from bernstein.core.lineage.recorder import LineageRecorder
+    from bernstein.core.lineage.store import LineageStore
+
+    priv, pub = generate_keypair()
+    card = AgentCard(agent_id="agent:rec-1", kid="kid-rec-1", public_key_pem=pub)
+    # Write the card to disk so the gate can resolve the signing key.
+    cards_dir = tmp_path / "agents"
+    (cards_dir / card.agent_id).mkdir(parents=True)
+    (cards_dir / card.agent_id / "card.json").write_text(
+        json.dumps(
+            {
+                "protocolVersion": "a2a/1.0",
+                "agent_id": card.agent_id,
+                "kid": card.kid,
+                "public_key_pem": pub,
+            }
+        )
+    )
+
+    operator_secret = b"recorder-gate-shared-secret"
+    store = LineageStore(tmp_path / "lineage")
+    recorder = LineageRecorder(store=store, operator_hmac_key=operator_secret)
+    recorder.record_write(
+        artefact_path="src/foo.py",
+        new_content=b"hello",
+        agent_id=card.agent_id,
+        agent_card=card,
+        private_key_pem=priv,
+        tool_call_id="tc-1",
+        span_id="span-1",
+    )
+
+    log_path = tmp_path / "lineage" / "log.jsonl"
+    # Right secret → gate accepts the recorder's entry.
+    good = check(log_path=log_path, agent_cards_dir=cards_dir, operator_secret=operator_secret)
+    assert good.ok is True, good.failures
+    # Wrong secret → gate flags HMAC mismatch.
+    bad = check(log_path=log_path, agent_cards_dir=cards_dir, operator_secret=b"different-secret")
+    assert bad.ok is False
+    assert any("HMAC mismatch" in f for f in bad.failures), bad.failures
 
 
 # ── Mutation-killing tests (close survivor gaps) ────────────────────────────

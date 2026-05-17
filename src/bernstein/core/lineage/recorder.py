@@ -27,13 +27,11 @@ before any HMAC or signature is computed.
 from __future__ import annotations
 
 import hashlib
-import hmac as _hmac
-import json
 import logging
 import time
 from typing import TYPE_CHECKING
 
-from bernstein.core.lineage.entry import LineageEntry, canonicalise, entry_hash
+from bernstein.core.lineage.entry import LineageEntry, canonicalise, compute_operator_hmac, entry_hash
 from bernstein.core.lineage.identity import sign_detached
 
 if TYPE_CHECKING:
@@ -64,21 +62,6 @@ def _is_unsafe_path(artefact_path: str) -> str | None:
     if any(seg == ".." for seg in segments):
         return "path traversal in artefact_path"
     return None
-
-
-def _compute_operator_hmac(
-    *,
-    operator_hmac_key: bytes,
-    entry_body_sans_hmac: dict[str, object],
-) -> str:
-    """Return the HMAC envelope hex-digest for an entry.
-
-    The HMAC covers the JCS-canonical bytes of the entry with the
-    ``operator_hmac`` field set to the empty string — the same body-sans-HMAC
-    pattern used by ``bernstein.core.security.audit.AuditLog``.
-    """
-    canonical = json.dumps(entry_body_sans_hmac, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return _hmac.new(operator_hmac_key, canonical, hashlib.sha256).hexdigest()
 
 
 class LineageRecorder:
@@ -141,27 +124,27 @@ class LineageRecorder:
 
         ts_ns = time.time_ns()
 
-        # Build the body without the HMAC, compute it, then materialise the
-        # final immutable entry. The HMAC binds the body (including parents
-        # and content hash) so a substitution attack post-signing is caught
-        # by both the JWS and the HMAC envelope independently.
-        body_sans_hmac: dict[str, object] = {
-            "v": 1,
-            "artefact_path": artefact_path,
-            "artefact_kind": artefact_kind,
-            "content_hash": content_hash,
-            "parent_hashes": parent_hashes,
-            "agent_id": agent_id,
-            "agent_card_kid": agent_card.kid,
-            "tool_call_id": tool_call_id,
-            "span_id": span_id,
-            "ts_ns": ts_ns,
-            "operator_hmac": "",
-        }
-        operator_hmac = _compute_operator_hmac(
-            operator_hmac_key=self._hmac_key,
-            entry_body_sans_hmac=body_sans_hmac,
+        # Build the entry with an empty ``operator_hmac`` field, compute the
+        # canonical HMAC over its JCS bytes, then materialise the final
+        # immutable entry with the digest. The HMAC binds every field of the
+        # entry so a substitution attack post-signing is caught by both the
+        # JWS and the HMAC envelope independently. The shared
+        # :func:`compute_operator_hmac` helper is the single source of truth
+        # used by both recorder and CI gate — see ADR-009 §5.2.
+        unsigned_entry = LineageEntry(
+            v=1,
+            artefact_path=artefact_path,
+            artefact_kind=artefact_kind,
+            content_hash=content_hash,
+            parent_hashes=parent_hashes,
+            agent_id=agent_id,
+            agent_card_kid=agent_card.kid,
+            tool_call_id=tool_call_id,
+            span_id=span_id,
+            ts_ns=ts_ns,
+            operator_hmac="",
         )
+        operator_hmac = compute_operator_hmac(unsigned_entry, self._hmac_key)
 
         entry = LineageEntry(
             v=1,
@@ -177,12 +160,11 @@ class LineageRecorder:
             operator_hmac=operator_hmac,
         )
 
-        # Sign the entry-hash (sha256 over the canonical bytes, hex-encoded
-        # with the ``sha256:`` prefix). The signed bytes are exactly the same
-        # bytes the auditor recomputes — see ADR-009 §5.2.
+        # Sign the JCS-canonical entry bytes. The auditor verifies the same
+        # bytes via :func:`bernstein.core.lineage.identity.verify_detached`
+        # — see ADR-009 §5.2.
         canonical = canonicalise(entry)
-        digest = "sha256:" + hashlib.sha256(canonical).hexdigest()
-        jws = sign_detached(digest.encode("utf-8"), private_key_pem, kid=agent_card.kid)
+        jws = sign_detached(canonical, private_key_pem, kid=agent_card.kid)
 
         h = self.store.append(entry, jws=jws)
 

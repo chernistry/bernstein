@@ -189,7 +189,12 @@ class LineageStore:
 
     def _signature_path(self, artefact_path: str, entry_hash_str: str) -> Path:
         shard, full = _hash_path(artefact_path)
-        return self.root / _SIGNATURES_DIR / shard / full / f"{entry_hash_str}.jws"
+        # Strip the ``sha256:`` prefix from the filename so it matches the
+        # auditor (``bernstein.core.lineage.gate._signature_path``) and so
+        # the path stays portable: ``:`` is not a legal filename character
+        # on Windows. See ADR-009 §5.2 for the canonical sidecar layout.
+        stem = entry_hash_str.split(":", 1)[1] if ":" in entry_hash_str else entry_hash_str
+        return self.root / _SIGNATURES_DIR / shard / full / f"{stem}.jws"
 
     # -- public API ---------------------------------------------------------
 

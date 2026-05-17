@@ -8,6 +8,7 @@ so every entry has a stable wire-form regardless of how it's reconstructed.
 from __future__ import annotations
 
 import hashlib
+import hmac as _hmac
 import json
 from dataclasses import asdict, dataclass
 
@@ -66,3 +67,22 @@ def canonicalise(entry: LineageEntry) -> bytes:
 
 def entry_hash(entry: LineageEntry) -> str:
     return "sha256:" + hashlib.sha256(canonicalise(entry)).hexdigest()
+
+
+def compute_operator_hmac(entry: LineageEntry, key: bytes) -> str:
+    """Return the canonical operator-HMAC for ``entry`` under ``key``.
+
+    The HMAC covers the JCS-canonical bytes of the entry with the
+    ``operator_hmac`` field replaced by the empty string. This binds every
+    field of the entry (including ``agent_id``, ``artefact_path`` and the
+    full ``parent_hashes`` list), so any post-signing substitution attack is
+    independently detected by both the JWS and the HMAC envelope.
+
+    Recorder and gate share this helper so on-disk entries are accepted by
+    the CI gate when the operator secret is supplied. Any divergence between
+    the two paths would silently invalidate every entry — see ADR-009 §5.2.
+    """
+    body = asdict(entry)
+    body["operator_hmac"] = ""
+    canonical = json.dumps(body, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return _hmac.new(key, canonical, hashlib.sha256).hexdigest()

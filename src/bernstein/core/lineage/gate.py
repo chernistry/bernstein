@@ -24,7 +24,7 @@ import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from bernstein.core.lineage.entry import LineageEntry, canonicalise, entry_hash
+from bernstein.core.lineage.entry import LineageEntry, canonicalise, compute_operator_hmac, entry_hash
 from bernstein.core.lineage.identity import AgentCard, verify_detached
 from bernstein.core.lineage.tips import compute_tips, detect_forks
 
@@ -153,16 +153,11 @@ def check(
             canonical = canonicalise(entry)
             if not verify_detached(canonical, jws, card):
                 failures.append(f"{entry.artefact_path}: invalid signature on entry {eh}")
-        # HMAC
+        # HMAC. Body covers every entry field (with ``operator_hmac`` blanked)
+        # so a substitution swapping ``agent_id`` or ``artefact_path`` after
+        # signing is independently caught here — see ADR-009 §5.2.
         if operator_secret is not None:
-            body = json.dumps(
-                {
-                    "p": entry.parent_hashes,
-                    "h": entry.content_hash,
-                    "ts": entry.ts_ns,
-                }
-            ).encode()
-            expected = _hmac.new(operator_secret, body, hashlib.sha256).hexdigest()
+            expected = compute_operator_hmac(entry, operator_secret)
             if not _hmac.compare_digest(expected, entry.operator_hmac):
                 failures.append(f"{entry.artefact_path}: HMAC mismatch on entry {eh}")
         # Steward allow-list for merge entries.

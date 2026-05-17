@@ -19,11 +19,10 @@ shape of the entry (same key type as workers).
 from __future__ import annotations
 
 import hashlib
-import hmac
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from bernstein.core.lineage.entry import LineageEntry, canonicalise
+from bernstein.core.lineage.entry import LineageEntry, canonicalise, compute_operator_hmac
 from bernstein.core.lineage.identity import AgentCard, sign_detached
 
 if TYPE_CHECKING:
@@ -113,9 +112,6 @@ class StewardKey:
     private_key_pem: str
     operator_secret: bytes = b""
 
-    def hmac_of(self, payload: bytes) -> str:
-        return hmac.new(self.operator_secret, payload, hashlib.sha256).hexdigest()
-
 
 def _content_hash(content: bytes) -> str:
     return "sha256:" + hashlib.sha256(content).hexdigest()
@@ -132,12 +128,31 @@ def build_merge_entry(
 ) -> list[tuple[LineageEntry, str]]:
     """Construct one merge entry per fork.
 
+    The merge entry's ``operator_hmac`` covers the JCS-canonical bytes of the
+    entry with the ``operator_hmac`` field blanked — identical to the scheme
+    used by :class:`bernstein.core.lineage.recorder.LineageRecorder` so the
+    CI gate accepts both kinds of entry under the same operator secret.
+
     Returns a list of `(entry, jws)` pairs. Caller is responsible for appending
     them to the lineage log via `LineageStore.append`.
     """
     out: list[tuple[LineageEntry, str]] = []
     for fork in forks:
         content = resolved_content_by_path[fork.artefact_path]
+        unsigned_entry = LineageEntry(
+            v=1,
+            artefact_path=fork.artefact_path,
+            artefact_kind="file",
+            content_hash=_content_hash(content),
+            parent_hashes=list(fork.child_hashes),
+            agent_id=steward.card.agent_id,
+            agent_card_kid=steward.card.kid,
+            tool_call_id=tool_call_id,
+            span_id=span_id,
+            ts_ns=now_ns,
+            operator_hmac="",
+        )
+        op_hmac = compute_operator_hmac(unsigned_entry, steward.operator_secret)
         entry = LineageEntry(
             v=1,
             artefact_path=fork.artefact_path,
@@ -149,7 +164,7 @@ def build_merge_entry(
             tool_call_id=tool_call_id,
             span_id=span_id,
             ts_ns=now_ns,
-            operator_hmac=steward.hmac_of(content),
+            operator_hmac=op_hmac,
         )
         canonical = canonicalise(entry)
         jws = sign_detached(canonical, steward.private_key_pem, kid=steward.card.kid)

@@ -720,6 +720,9 @@ jobs:
     timeout-minutes: 90
     permissions:
       contents: read
+      # Required by mikepenz/action-junit-report to create check-run
+      # annotations surfaced in the PR Checks tab.
+      checks: write
     strategy:
       fail-fast: false
       matrix:
@@ -829,6 +832,23 @@ jobs:
           if [ ! -f junit.xml ]; then
             echo "::warning::junit.xml was not generated"
           fi
+      - name: Publish JUnit + flake summary
+        # Surfaces test results and flaky-test annotations in the PR check
+        # tab. `flaky_summary: true` lists tests that passed on a retry —
+        # pair with `pytest-rerunfailures` (separate PR) for full coverage.
+        # `fail_on_failure: false` so we don't double-fail; the test job
+        # already reports its own non-zero exit.
+        #
+        # Gated to ubuntu/3.13 on push because that is the only matrix cell
+        # currently emitting junit.xml (see the coverage step above).
+        if: always() && !cancelled() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && github.event_name == 'push'
+        uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6.4.0
+        with:
+          report_paths: '**/junit.xml'
+          flaky_summary: true
+          check_retries: true
+          fail_on_failure: false
+          require_tests: false
       - name: Upload coverage artifact
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && github.event_name == 'push'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

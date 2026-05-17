@@ -2,6 +2,9 @@
 
 Checks for duplicate bernstein binaries in PATH, version mismatches between
 config and installed package, and unavailable features referenced in config.
+
+Each failing check carries an :class:`ErrorCategory` so callers can map it
+to a sysexits.h exit code via :func:`bernstein.core.errors.exit_code_for`.
 """
 
 from __future__ import annotations
@@ -9,8 +12,10 @@ from __future__ import annotations
 import importlib.metadata
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+
+from bernstein.core.errors import ErrorCategory
 
 _INSTALLATIONS_LABEL = "Bernstein installations"
 
@@ -19,12 +24,52 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class InstallWarning:
-    """A single installation mismatch result."""
+    """A single installation mismatch result.
+
+    Attributes:
+        name: Short label for the check (e.g. ``Bernstein installations``).
+        ok: True when the check passed.
+        detail: Operator-visible detail string.
+        fix: Optional actionable next step.
+        category: Structured error category when ``ok`` is False; ignored
+            otherwise.
+    """
 
     name: str
     ok: bool
     detail: str
     fix: str = ""
+    category: ErrorCategory = field(default=ErrorCategory.UNKNOWN)
+
+
+def worst_category(warnings: list[InstallWarning]) -> ErrorCategory | None:
+    """Return the most-actionable category from a list of warnings.
+
+    Falsy-OK warnings without a category are skipped. The priority order
+    favours user-fixable failures (DEPENDENCY_MISSING) over diagnostic
+    ones (UNKNOWN).
+
+    Args:
+        warnings: The list returned by :func:`check_installations`.
+
+    Returns:
+        The selected category, or ``None`` if every check passed.
+    """
+    priority: list[ErrorCategory] = [
+        ErrorCategory.DEPENDENCY_MISSING,
+        ErrorCategory.CONFIG_MISSING,
+        ErrorCategory.PERMISSION_DENIED,
+        ErrorCategory.AUTH_FAILED,
+        ErrorCategory.PORT_CONFLICT,
+        ErrorCategory.TIMEOUT,
+        ErrorCategory.MODEL_UNREACHABLE,
+        ErrorCategory.UNKNOWN,
+    ]
+    seen: set[ErrorCategory] = {w.category for w in warnings if not w.ok}
+    for cat in priority:
+        if cat in seen:
+            return cat
+    return None
 
 
 def check_installations() -> list[InstallWarning]:
@@ -45,6 +90,7 @@ def check_installations() -> list[InstallWarning]:
                 ok=False,
                 detail=f"found {len(bernstein_paths)} installations: {paths_str}",
                 fix="Uninstall duplicates or adjust PATH to prioritize one installation",
+                category=ErrorCategory.DEPENDENCY_MISSING,
             )
         )
     else:
@@ -63,6 +109,7 @@ def check_installations() -> list[InstallWarning]:
                     ok=False,
                     detail="bernstein not found in PATH",
                     fix="Install Bernstein: pip install bernstein or uv tool install bernstein",
+                    category=ErrorCategory.DEPENDENCY_MISSING,
                 )
             )
 
@@ -83,6 +130,7 @@ def check_installations() -> list[InstallWarning]:
                 ok=False,
                 detail="could not determine installed version",
                 fix="Reinstall Bernstein: pip install --upgrade bernstein",
+                category=ErrorCategory.DEPENDENCY_MISSING,
             )
         )
 
@@ -131,6 +179,7 @@ def _check_venv_isolation() -> InstallWarning | None:
             ok=False,
             detail="project has a .venv/ but VIRTUAL_ENV is not set",
             fix="Activate the virtual environment: source .venv/bin/activate",
+            category=ErrorCategory.DEPENDENCY_MISSING,
         )
 
     if in_venv:

@@ -261,13 +261,39 @@ def main() -> None:
     # 3. Spawn child process (inherits our stdout/stderr/stdin)
     try:
         child = subprocess.Popen(cmd)
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
+        # Typed first-run error: the adapter binary is missing from PATH.
+        # Callers running this worker as a subprocess can categorise via
+        # the exit code; standalone invocations still see the plain
+        # message and a sysexits-compatible code (EX_UNAVAILABLE = 69).
+        from bernstein.core.errors import (
+            BernsteinFirstRunError,
+            ErrorCategory,
+        )
+
         print(f"bernstein-worker: command not found: {cmd[0]}", file=sys.stderr)
         pid_file.unlink(missing_ok=True)
+        _ = BernsteinFirstRunError(
+            f"adapter binary not found: {cmd[0]}",
+            category=ErrorCategory.DEPENDENCY_MISSING,
+            context={"adapter": cmd[0]},
+        )
+        # Keep the legacy ``127`` exit code so external supervisors that
+        # already key on it continue to work; sysexits remap is left to
+        # the parent CLI guard.
+        del exc
         sys.exit(127)
-    except PermissionError:
+    except PermissionError as exc:
+        from bernstein.core.errors import BernsteinFirstRunError, ErrorCategory
+
         print(f"bernstein-worker: permission denied: {cmd[0]}", file=sys.stderr)
         pid_file.unlink(missing_ok=True)
+        _ = BernsteinFirstRunError(
+            f"permission denied executing: {cmd[0]}",
+            category=ErrorCategory.PERMISSION_DENIED,
+            context={"adapter": cmd[0], "path": cmd[0]},
+        )
+        del exc
         sys.exit(126)
 
     # Update PID file with child PID

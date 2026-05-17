@@ -15,6 +15,7 @@ from typing import Any
 import click
 import httpx
 
+from bernstein.cli.first_run_guard import handle_first_run_exception
 from bernstein.cli.helpers import (
     SDD_DIRS,
     console,
@@ -562,6 +563,28 @@ def _generate_default_yaml(project_type: str) -> str:
 )
 def init(target_dir: str, *, add_badge: bool = False, badge_variant: str = "signed") -> None:
     """Init workspace -- create .sdd/ structure."""
+    try:
+        _init_impl(target_dir, add_badge=add_badge, badge_variant=badge_variant)
+    except (click.UsageError, SystemExit):
+        raise
+    except BaseException as exc:
+        handle_first_run_exception(exc, verbose=_is_verbose())
+
+
+def _is_verbose() -> bool:
+    """Return True when the active Click context flagged ``--verbose``."""
+    ctx = click.get_current_context(silent=True)
+    if ctx is None:
+        return False
+    raw_obj: object = ctx.obj
+    if not isinstance(raw_obj, dict):
+        return False
+    obj: dict[str, object] = raw_obj  # type: ignore[assignment]
+    return bool(obj.get("VERBOSE", False))
+
+
+def _init_impl(target_dir: str, *, add_badge: bool, badge_variant: str) -> None:
+    """Concrete init implementation; wrapped by :func:`init` for hinting."""
     print_banner()
     root = Path(target_dir).resolve()
     console.print(f"Initialising Bernstein workspace in [bold]{root}[/bold]")
@@ -1098,6 +1121,104 @@ def run(
 ) -> None:
     """Parse seed, init workspace, start server, launch agents.
 
+    Top-level wrapper: routes any uncaught exception through the
+    first-run categorisation guard so the operator sees a structured
+    hint panel and a sysexits.h exit code instead of a raw traceback.
+    """
+    try:
+        _run_impl(
+            plan_file=plan_file,
+            goal=goal,
+            seed_file=seed_file,
+            port=port,
+            cells=cells,
+            remote=remote,
+            cli=cli,
+            model=model,
+            workflow=workflow,
+            routing=routing,
+            compliance=compliance,
+            container=container,
+            container_image=container_image,
+            two_phase_sandbox=two_phase_sandbox,
+            plan_only=plan_only,
+            from_plan=from_plan,
+            auto_approve=auto_approve,
+            quiet=quiet,
+            skip_gate=skip_gate,
+            skip_gate_reason=skip_gate_reason,
+            audit=audit,
+            sandbox=sandbox,
+            allow_paid=allow_paid,
+            ab_test=ab_test,
+            dry_run=dry_run,
+            idle=idle,
+            cprofile=cprofile,
+            run_profile=run_profile,
+            allow_network=allow_network,
+            permission_profile=permission_profile,
+            task_filter=task_filter,
+            auto_pr=auto_pr,
+            activity_log_path=activity_log_path,
+            max_cost_usd=max_cost_usd,
+            budget_spec=budget_spec,
+            hard_budget_spec=hard_budget_spec,
+            budget_cap=budget_cap,
+            retry_budget_spec=retry_budget_spec,
+            criterion_profile=criterion_profile,
+            max_blast_radius=max_blast_radius,
+        )
+    except (click.UsageError, SystemExit):
+        raise
+    except BaseException as exc:
+        handle_first_run_exception(exc, verbose=_is_verbose())
+
+
+def _run_impl(
+    *,
+    plan_file: Path | None,
+    goal: str | None,
+    seed_file: str | None,
+    port: int,
+    cells: int,
+    remote: bool,
+    cli: str | None,
+    model: str | None,
+    workflow: str | None,
+    routing: str | None,
+    compliance: str | None,
+    container: bool,
+    container_image: str | None,
+    two_phase_sandbox: bool,
+    plan_only: bool,
+    from_plan: Path | None,
+    auto_approve: bool,
+    quiet: bool,
+    skip_gate: tuple[str, ...],
+    skip_gate_reason: str | None,
+    audit: bool,
+    sandbox: str | None,
+    allow_paid: bool,
+    ab_test: bool,
+    dry_run: bool,
+    idle: bool,
+    cprofile: bool,
+    run_profile: str | None,
+    allow_network: tuple[str, ...],
+    permission_profile: str | None,
+    task_filter: str | None,
+    auto_pr: bool,
+    activity_log_path: str | None,
+    max_cost_usd: float | None,
+    budget_spec: str | None,
+    hard_budget_spec: str | None,
+    budget_cap: float | None,
+    retry_budget_spec: str | None,
+    criterion_profile: str | None,
+    max_blast_radius: float | None,
+) -> None:
+    """Concrete ``run`` implementation; wrapped by :func:`run` for hinting.
+
     \b
       bernstein run plan.yaml                  # loadable YAML plan (stages + steps)
       bernstein conduct                        # reads bernstein.yaml
@@ -1443,6 +1564,16 @@ def run(
 )
 def start(goal: str | None, seed_file: str, port: int) -> None:
     """Start server and spawn manager (legacy, use 'conduct')."""
+    try:
+        _start_impl(goal, seed_file, port)
+    except (click.UsageError, SystemExit):
+        raise
+    except BaseException as exc:
+        handle_first_run_exception(exc, verbose=_is_verbose())
+
+
+def _start_impl(goal: str | None, seed_file: str, port: int) -> None:
+    """Concrete ``start`` implementation; wrapped by :func:`start` for hinting."""
     print_banner()
 
     try:

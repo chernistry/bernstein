@@ -216,13 +216,18 @@ class ReplayGateway:
         response: Any,
         metadata: dict[str, Any] | None,
     ) -> None:
-        """Append one event to ``events.jsonl``."""
-        with self._lock:
-            self._seq += 1
-            seq = self._seq
+        """Append one event to ``events.jsonl``.
 
+        Sequence assignment AND the file write happen under ``self._lock``.
+        Splitting these two steps (lock-then-release before opening the
+        file) let two concurrent record calls swap their ``seq`` order in
+        the file, and worse — concurrent file writes past PIPE_BUF can
+        interleave bytes, producing malformed JSONL the replay loader
+        then silently skips. The lock is local to the gateway, so the
+        critical section is short and uncontended for typical adapter
+        traffic.
+        """
         entry: dict[str, Any] = {
-            "seq": seq,
             "ts": time.time(),
             "kind": kind,
             "key": key,
@@ -231,12 +236,20 @@ class ReplayGateway:
         if metadata:
             entry["metadata"] = _make_jsonable(metadata)
 
-        try:
-            with self._path.open("a") as f:
-                f.write(json.dumps(entry, default=str) + "\n")
-        except OSError as exc:
-            # Recording is a debug aid; failures must not break the run.
-            logger.warning("ReplayGateway: failed to record %r: %s", kind, exc)
+        with self._lock:
+            self._seq += 1
+            entry["seq"] = self._seq
+            # ``json.dumps`` runs inside the lock so the ``seq`` field is
+            # consistent with the file order; the lock also serialises the
+            # subsequent file.write so two concurrent records can never
+            # interleave bytes past PIPE_BUF.
+            line = json.dumps(entry, default=str)
+            try:
+                with self._path.open("a", encoding="utf-8") as f:
+                    f.write(line + "\n")
+            except OSError as exc:
+                # Recording is a debug aid; failures must not break the run.
+                logger.warning("ReplayGateway: failed to record %r: %s", kind, exc)
 
     # ------------------------------------------------------------------
     # Replay
@@ -249,13 +262,15 @@ class ReplayGateway:
                 f"No events log at {self._path}; nothing to replay. "
                 "Was BERNSTEIN_RECORD=1 set during the original run?",
             )
-        with self._path.open() as f:
+        # encoding="utf-8" mirrors the record path; relying on the platform
+        # default broke replay on Windows runners where cp1252 was active.
+        with self._path.open(encoding="utf-8") as f:
             for raw in f:
-                raw = raw.strip()
-                if not raw:
+                row_str = raw.strip()
+                if not row_str:
                     continue
                 try:
-                    row = json.loads(raw)
+                    row = json.loads(row_str)
                 except json.JSONDecodeError:
                     logger.warning("ReplayGateway: skipping malformed line in %s", self._path)
                     continue
@@ -266,22 +281,28 @@ class ReplayGateway:
                 self._fixtures_by_kind.setdefault(kind, []).append(response)
 
     def _replay_lookup(self, *, kind: str, key: str) -> Any:
-        """Pop the next fixture for ``(kind, key)`` (or FIFO by ``kind``)."""
-        bucket = self._fixtures_by_key.get((kind, key))
-        if bucket:
-            response = bucket.pop(0)
-            # Also remove the matching entry from the by-kind queue
-            # (FIFO match — first identical response).
-            kind_bucket = self._fixtures_by_kind.get(kind, [])
-            for i, item in enumerate(kind_bucket):
-                if item == response:
-                    kind_bucket.pop(i)
-                    break
-            return response
+        """Pop the next fixture for ``(kind, key)`` (or FIFO by ``kind``).
 
-        kind_bucket = self._fixtures_by_kind.get(kind)
-        if kind_bucket:
-            return kind_bucket.pop(0)
+        Holds ``self._lock`` for the entire pop so concurrent dispatches
+        cannot drain the same bucket twice or skip rows that another
+        thread has already popped under the by-kind fallback.
+        """
+        with self._lock:
+            bucket = self._fixtures_by_key.get((kind, key))
+            if bucket:
+                response = bucket.pop(0)
+                # Also remove the matching entry from the by-kind queue
+                # (FIFO match — first identical response).
+                kind_bucket = self._fixtures_by_kind.get(kind, [])
+                for i, item in enumerate(kind_bucket):
+                    if item == response:
+                        kind_bucket.pop(i)
+                        break
+                return response
+
+            kind_bucket = self._fixtures_by_kind.get(kind)
+            if kind_bucket:
+                return kind_bucket.pop(0)
 
         raise ReplayMissError(
             f"No fixture for kind={kind!r} key={key!r} in {self._path}. "

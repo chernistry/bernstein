@@ -11,6 +11,7 @@ Covers the MVP slice of issue #1319:
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 
 import pytest
@@ -274,3 +275,63 @@ def test_diff_both_empty(tmp_path: Path) -> None:
     result = diff_event_logs(a, b)
     assert result.diverged is False
     assert "empty" in result.reason
+
+
+# ---------------------------------------------------------------------------
+# Regression: concurrent record/replay must produce well-formed JSONL
+# ---------------------------------------------------------------------------
+
+
+def test_record_is_thread_safe_under_concurrent_dispatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Concurrent ``dispatch`` calls must produce well-formed JSONL with
+    unique ``seq`` values, and replay must be able to drain every event.
+
+    Regression guard for the gateway recording race: ``seq`` assignment
+    used to happen under the lock but the JSON encode and file open/write
+    were outside it. POSIX ``O_APPEND`` masks the race for short writes
+    today, but a future writer (or a switch to buffered I/O) would let
+    bytes interleave past one ``write()`` syscall. Keeping seq + write
+    inside the same lock pins the invariant the replay loader depends on.
+    """
+    monkeypatch.setenv(RECORD_ENV_VAR, "1")
+    gw = ReplayGateway("run-race", tmp_path)
+
+    # A response just over typical PIPE_BUF (4 KiB on Linux/macOS) so an
+    # unlocked write path would expose interleaving more reliably. The
+    # body is reproducible per thread index for later assertions.
+    big = "X" * 6000
+
+    def _worker(i: int) -> None:
+        gw.dispatch(
+            kind="llm",
+            key=f"k-{i}",
+            invoke=lambda i=i: {"i": i, "body": big},
+        )
+
+    threads = [threading.Thread(target=_worker, args=(i,)) for i in range(40)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    # Every line must parse and every seq must be unique + monotonic.
+    raw_lines = gw.path.read_text(encoding="utf-8").splitlines()
+    assert len(raw_lines) == 40
+    rows = [json.loads(line) for line in raw_lines]
+    seqs = [int(r["seq"]) for r in rows]
+    assert sorted(seqs) == list(range(1, 41)), "seq numbers must be unique 1..N"
+
+    # Replay must drain all 40 fixtures by FIFO without raising.
+    replay = ReplayGateway("run-race", tmp_path, mode=GatewayMode.REPLAY)
+    seen: set[int] = set()
+    for _ in range(40):
+        out = replay.dispatch(
+            kind="llm",
+            key="any",  # force the FIFO fallback
+            invoke=lambda: (_ for _ in ()).throw(AssertionError("invoke must not run")),
+        )
+        seen.add(int(out["i"]))
+    assert seen == set(range(40))

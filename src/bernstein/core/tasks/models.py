@@ -162,6 +162,8 @@ class TaskStatus(Enum):
     CANCELLED = "cancelled"
     ORPHANED = "orphaned"  # Agent crashed mid-task; pending crash recovery
     PENDING_APPROVAL = "pending_approval"  # Completed; awaiting human approval before taking effect
+    ABANDONED = "abandoned"  # Agent voluntarily abandoned with a structured reason (#1350)
+    BLOCKED_BY_ABANDON = "blocked_by_abandon"  # Downstream task waiting on an abandoned dependency (#1350)
 
 
 class TaskType(Enum):

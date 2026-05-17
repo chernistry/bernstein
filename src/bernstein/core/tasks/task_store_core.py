@@ -1444,6 +1444,117 @@ class TaskStore:
             await self._append_archive(task, completed_at)
             return task
 
+    async def abandon(
+        self,
+        task_id: str,
+        reason: str,
+        detail: str = "",
+        *,
+        adapter: str = "",
+        agent_id: str = "",
+        cost_to_date_usd: float = 0.0,
+    ) -> Task:
+        """Mark *task_id* as :class:`TaskStatus.ABANDONED` and record a ledger row.
+
+        Distinct from :meth:`fail`. ABANDONED is a terminal status that
+        agents reach voluntarily after deciding the task cannot be
+        finished honestly (#1350). Downstream tasks that depend on this
+        one cascade to :class:`TaskStatus.BLOCKED_BY_ABANDON` so the
+        dependency scanner stops waiting for an output that will never
+        arrive.
+
+        Args:
+            task_id: Task identifier.
+            reason: One of the :class:`AbandonReason` enum values (string
+                form). Unknown values raise :class:`ValueError`.
+            detail: Free-form human-readable rationale.
+            adapter: Adapter/CLI label that originated the call.
+            agent_id: Adapter session identifier.
+            cost_to_date_usd: Cost accumulated on the task so far.
+
+        Returns:
+            The updated :class:`Task`.
+
+        Raises:
+            KeyError: If ``task_id`` is unknown.
+            ValueError: If *reason* is not a valid :class:`AbandonReason`.
+            IllegalTransitionError: If the current task status cannot
+                transition to ``ABANDONED`` (e.g. already terminal).
+        """
+        # Import locally to avoid bootstrapping the abandon module at
+        # task_store_core import time (keeps module-import cost flat).
+        from bernstein.core.tasks.abandon import (
+            AbandonmentLedger,
+            new_abandonment,
+        )
+
+        async with self._lock:
+            task = self._tasks.get(task_id)
+            if task is None:
+                raise KeyError(task_id)
+            # Coerce reason early so we surface a ValueError before any
+            # state mutation. ``new_abandonment`` calls ``coerce`` too,
+            # but doing it here means a bad reason never partial-writes.
+            row = new_abandonment(
+                task_id=task_id,
+                reason=reason,
+                detail=detail,
+                role=task.role,
+                adapter=adapter,
+                agent_id=agent_id,
+                cost_to_date_usd=cost_to_date_usd,
+                attempts=task.retry_count,
+            )
+
+            self._index_remove(task)
+            transition_task(task, TaskStatus.ABANDONED, actor="task_store", reason=detail or reason)
+            task.result_summary = detail or reason
+            task.terminal_reason = row.reason.value
+            task.completed_at = time.time()
+            task.version += 1
+            self._index_add(task)
+            completed_at = task.completed_at
+            await self._append_jsonl(self._task_to_record(task))
+            await self._append_archive(task, completed_at)
+
+            # Cascade: downstream tasks waiting on this one move to
+            # BLOCKED_BY_ABANDON so consumers stop waiting forever.
+            for downstream in list(self._tasks.values()):
+                if task_id not in downstream.depends_on:
+                    continue
+                if downstream.status not in {
+                    TaskStatus.OPEN,
+                    TaskStatus.CLAIMED,
+                    TaskStatus.IN_PROGRESS,
+                    TaskStatus.WAITING_FOR_SUBTASKS,
+                }:
+                    continue
+                self._index_remove(downstream)
+                try:
+                    transition_task(
+                        downstream,
+                        TaskStatus.BLOCKED_BY_ABANDON,
+                        actor="task_store",
+                        reason=f"upstream {task_id} abandoned: {row.reason.value}",
+                    )
+                except IllegalTransitionError:
+                    # Restore index entry — leave downstream untouched.
+                    self._index_add(downstream)
+                    continue
+                downstream.result_summary = f"upstream {task_id} abandoned"
+                downstream.version += 1
+                self._index_add(downstream)
+                await self._append_jsonl(self._task_to_record(downstream))
+
+            # Ledger write is last so the in-memory state is the source
+            # of truth even when the ledger file is read-only / OOS.
+            ledger = AbandonmentLedger(self._sdd_dir)
+            try:
+                ledger.append(row)
+            except OSError as exc:
+                logger.warning("Abandonment ledger write failed for %s: %s", task_id, exc)
+            return task
+
     async def block(self, task_id: str, reason: str) -> Task:
         """Mark a task as blocked (requires human intervention).
 

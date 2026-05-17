@@ -951,3 +951,8 @@ cli.add_command(session_group, "session")
 from bernstein.cli.commands.compare_cmd import compare_cmd  # noqa: E402
 
 cli.add_command(compare_cmd, "compare")
+
+# Agent abandonment ledger (#1350).
+from bernstein.cli.commands.abandonments_cmd import abandonments_group  # noqa: E402
+
+cli.add_command(abandonments_group, "abandonments")

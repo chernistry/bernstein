@@ -189,6 +189,26 @@ TASK_TRANSITIONS: dict[tuple[TaskStatus, TaskStatus], Callable[[Task], bool]] = 
     # Verification gate (orchestrator closes after janitor + merge)
     (TaskStatus.DONE, TaskStatus.CLOSED): _always,
     (TaskStatus.DONE, TaskStatus.FAILED): _always,
+    # Abandon primitive (#1350) — agent-initiated structured exit.
+    # ABANDONED is a terminal state distinct from FAILED so dashboards can
+    # split intentional vs. unintentional exits. Downstream consumers move
+    # to BLOCKED_BY_ABANDON instead of waiting forever for an output that
+    # will never arrive.
+    (TaskStatus.OPEN, TaskStatus.ABANDONED): _always,
+    (TaskStatus.CLAIMED, TaskStatus.ABANDONED): _always,
+    (TaskStatus.IN_PROGRESS, TaskStatus.ABANDONED): _always,
+    (TaskStatus.WAITING_FOR_SUBTASKS, TaskStatus.ABANDONED): _always,
+    (TaskStatus.BLOCKED, TaskStatus.ABANDONED): _always,
+    (TaskStatus.ORPHANED, TaskStatus.ABANDONED): _always,
+    (TaskStatus.OPEN, TaskStatus.BLOCKED_BY_ABANDON): _always,
+    (TaskStatus.CLAIMED, TaskStatus.BLOCKED_BY_ABANDON): _always,
+    (TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED_BY_ABANDON): _always,
+    (TaskStatus.WAITING_FOR_SUBTASKS, TaskStatus.BLOCKED_BY_ABANDON): _always,
+    # Operator may requeue a blocked-by-abandon downstream once the
+    # parent backlog is reseeded.
+    (TaskStatus.BLOCKED_BY_ABANDON, TaskStatus.OPEN): _always,
+    (TaskStatus.BLOCKED_BY_ABANDON, TaskStatus.CANCELLED): _always,
+    (TaskStatus.BLOCKED_BY_ABANDON, TaskStatus.ABANDONED): _always,
 }
 
 # Precompute terminal statuses (no outbound transitions).

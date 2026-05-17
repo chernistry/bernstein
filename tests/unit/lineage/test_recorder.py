@@ -155,9 +155,9 @@ def test_recorded_jws_verifies_against_card(
         span_id="span-1",
     )
     entry, jws = next(iter(recorder.store.read_log()))
-    canonical = canonicalise(entry)
-    payload = entry_hash_payload(canonical)
-    assert verify_detached(payload, jws, card) is True
+    # The recorder signs the JCS-canonical entry bytes; the verifier (gate)
+    # recomputes the same bytes — see ADR-009 §5.2.
+    assert verify_detached(canonicalise(entry), jws, card) is True
 
 
 def test_signature_does_not_verify_against_wrong_card(
@@ -177,9 +177,7 @@ def test_signature_does_not_verify_against_wrong_card(
     entry, jws = next(iter(recorder.store.read_log()))
     _priv2, pub2 = generate_keypair()
     other_card = AgentCard(agent_id="agent:other", kid=card.kid, public_key_pem=pub2)
-    canonical = canonicalise(entry)
-    payload = entry_hash_payload(canonical)
-    assert verify_detached(payload, jws, other_card) is False
+    assert verify_detached(canonicalise(entry), jws, other_card) is False
 
 
 # ---------------------------------------------------------------------------
@@ -286,9 +284,10 @@ def test_rejects_absolute_path(
 
 
 def entry_hash_payload(canonical_bytes: bytes) -> bytes:
-    """The JWS payload is sha256(canonical) as the prefixed hex string.
+    """Legacy helper retained for back-compat with older test imports.
 
-    Matches what ``LineageRecorder`` signs internally; see ADR-009 §5.2 step 3.
+    The recorder now signs the JCS-canonical entry bytes directly so callers
+    should pass ``canonicalise(entry)`` to ``verify_detached``; this helper
+    is kept so external test modules that import it keep working.
     """
-    digest = hashlib.sha256(canonical_bytes).hexdigest()
-    return ("sha256:" + digest).encode("utf-8")
+    return canonical_bytes

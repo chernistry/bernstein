@@ -201,7 +201,10 @@ def test_signature_sidecar_written(tmp_path: Path) -> None:
     entry = _make_entry(artefact_path="src/foo.py")
     h = store.append(entry, jws="abc.def.ghi")
     shard, full = _path_shard("src/foo.py")
-    sig_path = root / "signatures" / shard / full / f"{h}.jws"
+    # Sidecar filename strips the ``sha256:`` prefix so the path is portable
+    # (Windows rejects ``:`` in filenames) and matches the gate's lookup.
+    stem = h.split(":", 1)[1] if ":" in h else h
+    sig_path = root / "signatures" / shard / full / f"{stem}.jws"
     assert sig_path.exists()
     assert sig_path.read_text(encoding="utf-8") == "abc.def.ghi"
 

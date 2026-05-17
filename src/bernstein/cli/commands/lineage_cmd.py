@@ -25,6 +25,7 @@ Operator guide: docs/compliance/lineage-export.md.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from rich.table import Table
@@ -408,3 +409,155 @@ def merge_cmd(artefact_path: str, use_content: str, log_path: Path) -> None:
         f"run `bernstein lineage gate` after `LineageStore.append` writes the merge entry "
         f"with content from {use_content[:24]}..."
     )
+
+
+# -- v2 two-layer store (issue #1249) --------------------------------------
+
+
+@lineage_cmd.group(name="v2")
+def v2_group() -> None:
+    """Lineage v2 - two-layer storage (parent refs + detached children).
+
+    Opt-in writer activated via ``BERNSTEIN_LINEAGE_V2=1`` or
+    ``bernstein.yaml`` ``lineage.version: 2``. v1 stays the default.
+    """
+
+
+def _default_v2_root() -> Path:
+    return Path(".sdd/lineage/v2")
+
+
+def _load_v2_store(root: Path) -> LineageV2Store:
+    from bernstein.core.lineage.v2_store import LineageV2Store
+
+    return LineageV2Store(root)
+
+
+if TYPE_CHECKING:  # pragma: no cover
+    from bernstein.core.lineage.v2_store import LineageV2Store
+
+
+@v2_group.command(name="show")
+@click.argument("task_id", required=True)
+@click.option(
+    "--root",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=None,
+    help="Override the v2 store root (default: .sdd/lineage/v2).",
+)
+@click.option("--output-json", is_flag=True, help="Emit raw JSON instead of a table.")
+def v2_show_cmd(task_id: str, root: Path | None, output_json: bool) -> None:
+    """Reconstruct + print the full timeline for ``TASK_ID``."""
+    import json as _json
+
+    store = _load_v2_store(root or _default_v2_root())
+    timeline = store.replay(task_id)
+    if output_json:
+        from dataclasses import asdict
+
+        payload = [
+            {"parent": asdict(ref), "bodies": [asdict(b) for b in bodies]}
+            for ref, bodies in timeline
+        ]
+        click.echo(_json.dumps(payload, indent=2, sort_keys=True))
+        return
+
+    if not timeline:
+        console.print(f"[yellow]No v2 records for task[/yellow] {task_id}")
+        return
+
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("Run", no_wrap=True)
+    table.add_column("Call id", no_wrap=True)
+    table.add_column("Summary", overflow="fold")
+    table.add_column("Bodies", justify="right")
+    table.add_column("child_sha (prefix)", no_wrap=True)
+    for ref, bodies in timeline:
+        table.add_row(
+            ref.child_run_id,
+            ref.parent_call_id,
+            ref.summary,
+            str(len(bodies)),
+            ref.child_sha[:24] + "...",
+        )
+    console.print()
+    console.print(f"[bold]Lineage v2 timeline for[/bold] {task_id} ({len(timeline)} ref(s))")
+    console.print()
+    console.print(table)
+
+
+@v2_group.command(name="verify")
+@click.option(
+    "--root",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=None,
+    help="Override the v2 store root (default: .sdd/lineage/v2).",
+)
+@click.option("--output-json", is_flag=True, help="Emit JSON output.")
+def v2_verify_cmd(root: Path | None, output_json: bool) -> None:
+    """Validate the HMAC chains across both layers. Exits 1 on failure."""
+    import json as _json
+    import sys
+
+    store = _load_v2_store(root or _default_v2_root())
+    result = store.verify()
+    if output_json:
+        click.echo(
+            _json.dumps(
+                {
+                    "ok": result.ok,
+                    "failures": result.failures,
+                    "parent_count": result.parent_count,
+                    "child_count": result.child_count,
+                },
+                indent=2,
+            )
+        )
+    elif result.ok:
+        console.print(
+            f"[green]Lineage v2:[/green] OK ({result.parent_count} parent / {result.child_count} child)"
+        )
+    else:
+        console.print(f"[red]Lineage v2:[/red] FAIL ({len(result.failures)} issue(s))")
+        for f in result.failures:
+            console.print(f"  - {f}")
+    if not result.ok:
+        sys.exit(1)
+
+
+@v2_group.command(name="export")
+@click.argument("task_id", required=True)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["jsonl", "sigstore"], case_sensitive=False),
+    default="jsonl",
+    show_default=True,
+)
+@click.option(
+    "--root",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=None,
+    help="Override the v2 store root (default: .sdd/lineage/v2).",
+)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Write to file instead of stdout.",
+)
+def v2_export_cmd(task_id: str, fmt: str, root: Path | None, output_path: Path | None) -> None:
+    """Export the timeline for ``TASK_ID`` as JSONL or SLSA v0.3 attestations."""
+    import json as _json
+
+    store = _load_v2_store(root or _default_v2_root())
+    if fmt.lower() == "jsonl":
+        payload = store.export_jsonl(task_id)
+    else:
+        payload = _json.dumps(store.export_sigstore(task_id), indent=2, sort_keys=True)
+    if output_path is None:
+        click.echo(payload)
+    else:
+        output_path.write_text(payload, encoding="utf-8")
+        console.print(f"[green]Wrote {len(payload)} bytes ->[/green] {output_path}")

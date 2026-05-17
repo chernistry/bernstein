@@ -1,0 +1,158 @@
+name: Reconcile release drift
+
+# Daily safety net for the silent-skip class of bugs (#1273).
+# If `pyproject.toml` on main declares a version that PyPI does NOT
+# yet have AND the version commit is older than ~24h, something
+# upstream (CI / auto-release) silently dropped the publish. Alert
+# the operator + open an issue. Re-running on the same day must not
+# spam.
+
+on:
+  schedule:
+    # 04:11 UTC — off-hour, off-pattern so it doesn't collide with
+    # the rest of the nightly cron herd at :00.
+    - cron: "11 4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: reconcile-release
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  reconcile:
+    name: Compare pyproject.toml vs PyPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Compare versions
+        id: cmp
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          python3 - <<'PY' >> "${GITHUB_OUTPUT}"
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+          import urllib.request
+
+          def parse_version(s: str) -> tuple[int, ...]:
+              # Tolerant tuple-of-ints parse. Pre-release suffixes (-rc1, .dev0)
+              # get stripped; we only need ordering on the public release line.
+              core = re.split(r"[^0-9.]", s, maxsplit=1)[0].strip(".")
+              return tuple(int(p) for p in core.split(".") if p.isdigit())
+
+          # Read pyproject.toml version from the checked-out tree (main).
+          with open("pyproject.toml", encoding="utf-8") as fh:
+              pj_text = fh.read()
+          m = re.search(r'(?m)^version = "([^"]+)"', pj_text)
+          if not m:
+              print("::error::pyproject.toml has no `version = \"...\"` line")
+              sys.exit(1)
+          pj_version = m.group(1)
+
+          # Fetch latest published version from PyPI JSON API.
+          req = urllib.request.Request(
+              "https://pypi.org/pypi/bernstein/json",
+              headers={"User-Agent": "bernstein-reconcile-release"},
+          )
+          with urllib.request.urlopen(req, timeout=30) as resp:
+              pypi_payload = json.load(resp)
+          pypi_version = pypi_payload["info"]["version"]
+
+          pj_t = parse_version(pj_version)
+          pypi_t = parse_version(pypi_version)
+
+          # Age of the pyproject.toml change (when did the version line last move?).
+          # We use git blame on the version line; the diff threshold is >24h.
+          blame = subprocess.run(
+              ["git", "log", "-1", "--format=%ct", "--", "pyproject.toml"],
+              check=True, capture_output=True, text=True,
+          ).stdout.strip()
+          pj_age_seconds = int(subprocess.run(
+              ["date", "+%s"], check=True, capture_output=True, text=True,
+          ).stdout.strip()) - int(blame)
+          pj_age_hours = pj_age_seconds // 3600
+
+          print(f"pj_version={pj_version}")
+          print(f"pypi_version={pypi_version}")
+          print(f"pj_age_hours={pj_age_hours}")
+
+          drift = pj_t > pypi_t and pj_age_hours >= 24
+          print(f"drift={'true' if drift else 'false'}")
+          PY
+
+      - name: Telegram alert (drift detected)
+        if: steps.cmp.outputs.drift == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PJ: ${{ steps.cmp.outputs.pj_version }}
+          PYPI: ${{ steps.cmp.outputs.pypi_version }}
+          AGE: ${{ steps.cmp.outputs.pj_age_hours }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram not configured; skipping."
+            exit 0
+          fi
+          TEXT="📦 release drift detected
+          pyproject: ${PJ}
+          pypi:      ${PYPI}
+          age:       ${AGE}h since pyproject bump"
+          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\":\"${TELEGRAM_CHAT_ID}\",\"text\":\"${TEXT}\"}" \
+            || echo "Telegram notification failed"
+
+      - name: Open or update drift issue (idempotent)
+        if: steps.cmp.outputs.drift == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PJ: ${{ steps.cmp.outputs.pj_version }}
+          PYPI: ${{ steps.cmp.outputs.pypi_version }}
+          AGE: ${{ steps.cmp.outputs.pj_age_hours }}
+          REPO: ${{ github.repository }}
+        run: |
+          TITLE="release drift: pyproject=\`${PJ}\` pypi=\`${PYPI}\`"
+          BODY=$(printf 'Detected by `.github/workflows/reconcile-release.yml`.\n\n- pyproject.toml on main: **%s**\n- latest on PyPI: **%s**\n- age of pyproject bump: %sh\n\nLikely cause: a CI run was cancelled/timed_out/action_required so `auto-release.yml` silently skipped the publish (see #1273).\n\nRun `gh workflow run reconcile-release.yml` after fixing to clear.\n' \
+            "${PJ}" "${PYPI}" "${AGE}")
+
+          # Idempotency: search for an open issue whose title matches the
+          # exact pyproject↔pypi pair. Re-runs the same day just comment.
+          EXISTING=$(gh issue list --repo "${REPO}" --state open \
+            --search "in:title release drift pyproject=${PJ} pypi=${PYPI}" \
+            --json number,title \
+            --jq ".[] | select(.title == \"${TITLE}\") | .number" \
+            | head -1)
+
+          if [ -n "${EXISTING}" ]; then
+            echo "Existing issue #${EXISTING} already tracks this drift — skipping comment to avoid spam."
+          else
+            gh issue create --repo "${REPO}" \
+              --title "${TITLE}" \
+              --body "${BODY}" \
+              --label "ci,release-drift" || \
+            gh issue create --repo "${REPO}" \
+              --title "${TITLE}" \
+              --body "${BODY}"
+          fi
+
+      - name: No drift
+        if: steps.cmp.outputs.drift != 'true'
+        run: |
+          echo "::notice::No release drift detected (pyproject=${{ steps.cmp.outputs.pj_version }}, pypi=${{ steps.cmp.outputs.pypi_version }})."

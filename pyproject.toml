@@ -275,6 +275,10 @@ packages = ["src/bernstein"]
 # override path .sdd/eval/golden/<tier>/*.md is still consulted first.
 artifacts = [
     "src/bernstein/eval/golden_data/**/*.md",
+    # Recipe golden traces — YAML fixtures that pin the resolved
+    # workflow shape for each bundled recipe.  Loaded by the eval
+    # harness to catch drift after refactors.
+    "src/bernstein/eval/golden_data/**/*.yaml",
     # Web GUI built assets — Vite output committed to the package tree so
     # the wheel ships pre-built. Rebuild with: cd web && npm run build.
     "src/bernstein/gui/static/**/*",
@@ -299,6 +303,11 @@ artifacts = [
 # `bernstein workflow list` / `... run <name>` resolve immediately
 # without requiring a source checkout.
 "templates/workflows" = "bernstein/_default_templates/workflows"
+# First-class recipe library — parameterised workflows for common
+# operator tasks (refactor-glob, bump-dependency, add-tests-for-module,
+# license-audit, regenerate-docs).  Shipped in the wheel so
+# `bernstein recipes list|show|run` resolves immediately.
+"templates/recipes" = "bernstein/_default_templates/recipes"
 # ascii_logo.md now lives in-package at src/bernstein/_default_templates/ —
 # no force-include needed. The dev-repo copy at docs/assets/ascii_logo.md is
 # the display fallback read by cli/display/splash_v2.py when running from a

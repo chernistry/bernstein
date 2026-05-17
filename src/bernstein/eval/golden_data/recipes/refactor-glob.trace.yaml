@@ -1,0 +1,31 @@
+# Golden trace for the refactor-glob recipe.
+#
+# Loaded by the eval harness with the canned params below; the resolved
+# workflow shape must match `expected_workflow`.  Drift in node ids,
+# kinds, agent roles, or command templates after parameter substitution
+# is treated as a regression.
+recipe: refactor-glob
+params:
+  pattern: foo_
+  replacement: bar_
+  path: src
+  test_command: "pytest -x"
+expected_workflow:
+  name: refactor-glob
+  layers:
+    - [locate]
+    - [refactor]
+    - [tests]
+  nodes:
+    - id: locate
+      kind: agent
+      agent: analyst
+    - id: refactor
+      kind: agent
+      agent: backend
+      depends_on: [locate]
+      fresh_context: true
+    - id: tests
+      kind: command
+      depends_on: [refactor]
+      command: "pytest -x"

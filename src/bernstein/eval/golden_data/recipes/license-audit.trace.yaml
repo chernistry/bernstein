@@ -1,0 +1,27 @@
+recipe: license-audit
+params:
+  project_license: MIT
+  scope: runtime
+  fail_on_incompatible: true
+  report_path: ".bernstein/license-audit.md"
+expected_workflow:
+  name: license-audit
+  layers:
+    - [collect]
+    - [analyse]
+    - [report]
+    - [gate]
+  nodes:
+    - id: collect
+      kind: command
+    - id: analyse
+      kind: agent
+      agent: security
+      depends_on: [collect]
+    - id: report
+      kind: agent
+      agent: docs
+      depends_on: [analyse]
+    - id: gate
+      kind: command
+      depends_on: [report]

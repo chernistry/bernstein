@@ -1,0 +1,49 @@
+name: bump-dependency
+description: "Upgrade a Python dependency to a target version and fix any test breakage."
+version: "1.0.0"
+params:
+  - name: package
+    type: string
+    required: true
+    help: "Distribution name on PyPI (e.g. 'httpx', 'pydantic')."
+  - name: version
+    type: string
+    required: true
+    help: "Target version specifier (e.g. '0.27.0' or '^2.5')."
+  - name: lockfile
+    type: string
+    default: "uv.lock"
+    help: "Lock file to refresh alongside pyproject.toml."
+  - name: test_command
+    type: string
+    default: "pytest -x -q"
+    help: "Test command run after the bump."
+nodes:
+  - id: bump
+    agent: backend
+    prompt: |
+      Upgrade `{package}` to `{version}` in `pyproject.toml`. Refresh
+      `{lockfile}` if it exists. Do not change other dependency pins.
+
+      Goal context (optional, may be blank): {goal}
+
+  - id: tests
+    depends_on: [bump]
+    command: "{test_command}"
+    timeout_seconds: 1800
+
+  - id: fix-breakage
+    depends_on: [tests]
+    agent: backend
+    prompt: |
+      Tests broke after upgrading `{package}` to `{version}`. Read the
+      failures, classify each one (API change, deprecation, edge case,
+      unrelated flake), and land the minimum fixes. Keep the bump itself
+      intact — do not pin back.
+    fresh_context: true
+    timeout_seconds: 3600
+
+  - id: tests-after-fix
+    depends_on: [fix-breakage]
+    command: "{test_command}"
+    timeout_seconds: 1800

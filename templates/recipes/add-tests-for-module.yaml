@@ -1,0 +1,49 @@
+name: add-tests-for-module
+description: "Backfill pytest coverage for a single Python module that currently has low coverage."
+version: "1.0.0"
+params:
+  - name: module
+    type: string
+    required: true
+    help: "Importable module path (e.g. 'bernstein.core.cost.estimator')."
+  - name: target_coverage
+    type: int
+    default: 85
+    help: "Target line-coverage percentage for the module."
+  - name: test_dir
+    type: string
+    default: "tests/unit"
+    help: "Directory where the new test module is written."
+  - name: test_command
+    type: string
+    default: "pytest -x -q"
+    help: "Test command run after the backfill."
+nodes:
+  - id: survey
+    agent: qa
+    prompt: |
+      Survey the public surface of `{module}`. List every function,
+      class, and class method, and for each one note (1) whether tests
+      already exist, (2) the obvious happy-path inputs, and (3) any
+      branches that are hard to reach without fixtures.
+
+      Goal context (optional): {goal}
+
+  - id: write-tests
+    depends_on: [survey]
+    agent: qa
+    prompt: |
+      Write pytest tests for `{module}` based on the survey. Target at
+      least {target_coverage}% line coverage. Place tests under
+      `{test_dir}/` following the naming convention used by the rest of
+      the suite. Cover happy paths first, then add one or two negative
+      cases per public callable. Do not modify the production module
+      itself unless a behaviour change is required to make the code
+      testable, and call that out explicitly in the commit message.
+    fresh_context: true
+    timeout_seconds: 3600
+
+  - id: tests
+    depends_on: [write-tests]
+    command: "{test_command}"
+    timeout_seconds: 1800

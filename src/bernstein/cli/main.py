@@ -94,6 +94,7 @@ from bernstein.cli.postmortem_cmd import postmortem_cmd
 from bernstein.cli.profile_cmd import profile_cmd
 from bernstein.cli.prompts_cmd import prompts_group
 from bernstein.cli.quickstart_cmd import quickstart_cmd
+from bernstein.cli.recipes_cmd import recipes_group
 from bernstein.cli.report_cmd import report_cmd
 from bernstein.cli.run_changelog_cmd import run_changelog_cmd
 from bernstein.cli.scaffold_cmd import scaffold_cmd
@@ -846,6 +847,7 @@ cli.add_command(postmortem_cmd, "postmortem")
 cli.add_command(slo_cmd, "slo")
 cli.add_command(man_pages_cmd, "man-pages")
 cli.add_command(workflow_group, "workflow")
+cli.add_command(recipes_group, "recipes")
 cli.add_command(quickstart_cmd, "quickstart")
 cli.add_command(scaffold_cmd, "scaffold")
 cli.add_command(watch_cmd, "watch")

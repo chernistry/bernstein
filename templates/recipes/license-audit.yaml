@@ -1,0 +1,54 @@
+name: license-audit
+description: "Scan project dependencies for licenses incompatible with the declared project license."
+version: "1.0.0"
+params:
+  - name: project_license
+    type: string
+    default: "MIT"
+    help: "License declared by the project (used as the compatibility baseline)."
+  - name: scope
+    type: string
+    default: "runtime"
+    choices: ["runtime", "dev", "all"]
+    help: "Dependency scope to scan."
+  - name: fail_on_incompatible
+    type: bool
+    default: true
+    help: "Exit non-zero if any incompatible license is found."
+  - name: report_path
+    type: string
+    default: ".bernstein/license-audit.md"
+    help: "Markdown report destination."
+nodes:
+  - id: collect
+    command: "pip-licenses --format=json --output-file=.bernstein/licenses.json --with-urls --with-license-file --no-license-path"
+    timeout_seconds: 600
+
+  - id: analyse
+    depends_on: [collect]
+    agent: security
+    prompt: |
+      Analyse the dependency licenses captured in
+      `.bernstein/licenses.json` against the project license
+      `{project_license}` (scope: `{scope}`). For each dependency,
+      classify the license as compatible, copyleft (incompatible),
+      ambiguous, or proprietary.  Surface every incompatible or
+      ambiguous case as a one-line bullet with the dependency name,
+      license SPDX id, and a one-sentence justification.
+
+      Goal context (optional): {goal}
+
+  - id: report
+    depends_on: [analyse]
+    agent: docs
+    prompt: |
+      Produce a markdown report at `{report_path}` that summarises the
+      audit. Sections: Summary (counts by category), Incompatible
+      licenses (table with dependency, version, license, justification),
+      Ambiguous cases, Action items. Keep it operator-scannable: no
+      marketing prose, no padding.
+
+  - id: gate
+    depends_on: [report]
+    command: "test \"{fail_on_incompatible}\" = \"True\" && ! grep -q '^| .* | .* | [Cc]opyleft' '{report_path}' || ! test \"{fail_on_incompatible}\" = \"True\""
+    timeout_seconds: 60

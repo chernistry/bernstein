@@ -94,6 +94,7 @@ _CLI_REDIRECT_MAP: dict[str, str] = {
     "prompts_cmd": "bernstein.cli.commands.prompts_cmd",
     "quickstart_cmd": "bernstein.cli.commands.quickstart_cmd",
     "quickstart_templates": "bernstein.cli.commands.quickstart_templates",
+    "recipes_cmd": "bernstein.cli.commands.recipes_cmd",
     "replay_filter_cmd": "bernstein.cli.commands.replay_filter_cmd",
     "report_cmd": "bernstein.cli.commands.report_cmd",
     "resume_cmd": "bernstein.cli.commands.resume_cmd",

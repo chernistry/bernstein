@@ -1,0 +1,31 @@
+recipe: regenerate-docs
+params:
+  package: bernstein
+  doc_root: docs
+  module_map_path: CLAUDE.md
+  build_command: "mkdocs build --strict"
+  lint_command: "ruff check docs"
+expected_workflow:
+  name: regenerate-docs
+  layers:
+    - [module-map]
+    - [api-docs]
+    - [build]
+    - [lint]
+  nodes:
+    - id: module-map
+      kind: agent
+      agent: docs
+    - id: api-docs
+      kind: agent
+      agent: docs
+      depends_on: [module-map]
+      fresh_context: true
+    - id: build
+      kind: command
+      depends_on: [api-docs]
+      command: "mkdocs build --strict"
+    - id: lint
+      kind: command
+      depends_on: [build]
+      command: "ruff check docs"

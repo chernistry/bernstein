@@ -1,0 +1,56 @@
+name: regenerate-docs
+description: "Rebuild API docs and module map from current source."
+version: "1.0.0"
+params:
+  - name: package
+    type: string
+    default: "bernstein"
+    help: "Top-level package name to regenerate docs for."
+  - name: doc_root
+    type: string
+    default: "docs"
+    help: "Documentation root directory."
+  - name: module_map_path
+    type: string
+    default: "CLAUDE.md"
+    help: "Path to the module map document."
+  - name: build_command
+    type: string
+    default: "mkdocs build --strict"
+    help: "Documentation build command."
+  - name: lint_command
+    type: string
+    default: "ruff check docs"
+    help: "Lint command run against the rebuilt docs."
+nodes:
+  - id: module-map
+    agent: docs
+    prompt: |
+      Walk `src/{package}/` and refresh the module map at
+      `{module_map_path}`. For each subpackage, regenerate the table of
+      file → one-line purpose lines. Keep the existing section order and
+      headings; do not invent new top-level sections.
+
+      Goal context (optional): {goal}
+
+  - id: api-docs
+    depends_on: [module-map]
+    agent: docs
+    prompt: |
+      Regenerate the API reference pages under `{doc_root}/` from the
+      current source of `{package}`. Use the project's existing
+      conventions (autodoc directives, headings, cross-references).
+      Surface any public symbols that lack a docstring as a one-line
+      bullet list in the commit message rather than silently skipping.
+    fresh_context: true
+    timeout_seconds: 3600
+
+  - id: build
+    depends_on: [api-docs]
+    command: "{build_command}"
+    timeout_seconds: 1800
+
+  - id: lint
+    depends_on: [build]
+    command: "{lint_command}"
+    timeout_seconds: 600

@@ -1,0 +1,30 @@
+recipe: bump-dependency
+params:
+  package: httpx
+  version: "0.27.0"
+  lockfile: uv.lock
+  test_command: "pytest -x -q"
+expected_workflow:
+  name: bump-dependency
+  layers:
+    - [bump]
+    - [tests]
+    - [fix-breakage]
+    - [tests-after-fix]
+  nodes:
+    - id: bump
+      kind: agent
+      agent: backend
+    - id: tests
+      kind: command
+      depends_on: [bump]
+      command: "pytest -x -q"
+    - id: fix-breakage
+      kind: agent
+      agent: backend
+      depends_on: [tests]
+      fresh_context: true
+    - id: tests-after-fix
+      kind: command
+      depends_on: [fix-breakage]
+      command: "pytest -x -q"

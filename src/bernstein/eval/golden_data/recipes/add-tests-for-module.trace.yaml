@@ -1,0 +1,25 @@
+recipe: add-tests-for-module
+params:
+  module: bernstein.core.cost.estimator
+  target_coverage: 85
+  test_dir: tests/unit
+  test_command: "pytest -x -q"
+expected_workflow:
+  name: add-tests-for-module
+  layers:
+    - [survey]
+    - [write-tests]
+    - [tests]
+  nodes:
+    - id: survey
+      kind: agent
+      agent: qa
+    - id: write-tests
+      kind: agent
+      agent: qa
+      depends_on: [survey]
+      fresh_context: true
+    - id: tests
+      kind: command
+      depends_on: [write-tests]
+      command: "pytest -x -q"

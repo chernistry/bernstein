@@ -1,0 +1,46 @@
+name: refactor-glob
+description: "Rename a glob of identifiers across a path, then run tests to catch regressions."
+version: "1.0.0"
+params:
+  - name: pattern
+    type: string
+    required: true
+    help: "Source identifier pattern (e.g. 'foo_*' or 'OldName')."
+  - name: replacement
+    type: string
+    required: true
+    help: "Replacement identifier (e.g. 'bar_*' or 'NewName')."
+  - name: path
+    type: string
+    default: "src"
+    help: "Filesystem root to search under."
+  - name: test_command
+    type: string
+    default: "pytest -x"
+    help: "Test command run after the refactor."
+nodes:
+  - id: locate
+    agent: analyst
+    prompt: |
+      Locate every occurrence of the identifier pattern `{pattern}` under
+      `{path}`. Produce a precise list of files and call sites that will
+      need to change to `{replacement}`. Flag any tricky cases (string
+      literals, doc strings, generated code) that need a manual call.
+
+      Goal context: {goal}
+
+  - id: refactor
+    depends_on: [locate]
+    agent: backend
+    prompt: |
+      Rename `{pattern}` to `{replacement}` across `{path}` based on the
+      site list from the locate step. Preserve casing conventions, do not
+      touch unrelated identifiers, and keep each commit logically small.
+      Update any documentation or call sites that the analyst flagged.
+    fresh_context: true
+    timeout_seconds: 3600
+
+  - id: tests
+    depends_on: [refactor]
+    command: "{test_command}"
+    timeout_seconds: 1800

@@ -174,6 +174,14 @@ eval = ["datasets>=4.8.5", "huggingface-hub>=0.24"]
 #   pip install 'bernstein[gui]'
 # then: bernstein gui serve
 gui = ["sse-starlette>=2.1.0"]
+# OpenTelemetry OTLP/gRPC exporter for GenAI semantic conventions
+# (src/bernstein/core/observability/otlp_exporter.py). The exporter is a
+# no-op when this extra is absent or BERNSTEIN_OTEL_ENDPOINT is unset, so
+# minimal installs do not pay the gRPC import cost. Enable with:
+#   pip install 'bernstein[otel]'
+otel = [
+    "opentelemetry-exporter-otlp-proto-grpc>=1.41.1",
+]
 
 [project.scripts]
 bernstein = "bernstein.cli.main:cli"

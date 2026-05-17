@@ -30,12 +30,7 @@ def _safe_id(session_id: str) -> str:
     analysers — CodeQL ``py/log-injection`` in particular — recognise the
     sanitiser and stop flagging the surrounding logger callsites.
     """
-    return (
-        session_id.replace("\n", "_")
-        .replace("\r", "_")
-        .replace("\t", "_")
-        .replace("\x1b", "_")
-    )[:_SAFE_ID_MAX_LEN]
+    return (session_id.replace("\n", "_").replace("\r", "_").replace("\t", "_").replace("\x1b", "_"))[:_SAFE_ID_MAX_LEN]
 
 
 def register_stdin_pipe(session_id: str, pipe: IO[bytes]) -> None:

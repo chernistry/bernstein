@@ -109,6 +109,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "workflow",
         "gateway",
         "templates",
+        # Web UI (v2.0.0)
+        "gui",
         # Reports & profiling
         "export",
         "man-pages",

@@ -28,6 +28,10 @@ _INFRASTRUCTURE_PATHS: frozenset[str] = frozenset(
         # route — its own counterpart would be "/api/v1/api/v1", which is
         # nonsense. Skip it from both sides of the diff.
         "/api/v1",
+        # Web UI mount (v2.0.0). The SPA is intentionally root-only — it is
+        # not an API surface and has no `/api/v1/ui` counterpart.
+        "/ui",
+        "/ui/{full_path:path}",
     }
 )
 

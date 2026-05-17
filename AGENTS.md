@@ -208,6 +208,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 |---------------------------|---------|
 | `ab_runner.py`            | A/B runner primitive — deterministic prompt-vs-prompt comparison |
 | `baseline.py`             | Baseline tracking for eval-gated evolution |
+| `calibration.py`          | Calibration log + Brier score for router and judge decisions |
 | `golden.py`               | Golden benchmark suite — curated tasks for eval |
 | `harness.py`              | Eval harness — multiplicative scoring, LLM judge, failure taxonomy |
 | `incident_synthesizer.py` | Convert dead-letter and post-mortem incidents into regression eval cases |

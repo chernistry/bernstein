@@ -9,7 +9,15 @@ from typing import TYPE_CHECKING, Any
 from rich.text import Text
 from textual.widgets import Static
 
-if TYPE_CHECKING:
+from bernstein.core.worktrees.classifier import (
+    ClassifiedWorktree,
+    WorktreeState,
+    classify_worktrees,
+    format_size,
+)
+
+if TYPE_CHECKING:  # pragma: no cover - typing-only imports
+    from collections.abc import Iterable
     from pathlib import Path
 
 
@@ -121,3 +129,104 @@ class RuntimeHealthPanel(Static):
     def render(self) -> Text:
         """Render the current runtime snapshot."""
         return render_runtime_health(self._snapshot)
+
+
+# ---------------------------------------------------------------------------
+# Worktree list pane (feat-worktree-gc-ui)
+# ---------------------------------------------------------------------------
+
+
+_STATE_COLOURS: dict[WorktreeState, str] = {
+    WorktreeState.ACTIVE: "green",
+    WorktreeState.ORPHAN: "yellow",
+    WorktreeState.STALE: "red",
+    WorktreeState.CORRUPT: "magenta",
+}
+
+#: Default refresh cadence for the worktree list pane.
+WORKTREE_LIST_REFRESH_S: float = 10.0
+
+
+def count_reapable(rows: Iterable[ClassifiedWorktree]) -> int:
+    """Return how many rows are safe to reap.
+
+    Surfaced in the TUI status bar so operators see clutter even when
+    the list pane is collapsed.
+    """
+    return sum(1 for row in rows if row.is_reapable)
+
+
+def render_worktree_list(rows: Iterable[ClassifiedWorktree]) -> Text:
+    """Render the worktree inventory for the side pane.
+
+    The output is deliberately compact (one row per worktree) so it fits
+    in the narrow side column. Reapable rows are highlighted.
+    """
+    text = Text()
+    rows_list = list(rows)
+    text.append("Worktrees\n", style="bold")
+    if not rows_list:
+        text.append("(none)", style="dim")
+        return text
+
+    for row in rows_list:
+        colour = _STATE_COLOURS.get(row.state, "white")
+        text.append("• ", style="dim")
+        text.append(f"{row.session_id[:18]:<18} ")
+        text.append(f"{row.state.value:<7}", style=colour)
+        text.append(f"  {format_size(row.size_bytes)}\n", style="dim")
+
+    reapable = count_reapable(rows_list)
+    if reapable:
+        text.append(f"{reapable} reapable", style="yellow bold")
+    else:
+        text.append("clean", style="green")
+    return text
+
+
+class WorktreeListPanel(Static):
+    """Side pane that lists every worktree with its classification.
+
+    The panel does not poll the filesystem on its own; the dashboard
+    refresh loop calls :meth:`refresh_from_repo` every
+    :data:`WORKTREE_LIST_REFRESH_S` seconds. Tests can call
+    :meth:`set_rows` directly to bypass disk I/O.
+    """
+
+    DEFAULT_CSS = """
+    WorktreeListPanel {
+        height: auto;
+        min-height: 6;
+        border: round $accent 20%;
+        padding: 1 1;
+        background: $surface-darken-1;
+    }
+    """
+
+    def __init__(self, repo_root: Path | None = None, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._rows: list[ClassifiedWorktree] = []
+        self._repo_root = repo_root
+
+    def set_repo_root(self, repo_root: Path | None) -> None:
+        """Update the repository root used by :meth:`refresh_from_repo`."""
+        self._repo_root = repo_root
+
+    def set_rows(self, rows: Iterable[ClassifiedWorktree]) -> None:
+        """Replace the rendered rows."""
+        self._rows = list(rows)
+        self.refresh()
+
+    def reapable_count(self) -> int:
+        """Number of currently-known reapable worktrees."""
+        return count_reapable(self._rows)
+
+    def refresh_from_repo(self) -> None:
+        """Re-classify all worktrees under the configured repo root."""
+        if self._repo_root is None:
+            return
+        self.set_rows(classify_worktrees(self._repo_root))
+
+    def render(self) -> Text:
+        """Render the current worktree rows."""
+        return render_worktree_list(self._rows)

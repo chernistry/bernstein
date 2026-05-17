@@ -49,8 +49,7 @@ def best_of_n_group() -> None:
     "--weights",
     "weights_csv",
     default=None,
-    help="Comma-separated per-criterion weights matching --rank-criteria. "
-    "Defaults to identity weights.",
+    help="Comma-separated per-criterion weights matching --rank-criteria. Defaults to identity weights.",
 )
 @click.option(
     "--artefact-dir",

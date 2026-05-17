@@ -5,6 +5,10 @@ from __future__ import annotations
 import inspect
 import logging
 from importlib.metadata import entry_points
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 from bernstein.adapters.aichat import AIChatAdapter
 from bernstein.adapters.aider import AiderAdapter
@@ -168,3 +172,20 @@ def register_adapter(name: str, adapter: type[CLIAdapter] | CLIAdapter) -> None:
         adapter: Adapter class or instance.
     """
     _ADAPTERS[name] = adapter
+
+
+def iter_adapter_specs() -> Iterator[tuple[str, type[CLIAdapter] | CLIAdapter]]:
+    """Yield every registered adapter as ``(name, class-or-instance)`` pairs.
+
+    The iterator triggers entry-point discovery on first use so third-
+    party adapters are surfaced alongside the built-ins. Pairs are
+    emitted in alphabetic order by name so downstream consumers can
+    rely on a deterministic enumeration.
+
+    The values are the raw registry entries (either a class or a
+    pre-built instance). Callers that need a live adapter should pass
+    each one through :func:`get_adapter` or instantiate themselves.
+    """
+    _load_entrypoint_adapters()
+    for name in sorted(_ADAPTERS.keys()):
+        yield name, _ADAPTERS[name]

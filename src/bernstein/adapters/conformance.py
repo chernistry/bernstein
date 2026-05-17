@@ -514,6 +514,36 @@ class {class_name}(CLIAdapter):
 '''
 
 
+# ---------------------------------------------------------------------------
+# In-process conformance check re-export
+# ---------------------------------------------------------------------------
+#
+# The Click surface ``bernstein adapters check`` (see
+# :mod:`bernstein.cli.commands.adapters_cmd`) exposes per-adapter
+# conformance verdicts without spawning pytest. The check itself lives
+# in :mod:`bernstein.adapters.report` so it can share the contract
+# loader with the human-facing report. We re-export the entry point
+# here so callers that grep for ``conformance.check_adapter_in_process``
+# land at the right symbol.
+
+
+def check_adapter_in_process(
+    name: str,
+    *,
+    binary_resolved: str | None,
+    contracts_dir: Path | None = None,
+) -> object:
+    """In-process conformance verdict for one adapter.
+
+    See :func:`bernstein.adapters.report.check_adapter_in_process` for
+    the full docstring and verdict semantics. This shim keeps the
+    public re-export at the module operators historically grep for.
+    """
+    from bernstein.adapters.report import check_adapter_in_process as _impl
+
+    return _impl(name, binary_resolved=binary_resolved, contracts_dir=contracts_dir)
+
+
 def generate_adapter_scaffold(
     cli_name: str,
     class_name: str,

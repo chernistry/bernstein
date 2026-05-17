@@ -236,6 +236,18 @@ def _register_contract_subcommand() -> None:
 _register_contract_subcommand()
 
 
+def _register_check_subcommand() -> None:
+    """Attach the conformance + capability report subcommands."""
+    try:
+        from bernstein.cli.commands.adapters_cmd import register_adapters_check
+    except Exception:  # pragma: no cover -- defensive
+        return
+    register_adapters_check(adapters_group)
+
+
+_register_check_subcommand()
+
+
 @adapters_group.command("list")
 @click.option(
     "--json",

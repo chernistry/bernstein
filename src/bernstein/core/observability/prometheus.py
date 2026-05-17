@@ -142,6 +142,7 @@ __all__ = [
     "sandbox_session_destroyed_total",
     "sandbox_session_duration_seconds",
     "set_prometheus_enabled",
+    "skills_unicode_tags_stripped_total",
     "task_duration_seconds",
     "task_queue_depth",
     "task_transition_reasons_total",
@@ -410,6 +411,20 @@ sandbox_exec_count_total: Counter = Counter(
     "bernstein_sandbox_exec_count_total",
     "Commands executed via SandboxSession.exec, by backend and exit code.",
     labelnames=["backend", "exit_code"],
+    registry=registry,
+)
+
+# ---------------------------------------------------------------------------
+# Skill-pack sanitization — counts invisible Unicode Tag codepoints stripped
+# from a skill body before it is injected into an agent worktree. Labelled by
+# the owning :class:`SkillSource` name so operators can spot a poisoned source
+# without re-scanning the index. See ``bernstein.core.skills.sanitizer``.
+# ---------------------------------------------------------------------------
+
+skills_unicode_tags_stripped_total: Counter = Counter(
+    "bernstein_skills_unicode_tags_stripped_total",
+    "Invisible Unicode codepoints stripped from skill bodies before injection.",
+    labelnames=["source_name"],
     registry=registry,
 )
 

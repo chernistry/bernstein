@@ -33,6 +33,10 @@ Hand-curated release notes: [`docs/release-notes/v2.0.0.md`](docs/release-notes/
 
 ## Unreleased
 
+### Security
+
+- **Strip invisible Unicode Tag codepoints from injected skills (spec 2026-05-17).** Public research (Feb 2026, Embrace the Red; Snyk skill-pack audit of 3,984 public files showing 36.82% with security flaws) demonstrated that invisible glyphs in the U+E0000-U+E007F Tag block are interpreted as instructions by Claude, Gemini, and Grok. Bernstein now strips every Cf-category, Tag-block, and interlinear-annotation codepoint from skill bodies before they are written into `.claude/skills/*.md` in agent worktrees. The new `bernstein.core.skills.sanitizer.strip_invisible_tags` function returns the cleaned body plus the count of stripped codepoints; the `SkillLoader` and `skills_injector` both invoke it at index time. A WARN log line plus a Prometheus counter `bernstein_skills_unicode_tags_stripped_total{source_name}` fire on every hit so operators can pinpoint a poisoned upstream source. Default ON; opt out with the hidden `--unsafe-allow-unicode-tags` CLI flag (or `BERNSTEIN_UNSAFE_ALLOW_UNICODE_TAGS=1`) only when reproducing an incident in a controlled environment.
+
 ### Added — routing
 
 - **Per-task criterion profile (#1346).** Operators can now stamp a four-axis weight vector (`correctness`, `cost`, `latency`, `reversibility`) onto individual tasks to bias model selection.  Named presets (`safety-first`, `speed-first`, `balanced`, `cost-first`) ship in `templates/criterion_profiles/` and force-include into the wheel.  Inline dicts work too: `metadata['criterion_profile'] = {"correctness": 0.6, ...}`.  Surfaced via `bernstein add-task --criterion-profile <preset>`, `bernstein run --criterion-profile <preset>`, and `bernstein criterion-profile show <task_id> | list`.  Feature flag `BERNSTEIN_CRITERION_PROFILE=0` reverts to pre-existing routing.  Child tasks inherit the parent's profile unless explicitly overridden.

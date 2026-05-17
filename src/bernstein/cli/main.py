@@ -619,6 +619,17 @@ def _validate_evolve_mode(evolve: bool, budget: float, max_cycles: int, yes: boo
         "Iterative self-refinement loop (issue #1403). Format: 'rounds:N,critic:adversary,stop:plateau,threshold:0.9'."
     ),
 )
+@click.option(
+    "--unsafe-allow-unicode-tags",
+    "unsafe_allow_unicode_tags",
+    is_flag=True,
+    default=False,
+    hidden=True,
+    help=(
+        "Disable the skill-pack invisible-Unicode sanitizer (DANGEROUS — only for "
+        "reproducing a poisoned-skill incident; see templates/skills/README.md)."
+    ),
+)
 @click.pass_context
 def cli(
     ctx: click.Context,
@@ -650,8 +661,16 @@ def cli(
     sandbox_override: str | None,
     allow_paid: bool,
     refine_spec: str | None,
+    unsafe_allow_unicode_tags: bool,
 ) -> None:
     """Declarative agent orchestration for engineering teams."""
+    # The skill-pack invisible-Unicode sanitizer reads its opt-out from this
+    # env var; set it as early as possible so any later import that triggers a
+    # SkillLoader sees the operator's choice. Default is OFF (sanitize on).
+    if unsafe_allow_unicode_tags:
+        import os
+
+        os.environ["BERNSTEIN_UNSAFE_ALLOW_UNICODE_TAGS"] = "1"
     setup_json_logging()
     ctx.ensure_object(dict)
     # --json flag or --output json both enable JSON output mode

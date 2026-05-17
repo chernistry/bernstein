@@ -23,6 +23,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from bernstein.core.skills.sanitizer import sanitize_skill_body
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -156,7 +158,19 @@ def inject_skills(
             _logger.debug("Failed to read skill template %s: %s", source_path, exc)
             continue
 
-        rendered = render_skill_template(raw, session_id=session_id, tasks=tasks)
+        # Strip invisible Unicode Tag codepoints (U+E0000-U+E007F, Cf, U+FFF9-
+        # U+FFFB) before render-and-write so a poisoned third-party template
+        # cannot smuggle hidden instructions into ``.claude/skills/*.md``. The
+        # sanitizer is on by default; the hidden ``--unsafe-allow-unicode-tags``
+        # CLI flag disables it for incident-reproduction scenarios.
+        sanitized = sanitize_skill_body(
+            raw,
+            skill_name=template_name,
+            origin=str(source_path),
+            source_name="templates/skills",
+        )
+
+        rendered = render_skill_template(sanitized, session_id=session_id, tasks=tasks)
 
         dest_path = skills_dest_dir / template_name
         try:

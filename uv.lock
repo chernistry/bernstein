@@ -315,6 +315,9 @@ modal = [
 openai = [
     { name = "openai-agents" },
 ]
+otel = [
+    { name = "opentelemetry-exporter-otlp-proto-grpc" },
+]
 r2 = [
     { name = "boto3" },
 ]
@@ -383,6 +386,7 @@ requires-dist = [
     { name = "openai-agents", marker = "extra == 'openai'", specifier = ">=0.4.0" },
     { name = "opentelemetry-api", specifier = ">=1.41.1" },
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.41.1" },
+    { name = "opentelemetry-exporter-otlp-proto-grpc", marker = "extra == 'otel'", specifier = ">=1.41.1" },
     { name = "opentelemetry-sdk", specifier = ">=1.41.1" },
     { name = "pillow", specifier = ">=12.1.1" },
     { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.7" },
@@ -417,7 +421,7 @@ requires-dist = [
     { name = "watchdog", specifier = ">=4.0" },
     { name = "websockets", specifier = ">=14.0" },
 ]
-provides-extras = ["dev", "grpc", "k8s", "ml", "graphics", "openai", "docker", "e2b", "modal", "s3", "gcs", "azure", "r2", "telegram", "eval", "gui"]
+provides-extras = ["dev", "grpc", "k8s", "ml", "graphics", "openai", "docker", "e2b", "modal", "s3", "gcs", "azure", "r2", "telegram", "eval", "gui", "otel"]
 
 [package.metadata.requires-dev]
 dev = [

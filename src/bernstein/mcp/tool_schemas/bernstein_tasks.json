@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "bernstein_tasks",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "type": ["string", "null"],
+      "enum": [null, "open", "claimed", "in_progress", "done", "failed", "blocked", "cancelled"]
+    }
+  }
+}

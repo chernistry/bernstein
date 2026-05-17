@@ -292,6 +292,10 @@ artifacts = [
     # projects can lint their .sdd/backlog tickets via importlib.resources
     # without a source checkout. Loader: bernstein.sdd.validator.load_schema.
     "src/bernstein/sdd/schema/*.json",
+    # MCP per-tool input schemas (issue #1406). The orchestrator-side input
+    # firewall loads them at startup to validate every incoming MCP tool
+    # call. Loader: bernstein.mcp.input_validation.load_registry.
+    "src/bernstein/mcp/tool_schemas/*.json",
 ]
 
 [tool.hatch.build.targets.wheel.force-include]

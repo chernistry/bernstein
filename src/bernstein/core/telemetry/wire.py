@@ -210,9 +210,9 @@ class FirstRunTimer:
 
     def __exit__(
         self,
-        exc_type: object,
+        _exc_type: object,
         exc: object,
-        tb: object,
+        _tb: object,
     ) -> None:
         duration_ms = int((time.monotonic() - self._started_at) * 1000)
         if exc is not None and self._error is None:

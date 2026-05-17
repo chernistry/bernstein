@@ -207,11 +207,13 @@ alwaysApply: false
 |---------------------------|---------|
 | `ab_runner.py`            | A/B runner primitive — deterministic prompt-vs-prompt comparison |
 | `baseline.py`             | Baseline tracking for eval-gated evolution |
+| `calibration.py`          | Calibration log + Brier score for router and judge decisions |
 | `golden.py`               | Golden benchmark suite — curated tasks for eval |
 | `harness.py`              | Eval harness — multiplicative scoring, LLM judge, failure taxonomy |
 | `incident_synthesizer.py` | Convert dead-letter and post-mortem incidents into regression eval cases |
 | `judge.py`                | LLM judge — evaluate code quality of agent-produced changes |
 | `metrics.py`              | Custom eval metrics — each metric is a dataclass with a compute method |
+| `scenario_generator.py`   | Forward-looking synthetic scenario generator |
 | `scenario_runner.py`      | Scenario runner — execute YAML-defined eval scenarios against the live codebase |
 | `taxonomy.py`             | Failure taxonomy — classify every eval failure into a closed set |
 | `telemetry.py`            | Telemetry contract — strict schema for agent output metadata |

@@ -1,0 +1,50 @@
+name: zizmor (workflow static analysis)
+
+# zizmor performs static analysis on GitHub Actions workflows to surface
+# supply-chain and configuration risks (unpinned actions, command injection
+# vectors, excessive permissions, etc.). Findings are surfaced to GitHub
+# Code Scanning as SARIF.
+#
+# Ref: #1273
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+  schedule:
+    - cron: "55 4 * * 0"  # Weekly, Sunday 04:55 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: zizmor-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  zizmor:
+    name: zizmor static analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d  # v0.5.6
+        with:
+          # Upload SARIF to Code Scanning even on findings; CI does not fail
+          # the build on findings, GH Security tab is the source of truth.
+          advanced-security: true
+        env:
+          GH_TOKEN: ${{ github.token }}

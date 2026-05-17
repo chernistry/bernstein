@@ -368,7 +368,7 @@ Commands that eliminate the glue code most teams end up writing around their run
 | `bernstein pr` | Auto-creates a GitHub PR from a completed session; body carries the janitor's gate results and token/USD cost breakdown. |
 | `bernstein from-ticket <url>` | Imports a Linear / GitHub Issues / Jira ticket as a Bernstein task. Label-based role + scope inference. Supports `--dry-run` and `--run`. |
 | `bernstein ticket import <url>` | Alias / group form of `from-ticket` for scripting. |
-| `bernstein task claim --role reviewer` | Atomically claims one eligible row from `.sdd/runtime/task-backlog.json` for external workers sharing a backlog. Supports `--backlog`, `--agent-id`, `--project`, `--capability`, `--done`, `--max-attempts`, and `--json`. |
+| `bernstein backlog claim --role reviewer` | Atomically claims one eligible row from `.sdd/runtime/task-backlog.json` for external workers sharing a same-host JSON backlog. This is intentionally separate from the orchestrator task store; distributed workers should use the database-backed task store paths. Supports `--backlog`, `--agent-id`, `--project`, `--capability`, `--done`, `--max-attempts`, and `--json`. |
 | `bernstein remote` | SSH sandbox backend. `remote test <host>`, `remote run <host> <path>`, `remote forget <host>`. ControlMaster socket reuse for fast repeat calls. |
 | `bernstein hooks` | Lifecycle hooks for `pre_task`, `post_task`, `pre_merge`, `post_merge`, `pre_spawn`, `post_spawn`; shell scripts or pluggy `@hookimpl`s. `hooks list`, `hooks run <event>`, `hooks check`. |
 | `bernstein chat serve --platform=telegram\|discord\|slack` | Drive runs from chat with `/run`, `/status`, `/approve`, `/reject`, `/switch`, `/stop`. |

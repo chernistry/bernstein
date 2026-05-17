@@ -65,7 +65,7 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "pending",
         "list-tasks",
         "sync",
-        "task",
+        "backlog",
         # Agents
         "agents",
         # Skills (oai-004)

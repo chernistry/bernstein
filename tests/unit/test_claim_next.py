@@ -109,6 +109,32 @@ def test_claim_next_filters_by_project_role_capability_dependencies_and_attempts
     ) == "eligible"
 
 
+def test_claim_next_skips_rows_with_unmet_dependencies(tmp_path: Path) -> None:
+    """Rows with dependencies outside completed_ids remain open and unclaimed."""
+    backlog_path = tmp_path / "backlog.json"
+    Backlog.write(
+        backlog_path,
+        [
+            BacklogEntry(id="blocked", role="reviewer", depends_on=["dep"]),
+            BacklogEntry(id="eligible", role="reviewer"),
+        ],
+    )
+
+    claimed = claim_next(
+        backlog_path,
+        claimer_id="worker-a",
+        filter=ClaimFilter(role="reviewer", completed_ids=set()),
+    )
+
+    assert claimed == "eligible"
+    rows = _rows(backlog_path)
+    assert rows[0]["id"] == "blocked"
+    assert rows[0]["status"] == "open"
+    assert rows[0]["claimer"] is None
+    assert rows[1]["id"] == "eligible"
+    assert rows[1]["status"] == "in_progress"
+
+
 def test_claim_next_entry_returns_claimed_record(tmp_path: Path) -> None:
     """The richer API returns the updated row for CLI/adapters."""
     backlog_path = tmp_path / "backlog.json"
@@ -122,8 +148,8 @@ def test_claim_next_entry_returns_claimed_record(tmp_path: Path) -> None:
     assert claimed.claimer == "worker-a"
 
 
-def test_task_claim_cli_claims_disjoint_role_filtered_tasks(tmp_path: Path) -> None:
-    """``bernstein task claim --role`` exposes the same primitive to external workers."""
+def test_backlog_claim_cli_claims_disjoint_role_filtered_tasks(tmp_path: Path) -> None:
+    """``bernstein backlog claim --role`` exposes the same primitive to external workers."""
     backlog_path = tmp_path / "backlog.json"
     Backlog.write(
         backlog_path,
@@ -137,11 +163,11 @@ def test_task_claim_cli_claims_disjoint_role_filtered_tasks(tmp_path: Path) -> N
 
     first = runner.invoke(
         cli,
-        ["task", "claim", "--backlog", str(backlog_path), "--role", "reviewer", "--agent-id", "agent-a", "--json"],
+        ["backlog", "claim", "--backlog", str(backlog_path), "--role", "reviewer", "--agent-id", "agent-a", "--json"],
     )
     second = runner.invoke(
         cli,
-        ["task", "claim", "--backlog", str(backlog_path), "--role", "reviewer", "--agent-id", "agent-b", "--json"],
+        ["backlog", "claim", "--backlog", str(backlog_path), "--role", "reviewer", "--agent-id", "agent-b", "--json"],
     )
 
     assert first.exit_code == 0, first.output

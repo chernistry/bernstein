@@ -16,14 +16,14 @@ from __future__ import annotations
 import collections.abc as cabc
 import json
 import logging
-import sys
 import threading
 import time
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import IO, TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from bernstein.core.persistence.atomic_write import write_atomic_json
+from bernstein.core.persistence.file_locks import _cross_process_lock
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Mapping
@@ -49,37 +49,6 @@ def _empty_metadata() -> dict[str, Any]:
     return {}
 
 
-if sys.platform == "win32":  # pragma: no cover - exercised on Windows only
-    import msvcrt
-
-    def _os_lock(fh: IO[bytes]) -> None:
-        """Acquire an exclusive OS-level lock on byte 0 of *fh*."""
-        while True:
-            try:
-                fh.seek(0)
-                msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)
-                return
-            except OSError:
-                time.sleep(0.05)
-
-    def _os_unlock(fh: IO[bytes]) -> None:
-        """Release an OS-level lock on byte 0 of *fh*."""
-        with suppress(OSError):
-            fh.seek(0)
-            msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
-
-else:
-    import fcntl
-
-    def _os_lock(fh: IO[bytes]) -> None:
-        """Acquire an exclusive OS-level lock on *fh*."""
-        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
-
-    def _os_unlock(fh: IO[bytes]) -> None:
-        """Release the OS-level lock on *fh*."""
-        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
-
-
 def _thread_lock_for(lock_path: Path) -> threading.Lock:
     """Return the per-lock-path thread mutex used before the OS lock."""
     key = lock_path.absolute()
@@ -94,18 +63,9 @@ def _thread_lock_for(lock_path: Path) -> threading.Lock:
 @contextmanager
 def _backlog_lock(lock_path: Path) -> Generator[None, None, None]:
     """Acquire the cross-thread and cross-process lock for *lock_path*."""
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
     thread_lock = _thread_lock_for(lock_path)
-    with thread_lock:
-        fh = open(lock_path, "a+b")  # noqa: SIM115 - manual close pairs with lock release
-        try:
-            _os_lock(fh)
-            try:
-                yield
-            finally:
-                _os_unlock(fh)
-        finally:
-            fh.close()
+    with thread_lock, _cross_process_lock(lock_path):
+        yield
 
 
 @dataclass(frozen=True)

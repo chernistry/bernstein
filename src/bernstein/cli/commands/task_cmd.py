@@ -35,12 +35,12 @@ def _set_cli(cli_group: Any) -> None:  # type: ignore[reportUnusedFunction]
     _cli = cli_group
 
 
-@click.group("task")
-def task_group() -> None:
-    """Direct task queue primitives for external workers."""
+@click.group("backlog")
+def backlog_group() -> None:
+    """File-backed backlog primitives for external workers."""
 
 
-@task_group.command("claim")
+@backlog_group.command("claim")
 @click.option(
     "--backlog",
     "backlog_path",
@@ -61,7 +61,7 @@ def task_group() -> None:
     help="Claiming worker identity. Defaults to a process-scoped CLI id.",
 )
 @click.option("--json", "as_json", is_flag=True, default=False, help="Print the claimed row as JSON.")
-def claim_task(
+def claim_backlog(
     backlog_path: Path,
     role: str | None,
     capability: str | None,
@@ -71,7 +71,7 @@ def claim_task(
     agent_id: str | None,
     as_json: bool,
 ) -> None:
-    """Atomically claim the next eligible task from a shared backlog."""
+    """Atomically claim the next eligible row from a shared JSON backlog."""
     from bernstein.core.tasks.claim import ClaimFilter, claim_next_entry
 
     claimer_id = agent_id or f"cli-{os.getpid()}"

@@ -16,7 +16,7 @@ def test_task_cmd_imports() -> None:
     assert hasattr(task_cmd, "review_cmd")
     assert hasattr(task_cmd, "list_tasks")
     assert hasattr(task_cmd, "sync")
-    assert hasattr(task_cmd, "task_group")
+    assert hasattr(task_cmd, "backlog_group")
 
 
 def test_workspace_cmd_imports() -> None:
@@ -62,6 +62,7 @@ def test_backward_compat_main_imports() -> None:
     from bernstein.cli.main import (
         add_task,
         approve,
+        backlog_group,
         benchmark_group,
         cancel,
         completions,
@@ -87,7 +88,6 @@ def test_backward_compat_main_imports() -> None:
         retro,
         review_cmd,
         sync,
-        task_group,
         trace_cmd,
         workspace_group,
     )
@@ -101,7 +101,7 @@ def test_backward_compat_main_imports() -> None:
     assert review_cmd is not None
     assert list_tasks is not None
     assert sync is not None
-    assert task_group is not None
+    assert backlog_group is not None
     assert plan is not None
     assert workspace_group is not None
     assert config_group is not None

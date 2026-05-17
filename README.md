@@ -265,6 +265,22 @@ bernstein run plan.yaml           # skips LLM planning, goes straight to executi
 bernstein run --dry-run plan.yaml # preview tasks and estimated cost
 ```
 
+## web UI (v2.0.0)
+
+By popular demand, v2.0.0 ships a minimal, neat, calm web interface. It is not a priority development direction — the core is a stretch to keep up with on one set of hands. The UI is here because operators asked for it and the core was ready for it. If anyone wants to contribute, the door is open: see [#1262](https://github.com/sipyourdrink-ltd/bernstein/issues/1262).
+
+```bash
+bernstein gui serve               # http://127.0.0.1:8052/ui/
+bernstein gui serve --dev         # expects `npm run dev` on :5173
+bernstein gui serve --minimal     # skip the full /api/v1/* surface
+```
+
+The Vite bundle is committed under `src/bernstein/gui/static/`, so wheel installs work without a Node toolchain.
+
+Top-level tabs: **Tasks**, **Agents**, **Approvals**, **Audit**, **Costs**, **Fleet**, **Settings**. Per-task drawer: **Summary**, **Logs** (SSE + ANSI + virtualised + search + level filters), **Diff** (split / unified, syntax highlight, copy + `.patch`), **Gates** (status buckets, auto-expand failures, polling), **Deps** (upstream / downstream graph), **Trace** (`.sdd/traces/` timeline + filter chips + search).
+
+Full v2.0.0 release notes: [`docs/release-notes/v2.0.0.md`](docs/release-notes/v2.0.0.md).
+
 ## how it works
 
 Bernstein runs a four-stage pipeline per goal:

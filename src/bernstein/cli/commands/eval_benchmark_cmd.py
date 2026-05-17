@@ -710,6 +710,143 @@ def eval_sync_incidents(workdir: str, dry_run: bool) -> None:
     )
 
 
+@eval_group.command("synth-list")
+def eval_synth_list() -> None:
+    """List the synthetic scenario registry with declared axes."""
+    from bernstein.eval.scenario_generator import is_disabled, list_scenarios
+
+    if is_disabled():
+        console.print("[yellow]Synthetic eval generator disabled via BERNSTEIN_SYNTHETIC_EVAL_OFF.[/yellow]")
+        return
+
+    rows = list_scenarios()
+    if not rows:
+        console.print("[yellow]No synthetic scenarios registered.[/yellow]")
+        return
+
+    from rich.table import Table
+
+    table = Table(title="Synthetic scenarios", header_style=_STYLE_BOLD_CYAN)
+    table.add_column("ID", min_width=18)
+    table.add_column("Severity", min_width=10)
+    table.add_column("Axes", min_width=40)
+    for row in rows:
+        axes_repr = ", ".join(f"{k}={list(v)}" for k, v in row["axes"].items())
+        table.add_row(row["id"], row["severity"], axes_repr)
+    console.print(table)
+
+
+@eval_group.command("synth-generate")
+@click.option("--scenario", "scenario_id", required=True, help="Scenario id from the registry.")
+@click.option("--params", "params_str", default="", show_default=False, help="Override axes (k=v,...).")
+@click.option("--count", "count", type=int, default=1, show_default=True, help="Number of cases to emit.")
+@click.option("--seed", "seed", type=int, default=42, show_default=True, help="Base seed for determinism.")
+@click.option(
+    "--out",
+    "out_dir",
+    type=click.Path(file_okay=False),
+    default=None,
+    help="Output directory (default: eval/golden_data/synthetic).",
+)
+def eval_synth_generate(
+    scenario_id: str,
+    params_str: str,
+    count: int,
+    seed: int,
+    out_dir: str | None,
+) -> None:
+    """Generate N synthetic eval cases for a single scenario.
+
+    \b
+      bernstein eval synth-generate --scenario large_diff --count 3
+      bernstein eval synth-generate --scenario flaky_tests --params flake_rate=0.3 --count 5
+    """
+    from bernstein.eval.scenario_generator import (
+        DEFAULT_OUT_DIR,
+        is_disabled,
+        materialise_and_write,
+        parse_param_string,
+    )
+
+    if is_disabled():
+        console.print("[yellow]Synthetic eval generator disabled via BERNSTEIN_SYNTHETIC_EVAL_OFF.[/yellow]")
+        return
+
+    try:
+        params = parse_param_string(params_str)
+    except ValueError as exc:
+        console.print(f"[red]Invalid --params:[/red] {exc}")
+        raise SystemExit(2) from exc
+
+    out_path = Path(out_dir) if out_dir else Path(".").joinpath(*DEFAULT_OUT_DIR)
+
+    try:
+        cases, written = materialise_and_write(
+            scenario_id,
+            params=params,
+            count=count,
+            seed=seed,
+            out_dir=out_path,
+        )
+    except (KeyError, ValueError) as exc:
+        console.print(f"[red]Generation failed:[/red] {exc}")
+        raise SystemExit(2) from exc
+
+    console.print(f"[bold]Synthetic eval[/bold]: {len(cases)} case(s) materialised, {len(written)} written")
+    for path in written:
+        console.print(f"  [green]wrote[/green] {path}")
+
+
+@eval_group.command("generate-scenarios")
+@click.option(
+    "--from-traces",
+    "from_traces",
+    type=int,
+    default=5,
+    show_default=True,
+    help="How many of the latest .sdd/traces/*.jsonl to scan.",
+)
+@click.option(
+    "--out",
+    "out_dir",
+    type=click.Path(file_okay=False),
+    default=None,
+    help="Output directory (default: eval/golden_data/synthetic).",
+)
+@click.option("--seed", "seed", type=int, default=42, show_default=True, help="Base seed for determinism.")
+def eval_generate_scenarios(from_traces: int, out_dir: str | None, seed: int) -> None:
+    """Generate synthetic scenarios from production trace patterns.
+
+    \b
+      bernstein eval generate-scenarios --from-traces 10
+      bernstein eval generate-scenarios --from-traces 5 --out eval/cases/synthetic
+    """
+    from bernstein.eval.scenario_generator import DEFAULT_OUT_DIR, generate_from_traces, is_disabled
+
+    if is_disabled():
+        console.print("[yellow]Synthetic eval generator disabled via BERNSTEIN_SYNTHETIC_EVAL_OFF.[/yellow]")
+        return
+
+    workdir = Path(".").resolve()
+    out_path = Path(out_dir) if out_dir else workdir.joinpath(*DEFAULT_OUT_DIR)
+
+    result = generate_from_traces(
+        workdir=workdir,
+        out_dir=out_path,
+        from_traces=from_traces,
+        seed=seed,
+    )
+
+    console.print(
+        f"[bold]Synthetic eval[/bold]: {len(result.created)} new case(s) "
+        f"[dim](skipped duplicates={result.skipped_duplicates}, "
+        f"invalid traces={result.skipped_invalid_traces})[/dim]"
+    )
+    for case in result.created:
+        sev_color = {"P0": "red", "P1": "yellow", "P2": "dim"}.get(case.severity, "white")
+        console.print(f"  [{sev_color}]{case.severity}[/{sev_color}] {case.id}  scenario={case.scenario}")
+
+
 @eval_group.command("ab")
 @click.option(
     "--variant-a",

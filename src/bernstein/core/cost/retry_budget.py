@@ -112,9 +112,7 @@ class UnknownCriterionError(RetryBudgetError):
     def __init__(self, name: str, known: Iterable[str]) -> None:
         self.name = name
         self.known = tuple(known)
-        super().__init__(
-            f"Unknown criterion {name!r}; known criteria: {sorted(self.known)!r}"
-        )
+        super().__init__(f"Unknown criterion {name!r}; known criteria: {sorted(self.known)!r}")
 
 
 class DuplicateCriterionError(RetryBudgetError):
@@ -130,9 +128,7 @@ class CriterionExhaustedError(RetryBudgetError):
 
     def __init__(self, criterion: Criterion) -> None:
         self.criterion = criterion
-        super().__init__(
-            f"Criterion {criterion.name!r} is already at its floor (level={criterion.level})"
-        )
+        super().__init__(f"Criterion {criterion.name!r} is already at its floor (level={criterion.level})")
 
 
 class RetryBudgetExhaustedError(RetryBudgetError):
@@ -168,14 +164,10 @@ class Criterion:
         if not self.name:
             raise ValueError("Criterion name must be non-empty")
         if self.min_level > self.max_level:
-            raise ValueError(
-                f"Criterion {self.name!r}: min_level ({self.min_level}) > max_level "
-                f"({self.max_level})"
-            )
+            raise ValueError(f"Criterion {self.name!r}: min_level ({self.min_level}) > max_level ({self.max_level})")
         if self.level < self.min_level or self.level > self.max_level:
             raise ValueError(
-                f"Criterion {self.name!r}: level {self.level} outside "
-                f"[{self.min_level}, {self.max_level}]"
+                f"Criterion {self.name!r}: level {self.level} outside [{self.min_level}, {self.max_level}]"
             )
 
     @property
@@ -331,10 +323,7 @@ class RetryBudget:
         Returns:
             A fresh :class:`RetryBudget`.
         """
-        criteria = [
-            Criterion(name=n, level=max_level, max_level=max_level, min_level=min_level)
-            for n in names
-        ]
+        criteria = [Criterion(name=n, level=max_level, max_level=max_level, min_level=min_level) for n in names]
         return cls(retries=retries, criterion_degradation=criteria)
 
     # ------------------------------------------------------------------
@@ -450,10 +439,7 @@ class RetryBudget:
                 degraded_criterion=None,
                 degradation_kind=DegradationKind.NONE,
                 criteria_snapshot=tuple(self._criteria.values()),
-                reason=(
-                    f"retry #{attempt_index + 1} of {self.retries} "
-                    "(no further criterion degradation configured)"
-                ),
+                reason=(f"retry #{attempt_index + 1} of {self.retries} (no further criterion degradation configured)"),
             )
         if target.is_at_floor:
             # The criterion has already been degraded to its minimum on
@@ -470,8 +456,7 @@ class RetryBudget:
                 degradation_kind=DegradationKind.FLOORED,
                 criteria_snapshot=tuple(self._criteria.values()),
                 reason=(
-                    f"retry #{attempt_index + 1}: criterion {target.name!r} "
-                    "already at floor; no further degradation"
+                    f"retry #{attempt_index + 1}: criterion {target.name!r} already at floor; no further degradation"
                 ),
             )
         new_criterion = target.degraded()
@@ -486,10 +471,7 @@ class RetryBudget:
             degraded_criterion=new_criterion,
             degradation_kind=DegradationKind.LOWERED,
             criteria_snapshot=tuple(snapshot_map.values()),
-            reason=(
-                f"retry #{attempt_index + 1}: degrading {new_criterion.name!r} "
-                f"to level {new_criterion.level}"
-            ),
+            reason=(f"retry #{attempt_index + 1}: degrading {new_criterion.name!r} to level {new_criterion.level}"),
         )
 
     # ------------------------------------------------------------------
@@ -596,13 +578,9 @@ def parse_retry_budget_spec(
         for raw_name in raw_policy.split(">"):
             name = raw_name.strip()
             if not name:
-                raise ValueError(
-                    f"empty criterion name in retry budget spec: {spec!r}"
-                )
+                raise ValueError(f"empty criterion name in retry budget spec: {spec!r}")
             if not re.match(r"^[A-Za-z_][A-Za-z0-9_-]*$", name):
-                raise ValueError(
-                    f"invalid criterion name {name!r} in retry budget spec"
-                )
+                raise ValueError(f"invalid criterion name {name!r} in retry budget spec")
             if name in seen:
                 raise DuplicateCriterionError(name)
             seen.add(name)

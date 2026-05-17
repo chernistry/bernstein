@@ -133,3 +133,7 @@ depends_on  # noqa
 
 # Protocol method parameter — bound by call site, not used in body
 capture_output  # noqa
+
+# TYPE_CHECKING-only import used inside cast("...") string literal,
+# which vulture's AST walker cannot resolve.
+JsonSchemaValidationError  # noqa

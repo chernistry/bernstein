@@ -310,10 +310,12 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 
 | File                  | Purpose |
 |-----------------------|---------|
+| `input_validation.py` | Schema-validated MCP tool-call inputs with deny-by-default |
 | `remote_transport.py` | Streamable HTTP transport for Bernstein MCP server |
 | `routine_tools.py`    | MCP tools for the rt-003 Routine <-> Scenario bridge |
 | `server.py`           | Bernstein MCP server |
 | `resources/`          | MCP resource registrars for Bernstein |
+| `tool_schemas/`       | tool_schemas/ sub-package |
 
 ### `src/bernstein/benchmark/` — SWE-bench
 

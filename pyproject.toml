@@ -343,6 +343,10 @@ extend-exclude = [
     "scripts/gen_roadmap_*.py",
     "scripts/convert_tickets_*.py",
     "scripts/archive/**",
+    # Intentionally vulnerable synthetic codebase used by the
+    # security-pentest eval scenario. Linting it makes no sense; the
+    # files exist so the security role can find seeded findings.
+    "tests/fixtures/eval/security_pentest/**",
 ]
 
 [tool.ruff.format]

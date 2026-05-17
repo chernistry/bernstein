@@ -222,6 +222,8 @@ alwaysApply: false
 | `incident_synthesizer.py` | Convert dead-letter and post-mortem incidents into regression eval cases |
 | `judge.py`                | LLM judge — evaluate code quality of agent-produced changes |
 | `metrics.py`              | Custom eval metrics — each metric is a dataclass with a compute method |
+| `pentest_runner.py`       | Driver that runs the ``security-pentest`` scenario end-to-end |
+| `pentest_scorer.py`       | Precision and recall scorer for security pentest eval scenario |
 | `scenario_generator.py`   | Forward-looking synthetic scenario generator |
 | `scenario_runner.py`      | Scenario runner — execute YAML-defined eval scenarios against the live codebase |
 | `taxonomy.py`             | Failure taxonomy — classify every eval failure into a closed set |

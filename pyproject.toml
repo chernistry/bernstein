@@ -312,6 +312,9 @@ artifacts = [
 # wheel so `bernstein run --criterion-profile safety-first` resolves
 # without a source checkout, mirroring the mode_profile pattern.
 "templates/criterion_profiles" = "bernstein/_default_templates/criterion_profiles"
+# Blast-radius detector defaults (#1322) so the reversibility gate finds
+# its rule list without requiring a source checkout.
+"templates/blast-radius" = "bernstein/_default_templates/blast-radius"
 # ascii_logo.md now lives in-package at src/bernstein/_default_templates/ —
 # no force-include needed. The dev-repo copy at docs/assets/ascii_logo.md is
 # the display fallback read by cli/display/splash_v2.py when running from a

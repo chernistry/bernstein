@@ -1122,6 +1122,25 @@ def run(
       bernstein run plan.yaml --budget 5usd --hard-budget 10usd  # soft + hard caps (#1320)
       bernstein conduct --budget-cap 5.00      # abort spawn if preflight p90 > $5
     """
+    # Opt-in operator observability (spec 2026-05-17).  Defaults to off.
+    # Prints the one-time notice and emits first_run_* events around the
+    # body.  Fail-closed: any internal failure is swallowed.
+    try:
+        from bernstein.core.telemetry.wire import maybe_print_first_run_notice
+
+        maybe_print_first_run_notice()
+    except Exception:
+        pass
+
+    _telemetry_first_run_timer: Any = None
+    try:
+        from bernstein.core.telemetry.wire import FirstRunTimer
+
+        _telemetry_first_run_timer = FirstRunTimer()
+        _telemetry_first_run_timer.__enter__()
+    except Exception:
+        _telemetry_first_run_timer = None
+
     # Issue #1346: validate the run-level criterion profile early so a
     # typo aborts the run before agents spawn.  The resolved name is
     # propagated to spawning code via an env var so child processes
@@ -1420,6 +1439,13 @@ def run(
         raise SystemExit(1) from exc
 
     _finalize_run_output(quiet=quiet)
+
+    # Close the first-run timer (spec 2026-05-17).  Fail-closed.
+    if _telemetry_first_run_timer is not None:
+        import contextlib as _contextlib
+
+        with _contextlib.suppress(Exception):
+            _telemetry_first_run_timer.__exit__(None, None, None)
 
 
 # ---------------------------------------------------------------------------

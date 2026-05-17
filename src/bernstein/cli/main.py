@@ -977,3 +977,9 @@ cli.add_command(abandonments_group, "abandonments")
 from bernstein.cli.commands.simulate_cmd import simulate_cmd  # noqa: E402
 
 cli.add_command(simulate_cmd, "simulate")
+
+# Opt-in operator observability (closes spec 2026-05-17).
+# Default off.  Precedence: DO_NOT_TRACK > BERNSTEIN_TELEMETRY > file > off.
+from bernstein.cli.commands.telemetry_cmd import telemetry_group  # noqa: E402
+
+cli.add_command(telemetry_group, "telemetry")

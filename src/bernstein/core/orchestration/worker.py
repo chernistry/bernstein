@@ -234,6 +234,15 @@ def main() -> None:
     # 1. Set process title
     _set_proctitle(f"bernstein: {args.role} [{args.session}]")
 
+    # Opt-in operator observability (spec 2026-05-17).  Emits only the
+    # bare command name; fail-closed - never raises into the worker.
+    try:
+        from bernstein.core.telemetry.wire import emit_command_invoked
+
+        emit_command_invoked(name_only=cmd[0])
+    except Exception:
+        pass
+
     # 2. Write PID metadata
     pid_file = _write_pid_file(
         Path(args.pid_dir),

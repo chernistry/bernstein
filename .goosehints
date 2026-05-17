@@ -49,6 +49,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `sandbox/`              | Pluggable sandbox backends for agent isolation (oai-002 phase 1) |
 | `security/`             | security sub-package |
 | `server/`               | server sub-package — re-exports for backward compatibility |
+| `sessions/`             | Session-level orchestration primitives that span multiple subsystems |
 | `skills/`               | Progressive-disclosure skill packs (oai-004) |
 | `storage/`              | Pluggable artifact storage sinks (oai-003) |
 | `tasks/`                | tasks sub-package |

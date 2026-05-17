@@ -16,7 +16,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -25,12 +25,21 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 __all__ = [
+    "DECISION_ALLOW",
+    "DECISION_ANNOTATE",
+    "DECISION_DENY",
+    "DECISION_MUTATE",
     "DEFAULT_TIMEOUT_SECONDS",
     "MAX_STDOUT_BYTES",
+    "STANDARD_EVENTS",
+    "HookDecision",
+    "HookDenied",
     "HookFailure",
     "HookRegistry",
     "LifecycleContext",
     "LifecycleEvent",
+    "discover_default_hook_scripts",
+    "parse_hook_decision",
 ]
 
 
@@ -47,8 +56,23 @@ _ENV_WHITELIST: tuple[str, ...] = ("PATH", "HOME", "USER")
 
 
 class LifecycleEvent(StrEnum):
-    """Named lifecycle events a hook may subscribe to."""
+    """Named lifecycle events a hook may subscribe to.
 
+    Two families of names are recognised:
+
+    * Bernstein-native (snake_case): ``pre_task`` / ``post_task`` etc.
+      These are the original event names and remain fully supported.
+    * Cross-CLI (camelCase): ``sessionStart``, ``userPromptSubmitted``,
+      ``preToolUse``, ``postToolUse``, ``errorOccurred``, ``idle`` and
+      ``sessionEnd``. These match the de-facto event vocabulary used by
+      neighbouring orchestrators, so a hook script written for another
+      tool drops in unchanged. See ``docs/contributing/hooks.md`` for
+      the payload contract per event.
+    """
+
+    # ------------------------------------------------------------------
+    # Bernstein-native lifecycle events (pre-existing, snake_case).
+    # ------------------------------------------------------------------
     PRE_TASK = "pre_task"
     POST_TASK = "post_task"
     PRE_MERGE = "pre_merge"
@@ -57,6 +81,31 @@ class LifecycleEvent(StrEnum):
     POST_SPAWN = "post_spawn"
     PRE_ARCHIVE = "pre_archive"
     POST_ARCHIVE = "post_archive"
+
+    # ------------------------------------------------------------------
+    # Cross-CLI lifecycle events (camelCase, T1323).
+    # ------------------------------------------------------------------
+    SESSION_START = "sessionStart"
+    USER_PROMPT_SUBMITTED = "userPromptSubmitted"
+    PRE_TOOL_USE = "preToolUse"
+    POST_TOOL_USE = "postToolUse"
+    ERROR_OCCURRED = "errorOccurred"
+    IDLE = "idle"
+    SESSION_END = "sessionEnd"
+
+
+#: The cross-CLI standardised event vocabulary introduced by issue #1323.
+#: Pre-existing snake_case events remain supported but are not part of
+#: this tuple.
+STANDARD_EVENTS: tuple[LifecycleEvent, ...] = (
+    LifecycleEvent.SESSION_START,
+    LifecycleEvent.USER_PROMPT_SUBMITTED,
+    LifecycleEvent.PRE_TOOL_USE,
+    LifecycleEvent.POST_TOOL_USE,
+    LifecycleEvent.ERROR_OCCURRED,
+    LifecycleEvent.IDLE,
+    LifecycleEvent.SESSION_END,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +128,9 @@ class LifecycleContext:
     workdir: Path = field(default_factory=Path.cwd)
     env: dict[str, str] = field(default_factory=dict[str, str])
     timestamp: float = field(default_factory=time.time)
+    data: dict[str, Any] = field(default_factory=dict[str, Any])
+    """Structured per-event payload. See ``docs/contributing/hooks.md``
+    for the keys expected for each :class:`LifecycleEvent`."""
 
     def to_payload(self) -> dict[str, Any]:
         """Serialise the context for transport to a subprocess."""
@@ -89,7 +141,63 @@ class LifecycleContext:
             "workdir": str(self.workdir),
             "env": dict(self.env),
             "timestamp": self.timestamp,
+            "data": dict(self.data),
         }
+
+
+@dataclass(frozen=True, slots=True)
+class HookDecision:
+    """Structured result returned by a hook subprocess on stdout.
+
+    Hooks may emit a single-line JSON object on stdout to influence the
+    pipeline:
+
+    * ``{"decision": "allow"}`` — explicit allow (default if absent).
+    * ``{"decision": "deny", "reason": "<text>"}`` — for ``preToolUse``,
+      blocks the tool call and raises :class:`HookDenied`.
+    * ``{"decision": "mutate", "data": {...}}`` — replaces the payload
+      passed to subsequent hooks in the chain.
+    * ``{"decision": "annotate", "data": {...}}`` — merges keys into the
+      payload without replacing it.
+
+    Any other key is preserved verbatim on ``HookDecision.raw`` for
+    callers that want to inspect richer responses.
+    """
+
+    decision: str
+    reason: str = ""
+    data: dict[str, Any] = field(default_factory=dict[str, Any])
+    raw: dict[str, Any] = field(default_factory=dict[str, Any])
+
+
+# Recognised stdout decision verbs.
+DECISION_ALLOW: str = "allow"
+DECISION_DENY: str = "deny"
+DECISION_MUTATE: str = "mutate"
+DECISION_ANNOTATE: str = "annotate"
+
+_VALID_DECISIONS: frozenset[str] = frozenset(
+    {DECISION_ALLOW, DECISION_DENY, DECISION_MUTATE, DECISION_ANNOTATE},
+)
+
+
+class HookDenied(RuntimeError):
+    """Raised when a hook emits ``{"decision": "deny"}``.
+
+    For ``preToolUse`` the dispatcher raises this so the orchestrator
+    can block the tool call and emit a structured audit-chain event.
+    """
+
+    def __init__(
+        self,
+        event: LifecycleEvent,
+        hook: str,
+        reason: str,
+    ) -> None:
+        super().__init__(f"hook '{hook}' denied {event.value}: {reason}")
+        self.event = event
+        self.hook = hook
+        self.reason = reason
 
 
 class HookFailure(RuntimeError):
@@ -216,30 +324,45 @@ class HookRegistry:
 
     # ------------------------------------------------------------------ dispatch
 
-    def run(self, event: LifecycleEvent, context: LifecycleContext) -> None:
+    def run(self, event: LifecycleEvent, context: LifecycleContext) -> LifecycleContext:
         """Run all hooks for ``event`` synchronously, in registration order.
+
+        For events in :data:`STANDARD_EVENTS`, scripts may emit a JSON
+        decision on stdout. A ``deny`` decision raises
+        :class:`HookDenied`; ``mutate`` and ``annotate`` produce a new
+        :class:`LifecycleContext` whose ``data`` field is updated and
+        is passed to subsequent hooks. The returned context is the
+        final (possibly mutated) context.
+
+        Pre-existing callers that ignore the return value continue to
+        work — the signature change is forward-compatible.
 
         Raises:
             HookFailure: On the first failure; subsequent hooks are not run.
+            HookDenied: When a hook explicitly denies the event.
         """
+        current = context
         for kind, idx in self._order[event]:
             if kind == "script":
-                self._run_script(event, self._scripts[event][idx], context)
+                decision = self._run_script(event, self._scripts[event][idx], current)
+                current = _apply_decision(event, current, decision)
             else:
-                self._run_callable(event, self._callables[event][idx], context)
+                self._run_callable(event, self._callables[event][idx], current)
         if self._pluggy_dispatcher is not None:
             try:
-                self._pluggy_dispatcher(event, context)
-            except HookFailure:
+                self._pluggy_dispatcher(event, current)
+            except (HookFailure, HookDenied):
                 raise
             except Exception as exc:
                 raise HookFailure(event, "pluggy", cause=exc) from exc
+        return current
 
-    def run_async(self, event: LifecycleEvent, context: LifecycleContext) -> Future[None]:
+    def run_async(self, event: LifecycleEvent, context: LifecycleContext) -> Future[LifecycleContext]:
         """Schedule ``run`` on a background thread and return a Future.
 
         Use for post-events where the caller should not block on I/O.
         The caller owns the future; failures surface via ``future.exception()``.
+        The future resolves to the final (possibly mutated) context.
         """
         if self._executor is None:
             self._executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="bernstein-hooks")
@@ -269,7 +392,7 @@ class HookRegistry:
         event: LifecycleEvent,
         hook: _ScriptHook,
         context: LifecycleContext,
-    ) -> None:
+    ) -> HookDecision | None:
         env = _build_script_env(context)
         payload = json.dumps(context.to_payload()).encode("utf-8")
         label = f"script:{hook.path}"
@@ -302,6 +425,8 @@ class HookRegistry:
         if proc.returncode != 0:
             stderr_text = (proc.stderr or b"").decode("utf-8", errors="replace")
             raise HookFailure(event, label, exit_code=proc.returncode, stderr=stderr_text)
+
+        return parse_hook_decision(stdout)
 
 
 def _build_script_env(context: LifecycleContext) -> dict[str, str]:
@@ -338,3 +463,134 @@ def _build_script_env(context: LifecycleContext) -> dict[str, str]:
 def _read_parent_env() -> MappingProxyType[str, str] | dict[str, str]:
     """Indirection point so tests can monkeypatch environment inheritance."""
     return dict(os.environ)
+
+
+# ---------------------------------------------------------------------- decisions
+
+
+def parse_hook_decision(stdout: bytes | str) -> HookDecision | None:
+    """Parse a hook subprocess' stdout into a :class:`HookDecision`.
+
+    The contract is intentionally narrow: hooks may emit either nothing,
+    or a single JSON object with at least a ``decision`` key. Anything
+    else is treated as "no decision" so legacy hooks that print log
+    lines on stdout continue to behave as ``allow``.
+
+    Args:
+        stdout: Captured stdout from the hook subprocess.
+
+    Returns:
+        A :class:`HookDecision` if the stdout parses as a JSON object,
+        otherwise ``None``.
+    """
+    text = stdout.decode("utf-8", errors="replace") if isinstance(stdout, bytes) else stdout
+    text = text.strip()
+    if not text:
+        return None
+    try:
+        parsed_raw: object = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(parsed_raw, dict):
+        return None
+    parsed: dict[str, Any] = cast("dict[str, Any]", parsed_raw)
+    decision_raw: Any = parsed.get("decision", DECISION_ALLOW)
+    if not isinstance(decision_raw, str) or decision_raw not in _VALID_DECISIONS:
+        # Unknown verb -> treat as allow but preserve the raw payload.
+        decision_value: str = DECISION_ALLOW
+    else:
+        decision_value = decision_raw
+    reason_raw: Any = parsed.get("reason", "")
+    reason_value: str = reason_raw if isinstance(reason_raw, str) else str(reason_raw)
+    data_raw: Any = parsed.get("data", {})
+    data_value: dict[str, Any] = cast("dict[str, Any]", data_raw) if isinstance(data_raw, dict) else {}
+    return HookDecision(
+        decision=decision_value,
+        reason=reason_value,
+        data=dict(data_value),
+        raw=dict(parsed),
+    )
+
+
+def _apply_decision(
+    event: LifecycleEvent,
+    context: LifecycleContext,
+    decision: HookDecision | None,
+) -> LifecycleContext:
+    """Mutate ``context`` according to ``decision``.
+
+    Raises:
+        HookDenied: When ``decision.decision == "deny"``.
+    """
+    if decision is None or decision.decision == DECISION_ALLOW:
+        return context
+    if decision.decision == DECISION_DENY:
+        raise HookDenied(event, hook="script", reason=decision.reason or "denied")
+    if decision.decision == DECISION_MUTATE:
+        return LifecycleContext(
+            event=context.event,
+            task=context.task,
+            session_id=context.session_id,
+            workdir=context.workdir,
+            env=dict(context.env),
+            timestamp=context.timestamp,
+            data=dict(decision.data),
+        )
+    if decision.decision == DECISION_ANNOTATE:
+        merged = dict(context.data)
+        merged.update(decision.data)
+        return LifecycleContext(
+            event=context.event,
+            task=context.task,
+            session_id=context.session_id,
+            workdir=context.workdir,
+            env=dict(context.env),
+            timestamp=context.timestamp,
+            data=merged,
+        )
+    return context
+
+
+# ---------------------------------------------------------------------- discovery
+
+#: Default location where users drop ``<event>.{sh,py}`` scripts.
+DEFAULT_HOOK_DIR_NAME: str = ".bernstein/hooks"
+
+_DEFAULT_HOOK_SUFFIXES: tuple[str, ...] = (".sh", ".py")
+
+
+def discover_default_hook_scripts(
+    root: str | os.PathLike[str] | None = None,
+) -> dict[LifecycleEvent, list[Path]]:
+    """Discover scripts under ``<root>/.bernstein/hooks/<event>.{sh,py}``.
+
+    The filename stem is matched against :class:`LifecycleEvent` values
+    so a file named ``preToolUse.sh`` registers against
+    :attr:`LifecycleEvent.PRE_TOOL_USE`. Files whose stem does not match
+    a known event are silently ignored — that keeps the convention
+    forgiving for ``README.md`` or other helpers operators drop into
+    the directory.
+
+    Args:
+        root: Repository root. Defaults to the current working
+            directory.
+
+    Returns:
+        A mapping from event to a list of script paths sorted by name.
+    """
+    base = Path(root) if root is not None else Path.cwd()
+    hook_dir = base / DEFAULT_HOOK_DIR_NAME
+    discovered: dict[LifecycleEvent, list[Path]] = {event: [] for event in LifecycleEvent}
+    if not hook_dir.is_dir():
+        return discovered
+    valid_values = {event.value: event for event in LifecycleEvent}
+    for entry in sorted(hook_dir.iterdir()):
+        if not entry.is_file():
+            continue
+        if entry.suffix not in _DEFAULT_HOOK_SUFFIXES:
+            continue
+        event = valid_values.get(entry.stem)
+        if event is None:
+            continue
+        discovered[event].append(entry)
+    return discovered

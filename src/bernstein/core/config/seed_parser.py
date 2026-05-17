@@ -1347,6 +1347,64 @@ def _parse_cost_tags(raw: object) -> dict[str, str]:
     return {str(k): str(v) for k, v in raw.items()}
 
 
+def _parse_cost_envelopes(data: dict[str, object]) -> dict[str, dict[str, Any]]:
+    """Parse the optional ``cost.envelopes`` block (issue #1405).
+
+    Accepted shapes::
+
+        cost:
+          envelopes:
+            subscription:
+              budget_usd: 50
+              hard_budget_usd: 60
+              threshold_pct: 0.8
+              model_allowlist: [opus, sonnet]
+            agent-sdk-credits:
+              budget_usd: 20
+
+    Returns an empty mapping when the block is absent so the legacy
+    single-envelope rollup is preserved verbatim.
+    """
+    cost_block_raw: object = data.get("cost")
+    if cost_block_raw is None:
+        return {}
+    if not isinstance(cost_block_raw, dict):
+        raise SeedError(f"cost must be a mapping, got: {type(cost_block_raw).__name__}")
+    cost_block = cast("dict[str, Any]", cost_block_raw)
+    envelopes_raw: object = cost_block.get("envelopes")
+    if envelopes_raw is None:
+        return {}
+    if not isinstance(envelopes_raw, dict):
+        raise SeedError(f"cost.envelopes must be a mapping, got: {type(envelopes_raw).__name__}")
+    envelopes = cast("dict[str, Any]", envelopes_raw)
+    out: dict[str, dict[str, Any]] = {}
+    for name, payload in envelopes.items():
+        if not isinstance(payload, dict):
+            raise SeedError(f"cost.envelopes.{name} must be a mapping, got: {type(payload).__name__}")
+        payload_dict = cast("dict[str, Any]", payload)
+        norm: dict[str, Any] = {}
+        if "budget_usd" in payload_dict:
+            norm["budget_usd"] = _parse_budget(cast("str | int | float | None", payload_dict["budget_usd"])) or 0.0
+        if "hard_budget_usd" in payload_dict:
+            norm["hard_budget_usd"] = (
+                _parse_budget(cast("str | int | float | None", payload_dict["hard_budget_usd"])) or 0.0
+            )
+        if "threshold_pct" in payload_dict:
+            tp_raw = payload_dict["threshold_pct"]
+            if not isinstance(tp_raw, int | float) or not (0.0 < float(tp_raw) <= 1.0):
+                raise SeedError(f"cost.envelopes.{name}.threshold_pct must be a number in (0, 1], got: {tp_raw!r}")
+            norm["threshold_pct"] = float(tp_raw)
+        if "model_allowlist" in payload_dict:
+            allow_raw = payload_dict["model_allowlist"]
+            if not isinstance(allow_raw, list | tuple):
+                raise SeedError(
+                    f"cost.envelopes.{name}.model_allowlist must be a list, got: {type(allow_raw).__name__}"
+                )
+            norm["model_allowlist"] = [str(x) for x in cast("list[Any]", allow_raw) if str(x).strip()]
+        out[str(name)] = norm
+    return out
+
+
 def _parse_cli(data: dict[str, object]) -> Literal["claude", "codex", "gemini", "qwen", "auto"]:
     cli_raw: object = data.get("cli", "auto")
     if cli_raw not in _VALID_CLIS:
@@ -1522,6 +1580,7 @@ def parse_seed(path: Path) -> SeedConfig:
     model_fallback = _parse_model_fallback(data.get("model_fallback"))
     cost_tags = _parse_cost_tags(data.get("cost_tags", {}))
     cost_autopilot_raw = _validate_optional_bool(data, "cost_autopilot", False)
+    cost_envelopes = _parse_cost_envelopes(data)
     deployment_strategy_raw = _validate_optional_str(data, "deployment_strategy", "rolling")
 
     org_policies_raw: object = data.get("org_policies", [])
@@ -1578,6 +1637,7 @@ def parse_seed(path: Path) -> SeedConfig:
         model_fallback=model_fallback,
         cost_tags=cost_tags,
         cost_autopilot=cost_autopilot_raw,
+        cost_envelopes=cost_envelopes,
         deployment_strategy=deployment_strategy_raw,
         org_policies=org_policies,
         metrics=metrics,

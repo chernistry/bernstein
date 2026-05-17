@@ -211,6 +211,96 @@ def suggest_downgrade(current_model: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Envelope threshold hook (issue #1405)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class EnvelopeThresholdEvent:
+    """Payload emitted when a quota envelope crosses its threshold.
+
+    Attributes:
+        envelope: Envelope identifier (e.g. ``"subscription"``).
+        spent_usd: Cumulative spend attributed to the envelope.
+        cap_usd: Configured soft cap.
+        pct_used: ``spent_usd / cap_usd``.
+        threshold_pct: Configured threshold-hook fraction.
+        hard_breached: ``True`` when the hard cap was hit on the same
+            record() call (the hook fires for soft *or* hard transitions
+            so downstream handlers can decide whether to halt or warn).
+        timestamp: Unix timestamp of the firing event.
+        message: Human-readable explanation suitable for logs / Slack.
+    """
+
+    envelope: str
+    spent_usd: float
+    cap_usd: float
+    pct_used: float
+    threshold_pct: float
+    hard_breached: bool
+    timestamp: float = field(default_factory=time.time)
+    message: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialise to a JSON-safe dict."""
+        return {
+            "envelope": self.envelope,
+            "spent_usd": round(self.spent_usd, 6),
+            "cap_usd": self.cap_usd,
+            "pct_used": round(self.pct_used, 4),
+            "threshold_pct": self.threshold_pct,
+            "hard_breached": self.hard_breached,
+            "timestamp": self.timestamp,
+            "message": self.message,
+        }
+
+
+def envelope_threshold_reached(
+    *,
+    envelope: str,
+    spent_usd: float,
+    cap_usd: float,
+    threshold_pct: float = 0.80,
+    hard_cap_usd: float = 0.0,
+) -> EnvelopeThresholdEvent | None:
+    """Return an :class:`EnvelopeThresholdEvent` when the threshold trips.
+
+    Returns ``None`` when the cap is unset, the threshold has not been
+    crossed, and the hard cap has not been breached. Otherwise builds a
+    structured event suitable for routing through the budget-hook
+    pipeline.
+
+    Args:
+        envelope: Envelope identifier.
+        spent_usd: Cumulative spend so far on the envelope.
+        cap_usd: Configured soft cap (``0`` = unlimited; returns ``None``).
+        threshold_pct: Fraction of ``cap_usd`` that fires the hook.
+        hard_cap_usd: Configured hard cap. When ``spent_usd >= hard_cap``
+            the hook also fires (with ``hard_breached=True``).
+    """
+    hard_breached = hard_cap_usd > 0 and spent_usd >= hard_cap_usd
+    if cap_usd <= 0 and not hard_breached:
+        return None
+    pct = (spent_usd / cap_usd) if cap_usd > 0 else 0.0
+    if not hard_breached and pct < threshold_pct:
+        return None
+    message = (
+        f"envelope {envelope!r} hard cap breached: spent=${spent_usd:.4f} / cap=${hard_cap_usd:.4f}"
+        if hard_breached
+        else f"envelope {envelope!r} at {pct * 100:.0f}% of ${cap_usd:.4f} cap"
+    )
+    return EnvelopeThresholdEvent(
+        envelope=envelope,
+        spent_usd=spent_usd,
+        cap_usd=cap_usd,
+        pct_used=pct,
+        threshold_pct=threshold_pct,
+        hard_breached=hard_breached,
+        message=message,
+    )
+
+
 def apply_policy(
     policy: BudgetPolicy,
     percentage_used: float,

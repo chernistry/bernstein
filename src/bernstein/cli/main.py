@@ -66,7 +66,7 @@ from bernstein.cli.commands.role_adapter_policy_cmd import security_group as _ro
 from bernstein.cli.commands.skills_cmd import skills_group
 from bernstein.cli.compliance_cmd import compliance_group
 from bernstein.cli.config_path_cmd import config_path_cmd
-from bernstein.cli.cost import cost_cmd, estimate_cmd
+from bernstein.cli.cost import cost_cmd, cost_envelopes_group, estimate_cmd
 from bernstein.cli.debug_cmd import debug_cmd
 from bernstein.cli.dep_impact_cmd import dep_impact_cmd
 from bernstein.cli.diff_cmd import diff_cmd
@@ -857,6 +857,7 @@ cli.add_command(auth_group, "auth")
 cli.add_command(auth_login, "login")
 cli.add_command(evolve)
 cli.add_command(cost_cmd, "cost")
+cli.add_command(cost_envelopes_group, "cost-envelopes")
 cli.add_command(estimate_cmd, "estimate")
 cli.add_command(status)
 cli.add_command(ps_cmd, "ps")

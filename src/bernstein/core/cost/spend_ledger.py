@@ -84,6 +84,10 @@ class CallTags:
     agent_id: str = ""
     role: str = ""
     feature_label: str = ""
+    # Per-quota-envelope attribution (issue #1405). Defaults to
+    # ``"subscription"`` so existing callers keep the legacy
+    # single-envelope rollup.
+    quota_envelope: str = "subscription"
     extra: dict[str, str] = field(default_factory=dict)
 
     def merged(self) -> dict[str, str]:
@@ -101,6 +105,13 @@ class CallTags:
             out["role"] = self.role
         if self.feature_label:
             out["feature_label"] = self.feature_label
+        # Only surface ``quota_envelope`` in the merged tag-map when an
+        # operator has set it to something other than the default. The
+        # ledger column itself always carries the value so the rollup is
+        # complete; we just avoid polluting the tag dict for legacy
+        # single-envelope callers.
+        if self.quota_envelope and self.quota_envelope != "subscription":
+            out["quota_envelope"] = self.quota_envelope
         for k, v in self.extra.items():
             if v:
                 out[str(k)] = str(v)
@@ -130,6 +141,10 @@ class LedgerEntry:
     cache_read_tokens: int
     cache_write_tokens: int
     cost_usd: float
+    # issue #1405: per-quota-envelope attribution. Defaults to
+    # ``"subscription"`` so older ledgers that lack the field deserialise
+    # cleanly via :meth:`from_dict`.
+    quota_envelope: str = "subscription"
     tags: dict[str, str] = field(default_factory=dict)
 
     def to_json(self) -> str:
@@ -155,6 +170,7 @@ class LedgerEntry:
             cache_read_tokens=int(d.get("cache_read_tokens", 0) or 0),
             cache_write_tokens=int(d.get("cache_write_tokens", 0) or 0),
             cost_usd=float(d.get("cost_usd", 0.0) or 0.0),
+            quota_envelope=str(d.get("quota_envelope") or tags.get("quota_envelope") or "subscription"),
             tags=tags,
         )
 
@@ -237,6 +253,7 @@ class SpendLedger:
         cost = max(0.0, float(cost_usd))
         now = ts if ts is not None else time.time()
         merged = tags.merged()
+        envelope = tags.quota_envelope or "subscription"
         entry = LedgerEntry(
             ts=now,
             ts_iso=datetime.fromtimestamp(now, tz=UTC).isoformat(timespec="seconds"),
@@ -251,6 +268,7 @@ class SpendLedger:
             cache_read_tokens=int(cache_read_tokens),
             cache_write_tokens=int(cache_write_tokens),
             cost_usd=cost,
+            quota_envelope=envelope,
             tags=merged,
         )
 
@@ -262,6 +280,7 @@ class SpendLedger:
             self._spent_by["agent"][tags.agent_id or "unknown"] += cost
             self._spent_by["role"][tags.role or "unknown"] += cost
             self._spent_by["model"][model or "unknown"] += cost
+            self._spent_by["envelope"][envelope] += cost
             if tags.feature_label:
                 self._spent_by["feature_label"][tags.feature_label] += cost
             status = self._status_locked()
@@ -472,11 +491,13 @@ def aggregate_entries(
             return e.model or "unknown"
         if dimension == "feature_label":
             return e.feature_label or "unknown"
+        if dimension == "envelope":
+            return e.quota_envelope or "subscription"
         if dimension == "day":
             return datetime.fromtimestamp(e.ts, tz=UTC).strftime("%Y-%m-%d") if e.ts > 0 else "unknown"
         return ""
 
-    if dimension not in {"task", "agent", "role", "model", "feature_label", "day"}:
+    if dimension not in {"task", "agent", "role", "model", "feature_label", "envelope", "day"}:
         return {}
 
     out: dict[str, dict[str, Any]] = defaultdict(

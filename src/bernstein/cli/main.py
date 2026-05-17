@@ -739,6 +739,9 @@ def cli(
         permission_profile=None,
         budget_cap=None,
         retry_budget_spec=None,
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        criterion_profile=None,
+        max_blast_radius=None,
     )
 
 

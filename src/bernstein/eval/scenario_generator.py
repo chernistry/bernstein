@@ -344,7 +344,7 @@ def _content_id(
         sort_keys=True,
         separators=(",", ":"),
     )
-    digest = hashlib.sha1(payload.encode("utf-8")).hexdigest()
+    digest = hashlib.sha1(payload.encode("utf-8"), usedforsecurity=False).hexdigest()
     return f"syn-{digest[:12]}"
 
 
@@ -373,7 +373,7 @@ def _deterministic_timestamp(scenario: str, seed: int, params: Mapping[str, Any]
         sort_keys=True,
         separators=(",", ":"),
     )
-    digest = hashlib.sha1(payload.encode("utf-8")).digest()
+    digest = hashlib.sha1(payload.encode("utf-8"), usedforsecurity=False).digest()
     # Take the first 4 bytes as an int in [0, 2**32) — divide to land
     # in a sub-second window for readability.
     int_val = int.from_bytes(digest[:4], "big")

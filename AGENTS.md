@@ -59,6 +59,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `trigger_sources/`      | Trigger source adapters — normalize raw events into TriggerEvent |
 | `tunnels/`              | Tunnel provider abstraction and registry |
 | `workflows/`            | Archon-inspired YAML workflow manifests |
+| `worktrees/`            | Worktree inventory and garbage-collection helpers |
 
 ### `src/bernstein/adapters/` — CLI agent adapters
 

@@ -131,6 +131,7 @@ _CLI_REDIRECT_MAP: dict[str, str] = {
     "worker_cmd": "bernstein.cli.commands.worker_cmd",
     "workflow_cmd": "bernstein.cli.commands.workflow_cmd",
     "workspace_cmd": "bernstein.cli.commands.workspace_cmd",
+    "worktrees_cmd": "bernstein.cli.commands.worktrees_cmd",
     "wrap_up_cmd": "bernstein.cli.commands.wrap_up_cmd",
 }
 

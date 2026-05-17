@@ -124,6 +124,7 @@ from bernstein.cli.wiki_cmd import wiki_group
 from bernstein.cli.worker_cmd import worker
 from bernstein.cli.workflow_cmd import workflow_group
 from bernstein.cli.workspace_cmd import config_group, workspace_group
+from bernstein.cli.worktrees_cmd import worktrees_group
 from bernstein.cli.wrap_up_cmd import wrap_up
 from bernstein.core.json_logging import setup_json_logging
 
@@ -220,6 +221,7 @@ __all__ = [
     "wiki_group",
     "worker",
     "workspace_group",
+    "worktrees_group",
     "wrap_up",
     "write_pid",
     "write_shutdown_signals",
@@ -856,6 +858,7 @@ cli.add_command(listen_cmd, "listen")
 cli.add_command(self_update_cmd, "self-update")
 cli.add_command(undo_cmd, "undo")
 cli.add_command(worker, "worker")
+cli.add_command(worktrees_group, "worktrees")
 cli.add_command(diff_cmd, "diff")
 cli.add_command(merge_cmd, "merge")
 cli.add_command(migrate_cmd, "migrate")

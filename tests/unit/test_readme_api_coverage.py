@@ -205,6 +205,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "blast-radius",
         "criterion-profile",
         "simulate",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "telemetry",
     }
 )
 

@@ -96,3 +96,106 @@ class TestTaskLogStream:
         resp = await client.get(f"/dashboard/tasks/{task_id}/logs/stream")
         assert resp.status_code == 200
         assert "text/event-stream" in resp.headers.get("content-type", "")
+
+
+class TestTaskDiff:
+    """Test GET /dashboard/tasks/{task_id}/diff."""
+
+    @pytest.mark.anyio()
+    async def test_diff_not_found(self, client: AsyncClient) -> None:
+        """Non-existent task should return 404."""
+        resp = await client.get("/dashboard/tasks/nonexistent/diff")
+        assert resp.status_code == 404
+
+    @pytest.mark.anyio()
+    async def test_diff_shape_when_no_branch(self, client: AsyncClient) -> None:
+        """Unassigned task should still return a structured diff payload."""
+        create_resp = await client.post(
+            "/tasks",
+            json={"title": "Diff test", "description": "Diff", "role": "backend"},
+        )
+        task_id = create_resp.json()["id"]
+
+        resp = await client.get(f"/dashboard/tasks/{task_id}/diff")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["task_id"] == task_id
+        assert "branch" in data
+        assert "base_ref" in data
+        assert "files" in data
+        assert isinstance(data["files"], list)
+        assert isinstance(data["additions"], int)
+        assert isinstance(data["deletions"], int)
+        assert "unified" in data
+        assert "generated_at" in data
+
+    @pytest.mark.anyio()
+    async def test_diff_api_v1_alias(self, client: AsyncClient) -> None:
+        """Endpoint should be reachable via the /api/v1 prefix too."""
+        create_resp = await client.post(
+            "/tasks",
+            json={"title": "Diff v1", "description": "Diff", "role": "backend"},
+        )
+        task_id = create_resp.json()["id"]
+
+        resp = await client.get(f"/api/v1/dashboard/tasks/{task_id}/diff")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["task_id"] == task_id
+
+
+class TestDiffParser:
+    """Exercise the unified-diff parser directly."""
+
+    def test_parse_simple(self) -> None:
+        from bernstein.core.routes.task_detail import _parse_unified_diff
+
+        text = (
+            "diff --git a/foo.py b/foo.py\n"
+            "--- a/foo.py\n"
+            "+++ b/foo.py\n"
+            "@@ -1,3 +1,4 @@\n"
+            " line1\n"
+            "-line2\n"
+            "+line2-changed\n"
+            "+line2b\n"
+            " line3\n"
+        )
+        files = _parse_unified_diff(text)
+        assert len(files) == 1
+        f = files[0]
+        assert f.path == "foo.py"
+        assert f.language == "python"
+        assert f.additions == 2
+        assert f.deletions == 1
+        assert len(f.hunks) == 1
+        assert f.hunks[0].old_start == 1
+        assert f.hunks[0].new_start == 1
+
+    def test_parse_new_and_deleted(self) -> None:
+        from bernstein.core.routes.task_detail import _parse_unified_diff
+
+        text = (
+            "diff --git a/added.ts b/added.ts\n"
+            "new file mode 100644\n"
+            "--- /dev/null\n"
+            "+++ b/added.ts\n"
+            "@@ -0,0 +1,2 @@\n"
+            "+a\n"
+            "+b\n"
+            "diff --git a/gone.md b/gone.md\n"
+            "deleted file mode 100644\n"
+            "--- a/gone.md\n"
+            "+++ /dev/null\n"
+            "@@ -1,1 +0,0 @@\n"
+            "-removed\n"
+        )
+        files = _parse_unified_diff(text)
+        assert len(files) == 2
+        added = next(f for f in files if f.path == "added.ts")
+        deleted = next(f for f in files if f.path == "gone.md")
+        assert added.status == "added"
+        assert added.additions == 2
+        assert added.language == "ts"
+        assert deleted.status == "deleted"
+        assert deleted.deletions == 1

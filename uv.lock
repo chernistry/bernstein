@@ -223,7 +223,7 @@ wheels = [
 
 [[package]]
 name = "bernstein"
-version = "1.10.8"
+version = "2.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "asn1crypto" },
@@ -299,6 +299,9 @@ grpc = [
     { name = "grpcio-reflection" },
     { name = "grpcio-tools" },
     { name = "protobuf" },
+]
+gui = [
+    { name = "sse-starlette" },
 ]
 k8s = [
     { name = "kubernetes" },
@@ -406,6 +409,7 @@ requires-dist = [
     { name = "scikit-learn", marker = "extra == 'ml'", specifier = ">=1.5" },
     { name = "setproctitle", specifier = ">=1.3" },
     { name = "signxml", specifier = ">=4.0" },
+    { name = "sse-starlette", marker = "extra == 'gui'", specifier = ">=2.1.0" },
     { name = "syrupy", marker = "extra == 'dev'", specifier = ">=4.6" },
     { name = "terminaltexteffects", specifier = ">=0.11" },
     { name = "textual", specifier = ">=1.0" },
@@ -413,7 +417,7 @@ requires-dist = [
     { name = "watchdog", specifier = ">=4.0" },
     { name = "websockets", specifier = ">=14.0" },
 ]
-provides-extras = ["dev", "grpc", "k8s", "ml", "graphics", "openai", "docker", "e2b", "modal", "s3", "gcs", "azure", "r2", "telegram", "eval"]
+provides-extras = ["dev", "grpc", "k8s", "ml", "graphics", "openai", "docker", "e2b", "modal", "s3", "gcs", "azure", "r2", "telegram", "eval", "gui"]
 
 [package.metadata.requires-dev]
 dev = [

@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import time
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -1246,6 +1247,66 @@ def get_task(task_id: str, request: Request) -> TaskResponse:
 
 
 @router.get(
+    "/tasks/{task_id}/graph-neighbors",
+    responses={404: {"description": "Task not found"}},
+)
+def get_task_graph_neighbors(task_id: str, request: Request) -> dict[str, Any]:
+    """Return immediate dependency neighbours for a single task.
+
+    Powers the dashboard Deps tab: upstream tasks the requested one waits
+    on (its ``depends_on`` list) and downstream tasks that declare it as a
+    dependency.  Depth is intentionally fixed at 1 — the panel renders two
+    flat lists, not a transitive graph.
+    """
+    store = _get_store(request)
+    task = store.get_task(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
+    _require_task_access(task, request)
+
+    all_tasks = store.list_tasks()
+    by_id = {t.id: t for t in all_tasks}
+
+    def _neighbor(other: Task) -> dict[str, Any]:
+        return {
+            "id": other.id,
+            "title": other.title,
+            "status": other.status.value if hasattr(other.status, "value") else str(other.status),
+            "role": other.role,
+        }
+
+    upstream: list[dict[str, Any]] = []
+    seen_up: set[str] = set()
+    for dep_id in task.depends_on:
+        if dep_id in seen_up:
+            continue
+        seen_up.add(dep_id)
+        dep = by_id.get(dep_id)
+        if dep is None:
+            # Missing dep — surface the ID so the operator can see the gap
+            # without a hard 404.
+            upstream.append({"id": dep_id, "title": None, "status": "missing", "role": None})
+        else:
+            upstream.append(_neighbor(dep))
+
+    downstream: list[dict[str, Any]] = []
+    seen_down: set[str] = set()
+    for other in all_tasks:
+        if other.id == task.id or other.id in seen_down:
+            continue
+        if task.id in other.depends_on:
+            seen_down.add(other.id)
+            downstream.append(_neighbor(other))
+
+    return {
+        "task_id": task.id,
+        "depth": 1,
+        "upstream": upstream,
+        "downstream": downstream,
+    }
+
+
+@router.get(
     "/tasks/{task_id}/gates",
     responses={404: {"description": "Task or gate report not found"}, 500: {"description": "Gate report unreadable"}},
 )
@@ -1264,6 +1325,23 @@ def get_task_gates(task_id: str, request: Request) -> JSONResponse:
         payload = json.loads(report_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise HTTPException(status_code=500, detail=f"Gate report for task '{task_id}' is unreadable") from exc
+
+    # Annotate the response with a `generated_at` ISO-8601 UTC timestamp derived
+    # from the report file mtime. The on-disk GateReport dataclass does not carry
+    # its own timestamp, so the UI needs the file mtime to render "last run" /
+    # relative-time strings. We only inject the field when missing to preserve
+    # any future server-side overrides. Also surface the current task lifecycle
+    # status so the client can stop polling for terminal tasks.
+    if isinstance(payload, dict) and "generated_at" not in payload:
+        try:
+            mtime = report_path.stat().st_mtime
+            payload["generated_at"] = datetime.fromtimestamp(mtime, tz=UTC).isoformat().replace("+00:00", "Z")
+        except OSError:
+            # Filesystems that block stat() after a successful read are exotic
+            # enough that omitting the field is the right fallback.
+            pass
+    if isinstance(payload, dict) and "task_status" not in payload:
+        payload["task_status"] = task.status.value
     return JSONResponse(content=payload)
 
 

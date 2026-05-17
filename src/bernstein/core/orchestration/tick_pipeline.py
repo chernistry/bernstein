@@ -97,6 +97,10 @@ def _group_model_hints(tasks: list[Task]) -> set[str]:
     return {task.model.strip().lower() for task in tasks if isinstance(task.model, str) and task.model.strip()}
 
 
+def _group_cli_hints(tasks: list[Task]) -> set[str]:
+    return {task.cli.strip().lower() for task in tasks if isinstance(task.cli, str) and task.cli.strip()}
+
+
 def _group_agent_hints(tasks: list[Task], agent_affinity: dict[str, str]) -> set[str]:
     return {
         agent_affinity[task.id].strip()
@@ -106,8 +110,16 @@ def _group_agent_hints(tasks: list[Task], agent_affinity: dict[str, str]) -> set
 
 
 def _groups_can_merge(left: list[Task], right: list[Task], agent_affinity: dict[str, str]) -> bool:
-    """Return True when two groups are compatible for batching."""
+    """Return True when two groups are compatible for batching.
+
+    Tasks with different per-step ``cli:`` or ``model:`` directives must
+    spawn separate agents — a single ``spawn_for_tasks`` call only consults
+    ``tasks[0].cli``/``tasks[0].model``, so merging would silently drop the
+    second task's routing hints.
+    """
     if len(_group_model_hints(left + right)) > 1:
+        return False
+    if len(_group_cli_hints(left + right)) > 1:
         return False
     return len(_group_agent_hints(left + right, agent_affinity)) <= 1
 

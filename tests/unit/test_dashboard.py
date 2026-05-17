@@ -273,6 +273,35 @@ async def test_task_gate_report_endpoint_missing_report_returns_404(client: Asyn
     assert resp.status_code == 404
 
 
+@pytest.mark.anyio
+async def test_task_gate_report_endpoint_annotates_generated_at_and_status(
+    client: AsyncClient, jsonl_path: Path
+) -> None:
+    """GET /tasks/{id}/gates injects ``generated_at`` + ``task_status`` annotations."""
+    created = await client.post("/tasks", json=TASK_PAYLOAD)
+    task_id = created.json()["id"]
+    gates_dir = jsonl_path.parent / "gates"
+    gates_dir.mkdir(parents=True, exist_ok=True)
+    # On-disk payload deliberately lacks ``generated_at``/``task_status`` to confirm
+    # the route fills them in from the file mtime + live task state.
+    (gates_dir / f"{task_id}.json").write_text(
+        f'{{"task_id":"{task_id}","overall_pass":true,"total_duration_ms":7,"gates_run":["lint"],'
+        '"changed_files":[],"cache_hits":0,'
+        '"results":[{"name":"lint","status":"pass","required":true,"blocked":false,"cached":false,'
+        '"duration_ms":7,"details":"ok","metadata":{}}]}',
+        encoding="utf-8",
+    )
+
+    resp = await client.get(f"/tasks/{task_id}/gates")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data.get("generated_at"), str)
+    assert data["generated_at"].endswith("Z")
+    assert isinstance(data.get("task_status"), str)
+    # New task hasn't been claimed — should report an open-ish lifecycle status.
+    assert data["task_status"] in {"open", "planned", "queued", "pending_approval"}
+
+
 def test_gate_status_color_mapping() -> None:
     assert _gate_status_color("pass") == "green"
 

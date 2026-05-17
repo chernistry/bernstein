@@ -2,6 +2,35 @@
 
 All notable project changes are tracked here (code + docs).
 
+## [2.0.0] — Web UI
+
+Bernstein now ships a web interface. The major bump is signalling the new operator surface, not a breaking API change. v1.10.x configs, plans, adapters, audit chain, lineage, and CLI / TUI surfaces are unchanged.
+
+Hand-curated release notes: [`docs/release-notes/v2.0.0.md`](docs/release-notes/v2.0.0.md). Tracking issue: [#1262](https://github.com/sipyourdrink-ltd/bernstein/issues/1262).
+
+### Added — Web UI
+
+- **`bernstein gui serve`** boots a FastAPI server with the SPA mounted at `/ui` and the full `/api/v1/*` surface attached. Default `http://127.0.0.1:8052/ui/`. SPA bundle ships in the wheel (no Node toolchain required at install time).
+- **Top-level tabs**: Tasks, Agents, Approvals, Audit, Costs, Fleet (scaffold), Settings (placeholder).
+- **Per-task drawer** with tabs:
+  - **Summary** — KPIs (tokens / cost / branch / approvals), plan steps from `progress_log`, drag-resize, focus trap, ESC + click-outside close (#1254).
+  - **Logs** — SSE stream, ANSI rendering, virtualised list, search, level filters, throughput stats, keyboard shortcuts.
+  - **Diff** — `GET /tasks/{id}/diff`; split / unified view, syntax highlight, copy + `.patch` download (#1255).
+  - **Gates** — `GET /tasks/{id}/gates`; status buckets, auto-expand failures, polling that pauses on terminal tasks (#1258).
+  - **Deps** — `GET /tasks/{id}/graph-neighbors`; upstream / downstream graph, polling (#1260).
+  - **Trace** — `GET /tasks/{id}/trace` reading `.sdd/traces/{task_id}.jsonl`; filter chips, search, live polling while open (#1256).
+
+### Fixed
+
+- **Per-step `cli:` and `model:` in plan-driven runs** — three dispatch-pipeline bugs (POST payload dropping `model` / `effort`, role config.yaml clobbering per-task pin, merge gate ignoring `cli` mismatch) that silently collapsed plan steps onto the role default. Regression tests at `tests/unit/test_per_step_routing.py` (#1259).
+- **Startup banner** — `bernstein run` / `bernstein conduct` regained the banner; an earlier commit removed it under a false "already printed" comment. Pinned by `tests/unit/cli/test_run_banner.py` (#1257).
+- **`/openapi.json` 500** — FastAPI's OpenAPI builder tripped on `from __future__ import annotations` turning the GUI's response annotations into strings; `response_class` now declared explicitly on `/gui-meta` + `/ui` (#1253).
+- **dev-proxy double-prefix** — `apiGet` is now idempotent; the Logs panel's terminal-task fallback no longer 404s on `/api/v1/api/v1/...` (#1253).
+
+### Limitations (intentional)
+
+- A11y audit, dark / light theme toggle UI, mobile-responsive pass, Settings screen wiring, Fleet UI, front-end test suite, Playwright e2e — all open. See [#1262](https://github.com/sipyourdrink-ltd/bernstein/issues/1262) for contributor-welcome pointers.
+
 ## Unreleased
 
 ### Changed — chat bridge

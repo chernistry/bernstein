@@ -839,6 +839,21 @@ def exec_restart() -> None:
     help="Show scheduling plan without executing: which agent/model/tier each task would be assigned to.",
 )
 @click.option(
+    "--idle",
+    is_flag=True,
+    default=False,
+    help=(
+        "GUI-dev mode: force every adapter to ``mock`` and have each spawned "
+        "agent sleep for $BERNSTEIN_MOCK_IDLE_MIN_S..MAX_S seconds (defaults: "
+        "min=15, max=120) instead of calling an LLM. Zero token spend — used "
+        "to populate the web GUI with live state. NOTE: the orchestrator "
+        "subprocess otherwise defaults to ``--adapter claude``; pin "
+        "``cli: mock`` at the top of bernstein.yaml in your workdir so the "
+        "orchestrator picks the mock backend too. Mutually exclusive with "
+        "--dry-run."
+    ),
+)
+@click.option(
     "--cprofile",
     "cprofile",
     is_flag=True,
@@ -928,6 +943,7 @@ def run(
     allow_paid: bool = False,
     ab_test: bool = False,
     dry_run: bool = False,
+    idle: bool = False,
     cprofile: bool = False,
     run_profile: str | None = None,
     allow_network: tuple[str, ...] = (),
@@ -960,7 +976,14 @@ def run(
       bernstein conduct --audit                # SOC 2 audit mode (HMAC-chained log + Merkle seal)
       bernstein conduct --max-cost-usd 1.50    # hard cap total run spend at $1.50
     """
-    # Banner already printed by cli() — don't duplicate
+    # Print the startup banner unless the parent ``cli()`` group already
+    # rendered the premium splash for this invocation. Regressed by commit
+    # 1e5c13013 ("fix: ... double banner ..."), which mistakenly removed the
+    # call assuming cli() always printed it -- cli() actually early-returns
+    # for subcommand invocations, so `bernstein run` lost the banner entirely.
+    ctx = click.get_current_context(silent=True)
+    if ctx is None or not (ctx.obj and ctx.obj.get("_BANNER_PRINTED")):
+        print_banner()
 
     # Set process title so orchestrator is visible in Activity Monitor / ps
     try:
@@ -1002,6 +1025,21 @@ def run(
         skip_gate=skip_gate,
         skip_gate_reason=skip_gate_reason,
     )
+
+    # --idle: GUI-development mode — force mock adapter + idle behavior on every spawn.
+    if idle:
+        if dry_run:
+            raise click.UsageError("--idle and --dry-run are mutually exclusive.")
+        os.environ["BERNSTEIN_MOCK_IDLE"] = "1"
+        # Force mock adapter regardless of seed/config. ``cli`` is the
+        # already-bound override forwarded into bootstrap; if not set, we
+        # inject "mock" so the seed's adapter pick is overridden.
+        if cli is None:
+            cli = "mock"
+        click.echo(
+            "Bernstein --idle mode: every agent will be spawned via the mock adapter and sleep "
+            "BERNSTEIN_MOCK_IDLE_MIN_S..MAX_S seconds (default 15-120). Zero LLM spend."
+        )
 
     # --dry-run: show scheduling plan without executing
     if dry_run:

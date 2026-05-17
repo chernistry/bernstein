@@ -22,6 +22,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
+from bernstein.core.skills.sanitizer import sanitize_skill_body
 from bernstein.core.skills.sources.local_dir import LocalDirSkillSource
 
 if TYPE_CHECKING:
@@ -110,7 +111,15 @@ class SkillLoader:
                 self._register(source, artifact)
 
     def _register(self, source: SkillSource, artifact: SkillArtifact) -> None:
-        """Add a single artifact to the index, raising on name conflicts."""
+        """Add a single artifact to the index, raising on name conflicts.
+
+        Skill bodies are sanitized at index time (not on every read) by
+        :func:`bernstein.core.skills.sanitizer.sanitize_skill_body`, which
+        strips invisible Unicode Tag codepoints that public research has shown
+        to be a prompt-injection vector against Claude, Gemini, and Grok.
+        Sanitization is on by default; opt out via the hidden
+        ``--unsafe-allow-unicode-tags`` CLI flag.
+        """
         name = artifact.manifest.name
         existing = self._skills.get(name)
         if existing is not None:
@@ -120,10 +129,17 @@ class SkillLoader:
                 second_origin=artifact.origin,
             )
 
+        sanitized_body = sanitize_skill_body(
+            artifact.body,
+            skill_name=name,
+            origin=artifact.origin,
+            source_name=source.name,
+        )
+
         self._skills[name] = LoadedSkill(
             name=name,
             description=artifact.manifest.description,
-            body=artifact.body,
+            body=sanitized_body,
             references=tuple(artifact.manifest.references),
             scripts=tuple(artifact.manifest.scripts),
             assets=tuple(artifact.manifest.assets),

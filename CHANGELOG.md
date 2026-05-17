@@ -2,6 +2,39 @@
 
 All notable project changes are tracked here (code + docs).
 
+## [1.12.0](https://github.com/sipyourdrink-ltd/bernstein/compare/v1.11.0...v1.12.0) (2026-05-17)
+
+
+### Features
+
+* **attribution:** UTM-tag bernstein.run links in README + release-notes generator ([e3bc345](https://github.com/sipyourdrink-ltd/bernstein/commit/e3bc345b96ca41fe1e365a16409b0a81143b947f))
+* **audit:** bernstein audit archive — safely archive pre-rotation chain files ([#1252](https://github.com/sipyourdrink-ltd/bernstein/issues/1252)) ([6a6048d](https://github.com/sipyourdrink-ltd/bernstein/commit/6a6048d12e125e208017821be3a13b5859ef2636))
+* **ci:** add supply-chain + workflow security coverage ([#1284](https://github.com/sipyourdrink-ltd/bernstein/issues/1284)) ([80b9043](https://github.com/sipyourdrink-ltd/bernstein/commit/80b90432b300ae58e280a589c68c895c06d441b8))
+* **ci:** aggregator gate-job — single required check that treats cancelled as failure ([#1276](https://github.com/sipyourdrink-ltd/bernstein/issues/1276)) ([f649fda](https://github.com/sipyourdrink-ltd/bernstein/commit/f649fda626dbb7ff3313acb5af2ae9480a935d6b))
+* **ci:** gate-job conditional allowed-skips + JUnit flake summary ([#1287](https://github.com/sipyourdrink-ltd/bernstein/issues/1287)) ([290e063](https://github.com/sipyourdrink-ltd/bernstein/commit/290e06373619e13cb52408db3b8d57475887a55d))
+* **ci:** self-PR autofix bot for contract-test drift (CI-E, refs [#1273](https://github.com/sipyourdrink-ltd/bernstein/issues/1273)) ([#1278](https://github.com/sipyourdrink-ltd/bernstein/issues/1278)) ([b260817](https://github.com/sipyourdrink-ltd/bernstein/commit/b260817c598d50bf9980bb71733cf0b5073b999b))
+* **ci:** switch release flow to release-please (PR-gated changelog + tagging) ([#1281](https://github.com/sipyourdrink-ltd/bernstein/issues/1281)) ([23f1d50](https://github.com/sipyourdrink-ltd/bernstein/commit/23f1d5069931c953f00e64e9682e5db95afaa607))
+* **orchestrator:** detect stalled manager and emit actionable error ([#1261](https://github.com/sipyourdrink-ltd/bernstein/issues/1261)) ([#1267](https://github.com/sipyourdrink-ltd/bernstein/issues/1267)) ([378573d](https://github.com/sipyourdrink-ltd/bernstein/commit/378573d2f434a5b5ee5690960c81722511457cdf))
+* web UI (v2.0.0) — Wave 4 integration ([#1268](https://github.com/sipyourdrink-ltd/bernstein/issues/1268)) ([7585c04](https://github.com/sipyourdrink-ltd/bernstein/commit/7585c044a67bcd47fa76c43ab2d421d90537edda))
+
+
+### Bug Fixes
+
+* **ci:** kill silent-skip — cancelled/timed_out now alerts (closes [#1273](https://github.com/sipyourdrink-ltd/bernstein/issues/1273) partial) ([#1274](https://github.com/sipyourdrink-ltd/bernstein/issues/1274)) ([28ab713](https://github.com/sipyourdrink-ltd/bernstein/commit/28ab7131d135ac90d5d747e90e7444fcee8614f0))
+* **ci:** unblock main — 3 contract tests broke after v2 UI cut (closes [#1271](https://github.com/sipyourdrink-ltd/bernstein/issues/1271)) ([#1272](https://github.com/sipyourdrink-ltd/bernstein/issues/1272)) ([96c0c32](https://github.com/sipyourdrink-ltd/bernstein/commit/96c0c326325f42b563faa637734274de5ed888af))
+* **doctor:** airgap check works standalone (option A extended) ([#1251](https://github.com/sipyourdrink-ltd/bernstein/issues/1251)) ([2e5f327](https://github.com/sipyourdrink-ltd/bernstein/commit/2e5f327196cdf04ebbff6ec38f740b92a2d4f9c4))
+* **gui:** drawer no longer auto-opens on /ui/tasks ([#1269](https://github.com/sipyourdrink-ltd/bernstein/issues/1269)) ([c02fff7](https://github.com/sipyourdrink-ltd/bernstein/commit/c02fff7834d4f1f5c84a5ac16a430430b1af1820))
+* **gui:** mount gui-meta on root AND /api/v1 — bidirectional parity ([#1279](https://github.com/sipyourdrink-ltd/bernstein/issues/1279)) ([8016ca1](https://github.com/sipyourdrink-ltd/bernstein/commit/8016ca1eded244f5642d38341238bea28ece547e))
+* **orchestrator:** pass task-server bearer to manager spawn env ([#1261](https://github.com/sipyourdrink-ltd/bernstein/issues/1261)) ([#1266](https://github.com/sipyourdrink-ltd/bernstein/issues/1266)) ([6eb1225](https://github.com/sipyourdrink-ltd/bernstein/commit/6eb1225b049a02ca7325c78f5e5e416920b91902))
+
+
+### Documentation
+
+* **ci:** one-time operator playbook for free CI integrations ([#1283](https://github.com/sipyourdrink-ltd/bernstein/issues/1283)) ([32411e4](https://github.com/sipyourdrink-ltd/bernstein/commit/32411e43ec1fadc5f9bb4e4cac420265ee0ee880))
+* **readme:** refresh star/fork/adapter counts (2026-05-15) ([#1250](https://github.com/sipyourdrink-ltd/bernstein/issues/1250)) ([e75117e](https://github.com/sipyourdrink-ltd/bernstein/commit/e75117ecb642f2dd9331844e59f9c824da516c30))
+* **security:** document manager-to-task-server auth flow ([#1261](https://github.com/sipyourdrink-ltd/bernstein/issues/1261)) ([#1263](https://github.com/sipyourdrink-ltd/bernstein/issues/1263)) ([1ee9e3f](https://github.com/sipyourdrink-ltd/bernstein/commit/1ee9e3fd6783cbb8a9040daf9db59035c9ed0de1))
+* **v2:** add web-UI screenshots to release notes + screens reference ([#1270](https://github.com/sipyourdrink-ltd/bernstein/issues/1270)) ([f75968a](https://github.com/sipyourdrink-ltd/bernstein/commit/f75968a4f39edfe6f969c64aed4f66dea40691c9))
+
 ## [2.0.0] — Web UI
 
 Bernstein now ships a web interface. The major bump is signalling the new operator surface, not a breaking API change. v1.10.x configs, plans, adapters, audit chain, lineage, and CLI / TUI surfaces are unchanged.

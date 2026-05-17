@@ -33,7 +33,7 @@ try:
 
     __version__ = _pkg_version("bernstein")
 except Exception:  # pragma: no cover — editable installs / bare checkout
-    __version__ = "0.0.0"
+    __version__ = "1.12.0"
 
 _PACKAGE_DIR = Path(__file__).resolve().parent
 

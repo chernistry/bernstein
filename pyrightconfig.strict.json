@@ -2,7 +2,8 @@
   "include": [
     "src/bernstein/core/persistence/lineage.py",
     "src/bernstein/core/persistence/lineage_signer.py",
-    "src/bernstein/core/persistence/wal.py"
+    "src/bernstein/core/persistence/wal.py",
+    "src/bernstein/core/lineage/v2_store.py"
   ],
   "exclude": [
     "**/__pycache__",

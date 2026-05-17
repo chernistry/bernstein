@@ -169,7 +169,7 @@ jobs:
           steps.verify.outputs.changed == 'true' &&
           steps.reverify.outputs.status == '0'
         id: cpr
-        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ secrets.BOT_PAT || secrets.GITHUB_TOKEN }}
           branch: bot/contract-drift-pr-${{ github.event.pull_request.number }}

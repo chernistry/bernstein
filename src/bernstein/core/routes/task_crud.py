@@ -1209,6 +1209,8 @@ def task_counts(
         pending_approval=counts.get("pending_approval", 0),
         waiting_for_subtasks=counts.get("waiting_for_subtasks", 0),
         orphaned=counts.get("orphaned", 0),
+        abandoned=counts.get("abandoned", 0),
+        blocked_by_abandon=counts.get("blocked_by_abandon", 0),
         total=counts.get("total", 0),
     )
 

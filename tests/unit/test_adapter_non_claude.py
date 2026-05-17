@@ -461,9 +461,15 @@ class TestQwenAdapterSpawn:
                 session_id="q7",
             )
         inner = _inner_cmd(popen.call_args.args[0])
-        assert "--tavily-api-key" in inner
-        assert inner[inner.index("--tavily-api-key") + 1] == "tv-key-xyz"
+        # Security: Tavily key is forwarded via env (not argv) so it never
+        # appears in ``ps``/audit logs on shared hosts. Qwen Code reads
+        # ``TAVILY_API_KEY`` from the environment when the web_search tool
+        # is enabled.
+        assert "--tavily-api-key" not in inner
+        assert "tv-key-xyz" not in inner
         assert "--web-search-default" in inner
+        env = popen.call_args.kwargs.get("env", {})
+        assert env.get("TAVILY_API_KEY") == "tv-key-xyz"
 
     def test_spawn_result_pid(self, tmp_path: Path) -> None:
         adapter = QwenAdapter()

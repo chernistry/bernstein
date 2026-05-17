@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import io
+import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -103,3 +105,78 @@ def test_logging_path_uses_sanitized_session_id(caplog) -> None:  # type: ignore
     assert "INJECTED" in joined  # content kept (sanitized but visible)
     # No record contains a raw newline — every one is single-line.
     assert all("\n" not in rec.getMessage() for rec in caplog.records)
+
+
+class _SerialisingPipe:
+    """BytesIO-backed pipe that simulates non-atomic large writes.
+
+    Splits each write into 256-byte chunks and yields the GIL between
+    them so concurrent send_message calls without a lock can interleave.
+    Models pipe behaviour past PIPE_BUF without requiring an actual OS
+    pipe in the test process.
+    """
+
+    def __init__(self) -> None:
+        self.buffer = io.BytesIO()
+        self._inner_lock = threading.Lock()
+
+    def write(self, data: bytes) -> int:
+        # Deliberately NOT holding self._inner_lock around the chunked
+        # write: that would mask the very race the test is built to
+        # expose if the caller forgets to serialise. The buffer-level
+        # write is protected only enough to keep BytesIO consistent.
+        total = 0
+        for i in range(0, len(data), 256):
+            chunk = data[i : i + 256]
+            with self._inner_lock:
+                self.buffer.write(chunk)
+            total += len(chunk)
+            # Yield so the scheduler can pick another worker.
+            threading.Event().wait(0.0001)
+        return total
+
+    def flush(self) -> None:  # pragma: no cover - matches IO API
+        return None
+
+
+def test_send_message_serialises_concurrent_writes_to_same_session() -> None:
+    """Concurrent send_message calls to one session must not interleave bytes.
+
+    Regression for the agent_ipc pipe race: writes past PIPE_BUF are not
+    atomic, and the previous send_message wrote to the pipe without a
+    lock. Two managers nudging the same agent simultaneously could
+    splice their JSON payloads, which the adapter's stream-json parser
+    rejected, kicking the agent off the wire.
+    """
+    _stdin_pipes.clear()
+    pipe = _SerialisingPipe()
+    register_stdin_pipe("A-race", pipe)  # type: ignore[arg-type]
+
+    big = "X" * 8192  # well past macOS PIPE_BUF (512 B) and Linux (4 KiB)
+    payload_count = 20
+    start = threading.Event()
+
+    def _worker(i: int) -> None:
+        start.wait()
+        send_message("A-race", f"{i}:{big}")
+
+    workers = [threading.Thread(target=_worker, args=(i,)) for i in range(payload_count)]
+    for t in workers:
+        t.start()
+    start.set()
+    for t in workers:
+        t.join()
+
+    # Every line on the wire must be one complete JSON record.
+    written = pipe.buffer.getvalue().decode("utf-8")
+    lines = [line for line in written.splitlines() if line]
+    assert len(lines) == payload_count
+    import json as _json
+
+    seen: set[str] = set()
+    for line in lines:
+        row = _json.loads(line)
+        assert row["type"] == "user_message"
+        # Each content must be one of the expected payloads.
+        seen.add(row["content"].split(":", 1)[0])
+    assert seen == {str(i) for i in range(payload_count)}

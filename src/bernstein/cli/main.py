@@ -946,6 +946,11 @@ from bernstein.cli.commands.identity_cmd import identity_group  # noqa: E402
 cli.add_command(identity_group, "identity")
 cli.add_command(analyze_cmd, "analyze")  # issue #768
 
+# Blast-radius scorer (issue #1322): inspect + ad-hoc score a change.
+from bernstein.cli.commands.blast_radius_cmd import blast_radius_group  # noqa: E402
+
+cli.add_command(blast_radius_group, "blast-radius")
+
 # Recorded run-session inspection + fork (#1222).
 from bernstein.cli.commands.session_cmd import session_group  # noqa: E402
 

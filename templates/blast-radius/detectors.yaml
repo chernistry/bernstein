@@ -1,0 +1,189 @@
+# Blast-radius detectors (issue #1322).
+#
+# Each entry adds a signal to the scorer. Detectors with `hard_one_way: true`
+# force the final score to 1.0 (regardless of other signals) and flag the
+# change as a one-way door — the merge / deploy gate must require explicit
+# approval.
+#
+# `kind` selects how the pattern is matched:
+#   - "content_regex": run the regex (multiline, case-insensitive unless
+#     the regex itself disables it) against the diff body / file contents.
+#   - "path_glob": match a touched file path against an fnmatch glob.
+#   - "path_regex": match a touched file path against a regex.
+#
+# `weight` is the contribution to the (non-hard) blast-radius components
+# when the detector fires at least once. The scorer normalizes the weights
+# of all firing soft detectors into [0, 1].
+#
+# Operators can ship their own detectors by adding entries to
+# `.bernstein/blast-radius/detectors.yaml`; the loader merges custom rules
+# on top of these defaults.
+
+version: 1
+
+detectors:
+  # ------------------------------------------------------------------ destructive SQL
+  - id: sql_drop_statement
+    kind: content_regex
+    pattern: "(?im)^\\s*DROP\\s+(TABLE|DATABASE|SCHEMA|INDEX|VIEW|FUNCTION|PROCEDURE)\\b"
+    description: "DROP statement detected in diff (destructive schema operation)."
+    severity: critical
+    weight: 1.0
+    hard_one_way: true
+
+  - id: sql_delete_unbounded
+    kind: content_regex
+    pattern: "(?im)^\\s*DELETE\\s+FROM\\s+[\\w\\.\"`]+\\s*;?\\s*$"
+    description: "Unbounded DELETE FROM statement (no WHERE clause)."
+    severity: critical
+    weight: 1.0
+    hard_one_way: true
+
+  - id: sql_truncate
+    kind: content_regex
+    pattern: "(?im)^\\s*TRUNCATE\\s+(TABLE\\s+)?[\\w\\.\"`]+"
+    description: "TRUNCATE detected (wipes table data)."
+    severity: critical
+    weight: 1.0
+    hard_one_way: true
+
+  # ------------------------------------------------------------------ destructive shell
+  - id: shell_rm_rf
+    kind: content_regex
+    pattern: "(?m)\\brm\\s+(-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r|--recursive\\s+--force|--force\\s+--recursive)\\b"
+    description: "rm -rf (recursive forced delete) detected."
+    severity: critical
+    weight: 1.0
+    hard_one_way: true
+
+  - id: shell_dd_of_dev
+    kind: content_regex
+    pattern: "(?m)\\bdd\\s+[^\\n]*\\bof=/dev/"
+    description: "dd writing to /dev/* device (destructive disk write)."
+    severity: critical
+    weight: 1.0
+    hard_one_way: true
+
+  - id: shell_mkfs
+    kind: content_regex
+    pattern: "(?m)\\bmkfs(\\.\\w+)?\\b"
+    description: "mkfs.* invocation (filesystem format)."
+    severity: critical
+    weight: 1.0
+    hard_one_way: true
+
+  # ------------------------------------------------------------------ schema migrations
+  - id: alembic_migration
+    kind: path_regex
+    pattern: "(^|.*/)alembic/versions/.*\\.py$"
+    description: "Alembic migration file touched (schema change)."
+    severity: high
+    weight: 0.8
+    hard_one_way: true
+
+  - id: django_migration
+    kind: path_regex
+    pattern: "(^|.*/)migrations/\\d{4}_.*\\.py$"
+    description: "Django migration file touched."
+    severity: high
+    weight: 0.8
+    hard_one_way: true
+
+  - id: sql_migration_file
+    kind: path_regex
+    pattern: "(^|.*/)(migrations?|db/migrate|schema)/.*\\.sql$"
+    description: "SQL migration file touched."
+    severity: high
+    weight: 0.8
+    hard_one_way: true
+
+  - id: prisma_schema
+    kind: path_glob
+    pattern: "**/schema.prisma"
+    description: "Prisma schema modified."
+    severity: high
+    weight: 0.7
+    hard_one_way: true
+
+  # ------------------------------------------------------------------ secrets / env
+  - id: dotenv_write
+    kind: path_regex
+    pattern: "(^|.*/)\\.env(\\..+)?$"
+    description: ".env* file touched (likely secret material)."
+    severity: critical
+    weight: 1.0
+    hard_one_way: true
+
+  - id: secret_path
+    kind: path_regex
+    pattern: "(^|.*/)?(secrets?|credentials?|private[_-]?key|api[_-]?keys?)([./_-].*)?$"
+    description: "File path matches a secret/credential pattern."
+    severity: high
+    weight: 0.7
+    hard_one_way: false
+
+  - id: pem_or_key_file
+    kind: path_regex
+    pattern: ".+\\.(pem|key|p12|pfx|jks|asc)$"
+    description: "Certificate / private key file touched."
+    severity: critical
+    weight: 1.0
+    hard_one_way: true
+
+  # ------------------------------------------------------------------ infra / CI
+  - id: terraform_state
+    kind: path_glob
+    pattern: "**/*.tfstate*"
+    description: "Terraform state file touched."
+    severity: critical
+    weight: 1.0
+    hard_one_way: true
+
+  - id: kubernetes_secret
+    kind: content_regex
+    pattern: "(?m)^kind:\\s*Secret\\s*$"
+    description: "Kubernetes Secret manifest in diff."
+    severity: high
+    weight: 0.7
+    hard_one_way: false
+
+  - id: github_workflow
+    kind: path_regex
+    pattern: "(^|.*/)\\.github/workflows/.*\\.ya?ml$"
+    description: "GitHub Actions workflow touched (CI/CD surface)."
+    severity: medium
+    weight: 0.4
+    hard_one_way: false
+
+  - id: dockerfile
+    kind: path_regex
+    pattern: "(^|.*/)(Dockerfile|Containerfile)(\\..+)?$"
+    description: "Dockerfile / Containerfile touched."
+    severity: medium
+    weight: 0.3
+    hard_one_way: false
+
+  # ------------------------------------------------------------------ user-facing surface
+  - id: public_api_module
+    kind: path_regex
+    pattern: "(^|.*/)(api|routes|handlers|controllers)/.*\\.(py|ts|js|go|rs|java)$"
+    description: "Public-facing API surface modified."
+    severity: medium
+    weight: 0.3
+    hard_one_way: false
+
+  - id: package_manifest
+    kind: path_glob
+    pattern: "**/package.json"
+    description: "package.json modified (dependency surface)."
+    severity: low
+    weight: 0.2
+    hard_one_way: false
+
+  - id: pyproject
+    kind: path_glob
+    pattern: "**/pyproject.toml"
+    description: "pyproject.toml modified (dependency / build surface)."
+    severity: low
+    weight: 0.2
+    hard_one_way: false

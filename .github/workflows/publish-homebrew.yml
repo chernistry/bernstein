@@ -85,23 +85,28 @@ jobs:
 
       - name: Push to homebrew-tap repo
         env:
-          # HOMEBREW_TAP_TOKEN must be a PAT with repo scope for chernistry/homebrew-tap.
-          # Falls back to GITHUB_TOKEN (which only works for the current repo).
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN || secrets.GITHUB_TOKEN }}
+          # HOMEBREW_TAP_TOKEN must be a PAT with `repo` scope for
+          # chernistry/homebrew-tap. Without it the cross-repo push fails;
+          # the step previously masked that failure via continue-on-error.
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           META_VERSION: ${{ steps.meta.outputs.version }}
-        continue-on-error: true
         run: |
-          if [ "$GH_TOKEN" = "${{ secrets.GITHUB_TOKEN }}" ]; then
-            echo "::warning::HOMEBREW_TAP_TOKEN secret not set. Add a PAT with repo scope to push to chernistry/homebrew-tap."
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN secret not set. Add a PAT with repo scope for chernistry/homebrew-tap."
+            exit 1
           fi
 
-          # Clone or create tap repo
-          if gh repo view chernistry/homebrew-tap > /dev/null 2>&1; then
-            gh repo clone chernistry/homebrew-tap /tmp/homebrew-tap
-          else
-            echo "::warning::homebrew-tap repo not found. Create it: gh repo create chernistry/homebrew-tap --public"
-            exit 0
+          # Clone the tap with the PAT baked into the URL so subsequent
+          # `git push` authenticates as the token owner. `gh repo clone`
+          # used the runner's gh-token context for the HTTPS handshake but
+          # then dropped the credential, so plain `git push` later failed
+          # with "could not read Username for 'https://github.com'".
+          TAP_URL="https://x-access-token:${GH_TOKEN}@github.com/chernistry/homebrew-tap.git"
+          if ! git ls-remote "$TAP_URL" > /dev/null 2>&1; then
+            echo "::error::homebrew-tap repo not reachable. Create it (gh repo create chernistry/homebrew-tap --public) or check token scope."
+            exit 1
           fi
+          git clone "$TAP_URL" /tmp/homebrew-tap
 
           mkdir -p /tmp/homebrew-tap/Formula
           cp /tmp/bernstein.rb /tmp/homebrew-tap/Formula/bernstein.rb
@@ -110,6 +115,9 @@ jobs:
           git config user.name "bernstein[bot]"
           git config user.email "bernstein-bot@users.noreply.github.com"
           git add Formula/bernstein.rb
-          git diff --cached --quiet && echo "No changes" && exit 0
+          if git diff --cached --quiet; then
+            echo "No changes to publish — formula already at ${META_VERSION}."
+            exit 0
+          fi
           git commit -m "bernstein ${META_VERSION}"
           git push

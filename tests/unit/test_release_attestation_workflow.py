@@ -1,7 +1,7 @@
 """Smoke test: the release-attestation workflow steps are present and well-formed.
 
 Closes the FINOS AIGF CTRL-MODEL-SUPPLY-CHAIN release-artefact gap by
-asserting that the publish + auto-release workflows actually call
+asserting that the publish workflow actually calls
 ``actions/attest-build-provenance`` against ``dist/*`` with the right
 permissions. Without this guard the gap could silently re-open during
 a workflow refactor.
@@ -10,6 +10,11 @@ The test parses the YAML and walks the job tree; it does not execute
 the workflows. The end-to-end ``gh attestation verify`` against the
 public attestations endpoint is the responsibility of the dedicated
 release-attestation smoke job (see ``release-attestation`` workflow).
+
+Scope note: the auto-release workflow tags and creates the GitHub
+Release; the actual artefact build + Sigstore attestation + PyPI
+publish lives in publish.yml (single-publisher consolidation, #1286).
+The attest assertion therefore only applies to publish.yml.
 """
 
 from __future__ import annotations
@@ -22,7 +27,6 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PUBLISH_WF = REPO_ROOT / ".github" / "workflows" / "publish.yml"
-AUTO_RELEASE_WF = REPO_ROOT / ".github" / "workflows" / "auto-release.yml"
 
 ATTEST_ACTION_PREFIX = "actions/attest-build-provenance"
 
@@ -43,7 +47,7 @@ def _all_steps(jobs: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
     return out
 
 
-@pytest.mark.parametrize("workflow_path", [PUBLISH_WF, AUTO_RELEASE_WF])
+@pytest.mark.parametrize("workflow_path", [PUBLISH_WF])
 def test_workflow_yaml_parses(workflow_path: Path) -> None:
     """Workflow YAML is syntactically valid -- prevents typos breaking CI silently."""
     data = _load_yaml(workflow_path)
@@ -51,7 +55,7 @@ def test_workflow_yaml_parses(workflow_path: Path) -> None:
     assert "jobs" in data
 
 
-@pytest.mark.parametrize("workflow_path", [PUBLISH_WF, AUTO_RELEASE_WF])
+@pytest.mark.parametrize("workflow_path", [PUBLISH_WF])
 def test_workflow_calls_attest_build_provenance(workflow_path: Path) -> None:
     """At least one job step uses ``actions/attest-build-provenance@<ref>``."""
     data = _load_yaml(workflow_path)
@@ -67,7 +71,7 @@ def test_workflow_calls_attest_build_provenance(workflow_path: Path) -> None:
     )
 
 
-@pytest.mark.parametrize("workflow_path", [PUBLISH_WF, AUTO_RELEASE_WF])
+@pytest.mark.parametrize("workflow_path", [PUBLISH_WF])
 def test_attest_step_has_subject_path(workflow_path: Path) -> None:
     """The attest step must declare subject-path so ``dist/*`` is actually attested."""
     data = _load_yaml(workflow_path)
@@ -81,7 +85,7 @@ def test_attest_step_has_subject_path(workflow_path: Path) -> None:
             assert "dist" in str(with_block["subject-path"])
 
 
-@pytest.mark.parametrize("workflow_path", [PUBLISH_WF, AUTO_RELEASE_WF])
+@pytest.mark.parametrize("workflow_path", [PUBLISH_WF])
 def test_attest_job_has_required_permissions(workflow_path: Path) -> None:
     """The job hosting the attest step must declare id-token: write + attestations: write."""
     data = _load_yaml(workflow_path)

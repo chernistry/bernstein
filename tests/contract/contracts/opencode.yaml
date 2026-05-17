@@ -1,0 +1,23 @@
+# Contract for the OpenCode CLI (adapter: opencode).
+#
+# Always-passed surface from src/bernstein/adapters/opencode.py:
+# ``opencode run -m <model> --format json <prompt>``.
+adapter: opencode
+binary: opencode
+install:
+  method: npm
+  spec: "opencode-ai@latest"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "OPENROUTER_API_KEY"
+required_flags:
+  - "-m"
+  - "--format"
+required_subcommands:
+  - "run"
+# Opencode sub-flags live under ``opencode run --help``.
+help_command: ["opencode", "run", "--help"]
+expected_models:
+  command: []
+  required_present: []

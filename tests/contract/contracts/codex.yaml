@@ -1,0 +1,25 @@
+# Contract for the OpenAI Codex CLI (adapter: codex).
+#
+# Always-passed surface from src/bernstein/adapters/codex.py:
+# ``codex exec --sandbox <profile> -m <model> --json -o <path> <prompt>``.
+adapter: codex
+binary: codex
+install:
+  method: npm
+  spec: "@openai/codex@latest"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "OPENAI_API_KEY"
+required_flags:
+  - "--sandbox"
+  - "-m"
+  - "--json"
+  - "-o"
+required_subcommands:
+  - "exec"
+# Codex sub-flags live under ``codex exec --help``, not ``codex --help``.
+help_command: ["codex", "exec", "--help"]
+expected_models:
+  command: []
+  required_present: []

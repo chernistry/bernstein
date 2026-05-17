@@ -1,0 +1,306 @@
+name: Adapter contract drift
+
+# Capability-only drift detection for adapter CLIs (refs #1291).
+#
+# For every contract under tests/contract/contracts/<name>.yaml we:
+#   1. Install the upstream CLI per contract.install.spec.
+#   2. Invoke ``bernstein adapters contract-check <name> --json``, which
+#      verifies the CLI's ``--help`` still advertises every required
+#      flag / subcommand. When a contract names a secret_env and that
+#      secret is configured on the runner, the configured model-list
+#      command is run too.
+#   3. Upload the per-adapter result JSON as an artifact.
+#
+# An aggregator job downloads every artifact. If any adapter failed it
+# opens (or refreshes) an issue titled "Adapter contract drift - <list>"
+# and fails the workflow. Drift is a hard fail per the refined design;
+# there is no batched auto-PR.
+#
+# Triggers:
+#   * Three times daily on schedule so upstream releases surface fast.
+#   * On PRs touching adapters or contracts so contract edits get
+#     validated immediately.
+#   * Manual dispatch for operator-driven re-runs.
+
+on:
+  schedule:
+    - cron: "0 6,14,22 * * *"
+  pull_request:
+    paths:
+      - "src/bernstein/adapters/**"
+      - "tests/contract/**"
+      - ".github/workflows/adapter-contract-drift.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: adapter-contract-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: ${{ matrix.adapter }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        adapter:
+          - claude
+          - gemini
+          - codex
+          - aider
+          - opencode
+          - aichat
+          - crush
+          - amp
+          - continue_dev
+          - plandex
+          - goose
+          - q_dev
+          - gptme
+          - forge
+          - qwen
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: "20"
+
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
+        with:
+          enable-cache: true
+
+      - name: Install bernstein
+        # ``bernstein.cli.main`` imports cryptography/lineage transitively
+        # at module load, so we install the package with its runtime
+        # dependencies. Cache hits keep this under 30s per matrix job.
+        run: |
+          set -euo pipefail
+          uv pip install --system -e .
+
+      - name: Read contract metadata
+        id: contract
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import sys
+          import yaml
+          from pathlib import Path
+          p = Path("tests/contract/contracts/${{ matrix.adapter }}.yaml")
+          data = yaml.safe_load(p.read_text())
+          install = data.get("install") or {}
+          print(f"method={install.get('method','')}")
+          print(f"spec={install.get('spec','')}")
+          print(f"binary={data.get('binary','')}")
+          PY
+
+      - name: Install upstream CLI
+        env:
+          METHOD: ${{ steps.contract.outputs.method }}
+          SPEC: ${{ steps.contract.outputs.spec }}
+          BINARY: ${{ steps.contract.outputs.binary }}
+        run: |
+          set -euo pipefail
+          echo "Installing $BINARY via $METHOD: $SPEC"
+          case "$METHOD" in
+            npm)
+              npm install -g "$SPEC"
+              ;;
+            pipx)
+              python -m pip install --user pipx
+              python -m pipx install "$SPEC"
+              # pipx default user bin
+              echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+              ;;
+            curl)
+              # Free-form install scripts vary wildly. We deliberately do
+              # not curl-pipe-bash an arbitrary URL in CI; instead we
+              # record that this adapter requires a release-asset install
+              # and degrade to "binary not found", which the checker
+              # reports without failing the job.
+              echo "::notice::curl-installed CLI '$BINARY' is not auto-installed in CI; running help-only check"
+              ;;
+            cargo)
+              # Cargo builds are slow; skip in CI and let the checker
+              # report binary-not-found.
+              echo "::notice::cargo-installed CLI '$BINARY' is not auto-installed in CI; running help-only check"
+              ;;
+            *)
+              echo "::warning::unknown install method '$METHOD' for ${{ matrix.adapter }}"
+              ;;
+          esac
+
+      - name: Run contract check
+        id: check
+        env:
+          # When the secret exists on this runner the checker will use
+          # it for the optional model-list check. When absent the
+          # adapter degrades to help-only coverage.
+          ANTHROPIC_API_KEY: ${{ secrets.ADAPTER_CONTRACT_ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.ADAPTER_CONTRACT_OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.ADAPTER_CONTRACT_GEMINI_API_KEY }}
+          ADAPTER: ${{ matrix.adapter }}
+        run: |
+          set -euo pipefail
+          mkdir -p drift-out
+          set +e
+          bernstein adapters contract-check "$ADAPTER" --json > "drift-out/$ADAPTER.json" 2> "drift-out/$ADAPTER.err"
+          rc=$?
+          set -e
+          echo "exit=$rc" >> "$GITHUB_OUTPUT"
+          echo "--- stdout ---"
+          cat "drift-out/$ADAPTER.json" || true
+          echo "--- stderr ---"
+          cat "drift-out/$ADAPTER.err" || true
+          # Exit codes:
+          #   0 — contract holds.
+          #   2 — capability/model drift (hard fail by design).
+          # Anything else means the checker itself broke; treat it as
+          # a workflow error so we don't silently green-light drift.
+          case "$rc" in
+            0)
+              ;;
+            2)
+              echo "::error::contract drift in $ADAPTER"
+              exit 1
+              ;;
+            *)
+              echo "::error::contract-check exited $rc for $ADAPTER (checker error, not drift)"
+              exit 1
+              ;;
+          esac
+
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: drift-${{ matrix.adapter }}
+          path: drift-out/${{ matrix.adapter }}.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  aggregate:
+    name: Aggregate drift report
+    needs: check
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: drift-out
+          pattern: drift-*
+          merge-multiple: true
+
+      - name: Summarise drift
+        id: summarise
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import os
+          from pathlib import Path
+          failed = []
+          help_only = []
+          details = []
+          for p in sorted(Path("drift-out").glob("*.json")):
+              try:
+                  data = json.loads(p.read_text())
+              except Exception as exc:
+                  details.append(f"- {p.stem}: unreadable artifact ({exc})")
+                  failed.append(p.stem)
+                  continue
+              adapter = data.get("adapter", p.stem)
+              caps = data.get("capability_failures") or []
+              models = data.get("model_failures") or []
+              skipped = data.get("skipped_reason") or ""
+              if caps or models:
+                  failed.append(adapter)
+                  for line in caps + models:
+                      details.append(f"- **{adapter}**: {line}")
+              if skipped and not (caps or models):
+                  help_only.append(f"- {adapter}: {skipped}")
+          # Multi-line outputs use the heredoc form.
+          def emit(key: str, value: str) -> None:
+              print(f"{key}<<EOF")
+              print(value)
+              print("EOF")
+          emit("failed", ",".join(failed))
+          emit("details", "\n".join(details) or "(none)")
+          emit("notes", "\n".join(help_only) or "(none)")
+          PY
+
+      - name: Open or refresh tracking issue on failure
+        if: steps.summarise.outputs.failed != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FAILED: ${{ steps.summarise.outputs.failed }}
+          DETAILS: ${{ steps.summarise.outputs.details }}
+          NOTES: ${{ steps.summarise.outputs.notes }}
+        run: |
+          set -euo pipefail
+          TITLE="Adapter contract drift - ${FAILED}"
+          BODY="Adapter contract drift detected on $(date -u +%Y-%m-%dT%H:%MZ).
+
+          ## Capability / model failures
+
+          ${DETAILS}
+
+          ## Help-only coverage (informational)
+
+          ${NOTES}
+
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Refs #1291."
+          EXISTING=$(gh issue list \
+            --search "in:title Adapter contract drift" \
+            --state open \
+            --json number,title \
+            --jq '.[0].number // ""')
+          if [ -n "$EXISTING" ]; then
+            echo "Refreshing existing tracking issue #$EXISTING"
+            gh issue edit "$EXISTING" --title "$TITLE" --body "$BODY"
+          else
+            gh issue create \
+              --title "$TITLE" \
+              --label "ci,contract-drift,bot" \
+              --body "$BODY"
+          fi
+
+      - name: Fail when any adapter failed
+        if: steps.summarise.outputs.failed != ''
+        env:
+          FAILED: ${{ steps.summarise.outputs.failed }}
+        run: |
+          echo "::error::adapter contract drift: ${FAILED}"
+          exit 1

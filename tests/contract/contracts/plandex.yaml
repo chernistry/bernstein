@@ -1,0 +1,25 @@
+# Contract for the Plandex CLI (adapter: plandex).
+#
+# Always-passed surface from src/bernstein/adapters/plandex.py:
+# ``plandex tell <prompt> --apply --auto-exec --skip-menu --stop``.
+adapter: plandex
+binary: plandex
+install:
+  method: curl
+  spec: "https://plandex.ai/install.sh"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "PLANDEX_API_KEY"
+required_flags:
+  - "--apply"
+  - "--auto-exec"
+  - "--skip-menu"
+  - "--stop"
+required_subcommands:
+  - "tell"
+# Plandex sub-flags live under ``plandex tell --help``.
+help_command: ["plandex", "tell", "--help"]
+expected_models:
+  command: []
+  required_present: []

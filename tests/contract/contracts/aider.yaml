@@ -1,0 +1,23 @@
+# Contract for the Aider CLI (adapter: aider).
+#
+# Always-passed flags from src/bernstein/adapters/aider.py.
+adapter: aider
+binary: aider
+install:
+  method: pipx
+  spec: "aider-chat"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "OPENAI_API_KEY"
+required_flags:
+  - "--model"
+  - "--message"
+  - "--yes"
+  - "--auto-commits"
+  - "--map-tokens"
+  - "--no-auto-lint"
+required_subcommands: []
+expected_models:
+  command: []
+  required_present: []

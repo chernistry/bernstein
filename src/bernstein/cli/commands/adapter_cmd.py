@@ -221,6 +221,21 @@ def adapters_group() -> None:
     """Inspect Bernstein's CLI agent adapters."""
 
 
+# Wire the contract-check sub-command into the ``adapters`` group. Kept
+# behind a lazy import so the click decorators don't fire if the
+# contract module is missing (e.g. when bernstein is installed as a
+# wheel without the tests/contract/ tree).
+def _register_contract_subcommand() -> None:
+    try:
+        from bernstein.cli.commands.adapters_contract_cmd import contract_check_cmd
+    except Exception:  # pragma: no cover -- defensive
+        return
+    adapters_group.add_command(contract_check_cmd, "contract-check")
+
+
+_register_contract_subcommand()
+
+
 @adapters_group.command("list")
 @click.option(
     "--json",

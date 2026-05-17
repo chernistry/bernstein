@@ -1,0 +1,21 @@
+# Contract for the Forge CLI (adapter: forge).
+#
+# Always-passed surface from src/bernstein/adapters/forge.py:
+# ``forge -p <prompt>``. The adapter only ever passes ``-p`` — the
+# coverage is intentionally narrow but still catches a forge release
+# that renames or drops its prompt flag.
+adapter: forge
+binary: forge
+install:
+  method: npm
+  spec: "forgecode@latest"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "FORGE_API_KEY"
+required_flags:
+  - "-p"
+required_subcommands: []
+expected_models:
+  command: []
+  required_present: []

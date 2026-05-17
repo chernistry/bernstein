@@ -1,0 +1,21 @@
+# Contract for the Google Gemini CLI (adapter: gemini).
+#
+# Always-passed flags from src/bernstein/adapters/gemini.py.
+adapter: gemini
+binary: gemini
+install:
+  method: npm
+  spec: "@google/gemini-cli@latest"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "GEMINI_API_KEY"
+required_flags:
+  - "-p"
+  - "-m"
+  - "--output-format"
+  - "--yolo"
+required_subcommands: []
+expected_models:
+  command: []
+  required_present: []

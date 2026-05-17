@@ -270,6 +270,31 @@ def verify_hmac_cmd() -> None:
     help="SOC 2 time period to export (e.g. Q1-2026, 2026-03, 2026).",
 )
 @click.option(
+    "--standard",
+    "standard",
+    default=None,
+    type=click.Choice(["ai-act", "dora", "finos-aigf"]),
+    help=(
+        "Emit a one-command compliance evidence pack mapped to the chosen "
+        "regulatory standard (issue #1316). 'ai-act' has a fleshed-out "
+        "control map; 'dora' and 'finos-aigf' ship as TODO stubs at MVP."
+    ),
+)
+@click.option(
+    "--task",
+    "task",
+    default="all",
+    show_default=True,
+    help="Task id to scope the evidence pack to, or 'all' (--standard mode).",
+)
+@click.option(
+    "--out",
+    "out",
+    default=None,
+    type=click.Path(dir_okay=False, resolve_path=True),
+    help="Output zip path (--standard mode). Defaults to .sdd/evidence/.",
+)
+@click.option(
     "--article-12",
     "article_12",
     is_flag=True,
@@ -393,6 +418,9 @@ def verify_hmac_cmd() -> None:
 @click.option("--dir", "workdir", default=".", show_default=True, help="Project root directory.")
 def export_cmd(
     period: str | None,
+    standard: str | None,
+    task: str,
+    out: str | None,
     article_12: bool,
     tenant: str | None,
     since: str | None,
@@ -412,8 +440,10 @@ def export_cmd(
     """Export an evidence package for auditors.
 
     \b
-    Three modes:
+    Four modes:
       * SOC 2 mode (default): bernstein audit export --period Q1-2026
+      * Compliance pack:      bernstein audit export --standard ai-act \
+            [--since 2026-01-01] [--task <id|all>] --out /tmp/pack.zip
       * EU AI Act Article 12: bernstein audit export --article-12 \
             --since 2026-08-01T00:00:00+00:00 --until 2026-09-01T00:00:00+00:00
       * Multi-tenant slice:   bernstein audit export --tenant acme \
@@ -442,6 +472,17 @@ def export_cmd(
         console.print(f"[red]State directory not found:[/red] {sdd_dir}")
         console.print("[dim]Run [bold]bernstein run[/bold] first to generate audit data.[/dim]")
         raise SystemExit(1)
+
+    if standard:
+        _run_standard_export(
+            sdd_dir=sdd_dir,
+            standard=standard,
+            since=since,
+            task=task,
+            out=out,
+            dry_run=dry_run,
+        )
+        return
 
     if tenant:
         _run_tenant_export(
@@ -473,7 +514,7 @@ def export_cmd(
 
     if not period:
         console.print(
-            "[red]One of --period (SOC 2), --article-12, or --tenant is required.[/red]",
+            "[red]One of --period (SOC 2), --standard, --article-12, or --tenant is required.[/red]",
         )
         raise SystemExit(2)
 
@@ -582,6 +623,78 @@ def _run_article12_export(
     if dry_run:
         console.print("[dim]Manifest (dry-run):[/dim]")
         console.print(_json.dumps(bundle.to_dict(), indent=2))
+        console.print()
+
+
+def _run_standard_export(
+    *,
+    sdd_dir: Path,
+    standard: str,
+    since: str | None,
+    task: str,
+    out: str | None,
+    dry_run: bool,
+) -> None:
+    """Execute the issue #1316 one-command evidence-pack flow.
+
+    Walks .sdd/audit, .sdd/lineage, and the cost ledger; produces an
+    opinionated zip mapped to the chosen regulatory standard's control
+    IDs. See ``bernstein.compliance.evidence_pack`` for the layout.
+    """
+    import json as _json
+
+    from bernstein.compliance.evidence_pack import build_evidence_pack
+
+    since_value = since or ""
+    output_path = Path(out).resolve() if out else None
+
+    try:
+        pack = build_evidence_pack(
+            sdd_dir=sdd_dir,
+            standard=standard,
+            since=since_value,
+            task=task,
+            output_path=output_path,
+            write=not dry_run,
+        )
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from None
+
+    console.print()
+    console.print(
+        Panel(
+            f"[bold]Compliance Evidence Pack — {standard}[/bold]",
+            border_style="green",
+            expand=False,
+        ),
+    )
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Key", style="dim", no_wrap=True, min_width=18)
+    table.add_column("Value")
+    table.add_row("Bundle ID", pack.bundle_id)
+    table.add_row("Standard", pack.standard)
+    table.add_row("Since", pack.since or "(none)")
+    table.add_row("Task", pack.task)
+    table.add_row("Audit events", str(pack.event_count))
+    table.add_row("Lineage entries", str(pack.lineage_count))
+    table.add_row("Cost snapshots", str(pack.cost_count))
+    table.add_row(
+        "Controls mapped/todo",
+        f"{pack.controls_mapped} / {pack.controls_todo}",
+    )
+    table.add_row("SHA-256", pack.sha256[:16] + "...")
+    if pack.archive_path is not None:
+        table.add_row("Archive", str(pack.archive_path))
+    elif dry_run:
+        table.add_row("Archive", "(dry-run, not written)")
+    console.print(table)
+    console.print()
+
+    if dry_run:
+        console.print("[dim]Manifest (dry-run):[/dim]")
+        console.print(_json.dumps(pack.to_dict(), indent=2))
         console.print()
 
 

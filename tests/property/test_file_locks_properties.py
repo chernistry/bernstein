@@ -58,7 +58,9 @@ _AGENT = st.text(
         max_size=10,
     ),
 )
-def test_no_two_agents_hold_same_file(tmp_path_factory: pytest.TempPathFactory, requests: list[tuple[str, list[str]]]) -> None:
+def test_no_two_agents_hold_same_file(
+    tmp_path_factory: pytest.TempPathFactory, requests: list[tuple[str, list[str]]]
+) -> None:
     """For any sequence of acquires, each file ends up held by ≤ 1 agent.
 
     The lock manager's primary invariant. A failure means two agents

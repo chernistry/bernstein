@@ -49,9 +49,7 @@ class TestAbandonEndToEnd:
         await store.abandon("T-1", "out_of_scope", "spec mismatch", adapter="claude")
 
         runner = CliRunner()
-        result = runner.invoke(
-            abandonments_group, ["list", "--workdir", str(tmp_path), "--limit", "5", "--json"]
-        )
+        result = runner.invoke(abandonments_group, ["list", "--workdir", str(tmp_path), "--limit", "5", "--json"])
         assert result.exit_code == 0
         data = _json.loads(result.output)
         assert len(data) == 1

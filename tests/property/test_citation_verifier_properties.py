@@ -64,10 +64,7 @@ def test_extract_is_total(text: str) -> None:
 @given(text=_simple_text)
 def test_verify_total_offline(text: str) -> None:
     report = verify_citations(text, offline=True)
-    assert (
-        report.total
-        == len(report.resolved) + len(report.unresolved) + len(report.skipped)
-    )
+    assert report.total == len(report.resolved) + len(report.unresolved) + len(report.skipped)
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +140,7 @@ _doi_suffix = st.text(
 @settings(suppress_health_check=_SUPPRESS, max_examples=100)
 @given(registrant=st.integers(min_value=1000, max_value=999_999_999), suffix=_doi_suffix)
 def test_synthetic_doi_extracts(registrant: int, suffix: str) -> None:
-    assume(not suffix.endswith(("." , "-", "_")))
+    assume(not suffix.endswith((".", "-", "_")))
     doi = f"10.{registrant}/{suffix}"
     text = f"see {doi} for details"
     found = [c.value for c in extract_citations(text) if c.kind == "doi"]

@@ -223,9 +223,7 @@ class TestQwenAdapterSpawn:
         env_arg = popen.call_args.kwargs["env"]
         assert env_arg["TAVILY_API_KEY"] == "tvly-test"
 
-    def test_tavily_argv_omitted_when_key_unset(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_tavily_argv_omitted_when_key_unset(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         # Strip any inherited TAVILY_API_KEY from the parent environment so
         # the test asserts on the adapter's own injection, not host state.
         monkeypatch.delenv("TAVILY_API_KEY", raising=False)

@@ -77,9 +77,13 @@ def test_claim_next_filters_by_project_role_capability_dependencies_and_attempts
             BacklogEntry(id="wrong-project", project="other", role="reviewer", capabilities=["review"]),
             BacklogEntry(id="wrong-role", project="bernstein", role="backend", capabilities=["review"]),
             BacklogEntry(id="wrong-capability", project="bernstein", role="reviewer", capabilities=["docs"]),
-            BacklogEntry(id="blocked", project="bernstein", role="reviewer", capabilities=["review"], depends_on=["dep"]),
+            BacklogEntry(
+                id="blocked", project="bernstein", role="reviewer", capabilities=["review"], depends_on=["dep"]
+            ),
             BacklogEntry(id="exhausted", project="bernstein", role="reviewer", capabilities=["review"], attempts=2),
-            BacklogEntry(id="eligible", project="bernstein", role="reviewer", capabilities=["review"], depends_on=["dep"]),
+            BacklogEntry(
+                id="eligible", project="bernstein", role="reviewer", capabilities=["review"], depends_on=["dep"]
+            ),
         ],
     )
 
@@ -96,17 +100,20 @@ def test_claim_next_filters_by_project_role_capability_dependencies_and_attempts
     )
 
     assert claimed == "blocked"
-    assert claim_next(
-        backlog_path,
-        claimer_id="worker-b",
-        filter=ClaimFilter(
-            project="bernstein",
-            role="reviewer",
-            capability="review",
-            completed_ids={"dep"},
-            max_attempts=2,
-        ),
-    ) == "eligible"
+    assert (
+        claim_next(
+            backlog_path,
+            claimer_id="worker-b",
+            filter=ClaimFilter(
+                project="bernstein",
+                role="reviewer",
+                capability="review",
+                completed_ids={"dep"},
+                max_attempts=2,
+            ),
+        )
+        == "eligible"
+    )
 
 
 def test_claim_next_skips_rows_with_unmet_dependencies(tmp_path: Path) -> None:

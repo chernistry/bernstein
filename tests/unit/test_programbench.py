@@ -162,9 +162,7 @@ class TestTaskParsing:
             ProgramBenchTask.from_dict({"task_id": "", "asserts": []})
 
     def test_from_dict_json_encoded_asserts(self) -> None:
-        task = ProgramBenchTask.from_dict(
-            {"task_id": "pb-4", "asserts": json.dumps(["a == 1", "b == 2"])}
-        )
+        task = ProgramBenchTask.from_dict({"task_id": "pb-4", "asserts": json.dumps(["a == 1", "b == 2"])})
         assert task.asserts == ["a == 1", "b == 2"]
 
     def test_from_dict_string_assert_falls_back_to_single_item(self) -> None:
@@ -316,9 +314,7 @@ class TestHarness:
         tasks = [_task(f"pb-{i}") for i in range(10)]
         h1 = ProgramBenchHarness(workdir=tmp_path, sample=3, seed=42)
         h2 = ProgramBenchHarness(workdir=tmp_path, sample=3, seed=42)
-        assert [t.task_id for t in h1.filter_tasks(tasks)] == [
-            t.task_id for t in h2.filter_tasks(tasks)
-        ]
+        assert [t.task_id for t in h1.filter_tasks(tasks)] == [t.task_id for t in h2.filter_tasks(tasks)]
 
     def test_evaluate_asserts_all_pass(self, tmp_path: Path) -> None:
         h = ProgramBenchHarness(workdir=tmp_path)

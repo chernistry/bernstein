@@ -58,8 +58,9 @@ _JSON_PRIMITIVES = (
 )
 _JSON_VALUES = st.recursive(
     _JSON_PRIMITIVES,
-    lambda children: st.lists(children, max_size=4)
-    | st.dictionaries(st.text(min_size=1, max_size=8), children, max_size=4),
+    lambda children: (
+        st.lists(children, max_size=4) | st.dictionaries(st.text(min_size=1, max_size=8), children, max_size=4)
+    ),
     max_leaves=8,
 )
 

@@ -67,15 +67,9 @@ def test_attached_budget_survives_independent_consumption(
 
 def test_full_three_retry_lifecycle_via_cli_spec() -> None:
     """End-to-end: parse a CLI spec, run three retries, verify ordering."""
-    budget = parse_retry_budget_spec(
-        "3 retries, degrade: coverage>tests>style"
-    )
+    budget = parse_retry_budget_spec("3 retries, degrade: coverage>tests>style")
     decisions = [budget.consume() for _ in range(3)]
-    names = [
-        d.degraded_criterion.name
-        for d in decisions
-        if d.degraded_criterion is not None
-    ]
+    names = [d.degraded_criterion.name for d in decisions if d.degraded_criterion is not None]
     assert names == ["coverage", "tests", "style"]
     # Levels have all stepped from 3 -> 2.
     for d in decisions:

@@ -41,13 +41,7 @@ def _run_idle_mock_script(env: dict[str, str], *, tmp_path: Path) -> tuple[int, 
     script_path.write_text(script_src, encoding="utf-8")
 
     log_path = tmp_path / "mock.log"
-    task_info = (
-        '{"workdir": "'
-        + str(tmp_path)
-        + '", "task_name": "off_by_one", "log_path": "'
-        + str(log_path)
-        + '"}'
-    )
+    task_info = '{"workdir": "' + str(tmp_path) + '", "task_name": "off_by_one", "log_path": "' + str(log_path) + '"}'
 
     proc = subprocess.run(
         [sys.executable, str(script_path), task_info],
@@ -163,6 +157,5 @@ class TestPlaygroundConfig:
     def test_playground_pins_zero_budget(self) -> None:
         text = (PLAYGROUND_ROOT / "bernstein.yaml").read_text(encoding="utf-8")
         assert "max_cost_usd: 0" in text and "hard_stop: true" in text, (
-            "playground must keep the budget at $0 so a forgotten --idle "
-            "cannot generate paid LLM spend"
+            "playground must keep the budget at $0 so a forgotten --idle cannot generate paid LLM spend"
         )

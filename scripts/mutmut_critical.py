@@ -280,9 +280,7 @@ def _mutate_module(mod: Module, *, verbose: bool = True) -> ModuleResult:
                 res.killed += 1
                 continue
             if survived:
-                res.survivors.append(
-                    f"{mod.source}:{line_no + 1} '{search}' -> '{replace}': {line.rstrip()}"
-                )
+                res.survivors.append(f"{mod.source}:{line_no + 1} '{search}' -> '{replace}': {line.rstrip()}")
                 if verbose:
                     print(f"  [{idx + 1}/{len(candidates)}] SURVIVED line {line_no + 1}", flush=True)
             else:
@@ -315,15 +313,9 @@ def _print_summary(results: list[ModuleResult]) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--only", help="Run a single module key", default=None)
-    parser.add_argument(
-        "--list", action="store_true", help="List configured module keys and exit"
-    )
-    parser.add_argument(
-        "--json", help="Write per-module summary JSON to this path", default=None
-    )
-    parser.add_argument(
-        "--quiet", action="store_true", help="Suppress per-mutation logs"
-    )
+    parser.add_argument("--list", action="store_true", help="List configured module keys and exit")
+    parser.add_argument("--json", help="Write per-module summary JSON to this path", default=None)
+    parser.add_argument("--quiet", action="store_true", help="Suppress per-mutation logs")
     args = parser.parse_args(argv)
 
     if args.list:
@@ -348,9 +340,7 @@ def main(argv: list[str] | None = None) -> int:
     _print_summary(results)
 
     if args.json:
-        Path(args.json).write_text(
-            json.dumps([r.to_dict() for r in results], indent=2) + "\n"
-        )
+        Path(args.json).write_text(json.dumps([r.to_dict() for r in results], indent=2) + "\n")
 
     any_baseline_fail = any(not r.baseline_ok for r in results)
     if any_baseline_fail:

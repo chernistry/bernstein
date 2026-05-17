@@ -193,8 +193,9 @@ def test_round_trip_arbitrary_payloads(
 @given(
     payload=st.recursive(
         st.integers() | st.text(max_size=4) | st.booleans(),
-        lambda children: st.lists(children, max_size=3)
-        | st.dictionaries(st.text(min_size=1, max_size=4), children, max_size=3),
+        lambda children: (
+            st.lists(children, max_size=3) | st.dictionaries(st.text(min_size=1, max_size=4), children, max_size=3)
+        ),
         max_leaves=10,
     ),
 )

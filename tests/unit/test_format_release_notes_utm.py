@@ -23,9 +23,7 @@ _SCRIPT_PATH = _REPO_ROOT / "scripts" / "format_release_notes.py"
 
 
 def _load_release_notes_module():
-    spec = importlib.util.spec_from_file_location(
-        "_scripts_format_release_notes", _SCRIPT_PATH
-    )
+    spec = importlib.util.spec_from_file_location("_scripts_format_release_notes", _SCRIPT_PATH)
     if spec is None or spec.loader is None:  # pragma: no cover - import sanity
         msg = f"could not load {_SCRIPT_PATH}"
         raise RuntimeError(msg)
@@ -50,18 +48,12 @@ class TestWithReleaseUtm:
     def test_tags_bare_url(self, fmt) -> None:
         body = "See https://bernstein.run for details."
         out = fmt._with_release_utm(body, "0.0.0")
-        assert (
-            "https://bernstein.run?utm_source=github.com&utm_medium=release-note&utm_campaign=v0.0.0"
-            in out
-        )
+        assert "https://bernstein.run?utm_source=github.com&utm_medium=release-note&utm_campaign=v0.0.0" in out
 
     def test_tags_url_with_path(self, fmt) -> None:
         body = "Sponsors: https://bernstein.run/sponsors live now."
         out = fmt._with_release_utm(body, "1.2.3")
-        assert (
-            "https://bernstein.run/sponsors?utm_source=github.com&utm_medium=release-note&utm_campaign=v1.2.3"
-            in out
-        )
+        assert "https://bernstein.run/sponsors?utm_source=github.com&utm_medium=release-note&utm_campaign=v1.2.3" in out
 
     def test_tags_url_with_existing_query(self, fmt) -> None:
         body = "Try https://bernstein.run/path?ref=blog now."
@@ -131,22 +123,15 @@ class TestFormatNotesSnapshot:
         assert "### Documentation\n" in body
         # bernstein.run URLs in commit subjects are UTM-tagged.
         assert (
-            "https://bernstein.run/sponsors?utm_source=github.com&utm_medium=release-note&utm_campaign=v0.0.0"
-            in body
+            "https://bernstein.run/sponsors?utm_source=github.com&utm_medium=release-note&utm_campaign=v0.0.0" in body
         )
         assert (
-            "https://bernstein.run/changelog?utm_source=github.com&utm_medium=release-note&utm_campaign=v0.0.0"
-            in body
+            "https://bernstein.run/changelog?utm_source=github.com&utm_medium=release-note&utm_campaign=v0.0.0" in body
         )
         # github.com compare link is left raw — different domain.
-        assert (
-            "**Full changelog:** https://github.com/sipyourdrink-ltd/bernstein/compare/v0.0.0-pre...v0.0.0"
-            in body
-        )
+        assert "**Full changelog:** https://github.com/sipyourdrink-ltd/bernstein/compare/v0.0.0-pre...v0.0.0" in body
         # No double-tagging anywhere in the snapshot.
-        assert body.count("utm_source=") == body.count(
-            "utm_source=github.com&utm_medium=release-note"
-        )
+        assert body.count("utm_source=") == body.count("utm_source=github.com&utm_medium=release-note")
 
     def test_no_user_visible_changes_still_renders(self, fmt) -> None:
         body = fmt.format_notes(

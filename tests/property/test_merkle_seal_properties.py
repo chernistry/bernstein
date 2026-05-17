@@ -280,9 +280,7 @@ def test_file_insertion_detected(
 
     # Pick a date that's guaranteed not in the sealed set.
     existing = {name for name, _ in files}
-    intruder_name = next(
-        f"2026-02-{i:02d}.jsonl" for i in range(1, 28) if f"2026-02-{i:02d}.jsonl" not in existing
-    )
+    intruder_name = next(f"2026-02-{i:02d}.jsonl" for i in range(1, 28) if f"2026-02-{i:02d}.jsonl" not in existing)
     (audit / intruder_name).write_bytes(intruder_payload)
 
     result = verify_merkle(audit, merkle)

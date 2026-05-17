@@ -130,9 +130,7 @@ class TestRetryBudgetConstruction:
         assert all(c.level == 3 for c in b.criteria)
 
     def test_from_names_with_custom_bounds(self) -> None:
-        b = RetryBudget.from_names(
-            retries=1, names=["x"], max_level=5, min_level=1
-        )
+        b = RetryBudget.from_names(retries=1, names=["x"], max_level=5, min_level=1)
         assert b.criteria[0].level == 5
         assert b.criteria[0].max_level == 5
         assert b.criteria[0].min_level == 1
@@ -186,18 +184,14 @@ class TestRetryBudgetConsume:
         assert b.attempts_used == 1
 
     def test_degradation_first_retry_targets_first_criterion(self) -> None:
-        b = RetryBudget.from_names(
-            retries=3, names=["coverage", "tests", "style"]
-        )
+        b = RetryBudget.from_names(retries=3, names=["coverage", "tests", "style"])
         d = b.consume()
         assert d.degraded_criterion is not None
         assert d.degraded_criterion.name == "coverage"
         assert d.degraded_criterion.level == 2
 
     def test_degradation_second_retry_targets_second_criterion(self) -> None:
-        b = RetryBudget.from_names(
-            retries=3, names=["coverage", "tests", "style"]
-        )
+        b = RetryBudget.from_names(retries=3, names=["coverage", "tests", "style"])
         b.consume()
         d = b.consume()
         assert d.degraded_criterion is not None
@@ -205,9 +199,7 @@ class TestRetryBudgetConsume:
         assert d.degraded_criterion.level == 2
 
     def test_degradation_third_retry_targets_third_criterion(self) -> None:
-        b = RetryBudget.from_names(
-            retries=3, names=["coverage", "tests", "style"]
-        )
+        b = RetryBudget.from_names(retries=3, names=["coverage", "tests", "style"])
         b.consume()
         b.consume()
         d = b.consume()
@@ -374,9 +366,7 @@ class TestParseSpec:
         assert b.is_exhausted
 
     def test_extra_whitespace_tolerated(self) -> None:
-        b = parse_retry_budget_spec(
-            "  3   retries  ,   degrade :  coverage  >  tests  >  style  "
-        )
+        b = parse_retry_budget_spec("  3   retries  ,   degrade :  coverage  >  tests  >  style  ")
         assert b.retries == 3
         assert [c.name for c in b.criterion_degradation] == [
             "coverage",
@@ -481,15 +471,9 @@ class TestErrorHierarchy:
 
 class TestEndToEnd:
     def test_full_degradation_sequence(self) -> None:
-        b = RetryBudget.from_names(
-            retries=3, names=["coverage", "tests", "style"]
-        )
+        b = RetryBudget.from_names(retries=3, names=["coverage", "tests", "style"])
         decisions = [b.consume() for _ in range(4)]
-        retry_names = [
-            d.degraded_criterion.name
-            for d in decisions[:3]
-            if d.degraded_criterion is not None
-        ]
+        retry_names = [d.degraded_criterion.name for d in decisions[:3] if d.degraded_criterion is not None]
         assert retry_names == ["coverage", "tests", "style"]
         assert not decisions[3].should_retry
 

@@ -57,6 +57,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `skills/`               | Progressive-disclosure skill packs (oai-004) |
 | `storage/`              | Pluggable artifact storage sinks (oai-003) |
 | `tasks/`                | tasks sub-package |
+| `telemetry/`            | Opt-in operator observability for Bernstein |
 | `tokens/`               | tokens sub-package |
 | `trigger_sources/`      | Trigger source adapters — normalize raw events into TriggerEvent |
 | `tunnels/`              | Tunnel provider abstraction and registry |

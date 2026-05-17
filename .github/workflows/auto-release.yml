@@ -15,6 +15,89 @@ concurrency:
 permissions: {}
 
 jobs:
+  # Sibling alert job — fires when the triggering CI run did NOT succeed
+  # (cancelled / failure / timed_out / action_required). Without this,
+  # auto-release silently skipped the v2.0.0 publish because the gate
+  # job below short-circuits on anything other than 'success' (#1273).
+  # 'skipped' is intentional and stays quiet.
+  alert-on-stale-release-trigger:
+    name: Alert on stale release trigger
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >-
+      contains(fromJSON('["failure","cancelled","timed_out","action_required"]'),
+        github.event.workflow_run.conclusion)
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Log the skipped trigger
+        env:
+          STATUS: ${{ github.event.workflow_run.conclusion }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          echo "::error::release skipped — CI conclusion was ${STATUS} on ${SHA}"
+
+      - name: Telegram alert
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          STATUS: ${{ github.event.workflow_run.conclusion }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          HTML_URL: ${{ github.event.workflow_run.html_url }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram not configured; skipping."
+            exit 0
+          fi
+          SHORT_SHA="${SHA:0:7}"
+          TEXT="📦 auto-release skipped on ${BRANCH}
+          CI conclusion: ${STATUS}
+          Commit: ${SHORT_SHA}
+          ${HTML_URL}"
+          KEYBOARD='{"inline_keyboard":[[{"text":"🔄 View Run","url":"'"${HTML_URL}"'"}]]}'
+          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "{\"chat_id\":\"${TELEGRAM_CHAT_ID}\",\"text\":\"${TEXT}\",\"reply_markup\":${KEYBOARD}}" \
+            || echo "Telegram notification failed"
+
+      - name: Open or update tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATUS: ${{ github.event.workflow_run.conclusion }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          HTML_URL: ${{ github.event.workflow_run.html_url }}
+          REPO: ${{ github.repository }}
+        run: |
+          SHORT_SHA="${SHA:0:7}"
+          TITLE="auto-release skipped on \`${SHORT_SHA}\` (conclusion: ${STATUS})"
+          BODY=$(printf 'CI conclusion: **%s**\n\nCommit: %s\nRun: %s\n\nThis issue was opened automatically by `auto-release.yml :: alert-on-stale-release-trigger`. See #1273 for the root cause.\n' \
+            "${STATUS}" "${SHA}" "${HTML_URL}")
+
+          # Idempotent: find an existing open issue with the same title
+          # (same SHA + conclusion) and just append a comment instead of
+          # opening duplicates.
+          EXISTING=$(gh issue list --repo "${REPO}" --state open \
+            --search "in:title auto-release skipped ${SHORT_SHA}" \
+            --json number,title \
+            --jq ".[] | select(.title == \"${TITLE}\") | .number" \
+            | head -1)
+
+          if [ -n "${EXISTING}" ]; then
+            gh issue comment "${EXISTING}" --repo "${REPO}" \
+              --body "Repeat trigger — same commit, same conclusion. Run: ${HTML_URL}"
+          else
+            gh issue create --repo "${REPO}" \
+              --title "${TITLE}" \
+              --body "${BODY}" \
+              --label "ci,release-drift" || \
+            gh issue create --repo "${REPO}" \
+              --title "${TITLE}" \
+              --body "${BODY}"
+          fi
+
   gate:
     name: Release gate
     runs-on: ubuntu-latest

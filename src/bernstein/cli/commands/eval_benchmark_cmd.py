@@ -1116,6 +1116,82 @@ def eval_ab(
 
 
 # ---------------------------------------------------------------------------
+# eval scenario — scenario-style evals (precision/recall, e.g. security-pentest)
+# ---------------------------------------------------------------------------
+
+
+_DEFAULT_EVAL_SCENARIOS_DIR = Path(__file__).resolve().parents[4] / "eval" / "scenarios"
+
+
+@eval_group.command("scenario")
+@click.argument("scenario_id")
+@click.option("--model", "model", default="mock", show_default=True, help="Model name passed to the adapter.")
+@click.option(
+    "--scenarios-dir",
+    "scenarios_dir",
+    type=click.Path(file_okay=False, exists=True),
+    default=None,
+    help="Override the eval scenarios directory (defaults to <repo>/eval/scenarios).",
+)
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Write the JSON result to this path (stdout if omitted).",
+)
+def eval_scenario(
+    scenario_id: str,
+    model: str,
+    scenarios_dir: str | None,
+    output_path: str | None,
+) -> None:
+    """Run a precision/recall eval scenario from ``eval/scenarios/``.
+
+    Currently supports the ``security-pentest`` scenario. The scenario
+    runs the configured adapter against the synthetic codebase and emits
+    a JSON precision/recall/F1 report. Exit code is 0 when all configured
+    thresholds are met and 1 otherwise.
+
+    \b
+      bernstein eval scenario security-pentest --model mock
+      bernstein eval scenario security-pentest --model sonnet --output run.json
+    """
+    import json as _json
+
+    from bernstein.eval.pentest_runner import (
+        load_scenario_config,
+        run_scenario,
+    )
+
+    base_dir = Path(scenarios_dir) if scenarios_dir else _DEFAULT_EVAL_SCENARIOS_DIR
+    slug = scenario_id.replace("-", "_")
+    candidates = [
+        base_dir / f"{slug}.yaml",
+        base_dir / f"{scenario_id}.yaml",
+    ]
+    chosen: Path | None = next((c for c in candidates if c.exists()), None)
+    if chosen is None:
+        console.print(f"[red]Scenario not found:[/red] {scenario_id} (searched {base_dir})")
+        raise SystemExit(1)
+
+    config = load_scenario_config(chosen)
+    result = run_scenario(config, model=model)
+    payload = _json.dumps(result.to_dict(), indent=2, sort_keys=True)
+    if output_path:
+        Path(output_path).write_text(payload + "\n", encoding="utf-8")
+        verdict = "PASS" if result.passed else "FAIL"
+        console.print(
+            f"[green]wrote[/green] {output_path}  {verdict}  "
+            f"p={result.score.precision:.2f} r={result.score.recall:.2f} f1={result.score.f1:.2f}"
+        )
+    else:
+        click.echo(payload)
+    if not result.passed:
+        raise SystemExit(1)
+
+
+# ---------------------------------------------------------------------------
 # eval calibration — Brier + ECE report over the on-disk calibration log
 # ---------------------------------------------------------------------------
 

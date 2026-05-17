@@ -75,7 +75,14 @@ class QwenAdapter(CLIAdapter):
     }
 
     def _build_command(self, model_name: str, provider: str, settings: LLMSettings) -> list[str]:
-        """Build the qwen CLI command list (without the final prompt argument)."""
+        """Build the qwen CLI command list (without the final prompt argument).
+
+        The Tavily API key is never placed on argv (it would be visible to
+        any user with ``ps`` access on the host). It is forwarded to the
+        spawned process via the ``TAVILY_API_KEY`` environment variable in
+        :meth:`spawn`. Only the non-sensitive ``--web-search-default``
+        selector is added to argv.
+        """
         cmd: list[str] = ["qwen", "-y"]
 
         # Map abstract/alias names to real Qwen API model IDs.
@@ -87,14 +94,7 @@ class QwenAdapter(CLIAdapter):
             cmd.extend(["--auth-type", "openai"])
 
         if settings.tavily_api_key:
-            cmd.extend(
-                [
-                    "--tavily-api-key",
-                    settings.tavily_api_key,
-                    "--web-search-default",
-                    "tavily",
-                ]
-            )
+            cmd.extend(["--web-search-default", "tavily"])
 
         return cmd
 
@@ -119,11 +119,17 @@ class QwenAdapter(CLIAdapter):
         provider = self._detect_provider(settings)
         api_key, base_url = self._resolve_provider_config(provider, settings)
 
-        env = build_filtered_env(["OPENAI_API_KEY", "OPENAI_BASE_URL"])
+        env = build_filtered_env(["OPENAI_API_KEY", "OPENAI_BASE_URL", "TAVILY_API_KEY"])
         if api_key:
             env["OPENAI_API_KEY"] = api_key
         if base_url:
             env["OPENAI_BASE_URL"] = base_url
+        # Forward the Tavily key via env (never argv) so it does not appear
+        # in ``ps``/audit logs on shared hosts. Qwen Code reads
+        # ``TAVILY_API_KEY`` from the environment when the web_search tool
+        # is enabled. See qwen-code docs: web-search/configuration.
+        if settings.tavily_api_key:
+            env["TAVILY_API_KEY"] = settings.tavily_api_key
 
         # Pass the prompt as a positional argument (one-shot mode) instead of deprecated -p
         cmd = self._build_command(model_config.model, provider, settings)

@@ -213,10 +213,39 @@ class TestQwenAdapterSpawn:
                 session_id="qwen-s9",
             )
         inner = _inner_cmd(popen.call_args.args[0])
-        assert "--tavily-api-key" in inner
-        assert inner[inner.index("--tavily-api-key") + 1] == "tvly-test"
+        # The non-sensitive selector flag is still on argv.
         assert "--web-search-default" in inner
         assert inner[inner.index("--web-search-default") + 1] == "tavily"
+        # SECURITY: the Tavily key must NEVER reach argv (visible via ps).
+        assert "--tavily-api-key" not in inner
+        assert "tvly-test" not in inner
+        # It is forwarded via the environment instead.
+        env_arg = popen.call_args.kwargs["env"]
+        assert env_arg["TAVILY_API_KEY"] == "tvly-test"
+
+    def test_tavily_argv_omitted_when_key_unset(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Strip any inherited TAVILY_API_KEY from the parent environment so
+        # the test asserts on the adapter's own injection, not host state.
+        monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+        adapter = QwenAdapter()
+        proc_mock = _make_popen_mock(pid=118)
+        settings = _default_settings()
+        with (
+            patch("bernstein.adapters.qwen.subprocess.Popen", return_value=proc_mock) as popen,
+            patch("bernstein.adapters.qwen.LLMSettings", return_value=settings),
+        ):
+            adapter.spawn(
+                prompt="hello",
+                workdir=tmp_path,
+                model_config=ModelConfig(model="qwen-max", effort="high"),
+                session_id="qwen-s9b",
+            )
+        inner = _inner_cmd(popen.call_args.args[0])
+        assert "--web-search-default" not in inner
+        env_arg = popen.call_args.kwargs["env"]
+        assert "TAVILY_API_KEY" not in env_arg
 
     def test_creates_log_dir(self, tmp_path: Path) -> None:
         adapter = QwenAdapter()

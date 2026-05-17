@@ -1,8 +1,10 @@
 # Contract for the Qwen CLI (adapter: qwen).
 #
 # Always-passed surface from src/bernstein/adapters/qwen.py::_build_command:
-# ``qwen -y --model <resolved> [--auth-type openai] [--tavily-api-key ...]``.
-# Only ``-y`` and ``--model`` are unconditional.
+# ``qwen -y --model <resolved> [--auth-type openai] [--web-search-default tavily]``.
+# Only ``-y`` and ``--model`` are unconditional. The Tavily API key is
+# forwarded via the ``TAVILY_API_KEY`` environment variable, never on argv,
+# to keep it out of ``ps`` output.
 adapter: qwen
 binary: qwen
 install:

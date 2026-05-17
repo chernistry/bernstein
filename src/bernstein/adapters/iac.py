@@ -47,8 +47,17 @@ def _detect_tool() -> str | None:
     return None
 
 
-def _build_iac_script(tool: str, prompt: str) -> str:
-    """Build a shell script that runs plan/preview, then apply only on success."""
+def _build_iac_script(tool: str) -> str:
+    """Build a shell script that runs plan/preview, then apply only on success.
+
+    The task prompt is **not** interpolated into the script body. It is
+    read at run-time from the ``BERNSTEIN_IAC_PROMPT`` env var. Inlining
+    operator/agent-supplied prompts into a bash literal would allow shell
+    metacharacters (``"``, ``$``, backticks, ``$(...)``) to either break
+    ``set -euo pipefail`` parsing or execute arbitrary commands. Reading
+    the value through the environment keeps the script body a fixed
+    constant string regardless of prompt contents.
+    """
     plan_cmd, apply_cmd = _TOOL_DEFS[tool]
     plan_str = " ".join(plan_cmd)
     apply_str = " ".join(apply_cmd)
@@ -72,7 +81,7 @@ def _build_iac_script(tool: str, prompt: str) -> str:
     return (
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n"
-        f'echo "Task: {prompt}"\n'
+        'echo "Task: ${BERNSTEIN_IAC_PROMPT:-(no prompt)}"\n'
         f'echo "--- Running {tool} plan ---"\n'
         f"{plan_str}\n"
         f"{check_block}"
@@ -124,9 +133,10 @@ class IaCAdapter(CLIAdapter):
         log_path = workdir / ".sdd" / "runtime" / f"{session_id}.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Write the plan-then-apply script
+        # Write the plan-then-apply script. The prompt is forwarded via
+        # env (see below); never interpolated into the script body.
         script_path = workdir / ".sdd" / "runtime" / f"{session_id}-iac.sh"
-        script_content = _build_iac_script(tool, prompt)
+        script_content = _build_iac_script(tool)
         script_path.write_text(script_content, encoding="utf-8")
         script_path.chmod(0o755)
 
@@ -161,6 +171,12 @@ class IaCAdapter(CLIAdapter):
                 "PULUMI_ACCESS_TOKEN",
             ]
         )
+        # Forward the operator prompt to the IaC script via env so the
+        # script body stays a fixed literal (no shell-metachar injection
+        # surface). The script reads ``BERNSTEIN_IAC_PROMPT`` at run-time
+        # for the human-readable banner line only; the IaC plan/apply
+        # commands themselves never consume it.
+        env["BERNSTEIN_IAC_PROMPT"] = prompt
 
         with log_path.open("w") as log_file:
             try:

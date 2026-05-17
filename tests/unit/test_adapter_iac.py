@@ -246,33 +246,82 @@ class TestIaCAdapterSpawn:
 
 class TestPlanBeforeApply:
     def test_terraform_script_has_plan_before_apply(self) -> None:
-        script = _build_iac_script("terraform", "deploy vpc")
+        script = _build_iac_script("terraform")
         plan_pos = script.index("terraform plan")
         apply_pos = script.index("terraform apply")
         assert plan_pos < apply_pos
 
     def test_terraform_script_checks_exit_code(self) -> None:
-        script = _build_iac_script("terraform", "deploy")
+        script = _build_iac_script("terraform")
         assert "plan_exit=$?" in script
         assert "exit 1" in script
 
     def test_pulumi_script_has_preview_before_up(self) -> None:
-        script = _build_iac_script("pulumi", "deploy stack")
+        script = _build_iac_script("pulumi")
         preview_pos = script.index("pulumi preview")
         up_pos = script.index("pulumi up")
         assert preview_pos < up_pos
 
     def test_pulumi_script_checks_exit_code(self) -> None:
-        script = _build_iac_script("pulumi", "deploy")
+        script = _build_iac_script("pulumi")
         assert "$? -ne 0" in script
 
     def test_terraform_script_uses_detailed_exitcode(self) -> None:
-        script = _build_iac_script("terraform", "deploy")
+        script = _build_iac_script("terraform")
         assert "-detailed-exitcode" in script
 
     def test_terraform_script_auto_approve(self) -> None:
-        script = _build_iac_script("terraform", "deploy")
+        script = _build_iac_script("terraform")
         assert "-auto-approve" in script
+
+    def test_script_body_is_prompt_independent(self) -> None:
+        # Regression: the script body MUST be a fixed literal — prompts
+        # used to be f-string interpolated, letting shell metachars
+        # (``"``, ``$()``, ``;``, backticks) either break the script or
+        # execute arbitrary commands inside ``bash -euo pipefail``.
+        # Both calls must now return byte-identical scripts.
+        a = _build_iac_script("terraform")
+        b = _build_iac_script("terraform")
+        assert a == b
+        assert "BERNSTEIN_IAC_PROMPT" in a
+
+    def test_script_does_not_interpolate_attack_prompt(self) -> None:
+        # If the implementation ever regresses to f-string interpolation,
+        # this would catch a representative attack payload appearing as
+        # a literal in the script body.
+        script = _build_iac_script("terraform")
+        for token in ('"; rm -rf /', "$(id)", "`whoami`", "&& curl evil"):
+            assert token not in script
+
+
+# ---------------------------------------------------------------------------
+# Spawn forwards prompt via env, not argv/script body
+# ---------------------------------------------------------------------------
+
+
+class TestIaCSpawnPromptEnv:
+    def test_spawn_forwards_prompt_in_env(self, tmp_path: Path) -> None:
+        adapter = IaCAdapter(tool="terraform")
+        proc_mock = _make_popen_mock(pid=4711)
+        attack_prompt = 'foo"; rm -rf / #'
+        with (
+            patch("bernstein.adapters.iac.subprocess.Popen", return_value=proc_mock) as popen,
+            patch("bernstein.adapters.iac.shutil.which", return_value="/usr/bin/terraform"),
+        ):
+            adapter.spawn(
+                prompt=attack_prompt,
+                workdir=tmp_path,
+                model_config=ModelConfig(model="terraform", effort="high"),
+                session_id="iac-s1",
+            )
+        env_arg = popen.call_args.kwargs["env"]
+        assert env_arg["BERNSTEIN_IAC_PROMPT"] == attack_prompt
+        # The script written to disk must contain only the env reference,
+        # never the raw prompt bytes.
+        script_path = tmp_path / ".sdd" / "runtime" / "iac-s1-iac.sh"
+        body = script_path.read_text(encoding="utf-8")
+        assert attack_prompt not in body
+        assert "${BERNSTEIN_IAC_PROMPT" in body
 
 
 # ---------------------------------------------------------------------------

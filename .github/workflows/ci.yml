@@ -940,3 +940,96 @@ jobs:
                 body,
               });
             }
+
+  # ─── Aggregator gate (closes #1273) ────────────────────────────────────
+  #
+  # SINGLE required status check for branch protection.
+  #
+  # Why this exists:
+  #   * `ci.yml` has 20+ jobs (incl. an OS x Python matrix that fans out
+  #     `test (ubuntu-latest, 3.12)` etc.) — listing every contextual name
+  #     in branch-protection is fragile because matrix names drift with
+  #     each matrix change.
+  #   * A `skipped` job auto-passes branch protection. So does a job that
+  #     was never enqueued because an upstream `needs:` was `cancelled`.
+  #     Either condition can let a red commit reach `main`.
+  #
+  # This job fails on ANY non-success result — including `cancelled`,
+  # `timed_out`, `action_required`, or a job that never ran. `skipped` is
+  # treated as a pass because several jobs here are intentionally gated
+  # on `if: github.event_name == 'pull_request'` or `if: false`.
+  #
+  # Operator: after this PR merges, replace every required check in
+  # branch protection with this single context (name shown in UI:
+  # ``CI gate``). The exact `gh api` invocation is in PR #1273's body.
+  #
+  # Excluded from `needs:`:
+  #   * `autofix`        — runs only on push to main, mutates the tree
+  #   * `pr-summary`     — cosmetic PR comment, must not gate merges
+  #   * `ci-gate` itself — would deadlock the dependency graph
+  ci-gate:
+    name: CI gate
+    runs-on: ubuntu-latest
+    # `always()` ensures the gate fires even when an upstream job is
+    # `cancelled`. `!cancelled()` lets the gate itself be cancelled when
+    # the user cancels the whole workflow run (so we don't try to
+    # report "cancelled" on a manually aborted run).
+    if: always() && !cancelled()
+    needs:
+      - repo-hygiene
+      - lint
+      - spelling
+      - actionlint
+      - lineage-gate
+      - typecheck
+      - dead-code
+      - dist-size
+      - property-tests
+      - snapshot-tests
+      - schemathesis-smoke
+      - semgrep
+      - bandit
+      - pip-audit
+      - beartype
+      - mutmut-diff
+      - diff-coverage
+      - pyright-strict-zone
+      - adapter-integration
+      - test
+      - sonarcloud
+      - close-ci-issues
+    timeout-minutes: 3
+    permissions:
+      contents: read
+    steps:
+      - id: roll-up
+        name: Roll up needs.*.result
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          # Write the JSON to disk so the python heredoc can read it
+          # without worrying about shell quoting on multiline content.
+          printf '%s' "$NEEDS_JSON" > results.json
+          python3 - <<'PY'
+          import json, sys
+          data = json.load(open("results.json"))
+          # `skipped` is intentionally tolerated: some jobs only run on
+          # PRs (`mutmut-diff`, `pr-summary`), some only on push-to-main
+          # (`close-ci-issues`), and `sonarcloud` is gated `if: false`
+          # until SonarCloud rehoming. A real regression in any of those
+          # surfaces as a non-skipped failure elsewhere.
+          bad = [
+              name
+              for name, info in data.items()
+              if info.get("result") not in ("success", "skipped")
+          ]
+          if bad:
+              print("::error::CI gate FAILED — these jobs were not success:")
+              for n in bad:
+                  info = data[n]
+                  print(f"  - {n}: result={info.get('result')}")
+              sys.exit(1)
+          print("CI gate: all required jobs passed.")
+          for n, info in sorted(data.items()):
+              print(f"  {n}: {info.get('result')}")
+          PY

@@ -34,17 +34,20 @@ concurrency:
   group: auto-heal-${{ github.event.workflow_run.head_sha }}
   cancel-in-progress: true
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
-  actions: read
+# Workflow-level permissions are minimal; each job below declares
+# the narrower scopes it actually needs (zizmor excessive-permissions).
+permissions: {}
 
 jobs:
   triage:
     name: Triage CI failure
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      # gh run view (actions API) + gh pr list (pull-requests API).
+      actions: read
+      pull-requests: read
+      contents: read
     # Gate: only run on a real CI failure on the canonical repo, with the
     # autofix variable enabled, and not on auto-heal commits (recursion guard).
     #

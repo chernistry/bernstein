@@ -36,7 +36,11 @@ def mount(app: FastAPI) -> None:
             f"GUI static assets not found at {STATIC_DIR}. Build them with: `cd web && npm install && npm run build`"
         )
 
-    router = APIRouter(prefix="/api/v1", tags=["gui"])
+    # Bidirectional parity: register on BOTH the root app AND under /api/v1/.
+    # AUDIT-126's `test_every_v1_route_has_root_counterpart` asserts every
+    # versioned route has a root mirror — keeping the router prefix-less and
+    # mounting it twice satisfies both directions of the parity test.
+    router = APIRouter(tags=["gui"])
 
     # NB: ``from __future__ import annotations`` (top of this file) turns every
     # return annotation into a string. FastAPI's OpenAPI builder then tries to
@@ -57,6 +61,7 @@ def mount(app: FastAPI) -> None:
         )
 
     app.include_router(router)
+    app.include_router(router, prefix="/api/v1")
 
     assets_dir = STATIC_DIR / "assets"
     if assets_dir.exists():

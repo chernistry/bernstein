@@ -349,6 +349,16 @@ def main() -> None:
     finally:
         pid_file.unlink(missing_ok=True)
 
+    # Translate signal-termination into the conventional ``128 + N`` form
+    # so external supervisors that key on standard codes see a stable
+    # value. ``Popen.wait`` returns ``-N`` when the child was killed by
+    # signal N; passing that through ``sys.exit`` clamps it to
+    # ``256 - N`` (e.g. SIGTERM -> 241), which supervisors then misread
+    # as "unknown failure". ``128 + N`` is the de facto convention used
+    # by bash, sh, and every shell-style runner.
+    if exit_code < 0:
+        exit_code = 128 + (-exit_code)
+
     sys.exit(exit_code)
 
 

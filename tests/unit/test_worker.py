@@ -198,3 +198,38 @@ class TestWorkerProcess:
         )
         exit_code = proc.wait(timeout=10)
         assert exit_code == 127
+
+    def test_worker_exits_128_plus_signal_when_child_killed_by_sigterm(self, tmp_path: Path) -> None:
+        """Regression: a signal-killed child must surface as ``128 + N``.
+
+        Popen.wait returns ``-N`` when the child dies on signal N. The
+        old worker passed that through ``sys.exit`` directly, which the
+        runtime clamps to ``256 - N`` (e.g. SIGTERM -> 241). External
+        supervisors that key on standard codes (sysexits, ``bernstein
+        ps``, shell-style runners) then misread the result as an unknown
+        failure rather than "killed by signal".
+
+        We spawn a child that explicitly self-terminates via SIGTERM so
+        the assertion is portable: 128 + SIGTERM (15) == 143 on every
+        POSIX platform.
+        """
+        pid_dir = tmp_path / "pids"
+        proc = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "bernstein.core.orchestration.worker",
+                "--role",
+                "test",
+                "--session",
+                "sig-exit-test",
+                "--pid-dir",
+                str(pid_dir),
+                "--",
+                sys.executable,
+                "-c",
+                "import os, signal; os.kill(os.getpid(), signal.SIGTERM)",
+            ],
+        )
+        exit_code = proc.wait(timeout=10)
+        assert exit_code == 128 + signal.SIGTERM

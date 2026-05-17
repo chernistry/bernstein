@@ -32,6 +32,8 @@ Unparseable = "Unparseable"
 empted = "empted"    # `pre-empted` (past tense of pre-empt); typos splits on `-`
 noteable = "noteable" # GitLab webhook field name (`noteable_type`, `noteable_id`)
 Noteable = "Noteable" # GitLab webhook field name, capitalised form
+optin = "optin"      # compound abbreviation for "opt-in"; used in test filenames
+Optin = "Optin"      # capitalised form for class names / docs
 
 # Proper nouns and product names
 Hashi = "Hashi"      # HashiCorp
@@ -61,6 +63,13 @@ extend-exclude = [
     # thousands of false-positive typo errors and bury real findings. Human-
     # authored React/TS sources under ``web/src/`` stay in scope.
     "src/bernstein/gui/static/**",
+    # Auto-heal typos helper -- intentionally contains a prose-typo
+    # denylist (`recieve`, `occured`, etc.) as data so it can reject
+    # those tokens at allowlist-time. The matching unit tests also
+    # carry the strings. Scanning these would create a circular
+    # contradiction (the scanner sees its own denylist as a typo).
+    "scripts/auto_heal_typos.py",
+    "tests/unit/test_auto_heal_typos.py",
 ]
 
 [type.md]

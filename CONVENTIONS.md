@@ -43,6 +43,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `preview/`              | ``bernstein preview`` — sandboxed dev-server with public tunnel link |
 | `protocols/`            | protocols sub-package |
 | `quality/`              | quality sub-package |
+| `review/`               | Per-adapter perspective assignment and chain coordination for reviews |
 | `review_responder/`     | PR review responder — react to inline review comments on Bernstein PRs |
 | `routes/`               | FastAPI router modules for the Bernstein task server |
 | `routing/`              | routing sub-package |

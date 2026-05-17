@@ -21,6 +21,7 @@ footprint regardless of run length.
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -185,20 +186,24 @@ class StreamTailBuffer:
     # ------------------------------------------------------------------
 
     def _maybe_trim(self) -> None:
-        """Rewrite the file if it has grown past ``max_entries``."""
+        """Rewrite the file if it has grown past ``max_entries``.
+
+        Reads the file content once inside a ``with`` block so the FD is
+        closed on every code path; the previous ``sum(1 for _ in
+        path.open(...))`` form leaked the handle until GC ran, and in
+        tight append loops the leak surfaced as ``OSError: Too many
+        open files``. The temp filename includes the current PID so two
+        writers cannot stomp each other's ``.tmp`` mid-rename.
+        """
         try:
-            line_count = sum(1 for _ in self._path.open("r", encoding="utf-8"))
+            with self._path.open("r", encoding="utf-8") as fh:
+                lines = fh.read().splitlines()
         except OSError:
             return
-        if line_count <= self._max_entries:
-            return
-        # Read all, keep the suffix, rewrite atomically via .tmp.
-        try:
-            lines = self._path.read_text(encoding="utf-8").splitlines()
-        except OSError:
+        if len(lines) <= self._max_entries:
             return
         keep = lines[-self._max_entries :]
-        tmp = self._path.with_suffix(self._path.suffix + ".tmp")
+        tmp = self._path.with_suffix(f"{self._path.suffix}.{os.getpid()}.tmp")
         try:
             tmp.write_text("\n".join(keep) + ("\n" if keep else ""), encoding="utf-8")
             tmp.replace(self._path)

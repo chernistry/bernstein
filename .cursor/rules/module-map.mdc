@@ -23,6 +23,7 @@ alwaysApply: false
 | `cost/`                 | cost sub-package |
 | `daemon/`               | Daemon installation helpers for Bernstein |
 | `distribution/`         | Distribution utilities — air-gap wheelhouse build, verify, signing |
+| `errors/`               | Structured first-run error categorization for Bernstein |
 | `fleet/`                | Fleet dashboard — supervise multiple Bernstein projects in one view |
 | `git/`                  | git sub-package |
 | `grpc_gen/`             | Generated gRPC stubs — run ``scripts/generate_proto.sh`` to populate |
@@ -126,6 +127,7 @@ alwaysApply: false
 | `qwen.py`                  | Qwen CLI adapter for OpenAI compatible models |
 | `ralphex.py`               | Ralphex (umputun/ralphex) CLI adapter |
 | `registry.py`              | Adapter registry — look up CLI adapters by name |
+| `report.py`                | Adapter conformance + capability report |
 | `rovo.py`                  | Atlassian Rovo Dev CLI adapter |
 | `skills_injector.py`       | Inject per-task Claude Code skills into the worktree before spawn |
 | `ci/`                      | CI system adapters for log parsing and failure extraction |
@@ -151,6 +153,7 @@ alwaysApply: false
 | `dashboard_app.py`      | Bernstein TUI application -- main App class and entry point |
 | `dashboard_header.py`   | Dashboard header and agent display widgets |
 | `dashboard_polling.py`  | Dashboard polling helpers, data loaders, formatters, and constants |
+| `first_run_guard.py`    | First-run guard helpers wiring categorisation into CLI entry points |
 | `helpers.py`            | Shared constants, helpers, and utilities for Bernstein CLI modules |
 | `install_check.py`      | Installation mismatch detection -- detect multiple Bernstein installs and config conflicts |
 | `keybindings.py`        | Keybinding system for the Bernstein TUI |

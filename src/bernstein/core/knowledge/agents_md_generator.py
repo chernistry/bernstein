@@ -245,6 +245,7 @@ def generate(repo_path: Path, options: GenerateOptions | None = None) -> list[Ag
         ("conventions", _build_conventions(repo_path, opts)),
         ("git-workflow", _build_git_workflow(repo_path) if opts.include_git_workflow else None),
         ("roles", _build_roles(repo_path)),
+        ("documentation-duty", _build_documentation_duty()),
     ]
 
     sections: list[AgentsMdSection] = []
@@ -593,6 +594,34 @@ def _build_roles(repo_path: Path) -> AgentsMdSection | None:
         kind="roles",
         always_apply=False,
         target_globs=("templates/roles/**",),
+    )
+
+
+def _build_documentation_duty() -> AgentsMdSection:
+    """Project-wide rule: every feature PR ships docs in the same PR.
+
+    Emitted unconditionally so the rule is present in every target file
+    that the bridge produces. Kept short by design so it never crowds out
+    the auto-derived sections above it.
+    """
+    body = (
+        "Every PR that adds or changes a feature MUST update docs in the same PR:\n\n"
+        "- User-visible behaviour: update the relevant `README.md` section.\n"
+        "- Operator workflows: update `docs/operations/<area>.md`.\n"
+        "- Public API surface: regenerate `docs/api/` schemas.\n"
+        "- Architecture or new module: update `docs/sdd/` and run "
+        "`bernstein agents-md sync` so AGENTS.md, CLAUDE.md, `.goosehints`, "
+        "`CONVENTIONS.md`, and `.cursor/rules/*.mdc` stay aligned.\n"
+        "- New test layer: also update `docs/contributing/testing.md`.\n\n"
+        "PRs without the matching docs change will be sent back. "
+        "Docs and code ship together."
+    )
+    return AgentsMdSection(
+        key="documentation-duty",
+        title="Documentation duty",
+        body=body,
+        kind="custom",
+        always_apply=True,
     )
 
 

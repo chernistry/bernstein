@@ -24,6 +24,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `cost/`                 | cost sub-package |
 | `daemon/`               | Daemon installation helpers for Bernstein |
 | `distribution/`         | Distribution utilities — air-gap wheelhouse build, verify, signing |
+| `errors/`               | Structured first-run error categorization for Bernstein |
 | `fleet/`                | Fleet dashboard — supervise multiple Bernstein projects in one view |
 | `git/`                  | git sub-package |
 | `grpc_gen/`             | Generated gRPC stubs — run ``scripts/generate_proto.sh`` to populate |
@@ -127,6 +128,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `qwen.py`                  | Qwen CLI adapter for OpenAI compatible models |
 | `ralphex.py`               | Ralphex (umputun/ralphex) CLI adapter |
 | `registry.py`              | Adapter registry — look up CLI adapters by name |
+| `report.py`                | Adapter conformance + capability report |
 | `rovo.py`                  | Atlassian Rovo Dev CLI adapter |
 | `skills_injector.py`       | Inject per-task Claude Code skills into the worktree before spawn |
 | `ci/`                      | CI system adapters for log parsing and failure extraction |
@@ -152,6 +154,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `dashboard_app.py`      | Bernstein TUI application -- main App class and entry point |
 | `dashboard_header.py`   | Dashboard header and agent display widgets |
 | `dashboard_polling.py`  | Dashboard polling helpers, data loaders, formatters, and constants |
+| `first_run_guard.py`    | First-run guard helpers wiring categorisation into CLI entry points |
 | `helpers.py`            | Shared constants, helpers, and utilities for Bernstein CLI modules |
 | `install_check.py`      | Installation mismatch detection -- detect multiple Bernstein installs and config conflicts |
 | `keybindings.py`        | Keybinding system for the Bernstein TUI |
@@ -390,3 +393,15 @@ Bernstein ships agent role prompts under `templates/roles/`. The orchestrator lo
 - `security`
 - `visionary`
 - `vp`
+
+## Documentation duty
+
+Every PR that adds or changes a feature MUST update docs in the same PR:
+
+- User-visible behaviour: update the relevant `README.md` section.
+- Operator workflows: update `docs/operations/<area>.md`.
+- Public API surface: regenerate `docs/api/` schemas.
+- Architecture or new module: update `docs/sdd/` and run `bernstein agents-md sync` so AGENTS.md, CLAUDE.md, `.goosehints`, `CONVENTIONS.md`, and `.cursor/rules/*.mdc` stay aligned.
+- New test layer: also update `docs/contributing/testing.md`.
+
+PRs without the matching docs change will be sent back. Docs and code ship together.

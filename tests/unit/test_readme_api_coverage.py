@@ -204,6 +204,7 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "best-of-n",
         "blast-radius",
         "criterion-profile",
+        "simulate",
     }
 )
 

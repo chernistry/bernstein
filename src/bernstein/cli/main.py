@@ -972,3 +972,8 @@ cli.add_command(compare_cmd, "compare")
 from bernstein.cli.commands.abandonments_cmd import abandonments_group  # noqa: E402
 
 cli.add_command(abandonments_group, "abandonments")
+
+# Digital-twin orchestration simulator (#1374).
+from bernstein.cli.commands.simulate_cmd import simulate_cmd  # noqa: E402
+
+cli.add_command(simulate_cmd, "simulate")

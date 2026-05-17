@@ -383,6 +383,7 @@ Commands that eliminate the glue code most teams end up writing around their run
 | `bernstein wiki build` | Renders `WIKI.md` for the current repo from the AST symbol graph. Local, no LLM call, no cloud round-trip. |
 | `bernstein identity show` / `decode` / `verify` / `disable` | Operator-side helpers for the install-rev fingerprint embedded in shared yaml/trace/role-prompt artefacts. No network egress; discovery uses public `gh search code`. |
 | `bernstein security role-adapter-policy` | Inspects and edits the per-role adapter allow-list (deny-list enforcement at spawn time). |
+| `bernstein simulate <plan.yaml>` | Digital-twin dry-run: predicts cost band (p50/p90), wall-clock, abandonment probability, per-task blast-radius, and bottlenecks against historical `.sdd/traces/` + `.sdd/metrics/` without spawning a real agent or hitting the network. Supports `--from-traces N`, `--seed S`, `--budget-cap X`, `--out report.json\|report.md`. Exits non-zero when a `--budget-cap` is breached. |
 
 ### retrieval & caching: what's actually under the hood
 

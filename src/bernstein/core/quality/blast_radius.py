@@ -169,12 +169,7 @@ def default_detectors_path() -> Path:
     3. Walk up from the current file looking for a ``templates/`` sibling.
     """
     # 1. Wheel-bundled copy at ``<pkg>/_default_templates/blast-radius``.
-    bundled = (
-        Path(__file__).resolve().parents[2]
-        / "_default_templates"
-        / "blast-radius"
-        / "detectors.yaml"
-    )
+    bundled = Path(__file__).resolve().parents[2] / "_default_templates" / "blast-radius" / "detectors.yaml"
     if bundled.exists():
         return bundled
 

@@ -16,8 +16,12 @@ permissions:
 
 jobs:
   notify:
-    # Only notify on failure (success is the norm, no need to spam)
-    if: github.event.workflow_run.conclusion == 'failure'
+    # Notify on anything that isn't 'success' (so cancelled/timed_out/
+    # action_required runs no longer disappear silently — see #1273).
+    # 'skipped' is intentional and stays quiet.
+    if: >-
+      github.event.workflow_run.conclusion != 'success'
+      && github.event.workflow_run.conclusion != 'skipped'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -38,10 +42,19 @@ jobs:
           fi
 
           SHORT_SHA="${SHA:0:7}"
-          ICON="❌"
-          TITLE="${ICON} CI failed on ${BRANCH}"
+          # Pick an icon that hints at the conclusion so the operator can
+          # tell at a glance whether CI broke, got cancelled, or timed out.
+          case "${STATUS}" in
+            failure)          ICON="❌" ;;
+            cancelled)        ICON="🚫" ;;
+            timed_out)        ICON="⏱️" ;;
+            action_required)  ICON="⚠️" ;;
+            *)                ICON="❓" ;;
+          esac
+          TITLE="${ICON} CI ${STATUS} on ${BRANCH}"
 
           TEXT="${TITLE}
+          Conclusion: ${STATUS}
           Commit: ${SHORT_SHA}
           ${HTML_URL}"
 

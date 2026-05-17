@@ -55,6 +55,7 @@ from bernstein.cli.chaos_cmd import chaos_group
 from bernstein.cli.checkpoint_cmd import checkpoint_cmd
 from bernstein.cli.ci_cmd import ci_group
 from bernstein.cli.cloud_cmd import cloud_group
+from bernstein.cli.commands.decisions_cmd import decisions_group
 from bernstein.cli.commands.export_cmd import export_cmd
 from bernstein.cli.commands.fleet_cmd import fleet_group
 from bernstein.cli.commands.resume_cmd import resume_cmd
@@ -754,6 +755,7 @@ cli.add_command(plan)
 cli.add_command(plan, "tasks")
 cli.add_command(backlog_group, "backlog")
 cli.add_command(logs_group, "logs")
+cli.add_command(decisions_group, "decisions")
 cli.add_command(list_tasks, "list-tasks")
 
 # From workspace_cmd module - groups and commands

@@ -726,6 +726,8 @@ def cli(
         activity_log_path=activity_log_path,
         max_cost_usd=None,
         idle=False,
+        budget_spec=None,
+        hard_budget_spec=None,
     )
 
 

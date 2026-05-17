@@ -455,11 +455,38 @@ class Orchestrator:
 
         # Per-run cost budget tracker.  When budget_usd > 0 the tracker
         # emits warnings at 80%/95% and blocks spawns at 100%.
+        # Issue #1320: ``BERNSTEIN_HARD_BUDGET_USD`` is the kill-switch
+        # cap (set by ``bernstein run --hard-budget``). Attach a rolling
+        # JSONL ledger so per-call attribution lands in
+        # ``.sdd/cost/ledger.jsonl``.
         run_id = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         self._run_id = run_id
+        hard_budget_usd = 0.0
+        _raw_hard = os.environ.get("BERNSTEIN_HARD_BUDGET_USD", "").strip()
+        if _raw_hard:
+            try:
+                hard_budget_usd = max(0.0, float(_raw_hard))
+            except ValueError:
+                logger.warning(
+                    "Invalid BERNSTEIN_HARD_BUDGET_USD=%r; ignoring hard cap.",
+                    _raw_hard,
+                )
+
+        from bernstein.core.cost.spend_ledger import SpendLedger
+
+        spend_ledger = SpendLedger(
+            path=workdir / ".sdd" / "cost" / "ledger.jsonl",
+            run_id=run_id,
+            budget_usd=config.budget_usd,
+            hard_budget_usd=hard_budget_usd,
+        )
+        self._spend_ledger = spend_ledger
+
         self._cost_tracker = CostTracker(
             run_id=run_id,
             budget_usd=config.budget_usd,
+            hard_budget_usd=hard_budget_usd,
+            spend_ledger=spend_ledger,
         )
         self._cost_cap_killed_agents: set[str] = set()
 
@@ -2704,12 +2731,16 @@ class Orchestrator:
 
             model_name = session.model_config.model if session.model_config else "sonnet"
             task_id = session.task_ids[0] if session.task_ids else f"live-{session.id}"
+            # Issue #1320: tag the call with the session's role so the
+            # ledger can attribute spend by role without an extra lookup.
+            role_label = getattr(session, "role", "") or ""
             delta_cost = self._cost_tracker.record_cumulative(
                 agent_id=session.id,
                 task_id=task_id,
                 model=model_name,
                 total_input_tokens=session.tokens_used,
                 total_output_tokens=0,
+                role=role_label,
             )
             if delta_cost > 0:
                 any_change = True

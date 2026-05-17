@@ -87,6 +87,26 @@ jobs:
           BODY=$(printf 'CI conclusion: **%s**\n\nCommit: %s\nRun: %s\n\nThis issue was opened automatically by `auto-release.yml :: alert-on-stale-release-trigger`. See #1273 for the root cause.\n' \
             "${STATUS}" "${SHA}" "${HTML_URL}")
 
+          # Skip the alert when the failing commit is no longer at main HEAD.
+          # Rapid-merge series produce a cascade of cancelled CI runs as each
+          # push supersedes the previous; opening one issue per supersede is
+          # pure noise, since main has already moved past the failure and the
+          # next CI run will (in)validate the release pipeline on its own.
+          MAIN_SHA=$(gh api "repos/${REPO}/commits/main" --jq .sha)
+          if [ "${SHA}" != "${MAIN_SHA}" ]; then
+            echo "::notice::commit ${SHORT_SHA} is no longer main HEAD (${MAIN_SHA:0:7}); skipping issue creation. Closing any prior open issue for this SHA."
+            STALE=$(gh issue list --repo "${REPO}" --state open \
+              --search "in:title auto-release skipped ${SHORT_SHA}" \
+              --json number,title \
+              --jq ".[] | select(.title == \"${TITLE}\") | .number" \
+              | head -1)
+            if [ -n "${STALE}" ]; then
+              gh issue close "${STALE}" --repo "${REPO}" \
+                --comment "Auto-closing — commit ${SHORT_SHA} is no longer main HEAD; main has moved to \`${MAIN_SHA:0:7}\`. The cancelled / failed CI was superseded by a later push, and the alert is no longer actionable."
+            fi
+            exit 0
+          fi
+
           # Idempotent: find an existing open issue with the same title
           # (same SHA + conclusion) and just append a comment instead of
           # opening duplicates.

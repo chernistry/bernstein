@@ -33,14 +33,15 @@ const NAV = [
   { to: '/approvals', label: 'Approvals', icon: ShieldCheck, key: 'approvals' as const },
   { to: '/audit', label: 'Audit', icon: ScrollText, key: 'audit' as const },
   { to: '/costs', label: 'Costs', icon: DollarSign, key: 'costs' as const },
+  { to: '/fleet', label: 'Fleet', icon: Network, key: 'fleet' as const },
+  { to: '/settings', label: 'Settings', icon: SettingsIcon, key: 'settings' as const },
 ] as const;
 
 // Routes reachable via topbar / user-menu but not in the sidebar — used to
-// label the topbar when the user is on these screens.
-const TOPBAR_LABELS: Record<string, string> = {
-  '/fleet': 'Fleet',
-  '/settings': 'Settings',
-};
+// label the topbar when the user is on these screens.  Fleet and Settings
+// both have sidebar entries now (smoke-test follow-up), but keep the map
+// so any future "topbar-only" routes have a consistent home.
+const TOPBAR_LABELS: Record<string, string> = {};
 
 interface FooterStats {
   agentsTotal: number;
@@ -459,7 +460,8 @@ function FooterBar({ stats }: { stats: FooterStats }) {
           API · {stats.apiHealthy ? 'OK' : 'degraded'}
         </span>
         <span>
-          <span className="tabular-nums">{stats.agentsTotal}</span> agents · {' '}
+          <span className="tabular-nums">{stats.agentsTotal}</span>{' '}
+          {stats.agentsTotal === 1 ? 'agent' : 'agents'} · {' '}
           <span className="tabular-nums">{stats.agentsRunning}</span> running
         </span>
       </div>

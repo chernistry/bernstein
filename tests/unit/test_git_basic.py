@@ -58,6 +58,9 @@ def test_safe_push_corrects_master_and_rebases_when_remote_is_ahead(tmp_path: Pa
         patch(
             "bernstein.core.git_basic.run_git",
             side_effect=[
+                # remote_exists() preflight: `git remote get-url origin` —
+                # added 2026-05-15 so safe_push no-ops on local-only repos.
+                GitResult(0, "git@github.com:x/y.git", ""),
                 GitResult(0, "2", ""),  # rev-list count
                 GitResult(0, "", ""),  # rebase
                 GitResult(0, "pushed", ""),  # push
@@ -67,6 +70,7 @@ def test_safe_push_corrects_master_and_rebases_when_remote_is_ahead(tmp_path: Pa
         result = safe_push(tmp_path, "master")
 
     assert result.ok is True
-    assert mock_run_git.call_args_list[0].args[0] == ["rev-list", "--count", "HEAD..origin/main"]
-    assert mock_run_git.call_args_list[1].args[0] == ["rebase", "origin/main"]
-    assert mock_run_git.call_args_list[2].args[0] == ["push", "origin", "main"]
+    assert mock_run_git.call_args_list[0].args[0] == ["remote", "get-url", "origin"]
+    assert mock_run_git.call_args_list[1].args[0] == ["rev-list", "--count", "HEAD..origin/main"]
+    assert mock_run_git.call_args_list[2].args[0] == ["rebase", "origin/main"]
+    assert mock_run_git.call_args_list[3].args[0] == ["push", "origin", "main"]

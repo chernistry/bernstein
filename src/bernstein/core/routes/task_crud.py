@@ -1192,13 +1192,23 @@ def task_counts(
     store = _get_store(request)
     effective_tenant = _resolve_request_tenant_scope(request, tenant)
     counts = store.count_by_status(tenant_id=effective_tenant)
+    # Expose every TaskStatus value so the GUI can render real numbers for
+    # closed / in_progress / planned / pending_approval / waiting_for_subtasks
+    # / orphaned instead of falling back to ``—``.  Missing keys default to 0
+    # — back-compat for the six original buckets is preserved.
     return TaskCountsResponse(
         open=counts.get("open", 0),
         claimed=counts.get("claimed", 0),
+        in_progress=counts.get("in_progress", 0),
         done=counts.get("done", 0),
+        closed=counts.get("closed", 0),
         failed=counts.get("failed", 0),
         blocked=counts.get("blocked", 0),
         cancelled=counts.get("cancelled", 0),
+        planned=counts.get("planned", 0),
+        pending_approval=counts.get("pending_approval", 0),
+        waiting_for_subtasks=counts.get("waiting_for_subtasks", 0),
+        orphaned=counts.get("orphaned", 0),
         total=counts.get("total", 0),
     )
 

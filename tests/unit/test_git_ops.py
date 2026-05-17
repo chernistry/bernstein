@@ -374,11 +374,17 @@ class TestConventionalCommit:
 class TestSafePush:
     """Tests for safe_push."""
 
+    # Helper: every safe_push() call now starts with a remote_exists()
+    # probe (``git remote get-url origin``) so the function can no-op
+    # cleanly on local-only repos — see smoke-test follow-up #6.
+    _REMOTE_OK = GitResult(0, "git@github.com:x/y.git", "")
+
     @patch("bernstein.core.git_basic.run_git")
     @patch("bernstein.core.git.git_basic.fetch")
     def test_no_divergence(self, mock_fetch: MagicMock, mock_run: MagicMock) -> None:
         mock_fetch.return_value = GitResult(0, "", "")
         mock_run.side_effect = [
+            self._REMOTE_OK,  # remote_exists() preflight
             GitResult(0, "0\n", ""),  # rev-list --count
             GitResult(0, "", ""),  # push
         ]
@@ -390,6 +396,7 @@ class TestSafePush:
     def test_behind_rebase_success(self, mock_fetch: MagicMock, mock_run: MagicMock) -> None:
         mock_fetch.return_value = GitResult(0, "", "")
         mock_run.side_effect = [
+            self._REMOTE_OK,  # remote_exists() preflight
             GitResult(0, "3\n", ""),  # rev-list shows 3 behind
             GitResult(0, "", ""),  # rebase succeeds
             GitResult(0, "", ""),  # push
@@ -397,7 +404,7 @@ class TestSafePush:
         result = safe_push(REPO, "main")
         assert result.ok
         # Should have called rebase
-        rebase_call = mock_run.call_args_list[1]
+        rebase_call = mock_run.call_args_list[2]
         assert "rebase" in rebase_call[0][0]
 
     @patch("bernstein.core.git_basic.run_git")
@@ -405,6 +412,7 @@ class TestSafePush:
     def test_behind_rebase_fails_merge_fallback(self, mock_fetch: MagicMock, mock_run: MagicMock) -> None:
         mock_fetch.return_value = GitResult(0, "", "")
         mock_run.side_effect = [
+            self._REMOTE_OK,  # remote_exists() preflight
             GitResult(0, "2\n", ""),  # behind
             GitResult(1, "", "conflict"),  # rebase fails
             GitResult(0, "", ""),  # rebase --abort
@@ -426,6 +434,7 @@ class TestSafePush:
         """
         mock_fetch.return_value = GitResult(0, "", "")
         mock_run.side_effect = [
+            self._REMOTE_OK,  # remote_exists() preflight
             GitResult(0, "2\n", ""),  # rev-list: 2 behind
             GitResult(1, "", "rebase conflict"),  # rebase fails
             GitResult(0, "", ""),  # rebase --abort (cleanup)

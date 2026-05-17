@@ -1306,6 +1306,18 @@ def create_app(
 
     application.include_router(api_v1_router)
 
+    # Alias so callers that expect the versioned path can fetch the OpenAPI
+    # schema too.  FastAPI auto-mounts /openapi.json on the root app; the
+    # versioned surface previously 404'd because the schema route lives
+    # outside ``api_v1_router``.  We redirect rather than duplicate the
+    # schema route so the SPA's swagger-ui pickup keeps the single source
+    # of truth.
+    from starlette.responses import RedirectResponse as _RedirectResponse
+
+    @application.get("/api/v1/openapi.json", include_in_schema=False)
+    async def _openapi_v1_alias() -> _RedirectResponse:
+        return _RedirectResponse(url="/openapi.json", status_code=307)
+
     # Web GUI auto-mount (best-effort): if the SPA build is present in the
     # wheel, expose it at /ui/* and add /api/v1/gui-meta. Failure is silent —
     # source-checkout installs without `cd web && npm run build` simply do

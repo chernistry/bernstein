@@ -409,6 +409,18 @@ def _is_transient_push_error(stderr: str) -> bool:
     return any(marker in lower for marker in _TRANSIENT_MARKERS)
 
 
+def remote_exists(cwd: Path, remote: str = "origin") -> bool:
+    """Return True when *remote* is configured for the repo at *cwd*.
+
+    Used by :func:`safe_push` to no-op cleanly on local-only repos (the
+    playground / GUI-smoke checkouts).  Previously every agent reap would
+    log ``fatal: 'origin' does not appear to be a git repository`` because
+    we blindly called ``git fetch origin`` and ``git push origin main``.
+    """
+    result = run_git(["remote", "get-url", remote], cwd, timeout=5)
+    return result.ok
+
+
 def safe_push(
     cwd: Path,
     branch: str,
@@ -423,6 +435,12 @@ def safe_push(
     attempts.  Only transient errors (network, auth timeout, remote
     unavailable) are retried; persistent failures like rejected non-fast-
     forward pushes fail immediately.
+
+    No-ops cleanly when ``remote`` is not configured — local-only repos
+    (the GUI-smoke playground, ephemeral test fixtures) used to log a noisy
+    ``fatal: 'origin' does not appear to be a git repository`` per agent
+    reap.  We now detect the missing remote and return a successful
+    no-push :class:`GitResult` instead.
 
     Args:
         cwd: Repository root.
@@ -439,6 +457,14 @@ def safe_push(
     if branch == "master":
         logger.info("safe_push: correcting branch 'master' -> 'main'")
         branch = "main"
+
+    # Local-only repo: no remote → no push.  Silent no-op so the spawner
+    # merge loop doesn't spam ``fatal: 'origin' does not appear...`` per
+    # agent reap.  Treat as a successful skip so callers don't log a
+    # warning either.
+    if not remote_exists(cwd, remote):
+        logger.debug("safe_push: remote %r not configured at %s; skipping push", remote, cwd)
+        return GitResult(returncode=0, stdout="", stderr=f"remote {remote!r} not configured; push skipped")
 
     fetch_result = fetch(cwd, remote)
     if not fetch_result.ok:

@@ -458,14 +458,27 @@ class TaskStealResponse(BaseModel):
 
 
 class TaskCountsResponse(BaseModel):
-    """Lightweight status counts — no task bodies."""
+    """Lightweight status counts — no task bodies.
+
+    Every value in :class:`bernstein.core.tasks.models.TaskStatus` is exposed
+    as a field so the GUI's status-chip badges can render real numbers
+    instead of ``—``.  Adding fields here is non-breaking — existing clients
+    that consume only ``open``/``claimed``/``done`` continue to work and the
+    new fields default to ``0``.
+    """
 
     open: int = 0
     claimed: int = 0
+    in_progress: int = 0
     done: int = 0
+    closed: int = 0
     failed: int = 0
     blocked: int = 0
     cancelled: int = 0
+    planned: int = 0
+    pending_approval: int = 0
+    waiting_for_subtasks: int = 0
+    orphaned: int = 0
     total: int = 0
 
 

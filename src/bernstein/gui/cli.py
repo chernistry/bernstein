@@ -31,7 +31,16 @@ def gui_group() -> None:
     help="Bind port. Defaults to 8052 (canonical Bernstein orchestrator port).",
 )
 @click.option("--no-open", is_flag=True, help="Do not auto-open the browser.")
-@click.option("--dev", is_flag=True, help="Dev mode — expect Vite on :5173 (no browser auto-open).")
+@click.option(
+    "--dev",
+    is_flag=True,
+    help=(
+        "Dev mode — skip browser auto-open. Vite's dev port is governed by "
+        "``web/vite.config.ts`` (currently ``strictPort: 5173``); override at "
+        "the Vite command line if your smoke / GUI dev workflow uses a "
+        "different port (e.g. ``cd web && npm run dev -- --port 3000``)."
+    ),
+)
 @click.option(
     "--minimal",
     is_flag=True,
@@ -63,7 +72,11 @@ def serve(host: str, port: int, no_open: bool, dev: bool, minimal: bool) -> None
     url = f"http://{host}:{port}/ui/"
     click.echo(f"Bernstein GUI — {url}")
     if dev:
-        click.echo("Dev mode: run `cd web && npm run dev` in a second terminal for HMR.")
+        click.echo(
+            "Dev mode: run `cd web && npm run dev` in a second terminal for HMR. "
+            "Vite's port is set in web/vite.config.ts (default 5173, strictPort); "
+            "override with `npm run dev -- --port <port>` if you need a different one."
+        )
     if not no_open and not dev:
         try:
             import webbrowser

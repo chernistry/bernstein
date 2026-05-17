@@ -1036,6 +1036,11 @@ def run(
         # inject "mock" so the seed's adapter pick is overridden.
         if cli is None:
             cli = "mock"
+        # Export the resolved adapter into the env so the orchestrator
+        # subprocess (spawned via Popen later in bootstrap) honours the mock
+        # backend.  Without this, the orchestrator's argparse default would
+        # fall back to ``--adapter claude`` and quietly burn real tokens.
+        os.environ["BERNSTEIN_ADAPTER"] = cli
         click.echo(
             "Bernstein --idle mode: every agent will be spawned via the mock adapter and sleep "
             "BERNSTEIN_MOCK_IDLE_MIN_S..MAX_S seconds (default 15-120). Zero LLM spend."

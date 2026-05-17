@@ -425,8 +425,17 @@ def _start_spawner(
     auth_token: str | None = None,
     cluster_enabled: bool = False,
     ab_test: bool = False,
+    adapter: str | None = None,
 ) -> int:
-    """Launch the spawner process in the background."""
+    """Launch the spawner process in the background.
+
+    When ``adapter`` is provided (e.g. ``"mock"`` from ``--idle`` mode), it is
+    passed explicitly via ``--adapter`` AND exported as ``BERNSTEIN_ADAPTER``
+    so the orchestrator __main__ block does not silently fall back to
+    ``--adapter claude``.  This closes a long-standing GUI-smoke bug where
+    ``bernstein run --idle`` would burn real tokens because the orchestrator
+    subprocess defaulted to Claude regardless of the resolved adapter.
+    """
     pid_path = workdir / ".sdd" / "runtime" / "spawner.pid"
     log_path = workdir / ".sdd" / "runtime" / "spawner.log"
     rotate_log_file(log_path)
@@ -442,18 +451,26 @@ def _start_spawner(
         env["BERNSTEIN_CLUSTER_ENABLED"] = "1"
     if ab_test:
         env["BERNSTEIN_AB_TEST"] = "1"
+    if adapter:
+        # Propagate via env too so any nested resolve_adapter() callers (and
+        # the orchestrator __main__'s argparse default-override) honour it.
+        env["BERNSTEIN_ADAPTER"] = adapter
+
+    argv = [
+        sys.executable,
+        "-m",
+        "bernstein.core.orchestration.orchestrator",
+        "--port",
+        str(port),
+        "--cells",
+        str(cells),
+    ]
+    if adapter:
+        argv.extend(["--adapter", adapter])
 
     log_fh = log_path.open("a")
     proc = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "bernstein.core.orchestration.orchestrator",
-            "--port",
-            str(port),
-            "--cells",
-            str(cells),
-        ],
+        argv,
         env=env,
         stdout=log_fh,
         stderr=subprocess.STDOUT,

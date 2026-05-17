@@ -534,6 +534,12 @@ def bootstrap_from_seed(
     console.print(f"  [dim]cost[/dim]    ~${low:.2f}-${high:.2f} ({est_count} tasks, {est_model})")
 
     # 5. Start spawner + watchdog
+    # Propagate the resolved adapter (e.g. ``mock`` from ``--idle``) explicitly so
+    # the orchestrator subprocess doesn't silently fall back to ``--adapter
+    # claude`` (which would burn real tokens on a GUI-smoke run).
+    _resolved_adapter = getattr(seed, "cli", None) or None
+    if _resolved_adapter in (None, "", "auto"):
+        _resolved_adapter = None
     spawner_pid = _start_spawner(
         workdir,
         port,
@@ -542,6 +548,7 @@ def bootstrap_from_seed(
         auth_token=auth_token,
         cluster_enabled=cluster_enabled,
         ab_test=ab_test,
+        adapter=_resolved_adapter,
     )
     _start_watchdog(workdir, port)
     console.print(f"  [dim]agents[/dim]  spawning (max {seed.max_agents})")
@@ -802,7 +809,12 @@ def _goal_sync_and_plan(
     except Exception as exc:
         logger.debug("GitHub issue sync skipped: %s", exc)
 
-    prior_session = check_resume_session(workdir, force_fresh=force_fresh)
+    # An explicit ``tasks`` payload (typically from ``--plan_file <yaml>``)
+    # is an intentional re-run signal: the operator told us exactly which
+    # tasks to enqueue. Honour that and skip the prior-session short-circuit
+    # so the plan file actually gets loaded.  Previously this path silently
+    # printed "Resuming from previous session" and swallowed the plan.
+    prior_session = None if tasks else check_resume_session(workdir, force_fresh=force_fresh)
 
     task_filter = os.environ.get("BERNSTEIN_TASK_FILTER")
     with Status("[bold]Loading tasks...[/bold]", console=console):
@@ -1036,8 +1048,19 @@ def _bootstrap_from_goal_impl(
     )
 
     cell_label = f"{cells} cells" if cells > 1 else "single cell"
+    # Propagate the resolved cli adapter explicitly so the orchestrator
+    # subprocess does not silently default to ``--adapter claude``.  Matters
+    # for ``--idle`` (cli="mock"), seed-pinned adapters, and any other
+    # operator override that should not be lost across the Popen boundary.
+    _resolved_adapter = cli if cli not in (None, "", "auto") else None
     with Status(f"[bold]Spawning agents ({cell_label})...[/bold]", console=console):
-        spawner_pid = _start_spawner(workdir, port, cells=cells, ab_test=ab_test)
+        spawner_pid = _start_spawner(
+            workdir,
+            port,
+            cells=cells,
+            ab_test=ab_test,
+            adapter=_resolved_adapter,
+        )
         _start_watchdog(workdir, port)
     console.print(f"[green]{_icons.arrow_right}[/green] Spawning agents (PID {spawner_pid})")
 

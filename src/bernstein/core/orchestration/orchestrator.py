@@ -4372,7 +4372,14 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8052)
-    parser.add_argument("--adapter", type=str, default="claude")
+    # The adapter default deliberately falls through to the BERNSTEIN_ADAPTER
+    # env var first.  The bootstrap subprocess launcher sets that var when the
+    # operator passes ``--idle`` / a ``cli`` override / a seed-resolved cli,
+    # which closes the long-standing bug where ``bernstein run --idle`` would
+    # silently spawn Claude (and burn real tokens) because this default was
+    # hardcoded to ``"claude"``.
+    _adapter_env_default = os.environ.get("BERNSTEIN_ADAPTER", "").strip() or "claude"
+    parser.add_argument("--adapter", type=str, default=_adapter_env_default)
     parser.add_argument("--cells", type=int, default=1, help="Number of parallel cells (1=single-cell)")
     args = parser.parse_args()
 

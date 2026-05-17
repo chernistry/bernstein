@@ -659,11 +659,25 @@ async def test_task_counts_empty(client: AsyncClient) -> None:
     resp = await client.get("/tasks/counts")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["open"] == 0
-    assert data["claimed"] == 0
-    assert data["done"] == 0
-    assert data["failed"] == 0
-    assert data["total"] == 0
+    # Every TaskStatus field must be surfaced (smoke-test follow-up #4):
+    # closed/in_progress/planned/pending_approval/waiting_for_subtasks/orphaned
+    # used to be missing, which caused the GUI status chips to render ``—``.
+    for field in (
+        "open",
+        "claimed",
+        "in_progress",
+        "done",
+        "closed",
+        "failed",
+        "blocked",
+        "cancelled",
+        "planned",
+        "pending_approval",
+        "waiting_for_subtasks",
+        "orphaned",
+        "total",
+    ):
+        assert data[field] == 0, f"expected {field} to default to 0"
 
 
 @pytest.mark.anyio

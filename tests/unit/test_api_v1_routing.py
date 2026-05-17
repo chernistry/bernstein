@@ -147,10 +147,16 @@ class TestVersionedRoutesParity:
         Parity is bidirectional: versioned routes are always re-mounts of
         root routers, never new endpoints. A v1-only path would be an
         accidental divergence.
+
+        Infrastructure paths (the OpenAPI schema, redirects) are exempt
+        because they describe the whole app rather than a specific API
+        surface.  ``/api/v1/openapi.json`` is an intentional redirect to
+        ``/openapi.json`` (smoke-test follow-up #7) so clients that hard-code
+        the versioned schema URL do not 404.
         """
         root_paths, v1_relative = _collect_paths(app)
 
-        orphans = v1_relative - root_paths
+        orphans = {p for p in (v1_relative - root_paths) if p not in _INFRASTRUCTURE_PATHS}
         assert not orphans, f"Routes exist only under /api/v1/* but not on the root app. Orphans: {sorted(orphans)}"
 
     def test_versioned_router_covers_meaningful_surface(self, app: FastAPI) -> None:

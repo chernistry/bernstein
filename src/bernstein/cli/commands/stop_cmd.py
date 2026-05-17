@@ -565,16 +565,46 @@ def _classify_and_kill_process(
 
 
 def _collect_repo_processes(killed: set[int]) -> None:
-    """Source D: scan repo-owned runtime processes when PID files are gone."""
+    """Source D: scan repo-owned runtime processes when PID files are gone.
+
+    Two-pass scan:
+
+    1. First pass: classify each process by command-line markers (heartbeat
+       path, worktree path, orchestrator/server/watchdog binary).
+    2. Second pass: kill any zsh/bash/sh subshells whose parent was killed in
+       pass 1 OR whose command line references ``.sdd/runtime/``.  This
+       cleans up the disowned ``while true; do curl … done &`` heartbeat
+       loops left behind when the agent that spawned them dies — those used
+       to keep POSTing to ``/hooks/<session-id>`` with stale Bearer tokens,
+       flooding ``server.log`` with 401s long after ``bernstein stop``.
+    """
     workdir = Path.cwd()
     my_pid = os.getpid()
     heartbeat_prefix = str(workdir / ".sdd" / "runtime" / "heartbeats")
     worktree_prefix = str(workdir / ".sdd" / "worktrees")
+    runtime_prefix = str(workdir / ".sdd" / "runtime")
 
-    for snapshot in _list_process_snapshots():
+    snapshots = _list_process_snapshots()
+    for snapshot in snapshots:
         if snapshot.pid in killed or snapshot.pid == my_pid:
             continue
         _classify_and_kill_process(snapshot, workdir, heartbeat_prefix, worktree_prefix, killed)
+
+    # Second pass: orphan-shell cleanup.  Detect shells/curls whose argv or
+    # parent points back into the repo's runtime tree and were missed by the
+    # first pass because their command line doesn't start with the
+    # heartbeat path (e.g. ``sh -c 'curl ... /hooks/<id>'`` spawned via
+    # disown).
+    killed_after_first_pass = frozenset(killed)
+    for snapshot in snapshots:
+        if snapshot.pid in killed or snapshot.pid == my_pid:
+            continue
+        cmd = snapshot.command
+        is_shell_or_curl = any(tok in cmd for tok in (" -c ", "/bin/sh", "/bin/zsh", "/bin/bash", "curl "))
+        references_runtime = runtime_prefix in cmd
+        parent_was_ours = snapshot.ppid in killed_after_first_pass
+        if (is_shell_or_curl and references_runtime) or (is_shell_or_curl and parent_was_ours):
+            _kill_agent_pid(snapshot.pid, f"orphan-shell-{snapshot.pid}", killed)
 
 
 def _kill_port_holder(port: int, killed: set[int]) -> None:

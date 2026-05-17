@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from typing import IO, Any
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,14 @@ logger = logging.getLogger(__name__)
 # Registry of stdin pipes keyed by session_id.
 # Populated by adapters that keep the pipe open after spawn.
 _stdin_pipes: dict[str, IO[bytes]] = {}
+
+# Per-session write lock so two threads sending to the same agent cannot
+# interleave bytes on the stdin pipe. Pipe writes past PIPE_BUF (4 KiB on
+# Linux, 512 B on macOS pre-Sequoia) are not atomic, and user-supplied
+# instructions routinely cross that boundary. Without the lock, the
+# downstream JSON parser sees garbled lines and disconnects the agent.
+_pipe_write_locks: dict[str, threading.Lock] = {}
+_pipe_registry_lock = threading.Lock()
 
 # Maximum length of a sanitised session_id rendered into a log record.
 # session_id is normally a UUID-ish slug well under this bound; the cap
@@ -33,18 +42,37 @@ def _safe_id(session_id: str) -> str:
     return (session_id.replace("\n", "_").replace("\r", "_").replace("\t", "_").replace("\x1b", "_"))[:_SAFE_ID_MAX_LEN]
 
 
+def _get_write_lock(session_id: str) -> threading.Lock:
+    """Return the per-session write lock, creating it on first use."""
+    with _pipe_registry_lock:
+        lock = _pipe_write_locks.get(session_id)
+        if lock is None:
+            lock = threading.Lock()
+            _pipe_write_locks[session_id] = lock
+        return lock
+
+
 def register_stdin_pipe(session_id: str, pipe: IO[bytes]) -> None:
     """Register a stdin pipe for an agent session.
 
     Called by adapters after spawning an agent that supports stdin IPC.
     """
-    _stdin_pipes[session_id] = pipe
+    with _pipe_registry_lock:
+        _stdin_pipes[session_id] = pipe
+        _pipe_write_locks.setdefault(session_id, threading.Lock())
     logger.debug("Registered stdin pipe for session %s", _safe_id(session_id))
 
 
 def unregister_stdin_pipe(session_id: str) -> None:
     """Remove a stdin pipe when an agent exits."""
-    removed = _stdin_pipes.pop(session_id, None)
+    with _pipe_registry_lock:
+        removed = _stdin_pipes.pop(session_id, None)
+        # Keep the lock object alive: another thread may already be
+        # inside ``send_message`` past the lookup; dropping the lock now
+        # would let a later registration return a fresh lock that does
+        # not serialise against the in-flight write. The lock is cheap
+        # (one ``threading.Lock``) and the registry grows linearly with
+        # session count, which is bounded by adapter cap.
     if removed:
         logger.debug("Unregistered stdin pipe for session %s", _safe_id(session_id))
 
@@ -59,26 +87,38 @@ def send_message(session_id: str, message: str) -> bool:
 
     Returns True if delivered via pipe, False if pipe unavailable or broken.
     Caller should fall back to file-based signals on False.
+
+    Thread-safe: holds a per-session lock for the write+flush so two
+    concurrent senders to the same agent cannot interleave bytes past
+    PIPE_BUF.
     """
     pipe = _stdin_pipes.get(session_id)
     if pipe is None:
         return False
 
-    try:
-        payload = json.dumps(
-            {
-                "type": "user_message",
-                "content": message,
-            }
-        )
-        pipe.write(payload.encode("utf-8") + b"\n")
-        pipe.flush()
-        logger.debug("Sent message via stdin pipe to session %s", _safe_id(session_id))
-        return True
-    except (OSError, ValueError) as exc:
-        logger.warning("Stdin pipe broken for session %s: %s", _safe_id(session_id), exc)
-        unregister_stdin_pipe(session_id)
-        return False
+    lock = _get_write_lock(session_id)
+    with lock:
+        # Re-check the pipe under the lock: another thread may have
+        # unregistered it after a broken-pipe error since we sampled
+        # the registry above.
+        pipe = _stdin_pipes.get(session_id)
+        if pipe is None:
+            return False
+        try:
+            payload = json.dumps(
+                {
+                    "type": "user_message",
+                    "content": message,
+                }
+            )
+            pipe.write(payload.encode("utf-8") + b"\n")
+            pipe.flush()
+            logger.debug("Sent message via stdin pipe to session %s", _safe_id(session_id))
+            return True
+        except (OSError, ValueError) as exc:
+            logger.warning("Stdin pipe broken for session %s: %s", _safe_id(session_id), exc)
+            unregister_stdin_pipe(session_id)
+            return False
 
 
 def broadcast_message(message: str, workdir: Any = None) -> dict[str, str]:

@@ -124,8 +124,11 @@ class ClaimFilter:
     project: str | None = None
     role: str | None = None
     capability: str | None = None
-    completed_ids: set[str] = field(default_factory=_empty_str_set)
+    completed_ids: frozenset[str] = field(default_factory=frozenset)
     max_attempts: int | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "completed_ids", frozenset(self.completed_ids))
 
     def allows(self, entry: BacklogEntry) -> bool:
         """Return True when *entry* satisfies every claim predicate."""

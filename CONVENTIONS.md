@@ -176,6 +176,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `usage_provisioning.py` | Usage budget tracking and overage detection for Bernstein |
 | `commands/`             | commands sub-package |
 | `display/`              | ui sub-package |
+| `doctor/`               | Bernstein doctor sub-package - extended diagnostic checks |
 | `plan/`                 | plan sub-package |
 | `scaffold/`             | Bernstein scaffold subsystem |
 | `utils/`                | utils sub-package |

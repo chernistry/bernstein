@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import IO, Any
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,17 @@ logger = logging.getLogger(__name__)
 # Populated by adapters that keep the pipe open after spawn.
 _stdin_pipes: dict[str, IO[bytes]] = {}
 
+# Allow only chars that cannot forge log lines (no CR/LF/TAB/ESC).
+# session_id is normally a UUID-ish slug; this is a defense-in-depth
+# guard against CodeQL py/log-injection on the four logger callsites
+# below — see SECURITY.md for the threat model.
+_SAFE_ID_RE = re.compile(r"[^A-Za-z0-9._:\-]")
+
+
+def _safe_id(session_id: str) -> str:
+    """Sanitize a session_id for use in log records."""
+    return _SAFE_ID_RE.sub("_", session_id)[:128]
+
 
 def register_stdin_pipe(session_id: str, pipe: IO[bytes]) -> None:
     """Register a stdin pipe for an agent session.
@@ -24,14 +36,14 @@ def register_stdin_pipe(session_id: str, pipe: IO[bytes]) -> None:
     Called by adapters after spawning an agent that supports stdin IPC.
     """
     _stdin_pipes[session_id] = pipe
-    logger.debug("Registered stdin pipe for session %s", session_id)
+    logger.debug("Registered stdin pipe for session %s", _safe_id(session_id))
 
 
 def unregister_stdin_pipe(session_id: str) -> None:
     """Remove a stdin pipe when an agent exits."""
     removed = _stdin_pipes.pop(session_id, None)
     if removed:
-        logger.debug("Unregistered stdin pipe for session %s", session_id)
+        logger.debug("Unregistered stdin pipe for session %s", _safe_id(session_id))
 
 
 def has_stdin_pipe(session_id: str) -> bool:
@@ -58,10 +70,10 @@ def send_message(session_id: str, message: str) -> bool:
         )
         pipe.write(payload.encode("utf-8") + b"\n")
         pipe.flush()
-        logger.debug("Sent message via stdin pipe to session %s", session_id)
+        logger.debug("Sent message via stdin pipe to session %s", _safe_id(session_id))
         return True
     except (OSError, ValueError) as exc:
-        logger.warning("Stdin pipe broken for session %s: %s", session_id, exc)
+        logger.warning("Stdin pipe broken for session %s: %s", _safe_id(session_id), exc)
         unregister_stdin_pipe(session_id)
         return False
 

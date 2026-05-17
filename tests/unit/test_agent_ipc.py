@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from bernstein.core.agent_ipc import (
+    _safe_id,
     _stdin_pipes,
     broadcast_message,
     has_stdin_pipe,
@@ -74,3 +75,31 @@ def test_shutdown_all_wraps_broadcast_with_shutdown_message() -> None:
 
     assert result == {"A-1": "pipe"}
     assert "SHUTDOWN: maintenance" in mock_broadcast.call_args.args[0]
+
+
+def test_safe_id_strips_control_characters() -> None:
+    """A session_id carrying CR/LF cannot forge a log line via the %s arg."""
+    forged = "agent-1\nFAKE 2026-01-01 admin grant"
+    sanitized = _safe_id(forged)
+    assert "\n" not in sanitized
+    assert "FAKE" in sanitized  # content preserved, separators replaced
+    assert sanitized.startswith("agent-1_")
+
+
+def test_safe_id_truncates_oversized_input() -> None:
+    """Attacker-supplied session_id cannot blow up log size unboundedly."""
+    assert len(_safe_id("a" * 4096)) == 128
+
+
+def test_logging_path_uses_sanitized_session_id(caplog) -> None:  # type: ignore[no-untyped-def]
+    """Both register/unregister log lines must apply _safe_id."""
+    pipe = MagicMock()
+    pipe.closed = False
+    session = "evil\nINJECTED ADMIN session"
+    with caplog.at_level("DEBUG", logger="bernstein.core.agents.agent_ipc"):
+        register_stdin_pipe(session, pipe)
+        unregister_stdin_pipe(session)
+    joined = "\n".join(rec.getMessage() for rec in caplog.records)
+    assert "INJECTED" in joined  # content kept (sanitized but visible)
+    # No record contains a raw newline — every one is single-line.
+    assert all("\n" not in rec.getMessage() for rec in caplog.records)

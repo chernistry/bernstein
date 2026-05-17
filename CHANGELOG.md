@@ -49,6 +49,7 @@ Hand-curated release notes: [`docs/release-notes/v2.0.0.md`](docs/release-notes/
 
 ### Added — operator surfaces
 
+- **Live terminal peek for the web dashboard (#1217).** New `GET /sessions/{id}/peek` JSON tail endpoint, plus a vanilla-JS surface at `/dashboard/peek/{id}` (single session) and `/dashboard/peek?s1=...&s2=...&s3=...&s4=...` (2x2 tile grid sized for a 390x844 phone viewport). Each tile carries a regex search box and a send-bar wired to `POST /sessions/{id}/send`, which pipes one line of operator input back into the agent's stdin via the existing `agent_ipc` registry. The bearer-auth middleware in `server_middleware.py` covers both routes unchanged.
 - **Run savings summary.** Each `bernstein run` summary card now reports estimated savings vs running the same plan single-shot through the most expensive routed model.
 
 ### Fixed

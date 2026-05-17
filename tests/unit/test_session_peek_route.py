@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from bernstein.core.agents import agent_ipc
 from bernstein.core.handoff import StreamTailBuffer
 from bernstein.core.routes.session_peek import router
 
@@ -17,6 +20,14 @@ def _make_app(workdir: Path) -> FastAPI:
     app.state.workdir = workdir
     app.include_router(router)
     return app
+
+
+@pytest.fixture(autouse=True)
+def _clear_stdin_pipes() -> None:
+    """Keep the IPC registry empty between tests so they don't leak state."""
+    agent_ipc._stdin_pipes.clear()  # type: ignore[attr-defined]
+    yield
+    agent_ipc._stdin_pipes.clear()  # type: ignore[attr-defined]
 
 
 def test_peek_returns_recent_tail(tmp_path: Path) -> None:
@@ -89,3 +100,93 @@ def test_peek_grid_rejects_bad_id(tmp_path: Path) -> None:
     client = TestClient(_make_app(tmp_path))
     response = client.get("/dashboard/peek", params={"s1": "../boom"})
     assert response.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Send-bar (#1217 — POST /sessions/{id}/send)
+# ---------------------------------------------------------------------------
+
+
+def test_send_writes_to_registered_stdin_pipe(tmp_path: Path) -> None:
+    """A valid POST forwards the line to ``agent_ipc`` and reports delivery."""
+    pipe = io.BytesIO()
+    agent_ipc.register_stdin_pipe("sess-send", pipe)  # type: ignore[arg-type]
+
+    client = TestClient(_make_app(tmp_path))
+    response = client.post("/sessions/sess-send/send", json={"text": "hello agent"})
+
+    assert response.status_code == 200
+    assert response.json() == {"session_id": "sess-send", "delivered": True}
+    # The IPC layer JSON-wraps the payload before writing to the pipe.
+    assert b'"user_message"' in pipe.getvalue()
+    assert b"hello agent" in pipe.getvalue()
+
+
+def test_send_returns_404_when_no_pipe_registered(tmp_path: Path) -> None:
+    """If the agent has no live stdin pipe the operator gets a 404, not a 500."""
+    client = TestClient(_make_app(tmp_path))
+    response = client.post("/sessions/sess-cold/send", json={"text": "hi"})
+    assert response.status_code == 404
+    body = response.json()
+    assert body["delivered"] is False
+    assert body["session_id"] == "sess-cold"
+
+
+def test_send_rejects_empty_text(tmp_path: Path) -> None:
+    """An empty body or empty ``text`` field is a 400, never a no-op success."""
+    client = TestClient(_make_app(tmp_path))
+    response = client.post("/sessions/sess-x/send", json={"text": ""})
+    assert response.status_code == 400
+
+
+def test_send_rejects_oversize_text(tmp_path: Path) -> None:
+    """Payloads larger than ``MAX_SEND_BYTES`` are rejected with 413."""
+    pipe = io.BytesIO()
+    agent_ipc.register_stdin_pipe("sess-big", pipe)  # type: ignore[arg-type]
+
+    client = TestClient(_make_app(tmp_path))
+    response = client.post("/sessions/sess-big/send", json={"text": "x" * 5000})
+    assert response.status_code == 413
+    assert pipe.getvalue() == b""  # nothing was forwarded.
+
+
+def test_send_rejects_bad_session_id(tmp_path: Path) -> None:
+    """Send shares the slug-validator with peek, so traversal payloads fail."""
+    client = TestClient(_make_app(tmp_path))
+    # ``%2F`` is rejected by Starlette before our handler runs; ``$`` is
+    # routed but our validator rejects it explicitly with 400.
+    response = client.post("/sessions/bad$id/send", json={"text": "hi"})
+    assert response.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# HTML surface — send-bar + search wiring
+# ---------------------------------------------------------------------------
+
+
+def test_single_page_includes_send_bar_and_search(tmp_path: Path) -> None:
+    """Single-session page exposes a send-bar form plus a per-tile search box."""
+    client = TestClient(_make_app(tmp_path))
+    response = client.get("/dashboard/peek/sess-html")
+    body = response.text
+    assert 'class="send-bar"' in body
+    assert 'placeholder="send to stdin (enter)"' in body
+    assert 'data-scope="self"' in body
+    # The send wiring talks to the new POST endpoint.
+    assert "/sessions/" in body
+    assert "/send" in body
+
+
+def test_grid_page_has_send_bar_per_active_tile_and_shared_search(tmp_path: Path) -> None:
+    """Grid renders one send-bar per populated tile plus one shared filter box."""
+    client = TestClient(_make_app(tmp_path))
+    response = client.get("/dashboard/peek", params={"s1": "a", "s2": "b"})
+    body = response.text
+    # Two populated tiles → two send-bar forms; empties stay form-less.
+    assert body.count('class="send-bar"') == 2
+    # The shared-search input element renders exactly once (the JS selector
+    # string elsewhere in the page mentions ``data-scope="all"`` too, which
+    # is why we look for the full input-element tag instead).
+    assert '<input class="search" type="search" placeholder="filter all tiles (regex)" data-scope="all"' in body
+    assert 'data-session="a"' in body
+    assert 'data-session="b"' in body

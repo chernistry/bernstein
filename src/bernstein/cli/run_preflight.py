@@ -21,6 +21,7 @@ from bernstein.cli.helpers import (
 from bernstein.cli.run import render_run_summary_from_dict
 from bernstein.cli.ui import make_console
 from bernstein.core.cost import estimate_run_cost
+from bernstein.core.cost.preflight import CostBand, compute_band, format_band
 from bernstein.core.plan_loader import load_plan_from_yaml
 from bernstein.core.runtime_state import directory_size_bytes
 
@@ -78,12 +79,22 @@ def _drain_completed_backlog_files() -> None:
 
 @dataclass(frozen=True)
 class RunCostEstimate:
-    """Preflight cost estimate for a pending run."""
+    """Preflight cost estimate for a pending run.
+
+    Attributes:
+        task_count: Number of tasks the run will spawn.
+        model: Display label for the model (``"adapter/model"`` or model).
+        low_usd: Legacy single-point low estimate (kept for back-compat).
+        high_usd: Legacy single-point high estimate (kept for back-compat).
+        band: Optional calibrated p50/p90 band. Populated for new callers;
+            legacy callers can leave it unset.
+    """
 
     task_count: int
     model: str
     low_usd: float
     high_usd: float
+    band: CostBand | None = None
 
 
 def _estimate_task_count(workdir: Path, plan_file: Path | None, goal: str | None) -> int:
@@ -105,16 +116,25 @@ def _estimate_task_count(workdir: Path, plan_file: Path | None, goal: str | None
     return max(1, count)
 
 
-def _resolve_model_and_cli(seed_file: str | None, model_override: str | None) -> tuple[str, str]:
-    """Resolve model and CLI adapter from seed file or defaults."""
+def _resolve_model_and_cli(
+    seed_file: str | None,
+    model_override: str | None,
+) -> tuple[str, str, str]:
+    """Resolve model, CLI adapter, and dominant role from seed or defaults.
+
+    Returns:
+        Tuple of ``(model, cli, role)``. ``role`` defaults to ``"backend"``
+        when the seed does not specify a role policy.
+    """
     est_model = model_override or "sonnet"
     est_cli = "claude"
+    est_role = "backend"
     if model_override is not None:
-        return est_model, est_cli
+        return est_model, est_cli, est_role
 
     seed_path = Path(seed_file) if seed_file is not None else find_seed_file()
     if seed_path is None or not seed_path.exists():
-        return est_model, est_cli
+        return est_model, est_cli, est_role
 
     try:
         from bernstein.core.seed import parse_seed
@@ -124,6 +144,8 @@ def _resolve_model_and_cli(seed_file: str | None, model_override: str | None) ->
             est_model = seed.model
         if seed.role_model_policy:
             for _role, _policy in seed.role_model_policy.items():
+                if isinstance(_role, str):
+                    est_role = _role
                 if "cli" in _policy:
                     est_cli = _policy["cli"]
                 if "model" in _policy:
@@ -133,7 +155,7 @@ def _resolve_model_and_cli(seed_file: str | None, model_override: str | None) ->
             est_cli = seed.cli
     except Exception:
         est_model = "sonnet"
-    return est_model, est_cli
+    return est_model, est_cli, est_role
 
 
 _FREE_ADAPTERS = frozenset(("qwen", "gemini", "ollama"))
@@ -149,6 +171,13 @@ def _estimate_run_preview(
 ) -> RunCostEstimate:
     """Estimate run cost before bootstrapping the orchestrator.
 
+    Computes both the legacy single-point heuristic (``low_usd``/``high_usd``,
+    kept for back-compat) and the calibrated ``CostBand`` (``band``).
+    The calibrated band reads the last 50 records of the same
+    ``(role, adapter)`` pair from ``.sdd/metrics/cost.jsonl``; cold-start
+    falls back to the legacy heuristic and the band is flagged
+    ``cold_start=True``.
+
     Args:
         workdir: Repository root.
         plan_file: Optional explicit YAML plan file.
@@ -160,18 +189,35 @@ def _estimate_run_preview(
         Cost estimate using the best available task count and model hint.
     """
     est_task_count = _estimate_task_count(workdir, plan_file, goal)
-    est_model, est_cli = _resolve_model_and_cli(seed_file, model_override)
+    est_model, est_cli, est_role = _resolve_model_and_cli(seed_file, model_override)
 
     if est_cli in _FREE_ADAPTERS:
         low_usd, high_usd = 0.0, 0.0
+        band = CostBand(
+            p50=0.0,
+            p90=0.0,
+            samples=0,
+            cold_start=False,
+            role=est_role,
+            adapter=est_cli,
+            model=est_model,
+        )
     else:
         low_usd, high_usd = estimate_run_cost(est_task_count, est_model)
+        band = compute_band(
+            role=est_role,
+            adapter=est_cli,
+            model=est_model,
+            task_count=est_task_count,
+            metrics_dir=workdir / ".sdd" / "metrics",
+        )
     display_model = f"{est_cli}/{est_model}" if est_cli != "claude" else est_model
     return RunCostEstimate(
         task_count=est_task_count,
         model=display_model,
         low_usd=low_usd,
         high_usd=high_usd,
+        band=band,
     )
 
 
@@ -182,6 +228,7 @@ def _emit_preflight_runtime_warnings(
     auto_approve: bool,
     quiet: bool,
     plan_approval_follows: bool = False,
+    budget_cap: float | None = None,
 ) -> None:
     """Show startup cost and disk-usage warnings before execution.
 
@@ -190,24 +237,53 @@ def _emit_preflight_runtime_warnings(
         estimate: Cost estimate computed from local context.
         auto_approve: Whether confirmation prompts are disabled.
         quiet: Whether normal startup output is suppressed.
+        plan_approval_follows: When True, a plan-approval prompt that
+            already shows cost will follow, so we skip the duplicate
+            confirmation here.
+        budget_cap: Optional preflight ceiling in USD. When the p90 of the
+            calibrated band exceeds this value, the spawn is aborted with
+            ``SystemExit(1)``. ``None`` (default) disables the check.
 
     Raises:
-        SystemExit: When the operator declines a high-cost run.
+        SystemExit: When the operator declines a high-cost run or when
+            ``budget_cap`` is exceeded.
     """
     sdd_dir = workdir / ".sdd"
     disk_usage_gb = directory_size_bytes(sdd_dir) / (1024**3)
+    band = estimate.band
     if not quiet:
-        console.print(
-            "[bold yellow]Estimated cost:[/bold yellow] "
-            f"${estimate.low_usd:.2f}-${estimate.high_usd:.2f} "
-            f"based on {estimate.task_count} task(s) at {estimate.model} pricing"
-        )
+        if band is not None:
+            console.print(f"[bold yellow]{format_band(band)}[/bold yellow]")
+            samples_note = (
+                f"{band.samples} historical sample(s)" if not band.cold_start else "no history yet — using heuristic"
+            )
+            console.print(
+                f"[dim]based on {estimate.task_count} task(s) at {estimate.model} pricing, {samples_note}[/dim]"
+            )
+        else:
+            console.print(
+                "[bold yellow]Estimated cost:[/bold yellow] "
+                f"${estimate.low_usd:.2f}-${estimate.high_usd:.2f} "
+                f"based on {estimate.task_count} task(s) at {estimate.model} pricing"
+            )
         if disk_usage_gb >= 1.0:
             console.print(
                 "[yellow]Warning:[/yellow] "
                 f".sdd/ is using {disk_usage_gb:.2f} GB. "
                 "Run [bold]bernstein cleanup[/bold] if stale worktrees or logs are accumulating."
             )
+
+    # --budget-cap: abort before spawn when p90 exceeds the operator's
+    # ceiling.  Honours auto-approve so CI can opt out of the prompt;
+    # when no band is available (e.g. legacy callers) we compare against
+    # ``high_usd`` so the contract still holds.
+    if budget_cap is not None and budget_cap > 0.0:
+        p90 = band.p90 if band is not None else estimate.high_usd
+        if p90 > budget_cap:
+            console.print(
+                f"[bold red]Budget cap exceeded:[/bold red] p90 ${p90:.2f} > cap ${budget_cap:.2f}. Aborting spawn."
+            )
+            raise SystemExit(1)
 
     # Cost confirmation is skipped when the plan approval prompt follows
     # (it already shows cost and asks Y/N — no need to ask twice).

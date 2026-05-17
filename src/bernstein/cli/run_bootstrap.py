@@ -994,6 +994,17 @@ def exec_restart() -> None:
         "agent is spawned, no retry."
     ),
 )
+@click.option(
+    "--budget-cap",
+    "budget_cap",
+    type=float,
+    default=None,
+    help=(
+        "Preflight budget cap in USD. Aborts spawn before the orchestrator "
+        "starts when the calibrated p90 of the cost band exceeds the cap. "
+        "Distinct from --max-cost-usd / --hard-budget, which are enforced at runtime."
+    ),
+)
 def run(
     plan_file: Path | None,
     goal: str | None,
@@ -1031,6 +1042,7 @@ def run(
     max_cost_usd: float | None = None,
     budget_spec: str | None = None,
     hard_budget_spec: str | None = None,
+    budget_cap: float | None = None,
 ) -> None:
     """Parse seed, init workspace, start server, launch agents.
 
@@ -1056,6 +1068,7 @@ def run(
       bernstein conduct --audit                # SOC 2 audit mode (HMAC-chained log + Merkle seal)
       bernstein conduct --max-cost-usd 1.50    # hard cap total run spend at $1.50
       bernstein run plan.yaml --budget 5usd --hard-budget 10usd  # soft + hard caps (#1320)
+      bernstein conduct --budget-cap 5.00      # abort spawn if preflight p90 > $5
     """
     # Issue #1320: ``--budget`` is the friendlier alias of ``--max-cost-usd``
     # and shares the same env var. When both are set, the operator's
@@ -1163,6 +1176,7 @@ def run(
             auto_approve=auto_approve,
             quiet=quiet,
             plan_approval_follows=not auto_approve,
+            budget_cap=budget_cap,
         )
 
     # --plan_file: loadable YAML plan (stages + steps)

@@ -209,6 +209,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "telemetry",
         # Bot-added: drift autofix (regen_contract_drift.py)
         "quality",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "cost-envelopes",
     }
 )
 

@@ -13,7 +13,9 @@ Design notes
 ------------
 
 * No external RNG required. Caller may pass a ``random.Random`` for
-  deterministic tests; otherwise a module-level default is used.
+  deterministic tests; otherwise a module-level default is used. For
+  *replay* the caller may set ``BERNSTEIN_AUTOHEAL_BANDIT_SEED`` so
+  the picked arm is reproducible from an audit log.
 * The state file is gitignored under ``.sdd/``. Persistence is best-effort
   and tolerant of missing or corrupt files (falls back to fresh priors).
 * Strategy names are caller-defined; the bandit does not enforce any
@@ -27,12 +29,21 @@ Design notes
 from __future__ import annotations
 
 import json
+import os
 import random
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Final
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+ENV_SEED: Final[str] = "BERNSTEIN_AUTOHEAL_BANDIT_SEED"
+"""When set to a non-empty integer, ``select`` seeds the RNG from it.
+
+This makes a heal pick reproducible from an audit log row that carries
+the same seed in ``meta``. Empty / non-integer values fall back to a
+fresh ``random.Random()``.
+"""
 
 
 @dataclass(slots=True)
@@ -91,10 +102,14 @@ class BanditState:
         """Thompson-sample one arm out of ``candidates``.
 
         Raises ``ValueError`` if ``candidates`` is empty.
+
+        Replay: if ``rng`` is None and ``BERNSTEIN_AUTOHEAL_BANDIT_SEED``
+        is set to an integer, the local RNG is seeded with that value
+        so the pick is reproducible.
         """
         if not candidates:
             raise ValueError("cannot select from empty candidate set")
-        r = rng if rng is not None else random.Random()
+        r = rng if rng is not None else _make_rng_from_env()
         best_strategy = candidates[0]
         best_draw = -1.0
         for strategy in candidates:
@@ -135,6 +150,18 @@ class BanditState:
         return out
 
 
+def _make_rng_from_env() -> random.Random:
+    """Return an RNG seeded from ``ENV_SEED`` when present, else fresh."""
+    raw = os.environ.get(ENV_SEED, "").strip()
+    if not raw:
+        return random.Random()
+    try:
+        seed = int(raw)
+    except ValueError:
+        return random.Random()
+    return random.Random(seed)
+
+
 def load_state(path: Path) -> BanditState:
     """Load bandit state from disk; return a fresh state on any error."""
     try:
@@ -162,6 +189,7 @@ def save_state(state: BanditState, path: Path) -> None:
 
 
 __all__ = [
+    "ENV_SEED",
     "ArmState",
     "BanditState",
     "load_state",

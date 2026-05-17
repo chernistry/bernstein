@@ -62,8 +62,11 @@ def test_schema_version_is_one() -> None:
 
 
 def test_valid_kinds_closed_set() -> None:
-    """v1 vocabulary must be exactly these four kinds."""
-    assert frozenset({"model_route", "mode_profile", "criterion_profile", "gate_fire"}) == dl.VALID_KINDS
+    """v1+autoheal vocabulary is exactly these five kinds."""
+    assert (
+        frozenset({"model_route", "mode_profile", "criterion_profile", "gate_fire", "autoheal_strategy"})
+        == dl.VALID_KINDS
+    )
 
 
 def test_default_path_under_sdd_runtime() -> None:

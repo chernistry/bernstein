@@ -422,23 +422,7 @@ jobs:
             --outcome "$OUTCOME"
           echo "outcome=$OUTCOME" >> "$GITHUB_OUTPUT"
 
-      - name: Capability 17 - decision-log entry
-        if: always()
-        run: |
-          # Emit a structured decision log line so operators can run
-          # `bernstein decisions tail` and see this heal action alongside
-          # routing / profile / gate decisions.
-          python scripts/auto_heal_v2_imports.py decision_log
-
-      - name: Capability 18 - calibration tracking
-        if: always()
-        run: |
-          # The predicted-prob (Bayesian confidence) and the observed
-          # outcome are logged via eval.calibration so the weekly Brier
-          # report can show whether autoheal is well-calibrated.
-          python scripts/auto_heal_v2_imports.py calibration
-
-      - name: Capability 16, 21 - audit + lineage write
+      - name: Capability 16, 17, 18, 21 - audit + decision + calibration + lineage write
         if: always()
         env:
           STRATEGY: ${{ needs.triage.outputs.strategy }}
@@ -446,8 +430,12 @@ jobs:
           RUN_ID: ${{ needs.triage.outputs.run_id }}
           HEAD_SHA: ${{ needs.triage.outputs.head_sha }}
         run: |
-          # autoheal-history.jsonl is the operator-readable ledger; one
-          # row per heal attempt, sortable, jq-friendly.
+          # Single integration seam: the `log` subcommand writes
+          # autoheal-history.jsonl (operator ledger), one decision-log
+          # row of kind autoheal_strategy (so `bernstein decisions tail`
+          # sees this heal), and one calibration row (so the weekly
+          # Brier report includes autoheal). All three share a common
+          # decision_id for cross-store joins.
           python scripts/auto_heal_v2_run.py log <<JSON
           {
             "run_id": "${RUN_ID}",
@@ -459,8 +447,8 @@ jobs:
             "cost_usd": 0.0,
             "llm_calls": 0,
             "patch_sha": "",
-            "decision_id": "",
-            "rationale": "auto-heal v2 run"
+            "rationale": "auto-heal v2 ${STRATEGY}",
+            "candidates": ["ruff-format", "agents-md-sync", "typos-allowlist"]
           }
           JSON
 

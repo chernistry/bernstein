@@ -1216,6 +1216,7 @@ def create_app(
     from bernstein.core.routes.drain import router as drain_router
     from bernstein.core.routes.export import router as export_router
     from bernstein.core.routes.file_health import router as file_health_router
+    from bernstein.core.routes.fleet import router as fleet_router
     from bernstein.core.routes.gateway import router as gateway_router
     from bernstein.core.routes.graduation import router as graduation_router
     from bernstein.core.routes.grafana import router as grafana_router
@@ -1265,6 +1266,7 @@ def create_app(
         observability_router,
         quality_router,
         file_health_router,
+        fleet_router,
         drain_router,
         identities_router,
         acp_router,

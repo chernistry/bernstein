@@ -2,7 +2,7 @@
 // Source of truth: design_handoff_bernstein_phase1/design-source/chrome.jsx.
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
@@ -42,6 +42,21 @@ const NAV = [
 // both have sidebar entries now (smoke-test follow-up), but keep the map
 // so any future "topbar-only" routes have a consistent home.
 const TOPBAR_LABELS: Record<string, string> = {};
+
+const FLEET_STORAGE_KEY = 'bernstein-fleet-mode';
+const FLEET_URL_PARAM = 'fleet';
+
+/** Hoisted helper so it can be reused by tests and the deep-link card. */
+function readInitialFleetMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  // URL wins for deep-linking — a teammate sharing `…?fleet=1` should land in
+  // fleet mode even if their local storage still says single.
+  const params = new URLSearchParams(window.location.search);
+  if (params.has(FLEET_URL_PARAM)) {
+    return params.get(FLEET_URL_PARAM) === '1';
+  }
+  return window.localStorage.getItem(FLEET_STORAGE_KEY) === '1';
+}
 
 interface FooterStats {
   agentsTotal: number;
@@ -150,9 +165,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const metaText = useGuiMetaLabel();
-  const [fleetMode, setFleetMode] = useState<boolean>(
-    () => typeof window !== 'undefined' && window.localStorage.getItem('bernstein-fleet-mode') === '1',
-  );
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [fleetMode, setFleetMode] = useState<boolean>(readInitialFleetMode);
   const [menuOpen, setMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -222,15 +236,40 @@ export default function AppShell({ children }: { children: ReactNode }) {
     return seg.charAt(0).toUpperCase() + seg.slice(1);
   }, [current, location.pathname]);
 
+  // Keep ?fleet=1 in lockstep with browser back/forward navigation. When the
+  // URL changes (e.g. the operator clicks a back-link that drops the flag),
+  // mirror the new value into local state + storage so the toggle button and
+  // future page-loads agree.
+  useEffect(() => {
+    const param = searchParams.get(FLEET_URL_PARAM);
+    if (param == null) return;
+    const next = param === '1';
+    if (next === fleetMode) return;
+    setFleetMode(next);
+    window.localStorage.setItem(FLEET_STORAGE_KEY, next ? '1' : '0');
+  }, [searchParams, fleetMode]);
+
   const toggleFleet = () => {
     const next = !fleetMode;
     setFleetMode(next);
-    window.localStorage.setItem('bernstein-fleet-mode', next ? '1' : '0');
+    window.localStorage.setItem(FLEET_STORAGE_KEY, next ? '1' : '0');
+    // Mirror the new state into the URL so deep-links + back/forward both
+    // round-trip. `replace: true` avoids cluttering the history stack with
+    // every toggle click.
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next) params.set(FLEET_URL_PARAM, '1');
+        else params.delete(FLEET_URL_PARAM);
+        return params;
+      },
+      { replace: true },
+    );
     // Actually re-route: enabling Fleet should jump to the fleet view; turning
     // it off from the fleet screen returns the operator to the default Tasks
     // view. From any other screen we leave the user where they are.
     if (next) {
-      if (location.pathname !== '/fleet') navigate('/fleet');
+      if (location.pathname !== '/fleet') navigate(`/fleet?${FLEET_URL_PARAM}=1`);
     } else if (location.pathname === '/fleet') {
       navigate('/tasks');
     }

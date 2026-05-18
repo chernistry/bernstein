@@ -107,9 +107,9 @@ jobs:
             exit 0
           fi
 
-          # Idempotent: find an existing open issue with the same title
-          # (same SHA + conclusion) and just append a comment instead of
-          # opening duplicates.
+          # Idempotent layer 1: find an existing open issue with the same
+          # title (same SHA + conclusion) and just append a comment
+          # instead of opening duplicates.
           EXISTING=$(gh issue list --repo "${REPO}" --state open \
             --search "in:title auto-release skipped ${SHORT_SHA}" \
             --json number,title \
@@ -118,16 +118,84 @@ jobs:
 
           if [ -n "${EXISTING}" ]; then
             gh issue comment "${EXISTING}" --repo "${REPO}" \
-              --body "Repeat trigger — same commit, same conclusion. Run: ${HTML_URL}"
-          else
-            gh issue create --repo "${REPO}" \
-              --title "${TITLE}" \
-              --body "${BODY}" \
-              --label "ci,release-drift" || \
-            gh issue create --repo "${REPO}" \
-              --title "${TITLE}" \
-              --body "${BODY}"
+              --body "Repeat trigger - same commit, same conclusion. Run: ${HTML_URL}"
+            exit 0
           fi
+
+          # Idempotent layer 2 (24h cross-SHA dedup): if any open
+          # auto-release-skipped issue exists from the last 24 hours
+          # (regardless of SHA), comment on the most recent one and exit
+          # rather than opening yet another duplicate. Recursive lint
+          # drift hotfix series produce a cascade of different SHAs in
+          # quick succession; one tracking issue per 24h window is
+          # enough signal. The sweep-stale-alerts-on-success job below
+          # closes the survivors once main goes green.
+          CUTOFF=$(date -u -d '24 hours ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+            || python3 -c 'import datetime; print((datetime.datetime.utcnow() - datetime.timedelta(hours=24)).strftime("%Y-%m-%dT%H:%M:%SZ"))')
+          RECENT=$(gh issue list --repo "${REPO}" --state open \
+            --search "in:title \"auto-release skipped\"" \
+            --json number,title,createdAt \
+            --jq "[.[] | select(.createdAt >= \"${CUTOFF}\")] | sort_by(.createdAt) | reverse | .[0].number // empty")
+
+          if [ -n "${RECENT}" ]; then
+            gh issue comment "${RECENT}" --repo "${REPO}" \
+              --body "Additional auto-release skip on \`${SHORT_SHA}\` (conclusion: ${STATUS}) within the 24h dedup window. Run: ${HTML_URL}"
+            exit 0
+          fi
+
+          gh issue create --repo "${REPO}" \
+            --title "${TITLE}" \
+            --body "${BODY}" \
+            --label "ci,release-drift" || \
+          gh issue create --repo "${REPO}" \
+            --title "${TITLE}" \
+            --body "${BODY}"
+
+  # Sweep job - closes any open auto-release-skipped tracking issues
+  # opened by the alert job once a CI run on main concludes successfully.
+  # Without this, the alert issues accumulate forever even after main
+  # has been repaired by the next hotfix, leaving the operator with a
+  # noisy issue list that no longer reflects reality.
+  sweep-stale-alerts-on-success:
+    name: Close auto-release-skipped issues on green main
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - name: Close stale auto-release-skipped issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NEW_SHA: ${{ github.event.workflow_run.head_sha }}
+          HTML_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          SHORT_NEW="${NEW_SHA:0:7}"
+          # Match issues opened by the alert job above. Author scope is
+          # restricted to the github-actions bot so we never close a
+          # human-filed issue that happens to share the title prefix.
+          NUMBERS=$(gh issue list --repo "${REPO}" --state open \
+            --search 'in:title "auto-release skipped" author:app/github-actions' \
+            --limit 100 \
+            --json number \
+            --jq '.[].number')
+          if [ -z "${NUMBERS}" ]; then
+            echo "No open auto-release-skipped alert issues to close."
+            exit 0
+          fi
+          echo "Closing stale alert issues superseded by ${SHORT_NEW}:"
+          echo "${NUMBERS}"
+          for N in ${NUMBERS}; do
+            gh issue close "${N}" --repo "${REPO}" --reason completed \
+              --comment "Superseded by successful release run on \`${SHORT_NEW}\`. Run: ${HTML_URL}" \
+              || echo "::warning::failed to close #${N}"
+          done
 
   gate:
     name: Release gate

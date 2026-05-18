@@ -32,6 +32,15 @@ _INFRASTRUCTURE_PATHS: frozenset[str] = frozenset(
         # not an API surface and has no `/api/v1/ui` counterpart.
         "/ui",
         "/ui/{full_path:path}",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "/manifest.webmanifest",
+        "/offline.html",
+        "/sw.js",
+        "/ui/icon-192.png",
+        "/ui/icon-512.png",
+        "/ui/manifest.webmanifest",
+        "/ui/offline.html",
+        "/ui/sw.js",
     }
 )
 

@@ -1,0 +1,35 @@
+# serializer version: 1
+# name: test_manifest_snapshot_default
+  '''
+  {
+    "background_color": "#111111",
+    "categories": [
+      "developer",
+      "productivity"
+    ],
+    "description": "Bernstein operator dashboard - installable PWA.",
+    "display": "standalone",
+    "icons": [
+      {
+        "purpose": "any maskable",
+        "sizes": "192x192",
+        "src": "/ui/icon-192.png",
+        "type": "image/png"
+      },
+      {
+        "purpose": "any maskable",
+        "sizes": "512x512",
+        "src": "/ui/icon-512.png",
+        "type": "image/png"
+      }
+    ],
+    "lang": "en",
+    "name": "Bernstein",
+    "orientation": "any",
+    "scope": "/ui/",
+    "short_name": "Bernstein",
+    "start_url": "/ui/",
+    "theme_color": "#111111"
+  }
+  '''
+# ---

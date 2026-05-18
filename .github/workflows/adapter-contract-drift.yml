@@ -283,19 +283,56 @@ jobs:
 
           Refs #1291."
           EXISTING=$(gh issue list \
+            --repo "${{ github.repository }}" \
             --search "in:title Adapter contract drift" \
             --state open \
             --json number,title \
             --jq '.[0].number // ""')
           if [ -n "$EXISTING" ]; then
             echo "Refreshing existing tracking issue #$EXISTING"
-            gh issue edit "$EXISTING" --title "$TITLE" --body "$BODY"
+            gh issue edit "$EXISTING" \
+              --repo "${{ github.repository }}" \
+              --title "$TITLE" --body "$BODY"
           else
             gh issue create \
+              --repo "${{ github.repository }}" \
               --title "$TITLE" \
               --label "ci,contract-drift,bot" \
               --body "$BODY"
           fi
+
+      - name: Auto-close tracking issue when all adapters pass
+        # When the summariser finds no failures we close any open
+        # "Adapter contract drift -" tracking issue so the inbox does
+        # not stay red after the upstream regression is fixed. Idempotent:
+        # if nothing is open this is a no-op.
+        #
+        # Limited to schedule / workflow_dispatch so a PR-time run cannot
+        # close an issue that tracks main-only drift (PR may not have the
+        # fix; only the scheduled main run is authoritative).
+        if: >
+          steps.summarise.outputs.failed == '' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          OPEN=$(gh issue list \
+            --repo "${{ github.repository }}" \
+            --search "in:title Adapter contract drift" \
+            --state open \
+            --json number \
+            --jq '.[].number')
+          if [ -z "$OPEN" ]; then
+            echo "::notice::No open adapter-contract-drift tracking issue to close."
+            exit 0
+          fi
+          for NUM in $OPEN; do
+            echo "Closing tracking issue #${NUM} (all adapters green on run ${{ github.run_id }})."
+            gh issue close "$NUM" \
+              --comment "All adapters reported clean on workflow run ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}." \
+              --reason completed || true
+          done
 
       - name: Fail when any adapter failed
         if: steps.summarise.outputs.failed != ''

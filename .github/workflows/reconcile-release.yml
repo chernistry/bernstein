@@ -157,6 +157,37 @@ jobs:
               --body "${BODY}"
           fi
 
+      - name: Auto-close stale drift issues (no drift today)
+        # When PyPI catches up the old `release drift: pyproject=… pypi=…`
+        # issue stays OPEN forever because the previous "open or update"
+        # step only fires on the drift==true branch. Close any open
+        # release-drift issue here so the inbox self-clears on the next
+        # successful publish.
+        if: steps.cmp.outputs.drift != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PYPI_VERSION: ${{ steps.cmp.outputs.pypi_version }}
+        run: |
+          set -euo pipefail
+          OPEN=$(gh issue list \
+            --repo "${REPO}" \
+            --label "release-drift" \
+            --state open \
+            --json number \
+            --jq '.[].number')
+          if [ -z "$OPEN" ]; then
+            echo "::notice::No open release-drift issues to close."
+            exit 0
+          fi
+          for NUM in $OPEN; do
+            echo "Closing release-drift issue #${NUM} (PyPI now at ${PYPI_VERSION})."
+            gh issue close "$NUM" \
+              --repo "${REPO}" \
+              --comment "PyPI now reports \`${PYPI_VERSION}\`; drift cleared on $(date -u +%Y-%m-%dT%H:%MZ)." \
+              --reason completed || true
+          done
+
       - name: No drift
         if: steps.cmp.outputs.drift != 'true'
         env:

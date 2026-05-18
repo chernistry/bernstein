@@ -42,6 +42,16 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Checkout repo for benign-drift classifier
+        # EDGE-4: the classifier script lives in the repo; checkout
+        # shallow (depth=1) so the workflow can read it without paying
+        # for full history.
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6  # zizmor: ignore[artipacked]
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Check parent commit for prior hotfix
         env:
           GH_TOKEN: ${{ github.token }}
@@ -112,6 +122,46 @@ jobs:
 
           if [ "${CHAIN_LEN}" -le 1 ]; then
             echo "R = 1 (single hotfix). No action needed."
+            exit 0
+          fi
+
+          # EDGE-4 hardening: classify the chain against the benign-drift
+          # allow-list before deciding to comment. The agents-md regen +
+          # ruff-format drift sequence is mechanical post-feature cleanup,
+          # not a regression; alerting on it trains operators to ignore
+          # the signal entirely.
+          #
+          # Collect every chain subject including HEAD into a single
+          # buffer and pipe to the classifier.
+          CHAIN_SUBJECTS_FILE=$(mktemp)
+          printf '%s\n' "${HEAD_MSG}" | head -1 > "${CHAIN_SUBJECTS_FILE}"
+          # Append each parent's subject (first line). CHAIN_DETAILS lines
+          # look like "- `sha7`: subject", strip the prefix back to subject.
+          printf '%s' "${CHAIN_DETAILS}" \
+            | sed -E 's/^- `[0-9a-f]+`: //' \
+            >> "${CHAIN_SUBJECTS_FILE}"
+
+          # ubuntu-latest ships python3 by default; we do not need an
+          # explicit setup-python step for this stdlib-only script. If
+          # the classifier exits 2 (missing allow-list, malformed regex)
+          # we fall open to "investigate" so the legacy alert path runs.
+          VERDICT=$(python3 scripts/r_counter_classify.py \
+            < "${CHAIN_SUBJECTS_FILE}" 2>/dev/null || echo "investigate")
+
+          if [ "${VERDICT}" = "benign" ]; then
+            {
+              echo "## R-counter (benign drift, no PR comment)"
+              echo ""
+              echo "Chain length R=${CHAIN_LEN}, but every commit matches"
+              echo ".github/r-counter-allowlist.txt patterns. This is the"
+              echo "standard agents-md+ruff drift mop-up sequence after a"
+              echo "feature merge, not a regression. Suppressing PR comment."
+              echo ""
+              echo "### Chain (newest first)"
+              echo ""
+              printf -- '- `%s`: %s\n' "${HEAD_SHA:0:7}" "${HEAD_MSG}"
+              printf '%s' "${CHAIN_DETAILS}"
+            } >> "${GITHUB_STEP_SUMMARY}"
             exit 0
           fi
 

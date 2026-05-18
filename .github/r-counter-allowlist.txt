@@ -1,0 +1,65 @@
+# R-counter benign-recursive-drift allow-list
+#
+# Refs: edge-hardening EDGE-4 (premortem p=0.35).
+#
+# The Hotfix R-counter workflow (`.github/workflows/hotfix-r-tracker.yml`,
+# landed via the META-engineering wave) walks back parent commits looking
+# for `fix(ci):*` patterns and counts hotfix chains. R > 1 is supposed to
+# mean "a hotfix begot another hotfix; the root cause was not actually
+# fixed".
+#
+# False-positive failure mode this allow-list addresses
+# -----------------------------------------------------
+# After EVERY feature merge that touches Python modules, two CI-fix
+# commits are expected:
+#
+#   1. `agents-md sync` drift (commit subject: "fix(ci): repair main XYZ
+#      (agents-md drift after <feature>)"), and
+#   2. `ruff format` drift on the agents-md regen (commit subject:
+#      "fix(ci): repair main XYZ (post-hotfix lint drift)").
+#
+# Both are deterministic, expected, and not a regression. They occur in
+# sequence as standard drift-mop-up, NOT as cascading hotfixes. R-counter
+# would yell R=2 on this every time without this allow-list.
+#
+# How this file is consumed
+# -------------------------
+# Each line is a Python re-compatible regex matched against a commit
+# subject (first line of the commit message). Lines starting with `#`
+# are comments; blank lines ignored.
+#
+# Workflow integration (apply on top of META hotfix-r-tracker.yml when
+# it lands):
+#
+#   - After computing CHAIN_LEN, before deciding to comment, classify
+#     each commit in the chain against this allow-list.
+#   - If EVERY commit in the chain matches an allow-list pattern, log
+#     to step summary as `expected-recursive` and DO NOT comment on the
+#     parent PR.
+#   - If at least ONE chain commit does NOT match any allow-list
+#     pattern (e.g. real bug hotfix mixed with lint drift), behave as
+#     today: comment on the parent feature PR.
+#
+# This implements the "different-class" rule: only signal investigation
+# when chain commits are heterogeneous (genuine regression sequence),
+# not when chain is uniformly drift-mop-up (mechanical).
+#
+# Allow-list patterns (each is a Python re.search target, anchored
+# implicitly by the workflow). Keep one-pattern-per-line, no inline
+# comments inside the pattern.
+
+# Standard agents-md regen drift after a feature merge.
+^fix\(ci\): repair main [0-9a-f]{7,40} \(agents-md drift after .*\)$
+
+# Standard ruff-format drift on the agents-md regen.
+^fix\(ci\): repair main [0-9a-f]{7,40} \(post-hotfix lint drift\)$
+
+# Generic lint drift after a feature merge (older format used before the
+# multi-class taxonomy landed via #1452).
+^fix\(ci\): repair main [0-9a-f]{7,40} \(lint drift.*\)$
+
+# Recursive lint drift -- explicit "recursive" marker used when the
+# previous fix(ci) commit triggered yet another lint drift on its own
+# regen. This is still mechanical and benign in the agents-md+ruff
+# composition era.
+^fix\(ci\): repair main [0-9a-f]{7,40} \(recursive lint drift\)$

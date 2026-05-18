@@ -2,14 +2,14 @@
 # Build script invoked inside the ClusterFuzzLite builder container.
 #
 # Compiles each fuzz_*.py harness with atheris and copies the resulting
-# binaries plus their seed corpora into $OUT. atheris is shipped pre-installed
-# in the gcr.io/oss-fuzz-base/base-builder-python image.
+# binaries into $OUT. atheris and PyYAML are shipped pre-installed in the
+# gcr.io/oss-fuzz-base/base-builder-python image, so no extra pip install
+# is needed for the YAML safe_load harness.
 #
 # Ref: https://google.github.io/clusterfuzzlite/build-integration/python-lang/
 
-pip3 install --no-cache-dir .
+pip3 install --no-cache-dir pyyaml
 
 for fuzzer in "$SRC/bernstein/.clusterfuzzlite"/fuzz_*.py; do
-  fuzzer_basename=$(basename -s .py "$fuzzer")
-  compile_python_fuzzer "$fuzzer" --add-data "$SRC/bernstein:bernstein"
+  compile_python_fuzzer "$fuzzer"
 done

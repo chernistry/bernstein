@@ -69,7 +69,10 @@ ClusterFuzzLite gives OSSF Scorecard a signal it recognizes. Files:
 - `.clusterfuzzlite/Dockerfile` -- builder image (pinned by digest).
 - `.clusterfuzzlite/build.sh` -- atheris harness compilation.
 - `.clusterfuzzlite/fuzz_seed_parser.py` -- minimal entry point against
-  `bernstein.core.config.seed_parser`.
+  `yaml.safe_load`, the parser primitive `bernstein.core.config.seed_parser`
+  sits on top of (the OSS-Fuzz base-builder-python image ships Python
+  3.11; bernstein requires 3.12+, so the harness targets the underlying
+  YAML primitive instead of importing the full package).
 - `.github/workflows/cifuzz-pr.yml` -- per-PR run via
   `google/clusterfuzzlite/actions/run_fuzzers` (SHA-pinned).
 

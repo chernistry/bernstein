@@ -184,7 +184,15 @@ eval = ["datasets>=4.8.5", "huggingface-hub>=0.24"]
 # minimal so TUI users keep zero overhead. Enable with:
 #   pip install 'bernstein[gui]'
 # then: bernstein gui serve
-gui = ["sse-starlette>=2.1.0"]
+gui = [
+    "sse-starlette>=2.1.0",
+    # Terminal QR rendering for ``bernstein gui qr`` and the
+    # ``--tunnel`` flag of ``bernstein gui serve`` (#1218). Pure Python,
+    # MIT-licensed, no native deps. The qr renderer ships a fallback
+    # placeholder when this extra is absent so minimal installs do not
+    # crash - they just print a "install qrcode" diagnostic.
+    "qrcode>=7.4",
+]
 # OpenTelemetry OTLP/gRPC exporter for GenAI semantic conventions
 # (src/bernstein/core/observability/otlp_exporter.py). The exporter is a
 # no-op when this extra is absent or BERNSTEIN_OTEL_ENDPOINT is unset, so

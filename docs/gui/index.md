@@ -39,4 +39,5 @@ Operators supervising live agent runs. The GUI mirrors what an operator already 
 - [Screens](screens.md) — what each route shows and which TUI widget it replaces.
 - [Playground](playground.md) — zero-cost dev loop with `bernstein run --idle`.
 - [Configuration](configuration.md) — env vars, auth token, theme, fleet toggle.
+- [Mobile + tunnel](mobile.md) — installable PWA, `bernstein gui serve --tunnel`, QR onboarding (#1218).
 - [Troubleshooting](troubleshooting.md) — common failure modes.

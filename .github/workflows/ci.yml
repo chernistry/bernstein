@@ -384,11 +384,15 @@ jobs:
         with:
           reporter: github-check
           level: error
-          fail_on_error: true
-          # `level: error` filters reviewdog output to error-only findings.
-          # Without it, shellcheck warnings (SC2016/2221/2222/2034) flood
-          # GH check annotations and hit the 22-result cap, which itself
-          # fails reviewdog. Errors stay loud, noise stays quiet.
+          fail_level: error
+          actionlint_flags: -shellcheck=
+          # `actionlint_flags: -shellcheck=` disables the embedded
+          # shellcheck (empty path = disabled). Without this our workflows
+          # emit ~21 SC2016/SC2221/SC2222/SC2034 warnings that flood the
+          # 22-annotation GitHub check_run cap, which is itself reported
+          # as an error and fails reviewdog. `level` is a severity tag,
+          # not a filter, so it alone does not stop the cap being hit.
+          # `fail_on_error` is deprecated; `fail_level: error` replaces it.
 
   lineage-gate:
     # ADR-009 Lineage Gate — required check. Verifies the on-disk lineage

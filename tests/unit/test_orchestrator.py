@@ -1468,8 +1468,21 @@ class TestSpawnResiliency:
 
 
 class TestReaping:
+    # NB: ``agent_lifecycle._refresh_heartbeat_from_signals`` calls a *local*
+    # ``_is_process_alive`` symbol (not the one in ``agent_recycling``). Without
+    # patching that second binding the real ``os.kill(pid, 0)`` runs against the
+    # synthetic ``pid=999``; on macOS CI runners that PID is often in use by a
+    # system daemon, the heartbeat is refreshed to "now", and the agent is no
+    # longer considered stale (failure mode: ``assert 'backend-stale' in []``).
+    # Patching both bindings keeps the test deterministic on every platform.
+    @patch("bernstein.core.agents.agent_lifecycle._is_process_alive", return_value=False)
     @patch("bernstein.core.agent_recycling._is_process_alive", return_value=False)
-    def test_reaps_stale_heartbeat(self, _mock_alive: MagicMock, tmp_path: Path) -> None:
+    def test_reaps_stale_heartbeat(
+        self,
+        _mock_alive: MagicMock,
+        _mock_alive_lifecycle: MagicMock,
+        tmp_path: Path,
+    ) -> None:
         transport = _mock_transport(
             {
                 "GET /tasks": httpx.Response(200, json=[]),

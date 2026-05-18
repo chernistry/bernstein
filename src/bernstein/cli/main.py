@@ -61,6 +61,7 @@ from bernstein.cli.commands.criterion_profile_cmd import criterion_profile_group
 from bernstein.cli.commands.decisions_cmd import decisions_group
 from bernstein.cli.commands.export_cmd import export_cmd
 from bernstein.cli.commands.fleet_cmd import fleet_group
+from bernstein.cli.commands.knowledge_cmd import knowledge_group
 from bernstein.cli.commands.resume_cmd import resume_cmd
 from bernstein.cli.commands.role_adapter_policy_cmd import security_group as _role_adapter_security_group
 from bernstein.cli.commands.skills_cmd import skills_group
@@ -910,6 +911,7 @@ cli.add_command(slo_cmd, "slo")
 cli.add_command(man_pages_cmd, "man-pages")
 cli.add_command(workflow_group, "workflow")
 cli.add_command(recipes_group, "recipes")
+cli.add_command(knowledge_group, "knowledge")
 cli.add_command(quickstart_cmd, "quickstart")
 cli.add_command(scaffold_cmd, "scaffold")
 cli.add_command(watch_cmd, "watch")

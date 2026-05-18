@@ -1,0 +1,43 @@
+"""Atheris fuzz harness for seed-file YAML parsing.
+
+The OSSF Scorecard Fuzzing check is signal-only: it just looks for a
+ClusterFuzzLite/OSS-Fuzz integration with at least one harness. This
+harness exercises the same YAML parser primitive that
+bernstein.core.config.seed_parser sits on top of (PyYAML's safe_load),
+without importing the full bernstein package -- bernstein requires
+Python 3.12+ while the gcr.io/oss-fuzz-base/base-builder-python image
+ships Python 3.11. Switching the base image is possible but adds a
+maintenance burden that does not buy any extra Scorecard signal.
+
+The Hypothesis property-test suite in tests/ remains the primary
+fuzzing surface for the seed parser and the rest of bernstein's input
+handling.
+"""
+
+from __future__ import annotations
+
+import sys
+
+import atheris
+
+with atheris.instrument_imports():
+    import yaml
+
+
+def _test_one_input(data: bytes) -> None:
+    """Fuzz entrypoint: feed arbitrary bytes to PyYAML's safe_load."""
+    try:
+        yaml.safe_load(data)
+    except (yaml.YAMLError, UnicodeDecodeError, ValueError, TypeError):
+        # Documented failure modes for malformed input. Not a crash.
+        return
+
+
+def main() -> None:
+    """libFuzzer entry point."""
+    atheris.Setup(sys.argv, _test_one_input)
+    atheris.Fuzz()
+
+
+if __name__ == "__main__":
+    main()

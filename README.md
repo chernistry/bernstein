@@ -28,6 +28,8 @@ Multi-agent CLI orchestration with an HMAC-signed audit chain, signed agent card
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-3776ab?logo=python&logoColor=white)](https://python.org)
 [![License](https://img.shields.io/github/license/sipyourdrink-ltd/bernstein)](LICENSE)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sipyourdrink-ltd/bernstein/badge)](https://scorecard.dev/viewer/?uri=github.com/sipyourdrink-ltd/bernstein)
+<!-- TODO(operator): register at bestpractices.dev, replace <PROJECT_ID> -->
+[![CII Best Practices](https://www.bestpractices.dev/projects/<PROJECT_ID>/badge)](https://www.bestpractices.dev/projects/<PROJECT_ID>)
 [![CodeQL](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/codeql.yml/badge.svg?branch=main)](https://github.com/sipyourdrink-ltd/bernstein/actions/workflows/codeql.yml)
 [![MseeP.ai](https://img.shields.io/badge/MseeP.ai-verified-2496ed)](https://mseep.ai/app/chernistry-bernstein)
 [![CodeTrendy](https://img.shields.io/badge/CodeTrendy-listed-FBBF24)](https://codetrendy.com/listing/bernstein)
@@ -568,6 +570,13 @@ If your project ships diffs that bernstein helped land, you can advertise it:
 ```
 
 `bernstein init --add-badge` injects it into your README under the existing badge stack. Variants: `signed`, `audited-by`, `orchestrated-by`, `crew-managed-by` — pass via `--badge-variant`. Picky maintainers can keep their READMEs untouched: the flag is opt-in.
+
+## security
+
+- **OpenSSF Scorecard.** Weekly run via `.github/workflows/scorecard.yml`. Results uploaded to GitHub Code Scanning. Badge above.
+- **CII Best Practices.** Registration pending (operator pickup, tracked in #1482). See [docs/operations/security.md](docs/operations/security.md) for the signup checklist and self-assessment cross-walk to existing controls.
+- **Fuzzing.** ClusterFuzzLite config at `.clusterfuzzlite/` plus a `cifuzz-pr` workflow (`.github/workflows/cifuzz-pr.yml`) provide an OSSF-recognized fuzzing harness on top of the existing Hypothesis property-test suite.
+- **Vulnerability disclosure.** See [SECURITY.md](SECURITY.md).
 
 ## contributing
 

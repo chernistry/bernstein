@@ -95,10 +95,12 @@ jobs:
           fi
 
           echo "TOTAL=${TOTAL} RED=${RED} RED_PCT=${RED_PCT}% THRESHOLD=${THRESHOLD_PCT}% UNSTABLE=${UNSTABLE}"
-          echo "unstable=${UNSTABLE}" >> "${GITHUB_OUTPUT}"
-          echo "red_pct=${RED_PCT}" >> "${GITHUB_OUTPUT}"
-          echo "red=${RED}" >> "${GITHUB_OUTPUT}"
-          echo "total=${TOTAL}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "unstable=${UNSTABLE}"
+            echo "red_pct=${RED_PCT}"
+            echo "red=${RED}"
+            echo "total=${TOTAL}"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Toggle TRUNK_UNSTABLE repo variable
         env:

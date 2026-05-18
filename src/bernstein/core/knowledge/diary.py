@@ -90,9 +90,7 @@ class DiaryEntry:
     rationale: str
     tags: tuple[str, ...]
     redaction_hash: str
-    created_at: str = field(
-        default_factory=lambda: datetime.now(UTC).isoformat(timespec="seconds")
-    )
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat(timespec="seconds"))
     schema_version: int = DIARY_SCHEMA_VERSION
 
     def to_dict(self) -> dict[str, Any]:
@@ -143,7 +141,7 @@ def _normalise_bullet(line: str) -> str:
     stripped = line.strip()
     for marker in ("- ", "* ", "+ ", "  - "):
         if stripped.startswith(marker):
-            return stripped[len(marker):].strip()
+            return stripped[len(marker) :].strip()
     return stripped
 
 
@@ -201,10 +199,38 @@ def extract_tags(transcript: str, *, limit: int = 16) -> tuple[str, ...]:
     if not transcript:
         return ()
     stop = {
-        "the", "and", "for", "with", "from", "this", "that", "into", "than",
-        "then", "have", "has", "had", "are", "was", "were", "but", "not",
-        "all", "any", "use", "used", "uses", "via", "per", "out", "off",
-        "its", "lol", "yes", "now", "tbd",
+        "the",
+        "and",
+        "for",
+        "with",
+        "from",
+        "this",
+        "that",
+        "into",
+        "than",
+        "then",
+        "have",
+        "has",
+        "had",
+        "are",
+        "was",
+        "were",
+        "but",
+        "not",
+        "all",
+        "any",
+        "use",
+        "used",
+        "uses",
+        "via",
+        "per",
+        "out",
+        "off",
+        "its",
+        "lol",
+        "yes",
+        "now",
+        "tbd",
     }
     seen: list[str] = []
     seen_set: set[str] = set()
@@ -289,9 +315,7 @@ def write_diary(entry: DiaryEntry, sdd_dir: Path) -> Path:
     return target
 
 
-def write_diary_from_transcript(
-    task_id: str, transcript: str, sdd_dir: Path
-) -> Path:
+def write_diary_from_transcript(task_id: str, transcript: str, sdd_dir: Path) -> Path:
     """Convenience: build an entry from *transcript* and persist it.
 
     Failures are propagated as :class:`DiaryError`; callers wiring this

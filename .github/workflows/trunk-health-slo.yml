@@ -1,0 +1,148 @@
+name: Trunk Health SLO
+
+# Compute the last-24h main-red rate (failed CI runs / total CI runs on
+# main) and toggle the repo variable TRUNK_UNSTABLE accordingly. A
+# companion gate workflow (`trunk-andon-gate.yml`) keys off that
+# variable to hold merges on every PR until the trunk recovers, unless
+# the PR carries the `hotfix-cleared` label.
+#
+# Borrowed-from: SPC (statistical process control) + Toyota Andon.
+# When the line goes red, stop new work from being committed until the
+# stop signal clears, except for the fix that clears it.
+#
+# Threshold defaults to 5%. Override per-run via workflow_dispatch.
+
+on:
+  schedule:
+    # Every 30 minutes is a reasonable refresh interval: short enough
+    # that operators are not blocked unnecessarily after recovery, long
+    # enough to avoid thrashing on a single flaky run.
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      threshold_pct:
+        description: "Red-rate threshold (default 5)"
+        required: false
+        default: "5"
+      lookback_hours:
+        description: "Lookback window in hours (default 24)"
+        required: false
+        default: "24"
+
+concurrency:
+  group: trunk-health-slo
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  compute:
+    name: Compute trunk red-rate and toggle TRUNK_UNSTABLE
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Compute red-rate
+        id: compute
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          THRESHOLD_PCT: ${{ github.event.inputs.threshold_pct || '5' }}
+          LOOKBACK_HOURS: ${{ github.event.inputs.lookback_hours || '24' }}
+        run: |
+          set -euo pipefail
+
+          SINCE=$(date -u -d "${LOOKBACK_HOURS} hours ago" +'%Y-%m-%dT%H:%M:%SZ' 2>/dev/null \
+            || date -u -v-"${LOOKBACK_HOURS}"H +'%Y-%m-%dT%H:%M:%SZ')
+          export SINCE
+
+          echo "Computing red-rate on main since ${SINCE}"
+
+          # Pull last 100 CI workflow runs on main; filter to the
+          # primary "CI" workflow only to avoid scoring scheduled
+          # housekeeping runs as outages.
+          ALL_JSON=$(gh api -X GET "repos/${REPO}/actions/runs" \
+            -f branch=main \
+            -f per_page=100 \
+            --jq '[
+              .workflow_runs[]
+              | select(.name == "CI")
+              | select(.created_at >= env.SINCE)
+              | {conclusion, sha: .head_sha, url: .html_url}
+            ]')
+
+          TOTAL=$(printf '%s' "${ALL_JSON}" | jq 'length')
+          if [ "${TOTAL}" = "0" ]; then
+            echo "No CI runs on main in window. Treating as healthy."
+            UNSTABLE=false
+            RED=0
+            RED_PCT=0
+          else
+            RED=$(printf '%s' "${ALL_JSON}" | jq '[.[] | select(.conclusion == "failure" or .conclusion == "timed_out")] | length')
+            # Integer percentage: enough resolution for the threshold.
+            RED_PCT=$(( (RED * 100) / TOTAL ))
+            if [ "${RED_PCT}" -ge "${THRESHOLD_PCT}" ]; then
+              UNSTABLE=true
+            else
+              UNSTABLE=false
+            fi
+          fi
+
+          echo "TOTAL=${TOTAL} RED=${RED} RED_PCT=${RED_PCT}% THRESHOLD=${THRESHOLD_PCT}% UNSTABLE=${UNSTABLE}"
+          echo "unstable=${UNSTABLE}" >> "${GITHUB_OUTPUT}"
+          echo "red_pct=${RED_PCT}" >> "${GITHUB_OUTPUT}"
+          echo "red=${RED}" >> "${GITHUB_OUTPUT}"
+          echo "total=${TOTAL}" >> "${GITHUB_OUTPUT}"
+
+      - name: Toggle TRUNK_UNSTABLE repo variable
+        env:
+          # Variable management needs a token with `actions:variables`
+          # scope on the repo. Falls back to GITHUB_TOKEN if no special
+          # PAT is provisioned; logs a warning when the API rejects.
+          GH_TOKEN: ${{ secrets.BOT_PAT || github.token }}
+          REPO: ${{ github.repository }}
+          UNSTABLE: ${{ steps.compute.outputs.unstable }}
+          RED_PCT: ${{ steps.compute.outputs.red_pct }}
+          RED: ${{ steps.compute.outputs.red }}
+          TOTAL: ${{ steps.compute.outputs.total }}
+        run: |
+          set -euo pipefail
+
+          NEW_VALUE="${UNSTABLE}"
+
+          # Idempotent upsert: try PATCH, fall back to POST on 404.
+          if gh api -X PATCH "repos/${REPO}/actions/variables/TRUNK_UNSTABLE" \
+              -f name=TRUNK_UNSTABLE \
+              -f value="${NEW_VALUE}" \
+              >/dev/null 2>&1; then
+            echo "Updated TRUNK_UNSTABLE=${NEW_VALUE}"
+          else
+            if gh api -X POST "repos/${REPO}/actions/variables" \
+                -f name=TRUNK_UNSTABLE \
+                -f value="${NEW_VALUE}" \
+                >/dev/null 2>&1; then
+              echo "Created TRUNK_UNSTABLE=${NEW_VALUE}"
+            else
+              echo "::warning::Failed to set TRUNK_UNSTABLE; insufficient token scope. Provision a BOT_PAT with actions:variables to enable Andon."
+              exit 0
+            fi
+          fi
+
+          # Record a short status note for operator visibility. Step
+          # summary survives in the run UI without spamming issues.
+          {
+            echo "## Trunk health SLO"
+            echo ""
+            echo "| metric | value |"
+            echo "|---|---|"
+            echo "| CI runs on main (window) | ${TOTAL} |"
+            echo "| failed runs | ${RED} |"
+            echo "| red-rate | ${RED_PCT}% |"
+            echo "| TRUNK_UNSTABLE | ${NEW_VALUE} |"
+          } >> "${GITHUB_STEP_SUMMARY}"

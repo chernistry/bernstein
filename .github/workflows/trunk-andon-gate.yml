@@ -1,0 +1,66 @@
+name: Trunk Andon Gate
+
+# Companion to `trunk-health-slo.yml`. Fails on every PR while
+# TRUNK_UNSTABLE == 'true' unless the PR carries `hotfix-cleared`.
+# Lives in its own workflow file (not inside ci.yml) so it can be
+# enabled, disabled, or required-as-a-check independently of the main
+# CI pipeline and so flipping the toggle does not invalidate cached
+# ci.yml jobs across in-flight PRs.
+#
+# Borrowed-from: Toyota Andon cord. The trunk pulls the cord; new work
+# pauses until cleared. The `hotfix-cleared` label is the explicit
+# "this is the cord-clearing fix, let it through" override.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  workflow_dispatch:
+
+concurrency:
+  group: trunk-andon-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  gate:
+    name: Andon gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Check TRUNK_UNSTABLE
+        env:
+          # Read-only access to repo variables suffices.
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+
+          UNSTABLE=$(gh api "repos/${REPO}/actions/variables/TRUNK_UNSTABLE" \
+            --jq '.value' 2>/dev/null || echo "false")
+
+          echo "TRUNK_UNSTABLE=${UNSTABLE}"
+
+          if [ "${UNSTABLE}" != "true" ]; then
+            echo "Trunk healthy. Gate passes."
+            exit 0
+          fi
+
+          # Trunk red: only `hotfix-cleared`-labeled PRs may merge.
+          if echo "${PR_LABELS}" | jq -e 'index("hotfix-cleared")' >/dev/null 2>&1; then
+            echo "::notice::Trunk unstable, but PR is labeled hotfix-cleared. Gate passes."
+            exit 0
+          fi
+
+          echo "::error::Trunk is in an unstable state (TRUNK_UNSTABLE=true)."
+          echo "Merge held by Andon gate. Land the hotfix first (or apply the 'hotfix-cleared' label if this PR IS the hotfix)."
+          exit 1

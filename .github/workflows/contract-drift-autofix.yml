@@ -67,10 +67,15 @@ concurrency:
   group: contract-drift-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-# Default-deny at workflow scope; the autofix job re-asserts the writes
-# it actually needs (Scorecard token-permissions).
+# Workflow-scope permissions: contents:write for the inline regen push to
+# the source PR head ref, pull-requests:write for the comment-fallback
+# path, issues:write for the tracking-issue fallback when regen cannot
+# produce a clean patch. The autofix job re-asserts the same set at job
+# scope (Scorecard token-permissions).
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+  issues: write
 
 jobs:
   autofix:

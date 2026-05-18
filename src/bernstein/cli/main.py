@@ -56,6 +56,7 @@ from bernstein.cli.checkpoint_cmd import checkpoint_cmd
 from bernstein.cli.ci_cmd import ci_group
 from bernstein.cli.cloud_cmd import cloud_group
 from bernstein.cli.commands.best_of_n_rank_cmd import best_of_n_group
+from bernstein.cli.commands.bom_cmd import bom_group
 from bernstein.cli.commands.citation_cmd import quality_group as citation_quality_group
 from bernstein.cli.commands.consensus_cmd import consensus_group
 from bernstein.cli.commands.criterion_profile_cmd import criterion_profile_group
@@ -897,6 +898,7 @@ cli.add_command(checkpoint_cmd, "checkpoint")
 cli.add_command(resume_cmd, "resume")
 cli.add_command(wrap_up, "wrap-up")
 cli.add_command(audit_group, "audit")
+cli.add_command(bom_group, "bom")
 cli.add_command(compliance_group, "compliance")
 cli.add_command(verify_cmd, "verify")
 cli.add_command(chaos_group, "chaos")

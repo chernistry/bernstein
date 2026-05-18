@@ -57,6 +57,7 @@ from bernstein.cli.ci_cmd import ci_group
 from bernstein.cli.cloud_cmd import cloud_group
 from bernstein.cli.commands.best_of_n_rank_cmd import best_of_n_group
 from bernstein.cli.commands.citation_cmd import quality_group as citation_quality_group
+from bernstein.cli.commands.consensus_cmd import consensus_group
 from bernstein.cli.commands.criterion_profile_cmd import criterion_profile_group
 from bernstein.cli.commands.decisions_cmd import decisions_group
 from bernstein.cli.commands.export_cmd import export_cmd
@@ -812,6 +813,7 @@ cli.add_command(plan, "tasks")
 cli.add_command(backlog_group, "backlog")
 cli.add_command(logs_group, "logs")
 cli.add_command(decisions_group, "decisions")
+cli.add_command(consensus_group, "consensus")
 cli.add_command(list_tasks, "list-tasks")
 
 # From workspace_cmd module - groups and commands

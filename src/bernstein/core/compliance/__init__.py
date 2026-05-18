@@ -13,6 +13,23 @@ the dotted import path keeps working even though
 
 from __future__ import annotations
 
+from bernstein.core.compliance.ai_bom import (
+    AIBOM,
+    BOM_SCHEMA_URL,
+    BOM_SCHEMA_VERSION,
+    SUPPORTED_FORMATS,
+    AdapterEntry,
+    BOMError,
+    BOMVerificationReport,
+    DataSourceEntry,
+    ModelEntry,
+    PromptEntry,
+    ToolEntry,
+    bom_content_hash,
+    encode_bom,
+    generate_bom,
+    verify_bom,
+)
 from bernstein.core.compliance.article12 import (
     ARTICLE12_PARAGRAPH_MAP,
     CSV_FIELDS,
@@ -39,20 +56,35 @@ from bernstein.core.security.compliance import (
 )
 
 __all__ = [
+    "AIBOM",
     "ARTICLE12_PARAGRAPH_MAP",
+    "BOM_SCHEMA_URL",
+    "BOM_SCHEMA_VERSION",
     "CSV_FIELDS",
+    "SUPPORTED_FORMATS",
+    "AdapterEntry",
+    "BOMError",
+    "BOMVerificationReport",
     "ComplianceConfig",
     "CompliancePreset",
+    "DataSourceEntry",
+    "ModelEntry",
     "ParagraphFn",
+    "PromptEntry",
     "SBOMEntry",
+    "ToolEntry",
     "ai_label_for_file",
+    "bom_content_hash",
     "build_pack",
+    "encode_bom",
     "export_evidence_bundle",
     "export_soc2_package",
+    "generate_bom",
     "generate_sbom",
     "load_compliance_config",
     "parse_period",
     "persist_compliance_config",
     "render_csv",
     "render_pdf",
+    "verify_bom",
 ]

@@ -1,6 +1,6 @@
 name: "Contract Drift Autofix"
 
-# Refs: #1273 — CI hardening, bucket CI-E.
+# Refs: #1273 - CI hardening, bucket CI-E.
 #
 # Why this workflow exists
 # ------------------------
@@ -16,53 +16,49 @@ name: "Contract Drift Autofix"
 #     fails when run() gains a new parameter that the cli() click callback
 #     does not forward.
 #
-# Every one of these is a 1-2 line allow-list / forward-arg edit. They are
-# real signals (new public surface needs explicit acknowledgement) but the
-# fix is mechanical — perfectly suited for an autofix bot.
+# Every one of these is a 1-2 line allow-list / forward-arg edit. The fix is
+# mechanical and well-suited for an autofix bot.
 #
-# Behaviour on drift
-# ------------------
-# This workflow runs on PR open/sync, runs just these three tests, and if
-# any fail invokes scripts/regen_contract_drift.py to regenerate the
-# allow-list / forward-arg list. Recovery ladder:
+# Strategy (modernized, refs operator audit 2026-05-18)
+# -----------------------------------------------------
+# Inline-fix model: when drift is detected on a same-repo PR, commit the
+# regen DIRECTLY to the source PR's head ref instead of opening a separate
+# bot PR. This eliminates the entire class of orphaned bot-PR churn
+# (#1436, #1440, #1441, #1445 type) we previously saw, because:
 #
-#   1. Primary — open a follow-up PR via peter-evans/create-pull-request.
-#      The org-level setting "Allow GitHub Actions to create and approve
-#      pull requests" is ON, so this is the preferred path.
-#   2. Fallback — if PR creation fails for any reason (e.g. transient API
-#      issue, branch protection conflict), post the same patch body as a
-#      PR comment with an idempotent marker so the operator can apply it
-#      locally.
-#   3. Ledger of last resort — if both PR-create and comment fail, or the
-#      regen script could not produce a clean diff, open a tracking issue.
+#   * No separate PR means no separate review/merge step.
+#   * The regen rides into main with the source PR, atomically.
+#   * When the source PR is auto-deleted on merge, there is no orphaned
+#     bot branch left re-targeting to main with a giant diff.
 #
-# Why the primary path was previously a comment
-# ---------------------------------------------
-# PR #1345 historically switched to comment-only because the org-level
-# setting "Allow GitHub Actions to create and approve pull requests" was
-# OFF, and any call to peter-evans/create-pull-request or `gh pr create`
-# failed with `GitHub Actions is not permitted to create or approve pull
-# requests`. The operator flipped that setting on, so we restore PR
-# creation as the primary path while keeping the comment path as a
-# zero-cost fallback.
+# Fallback paths (preserved for safety):
+#   * Fork PRs (no push to head ref): post the patch as an idempotent PR
+#     comment with copy-paste-able apply instructions.
+#   * Unhandled drift / LOC-cap trip: open a tracking issue.
+#   * Push to head ref fails (branch protection, lease conflict): post
+#     the patch as a PR comment so the operator can apply locally.
 #
 # Recursion guards
 # ----------------
-#   * Skips when the head branch is main (autofix only applies to PRs).
 #   * Skips when the PR author is the bot itself (no infinite loops).
+#   * Skips PRs whose head ref starts with `bot/contract-drift-`
+#     (legacy bot branches; ignored so they don't re-trigger).
 #   * Diff size capped at 30 LOC by the regen script; larger diffs imply
 #     a real change and are escalated by opening an issue instead.
-#   * No `actions: write` permission, so the autofix PR cannot recursively
-#     trigger more workflows in this file.
+#   * No `actions: write` permission, so the autofix commit cannot
+#     recursively trigger more workflows in this file (the inline commit
+#     uses BOT_PAT to bypass the GITHUB_TOKEN recursion mute for the
+#     source PR's other workflows; this file is muted for itself via the
+#     head-ref recursion guard above and the bot-author check).
 #
 # Secret requirements
 # -------------------
 #   * BOT_PAT (optional, recommended): a fine-grained PAT with `contents:
 #     write` + `pull-requests: write` on this repo. When present, the
-#     autofix PR triggers CI runs (GITHUB_TOKEN-authored PRs are otherwise
-#     muted by GitHub's recursion protection). When absent, falls back to
-#     GITHUB_TOKEN — the bot PR opens but CI must be kicked manually by
-#     closing/reopening it.
+#     inline push triggers CI runs on the source PR (GITHUB_TOKEN-authored
+#     commits are otherwise muted by GitHub's recursion protection).
+#     When absent, falls back to GITHUB_TOKEN and the PR-comment path
+#     (the operator applies the regen manually).
 on:
   pull_request:
     types: [opened, synchronize]
@@ -81,9 +77,9 @@ jobs:
     name: Detect and patch contract drift
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Recursion guard: don't run on PRs the bot itself opened. The matchers
-    # are intentionally broad (covers default GITHUB_TOKEN authorship via
-    # `github-actions[bot]` AND any of our bot identities used elsewhere).
+    # Recursion guard: don't run on PRs the bot itself opened, and don't
+    # run on legacy bot-contract-drift-* branches (kept for safety while
+    # any old open bot PRs drain).
     if: >
       github.event.pull_request.user.login != 'github-actions[bot]' &&
       github.event.pull_request.user.login != 'bernstein[bot]' &&
@@ -94,14 +90,34 @@ jobs:
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
         with:
           egress-policy: audit
+
+      - name: Detect fork PR
+        id: forkcheck
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          # Fork PRs have head.repo != base repo. We cannot push to a fork's
+          # head ref, so we fall back to the PR-comment path for those.
+          if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::PR is from a fork ($HEAD_REPO); will use PR-comment fallback if drift detected."
+          else
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # persist-credentials kept: this job pushes the regen commit back to
+      # the source PR's head ref (same-repo PRs only).
       - name: Checkout PR head
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6  # zizmor: ignore[artipacked]
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 1
-          persist-credentials: false
+          fetch-depth: 0
+          # Use BOT_PAT if present so the inline push triggers CI on the
+          # source PR. GITHUB_TOKEN-authored pushes are muted by GitHub.
+          token: ${{ secrets.BOT_PAT || secrets.GITHUB_TOKEN }}
 
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: astral-sh/setup-uv@00714ea9dc27830a1586fe47ef7ad28e4fd5db45 # v7
 
       - name: Sync project (dev group)
         run: uv sync --group dev
@@ -122,7 +138,7 @@ jobs:
             echo "::notice::No contract drift detected."
           else
             echo "drift=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::Contract drift detected — running regen."
+            echo "::notice::Contract drift detected - running regen."
           fi
           exit 0
 
@@ -133,7 +149,7 @@ jobs:
           set +e
           uv run python scripts/regen_contract_drift.py --fixture all
           # The regen script returns 0 only when at least one fixture was
-          # patched. Any non-zero exit means nothing was patched — either
+          # patched. Any non-zero exit means nothing was patched - either
           # because the drift wasn't one of the three known patterns or
           # because the diff exceeded the 30-LOC safety cap.
           regen_status=$?
@@ -146,7 +162,7 @@ jobs:
         run: |
           if git diff --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Drift was detected but regen produced no diff. Likely an unhandled drift pattern or LOC-cap trip — opening tracking issue."
+            echo "::warning::Drift was detected but regen produced no diff. Likely an unhandled drift pattern or LOC-cap trip - opening tracking issue."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
             # Compute a coarse summary of what was regenerated.
@@ -167,11 +183,7 @@ jobs:
               [ -z "$f" ] && continue
               echo "  $f"
             done <<< "$CHANGED_FILES"
-            # Persist the actual diff to disk so the comment-fallback step
-            # can read it via github-script if PR-create fails. The comment
-            # body is hard-capped at ~60k chars (GitHub limit is 65536) —
-            # the 30-LOC regen cap makes this comfortable but we truncate
-            # defensively just in case the script is ever loosened.
+            # Persist the diff for the comment-fallback path.
             git diff > "${RUNNER_TEMP}/contract-drift.patch"
           fi
 
@@ -192,77 +204,57 @@ jobs:
           fi
           exit 0
 
-      - name: Open autofix PR
-        # Primary recovery path. The org-level setting "Allow GitHub
-        # Actions to create and approve pull requests" is ON, so we open
-        # a real follow-up PR with the regenerated diff. `continue-on-error`
-        # lets the workflow fall through to the comment-fallback step if
-        # PR creation itself fails (e.g. transient API outage, branch
-        # protection conflict, or the setting being toggled off again).
+      - name: Commit regen inline to source PR head ref
+        # Primary path. Same-repo PRs receive the regen patch directly on
+        # their head branch via git push, so the autofix rides into main
+        # with the source PR. No separate bot PR is opened.
         if: >
           steps.drift.outputs.drift == 'true' &&
           steps.verify.outputs.changed == 'true' &&
-          steps.reverify.outputs.status == '0'
-        id: cpr
+          steps.reverify.outputs.status == '0' &&
+          steps.forkcheck.outputs.is_fork == 'false'
+        id: inline_push
         continue-on-error: true
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
-        with:
-          token: ${{ secrets.BOT_PAT || secrets.GITHUB_TOKEN }}
-          branch: bot/contract-drift-pr-${{ github.event.pull_request.number }}
-          base: ${{ github.event.pull_request.head.ref }}
-          commit-message: |
-            chore(ci): regenerate contract drift allow-lists
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # Configure a stable bot identity for the commit. The identity is
+          # intentionally distinct from any real user; the commit author
+          # uses the GitHub-actions noreply email so commits attribute to
+          # the bot, not the workflow's PAT owner.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(ci): regenerate contract drift allow-lists
 
-            Drift detected on PR #${{ github.event.pull_request.number }}.
-            Regenerated via scripts/regen_contract_drift.py.
-            Refs #1273.
-          title: "bot(contract-drift): regenerate ${{ steps.verify.outputs.changed_files }}"
-          body: |
-            Auto-generated patch from `contract-drift-autofix.yml`.
+          Auto-applied by contract-drift-autofix.yml on PR #${PR_NUMBER}.
+          Regenerated via scripts/regen_contract_drift.py. Refs #1273.
 
-            Three contract tests act as drift detectors against the public CLI / API surface:
-
-            - `tests/unit/test_readme_api_coverage.py::test_all_cli_commands_are_documented`
-            - `tests/unit/test_api_v1_routing.py::TestVersionedRoutesParity::test_every_root_route_has_v1_counterpart`
-            - `tests/unit/test_cli_run_params.py::test_run_params_match_cli_call`
-
-            One or more failed on PR #${{ github.event.pull_request.number }}; this PR regenerates the
-            corresponding allow-list / forward-arg list via
-            `scripts/regen_contract_drift.py`.
-
-            **Files changed:**
-            ```
-            ${{ steps.verify.outputs.changed_files }}
-            ```
-            **LOC delta:** ${{ steps.verify.outputs.loc_delta }} (cap: 30)
-
-            **Source CI run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            Refs #1273.
-
-            > [!NOTE]
-            > If the `BOT_PAT` secret is not configured, this PR was opened
-            > with the default `GITHUB_TOKEN`, which means CI workflows will
-            > NOT run automatically on it. Close and reopen the PR (or push
-            > an empty commit) to trigger CI manually.
-          delete-branch: true
-          labels: |
-            ci
-            contract-drift
-            bot
+          Source CI run: ${RUN_URL}"
+          # --force-with-lease is the safe push variant: it rejects if the
+          # remote moved since we checked out, so a concurrent push from
+          # the PR author isn't clobbered. If the lease check fails the
+          # comment-fallback path will fire to surface the patch.
+          git push --force-with-lease origin "HEAD:${PR_HEAD_REF}"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
 
       - name: Post drift patch as PR comment (fallback)
-        # Fallback path. Only fires when the PR-create step above either
-        # failed outright (e.g. org setting toggled off mid-flight, branch
-        # protection rejected the push) or produced no PR number. The body
-        # mirrors the PR body so the operator gets the same payload either
-        # way and can apply it locally with a single `git apply` + push.
+        # Fallback path. Fires when:
+        #   * the PR is from a fork (no push access to head ref), OR
+        #   * the inline push step failed (lease conflict, branch protection,
+        #     transient API outage).
+        # Body is idempotent on a hidden marker so re-runs edit the same
+        # comment rather than spamming the PR.
         if: >
           steps.drift.outputs.drift == 'true' &&
           steps.verify.outputs.changed == 'true' &&
           steps.reverify.outputs.status == '0' && (
-            steps.cpr.outcome == 'failure' ||
-            steps.cpr.outputs.pull-request-number == ''
+            steps.forkcheck.outputs.is_fork == 'true' ||
+            steps.inline_push.outcome == 'failure' ||
+            steps.inline_push.outputs.pushed != 'true'
           )
         id: comment
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -271,6 +263,8 @@ jobs:
           CHANGED_FILES: ${{ steps.verify.outputs.changed_files }}
           LOC_DELTA: ${{ steps.verify.outputs.loc_delta }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          IS_FORK: ${{ steps.forkcheck.outputs.is_fork }}
+          INLINE_OUTCOME: ${{ steps.inline_push.outcome }}
         with:
           script: |
             const fs = require('fs');
@@ -281,6 +275,12 @@ jobs:
             const changedFiles = (process.env.CHANGED_FILES || '').trim();
             const locDelta = process.env.LOC_DELTA || '?';
             const runUrl = process.env.RUN_URL;
+            const isFork = process.env.IS_FORK === 'true';
+            const inlineOutcome = process.env.INLINE_OUTCOME || '';
+
+            const reason = isFork
+              ? 'PR is from a fork; the bot cannot push to fork head refs, so apply the patch below manually.'
+              : `Inline autofix push failed (\`${inlineOutcome || 'skipped'}\`). Apply the patch below manually.`;
 
             const patchPath = path.join(process.env.RUNNER_TEMP, 'contract-drift.patch');
             let patch = fs.readFileSync(patchPath, 'utf-8');
@@ -297,7 +297,9 @@ jobs:
 
             const body = [
               marker,
-              '## Contract drift detected — proposed patch (PR-create fallback)',
+              '## Contract drift detected - proposed patch',
+              '',
+              reason,
               '',
               'Three contract tests act as drift detectors against the public CLI / API surface:',
               '',
@@ -345,7 +347,7 @@ jobs:
               '',
               `**Source CI run:** ${runUrl}`,
               '',
-              '_Comment posted because the primary PR-create path failed. Check the workflow run for the underlying error. Refs #1273._',
+              '_Refs #1273._',
             ].join('\n');
 
             // Idempotency: edit the existing autofix comment in place
@@ -389,7 +391,7 @@ jobs:
           TITLE="Contract drift on PR #${{ github.event.pull_request.number }} could not be auto-patched"
           EXISTING=$(gh issue list --search "$TITLE in:title" --state open --json number --jq '.[0].number // ""')
           if [ -n "$EXISTING" ]; then
-            echo "::notice::Issue #$EXISTING already tracks this drift — skipping."
+            echo "::notice::Issue #$EXISTING already tracks this drift - skipping."
             exit 0
           fi
           gh issue create \

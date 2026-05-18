@@ -451,6 +451,20 @@ jobs:
           echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
           echo "pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
 
+      - name: Trigger CI on heal PR branch
+        # PRs opened via secrets.GITHUB_TOKEN do not emit `pull_request`
+        # events for downstream workflows, so CI never auto-starts on the
+        # newly pushed heal branch. Dispatch ci.yml explicitly so a heal
+        # PR has green/red signal without requiring a human re-trigger.
+        # Best-effort: a dispatch failure must not block the heal PR.
+        if: steps.cordon.outputs.noop != 'true' && steps.open_pr.outputs.pr_url != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAL_BRANCH: ci-heal/${{ needs.triage.outputs.short_sha }}
+        run: |
+          gh workflow run ci.yml --ref "${HEAL_BRANCH}" \
+            || echo "::warning::ci.yml dispatch failed for ${HEAL_BRANCH} -- PR review will trigger"
+
       - name: Capability 19 - SLSA build provenance attestation
         if: steps.cordon.outputs.noop != 'true'
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0

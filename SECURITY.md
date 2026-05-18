@@ -1,5 +1,7 @@
 # Security Policy
 
+> Last reviewed: 2026-05-18.
+
 ## Reporting a Vulnerability
 
 **Do not open a public issue for security vulnerabilities.**
@@ -124,3 +126,75 @@ Security patches are backported to the current minor version only. Always run th
 Acknowledged researchers are listed in [`docs/security/security-acknowledgments.md`](docs/security/security-acknowledgments.md).
 
 Thank you to everyone who has responsibly disclosed vulnerabilities.
+
+---
+
+## Engineering controls
+
+Tracked here so the OSSF Scorecard can find them in one place. Workflow files
+live under `.github/workflows/`.
+
+### Static analysis (SAST)
+
+| Tool       | Where                                                | Notes |
+|------------|------------------------------------------------------|-------|
+| CodeQL     | `.github/workflows/codeql.yml`                       | Python; runs on every PR + push to `main` and weekly cron. Config: `.github/codeql/codeql-config.yml`. |
+| Bandit     | Pinned in `pyproject.toml` dev extras                | Runs in CI lint stage. |
+| Semgrep    | Installed via `uv tool install semgrep` in CI        | Pattern packs run in the CI hardening stage. |
+| SonarCloud | Project `sipyourdrink-ltd_bernstein` on SonarCloud   | Quality gate posts back to PRs via the `SONAR_TOKEN` secret. |
+
+### Fuzzing and property tests
+
+Property-based fuzzing lives in [`tests/property/`](tests/property/) and uses
+[Hypothesis](https://hypothesis.readthedocs.io/). 48 modules cover the audit
+chain, agent-card signing, atomic write paths, adapter spawn surface, and the
+A2A protocol envelope. The suite runs as part of `scripts/run_tests.py` in CI.
+
+Targeted regex-fuzz tests for the config parser live in
+[`tests/unit/test_config_fuzz.py`](tests/unit/test_config_fuzz.py).
+
+### Dependency hygiene
+
+| Mechanism            | Where                                     | Cadence |
+|----------------------|-------------------------------------------|---------|
+| Dependabot (pip)     | `.github/dependabot.yml`                  | Weekly, 7-day cooldown, security-only group routed separately. |
+| Dependabot (actions) | `.github/dependabot.yml`                  | Weekly Tuesday, 7-day cooldown. |
+| `pip-audit`          | CI lint stage + ad-hoc maintainer sweeps  | OSV vulnerability service. |
+
+Security-relevant deps (`cryptography`, `signxml`, `defusedxml`, `fastapi`,
+`starlette`, `uvicorn`, `httpx`, `pyjwt`, `pyyaml`, `lxml`, `requests`,
+`urllib3`, `bandit`, `pip-audit`) are pinned in the Dependabot `security` group
+so CVE patches surface as standalone PRs rather than hiding inside feature
+bumps.
+
+### Code review
+
+All non-trivial changes land via pull request with at least one approving
+review. Security-touching changes (`SECURITY.md`, `.github/workflows/**`,
+`src/bernstein/core/security/**`, signing keys, auth flows) need either two
+reviewer approvals or operator-only direct push from a signed commit. Full
+process: [`docs/CODE_REVIEW.md`](docs/CODE_REVIEW.md).
+
+Branch protection on `main` enforces required status checks (CI, CodeQL,
+SonarCloud) and at least one approving review before merge. Configuration is
+maintained by repo admins via GitHub repo settings.
+
+### OpenSSF Best Practices Badge
+
+The CII / OpenSSF Best Practices badge (https://www.bestpractices.dev/) is a
+self-attested questionnaire. Status: application in progress (maintainer
+follow-up). Once the project is registered the badge will be added to the
+README and linked here.
+
+### Scorecard signals
+
+The repo is scanned by the OpenSSF Scorecard via
+`.github/workflows/scorecard.yml`. Results are uploaded to the GitHub
+code-scanning dashboard. Current known gaps:
+
+- **CIIBestPractices**: pending self-attestation (see above).
+- **SignedReleases**: release tags are not yet cosign-signed; tracked in the
+  evolution backlog.
+
+Other Scorecard categories (CodeReview, Maintained, Vulnerabilities, Fuzzing,
+SAST, CITests) are covered by the controls documented above.

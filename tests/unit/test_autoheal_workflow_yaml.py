@@ -132,3 +132,69 @@ CAPABILITY_ASSERTIONS: list[tuple[str, str]] = [
 @pytest.mark.parametrize(("name", "token"), CAPABILITY_ASSERTIONS)
 def test_capability_wired_in_workflow(workflow_text: str, name: str, token: str) -> None:
     assert token in workflow_text, f"capability {name} missing token {token!r} in workflow"
+
+
+# ---------- Regression: install path + tool scope --------------------------
+
+
+def test_does_not_pip_install_typos_cli(workflow_text: str) -> None:
+    """typos-cli does NOT exist on PyPI -- v2 originally died here.
+
+    Regression for the f67487627 / 5e0be90 / 48f38a21 / 42bd1846 main-red
+    incident series: the heal job's `Install runtime deps` step ran
+    `python -m pip install ruff typos-cli`, which fails because
+    typos-cli is not a published PyPI distribution (typos ships as a
+    Rust binary via cargo or the crate-ci/typos GH action). The failure
+    masked the entire heal pipeline -- no heal PR was ever created in
+    the v2 era. The replacement uses `uv sync --group dev` for ruff and
+    the crate-ci/typos action for the typos binary, gated to the
+    heuristic strategy.
+    """
+    assert "pip install ruff typos-cli" not in workflow_text
+    assert "pip install typos-cli" not in workflow_text
+
+
+def test_uses_uv_for_heal_toolchain(workflow_text: str) -> None:
+    """Heal job must use the same toolchain CI uses, or lint drift mismatches.
+
+    The Lint job in ci.yml runs `uv run ruff format --check src/`. If
+    the heal job used a different ruff version (e.g. a pip-installed
+    floating release), the heal could either fail to reproduce the
+    failing diff or introduce a new diff CI then rejects. Pinning to
+    `uv sync --group dev` keeps both paths on the same ruff.
+    """
+    assert "uv sync --group dev" in workflow_text
+
+
+def test_ruff_format_scope_matches_ci(workflow_text: str) -> None:
+    """`ruff format` in the heal must mirror ci.yml's Lint job scope.
+
+    ci.yml only checks `src/` for format drift, but the heal additionally
+    formats `tests/` and `scripts/` because the cordon's
+    WHITESPACE_OK_GLOBS allows those three roots. Running
+    `ruff format .` (whole repo) would touch vendored paths the cordon
+    rejects and the heal would always be cordon-blocked.
+    """
+    assert "uv run ruff format src/ tests/ scripts/" in workflow_text
+    # And NOT the legacy whole-repo form
+    assert "ruff format .\n" not in workflow_text
+
+
+def test_agents_md_sync_strategy_chained_with_ruff(workflow_text: str) -> None:
+    """agents-md-sync strategy must run ruff format after regen.
+
+    When a feature merge adds Python modules, `bernstein agents-md sync`
+    regenerates a module map that may itself trigger a ruff-format
+    failure. The strategy must compose: sync FIRST, then ruff format on
+    the result, so the heal PR lands in canonical formatted form.
+    """
+    # The agents-md case in the apply step contains both invocations.
+    apply_block = re.search(
+        r"agents-md-sync\).*?;;",
+        workflow_text,
+        flags=re.DOTALL,
+    )
+    assert apply_block is not None, "agents-md-sync case missing from apply step"
+    body = apply_block.group(0)
+    assert "bernstein agents-md sync" in body
+    assert "ruff format" in body

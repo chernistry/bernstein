@@ -7,14 +7,18 @@ concurrency:
   group: dependabot-merge-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+# Default-deny at workflow scope; the auto-merge job re-asserts the writes
+# it actually needs (Scorecard token-permissions).
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   auto-merge:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
     # Spoof-resistant check: github.actor can be impersonated by a setting
     # the User-Agent on the API call. Validate both the bot type and the
     # immutable Dependabot user id (49699333). See zizmor `bot-conditions`.

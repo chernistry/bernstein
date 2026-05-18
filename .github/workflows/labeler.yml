@@ -17,6 +17,11 @@ concurrency:
   group: labeler-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+# Default-deny at workflow scope; the label job re-asserts the narrow
+# pull-requests: write scope it actually needs (Scorecard token-permissions).
+permissions:
+  contents: read
+
 jobs:
   label:
     runs-on: ubuntu-latest

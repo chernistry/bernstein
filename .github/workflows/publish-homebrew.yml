@@ -9,14 +9,19 @@ on:
         description: "Version to publish (e.g. 1.4.0)"
         required: true
 
+# The cross-repo push targets chernistry/homebrew-tap via HOMEBREW_TAP_TOKEN,
+# not GITHUB_TOKEN on this repo, so the workflow token can stay read-only
+# (Scorecard token-permissions).
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   update-formula:
     name: Update Homebrew formula
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - name: Harden runner (audit mode)
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3

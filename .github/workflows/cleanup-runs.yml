@@ -24,13 +24,17 @@ on:
         type: number
         default: 0
 
+# Default-deny at workflow scope; the cleanup job re-asserts the writes
+# it actually needs (Scorecard token-permissions).
 permissions:
-  actions: write
+  contents: read
 
 jobs:
   cleanup:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      actions: write
     steps:
       - name: Harden runner (audit mode)
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3

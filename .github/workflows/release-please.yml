@@ -16,15 +16,19 @@ concurrency:
   group: release-please-${{ github.ref }}
   cancel-in-progress: false
 
+# Default-deny at workflow scope; the single job re-asserts the writes
+# it actually needs (Scorecard token-permissions).
 permissions:
-  contents: write
-  pull-requests: write
-  issues: write
+  contents: read
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:

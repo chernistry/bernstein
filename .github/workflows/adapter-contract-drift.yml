@@ -112,6 +112,11 @@ jobs:
           PY
 
       - name: Install upstream CLI
+        # Scorecard pinned-dependencies (NPM/PIP/PIPX): the install SPEC
+        # is sourced from tests/contract/contracts/*.yaml and is the
+        # adapter's *upstream-recommended* version pin. Hash-pinning at
+        # this layer is impossible without forking every upstream CLI's
+        # release pipeline; the contract YAML *is* the pinning surface.
         env:
           METHOD: ${{ steps.contract.outputs.method }}
           SPEC: ${{ steps.contract.outputs.spec }}

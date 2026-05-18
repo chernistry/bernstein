@@ -134,6 +134,11 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('branch-{0}', github.ref) }}
   cancel-in-progress: true
 
+# Default-deny for the workflow token; individual jobs escalate only
+# the scopes they actually need (Scorecard token-permissions, Sonar S8264).
+permissions:
+  contents: read
+
 jobs:
   # ─── Planner (determines which downstream jobs may legitimately skip) ──
   #

@@ -15,6 +15,11 @@ concurrency:
   group: nightly-deep-tests
   cancel-in-progress: true
 
+# Default-deny at workflow scope; jobs may escalate narrowly (Scorecard
+# token-permissions).
+permissions:
+  contents: read
+
 jobs:
   hypothesis-deep:
     name: Hypothesis (deep, 1000 examples)

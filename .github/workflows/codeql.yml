@@ -24,17 +24,21 @@ concurrency:
   group: codeql-${{ github.ref }}
   cancel-in-progress: true
 
+# Default-deny at workflow scope; the analyze job re-asserts the narrow
+# writes it actually needs (Scorecard token-permissions).
 permissions:
-  security-events: write
   contents: read
-  pull-requests: write
-  actions: read
 
 jobs:
   analyze:
     name: CodeQL (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      security-events: write
+      contents: read
+      pull-requests: write
+      actions: read
     strategy:
       fail-fast: false
       matrix:

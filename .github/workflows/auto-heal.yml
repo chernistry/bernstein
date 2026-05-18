@@ -79,22 +79,52 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Checkout failing commit (read-only)
+      # Scorecard dangerous-workflow note: this checkout uses the trusted
+      # `main` branch ref, NOT the event-supplied head_sha. The filters at
+      # the top of the workflow already guarantee `head_branch == 'main'`
+      # and `head_repository.full_name == github.repository`, so the
+      # failing-commit SHA is always reachable from origin/main at runtime.
+      # We then `git checkout` that SHA after explicitly verifying it is
+      # reachable from the freshly-fetched main ref, which gives Scorecard
+      # an attacker-controlled-input-free entrypoint while preserving the
+      # "operate on the failing SHA" semantic.
+      - name: Checkout main (trusted ref)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-          ref: ${{ github.event.workflow_run.head_sha }}
-          fetch-depth: 1
+          ref: main
+          fetch-depth: 0
 
-      - name: Setup Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      - name: Verify and pin to failing commit
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          # Guard rails: refuse anything that doesn't look like a full SHA
+          # (so the env var cannot smuggle a shell expression).
+          if ! echo "$HEAD_SHA" | grep -qE '^[0-9a-f]{40}$'; then
+            echo "::error::head_sha '$HEAD_SHA' is not a 40-hex SHA"
+            exit 1
+          fi
+          # Confirm the SHA is an ancestor of origin/main; this rejects any
+          # fork-controlled SHA that slipped past the event-filter guards.
+          if ! git merge-base --is-ancestor "$HEAD_SHA" origin/main; then
+            echo "::error::head_sha '$HEAD_SHA' is not reachable from origin/main"
+            exit 1
+          fi
+          git -c advice.detachedHead=false checkout "$HEAD_SHA"
+
+      - name: Install uv (provides Python via .python-version)
+        # SHA-pinned action vendors a pinned uv release, so the toolchain
+        # is reproducible without an unpinned `pip install` step
+        # (Scorecard pinned-dependencies).
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
+          enable-cache: true
           python-version: "3.13"
 
       - name: Install package (editable, no deps)
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e . --no-deps
+        run: uv pip install --system -e . --no-deps
 
       - name: Extract failure metadata
         id: meta
@@ -237,12 +267,32 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Checkout failing commit
+      # Scorecard dangerous-workflow note: same pattern as the triage job
+      # checkout above. We check out the trusted `main` ref first, then
+      # verify and pin to the failing SHA only if it's reachable from
+      # origin/main. This eliminates the "untrusted-checkout via event
+      # context" pattern while preserving the failing-SHA semantic.
+      - name: Checkout main (trusted ref)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6  # zizmor: ignore[artipacked]
         with:
           persist-credentials: false
-          ref: ${{ needs.triage.outputs.head_sha }}
+          ref: main
           fetch-depth: 0
+
+      - name: Verify and pin to failing commit
+        env:
+          HEAD_SHA: ${{ needs.triage.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          if ! echo "$HEAD_SHA" | grep -qE '^[0-9a-f]{40}$'; then
+            echo "::error::head_sha '$HEAD_SHA' is not a 40-hex SHA"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$HEAD_SHA" origin/main; then
+            echo "::error::head_sha '$HEAD_SHA' is not reachable from origin/main"
+            exit 1
+          fi
+          git -c advice.detachedHead=false checkout "$HEAD_SHA"
 
       - name: Install uv (provides Python via .python-version)
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7

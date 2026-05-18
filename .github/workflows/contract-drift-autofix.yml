@@ -67,16 +67,20 @@ concurrency:
   group: contract-drift-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
+# Default-deny at workflow scope; the autofix job re-asserts the writes
+# it actually needs (Scorecard token-permissions).
 permissions:
-  contents: write
-  pull-requests: write
-  issues: write
+  contents: read
 
 jobs:
   autofix:
     name: Detect and patch contract drift
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     # Recursion guard: don't run on PRs the bot itself opened, and don't
     # run on legacy bot-contract-drift-* branches (kept for safety while
     # any old open bot PRs drain).

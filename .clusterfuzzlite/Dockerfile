@@ -7,4 +7,4 @@ FROM gcr.io/oss-fuzz-base/base-builder-python@sha256:e24e8e50612617101dd10038502
 
 COPY . /src/bernstein
 WORKDIR /src/bernstein
-COPY .clusterfuzzlite/build.sh /
+COPY .clusterfuzzlite/build.sh /src/build.sh

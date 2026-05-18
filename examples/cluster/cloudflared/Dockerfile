@@ -1,9 +1,12 @@
 # cloudflared sidecar for the Bernstein central server.
 #
-# Pinned to a specific tag rather than `latest` so reproducing a
-# deployment doesn't depend on whatever Cloudflare promoted last.
-# Bump the tag deliberately when you want a newer version.
-FROM cloudflare/cloudflared:2025.1.0
+# Pinned by both tag AND manifest digest so deployments are reproducible
+# and Scorecard pinned-dependencies passes. Bump the tag + digest pair
+# deliberately when you want a newer version (look up via
+# `regctl image digest cloudflare/cloudflared:<tag>` or the Docker Hub
+# tag detail page).
+# cloudflare/cloudflared:2025.1.0
+FROM cloudflare/cloudflared:2025.1.0@sha256:3247f3ef49eda23244b8aa5583f82b7c3880b0d057e1172d0e818f5e678d9f27
 
 # The image's default entrypoint is cloudflared itself, so we only need
 # to provide arguments. We support two run modes:

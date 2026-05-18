@@ -1,8 +1,16 @@
 name: Release Please
 
 on:
-  push:
-    branches: [main]
+  # Disabled-by-default: only fires when an operator runs the workflow
+  # manually from the Actions UI. Re-enable automatic main-branch runs by
+  # uncommenting the ``push`` trigger below once the operator has enabled
+  # "Allow GitHub Actions to create and approve pull requests" under Repo
+  # Settings -> Actions, OR has provided a fine-grained PAT via
+  # ``secrets.RELEASE_PLEASE_PAT`` and swapped the token below.
+  # See docs/maintainers/ci-apps.md.
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
 
 concurrency:
   group: release-please-${{ github.ref }}
@@ -17,11 +25,6 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Disabled until the operator enables "Allow GitHub Actions to create
-    # and approve pull requests" under Repo Settings → Actions, OR provides
-    # a fine-grained PAT via ``secrets.RELEASE_PLEASE_PAT`` and swaps the
-    # token below. See docs/maintainers/ci-apps.md.
-    if: false
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:

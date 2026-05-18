@@ -35,6 +35,10 @@ def test_render_returns_str() -> None:
     assert isinstance(out, str)
 
 
+@pytest.mark.skipif(
+    not qr_module._qrcode_available(),
+    reason="qrcode extra not installed; render_ascii_qr emits fallback diagnostic",
+)
 def test_render_contains_dark_modules() -> None:
     out = qr_module.render_ascii_qr("https://example.com")
     assert qr_module.QR_DARK in out
@@ -47,6 +51,10 @@ def test_render_is_rectangular() -> None:
     assert len({len(r) for r in rows}) == 1
 
 
+@pytest.mark.skipif(
+    not qr_module._qrcode_available(),
+    reason="qrcode extra not installed; fallback diagnostic is not square",
+)
 def test_render_is_square() -> None:
     out = qr_module.render_ascii_qr("https://example.com/abcd")
     rows = out.splitlines()

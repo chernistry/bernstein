@@ -313,7 +313,12 @@ def test_cli_serve_with_tunnel_prints_onboarding(
 ) -> None:
     _patch_uvicorn_noop(monkeypatch)
     runner = CliRunner()
-    result = runner.invoke(gui_cli.gui_group, ["serve", "--minimal", "--no-open", "--tunnel"])
+    # Pass an explicit provider so the registry does not have to discover
+    # a real ``cloudflared`` binary on PATH (CI runners do not ship one).
+    result = runner.invoke(
+        gui_cli.gui_group,
+        ["serve", "--minimal", "--no-open", "--tunnel", "--tunnel-provider", "cloudflared"],
+    )
     assert result.exit_code == 0, result.output
     assert "Tunnel (cloudflared) up" in result.output
     assert "Bernstein PWA onboarding" in result.output

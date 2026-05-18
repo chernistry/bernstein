@@ -1,0 +1,169 @@
+name: Hotfix R-counter
+
+# Track if a hotfix commit produces further hotfix commits within a
+# short window. When R > 1 (a hotfix begets another hotfix on the same
+# parent chain) the root cause was not actually fixed; surface that on
+# the original feature PR for human attention.
+#
+# Borrowed-from: epidemiology. R = secondary cases / primary case.
+# Applied to hotfix chains: a feature merge produces a hotfix; that
+# hotfix should produce zero further hotfixes. If it does, the original
+# feature PR is the right place to investigate, not the latest patch.
+#
+# State is persisted under .sdd/runtime/ which is gitignored; the
+# workflow only uses the GitHub API for cross-run state.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: hotfix-r-tracker-${{ github.sha }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  track:
+    name: Detect hotfix-begets-hotfix
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Only run on commits that look like CI hotfixes. Conventional
+    # commit prefix `fix(ci):` matches the established pattern used by
+    # bernstein-ci-fix and auto-heal.
+    if: contains(github.event.head_commit.message, 'fix(ci):')
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Check parent commit for prior hotfix
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.sha }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+
+          # Walk back up to 6 parents looking for prior hotfix commits
+          # within a 24h window. 6 is enough to span a typical
+          # main-red --> bisect --> patch --> merge cycle without
+          # collapsing into noise on a calm day.
+          MAX_DEPTH=6
+          WINDOW_HOURS=24
+          NOW_EPOCH=$(date -u +%s)
+
+          CHAIN_LEN=1
+          CHAIN_DETAILS=""
+          ROOT_SHA=""
+
+          CURSOR="${HEAD_SHA}"
+          for i in $(seq 1 "${MAX_DEPTH}"); do
+            PARENT=$(gh api "repos/${REPO}/commits/${CURSOR}" \
+              --jq '.parents[0].sha // ""' 2>/dev/null || echo "")
+            if [ -z "${PARENT}" ]; then
+              break
+            fi
+
+            PARENT_JSON=$(gh api "repos/${REPO}/commits/${PARENT}" 2>/dev/null || echo '{}')
+            PARENT_MSG=$(echo "${PARENT_JSON}" | jq -r '.commit.message // ""' | head -1)
+            PARENT_DATE=$(echo "${PARENT_JSON}" | jq -r '.commit.author.date // ""')
+
+            if [ -z "${PARENT_DATE}" ]; then
+              break
+            fi
+
+            PARENT_EPOCH=$(date -u -d "${PARENT_DATE}" +%s 2>/dev/null \
+              || date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "${PARENT_DATE}" +%s 2>/dev/null \
+              || echo "0")
+            AGE_HOURS=$(( (NOW_EPOCH - PARENT_EPOCH) / 3600 ))
+
+            if [ "${AGE_HOURS}" -gt "${WINDOW_HOURS}" ]; then
+              echo "Walk stopped: parent ${PARENT:0:7} is ${AGE_HOURS}h old (window ${WINDOW_HOURS}h)."
+              break
+            fi
+
+            case "${PARENT_MSG}" in
+              "fix(ci):"*|*"fix(ci):"*)
+                CHAIN_LEN=$((CHAIN_LEN + 1))
+                CHAIN_DETAILS="${CHAIN_DETAILS}- \`${PARENT:0:7}\`: ${PARENT_MSG}"$'\n'
+                ROOT_SHA="${PARENT}"
+                CURSOR="${PARENT}"
+                continue
+                ;;
+              *)
+                # First non-hotfix parent within window: that is the
+                # feature merge to blame. Capture it as the root cause
+                # signal.
+                ROOT_SHA="${PARENT}"
+                ROOT_MSG="${PARENT_MSG}"
+                break
+                ;;
+            esac
+          done
+
+          echo "Hotfix chain length R = ${CHAIN_LEN}"
+
+          if [ "${CHAIN_LEN}" -le 1 ]; then
+            echo "R = 1 (single hotfix). No action needed."
+            exit 0
+          fi
+
+          echo "::warning::R-counter triggered: chain length ${CHAIN_LEN}"
+
+          # Identify the feature PR (if any) that introduced the root.
+          # The merge-commit message conventionally ends with `(#NNNN)`.
+          PR_NUMBER=""
+          if [ -n "${ROOT_SHA:-}" ]; then
+            ROOT_FULL_MSG=$(gh api "repos/${REPO}/commits/${ROOT_SHA}" \
+              --jq '.commit.message' 2>/dev/null || echo "")
+            PR_NUMBER=$(printf '%s' "${ROOT_FULL_MSG}" \
+              | grep -oE '#[0-9]+' \
+              | head -1 \
+              | tr -d '#' \
+              || true)
+          fi
+
+          BODY_FILE=$(mktemp)
+          {
+            printf '## R-counter triggered (hotfix begets hotfix)\n\n'
+            printf 'The CI hotfix on `%s` is the **%sth** consecutive `fix(ci):` commit on main within the last 24h. R = %s > 1 indicates the previous hotfix did not actually contain the regression.\n\n' \
+              "${HEAD_SHA:0:7}" "${CHAIN_LEN}" "${CHAIN_LEN}"
+            printf '### Chain (newest first)\n\n'
+            printf -- '- `%s`: %s\n' "${HEAD_SHA:0:7}" "${HEAD_MSG}"
+            printf '%s' "${CHAIN_DETAILS}"
+            printf '\n### Suggested next step\n\n'
+            printf 'Investigate the change that introduced the regression rather than landing another patch on top. Borrowed-from: epidemiology -- if R > 1, isolate the source, do not treat downstream cases in isolation.\n\n'
+            printf '_Posted automatically by `hotfix-r-tracker.yml`._\n'
+          } > "${BODY_FILE}"
+
+          if [ -n "${PR_NUMBER}" ]; then
+            echo "Commenting on root feature PR #${PR_NUMBER}"
+            gh pr comment "${PR_NUMBER}" --repo "${REPO}" --body-file "${BODY_FILE}" \
+              || echo "::warning::failed to comment on PR #${PR_NUMBER}"
+          else
+            # No PR to attach to: open an issue so the signal still lands.
+            TITLE="R-counter: hotfix chain R=${CHAIN_LEN} on main"
+            EXISTING=$(gh issue list --repo "${REPO}" --state open \
+              --search "in:title \"${TITLE}\"" \
+              --json number,title \
+              --jq ".[] | select(.title == \"${TITLE}\") | .number" \
+              | head -1)
+            if [ -n "${EXISTING}" ]; then
+              gh issue comment "${EXISTING}" --repo "${REPO}" --body-file "${BODY_FILE}"
+            else
+              gh issue create --repo "${REPO}" \
+                --title "${TITLE}" \
+                --body-file "${BODY_FILE}" \
+                --label "ci,reliability" \
+                || gh issue create --repo "${REPO}" \
+                  --title "${TITLE}" \
+                  --body-file "${BODY_FILE}"
+            fi
+          fi

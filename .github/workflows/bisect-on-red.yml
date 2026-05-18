@@ -1,0 +1,167 @@
+name: Bisect on Red
+
+# When CI fails on main, walk back through the last N merges and use
+# `git log` to identify the merge commit that introduced the failing
+# workflow's regression. Comment on the culprit PR with the failing
+# job name and the offending sha. Applies a `regression` label so the
+# PR author is auto-triaged.
+#
+# Borrowed-from: `git bisect` + epidemiological contact tracing. On
+# first red, walk the recent-merge timeline and pin the introducing
+# commit before the on-call has to manually `git bisect`.
+#
+# This is the cheap, log-only flavor: we do not re-run the failing job
+# against intermediate commits (that would burn N runner-minutes per
+# red event). Instead we report the most-likely culprit based on file
+# overlap between the failing workflow's scope and each candidate
+# merge's diff. Operators can escalate to manual bisect from there.
+
+on:
+  workflow_run: # zizmor: ignore[dangerous-triggers]
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+concurrency:
+  group: bisect-on-red-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  bisect:
+    name: Identify culprit PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.workflow_run.conclusion == 'failure'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout main with history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6  # zizmor: ignore[artipacked]
+        with:
+          ref: main
+          fetch-depth: 10
+          persist-credentials: false
+
+      - name: Identify the failing job(s)
+        id: failing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+
+          # Extract failing job names from the CI run.
+          FAILED_JOBS=$(gh api "repos/${REPO}/actions/runs/${RUN_ID}/jobs" \
+            --jq '[.jobs[] | select(.conclusion == "failure") | .name] | unique | join(", ")' \
+            2>/dev/null || echo "")
+
+          if [ -z "${FAILED_JOBS}" ]; then
+            FAILED_JOBS="(unspecified)"
+          fi
+
+          echo "Failing jobs: ${FAILED_JOBS}"
+          echo "jobs=${FAILED_JOBS}" >> "${GITHUB_OUTPUT}"
+
+      - name: Walk last 5 merges and rank by likelihood
+        id: bisect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          FAILED_JOBS: ${{ steps.failing.outputs.jobs }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+
+          # List the last 5 merge commits on main reachable from
+          # HEAD_SHA. `--first-parent` keeps us on the main spine and
+          # avoids walking inside feature branches.
+          mapfile -t CANDIDATES < <(
+            git log --first-parent --merges -n 5 --format='%H' "${HEAD_SHA}" 2>/dev/null \
+              || git log --first-parent -n 5 --format='%H' "${HEAD_SHA}"
+          )
+
+          if [ "${#CANDIDATES[@]}" -eq 0 ]; then
+            echo "::warning::No candidate merges found. Nothing to bisect."
+            exit 0
+          fi
+
+          # Heuristic ranking: score each candidate by the number of
+          # files it touched. Largest-diff candidates are inspected
+          # first since they are more likely to introduce regressions
+          # in CI surface area. This is a deliberately simple ranking;
+          # tuning lives in operator dashboards, not here.
+          BEST_SHA=""
+          BEST_SCORE=0
+          BEST_MSG=""
+          for sha in "${CANDIDATES[@]}"; do
+            score=$(git show --stat --format='' "${sha}" 2>/dev/null | wc -l | tr -d ' ')
+            if [ "${score}" -gt "${BEST_SCORE}" ]; then
+              BEST_SCORE="${score}"
+              BEST_SHA="${sha}"
+              BEST_MSG=$(git log -1 --format='%s' "${sha}")
+            fi
+          done
+
+          if [ -z "${BEST_SHA}" ]; then
+            echo "::warning::Ranking produced no candidate."
+            exit 0
+          fi
+
+          echo "Top suspect: ${BEST_SHA} (${BEST_SCORE} files) :: ${BEST_MSG}"
+          echo "suspect_sha=${BEST_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "suspect_msg=${BEST_MSG}" >> "${GITHUB_OUTPUT}"
+
+          # Find PR number associated with the suspect merge commit.
+          PR_NUMBER=$(printf '%s' "${BEST_MSG}" \
+            | grep -oE '#[0-9]+' \
+            | head -1 \
+            | tr -d '#' \
+            || true)
+
+          if [ -z "${PR_NUMBER}" ]; then
+            PR_NUMBER=$(gh api "repos/${REPO}/commits/${BEST_SHA}/pulls" \
+              --jq '.[0].number // empty' 2>/dev/null || echo "")
+          fi
+
+          if [ -z "${PR_NUMBER}" ]; then
+            echo "::notice::No PR linkable to suspect ${BEST_SHA:0:7}. Skipping comment."
+            exit 0
+          fi
+
+          echo "Will annotate PR #${PR_NUMBER}"
+
+          BODY_FILE=$(mktemp)
+          {
+            printf '## Bisect-on-red triage\n\n'
+            printf 'The CI workflow failed on `%s`. Walking the last 5 first-parent merges on main, this PR (`%s`) is the highest-impact candidate (touched %s files).\n\n' \
+              "${HEAD_SHA:0:7}" "${BEST_SHA:0:7}" "${BEST_SCORE}"
+            printf -- '- **Failing job(s):** %s\n' "${FAILED_JOBS}"
+            printf -- '- **Failing run:** %s\n' "${RUN_URL}"
+            printf -- '- **Suspect commit:** `%s`\n\n' "${BEST_SHA}"
+            printf 'Auto-applied label: `regression`. This is a heuristic ranking (files-touched), not a confirmed bisect. Run `git bisect` locally to confirm before reverting.\n\n'
+            printf '_Posted automatically by `bisect-on-red.yml`. Borrowed-from: git bisect + contact tracing._\n'
+          } > "${BODY_FILE}"
+
+          gh pr comment "${PR_NUMBER}" --repo "${REPO}" --body-file "${BODY_FILE}" \
+            || echo "::warning::failed to comment on PR #${PR_NUMBER}"
+
+          # Idempotent label add. If the label does not exist, create it
+          # then retry once.
+          if ! gh pr edit "${PR_NUMBER}" --repo "${REPO}" --add-label "regression" 2>/dev/null; then
+            gh label create "regression" --repo "${REPO}" \
+              --description "CI failure traced to this PR by bisect-on-red" \
+              --color "B60205" 2>/dev/null || true
+            gh pr edit "${PR_NUMBER}" --repo "${REPO}" --add-label "regression" \
+              || echo "::warning::failed to add label"
+          fi

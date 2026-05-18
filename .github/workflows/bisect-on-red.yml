@@ -17,7 +17,7 @@ name: Bisect on Red
 # merge's diff. Operators can escalate to manual bisect from there.
 
 on:
-  workflow_run:
+  workflow_run: # zizmor: ignore[dangerous-triggers]
     workflows: ["CI"]
     types: [completed]
     branches: [main]

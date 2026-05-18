@@ -395,14 +395,27 @@ jobs:
         with:
           persist-credentials: false
       - name: Create or update ci-fix issue
+        # Dedup behaviour (refs #1273, March 30 issue-flood incident):
+        #   - At most ONE open `ci-fix` issue at a time.
+        #   - On a fresh failure with no open ci-fix issue: open one.
+        #   - On a fresh failure when one is already open: append a
+        #     comment with the new failing SHA + run-link so the operator
+        #     sees successive failures without us spamming the inbox with
+        #     one issue per SHA. (The old code silently dropped this
+        #     signal: any subsequent failure while an issue was open
+        #     produced no new artefact at all.)
+        # Issue close-out is owned by `close-ci-issues` in ci.yml, which
+        # fires on the next green push to main.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ needs.triage.outputs.head_sha }}
           RUN_ID: ${{ needs.triage.outputs.run_id }}
           OUTCOME: ${{ needs.fix.outputs.result }}
+          REPO: ${{ github.repository }}
         run: |
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${RUN_ID}"
-          TITLE="[ci-fix] CI failing on main — run ${RUN_ID}"
+          set -euo pipefail
+          RUN_URL="${{ github.server_url }}/${REPO}/actions/runs/${RUN_ID}"
+          TITLE="[ci-fix] CI failing on main"
           REASON="Bernstein auto-heal could not produce a fix in 3 iterations within \$5 budget."
           if [ "$OUTCOME" = "no_changes" ]; then
             REASON="Bernstein auto-heal ran but produced no diff (likely a transient/infrastructural failure or out-of-scope error)."
@@ -414,10 +427,33 @@ jobs:
 
           **Auto-heal outcome:** ${REASON}
 
-          Manual investigation needed.
+          Manual investigation needed. This issue is closed automatically
+          by \`close-ci-issues\` in \`ci.yml\` once main is green again.
           EOF
           )
-          OPEN=$(gh issue list --label ci-fix --state open --json number --jq length 2>/dev/null || echo 0)
-          if [ "$OPEN" = "0" ]; then
-            gh issue create --title "$TITLE" --body "$BODY" --label "bug,ci-fix" || true
+          # Find any open ci-fix issue. We do not key on RUN_ID in the
+          # title any more so successive failures collapse into one issue.
+          EXISTING=$(gh issue list \
+            --repo "${REPO}" \
+            --label ci-fix \
+            --state open \
+            --json number \
+            --jq '.[0].number // ""')
+          if [ -z "$EXISTING" ]; then
+            gh issue create \
+              --repo "${REPO}" \
+              --title "$TITLE" \
+              --body "$BODY" \
+              --label "bug,ci-fix" || true
+          else
+            echo "::notice::Existing ci-fix issue #${EXISTING}; appending new failure context."
+            COMMENT=$(cat <<EOF
+          Additional CI failure on \`${HEAD_SHA}\`. Run: $RUN_URL
+
+          **Auto-heal outcome:** ${REASON}
+          EOF
+          )
+            gh issue comment "$EXISTING" \
+              --repo "${REPO}" \
+              --body "$COMMENT" || true
           fi

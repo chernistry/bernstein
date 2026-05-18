@@ -6,6 +6,11 @@ name: CIFuzz (ClusterFuzzLite, PR)
 # check fires; the Hypothesis property-test suite in tests/ stays the
 # primary fuzzing surface for real bug discovery.
 #
+# Build and run live in a single job because ClusterFuzzLite expects
+# the build-out directory to exist on disk when run_fuzzers starts;
+# splitting into separate jobs would require an artifact round-trip
+# that the official actions do not support.
+#
 # Ref: https://google.github.io/clusterfuzzlite/running-clusterfuzzlite/github-actions/
 
 on:
@@ -24,12 +29,13 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build fuzzers
+  cifuzz:
+    name: Build and run fuzzers
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -43,30 +49,8 @@ jobs:
           language: python
           sanitizer: address
 
-      - name: Upload build artifacts
-        if: always() && steps.build.outcome != 'skipped'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
-        with:
-          name: cifuzz-build-address
-          path: ./build-out/
-          if-no-files-found: ignore
-          retention-days: 1
-
-  run:
-    name: Run fuzzers
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      security-events: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
-        with:
-          persist-credentials: false
-
       - name: Run fuzzers (address sanitizer, short session)
+        id: run
         uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1  # v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -76,7 +60,7 @@ jobs:
           output-sarif: true
 
       - name: Upload crash artifacts
-        if: failure()
+        if: failure() && steps.run.outcome == 'failure'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: cifuzz-artifacts-address

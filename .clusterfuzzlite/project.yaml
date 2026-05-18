@@ -1,0 +1,13 @@
+# ClusterFuzzLite project descriptor for bernstein.
+#
+# Recognized by OSSF Scorecard's Fuzzing check (in addition to Hypothesis
+# property tests that already cover real bug surface in tests/). The harness
+# below targets bernstein.core.config.seed_parser as a minimal entry point;
+# it exists for OSSF signal coverage, not as the primary fuzzing surface.
+#
+# Ref: https://google.github.io/clusterfuzzlite/build-integration/python-lang/
+language: python
+fuzzing_engines:
+  - libfuzzer
+sanitizers:
+  - address

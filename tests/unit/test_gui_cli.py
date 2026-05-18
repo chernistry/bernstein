@@ -313,9 +313,7 @@ def test_cli_serve_with_tunnel_prints_onboarding(
 ) -> None:
     _patch_uvicorn_noop(monkeypatch)
     runner = CliRunner()
-    result = runner.invoke(
-        gui_cli.gui_group, ["serve", "--minimal", "--no-open", "--tunnel"]
-    )
+    result = runner.invoke(gui_cli.gui_group, ["serve", "--minimal", "--no-open", "--tunnel"])
     assert result.exit_code == 0, result.output
     assert "Tunnel (cloudflared) up" in result.output
     assert "Bernstein PWA onboarding" in result.output
@@ -341,9 +339,7 @@ def test_cli_serve_with_tunnel_handles_provider_unavailable(
 
     monkeypatch.setattr(gui_cli, "_build_tunnel_registry", _build_empty)
     runner = CliRunner()
-    result = runner.invoke(
-        gui_cli.gui_group, ["serve", "--minimal", "--no-open", "--tunnel"]
-    )
+    result = runner.invoke(gui_cli.gui_group, ["serve", "--minimal", "--no-open", "--tunnel"])
     assert result.exit_code != 0
     assert "Tunnel start failed" in result.output
 
@@ -368,9 +364,7 @@ def test_stop_tunnel_helper_idempotent(fake_registry: _FakeProvider, monkeypatch
     assert sent == []
 
 
-def test_stop_tunnel_helper_kills_and_destroys(
-    fake_registry: _FakeProvider, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_stop_tunnel_helper_kills_and_destroys(fake_registry: _FakeProvider, monkeypatch: pytest.MonkeyPatch) -> None:
     handle = gui_cli._start_tunnel(port=9999, provider="cloudflared")
 
     sent: list[int] = []
@@ -384,9 +378,7 @@ def test_stop_tunnel_helper_kills_and_destroys(
     assert sent == [handle.pid]
 
 
-def test_stop_tunnel_helper_survives_oserror(
-    fake_registry: _FakeProvider, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_stop_tunnel_helper_survives_oserror(fake_registry: _FakeProvider, monkeypatch: pytest.MonkeyPatch) -> None:
     handle = gui_cli._start_tunnel(port=9999, provider="cloudflared")
 
     def fake_kill(pid: int, sig: int) -> None:

@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import inspect
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -338,6 +339,78 @@ FIXTURES = {
     "cli_run_callback": regen_cli_run_callback,
 }
 
+# Exit code used when the self-check trips. Anything non-{0,1} is fine; we pick
+# 2 to be distinct from "no changes" (1) and "wrote changes" (0).
+SELF_CHECK_FAIL_EXIT_CODE = 2
+
+
+def _run_regen_logic(targets: list[str]) -> bool:
+    """Run the requested fixture regen functions and return True iff any wrote."""
+    any_changed = False
+    for name in targets:
+        print(f"[regen] running {name}")
+        try:
+            changed = FIXTURES[name]()
+        except Exception as exc:
+            print(f"[regen] {name}: FAILED ({exc.__class__.__name__}: {exc})", file=sys.stderr)
+            continue
+        any_changed = any_changed or changed
+    return any_changed
+
+
+def _git_diff_is_clean() -> bool:
+    """Return True iff the working tree has no unstaged changes.
+
+    Used by the idempotency self-check to detect whether a second regen pass
+    introduced new edits on top of an otherwise-clean tree. Falls back to
+    ``True`` (clean) when git is unavailable so the self-check still acts as a
+    fixture-level guard via the returned ``any_changed`` flag.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--quiet"],
+            capture_output=True,
+            cwd=str(REPO_ROOT),
+            check=False,
+        )
+    except (FileNotFoundError, OSError):
+        # No git binary; can't compare. Treat as clean and rely on the
+        # fixture-level any_changed check below.
+        return True
+    return result.returncode == 0
+
+
+def _self_check_idempotent(targets: list[str], initial_clean: bool) -> bool:
+    """Re-run regen against just-written tree; return False if non-idempotent.
+
+    A regen step is idempotent when running it against its own output produces
+    no further changes. We assert this two ways:
+
+    1. Fixture level: the second pass must report ``any_changed == False``.
+    2. Working-tree level: if the tree was clean before the first pass, it must
+       remain clean (or at least not gain new diff) after the second pass.
+
+    Returns True when both checks pass, False otherwise.
+    """
+    print("[regen] self-check: re-running regen to verify idempotency")
+    second_any_changed = _run_regen_logic(targets)
+    second_clean = _git_diff_is_clean()
+
+    if second_any_changed:
+        print(
+            "ERROR: regen produced new fixture-level changes on second run (non-idempotent). Aborting.",
+            file=sys.stderr,
+        )
+        return False
+    if initial_clean and not second_clean:
+        print(
+            "ERROR: regen produced new diff on second run (non-idempotent). Aborting.",
+            file=sys.stderr,
+        )
+        return False
+    print("[regen] self-check: OK")
+    return True
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -346,6 +419,14 @@ def main(argv: list[str] | None = None) -> int:
         required=True,
         choices=[*FIXTURES.keys(), "all"],
         help="Which contract fixture to regenerate.",
+    )
+    parser.add_argument(
+        "--skip-self-check",
+        action="store_true",
+        help=(
+            "Skip the idempotency self-check that re-runs regen and verifies "
+            "no further changes are produced. Useful for debugging."
+        ),
     )
     args = parser.parse_args(argv)
 
@@ -356,15 +437,18 @@ def main(argv: list[str] | None = None) -> int:
         sys.path.insert(0, str(src_dir))
 
     targets = list(FIXTURES.keys()) if args.fixture == "all" else [args.fixture]
-    any_changed = False
-    for name in targets:
-        print(f"[regen] running {name}")
-        try:
-            changed = FIXTURES[name]()
-        except Exception as exc:
-            print(f"[regen] {name}: FAILED ({exc.__class__.__name__}: {exc})", file=sys.stderr)
-            continue
-        any_changed = any_changed or changed
+
+    # Snapshot working-tree cleanliness before the first pass so the self-check
+    # can distinguish "we wrote our own diff" from "we keep adding diff on
+    # every invocation".
+    initial_clean = _git_diff_is_clean()
+
+    any_changed = _run_regen_logic(targets)
+
+    if not args.skip_self_check:
+        ok = _self_check_idempotent(targets, initial_clean=initial_clean)
+        if not ok:
+            return SELF_CHECK_FAIL_EXIT_CODE
 
     return 0 if any_changed else 1
 

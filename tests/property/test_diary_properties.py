@@ -112,9 +112,7 @@ class TestBuildEntryProperties:
 
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=None)
 @given(task_id=_TASK, transcript=_TEXT)
-def test_write_load_round_trip(
-    tmp_path_factory: pytest.TempPathFactory, task_id: str, transcript: str
-) -> None:
+def test_write_load_round_trip(tmp_path_factory: pytest.TempPathFactory, task_id: str, transcript: str) -> None:
     if not task_id.strip():
         return
     sdd_dir = tmp_path_factory.mktemp("sdd")
@@ -176,9 +174,7 @@ class TestClusterProperties:
             allow_infinity=False,
         ),
     )
-    def test_cluster_preserves_count(
-        self, tagsets: list[tuple[str, ...]], threshold: float
-    ) -> None:
+    def test_cluster_preserves_count(self, tagsets: list[tuple[str, ...]], threshold: float) -> None:
         from bernstein.core.knowledge.diary import DiaryEntry
 
         entries = [
@@ -201,9 +197,7 @@ class TestClusterProperties:
         st.lists(_TAGSET, max_size=10),
         st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False),
     )
-    def test_cluster_sorted_size_desc(
-        self, tagsets: list[tuple[str, ...]], threshold: float
-    ) -> None:
+    def test_cluster_sorted_size_desc(self, tagsets: list[tuple[str, ...]], threshold: float) -> None:
         from bernstein.core.knowledge.diary import DiaryEntry
 
         entries = [
@@ -261,9 +255,7 @@ class TestSynthesizeProperties:
         assert "---" in render_report(report)
 
     @given(st.lists(_TAGSET, max_size=10))
-    def test_synthesize_theme_count_bounded(
-        self, tagsets: list[tuple[str, ...]]
-    ) -> None:
+    def test_synthesize_theme_count_bounded(self, tagsets: list[tuple[str, ...]]) -> None:
         from bernstein.core.knowledge.diary import DiaryEntry
 
         entries = [
@@ -306,9 +298,7 @@ class TestParseDurationProperties:
 
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture], deadline=None)
 @given(task_id=_TASK, transcript=_TEXT)
-def test_payload_is_json_decodable(
-    tmp_path_factory: pytest.TempPathFactory, task_id: str, transcript: str
-) -> None:
+def test_payload_is_json_decodable(tmp_path_factory: pytest.TempPathFactory, task_id: str, transcript: str) -> None:
     if not task_id.strip():
         return
     sdd_dir = tmp_path_factory.mktemp("sdd")

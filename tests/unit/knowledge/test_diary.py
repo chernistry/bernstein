@@ -89,12 +89,7 @@ class TestExtractSections:
     """Cover header parsing across the diary section markers."""
 
     def test_extract_basic_sections(self) -> None:
-        text = (
-            "tried:\n- thing a\n- thing b\n"
-            "worked:\n- thing a\n"
-            "failed:\n- thing b\n"
-            "rationale:\n- because reasons\n"
-        )
+        text = "tried:\n- thing a\n- thing b\nworked:\n- thing a\nfailed:\n- thing b\nrationale:\n- because reasons\n"
         sections = extract_sections(text)
         assert sections["tried"] == ["thing a", "thing b"]
         assert sections["worked"] == ["thing a"]

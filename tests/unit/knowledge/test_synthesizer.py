@@ -91,25 +91,17 @@ class TestFilterRecent:
     def test_window_excludes_old(self) -> None:
         old = _make_entry("old", ("a",), created_at="2026-01-01T00:00:00+00:00")
         new = _make_entry("new", ("a",), created_at="2026-05-01T00:00:00+00:00")
-        result = filter_recent(
-            [old, new], 14, now=datetime(2026, 5, 10, tzinfo=UTC)
-        )
+        result = filter_recent([old, new], 14, now=datetime(2026, 5, 10, tzinfo=UTC))
         assert [e.task_id for e in result] == ["new"]
 
     def test_window_keeps_recent(self) -> None:
-        recent = _make_entry(
-            "recent", ("a",), created_at="2026-05-08T00:00:00+00:00"
-        )
-        result = filter_recent(
-            [recent], 7, now=datetime(2026, 5, 10, tzinfo=UTC)
-        )
+        recent = _make_entry("recent", ("a",), created_at="2026-05-08T00:00:00+00:00")
+        result = filter_recent([recent], 7, now=datetime(2026, 5, 10, tzinfo=UTC))
         assert result == [recent]
 
     def test_unparseable_created_at_kept(self) -> None:
         bogus = _make_entry("bogus", ("a",), created_at="not-a-date")
-        result = filter_recent(
-            [bogus], 1, now=datetime(2026, 5, 10, tzinfo=UTC)
-        )
+        result = filter_recent([bogus], 1, now=datetime(2026, 5, 10, tzinfo=UTC))
         assert result == [bogus]
 
     def test_negative_window_returns_all(self) -> None:

@@ -115,3 +115,27 @@ def test_script_exits_zero_with_investigate_on_real_bug(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == "investigate"
+
+
+def test_r_counter_workflow_calls_classifier() -> None:
+    """The hotfix-r-tracker workflow must invoke r_counter_classify.py
+    so the benign-drift allow-list actually suppresses false positives.
+
+    Without this wire-up, the classifier ships but never runs.
+    """
+    workflow = REPO_ROOT / ".github" / "workflows" / "hotfix-r-tracker.yml"
+    assert workflow.exists(), (
+        "hotfix-r-tracker.yml must exist (landed via PR #1455). If this fails, "
+        "the META R-counter workflow has been moved or deleted."
+    )
+    text = workflow.read_text(encoding="utf-8")
+    assert "r_counter_classify.py" in text, (
+        "EDGE-4 wire-up missing: hotfix-r-tracker.yml does not invoke "
+        "scripts/r_counter_classify.py. The benign-drift allow-list ships but "
+        "never runs, so R-counter will still false-positive on every Python "
+        "feature-merge agents-md+ruff drift sequence."
+    )
+    assert "VERDICT" in text and "benign" in text, (
+        "EDGE-4 wire-up incomplete: workflow must check classifier verdict "
+        "and short-circuit on 'benign'"
+    )

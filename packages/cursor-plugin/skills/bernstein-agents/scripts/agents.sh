@@ -15,13 +15,17 @@ fi
 
 case "$ACTION" in
   list)
-    curl -sf "${HEADERS[@]}" "$API/dashboard/data" 2>/dev/null \
-      | python3 -c "
-import sys, json
+    # Fetch into a variable first instead of piping curl directly into
+    # python3 (Scorecard PinnedDependencies / downloadThenRun).
+    DASH_JSON="$(curl -sf "${HEADERS[@]}" "$API/dashboard/data" 2>/dev/null || true)"
+    if [[ -z "$DASH_JSON" ]]; then
+      echo '{"error": "API not reachable"}' >&2
+    else
+      printf '%s' "$DASH_JSON" | python3 -c 'import sys, json
 d = json.load(sys.stdin)
-agents = d.get('agents', [])
-print(json.dumps({'agents': agents, 'count': len(agents)}, indent=2))
-" || echo '{"error": "API not reachable"}' >&2
+agents = d.get("agents", [])
+print(json.dumps({"agents": agents, "count": len(agents)}, indent=2))'
+    fi
     ;;
   logs)
     ID="${2:?Session ID required}"

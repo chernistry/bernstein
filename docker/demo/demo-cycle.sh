@@ -36,18 +36,23 @@ wait_for_server() {
 
 cancel_all_active() {
     log "Cancelling leftover tasks..."
+    # Fetch task list into a variable first instead of piping curl directly
+    # into an interpreter (Scorecard PinnedDependencies / downloadThenRun).
+    local tasks_json task_ids
     for status in open claimed in_progress; do
-        curl -sf "${SERVER}/tasks?status=${status}" 2>/dev/null \
-        | python3 -c "
-import sys, json
+        tasks_json="$(curl -sf "${SERVER}/tasks?status=${status}" 2>/dev/null || true)"
+        if [[ -z "${tasks_json}" ]]; then
+            continue
+        fi
+        task_ids="$(printf '%s' "${tasks_json}" | python3 -c 'import sys, json
 for t in json.load(sys.stdin):
-    print(t['id'])
-" 2>/dev/null \
-        | while IFS= read -r task_id; do
+    print(t["id"])' 2>/dev/null || true)"
+        while IFS= read -r task_id; do
+            [[ -z "${task_id}" ]] && continue
             curl -sf -X POST "${SERVER}/tasks/${task_id}/cancel" \
                 -H "Content-Type: application/json" \
                 -d '{"reason": "demo reset"}' > /dev/null 2>&1 || true
-        done
+        done <<< "${task_ids}"
     done
     return 0
 }

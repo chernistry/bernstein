@@ -120,9 +120,7 @@ def _within_window(entry: DiaryEntry, now: datetime, window: timedelta) -> bool:
     return now - created <= window
 
 
-def filter_recent(
-    entries: list[DiaryEntry], window_days: int, *, now: datetime | None = None
-) -> list[DiaryEntry]:
+def filter_recent(entries: list[DiaryEntry], window_days: int, *, now: datetime | None = None) -> list[DiaryEntry]:
     """Return only the entries within ``window_days`` of *now*.
 
     ``window_days <= 0`` short-circuits to the input list unchanged so
@@ -279,18 +277,14 @@ def synthesize(
     workflow.
     """
     recent = filter_recent(entries, window_days, now=now)
-    clusters = cluster_entries(
-        recent, threshold=threshold, min_cluster_size=min_cluster_size
-    )
+    clusters = cluster_entries(recent, threshold=threshold, min_cluster_size=min_cluster_size)
     themes = build_themes(clusters)
     moment = now if now is not None else datetime.now(UTC)
     notes: list[str] = []
     if not entries:
         notes.append("No diary entries available; report is empty.")
     elif not recent:
-        notes.append(
-            f"No diary entries within the last {window_days} day(s); report is empty."
-        )
+        notes.append(f"No diary entries within the last {window_days} day(s); report is empty.")
     return SynthesisReport(
         generated_at=moment.isoformat(timespec="seconds"),
         window_days=window_days,

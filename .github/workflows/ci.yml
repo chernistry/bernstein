@@ -125,10 +125,14 @@ on:
 #     when two merges landed in quick succession.
 #
 # The conditional in `group:` selects the right key per event type, and
-# `cancel-in-progress` only fires for pull_request events.
+# `cancel-in-progress` fires for both pull_request and push: a rapid
+# wave of merges on `main` (13 commits in 90 min during the May 2026
+# META wave) used to saturate the runner queue because each sha-unique
+# group kept its own full-matrix run alive. Branch-scoped grouping +
+# always-cancel-in-progress lets the latest push supersede stale ones.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('sha-{0}', github.sha) }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('branch-{0}', github.ref) }}
+  cancel-in-progress: true
 
 jobs:
   # ─── Planner (determines which downstream jobs may legitimately skip) ──

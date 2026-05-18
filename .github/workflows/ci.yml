@@ -1547,13 +1547,16 @@ jobs:
                       continue
                   if docs_only and name in DOCS_ONLY_SKIPPABLE:
                       continue
-                  # macOS-gated jobs are allowed to skip on PRs only when
-                  # the diff is not macos_sensitive AND the PR does not
-                  # carry the `macos-needed` label. On push events they
-                  # must run, so skipped is never accepted there.
+                  # macOS-gated jobs are allowed to skip on:
+                  #  - PRs when diff is not macos_sensitive AND no
+                  #    `macos-needed` label.
+                  #  - workflow_dispatch (manual re-runs from hotfix
+                  #    agents) when diff is not macos_sensitive.
+                  # On native push events macOS must run.
+                  # Nightly ci-macos-nightly.yml covers regression.
                   if (
                       name in MACOS_GATED
-                      and event == "pull_request"
+                      and event in ("pull_request", "workflow_dispatch")
                       and not macos_sensitive
                       and not macos_labelled
                   ):

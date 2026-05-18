@@ -153,6 +153,13 @@ jobs:
       tests_changed: ${{ steps.classify.outputs.tests_changed }}
       gha_workflows_changed: ${{ steps.classify.outputs.gha_workflows_changed }}
       docs_only: ${{ steps.classify.outputs.docs_only }}
+      # macos_sensitive: true when the diff touches platform-specific code
+      # paths whose macOS behaviour cannot be exercised on ubuntu/windows
+      # runners. Used by the `test` matrix gate (see #1468) to skip the
+      # macos-latest cells on PRs that do not need them, freeing the
+      # macOS hosted-runner pool during burst-merge waves. The nightly
+      # workflow (ci-macos-nightly.yml) provides the safety-net coverage.
+      macos_sensitive: ${{ steps.classify.outputs.macos_sensitive }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -213,6 +220,7 @@ jobs:
               echo "tests_changed=true"
               echo "gha_workflows_changed=true"
               echo "docs_only=false"
+              echo "macos_sensitive=true"
             } | tee -a "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -225,6 +233,7 @@ jobs:
           tests_changed=false
           gha_workflows_changed=false
           docs_only=true
+          macos_sensitive=false
           # Classify each changed path via grep. Using grep instead of
           # bash `case` to avoid linter warnings on overlapping patterns
           # (case-globs cannot cross slashes anyway).
@@ -246,6 +255,47 @@ jobs:
             if [ "$matched_meta" = "false" ]; then
               docs_only=false
             fi
+            # macOS-sensitive paths (see #1468). Modules with branches on
+            # `sys.platform == "darwin"` or that wrap macOS-only APIs
+            # (Keychain via `keyring`, AppKit notifications, Foundation
+            # clipboard, `launchd` daemon installer). When any of these
+            # change, the macOS matrix cell must run on the PR to catch
+            # regressions before merge. Otherwise it skips and the
+            # nightly ci-macos-nightly.yml workflow catches drift.
+            if printf '%s\n' "$f" | grep -Eq '^src/bernstein/core/tunnels/'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^src/bernstein/core/daemon/'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^src/bernstein/core/config/platform_compat\.py$'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^src/bernstein/core/security/vault/'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^src/bernstein/core/security/resource_limits\.py$'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^src/bernstein/core/persistence/runtime_state\.py$'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^src/bernstein/core/communication/notifications\.py$'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^src/bernstein/core/preview/'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^src/bernstein/tui/clipboard\.py$'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^src/bernstein/cli/display/splash_screen\.py$'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^src/bernstein/bridges/openclaw_gateway\.py$'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^tests/integration/test_adapter_e2e\.py$'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^scripts/run_tests\.py$'; then
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^\.github/workflows/ci\.yml$'; then
+              # Changes to the CI workflow itself must re-validate the
+              # macOS cell on the PR so we never ship a broken matrix
+              # config (the nightly workflow runs the *merged* config).
+              macos_sensitive=true
+            elif printf '%s\n' "$f" | grep -Eq '^\.github/workflows/ci-macos-nightly\.yml$'; then
+              macos_sensitive=true
+            fi
           done <<< "$CHANGED"
           # If nothing changed at all (e.g. workflow_dispatch on a clean ref),
           # treat as "not docs-only" so we don't intentionally skip tests.
@@ -256,6 +306,7 @@ jobs:
           echo "tests_changed=$tests_changed"          | tee -a "$GITHUB_OUTPUT"
           echo "gha_workflows_changed=$gha_workflows_changed" | tee -a "$GITHUB_OUTPUT"
           echo "docs_only=$docs_only"                  | tee -a "$GITHUB_OUTPUT"
+          echo "macos_sensitive=$macos_sensitive"      | tee -a "$GITHUB_OUTPUT"
 
   # ─── Fast checks (never cancelled, <2 min each) ───────────────────────
 
@@ -852,16 +903,63 @@ jobs:
     # Windows because the wrappers are POSIX shell scripts and the
     # adapters use ``start_new_session=True``; unit tests cover the same
     # argv/env logic on Windows via mocked Popen.
+    #
+    # macOS coverage moved to the adapter-integration-macos job below
+    # (gated by determine-changes.outputs.macos_sensitive, the
+    # `macos-needed` label, or push events) to relieve the hosted macOS
+    # runner pool during burst-merge waves — see #1468. The
+    # ci-macos-nightly.yml workflow runs the full macOS matrix daily as
+    # the safety-net for regressions that slip past the path gate.
     name: Adapter integration (fake-CLI)
     needs: [lint]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.13"]
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+      - name: Run fake-CLI adapter integration tests
+        run: uv run pytest tests/integration/test_adapter_e2e.py -x -q --timeout=60
+
+  adapter-integration-macos:
+    # macOS half of adapter-integration. Gated on three conditions (see
+    # #1468):
+    #   1. push events (incl. merges to main) always run macOS so the
+    #      release-train sees a fresh signal on every commit that
+    #      reaches main;
+    #   2. PRs whose diff touches macOS-sensitive paths (the planner
+    #      sets macos_sensitive=true);
+    #   3. PRs that carry the `macos-needed` label (operator opt-in for
+    #      cross-platform work that the path filter cannot detect).
+    # Otherwise this job is skipped on PRs and ci-macos-nightly.yml
+    # provides the safety net.
+    name: Adapter integration (fake-CLI, macOS)
+    needs: [lint, determine-changes]
+    if: >-
+      github.event_name == 'push' ||
+      needs.determine-changes.outputs.macos_sensitive == 'true' ||
+      contains(github.event.pull_request.labels.*.name, 'macos-needed')
+    runs-on: macos-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
         python-version: ["3.13"]
     steps:
       - name: Harden runner (audit mode)
@@ -895,12 +993,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # macOS removed from the default matrix to relieve hosted-runner
+        # saturation during burst-merge waves (see #1468). The test-macos
+        # job below runs the same suite on macOS when the diff is
+        # macOS-sensitive, the PR carries the `macos-needed` label, or
+        # the event is a push. ci-macos-nightly.yml provides a daily
+        # safety-net run of the full macOS matrix.
+        os: [ubuntu-latest, windows-latest]
         python-version: ["3.12", "3.13"]
         exclude:
-          # Coverage/JUnit upload only on ubuntu; skip duplicate slow jobs on macOS/Windows for 3.12
-          - os: macos-latest
-            python-version: "3.12"
+          # Coverage/JUnit upload only on ubuntu; skip duplicate slow jobs on Windows for 3.12
           - os: windows-latest
             python-version: "3.12"
     steps:
@@ -1054,6 +1156,73 @@ jobs:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  test-macos:
+    # macOS half of the test matrix, split out for #1468 (macOS hosted
+    # runner saturation). Runs unconditionally on push (so every commit
+    # that reaches main has a fresh macOS signal), and on PRs only when
+    # one of the gate conditions is met:
+    #   - the planner classified the diff as macos_sensitive (touched
+    #     a module with `sys.platform == "darwin"` branches, the
+    #     tunnels driver layer, the daemon installer, the runtime
+    #     state code, the macOS clipboard/notifications wrappers, or
+    #     ci.yml / ci-macos-nightly.yml themselves);
+    #   - the PR carries the `macos-needed` label (operator opt-in for
+    #     cross-platform work the path filter cannot detect).
+    # Otherwise this job is skipped on the PR and ci-macos-nightly.yml
+    # provides the safety-net coverage at 06:00 UTC each day.
+    #
+    # Coverage / JUnit / Codecov uploads are NOT mirrored here; they
+    # remain ubuntu-only (matches the previous matrix gating).
+    name: Test (macos-latest, Python ${{ matrix.python-version }})
+    needs: [lint, determine-changes]
+    if: >-
+      github.event_name == 'push' ||
+      needs.determine-changes.outputs.macos_sensitive == 'true' ||
+      contains(github.event.pull_request.labels.*.name, 'macos-needed')
+    runs-on: macos-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      checks: write
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13"]
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+      - name: Fetch base ref for impacted-test selection
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin \
+            "refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+      - name: Run isolated test suite
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "${EVENT_NAME}" = "pull_request" ] && \
+             git rev-parse --verify "refs/remotes/origin/${BASE_REF}" >/dev/null 2>&1; then
+            uv run python scripts/run_tests.py --parallel 4 --affected "refs/remotes/origin/${BASE_REF}"
+          else
+            uv run python scripts/run_tests.py --parallel 4
+          fi
+      - name: Run capability-matrix spawn-refusal integration tests
+        run: |
+          uv run pytest tests/integration/test_capability_matrix_spawn_refusal.py \
+            -x -q --tb=short --timeout=120
+
   # ─── Post-pipeline (conditional, never cancelled) ──────────────────────
 
   autofix:
@@ -1152,6 +1321,7 @@ jobs:
       - lint
       - typecheck
       - test
+      - test-macos
       - spelling
       - dead-code
       - actionlint
@@ -1181,6 +1351,7 @@ jobs:
               { name: 'Lint', result: '${{ needs.lint.result }}' },
               { name: 'Type check', result: '${{ needs.typecheck.result }}' },
               { name: 'Tests', result: '${{ needs.test.result }}' },
+              { name: 'Tests (macOS)', result: '${{ needs.test-macos.result }}' },
               { name: 'Spelling', result: '${{ needs.spelling.result }}' },
               { name: 'Dead code', result: '${{ needs.dead-code.result }}' },
               { name: 'Workflow lint', result: '${{ needs.actionlint.result }}' },
@@ -1282,7 +1453,9 @@ jobs:
       - diff-coverage
       - pyright-strict-zone
       - adapter-integration
+      - adapter-integration-macos
       - test
+      - test-macos
       - close-ci-issues
     timeout-minutes: 3
     permissions:
@@ -1338,8 +1511,27 @@ jobs:
           PR_ONLY = {"mutmut-diff", "diff-coverage"}
           # Push-to-main-only jobs: skipped on PRs is intentional.
           PUSH_ONLY = {"close-ci-issues"}
+          # macOS-gated jobs (see #1468): on PRs these are skipped unless
+          # the diff is macos_sensitive or the PR carries the
+          # `macos-needed` label. Always run on push events.
+          MACOS_GATED = {"test-macos", "adapter-integration-macos"}
 
           docs_only = plan.get("docs_only") == "true"
+          macos_sensitive = plan.get("macos_sensitive") == "true"
+          # Read the PR labels via the event payload. The aggregator
+          # runs inside ci.yml so the same event.pull_request.labels
+          # array used by the job `if:` is available here too. The
+          # GITHUB_EVENT_PATH file is the canonical source.
+          macos_labelled = False
+          try:
+              with open(os.environ["GITHUB_EVENT_PATH"]) as fh:
+                  payload = json.load(fh)
+              labels = (payload.get("pull_request") or {}).get("labels") or []
+              macos_labelled = any(
+                  (lbl.get("name") == "macos-needed") for lbl in labels
+              )
+          except Exception:
+              macos_labelled = False
 
           bad = []
           for name, info in data.items():
@@ -1354,6 +1546,17 @@ jobs:
                   if event != "pull_request" and name in PR_ONLY:
                       continue
                   if docs_only and name in DOCS_ONLY_SKIPPABLE:
+                      continue
+                  # macOS-gated jobs are allowed to skip on PRs only when
+                  # the diff is not macos_sensitive AND the PR does not
+                  # carry the `macos-needed` label. On push events they
+                  # must run, so skipped is never accepted there.
+                  if (
+                      name in MACOS_GATED
+                      and event == "pull_request"
+                      and not macos_sensitive
+                      and not macos_labelled
+                  ):
                       continue
               bad.append((name, r))
 

@@ -322,15 +322,19 @@ class JiraCloudTracker(AbstractTrackerAdapter):
         (canonical -> Jira transition id), then passed straight through
         to the Jira API. ``etag`` is forwarded as ``If-Match`` for
         optimistic concurrency; Jira responds 409 on conflict.
+        ``idempotency_key`` is forwarded as the
+        ``X-Bernstein-Idempotency-Key`` header so operators can audit
+        and de-duplicate retried transitions even though Jira Cloud
+        does not natively honour an idempotency key on this endpoint.
         """
         mapped = self._config.status_map.get(status_id, status_id)
-        del idempotency_key
         try:
             self._request(
                 "POST",
                 f"/rest/api/3/issue/{ticket_id}/transitions",
                 json={"transition": {"id": mapped}},
                 etag=etag,
+                idempotency_key=idempotency_key,
             )
         except OptimisticConcurrencyError:
             raise
@@ -400,6 +404,7 @@ class JiraCloudTracker(AbstractTrackerAdapter):
         *,
         json: dict[str, Any] | None = None,
         etag: str | None = None,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         self._bucket.acquire()
         domain = self._domain_provider()
@@ -411,6 +416,8 @@ class JiraCloudTracker(AbstractTrackerAdapter):
         }
         if etag:
             headers["If-Match"] = etag
+        if idempotency_key:
+            headers["X-Bernstein-Idempotency-Key"] = idempotency_key
         try:
             response = self._client.request(method, url, headers=headers, json=json)
         except Exception as exc:  # pragma: no cover - network errors

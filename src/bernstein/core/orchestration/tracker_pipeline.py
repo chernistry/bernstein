@@ -92,6 +92,7 @@ __all__ = [
     "format_success_comment",
     "make_idempotency_key",
     "parse_failure_block",
+    "parse_success_blocks",
 ]
 
 
@@ -411,28 +412,56 @@ def parse_failure_block(comment_body: str) -> dict[str, Any] | None:
         ``role``, ``stage_attempt``, ``idempotency_key``. ``None`` when
         the block is missing.
     """
-    start = comment_body.find(FAILURE_BLOCK_BEGIN)
-    if start < 0:
-        return None
-    after_start = start + len(FAILURE_BLOCK_BEGIN)
-    end = comment_body.find(FAILURE_BLOCK_END, after_start)
-    if end < 0:
-        return None
-    inner = comment_body[after_start:end].strip()
-    if not inner:
-        return None
-    parsed: dict[str, Any] = {}
-    for raw_line in inner.splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
+    blocks = _iter_fenced_blocks(comment_body, FAILURE_BLOCK_BEGIN)
+    for parsed in blocks:
+        return parsed
+    return None
+
+
+def parse_success_blocks(comment_body: str) -> list[dict[str, Any]]:
+    """Return every parsed ``bernstein:success`` block in ``comment_body``.
+
+    Used by :class:`TrackerPipeline._stage_is_eligible` to check the
+    prior-role gate via structured fields rather than raw string match,
+    so cosmetic formatting changes around the fence do not silently
+    break the pipeline ordering contract.
+    """
+    return list(_iter_fenced_blocks(comment_body, _SUCCESS_BLOCK_BEGIN))
+
+
+def _iter_fenced_blocks(comment_body: str, begin_marker: str) -> Iterable[dict[str, Any]]:
+    """Yield every ``begin_marker`` ... ``FAILURE_BLOCK_END`` block as a dict.
+
+    The closing fence is the same backtick triplet used by both success
+    and failure blocks. Empty blocks and blocks missing a closing fence
+    are skipped.
+    """
+    start = 0
+    while True:
+        index = comment_body.find(begin_marker, start)
+        if index < 0:
+            return
+        after_start = index + len(begin_marker)
+        end = comment_body.find(FAILURE_BLOCK_END, after_start)
+        if end < 0:
+            return
+        inner = comment_body[after_start:end].strip()
+        start = end + len(FAILURE_BLOCK_END)
+        if not inner:
             continue
-        if ":" not in line:
-            continue
-        key, sep, value = line.partition(":")
-        if not sep:
-            continue
-        parsed[key.strip()] = _decode_yaml_value(value.strip())
-    return parsed or None
+        parsed: dict[str, Any] = {}
+        for raw_line in inner.splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if ":" not in line:
+                continue
+            key, sep, value = line.partition(":")
+            if not sep:
+                continue
+            parsed[key.strip()] = _decode_yaml_value(value.strip())
+        if parsed:
+            yield parsed
 
 
 def _yaml_quote(value: str) -> str:
@@ -669,6 +698,36 @@ class ClaimLedger:
             claimer_id=claimer_id,
             lease_expires_at=expires_at,
         )
+
+    def live_claims(self, *, now: float | None = None) -> list[dict[str, Any]]:
+        """Return live (non-expired) claims as ordered dicts.
+
+        Used by ``bernstein pipeline status`` and tests to render the
+        live in-flight view without re-implementing the schema or
+        opening a separate sqlite connection. ``now`` is overridable so
+        callers can render a deterministic snapshot.
+        """
+        current = float(time.time() if now is None else now)
+        conn = self._connect()
+        cursor = conn.execute(
+            "SELECT tracker, ticket_id, role, claimer_id, lease_expires_at, "
+            "stage_attempt FROM claims WHERE lease_expires_at > ? "
+            "ORDER BY tracker, role, ticket_id",
+            (current,),
+        )
+        rows: list[dict[str, Any]] = []
+        for tracker, ticket_id, role, claimer_id, expires, attempt in cursor.fetchall():
+            rows.append(
+                {
+                    "tracker": tracker,
+                    "ticket_id": ticket_id,
+                    "role": role,
+                    "claimer_id": claimer_id,
+                    "stage_attempt": int(attempt),
+                    "lease_seconds_remaining": float(expires) - current,
+                }
+            )
+        return rows
 
     def release(self, *, tracker: str, ticket_id: str, role: str, claimer_id: str) -> bool:
         """Drop the claim if ``claimer_id`` still owns it.
@@ -950,14 +1009,22 @@ class TrackerPipeline:
         ticket: Ticket,
         stage: PipelineStage,
     ) -> bool:
-        """Check the optional prior-role gate."""
-        if not stage.requires_prior_role:
+        """Check the optional prior-role gate via structured parsing.
+
+        Earlier revisions did a raw substring match on the rendered
+        ``role: "<name>"`` line; small formatting changes (quoting
+        style, extra fields, fence spacing) would silently break the
+        gate. We now lift every ``bernstein:success`` block and look up
+        its ``role`` key, so the gate remains stable across cosmetic
+        changes in the comment renderer.
+        """
+        required_role = stage.requires_prior_role
+        if not required_role:
             return True
-        # Inspect ticket body and (if available) recent free-text
-        # comments. The adapter contract does not currently mandate a
-        # ``list_comments``; we degrade to body-only matching when the
-        # adapter does not provide one.
-        prior_marker = f'role: "{stage.requires_prior_role}"'
+        # Inspect ticket body plus recent free-text comments when the
+        # adapter exposes a ``list_comments`` hook. The adapter contract
+        # does not yet mandate one; we degrade to body-only matching
+        # when the adapter does not provide it.
         haystacks: list[str] = [ticket.body or ""]
         list_comments = getattr(adapter, "list_comments", None)
         if callable(list_comments):
@@ -972,7 +1039,11 @@ class TrackerPipeline:
                     ticket.id,
                     exc_info=True,
                 )
-        return any(prior_marker in text and _SUCCESS_BLOCK_BEGIN in text for text in haystacks)
+        for text in haystacks:
+            for block in parse_success_blocks(text):
+                if block.get("role") == required_role:
+                    return True
+        return False
 
     def _process_ticket(
         self,

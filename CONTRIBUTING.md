@@ -130,7 +130,7 @@ When adding a new CLI command, create a new `*_cmd.py` module in `cli/commands/`
 
 ## Supported CLI Adapters
 
-Bernstein ships with 43 adapters (42 named + 1 generic catch-all). Before writing a new adapter, check `src/bernstein/adapters/registry.py` for the full list — a subset is shown here for orientation:
+Bernstein ships with 44 adapters (43 named + 1 generic catch-all). Before writing a new adapter, check `src/bernstein/adapters/registry.py` for the full list — a subset is shown here for orientation:
 
 | Adapter | File | Agent |
 |---------|------|-------|
@@ -206,7 +206,7 @@ Role templates live in `templates/roles/<role-name>/` with three files:
 - `task_prompt.md` — per-task instructions template
 - `config.yaml` — default model and effort
 
-Built-in roles: `manager`, `backend`, `frontend`, `qa`, `security`, `architect`, `devops`, `reviewer`, `docs`, `ml-engineer`, `prompt-engineer`, `retrieval`, `vp`, `analyst`, `resolver`, `visionary`, `ci-fixer`.
+Built-in roles: `adversary`, `analyst`, `architect`, `backend`, `ci-fixer`, `devops`, `docs`, `frontend`, `manager`, `ml-engineer`, `prompt-engineer`, `qa`, `resolver`, `retrieval`, `reviewer`, `security`, `visionary`, `vp`.
 
 Copy an existing role and customize:
 

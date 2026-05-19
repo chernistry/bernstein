@@ -89,7 +89,7 @@ Each `LineageRecord` carries:
 - No backfill. Historical writes from before the feature was enabled
   have no records.
 - CLI text and HTML/CSV/JSON-LD exporters; no GUI.
-- PII redaction lives in `core/security/pii_gating.py`; lineage
+- PII redaction lives in `core/security/pii_output_gate.py`; lineage
   records inherit whatever redaction the audit log already applies —
   no extra layer.
 

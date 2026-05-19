@@ -1,0 +1,160 @@
+name: docs-drift
+
+# Reads the doc inventory in docs/playbooks/docs-drift.md and checks that
+# every source-of-truth file referenced by a doc still exists, that the
+# canonical AGENTS.md / CLAUDE.md / CONVENTIONS.md / .goosehints /
+# .cursor/rules/*.mdc outputs agree with `bernstein agents-md verify`, and
+# that every enumerated doc file is present on disk. On pull requests the
+# report is posted as a non-blocking PR comment so the change can land in
+# the same PR. On pushes to main the gate fails so the drift gets fixed in
+# a follow-up.
+
+on:
+  pull_request:
+    paths:
+      - "docs/**"
+      - "src/bernstein/**"
+      - "scripts/check_docs_drift.py"
+      - "scripts/gen_agents_md.py"
+      - ".github/workflows/docs-drift.yml"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "CONVENTIONS.md"
+      - ".goosehints"
+      - "README.md"
+      - "CONTRIBUTING.md"
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "src/bernstein/**"
+      - "scripts/check_docs_drift.py"
+      - "scripts/gen_agents_md.py"
+      - ".github/workflows/docs-drift.yml"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "CONVENTIONS.md"
+      - ".goosehints"
+      - "README.md"
+      - "CONTRIBUTING.md"
+
+concurrency:
+  group: docs-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  drift-check:
+    name: Run drift check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+
+      - name: Install bernstein for agents-md verify
+        run: uv sync --no-dev --frozen
+        continue-on-error: true
+
+      - name: Run docs drift checker
+        id: drift
+        run: |
+          set +e
+          python scripts/check_docs_drift.py > drift-report.md
+          rc=$?
+          echo "report_rc=${rc}" >> "$GITHUB_OUTPUT"
+          # Re-run in JSON form for the clean-flag decision.
+          python scripts/check_docs_drift.py --json > drift-report.json
+          # Extract the top-level "clean" boolean so later steps can branch.
+          clean=$(python -c "import json,sys; print(json.load(open('drift-report.json')).get('clean', False))")
+          echo "clean=${clean}" >> "$GITHUB_OUTPUT"
+          cat drift-report.md
+        shell: bash
+
+      - name: Upload drift report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docs-drift-report
+          path: |
+            drift-report.md
+            drift-report.json
+          retention-days: 14
+
+      - name: Comment drift report on the pull request
+        if: github.event_name == 'pull_request' && steps.drift.outputs.clean != 'True'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('drift-report.md', 'utf8');
+            const tag = '<!-- docs-drift-report -->';
+            const issue_number = context.payload.pull_request.number;
+            const { owner, repo } = context.repo;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(tag));
+            const payload = `${tag}\n${body}`;
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: existing.id, body: payload,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number, body: payload,
+              });
+            }
+
+      - name: Fail the gate on main-branch drift
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          python scripts/check_docs_drift.py --strict
+
+  trigger-landing-mirror:
+    name: Trigger bernstein-landing docs mirror
+    needs: drift-check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      # The PAT must have repo scope on sipyourdrink-ltd/bernstein-landing.
+      # When the secret is not set (e.g. on a forked workflow run), skip
+      # silently so a missing PAT does not block the main-branch pipeline.
+      - name: Dispatch docs-mirror-sync in bernstein-landing
+        env:
+          LANDING_REPO_PAT: ${{ secrets.LANDING_REPO_PAT }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          if [ -z "${LANDING_REPO_PAT}" ]; then
+            echo "LANDING_REPO_PAT is not set; skipping cross-repo dispatch."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${LANDING_REPO_PAT}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/sipyourdrink-ltd/bernstein-landing/actions/workflows/docs-mirror-sync.yml/dispatches \
+            -d "{\"ref\":\"main\",\"inputs\":{\"source_sha\":\"${COMMIT_SHA}\"}}"

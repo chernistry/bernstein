@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import tarfile
@@ -12,6 +13,7 @@ import pytest
 from bernstein.core.lineage.identity import AgentCard, generate_keypair
 from bernstein.core.observability.ticket_bundle import (
     MANIFEST_SCHEMA_VERSION,
+    SUPPORTED_SCHEMA_VERSIONS,
     BundleManifest,
     BundleSelector,
     ManifestEntry,
@@ -136,7 +138,8 @@ def test_manifest_schema_and_metadata(workdir: Path) -> None:
     assert manifest.tracker == "github"
     assert manifest.ticket_id == "ENG-42"
     assert manifest.pr_number == 77
-    # Each manifest entry has a non-empty sha256 and matches size on disk.
+    # Each manifest entry's recorded sha256 matches the actual SHA-256
+    # of the bytes stored under that arcname (not just sha length).
     with tarfile.open(out, mode="r:*") as tf:
         for entry in manifest.files:
             member = tf.getmember(entry.arcname)
@@ -144,7 +147,7 @@ def test_manifest_schema_and_metadata(workdir: Path) -> None:
             assert fp is not None
             data = fp.read()
             assert len(data) == entry.size_bytes
-            assert len(entry.sha256) == 64  # hex sha-256
+            assert hashlib.sha256(data).hexdigest() == entry.sha256
 
 
 def test_manifest_inside_archive_matches_returned_manifest(workdir: Path) -> None:
@@ -317,6 +320,98 @@ def test_missing_jws_returns_false(workdir: Path) -> None:
 # ---------------------------------------------------------------------------
 # Manifest dataclass smoke
 # ---------------------------------------------------------------------------
+
+
+def test_jsonl_probe_requires_same_record_for_tracker_and_ticket(tmp_path: Path) -> None:
+    """Cross-record matches must NOT satisfy the JSONL probe.
+
+    A file where one record carries the tracker and a *different* record
+    carries the ticket id should not be picked up.
+    """
+    sdd = tmp_path / ".sdd" / "lineage"
+    sdd.mkdir(parents=True)
+    # Cross-record: tracker on line 1, ticket_id on line 2 -- must NOT match.
+    (sdd / "cross.jsonl").write_text(
+        '{"tracker": "github", "ticket_id": "OTHER-1"}\n{"tracker": "jira", "ticket_id": "ENG-42"}\n',
+        encoding="utf-8",
+    )
+    # Same record: tracker + ticket_id together -- must match.
+    (sdd / "same.jsonl").write_text(
+        '{"tracker": "github", "ticket_id": "ENG-42"}\n',
+        encoding="utf-8",
+    )
+    out = tmp_path / "ENG-42.tar.gz"
+    bundle = TicketBundle(
+        workdir=tmp_path,
+        tracker="github",
+        ticket_id="ENG-42",
+        selector=_selector_without_git(tmp_path),
+    )
+    manifest = bundle.assemble(out=out)
+    arcnames = {entry.arcname for entry in manifest.files}
+    assert "lineage/same.jsonl" in arcnames
+    assert "lineage/cross.jsonl" not in arcnames
+
+
+def test_verify_rejects_extra_archive_members(workdir: Path) -> None:
+    """Smuggled members not listed in the manifest must fail verify."""
+    out = workdir / "ENG-42.tar.gz"
+    bundle = TicketBundle(
+        workdir=workdir,
+        tracker="github",
+        ticket_id="ENG-42",
+        selector=_selector_without_git(workdir),
+    )
+    bundle.assemble(out=out)
+    priv_pem, pub_pem = generate_keypair()
+    jws_path = bundle.sign(private_key_pem=priv_pem, kid="k1")
+    card = AgentCard(agent_id="agent:test", kid="k1", public_key_pem=pub_pem)
+    assert TicketBundle.verify(out, jws_path, card) is True
+
+    # Append an extra file that the manifest does not list.
+    with tarfile.open(out, mode="r:*") as src:
+        contents: dict[str, bytes] = {}
+        for member in src.getmembers():
+            fp = src.extractfile(member)
+            contents[member.name] = fp.read() if fp is not None else b""
+    contents["smuggled/payload.bin"] = b"extra"
+    with tarfile.open(out, mode="w:gz") as dst:
+        for name, data in contents.items():
+            info = tarfile.TarInfo(name=name)
+            info.size = len(data)
+            info.mtime = 0
+            info.mode = 0o644
+            dst.addfile(info, io.BytesIO(data))
+
+    assert TicketBundle.verify(out, jws_path, card) is False
+
+
+def test_verify_rejects_unsupported_schema_version(workdir: Path) -> None:
+    """A manifest with a schema_version outside the supported set fails."""
+    out = workdir / "ENG-42.tar.gz"
+    bundle = TicketBundle(
+        workdir=workdir,
+        tracker="github",
+        ticket_id="ENG-42",
+        selector=_selector_without_git(workdir),
+    )
+    bundle.assemble(out=out)
+    priv_pem, pub_pem = generate_keypair()
+    jws_path = bundle.sign(private_key_pem=priv_pem, kid="k1")
+    card = AgentCard(agent_id="agent:test", kid="k1", public_key_pem=pub_pem)
+
+    # Rewrite the manifest with a bumped schema_version that this
+    # release does not understand. This also invalidates the signature,
+    # but the schema-version rejection should fire BEFORE the sig check.
+    with tarfile.open(out, mode="r:*") as tf:
+        fp = tf.extractfile(tf.getmember("manifest.json"))
+        assert fp is not None
+        payload = json.loads(fp.read())
+    payload["schema_version"] = max(SUPPORTED_SCHEMA_VERSIONS) + 99
+    new_bytes = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    _rewrite_archive_member(out, "manifest.json", new_bytes)
+
+    assert TicketBundle.verify(out, jws_path, card) is False
 
 
 def test_manifest_canonical_bytes_are_deterministic() -> None:

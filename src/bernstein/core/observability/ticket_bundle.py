@@ -36,6 +36,7 @@ Public surface:
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import subprocess
@@ -57,6 +58,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "MANIFEST_SCHEMA_VERSION",
+    "SUPPORTED_SCHEMA_VERSIONS",
     "BundleManifest",
     "BundleSelector",
     "ManifestEntry",
@@ -66,6 +68,14 @@ __all__ = [
 
 MANIFEST_SCHEMA_VERSION = 1
 """Bump on any backwards-incompatible manifest field change."""
+
+SUPPORTED_SCHEMA_VERSIONS: frozenset[int] = frozenset({1})
+"""Manifest schema versions :meth:`TicketBundle.verify` accepts.
+
+Bundles written under an unknown schema version are rejected by
+:func:`_manifest_from_dict` so an older verifier never silently treats a
+newer manifest as v1.
+"""
 
 _JSONL_PROBE_BYTE_BUDGET = 2 * 1024 * 1024
 """Skip JSONL content probing for files larger than this. Filename match
@@ -192,14 +202,52 @@ def _safe_iter(path: Path) -> Iterable[Path]:
             yield child
 
 
+def _record_matches(record: Any, tracker: str, ticket_id: str) -> bool:
+    """Return True when one parsed JSON *record* carries both keys.
+
+    A record matches when:
+
+    - Any value in the record (recursed into nested dicts/lists) equals
+      *ticket_id*, AND
+    - either *tracker* is empty or any value equals *tracker*.
+
+    Cross-record matches do not count: each record is judged on its own.
+    """
+    if not ticket_id:
+        return False
+    ticket_hit = False
+    tracker_hit = not tracker
+
+    def _walk(node: Any) -> None:
+        nonlocal ticket_hit, tracker_hit
+        if isinstance(node, dict):
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                _walk(v)
+        else:
+            text = node if isinstance(node, str) else None
+            if text is None:
+                return
+            if text == ticket_id:
+                ticket_hit = True
+            if not tracker_hit and text == tracker:
+                tracker_hit = True
+
+    _walk(record)
+    return ticket_hit and tracker_hit
+
+
 def _file_mentions_ticket(path: Path, tracker: str, ticket_id: str) -> bool:
     """Return True when *path* is in scope for the (tracker, ticket).
 
     Match rules (any one suffices):
 
     1. Filename contains the ticket id verbatim.
-    2. File is JSONL and at least one record contains both the tracker
-       string and the ticket id as values of any field.
+    2. File is JSONL/JSON and at least one parsed record carries both
+       the tracker string and the ticket id within the SAME record.
+       Cross-record matches do not qualify.
     """
     name = path.name
     if ticket_id and ticket_id in name:
@@ -215,9 +263,24 @@ def _file_mentions_ticket(path: Path, tracker: str, ticket_id: str) -> bool:
         raw = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return False
-    tracker_hit = not tracker or tracker in raw
-    ticket_hit = ticket_id in raw
-    return tracker_hit and ticket_hit
+    if path.suffix.lower() == ".json":
+        try:
+            record = json.loads(raw)
+        except json.JSONDecodeError:
+            return False
+        return _record_matches(record, tracker, ticket_id)
+    # JSONL: one record per line; a single record must satisfy both keys.
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if _record_matches(record, tracker, ticket_id):
+            return True
+    return False
 
 
 def _collect_matching(base: Path, tracker: str, ticket_id: str) -> list[Path]:
@@ -252,7 +315,10 @@ def _select_tracker_audit(workdir: Path, tracker: str, ticket_id: str) -> list[P
 def _select_commits(workdir: Path, tracker: str, ticket_id: str) -> list[str]:
     """Default commit selector -- ``git log --grep=<ticket_id>``.
 
-    Returns an empty list when git is unavailable or the lookup fails.
+    Returns commits in chronological order (oldest first, newest last)
+    so downstream consumers can treat ``commits[0]`` as the first commit
+    of the ticket and ``commits[-1]`` as the latest. Returns an empty
+    list when git is unavailable or the lookup fails.
     """
     if not ticket_id:
         return []
@@ -268,7 +334,9 @@ def _select_commits(workdir: Path, tracker: str, ticket_id: str) -> list[str]:
         return []
     if proc.returncode != 0:
         return []
-    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    # git log emits newest-first; flip to oldest-first.
+    newest_first = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
+    return list(reversed(newest_first))
 
 
 def _select_pr_payload(workdir: Path, tracker: str, ticket_id: str) -> dict[str, Any] | None:
@@ -466,7 +534,14 @@ class TicketBundle:
         out.parent.mkdir(parents=True, exist_ok=True)
         manifest_bytes = json.dumps(manifest.to_dict(), indent=2, sort_keys=True).encode("utf-8") + b"\n"
 
-        with tarfile.open(out, mode="w:gz") as tf:
+        # Use an explicit GzipFile with mtime=0 so the gzip header is
+        # deterministic; the default tarfile.open(..., "w:gz") embeds
+        # the current time and breaks bit-for-bit reproducibility.
+        with (
+            out.open("wb") as raw,
+            gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as gz,
+            tarfile.open(fileobj=gz, mode="w") as tf,
+        ):
             self._add_bytes(tf, "manifest.json", manifest_bytes)
             for arcname, _section, data in sorted(entries, key=lambda triple: triple[0]):
                 self._add_bytes(tf, arcname, data)
@@ -546,6 +621,19 @@ class TicketBundle:
                 if manifest is None:
                     return False
 
+                # Reject archives that contain members not listed in the
+                # manifest. Without this, an attacker could smuggle
+                # extra payload files past verification.
+                allowed = {entry.arcname for entry in manifest.files}
+                allowed.add("manifest.json")
+                for member in tf.getmembers():
+                    if not member.isfile():
+                        # Skip directory/symlink/hardlink markers; we
+                        # only ever pack regular files in assemble().
+                        continue
+                    if member.name not in allowed:
+                        return False
+
                 # Re-check each file's sha256 against the manifest.
                 for entry in manifest.files:
                     try:
@@ -578,6 +666,10 @@ def _manifest_from_dict(payload: dict[str, Any]) -> BundleManifest | None:
     """
     try:
         schema = int(payload["schema_version"])
+        if schema not in SUPPORTED_SCHEMA_VERSIONS:
+            # Reject unknown / future schema versions so an older
+            # verifier never treats a newer manifest as v1 by accident.
+            return None
         files_raw = payload.get("files", [])
         if not isinstance(files_raw, list):
             return None

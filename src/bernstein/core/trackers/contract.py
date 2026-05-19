@@ -197,7 +197,16 @@ class AbstractTrackerAdapter(ABC):
         *,
         idempotency_key: str | None = None,
     ) -> CommentResult:
-        """Post a comment on ``ticket_id``."""
+        """Post a comment on ``ticket_id``.
+
+        Adapters that opt into the tracker-audit log (see
+        :mod:`bernstein.core.lineage.tracker_audit`) are wrapped at the
+        orchestrator boundary by
+        :class:`~bernstein.core.lineage.tracker_audit.AuditingTrackerAdapter`,
+        which brackets each call with a success or failure audit entry.
+        The wrapper preserves the adapter's surface so concrete
+        adapters can keep this signature unchanged.
+        """
 
     @abstractmethod
     def transition(
@@ -208,7 +217,10 @@ class AbstractTrackerAdapter(ABC):
         idempotency_key: str | None = None,
         etag: str | None = None,
     ) -> TransitionResult:
-        """Move ``ticket_id`` to ``status_id``."""
+        """Move ``ticket_id`` to ``status_id``.
+
+        See :meth:`add_comment` for the audit-wrapping contract.
+        """
 
     def claim_ticket(
         self,

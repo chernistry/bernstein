@@ -247,6 +247,7 @@ from bernstein.cli.commands.hooks_cmd import hooks as hooks_group
 from bernstein.cli.commands.pr_cmd import pr_cmd
 from bernstein.cli.commands.preview_cmd import preview_group
 from bernstein.cli.commands.remote_cmd import remote_group
+from bernstein.cli.commands.issue_to_pr_cmd import issue_to_pr_group
 from bernstein.cli.commands.review_responder_cmd import review_responder_group
 from bernstein.cli.commands.ticket_cmd import from_ticket, ticket_group
 from bernstein.cli.commands.tunnel_cmd import tunnel_group
@@ -919,6 +920,7 @@ cli.add_command(connect_cmd, "connect")
 cli.add_command(creds_group, "creds")
 cli.add_command(criterion_profile_group, "criterion-profile")
 cli.add_command(review_responder_group, "review-responder")
+cli.add_command(issue_to_pr_group, "issue-to-pr")
 
 # Already registered elsewhere
 cli.add_command(agents_group)

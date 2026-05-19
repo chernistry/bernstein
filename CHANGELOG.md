@@ -2,6 +2,29 @@
 
 All notable project changes are tracked here (code + docs).
 
+## [2.3.1] - Maintenance
+
+4 commits since v2.3.0. Full notes: [`docs/release-notes/v2.3.1.md`](docs/release-notes/v2.3.1.md).
+
+### Fixed
+
+- Restore numeric and key coercions removed by the refurb FURB123 pass, and reapply 19 deferred review-bot findings from the 2026-05-19 catch-up (#1615, #1618).
+- Soft-fail the cross-repo landing-mirror dispatch on PAT scope errors so the docs-drift pipeline no longer blocks on a 403 (#1617).
+- Wrap `sentry_sdk.init` in a best-effort try/except so a malformed `GLITCHTIP_DSN` cannot crash the CLI on import (#1618).
+- Treat schema-invalid snapshot sidecars as unreadable metadata (return None and warn) instead of raising through `SnapshotStore.get` / `list` (#1618).
+- Map `UrlSchemeError` to `TransportError` in `SseTransport.connect` and `StreamableHttpTransport.connect`; map `UrlSchemeError` to `NullAlertSink` fallback in lineage-alert `sink_from_config` (#1618).
+- Reject negative `--days` / `older_than_days` in `bernstein git gc` before constructing `SnapshotStore` and before computing the cutoff (#1618).
+- Catch OSError around GitHub App private-key reads and surface `TrackerUnavailable`; skip GraphQL items whose `content.__typename` is not Issue/PullRequest/DraftIssue rather than emitting empty tickets (#1618).
+- Validate sign inputs as a pair and read the private key before assembling the bundle in `bernstein bundle` so invalid CLI input never mutates on-disk state (#1618).
+
+### Internal
+
+- Bulk refurb auto-fix wave 3: FURB123 (147 sites), FURB138 (57 sites), FURB113 (5 leftovers). One FURB123 site reverted (bytes-coercion inside an `isinstance(bytearray)` branch). FURB123 down to 0, FURB138 down to 49, FURB113 down to 26 (#1615).
+- Widen the sonar-scan job timeout to 60 minutes with per-step caps (sync 15m, coverage 30m, scan 10m); pin `astral-sh/setup-uv@v8.1.0` with caching (#1616).
+- Generate the SBOM from an isolated venv that contains only the project and its resolved dependencies, so the output reflects bernstein's dependency graph rather than the runner base image (#1618).
+- Add `docs/operations/glitchtip-setup.md` covering DSN provisioning, env-var export, and end-to-end event verification (#1616).
+- Record 14 review-bot findings already resolved on source PR branches and 11 deferred for design judgement in `docs/review-bot/deferred-2026-05-19.md` (#1618).
+
 ## [2.3.0] - Tracker-adapter family
 
 127 commits since v2.2.0. Full notes: [`docs/release-notes/v2.3.0.md`](docs/release-notes/v2.3.0.md).

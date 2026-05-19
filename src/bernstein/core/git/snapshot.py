@@ -285,20 +285,23 @@ def _read_metadata(cwd: Path, snapshot_id: str) -> Snapshot | None:
         return None
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as exc:
+        return Snapshot(
+            snapshot_id=str(payload["snapshot_id"]),
+            tree_sha=str(payload["tree_sha"]),
+            ref=str(payload["ref"]),
+            ts_ns=int(payload["ts_ns"]),
+            task_id=payload.get("task_id"),
+            tool_call_id=payload.get("tool_call_id"),
+            agent_id=payload.get("agent_id"),
+            label=str(payload.get("label", "")),
+            parent_snapshot=payload.get("parent_snapshot"),
+        )
+    except (json.JSONDecodeError, OSError, KeyError, TypeError, ValueError) as exc:
+        # Treat schema-invalid sidecars as unreadable so callers degrade to
+        # the ref-backed snapshot instead of propagating KeyError / TypeError
+        # out of list()/get() and breaking the surrounding command.
         logger.warning("could not read snapshot metadata %s: %s", path, exc)
         return None
-    return Snapshot(
-        snapshot_id=str(payload["snapshot_id"]),
-        tree_sha=str(payload["tree_sha"]),
-        ref=str(payload["ref"]),
-        ts_ns=int(payload["ts_ns"]),
-        task_id=payload.get("task_id"),
-        tool_call_id=payload.get("tool_call_id"),
-        agent_id=payload.get("agent_id"),
-        label=str(payload.get("label", "")),
-        parent_snapshot=payload.get("parent_snapshot"),
-    )
 
 
 def _stack_ref(task_id: str, index: int) -> str:
@@ -564,6 +567,11 @@ class SnapshotStore:
         repository's normal maintenance schedule will reclaim the
         orphaned tree objects on the next pass.
         """
+        # Negative retention windows would push the cutoff into the future
+        # and delete every current snapshot. Fail fast instead of silently
+        # interpreting the input as "delete everything".
+        if older_than_days < 0:
+            raise SnapshotError("older_than_days must be non-negative")
         cutoff_ns = time.time_ns() - older_than_days * 86_400 * 1_000_000_000
         deleted: list[str] = []
         for snap in self.list():

@@ -101,6 +101,10 @@ def test_dispatcher_calls_each_child(dispatcher: dict[str, Any], child: str) -> 
     assert isinstance(uses, str)
     assert uses.endswith(f"{child}.yml"), f"job `{child}` must reuse `{child}.yml`"
     secrets = job.get("secrets")
+    assert child in EXPECTED_CHILD_SECRETS, (
+        f"EXPECTED_CHILD_SECRETS is missing an entry for child job `{child}` "
+        f"(did you forget to update EXPECTED_CHILD_SECRETS when adding `{child}` to CHILDREN?)"
+    )
     expected = EXPECTED_CHILD_SECRETS[child]
     if not expected:
         assert secrets in (None, {}), (

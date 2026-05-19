@@ -30,7 +30,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from bernstein.core.security.url_allowlist import ensure_http_url
+from bernstein.core.security.url_allowlist import UrlSchemeError, ensure_http_url
 
 logger = logging.getLogger(__name__)
 
@@ -171,9 +171,19 @@ def sink_from_config(
     """
     if not enabled or not webhook_url:
         return NullAlertSink()
-    return WebhookAlertSink(
-        webhook_url,
-        headers=headers,
-        timeout_secs=timeout_secs,
-        max_retries=max_retries,
-    )
+    try:
+        return WebhookAlertSink(
+            webhook_url,
+            headers=headers,
+            timeout_secs=timeout_secs,
+            max_retries=max_retries,
+        )
+    except UrlSchemeError as exc:
+        # Maintain the "orchestrator never raises here" contract: log the
+        # invalid scheme and fall back to the no-op sink so a misconfigured
+        # webhook URL does not crash the run.
+        logger.warning(
+            "lineage alert: webhook URL rejected (%s); falling back to NullAlertSink",
+            exc,
+        )
+        return NullAlertSink()

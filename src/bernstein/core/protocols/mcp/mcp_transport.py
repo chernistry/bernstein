@@ -17,7 +17,7 @@ import subprocess
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from bernstein.core.security.url_allowlist import ensure_http_url
+from bernstein.core.security.url_allowlist import UrlSchemeError, ensure_http_url
 
 logger = logging.getLogger(__name__)
 
@@ -233,8 +233,13 @@ class SseTransport:
 
         # Defence-in-depth: reject non-HTTP(S) schemes early. The network
         # policy below only checks host/port; without this guard a config
-        # like ``file:///etc/passwd`` would pass it through.
-        ensure_http_url(config.url, allow_http=True, source="mcp:sse")
+        # like ``file:///etc/passwd`` would pass it through. Wrap the
+        # scheme check so callers always see a :class:`TransportError`,
+        # matching the documented contract.
+        try:
+            ensure_http_url(config.url, allow_http=True, source="mcp:sse")
+        except UrlSchemeError as exc:
+            raise TransportError(str(exc)) from exc
         policy_from_env().check_url(config.url, source="mcp:sse")
         self._url = config.url
         self._timeout = config.timeout
@@ -303,7 +308,11 @@ class StreamableHttpTransport:
         from bernstein.core.security.network_policy import policy_from_env
 
         # Defence-in-depth scheme check; see :class:`SseTransport.connect`.
-        ensure_http_url(config.url, allow_http=True, source="mcp:streamable_http")
+        # Wrap ``UrlSchemeError`` so callers always see a ``TransportError``.
+        try:
+            ensure_http_url(config.url, allow_http=True, source="mcp:streamable_http")
+        except UrlSchemeError as exc:
+            raise TransportError(str(exc)) from exc
         policy_from_env().check_url(config.url, source="mcp:streamable_http")
         self._url = config.url
         self._timeout = config.timeout

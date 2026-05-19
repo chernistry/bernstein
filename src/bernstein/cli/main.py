@@ -335,13 +335,19 @@ def _init_error_telemetry() -> None:
         return
     from bernstein import __version__
 
-    sentry_sdk.init(
-        dsn=dsn,
-        traces_sample_rate=0.0,
-        profiles_sample_rate=0.0,
-        send_default_pii=False,
-        release=__version__,
-    )
+    # ``sentry_sdk.init`` raises ``BadDsn`` for a malformed DSN. Telemetry
+    # is best-effort: a misconfigured DSN must not crash the CLI on import.
+    try:
+        sentry_sdk.init(
+            dsn=dsn,
+            traces_sample_rate=0.0,
+            profiles_sample_rate=0.0,
+            send_default_pii=False,
+            release=__version__,
+        )
+    except Exception:
+        # Best-effort import-time telemetry init: never crash the CLI.
+        return
 
 
 _init_error_telemetry()

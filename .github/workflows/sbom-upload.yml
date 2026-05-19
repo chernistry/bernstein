@@ -39,11 +39,22 @@ jobs:
         with:
           python-version: "3.14"
 
-      - name: Install cyclonedx-bom
-        run: python -m pip install --upgrade "cyclonedx-bom>=4.5"
+      # ``cyclonedx-py environment`` scans the active Python environment.
+      # Build the SBOM from an isolated venv where only the project and its
+      # resolved dependencies are installed so the output reflects
+      # bernstein's dependency graph rather than whatever the runner base
+      # image happens to carry.
+      - name: Prepare isolated SBOM environment
+        run: |
+          python -m venv .venv-sbom
+          . .venv-sbom/bin/activate
+          python -m pip install --upgrade pip "cyclonedx-bom>=4.5"
+          python -m pip install .
 
       - name: Generate CycloneDX SBOM
-        run: cyclonedx-py environment --output-file bernstein.cyclonedx.json
+        run: |
+          . .venv-sbom/bin/activate
+          cyclonedx-py environment --output-file bernstein.cyclonedx.json
 
       - name: Check operator endpoint
         id: gate

@@ -73,14 +73,25 @@ def ticket_cmd(
       bernstein bundle ticket jira PROJ-9 --out PROJ-9.tar.gz \\
         --sign-key keys/lineage.pem --sign-kid lineage-2026
     """
-    if sign_key is not None and not sign_kid:
-        raise click.UsageError("--sign-kid is required when --sign-key is used")
+    # Validate signing inputs together before mutating any state on disk.
+    # --sign-key and --sign-kid must be supplied as a pair: a kid without a
+    # key cannot sign, and a key without a kid leaves the JWS header empty.
+    if bool(sign_key) != bool(sign_kid):
+        raise click.UsageError(
+            "--sign-key and --sign-kid must be provided together",
+        )
+
+    priv_pem: str | None = None
+    if sign_key is not None:
+        try:
+            priv_pem = sign_key.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise click.ClickException(f"could not read --sign-key: {exc}") from exc
 
     bundle = TicketBundle(workdir=workdir, tracker=tracker, ticket_id=ticket_id)
     manifest = bundle.assemble(out=out)
 
-    if sign_key is not None and sign_kid:
-        priv_pem = sign_key.read_text(encoding="utf-8")
+    if priv_pem is not None and sign_kid is not None:
         jws_path = bundle.sign(private_key_pem=priv_pem, kid=sign_kid)
         sig_note = f" Signed -> [bold]{jws_path}[/bold]."
     else:

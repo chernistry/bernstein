@@ -32,7 +32,7 @@ instead of `on: workflow_run:`; the dispatcher owns the upstream event.
 
 ## Sequence
 
-```
+```text
 CI run completes on main
         |
         v

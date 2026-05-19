@@ -252,6 +252,11 @@ def stack_clear_cmd(task_id: str, workdir: str) -> None:
 )
 def gc_cmd(days: int, workdir: str) -> None:
     """Garbage-collect snapshots older than --days."""
+    # Negative retention windows would push the cutoff into the future and
+    # delete every snapshot, so reject them up front rather than rely on the
+    # store layer.
+    if days < 0:
+        raise click.BadParameter("--days must be non-negative", param_hint="--days")
     try:
         store = SnapshotStore(Path(workdir))
         deleted = store.gc(older_than_days=days)

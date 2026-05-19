@@ -17,7 +17,9 @@ import importlib.util
 import json
 import subprocess
 import sys
+from collections.abc import Generator
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
@@ -27,7 +29,7 @@ SCRIPT_PATH = REPO_ROOT / "scripts" / "sarif_drop_suppressed.py"
 
 
 @pytest.fixture
-def sarif_module():
+def sarif_module() -> Generator[ModuleType, None, None]:
     """Load scripts/sarif_drop_suppressed.py as a module."""
     spec = importlib.util.spec_from_file_location("sarif_drop_suppressed_under_test", SCRIPT_PATH)
     assert spec is not None and spec.loader is not None

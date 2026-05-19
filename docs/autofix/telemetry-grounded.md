@@ -29,7 +29,7 @@ uses. The dispatch loop is identical to the CI flow:
 | `custom_jsonl`| stubbed  | `/webhooks/telemetry/custom_jsonl/`     | `BERNSTEIN_CUSTOM_JSONL_WEBHOOK_SECRET`     |
 
 The `sentry` adapter covers both Sentry SaaS and the Sentry-compatible
-self-host GlitchTip - the issue-alert webhook envelope is identical.
+self-hosted GlitchTip - the issue-alert webhook envelope is identical.
 
 ## Configuration
 

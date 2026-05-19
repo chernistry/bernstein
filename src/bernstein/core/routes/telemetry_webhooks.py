@@ -81,8 +81,11 @@ def configure_receiver(
 
     The function lets the server bootstrap (or a test) configure the
     receiver in one call. The returned state is the same object the
-    router will reach for so callers can mutate it for runtime
-    reconfiguration (e.g. flipping ``enabled`` on a source).
+    router will reach for. ``TelemetrySettings`` and
+    ``TelemetrySourceConfig`` are frozen, so runtime reconfiguration
+    (e.g. flipping ``enabled`` on a source) requires building a new
+    settings instance and calling :func:`configure_receiver` again to
+    replace ``app.state.telemetry_grounded`` wholesale.
 
     Args:
         app_state: ``request.app.state`` or a ``SimpleNamespace`` from

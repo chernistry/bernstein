@@ -39,6 +39,7 @@ __all__ = [
     "LifecycleContext",
     "LifecycleEvent",
     "bind_rate_limit_emit",
+    "bind_retry_continuation_emit",
     "discover_default_hook_scripts",
     "parse_hook_decision",
 ]
@@ -598,6 +599,32 @@ def _apply_decision(
 DEFAULT_HOOK_DIR_NAME: str = ".bernstein/hooks"
 
 _DEFAULT_HOOK_SUFFIXES: tuple[str, ...] = (".sh", ".py")
+
+
+def bind_retry_continuation_emit(registry: HookRegistry) -> None:
+    """Wire the commit-completion retry path into ``registry``.
+
+    After this call, every successful retry launch from
+    :func:`bernstein.core.orchestration.commit_completion.maybe_retry_continuation`
+    synchronously runs the registry for
+    :attr:`LifecycleEvent.AGENT_RETRY_CONTINUATION` with a context
+    whose ``data`` field carries ``session_id``, ``reason``, and
+    ``attempt``.
+
+    Mirrors :func:`bind_rate_limit_emit`. The orchestrator typically
+    calls this once at startup alongside the rate-limit binding.
+    """
+    from bernstein.core.orchestration import commit_completion as _cc
+
+    def _emit(payload: dict[str, Any]) -> None:
+        ctx = LifecycleContext(
+            event=LifecycleEvent.AGENT_RETRY_CONTINUATION,
+            session_id=payload.get("session_id"),  # type: ignore[arg-type]
+            data=payload,
+        )
+        registry.run(LifecycleEvent.AGENT_RETRY_CONTINUATION, ctx)
+
+    _cc.set_retry_lifecycle_emitter(_emit)
 
 
 def bind_rate_limit_emit(registry: HookRegistry) -> None:

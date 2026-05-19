@@ -124,7 +124,7 @@ Hard contract:
 
 - Retry is capped at exactly **one** attempt per task. Recursion is
   not configurable.
-- Retry only fires when both pre-spawn and post-exit SHAs read
+- Retry only fires when both pre-spawn and post-exit SHAs are read
   successfully. An unknown HEAD (no repo, no commits yet) leaves the
   exit unchanged.
 - The lifecycle event `agent.retry_continuation` fires once per

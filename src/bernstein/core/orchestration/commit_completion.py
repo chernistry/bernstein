@@ -48,6 +48,56 @@ if TYPE_CHECKING:
 
     from bernstein.adapters.base import CLIAdapter, SpawnResult
 
+
+class ContinuationSpawnFn(Protocol):
+    """Callable contract for the retry-spawn closure.
+
+    The dispatch loop hands :func:`maybe_retry_continuation` a closure
+    that knows how to forward into its own spawn machinery (worktree
+    routing, container hand-off, lifecycle book-keeping). The protocol
+    documents the two arguments the helper actually passes and keeps
+    the return type narrow enough for mypy without leaking adapter
+    internals.
+    """
+
+    def __call__(
+        self,
+        prompt: str,
+        continuation_args: list[str],
+    ) -> SpawnResult | None: ...
+
+
+class RetryLifecycleEmitter(Protocol):
+    """Callback contract for emitting ``agent.retry_continuation``.
+
+    Wired by the orchestrator at startup (mirrors the
+    :func:`bernstein.core.lifecycle.hooks.bind_rate_limit_emit`
+    pattern). The default no-op keeps the module importable from
+    contexts where the lifecycle registry is not configured (tests,
+    CLI scripts, doc generators).
+    """
+
+    def __call__(self, payload: dict[str, object]) -> None: ...
+
+
+def _noop_emitter(_payload: dict[str, object]) -> None:
+    """Default emitter -- swallows the event so unit imports stay free of side effects."""
+
+
+_lifecycle_emitter: RetryLifecycleEmitter = _noop_emitter
+
+
+def set_retry_lifecycle_emitter(emitter: RetryLifecycleEmitter | None) -> None:
+    """Install the callback that fires ``agent.retry_continuation``.
+
+    Pass ``None`` to restore the no-op default. The orchestrator calls
+    this once at startup with a closure that runs the lifecycle
+    registry for :attr:`LifecycleEvent.AGENT_RETRY_CONTINUATION`.
+    """
+    global _lifecycle_emitter
+    _lifecycle_emitter = emitter or _noop_emitter
+
+
 logger = logging.getLogger(__name__)
 
 #: Hard cap on continuation retries triggered by a missing commit. The
@@ -92,11 +142,22 @@ class CompletionVerdict:
     """Result of comparing the pre-spawn and post-exit HEAD snapshots.
 
     Attributes:
-        committed: ``True`` if HEAD moved between snapshot and verify.
+        committed: ``True`` if HEAD moved between snapshot and verify,
+            or in the special "no baseline" case where one of the
+            snapshots could not be read (see ``reason="head_unknown"``
+            below). The "no baseline" case sets ``committed=True``
+            defensively so the retry path stays off: we cannot make a
+            confident statement about commit movement when the
+            baseline is missing.
         before: HEAD SHA captured by :meth:`CommitCompletionCheck.snapshot_before`.
         after: HEAD SHA captured by :meth:`CommitCompletionCheck.verify_after`.
-        reason: Short, operator-facing explanation. Empty when the agent
-            committed normally.
+        reason: Short, operator-facing explanation. One of:
+            * ``""`` -- normal commit landed (``committed=True``).
+            * ``"head_did_not_move"`` -- agent exited but HEAD is
+              unchanged (``committed=False``); this is the case that
+              triggers the retry.
+            * ``"head_unknown"`` -- one or both snapshots could not be
+              read; ``committed=True`` defensively so no retry fires.
     """
 
     committed: bool
@@ -260,11 +321,15 @@ def build_continuation_prompt(
 
     The nudge is appended after a blank line so it reads as a follow-up
     user turn inside the adapter's session view. The original prompt
-    is preserved verbatim so transcript replay stays intelligible.
+    is preserved verbatim -- leading/trailing whitespace and final
+    newlines stay intact so transcript replay matches the original
+    spawn byte-for-byte.
     """
     if not nudge:
         return original_prompt
-    return f"{original_prompt}\n\n{nudge}".strip()
+    if not original_prompt:
+        return nudge
+    return f"{original_prompt}\n\n{nudge}"
 
 
 def maybe_retry_continuation(
@@ -278,7 +343,7 @@ def maybe_retry_continuation(
     attempts: int = 0,
     check: CommitCompletionCheck | None = None,
     nudge: str = DEFAULT_CONTINUATION_NUDGE,
-    spawn_fn: object | None = None,
+    spawn_fn: ContinuationSpawnFn | None = None,
 ) -> tuple[RetryDecision, CompletionVerdict, SpawnResult | None]:
     """Convenience wrapper around verify + decide + (optional) spawn.
 
@@ -323,14 +388,30 @@ def maybe_retry_continuation(
 
     continuation_args = adapter.continuation_args(session_id)
     prompt = build_continuation_prompt(original_prompt=original_prompt, nudge=nudge)
+    attempt = attempts + 1
     logger.info(
-        "retry-with-continuation: session=%s reason=%s attempts=%d args=%s",
+        "retry-with-continuation: session=%s reason=%s attempt=%d args=%s",
         session_id,
         decision.reason,
-        attempts,
+        attempt,
         continuation_args,
     )
-    retry_result = spawn_fn(prompt, continuation_args)  # type: ignore[operator]
+    # Fire ``agent.retry_continuation`` so downstream consumers
+    # (metrics, dashboards, audit log) can observe the retry. The
+    # emitter is a module-level callback installed by the orchestrator
+    # at startup; the unit-test default is a no-op so this call does
+    # not require a configured registry to be safe.
+    try:
+        _lifecycle_emitter(
+            {
+                "session_id": session_id,
+                "reason": decision.reason,
+                "attempt": attempt,
+            }
+        )
+    except Exception as exc:  # pragma: no cover -- emitter must never mask the spawn
+        logger.debug("retry-continuation lifecycle emitter failed: %s", exc)
+    retry_result = spawn_fn(prompt, continuation_args)
     return decision, verdict, retry_result
 
 
@@ -339,6 +420,7 @@ __all__ = [
     "RETRY_LIMIT",
     "CommitCompletionCheck",
     "CompletionVerdict",
+    "ContinuationSpawnFn",
     "RetryDecision",
     "adapter_supports_continuation",
     "build_continuation_prompt",

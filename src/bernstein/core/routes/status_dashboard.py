@@ -736,6 +736,9 @@ def _enrich_sdd_payload(sdd_dir: Any, payload: dict[str, Any], read_latest_depen
         payload["dependency_scan"] = scan.to_dict()
     from bernstein.core.verification_nudge import load_nudge_summary
 
+    # Lineage trace-fold: unresolved-fork count for the status lineage row.
+    payload["lineage"] = _summarise_lineage(sdd_dir)
+
     nudge = load_nudge_summary(sdd_dir / "metrics")
     if nudge.total_completions <= 0:
         return
@@ -746,6 +749,32 @@ def _enrich_sdd_payload(sdd_dir: Any, payload: dict[str, Any], read_latest_depen
             f"completed without verification (threshold: {nudge.nudge_threshold:.0%})"
         )
     payload["verification_nudge"] = nudge_data
+
+
+def _summarise_lineage(sdd_dir: Any) -> dict[str, Any]:
+    """Fold lineage log into a one-line status row.
+
+    Surfaces ``unresolved_forks`` so ``bernstein status`` can flag operator
+    follow-ups without the operator having to run ``bernstein lineage
+    conflicts`` first. Returns an empty dict when no lineage log is on disk.
+    """
+    if not isinstance(sdd_dir, Path):
+        return {}
+    log_path = sdd_dir / "lineage" / "log.jsonl"
+    if not log_path.exists():
+        return {}
+    try:
+        from bernstein.cli.commands._lineage_v1_helpers import read_entries
+        from bernstein.core.lineage.tips import detect_forks
+
+        entries = read_entries(log_path)
+        forks = detect_forks(entries)
+    except Exception:  # pragma: no cover - defensive: never break /status
+        return {}
+    return {
+        "unresolved_forks": len(forks),
+        "entry_count": len(entries),
+    }
 
 
 @router.get("/status")

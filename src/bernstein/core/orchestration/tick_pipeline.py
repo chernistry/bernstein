@@ -700,7 +700,7 @@ def compute_total_spent(workdir: Path) -> float:
     for jsonl_file in current_files:
         path_str = str(jsonl_file)
         try:
-            mtime_ns = os.stat(jsonl_file).st_mtime_ns
+            mtime_ns = jsonl_file.stat().st_mtime_ns
         except OSError:
             continue
 

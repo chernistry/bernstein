@@ -54,7 +54,7 @@ def detect_workflow_files(workdir: Path) -> list[Path]:
         candidate = workdir / name
         if candidate.is_file():
             try:
-                st = os.stat(candidate)
+                st = candidate.stat()
                 inode_key = (st.st_dev, st.st_ino)
             except OSError:
                 continue

@@ -50,6 +50,10 @@ Hand-curated release notes: [`docs/release-notes/v2.0.0.md`](docs/release-notes/
 
 - **Worktree-debris cleanup (2026-05-17).** Reaped 50 stale parent-level `bernstein-wt-*` worktrees plus `bernstein-audit-6e` (hireex/rebirth worktree on a bernstein-named path). Every branch tip was tag-rescued under `rescue/<branch>-20260517T152307Z` and pushed to origin before the worktree was force-removed and the local branch deleted. Three active-agent worktrees were preserved (`bernstein-wt-fix-determine-changes`, `bernstein-wt-fix-reviewer-prompts`, `bernstein-wt-syn-gitlab`). `git worktree list` is back to canonical: the main checkout plus the in-repo `.claude/worktrees/` registry.
 
+### Documentation
+
+- **Per-step CLI and model routing surfaced.** Added [`docs/workflows/per-step-routing.md`](docs/workflows/per-step-routing.md) documenting the existing per-step `cli:` / `model:` / `effort:` plan fields, the surfaces that honour them, the surfaces that drop them, and a trace-based verification recipe. `templates/bernstein.yaml` now ships a commented-out per-stage override example that points at the new page. `templates/workflows/idea-to-pr.yaml` and `templates/workflows/refactor-with-tests.yaml` carry inline comments showing where operators most often want to pin different adapters or models and the plan-YAML lift to do it. The runtime support already existed (`plan_loader._parse_step` at `plan_loader.py:255-294`, `planner.py:86-96`); this PR closes the discoverability gap raised in discussion #962.
+
 ## [1.10.1] — 2026-05-07
 
 ### Added — adapters

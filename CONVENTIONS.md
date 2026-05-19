@@ -157,6 +157,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `dashboard_app.py`      | Bernstein TUI application -- main App class and entry point |
 | `dashboard_header.py`   | Dashboard header and agent display widgets |
 | `dashboard_polling.py`  | Dashboard polling helpers, data loaders, formatters, and constants |
+| `debug_bundle.py`       | Debug bundle export -- ``bernstein debug bundle`` |
 | `first_run_guard.py`    | First-run guard helpers wiring categorisation into CLI entry points |
 | `helpers.py`            | Shared constants, helpers, and utilities for Bernstein CLI modules |
 | `install_check.py`      | Installation mismatch detection -- detect multiple Bernstein installs and config conflicts |

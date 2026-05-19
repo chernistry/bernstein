@@ -690,6 +690,7 @@ def eval_swe_bench(
 
 
 @eval_group.command("run")
+@click.argument("spec", required=False, type=click.Path(exists=True, dir_okay=False))
 @click.option(
     "--tier",
     type=click.Choice(["smoke", "standard", "stretch", "adversarial"]),
@@ -698,14 +699,32 @@ def eval_swe_bench(
 )
 @click.option("--compare", "compare_prev", is_flag=True, default=False, help="Compare vs previous run.")
 @click.option("--save/--no-save", default=True, show_default=True, help="Persist results to disk.")
-def eval_run(tier: str | None, compare_prev: bool, save: bool) -> None:
-    """Run the golden benchmark suite with multiplicative scoring.
+@click.option(
+    "--output",
+    "output_json",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="When SPEC is given, also write the JSON report to this path.",
+)
+def eval_run(
+    spec: str | None,
+    tier: str | None,
+    compare_prev: bool,
+    save: bool,
+    output_json: str | None,
+) -> None:
+    """Run the golden benchmark suite or a YAML eval spec.
 
     \b
-      bernstein eval run                    # run full golden suite
-      bernstein eval run --tier smoke       # smoke tier only
-      bernstein eval run --compare          # compare vs previous run
+      bernstein eval run                       # run full golden suite
+      bernstein eval run --tier smoke          # smoke tier only
+      bernstein eval run --compare             # compare vs previous run
+      bernstein eval run path/to/eval.yaml     # YAML spec run
     """
+    if spec is not None:
+        _run_yaml_spec(spec_path=spec, save=save, output_json=output_json)
+        return
+
     from rich.table import Table
 
     from bernstein.eval.harness import EvalHarness, TaskEvalResult
@@ -777,6 +796,125 @@ def eval_run(tier: str | None, compare_prev: bool, save: bool) -> None:
     if save:
         path = harness.save_run(run_result)
         console.print(f"[dim]Results saved → {path}[/dim]")
+
+
+def _run_yaml_spec(*, spec_path: str, save: bool, output_json: str | None) -> None:
+    """Execute a YAML eval spec and surface a Rich-formatted summary."""
+    from rich.table import Table
+
+    from bernstein.eval.yaml_runner import (
+        YAMLRunner,
+        lineage_stub_for,
+        load_spec,
+        save_report,
+    )
+
+    path = Path(spec_path).resolve()
+    eval_spec = load_spec(path)
+    runner = YAMLRunner()
+    report = runner.run(eval_spec, base_dir=path.parent)
+
+    console.print(f"[bold]YAML eval[/bold]: {eval_spec.name} (adapters={len(eval_spec.adapters)})")
+
+    table = Table(title="Per-adapter results", header_style=_STYLE_BOLD_CYAN, show_lines=False)
+    table.add_column("Adapter", min_width=14)
+    table.add_column("Prompts", justify="right")
+    table.add_column("Golden pass", justify="right")
+    table.add_column("Golden %", justify="right")
+    table.add_column("Judge mean", justify="right")
+    table.add_column("Overall", justify="right")
+
+    for agg in report.per_adapter:
+        table.add_row(
+            agg.adapter,
+            str(agg.prompt_count),
+            str(agg.golden_passed),
+            f"{agg.golden_pass_rate * 100:.1f}%",
+            f"{agg.judge_mean:.3f}",
+            f"{agg.overall_score:.3f}",
+        )
+
+    console.print(table)
+
+    if report.threshold_failures:
+        console.print("\n[bold red]Threshold failures:[/bold red]")
+        for failure in report.threshold_failures:
+            console.print(f"  [red]-[/red] {failure}")
+
+    if save:
+        state_dir = Path(".sdd")
+        json_path, md_path = save_report(report, state_dir=state_dir)
+        stub = lineage_stub_for(json_path, lineage_tag=report.lineage_tag)
+        lineage_path = json_path.with_suffix(".lineage.json")
+        lineage_path.write_text(
+            __import__("json").dumps(stub.to_dict(), indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        console.print(f"[dim]JSON  -> {json_path}[/dim]")
+        if md_path is not None:
+            console.print(f"[dim]MD    -> {md_path}[/dim]")
+        console.print(f"[dim]Lineage -> {lineage_path}[/dim]")
+
+    if output_json:
+        Path(output_json).write_text(report.to_json() + "\n", encoding="utf-8")
+        console.print(f"[dim]Wrote JSON report -> {output_json}[/dim]")
+
+    if not report.thresholds_passed:
+        raise SystemExit(1)
+
+
+@eval_group.command("list")
+@click.option(
+    "--state-dir",
+    "state_dir",
+    type=click.Path(file_okay=False),
+    default=".sdd",
+    show_default=True,
+    help="Bernstein state directory.",
+)
+def eval_list(state_dir: str) -> None:
+    """List persisted YAML eval runs (newest first).
+
+    \b
+      bernstein eval list
+    """
+    from bernstein.eval.yaml_runner import list_runs
+
+    runs = list_runs(Path(state_dir))
+    if not runs:
+        console.print("[yellow]No YAML eval runs found.[/yellow]")
+        return
+    for path in runs:
+        console.print(f"  {path}")
+
+
+@eval_group.command("diff")
+@click.argument("run_a", type=click.Path(exists=True, dir_okay=False))
+@click.argument("run_b", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--output",
+    "output_json",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Write the diff JSON to this path (stdout if omitted).",
+)
+def eval_diff(run_a: str, run_b: str, output_json: str | None) -> None:
+    """Diff two persisted YAML eval runs.
+
+    \b
+      bernstein eval diff .sdd/eval/yaml_runs/yaml_run_A.json .sdd/eval/yaml_runs/yaml_run_B.json
+    """
+    import json as _json
+
+    from bernstein.eval.yaml_runner import diff_runs
+
+    diff = diff_runs(Path(run_a), Path(run_b))
+    payload = _json.dumps(diff.to_dict(), indent=2, sort_keys=True)
+    if output_json:
+        Path(output_json).write_text(payload + "\n", encoding="utf-8")
+        console.print(f"[dim]Wrote diff -> {output_json}  winner={diff.winner}[/dim]")
+    else:
+        click.echo(payload)
 
 
 @eval_group.command("report")

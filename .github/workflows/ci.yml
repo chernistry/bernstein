@@ -587,7 +587,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ["3.11", "3.12", "3.13"]
+        # Matrix tracks `requires-python = ">=3.12"` in pyproject.toml.
+        # 3.11 is intentionally excluded: pipx / uv install would refuse
+        # the wheel for a Python the package does not support, which
+        # would just confirm the floor we already pin.
+        python-version: ["3.12", "3.13"]
     steps:
       - name: Harden runner (audit mode)
         if: runner.os == 'Linux'
@@ -650,13 +654,35 @@ jobs:
       - name: bernstein --help (exit zero)
         shell: bash
         run: bernstein --help
-      - name: bernstein doctor --json (exit zero)
-        # doctor --json must exit 0 on a freshly installed wheel even
-        # with no project context - the JSON envelope itself is the
-        # contract operators script against. Non-zero here means the
-        # diagnostic surface broke for first-run users.
+      - name: Verify packaged resources load via importlib
+        # Confirms package-data survived the wheel build by reading a
+        # bundled MCP tool schema and a force-included default template
+        # through importlib.resources. Uses the pipx-managed interpreter
+        # so we exercise the same site-packages layout end users get.
+        # We deliberately avoid `bernstein doctor --json` here: doctor
+        # is a dev-environment diagnostic that probes optional tools
+        # (uv, ruff, pytest, pyright) and git context, neither of which
+        # exists in a fresh pipx venv. This probe is narrowly scoped to
+        # the regression class the smoke job is meant to catch.
         shell: bash
-        run: bernstein doctor --json
+        run: |
+          set -euo pipefail
+          BERNSTEIN_PYTHON="$(pipx environment --value PIPX_LOCAL_VENVS)/bernstein/bin/python"
+          "$BERNSTEIN_PYTHON" -c '
+          import importlib
+          import importlib.resources as ir
+
+          cli_mod = importlib.import_module("bernstein.cli.main")
+          assert callable(getattr(cli_mod, "cli")), "bernstein.cli.main:cli missing"
+
+          schema_pkg = ir.files("bernstein.mcp.tool_schemas")
+          schemas = [p.name for p in schema_pkg.iterdir() if p.name.endswith(".json")]
+          assert schemas, "no MCP tool schemas shipped in wheel"
+
+          tpl_pkg = ir.files("bernstein._default_templates")
+          assert any(tpl_pkg.iterdir()), "no default templates shipped in wheel"
+          print(f"packaged resources OK: {len(schemas)} MCP schemas")
+          '
 
   install-smoke-uv:
     # Leaner mirror of install-smoke-pipx for the `uv tool install`
@@ -731,9 +757,33 @@ jobs:
       - name: bernstein --help (exit zero)
         shell: bash
         run: bernstein --help
-      - name: bernstein doctor --json (exit zero)
+      - name: Verify packaged resources load via importlib
+        # Mirror of the pipx job's resource probe but resolved through
+        # the uv-managed tool venv. See pipx counterpart for rationale.
         shell: bash
-        run: bernstein doctor --json
+        run: |
+          set -euo pipefail
+          UV_TOOL_DIR="$(uv tool dir)"
+          BERNSTEIN_PYTHON="$UV_TOOL_DIR/bernstein/bin/python"
+          if [ ! -x "$BERNSTEIN_PYTHON" ]; then
+            echo "::error::cannot find uv-managed bernstein interpreter at $BERNSTEIN_PYTHON"
+            exit 1
+          fi
+          "$BERNSTEIN_PYTHON" -c '
+          import importlib
+          import importlib.resources as ir
+
+          cli_mod = importlib.import_module("bernstein.cli.main")
+          assert callable(getattr(cli_mod, "cli")), "bernstein.cli.main:cli missing"
+
+          schema_pkg = ir.files("bernstein.mcp.tool_schemas")
+          schemas = [p.name for p in schema_pkg.iterdir() if p.name.endswith(".json")]
+          assert schemas, "no MCP tool schemas shipped in wheel"
+
+          tpl_pkg = ir.files("bernstein._default_templates")
+          assert any(tpl_pkg.iterdir()), "no default templates shipped in wheel"
+          print(f"packaged resources OK: {len(schemas)} MCP schemas")
+          '
 
   # ─── CI hardening 2026 (medium, parallel, ≤8 min each) ───────────────
 

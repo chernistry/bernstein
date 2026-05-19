@@ -243,6 +243,7 @@ nav:
       - Performance tuning: operations/performance-tuning.md
       - Autofix daemon: operations/autofix.md
       - Review responder: operations/review-responder.md
+      - Review-bot acknowledgement: operations/review-bot-ack.md
       - Preview server: operations/preview.md
       - Voice control (experimental): operations/voice-control.md
       - Chaos engineering: operations/chaos-engineering.md

@@ -41,6 +41,7 @@ from bernstein.core.orchestration.tracker_pipeline import (
     format_success_comment,
     make_idempotency_key,
     parse_failure_block,
+    parse_success_blocks,
     role_names_in_flight,
 )
 from bernstein.core.trackers.contract import (
@@ -284,6 +285,21 @@ class TestFailurePayload:
         assert 'role: "backend"' in block
         assert 'summary: "patch landed"' in block
 
+    def test_parse_success_blocks_returns_each_block(self) -> None:
+        body = (
+            "first handoff\n\n"
+            + format_success_comment(role="architect", stage_attempt=0, idempotency_key="k1", summary="design ready")
+            + "\n\nsecond handoff\n\n"
+            + format_success_comment(role="backend", stage_attempt=0, idempotency_key="k2", summary="patch landed")
+        )
+        blocks = parse_success_blocks(body)
+        assert [b["role"] for b in blocks] == ["architect", "backend"]
+        assert blocks[0]["summary"] == "design ready"
+        assert blocks[0]["idempotency_key"] == "k1"
+
+    def test_parse_success_blocks_handles_no_match(self) -> None:
+        assert parse_success_blocks("only prose, no fenced block") == []
+
 
 # ---------------------------------------------------------------------------
 # Claim ledger
@@ -456,6 +472,32 @@ class TestClaimLedger:
             == -1
         )
 
+    def test_live_claims_excludes_expired_rows(self, tmp_path: Path) -> None:
+        ledger = ClaimLedger(tmp_path / "claims.db")
+        ledger.try_claim(
+            tracker="t",
+            ticket_id="alive",
+            role="backend",
+            claimer_id="A",
+            ttl_seconds=60,
+            per_role_max_in_flight=4,
+            now=1000.0,
+        )
+        ledger.try_claim(
+            tracker="t",
+            ticket_id="stale",
+            role="qa",
+            claimer_id="B",
+            ttl_seconds=1,
+            per_role_max_in_flight=4,
+            now=900.0,
+        )
+        rows = ledger.live_claims(now=1010.0)
+        # Only the 1000.0+60 row is still alive at now=1010.0; the 900+1
+        # claim aged out and must not appear.
+        assert [r["ticket_id"] for r in rows] == ["alive"]
+        assert rows[0]["lease_seconds_remaining"] > 0
+
 
 # ---------------------------------------------------------------------------
 # Pipeline config
@@ -600,6 +642,66 @@ class TestTrackerPipeline:
         adapter = FakeTrackerAdapter(
             name="fake",
             tickets=[_ticket("T-1", status="design-done", body=marker_body)],
+        )
+        dispatcher = RecordingDispatcher()
+        pipeline = TrackerPipeline(
+            config=two_stage_config,
+            trackers={"fake": adapter},
+            ledger=ledger,
+            dispatcher=dispatcher,
+        )
+        pipeline.tick()
+        assert any(call[2] == "backend" for call in dispatcher.calls)
+
+    def test_prior_role_gate_uses_structured_block_not_raw_match(
+        self,
+        tmp_path: Path,
+        two_stage_config: PipelineConfig,
+    ) -> None:
+        """Body mentions ``architect`` in prose only - gate must stay closed.
+
+        Earlier revisions did a raw substring scan that matched any
+        occurrence of ``role: "<name>"`` anywhere in the ticket text;
+        this test pins the structured-parse behaviour so prose that
+        happens to contain the literal token does not unlock the gate.
+        """
+        prose_only = 'architect noted that role: "architect" should review later but did not write a success block.\n'
+        ledger = ClaimLedger(tmp_path / "claims.db")
+        adapter = FakeTrackerAdapter(
+            name="fake",
+            tickets=[_ticket("T-1", status="design-done", body=prose_only)],
+        )
+        dispatcher = RecordingDispatcher()
+        pipeline = TrackerPipeline(
+            config=two_stage_config,
+            trackers={"fake": adapter},
+            ledger=ledger,
+            dispatcher=dispatcher,
+        )
+        pipeline.tick()
+        assert dispatcher.calls == []
+
+    def test_prior_role_gate_tolerant_of_extra_yaml_fields(
+        self,
+        tmp_path: Path,
+        two_stage_config: PipelineConfig,
+    ) -> None:
+        """Extra YAML fields and quoting variations do not break the gate."""
+        block_body = (
+            "earlier handoff\n\n"
+            + format_success_comment(
+                role="architect",
+                stage_attempt=2,
+                idempotency_key="abc",
+                summary="design approved with notes",
+                prose="prose above the block",
+            )
+            + "\n"
+        )
+        ledger = ClaimLedger(tmp_path / "claims.db")
+        adapter = FakeTrackerAdapter(
+            name="fake",
+            tickets=[_ticket("T-1", status="design-done", body=block_body)],
         )
         dispatcher = RecordingDispatcher()
         pipeline = TrackerPipeline(

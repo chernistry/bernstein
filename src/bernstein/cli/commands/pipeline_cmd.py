@@ -47,12 +47,6 @@ def pipeline_group() -> None:
 
 @pipeline_group.command("run")
 @click.option(
-    "--tracker",
-    "tracker_name",
-    default=None,
-    help="Restrict the sweep to the named tracker adapter.",
-)
-@click.option(
     "--workflow",
     "workflow_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
@@ -75,7 +69,6 @@ def pipeline_group() -> None:
 )
 def run_cmd(
     *,
-    tracker_name: str | None,
     workflow_path: Path | None,
     config_path: Path,
     dry_run: bool,
@@ -85,6 +78,13 @@ def run_cmd(
     The command is non-blocking: each invocation walks every
     configured tracker once. Operators schedule recurring invocations
     via systemd, cron, or the existing ``bernstein daemon`` runner.
+
+    A per-tracker filter is not yet exposed here: the dispatch wiring
+    lives in ``build_pipeline_from_yaml`` and the tracker adapter
+    registry, which the CLI does not yet drive. Operators who need to
+    restrict the sweep should construct their pipeline programmatically
+    with a single-entry ``trackers`` mapping until the registry wiring
+    ships.
     """
     raw = _load_pipeline_block(workflow_path or config_path)
     config = PipelineConfig.from_dict(raw)
@@ -94,7 +94,7 @@ def run_cmd(
         )
         return
     if dry_run:
-        _print_config(config, tracker_name)
+        _print_config(config)
         return
     # The wire-up to real adapters lives in
     # ``bernstein.core.orchestration.tracker_pipeline.build_pipeline_from_yaml``.
@@ -106,7 +106,7 @@ def run_cmd(
         "registry and dispatcher via build_pipeline_from_yaml() to enable "
         "live dispatch.[/dim]"
     )
-    _print_config(config, tracker_name)
+    _print_config(config)
 
 
 @pipeline_group.command("status")
@@ -196,7 +196,7 @@ def _load_pipeline_block(path: Path) -> Mapping[str, Any]:
     return pipeline_block
 
 
-def _print_config(config: PipelineConfig, tracker_filter: str | None) -> None:
+def _print_config(config: PipelineConfig) -> None:
     """Render the resolved config as a Rich table."""
     from rich.table import Table
 
@@ -217,45 +217,24 @@ def _print_config(config: PipelineConfig, tracker_filter: str | None) -> None:
     console.print(table)
     console.print(
         f"[dim]claim_lock_ttl_seconds={config.claim_lock_ttl_seconds} "
-        f"per_role_max_in_flight={config.per_role_max_in_flight} "
-        f"tracker_filter={tracker_filter or 'all'}[/dim]"
+        f"per_role_max_in_flight={config.per_role_max_in_flight}[/dim]"
     )
 
 
 def _read_open_handoffs(ledger_path: Path, config: PipelineConfig) -> list[dict[str, Any]]:
-    """Return live ledger rows as dicts ordered (tracker, role, ticket)."""
-    import sqlite3
-    import time as _time
+    """Return live (non-expired) ledger rows ordered (tracker, role, ticket).
 
+    The ledger has a single source of truth for the SQLite schema and
+    PRAGMAs; we route this read through :meth:`ClaimLedger.live_claims`
+    so the status view stays consistent with the runtime claim path,
+    and expired rows are filtered server-side so they do not bleed into
+    operator dashboards.
+    """
     if not ledger_path.exists():
         return []
-    rows: list[dict[str, Any]] = []
-    now = _time.time()
-    # The ledger is a side-effect-free reader here; we open via the
-    # public class so the schema check matches the runtime version.
     ledger = ClaimLedger(ledger_path)
     try:
-        # Use a direct query for tabular output rather than relying on
-        # the per-key public surface.
-        conn = sqlite3.connect(str(ledger_path))
-        try:
-            cursor = conn.execute(
-                "SELECT tracker, ticket_id, role, claimer_id, lease_expires_at, "
-                "stage_attempt FROM claims ORDER BY tracker, role, ticket_id"
-            )
-            for tracker, ticket_id, role, claimer_id, expires, attempt in cursor.fetchall():
-                rows.append(
-                    {
-                        "tracker": tracker,
-                        "ticket_id": ticket_id,
-                        "role": role,
-                        "claimer_id": claimer_id,
-                        "stage_attempt": int(attempt),
-                        "lease_seconds_remaining": max(0.0, float(expires) - now),
-                    }
-                )
-        finally:
-            conn.close()
+        rows = ledger.live_claims()
     finally:
         ledger.close()
     # ``config`` is accepted so we can flag unknown roles in the

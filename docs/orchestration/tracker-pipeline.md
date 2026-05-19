@@ -195,8 +195,14 @@ pipeline.tick()
 |---------|---------|
 | `bernstein pipeline run --dry-run` | Print resolved pipeline without dispatching. |
 | `bernstein pipeline run` | One non-blocking sweep across configured trackers. |
-| `bernstein pipeline status` | Print open handoffs from the SQLite ledger. |
+| `bernstein pipeline status` | Print live (non-expired) handoffs from the SQLite ledger. |
 | `bernstein pipeline status --as-json` | Machine-readable output for dashboards. |
+
+Per-tracker filtering is not exposed on the CLI yet: the dispatch
+wiring lives in `build_pipeline_from_yaml` plus the tracker adapter
+registry, which the CLI does not yet drive. Construct the pipeline
+programmatically with a single-entry `trackers` mapping until the
+registry wiring ships.
 
 ## What is deliberately out of scope
 

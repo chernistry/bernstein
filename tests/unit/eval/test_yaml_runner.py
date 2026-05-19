@@ -59,13 +59,13 @@ def test_eval_spec_requires_prompts_or_dataset() -> None:
 
 
 def test_eval_spec_rejects_unknown_fields() -> None:
-    """``extra='forbid'`` blocks typo fields like ``promtps``."""
+    """``extra='forbid'`` blocks unknown fields (e.g. misspelled ``prompts``)."""
     with pytest.raises(ValueError):
         EvalSpec.model_validate(
             {
                 "name": "typo",
                 "adapters": ["mock"],
-                "promtps": [{"id": "p1", "text": "hi"}],
+                "prompts_typo": [{"id": "p1", "text": "hi"}],
             },
         )
 

@@ -811,8 +811,7 @@ def _run_yaml_spec(*, spec_path: str, save: bool, output_json: str | None) -> No
 
     path = Path(spec_path).resolve()
     eval_spec = load_spec(path)
-    runner = YAMLRunner()
-    report = runner.run(eval_spec, base_dir=path.parent)
+    report = YAMLRunner().run(eval_spec, base_dir=path.parent)
 
     console.print(f"[bold]YAML eval[/bold]: {eval_spec.name} (adapters={len(eval_spec.adapters)})")
 

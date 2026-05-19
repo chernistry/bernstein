@@ -285,14 +285,19 @@ class RunReport:
             for failure in self.threshold_failures:
                 lines.append(f"- {failure}")
 
-        lines.extend(["", "## Per-prompt outcomes", ""])
-        lines.append("| Prompt | Adapter | Golden | Judge | Reason |")
-        lines.append("| --- | --- | :---: | ---: | --- |")
+        lines.extend(
+            [
+                "",
+                "## Per-prompt outcomes",
+                "",
+                "| Prompt | Adapter | Golden | Judge | Reason |",
+                "| --- | --- | :---: | ---: | --- |",
+            ]
+        )
         for o in self.outcomes:
             judge_str = "-" if o.judge_score is None else f"{o.judge_score:.3f}"
             golden_icon = "pass" if o.golden_passed else "fail"
-            reason = o.golden_reason or ""
-            lines.append(f"| {o.prompt_id} | {o.adapter} | {golden_icon} | {judge_str} | {reason} |")
+            lines.append(f"| {o.prompt_id} | {o.adapter} | {golden_icon} | {judge_str} | {o.golden_reason} |")
         return "\n".join(lines) + "\n"
 
 
@@ -404,7 +409,7 @@ def merge_prompts(spec: EvalSpec, *, base_dir: Path) -> list[PromptSpec]:
     Raises:
         ValueError: If duplicate prompt ids are detected.
     """
-    prompts: list[PromptSpec] = list(spec.prompts)
+    prompts: list[PromptSpec] = spec.prompts.copy()
     if spec.dataset:
         dataset_path = Path(spec.dataset)
         if not dataset_path.is_absolute():

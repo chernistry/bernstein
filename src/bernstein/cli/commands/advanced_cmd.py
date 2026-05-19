@@ -937,32 +937,55 @@ def recap(archive: str, as_json: bool) -> None:
 # ---------------------------------------------------------------------------
 
 
-@click.command("trace")
-@click.argument("task_id")
-@click.option(
-    "--as-json",
-    "as_json",
-    is_flag=True,
-    default=False,
-    help="Output raw JSON.",
-)
+class _TraceGroup(click.Group):
+    """Click group that falls back to ``show`` when the first positional
+    arg is not a registered subcommand.
+
+    This preserves the legacy ``bernstein trace <task-id>`` invocation
+    after the command was promoted to a group with ``serve``, ``verify``,
+    and ``reindex`` subcommands.
+    """
+
+    def resolve_command(
+        self,
+        ctx: click.Context,
+        args: list[str],
+    ) -> tuple[str | None, click.Command | None, list[str]]:
+        if args and not args[0].startswith("-") and args[0] not in self.commands:
+            args = ["show", *args]
+        return super().resolve_command(ctx, args)
+
+
+@click.group("trace", cls=_TraceGroup, invoke_without_command=True)
 @click.option(
     "--traces-dir",
     default=".sdd/traces",
     show_default=True,
     help="Directory containing trace files.",
 )
-def trace_cmd(task_id: str, as_json: bool, traces_dir: str) -> None:
-    """Show execution trace for a task.
+@click.pass_context
+def trace_cmd(ctx: click.Context, traces_dir: str) -> None:
+    """Inspect, serve, and verify local agent traces.
 
-    Displays the step-by-step trace of what a task's agent did.
+    \b
+      bernstein trace <task-id>           Pretty-print a task trace (alias of show)
+      bernstein trace show <task-id>      Pretty-print a task trace
+      bernstein trace serve --port 8765   Run the local read-only viewer
+      bernstein trace verify <trace-id>   Confirm on-disk bytes match sha256
+      bernstein trace reindex             Rebuild .sdd/traces/index.jsonl
     """
+    ctx.obj = {"traces_dir": traces_dir}
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+
+
+def _trace_show_task(task_id: str, *, traces_dir: str, as_json: bool) -> None:
+    """Pretty-print a single trace file for ``task_id``."""
     traces_path = Path(traces_dir)
     if not traces_path.exists():
         console.print(f"[red]Traces directory not found:[/red] {traces_path}")
         raise SystemExit(1)
 
-    # Find trace file for this task
     trace_files = list(traces_path.glob(f"*{task_id}*.json")) + list(traces_path.glob(f"*{task_id}*.jsonl"))
 
     if not trace_files:
@@ -981,7 +1004,6 @@ def trace_cmd(task_id: str, as_json: bool, traces_dir: str) -> None:
             console.print_json(json.dumps(data))
             return
 
-        # Pretty print trace
         from rich.syntax import Syntax
 
         syntax = Syntax(content, "json", theme="monokai", line_numbers=True)
@@ -989,6 +1011,78 @@ def trace_cmd(task_id: str, as_json: bool, traces_dir: str) -> None:
     except Exception as e:
         console.print(f"[red]Error reading trace:[/red] {e}")
         raise SystemExit(1) from e
+
+
+@trace_cmd.command("show")
+@click.argument("task_id")
+@click.option(
+    "--as-json",
+    "as_json",
+    is_flag=True,
+    default=False,
+    help="Output raw JSON.",
+)
+@click.pass_context
+def trace_show_cmd(ctx: click.Context, task_id: str, as_json: bool) -> None:
+    """Show execution trace for a task."""
+    traces_dir = (ctx.obj or {}).get("traces_dir", ".sdd/traces")
+    _trace_show_task(task_id, traces_dir=traces_dir, as_json=as_json)
+
+
+@trace_cmd.command("serve")
+@click.option("--port", default=8765, show_default=True, type=int, help="TCP port to bind.")
+@click.option(
+    "--bind",
+    default="127.0.0.1",
+    show_default=True,
+    help="Interface to bind. Defaults to loopback to keep traces local.",
+)
+@click.pass_context
+def trace_serve_cmd(ctx: click.Context, port: int, bind: str) -> None:
+    """Run a read-only FastAPI viewer over the local content-addressed store."""
+    import uvicorn
+
+    from bernstein.core.observability.trace_store import (
+        ContentAddressedTraceStore,
+        build_viewer_app,
+    )
+
+    traces_dir = (ctx.obj or {}).get("traces_dir", ".sdd/traces")
+    store = ContentAddressedTraceStore(Path(traces_dir))
+    app = build_viewer_app(store)
+    console.print(
+        f"[green]Trace viewer:[/green] http://{bind}:{port}/  "
+        f"(root: {store.root}, traces indexed: {len(store.index())})"
+    )
+    uvicorn.run(app, host=bind, port=port, log_level="warning")
+
+
+@trace_cmd.command("verify")
+@click.argument("trace_id")
+@click.pass_context
+def trace_verify_cmd(ctx: click.Context, trace_id: str) -> None:
+    """Confirm the on-disk bytes for ``trace_id`` match the indexed sha256."""
+    from bernstein.core.observability.trace_store import ContentAddressedTraceStore
+
+    traces_dir = (ctx.obj or {}).get("traces_dir", ".sdd/traces")
+    store = ContentAddressedTraceStore(Path(traces_dir))
+    if store.verify(trace_id):
+        console.print(f"[green]OK[/green] {trace_id}")
+        return
+    console.print(f"[red]FAIL[/red] {trace_id}")
+    raise SystemExit(1)
+
+
+@trace_cmd.command("reindex")
+@click.pass_context
+def trace_reindex_cmd(ctx: click.Context) -> None:
+    """Rebuild ``.sdd/traces/index.jsonl`` from the on-disk blob tree."""
+    from bernstein.core.observability.trace_store import ContentAddressedTraceStore
+
+    traces_dir = (ctx.obj or {}).get("traces_dir", ".sdd/traces")
+    store = ContentAddressedTraceStore(Path(traces_dir))
+    count = store.reindex()
+    console.print(f"[green]Reindex complete:[/green] {count} entries")
 
 
 # ---------------------------------------------------------------------------

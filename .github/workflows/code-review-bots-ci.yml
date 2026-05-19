@@ -1,0 +1,94 @@
+name: Code review bots (CLI lane)
+
+# Advisory PR lane that runs the Sourcery CLI against the diff so its
+# findings surface in the workflow log even when the GitHub App review
+# is rate-limited or paused. CodeRabbit is intentionally NOT run here:
+# the CodeRabbit GitHub App already produces inline PR comments and the
+# REST API key is for chat-only personal use.
+#
+# This workflow is non-blocking by design - it only posts log output
+# and never fails the PR check. Sourcery's PR app remains the
+# authoritative source of inline review comments; this lane exists so
+# operators can sanity-check the CLI configuration locally and in CI.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+    paths:
+      - 'src/**/*.py'
+      - 'tests/**/*.py'
+      - '.sourcery.yaml'
+      - '.coderabbit.yaml'
+      - '.github/workflows/code-review-bots-ci.yml'
+
+concurrency:
+  group: code-review-bots-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  sourcery-cli:
+    name: Sourcery CLI review (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: >
+      !github.event.pull_request.draft &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-sourcery')
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Bootstrap (uv + python)
+        uses: ./.github/actions/bootstrap
+        with:
+          python-version: "3.12"
+          cache-key-suffix: sourcery-cli
+
+      - name: Check Sourcery token
+        id: check
+        env:
+          SOURCERY_TOKEN: ${{ secrets.SOURCERY_API_KEY }}
+        run: |
+          if [ -z "${SOURCERY_TOKEN:-}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Sourcery CLI - no SOURCERY_API_KEY secret"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Sourcery
+        if: steps.check.outputs.skip != 'true'
+        continue-on-error: true
+        run: |
+          uv tool install sourcery
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Sourcery login
+        if: steps.check.outputs.skip != 'true'
+        continue-on-error: true
+        env:
+          SOURCERY_TOKEN: ${{ secrets.SOURCERY_API_KEY }}
+        run: |
+          sourcery login --token "$SOURCERY_TOKEN"
+
+      - name: Sourcery review (advisory)
+        if: steps.check.outputs.skip != 'true'
+        continue-on-error: true
+        run: |
+          # --check exits non-zero on findings; continue-on-error keeps
+          # the PR check green. The PR app posts inline comments.
+          sourcery review --check src tests

@@ -31,7 +31,12 @@ Free Pro tier for OSS repos. URL: <https://github.com/apps/coderabbitai>.
 Steps:
 - Click **Install** → authorize on `sipyourdrink-ltd/bernstein`.
 - No repo secret required.
-- Optional: add `.coderabbit.yaml` at repo root later — defaults are fine for now.
+- Tuned `.coderabbit.yaml` lives at the repo root (path-aware instructions,
+  Pro features enabled, duplicate-CI tools disabled).
+- Companion `.sourcery.yaml` lives alongside it; the Sourcery CLI runs as an
+  advisory PR lane in `.github/workflows/code-review-bots-ci.yml`.
+- Secrets required: `CODERABBIT_API_KEY` (chat-only, optional) and
+  `SOURCERY_API_KEY` (used by the CLI lane).
 
 Risk: adds 1 reviewer comment per PR. Rate-limit is 4 reviews/hr/PR; bursty
 force-pushes will queue.

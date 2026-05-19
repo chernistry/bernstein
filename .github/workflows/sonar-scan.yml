@@ -1,0 +1,62 @@
+name: SonarQube scan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - '.github/workflows/sonar-scan.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-scan-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: SonarQube scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: ${{ vars.SONAR_HOST_URL != '' || secrets.SONAR_HOST_URL != '' }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          fetch-depth: 0  # Sonar needs full history for blame
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b2cd87a4afb98c0c2c0b1d4e6c30c6c10  # v6.2.0
+        with:
+          python-version: '3.13'
+
+      - name: Run coverage
+        run: |
+          pip install --quiet uv
+          uv sync --group dev
+          uv run pytest --cov=src/bernstein --cov-report=xml --cov-branch tests/unit/ -q || true
+
+      - name: SonarQube scan
+        uses: SonarSource/sonarqube-scan-action@2500896589ef8f7247069a56136f8dc177c27ccf  # v6.0.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=bernstein
+            -Dsonar.projectName=Bernstein
+            -Dsonar.python.version=3.12,3.13
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.exclusions=src/bernstein/_default_templates/**,src/bernstein/grpc_gen/**

@@ -30,6 +30,7 @@ else:
     import tty
 
     _HAS_TERMIOS = True
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -126,18 +127,14 @@ def _drain_input() -> None:
         return
 
     if sys.platform == "win32":
-        try:
+        with suppress(OSError, ValueError):
             while msvcrt.kbhit():
                 msvcrt.getch()
-        except (OSError, ValueError):
-            pass
         return
 
-    try:
+    with suppress(OSError, ValueError):
         while select.select([sys.stdin], [], [], 0.0)[0]:
             sys.stdin.read(1)
-    except (OSError, ValueError):
-        pass  # stdin not readable; skip buffer drain
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +149,7 @@ def _cpu_count() -> int:
 
 def _memory_gb() -> int:
     """Get approximate system memory in GB."""
-    try:
+    with suppress(OSError, ValueError, subprocess.TimeoutExpired):
         if sys.platform == "darwin":
             result = subprocess.run(
                 ["sysctl", "-n", "hw.memsize"],
@@ -166,8 +163,6 @@ def _memory_gb() -> int:
                 return int(result.stdout.strip()) // (1024**3)
         elif sys.platform == "linux":
             return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") // (1024**3)  # type: ignore[operator]
-    except (OSError, ValueError, subprocess.TimeoutExpired):
-        pass  # Memory detection failed; use fallback
     return 16  # fallback
 
 
@@ -179,13 +174,10 @@ def _os_label() -> str:
         return f"macOS {release}" if release else "macOS"
     if system == "Linux":
         # Try to get distro name
-        try:
-            with open("/etc/os-release") as f:
-                for line in f:
-                    if line.startswith("PRETTY_NAME="):
-                        return line.split("=", 1)[1].strip().strip('"')[:30]
-        except OSError:
-            pass  # Cannot read /etc/os-release
+        with suppress(OSError), open("/etc/os-release") as f:
+            for line in f:
+                if line.startswith("PRETTY_NAME="):
+                    return line.split("=", 1)[1].strip().strip('"')[:30]
         return "Linux"
     return system
 

@@ -17,6 +17,7 @@ import os
 import signal
 import socket
 import time
+from contextlib import suppress
 from pathlib import Path
 
 import click
@@ -35,15 +36,13 @@ def _detect_worker_adapter() -> str:
     Returns:
         Adapter name (e.g. "claude", "codex", "gemini").
     """
-    try:
+    with suppress(Exception):
         from bernstein.core.agent_discovery import discover_agents_cached
 
         disc = discover_agents_cached()
         for agent in disc.agents:
             if agent.logged_in:
                 return agent.name
-    except Exception:
-        pass
     return "claude"
 
 
@@ -191,7 +190,7 @@ class WorkerLoop:
 
     def _claim_task(self, client: httpx.Client, role: str) -> dict | None:
         """Try to claim the next task for a given role. Returns task dict or None."""
-        try:
+        with suppress(httpx.HTTPError):
             resp = client.get(
                 f"{self._server_url}/tasks/next/{role}",
                 headers=self._headers(),
@@ -199,8 +198,6 @@ class WorkerLoop:
             )
             if resp.status_code == 200:
                 return resp.json()
-        except httpx.HTTPError:
-            pass
         return None
 
     def _complete_task(self, client: httpx.Client, task_id: str, summary: str) -> None:
@@ -311,15 +308,13 @@ class WorkerLoop:
         """Graceful shutdown: unregister from the server."""
         if node_id is None:
             return
-        try:
+        with suppress(httpx.HTTPError):
             client.delete(
                 f"{self._server_url}/cluster/nodes/{node_id}",
                 headers=self._headers(),
                 timeout=5.0,
             )
             console.print(f"[dim]Unregistered node {node_id}[/dim]")
-        except httpx.HTTPError:
-            pass
 
     def run(self) -> None:
         """Main worker loop. Blocks until SIGINT/SIGTERM."""

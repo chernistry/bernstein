@@ -1238,8 +1238,12 @@ class CostTracker:
         if total_duration_s > 0:
             lines.append(f"   Time:  {time_str}")
         if single_agent > actual:
-            lines.append(f"   Cost:  ${actual:.2f} (vs ~${single_agent:.2f} single agent)")
-            lines.append(f"   Saved: ${savings:.2f} ({savings_pct:.0f}%)")
+            lines.extend(
+                (
+                    f"   Cost:  ${actual:.2f} (vs ~${single_agent:.2f} single agent)",
+                    f"   Saved: ${savings:.2f} ({savings_pct:.0f}%)",
+                )
+            )
         else:
             lines.append(f"   Cost:  ${actual:.2f}")
         return "\n".join(lines)

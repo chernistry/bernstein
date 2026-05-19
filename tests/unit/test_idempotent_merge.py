@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -33,11 +34,9 @@ class TestMergeCheckResult:
         )
         assert result.can_merge is True
         # frozen — assignment should raise
-        try:
+        with suppress(AttributeError):
             result.can_merge = False  # type: ignore[misc]
             raise AssertionError("Expected FrozenInstanceError")  # pragma: no cover
-        except AttributeError:
-            pass
 
     def test_fields(self) -> None:
         now = datetime.now(UTC)
@@ -95,11 +94,9 @@ class TestMergeAttempt:
             applied=False,
             error="",
         )
-        try:
+        with suppress(AttributeError):
             attempt.applied = True  # type: ignore[misc]
             raise AssertionError("Expected FrozenInstanceError")  # pragma: no cover
-        except AttributeError:
-            pass
 
     def test_fields(self) -> None:
         check = MergeCheckResult(

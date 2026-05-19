@@ -1464,13 +1464,11 @@ class Orchestrator:
         # 4x. Periodic git hygiene
         # Gated behind _run_slow — git operations are IO-heavy.
         if _run_slow and len(done_tasks) > 0:
-            try:
+            with contextlib.suppress(Exception):
                 from bernstein.core.git_hygiene import run_hygiene
 
                 active_ids = {s.id for s in self._agents.values() if s.status != "dead"}
                 run_hygiene(self._workdir, active_session_ids=active_ids)
-            except Exception:
-                pass
 
         # 4x-ii. Periodic worktree garbage collection
         # Gated behind _run_slow — worktree GC is IO-heavy.
@@ -3162,7 +3160,7 @@ class Orchestrator:
         for task in claimed if isinstance(claimed, list) else claimed.get("tasks", []):
             task_id = task.get("id", "")
             if task_id not in self._task_to_session:
-                try:
+                with contextlib.suppress(Exception):
                     self._client.post(
                         f"{self._config.server_url}/tasks/{task_id}/force-claim",
                     )
@@ -3172,8 +3170,6 @@ class Orchestrator:
                         task_id,
                         task.get("title", ""),
                     )
-                except Exception:
-                    pass
 
         if unclaimed:
             logger.warning(
@@ -3556,15 +3552,13 @@ class Orchestrator:
         """Lazily initialize and return the set of already-ingested task titles."""
         if not hasattr(self, "_ingested_titles"):
             self._ingested_titles: set[str] = set()
-            try:
+            with contextlib.suppress(Exception):
                 resp = self._client.get(f"{self._config.server_url}/tasks")
                 resp.raise_for_status()
                 for task in resp.json():
                     title = task.get("title", "")
                     if title:
                         self._ingested_titles.add(title.lower().strip())
-            except Exception:
-                pass
         return self._ingested_titles
 
     def ingest_backlog(self) -> int:
@@ -3808,7 +3802,7 @@ class Orchestrator:
         import subprocess
 
         stats = {"files": 0, "insertions": 0, "deletions": 0}
-        try:
+        with contextlib.suppress(Exception):
             result = subprocess.run(
                 ["git", "diff", "--shortstat", f"origin/main...{branch}"],
                 cwd=self._workdir,
@@ -3826,8 +3820,6 @@ class Orchestrator:
                     stats["insertions"] = int(m.group(1))
                 if m := re.search(r"(\d+) deletions?", text[:500]):
                     stats["deletions"] = int(m.group(1))
-        except Exception:
-            pass
         return stats
 
     def _create_auto_pr(
@@ -3911,7 +3903,7 @@ class Orchestrator:
         """Check if the branch has commits ahead of origin/main."""
         import subprocess
 
-        try:
+        with contextlib.suppress(Exception):
             result = subprocess.run(
                 ["git", "log", "origin/main..HEAD", "--oneline"],
                 cwd=self._workdir,
@@ -3924,8 +3916,6 @@ class Orchestrator:
             if not result.stdout.strip():
                 logger.info("Auto-PR: skipping - no commits ahead of main")
                 return False
-        except Exception:
-            pass  # Continue anyway
         return True
 
     def _push_branch(self, branch: str) -> bool:
@@ -3951,7 +3941,7 @@ class Orchestrator:
         """Check if a PR already exists for this branch. Returns URL or None."""
         import subprocess
 
-        try:
+        with contextlib.suppress(Exception):
             pr_check = subprocess.run(
                 ["gh", "pr", "view", branch, "--json", "url", "-q", ".url"],
                 cwd=self._workdir,
@@ -3965,8 +3955,6 @@ class Orchestrator:
                 url = pr_check.stdout.strip()
                 logger.info("Auto-PR: PR already exists for branch %s: %s", branch, url)
                 return url
-        except Exception:
-            pass
         return None
 
     def _build_pr_body(self, done_tasks: list[Task], branch: str) -> str:
@@ -3977,8 +3965,7 @@ class Orchestrator:
         if len(done_tasks) == 1:
             body_lines.append(done_tasks[0].description or done_tasks[0].title)
         else:
-            body_lines.append(f"Completed {len(done_tasks)} tasks:")
-            body_lines.append("")
+            body_lines.extend((f"Completed {len(done_tasks)} tasks:", ""))
             for task in done_tasks:
                 body_lines.append(f"- {task.title}")
         body_lines.append("")
@@ -4150,11 +4137,8 @@ class Orchestrator:
             for s in self._agents.values()
         ]
         state_path = log_dir / "agents.json"
-        try:
-            with state_path.open("w") as f:
-                json.dump({"ts": time.time(), "agents": agents_snapshot}, f)
-        except Exception:
-            pass
+        with contextlib.suppress(Exception), state_path.open("w") as f:
+            json.dump({"ts": time.time(), "agents": agents_snapshot}, f)
 
 
 class TickResult:
@@ -4188,12 +4172,10 @@ def _resolve_manager_llm(workdir: Path) -> tuple[str, str]:
     model = "nvidia/nemotron-3-super-120b-a12b"
     seed_path = workdir / _BERNSTEIN_YAML
     if seed_path.exists():
-        try:
+        with contextlib.suppress(Exception):
             seed = parse_seed(seed_path)
             provider = seed.internal_llm_provider
             model = seed.internal_llm_model
-        except Exception:
-            pass
     return provider, model
 
 
@@ -4772,7 +4754,7 @@ if __name__ == "__main__":
         workflow_mode: str | None = None
         run_config_path = workdir / ".sdd" / "runtime" / "run_config.json"
         if run_config_path.exists():
-            try:
+            with contextlib.suppress(ValueError):
                 run_cfg = json.loads(run_config_path.read_text())
                 run_config_budget_usd = float(run_cfg.get("budget_usd", 0.0))
                 dry_run = bool(run_cfg.get("dry_run", False))
@@ -4780,8 +4762,6 @@ if __name__ == "__main__":
                 merge_strategy = str(run_cfg.get("merge_strategy", "pr"))
                 auto_merge = bool(run_cfg.get("auto_merge", True))
                 workflow_mode = run_cfg.get("workflow") or None
-            except ValueError:
-                pass
 
         # Layered budget resolution.
         #   Precedence: BERNSTEIN_MAX_COST_USD > run_config.json > seed.budget_usd > 0.

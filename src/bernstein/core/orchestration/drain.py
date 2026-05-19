@@ -194,13 +194,11 @@ def _rmtree_windows_safe(path: Path, max_attempts: int = 3) -> bool:
 
     def _onerror(func: Callable[[str], object], fpath: str, exc_info: object) -> None:
         """Handle permission errors by making file writable and retrying."""
-        try:
+        with contextlib.suppress(OSError):
             # Intentional: clear read-only flag on internal worktree files
             # during cleanup so shutil.rmtree can delete them (Windows).
             os.chmod(fpath, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
             func(fpath)
-        except OSError:
-            pass  # Give up on this file
 
     attempts = max_attempts if sys.platform == "win32" else 1
     for attempt in range(attempts):
@@ -704,15 +702,13 @@ class DrainCoordinator:
 
     async def _discover_agents_from_api(self) -> None:
         """Source 1: query HTTP API for claimed task count."""
-        try:
+        with contextlib.suppress(Exception):
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.get(f"{self._server_url}/status")
                 if resp.status_code == 200:
                     status_data = resp.json()
                     claimed = int(status_data.get("claimed", 0))
                     logger.info("Server reports %d claimed tasks", claimed)
-        except Exception:
-            pass
 
     def _discover_agents_from_pid_files(self) -> None:
         """Source 2: discover agents from PID files in .sdd/runtime/pids/."""
@@ -920,10 +916,8 @@ class DrainCoordinator:
             parts = line.split()
             if not parts:
                 continue
-            try:
+            with contextlib.suppress(ValueError):
                 return int(parts[-1])
-            except ValueError:
-                pass
         return None
 
     @staticmethod

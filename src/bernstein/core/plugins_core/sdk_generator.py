@@ -165,17 +165,19 @@ def _generate_method(method: str, path: str, operation: dict[str, Any]) -> str:
         py_path = py_path.replace(f"{{{p}}}", f"{{{p}}}")
 
     lines: list[str] = []
-    lines.append(f"    def {name}({params_str}) -> Any:")
-    lines.append(f'        """{summary or (http_method + " " + path)}"""')
+    lines.extend((f"    def {name}({params_str}) -> Any:", f'        """{summary or http_method + " " + path}"""'))
 
     if query_params:
         lines.append("        _query_parts: list[str] = []")
         for qp in query_params:
-            lines.append(f"        if {qp} is not None:")
-            lines.append(f'            _query_parts.append(f"{qp}={{{qp}}}")')
-        lines.append(f'        _path = f"{py_path}"')
-        lines.append("        if _query_parts:")
-        lines.append('            _path += "?" + "&".join(_query_parts)')
+            lines.extend((f"        if {qp} is not None:", f'            _query_parts.append(f"{qp}={{{qp}}}")'))
+        lines.extend(
+            (
+                f'        _path = f"{py_path}"',
+                "        if _query_parts:",
+                '            _path += "?" + "&".join(_query_parts)',
+            )
+        )
     else:
         lines.append(f'        _path = f"{py_path}"')
 
@@ -404,14 +406,12 @@ def _generate_ts_method(method: str, path: str, operation: dict[str, Any]) -> st
                 lines.append(f"    if ({qp_name} !== undefined) _q.push(`{qp_name}=${{{qp_name}}}`);")
             else:
                 lines.append(f"    _q.push(`{qp_name}=${{{qp_name}}}`);")
-        lines.append(f"    let _path = `{path}`;")
-        lines.append('    if (_q.length) _path += `?${_q.join("&")}`;')
+        lines.extend((f"    let _path = `{path}`;", '    if (_q.length) _path += `?${_q.join("&")}`;'))
     else:
         lines.append(f"    const _path = `{path}`;")
 
     body_arg = ", body" if has_body else ""
-    lines.append(f'    return this._request("{http_method}", _path{body_arg});')
-    lines.append("  }")
+    lines.extend((f'    return this._request("{http_method}", _path{body_arg});', "  }"))
 
     return "\n".join(lines)
 

@@ -230,12 +230,10 @@ def format_keybindings_help(actions: list[KeyAction] | None = None) -> str:
         actions = resolve_bindings()
 
     lines: list[str] = []
-    lines.append("Keyboard shortcuts")
-    lines.append("=" * 40)
+    lines.extend(("Keyboard shortcuts", "=" * 40))
     for action in actions:
         key_display = action.key.replace("ctrl+", "Ctrl+")
         lines.append(f"  {key_display:15s} {action.description}")
 
-    lines.append("")
-    lines.append("Reserved (non-rebindable): Ctrl+C, Ctrl+D")
+    lines.extend(("", "Reserved (non-rebindable): Ctrl+C, Ctrl+D"))
     return "\n".join(lines)

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import time
+from contextlib import suppress
 from typing import Any, cast
 
 import httpx
@@ -154,15 +155,15 @@ class FallbackDisplay:
         """
         from rich.live import Live
 
-        try:
-            with Live(
+        with (
+            suppress(KeyboardInterrupt),
+            Live(
                 Text("Connecting...", style="dim"),
                 console=self._console,
                 refresh_per_second=2,
-            ) as live:
-                while True:
-                    live.update(self._render())
-                    time.sleep(self._interval)
-        except KeyboardInterrupt:
-            pass
+            ) as live,
+        ):
+            while True:
+                live.update(self._render())
+                time.sleep(self._interval)
         self._console.print("\n[dim]Display stopped.[/dim]")

@@ -25,6 +25,7 @@ The recovery path must:
 from __future__ import annotations
 
 import subprocess
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 import httpx
@@ -88,11 +89,9 @@ class _RequestRecorder:
             if body:
                 import json as _json
 
-                try:
+                with suppress(Exception):
                     data = _json.loads(body)
                     reason = str(data.get("reason", ""))
-                except Exception:
-                    pass
             targets.append((parts[1], reason))
         return targets
 

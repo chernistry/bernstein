@@ -20,6 +20,7 @@ import json
 import logging
 import operator
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -207,7 +208,7 @@ def build_fleet_app(
     async def sse_events(request: Request) -> StreamingResponse:  # pyright: ignore[reportUnusedFunction]
         async def stream() -> AsyncGenerator[str, None]:
             yield 'event: heartbeat\ndata: {"connected": true}\n\n'
-            try:
+            with suppress(asyncio.CancelledError):
                 async for event in aggregator.events():
                     if await request.is_disconnected():
                         break
@@ -218,8 +219,6 @@ def build_fleet_app(
                         "ts": event.ts,
                     }
                     yield f"event: {event.event}\ndata: {json.dumps(payload)}\n\n"
-            except asyncio.CancelledError:
-                pass
 
         return StreamingResponse(
             stream(),

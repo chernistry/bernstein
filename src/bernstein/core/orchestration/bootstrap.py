@@ -122,11 +122,9 @@ def _release_pid_lock(workdir: Path) -> None:
         workdir: Project root directory.
     """
     pid_path = workdir / ".sdd" / "runtime" / "bernstein.pid"
-    try:
+    with contextlib.suppress(ValueError, OSError):
         if pid_path.exists() and int(pid_path.read_text().strip()) == os.getpid():
             pid_path.unlink(missing_ok=True)
-    except (ValueError, OSError):
-        pass
 
 
 # ---------------------------------------------------------------------------

@@ -42,12 +42,10 @@ _TOOL_ABORT_POLICIES = ("contain", "sibling", "session")
 
 def _set_proctitle(title: str) -> None:
     """Set the process title for ps / Activity Monitor."""
-    try:
+    with contextlib.suppress(ImportError):
         import setproctitle
 
         setproctitle.setproctitle(title)
-    except ImportError:
-        pass
 
 
 def _write_pid_file(pid_dir: Path, session: str, info: dict[str, object]) -> Path:
@@ -236,12 +234,10 @@ def main() -> None:
 
     # Opt-in operator observability (spec 2026-05-17).  Emits only the
     # bare command name; fail-closed - never raises into the worker.
-    try:
+    with contextlib.suppress(Exception):
         from bernstein.core.telemetry.wire import emit_command_invoked
 
         emit_command_invoked(name_only=cmd[0])
-    except Exception:
-        pass
 
     # 2. Write PID metadata
     pid_file = _write_pid_file(
@@ -260,12 +256,10 @@ def main() -> None:
     # 2b. Touch heartbeat file so the agent starts with a fresh timestamp.
     # Without this, idle recycling can kill agents before their first
     # stream-json event arrives (e.g. Claude Code thinking for 2+ minutes).
-    try:
+    with contextlib.suppress(OSError):
         hb_dir = Path(args.workdir) / ".sdd" / "runtime" / "heartbeats"
         hb_dir.mkdir(parents=True, exist_ok=True)
         (hb_dir / args.session).touch()
-    except OSError:
-        pass
 
     # 3. Spawn child process (inherits our stdout/stderr/stdin)
     try:
@@ -307,7 +301,7 @@ def main() -> None:
 
     # Update PID file with child PID
     # Validate pid_file stays within pid_dir to prevent path traversal (S2083)
-    try:
+    with contextlib.suppress(OSError):
         resolved_pid = pid_file.resolve()
         resolved_dir = Path(args.pid_dir).resolve()
         if not resolved_pid.is_relative_to(resolved_dir):
@@ -316,8 +310,6 @@ def main() -> None:
         info = json.loads(pid_file.read_text(encoding="utf-8"))
         info["child_pid"] = child.pid
         pid_file.write_text(json.dumps(info), encoding="utf-8")
-    except OSError:
-        pass
 
     # 4. Start log monitor for hierarchical abort (T442)
     if args.log_path:

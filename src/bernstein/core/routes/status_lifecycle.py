@@ -7,6 +7,7 @@ import logging
 import os
 import signal
 import time
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -170,13 +171,11 @@ async def shutdown_server(request: Request) -> JSONResponse:
     that the Uvicorn server exits cleanly.
     """
     reason: str = "unknown"
-    try:
+    with suppress(Exception):
         body: Any = await request.json()
         if isinstance(body, dict):
             body_d: dict[str, Any] = body  # type: ignore[assignment]
             reason = str(body_d.get("reason", reason))
-    except Exception:
-        pass
 
     logger = logging.getLogger("bernstein.server")
     from bernstein.core.sanitize import sanitize_log

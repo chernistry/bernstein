@@ -206,13 +206,17 @@ class RunReportGenerator:
         lines = ["# Run Report", ""]
         if report.goal:
             lines.append(f"**Goal:** {report.goal}")
-        lines.append(f"**Run ID:** `{report.run_id}`")
-        lines.append(f"**Duration:** {_fmt_duration(report.duration_s)}")
-        lines.append(f"**Total cost:** ${report.total_cost_usd:.4f}")
-        lines.append(f"**Tasks completed:** {report.tasks_completed}")
-        lines.append(f"**Tasks failed:** {report.tasks_failed}")
-        lines.append(f"**Agents spawned:** {report.agents_spawned}")
-        lines.append("")
+        lines.extend(
+            (
+                f"**Run ID:** `{report.run_id}`",
+                f"**Duration:** {_fmt_duration(report.duration_s)}",
+                f"**Total cost:** ${report.total_cost_usd:.4f}",
+                f"**Tasks completed:** {report.tasks_completed}",
+                f"**Tasks failed:** {report.tasks_failed}",
+                f"**Agents spawned:** {report.agents_spawned}",
+                "",
+            )
+        )
         return lines
 
     @staticmethod
@@ -220,8 +224,12 @@ class RunReportGenerator:
         """Render the task breakdown table section."""
         lines = ["## Task Breakdown", ""]
         if report.task_rows:
-            lines.append("| Task | Role | Status | Model | Duration | Cost |")
-            lines.append("|------|------|--------|-------|----------|------|")
+            lines.extend(
+                (
+                    "| Task | Role | Status | Model | Duration | Cost |",
+                    "|------|------|--------|-------|----------|------|",
+                )
+            )
             for row in report.task_rows:
                 status_icon = "pass" if row.status == "done" else "FAIL"
                 lines.append(
@@ -241,9 +249,13 @@ class RunReportGenerator:
         total_verified = report.quality_pass_count + report.quality_fail_count
         if total_verified > 0:
             pass_rate = report.quality_pass_count / total_verified * 100
-            lines.append(f"- **Janitor pass rate:** {pass_rate:.0f}% ({report.quality_pass_count}/{total_verified})")
-            lines.append(f"- **Passed:** {report.quality_pass_count}")
-            lines.append(f"- **Failed:** {report.quality_fail_count}")
+            lines.extend(
+                (
+                    f"- **Janitor pass rate:** {pass_rate:.0f}% ({report.quality_pass_count}/{total_verified})",
+                    f"- **Passed:** {report.quality_pass_count}",
+                    f"- **Failed:** {report.quality_fail_count}",
+                )
+            )
         else:
             lines.append("No quality gate data available.")
         lines.append("")
@@ -254,8 +266,7 @@ class RunReportGenerator:
         """Render the cost analysis section."""
         lines = ["## Cost Analysis", ""]
         if report.model_costs:
-            lines.append("| Model | Cost | Invocations | Tokens |")
-            lines.append("|-------|------|-------------|--------|")
+            lines.extend(("| Model | Cost | Invocations | Tokens |", "|-------|------|-------------|--------|"))
             for mc in report.model_costs:
                 lines.append(f"| {mc.model} | ${mc.total_cost_usd:.4f} | {mc.invocation_count} | {mc.total_tokens:,} |")
             lines.append("")
@@ -579,6 +590,5 @@ def _render_ascii_timeline(entries: list[TimelineEntry], total_duration_s: float
         title = entry.title[:20]
         lines.append(f"{title:<{pad}}  |{bar}|")
 
-    lines.append(f"{'':>{pad}}   0s{'':>{width - 10}}{_fmt_duration(total_duration_s):>6}")
-    lines.append("```")
+    lines.extend((f"{'':>{pad}}   0s{'':>{width - 10}}{_fmt_duration(total_duration_s):>6}", "```"))
     return "\n".join(lines)

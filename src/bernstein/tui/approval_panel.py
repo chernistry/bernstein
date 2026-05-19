@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import time
 from collections import deque
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
@@ -106,7 +107,7 @@ class ApprovalPanel(Static):
         """Handle row selection to show details."""
         if event.data_table.id == "approval-list":
             key = str(event.cursor_row.key) if event.cursor_row else ""
-            try:
+            with suppress(StopIteration):
                 idx = next(i for i, e in enumerate(self._pending) if e.task_id == key)
                 self._selected_index = idx
                 entry = self._pending[idx]
@@ -123,8 +124,6 @@ class ApprovalPanel(Static):
                 )
                 details_label.update(details)
                 details_label.remove_class("approval-empty")
-            except StopIteration:
-                pass  # No approval entry selected; nothing to display
 
     async def action_approve(self) -> None:
         """Approve the currently selected pending task."""

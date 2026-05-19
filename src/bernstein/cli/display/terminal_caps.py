@@ -129,8 +129,7 @@ class TerminalCaps:
         #        of emulators set it without sixel support (Tabby, Alacritty,
         #        Terminal.app, etc.).  Only match explicit TERM_PROGRAM values.
         sixel = (
-            term_program_lower == "wezterm"
-            or term_program_lower == "foot"
+            term_program_lower in ("wezterm", "foot")
             or term_program_lower == "mlterm"
             or term_program_lower == "vscode"
             or bool(os.environ.get("WT_SESSION"))

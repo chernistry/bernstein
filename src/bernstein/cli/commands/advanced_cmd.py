@@ -132,15 +132,13 @@ def _resolve_live_visual_config(seed_cfg: Any, *, no_splash: bool) -> VisualConf
 def _build_live_splash_context(seed_path: Path | None, seed_cfg: Any) -> dict[str, Any]:
     """Build startup splash context for the live dashboard command."""
     version = ""
-    try:
+    with contextlib.suppress(Exception):
         from importlib.metadata import version as get_version
 
         version = get_version("bernstein")
-    except Exception:
-        pass  # Version metadata unavailable
 
     agents: list[dict[str, object]] = []
-    try:
+    with contextlib.suppress(Exception):
         from bernstein.core.agent_discovery import discover_agents_cached
 
         discovery = discover_agents_cached()
@@ -148,16 +146,12 @@ def _build_live_splash_context(seed_path: Path | None, seed_cfg: Any) -> dict[st
             {"name": agent.name, "logged_in": agent.logged_in, "default_model": agent.default_model}
             for agent in discovery.agents
         ]
-    except Exception:
-        pass  # Agent discovery unavailable
 
     task_count = 0
-    try:
+    with contextlib.suppress(Exception):
         open_dir = Path.cwd() / ".sdd" / "backlog" / "open"
         if open_dir.exists():
             task_count = sum(1 for file in open_dir.iterdir() if file.suffix in (".yaml", ".yml", ".md"))
-    except Exception:
-        pass  # Backlog directory not accessible
 
     goal_preview = str(getattr(seed_cfg, "goal", "") or "")[:80]
     budget = float(getattr(seed_cfg, "budget_usd", 0.0) or 0.0)
@@ -244,18 +238,13 @@ def _load_archive_tasks(path: Path, since: float | None = None) -> tuple[list[di
 
     import json as _json
 
-    try:
-        with path.open() as f:
-            for line in f:
-                if not line.strip():
-                    continue
-                try:
-                    task = _json.loads(line)
-                    _classify_archive_task(task, since, done_tasks, failed_tasks)
-                except Exception:
-                    pass
-    except Exception:
-        pass
+    with contextlib.suppress(Exception), path.open() as f:
+        for line in f:
+            if not line.strip():
+                continue
+            with contextlib.suppress(Exception):
+                task = _json.loads(line)
+                _classify_archive_task(task, since, done_tasks, failed_tasks)
 
     return done_tasks, failed_tasks
 
@@ -274,19 +263,22 @@ def _generate_archive_report(
 
     lines: list[str] = []
     ts_str = _time.strftime("%Y-%m-%d %H:%M:%S")
-    lines.append("# Archive Retrospective")
-    lines.append("")
-    lines.append(f"Generated: {ts_str}")
-    lines.append("")
-    lines.append("## Overview")
-    lines.append("")
-    lines.append(f"- **Completion rate:** {completion_rate:.0f}% ({n_done} done / {total} total)")
-    lines.append(f"- **Failed tasks:** {n_failed}")
-    lines.append("")
+    lines.extend(
+        (
+            "# Archive Retrospective",
+            "",
+            f"Generated: {ts_str}",
+            "",
+            "## Overview",
+            "",
+            f"- **Completion rate:** {completion_rate:.0f}% ({n_done} done / {total} total)",
+            f"- **Failed tasks:** {n_failed}",
+            "",
+        )
+    )
 
     if failed_tasks:
-        lines.append("## Failed Tasks")
-        lines.append("")
+        lines.extend(("## Failed Tasks", ""))
         for t in failed_tasks:
             title = str(t.get("title", "(untitled)"))
             role = str(t.get("role", "unknown"))

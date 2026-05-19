@@ -86,12 +86,10 @@ def _render_header(detail: TaskDetail) -> str:
         Formatted header string.
     """
     lines: list[str] = []
-    lines.append(f"{'=' * 60}")
-    lines.append(f"  Status: {detail.status}  |  Task: {detail.task_id}")
+    lines.extend((f"{'=' * 60}", f"  Status: {detail.status}  |  Task: {detail.task_id}"))
     if detail.result:
         lines.append(f"  Result: {detail.result}")
-    lines.append(f"  Title: {detail.title}")
-    lines.append(f"  Role: {detail.role}")
+    lines.extend((f"  Title: {detail.title}", f"  Role: {detail.role}"))
     if detail.agent_id:
         lines.append(f"  Agent: {detail.agent_id}")
     if detail.cost_usd is not None:
@@ -130,8 +128,7 @@ def _render_summary(detail: TaskDetail) -> str:
     """
     lines: list[str] = []
     if detail.description:
-        lines.append("--- Description ---")
-        lines.append(detail.description)
+        lines.extend(("--- Description ---", detail.description))
     else:
         lines.append("[No description]")
     return "\n".join(lines)
@@ -244,11 +241,7 @@ def format_task_detail(detail: TaskDetail, tab: DetailTab = DetailTab.SUMMARY) -
         Formatted multi-line string for display.
     """
     sections: list[str] = []
-    sections.append(_render_header(detail))
-    sections.append("")
-    sections.append(_render_tab_bar(tab))
-    sections.append("")
-    sections.append(render_tab_content(detail, tab))
+    sections.extend((_render_header(detail), "", _render_tab_bar(tab), "", render_tab_content(detail, tab)))
     return "\n".join(sections)
 
 

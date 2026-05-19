@@ -23,6 +23,7 @@ import subprocess
 import sys
 import threading
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from bernstein.core.platform_compat import kill_process
@@ -262,14 +263,12 @@ def _health_check_loop(state: _SupervisorState) -> None:
         if state.stopped:
             return
 
-        try:
+        with suppress(Exception):
             resp = httpx.get(url, timeout=HEALTH_CHECK_TIMEOUT_S)
             if resp.status_code == 200:
                 with state.lock:
                     state.consecutive_health_failures = 0
                 continue
-        except Exception:
-            pass
 
         # Health check failed
         with state.lock:

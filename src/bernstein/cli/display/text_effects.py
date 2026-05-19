@@ -19,6 +19,7 @@ import importlib
 import select
 import sys
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -71,11 +72,9 @@ def _drain_stdin() -> None:
     """Consume buffered stdin so keypresses don't leak to the shell prompt."""
     if not sys.stdin.isatty():
         return
-    try:
+    with suppress(OSError, ValueError):
         while select.select([sys.stdin], [], [], 0.0)[0]:
             sys.stdin.read(1)
-    except (OSError, ValueError):
-        pass  # stdin not readable; skip buffer drain
 
 
 # ---------------------------------------------------------------------------

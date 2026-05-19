@@ -8,6 +8,7 @@ agent system instructions.
 from __future__ import annotations
 
 import logging
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
@@ -158,13 +159,11 @@ def _read_preferred_style_name(project_dir: Path) -> str | None:
     yaml_path = project_dir / "bernstein.yaml"
     if not yaml_path.exists():
         return None
-    try:
+    with suppress(Exception):
         raw_yaml = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
         data: dict[str, Any] = cast("dict[str, Any]", raw_yaml) if isinstance(raw_yaml, dict) else {}
         if "output_style" in data:
             return str(data["output_style"]).lower()
-    except Exception:
-        pass  # Config read failed
     return None
 
 

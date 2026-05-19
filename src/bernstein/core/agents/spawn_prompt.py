@@ -766,8 +766,7 @@ def _render_prompt(
     # Build task descriptions block
     task_lines: list[str] = []
     for i, task in enumerate(tasks, 1):
-        task_lines.append(f"### Task {i}: {task.title} (id={task.id})")
-        task_lines.append(task.description)
+        task_lines.extend((f"### Task {i}: {task.title} (id={task.id})", task.description))
         if task.owned_files:
             task_lines.append(f"Files: {', '.join(task.owned_files)}")
         task_lines.append("")
@@ -1308,8 +1307,7 @@ def build_meta_message(nudge: str, *, phase: str = "", policy: str = "") -> str:
         parts.append(f"phase: {phase}")
     if policy:
         parts.append(f"policy: {policy}")
-    parts.append(nudge)
-    parts.append(_META_MESSAGE_FOOTER)
+    parts.extend((nudge, _META_MESSAGE_FOOTER))
     return "\n".join(parts)
 
 

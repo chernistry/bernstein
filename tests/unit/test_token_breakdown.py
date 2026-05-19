@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
+
 import pytest
 
 from bernstein.core.tokens.token_breakdown import (
@@ -29,11 +31,9 @@ class TestTokenCategory:
 
     def test_immutable(self) -> None:
         cat = TokenCategory(category="output", tokens=100, percentage=10.0)
-        try:
+        with suppress(AttributeError):
             cat.tokens = 999  # type: ignore[misc]
             raise AssertionError("Expected FrozenInstanceError")
-        except AttributeError:
-            pass  # frozen dataclass — expected
 
 
 # ---------------------------------------------------------------------------
@@ -51,11 +51,9 @@ class TestTokenBreakdown:
 
     def test_frozen(self) -> None:
         bd = TokenBreakdown(agent_id="a1", task_id="t1", total_tokens=100)
-        try:
+        with suppress(AttributeError):
             bd.total_tokens = 999  # type: ignore[misc]
             raise AssertionError("Expected FrozenInstanceError")
-        except AttributeError:
-            pass
 
 
 # ---------------------------------------------------------------------------

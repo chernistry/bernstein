@@ -17,6 +17,7 @@ import ast
 import json
 import logging
 import subprocess
+from contextlib import suppress
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -427,7 +428,7 @@ class TaskContextBuilder:
                     continue
 
                 # Simple grep for filename
-                try:
+                with suppress(subprocess.TimeoutExpired):
                     grep_result = subprocess.run(
                         ["grep", "-n", f"import.*{filename}", fpath],
                         cwd=self.workdir,
@@ -440,8 +441,6 @@ class TaskContextBuilder:
                     if grep_result.returncode == 0:
                         lines = grep_result.stdout.strip().split("\n")
                         result[fpath] = [ln for ln in lines if ln]
-                except subprocess.TimeoutExpired:
-                    pass
         except Exception as e:
             logger.debug(f"import_graph failed for {filename}: {e}")
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from bernstein.core.spawn_prompt import (
@@ -32,11 +33,9 @@ class TestCacheSafeParamsDataclass:
             git_safety_protocol="safety rules",
         )
         # Frozen dataclass should raise TypeError on mutation
-        try:
+        with suppress(TypeError, AttributeError):
             params.role = "qa"  # type: ignore[misc]
             raise AssertionError("Should have raised TypeError")
-        except (TypeError, AttributeError):
-            pass  # Expected
 
     def test_default_values(self) -> None:
         params = CacheSafeParams(

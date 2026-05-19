@@ -259,8 +259,7 @@ def _emit_audit_event(audit_path: Path, event: str, payload: dict[str, object]) 
         record: dict[str, object] = {
             "timestamp": time.time(),
             "event": event,
-            **payload,
-        }
+        } | payload
         with audit_path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(record, sort_keys=True) + "\n")
     except OSError as exc:

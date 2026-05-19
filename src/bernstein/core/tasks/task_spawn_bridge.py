@@ -7,6 +7,7 @@ auto_decompose_task, and create_conflict_resolution_task.
 from __future__ import annotations
 
 import logging
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -171,12 +172,10 @@ def auto_decompose_task(
             _model = "nvidia/nemotron-3-super-120b-a12b"
             _seed_path = workdir / "bernstein.yaml"
             if _seed_path.exists():
-                try:
+                with suppress(Exception):
                     _seed = parse_seed(_seed_path)
                     _provider = _seed.internal_llm_provider
                     _model = _seed.internal_llm_model
-                except Exception:
-                    pass
 
             created_ids = TaskSplitter(client=client, server_url=base).split(
                 task,

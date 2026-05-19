@@ -15,6 +15,7 @@ from __future__ import annotations
 import importlib
 import json
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -178,14 +179,11 @@ def load_benchmarks(benchmarks_dir: Path, tier: Tier) -> list[BenchmarkSpec]:
 
     specs: list[BenchmarkSpec] = []
     for yaml_path in sorted(tier_dir.glob("*.yaml")):
-        try:
+        with suppress(yaml.YAMLError, KeyError, TypeError):
             raw = yaml.safe_load(yaml_path.read_text())
             if not isinstance(raw, dict):
                 continue
             specs.append(_parse_spec(cast("dict[str, Any]", raw), tier))
-        except (yaml.YAMLError, KeyError, TypeError):
-            # Skip malformed benchmark files rather than crashing the run
-            pass
 
     return specs
 

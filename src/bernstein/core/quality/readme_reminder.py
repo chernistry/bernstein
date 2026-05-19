@@ -189,6 +189,5 @@ def remind_message(changes: list[APIChange]) -> str:
     lines = [_REMINDER_HEADER, ""]
     for change in changes:
         lines.append(f"  - {change}")
-    lines.append("")
-    lines.append("Please update README.md to document these additions before completing the task.")
+    lines.extend(("", "Please update README.md to document these additions before completing the task."))
     return "\n".join(lines)

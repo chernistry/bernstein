@@ -171,16 +171,10 @@ class TestListActive:
         """Build a fake ``git worktree list --porcelain`` output."""
         lines: list[str] = []
         # Include the main worktree which should be ignored
-        lines.append(f"worktree {repo_root}")
-        lines.append("HEAD abc1234")
-        lines.append("branch refs/heads/master")
-        lines.append("")
+        lines.extend((f"worktree {repo_root}", "HEAD abc1234", "branch refs/heads/master", ""))
         for sid in session_ids:
             wt = repo_root / ".sdd/worktrees" / sid
-            lines.append(f"worktree {wt}")
-            lines.append("HEAD def5678")
-            lines.append(f"branch refs/heads/agent/{sid}")
-            lines.append("")
+            lines.extend((f"worktree {wt}", "HEAD def5678", f"branch refs/heads/agent/{sid}", ""))
         return "\n".join(lines)
 
     def test_returns_empty_when_no_worktrees(self, mgr: WorktreeManager, repo_root: Path) -> None:

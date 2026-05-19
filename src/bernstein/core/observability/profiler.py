@@ -178,8 +178,7 @@ class OrchestratorProfiler:
             lines.append(f"| {i} | `{name}` | {cumtime:.4f} | {calls} |")
 
         if result.output_path is not None:
-            lines.append("")
-            lines.append(f"Binary profile: `{result.output_path}`")
+            lines.extend(("", f"Binary profile: `{result.output_path}`"))
 
         return "\n".join(lines) + "\n"
 

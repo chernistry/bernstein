@@ -136,6 +136,5 @@ def test_r_counter_workflow_calls_classifier() -> None:
         "feature-merge agents-md+ruff drift sequence."
     )
     assert "VERDICT" in text and "benign" in text, (
-        "EDGE-4 wire-up incomplete: workflow must check classifier verdict "
-        "and short-circuit on 'benign'"
+        "EDGE-4 wire-up incomplete: workflow must check classifier verdict and short-circuit on 'benign'"
     )

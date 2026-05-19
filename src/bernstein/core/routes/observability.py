@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+from contextlib import suppress
 from dataclasses import asdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -400,7 +401,7 @@ def _get_quality_score_distribution(workdir: Path, _done_tasks: list[Any]) -> di
         "coverage_delta": [],
     }
 
-    try:
+    with suppress(OSError):
         for line in quality_scores_path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
@@ -418,8 +419,6 @@ def _get_quality_score_distribution(workdir: Path, _done_tasks: list[Any]) -> di
             for gate_name in gate_scores:
                 if gate_name in breakdown:
                     gate_scores[gate_name].append(breakdown[gate_name])
-    except OSError:
-        pass
 
     # Keep only last 10 recent scores
     recent_scores = recent_scores[-10:]
@@ -735,7 +734,7 @@ def _parse_token_file(tokens_file: Path) -> tuple[int, int]:
     """Sum input/output tokens from a ``.tokens`` sidecar file."""
     input_tokens = 0
     output_tokens = 0
-    try:
+    with suppress(OSError):
         for line in tokens_file.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line:
@@ -746,8 +745,6 @@ def _parse_token_file(tokens_file: Path) -> tuple[int, int]:
                 output_tokens += int(rec.get("out", 0))
             except ValueError:
                 continue
-    except OSError:
-        pass
     return input_tokens, output_tokens
 
 

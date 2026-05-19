@@ -28,6 +28,7 @@ import logging
 import os
 import threading
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
@@ -325,8 +326,6 @@ def _make_jsonable(value: Any) -> Any:
     # Dataclasses, pydantic, custom objects: try dict-like, then repr.
     to_dict = getattr(value, "to_dict", None)
     if callable(to_dict):
-        try:
+        with suppress(TypeError, ValueError):
             return _make_jsonable(to_dict())
-        except (TypeError, ValueError):
-            pass
     return repr(value)

@@ -45,8 +45,7 @@ def _env_lines(env: dict[str, str]) -> str:
     """Render extra ``EnvironmentVariables`` entries."""
     out: list[str] = []
     for key, value in env.items():
-        out.append(f"      <key>{key}</key>")
-        out.append(f"      <string>{value}</string>")
+        out.extend((f"      <key>{key}</key>", f"      <string>{value}</string>"))
     return "\n".join(out)
 
 

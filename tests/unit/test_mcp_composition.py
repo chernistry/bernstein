@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from pathlib import Path
 
 import pytest
@@ -32,11 +33,9 @@ class TestToolStep:
 
     def test_frozen(self) -> None:
         step = ToolStep(tool_name="a", server="b")
-        try:
+        with suppress(AttributeError):
             step.tool_name = "x"  # type: ignore[misc]
             raise AssertionError("Expected FrozenInstanceError")
-        except AttributeError:
-            pass
 
 
 class TestCompositeToolDef:

@@ -85,12 +85,16 @@ def telemetry_status(home: Path | None) -> None:
     state = resolve(home=home)
     install_id = read_install_id(home=home)
     lines: list[str] = []
-    lines.append(f"enabled: {str(state.enabled).lower()}")
-    lines.append(f"source: {state.source.value}")
-    lines.append(f"install_id: {install_id or 'none'}")
-    lines.append(f"config_file: {config_file_path(home)}")
-    lines.append(f"install_id_path: {install_id_path(home)}")
-    lines.append(f"queue: {queue_path(home)}")
+    lines.extend(
+        (
+            f"enabled: {str(state.enabled).lower()}",
+            f"source: {state.source.value}",
+            f"install_id: {install_id or 'none'}",
+            f"config_file: {config_file_path(home)}",
+            f"install_id_path: {install_id_path(home)}",
+            f"queue: {queue_path(home)}",
+        )
+    )
     click.echo("\n".join(lines))
 
 

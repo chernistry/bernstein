@@ -64,15 +64,13 @@ def _ensure_ingested_titles(orch: Any) -> set[str]:
     """
     if not hasattr(orch, "_ingested_titles"):
         orch._ingested_titles: set[str] = set()
-        try:
+        with contextlib.suppress(Exception):
             resp = orch._client.get(f"{orch._config.server_url}/tasks")
             resp.raise_for_status()
             for task in resp.json():
                 title = task.get("title", "")
                 if title:
                     orch._ingested_titles.add(title.lower().strip())
-        except Exception:
-            pass
     return orch._ingested_titles
 
 

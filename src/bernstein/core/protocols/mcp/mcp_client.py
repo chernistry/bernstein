@@ -269,8 +269,7 @@ class MCPClientSession:
         headers = {
             "Content-Type": _CONTENT_TYPE_JSON,
             "Accept": _CONTENT_TYPE_JSON,
-            **self._build_auth_headers(),
-        }
+        } | self._build_auth_headers()
 
         if self._mcp_session_id is not None:
             headers["Mcp-Session-Id"] = self._mcp_session_id
@@ -352,8 +351,7 @@ class MCPClientSession:
 
         headers = {
             "Content-Type": _CONTENT_TYPE_JSON,
-            **self._build_auth_headers(),
-        }
+        } | self._build_auth_headers()
         if self._mcp_session_id is not None:
             headers["Mcp-Session-Id"] = self._mcp_session_id
 

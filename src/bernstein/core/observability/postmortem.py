@@ -377,8 +377,7 @@ class PostMortemGenerator:
         if not report.timeline:
             lines.append("No timeline data available.")
             return lines
-        lines.append("| Time | Event | Kind | Task |")
-        lines.append("|------|-------|------|------|")
+        lines.extend(("| Time | Event | Kind | Task |", "|------|-------|------|------|"))
         for ev in report.timeline:
             t_str = _dt.datetime.fromtimestamp(ev.timestamp).strftime("%H:%M:%S") if ev.timestamp > 0 else "—"
             lines.append(f"| {t_str} | {ev.label} | `{ev.kind}` | {ev.task_id or '—'} |")
@@ -392,13 +391,16 @@ class PostMortemGenerator:
             lines.append("No dominant failure pattern detected. Review agent logs manually for more detail.")
             return lines
         dominant = max(report.contributing_factors, key=lambda f: f.count)
-        lines.append(f"**Primary cause:** {dominant.category} ({dominant.count} occurrence(s))")
-        lines.append("")
-        lines.append(f"> {dominant.description}")
-        lines.append("")
+        lines.extend(
+            (
+                f"**Primary cause:** {dominant.category} ({dominant.count} occurrence(s))",
+                "",
+                f"> {dominant.description}",
+                "",
+            )
+        )
         if len(report.contributing_factors) > 1:
-            lines.append("**Additional contributing factors:**")
-            lines.append("")
+            lines.extend(("**Additional contributing factors:**", ""))
             for factor in sorted(report.contributing_factors, key=lambda f: f.count, reverse=True):
                 if factor is dominant:
                     continue
@@ -409,10 +411,14 @@ class PostMortemGenerator:
     def _md_trace(trace: Any) -> list[str]:
         """Render a single failed task trace as markdown lines."""
         lines: list[str] = [f"### Task `{trace.task_id}`", ""]
-        lines.append(f"- **Role:** {trace.role or '—'}")
-        lines.append(f"- **Model:** {trace.model or '—'}")
-        lines.append(f"- **Session:** `{trace.session_id or '—'}`")
-        lines.append(f"- **Dominant failure:** `{trace.dominant_failure or 'unknown'}`")
+        lines.extend(
+            (
+                f"- **Role:** {trace.role or '—'}",
+                f"- **Model:** {trace.model or '—'}",
+                f"- **Session:** `{trace.session_id or '—'}`",
+                f"- **Dominant failure:** `{trace.dominant_failure or 'unknown'}`",
+            )
+        )
         if trace.files_touched:
             lines.append(f"- **Files touched:** {', '.join(f'`{f}`' for f in trace.files_touched[:5])}")
         if trace.error_snippets:
@@ -437,9 +443,7 @@ class PostMortemGenerator:
             key=lambda a: {"high": 0, "medium": 1, "low": 2}.get(a.priority, 3),
         ):
             badge = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(action.priority, "•")
-            lines.append(f"{badge} **[{action.priority.upper()}]** {action.action}")
-            lines.append(f"  _{action.rationale}_")
-            lines.append("")
+            lines.extend((f"{badge} **[{action.priority.upper()}]** {action.action}", f"  _{action.rationale}_", ""))
         return lines
 
     def to_markdown(self, report: PostMortemReport) -> str:
@@ -456,12 +460,10 @@ class PostMortemGenerator:
         lines: list[str] = []
         ts = datetime.datetime.fromtimestamp(report.generated_at).strftime("%Y-%m-%d %H:%M:%S")
 
-        lines.append(f"# Post-Mortem Report — Run `{report.run_id}`")
-        lines.append("")
+        lines.extend((f"# Post-Mortem Report — Run `{report.run_id}`", ""))
         if report.goal:
             lines.append(f"**Goal:** {report.goal}")
-        lines.append(f"**Generated:** {ts}")
-        lines.append(f"**Tasks:** {report.total_tasks} total, {report.failed_tasks} failed")
+        lines.extend((f"**Generated:** {ts}", f"**Tasks:** {report.total_tasks} total, {report.failed_tasks} failed"))
         if report.total_tasks:
             lines.append(f"**Success rate:** {report.success_rate_pct:.0f}%")
         lines.append("")
@@ -469,10 +471,7 @@ class PostMortemGenerator:
         lines.extend(self._md_timeline(report))
         lines.append("")
         lines.extend(self._md_root_cause(report))
-        lines.append("")
-
-        lines.append("## Agent Decision Traces (Failed Tasks)")
-        lines.append("")
+        lines.extend(("", "## Agent Decision Traces (Failed Tasks)", ""))
         if report.failed_task_traces:
             for trace in report.failed_task_traces:
                 lines.extend(self._md_trace(trace))
@@ -734,14 +733,12 @@ class PostMortemGenerator:
         html_content = self.to_html(report)
 
         # Try weasyprint (optional dependency).
-        try:
+        with contextlib.suppress(ImportError):
             import weasyprint  # type: ignore[import-untyped]
 
             weasyprint.HTML(string=html_content).write_pdf(str(path))
             logger.info("Post-mortem PDF written to %s (weasyprint)", path)
             return _Path(path)
-        except ImportError:
-            pass
 
         # Try wkhtmltopdf via subprocess (common system tool).
         import subprocess
@@ -860,7 +857,7 @@ class PostMortemGenerator:
     @staticmethod
     def _extract_completion_entries(jsonl_file: Path, results: list[dict[str, Any]]) -> None:
         """Extract task_completion_time entries from a JSONL file."""
-        try:
+        with contextlib.suppress(OSError, json.JSONDecodeError):
             for raw_line in jsonl_file.read_text(encoding="utf-8").splitlines():
                 stripped = raw_line.strip()
                 if not stripped:
@@ -884,8 +881,6 @@ class PostMortemGenerator:
                         "cost_usd": 0.0,
                     }
                 )
-        except (OSError, json.JSONDecodeError):
-            pass
 
     def _build_timeline(self, task_metrics: list[dict[str, Any]]) -> list[PostMortemEvent]:
         """Build a chronological list of events from task metrics."""

@@ -76,8 +76,7 @@ def test_authorization_header_uses_scoped_token_not_master(tmp_path: Path) -> No
     adapter = ClmAdapter()
     proc_mock = make_popen_mock(701)
 
-    env_with_master = {
-        **_ENV_BUNDLE,
+    env_with_master = _ENV_BUNDLE | {
         "ANTHROPIC_API_KEY": "master-anthropic-do-not-leak",
         "OPENAI_API_KEY": "master-openai-do-not-leak",
     }
@@ -143,8 +142,8 @@ def test_name_returns_clm() -> None:
 def test_config_from_env_parses_optional_overrides() -> None:
     """Optional CLM_REQUEST_TIMEOUT_SECONDS / CLM_MAX_RETRIES override defaults."""
     cfg = ClmConfig.from_env(
-        {
-            **_ENV_BUNDLE,
+        _ENV_BUNDLE
+        | {
             "CLM_REQUEST_TIMEOUT_SECONDS": "120",
             "CLM_MAX_RETRIES": "5",
         }
@@ -172,8 +171,7 @@ def test_spawn_forwards_tool_allowlist_as_openai_tools_array(tmp_path: Path) -> 
     """The per-spawn allowlist (T578) materialises as OpenAI ``tools=[]`` schema in the env."""
     adapter = ClmAdapter()
     proc_mock = make_popen_mock(710)
-    env_with_allowlist = {
-        **_ENV_BUNDLE,
+    env_with_allowlist = _ENV_BUNDLE | {
         "BERNSTEIN_TOOL_ALLOWLIST": "fs.read,git.commit",
     }
     with (
@@ -215,10 +213,7 @@ def test_spawn_omits_tools_schema_env_when_no_allowlist(tmp_path: Path) -> None:
 def test_spawn_refuses_lethal_trifecta_chain(tmp_path: Path) -> None:
     """An allowlist that unions ``private_data + untrusted_input + external_comm`` is denied before the CLM call."""
     adapter = ClmAdapter()
-    env_with_lethal_chain = {
-        **_ENV_BUNDLE,
-        # adapter.clm carries [private_data, external_comm]; web.fetch
-        # adds [untrusted_input, external_comm] → full trifecta → deny.
+    env_with_lethal_chain = _ENV_BUNDLE | {
         "BERNSTEIN_TOOL_ALLOWLIST": "web.fetch",
     }
     with (
@@ -379,8 +374,7 @@ def test_spawn_routes_through_launcher_when_mtls_configured(tmp_path: Path) -> N
     for path, label in ((cert, "CERTIFICATE"), (key, "PRIVATE KEY"), (ca, "CERTIFICATE")):
         _write_pem_stub(path, label)
 
-    env_with_mtls = {
-        **_ENV_BUNDLE,
+    env_with_mtls = _ENV_BUNDLE | {
         CLM_CERT_FILE_ENV: str(cert),
         CLM_KEY_FILE_ENV: str(key),
         CLM_CA_FILE_ENV: str(ca),
@@ -443,7 +437,7 @@ def test_spawn_partial_mtls_triple_surfaces_typed_error(tmp_path: Path) -> None:
     adapter = ClmAdapter()
     cert = tmp_path / "client.crt"
     _write_pem_stub(cert, "CERTIFICATE")
-    env_partial = {**_ENV_BUNDLE, CLM_CERT_FILE_ENV: str(cert)}
+    env_partial = _ENV_BUNDLE | {CLM_CERT_FILE_ENV: str(cert)}
     with (
         patch.dict("os.environ", env_partial, clear=True),
         pytest.raises(ClmConfigError, match="CLM mTLS"),
@@ -517,8 +511,7 @@ def test_spawn_filters_broad_provider_master_keys(tmp_path: Path) -> None:
     """
     adapter = ClmAdapter()
     proc_mock = make_popen_mock(730)
-    leaky_env = {
-        **_ENV_BUNDLE,
+    leaky_env = _ENV_BUNDLE | {
         "ANTHROPIC_API_KEY": "master-anthropic",
         "OPENAI_API_KEY": "master-openai",
         "OPENAI_ORG_ID": "org-master-secret",
@@ -583,8 +576,7 @@ def test_spawn_propagates_openai_api_timeout_to_subprocess(tmp_path: Path) -> No
     """The configured request timeout reaches the OpenAI SDK via ``OPENAI_API_TIMEOUT``."""
     adapter = ClmAdapter()
     proc_mock = make_popen_mock(740)
-    env_with_timeout = {
-        **_ENV_BUNDLE,
+    env_with_timeout = _ENV_BUNDLE | {
         "CLM_REQUEST_TIMEOUT_SECONDS": "120",
     }
     with (
@@ -604,14 +596,14 @@ def test_spawn_propagates_openai_api_timeout_to_subprocess(tmp_path: Path) -> No
 
 def test_clm_request_timeout_seconds_malformed_raises_typed_error() -> None:
     """Non-integer CLM_REQUEST_TIMEOUT_SECONDS surfaces a typed ClmConfigError."""
-    bad_env = {**_ENV_BUNDLE, "CLM_REQUEST_TIMEOUT_SECONDS": "ten-seconds"}
+    bad_env = _ENV_BUNDLE | {"CLM_REQUEST_TIMEOUT_SECONDS": "ten-seconds"}
     with pytest.raises(ClmConfigError, match="CLM_REQUEST_TIMEOUT_SECONDS"):
         ClmConfig.from_env(bad_env)
 
 
 def test_clm_max_retries_malformed_raises_typed_error() -> None:
     """Non-integer CLM_MAX_RETRIES surfaces a typed ClmConfigError, not a silent default."""
-    bad_env = {**_ENV_BUNDLE, "CLM_MAX_RETRIES": "twice"}
+    bad_env = _ENV_BUNDLE | {"CLM_MAX_RETRIES": "twice"}
     with pytest.raises(ClmConfigError, match="CLM_MAX_RETRIES"):
         ClmConfig.from_env(bad_env)
 
@@ -692,8 +684,7 @@ def test_spawn_propagates_verify_mode_when_mtls_active(tmp_path: Path) -> None:
     for path, label in ((cert, "CERTIFICATE"), (key, "PRIVATE KEY"), (ca, "CERTIFICATE")):
         _write_pem_stub(path, label)
 
-    env_with_mtls = {
-        **_ENV_BUNDLE,
+    env_with_mtls = _ENV_BUNDLE | {
         CLM_CERT_FILE_ENV: str(cert),
         CLM_KEY_FILE_ENV: str(key),
         CLM_CA_FILE_ENV: str(ca),
@@ -724,8 +715,7 @@ def test_spawn_drops_verify_mode_when_mtls_off(tmp_path: Path) -> None:
     adapter = ClmAdapter()
     proc_mock = make_popen_mock(751)
 
-    env_with_orphan_verify = {
-        **_ENV_BUNDLE,
+    env_with_orphan_verify = _ENV_BUNDLE | {
         CLM_VERIFY_MODE_ENV: "required",
     }
     with (
@@ -773,8 +763,7 @@ def test_spawn_undeclared_tools_do_not_block_trifecta(tmp_path: Path) -> None:
     """
     adapter = ClmAdapter()
     proc_mock = make_popen_mock(760)
-    env_with_unknowns = {
-        **_ENV_BUNDLE,
+    env_with_unknowns = _ENV_BUNDLE | {
         "BERNSTEIN_TOOL_ALLOWLIST": "definitely.not.a.real.tool,still.fictional",
     }
     with (
@@ -799,8 +788,7 @@ def test_spawn_overrides_host_openai_api_base_with_clm_endpoint(tmp_path: Path) 
     """
     adapter = ClmAdapter()
     proc_mock = make_popen_mock(770)
-    env_with_host_base = {
-        **_ENV_BUNDLE,
+    env_with_host_base = _ENV_BUNDLE | {
         "OPENAI_API_BASE": "https://api.openai.com/v1",
     }
     with (
@@ -829,8 +817,7 @@ def test_spawn_tools_schema_env_is_strict_json_with_documented_shape(tmp_path: P
     """
     adapter = ClmAdapter()
     proc_mock = make_popen_mock(780)
-    env_with_allowlist = {
-        **_ENV_BUNDLE,
+    env_with_allowlist = _ENV_BUNDLE | {
         "BERNSTEIN_TOOL_ALLOWLIST": "fs.read,git.commit,git.push",
     }
     with (
@@ -914,8 +901,8 @@ def test_spawn_clm_endpoint_overrides_inherited_host_endpoint(tmp_path: Path) ->
     proc1 = make_popen_mock(800)
     proc2 = make_popen_mock(801)
 
-    env_a = {**_ENV_BUNDLE, CLM_ENDPOINT_ENV: "https://customer-a.example/v1/"}
-    env_b = {**_ENV_BUNDLE, CLM_ENDPOINT_ENV: "https://customer-b.example/v1/"}
+    env_a = _ENV_BUNDLE | {CLM_ENDPOINT_ENV: "https://customer-a.example/v1/"}
+    env_b = _ENV_BUNDLE | {CLM_ENDPOINT_ENV: "https://customer-b.example/v1/"}
 
     with patch("bernstein.adapters.clm.subprocess.Popen", return_value=proc1) as popen:
         with patch.dict("os.environ", env_a, clear=True):

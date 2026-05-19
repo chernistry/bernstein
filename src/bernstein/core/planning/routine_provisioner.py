@@ -363,8 +363,5 @@ def _format_triggers_markdown(triggers: tuple[TriggerRecommendation, ...]) -> st
             header += f" — `{r.event}`"
         if r.cadence:
             header += f" — cadence `{r.cadence}`"
-        lines.append(header)
-        lines.append("")
-        lines.append(r.reason)
-        lines.append("")
+        lines.extend((header, "", r.reason, ""))
     return "\n".join(lines).rstrip() + "\n"

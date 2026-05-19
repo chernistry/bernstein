@@ -177,7 +177,7 @@ def _save_partial_work(spawner: Any, session: Any) -> bool:
 
     wt = str(worktree_path)
     committed = False
-    try:
+    with contextlib.suppress(Exception):
         subprocess.run(
             ["git", "add", "-A"],
             cwd=wt,
@@ -191,8 +191,6 @@ def _save_partial_work(spawner: Any, session: Any) -> bool:
             timeout=10,
         )
         committed = result.returncode == 0
-    except Exception:
-        pass
 
     # Try to merge the branch before cleanup
     with contextlib.suppress(Exception):
@@ -1066,8 +1064,7 @@ def handle_orphaned_task(
             try:
                 result_payload: dict[str, Any] = {
                     "result_summary": f"Auto-completed after agent {session.id} died; janitor passed",
-                    **completion_data,
-                }
+                } | completion_data
                 orch._client.post(
                     f"{base}/tasks/{task_id}/complete",
                     json=result_payload,
@@ -1356,12 +1353,10 @@ def _refresh_heartbeat_from_signals(orch: Any, session: AgentSession, now: float
         orch._workdir / ".sdd" / "worktrees" / session.id / ".git",
     ]
     for path in paths_to_check:
-        try:
+        with contextlib.suppress(OSError):
             if path.exists() and (now - path.stat().st_mtime) < _hb_freshness_s:
                 session.heartbeat_ts = now
                 return
-        except OSError:
-            pass
 
 
 def _reap_wall_clock_timeout(

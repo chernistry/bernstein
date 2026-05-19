@@ -453,7 +453,7 @@ def _wf_body(**overrides: Any) -> bytes:
     import json
 
     payload = {**_WORKFLOW_RUN_FAILURE_PAYLOAD}
-    run = {**payload["workflow_run"], **overrides}  # type: ignore[dict-item]
+    run = payload["workflow_run"] | overrides  # type: ignore[dict-item]
     payload["workflow_run"] = run  # type: ignore[assignment]
     return json.dumps(payload).encode()
 

@@ -57,8 +57,8 @@ async def test_post_task_with_path_exists_signal_stored(client: AsyncClient) -> 
     """POST /tasks with path_exists signal stores it and returns it."""
     resp = await client.post(
         "/tasks",
-        json={
-            **BASE_TASK,
+        json=BASE_TASK
+        | {
             "completion_signals": [
                 {"type": "path_exists", "value": "src/foo.py"},
             ],
@@ -76,7 +76,7 @@ async def test_post_task_multiple_signals_stored(client: AsyncClient) -> None:
         {"type": "path_exists", "value": "output.txt"},
         {"type": "test_passes", "value": "pytest tests/ -x"},
     ]
-    resp = await client.post("/tasks", json={**BASE_TASK, "completion_signals": signals})
+    resp = await client.post("/tasks", json=BASE_TASK | {"completion_signals": signals})
     assert resp.status_code == 201
     assert resp.json()["completion_signals"] == signals
 
@@ -89,8 +89,8 @@ async def test_get_task_returns_completion_signals(client: AsyncClient) -> None:
     """GET /tasks/{id} returns the stored completion_signals."""
     create_resp = await client.post(
         "/tasks",
-        json={
-            **BASE_TASK,
+        json=BASE_TASK
+        | {
             "completion_signals": [
                 {"type": "test_passes", "value": "pytest tests/ -x"},
             ],
@@ -120,7 +120,7 @@ async def test_all_six_signal_types_accepted(client: AsyncClient) -> None:
         {"type": "llm_review", "value": "Review the implementation"},
         {"type": "llm_judge", "value": "Is the feature complete?"},
     ]
-    resp = await client.post("/tasks", json={**BASE_TASK, "completion_signals": signals})
+    resp = await client.post("/tasks", json=BASE_TASK | {"completion_signals": signals})
     assert resp.status_code == 201
     data = resp.json()
     assert len(data["completion_signals"]) == 6
@@ -139,7 +139,7 @@ async def test_all_six_signal_types_accepted(client: AsyncClient) -> None:
 async def test_path_exists_signal_roundtrip(client: AsyncClient) -> None:
     """path_exists signal survives full POST → GET round-trip."""
     signal = {"type": "path_exists", "value": "dist/bundle.js"}
-    resp = await client.post("/tasks", json={**BASE_TASK, "completion_signals": [signal]})
+    resp = await client.post("/tasks", json=BASE_TASK | {"completion_signals": [signal]})
     task_id = resp.json()["id"]
     assert (await client.get(f"/tasks/{task_id}")).json()["completion_signals"] == [signal]
 
@@ -148,7 +148,7 @@ async def test_path_exists_signal_roundtrip(client: AsyncClient) -> None:
 async def test_glob_exists_signal_roundtrip(client: AsyncClient) -> None:
     """glob_exists signal survives full POST → GET round-trip."""
     signal = {"type": "glob_exists", "value": "src/**/*.ts"}
-    resp = await client.post("/tasks", json={**BASE_TASK, "completion_signals": [signal]})
+    resp = await client.post("/tasks", json=BASE_TASK | {"completion_signals": [signal]})
     task_id = resp.json()["id"]
     assert (await client.get(f"/tasks/{task_id}")).json()["completion_signals"] == [signal]
 
@@ -157,7 +157,7 @@ async def test_glob_exists_signal_roundtrip(client: AsyncClient) -> None:
 async def test_file_contains_signal_roundtrip(client: AsyncClient) -> None:
     """file_contains signal survives full POST → GET round-trip."""
     signal = {"type": "file_contains", "value": "def my_function"}
-    resp = await client.post("/tasks", json={**BASE_TASK, "completion_signals": [signal]})
+    resp = await client.post("/tasks", json=BASE_TASK | {"completion_signals": [signal]})
     task_id = resp.json()["id"]
     assert (await client.get(f"/tasks/{task_id}")).json()["completion_signals"] == [signal]
 
@@ -166,7 +166,7 @@ async def test_file_contains_signal_roundtrip(client: AsyncClient) -> None:
 async def test_llm_review_signal_roundtrip(client: AsyncClient) -> None:
     """llm_review signal survives full POST → GET round-trip."""
     signal = {"type": "llm_review", "value": "Verify the implementation is correct"}
-    resp = await client.post("/tasks", json={**BASE_TASK, "completion_signals": [signal]})
+    resp = await client.post("/tasks", json=BASE_TASK | {"completion_signals": [signal]})
     task_id = resp.json()["id"]
     assert (await client.get(f"/tasks/{task_id}")).json()["completion_signals"] == [signal]
 
@@ -175,7 +175,7 @@ async def test_llm_review_signal_roundtrip(client: AsyncClient) -> None:
 async def test_llm_judge_signal_roundtrip(client: AsyncClient) -> None:
     """llm_judge signal survives full POST → GET round-trip."""
     signal = {"type": "llm_judge", "value": "Did the agent complete all acceptance criteria?"}
-    resp = await client.post("/tasks", json={**BASE_TASK, "completion_signals": [signal]})
+    resp = await client.post("/tasks", json=BASE_TASK | {"completion_signals": [signal]})
     task_id = resp.json()["id"]
     assert (await client.get(f"/tasks/{task_id}")).json()["completion_signals"] == [signal]
 
@@ -194,7 +194,7 @@ async def test_empty_completion_signals_is_default(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_explicit_empty_completion_signals(client: AsyncClient) -> None:
     """POST /tasks with completion_signals=[] is accepted and returns []."""
-    resp = await client.post("/tasks", json={**BASE_TASK, "completion_signals": []})
+    resp = await client.post("/tasks", json=BASE_TASK | {"completion_signals": []})
     assert resp.status_code == 201
     assert resp.json()["completion_signals"] == []
 
@@ -217,8 +217,8 @@ async def test_invalid_signal_type_rejected_with_422(client: AsyncClient) -> Non
     """POST /tasks with an unknown signal type returns 422 Unprocessable Entity."""
     resp = await client.post(
         "/tasks",
-        json={
-            **BASE_TASK,
+        json=BASE_TASK
+        | {
             "completion_signals": [
                 {"type": "invalid_type", "value": "something"},
             ],
@@ -232,8 +232,8 @@ async def test_missing_signal_value_rejected_with_422(client: AsyncClient) -> No
     """POST /tasks with a signal missing 'value' returns 422."""
     resp = await client.post(
         "/tasks",
-        json={
-            **BASE_TASK,
+        json=BASE_TASK
+        | {
             "completion_signals": [
                 {"type": "path_exists"},
             ],
@@ -250,8 +250,8 @@ async def test_list_tasks_includes_completion_signals(client: AsyncClient) -> No
     """GET /tasks returns completion_signals for each task."""
     await client.post(
         "/tasks",
-        json={
-            **BASE_TASK,
+        json=BASE_TASK
+        | {
             "completion_signals": [{"type": "path_exists", "value": "output.txt"}],
         },
     )
@@ -267,8 +267,8 @@ async def test_list_tasks_filtered_by_status_includes_signals(client: AsyncClien
     """GET /tasks?status=open preserves completion_signals in filtered results."""
     await client.post(
         "/tasks",
-        json={
-            **BASE_TASK,
+        json=BASE_TASK
+        | {
             "completion_signals": [{"type": "test_passes", "value": "make test"}],
         },
     )

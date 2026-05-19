@@ -87,8 +87,7 @@ class QualityScorer:
         event = {
             "timestamp": datetime.now(UTC).isoformat(),
             "task_id": task_id,
-            **asdict(score),
-        }
+        } | asdict(score)
         with self._history_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(event, sort_keys=True) + "\n")
 

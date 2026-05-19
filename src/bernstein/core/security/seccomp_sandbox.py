@@ -991,9 +991,6 @@ def render_profile_summary(profile: SeccompProfile) -> str:
         names = by_action.get(action)
         if names is None:
             continue
-        lines.append(f"### {action.value} ({len(names)} syscalls)")
-        lines.append("")
-        lines.append(", ".join(sorted(names)))
-        lines.append("")
+        lines.extend((f"### {action.value} ({len(names)} syscalls)", "", ", ".join(sorted(names)), ""))
 
     return "\n".join(lines)

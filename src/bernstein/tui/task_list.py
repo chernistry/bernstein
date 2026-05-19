@@ -432,11 +432,9 @@ class TaskListWidget(DataTable[Text]):
         from bernstein.tui.progress_bar import render_progress_bar_text
 
         accessibility: AccessibilityConfig | None = None
-        try:
+        with contextlib.suppress(Exception):
             app = self.app
             accessibility = getattr(app, "accessibility", None)
-        except Exception:
-            pass
 
         # Update existing rows in-place, add new ones
         columns = ("ID", "Status", "P", "Role", "Title", "Agent", "Age", "Retry", "Blocker", "Model", "Progress")

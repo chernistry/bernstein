@@ -94,9 +94,7 @@ def _format_changelog(cats: _ChangelogCategories, period_days: int) -> str:
         Markdown-formatted changelog.
     """
     lines = ["# Changelog", ""]
-    lines.append(f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-    lines.append(f"Period: Last {period_days} days")
-    lines.append("")
+    lines.extend((f"Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}", f"Period: Last {period_days} days", ""))
 
     _sections: list[tuple[str, list[str]]] = [
         ("## \u2728 Features", cats.features),
@@ -112,8 +110,7 @@ def _format_changelog(cats: _ChangelogCategories, period_days: int) -> str:
             lines.append("")
 
     if cats.is_empty():
-        lines.append("No changes recorded in this period.")
-        lines.append("")
+        lines.extend(("No changes recorded in this period.", ""))
 
     return "\n".join(lines)
 

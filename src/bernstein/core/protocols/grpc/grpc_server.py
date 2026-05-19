@@ -424,8 +424,12 @@ class BernsteinGrpcServer:
                     tasks_pb2.DESCRIPTOR.services_by_name["TaskService"].full_name,
                 ]
                 if node_registry is not None:
-                    service_names.append(cluster_pb2.DESCRIPTOR.services_by_name["ClusterService"].full_name)
-                    service_names.append(cluster_pb2.DESCRIPTOR.services_by_name["BulletinService"].full_name)
+                    service_names.extend(
+                        (
+                            cluster_pb2.DESCRIPTOR.services_by_name["ClusterService"].full_name,
+                            cluster_pb2.DESCRIPTOR.services_by_name["BulletinService"].full_name,
+                        )
+                    )
                 service_names.append(reflection.SERVICE_NAME)
                 reflection.enable_server_reflection(service_names, server)
             except ImportError:

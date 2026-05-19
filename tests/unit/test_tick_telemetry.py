@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from contextlib import suppress
 
 from bernstein.core.tick_telemetry import SpanRecord, TickTelemetryTracker, _MutableSpan
 
@@ -52,21 +53,17 @@ class TestTickTelemetryTracker:
 
     def test_error_recorded(self) -> None:
         tracker = TickTelemetryTracker()
-        try:
+        with suppress(ValueError):
             with tracker.tick_span(tick_number=1):
                 raise ValueError("test error")
-        except ValueError:
-            pass
         assert tracker.completed_spans[0].error == "test error"
 
     def test_phase_error_recorded(self) -> None:
         tracker = TickTelemetryTracker()
         with tracker.tick_span(tick_number=1):
-            try:
+            with suppress(RuntimeError):
                 with tracker.phase_span("failing"):
                     raise RuntimeError("phase failed")
-            except RuntimeError:
-                pass
         child = tracker.completed_spans[0].children[0]
         assert child.error == "phase failed"
 

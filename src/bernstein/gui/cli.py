@@ -277,12 +277,10 @@ def serve(
         _print_onboarding(onboarding_url, issue.passphrase)
 
     if not no_open and not dev and not tunnel:
-        try:
+        with contextlib.suppress(Exception):
             import webbrowser
 
             webbrowser.open(local_url)
-        except Exception:  # pragma: no cover
-            pass
 
     try:
         uvicorn.run(app, host=host, port=port, log_level="info")

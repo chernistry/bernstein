@@ -208,7 +208,7 @@ def decide_ownership(
         return OwnershipDecision(
             eligible=False,
             reason="PR originates from a fork the daemon cannot push to.",
-            signals={**signals, "skip_reason": "fork"},
+            signals=signals | {"skip_reason": "fork"},
         )
 
     labels = {label.strip().lower() for label in pr.labels}
@@ -216,7 +216,7 @@ def decide_ownership(
         return OwnershipDecision(
             eligible=False,
             reason=(f"PR is missing the opt-in label '{expected_label}'. Add the label to authorise autofix."),
-            signals={**signals, "skip_reason": "missing_label"},
+            signals=signals | {"skip_reason": "missing_label"},
         )
 
     session_id = extract_session_id(pr.body) or extract_session_id(pr.title)
@@ -227,7 +227,7 @@ def decide_ownership(
                 "PR is missing the 'bernstein-session-id' trailer; "
                 "open it via `bernstein pr` so ownership can be claimed."
             ),
-            signals={**signals, "skip_reason": "missing_trailer"},
+            signals=signals | {"skip_reason": "missing_trailer"},
         )
 
     if not session_lookup(session_id):
@@ -238,12 +238,12 @@ def decide_ownership(
                 f"Session '{session_id}' is not present in the local session "
                 "store; the daemon refuses to claim a PR it did not open."
             ),
-            signals={**signals, "skip_reason": "unknown_session", "session_id": session_id},
+            signals=signals | {"skip_reason": "unknown_session", "session_id": session_id},
         )
 
     return OwnershipDecision(
         eligible=True,
         session_id=session_id,
         reason=f"PR claimed via Bernstein session '{session_id}'.",
-        signals={**signals, "session_id": session_id},
+        signals=signals | {"session_id": session_id},
     )

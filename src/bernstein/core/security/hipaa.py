@@ -38,6 +38,7 @@ import logging
 import os
 import re
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -548,12 +549,10 @@ def generate_hipaa_report(
     audit_dir = sdd_dir / "audit"
     audit_chain_valid = False
     if audit_dir.is_dir():
-        try:
+        with suppress(Exception):
             log = AuditLog(audit_dir)
             valid, _ = log.verify()
             audit_chain_valid = valid
-        except Exception:
-            pass
 
     # Check encryption at rest
     key_path = sdd_dir / "config" / "hipaa-enc-key"

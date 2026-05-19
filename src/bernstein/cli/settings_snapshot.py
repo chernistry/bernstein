@@ -314,12 +314,15 @@ def format_snapshot(snapshot: SettingsSnapshot) -> str:
         Formatted string suitable for console output.
     """
     lines: list[str] = []
-    lines.append("Settings Snapshot")
-    lines.append(f"  Captured: {snapshot.captured_at.isoformat()}")
-    lines.append("")
-
-    lines.append("Settings (with provenance):")
-    lines.append("-" * 50)
+    lines.extend(
+        (
+            "Settings Snapshot",
+            f"  Captured: {snapshot.captured_at.isoformat()}",
+            "",
+            "Settings (with provenance):",
+            "-" * 50,
+        )
+    )
     for key, sv in sorted(snapshot.settings.items()):
         value_str = str(sv.value)
         if len(value_str) > 40:
@@ -327,9 +330,7 @@ def format_snapshot(snapshot: SettingsSnapshot) -> str:
         lines.append(f"  {key:20s} = {value_str:20s}  [{sv.source}]")
 
     if snapshot.env_vars:
-        lines.append("")
-        lines.append("Environment Variables:")
-        lines.append("-" * 50)
+        lines.extend(("", "Environment Variables:", "-" * 50))
         for key, value in sorted(snapshot.env_vars.items()):
             # Mask sensitive values
             if "KEY" in key or "TOKEN" in key or "SECRET" in key:

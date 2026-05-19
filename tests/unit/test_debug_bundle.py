@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import zipfile
+from contextlib import suppress
 from pathlib import Path
 
 from bernstein.core.observability.debug_bundle import (
@@ -609,11 +610,9 @@ class TestBundleManifest:
             files_included=(),
             redactions_applied=0,
         )
-        try:
+        with suppress(AttributeError):
             manifest.redactions_applied = 99  # type: ignore[misc]
             raise AssertionError("Should have raised FrozenInstanceError")
-        except AttributeError:
-            pass  # Expected — frozen dataclass
 
 
 # ---------------------------------------------------------------------------
@@ -663,11 +662,9 @@ class TestEdgeCases:
 
     def test_bundle_config_is_frozen(self) -> None:
         config = BundleConfig()
-        try:
+        with suppress(AttributeError):
             config.extended = True  # type: ignore[misc]
             raise AssertionError("Should have raised FrozenInstanceError")
-        except AttributeError:
-            pass  # Expected — frozen dataclass
 
     def test_redact_preserves_structure(self) -> None:
         """Redaction of YAML keeps the key visible, only the value is masked."""

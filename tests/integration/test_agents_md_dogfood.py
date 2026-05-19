@@ -151,14 +151,14 @@ def _git_init(repo: Path) -> None:
         ["git", "init", "-b", "main", "--quiet"],
         cwd=repo,
         check=True,
-        env={**env, "PATH": _safe_path()},
+        env=env | {"PATH": _safe_path()},
     )
-    subprocess.run(["git", "add", "."], cwd=repo, check=True, env={**env, "PATH": _safe_path()})
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, env=env | {"PATH": _safe_path()})
     subprocess.run(
         ["git", "commit", "-m", "fixture: initial", "--quiet"],
         cwd=repo,
         check=True,
-        env={**env, "PATH": _safe_path()},
+        env=env | {"PATH": _safe_path()},
     )
 
 

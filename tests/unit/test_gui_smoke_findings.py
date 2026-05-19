@@ -45,7 +45,10 @@ def _run_idle_mock_script(env: dict[str, str], *, tmp_path: Path) -> tuple[int, 
 
     proc = subprocess.run(
         [sys.executable, str(script_path), task_info],
-        env={"BERNSTEIN_MOCK_IDLE": "1", **env},
+        env={
+            "BERNSTEIN_MOCK_IDLE": "1",
+        }
+        | env,
         capture_output=True,
         text=True,
         timeout=30,

@@ -6,6 +6,7 @@ The parent ``server`` module re-exports every name for backward compatibility.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from fastapi.responses import JSONResponse
@@ -277,15 +278,13 @@ class IPAllowlistMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return response
 
-        try:
+        with suppress(ValueError):
             import ipaddress
 
             client_addr = ipaddress.ip_address(client_ip)
             if any(client_addr in network for network in networks):
                 response = await call_next(request)
                 return response
-        except ValueError:
-            pass  # Invalid IP address format; deny request
 
         return JSONResponse(
             status_code=403,

@@ -207,8 +207,7 @@ class ErrorBudgetPolicy:
         if not budget.is_depleted:
             return []
         actions: list[ErrorBudgetAction] = []
-        actions.append(ErrorBudgetAction.REDUCE_AGENTS)
-        actions.append(ErrorBudgetAction.UPGRADE_MODEL)
+        actions.extend((ErrorBudgetAction.REDUCE_AGENTS, ErrorBudgetAction.UPGRADE_MODEL))
         if self.increase_review:
             actions.append(ErrorBudgetAction.INCREASE_REVIEW)
         return actions

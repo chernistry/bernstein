@@ -87,7 +87,7 @@ def register_node(body: NodeRegisterRequest, request: Request) -> NodeResponse:
 
 @router.post(
     "/cluster/nodes/{node_id}/heartbeat",
-    responses={**_AUTH_RESPONSES, 404: {"description": "Node not registered"}},
+    responses=_AUTH_RESPONSES | {404: {"description": "Node not registered"}},
 )
 def node_heartbeat(node_id: str, body: NodeHeartbeatRequest, request: Request) -> NodeResponse:
     """Record a heartbeat from a cluster node."""

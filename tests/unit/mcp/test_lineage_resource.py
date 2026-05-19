@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from contextlib import suppress
 from pathlib import Path
 
 import pytest
@@ -218,13 +219,10 @@ def _payload_from_tool_result(result: object) -> dict[str, object]:
 
 def _payload_from_contents(contents: object) -> dict[str, object]:
     texts: list[str] = []
-    try:
+    with suppress(TypeError):
         for c in contents:  # type: ignore[union-attr]
             text = getattr(c, "text", None)
             if isinstance(text, str):
                 texts.append(text)
-    except TypeError:
-        # Not iterable; fall through.
-        pass
     joined = "\n".join(texts)
     return json.loads(joined)

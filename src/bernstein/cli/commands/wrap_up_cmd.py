@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +20,7 @@ from bernstein.core.session import WrapUpBrief, save_wrapup
 def _get_git_diff_stat(start_sha: str) -> str:
     """Return ``git diff --stat <start_sha>..HEAD``, or fallback output."""
     if start_sha:
-        try:
+        with suppress(FileNotFoundError):
             result = subprocess.run(
                 ["git", "diff", "--stat", f"{start_sha}..HEAD"],
                 capture_output=True,
@@ -30,10 +31,8 @@ def _get_git_diff_stat(start_sha: str) -> str:
             )
             if result.returncode == 0 and result.stdout.strip():
                 return result.stdout.strip()
-        except FileNotFoundError:
-            pass  # git not available
     # Fallback: uncommitted changes vs last commit
-    try:
+    with suppress(FileNotFoundError):
         result = subprocess.run(
             ["git", "diff", "--stat", "HEAD"],
             capture_output=True,
@@ -44,8 +43,6 @@ def _get_git_diff_stat(start_sha: str) -> str:
         )
         if result.returncode == 0:
             return result.stdout.strip() or "(no uncommitted changes)"
-    except FileNotFoundError:
-        pass  # git not available
     return ""
 
 
@@ -56,7 +53,7 @@ def _find_session_start_sha(saved_at: float) -> str:
     oldest one (i.e. HEAD before this session began).  Falls back to empty
     string so callers can handle gracefully.
     """
-    try:
+    with suppress(FileNotFoundError, ValueError):
         import datetime
 
         iso = datetime.datetime.fromtimestamp(saved_at, tz=datetime.UTC).strftime("%Y-%m-%dT%H:%M:%S")
@@ -85,8 +82,6 @@ def _find_session_start_sha(saved_at: float) -> str:
         )
         if parent_result.returncode == 0:
             return parent_result.stdout.strip()
-    except (FileNotFoundError, ValueError):
-        pass  # git not available or invalid ref
     return ""
 
 

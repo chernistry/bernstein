@@ -489,8 +489,7 @@ class GraduationStore:
             "ts": latest["timestamp"],
             "type": "promotion",
             "session_id": record.session_id,
-            **latest,
-        }
+        } | latest
         with self._metrics_file.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(event) + "\n")
 

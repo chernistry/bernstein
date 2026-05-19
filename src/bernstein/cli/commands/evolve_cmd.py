@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re as _re
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, cast
 
@@ -106,7 +107,7 @@ def _load_evolve_config_from_seed(
         seed_path = root / seed_name
         if not seed_path.exists():
             continue
-        try:
+        with suppress(Exception):
             import yaml as _yaml
 
             raw = _yaml.safe_load(seed_path.read_text(encoding="utf-8"))
@@ -120,8 +121,6 @@ def _load_evolve_config_from_seed(
                 github_sync = True
             if github_repo is None and evolve_dict.get("github_repo"):
                 github_repo = str(evolve_dict["github_repo"])
-        except Exception:
-            pass
         break
     return github_sync, github_repo
 

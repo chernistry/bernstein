@@ -350,7 +350,7 @@ def init_telemetry_from_preset(
         raise ValueError(f"Unknown telemetry preset {preset_name!r}. Available: {available}")
 
     endpoint = endpoint_override or preset.endpoint
-    headers = {**preset.headers, **(extra_headers or {})}
+    headers = preset.headers | (extra_headers or {})
 
     if preset.protocol == "console":
         _init_console_telemetry(service_name=preset.service_name)

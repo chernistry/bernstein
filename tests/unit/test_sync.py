@@ -244,7 +244,7 @@ def _make_mock_transport(
         if request.method == "POST" and url.path == "/tasks":
             body = json.loads(request.content)
             task_id = f"T-{len(created_tasks) + 1:03d}"
-            task = {**body, "id": task_id, "status": "open"}
+            task = body | {"id": task_id, "status": "open"}
             created_tasks.append(task)
             return httpx.Response(201, json=task)
 

@@ -127,28 +127,22 @@ class SessionSnapshot:
             lines.append(f"Previous attempt ended because: **{self.terminal_reason}**")
 
         if self.partial_work_summary:
-            lines.append("")
-            lines.append("### Partial work from previous attempt")
-            lines.append(self.partial_work_summary)
+            lines.extend(("", "### Partial work from previous attempt", self.partial_work_summary))
 
         if self.files_modified:
-            lines.append("")
-            lines.append("### Files modified in previous attempt")
+            lines.extend(("", "### Files modified in previous attempt"))
             for f in self.files_modified:
                 lines.append(f"- `{f}`")
 
         if self.context_hints:
-            lines.append("")
-            lines.append("### Context hints")
+            lines.extend(("", "### Context hints"))
             for hint in self.context_hints:
                 lines.append(f"- {hint}")
 
         if self.last_commit_sha:
-            lines.append("")
-            lines.append(f"Previous work committed at: `{self.last_commit_sha}`")
+            lines.extend(("", f"Previous work committed at: `{self.last_commit_sha}`"))
 
-        lines.append("")
-        lines.append("Resume from where the previous attempt left off. Do NOT repeat already-completed work.")
+        lines.extend(("", "Resume from where the previous attempt left off. Do NOT repeat already-completed work."))
         return "\n".join(lines)
 
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
+
 from bernstein.core.skill_badges import (
     AgentSkillSet,
     SkillBadge,
@@ -55,11 +57,9 @@ class TestSkillBadgeCreation:
 
     def test_frozen(self) -> None:
         badge = SkillBadge(name="tools", level=SkillLevel.BASIC, icon="\U0001f527")
-        try:
+        with suppress(AttributeError):
             badge.name = "hacked"  # type: ignore[misc]
             raise AssertionError("Should have raised FrozenInstanceError")
-        except AttributeError:
-            pass  # expected
 
     def test_equality(self) -> None:
         a = SkillBadge(name="code", level=SkillLevel.PROFICIENT, icon="\U0001f4bb")

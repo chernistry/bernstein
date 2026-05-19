@@ -246,39 +246,35 @@ def render_markdown(run: CompareRun, *, max_diff_lines_per_file: int = 40) -> st
         A Markdown string (no trailing newline guarantee).
     """
     lines: list[str] = []
-    lines.append(f"# Compare run `{run.compare_run_id}`")
-    lines.append("")
-    lines.append(f"- task: `{run.task.task_id}`  role: `{run.task.role}`  seed: `{run.task.seed}`")
-    lines.append(f"- adapters: {', '.join(f'`{a}`' for a in run.adapters)}")
-    lines.append(f"- wall-clock: {(run.finished_at - run.started_at):.2f}s")
-    lines.append("")
-    lines.append("## Summary")
-    lines.append("")
-    lines.append("| adapter | exit | duration ms | files changed |")
-    lines.append("|---------|------|-------------|---------------|")
+    lines.extend(
+        (
+            f"# Compare run `{run.compare_run_id}`",
+            "",
+            f"- task: `{run.task.task_id}`  role: `{run.task.role}`  seed: `{run.task.seed}`",
+            f"- adapters: {', '.join(f'`{a}`' for a in run.adapters)}",
+            f"- wall-clock: {run.finished_at - run.started_at:.2f}s",
+            "",
+            "## Summary",
+            "",
+            "| adapter | exit | duration ms | files changed |",
+            "|---------|------|-------------|---------------|",
+        )
+    )
     for r in run.runs:
         status = "ok" if r.exit_code == 0 else f"fail({r.exit_code})"
         lines.append(f"| `{r.adapter}` | {status} | {r.duration_ms:.0f} | {len(r.changed_files)} |")
     lines.append("")
     for r in run.runs:
-        lines.append(f"## `{r.adapter}`")
-        lines.append("")
+        lines.extend((f"## `{r.adapter}`", ""))
         if r.error:
-            lines.append(f"> error: {r.error}")
-            lines.append("")
+            lines.extend((f"> error: {r.error}", ""))
         if not r.changed_files:
-            lines.append("_no files changed_")
-            lines.append("")
+            lines.extend(("_no files changed_", ""))
             continue
         for path in sorted(r.changed_files):
             diff_text = r.changed_files[path]
             truncated = _truncate_diff(diff_text, max_diff_lines_per_file)
-            lines.append(f"### `{path}`")
-            lines.append("")
-            lines.append("```diff")
-            lines.append(truncated)
-            lines.append("```")
-            lines.append("")
+            lines.extend((f"### `{path}`", "", "```diff", truncated, "```", ""))
     return "\n".join(lines)
 
 

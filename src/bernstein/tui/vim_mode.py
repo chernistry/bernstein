@@ -160,13 +160,13 @@ class VimState:
         Returns:
             The resulting VimAction.
         """
-        if key == "j" or key == "down":
+        if key in ("j", "down"):
             return VimAction(VimActionKind.SCROLL_DOWN, str(count))
-        if key == "k" or key == "up":
+        if key in ("k", "up"):
             return VimAction(VimActionKind.SCROLL_UP, str(count))
-        if key == "h" or key == "left":
+        if key in ("h", "left"):
             return VimAction(VimActionKind.SCROLL_LEFT, str(count))
-        if key == "l" or key == "right":
+        if key in ("l", "right"):
             return VimAction(VimActionKind.SCROLL_RIGHT, str(count))
         if key == "G":
             return VimAction(VimActionKind.GOTO_BOTTOM)

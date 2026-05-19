@@ -211,12 +211,16 @@ def render_pdf(
     styles = getSampleStyleSheet()
     story: list[Any] = []
 
-    story.append(Paragraph("<b>EU AI Act Article 12 — Evidence Report</b>", styles["Title"]))
-    story.append(Spacer(1, 0.4 * cm))
-    story.append(Paragraph(f"<b>Organisation:</b> {org}", styles["Normal"]))
-    story.append(Paragraph(f"<b>Period:</b> {period[0]} → {period[1]}", styles["Normal"]))
-    story.append(Paragraph(f"<b>Entries:</b> {len(entries)}", styles["Normal"]))
-    story.append(Spacer(1, 0.4 * cm))
+    story.extend(
+        (
+            Paragraph("<b>EU AI Act Article 12 — Evidence Report</b>", styles["Title"]),
+            Spacer(1, 0.4 * cm),
+            Paragraph(f"<b>Organisation:</b> {org}", styles["Normal"]),
+            Paragraph(f"<b>Period:</b> {period[0]} → {period[1]}", styles["Normal"]),
+            Paragraph(f"<b>Entries:</b> {len(entries)}", styles["Normal"]),
+            Spacer(1, 0.4 * cm),
+        )
+    )
 
     # Paragraph table.
     rows: list[list[str]] = [["Paragraph", "Derived fact"]]
@@ -237,8 +241,7 @@ def render_pdf(
             ],
         ),
     )
-    story.append(tbl)
-    story.append(Spacer(1, 0.4 * cm))
+    story.extend((tbl, Spacer(1, 0.4 * cm)))
 
     # Sample of entries (first 25) so a regulator can eyeball the data
     # without having to crack the CSV.
@@ -258,8 +261,7 @@ def render_pdf(
                 ],
             ),
         )
-        story.append(sample_tbl)
-        story.append(Spacer(1, 0.4 * cm))
+        story.extend((sample_tbl, Spacer(1, 0.4 * cm)))
 
     story.append(
         Paragraph(

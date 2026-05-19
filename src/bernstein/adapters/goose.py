@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import logging
 import subprocess
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from bernstein.adapters.base import (
@@ -131,7 +132,7 @@ class GooseAdapter(CLIAdapter):
 
     def get_version(self) -> str | None:
         """Return the Goose CLI version string, or None if unavailable."""
-        try:
+        with suppress(Exception):
             result = subprocess.run(
                 ["goose", "--version"],
                 capture_output=True,
@@ -143,8 +144,6 @@ class GooseAdapter(CLIAdapter):
             )
             if result.returncode == 0:
                 return result.stdout.strip()
-        except Exception:
-            pass  # Version detection failed; treat as unavailable
         return None
 
     def is_available(self) -> bool:

@@ -19,6 +19,7 @@ import random
 import statistics
 import time
 from collections import defaultdict
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -85,13 +86,11 @@ class SWEInstance:
                 lst = cast(_CAST_LIST_ANY, value)
                 return [str(v) for v in lst]
             if isinstance(value, str):
-                try:
+                with suppress(json.JSONDecodeError):
                     parsed: Any = json.loads(value)
                     if isinstance(parsed, list):
                         plst = cast(_CAST_LIST_ANY, parsed)
                         return [str(v) for v in plst]
-                except json.JSONDecodeError:
-                    pass  # Not a JSON list; treat as plain string
                 return [value] if value else []
             return []
 

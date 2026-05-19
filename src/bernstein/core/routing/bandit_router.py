@@ -1343,8 +1343,7 @@ class BanditRouter:
                         existing = loaded
                 except Exception as exc:
                     logger.debug("BanditRouter: could not merge existing state: %s", exc)
-            payload: dict[str, Any] = {
-                **existing,
+            payload: dict[str, Any] = existing | {
                 "total_completions": self._total_completions,
                 "selection_counts": self._selection_counts,
                 "mode": "bandit" if self.is_warmed_up else "cold-start",
@@ -1623,8 +1622,7 @@ class BanditRouter:
             self._shadow_counters["disagree_reward_sum"] += reward
             self._shadow_counters["disagree_reward_count"] += 1.0
 
-        payload = {
-            **shadow,
+        payload = shadow | {
             "completed_at": time.time(),
             "observed_reward": round(reward, 6),
             "observed_quality_score": round(quality_score, 6),

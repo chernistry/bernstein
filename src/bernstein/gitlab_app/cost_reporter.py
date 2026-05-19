@@ -148,7 +148,7 @@ def _create_note(
     try:
         response: Any = httpx.post(
             url,
-            headers={**build_auth_headers(token), "Content-Type": "application/json"},
+            headers=build_auth_headers(token) | {"Content-Type": "application/json"},
             json={"body": body},
             timeout=30.0,
         )
@@ -182,7 +182,7 @@ def _update_note(
     try:
         response: Any = httpx.put(
             url,
-            headers={**build_auth_headers(token), "Content-Type": "application/json"},
+            headers=build_auth_headers(token) | {"Content-Type": "application/json"},
             json={"body": body},
             timeout=30.0,
         )

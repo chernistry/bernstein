@@ -31,6 +31,7 @@ import shutil
 import subprocess
 import time
 from collections.abc import Iterator
+from contextlib import suppress
 from pathlib import Path
 
 import httpx
@@ -87,7 +88,7 @@ def _compose(*args: str, env: dict[str, str] | None = None) -> subprocess.Comple
         check=False,
         capture_output=True,
         text=True,
-        env={**os.environ, **(env or {})},
+        env=os.environ | (env or {}),
     )
 
 
@@ -95,12 +96,10 @@ def _wait_tunnel_ready(public_url: str, timeout_s: float = TUNNEL_READY_TIMEOUT_
     """Poll the public tunnel hostname until ``/health`` returns 200."""
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        try:
+        with suppress(httpx.HTTPError):
             resp = httpx.get(f"{public_url}/health", timeout=5.0)
             if resp.status_code == 200:
                 return True
-        except httpx.HTTPError:
-            pass
         time.sleep(TUNNEL_READY_POLL_S)
     return False
 

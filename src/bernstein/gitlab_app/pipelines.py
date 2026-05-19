@@ -189,7 +189,7 @@ class PipelineStatusClient:
         try:
             response: Any = httpx.post(
                 url,
-                headers={**build_auth_headers(self._token), "Content-Type": "application/json"},
+                headers=build_auth_headers(self._token) | {"Content-Type": "application/json"},
                 json=body,
                 timeout=30.0,
             )

@@ -71,6 +71,7 @@ import logging
 import time
 import uuid
 from collections import defaultdict, deque
+from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
@@ -285,12 +286,10 @@ def build_condition_context(task: Task) -> dict[str, Any]:
     """
     output: dict[str, Any] = {}
     if task.result_summary:
-        try:
+        with suppress(json.JSONDecodeError, TypeError):
             parsed = json.loads(task.result_summary)
             if isinstance(parsed, dict):
                 output = parsed
-        except (json.JSONDecodeError, TypeError):
-            pass
 
     return {
         "status": task.status.value,
@@ -958,11 +957,9 @@ class DAGExecutor:
         # If there's an "until" condition and it's met, don't retry.
         if node.retry.until is not None:
             ctx = build_condition_context(task)
-            try:
+            with suppress(ConditionError):
                 if node.retry.until.evaluate(ctx):
                     return False
-            except ConditionError:
-                pass
 
         return True
 

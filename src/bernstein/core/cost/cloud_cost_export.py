@@ -247,7 +247,7 @@ class CostExporter:
             alloc = _record_to_allocation(rec, config)
             if alloc is not None:
                 # Inject run_id into labels
-                merged_labels = {**alloc.labels, "run_id": run_id}
+                merged_labels = alloc.labels | {"run_id": run_id}
                 allocations.append(
                     CostAllocation(
                         resource_id=alloc.resource_id,

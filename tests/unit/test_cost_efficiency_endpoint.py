@@ -61,7 +61,7 @@ class TestCostEfficiencyEndpoint:
 
     def test_cost_per_line_computed_correctly(self, tmp_path: Path) -> None:
         """When lines_changed is stored, cost_per_line = cost / lines."""
-        usage = {**_USAGE_TEMPLATE, "cost_usd": 0.10, "agent_id": "ag-1"}
+        usage = _USAGE_TEMPLATE | {"cost_usd": 0.10, "agent_id": "ag-1"}
         _make_tracker_file(tmp_path, "run-1", [usage])
         _write_lines_changed(tmp_path, "ag-1", 20)
 
@@ -96,7 +96,7 @@ class TestCostEfficiencyEndpoint:
 
     def test_missing_lines_changed_gives_none_efficiency(self, tmp_path: Path) -> None:
         """Without lines_changed data, cost_per_line should be None."""
-        usage = {**_USAGE_TEMPLATE, "cost_usd": 0.05, "agent_id": "ag-no-lines"}
+        usage = _USAGE_TEMPLATE | {"cost_usd": 0.05, "agent_id": "ag-no-lines"}
         _make_tracker_file(tmp_path, "run-2", [usage])
 
         # No lines_changed file → efficiency is None
@@ -105,7 +105,7 @@ class TestCostEfficiencyEndpoint:
 
     def test_message_format_when_data_available(self, tmp_path: Path) -> None:
         """Verify the message string uses $/line format."""
-        usage = {**_USAGE_TEMPLATE, "cost_usd": 0.06, "agent_id": "ag-msg"}
+        usage = _USAGE_TEMPLATE | {"cost_usd": 0.06, "agent_id": "ag-msg"}
         _make_tracker_file(tmp_path, "run-3", [usage])
         _write_lines_changed(tmp_path, "ag-msg", 30)
 

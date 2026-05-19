@@ -23,6 +23,7 @@ import re
 import shutil
 import subprocess
 import zipfile
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -322,7 +323,7 @@ def collect_state(workdir: Path, config: BundleConfig) -> dict[str, str]:
 
     # Lineage records: include the run's lineage graph slice so auditors
     # can answer "which agent + prompt produced this artifact?".
-    try:
+    with suppress(ImportError, OSError):
         from bernstein.core.persistence.lineage import (
             bundle_records_to_jsonl,
             collect_bundle_records,
@@ -333,8 +334,6 @@ def collect_state(workdir: Path, config: BundleConfig) -> dict[str, str]:
             jsonl = bundle_records_to_jsonl(lineage_records)
             redacted_jsonl, _ = redact_secrets(jsonl)
             result["lineage.jsonl"] = redacted_jsonl
-    except (ImportError, OSError):
-        pass
 
     return result
 

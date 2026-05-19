@@ -369,8 +369,7 @@ def _render_breaking_section(
     """Render the breaking changes section if any exist."""
     if not breaking_changes:
         return
-    lines.append("## Breaking Changes")
-    lines.append("")
+    lines.extend(("## Breaking Changes", ""))
     for entry in breaking_changes:
         lines.append(f"- **{entry.component}:** {entry.summary} (`{entry.task_id}`)")
     lines.append("")
@@ -392,16 +391,13 @@ def _render_changes_section(
 ) -> None:
     """Render the grouped changes section."""
     if not entries:
-        lines.append("*No changes recorded.*")
-        lines.append("")
+        lines.extend(("*No changes recorded.*", ""))
         return
 
-    lines.append("## Changes")
-    lines.append("")
+    lines.extend(("## Changes", ""))
     grouped = group_by_component(entries)
     for component, component_entries in grouped.items():
-        lines.append(f"### {component}")
-        lines.append("")
+        lines.extend((f"### {component}", ""))
         for entry in component_entries:
             prefix = "**BREAKING** " if entry.is_breaking else ""
             lines.append(f"- {prefix}{entry.summary} (`{entry.task_id}`)")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from pathlib import Path
 
 from bernstein.cli.cli_history import (
@@ -50,11 +51,9 @@ class TestHistoryEntry:
             cwd="/tmp",
             exit_code=0,
         )
-        try:
+        with suppress(AttributeError):
             entry.command = "stop"  # type: ignore[misc]
             raise AssertionError("Expected FrozenInstanceError")  # pragma: no cover
-        except AttributeError:
-            pass  # expected — frozen dataclass
 
 
 class TestRecordCommand:

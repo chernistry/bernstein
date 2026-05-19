@@ -71,28 +71,33 @@ def generate_claude_md(
     # Task instructions
     sections.append("## Assigned tasks")
     for i, task in enumerate(tasks, 1):
-        sections.append(f"### Task {i}: {task.title} (id={task.id})")
-        sections.append(f"**Priority:** {task.priority} | **Scope:** {task.scope.value}")
-        sections.append("")
-        sections.append(task.description)
-        sections.append("")
+        sections.extend(
+            (
+                f"### Task {i}: {task.title} (id={task.id})",
+                f"**Priority:** {task.priority} | **Scope:** {task.scope.value}",
+                "",
+                task.description,
+                "",
+            )
+        )
 
     # Allowed file paths
     all_owned: list[str] = []
     for task in tasks:
         all_owned.extend(task.owned_files)
     if all_owned:
-        sections.append("## Allowed file paths")
-        sections.append("You should focus your work on these files:")
+        sections.extend(("## Allowed file paths", "You should focus your work on these files:"))
         for fp in sorted(set(all_owned)):
             sections.append(f"- `{fp}`")
-        sections.append("")
-        sections.append(
-            "If you need to create new files, keep them within the directories "
-            "of your allowed paths. Do not modify files outside your scope "
-            "unless strictly necessary for your task."
+        sections.extend(
+            (
+                "",
+                "If you need to create new files, keep them within the directories "
+                "of your allowed paths. Do not modify files outside your scope "
+                "unless strictly necessary for your task.",
+                "",
+            )
         )
-        sections.append("")
 
     # Context file links
     effective_context_files = context_files or []
@@ -102,25 +107,26 @@ def generate_claude_md(
         effective_context_files = [".sdd/project.md", *effective_context_files]
 
     if effective_context_files:
-        sections.append("## Context files")
-        sections.append("Read these files for project context:")
+        sections.extend(("## Context files", "Read these files for project context:"))
         for cf in effective_context_files:
             sections.append(f"- `{cf}`")
         sections.append("")
 
     # Git safety
-    sections.append("## Git rules")
-    sections.append(f"- Work on branch `agent/{session_id}` only.")
-    sections.append("- NEVER force-push or skip git hooks.")
-    sections.append("- NEVER commit secrets, API keys, or credentials.")
-    sections.append("- Review changes with `git diff` before committing.")
-    sections.append("")
+    sections.extend(
+        (
+            "## Git rules",
+            f"- Work on branch `agent/{session_id}` only.",
+            "- NEVER force-push or skip git hooks.",
+            "- NEVER commit secrets, API keys, or credentials.",
+            "- Review changes with `git diff` before committing.",
+            "",
+        )
+    )
 
     # Extra instructions
     if extra_instructions:
-        sections.append("## Additional instructions")
-        sections.append(extra_instructions)
-        sections.append("")
+        sections.extend(("## Additional instructions", extra_instructions, ""))
 
     return "\n".join(sections)
 

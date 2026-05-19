@@ -17,6 +17,7 @@ import operator
 import socket
 import threading
 import time
+from contextlib import suppress
 from pathlib import Path  # noqa: TC003 — used at runtime in _load_persisted/_save
 from typing import TYPE_CHECKING, Any
 
@@ -585,16 +586,13 @@ class NodeHeartbeatClient:
 
         # Best-effort unregister
         if self._node_id is not None:
-            try:
-                with httpx.Client(**build_httpx_client_kwargs(self._tls)) as client:
-                    client.delete(
-                        f"{self._server_url}/cluster/nodes/{self._node_id}",
-                        headers=self._headers(),
-                        timeout=5.0,
-                    )
-                    logger.info("Unregistered node %s from central server", self._node_id)
-            except httpx.HTTPError:
-                pass
+            with suppress(httpx.HTTPError), httpx.Client(**build_httpx_client_kwargs(self._tls)) as client:
+                client.delete(
+                    f"{self._server_url}/cluster/nodes/{self._node_id}",
+                    headers=self._headers(),
+                    timeout=5.0,
+                )
+                logger.info("Unregistered node %s from central server", self._node_id)
             self._node_id = None
             self._registered.clear()
 

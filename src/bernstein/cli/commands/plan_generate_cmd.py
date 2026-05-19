@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import re
 import textwrap
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -61,19 +62,17 @@ def _should_skip_entry(entry: Path) -> bool:
 def _list_dir_children(directory: Path) -> list[str]:
     """List up to 6 visible children of a directory."""
     lines: list[str] = []
-    try:
+    with suppress(PermissionError):
         for child in sorted(directory.iterdir())[:6]:
             if not child.name.startswith("."):
                 lines.append(f"    {child.name}{'/' if child.is_dir() else ''}")
-    except PermissionError:
-        pass
     return lines
 
 
 def _build_directory_tree(workdir: Path) -> list[str]:
     """Build a 2-level directory tree listing, skipping hidden/noise dirs."""
     tree_lines: list[str] = []
-    try:
+    with suppress(PermissionError):
         for entry in sorted(workdir.iterdir()):
             if _should_skip_entry(entry):
                 continue
@@ -82,8 +81,6 @@ def _build_directory_tree(workdir: Path) -> list[str]:
                 tree_lines.extend(_list_dir_children(entry))
             else:
                 tree_lines.append(f"  {entry.name}")
-    except PermissionError:
-        pass
     return tree_lines
 
 

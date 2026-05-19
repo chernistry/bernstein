@@ -30,6 +30,7 @@ Usage::
 from __future__ import annotations
 
 import logging
+from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, cast
@@ -156,14 +157,12 @@ def _load_sdd_config(project_root: Path) -> dict[str, Any]:
     empty: dict[str, Any] = {}
     config_path = project_root / ".sdd" / "config.yaml"
     if config_path.is_file():
-        try:
+        with suppress(Exception):
             import yaml
 
             data: object = yaml.safe_load(config_path.read_text())
             if isinstance(data, dict):
                 return cast("dict[str, Any]", data)
-        except Exception:
-            pass
     return empty
 
 
@@ -1131,8 +1130,7 @@ def render_compliance_report(report: ComplianceReport) -> str:
     """
     lines: list[str] = []
     framework_label = report.framework.value.upper().replace("_", " ")
-    lines.append(f"# {framework_label} Compliance Report")
-    lines.append("")
+    lines.extend((f"# {framework_label} Compliance Report", ""))
     pct = report.score * 100
     lines.append(f"**Score:** {pct:.1f}% ({report.rules_passed}/{report.rules_checked} passed)")
     lines.append("")
@@ -1151,16 +1149,18 @@ def render_compliance_report(report: ComplianceReport) -> str:
     # Failed rules detail
     failed = [r for r in report.results if not r.passed]
     if failed:
-        lines.append("")
-        lines.append("## Failed Rules")
-        lines.append("")
+        lines.extend(("", "## Failed Rules", ""))
         for result in failed:
-            lines.append(f"### {result.rule.rule_id}: {result.rule.title}")
-            lines.append("")
-            lines.append(f"- **Severity:** {result.rule.severity.value}")
-            lines.append(f"- **Description:** {result.rule.description}")
-            lines.append(f"- **Evidence:** {result.evidence}")
-            lines.append(f"- **Remediation:** {result.remediation}")
-            lines.append("")
+            lines.extend(
+                (
+                    f"### {result.rule.rule_id}: {result.rule.title}",
+                    "",
+                    f"- **Severity:** {result.rule.severity.value}",
+                    f"- **Description:** {result.rule.description}",
+                    f"- **Evidence:** {result.evidence}",
+                    f"- **Remediation:** {result.remediation}",
+                    "",
+                )
+            )
 
     return "\n".join(lines)

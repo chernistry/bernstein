@@ -93,7 +93,7 @@ def call_whoami(
         email = fields.get("email", "")
         token = fields.get("token", "")
         creds = f"{email}:{token}".encode()
-        fields = {**fields, "basic_b64": base64.b64encode(creds).decode("ascii")}
+        fields = fields | {"basic_b64": base64.b64encode(creds).decode("ascii")}
 
     if spec.auth_header_template:
         headers["Authorization"] = _format_template(spec.auth_header_template, fields)

@@ -400,16 +400,16 @@ def render_pareto_report(frontier: ParetoFrontier) -> str:
     lines: list[str] = []
 
     title_suffix = f" ({frontier.task_type})" if frontier.task_type else ""
-    lines.append(f"## Cost-Quality Pareto Frontier{title_suffix}")
-    lines.append("")
+    lines.extend((f"## Cost-Quality Pareto Frontier{title_suffix}", ""))
 
     if not frontier.points:
         lines.append("No data available.")
         return "\n".join(lines)
 
     # Table header
-    lines.append("| Model | Cost (USD) | Quality | Pareto Optimal |")
-    lines.append("|-------|-----------|---------|----------------|")
+    lines.extend(
+        ("| Model | Cost (USD) | Quality | Pareto Optimal |", "|-------|-----------|---------|----------------|")
+    )
 
     for point in frontier.points:
         marker = "**yes**" if point.is_pareto_optimal else "no"
@@ -419,8 +419,7 @@ def render_pareto_report(frontier: ParetoFrontier) -> str:
 
     # Recommendations
     if frontier.recommendations:
-        lines.append("### Recommendations")
-        lines.append("")
+        lines.extend(("### Recommendations", ""))
         for rec in frontier.recommendations:
             lines.append(f"- {rec}")
 

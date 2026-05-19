@@ -52,8 +52,7 @@ def autofix_steps(workflow: dict[str, object]) -> list[dict[str, object]]:
 
 def test_workflow_file_exists() -> None:
     assert WORKFLOW.exists(), (
-        "contract-drift-autofix workflow must live at "
-        ".github/workflows/contract-drift-autofix.yml"
+        "contract-drift-autofix workflow must live at .github/workflows/contract-drift-autofix.yml"
     )
 
 
@@ -101,8 +100,7 @@ def test_inline_push_is_continue_on_error(autofix_steps: list[dict[str, object]]
     push = next((s for s in autofix_steps if s.get("id") == "inline_push"), None)
     assert push is not None
     assert push.get("continue-on-error") is True, (
-        "inline_push must continue-on-error so the PR-comment fallback can run "
-        "when the push is rejected"
+        "inline_push must continue-on-error so the PR-comment fallback can run when the push is rejected"
     )
 
 
@@ -148,9 +146,7 @@ def test_permissions_minimum_required(workflow: dict[str, object]) -> None:
     perms = workflow.get("permissions", {})
     assert isinstance(perms, dict)
     assert perms.get("contents") == "write", "needs contents:write to push regen commit"
-    assert perms.get("pull-requests") == "write", (
-        "needs pull-requests:write for the comment-fallback path"
-    )
+    assert perms.get("pull-requests") == "write", "needs pull-requests:write for the comment-fallback path"
 
 
 def test_recursion_guard_on_bot_author(workflow: dict[str, object]) -> None:
@@ -162,6 +158,4 @@ def test_recursion_guard_on_bot_author(workflow: dict[str, object]) -> None:
     assert isinstance(job, dict)
     cond = job.get("if", "")
     assert isinstance(cond, str)
-    assert "github-actions[bot]" in cond, (
-        "missing recursion guard: PRs authored by github-actions[bot] must be skipped"
-    )
+    assert "github-actions[bot]" in cond, "missing recursion guard: PRs authored by github-actions[bot] must be skipped"

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
 
@@ -163,10 +164,14 @@ def build_subagent_context(
     ]
 
     if context_summary:
-        lines.append("### Parent context summary")
-        lines.append("The parent agent gathered this context before delegating to you:")
-        lines.append(context_summary)
-        lines.append("")
+        lines.extend(
+            (
+                "### Parent context summary",
+                "The parent agent gathered this context before delegating to you:",
+                context_summary,
+                "",
+            )
+        )
 
     if task_ids:
         lines.append("### Parent task IDs")
@@ -175,16 +180,17 @@ def build_subagent_context(
         lines.append("")
 
     if owned_files:
-        lines.append("### File ownership rules")
-        lines.append("Only modify files within the parent agent's scope:")
+        lines.extend(("### File ownership rules", "Only modify files within the parent agent's scope:"))
         for fp in sorted(set(owned_files)):
             lines.append(f"- `{fp}`")
-        lines.append("")
-        lines.append(
-            "Do NOT create or modify files outside these paths. "
-            "If you need to touch other files, report back to the parent agent."
+        lines.extend(
+            (
+                "",
+                "Do NOT create or modify files outside these paths. "
+                "If you need to touch other files, report back to the parent agent.",
+                "",
+            )
         )
-        lines.append("")
 
     lines.extend(
         [
@@ -287,12 +293,10 @@ def _update_settings_json(
 
     existing: dict[str, Any] = {}
     if settings_path.exists():
-        try:
+        with suppress(json.JSONDecodeError, OSError):
             raw = json.loads(settings_path.read_text(encoding="utf-8"))
             if isinstance(raw, dict):
                 existing = cast("dict[str, Any]", raw)
-        except (json.JSONDecodeError, OSError):
-            pass
 
     # Add Bernstein orchestration context as a custom section.
     # Claude Code ignores unknown keys but they're preserved for

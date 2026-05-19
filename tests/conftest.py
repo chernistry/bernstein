@@ -26,6 +26,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 from collections.abc import Callable
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
@@ -86,11 +87,9 @@ _SPAWNER_TMP_REPO_TESTS = {
 if platform.system() != "Windows":
     import resource
 
-    try:
+    with suppress(ValueError, AttributeError):
         _soft, _hard = resource.getrlimit(resource.RLIMIT_AS)
         resource.setrlimit(resource.RLIMIT_AS, (_MAX_RSS_BYTES, _hard))
-    except (ValueError, AttributeError):
-        pass  # RLIMIT_AS not available on all platforms
 
 
 @pytest.fixture(autouse=True)

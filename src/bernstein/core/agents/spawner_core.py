@@ -9,6 +9,7 @@ import logging
 import shutil
 import time
 import uuid
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -460,12 +461,14 @@ def _render_batch_prompt(task: Task) -> str:
     lines: list[str] = [f"/batch {task.description}"]
     if task.owned_files:
         lines.append(f"\nAffected paths: {', '.join(task.owned_files)}")
-    lines.append(f"\nTask ID for completion reporting: {task.id}")
-    lines.append(
-        "\nAfter all batch units are complete, run:\n"
-        f"curl -sS -X POST http://127.0.0.1:8052/tasks/{task.id}/complete "
-        f'-H "Content-Type: application/json" '
-        f'-d \'{{"result_summary": "Batch complete: {task.title}"}}\''
+    lines.extend(
+        (
+            f"\nTask ID for completion reporting: {task.id}",
+            "\nAfter all batch units are complete, run:\n"
+            f"curl -sS -X POST http://127.0.0.1:8052/tasks/{task.id}/complete "
+            f'-H "Content-Type: application/json" '
+            f'-d \'{{"result_summary": "Batch complete: {task.title}"}}\'',
+        )
     )
     return "\n".join(lines)
 
@@ -590,8 +593,7 @@ def _render_prompt(
     # Build task descriptions block
     task_lines: list[str] = []
     for i, task in enumerate(tasks, 1):
-        task_lines.append(f"### Task {i}: {task.title} (id={task.id})")
-        task_lines.append(task.description)
+        task_lines.extend((f"### Task {i}: {task.title} (id={task.id})", task.description))
         if task.owned_files:
             task_lines.append(f"Files: {', '.join(task.owned_files)}")
         task_lines.append("")
@@ -2112,13 +2114,11 @@ class AgentSpawner:
         # Touch heartbeat file BEFORE spawn so the watchdog sees the agent as
         # alive from the moment it starts — avoids a race window where the
         # process is running but no heartbeat file exists yet.
-        try:
+        with suppress(OSError):
             hb_dir = self._workdir / ".sdd" / "runtime" / "heartbeats"
             hb_dir.mkdir(parents=True, exist_ok=True)
             hb_file = hb_dir / f"{session_id}.json"
             hb_file.write_text(json.dumps({"timestamp": time.time(), "status": "starting"}))
-        except OSError:
-            pass
 
         while True:
             # Remote spawn already succeeded — skip the local adapter loop entirely
@@ -2324,14 +2324,12 @@ class AgentSpawner:
                                         _pcfg.available = _was_available
                             # Re-select provider for the retry
                             if self._router is not None and self._router.state.providers:
-                                try:
+                                with suppress(RouterError):
                                     _decision = self._router.select_provider_for_task(
                                         tasks[0], base_config=model_config
                                     )
                                     provider_name = _decision.provider
                                     model_config = _decision.model_config
-                                except RouterError:
-                                    pass
                             continue
                     # Release warm pool slot before raising so the pre-provisioned
                     # worktree is not permanently leaked (BUG-19).
@@ -2481,13 +2479,11 @@ class AgentSpawner:
         session.finish_reason = result.finish_reason
 
         # Touch heartbeat on resume spawn (same rationale as main spawn path)
-        try:
+        with suppress(OSError):
             hb_dir = self._workdir / ".sdd" / "runtime" / "heartbeats"
             hb_dir.mkdir(parents=True, exist_ok=True)
             hb_file = hb_dir / f"{session_id}.json"
             hb_file.write_text(json.dumps({"timestamp": time.time(), "status": "starting"}))
-        except OSError:
-            pass
 
         transition_agent(session, "working", actor="spawner", reason="agent process started in worktree")
         if result.log_path:

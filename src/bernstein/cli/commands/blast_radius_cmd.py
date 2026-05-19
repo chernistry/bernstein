@@ -46,10 +46,14 @@ def _format_report(report: BlastRadiusReport, *, fmt: str) -> str:
     if fmt == "json":
         return json.dumps(report.to_dict(), indent=2, sort_keys=True)
     lines: list[str] = []
-    lines.append(f"score:          {report.score:.2f}")
-    lines.append(f"hard_one_way:   {report.hard_one_way}")
-    lines.append(f"files_touched:  {report.files_touched}")
-    lines.append("components:")
+    lines.extend(
+        (
+            f"score:          {report.score:.2f}",
+            f"hard_one_way:   {report.hard_one_way}",
+            f"files_touched:  {report.files_touched}",
+            "components:",
+        )
+    )
     for comp in report.components:
         lines.append(f"  - {comp.name:>22s}: {comp.value:.2f}  ({comp.detail})")
     if report.hits:
@@ -63,8 +67,7 @@ def _format_report(report: BlastRadiusReport, *, fmt: str) -> str:
                 lines.append(f"        diff: {snippet}")
     else:
         lines.append("detectors that fired: (none)")
-    lines.append("")
-    lines.append(report.rationale)
+    lines.extend(("", report.rationale))
     return "\n".join(lines)
 
 

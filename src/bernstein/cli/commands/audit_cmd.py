@@ -74,14 +74,12 @@ def show_cmd(limit: int) -> None:
 
     events: list[dict] = []
     for lf in log_files:
-        try:
+        with contextlib.suppress(OSError):
             for line in lf.read_text().splitlines():
                 line = line.strip()
                 if line:
                     with contextlib.suppress(_json.JSONDecodeError):
                         events.append(_json.loads(line))
-        except OSError:
-            pass
         if len(events) >= limit:
             break
 

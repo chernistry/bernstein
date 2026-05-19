@@ -155,8 +155,9 @@ def test_role_filtered_race_respects_role(tmp_path: Path) -> None:
     with ThreadPoolExecutor(max_workers=n_total) as pool:
         futures = []
         for i in range(n_per_role):
-            futures.append(pool.submit(_claim_role, "backend", claimed_backend, i))
-            futures.append(pool.submit(_claim_role, "qa", claimed_qa, i))
+            futures.extend(
+                (pool.submit(_claim_role, "backend", claimed_backend, i), pool.submit(_claim_role, "qa", claimed_qa, i))
+            )
         for fut in as_completed(futures):
             fut.result()
 

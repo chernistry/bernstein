@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import zipfile
+from contextlib import suppress
 from pathlib import Path
 
 import bernstein
@@ -75,11 +76,9 @@ def test_archive_manifest_is_frozen() -> None:
         file_count=0,
         total_size_bytes=0,
     )
-    try:
+    with suppress(AttributeError):
         m.file_count = 99  # type: ignore[misc]
         raise AssertionError("Expected FrozenInstanceError")  # pragma: no cover
-    except AttributeError:
-        pass
 
 
 # ---------------------------------------------------------------------------

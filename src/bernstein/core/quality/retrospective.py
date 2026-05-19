@@ -44,10 +44,7 @@ def _write_rate_table(
     all_keys = sorted(set(done_counts) | set(failed_counts), key=sort_key)  # type: ignore[arg-type]
     if not all_keys:
         return
-    lines.append(header)
-    lines.append("")
-    lines.append(columns)
-    lines.append(separator)
+    lines.extend((header, "", columns, separator))
     for key in all_keys:
         d = done_counts.get(key, 0)
         f = failed_counts.get(key, 0)
@@ -59,8 +56,7 @@ def _write_rate_table(
 
 def _write_failure_analysis(lines: list[str], done_tasks: list[Task], failed_tasks: list[Task]) -> None:
     """Write the Failure Analysis section."""
-    lines.append("## Failure Analysis")
-    lines.append("")
+    lines.extend(("## Failure Analysis", ""))
 
     role_done = _count_by_field(done_tasks, "role")
     role_failed = _count_by_field(failed_tasks, "role")
@@ -86,8 +82,7 @@ def _write_failure_analysis(lines: list[str], done_tasks: list[Task], failed_tas
     )
 
     if failed_tasks:
-        lines.append("### Failed task titles")
-        lines.append("")
+        lines.extend(("### Failed task titles", ""))
         for t in sorted(failed_tasks, key=lambda t: t.title):
             lines.append(f"- {t.title} *(role: {t.role}, complexity: {t.complexity.value})*")
         lines.append("")
@@ -99,8 +94,7 @@ def _write_performance_section(
     all_tasks: list[Task],
 ) -> None:
     """Write the Performance section."""
-    lines.append("## Performance")
-    lines.append("")
+    lines.extend(("## Performance", ""))
 
     role_durations: dict[str, list[float]] = defaultdict(list)
     for tm in task_metrics.values():
@@ -108,10 +102,14 @@ def _write_performance_section(
             role_durations[tm.role].append(tm.end_time - tm.start_time)
 
     if role_durations:
-        lines.append("### Average duration by role")
-        lines.append("")
-        lines.append("| Role | Tasks measured | Avg duration |")
-        lines.append("|------|---------------|--------------|")
+        lines.extend(
+            (
+                "### Average duration by role",
+                "",
+                "| Role | Tasks measured | Avg duration |",
+                "|------|---------------|--------------|",
+            )
+        )
         for role in sorted(role_durations):
             durs = role_durations[role]
             lines.append(f"| {role} | {len(durs)} | {_fmt_seconds(sum(durs) / len(durs))} |")
@@ -126,10 +124,14 @@ def _write_performance_section(
                 cx_durations[cx].append(tm.end_time - tm.start_time)
 
     if cx_durations:
-        lines.append("### Average duration by complexity")
-        lines.append("")
-        lines.append("| Complexity | Tasks measured | Avg duration |")
-        lines.append("|------------|---------------|--------------|")
+        lines.extend(
+            (
+                "### Average duration by complexity",
+                "",
+                "| Complexity | Tasks measured | Avg duration |",
+                "|------------|---------------|--------------|",
+            )
+        )
         for cx in sorted(cx_durations, key=lambda v: list(Complexity).index(Complexity(v))):
             durs = cx_durations[cx]
             lines.append(f"| {cx} | {len(durs)} | {_fmt_seconds(sum(durs) / len(durs))} |")
@@ -138,8 +140,7 @@ def _write_performance_section(
 
 def _write_cost_breakdown(lines: list[str], task_metrics: dict[str, TaskMetrics]) -> None:
     """Write the Cost Breakdown section."""
-    lines.append("## Cost Breakdown")
-    lines.append("")
+    lines.extend(("## Cost Breakdown", ""))
 
     model_costs: dict[str, float] = defaultdict(float)
     model_counts: dict[str, int] = defaultdict(int)
@@ -149,10 +150,7 @@ def _write_cost_breakdown(lines: list[str], task_metrics: dict[str, TaskMetrics]
         model_counts[m] += 1
 
     if model_costs:
-        lines.append("### By model")
-        lines.append("")
-        lines.append("| Model | Tasks | Cost |")
-        lines.append("|-------|-------|------|")
+        lines.extend(("### By model", "", "| Model | Tasks | Cost |", "|-------|-------|------|"))
         for model in sorted(model_costs, key=lambda m: model_costs[m], reverse=True):
             lines.append(f"| {model} | {model_counts[model]} | ${model_costs[model]:.4f} |")
         lines.append("")
@@ -164,10 +162,7 @@ def _write_cost_breakdown(lines: list[str], task_metrics: dict[str, TaskMetrics]
         role_task_counts[tm.role] += 1
 
     if role_costs:
-        lines.append("### By role")
-        lines.append("")
-        lines.append("| Role | Tasks | Cost |")
-        lines.append("|------|-------|------|")
+        lines.extend(("### By role", "", "| Role | Tasks | Cost |", "|------|-------|------|"))
         for role in sorted(role_costs, key=lambda r: role_costs[r], reverse=True):
             lines.append(f"| {role} | {role_task_counts[role]} | ${role_costs[role]:.4f} |")
         lines.append("")
@@ -188,10 +183,14 @@ def _write_token_breakdown(lines: list[str], task_metrics: dict[str, TaskMetrics
         model_token_data[m]["prompt"] += tm.tokens_prompt
         model_token_data[m]["completion"] += tm.tokens_completion
 
-    lines.append("### Token usage by model")
-    lines.append("")
-    lines.append("| Model | Prompt tokens | Completion tokens | Total tokens |")
-    lines.append("|-------|--------------|------------------|-------------|")
+    lines.extend(
+        (
+            "### Token usage by model",
+            "",
+            "| Model | Prompt tokens | Completion tokens | Total tokens |",
+            "|-------|--------------|------------------|-------------|",
+        )
+    )
 
     def _total(k: str) -> int:
         return model_token_data[k]["prompt"] + model_token_data[k]["completion"]
@@ -201,26 +200,24 @@ def _write_token_breakdown(lines: list[str], task_metrics: dict[str, TaskMetrics
         lines.append(f"| {m} | {p:,} | {c:,} | {p + c:,} |")
     lines.append("")
     total = total_prompt + total_completion
-    lines.append(f"**Total tokens:** {total:,} ({total_prompt:,} prompt, {total_completion:,} completion)")
-    lines.append("")
+    lines.extend((f"**Total tokens:** {total:,} ({total_prompt:,} prompt, {total_completion:,} completion)", ""))
 
 
 def _write_agent_summary(lines: list[str], collector: MetricsCollector) -> None:
     """Write the Agent Summary section."""
-    lines.append("## Agent Summary")
-    lines.append("")
+    lines.extend(("## Agent Summary", ""))
 
     agent_metrics = collector._agent_metrics  # type: ignore[reportPrivateUsage]
     if not agent_metrics:
-        lines.append("*(No in-memory agent metrics available.)*")
-        lines.append("")
+        lines.extend(("*(No in-memory agent metrics available.)*", ""))
         return
 
     timed_out_or_killed: list[str] = []
     high_failure: list[str] = []
 
-    lines.append("| Agent | Role | Tasks done | Tasks failed | Cost |")
-    lines.append("|-------|------|-----------|--------------|------|")
+    lines.extend(
+        ("| Agent | Role | Tasks done | Tasks failed | Cost |", "|-------|------|-----------|--------------|------|")
+    )
     for am in sorted(agent_metrics.values(), key=lambda a: a.role):
         lines.append(
             f"| {am.agent_id[:8]} | {am.role} | {am.tasks_completed} | {am.tasks_failed} | ${am.total_cost_usd:.4f} |"
@@ -233,15 +230,13 @@ def _write_agent_summary(lines: list[str], collector: MetricsCollector) -> None:
     lines.append("")
 
     if timed_out_or_killed:
-        lines.append("### Agents that may have been killed or timed out")
-        lines.append("")
+        lines.extend(("### Agents that may have been killed or timed out", ""))
         for entry in timed_out_or_killed:
             lines.append(f"- {entry}")
         lines.append("")
 
     if high_failure:
-        lines.append("### Agents with high failure rates")
-        lines.append("")
+        lines.extend(("### Agents with high failure rates", ""))
         for entry in high_failure:
             lines.append(f"- {entry}")
         lines.append("")

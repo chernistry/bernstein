@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import re
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -306,7 +307,7 @@ def _build_proprietary_data_rules(policy: DLPPolicy) -> list[_RuleDef]:
 
     # User-supplied custom patterns
     for name, pattern_str in policy.custom_patterns:
-        try:
+        with suppress(re.error):
             compiled = re.compile(pattern_str, re.IGNORECASE)
             rules.append(
                 (
@@ -318,8 +319,6 @@ def _build_proprietary_data_rules(policy: DLPPolicy) -> list[_RuleDef]:
                     f"Custom pattern: {name}",
                 )
             )
-        except re.error:
-            pass  # skip invalid regex silently
 
     return rules
 
@@ -638,8 +637,7 @@ def render_dlp_report(results: list[DLPScanResult]) -> str:
     # Emit sections in severity order
     for sev in sorted(by_severity, key=lambda s: _SEVERITY_ORDER.get(s, 99)):
         entries = by_severity[sev]
-        lines.append(f"## {sev.upper()} ({len(entries)})")
-        lines.append("")
+        lines.extend((f"## {sev.upper()} ({len(entries)})", ""))
         for file_path, match in entries:
             loc = f"{file_path}:{match.line_number}" if file_path else f"line {match.line_number}"
             lines.append(

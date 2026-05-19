@@ -10,6 +10,7 @@ import json
 import logging
 import time
 from collections import defaultdict
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, cast
 
 from typing_extensions import TypedDict
@@ -641,20 +642,17 @@ def _parse_file_total(jsonl_file: Path) -> float:
     (files can grow to 100MB+ during long runs).
     """
     file_total = 0.0
-    try:
-        with jsonl_file.open(encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    point = json.loads(line)
-                    if "task_id" in point.get("labels", {}):
-                        file_total += point.get("value", 0.0)
-                except json.JSONDecodeError:
-                    continue
-    except OSError:
-        pass
+    with suppress(OSError), jsonl_file.open(encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                point = json.loads(line)
+                if "task_id" in point.get("labels", {}):
+                    file_total += point.get("value", 0.0)
+            except json.JSONDecodeError:
+                continue
     return file_total
 
 

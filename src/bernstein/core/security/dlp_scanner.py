@@ -29,6 +29,7 @@ Usage::
 from __future__ import annotations
 
 import re
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -352,7 +353,7 @@ def _build_proprietary_data_rules(config: DLPConfig) -> list[_RuleEntry]:
 
     # User-supplied internal URL patterns.
     for pattern_str in config.internal_url_patterns:
-        try:
+        with suppress(re.error):
             compiled = re.compile(re.escape(pattern_str).replace(r"\*", r"[^.\s]+"), re.IGNORECASE)
             rules.append(
                 (
@@ -364,8 +365,6 @@ def _build_proprietary_data_rules(config: DLPConfig) -> list[_RuleEntry]:
                     False,
                 )
             )
-        except re.error:
-            pass  # Skip invalid patterns silently
 
     return rules
 
@@ -391,11 +390,9 @@ def _is_allowlisted_line(line: str, config: DLPConfig) -> bool:
         return True
     # User-configured allowlist patterns
     for pattern_str in config.allowlist_patterns:
-        try:
+        with suppress(re.error):
             if re.search(pattern_str, line, re.IGNORECASE):
                 return True
-        except re.error:
-            pass
     # Allowlist prefix check
     if config.allowlist_prefixes:
         prefix_re = re.compile(

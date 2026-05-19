@@ -83,8 +83,7 @@ def load_embedding_config(yaml_path: Path | None = None) -> EmbeddingConfig:
     if yaml_path:
         candidates.append(yaml_path)
     else:
-        candidates.append(Path("bernstein.yaml"))
-        candidates.append(Path.home() / ".bernstein" / "bernstein.yaml")
+        candidates.extend((Path("bernstein.yaml"), Path.home() / ".bernstein" / "bernstein.yaml"))
 
     for path in candidates:
         if not path.exists():

@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from contextlib import suppress
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
@@ -57,7 +58,7 @@ def _fetch_latest_pypi_version() -> str | None:
     import urllib.error
     import urllib.request
 
-    try:
+    with suppress(json.JSONDecodeError, OSError):
         req = urllib.request.Request(
             _PYPI_URL,
             headers={"Accept": "application/json", "User-Agent": f"bernstein/{_get_installed_version()}"},
@@ -71,8 +72,6 @@ def _fetch_latest_pypi_version() -> str | None:
             ver = info.get("version")
             if isinstance(ver, str):
                 return ver
-    except (json.JSONDecodeError, OSError):
-        pass
     return None
 
 

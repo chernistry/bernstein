@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import time
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -88,12 +89,10 @@ def _load_plan_goal(plan_path: Path) -> str:
 
     # Try JSON first (PlanStore format)
     if plan_path.suffix == ".json":
-        try:
+        with suppress(json.JSONDecodeError):
             data = json.loads(content)
             if "goal" in data:
                 return str(data["goal"])
-        except json.JSONDecodeError:
-            pass
 
     # Fall back to markdown: look for "**Goal:** ..." line
     for line in content.splitlines():
@@ -174,7 +173,7 @@ def _confirm_run(*, goal: str | None, seed_file: str | None) -> bool:
     if effective_goal is None:
         _peek_path: Path | None = Path(seed_file) if seed_file is not None else find_seed_file()
         if _peek_path is not None:
-            try:
+            with suppress(Exception):
                 from bernstein.core.seed import parse_seed as _parse_seed
 
                 _seed = _parse_seed(_peek_path)
@@ -183,8 +182,6 @@ def _confirm_run(*, goal: str | None, seed_file: str | None) -> bool:
                 from bernstein.core.plan_approval import configure_plan_models
 
                 configure_plan_models(_seed.role_model_policy)
-            except Exception:
-                pass
 
     if effective_goal:
         plan_obj, plan_tasks = _build_synthetic_plan(effective_goal, team)
@@ -192,12 +189,10 @@ def _confirm_run(*, goal: str | None, seed_file: str | None) -> bool:
 
         return display_plan_and_confirm(plan_obj, plan_tasks, console=console)
 
-    try:
+    with suppress(UnicodeDecodeError, EOFError):
         if not click.confirm("\nProceed with execution?", default=True):
             console.print("[dim]Cancelled.[/dim]")
             return False
-    except (UnicodeDecodeError, EOFError):
-        pass
     return True
 
 
@@ -527,8 +522,7 @@ def _generate_default_yaml(project_type: str) -> str:
     ]
     constraints = _default_constraints_for(project_type)
     if constraints:
-        lines.append("")
-        lines.append("constraints:")
+        lines.extend(("", "constraints:"))
         for c in constraints:
             lines.append(f'  - "{c}"')
     lines.append("")
@@ -1300,12 +1294,10 @@ def _run_impl(
     # Opt-in operator observability (spec 2026-05-17).  Defaults to off.
     # Prints the one-time notice and emits first_run_* events around the
     # body.  Fail-closed: any internal failure is swallowed.
-    try:
+    with suppress(Exception):
         from bernstein.core.telemetry.wire import maybe_print_first_run_notice
 
         maybe_print_first_run_notice()
-    except Exception:
-        pass
 
     _telemetry_first_run_timer: Any = None
     try:
@@ -1365,12 +1357,10 @@ def _run_impl(
         print_banner()
 
     # Set process title so orchestrator is visible in Activity Monitor / ps
-    try:
+    with suppress(ImportError):
         import setproctitle
 
         setproctitle.setproctitle("bernstein: orchestrator")
-    except ImportError:
-        pass
 
     from bernstein.core.bootstrap import (  # pyright: ignore[reportUnknownVariableType]
         bootstrap_from_goal,
@@ -1656,12 +1646,10 @@ def _start_impl(goal: str | None, seed_file: str, port: int) -> None:
     """Concrete ``start`` implementation; wrapped by :func:`start` for hinting."""
     print_banner()
 
-    try:
+    with suppress(ImportError):
         import setproctitle
 
         setproctitle.setproctitle("bernstein: orchestrator")
-    except ImportError:
-        pass
 
     from bernstein.core.bootstrap import (  # pyright: ignore[reportUnknownVariableType]
         bootstrap_from_goal,

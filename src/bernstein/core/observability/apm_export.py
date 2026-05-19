@@ -503,8 +503,8 @@ class APMExporter:
                             "service.name": ev.attributes.get("service", self._config.service_name),
                             "duration.ms": ev.duration_ms,
                             "timestamp": int(ev.timestamp * 1000),
-                            **common_attrs,
-                        },
+                        }
+                        | common_attrs,
                     }
                 )
             elif ev_type == "log":
@@ -515,8 +515,8 @@ class APMExporter:
                         "attributes": {
                             "service": ev.attributes.get("service", self._config.service_name),
                             "level": ev.attributes.get("level", "info"),
-                            **common_attrs,
-                        },
+                        }
+                        | common_attrs,
                     }
                 )
             else:
@@ -529,8 +529,8 @@ class APMExporter:
                         "timestamp": int(ev.timestamp * 1000),
                         "attributes": {
                             "service": ev.attributes.get("service", self._config.service_name),
-                            **common_attrs,
-                        },
+                        }
+                        | common_attrs,
                     }
                 )
 

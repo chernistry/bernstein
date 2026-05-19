@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -122,15 +123,13 @@ def _read_cost_data(metrics_dir: Path) -> dict[str, Any]:
     # Count completed tasks from task metrics
     tasks_file = metrics_dir / "tasks.jsonl"
     if tasks_file.exists():
-        try:
+        with suppress(json.JSONDecodeError, OSError):
             for line in tasks_file.read_text().splitlines():
                 if not line.strip():
                     continue
                 data = json.loads(line)
                 if data.get("status") == "done":
                     result["tasks_completed"] += 1
-        except (json.JSONDecodeError, OSError):
-            pass
 
     return result
 

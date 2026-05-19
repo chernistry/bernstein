@@ -557,17 +557,15 @@ def test_extra_unknown_keys_allowed() -> None:
 
 def test_report_status_label_ordering() -> None:
     r_ok = validate_ticket_metadata(
-        {
-            **_minimal_meta(),
-            **{
-                "owner": "x",
-                "success_metric": {"name": "x", "current": 1, "target": 2, "window_days": 1},
-                "acceptance_criteria": ["a"],
-                "evidence": [{"source": "s"}],
-                "risk": "low",
-                "rice": {},
-                "ladder_to": "x",
-            },
+        _minimal_meta()
+        | {
+            "owner": "x",
+            "success_metric": {"name": "x", "current": 1, "target": 2, "window_days": 1},
+            "acceptance_criteria": ["a"],
+            "evidence": [{"source": "s"}],
+            "risk": "low",
+            "rice": {},
+            "ladder_to": "x",
         }
     )
     assert r_ok.status == "ok"

@@ -53,8 +53,7 @@ def _build_description(cmd_help: str) -> list[str]:
     lines: list[str] = [".SH DESCRIPTION"]
     for paragraph in cmd_help.strip().split("\n\n"):
         cleaned = " ".join(paragraph.split())
-        lines.append(_escape_troff(cleaned))
-        lines.append(".PP")
+        lines.extend((_escape_troff(cleaned), ".PP"))
     # Remove trailing .PP
     if lines[-1] == ".PP":
         lines.pop()
@@ -67,9 +66,7 @@ def _build_options_section(options: list[tuple[str, str]]) -> list[str]:
         return []
     lines: list[str] = [".SH OPTIONS"]
     for opt_decl, opt_help in options:
-        lines.append(".TP")
-        lines.append(_format_option_name(opt_decl))
-        lines.append(_escape_troff(opt_help) if opt_help else "")
+        lines.extend((".TP", _format_option_name(opt_decl), _escape_troff(opt_help) if opt_help else ""))
     return lines
 
 
@@ -81,9 +78,7 @@ def _build_subcommands_section(
         return []
     lines: list[str] = [".SH SUBCOMMANDS"]
     for sub_name, sub_help in subcommands:
-        lines.append(".TP")
-        lines.append(f"\\fB{_escape_troff(sub_name)}\\fR")
-        lines.append(_escape_troff(sub_help) if sub_help else "")
+        lines.extend((".TP", f"\\fB{_escape_troff(sub_name)}\\fR", _escape_troff(sub_help) if sub_help else ""))
     return lines
 
 

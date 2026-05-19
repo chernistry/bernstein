@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from pathlib import Path
 
+from contextlib import suppress
+
 import yaml
 
 
@@ -135,12 +137,10 @@ def save_view_mode(workdir: Path, mode: ViewMode) -> None:
 
     data: dict[str, object] = {}
     if config_path.exists():
-        try:
+        with suppress(Exception):
             loaded = yaml.safe_load(config_path.read_text(encoding="utf-8"))
             if isinstance(loaded, dict):
                 data = cast("dict[str, object]", loaded)
-        except Exception:
-            pass
 
     data["view_mode"] = mode.value
     config_path.write_text(yaml.dump(data.copy(), default_flow_style=False), encoding="utf-8")

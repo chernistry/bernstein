@@ -230,8 +230,7 @@ def render_mermaid(sm: StateMachine) -> str:
 
     # Terminal styling.
     if terminal_names:
-        lines.append("")
-        lines.append("    classDef terminal fill:#f96,stroke:#333,stroke-width:2px")
+        lines.extend(("", "    classDef terminal fill:#f96,stroke:#333,stroke-width:2px"))
         for tn in terminal_names:
             lines.append(f"    class {tn} terminal")
 
@@ -258,8 +257,7 @@ def render_ascii(sm: StateMachine) -> str:
         marker = " [TERMINAL]" if st.is_terminal else ""
         lines.append(f"  [{st.name}]{marker} - {st.description}")
 
-    lines.append("")
-    lines.append("Transitions:")
+    lines.extend(("", "Transitions:"))
     for tr in sm.transitions:
         lines.append(f"  {tr.from_state} --({tr.trigger})--> {tr.to_state}")
 

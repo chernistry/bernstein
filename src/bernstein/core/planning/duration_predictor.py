@@ -24,6 +24,7 @@ import logging
 import math
 import pickle
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -369,7 +370,7 @@ class DurationPredictor:
             return []
 
         records: list[TrainingRecord] = []
-        try:
+        with suppress(OSError):
             for raw_line in self._training_path.read_text().splitlines():
                 line = raw_line.strip()
                 if not line:
@@ -395,8 +396,6 @@ class DurationPredictor:
                     )
                 except (KeyError, ValueError):
                     continue
-        except OSError:
-            pass
         return records
 
     # -- training ------------------------------------------------------------

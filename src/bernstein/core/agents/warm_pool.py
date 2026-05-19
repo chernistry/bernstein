@@ -282,8 +282,7 @@ def load_warm_pool_config(yaml_path: Path | None = None) -> WarmPoolConfig:
     if yaml_path is not None:
         candidates.append(yaml_path)
     else:
-        candidates.append(Path("bernstein.yaml"))
-        candidates.append(Path.home() / ".bernstein" / "bernstein.yaml")
+        candidates.extend((Path("bernstein.yaml"), Path.home() / ".bernstein" / "bernstein.yaml"))
 
     for path in candidates:
         if not path.exists():

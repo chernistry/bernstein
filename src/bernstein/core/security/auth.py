@@ -434,8 +434,7 @@ def create_jwt(
     """
     header = {"alg": algorithm, "typ": "JWT"}
     now = int(time.time())
-    payload = {
-        **claims,
+    payload = claims | {
         "iat": now,
         "exp": now + expiry_seconds,
         "jti": uuid.uuid4().hex,

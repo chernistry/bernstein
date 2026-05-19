@@ -1117,14 +1117,12 @@ def create_app(
     cors_config = CORSConfig()  # default; overridden after seed_config loads
     seed_path = workdir / "bernstein.yaml"
     if seed_path.exists():
-        try:
+        with contextlib.suppress(Exception):
             from bernstein.core.seed import parse_seed
 
             _temp_seed = parse_seed(seed_path)
             if _temp_seed.cors is not None:
                 cors_config = _temp_seed.cors
-        except Exception:
-            pass  # Use defaults on seed parse failure
 
     from starlette.middleware.cors import CORSMiddleware
 
@@ -1333,12 +1331,10 @@ def create_app(
     # source-checkout installs without `cd web && npm run build` simply do
     # not get the GUI mounted, and `bernstein gui serve` is the explicit
     # entry point in that case.
-    try:
+    with contextlib.suppress(Exception):
         from bernstein.gui import mount as _gui_mount
 
         _gui_mount(application)
-    except Exception:
-        pass
 
     return application
 

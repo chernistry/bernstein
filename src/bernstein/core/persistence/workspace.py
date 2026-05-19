@@ -10,6 +10,7 @@ from __future__ import annotations
 import json as _json
 import logging
 import subprocess
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -311,7 +312,7 @@ class Workspace:
     @staticmethod
     def _git_ahead_behind(repo_path: Path) -> tuple[int, int]:
         """Return (ahead, behind) counts relative to upstream."""
-        try:
+        with suppress(subprocess.CalledProcessError, OSError, ValueError):
             result = subprocess.run(
                 ["git", "rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
                 cwd=str(repo_path),
@@ -324,8 +325,6 @@ class Workspace:
             parts = result.stdout.strip().split()
             if len(parts) == 2:
                 return int(parts[0]), int(parts[1])
-        except (subprocess.CalledProcessError, OSError, ValueError):
-            pass
         return 0, 0
 
 

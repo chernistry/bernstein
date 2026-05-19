@@ -109,12 +109,10 @@ def _read_pid_file(pid_file: Path) -> dict[str, Any]:
         Dict with parsed fields (pid, worker_pid, role, etc.).
         Returns empty dict on parse failure.
     """
-    try:
+    with contextlib.suppress(OSError, ValueError):
         data = json.loads(pid_file.read_text(encoding="utf-8"))
         if isinstance(data, dict):
             return data
-    except (OSError, ValueError):
-        pass
     return {}
 
 
@@ -195,11 +193,9 @@ def scan_and_cleanup_zombies(
 
 def _remove_stale_pid_file(pid_file: Path, result: CleanupResult) -> None:
     """Remove a stale PID file and increment the counter."""
-    try:
+    with contextlib.suppress(OSError):
         pid_file.unlink(missing_ok=True)
         result.stale_removed += 1
-    except OSError:
-        pass
 
 
 def _extract_pids(data: dict[str, Any]) -> list[int]:

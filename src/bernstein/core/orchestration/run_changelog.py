@@ -16,6 +16,7 @@ import re
 import subprocess
 import time
 from collections import defaultdict
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -190,15 +191,13 @@ def _parse_metric_line(line: str, since_ts: float) -> dict[str, object] | None:
     line = line.strip()
     if not line:
         return None
-    try:
+    with suppress(ValueError):
         rec = json.loads(line)
         ts = _parse_metric_timestamp(rec.get("timestamp", 0))
         if ts < since_ts:
             return None
         if rec.get("success") is True:
             return rec  # type: ignore[no-any-return]
-    except ValueError:
-        pass
     return None
 
 
@@ -518,8 +517,7 @@ def _format_md_component_section(
 ) -> None:
     """Render a single component section in Markdown."""
     count = len(changes)
-    lines.append(f"## {component} ({count} {'change' if count == 1 else 'changes'})")
-    lines.append("")
+    lines.extend((f"## {component} ({count} {'change' if count == 1 else 'changes'})", ""))
     for ch in changes:
         breaking_flag = " ⚠️ **BREAKING**" if ch.is_breaking else ""
         task_link = _task_link(ch.task_id, repo_url)
@@ -545,12 +543,10 @@ def format_markdown(cl: RunChangelog, *, repo_url: str | None = None) -> str:
 
     ts = datetime.datetime.fromtimestamp(cl.generated_at).strftime("%Y-%m-%d %H:%M")
     since_label = cl.since_ref or "last 24 hours"
-    lines.append(f"_Generated {ts} · {cl.tasks_total} tasks · since {since_label}_")
-    lines.append("")
+    lines.extend((f"_Generated {ts} · {cl.tasks_total} tasks · since {since_label}_", ""))
 
     if cl.breaking_changes:
-        lines.append("## ⚠️ Breaking Changes")
-        lines.append("")
+        lines.extend(("## ⚠️ Breaking Changes", ""))
         for ch in cl.breaking_changes:
             task_link = _task_link(ch.task_id, repo_url)
             lines.append(f"- **[{ch.component}]** {ch.summary} {task_link}")
@@ -562,8 +558,7 @@ def format_markdown(cl: RunChangelog, *, repo_url: str | None = None) -> str:
         _format_md_component_section(component, changes, repo_url, lines)
 
     if not cl.changes:
-        lines.append("_No agent-produced changes found for this run window._")
-        lines.append("")
+        lines.extend(("_No agent-produced changes found for this run window._", ""))
 
     return "\n".join(lines)
 
@@ -584,8 +579,7 @@ def format_console(cl: RunChangelog, *, _repo_url: str | None = None) -> str:
 
     ts = datetime.datetime.fromtimestamp(cl.generated_at).strftime("%Y-%m-%d %H:%M")
     since_label = cl.since_ref or "last 24 hours"
-    parts.append(f"[dim]Generated {ts} · {cl.tasks_total} tasks · since {since_label}[/dim]")
-    parts.append("")
+    parts.extend((f"[dim]Generated {ts} · {cl.tasks_total} tasks · since {since_label}[/dim]", ""))
 
     if cl.breaking_changes:
         parts.append("[bold red]⚠️  Breaking Changes[/bold red]")

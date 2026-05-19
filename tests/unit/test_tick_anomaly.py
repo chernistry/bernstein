@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
+
 import pytest
 from bernstein.core.tick_anomaly import AnomalyAlert, TickAnomalyDetector, TickSample
 
@@ -15,11 +17,9 @@ class TestTickSample:
 
     def test_immutable(self) -> None:
         sample = TickSample(tick_number=1, duration_ms=100.0, timestamp=1000.0)
-        try:
+        with suppress(AttributeError):
             sample.duration_ms = 200.0  # type: ignore[misc]
             raise AssertionError("Expected FrozenInstanceError")  # pragma: no cover
-        except AttributeError:
-            pass
 
 
 class TestAnomalyAlert:

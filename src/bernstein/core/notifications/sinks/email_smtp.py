@@ -117,9 +117,7 @@ def _render_text(event: NotificationEvent) -> str:
     parts = [event.title, ""]
     if event.body:
         parts.extend([event.body, ""])
-    parts.append(f"event_id: {event.event_id}")
-    parts.append(f"kind: {event.kind.value}")
-    parts.append(f"severity: {event.severity}")
+    parts.extend((f"event_id: {event.event_id}", f"kind: {event.kind.value}", f"severity: {event.severity}"))
     if event.task_id:
         parts.append(f"task_id: {event.task_id}")
     if event.session_id:

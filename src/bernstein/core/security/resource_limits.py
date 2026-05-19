@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import os
 import platform
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -269,7 +270,7 @@ def check_usage(pid: int, limits: ResourceLimits) -> ResourceUsage:
                 usage.rss_mb = ru.ru_maxrss / 1024
 
     # Check CPU time from /proc/stat
-    try:
+    with suppress(OSError, IndexError, ValueError):
         stat_path = f"/proc/{pid}/stat"
         with open(stat_path) as f:
             raw = f.read()
@@ -281,8 +282,6 @@ def check_usage(pid: int, limits: ResourceLimits) -> ResourceUsage:
         utime = int(fields[11]) / clock_ticks
         stime = int(fields[12]) / clock_ticks
         usage.cpu_seconds = utime + stime
-    except (OSError, IndexError, ValueError):
-        pass
 
     # Check limits
     if limits.memory_mb > 0 and usage.rss_mb > limits.memory_mb:

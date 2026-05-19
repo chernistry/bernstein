@@ -99,7 +99,7 @@ async def test_webhook_defaults_role_to_backend(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_webhook_accepts_explicit_role(client: AsyncClient) -> None:
     """POST /webhook respects an explicit role in the payload."""
-    payload = {**_WEBHOOK_PAYLOAD, "role": "qa"}
+    payload = _WEBHOOK_PAYLOAD | {"role": "qa"}
     body = json.dumps(payload).encode()
     resp = await client.post("/webhook", content=body, headers=_signed(body))
     assert resp.status_code == 201

@@ -12,6 +12,7 @@ import logging
 import re
 import time
 import uuid
+from contextlib import suppress
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -303,13 +304,11 @@ def _extract_file_hint(args: str) -> str:
     """
     # JSON object: look for "file_path", "path", or "pattern" key
     if args.startswith("{"):
-        try:
+        with suppress(json.JSONDecodeError):
             parsed = json.loads(args)
             for key in ("file_path", "path", "pattern", "command"):
                 if key in parsed and isinstance(parsed[key], str):
                     return parsed[key]
-        except json.JSONDecodeError:
-            pass
 
     # Plain path: starts with / or ./ or src/
     stripped = args.strip().strip("\"'")
@@ -433,10 +432,8 @@ class TraceStore:
         """
         direct = self._path_for_trace(trace_id)
         if direct.exists():
-            try:
+            with suppress(json.JSONDecodeError, KeyError):
                 return AgentTrace.from_dict(json.loads(direct.read_text().strip()))
-            except (json.JSONDecodeError, KeyError):
-                pass
 
         # Fallback: scan all task JSONL files
         for jsonl in self._dir.glob(_JSONL_GLOB):
@@ -1064,12 +1061,10 @@ def _collect_crash_traces(workdir: Path, max_trace_bytes: int) -> list[dict[str,
     for tf in trace_files[:10]:
         if total_bytes >= max_trace_bytes:
             break
-        try:
+        with suppress(OSError):
             content = tf.read_text(encoding="utf-8", errors="replace")
             total_bytes += len(content)
             result.append({"file": tf.name, "content": content[: max_trace_bytes - total_bytes]})
-        except OSError:
-            pass
     return result
 
 

@@ -21,6 +21,7 @@ import signal
 import subprocess
 import sys
 import time
+from contextlib import suppress
 
 import pytest
 
@@ -144,11 +145,9 @@ def test_sigkill_fallback_after_sigterm_ignored() -> None:
         child.terminate()
         # Confirm SIGTERM was indeed ignored — the child should still be
         # alive after a short pause.
-        try:
+        with suppress(subprocess.TimeoutExpired):
             child.wait(timeout=0.5)
             pytest.fail("child unexpectedly exited from SIGTERM (test invalid)")
-        except subprocess.TimeoutExpired:
-            pass
 
         # SIGKILL fallback — must reap within 1 s.
         start = time.monotonic()

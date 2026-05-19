@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -50,12 +51,10 @@ def mcp_server(ctx: click.Context, transport: str, host: str, port: int, server_
 
     # Release 1.9: non-blocking background catalog upgrade check on
     # `bernstein mcp serve` startup. Surfaced via `mcp catalog status`.
-    try:
+    with suppress(Exception):
         from bernstein.cli.commands.mcp_catalog_cmd import maybe_run_background_check
 
         maybe_run_background_check(on_serve_startup=True)
-    except Exception:  # pragma: no cover - never block server startup
-        pass
 
     from bernstein.mcp.server import run_sse, run_stdio
 

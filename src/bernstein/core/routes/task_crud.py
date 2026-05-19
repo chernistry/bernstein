@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import time
+from contextlib import suppress
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -189,13 +190,11 @@ def _evict_realtime_session(request: Request, session_id: str | None) -> None:
     monitor = _get_realtime_monitor(request)
     if monitor is None:
         return
-    try:
+    with suppress(Exception):
         from bernstein.core.behavior_anomaly import RealtimeBehaviorMonitor
 
         if isinstance(monitor, RealtimeBehaviorMonitor):
             monitor.evict_session(session_id)
-    except Exception:
-        pass
 
 
 def _try_check_realtime_anomaly(
@@ -560,14 +559,12 @@ async def self_create_subtask(body: TaskSelfCreate, request: Request) -> TaskRes
         # Auto-transition parent to waiting if not already
         if parent.status.value not in ("waiting_for_subtasks", "done", "failed", "closed"):
             subtask_count = sum(1 for t in store.list_tasks() if t.parent_task_id == body.parent_task_id)
-            try:
+            with suppress(Exception):
                 await store.wait_for_subtasks(body.parent_task_id, subtask_count)
                 sse_bus.publish(
                     "task_update",
                     json.dumps({"id": parent.id, "status": "waiting_for_subtasks"}),
                 )
-            except Exception:
-                pass  # Parent may already be waiting — that's fine
 
         get_plugin_manager().fire_task_created(task_id=task.id, role=task.role, title=task.title)
         return task_to_response(task)
@@ -575,7 +572,7 @@ async def self_create_subtask(body: TaskSelfCreate, request: Request) -> TaskRes
 
 @router.get(
     "/tasks/next/{role}",
-    responses={**_TENANT_RESPONSES, 503: {"description": "Server is draining"}},
+    responses=_TENANT_RESPONSES | {503: {"description": "Server is draining"}},
 )
 async def next_task(
     role: str,
@@ -1345,13 +1342,9 @@ def get_task_gates(task_id: str, request: Request) -> JSONResponse:
     # any future server-side overrides. Also surface the current task lifecycle
     # status so the client can stop polling for terminal tasks.
     if isinstance(payload, dict) and "generated_at" not in payload:
-        try:
+        with suppress(OSError):
             mtime = report_path.stat().st_mtime
             payload["generated_at"] = datetime.fromtimestamp(mtime, tz=UTC).isoformat().replace("+00:00", "Z")
-        except OSError:
-            # Filesystems that block stat() after a successful read are exotic
-            # enough that omitting the field is the right fallback.
-            pass
     if isinstance(payload, dict) and "task_status" not in payload:
         payload["task_status"] = task.status.value
     return JSONResponse(content=payload)

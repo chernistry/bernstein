@@ -60,6 +60,7 @@ import hashlib
 import json
 import re
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -510,55 +511,51 @@ def audit_provenance(lessons_path: Path) -> list[ProvenanceEntry]:
     trail: list[ProvenanceEntry] = []
     expected_prev = GENESIS_HASH
 
-    try:
-        with lessons_path.open(encoding="utf-8") as f:
-            for lineno, raw in enumerate(f, start=1):
-                raw = raw.strip()
-                if not raw:
-                    continue
-                try:
-                    data = json.loads(raw)
-                except json.JSONDecodeError:
-                    continue
+    with suppress(OSError), lessons_path.open(encoding="utf-8") as f:
+        for lineno, raw in enumerate(f, start=1):
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
 
-                ts = float(data.get("created_timestamp", 0.0))
-                created_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+            ts = float(data.get("created_timestamp", 0.0))
+            created_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
 
-                stored_content = data.get("content_hash", "")
-                stored_chain = data.get("chain_hash", "")
-                stored_prev = data.get("prev_hash", "")
+            stored_content = data.get("content_hash", "")
+            stored_chain = data.get("chain_hash", "")
+            stored_prev = data.get("prev_hash", "")
 
-                # Verify content hash
-                hash_valid = stored_content == _sha256(_canonical(data)) if stored_content else False
+            # Verify content hash
+            hash_valid = stored_content == _sha256(_canonical(data)) if stored_content else False
 
-                # Verify chain position
-                chain_position_valid = stored_prev == expected_prev
+            # Verify chain position
+            chain_position_valid = stored_prev == expected_prev
 
-                trail.append(
-                    ProvenanceEntry(
-                        line_number=lineno,
-                        lesson_id=str(data.get("lesson_id", "")),
-                        filed_by_agent=str(data.get("filed_by_agent", "")),
-                        task_id=str(data.get("task_id", "")),
-                        created_timestamp=ts,
-                        created_iso=created_iso,
-                        content_hash=stored_content,
-                        chain_hash=stored_chain,
-                        prev_hash=stored_prev,
-                        hash_valid=hash_valid,
-                        chain_position_valid=chain_position_valid,
-                    )
+            trail.append(
+                ProvenanceEntry(
+                    line_number=lineno,
+                    lesson_id=str(data.get("lesson_id", "")),
+                    filed_by_agent=str(data.get("filed_by_agent", "")),
+                    task_id=str(data.get("task_id", "")),
+                    created_timestamp=ts,
+                    created_iso=created_iso,
+                    content_hash=stored_content,
+                    chain_hash=stored_chain,
+                    prev_hash=stored_prev,
+                    hash_valid=hash_valid,
+                    chain_position_valid=chain_position_valid,
                 )
+            )
 
-                # Advance expected_prev for next entry
-                if stored_chain:
-                    expected_prev = stored_chain
-                elif stored_content:
-                    # Partially-formed entry — best effort
-                    expected_prev = stored_content
-
-    except OSError:
-        pass
+            # Advance expected_prev for next entry
+            if stored_chain:
+                expected_prev = stored_chain
+            elif stored_content:
+                # Partially-formed entry — best effort
+                expected_prev = stored_content
 
     return trail
 
@@ -587,20 +584,17 @@ def get_last_chain_hash(lessons_path: Path) -> str:
         return GENESIS_HASH
 
     last_chain: str = GENESIS_HASH
-    try:
-        with lessons_path.open(encoding="utf-8") as f:
-            for raw in f:
-                raw = raw.strip()
-                if not raw:
-                    continue
-                try:
-                    data = json.loads(raw)
-                    ch = data.get("chain_hash", "")
-                    if ch:
-                        last_chain = ch
-                except json.JSONDecodeError:
-                    continue
-    except OSError:
-        pass
+    with suppress(OSError), lessons_path.open(encoding="utf-8") as f:
+        for raw in f:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                data = json.loads(raw)
+                ch = data.get("chain_hash", "")
+                if ch:
+                    last_chain = ch
+            except json.JSONDecodeError:
+                continue
 
     return last_chain

@@ -551,8 +551,7 @@ class CascadeRouter:
         report = self.get_chain_report(chain_id, task)
         record: dict[str, Any] = {
             "timestamp": time.time(),
-            **report.to_dict(),
-        }
+        } | report.to_dict()
         chains_file = metrics_dir / self.CHAIN_FILE
         try:
             metrics_dir.mkdir(parents=True, exist_ok=True)

@@ -77,16 +77,13 @@ class RecommendationEngine:
 
         sections: list[str] = ["## Project recommendations"]
         if grouped["critical"]:
-            sections.append("")
-            sections.append("**CRITICAL:**")
+            sections.extend(("", "**CRITICAL:**"))
             sections.extend(grouped["critical"])
         if grouped["important"]:
-            sections.append("")
-            sections.append("**IMPORTANT:**")
+            sections.extend(("", "**IMPORTANT:**"))
             sections.extend(grouped["important"])
         if grouped["suggestion"]:
-            sections.append("")
-            sections.append("**SUGGESTIONS:**")
+            sections.extend(("", "**SUGGESTIONS:**"))
             sections.extend(grouped["suggestion"])
 
         rendered = "\n".join(sections).strip()

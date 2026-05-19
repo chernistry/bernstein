@@ -291,8 +291,7 @@ def generate_architecture_table(comparison: HeadToHeadComparison) -> str:
         Markdown string with an architecture comparison table.
     """
     lines: list[str] = []
-    lines.append("| Feature | Bernstein | CrewAI | LangGraph |")
-    lines.append("|---------|-----------|--------|-----------|")
+    lines.extend(("| Feature | Bernstein | CrewAI | LangGraph |", "|---------|-----------|--------|-----------|"))
 
     profiles = comparison.profiles
     b = profiles.get("bernstein", BERNSTEIN_PROFILE)
@@ -345,11 +344,13 @@ def generate_swe_bench_table(comparison: HeadToHeadComparison) -> str:
         Markdown string with publication-status information.
     """
     lines: list[str] = []
-    lines.append("| System | Public numeric benchmark status | Notes |")
-    lines.append("|--------|--------------------------------|-------|")
-    lines.append(
-        "| Bernstein | Published only from verified `benchmarks/swe_bench/run.py eval` artifacts | "
-        "Public v1 scope is Bernstein vs solo baselines on SWE-Bench Lite. |"
+    lines.extend(
+        (
+            "| System | Public numeric benchmark status | Notes |",
+            "|--------|--------------------------------|-------|",
+            "| Bernstein | Published only from verified `benchmarks/swe_bench/run.py eval` artifacts | "
+            "Public v1 scope is Bernstein vs solo baselines on SWE-Bench Lite. |",
+        )
     )
     if "crewai" in comparison.profiles:
         lines.append(
@@ -421,33 +422,34 @@ def generate_full_report(comparison: HeadToHeadComparison) -> str:
     findings = generate_key_findings(comparison)
 
     sections: list[str] = []
-    sections.append(f"# {comparison.title}")
-    sections.append("")
-    sections.append("> **NOTE:** Public numeric framework-vs-framework rankings are intentionally withheld.")
-    sections.append("> Bernstein publishes benchmark claims only from verified SWE-Bench eval artifacts,")
-    sections.append("> and current public scope is Bernstein vs solo baselines rather than CrewAI/LangGraph tables.")
-    sections.append("")
-    sections.append(f"**Date:** {comparison.date}")
-    sections.append("")
-    sections.append("## TL;DR")
-    sections.append("")
-    sections.append(
-        "> Bernstein keeps CrewAI and LangGraph on this page as architecture context.\n"
-        "> Public benchmark publication is gated on verified SWE-Bench eval artifacts, not simulated or estimated rows."
+    sections.extend(
+        (
+            f"# {comparison.title}",
+            "",
+            "> **NOTE:** Public numeric framework-vs-framework rankings are intentionally withheld.",
+            "> Bernstein publishes benchmark claims only from verified SWE-Bench eval artifacts,",
+            "> and current public scope is Bernstein vs solo baselines rather than CrewAI/LangGraph tables.",
+            "",
+            f"**Date:** {comparison.date}",
+            "",
+            "## TL;DR",
+            "",
+            "> Bernstein keeps CrewAI and LangGraph on this page as architecture context.\n"
+            "> Public benchmark publication is gated on verified SWE-Bench eval artifacts, not simulated or estimated rows.",  # noqa: E501
+            "",
+            "## Architecture Comparison",
+            "",
+            arch_table,
+            "",
+            "## Public Benchmark Publication Status",
+            "",
+            swe_table,
+            "",
+            "## Key Findings",
+            "",
+            findings,
+            "",
+        )
     )
-
-    sections.append("")
-    sections.append("## Architecture Comparison")
-    sections.append("")
-    sections.append(arch_table)
-    sections.append("")
-    sections.append("## Public Benchmark Publication Status")
-    sections.append("")
-    sections.append(swe_table)
-    sections.append("")
-    sections.append("## Key Findings")
-    sections.append("")
-    sections.append(findings)
-    sections.append("")
 
     return "\n".join(sections)

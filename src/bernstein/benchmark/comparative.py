@@ -492,10 +492,14 @@ class ComparativeBenchmark:
 
         # Summary comparison table
         if report.summary:
-            lines.append("## Mode Comparison Summary")
-            lines.append("")
-            lines.append("| Metric | " + " | ".join(report.summary.keys()) + " |")
-            lines.append("|--------|" + "|".join("--------" for _ in report.summary) + "|")
+            lines.extend(
+                (
+                    "## Mode Comparison Summary",
+                    "",
+                    "| Metric | " + " | ".join(report.summary.keys()) + " |",
+                    "|--------|" + "|".join("--------" for _ in report.summary) + "|",
+                )
+            )
 
             summaries = list(report.summary.values())
             metrics: list[tuple[str, Any]] = [

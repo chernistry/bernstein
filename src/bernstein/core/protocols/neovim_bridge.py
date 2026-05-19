@@ -162,16 +162,14 @@ class NeovimBridge:
             List of lines ready for ``nvim_buf_set_lines``.
         """
         lines: list[str] = []
-        lines.append("--- Bernstein Agent Output ---")
-        lines.append("")
+        lines.extend(("--- Bernstein Agent Output ---", ""))
         for raw_line in agent_output.splitlines():
             if len(raw_line) > 120:
                 wrapped = textwrap.wrap(raw_line, width=120)
                 lines.extend(wrapped)
             else:
                 lines.append(raw_line)
-        lines.append("")
-        lines.append("--- End ---")
+        lines.extend(("", "--- End ---"))
         return lines
 
     def get_diff_annotations(

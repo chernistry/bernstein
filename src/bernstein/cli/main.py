@@ -496,33 +496,25 @@ class _RichGroup(click.Group):
 def _background_startup(workdir: Path) -> dict[str, object]:
     """Run slow startup tasks + pre-import heavy modules in background thread."""
     result: dict[str, object] = {"agents": [], "task_count": 0, "version": "", "goal": ""}
-    try:
+    with suppress(Exception):
         from bernstein.core.agent_discovery import discover_agents_cached
 
         _disc = discover_agents_cached()
         result["agents"] = [
             {"name": a.name, "logged_in": a.logged_in, "default_model": a.default_model} for a in _disc.agents
         ]
-    except Exception:
-        pass
-    try:
+    with suppress(Exception):
         _open_dir = workdir / ".sdd" / "backlog" / "open"
         if _open_dir.exists():
             result["task_count"] = sum(1 for f in _open_dir.iterdir() if f.suffix in (".yaml", ".yml", ".md"))
-    except Exception:
-        pass
-    try:
+    with suppress(Exception):
         import bernstein.cli.run_cmd  # pyright: ignore[reportUnusedImport]
         import bernstein.core.bootstrap  # pyright: ignore[reportUnusedImport]
         import bernstein.core.seed  # noqa: F401  # pyright: ignore[reportUnusedImport]
-    except Exception:
-        pass
-    try:
+    with suppress(Exception):
         from importlib.metadata import version as _get_version
 
         result["version"] = _get_version("bernstein")
-    except Exception:
-        pass
     return result
 
 
@@ -1106,6 +1098,8 @@ cli.add_command(simulate_cmd, "simulate")
 
 # Opt-in operator observability (closes spec 2026-05-17).
 # Default off.  Precedence: DO_NOT_TRACK > BERNSTEIN_TELEMETRY > file > off.
+from contextlib import suppress  # noqa: E402
+
 from bernstein.cli.commands.telemetry_cmd import telemetry_group  # noqa: E402
 
 cli.add_command(telemetry_group, "telemetry")

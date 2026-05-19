@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 if TYPE_CHECKING:
     from rich.text import Text
 
+from contextlib import suppress
+
 import httpx
 from textual.app import App, ComposeResult
 from textual.binding import Binding, BindingType
@@ -73,12 +75,16 @@ def _build_app_bindings() -> list[BindingType]:
     bindings = [
         Binding(e.key, e.action, e.description, show=e.show, priority=e.priority) for e in _resolve_all_bindings()
     ]
-    bindings.append(Binding("/", "focus_task_search", "Search", show=True))
-    bindings.append(Binding("n", "acknowledge_notifications", "Mark notifications read", show=False))
-    bindings.append(Binding("R", "toggle_session_recording", "Toggle recording", show=False))
-    bindings.append(Binding("1", "layout_focus", "Focus layout", show=False))
-    bindings.append(Binding("2", "layout_balanced", "Balanced layout", show=False))
-    bindings.append(Binding("3", "layout_observability", "Observability layout", show=False))
+    bindings.extend(
+        (
+            Binding("/", "focus_task_search", "Search", show=True),
+            Binding("n", "acknowledge_notifications", "Mark notifications read", show=False),
+            Binding("R", "toggle_session_recording", "Toggle recording", show=False),
+            Binding("1", "layout_focus", "Focus layout", show=False),
+            Binding("2", "layout_balanced", "Balanced layout", show=False),
+            Binding("3", "layout_observability", "Observability layout", show=False),
+        )
+    )
     return cast("list[BindingType]", bindings)
 
 
@@ -1125,15 +1131,13 @@ def _kill_agent(session_id: str) -> bool:  # type: ignore[reportUnusedFunction]
 
     from bernstein.core.platform_compat import kill_process
 
-    try:
+    with suppress(Exception):
         data = json.loads(agents_file.read_text())
         for agent in data:
             if agent.get("id") == session_id:
                 pid = agent.get("pid")
                 if pid:
                     return kill_process(pid, sig=9)
-    except Exception:
-        pass
     return False
 
 
@@ -1150,14 +1154,12 @@ def _kill_all_agents() -> int:  # type: ignore[reportUnusedFunction]
         return 0
 
     killed_count = 0
-    try:
+    with suppress(Exception):
         data = json.loads(agents_file.read_text())
         for agent in data:
             pid = agent.get("pid")
             if pid and kill_process(pid, sig=9):
                 killed_count += 1
-    except Exception:
-        pass
     return killed_count
 
 

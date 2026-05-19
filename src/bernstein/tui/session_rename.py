@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import re
+from contextlib import suppress
 from pathlib import Path  # noqa: TC003
 
 from bernstein.core.session import SessionState, load_session, save_session
@@ -97,11 +98,9 @@ def rename_session(new_name: str, workdir: Path) -> bool:
     # Also update the raw JSON if the dataclass round-trip missed a field.
     # This is a belt-and-suspenders step: ensure ``name`` is also written
     # directly into the JSON for forward-compatible consumers.
-    try:
+    with suppress(OSError, json.JSONDecodeError):
         raw = json.loads(session_path.read_text(encoding="utf-8"))
         raw["name"] = new_name
         session_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
-    except (OSError, json.JSONDecodeError):
-        pass  # Session file update is best-effort
 
     return True

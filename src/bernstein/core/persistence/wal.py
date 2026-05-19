@@ -385,7 +385,7 @@ class WALWriter:
         }
         entry_hash = _compute_entry_hash(payload)
 
-        record = {**payload, "entry_hash": entry_hash}
+        record = payload | {"entry_hash": entry_hash}
         with self._path.open("a") as f:
             f.write(json.dumps(record, separators=(",", ":")) + "\n")
             f.flush()

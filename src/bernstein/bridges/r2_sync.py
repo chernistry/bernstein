@@ -19,6 +19,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pathlib import Path
 
+from contextlib import suppress
+
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -185,12 +187,10 @@ class R2WorkspaceSync:
 
         # Try to fetch existing manifest for delta detection
         existing_hashes: dict[str, str] = {}
-        try:
+        with suppress(R2SyncError):
             raw = await self._get_object(f"{workspace_id}/manifest.json")
             existing_manifest = SyncManifest.from_dict(json.loads(raw))
             existing_hashes = existing_manifest.files
-        except R2SyncError:
-            pass  # No existing manifest — upload everything
 
         # Determine which files need uploading (new or changed)
         files_to_upload = [

@@ -11,6 +11,7 @@ import stat
 import subprocess
 import sys
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -518,11 +519,9 @@ def _worktree_manual_delete(cwd: Path, path: Path) -> GitResult | None:
 
     def _onerror(func, fpath, _exc_info):  # type: ignore[no-untyped-def]
         """Clear read-only flag and retry; ignore if still locked."""
-        try:
+        with suppress(OSError):
             os.chmod(fpath, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
             func(fpath)
-        except OSError:
-            pass  # File still locked, skip it
 
     try:
         shutil.rmtree(path, onerror=_onerror)

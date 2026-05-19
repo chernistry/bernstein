@@ -182,20 +182,21 @@ def format_parallel_report(report: ParallelRunReport) -> str:
     lines: list[str] = []
     sep = "=" * 60
 
-    lines.append(sep)
-    lines.append("Parallel Test Run Report")
-    lines.append(sep)
-    lines.append(f"Files:   {report.total_files}")
-    lines.append(
-        f"Passed:  {report.total_passed}  |  Failed: {report.total_failed}  |  Skipped: {report.total_skipped}"
+    lines.extend(
+        (
+            sep,
+            "Parallel Test Run Report",
+            sep,
+            f"Files:   {report.total_files}",
+            f"Passed:  {report.total_passed}  |  Failed: {report.total_failed}  |  Skipped: {report.total_skipped}",
+            f"Wall:    {report.wall_time_s:.1f}s",
+            f"CPU:     {report.cpu_time_s:.1f}s",
+            f"Speedup: {report.speedup:.2f}x",
+        )
     )
-    lines.append(f"Wall:    {report.wall_time_s:.1f}s")
-    lines.append(f"CPU:     {report.cpu_time_s:.1f}s")
-    lines.append(f"Speedup: {report.speedup:.2f}x")
 
     if report.failures:
-        lines.append(sep)
-        lines.append(f"FAILURES ({len(report.failures)}):")
+        lines.extend((sep, f"FAILURES ({len(report.failures)}):"))
         for path in report.failures:
             lines.append(f"  - {path}")
 

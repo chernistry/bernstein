@@ -179,7 +179,10 @@ async def test_slash_command_valid_signature_accepted(client_with_secret: AsyncC
     resp = await client_with_secret.post(
         "/webhooks/slack/commands",
         content=form_body,
-        headers={"content-type": "application/x-www-form-urlencoded", **sig_headers},
+        headers={
+            "content-type": "application/x-www-form-urlencoded",
+        }
+        | sig_headers,
     )
     assert resp.status_code == 200
 

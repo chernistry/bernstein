@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+from contextlib import suppress
 from pathlib import Path
 
 import click
@@ -91,7 +92,7 @@ def _execute_reverts(commits: list[tuple[str, str]]) -> int:
 
 def _log_undo_audit(task_id: str | None, revert_all: bool, success_count: int) -> None:
     """Log undo action to audit trail (best-effort)."""
-    try:
+    with suppress(Exception):
         from bernstein.core.lifecycle import get_audit_log
 
         audit = get_audit_log()
@@ -108,8 +109,6 @@ def _log_undo_audit(task_id: str | None, revert_all: bool, success_count: int) -
                     "revert_all": revert_all,
                 },
             )
-    except Exception:
-        pass
 
 
 def _run_post_revert_tests() -> None:

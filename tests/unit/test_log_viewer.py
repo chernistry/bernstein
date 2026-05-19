@@ -98,8 +98,7 @@ def _make_diff(n_changed: int = 30, filename: str = "foo.py") -> str:
         "@@ -1,5 +1,5 @@",
     ]
     for i in range(n_changed // 2):
-        lines.append(f"-old line {i}")
-        lines.append(f"+new line {i}")
+        lines.extend((f"-old line {i}", f"+new line {i}"))
     return "\n".join(lines)
 
 

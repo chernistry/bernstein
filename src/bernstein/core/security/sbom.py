@@ -134,8 +134,8 @@ class SBOMDocument:
             "metadata": {
                 "timestamp": ts,
                 "tools": [{"name": _BERNSTEIN_TOOL_NAME}],
-                **self.metadata,
-            },
+            }
+            | self.metadata,
             "components": [c.to_cyclonedx_dict() for c in self.components],
         }
 

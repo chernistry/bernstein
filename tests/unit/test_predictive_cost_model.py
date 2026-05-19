@@ -461,8 +461,7 @@ class TestThreadSafety:
 
         threads: list[threading.Thread] = []
         for _ in range(3):
-            threads.append(threading.Thread(target=recorder))
-            threads.append(threading.Thread(target=predictor))
+            threads.extend((threading.Thread(target=recorder), threading.Thread(target=predictor)))
 
         for t in threads:
             t.start()

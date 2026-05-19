@@ -62,17 +62,18 @@ def build_resume_context(checkpoint: TaskResumeCheckpoint) -> str:
     * The fenced scratchpad contents (or a placeholder when empty).
     """
     parts: list[str] = [RESUME_BANNER]
-    parts.append(f"- last_completed_step_id: {checkpoint.last_completed_step_id or '<none>'}")
-    parts.append(f"- resume_attempt: {checkpoint.resume_count}")
+    parts.extend(
+        (
+            f"- last_completed_step_id: {checkpoint.last_completed_step_id or '<none>'}",
+            f"- resume_attempt: {checkpoint.resume_count}",
+        )
+    )
     if checkpoint.adapter_session_id:
         parts.append(f"- prior_adapter_session_id: {checkpoint.adapter_session_id}")
     scratchpad_text = read_scratchpad(checkpoint.scratchpad_path)
-    parts.append("")
-    parts.append("### Recovered scratchpad")
+    parts.extend(("", "### Recovered scratchpad"))
     if scratchpad_text.strip():
-        parts.append("```")
-        parts.append(scratchpad_text.rstrip())
-        parts.append("```")
+        parts.extend(("```", scratchpad_text.rstrip(), "```"))
     else:
         parts.append("_(empty — no scratchpad was captured before interruption)_")
     parts.append("")

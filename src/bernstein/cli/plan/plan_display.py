@@ -25,7 +25,7 @@ else:
     import tty
 
     _IS_WINDOWS = False
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from typing import TYPE_CHECKING
 
 from rich.console import Console
@@ -185,7 +185,7 @@ def _read_key() -> str:
     if _IS_WINDOWS:
         # Use msvcrt for Windows keypress detection
         ch = msvcrt.getch()
-        if ch == b"\r" or ch == b"\n":
+        if ch in (b"\r", b"\n"):
             return "enter"
         if ch == b"\x1b":
             return "escape"
@@ -200,7 +200,7 @@ def _read_key() -> str:
     select.select([sys.stdin], [], [])
     ch = os.read(fd, 1)
 
-    if ch == b"\r" or ch == b"\n":
+    if ch in (b"\r", b"\n"):
         return "enter"
     if ch == b"\x1b":
         return "escape"
@@ -215,7 +215,7 @@ def _drain_input() -> None:
     """Consume any buffered input so it doesn't leak to the next prompt."""
     if not sys.stdin.isatty():
         return
-    try:
+    with suppress(OSError, ValueError):
         if _IS_WINDOWS:
             # Drain buffered input on Windows using msvcrt
             while msvcrt.kbhit():
@@ -223,8 +223,6 @@ def _drain_input() -> None:
         else:
             while select.select([sys.stdin], [], [], 0.0)[0]:
                 sys.stdin.read(1)
-    except (OSError, ValueError):
-        pass
 
 
 # ---------------------------------------------------------------------------

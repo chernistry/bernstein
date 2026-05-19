@@ -373,14 +373,11 @@ def _build_build_test(repo_path: Path) -> AgentsMdSection | None:
     if pyproj.is_file():
         text = pyproj.read_text(encoding="utf-8", errors="replace")
         if "[tool.uv]" in text or "uv" in text.split("\n", 1)[0].lower():
-            cmds.append("uv sync                    # install + lock")
-            cmds.append("uv run pytest              # tests")
+            cmds.extend(("uv sync                    # install + lock", "uv run pytest              # tests"))
         else:
-            cmds.append("pip install -e .[dev]      # install")
-            cmds.append("pytest                     # tests")
+            cmds.extend(("pip install -e .[dev]      # install", "pytest                     # tests"))
         if "ruff" in text:
-            cmds.append("uv run ruff check .        # lint")
-            cmds.append("uv run ruff format .       # format")
+            cmds.extend(("uv run ruff check .        # lint", "uv run ruff format .       # format"))
         if "mypy" in text or "pyright" in text:
             cmds.append("uv run mypy src            # type-check")
 

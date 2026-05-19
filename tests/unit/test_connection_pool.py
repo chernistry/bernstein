@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
+
 import pytest
 from bernstein.core.connection_pool import (
     ConnectionHealth,
@@ -39,11 +41,9 @@ class TestConnectionHealth:
             last_error_at=None,
             is_healthy=True,
         )
-        try:
+        with suppress(AttributeError):
             h.is_healthy = False  # type: ignore[misc]
             raise AssertionError("Expected FrozenInstanceError")  # pragma: no cover
-        except AttributeError:
-            pass
 
 
 class TestPoolConfig:

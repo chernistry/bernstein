@@ -214,8 +214,7 @@ def _build_proposed_diff(label: str, cluster: list[DiaryEntry]) -> str:
     the operator translates into a real edit during ``--apply``.
     """
     lines: list[str] = []
-    lines.append(f"## Proposed adjustment: {label}")
-    lines.append("")
+    lines.extend((f"## Proposed adjustment: {label}", ""))
     failed_bullets: list[str] = []
     worked_bullets: list[str] = []
     for entry in cluster:
@@ -232,8 +231,7 @@ def _build_proposed_diff(label: str, cluster: list[DiaryEntry]) -> str:
             lines.append(f"+ {bullet}")
         lines.append("")
     if not failed_bullets and not worked_bullets:
-        lines.append("No actionable tried/worked/failed bullets in this cluster.")
-        lines.append("Rationale snippets:")
+        lines.extend(("No actionable tried/worked/failed bullets in this cluster.", "Rationale snippets:"))
         for entry in cluster[:3]:
             if entry.rationale:
                 lines.append(f"> {entry.rationale}")
@@ -300,37 +298,42 @@ def render_report(report: SynthesisReport) -> str:
     can grep without parsing markdown.
     """
     lines: list[str] = []
-    lines.append("---")
-    lines.append(f"generated_at: {report.generated_at}")
-    lines.append(f"window_days: {report.window_days}")
-    lines.append(f"theme_count: {report.theme_count}")
-    lines.append(f"approved: {'true' if report.approved else 'false'}")
-    lines.append("---")
-    lines.append("")
-    lines.append("# Diary synthesis report")
-    lines.append("")
+    lines.extend(
+        (
+            "---",
+            f"generated_at: {report.generated_at}",
+            f"window_days: {report.window_days}",
+            f"theme_count: {report.theme_count}",
+            f"approved: {'true' if report.approved else 'false'}",
+            "---",
+            "",
+            "# Diary synthesis report",
+            "",
+        )
+    )
     if report.notes:
         for note in report.notes:
             lines.append(f"> {note}")
         lines.append("")
     if not report.themes:
-        lines.append("_No themes detected._")
-        lines.append("")
+        lines.extend(("_No themes detected._", ""))
         return "\n".join(lines)
     for theme in report.themes:
-        lines.append(f"## {theme.theme_id}: {theme.label}")
-        lines.append("")
-        lines.append(f"- Cluster size: {theme.size}")
+        lines.extend((f"## {theme.theme_id}: {theme.label}", "", f"- Cluster size: {theme.size}"))
         if theme.shared_tags:
             lines.append(f"- Shared tags: {', '.join(theme.shared_tags)}")
-        lines.append("- Task ids: " + ", ".join(e.task_id for e in theme.entries))
-        lines.append("")
-        lines.append("<details><summary>Proposed adjustment (HITL-gated)</summary>")
-        lines.append("")
-        lines.append(theme.proposed_diff)
-        lines.append("")
-        lines.append("</details>")
-        lines.append("")
+        lines.extend(
+            (
+                "- Task ids: " + ", ".join(e.task_id for e in theme.entries),
+                "",
+                "<details><summary>Proposed adjustment (HITL-gated)</summary>",
+                "",
+                theme.proposed_diff,
+                "",
+                "</details>",
+                "",
+            )
+        )
     return "\n".join(lines)
 
 

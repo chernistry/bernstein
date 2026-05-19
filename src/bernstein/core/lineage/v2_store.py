@@ -578,10 +578,14 @@ class LineageV2Store:
         """
         out: list[str] = []
         for ref, bodies in self.replay(task_id):
-            ref_payload: dict[str, Any] = {"_kind": "parent", **asdict(ref)}
+            ref_payload: dict[str, Any] = {
+                "_kind": "parent",
+            } | asdict(ref)
             out.append(json.dumps(ref_payload, separators=(",", ":"), sort_keys=True))
             for body in bodies:
-                body_payload: dict[str, Any] = {"_kind": "child", **asdict(body)}
+                body_payload: dict[str, Any] = {
+                    "_kind": "child",
+                } | asdict(body)
                 out.append(json.dumps(body_payload, separators=(",", ":"), sort_keys=True))
         return "\n".join(out) + ("\n" if out else "")
 

@@ -987,11 +987,15 @@ class DirectChannel:
         count = 0
         with path.open("a", encoding="utf-8") as f:
             for q in queries:
-                record = {"_type": "query", **q.to_dict()}
+                record = {
+                    "_type": "query",
+                } | q.to_dict()
                 f.write(json.dumps(record, default=str) + "\n")
                 count += 1
             for r in responses:
-                record = {"_type": "response", **r.to_dict()}
+                record = {
+                    "_type": "response",
+                } | r.to_dict()
                 f.write(json.dumps(record, default=str) + "\n")
                 count += 1
         return count

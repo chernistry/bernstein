@@ -324,11 +324,9 @@ class BernsteinApp(App[None]):
     def _write_activity(self, role: str, line: str) -> None:
         """Write an activity line to the RichLog and optionally to a file."""
         formatted = _format_activity_line(role, line)
-        try:
+        with contextlib.suppress(Exception):
             log = self.query_one(_ACTIVITY_LOG_SELECTOR, RichLog)
             log.write(formatted)
-        except Exception:
-            pass  # Widget may not exist yet during startup
         # Write to activity log file if configured
         if self._activity_log_file:
             # Strip Rich markup for plain text file
@@ -461,7 +459,7 @@ class BernsteinApp(App[None]):
         p = Path(".sdd/runtime/agents.json")
         if not p.exists():
             return
-        try:
+        with contextlib.suppress(Exception):
             mtime = p.stat().st_mtime
             if mtime > self._agents_mtime:
                 self._agents_mtime = mtime
@@ -469,15 +467,13 @@ class BernsteinApp(App[None]):
                 if agents:
                     self._update_agents(agents, {})
                     self._update_activity(agents)
-        except Exception:
-            pass
 
     def _check_spawner_log(self) -> None:
         """Tail spawner.log for activity feed events."""
         sp = Path(".sdd/runtime/spawner.log")
         if not sp.exists():
             return
-        try:
+        with contextlib.suppress(Exception):
             size = sp.stat().st_size
             if size <= self._spawner_size:
                 return
@@ -487,8 +483,6 @@ class BernsteinApp(App[None]):
             self._spawner_size = size
             for line in new_lines.strip().split("\n"):
                 self._classify_spawner_line(line)
-        except Exception:
-            pass
 
     def _classify_spawner_line(self, line: str) -> None:
         """Classify and write a spawner log line to the activity feed."""

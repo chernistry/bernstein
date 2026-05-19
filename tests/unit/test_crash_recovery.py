@@ -234,8 +234,7 @@ def _handle_post_request(request: httpx.Request, task_store: list[dict]) -> http
     path = request.url.path
     if path == "/tasks":
         body = json.loads(request.content)
-        new_task = {
-            **body,
+        new_task = body | {
             "id": f"retry-{len(task_store)}",
             "status": "open",
             "completion_signals": [],

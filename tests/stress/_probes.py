@@ -13,6 +13,7 @@ import os
 import platform
 import sys
 from collections.abc import Iterable
+from contextlib import suppress
 from typing import Any
 
 try:  # pragma: no cover - import guard
@@ -47,10 +48,8 @@ def rss_bytes() -> int | None:
 
     proc = _proc()
     if proc is not None:
-        try:
+        with suppress(Exception):
             return int(proc.memory_info().rss)
-        except Exception:  # pragma: no cover - defensive
-            pass
 
     if platform.system() == "Windows":  # pragma: no cover
         return None
@@ -81,10 +80,8 @@ def fd_count() -> int | None:
 
     proc = _proc()
     if proc is not None:
-        try:
+        with suppress(AttributeError, Exception):
             return int(proc.num_fds())
-        except (AttributeError, Exception):  # pragma: no cover
-            pass
 
     try:
         return len(os.listdir("/proc/self/fd"))

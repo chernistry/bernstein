@@ -14,6 +14,10 @@ from bernstein.core.trackers.builtin.github_projects_adapter import (
     GitHubProjectsV2Adapter,
     GitHubProjectsV2Config,
 )
+from bernstein.core.trackers.builtin.plane_adapter import (
+    PlaneAdapter,
+    PlaneConfig,
+)
 
 __all__ = [
     "AsanaAdapter",
@@ -22,4 +26,6 @@ __all__ = [
     "ClickUpConfig",
     "GitHubProjectsV2Adapter",
     "GitHubProjectsV2Config",
+    "PlaneAdapter",
+    "PlaneConfig",
 ]

@@ -98,7 +98,10 @@ uv tool run semgrep scan --config p/python --config p/security-audit \
 trivy fs --severity HIGH,CRITICAL --ignore-unfixed .
 
 # Trivy IaC
-trivy config --severity HIGH,CRITICAL .
+# .clusterfuzzlite/ is skipped: the fuzzing harness inherits the
+# OSS-Fuzz base-builder image which runs as root by framework
+# requirement and is not deployable infra.
+trivy config --severity HIGH,CRITICAL --skip-dirs .clusterfuzzlite .
 
 # vulture
 uv tool run vulture src/ vulture_whitelist.py --min-confidence 70

@@ -218,6 +218,11 @@ jobs:
           output: trivy-iac.sarif
           severity: HIGH,CRITICAL
           hide-progress: true
+          # ClusterFuzzLite harness intentionally runs as root inside the
+          # OSS-Fuzz base-builder image (framework requirement); it is a
+          # fuzzing artefact, not deployable infra, so it is excluded
+          # from IaC misconfig checks.
+          skip-dirs: ".clusterfuzzlite"
           exit-code: "0"
       - name: Upload SARIF to Code Scanning
         if: always()
@@ -233,6 +238,7 @@ jobs:
           format: table
           severity: HIGH,CRITICAL
           hide-progress: true
+          skip-dirs: ".clusterfuzzlite"
           exit-code: "1"
       - name: Upload SARIF as workflow artifact
         if: always()

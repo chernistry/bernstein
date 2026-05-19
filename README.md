@@ -56,7 +56,7 @@ Bernstein is a deterministic Python scheduler that runs a crew of CLI coding age
 
 i wrote bernstein because i was paying $400/month in claude bills running three coding agents in parallel and getting nondeterministic merges.
 
-as of 2026-05-15: 361 stars, 37 forks, ~3,769 pypi downloads/day (mostly bots; ~54k/month), apache 2.0, solo maintained, no funding. numbers will drift; the line above is the source-of-truth date — re-run `pip stats` / GitHub API to refresh.
+as of 2026-05-19: 419 stars, 43 forks, ~6,533 pypi downloads/day (~116k/month), Apache 2.0, solo maintained, no funding. Numbers will drift; the line above is the source-of-truth date - re-run `pip stats` / GitHub API to refresh.
 
 ### install in 30 seconds
 
@@ -466,7 +466,7 @@ The table above compares Bernstein against LLM-orchestration frameworks (they or
 
 | Feature | Bernstein | [claude-flow](https://github.com/ruvnet/claude-flow) | [Archon](https://github.com/coleam00/Archon) | [vibe-kanban](https://github.com/BloopAI/vibe-kanban) | [claude-squad](https://github.com/smtg-ai/claude-squad) | [Composio AO](https://github.com/ComposioHQ/agent-orchestrator) |
 |---------|-----------|-----------|-----------|-----------|-----------|-----------|
-| Stars (2026-05-15) | 361 | 49k | 21k | 26k | 7.4k | 7k |
+| Stars (2026-05-19) | 419 | 49k | 21k | 26k | 7.4k | 7k |
 | Their hook | regulated / on-prem / audit | swarm intelligence + 314 MCP tools | deterministic + repeatable, web UI | kanban board UI | polished Go TUI, tmux-native | TypeScript dashboard, CI fixer |
 | Shape | Python CLI + library + MCP server | CLI + web | CLI + web | desktop board | Go TUI | TypeScript CLI + dashboard |
 | Primary language | Python | TypeScript / Node | Python | TypeScript | Go | TypeScript |

@@ -75,9 +75,8 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: ./.github/actions/bootstrap
         with:
-          enable-cache: true
           python-version: ${{ matrix.python-version }}
       - name: Run isolated test suite
         run: uv run python scripts/run_tests.py --parallel 4

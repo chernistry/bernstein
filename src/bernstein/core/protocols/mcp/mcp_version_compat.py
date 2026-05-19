@@ -219,7 +219,7 @@ class VersionChecker:
         req_padded = req + (0,) * (max_len - len(req))
         srv_padded = srv + (0,) * (max_len - len(srv))
 
-        if len(req_padded) > 0 and len(srv_padded) > 0 and srv_padded[0] != req_padded[0]:
+        if req_padded and srv_padded and srv_padded[0] != req_padded[0]:
             result = CompatResult(
                 server_name=server_name,
                 server_version=server_version,

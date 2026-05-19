@@ -148,7 +148,7 @@ class CircuitBreaker:
 
         # Check halt conditions
         recent_48h = [t for t in self.recent_rollbacks if t > now - 48 * 3600]
-        if len(recent_48h) >= 1:
+        if recent_48h:
             self._trip(f"Rollback detected (proposal {proposal_id})")
         elif len(self.recent_rollbacks) > 2:
             self._trip(">2 rollbacks in 7 days")

@@ -134,7 +134,7 @@ def _parse_team(raw: object) -> Literal["auto"] | list[str]:
         return "auto"
     if isinstance(raw, list):
         items: list[object] = cast("list[object]", raw)
-        if len(items) == 0:
+        if not items:
             return "auto"
         if all(isinstance(r, str) for r in items):
             return [str(r) for r in items]
@@ -815,7 +815,7 @@ def _parse_webhooks(raw: object) -> tuple[WebhookConfig, ...]:
             raise SeedError(f"webhooks[{idx}].url must be a non-empty string")
         events_raw: object = entry.get("events")
         events = _parse_string_list(events_raw, f"webhooks[{idx}].events")
-        if len(events) == 0:
+        if not events:
             raise SeedError(f"webhooks[{idx}].events must contain at least one event")
         normalized_events = tuple(
             _normalize_webhook_event(event_name, f"webhooks[{idx}].events") for event_name in events

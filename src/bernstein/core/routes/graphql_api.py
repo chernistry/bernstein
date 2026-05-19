@@ -59,7 +59,7 @@ def parse_graphql_query(query: str) -> ParsedQuery:
         ParsedQuery with operation name, requested fields, and arguments.
     """
     # Strip outer braces
-    inner = query.strip().strip("{").strip("}").strip()
+    inner = query.strip().strip('{}').strip()
 
     # Extract operation name and body using simple string parsing (no regex)
     # to avoid polynomial-time regex backtracking on adversarial input.

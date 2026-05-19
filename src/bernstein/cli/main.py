@@ -1024,6 +1024,11 @@ from bernstein.cli.commands.notify_cmd import notify_group  # noqa: E402
 
 cli.add_command(notify_group, "notify")
 
+# Short-lived-token broker: per-task credentials minted from a backing store.
+from bernstein.cli.commands.secrets_cmd import secrets_group  # noqa: E402
+
+cli.add_command(secrets_group, "secrets")
+
 # Per-artifact lineage trail (output → producer + inputs).
 from bernstein.cli.commands.lineage_cmd import lineage_cmd  # noqa: E402
 

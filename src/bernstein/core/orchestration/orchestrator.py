@@ -232,7 +232,7 @@ _EVENT_RUN_COMPLETED = "run.completed"
 _EVENT_TASK_COMPLETED = HookEvent.TASK_COMPLETED.value
 _EVENT_TASK_FAILED = HookEvent.TASK_FAILED.value
 # ---------------------------------------------------------------------------
-_task_from_dict: Callable[[dict[str, Any]], Task] = lambda raw: Task.from_dict(raw)  # noqa: E731
+_task_from_dict: Callable[[dict[str, Any]], Task] = Task.from_dict
 _fetch_all_tasks = fetch_all_tasks
 _fail_task = fail_task
 _block_task = block_task

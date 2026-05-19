@@ -207,7 +207,7 @@ class RelayDocument:
     open_questions: tuple[str, ...]
     blockers: tuple[str, ...]
     next_action: str
-    calibration: Mapping[str, str] = field(default_factory=lambda: {})
+    calibration: Mapping[str, str] = field(default_factory=dict)
     lineage_child: str | None = None
     acknowledged: bool = False
     operator_hmac: str = ""

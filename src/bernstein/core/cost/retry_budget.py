@@ -277,9 +277,9 @@ class RetryBudget:
     """
 
     retries: int
-    criterion_degradation: Sequence[Criterion] = field(default_factory=lambda: [])
+    criterion_degradation: Sequence[Criterion] = field(default_factory=list)
     _attempts_used: int = field(default=0, init=False)
-    _criteria: dict[str, Criterion] = field(default_factory=lambda: {}, init=False)
+    _criteria: dict[str, Criterion] = field(default_factory=dict, init=False)
 
     def __post_init__(self) -> None:
         if self.retries < 0:

@@ -266,7 +266,7 @@ class FormalVerificationSchema(BaseModel):
     enabled: bool = True
     block_on_violation: bool = True
     timeout_s: int = Field(default=60, ge=1)
-    properties: list[FormalPropertySchema] = Field(default_factory=lambda: [])
+    properties: list[FormalPropertySchema] = Field(default_factory=list)
 
 
 class BatchSchema(BaseModel):

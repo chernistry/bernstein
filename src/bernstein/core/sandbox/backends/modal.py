@@ -146,8 +146,8 @@ class ModalSandboxSession(SandboxSession):
             # mocks. Real integration tests live under the ``modal``
             # gate.
             exit_code = int(process.wait())
-            stdout_val = getattr(process.stdout, "read", lambda: b"")()
-            stderr_val = getattr(process.stderr, "read", lambda: b"")()
+            stdout_val = getattr(process.stdout, "read", bytes)()
+            stderr_val = getattr(process.stderr, "read", bytes)()
             return (exit_code, encode_as_bytes(stdout_val), encode_as_bytes(stderr_val))
 
         return await run_exec_with_timeout(_run, cmd=cmd, timeout=effective_timeout)

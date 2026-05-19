@@ -72,7 +72,7 @@ class SkillDefinition:
     description: str
     source: SkillSource
     origin: str  # Path or URL where the skill was loaded from
-    metadata: dict[str, Any] = field(default_factory=lambda: {})  # pyright: ignore[reportUnknownVariableType]
+    metadata: dict[str, Any] = field(default_factory=dict)  # pyright: ignore[reportUnknownVariableType]
 
     @property
     def priority_key(self) -> str:

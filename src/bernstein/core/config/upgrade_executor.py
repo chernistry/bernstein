@@ -90,7 +90,7 @@ class UpgradeTransaction:
     completed_at: float | None = None
 
     # Changes to apply
-    file_changes: list[FileChange] = field(default_factory=lambda: [])
+    file_changes: list[FileChange] = field(default_factory=list)
 
     # Review results
     reviewer_feedback: str = ""
@@ -240,7 +240,7 @@ class ReviewResult:
     reasoning: str
     feedback: str
     risk_level: str = "medium"
-    suggested_improvements: list[str] = field(default_factory=lambda: [])
+    suggested_improvements: list[str] = field(default_factory=list)
 
 
 class UpgradeExecutor:

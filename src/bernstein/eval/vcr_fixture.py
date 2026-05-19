@@ -75,7 +75,7 @@ class VcrMapping:
 
     placeholder: str
     original: str
-    metadata: dict[str, Any] = field(default_factory=lambda: {})
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

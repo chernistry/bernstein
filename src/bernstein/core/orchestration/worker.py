@@ -407,7 +407,7 @@ class PermissionDeniedHint:
     pattern: str  # Regex pattern to match error messages
     suggestion: str  # Suggested fix or retry hint
     priority: int = 1  # Priority (higher = more important)
-    context: dict[str, Any] = field(default_factory=lambda: {})
+    context: dict[str, Any] = field(default_factory=dict)
 
 
 class PermissionDeniedHook:

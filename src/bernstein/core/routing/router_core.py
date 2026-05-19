@@ -316,7 +316,7 @@ class RouterState:
     active_agent_counts: dict[str, int] = field(default_factory=dict[str, int])
 
     # Model policy (CISO-level provider constraints)
-    model_policy: ModelPolicy = field(default_factory=lambda: ModelPolicy())
+    model_policy: ModelPolicy = field(default_factory=ModelPolicy)
 
 
 class TierAwareRouter:

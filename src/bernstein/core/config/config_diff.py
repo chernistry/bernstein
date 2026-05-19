@@ -52,7 +52,7 @@ class ConfigDiffSummary:
     """Summary of a config reload delta."""
 
     changed: bool
-    changes: list[ConfigChange] = field(default_factory=lambda: [])
+    changes: list[ConfigChange] = field(default_factory=list)
     added: int = 0
     removed: int = 0
     modified: int = 0

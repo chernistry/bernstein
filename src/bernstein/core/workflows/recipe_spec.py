@@ -220,7 +220,7 @@ class RecipeSpec(BaseModel):
     name: str = Field(min_length=1, max_length=64)
     description: str = Field(min_length=1, max_length=512)
     version: str = Field(default="1.0.0")
-    params: list[RecipeParam] = Field(default_factory=lambda: [])
+    params: list[RecipeParam] = Field(default_factory=list)
     nodes: list[dict[str, Any]] = Field(min_length=1)
 
     @field_validator("params")

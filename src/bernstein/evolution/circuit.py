@@ -50,7 +50,7 @@ class CircuitBreaker:
     """
 
     state_dir: Path
-    rate_limits: dict[RiskLevel, int] = field(default_factory=lambda: DEFAULT_RATE_LIMITS.copy())
+    rate_limits: dict[RiskLevel, int] = field(default_factory=DEFAULT_RATE_LIMITS.copy)
     state: CircuitState = CircuitState.CLOSED
     opened_at: float = 0.0
     recent_changes: list[dict[str, Any]] = field(default_factory=list[dict[str, Any]])

@@ -783,7 +783,7 @@ class CacheBreak:
     new_hash: str
     old_content: str
     new_content: str
-    diff_lines: list[str] = field(default_factory=lambda: [])
+    diff_lines: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
     def generate_diff(self, context_lines: int = 3) -> None:
@@ -848,7 +848,7 @@ class CacheBaselineAlert:
     drop_percentage: float
     threshold: float
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
-    metadata: dict[str, Any] = field(default_factory=lambda: {})
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class CacheBaselineMonitor:

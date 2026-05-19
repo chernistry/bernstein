@@ -141,7 +141,7 @@ class ModelPromptOptimizer:
         strategies: Per-tier strategy definitions.
     """
 
-    strategies: dict[ModelTier, PromptStrategy] = field(default_factory=lambda: _STRATEGIES.copy())
+    strategies: dict[ModelTier, PromptStrategy] = field(default_factory=_STRATEGIES.copy)
 
     def optimize_system_prompt(
         self,

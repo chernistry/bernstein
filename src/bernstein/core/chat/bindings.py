@@ -65,7 +65,7 @@ class Binding:
     adapter: str = ""
     goal: str = ""
     status_message_id: str = ""
-    created_at: float = field(default_factory=lambda: time.time())
+    created_at: float = field(default_factory=time.time)
 
     @property
     def key(self) -> str:

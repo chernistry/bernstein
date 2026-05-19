@@ -100,8 +100,8 @@ class RunSession:
     session_id: str
     goal: str
     run_seed: int
-    tasks: list[dict[str, Any]] = field(default_factory=lambda: [])
-    routing_decisions: dict[str, str] = field(default_factory=lambda: {})
+    tasks: list[dict[str, Any]] = field(default_factory=list)
+    routing_decisions: dict[str, str] = field(default_factory=dict)
     git_sha: str = ""
     created_at: str = ""
     bernstein_version: str = ""

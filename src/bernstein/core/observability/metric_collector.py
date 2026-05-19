@@ -1326,7 +1326,7 @@ class CacheBaselineDrop:
     drop_percentage: float
     threshold: float
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
-    metadata: dict[str, Any] = field(default_factory=lambda: {})
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class CacheBaselineCollector:

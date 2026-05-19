@@ -51,7 +51,7 @@ class StyleConfig:
     """Container for all loaded output styles."""
 
     active_style: OutputStyle | None = None
-    available: list[OutputStyle] = field(default_factory=lambda: [])
+    available: list[OutputStyle] = field(default_factory=list)
 
     def get_prompt(self) -> str:
         """Return the combined style prompt, or empty string if no active style."""

@@ -69,7 +69,7 @@ class PendingApproval:
     agent_role: str = ""
     tool_name: str = ""
     tool_args: dict[str, Any] = field(default_factory=dict)
-    created_at: float = field(default_factory=lambda: time.time())
+    created_at: float = field(default_factory=time.time)
     ttl_seconds: int = 600
 
     @property
@@ -123,4 +123,4 @@ class ResolvedApproval:
     approval_id: str
     decision: ApprovalDecision
     reason: str = ""
-    resolved_at: float = field(default_factory=lambda: time.time())
+    resolved_at: float = field(default_factory=time.time)

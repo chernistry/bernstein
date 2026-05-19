@@ -1042,7 +1042,7 @@ class CachePricingTier:
     standard_read_usd_per_1m: float  # USD per 1 million standard read tokens
     standard_write_usd_per_1m: float  # USD per 1 million standard write tokens
     savings_percentage: float = 0.0  # Percentage savings vs standard pricing
-    metadata: dict[str, Any] = field(default_factory=lambda: {})
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class CachePricingRegistry:

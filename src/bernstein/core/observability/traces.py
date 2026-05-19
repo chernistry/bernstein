@@ -41,7 +41,7 @@ class TraceStep:
     type: Literal["spawn", "orient", "plan", "edit", "verify", "complete", "fail", "compact"]
     timestamp: float
     detail: str = ""
-    files: list[str] = field(default_factory=lambda: [])
+    files: list[str] = field(default_factory=list)
     tokens: int = 0
     duration_ms: int = 0
     # Per-turn budget accounting (populated at turn boundaries)
@@ -105,10 +105,10 @@ class AgentTrace:
     effort: str
     spawn_ts: float
     end_ts: float | None = None
-    steps: list[TraceStep] = field(default_factory=lambda: [])
+    steps: list[TraceStep] = field(default_factory=list)
     outcome: Literal["success", "failed", "unknown"] = "unknown"
     log_path: str = ""
-    task_snapshots: list[dict[str, Any]] = field(default_factory=lambda: [])
+    task_snapshots: list[dict[str, Any]] = field(default_factory=list)
     # Budget snapshot at turn boundaries
     total_allocated_budget: int = 0
     total_consumed: int = 0
@@ -1389,7 +1389,7 @@ class TokenEscalationEvent:
     max_allowed_tokens: int
     escalation_reason: str
     timestamp: float = field(default_factory=time.time)
-    metadata: dict[str, Any] = field(default_factory=lambda: {})
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 def record_token_escalation(

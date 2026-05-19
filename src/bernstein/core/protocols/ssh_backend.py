@@ -86,7 +86,7 @@ class SSHHostConfig:
     key: str = ""
     remote_dir: str = "~/bernstein-workdir"
     rsync_excludes: tuple[str, ...] = ()
-    env: dict[str, str] = field(default_factory=lambda: {})
+    env: dict[str, str] = field(default_factory=dict)
     connect_timeout: int = 15
 
     def ssh_target(self) -> str:

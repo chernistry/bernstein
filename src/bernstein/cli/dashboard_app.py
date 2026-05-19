@@ -1379,7 +1379,7 @@ class BernsteinApp(App[None]):
             # If user also asked to stop, do it after save
             if wants_stop:
                 self.notify("Stopping all agents...", severity="warning")
-                self.set_timer(1.0, lambda: self.action_stop_bernstein())
+                self.set_timer(1.0, self.action_stop_bernstein)
         elif action == "stop":
             self.notify("Stopping all agents...", severity="warning")
             self.action_stop_bernstein()

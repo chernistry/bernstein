@@ -108,7 +108,7 @@ class ValidationError:
     tool_name: str
     code: int
     message: str
-    errors: list[dict[str, str]] = field(default_factory=lambda: [])
+    errors: list[dict[str, str]] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

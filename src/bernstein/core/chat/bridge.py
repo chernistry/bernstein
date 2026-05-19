@@ -40,7 +40,7 @@ class ChatMessage:
     user_id: str
     text: str
     message_id: str = ""
-    args: list[str] = field(default_factory=lambda: [])
+    args: list[str] = field(default_factory=list)
     raw: Any = None
 
 

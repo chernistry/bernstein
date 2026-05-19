@@ -218,7 +218,7 @@ def prepare_speculative_warm_pool(orch: Any, task_graph: Any, tasks: list[Task])
         tasks: Current task snapshot across statuses.
     """
     warm_pool = getattr(getattr(orch, "_spawner", None), "_warm_pool", None)
-    if warm_pool is None or getattr(orch, "is_shutting_down", lambda: False)():
+    if warm_pool is None or getattr(orch, "is_shutting_down", bool)():
         return
 
     candidates = _speculative_warm_pool_candidates(orch, task_graph, tasks)
@@ -1110,7 +1110,7 @@ def _await_pre_spawn_approvals(
 
 def _pre_spawn_checks_pass(orch: Any, alive_count: int) -> bool:
     """Run pre-spawn guard checks; return False if spawning should be skipped."""
-    if getattr(orch, "is_shutting_down", lambda: False)():
+    if getattr(orch, "is_shutting_down", bool)():
         logger.debug("Skipping claim/spawn: orchestrator is shutting down")
         return False
 
@@ -1314,7 +1314,7 @@ def claim_and_spawn_batches(
                 _claimed_titles.add(tid)
 
     for batch in batches:
-        if getattr(orch, "is_shutting_down", lambda: False)():
+        if getattr(orch, "is_shutting_down", bool)():
             logger.debug("Stopping claim/spawn loop: orchestrator is shutting down")
             break
         if alive_count >= orch._config.max_agents:

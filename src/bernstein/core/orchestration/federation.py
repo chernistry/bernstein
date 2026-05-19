@@ -187,10 +187,7 @@ class CustomFieldDetector:
 
     def detect(self, source: Ticket, adapters: Sequence[TrackerAdapter]) -> Iterable[LinkRef]:
         wanted = {name.lower() for name in self.field_names}
-        candidates: list[str] = []
-        for key, value in source.custom_fields.items():
-            if key.lower() in wanted:
-                candidates.append(value)
+        candidates: list[str] = [value for key, value in source.custom_fields.items() if key.lower() in wanted]
         if not candidates:
             return
         for adapter in adapters:
@@ -444,11 +441,7 @@ def _to_string_tuple(value: object) -> tuple[str, ...]:
     if isinstance(value, str):
         return (value,)
     if isinstance(value, Iterable):
-        out: list[str] = []
-        for item in value:
-            if isinstance(item, str):
-                out.append(item)
-        return tuple(out)
+        return tuple(item for item in value if isinstance(item, str))
     return ()
 
 
@@ -545,9 +538,10 @@ def write_audit_record(record: CrossTrackerAuditRecord, root: Path) -> Path:
     path = root / DEFAULT_AUDIT_RELPATH
     path.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(record.to_dict(), sort_keys=True, separators=(",", ":"))
+    # Emit the trailing newline in the same write() so concurrent writers
+    # cannot interleave a half-record into the JSONL file.
     with path.open("a", encoding="utf-8") as fh:
-        fh.write(line)
-        fh.write("\n")
+        fh.write(line + "\n")
     return path
 
 
@@ -698,11 +692,9 @@ class FederationDispatcher:
         """
 
         target_key = (tracker, ticket_id)
-        kinds: list[str] = []
-        for edge in self.graph.edges:
-            if edge.target.key() == target_key and edge.ref_kind not in kinds:
-                kinds.append(edge.ref_kind)
-        return "+".join(kinds)
+        matching = [edge.ref_kind for edge in self.graph.edges if edge.target.key() == target_key]
+        # Preserve first-seen order while deduplicating.
+        return "+".join(dict.fromkeys(matching))
 
     def _emit(
         self,

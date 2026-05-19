@@ -57,6 +57,8 @@ Projects issue in its body, which in turn carries an `External-Link`
 custom field pointing at a Notion page.
 
 ```python
+from pathlib import Path
+
 from bernstein.core.orchestration.federation import (
     FederationBuilder,
     FederationConfig,

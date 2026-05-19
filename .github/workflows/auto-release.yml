@@ -31,8 +31,10 @@ jobs:
     name: Alert on stale release trigger
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # `cancelled` excluded: usually means superseded by concurrency
+    # or operator-cancelled, not a real failure worth alerting.
     if: >-
-      contains(fromJSON('["failure","cancelled","timed_out","action_required"]'),
+      contains(fromJSON('["failure","timed_out","action_required"]'),
         github.event.workflow_run.conclusion)
     permissions:
       contents: read

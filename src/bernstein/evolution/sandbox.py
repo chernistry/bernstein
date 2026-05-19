@@ -323,12 +323,12 @@ class SandboxValidator:
         """Run the test suite and return (passed, failed, total, output)."""
         command = cmd or self.test_command
         try:
+            # SECURITY: shell=True required because command is a developer-configured
+            # test command string (e.g. "pytest tests/ -x") that may use shell features
+            # like pipes or globs; not user input. See _run_tests docstring.
             result = subprocess.run(
                 command,
-                shell=True,  # SECURITY: shell=True required because command is a
-                # developer-configured test command string
-                # (e.g. "pytest tests/ -x") that may use shell features like
-                # pipes or globs; not user input
+                shell=True,  # nosemgrep: python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
                 cwd=worktree,
                 capture_output=True,
                 text=True,

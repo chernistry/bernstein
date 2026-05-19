@@ -497,11 +497,11 @@ def _run_command(command: str, cwd: Path, timeout_s: int) -> tuple[bool, str]:
         Tuple of (exit_code_zero, combined_stdout_stderr_output).
     """
     try:
+        # SECURITY: shell=True required because quality gate commands are admin-configured
+        # shell strings (e.g. "ruff check src/") that may use pipes or globs; not user input.
         proc = subprocess.run(
             command,
-            shell=True,  # SECURITY: shell=True required because quality gate commands
-            # are admin-configured shell strings (e.g. "ruff check src/")
-            # that may use pipes or globs; not user input
+            shell=True,  # nosemgrep: python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
             cwd=cwd,
             capture_output=True,
             text=True,

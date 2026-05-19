@@ -766,6 +766,8 @@ def resolve_default_policy(
         import logging
 
         logger = logging.getLogger(__name__)
+        # Only the env-var *name* (not its value) is logged.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.info(
             "credential scoping disabled via %s=1; spawned agents will inherit the orchestrator's full credential set",
             ENV_DISABLE_CREDENTIAL_SCOPING,
@@ -795,6 +797,8 @@ def resolve_default_policy(
     import logging
 
     logger = logging.getLogger(__name__)
+    # Only candidate file paths and the env-var *name* are logged.
+    # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
     logger.warning(
         "no credential policy file found (looked in: %s); spawned agents will "
         "inherit the orchestrator's full credential set. Ship one at "

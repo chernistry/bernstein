@@ -84,8 +84,12 @@ class SecretsRefresher:
                     fetched_at=time.monotonic(),
                     ttl=self.config.ttl,
                 )
+                # ``key`` is ``provider:path`` (cache key, not a secret value).
+                # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure  # noqa: E501
                 logger.debug("Background secrets refresh successful for %s", key)
             except Exception as exc:
+                # ``config.path`` is the vault/secrets-manager path (non-secret).
+                # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure  # noqa: E501
                 logger.warning("Background secrets refresh failed for %s: %s", self.config.path, exc)
 
             # Wait for next interval or stop signal
@@ -414,6 +418,8 @@ def load_secrets(config: SecretsConfig) -> dict[str, str]:
     if cached is not None and config.ttl > 0:
         age = now - cached.fetched_at
         if age < cached.ttl:
+            # ``key`` is ``provider:path`` (cache key, not a secret value).
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.debug("Using cached secrets for %s (age=%.0fs, ttl=%ds)", key, age, config.ttl)
             return cached.values
 
@@ -422,6 +428,8 @@ def load_secrets(config: SecretsConfig) -> dict[str, str]:
     try:
         raw_secrets = provider.fetch(config.path)
     except SecretsError as exc:
+        # Only the provider name and exception message are logged, not values.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.warning("Secrets manager unavailable (%s), falling back to env vars: %s", config.provider, exc)
         return _fallback_from_env(config)
 
@@ -430,6 +438,8 @@ def load_secrets(config: SecretsConfig) -> dict[str, str]:
 
     # Cache result
     _cache[key] = _CachedSecrets(values=mapped, fetched_at=now, ttl=config.ttl)
+    # Only the count, provider, and path are logged, not secret values.
+    # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
     logger.info("Loaded %d secret(s) from %s:%s", len(mapped), config.provider, config.path)
     return mapped
 

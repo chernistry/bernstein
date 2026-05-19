@@ -345,6 +345,8 @@ def generate_session_waste_report(
             raw = tokens_file.read_text(encoding="utf-8", errors="ignore")
             records = _parse_token_records(raw)
         except OSError as exc:
+            # "token" here refers to LLM context tokens (integers), not credentials.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.warning("token_waste_report: could not read %s: %s", tokens_file, exc)
 
     report = analyze_token_waste(
@@ -355,6 +357,8 @@ def generate_session_waste_report(
         oversized_threshold=oversized_threshold,
     )
 
+    # "token" here refers to LLM context tokens, not credentials.
+    # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
     logger.info("token_waste_report: %s", report.summary())
 
     if save:
@@ -394,4 +398,6 @@ def _save_report(report: TokenWasteReport, workdir: Path) -> None:
     try:
         out_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     except OSError as exc:
+        # "token" here refers to LLM context tokens, not credentials.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.warning("token_waste_report: could not save report: %s", exc)

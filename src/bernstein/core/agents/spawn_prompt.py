@@ -1021,6 +1021,8 @@ def _render_prompt(
             )
 
             _pt_report = analyse_prompt_sections(named_sections, session_id=session_id)
+            # "token" here counts LLM context tokens, not credentials.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.debug(
                 "Prompt token breakdown for %s: sys=%d%% ctx=%d%% user=%d%% total=%d",
                 session_id,
@@ -1032,8 +1034,12 @@ def _render_prompt(
             save_prompt_token_report(_pt_report, workdir)
             if _pt_report.suggestions:
                 for _sug in _pt_report.suggestions:
+                    # "token" here is an LLM context-token suggestion, not a credential.
+                    # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure  # noqa: E501
                     logger.info("Prompt token suggestion [%s]: %s", session_id, _sug)
         except Exception as _pt_exc:
+            # "token" here is LLM context tokens, not credentials.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.debug("Prompt token analysis failed: %s", _pt_exc)
 
     # Apply staged context collapse (T418): truncate → drop sections → strip metadata
@@ -1044,6 +1050,8 @@ def _render_prompt(
         compressed = "".join(content for _, content in collapse_result.sections)
         if collapse_result.steps:
             total_freed = sum(s.tokens_freed for s in collapse_result.steps)
+            # "token" here counts LLM context tokens, not credentials.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.info(
                 "Context collapsed: %d → %d tokens (%d freed, %d steps, %s)",
                 collapse_result.original_tokens,
@@ -1081,6 +1089,8 @@ def _render_prompt(
         compressed, original_tokens, compressed_tokens, dropped = compressor.compress_sections(named_sections)
         if dropped:
             reduction_pct = (1.0 - compressed_tokens / max(1, original_tokens)) * 100
+            # "token" here counts LLM context tokens, not credentials.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.info(
                 "Prompt compressed: %d → %d tokens (%.0f%% reduction), dropped: %s",
                 original_tokens,

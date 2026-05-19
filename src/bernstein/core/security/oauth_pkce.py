@@ -366,7 +366,19 @@ class PKCEFlow:
             )
 
         if resp.status_code != 200:
-            logger.error("PKCE token exchange failed: %s %s", resp.status_code, resp.text)
+            # ``resp.text`` from a token endpoint can echo the
+            # client_secret or contain a partial access_token even on
+            # error paths; mask before logging. The exception body
+            # still propagates the raw text to the caller so callers
+            # that need it for debugging can opt in there.
+            from bernstein.core.security.redactor import mask
+
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure  # noqa: E501
+            logger.error(
+                "PKCE token exchange failed: %s %s",
+                resp.status_code,
+                mask(resp.text),
+            )
             raise OAuthError(f"Token exchange failed (HTTP {resp.status_code}): {resp.text[:200]}")
 
         data: dict[str, Any] = resp.json()

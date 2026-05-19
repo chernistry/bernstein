@@ -186,6 +186,8 @@ class _VaultInjector:
             expires_at=expires_at,
             revocable=bool(lease_id),
         )
+        # Vault path and lease_id are non-secret metadata, not credentials.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.info(
             "Vault credential issued: path=%s lease=%s ttl=%ds",
             config.path,
@@ -277,11 +279,19 @@ class _AwsInjector:
             expires_at=expires_at,
             revocable=False,  # STS credentials expire automatically
         )
-        logger.info("AWS STS credential issued: key=%s ttl=%ds", access_key[:8] + "****", ttl)
+        # AWS access-key ids are themselves credential material (paired
+        # with the secret key they grant API access); mask before
+        # logging rather than expose any prefix.
+        from bernstein.core.security.redactor import mask
+
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure  # noqa: E501
+        logger.info("AWS STS credential issued: key=%s ttl=%ds", mask(access_key, keep=4), ttl)
         return env_vars, lease
 
     def revoke(self, lease: CredentialLease) -> None:
         """AWS STS credentials expire automatically; active revocation is not supported."""
+        # Only the lease expiry timestamp is logged, not credential material.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.debug(
             "AWS STS credentials expire automatically at %s; no active revocation needed",
             lease.expires_at.isoformat(),
@@ -332,6 +342,8 @@ class _OnePasswordInjector:
             expires_at=expires_at,
             revocable=False,
         )
+        # Only the 1Password item path and field count are logged, not values.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.info("1Password credential fetched: item=%s fields=%d", config.path, len(env_vars))
         return env_vars, lease
 

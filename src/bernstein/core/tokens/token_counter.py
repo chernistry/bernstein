@@ -168,6 +168,8 @@ async def count_tokens(
         log.debug("Token count via API: %d", tokens)
         return tokens
     except Exception as exc:
+        # "token" here counts LLM context tokens, not credentials.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         log.debug("API token count failed (%s); trying cheap model", exc)
 
     # Level 2 — Cheap LLM
@@ -176,6 +178,8 @@ async def count_tokens(
         log.debug("Token count via cheap model: %d", tokens)
         return tokens
     except Exception as exc:
+        # "token" here counts LLM context tokens, not credentials.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         log.debug("Cheap-model token count failed (%s); falling back to estimation", exc)
 
     # Level 3 — Bytes estimation (never fails)

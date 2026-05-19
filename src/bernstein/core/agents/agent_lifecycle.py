@@ -482,6 +482,8 @@ def _try_compact_and_retry(
         except Exception as _be:
             logger.debug("Budget post-compaction reconcile failed for %s: %s", task_id, _be)
 
+    # "token" here counts LLM context tokens, not credentials.
+    # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
     logger.info(
         "Compacted task %s description: %d → %d tokens (saved %d, correlation=%s)",
         task_id,

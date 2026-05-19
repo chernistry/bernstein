@@ -467,6 +467,8 @@ def _log_steps(steps: list[CollapseStep], stage_name: str) -> None:
         return
     freed = sum(s.tokens_freed for s in steps)
     section_names = ", ".join(s.section_name for s in steps)
+    # "token" here counts LLM context tokens, not credentials.
+    # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
     logger.info(
         "Collapse stage %s: freed %d tokens from [%s]",
         stage_name,

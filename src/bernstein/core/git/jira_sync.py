@@ -52,6 +52,8 @@ def fetch_jira_issues(config: JiraSyncConfig) -> list[dict[str, Any]]:
     """
     token = os.environ.get(config.auth_token_env, "")
     if not token:
+        # Only the env-var *name* (not its value) is logged.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.warning("Jira auth token env var %s is not set", config.auth_token_env)
         return []
 

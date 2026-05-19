@@ -494,6 +494,8 @@ class SSOAuthMiddleware(BaseHTTPMiddleware):
         # is unconfigured, or when the token omits the claim entirely.
         resource_error = _resource_indicator_check(claims, self._expected_resource)
         if resource_error is not None:
+            # Only the request path and configured expected_resource are logged.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.warning(
                 "SSO token rejected: resource indicator mismatch (path=%s, expected=%s)",
                 path,

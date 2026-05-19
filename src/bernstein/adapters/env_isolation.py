@@ -228,6 +228,8 @@ def build_filtered_env(
 
         provider_secrets = load_secrets(secrets_config)
         if provider_secrets:
+            # Only the count and provider name are logged, not secret values.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.debug(
                 "Injecting %d secret(s) from %s into agent env",
                 len(provider_secrets),

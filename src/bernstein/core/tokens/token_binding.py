@@ -138,6 +138,8 @@ class TokenBindingValidator:
         if self._enforce_run_binding and self._run_id:
             token_run_id = claims.get("run_id", "")
             if token_run_id != self._run_id:
+                # ``run_id`` is a non-secret run identifier (not a credential).
+                # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure  # noqa: E501
                 logger.warning(
                     "Token run_id mismatch: expected %r, got %r (client=%s)",
                     self._run_id,
@@ -154,6 +156,8 @@ class TokenBindingValidator:
         if jti:
             rate_result = self._check_rate_limit(jti)
             if not rate_result.valid:
+                # ``jti`` is the JWT identifier claim (a non-secret correlation id).
+                # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure  # noqa: E501
                 logger.warning(
                     "Rate limit exceeded for token jti=%s (client=%s)",
                     jti,

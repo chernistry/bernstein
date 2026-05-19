@@ -133,6 +133,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `report.py`                | Adapter conformance + capability report |
 | `rovo.py`                  | Atlassian Rovo Dev CLI adapter |
 | `skills_injector.py`       | Inject per-task Claude Code skills into the worktree before spawn |
+| `use_cases.py`             | Per-adapter metadata for the ``bernstein integrations list`` command |
 | `ci/`                      | CI system adapters for log parsing and failure extraction |
 
 ### `src/bernstein/agents/` — agent catalog & discovery

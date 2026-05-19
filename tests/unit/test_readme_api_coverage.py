@@ -215,6 +215,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "bom",
         "consensus",
         "knowledge",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "integrations",
     }
 )
 

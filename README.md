@@ -66,6 +66,8 @@ bernstein init
 bernstein run -g "fix the failing test in tests/test_foo.py"
 ```
 
+See installed integrations: `bernstein integrations list --installed`.
+
 ## sponsor
 
 if bernstein routed a model that saved you a claude bill, $25 covers a month of my coffee.

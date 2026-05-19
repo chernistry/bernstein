@@ -1,0 +1,62 @@
+name: Review-bot acknowledgement gate
+
+# Pre-merge gate: ensure every must-address CodeRabbit and Sourcery
+# finding on a PR is either fixed in a fixup commit or explicitly
+# acknowledged in the PR body. Automated review tools flag legitimate
+# correctness and security issues; this gate keeps the merge queue
+# honest by blocking merge until those findings are processed.
+#
+# The check name emitted by this workflow is `review-bot-ack`. The
+# operator should add this context to the branch protection rule on
+# `main` alongside `CI gate`. The required-check canary in
+# `tests/unit/test_required_check_canary_workflow_yaml.py` allow-lists
+# only `CI gate` emitters; `review-bot-ack` is a distinct check name
+# so the canary does not need updating.
+
+on:
+  pull_request:
+    types: [opened, synchronize, edited, reopened]
+  pull_request_review:
+    types: [submitted]
+
+concurrency:
+  group: review-bot-ack-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  review-bot-ack:
+    name: review-bot-ack
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event.pull_request != null
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.13"
+
+      - name: Run review-bot acknowledgement gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python3 scripts/review_bot_ack.py \
+            --owner "$OWNER" \
+            --repo "$REPO_NAME" \
+            --pr "$PR_NUMBER"

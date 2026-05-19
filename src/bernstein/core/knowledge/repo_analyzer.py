@@ -11,6 +11,7 @@ before the user has configured an LLM provider.
 
 from __future__ import annotations
 
+import operator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -186,7 +187,7 @@ def analyze_repo(root: Path) -> RepoAnalysis:
 
     # Language ranking.
     total_for_pct = max(analysis.total_source_files, 1)
-    ranked = sorted(files_by_language.items(), key=lambda x: x[1], reverse=True)
+    ranked = sorted(files_by_language.items(), key=operator.itemgetter(1), reverse=True)
     analysis.languages = [
         LanguageBreakdown(name=name, files=count, pct=round(count / total_for_pct * 100, 1)) for name, count in ranked
     ]

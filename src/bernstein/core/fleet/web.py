@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import operator
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -184,7 +185,7 @@ def build_fleet_app(
                         "line_no": entry.line_no,
                     }
                 )
-        rows.sort(key=lambda r: r["ts"], reverse=True)
+        rows.sort(key=operator.itemgetter("ts"), reverse=True)
         return JSONResponse({"entries": rows[:limit]})
 
     @app.get("/api/audit/chain")

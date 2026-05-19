@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import operator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -370,7 +371,7 @@ def analyze_traces(traces_dir: Path | None = None) -> AnalyticsReport:
         goal_key = s.goal[:50]
         goal_counts[goal_key] = goal_counts.get(goal_key, 0) + 1
 
-    top_goals = sorted(goal_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    top_goals = sorted(goal_counts.items(), key=operator.itemgetter(1), reverse=True)[:10]
 
     return AnalyticsReport(
         generated_at=now,
@@ -418,7 +419,7 @@ def format_report(report: AnalyticsReport) -> str:
     if report.category_breakdown:
         lines.append("TASK CATEGORIES")
         lines.append("-" * 30)
-        for cat, count in sorted(report.category_breakdown.items(), key=lambda x: x[1], reverse=True):
+        for cat, count in sorted(report.category_breakdown.items(), key=operator.itemgetter(1), reverse=True):
             bar = "█" * count
             lines.append(f"  {cat:15s} {count:4d} {bar}")
         lines.append("")
@@ -426,7 +427,7 @@ def format_report(report: AnalyticsReport) -> str:
     if report.role_breakdown:
         lines.append("AGENT ROLES")
         lines.append("-" * 30)
-        for role, count in sorted(report.role_breakdown.items(), key=lambda x: x[1], reverse=True):
+        for role, count in sorted(report.role_breakdown.items(), key=operator.itemgetter(1), reverse=True):
             bar = "█" * count
             lines.append(f"  {role:15s} {count:4d} {bar}")
         lines.append("")
@@ -434,7 +435,7 @@ def format_report(report: AnalyticsReport) -> str:
     if report.model_breakdown:
         lines.append("MODELS")
         lines.append("-" * 30)
-        for model, count in sorted(report.model_breakdown.items(), key=lambda x: x[1], reverse=True):
+        for model, count in sorted(report.model_breakdown.items(), key=operator.itemgetter(1), reverse=True):
             bar = "█" * count
             lines.append(f"  {model:15s} {count:4d} {bar}")
         lines.append("")

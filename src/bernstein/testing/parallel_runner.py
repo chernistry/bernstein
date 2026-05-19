@@ -8,6 +8,7 @@ bucket balancing and provides a structured report with speedup metrics.
 
 from __future__ import annotations
 
+import operator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
@@ -111,7 +112,7 @@ def bucket_tests(
 
     # Build (file, duration) pairs and sort descending by duration (LPT)
     timed_files = [(f, effective_history.get(f, default_duration)) for f in files]
-    timed_files.sort(key=lambda x: x[1], reverse=True)
+    timed_files.sort(key=operator.itemgetter(1), reverse=True)
 
     # Initialize buckets
     bucket_files: list[list[str]] = [[] for _ in range(num_buckets)]

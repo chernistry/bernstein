@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import operator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -84,7 +85,7 @@ class CommandPalette:
             if best_match:
                 scored.append((best_score, command))
 
-        scored.sort(key=lambda item: item[0])
+        scored.sort(key=operator.itemgetter(0))
         return [command for _, command in scored]
 
     def set_query(self, query: str) -> None:

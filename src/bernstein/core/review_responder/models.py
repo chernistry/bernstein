@@ -11,7 +11,7 @@ from enum import Enum
 from typing import Literal
 
 
-class RoundOutcome(str, Enum):  # noqa: UP042 - StrEnum forces str-cmp wins; we want explicit dual-base for label exports
+class RoundOutcome(str, Enum):
     """Outcome label attached to a completed (or aborted) review round.
 
     Values are kept stable because they appear as a Prometheus label.

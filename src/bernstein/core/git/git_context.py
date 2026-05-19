@@ -8,6 +8,7 @@ agent prompts as warm context before they start working.
 from __future__ import annotations
 
 import logging
+import operator
 import re
 import subprocess
 from collections import Counter
@@ -127,7 +128,7 @@ def _dedup_blame_entries(changes: list[tuple[str, str, str]], max_entries: int) 
             seen.add(summary)
             unique.append((author, summary, ts))
 
-    unique.sort(key=lambda x: x[2], reverse=True)
+    unique.sort(key=operator.itemgetter(2), reverse=True)
     return unique[:max_entries]
 
 

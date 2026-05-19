@@ -7,6 +7,7 @@ degrade when stdout is not a TTY (e.g. piped output or CI).
 
 from __future__ import annotations
 
+import operator
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -359,7 +360,7 @@ class CostBurnPanel:
     def _render_model_breakdown(self, text: Text, per_model: dict[str, float]) -> None:
         """Render per-model cost breakdown."""
         text.append("  |  ", style="dim")
-        for i, (model, cost) in enumerate(sorted(per_model.items(), key=lambda kv: kv[1], reverse=True)):
+        for i, (model, cost) in enumerate(sorted(per_model.items(), key=operator.itemgetter(1), reverse=True)):
             if i > 0:
                 text.append("  ", style="")
             text.append(f"{model}:", style="dim")
@@ -367,7 +368,7 @@ class CostBurnPanel:
 
     def _render_agent_breakdown(self, text: Text, per_agent: dict[str, float]) -> None:
         """Render per-agent cost breakdown (top 5)."""
-        top = sorted(per_agent.items(), key=lambda kv: kv[1], reverse=True)[:5]
+        top = sorted(per_agent.items(), key=operator.itemgetter(1), reverse=True)[:5]
         text.append("\nAgents: ", style="dim")
         for i, (agent_id, cost) in enumerate(top):
             if i > 0:

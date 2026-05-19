@@ -7,6 +7,7 @@ tier providers first before using paid tiers.
 from __future__ import annotations
 
 import logging
+import operator
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -170,7 +171,7 @@ class FreeTierMaximizer:
             return None
 
         # Sort by remaining quota (descending)
-        available.sort(key=lambda x: x[1], reverse=True)
+        available.sort(key=operator.itemgetter(1), reverse=True)
         return available[0][0]
 
     def should_use_free_tier(self, provider: str) -> bool:

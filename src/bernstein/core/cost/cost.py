@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
+import operator
 import random
 import time
 from dataclasses import dataclass, field
@@ -531,7 +532,7 @@ class EpsilonGreedyBandit:
             logger.debug("Bandit[%s]: no qualifying arms, fallback → %s", role, fallback)
             return fallback
 
-        chosen = min(qualifying, key=lambda t: t[1])[0]
+        chosen = min(qualifying, key=operator.itemgetter(1))[0]
         logger.debug("Bandit[%s]: exploit → %s (cost=%.5f)", role, chosen, dict(qualifying)[chosen])
         return chosen
 

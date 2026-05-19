@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import logging
+import operator
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -164,7 +165,7 @@ def _find_manager_session(agents: dict[str, Any], now: float) -> Any | None:
     if not candidates:
         return None
     # Oldest session first — that's the one we judge against the threshold.
-    candidates.sort(key=lambda item: item[0], reverse=True)
+    candidates.sort(key=operator.itemgetter(0), reverse=True)
     return candidates[0][1]
 
 

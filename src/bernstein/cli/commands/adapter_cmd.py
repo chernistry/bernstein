@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import inspect
 import json
+import operator
 import re
 import shutil
 import subprocess
@@ -212,7 +213,7 @@ def _enumerate_adapters() -> list[dict[str, str]]:
                 "status": "n/a",
             }
         )
-    rows.sort(key=lambda r: r["name"])
+    rows.sort(key=operator.itemgetter("name"))
     return rows
 
 

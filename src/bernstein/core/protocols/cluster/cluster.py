@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import operator
 import socket
 import threading
 import time
@@ -426,8 +427,8 @@ class TaskStealPolicy:
                 receivers.append((node.id, node.capacity.available_slots))
 
         # Sort donors by most overloaded first, receivers by most idle first
-        donors.sort(key=lambda x: x[1], reverse=True)
-        receivers.sort(key=lambda x: x[1], reverse=True)
+        donors.sort(key=operator.itemgetter(1), reverse=True)
+        receivers.sort(key=operator.itemgetter(1), reverse=True)
 
         return _match_steal_pairs(donors, receivers, self.overload_threshold, self.max_steal_per_tick)
 

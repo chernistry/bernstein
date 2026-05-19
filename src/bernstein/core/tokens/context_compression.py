@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import ast
 import logging
+import operator
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -353,7 +354,7 @@ class BM25Ranker:
                 results.append((fname, float(overlap)))
 
         results = [(fname, score) for fname, score in results if score >= threshold]
-        results.sort(key=lambda x: x[1], reverse=True)
+        results.sort(key=operator.itemgetter(1), reverse=True)
 
         if top_k is not None:
             results = results[:top_k]
@@ -691,7 +692,7 @@ class PromptCompressor:
         # Sort by priority ascending so we drop cheapest-value sections first
         drop_candidates = sorted(
             [(name, tokens, priority) for name, _, tokens, priority in annotated if priority < 10],
-            key=lambda x: x[2],
+            key=operator.itemgetter(2),
         )
 
         dropped: set[str] = set()

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import operator
 import time
 import uuid
 from dataclasses import asdict, dataclass
@@ -335,7 +336,7 @@ def get_lessons_for_agent(
         return []
 
     # Sort by relevance score (descending) and return top-N
-    lessons_with_score.sort(key=lambda x: x[1], reverse=True)
+    lessons_with_score.sort(key=operator.itemgetter(1), reverse=True)
     return [lesson for lesson, _ in lessons_with_score[:limit]]
 
 

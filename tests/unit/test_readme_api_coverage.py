@@ -219,6 +219,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "integrations",
         # Bot-added: drift autofix (regen_contract_drift.py)
         "git",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "bundle",
     }
 )
 

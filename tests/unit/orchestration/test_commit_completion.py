@@ -36,6 +36,7 @@ from bernstein.core.orchestration.commit_completion import (
     build_continuation_prompt,
     decide_retry,
     maybe_retry_continuation,
+    set_retry_lifecycle_emitter,
 )
 
 # ---------------------------------------------------------------------------
@@ -284,6 +285,15 @@ class TestBuildContinuationPrompt:
     def test_empty_nudge_returns_original(self) -> None:
         assert build_continuation_prompt(original_prompt="just this", nudge="") == "just this"
 
+    def test_preserves_leading_and_trailing_whitespace(self) -> None:
+        # Transcript replay must match the original spawn byte-for-byte;
+        # we no longer ``strip()`` the composed prompt.
+        out = build_continuation_prompt(original_prompt="  body \n", nudge="hint")
+        assert out == "  body \n\n\nhint"
+
+    def test_empty_original_returns_nudge_only(self) -> None:
+        assert build_continuation_prompt(original_prompt="", nudge="just-nudge") == "just-nudge"
+
 
 # ---------------------------------------------------------------------------
 # maybe_retry_continuation end-to-end
@@ -422,3 +432,91 @@ class TestCLIAdapterContract:
         assert ClaudeCodeAdapter.supports_session_continuation is True
         args = ClaudeCodeAdapter.continuation_args(None, "sess-x")  # type: ignore[arg-type]
         assert args == ["--continue"]
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle emitter
+# ---------------------------------------------------------------------------
+
+
+class TestLifecycleEmitter:
+    def test_emits_on_retry_launch(self, repo: Path) -> None:
+        captured: list[dict[str, object]] = []
+
+        def _emit(payload: dict[str, object]) -> None:
+            captured.append(payload)
+
+        set_retry_lifecycle_emitter(_emit)
+        try:
+            check = CommitCompletionCheck()
+            before = check.snapshot_before(repo)
+            adapter = _StubAdapter(supports_session_continuation=True, continuation_args_value=["--continue"])
+            recorder = _SpawnRecorder()
+            maybe_retry_continuation(
+                adapter=adapter,  # type: ignore[arg-type]
+                workdir=repo,
+                before=before,
+                session_id="sess-emit",
+                exit_code=0,
+                original_prompt="p",
+                spawn_fn=recorder,
+            )
+        finally:
+            set_retry_lifecycle_emitter(None)
+
+        assert captured == [{"session_id": "sess-emit", "reason": "needs_retry", "attempt": 1}]
+
+    def test_no_emit_when_decision_skips_retry(self, repo: Path) -> None:
+        captured: list[dict[str, object]] = []
+
+        def _emit(payload: dict[str, object]) -> None:
+            captured.append(payload)
+
+        set_retry_lifecycle_emitter(_emit)
+        try:
+            check = CommitCompletionCheck()
+            before = check.snapshot_before(repo)
+            (repo / "y.txt").write_text("y", encoding="utf-8")
+            _run_git(repo, "add", ".")
+            _run_git(repo, "commit", "-m", "did it")
+            adapter = _StubAdapter(supports_session_continuation=True, continuation_args_value=["--continue"])
+            recorder = _SpawnRecorder()
+            maybe_retry_continuation(
+                adapter=adapter,  # type: ignore[arg-type]
+                workdir=repo,
+                before=before,
+                session_id="sess-no-emit",
+                exit_code=0,
+                original_prompt="p",
+                spawn_fn=recorder,
+            )
+        finally:
+            set_retry_lifecycle_emitter(None)
+
+        assert captured == []
+
+    def test_emitter_failure_does_not_break_retry(self, repo: Path) -> None:
+        def _boom(_payload: dict[str, object]) -> None:
+            raise RuntimeError("downstream registry exploded")
+
+        set_retry_lifecycle_emitter(_boom)
+        try:
+            check = CommitCompletionCheck()
+            before = check.snapshot_before(repo)
+            adapter = _StubAdapter(supports_session_continuation=True, continuation_args_value=["--continue"])
+            recorder = _SpawnRecorder(return_value="spawned")
+            decision, _verdict, result = maybe_retry_continuation(
+                adapter=adapter,  # type: ignore[arg-type]
+                workdir=repo,
+                before=before,
+                session_id="sess-boom",
+                exit_code=0,
+                original_prompt="p",
+                spawn_fn=recorder,
+            )
+        finally:
+            set_retry_lifecycle_emitter(None)
+
+        assert decision.should_retry is True
+        assert result == "spawned"
+        assert recorder.calls != []

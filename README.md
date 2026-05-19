@@ -351,7 +351,7 @@ For compliance reviewers asking "which regulation does Bernstein actually map to
 |---|---|---|
 | EU AI Act Article 12 (logging) | Automatic record-keeping for high-risk AI systems | `bernstein audit export --article-12 --since … --until …` → deterministic, retention-pinned bundle with audit slice + governance catalog. See [docs/compliance/](docs/compliance/). |
 | SOC 2 Trust Service Criteria | CC4 / CC7 (audit + monitoring) | `bernstein audit pack --soc2` → per-control evidence checklist with sha-256 pointers. |
-| DORA / NIS2 | Per-artefact lineage with customer-key Ed25519 signature | `bernstein lineage export <run_id> --format jsonld` → schema v2 records. |
+| DORA / NIS2 | Per-artefact lineage with customer-key Ed25519 signature | `bernstein lineage export <run_id> --format jsonld` → schema v2 records. Parallel-worktree forks: list with `bernstein lineage conflicts`, resolve with `bernstein lineage resolve --policy human|first-writer|agent:<id>`. See [docs/lineage/conflict-resolution.md](docs/lineage/conflict-resolution.md). |
 | OWASP Agent Security Initiative (ASI06 — memory poisoning, 2026) | Memory provenance audit | `bernstein verify --memory-audit` walks the lesson-memory chain. |
 | RFC 2104 (HMAC) | Audit chain integrity | `.sdd/audit/*.jsonl` HMAC-SHA256 with secret outside the audit volume. |
 | RFC 7515 §A.5 (detached JWS) + RFC 8785 (JCS) + RFC 8037 (EdDSA) | Signed agent cards + lineage signatures | `src/bernstein/core/security/agent_card_signer.py`, `src/bernstein/core/security/lineage_kms.py`. |

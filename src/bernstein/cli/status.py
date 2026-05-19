@@ -202,6 +202,35 @@ def _build_provider_table(provider_status: dict[str, Any]) -> Table | None:
     return table
 
 
+def _format_lineage_line(lineage: dict[str, Any]) -> str | None:
+    """Render a one-line summary of the lineage trace fold.
+
+    Surfaces the unresolved-fork count and a pointer to the resolution
+    CLI when at least one fork is open. Returns ``None`` when there is
+    no lineage log on disk so the section is suppressed entirely.
+    """
+    if not lineage:
+        return None
+    entry_count_raw = lineage.get("entry_count", 0)
+    try:
+        entry_count = int(entry_count_raw)
+    except (TypeError, ValueError):
+        entry_count = 0
+    if entry_count <= 0:
+        return None
+    unresolved_raw = lineage.get("unresolved_forks", 0)
+    try:
+        unresolved = int(unresolved_raw)
+    except (TypeError, ValueError):
+        unresolved = 0
+    if unresolved <= 0:
+        return f"Lineage: {entry_count} entry(ies); 0 unresolved forks"
+    return (
+        f"Lineage: {entry_count} entry(ies); {unresolved} unresolved fork(s) "
+        f"(run 'bernstein lineage conflicts' to view)"
+    )
+
+
 def _format_last_429_cell(snapshot: dict[str, Any]) -> str:
     """Render the "last 429" cell as a short human duration."""
     ago_obj = snapshot.get("last_429_ago_seconds")
@@ -484,6 +513,8 @@ def render_status(
     total_cost = stats.total_cost_usd
     alerts_raw = data.get("alerts", [])
     alerts = _dict_items_list(alerts_raw, key="unused")
+    lineage_obj = data.get("lineage", {})
+    lineage = cast(_CAST_DICT_STR_ANY, lineage_obj) if isinstance(lineage_obj, dict) else {}
 
     if not con.is_terminal:
         con.print(create_summary_plain(stats))
@@ -522,6 +553,17 @@ def render_status(
     if dependency_scan_line is not None:
         con.print()
         con.print(Text.assemble(("Security: ", "bold"), (dependency_scan_line, "dim")))
+
+    lineage_line = _format_lineage_line(lineage)
+    if lineage_line is not None:
+        con.print()
+        unresolved_obj = lineage.get("unresolved_forks", 0)
+        try:
+            unresolved_count = int(unresolved_obj)
+        except (TypeError, ValueError):
+            unresolved_count = 0
+        line_style = "yellow" if unresolved_count > 0 else "dim"
+        con.print(Text.assemble(("Lineage: ", "bold"), (lineage_line, line_style)))
 
     if vc.show_quality_gates:
         _render_verification_nudge(data, con)
@@ -568,8 +610,13 @@ def render_status_plain(data: dict[str, Any]) -> str:
         elapsed_seconds=elapsed,
         total_cost_usd=total_cost,
     )
+    lineage_obj = data.get("lineage", {})
+    lineage = cast(_CAST_DICT_STR_ANY, lineage_obj) if isinstance(lineage_obj, dict) else {}
+
     plain = create_summary_plain(stats)
     dependency_scan_line = _format_dependency_scan_line(dependency_scan)
-    if dependency_scan_line is None:
+    lineage_line = _format_lineage_line(lineage)
+    tail = "\n".join(line for line in (dependency_scan_line, lineage_line) if line is not None)
+    if not tail:
         return plain
-    return f"{plain}\n{dependency_scan_line}"
+    return f"{plain}\n{tail}"

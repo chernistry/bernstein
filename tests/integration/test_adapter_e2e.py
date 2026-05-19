@@ -244,7 +244,7 @@ class TestAiderEndToEnd:
         # the rest of the argv shape.
         assert "--model" in argv
         assert "--message" in argv
-        assert "--yes" in argv
+        assert "--yes-always" in argv
         assert argv[argv.index("--message") + 1] == "argv-shape-check"
 
     def test_env_strips_unrelated_secrets(

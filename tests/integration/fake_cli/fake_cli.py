@@ -302,7 +302,7 @@ def _validate_argv(profile: str, argv: list[str]) -> None:
     elif profile == "gemini":
         required = {"-p", "-m", "--yolo"}
     elif profile in {"aider", "ollama"}:
-        required = {"--model", "--message", "--yes"}
+        required = {"--model", "--message", "--yes-always"}
     elif profile == "cursor":
         # Cursor adapter must request stream-json + workspace trust.
         required = {"--output-format", "--workspace", "--trust"}

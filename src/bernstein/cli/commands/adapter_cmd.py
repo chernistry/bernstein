@@ -91,7 +91,7 @@ def _print_log_tail(result: Any) -> None:
 
 def _check_expected_file(prompt: str, worktree: Path) -> None:
     """Heuristic check for a file path mentioned in the prompt."""
-    match = re.search(r'(?:file|path)\s+([^\s\'"]+)', prompt, re.I)
+    match = re.search(r'(?:file|path)\s+([^\s\'"]+)', prompt, re.IGNORECASE)
     if not match:
         match = re.search(r"(/[\w\.\-/]+|[\w\.\-/]+\.\w+)", prompt)
     if not match:

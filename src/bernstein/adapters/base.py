@@ -390,6 +390,15 @@ class CLIAdapter(ABC):
     #: ``0`` keeps the column unset.
     rate_limit_target_rpm: int = 0
 
+    #: Subclasses opt into the retry-with-continuation path by setting
+    #: this to ``True`` and implementing :meth:`continuation_args`. The
+    #: orchestrator consults this attribute via
+    #: :func:`bernstein.core.orchestration.commit_completion.adapter_supports_continuation`
+    #: after a "success without commit" exit and only launches a
+    #: continuation retry when the adapter has opted in. Default
+    #: ``False`` so unknown adapters never trigger the retry path.
+    supports_session_continuation: bool = False
+
     def __init__(self) -> None:
         self._resource_limits: ResourceLimits | None = None
         self._rate_limit_meter: RateLimitMeter | None = None
@@ -729,6 +738,25 @@ class CLIAdapter(ABC):
             back to a fresh spawn.
         """
         return None
+
+    def continuation_args(self, _session_id: str) -> list[str]:
+        """Return CLI flags that re-enter the adapter's prior session.
+
+        Adapters that opt into the retry-with-continuation path
+        (``supports_session_continuation = True``) override this method
+        and return the flag list that resumes the previous conversation
+        without paying the full setup cost again. Typical
+        implementations return ``["--resume", session_id]``,
+        ``["--continue"]``, or an equivalent provider-specific switch.
+
+        The default returns an empty list so adapters that have not
+        opted in never accidentally feed corrupt arguments to the
+        continuation spawn.
+
+        Args:
+            _session_id: The adapter session id from the prior launch.
+        """
+        return []
 
 
 # ---------------------------------------------------------------------------

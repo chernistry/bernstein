@@ -99,6 +99,40 @@ silently disables the guard.
 | `bernstein_run_cost_usd` | gauge | Cumulative routed spend for the active run. |
 | `bernstein_run_budget_remaining_usd` | gauge | Remaining headroom before the budget hard-stop. |
 
+### 4. Commit-completion check (retry-with-continuation)
+
+A common failure mode of CLI coding agents is exiting with success
+while the workspace is unchanged: the assistant reports completion but
+no new commit landed. The orchestrator now snapshots HEAD before the
+adapter spawn and compares after the process exits. When the agent
+exited cleanly (exit code 0) but HEAD did not move, the orchestrator
+launches a single continuation retry through the adapter's
+session-resume primitive and appends a corrective nudge:
+
+> You exited successfully but the workspace has no new commit. Either
+> commit your work or explain in plain prose why no commit was needed
+> for this task.
+
+The retry path is gated by the adapter's
+`supports_session_continuation` flag. Adapters that opt in (Claude
+Code today; more to follow) expose a `continuation_args(session_id)`
+method that returns the CLI flags re-entering the prior conversation
+without re-paying the full setup cost. Adapters that have not opted
+in fall through to the normal failure-handling path.
+
+Hard contract:
+
+- Retry is capped at exactly **one** attempt per task. Recursion is
+  not configurable.
+- Retry only fires when both pre-spawn and post-exit SHAs read
+  successfully. An unknown HEAD (no repo, no commits yet) leaves the
+  exit unchanged.
+- The lifecycle event `agent.retry_continuation` fires once per
+  retry launch with `{session_id, reason, attempt}` for downstream
+  observability.
+
+Source: `src/bernstein/core/orchestration/commit_completion.py`.
+
 ## Limitations
 
 - The adaptive concurrency layer reacts to recent task outcomes
@@ -117,5 +151,6 @@ silently disables the guard.
 - Adaptive parallelism: `src/bernstein/core/orchestration/adaptive_parallelism.py`
 - Tick budget: `src/bernstein/core/orchestration/tick_budget.py`
 - Cost guard: `src/bernstein/core/cost/cost_tracker.py`
+- Commit-completion check: `src/bernstein/core/orchestration/commit_completion.py`
 - [Adaptive parallelism](../architecture/adaptive-parallelism.md)
 - [Cost optimisation](../operations/cost-optimization.md)

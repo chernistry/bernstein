@@ -110,6 +110,15 @@ class LifecycleEvent(StrEnum):
     # ------------------------------------------------------------------
     RATE_LIMIT_HIT = "rate_limit.hit"
 
+    # ------------------------------------------------------------------
+    # Retry-with-continuation (feat/retry-with-continuation).
+    # Fires when the orchestrator detects a "success without commit"
+    # exit and launches a single continuation retry. Payload carries
+    # ``session_id``, ``reason`` (the :class:`RetryDecision.reason`
+    # tag), and ``attempt`` (1-indexed retry counter).
+    # ------------------------------------------------------------------
+    AGENT_RETRY_CONTINUATION = "agent.retry_continuation"
+
 
 #: The cross-CLI standardised event vocabulary introduced by issue #1323.
 #: Pre-existing snake_case events remain supported but are not part of

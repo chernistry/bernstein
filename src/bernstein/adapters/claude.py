@@ -116,6 +116,12 @@ class ClaudeCodeAdapter(CLIAdapter):
     # ``rate_limit_error`` types on the messages API.
     rate_limit_provider = "anthropic"
 
+    # Opt into the retry-with-continuation path. Claude Code's CLI
+    # exposes ``--resume <session-id>`` to re-enter a prior conversation
+    # without paying the full setup cost. See
+    # :mod:`bernstein.core.orchestration.commit_completion`.
+    supports_session_continuation = True
+
     # Track Popen objects for reliable is_alive() via poll()
     _procs: ClassVar[dict[int, subprocess.Popen[bytes]]] = {}
     _wrapper_pids: ClassVar[dict[int, int]] = {}  # claude_pid → wrapper_pid
@@ -641,6 +647,17 @@ class ClaudeCodeAdapter(CLIAdapter):
 
     def name(self) -> str:
         return "Claude Code"
+
+    def continuation_args(self, _session_id: str) -> list[str]:
+        """Return the CLI flags that re-enter the most recent Claude session.
+
+        Claude Code exposes ``--continue`` to re-enter the most recent
+        conversation in the current workdir without paying the full
+        setup cost. The orchestrator launches the retry from the same
+        worktree as the original spawn, so ``--continue`` resolves to
+        the correct prior session without explicit id plumbing.
+        """
+        return ["--continue"]
 
     def detect_tier(self) -> ApiTierInfo | None:
         """Detect Claude API tier based on environment and API key type.

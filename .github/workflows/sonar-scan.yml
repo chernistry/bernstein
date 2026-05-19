@@ -34,9 +34,10 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
           fetch-depth: 0  # Sonar needs full history for blame
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@a309ff8b2cd87a4afb98c0c2c0b1d4e6c30c6c10  # v6.2.0
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
           python-version: '3.13'
 
@@ -47,7 +48,7 @@ jobs:
           uv run pytest --cov=src/bernstein --cov-report=xml --cov-branch tests/unit/ -q || true
 
       - name: SonarQube scan
-        uses: SonarSource/sonarqube-scan-action@2500896589ef8f7247069a56136f8dc177c27ccf  # v6.0.0
+        uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995  # v8.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}

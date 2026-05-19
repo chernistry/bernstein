@@ -221,6 +221,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "git",
         # Bot-added: drift autofix (regen_contract_drift.py)
         "bundle",
+        # Playwright-based self-testing for UI/web agent runs
+        "sandbox",
     }
 )
 

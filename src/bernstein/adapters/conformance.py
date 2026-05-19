@@ -34,6 +34,11 @@ import yaml
 
 from bernstein.adapters.base import CLIAdapter, SpawnResult
 from bernstein.core.models import ModelConfig
+from bernstein.core.protocols.stream_signals import (
+    MissingTerminalSignal,
+    has_terminal_signal,
+    iter_signals,
+)
 
 # ---------------------------------------------------------------------------
 # Data types
@@ -166,9 +171,15 @@ class ConformanceReport:
     Args:
         results: Per-transcript outcomes.
         regressions: Transcript names that failed conformance.
+        missing_terminal_signal: Adapter run identifiers whose stdout
+            log did not contain a terminal signal (``COMPLETED`` or
+            ``FAILED``). Surfaced as a soft warning rather than a
+            failure so legacy adapters that have not yet been wired to
+            the canonical vocabulary still pass.
     """
 
     results: list[TranscriptResult] = field(default_factory=list)
+    missing_terminal_signal: list[str] = field(default_factory=list)
 
     @property
     def regressions(self) -> list[str]:
@@ -185,8 +196,34 @@ class ConformanceReport:
         return {
             "passed": self.passed,
             "regressions": self.regressions,
+            "missing_terminal_signal": list(self.missing_terminal_signal),
             "results": [r.to_dict() for r in self.results],
         }
+
+
+def check_terminal_signal(stdout_lines: list[str], *, run_id: str) -> MissingTerminalSignal | None:
+    """Return a warning when ``stdout_lines`` carry no terminal signal.
+
+    Called by the conformance harness (and by operator tools) after an
+    adapter run finishes. The check is advisory: the absence of a
+    terminal signal does not fail the run, it only surfaces in the
+    conformance report so adapters that have not yet been wired to the
+    canonical vocabulary are easy to find.
+
+    Args:
+        stdout_lines: The captured stdout for one adapter run.
+        run_id: An identifier (transcript name, session id, ...) used
+            in the warning message so operators can locate the run.
+
+    Returns:
+        ``None`` when the run emitted at least one terminal signal,
+        otherwise a :class:`MissingTerminalSignal` warning instance
+        ready for the caller to log or raise.
+    """
+    signals = iter_signals(stdout_lines)
+    if has_terminal_signal(signals):
+        return None
+    return MissingTerminalSignal(f"adapter run {run_id!r} did not emit a terminal stream signal (COMPLETED or FAILED)")
 
 
 # ---------------------------------------------------------------------------

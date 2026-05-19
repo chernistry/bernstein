@@ -43,6 +43,12 @@ from bernstein.core.autofix.dispatcher import (
     AttemptCounter,
     DispatchResult,
 )
+from bernstein.core.autofix.ladder import (
+    CIFailure,
+    build_default_ladder,
+    load_ladder_settings,
+    select_rung,
+)
 from bernstein.core.autofix.review_router import (
     GhInvocationError,
     ReviewRouter,
@@ -651,3 +657,203 @@ def review_resolve_cmd(pr_number: int, as_json: bool) -> None:
     if record.repo:
         line += f"  repo={record.repo}"
     click.echo(line)
+
+
+# ---------------------------------------------------------------------------
+# ladder — RFC #1415 escalation ladder, dry-run only in MVP
+# ---------------------------------------------------------------------------
+
+
+def _split_csv(raw: str) -> tuple[str, ...]:
+    """Split a comma-separated CLI arg into a clean tuple."""
+    return tuple(item.strip() for item in raw.split(",") if item.strip())
+
+
+def _build_failure_from_payload(
+    *,
+    repo: str,
+    pr_number: int,
+    payload_path: Path | None,
+    log_excerpt: str,
+    failing_files: str,
+    pr_touched_files: str,
+    diff_line_count: int,
+    signature: str,
+) -> CIFailure:
+    """Compose a :class:`CIFailure` from CLI flags or a JSON payload.
+
+    The JSON payload (``--payload``) wins over the discrete flags so
+    operators can drop a captured failure into the simulator without
+    transcribing each field.
+    """
+    base: dict[str, object] = {
+        "repo": repo,
+        "pr_number": pr_number,
+        "head_sha": "",
+        "run_id": "",
+        "failing_files": _split_csv(failing_files),
+        "pr_touched_files": _split_csv(pr_touched_files),
+        "log_excerpt": log_excerpt,
+        "diff_line_count": diff_line_count,
+        "signature": signature,
+    }
+    if payload_path is not None:
+        try:
+            extra = json.loads(payload_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise click.ClickException(f"failed to read --payload {payload_path}: {exc}") from exc
+        if not isinstance(extra, dict):
+            raise click.ClickException("--payload must contain a JSON object")
+        for key in (
+            "repo",
+            "pr_number",
+            "head_sha",
+            "run_id",
+            "failing_files",
+            "pr_touched_files",
+            "log_excerpt",
+            "diff_line_count",
+            "signature",
+        ):
+            if key not in extra:
+                continue
+            value = extra[key]
+            if key in {"failing_files", "pr_touched_files"} and isinstance(value, list):
+                base[key] = tuple(str(item) for item in value)
+            else:
+                base[key] = value
+    return CIFailure(
+        repo=str(base["repo"]),
+        pr_number=int(base["pr_number"]),
+        head_sha=str(base.get("head_sha", "")),
+        run_id=str(base.get("run_id", "")),
+        failing_files=tuple(base["failing_files"]),  # type: ignore[arg-type]
+        pr_touched_files=tuple(base["pr_touched_files"]),  # type: ignore[arg-type]
+        log_excerpt=str(base.get("log_excerpt", "")),
+        diff_line_count=int(base.get("diff_line_count", 0)),
+        signature=str(base.get("signature", "")),
+    )
+
+
+@autofix_group.command("ladder")
+@click.option(
+    "--pr",
+    "pr_number",
+    type=int,
+    required=True,
+    help="PR number the failure belongs to.",
+)
+@click.option(
+    "--repo",
+    "repo_slug",
+    default="",
+    help="GitHub owner/name slug; defaults to empty string for dry-run.",
+)
+@click.option(
+    "--dry-run",
+    "dry_run",
+    is_flag=True,
+    default=False,
+    help="Required: show the rung that would fire without acting.",
+)
+@click.option(
+    "--payload",
+    "payload_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Optional JSON payload describing the synthetic CIFailure.",
+)
+@click.option(
+    "--log-excerpt",
+    "log_excerpt",
+    default="",
+    help="Failing-log excerpt used by the rung-0 detector.",
+)
+@click.option(
+    "--failing-files",
+    "failing_files",
+    default="",
+    help="Comma-separated list of files the CI reported as failing.",
+)
+@click.option(
+    "--pr-touched-files",
+    "pr_touched_files",
+    default="",
+    help="Comma-separated list of files the PR's diff touches.",
+)
+@click.option(
+    "--diff-line-count",
+    "diff_line_count",
+    type=int,
+    default=0,
+    help="Approximate diff line count; used by the rung-1 detector.",
+)
+@click.option(
+    "--signature",
+    "signature",
+    default="",
+    help="Stable failure signature persisted to the audit trail.",
+)
+@click.option(
+    "--config",
+    "config_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Override the bernstein.yaml location (defaults to ./bernstein.yaml).",
+)
+def ladder_cmd(
+    pr_number: int,
+    repo_slug: str,
+    dry_run: bool,
+    payload_path: Path | None,
+    log_excerpt: str,
+    failing_files: str,
+    pr_touched_files: str,
+    diff_line_count: int,
+    signature: str,
+    config_path: Path | None,
+) -> None:
+    """Self-driving CI escalation ladder (RFC #1415).
+
+    The MVP only supports ``--dry-run`` mode. Pass the failure shape
+    via discrete flags or via ``--payload <file.json>``. The command
+    selects the rung that would fire under the current
+    ``bernstein.yaml: autofix`` configuration and prints the result.
+    No side effects: no patch is applied, no comment is posted.
+    """
+    if not dry_run:
+        raise click.ClickException(
+            "ladder MVP only supports --dry-run; rerun with --dry-run to see the rung that would fire."
+        )
+
+    failure = _build_failure_from_payload(
+        repo=repo_slug,
+        pr_number=pr_number,
+        payload_path=payload_path,
+        log_excerpt=log_excerpt,
+        failing_files=failing_files,
+        pr_touched_files=pr_touched_files,
+        diff_line_count=diff_line_count,
+        signature=signature,
+    )
+
+    settings = load_ladder_settings(config_path)
+    ladder = build_default_ladder(
+        apply_lint_patch=lambda _f: (False, "", "dry-run: lint patch not applied"),
+        post_comment=lambda _repo, _pr, _body: None,
+    )
+    selection = select_rung(ladder, failure, cost_cap_per_pr=settings.cost_cap_per_pr_usd)
+
+    click.echo(f"autofix ladder (dry-run) for {failure.repo or '(no repo)'}#{failure.pr_number}")
+    click.echo(f"  feature flag:       enabled={settings.enabled}")
+    click.echo(f"  cost_cap_per_pr:    ${settings.cost_cap_per_pr_usd:.2f}")
+    if selection.rung is None:
+        click.echo("  rung:               (no match)")
+    else:
+        click.echo(f"  rung:               {selection.rung.rung_id}")
+        click.echo(f"  rung description:   {selection.rung.description}")
+        click.echo(f"  rung cost cap:      ${selection.rung.cost_cap_usd:.2f}")
+    click.echo(f"  accepted:           {selection.accepted}")
+    click.echo(f"  reason:             {selection.reason}")
+    if not settings.enabled:
+        click.echo("  note:               autofix.ladder.enabled is false; the daemon would skip this match.")

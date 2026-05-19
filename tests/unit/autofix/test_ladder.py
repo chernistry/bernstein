@@ -19,6 +19,7 @@ from bernstein.core.autofix.ladder import (
     COST_CAP_RUNG_2_USD,
     AutofixOutcome,
     CIFailure,
+    LadderSettings,
     LintDriftActor,
     OutOfScopeActor,
     Rung,
@@ -29,6 +30,8 @@ from bernstein.core.autofix.ladder import (
     detect_single_file_small_diff,
     emit_ladder_event,
     fire_rung,
+    load_ladder_settings,
+    run_ladder_for_failure,
     select_rung,
     stub_actor,
 )
@@ -419,3 +422,166 @@ def test_emit_ladder_event_writes_audit_entry(tmp_path: Path) -> None:
     assert details["outcome"] == "commented"
     assert details["failing_files"] == ["src/legacy.py"]
     assert details["pr_touched_files"] == ["docs/README.md"]
+
+
+# ---------------------------------------------------------------------------
+# Feature-flag / coordinator
+# ---------------------------------------------------------------------------
+
+
+def test_run_ladder_for_failure_short_circuits_when_disabled(tmp_path: Path) -> None:
+    """The coordinator skips every rung when the feature flag is off."""
+    ladder, patch_recorder, comment_recorder = _build_ladder()
+    audit = _audit(tmp_path)
+    failure = _failure(
+        failing_files=("src/legacy.py",),
+        pr_touched_files=("docs/README.md",),
+    )
+    outcome = run_ladder_for_failure(
+        failure=failure,
+        settings=LadderSettings(enabled=False, cost_cap_per_pr_usd=5.0),
+        ladder=ladder,
+        audit=audit,
+    )
+    assert outcome.outcome == "skipped"
+    assert "operator-flagged off" in outcome.message
+    # The disabled-path never invokes actors and never writes audit lines.
+    assert patch_recorder.calls == []
+    assert comment_recorder.posted == []
+    log_files = list((tmp_path / "audit").glob("*.jsonl"))
+    assert log_files == []
+
+
+def test_run_ladder_for_failure_emits_audit_when_enabled(tmp_path: Path) -> None:
+    """An enabled ladder fires the rung and writes one audit event."""
+    ladder, _, comment_recorder = _build_ladder()
+    audit = _audit(tmp_path)
+    failure = _failure(
+        failing_files=("src/legacy.py",),
+        pr_touched_files=("docs/README.md",),
+        signature="sig-enabled",
+    )
+    outcome = run_ladder_for_failure(
+        failure=failure,
+        settings=LadderSettings(enabled=True, cost_cap_per_pr_usd=5.0),
+        ladder=ladder,
+        audit=audit,
+    )
+    assert outcome.outcome == "commented"
+    assert len(comment_recorder.posted) == 1
+    valid, errors = audit.verify()
+    assert valid, errors
+
+
+def test_load_ladder_settings_reads_yaml(tmp_path: Path) -> None:
+    """The yaml reader picks up the feature flag and the cap."""
+    yaml_path = tmp_path / "bernstein.yaml"
+    yaml_path.write_text(
+        """
+goal: test
+autofix:
+  cost_cap_per_pr: 2.5
+  ladder:
+    enabled: true
+""",
+        encoding="utf-8",
+    )
+    settings = load_ladder_settings(yaml_path)
+    assert settings.enabled is True
+    assert settings.cost_cap_per_pr_usd == 2.5
+
+
+def test_load_ladder_settings_defaults_when_block_missing(tmp_path: Path) -> None:
+    """Missing ``autofix`` block falls back to the operator-flagged-off default."""
+    yaml_path = tmp_path / "bernstein.yaml"
+    yaml_path.write_text("goal: test\n", encoding="utf-8")
+    settings = load_ladder_settings(yaml_path)
+    assert settings.enabled is False
+    # Default cap is positive so detector-only stubs see a usable value.
+    assert settings.cost_cap_per_pr_usd > 0
+
+
+def test_load_ladder_settings_defaults_when_file_missing(tmp_path: Path) -> None:
+    """A missing yaml file is non-fatal and returns the disabled defaults."""
+    settings = load_ladder_settings(tmp_path / "does-not-exist.yaml")
+    assert settings.enabled is False
+
+
+# ---------------------------------------------------------------------------
+# CLI dry-run
+# ---------------------------------------------------------------------------
+
+
+def test_cli_ladder_dry_run_reports_rung_zero(tmp_path: Path) -> None:
+    """``bernstein autofix ladder --dry-run`` prints the rung that would fire."""
+    from click.testing import CliRunner
+
+    from bernstein.cli.commands.autofix_cmd import autofix_group
+
+    yaml_path = tmp_path / "bernstein.yaml"
+    yaml_path.write_text(
+        "goal: test\nautofix:\n  cost_cap_per_pr: 1.0\n  ladder:\n    enabled: true\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        autofix_group,
+        [
+            "ladder",
+            "--pr",
+            "42",
+            "--repo",
+            "owner/name",
+            "--dry-run",
+            "--log-excerpt",
+            "ruff check failed",
+            "--config",
+            str(yaml_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "rung-0-lint" in result.output
+    assert "accepted:" in result.output
+
+
+def test_cli_ladder_requires_dry_run_flag() -> None:
+    """The MVP CLI rejects calls without ``--dry-run``."""
+    from click.testing import CliRunner
+
+    from bernstein.cli.commands.autofix_cmd import autofix_group
+
+    runner = CliRunner()
+    result = runner.invoke(autofix_group, ["ladder", "--pr", "42"])
+    assert result.exit_code != 0
+    assert "--dry-run" in result.output
+
+
+def test_cli_ladder_reports_no_match_when_failure_is_empty(tmp_path: Path) -> None:
+    """When no detector fires the CLI reports ``(no match)``."""
+    from click.testing import CliRunner
+
+    from bernstein.cli.commands.autofix_cmd import autofix_group
+
+    yaml_path = tmp_path / "bernstein.yaml"
+    yaml_path.write_text(
+        "autofix:\n  cost_cap_per_pr: 1.0\n  ladder:\n    enabled: true\n",
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        autofix_group,
+        [
+            "ladder",
+            "--pr",
+            "1",
+            "--repo",
+            "owner/name",
+            "--dry-run",
+            "--config",
+            str(yaml_path),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert "(no match)" in result.output

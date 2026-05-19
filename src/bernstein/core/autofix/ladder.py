@@ -34,12 +34,85 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Final, Literal, Protocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Feature-flag / cap loader
+# ---------------------------------------------------------------------------
+
+#: Default operator-facing cost cap when ``bernstein.yaml`` does not
+#: declare one. Matches the placeholder value seeded in the repo's
+#: top-level ``bernstein.yaml``.
+DEFAULT_COST_CAP_PER_PR_USD: Final[float] = 1.0
+
+
+@dataclass(frozen=True)
+class LadderSettings:
+    """Effective ladder configuration loaded from ``bernstein.yaml``.
+
+    Attributes:
+        enabled: ``True`` when ``autofix.ladder.enabled`` is truthy in
+            the project ``bernstein.yaml``. The daemon refuses to fire
+            any rung when ``enabled`` is ``False`` (operator opt-in).
+        cost_cap_per_pr_usd: Operator-configured hard cap. Zero means
+            "unlimited" - matches :class:`RepoConfig` semantics.
+    """
+
+    enabled: bool = False
+    cost_cap_per_pr_usd: float = DEFAULT_COST_CAP_PER_PR_USD
+
+
+def load_ladder_settings(yaml_path: Path | None = None) -> LadderSettings:
+    """Return the effective ladder settings from ``bernstein.yaml``.
+
+    The loader is intentionally lenient: missing file, missing
+    ``autofix`` block, or malformed types fall back to the
+    operator-flagged-off default. The lineage v1 yaml schema is heavy
+    so this reader only touches the keys it needs.
+
+    Args:
+        yaml_path: Optional explicit path. Defaults to
+            ``./bernstein.yaml`` from the current working directory.
+
+    Returns:
+        A populated :class:`LadderSettings`.
+    """
+    target = yaml_path if yaml_path is not None else Path.cwd() / "bernstein.yaml"
+    if not target.exists():
+        return LadderSettings()
+    try:
+        import yaml  # type: ignore[import-untyped]
+    except ImportError:  # pragma: no cover - PyYAML is a runtime dep
+        return LadderSettings()
+    try:
+        raw = yaml.safe_load(target.read_text(encoding="utf-8")) or {}
+    except Exception:
+        logger.exception("ladder: failed to parse %s", target)
+        return LadderSettings()
+    if not isinstance(raw, dict):
+        return LadderSettings()
+    autofix_block = raw.get("autofix")
+    if not isinstance(autofix_block, dict):
+        return LadderSettings()
+    ladder_block = autofix_block.get("ladder")
+    enabled = False
+    if isinstance(ladder_block, dict):
+        enabled = bool(ladder_block.get("enabled", False))
+    cap_raw = autofix_block.get("cost_cap_per_pr", DEFAULT_COST_CAP_PER_PR_USD)
+    try:
+        cap = float(cap_raw)
+    except (TypeError, ValueError):
+        cap = DEFAULT_COST_CAP_PER_PR_USD
+    if cap < 0:
+        cap = 0.0
+    return LadderSettings(enabled=enabled, cost_cap_per_pr_usd=cap)
 
 
 # ---------------------------------------------------------------------------
@@ -609,17 +682,68 @@ def emit_ladder_event(
     )
 
 
+# ---------------------------------------------------------------------------
+# Daemon-side coordinator (feature-flag-gated)
+# ---------------------------------------------------------------------------
+
+
+def run_ladder_for_failure(
+    *,
+    failure: CIFailure,
+    settings: LadderSettings,
+    ladder: tuple[Rung, ...],
+    audit: AuditEmitter | None = None,
+) -> AutofixOutcome:
+    """Top-level helper the autofix daemon calls to advance one PR.
+
+    Wraps the feature-flag check, lowest-rung selection, actor
+    invocation, and audit-trail emit into one call so the daemon's
+    main loop has a single integration point.
+
+    Args:
+        failure: The normalised CI failure handed in by the daemon.
+        settings: Effective ladder settings (feature flag + cap).
+        ladder: Tuple of rungs in lowest-to-highest order.
+        audit: Optional :class:`AuditEmitter`. When provided every
+            non-disabled fire emits one ``autofix.ladder.fire`` event.
+
+    Returns:
+        The :class:`AutofixOutcome` produced by the chosen rung. When
+        the feature flag is disabled the function returns an outcome
+        with ``outcome="skipped"`` and a ``message`` explaining why.
+    """
+    if not settings.enabled:
+        return AutofixOutcome(
+            outcome="skipped",
+            rung_id="rung-3-out-of-scope",
+            message="autofix.ladder.enabled is false; ladder is operator-flagged off.",
+        )
+    outcome = fire_rung(ladder, failure, cost_cap_per_pr=settings.cost_cap_per_pr_usd)
+    if audit is not None:
+        try:
+            emit_ladder_event(audit, failure=failure, outcome=outcome)
+        except Exception:
+            logger.exception(
+                "ladder: audit emission failed for %s#%s",
+                failure.repo,
+                failure.pr_number,
+            )
+    return outcome
+
+
 __all__ = [
     "COST_CAP_RUNG_0_USD",
     "COST_CAP_RUNG_1_USD",
     "COST_CAP_RUNG_2_USD",
     "COST_CAP_RUNG_3_USD",
+    "DEFAULT_COST_CAP_PER_PR_USD",
     "Actor",
     "AuditEmitter",
     "AutofixOutcome",
     "CIFailure",
     "Detector",
     "LadderOutcome",
+    "LadderSettings",
     "LintDriftActor",
     "OutOfScopeActor",
     "Rung",
@@ -632,6 +756,8 @@ __all__ = [
     "detect_single_file_small_diff",
     "emit_ladder_event",
     "fire_rung",
+    "load_ladder_settings",
+    "run_ladder_for_failure",
     "select_rung",
     "stub_actor",
 ]

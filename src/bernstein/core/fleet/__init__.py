@@ -47,17 +47,17 @@ from bernstein.core.fleet.config import (
     default_projects_config_path,
     load_projects_config,
 )
+from bernstein.core.fleet.cost_rollup import (
+    CostSparkline,
+    FleetCostRollup,
+    rollup_costs,
+)
 from bernstein.core.fleet.directory_registry import (
     DirectoryRegistry,
     InstanceSpec,
     RegistryScanResult,
     default_fleet_root,
     load_directory_registry,
-)
-from bernstein.core.fleet.cost_rollup import (
-    CostSparkline,
-    FleetCostRollup,
-    rollup_costs,
 )
 from bernstein.core.fleet.prometheus_proxy import merge_prometheus_metrics
 

@@ -295,6 +295,39 @@ class TestAuditEvents:
         token = broker.mint(secret_name="K", task_id="t1")
         assert broker.resolve(token.value) == "v"
 
+    def test_audit_sink_runs_outside_broker_lock(self) -> None:
+        """A reentrant call to the broker from inside the sink must not deadlock.
+
+        ``revoke``, ``resolve`` and friends used to hold ``self._lock`` while
+        invoking the audit sink. If the sink itself called back into the
+        broker (for example to look up token metadata), the second acquire
+        would block forever. Emitting after lock release fixes that; this
+        regression test pins the contract.
+        """
+        backend = _MemoryBackend({"K": "v", "K2": "v2"})
+        # Use a re-entrant scratch to avoid recursion within a single revoke.
+        invoked: list[str] = []
+
+        cfg = BrokerConfig(backend="file_encrypted")
+        broker_holder: list[SecretsBroker] = []
+
+        def sink(event: AuditEvent) -> None:
+            invoked.append(event.kind)
+            # Reentrant call: would deadlock if the broker lock were still
+            # held while dispatching this event.
+            if event.kind == "revoke" and "list_live" not in invoked:
+                invoked.append("list_live")
+                broker_holder[0].list_live()
+
+        broker = SecretsBroker(backend, config=cfg, audit_sink=sink)
+        broker_holder.append(broker)
+
+        token = broker.mint(secret_name="K", task_id="t1")
+        # Each of these would deadlock under the old emit-under-lock pattern.
+        assert broker.resolve(token.value) == "v"
+        broker.revoke(token.token_id)
+        assert "list_live" in invoked
+
 
 # ---------------------------------------------------------------------------
 # Redactor coupling

@@ -240,7 +240,7 @@ def parse_log_to_steps(log_path: Path) -> list[TraceStep]:
                 type=step_type,  # type: ignore[arg-type]
                 timestamp=ts,
                 detail=f"{step_type.capitalize()}: {', '.join(files[:3])}{'...' if len(files) > 3 else ''}",
-                files=files[:],
+                files=files.copy(),
             )
         )
 
@@ -945,7 +945,7 @@ def _flush_tool_batch(
     out.append(
         ToolBatch(
             batch_id=batch_id,
-            steps=steps[:],
+            steps=steps.copy(),
             start_ts=start_ts,
             end_ts=end_ts,
             is_concurrent=is_concurrent,

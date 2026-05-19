@@ -1,0 +1,74 @@
+name: Trend scan
+
+# Scheduled job that ingests upstream dependency-relevant signals into the
+# orchestrator state as a markdown rollup. The rollup is uploaded as a
+# workflow artifact for operator review. No tickets are filed automatically.
+#
+# Default: workflow_dispatch only. Operators opt in to the weekly schedule
+# by uncommenting the cron block below.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: "Tier filter (all | 1 | 2 | 3)"
+        required: false
+        default: "all"
+  # schedule:
+  #   - cron: "0 13 * * 1"  # Monday 13:00 UTC
+
+concurrency:
+  group: trend-scan
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  scan:
+    name: Run trend scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install bernstein (editable)
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Run trend-scan (offline stub)
+        env:
+          TIER: ${{ github.event.inputs.tier || 'all' }}
+          BERNSTEIN_TREND_SCAN_OFFLINE: "1"
+        run: |
+          set -euo pipefail
+          mkdir -p .sdd/trend-scan
+          bernstein trend-scan run \
+            --tier "${TIER}" \
+            --rollup-dir .sdd/trend-scan \
+            --backlog-dir .sdd/backlog \
+            --offline-stub
+
+      - name: Upload rollup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trend-scan-rollup
+          path: |
+            .sdd/trend-scan/rollup-*.md
+            .sdd/trend-scan/rollup-*.json
+          if-no-files-found: warn
+          retention-days: 30

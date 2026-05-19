@@ -55,6 +55,13 @@ on:
           failed_validation. Consumed by post-ci-dispatcher to decide
           whether bernstein-ci-fix should run as a fallback fixer.
         value: ${{ jobs.heal.outputs.outcome }}
+    secrets:
+      TELEGRAM_BOT_TOKEN:
+        description: Telegram bot token used for heal alerts.
+        required: false
+      TELEGRAM_CHAT_ID:
+        description: Telegram chat id that receives heal alerts.
+        required: false
 
 permissions: {}
 

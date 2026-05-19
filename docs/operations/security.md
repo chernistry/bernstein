@@ -67,14 +67,22 @@ ClusterFuzzLite gives OSSF Scorecard a signal it recognizes. Files:
 
 - `.clusterfuzzlite/project.yaml` -- language / engine / sanitizer.
 - `.clusterfuzzlite/Dockerfile` -- builder image (pinned by digest).
-- `.clusterfuzzlite/build.sh` -- atheris harness compilation.
+- `.clusterfuzzlite/build.sh` -- atheris harness compilation. Installs
+  PyYAML via `pip3 install --require-hashes -r requirements.txt` to
+  satisfy Scorecard `PinnedDependenciesID`.
+- `.clusterfuzzlite/requirements.txt` -- hash-pinned PyYAML for the
+  build step.
 - `.clusterfuzzlite/fuzz_seed_parser.py` -- minimal entry point against
   `yaml.safe_load`, the parser primitive `bernstein.core.config.seed_parser`
   sits on top of (the OSS-Fuzz base-builder-python image ships Python
   3.11; bernstein requires 3.12+, so the harness targets the underlying
   YAML primitive instead of importing the full package).
 - `.github/workflows/cifuzz-pr.yml` -- per-PR run via
-  `google/clusterfuzzlite/actions/run_fuzzers` (SHA-pinned).
+  `google/clusterfuzzlite/actions/run_fuzzers` (SHA-pinned). Job-level
+  token permissions are kept read-only (Scorecard `TokenPermissionsID`);
+  SARIF upload is intentionally disabled so the elevated
+  `security-events: write` scope is not needed. Crash artefacts are
+  surfaced via `actions/upload-artifact`.
 
 The Hypothesis property-test suite remains the primary fuzzing surface
 for real bug detection. ClusterFuzzLite is signal-only here -- it

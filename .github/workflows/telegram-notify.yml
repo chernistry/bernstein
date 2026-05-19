@@ -31,6 +31,13 @@ on:
         description: HTML URL of the upstream CI run.
         required: true
         type: string
+    secrets:
+      TELEGRAM_BOT_TOKEN:
+        description: Telegram bot token used to post CI notifications.
+        required: true
+      TELEGRAM_CHAT_ID:
+        description: Telegram chat id that receives CI notifications.
+        required: true
 
 permissions:
   contents: read

@@ -32,6 +32,19 @@ CHILDREN = (
 )
 
 
+# Each child must declare the exact set of repo secrets it consumes so the
+# dispatcher can forward only those (zizmor `secrets-inherit`: blanket
+# `secrets: inherit` would otherwise leak every repository secret to every
+# called workflow). GITHUB_TOKEN is auto-provided and never appears here.
+EXPECTED_CHILD_SECRETS: dict[str, frozenset[str]] = {
+    "telegram-notify": frozenset({"TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"}),
+    "auto-release": frozenset({"TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"}),
+    "auto-heal": frozenset({"TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"}),
+    "bernstein-ci-fix": frozenset({"GEMINI_API_KEY"}),
+    "bisect-on-red": frozenset(),
+}
+
+
 def _load(path: Path) -> dict[str, Any]:
     return cast("dict[str, Any]", yaml.safe_load(path.read_text(encoding="utf-8")))
 
@@ -74,15 +87,37 @@ def test_dispatcher_has_meta_job(dispatcher: dict[str, Any]) -> None:
 
 @pytest.mark.parametrize("child", CHILDREN)
 def test_dispatcher_calls_each_child(dispatcher: dict[str, Any], child: str) -> None:
-    """Each former workflow_run listener must be invoked via workflow_call."""
+    """Each former workflow_run listener must be invoked via workflow_call.
+
+    Secret passthrough must be explicit per child (zizmor `secrets-inherit`):
+    a blanket `secrets: inherit` is rejected. Each child's `secrets:` block
+    in the dispatcher must match the documented set in
+    ``EXPECTED_CHILD_SECRETS`` exactly.
+    """
     jobs = dispatcher["jobs"]
     assert child in jobs, f"dispatcher missing job for `{child}`"
     job = jobs[child]
     uses = job.get("uses", "")
     assert isinstance(uses, str)
     assert uses.endswith(f"{child}.yml"), f"job `{child}` must reuse `{child}.yml`"
-    assert job.get("secrets") == "inherit", (
-        f"job `{child}` must inherit secrets so reusables can reach TG/PyPI/etc."
+    secrets = job.get("secrets")
+    expected = EXPECTED_CHILD_SECRETS[child]
+    if not expected:
+        assert secrets in (None, {}), (
+            f"job `{child}` must not forward any repository secrets "
+            f"(expected empty, got {secrets!r})"
+        )
+        return
+    assert secrets != "inherit", (
+        f"job `{child}` must not use `secrets: inherit` "
+        f"(zizmor secrets-inherit). Forward only {sorted(expected)}."
+    )
+    assert isinstance(secrets, dict), (
+        f"job `{child}` must declare an explicit secrets map, got {type(secrets).__name__}"
+    )
+    assert set(secrets.keys()) == expected, (
+        f"job `{child}` secrets map mismatch: expected {sorted(expected)}, "
+        f"got {sorted(secrets.keys())}"
     )
 
 

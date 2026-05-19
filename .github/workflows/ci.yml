@@ -630,15 +630,24 @@ jobs:
               exit 1
             fi
           done
-      - name: Install pipx
+      - name: Install uv (SHA-pinned, vendors pipx)
+        # Scorecard pinned-dependencies: pip cannot be hash-pinned for a
+        # single bootstrap step without a maintained requirements file,
+        # so we route the pipx install through SHA-pinned uv instead.
+        # `uv tool install pipx` puts pipx on PATH via uv's tool dir.
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          enable-cache: true
+      - name: Install pipx via uv
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install --user pipx
-          python -m pipx ensurepath
-          # pipx default user bin on Linux/macOS
+          uv tool install pipx
+          # Expose uv-managed tool shims and pipx's own bin dir on PATH.
+          UV_TOOL_BIN_DIR="$(uv tool dir --bin)"
+          echo "$UV_TOOL_BIN_DIR" >> "$GITHUB_PATH"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$UV_TOOL_BIN_DIR/pipx" ensurepath
       - name: pipx install the built wheel
         # Install from the wheel, never editable. Editable installs
         # bypass package-data inclusion and entry-point registration -

@@ -116,6 +116,8 @@ def _parse_image_config(image_raw: object) -> tuple[str, dict[str, str]]:
         for raw_key, raw_value in image_map.items():
             if raw_key == "default":
                 continue
+            if not isinstance(raw_key, str):
+                raise ValueError("sandbox.image adapter keys must be strings")
             if not isinstance(raw_value, str):
                 raise ValueError("sandbox.image adapter entries must be strings")
             adapter_images[raw_key.strip().lower()] = raw_value

@@ -150,7 +150,7 @@ class TrackerRegistry:
             summary=summary,
             source=source,
             provenance=provenance,
-            capabilities=capabilities,
+            capabilities=tuple(capabilities),
         )
         self._entries[name] = entry
         return entry

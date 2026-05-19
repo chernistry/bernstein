@@ -285,7 +285,7 @@ def make_idempotency_key(
         Hex digest string suitable for ``Idempotency-Key`` headers or
         in-comment fingerprints.
     """
-    parts = [tracker, ticket_id, role, stage, str(stage_attempt)]
+    parts = [tracker, ticket_id, role, stage, str(int(stage_attempt))]
     joined = "\x1f".join(parts).encode("utf-8")
     return hashlib.sha256(joined).hexdigest()
 
@@ -356,7 +356,7 @@ def format_failure_comment(
     body_lines = [
         FAILURE_BLOCK_BEGIN,
         f"role: {_yaml_quote(role)}",
-        f"stage_attempt: {stage_attempt}",
+        f"stage_attempt: {int(stage_attempt)}",
         f"idempotency_key: {_yaml_quote(idempotency_key)}",
         f"reason_code: {_yaml_quote(payload.reason_code)}",
         f"category: {_yaml_quote(payload.category)}",
@@ -387,7 +387,7 @@ def format_success_comment(
     body_lines = [
         _SUCCESS_BLOCK_BEGIN,
         f"role: {_yaml_quote(role)}",
-        f"stage_attempt: {stage_attempt}",
+        f"stage_attempt: {int(stage_attempt)}",
         f"idempotency_key: {_yaml_quote(idempotency_key)}",
         f"summary: {_yaml_quote(safe_summary)}",
         FAILURE_BLOCK_END,

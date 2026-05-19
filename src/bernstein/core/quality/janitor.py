@@ -813,10 +813,10 @@ def _check_llm_review(spec: str, workdir: Path) -> tuple[bool, str]:
             return False, "llm returned empty output"
         first_line = stdout.splitlines()[0].strip()
         if first_line.upper().startswith("PASS"):
-            reason = first_line[4:].strip().lstrip('-:').strip()
+            reason = first_line[4:].strip().lstrip("-:").strip()
             return True, reason or "passed"
         if first_line.upper().startswith("FAIL"):
-            reason = first_line[4:].strip().lstrip('-:').strip()
+            reason = first_line[4:].strip().lstrip("-:").strip()
             return False, reason or "failed"
         # Ambiguous output -- treat as failure
         return False, f"ambiguous llm output: {first_line[:120]}"

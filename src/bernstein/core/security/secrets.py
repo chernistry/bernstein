@@ -195,8 +195,15 @@ class VaultSecretsProvider(SecretsProvider):
     """Load secrets from HashiCorp Vault via HTTP API or CLI."""
 
     def __init__(self) -> None:
+        from bernstein.core.security.url_allowlist import UrlSchemeError, ensure_http_url
+
         self._addr = os.environ.get("VAULT_ADDR", "http://127.0.0.1:8200")
         self._token = os.environ.get("VAULT_TOKEN", "")
+        try:
+            # VAULT_ADDR is operator-supplied via env; require http(s).
+            ensure_http_url(self._addr, allow_http=True, source="VAULT_ADDR")
+        except UrlSchemeError as exc:
+            raise SecretsError(f"Invalid VAULT_ADDR: {exc}") from exc
 
     def fetch(self, path: str) -> dict[str, str]:
         """Fetch a secret from Vault's KV v2 engine.
@@ -223,6 +230,8 @@ class VaultSecretsProvider(SecretsProvider):
         req.add_header("X-Vault-Token", self._token)
 
         try:
+            # ``self._addr`` was scheme-validated in :meth:`__init__`.
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=10) as resp:
                 body = json.loads(resp.read().decode())
             data: object = body.get("data", {}).get("data", {})
@@ -248,6 +257,8 @@ class VaultSecretsProvider(SecretsProvider):
         req = urllib.request.Request(url)
         req.add_header("X-Vault-Token", self._token)
         try:
+            # ``self._addr`` was scheme-validated in :meth:`__init__`.
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=5) as resp:
                 body = json.loads(resp.read().decode())
             if body.get("sealed"):

@@ -88,6 +88,9 @@ def _count_tokens_via_api(text: str, model: str) -> int | None:
         method="POST",
     )
     try:
+        # Internal-only: URL is the hard-coded Anthropic token-count endpoint
+        # passed as a literal to ``urllib.request.Request`` above.
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=_API_TIMEOUT_S) as resp:
             data: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
             count: int = data["input_tokens"]

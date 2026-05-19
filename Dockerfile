@@ -36,6 +36,12 @@ VOLUME ["/workspace/.sdd"]
 # Task server HTTP + gRPC ports
 EXPOSE 8052 50051
 
+# Probe the task server health endpoint. Override via docker-compose / Helm for
+# components that do not expose HTTP (e.g. worker-only deployments) by passing
+# `--health-cmd=NONE` or replacing this with the component-specific check.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl --fail --silent --show-error http://127.0.0.1:8052/health || exit 1
+
 # Default: all-in-one mode (reads bernstein.yaml, starts server + agents)
 # Override CMD in docker-compose / Helm to run individual components:
 #   Server only:     python -m uvicorn bernstein.core.server:app --host 0.0.0.0 --port 8052

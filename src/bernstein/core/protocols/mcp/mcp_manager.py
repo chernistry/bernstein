@@ -968,6 +968,8 @@ def refresh_oauth_token(
     import urllib.parse
     import urllib.request
 
+    from bernstein.core.security.url_allowlist import UrlSchemeError, ensure_http_url
+
     payload = urllib.parse.urlencode(
         {
             "grant_type": "refresh_token",
@@ -976,6 +978,13 @@ def refresh_oauth_token(
         }
     ).encode()
 
+    try:
+        # OAuth refresh tokens are bearer credentials; require https unless
+        # the operator points at a localhost mock.
+        ensure_http_url(refresh_url, allow_http=True, source=f"mcp:{server_name}:oauth_refresh")
+    except UrlSchemeError as exc:
+        raise OAuthRefreshError(f"OAuth refresh URL for '{server_name}' is not http(s): {exc}") from exc
+
     req = urllib.request.Request(
         refresh_url,
         data=payload,
@@ -983,6 +992,7 @@ def refresh_oauth_token(
         method="POST",
     )
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             import json as _json
 

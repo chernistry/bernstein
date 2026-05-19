@@ -32,6 +32,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, Literal
 
+from bernstein.core.security.url_allowlist import UrlSchemeError, ensure_http_url
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -185,6 +187,10 @@ def _fetch_github_release_asset_url(repo: str, tag: str, asset: str | None) -> s
     release_tag = "latest" if tag in ("latest", "") else f"tags/{tag}"
     url = _GITHUB_API_RELEASE_URL.format(repo=repo, tag=release_tag)
     req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
+    # Internal-only: ``_GITHUB_API_RELEASE_URL`` is a hard-coded constant
+    # template; only the ``repo``/``tag`` placeholders are interpolated, both
+    # of which come from a parsed plugin descriptor — not raw operator URLs.
+    # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
     with urllib.request.urlopen(req, timeout=30) as resp:
         data: dict[str, object] = json.loads(resp.read())
 
@@ -259,6 +265,14 @@ def _install_github(source: GitHubSource, install_dir: Path) -> PluginInstallRes
 
         logger.info("plugin_installer: downloading %s → %s", download_url, archive_path)
         try:
+            # GitHub redirects release assets to a signed CDN URL; we accept
+            # any https scheme but refuse plain HTTP / non-web schemes so a
+            # poisoned release index cannot turn this into a file:// read.
+            ensure_http_url(download_url, source="plugin_installer.github_asset")
+        except UrlSchemeError as exc:
+            return PluginInstallResult(success=False, install_path=None, source_kind="github", error=str(exc))
+        try:
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             urllib.request.urlretrieve(download_url, archive_path)
         except urllib.error.URLError as exc:
             return PluginInstallResult(success=False, install_path=None, source_kind="github", error=str(exc))

@@ -363,11 +363,17 @@ def _hash_for_oid_or_name(name_or_oid: str) -> hashes.HashAlgorithm | None:
     reject because operators with archival TSAs need to be able to read
     historical tokens.
     """
+    # Interoperability: legacy RFC 3161 TSAs still issue tokens with SHA-1
+    # message imprints; we parse them so operators can read historical
+    # tokens. The verifier surfaces a warning at message-imprint time and
+    # never accepts SHA-1 as authoritative for new tokens.
     table: dict[str, hashes.HashAlgorithm] = {
+        # nosemgrep: python.cryptography.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
         "sha1": hashes.SHA1(),
         "sha256": hashes.SHA256(),
         "sha384": hashes.SHA384(),
         "sha512": hashes.SHA512(),
+        # nosemgrep: python.cryptography.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
         "1.3.14.3.2.26": hashes.SHA1(),
         "2.16.840.1.101.3.4.2.1": hashes.SHA256(),
         "2.16.840.1.101.3.4.2.2": hashes.SHA384(),

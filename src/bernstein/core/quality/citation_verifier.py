@@ -33,6 +33,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final
 
+from bernstein.core.security.url_allowlist import UrlSchemeError, ensure_http_url
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -320,7 +322,16 @@ def _check_url(
         return "skipped", suspicious
 
     try:
+        # Citations come from agent output; reject anything that is not
+        # plain HTTP(S). A hallucinated ``file:///`` citation must not turn
+        # into a local-file read.
+        ensure_http_url(citation.value, allow_http=True, source="citation_verifier")
+    except UrlSchemeError:
+        return "unresolved", suspicious
+
+    try:
         request = urllib.request.Request(citation.value, method="HEAD")
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(request, timeout=_HTTP_TIMEOUT_S) as resp:
             status = int(resp.status)
     except urllib.error.HTTPError as exc:
@@ -340,7 +351,15 @@ def _check_url(
 def _check_url_fallback_get(citation: Citation) -> str:
     """Fallback for servers that reject HEAD with 405."""
     try:
+        # Scheme was already validated by the caller (:func:`_check_url`),
+        # but defence-in-depth is cheap.
+        ensure_http_url(citation.value, allow_http=True, source="citation_verifier.fallback")
+    except UrlSchemeError:
+        return "unresolved"
+
+    try:
         request = urllib.request.Request(citation.value, method="GET")
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(request, timeout=_HTTP_TIMEOUT_S) as resp:
             return "resolved" if 200 <= int(resp.status) < 400 else "unresolved"
     except (urllib.error.URLError, TimeoutError, OSError, ValueError):

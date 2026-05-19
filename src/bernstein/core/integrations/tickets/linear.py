@@ -75,6 +75,9 @@ def _post_graphql(api_key: str, query: str, variables: dict[str, Any]) -> dict[s
             method="POST",
         )
         try:
+            # Internal-only: ``_LINEAR_ENDPOINT`` is a hard-coded module
+            # constant pointing at the Linear GraphQL API.
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as handle:
                 raw = handle.read().decode("utf-8")
             return cast(dict[str, Any], json.loads(raw))

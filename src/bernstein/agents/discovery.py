@@ -226,6 +226,9 @@ class AgentDiscovery:
                     "User-Agent": "bernstein-agent-discovery/1.0",
                 },
             )
+            # Internal-only: URL is a hard-coded constant pointing at the
+            # GitHub search API; not influenced by operator input.
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 data = json.loads(resp.read().decode())
         except Exception as exc:
@@ -269,6 +272,9 @@ class AgentDiscovery:
                 url,
                 headers={"User-Agent": "bernstein-agent-discovery/1.0"},
             )
+            # Internal-only: URL is a hard-coded constant pointing at the
+            # npm registry search API.
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 data = json.loads(resp.read().decode())
         except Exception as exc:

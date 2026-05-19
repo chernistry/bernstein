@@ -145,7 +145,22 @@ def check_url_reachable(
     try:
         import urllib.request
 
+        from bernstein.core.security.url_allowlist import (
+            UrlSchemeError,
+            ensure_http_url,
+        )
+
+        try:
+            ensure_http_url(config.url, allow_http=True, source=f"mcp:{config.name}")
+        except UrlSchemeError as exc:
+            return McpConfigError(
+                server_name=config.name,
+                check="url_scheme",
+                message=str(exc),
+            )
+
         req = urllib.request.Request(config.url, method="HEAD")
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=timeout):
             pass  # Response body not needed; reachability check only
     except Exception as exc:

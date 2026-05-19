@@ -44,6 +44,12 @@ USER bernstein
 # Task server port
 EXPOSE 8052
 
+# Probe the demo task server. Demo mode always runs `bernstein conduct`, which
+# starts the HTTP server on 8052; if a downstream consumer overrides CMD they
+# can disable this with `--health-cmd=NONE`.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl --fail --silent --show-error http://127.0.0.1:8052/health || exit 1
+
 # State directory — mount a volume here so demo state persists across cycles
 VOLUME ["/workspace/.sdd"]
 

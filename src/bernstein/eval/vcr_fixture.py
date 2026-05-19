@@ -329,6 +329,10 @@ class VcrFixture:
                     original,
                     {
                         "type": "hex_id",
+                        # Non-security fingerprint: a short SHA-1 prefix is used
+                        # solely to disambiguate replaced hex IDs in VCR
+                        # mappings. `usedforsecurity=False` documents intent.
+                        # nosemgrep: python.lang.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
                         "hash": hashlib.sha1(original.encode("utf-8"), usedforsecurity=False).hexdigest()[:8],
                     },
                 )

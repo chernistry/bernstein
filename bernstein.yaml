@@ -50,3 +50,12 @@ observability:
     endpoint: ${BERNSTEIN_OTEL_ENDPOINT:-}        # e.g. http://otel-collector:4317
     service_name: ${BERNSTEIN_OTEL_SERVICE_NAME:-bernstein}
     insecure: true                                # skip TLS verify on local collectors
+
+# Autofix daemon - escalation ladder for self-driving CI repair.
+# The ladder is feature-flagged off until three PRs run clean; flip
+# autofix.ladder.enabled to true to opt in. cost_cap_per_pr is the
+# hard cap in USD the daemon will not exceed when picking a rung.
+autofix:
+  cost_cap_per_pr: 1.0
+  ladder:
+    enabled: false

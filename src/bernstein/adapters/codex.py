@@ -28,6 +28,10 @@ class CodexAdapter(CLIAdapter):
     """Spawn and monitor OpenAI Codex CLI sessions."""
 
     external_endpoints = (("api.openai.com", 443),)
+    # OpenAI returns HTTP 429 with ``rate_limit_exceeded`` /
+    # ``insufficient_quota`` error codes; the meter records both under
+    # the same provider label.
+    rate_limit_provider = "openai"
 
     def spawn(
         self,

@@ -28,6 +28,9 @@ class GeminiAdapter(CLIAdapter):
     """Spawn and monitor Google Gemini CLI sessions."""
 
     external_endpoints = (("generativelanguage.googleapis.com", 443),)
+    # Google Generative Language returns HTTP 429 with status
+    # ``RESOURCE_EXHAUSTED`` once per-minute quotas are tripped.
+    rate_limit_provider = "google_generative_language"
 
     def spawn(
         self,

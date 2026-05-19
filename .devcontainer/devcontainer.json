@@ -1,0 +1,22 @@
+{
+  "name": "Bernstein",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "features": {
+    "ghcr.io/devcontainers-contrib/features/pipx-package:1": {
+      "package": "pipx"
+    }
+  },
+  "postCreateCommand": "pipx install -e . && bernstein --help",
+  "remoteEnv": {
+    "BERNSTEIN_REMOTE_QUICKSTART": "1"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff"
+      ]
+    }
+  },
+  "forwardPorts": [8052]
+}

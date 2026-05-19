@@ -61,8 +61,7 @@ def test_workflow_call_trigger_with_inputs(workflow: dict[str, object]) -> None:
     wfc = on.get("workflow_call")
     assert isinstance(wfc, dict), "auto-heal must declare workflow_call"
     assert "workflow_run" not in on, (
-        "auto-heal must not listen to workflow_run directly; "
-        "post-ci-dispatcher.yml owns that surface now"
+        "auto-heal must not listen to workflow_run directly; post-ci-dispatcher.yml owns that surface now"
     )
     inputs = wfc.get("inputs", {})
     assert isinstance(inputs, dict)
@@ -99,8 +98,7 @@ def test_no_top_level_concurrency_under_workflow_call(workflow: dict[str, object
     is left out so the dispatcher stays the single arbitrator.
     """
     assert "concurrency" not in workflow, (
-        "auto-heal must not set its own concurrency; "
-        "post-ci-dispatcher.yml owns the per-SHA concurrency group"
+        "auto-heal must not set its own concurrency; post-ci-dispatcher.yml owns the per-SHA concurrency group"
     )
 
 

@@ -12,6 +12,7 @@ import shutil
 import socket
 import subprocess
 import sys
+from contextlib import suppress
 from pathlib import Path
 
 from rich.console import Console
@@ -107,7 +108,7 @@ def _gemini_has_gcloud_auth() -> bool:
     Returns:
         True if an active gcloud account is detected.
     """
-    try:
+    with suppress(subprocess.TimeoutExpired, OSError):
         result = subprocess.run(
             ["gcloud", "auth", "list", "--format=value(account,status)"],
             capture_output=True,
@@ -120,8 +121,6 @@ def _gemini_has_gcloud_auth() -> bool:
         for line in result.stdout.strip().splitlines():
             if "ACTIVE" in line.upper():
                 return True
-    except (subprocess.TimeoutExpired, OSError):
-        pass
     return False
 
 
@@ -151,15 +150,13 @@ def gemini_has_auth() -> tuple[bool, str]:
     # Gemini CLI native auth: ~/.gemini/google_accounts.json
     _accounts_file = Path.home() / ".gemini" / "google_accounts.json"
     if _accounts_file.exists():
-        try:
+        with suppress(Exception):
             import json as _json
 
             _data = _json.loads(_accounts_file.read_text())
             _active = _data.get("active", "")
             if _active:
                 return True, f"Google OAuth ({_active})"
-        except Exception:
-            pass
     config_dir = Path.home() / ".config" / "gemini"
     if config_dir.exists() and any(config_dir.iterdir()):
         return True, "config"
@@ -207,14 +204,12 @@ def _codex_has_config_toml() -> tuple[bool, str | None]:
         except ImportError:
             return False, None
 
-    try:
+    with suppress(Exception):
         with config_path.open("rb") as f:
             config = tomllib.load(f)
         model = config.get("model")
         if isinstance(model, str) and model:
             return True, model
-    except Exception:
-        pass
     return False, None
 
 
@@ -349,11 +344,9 @@ def _check_port_free(port: int) -> None:
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        try:
+        with suppress(OSError):
             sock.bind(("127.0.0.1", port))
             return  # Port is free.
-        except OSError:
-            pass
 
     # Port is occupied — try to identify and kill a stale Bernstein server.
     try:

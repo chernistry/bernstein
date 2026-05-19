@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -76,12 +77,10 @@ def file_leaf_hash(path: Path) -> str:
     # Try to extract the final HMAC from JSONL
     lines = content.rstrip().split(b"\n")
     last_line = lines[-1]
-    try:
+    with suppress(json.JSONDecodeError, KeyError, UnicodeDecodeError):
         entry = json.loads(last_line)
         if isinstance(entry, dict) and "hmac" in entry:
             return str(entry["hmac"])
-    except (json.JSONDecodeError, KeyError, UnicodeDecodeError):
-        pass
 
     return _sha256(content)
 

@@ -295,24 +295,23 @@ def format_compliance_report(package: CompliancePackage) -> str:
     ]
 
     for ctrl in package.controls:
-        lines.append(f"  [{ctrl.control_id}] {ctrl.title}")
-        lines.append(f"    {ctrl.description}")
+        lines.extend((f"  [{ctrl.control_id}] {ctrl.title}", f"    {ctrl.description}"))
 
-    lines.append("")
-    lines.append("-" * 72)
-    lines.append("Evidence")
-    lines.append("-" * 72)
+    lines.extend(("", "-" * 72, "Evidence", "-" * 72))
 
     if not package.evidence:
         lines.append("  No matching events found.")
     else:
         for ev in package.evidence:
-            lines.append(f"  [{ev.control_id}]")
-            lines.append(f"    Events:  {ev.event_count}")
-            lines.append(f"    First:   {ev.first_event}")
-            lines.append(f"    Last:    {ev.last_event}")
-            lines.append(f"    Samples: {len(ev.sample_events)}")
+            lines.extend(
+                (
+                    f"  [{ev.control_id}]",
+                    f"    Events:  {ev.event_count}",
+                    f"    First:   {ev.first_event}",
+                    f"    Last:    {ev.last_event}",
+                    f"    Samples: {len(ev.sample_events)}",
+                )
+            )
 
-    lines.append("")
-    lines.append("=" * 72)
+    lines.extend(("", "=" * 72))
     return "\n".join(lines)

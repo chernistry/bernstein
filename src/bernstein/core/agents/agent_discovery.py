@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final, cast
@@ -517,13 +518,11 @@ def _detect_kiro_auth(binary_name: str) -> tuple[bool, str]:
     whoami_result = _run_probe([binary_name, "whoami", "--format", "json"])
     if whoami_result is not None and whoami_result.returncode == 0:
         login_method = "Kiro account"
-        try:
+        with suppress(json.JSONDecodeError):
             payload = json.loads((whoami_result.stdout or "").strip())
             method = payload.get("authMethod") or payload.get("provider")
             if isinstance(method, str) and method:
                 login_method = method
-        except json.JSONDecodeError:
-            pass
         return True, login_method
 
     if os.environ.get("KIRO_API_KEY"):

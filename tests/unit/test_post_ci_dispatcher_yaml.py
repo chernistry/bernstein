@@ -104,20 +104,17 @@ def test_dispatcher_calls_each_child(dispatcher: dict[str, Any], child: str) -> 
     expected = EXPECTED_CHILD_SECRETS[child]
     if not expected:
         assert secrets in (None, {}), (
-            f"job `{child}` must not forward any repository secrets "
-            f"(expected empty, got {secrets!r})"
+            f"job `{child}` must not forward any repository secrets (expected empty, got {secrets!r})"
         )
         return
     assert secrets != "inherit", (
-        f"job `{child}` must not use `secrets: inherit` "
-        f"(zizmor secrets-inherit). Forward only {sorted(expected)}."
+        f"job `{child}` must not use `secrets: inherit` (zizmor secrets-inherit). Forward only {sorted(expected)}."
     )
     assert isinstance(secrets, dict), (
         f"job `{child}` must declare an explicit secrets map, got {type(secrets).__name__}"
     )
     assert set(secrets.keys()) == expected, (
-        f"job `{child}` secrets map mismatch: expected {sorted(expected)}, "
-        f"got {sorted(secrets.keys())}"
+        f"job `{child}` secrets map mismatch: expected {sorted(expected)}, got {sorted(secrets.keys())}"
     )
 
 
@@ -138,9 +135,7 @@ def test_bernstein_ci_fix_serialised_after_auto_heal(dispatcher: dict[str, Any])
     assert "auto-heal" in needs, "bernstein-ci-fix must declare needs: auto-heal"
     if_cond = ci_fix.get("if", "")
     assert isinstance(if_cond, str)
-    assert "needs.auto-heal" in if_cond, (
-        "bernstein-ci-fix.if must inspect needs.auto-heal to serialise the heals"
-    )
+    assert "needs.auto-heal" in if_cond, "bernstein-ci-fix.if must inspect needs.auto-heal to serialise the heals"
 
 
 def test_dispatcher_concurrency_per_sha(dispatcher: dict[str, Any]) -> None:
@@ -181,6 +176,4 @@ def test_children_expose_workflow_call(child_yaml: str) -> None:
     data = _load(path)
     on = _on(data)
     assert "workflow_call" in on, f"`{child_yaml}` must declare on: workflow_call:"
-    assert "workflow_run" not in on, (
-        f"`{child_yaml}` must NOT keep workflow_run; the dispatcher owns that trigger now"
-    )
+    assert "workflow_run" not in on, f"`{child_yaml}` must NOT keep workflow_run; the dispatcher owns that trigger now"

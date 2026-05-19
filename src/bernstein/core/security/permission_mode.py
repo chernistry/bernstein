@@ -29,6 +29,7 @@ Legacy flag migration::
 from __future__ import annotations
 
 import logging
+from contextlib import suppress
 from enum import StrEnum
 
 from bernstein.core.security.permission_rules import RuleAction, RuleSeverity
@@ -197,10 +198,8 @@ def resolve_mode(raw: str | None) -> PermissionMode:
     cleaned = raw.strip().lower()
 
     # Try canonical enum value
-    try:
+    with suppress(ValueError):
         return PermissionMode(cleaned)
-    except ValueError:
-        pass  # Not a canonical value; try legacy mappings below
 
     # Try legacy flag mapping
     mapped = LEGACY_FLAG_TO_MODE.get(cleaned)

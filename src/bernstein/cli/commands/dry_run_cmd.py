@@ -9,6 +9,7 @@ helper that prints the full execution plan without spawning agents.
 from __future__ import annotations
 
 import json
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -36,15 +37,13 @@ def _route_task_to_dict(
         "scope": scope,
         "complexity": complexity,
     }
-    try:
+    with suppress(Exception):
         decision = router.select_provider_for_task(task_obj) if task_obj is not None else None
         if decision is not None:
             base["provider"] = decision.provider
             base["model"] = decision.model_config.model
             base["effort"] = decision.model_config.effort
             return base
-    except Exception:
-        pass
     base["provider"] = "auto"
     base["model"] = "auto"
     base["effort"] = "auto"

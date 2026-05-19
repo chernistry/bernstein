@@ -607,9 +607,7 @@ def render_sync_report(result: PMSyncResult) -> str:
     ]
 
     if result.errors:
-        lines.append("")
-        lines.append(f"### Errors ({len(result.errors)})")
-        lines.append("")
+        lines.extend(("", f"### Errors ({len(result.errors)})", ""))
         for err in result.errors:
             lines.append(f"- {err}")
 

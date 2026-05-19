@@ -63,11 +63,9 @@ def _rmtree_windows_safe(path: Path, max_attempts: int = 3) -> bool:
 
     def _onerror(func: Callable[[str], object], fpath: str, exc_info: object) -> None:
         """Handle permission errors by making file writable and retrying."""
-        try:
+        with contextlib.suppress(OSError):
             os.chmod(fpath, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
             func(fpath)
-        except OSError:
-            pass  # Give up on this file
 
     is_windows = sys.platform == "win32"
     attempts = max_attempts if is_windows else 1

@@ -59,7 +59,14 @@ def test_approval_workflow_e2e(tmp_path: Path) -> None:
     notifications: list[dict[str, Any]] = []
 
     def _mock_notify(event: str, title: str, body: str = "", **kwargs: Any) -> None:
-        notifications.append({"event": event, "title": title, "body": body, **kwargs})
+        notifications.append(
+            {
+                "event": event,
+                "title": title,
+                "body": body,
+            }
+            | kwargs
+        )
 
     orchestrator = Orchestrator(
         config=config,

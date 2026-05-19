@@ -238,9 +238,11 @@ def format_trust_warning(trust: PluginTrust) -> str:
     ]
 
     if trust.risk_level in ("unknown", "community"):
-        lines.append("")
-        lines.append(
-            "[bold red]WARNING:[/bold red] This plugin has limited trust signals. Review the source before installing."
+        lines.extend(
+            (
+                "",
+                "[bold red]WARNING:[/bold red] This plugin has limited trust signals. Review the source before installing.",  # noqa: E501
+            )
         )
 
     text = Text.from_markup("\n".join(lines))

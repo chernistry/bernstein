@@ -265,14 +265,12 @@ def render_dependency_tree(result: ResolutionResult) -> str:
     lines: list[str] = ["# Plugin Dependency Tree", ""]
 
     if result.conflicts:
-        lines.append("## Conflicts")
-        lines.append("")
+        lines.extend(("## Conflicts", ""))
         for conflict in result.conflicts:
             lines.append(f"- {conflict}")
         lines.append("")
 
-    lines.append("## Resolved Order")
-    lines.append("")
+    lines.extend(("## Resolved Order", ""))
     if result.resolved:
         for idx, plugin in enumerate(result.resolved, 1):
             deps_str = ""
@@ -285,6 +283,5 @@ def render_dependency_tree(result: ResolutionResult) -> str:
 
     lines.append("")
     status = "Success" if result.success else "Failed"
-    lines.append(f"**Status:** {status}")
-    lines.append("")
+    lines.extend((f"**Status:** {status}", ""))
     return "\n".join(lines)

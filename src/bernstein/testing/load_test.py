@@ -251,18 +251,15 @@ def format_load_test_report(report: LoadTestReport) -> str:
     ]
 
     if report.errors:
-        lines.append("-" * 50)
-        lines.append("  Errors:")
+        lines.extend(("-" * 50, "  Errors:"))
         for msg, count in sorted(report.errors.items()):
             lines.append(f"    [{count}x] {msg}")
 
     if violations:
-        lines.append("-" * 50)
-        lines.append("  Violations:")
+        lines.extend(("-" * 50, "  Violations:"))
         for v in violations:
             lines.append(f"    - {v}")
 
-    lines.append("=" * 50)
-    lines.append("")
+    lines.extend(("=" * 50, ""))
 
     return "\n".join(lines)

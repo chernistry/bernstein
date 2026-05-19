@@ -181,8 +181,7 @@ def _cursor_mdc_for(sec: AgentsMdSection) -> str:
     fm: list[str] = ["---", f"description: {_safe_one_line(sec.title)}"]
     if sec.target_globs:
         fm.append(f"globs: {','.join(sec.target_globs)}")
-    fm.append(f"alwaysApply: {'true' if sec.always_apply else 'false'}")
-    fm.append("---")
+    fm.extend((f"alwaysApply: {'true' if sec.always_apply else 'false'}", "---"))
     return "\n".join(fm) + "\n\n" + _CURSOR_AUTOGEN_MARKER + "\n\n" + sec.body.rstrip() + "\n"
 
 
@@ -282,10 +281,7 @@ def _render_goose(sections: list[AgentsMdSection], *, repo_name: str | None) -> 
         "",
     ]
     for sec in sections:
-        parts.append(f"## {sec.title}")
-        parts.append("")
-        parts.append(sec.body.rstrip())
-        parts.append("")
+        parts.extend((f"## {sec.title}", "", sec.body.rstrip(), ""))
     body = "\n".join(parts).rstrip() + "\n"
     return BridgeOutput(target="goose", files={".goosehints": body})
 

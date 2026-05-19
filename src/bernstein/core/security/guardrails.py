@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -69,20 +70,16 @@ def is_sandboxed() -> bool:
         return True
 
     # cgroup v1: check for "docker" or "containerd" or "kubepods" in cgroup
-    try:
+    with suppress(OSError):
         cgroup_v1 = Path("/proc/1/cgroup").read_text(encoding="utf-8")
         if any(marker in cgroup_v1 for marker in ("docker", "containerd", "kubepods", "firecracker")):
             return True
-    except OSError:
-        pass
 
     # cgroup v2: check for containerd in /proc/1/mountinfo
-    try:
+    with suppress(OSError):
         mountinfo = Path("/proc/1/mountinfo").read_text(encoding="utf-8")
         if "containerd" in mountinfo:
             return True
-    except OSError:
-        pass
 
     return False
 

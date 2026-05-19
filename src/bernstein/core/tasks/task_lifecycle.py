@@ -959,12 +959,10 @@ def auto_decompose_task(
             _model = "nvidia/nemotron-3-super-120b-a12b"
             _seed_path = workdir / "bernstein.yaml"
             if _seed_path.exists():
-                try:
+                with contextlib.suppress(Exception):
                     _seed = parse_seed(_seed_path)
                     _provider = _seed.internal_llm_provider
                     _model = _seed.internal_llm_model
-                except Exception:
-                    pass
 
             created_ids = TaskSplitter(client=client, server_url=base).split(
                 task,
@@ -1381,7 +1379,7 @@ def claim_and_spawn_batches(
 
         # Skip if any owned files overlap with active agents
         _batch_sessions = getattr(orch, "_batch_sessions", {})
-        _ownership_sessions = {**orch._agents, **(_batch_sessions if isinstance(_batch_sessions, dict) else {})}
+        _ownership_sessions = orch._agents | (_batch_sessions if isinstance(_batch_sessions, dict) else {})
         if check_file_overlap(batch, orch._file_ownership, _ownership_sessions):
             continue
 
@@ -3102,13 +3100,11 @@ def _move_backlog_ticket(workdir: Any, task: Any) -> None:
     if source_match:
         source_file = open_dir / source_match.group(1)
         if source_file.exists():
-            try:
+            with contextlib.suppress(OSError):
                 source_file.rename(closed_dir / source_file.name)
                 _log.info(
                     "Moved ticket %s to closed/ (exact source match, task: %s)", source_file.name, task.title[:50]
                 )
-            except OSError:
-                pass
             return
 
     # --- Strategy 2: exact normalised-title match (no substring!) ---
@@ -3124,11 +3120,9 @@ def _move_backlog_ticket(workdir: Any, task: Any) -> None:
                 heading = re.sub(r"^[0-9a-fA-F]+\s*[—:\-]\s*", "", line[2:].strip())
                 heading_slug = re.sub(r"[^a-z0-9]+", "-", heading.lower()).strip("-")
                 if heading_slug == title_slug:
-                    try:
+                    with contextlib.suppress(OSError):
                         md_file.rename(closed_dir / md_file.name)
                         _log.info("Moved ticket %s to closed/ (title match, task: %s)", md_file.name, task.title[:50])
-                    except OSError:
-                        pass
                     return
                 break  # only check first heading
 

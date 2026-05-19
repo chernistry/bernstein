@@ -31,6 +31,7 @@ import json
 import logging
 import operator
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -199,11 +200,8 @@ def _append_orchestrator_log(workdir: Path, line: str) -> None:
         return
     log_path = log_dir / "orchestrator.log"
     ts = time.strftime("%Y-%m-%d %H:%M:%S")
-    try:
-        with log_path.open("a", encoding="utf-8") as fh:
-            fh.write(f"[{ts}] {line}\n")
-    except OSError:
-        pass
+    with suppress(OSError), log_path.open("a", encoding="utf-8") as fh:
+        fh.write(f"[{ts}] {line}\n")
 
 
 def build_diagnostic(

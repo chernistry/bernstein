@@ -11,6 +11,7 @@ import ipaddress
 import logging
 import os
 import re
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import urlparse
 
@@ -111,10 +112,8 @@ def _parse_budget(raw: str | int | float | None) -> float | None:
     if m:
         return float(m.group(1))
     # Try bare numeric string.
-    try:
+    with suppress(ValueError):
         return float(raw.strip())
-    except ValueError:
-        pass
     raise SeedError(f"Invalid budget format: {raw!r}. Expected '$N' or a number.")
 
 

@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 import signal
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 import httpx
@@ -78,11 +79,9 @@ def _stop_processes(project_dir: Path) -> None:
         pid_file = runtime_dir / fname
         if not pid_file.exists():
             continue
-        try:
+        with suppress(ValueError, OSError):
             pid = int(pid_file.read_text().strip())
             os.kill(pid, signal.SIGTERM)
-        except (ValueError, OSError):
-            pass
         pid_file.unlink(missing_ok=True)
 
 
@@ -100,14 +99,12 @@ def _poll_until_complete(port: int, timeout: int = _TASK_TIMEOUT) -> bool:
     deadline = time.monotonic() + timeout
 
     while time.monotonic() < deadline:
-        try:
+        with suppress(Exception):
             resp = httpx.get(url, timeout=3.0)
             if resp.status_code == 200:
                 tasks = resp.json().get("tasks", [])
                 if tasks and all(t.get("status") in ("done", "failed") for t in tasks):
                     return True
-        except Exception:
-            pass
         time.sleep(2)
 
     return False
@@ -131,11 +128,9 @@ def _project_contains(project_dir: Path, needle: str) -> bool:
             # Skip .sdd/ runtime artefacts
             if ".sdd" in path.parts:
                 continue
-            try:
+            with suppress(OSError):
                 if needle in path.read_text(errors="ignore"):
                     return True
-            except OSError:
-                pass
     return False
 
 

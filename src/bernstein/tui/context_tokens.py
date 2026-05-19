@@ -8,6 +8,7 @@ for displaying the breakdown with percentages.
 from __future__ import annotations
 
 import re
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -102,13 +103,11 @@ def count_tokens(text: str) -> int:
         return 0
 
     # Try tiktoken first (more accurate)
-    try:
+    with suppress(ImportError, RuntimeError):
         import tiktoken  # pyright: ignore[reportMissingImports]
 
         enc = tiktoken.get_encoding("cl100k_base")  # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
         return len(enc.encode(text))  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
-    except (ImportError, RuntimeError):
-        pass  # tiktoken unavailable; fall through to heuristic
 
     # Fallback: word-based heuristic
     words = len(text.split())

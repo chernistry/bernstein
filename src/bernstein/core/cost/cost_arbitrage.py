@@ -304,8 +304,7 @@ def format_arbitrage_comparison(result: ArbitrageResult) -> str:
         summary line showing the selection and savings.
     """
     lines: list[str] = []
-    lines.append(f"{'Provider':<12} {'Model':<16} {'Quality':>7} {'Latency':>8} {'Est. Cost':>12}")
-    lines.append("-" * 60)
+    lines.extend((f"{'Provider':<12} {'Model':<16} {'Quality':>7} {'Latency':>8} {'Est. Cost':>12}", "-" * 60))
 
     for p in result.candidates:
         marker = " *" if p is result.selected else ""
@@ -317,10 +316,12 @@ def format_arbitrage_comparison(result: ArbitrageResult) -> str:
             f"{p.latency_ms:>7}ms ${estimate_task_cost_for_provider(p, 8000, 4000):>10.6f}"
         )
 
-    lines.append("-" * 60)
-    lines.append(
-        f"Selected: {result.selected.provider}/{result.selected.model} "
-        f"@ ${result.estimated_cost_usd:.6f} "
-        f"({result.savings_vs_default_pct:+.1f}% vs default)"
+    lines.extend(
+        (
+            "-" * 60,
+            f"Selected: {result.selected.provider}/{result.selected.model} "
+            f"@ ${result.estimated_cost_usd:.6f} "
+            f"({result.savings_vs_default_pct:+.1f}% vs default)",
+        )
     )
     return "\n".join(lines)

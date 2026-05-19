@@ -233,7 +233,7 @@ def test_zero_weight_axis_does_not_change_winner(
     base = CriterionProfile(criteria=(Criterion("a"), Criterion("b")))
     augmented = CriterionProfile(criteria=(Criterion("a"), Criterion("b"), Criterion("ghost", weight=0.0)))
     # Augment each candidate with a random ghost score.
-    cands_ext = [Candidate(c.key, {**c.scores, "ghost": float(i)}) for i, c in enumerate(candidates)]
+    cands_ext = [Candidate(c.key, c.scores | {"ghost": float(i)}) for i, c in enumerate(candidates)]
     w_base = rank_candidates(candidates, base)[0].key
     w_ext = rank_candidates(cands_ext, augmented)[0].key
     assert w_base == w_ext

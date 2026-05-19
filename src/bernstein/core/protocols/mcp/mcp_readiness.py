@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -124,14 +125,12 @@ def probe_sse_server(
     deadline = time.monotonic() + timeout
 
     while time.monotonic() < deadline:
-        try:
+        with suppress(Exception):
             import httpx
 
             resp = httpx.get(url, timeout=min(2.0, timeout))
             if 200 <= resp.status_code < 300:
                 return True
-        except Exception:
-            pass
         remaining = deadline - time.monotonic()
         if remaining > 0:
             time.sleep(min(poll_interval, remaining))

@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import shutil
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -218,11 +219,9 @@ def check_mcp_servers(workdir: Path) -> list[DoctorWarning]:
     mcp_servers: dict[str, dict[str, Any]] = {}
     for mcp_path in mcp_paths:
         if mcp_path.exists():
-            try:
+            with suppress(Exception):
                 raw = json.loads(mcp_path.read_text(encoding="utf-8"))
                 _collect_mcp_servers(raw, mcp_servers)
-            except Exception:
-                pass  # Skip unreadable/malformed MCP config files
 
     if not mcp_servers:
         results.append(

@@ -181,12 +181,10 @@ def _format_keepachangelog(
     elif repo_url:
         compare_url = f" ({repo_url}/commits/{version})"
 
-    lines.append(f"## [{version}] - {date}{compare_url}")
-    lines.append("")
+    lines.extend((f"## [{version}] - {date}{compare_url}", ""))
 
     if breaking:
-        lines.append("### Breaking Changes")
-        lines.append("")
+        lines.extend(("### Breaking Changes", ""))
         for e in breaking:
             scope_prefix = f"**{e.scope}:** " if e.scope else ""
             lines.append(f"- {scope_prefix}{e.description} ([`{e.sha[:8]}`])")
@@ -197,8 +195,7 @@ def _format_keepachangelog(
         if not type_entries:
             continue
         label = _TYPE_LABELS.get(ctype, ctype.capitalize())
-        lines.append(f"### {label}")
-        lines.append("")
+        lines.extend((f"### {label}", ""))
         for e in type_entries:
             scope_prefix = f"**{e.scope}:** " if e.scope else ""
             lines.append(f"- {scope_prefix}{e.description} ([`{e.sha[:8]}`])")

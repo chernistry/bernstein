@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 from bernstein.core.git_context import (
@@ -197,7 +198,7 @@ def get_recent_project_memory(sdd_dir: Path, limit: int = 5) -> list[dict[str, A
 
     items: list[dict[str, Any]] = []
     for path in sorted(kb_dir.glob("*.md"), reverse=True)[:limit]:
-        try:
+        with suppress(OSError):
             content = path.read_text(encoding="utf-8")
             # Extract first line as title
             lines = content.split("\n")
@@ -209,8 +210,6 @@ def get_recent_project_memory(sdd_dir: Path, limit: int = 5) -> list[dict[str, A
                     "date": path.stat().st_mtime,
                 }
             )
-        except OSError:
-            pass  # Skip unreadable files
 
     return items
 

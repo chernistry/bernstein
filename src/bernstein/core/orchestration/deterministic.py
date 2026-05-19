@@ -25,6 +25,7 @@ import hashlib
 import json
 import logging
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -87,14 +88,12 @@ class DeterministicStore:
                     line = line.strip()
                     if not line:
                         continue
-                    try:
+                    with suppress(json.JSONDecodeError, KeyError):
                         entry: dict[str, Any] = json.loads(line)
                         key = entry.get("key", "")
                         response = entry.get("response", "")
                         if key and response:
                             self._cache[key] = response
-                    except (json.JSONDecodeError, KeyError):
-                        pass
         except OSError as exc:
             logger.warning("DeterministicStore: failed to load cache: %s", exc)
 

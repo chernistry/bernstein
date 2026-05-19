@@ -107,7 +107,9 @@ class EffectivenessScorer:
     def record(self, score: EffectivenessScore) -> None:
         """Append one effectiveness record to JSONL history."""
         self._history_path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"timestamp": datetime.now(UTC).isoformat(), **asdict(score)}
+        payload = {
+            "timestamp": datetime.now(UTC).isoformat(),
+        } | asdict(score)
         with self._history_path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, sort_keys=True) + "\n")
 

@@ -120,8 +120,7 @@ def _power_off_frames(width: int, height: int, frame: str | None = None) -> list
     frames.append("\n".join(line_frame))
     dot_frame = [" " * width for _ in range(height)]
     dot_frame[center] = " " * dot_pad + f"{_fg_hex(PALETTE.glow)}•\033[0m"
-    frames.append("\n".join(dot_frame))
-    frames.append("\n".join([" " * width for _ in range(height)]))
+    frames.extend(("\n".join(dot_frame), "\n".join([" " * width for _ in range(height)])))
     return frames
 
 

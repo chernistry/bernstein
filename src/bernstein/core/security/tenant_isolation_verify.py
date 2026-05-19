@@ -176,7 +176,7 @@ class TenantIsolationVerifier:
         for fpath in metrics_dir.iterdir():
             if not fpath.is_file():
                 continue
-            try:
+            with contextlib.suppress(json.JSONDecodeError, OSError):
                 for line in fpath.read_text(encoding="utf-8").splitlines():
                     if not line.strip():
                         continue
@@ -186,8 +186,6 @@ class TenantIsolationVerifier:
                         contamination_details.append(
                             f"{fpath.name}: record with tenant={rec_tenant} found in {owner_tenant} dir"
                         )
-            except (json.JSONDecodeError, OSError):
-                pass
         return bool(contamination_details), contamination_details
 
     @staticmethod
@@ -414,7 +412,7 @@ class TenantIsolationVerifier:
 
         a_records: list[dict[str, Any]] = []
         b_records: list[dict[str, Any]] = []
-        try:
+        with contextlib.suppress(OSError):
             for line in archive_file.read_text(encoding="utf-8").splitlines():
                 if not line.strip():
                     continue
@@ -427,8 +425,6 @@ class TenantIsolationVerifier:
                     a_records.append(record)
                 elif rec_tenant == norm_b:
                     b_records.append(record)
-        except OSError:
-            pass
 
         a_task_ids = {r.get("task_id", "") for r in a_records}
         b_task_ids = {r.get("task_id", "") for r in b_records}
@@ -539,7 +535,7 @@ class TenantIsolationVerifier:
 
         Returns an empty string if clean, or a description of the leak.
         """
-        try:
+        with contextlib.suppress(OSError):
             for line in archive_file.read_text(encoding="utf-8").splitlines():
                 if not line.strip():
                     continue
@@ -551,8 +547,6 @@ class TenantIsolationVerifier:
                 if rec_tenant == foreign_tenant:
                     task_id = record.get("task_id", "unknown")
                     return f"task_id={task_id} belongs to foreign tenant '{foreign_tenant}'"
-        except OSError:
-            pass
         return ""
 
     # -- run all checks -----------------------------------------------------

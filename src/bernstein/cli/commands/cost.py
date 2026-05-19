@@ -141,8 +141,12 @@ def _render_shareable_summary(
     if total_duration_s > 0:
         lines.append(f"   Time:  {time_str}")
     if single_agent_cost > actual_cost:
-        lines.append(f"   Cost:  ${actual_cost:.2f} (vs ~${single_agent_cost:.2f} single agent)")
-        lines.append(f"   Saved: ${savings_vs_opus:.2f} ({savings_pct:.0f}%)")
+        lines.extend(
+            (
+                f"   Cost:  ${actual_cost:.2f} (vs ~${single_agent_cost:.2f} single agent)",
+                f"   Saved: ${savings_vs_opus:.2f} ({savings_pct:.0f}%)",
+            )
+        )
     else:
         lines.append(f"   Cost:  ${actual_cost:.2f}")
 

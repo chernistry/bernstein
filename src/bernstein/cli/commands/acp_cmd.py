@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextlib import suppress
 
 import click
 
@@ -147,11 +148,9 @@ async def _run_http(server: ACPServer, host: str, port: int) -> None:
             writer.close()
 
     httpd = await asyncio.start_server(_handle_client, host, port)
-    try:
+    with suppress(KeyboardInterrupt, asyncio.CancelledError):
         async with httpd:
             await httpd.serve_forever()
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        pass
 
 
 async def _read_http_request(
@@ -205,7 +204,10 @@ async def _write_response(
 ) -> None:
     """Write a non-streaming HTTP response."""
     header_lines = [f"HTTP/1.1 {status} {_REASONS.get(status, 'OK')}"]
-    merged = {"content-length": str(len(body)), "connection": "close", **headers}
+    merged = {
+        "content-length": str(len(body)),
+        "connection": "close",
+    } | headers
     for key, value in merged.items():
         header_lines.append(f"{key}: {value}")
     writer.write(("\r\n".join(header_lines) + "\r\n\r\n").encode("latin-1"))
@@ -229,8 +231,7 @@ async def _write_streaming_response(
     merged = {
         "transfer-encoding": "chunked",
         "connection": "close",
-        **headers,
-    }
+    } | headers
     for key, value in merged.items():
         header_lines.append(f"{key}: {value}")
     writer.write(("\r\n".join(header_lines) + "\r\n\r\n").encode("latin-1"))

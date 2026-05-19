@@ -155,14 +155,12 @@ def detect_terminal_theme() -> ThemeMode:
     if colorfgbg:
         parts = colorfgbg.split(";")
         if len(parts) >= 2:
-            try:
+            with contextlib.suppress(ValueError):
                 bg = int(parts[-1])
                 # Standard terminal colors: 0-6 dark, 7+ light
                 if bg >= 7:
                     return ThemeMode.LIGHT
                 return ThemeMode.DARK
-            except ValueError:
-                pass
 
     # Default to dark
     return ThemeMode.DARK

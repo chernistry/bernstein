@@ -42,6 +42,7 @@ import os
 import random
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from contextlib import suppress
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, Protocol, cast
 
@@ -927,14 +928,10 @@ def _coerce_scalar(raw: str) -> Any:
     low = raw.lower()
     if low in {"true", "false"}:
         return low == "true"
-    try:
+    with suppress(ValueError):
         return int(raw)
-    except ValueError:
-        pass
-    try:
+    with suppress(ValueError):
         return float(raw)
-    except ValueError:
-        pass
     return raw
 
 

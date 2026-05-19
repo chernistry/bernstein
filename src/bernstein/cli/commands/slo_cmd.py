@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import sys
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, cast
 
@@ -94,7 +95,7 @@ def _load_offline(workdir: str) -> dict[str, Any] | None:
     path = Path(workdir) / ".sdd" / "metrics" / "slos.json"
     if not path.exists():
         return None
-    try:
+    with suppress(OSError, json.JSONDecodeError, ZeroDivisionError):
         raw: Any = json.loads(path.read_text(encoding="utf-8"))
         if isinstance(raw, dict):
             # slos.json has the full dashboard; extract error_budget for burn-down
@@ -138,19 +139,15 @@ def _load_offline(workdir: str) -> dict[str, Any] | None:
                 "sparkline": [],
                 "history_size": 0,
             }
-    except (OSError, json.JSONDecodeError, ZeroDivisionError):
-        pass
     return None
 
 
 def _fetch_slo_data(workdir: str) -> dict[str, Any] | None:
     """Fetch SLO data from server or offline file."""
-    try:
+    with suppress(Exception):
         result = server_get("/slo/burndown")
         if isinstance(result, dict):
             return result
-    except Exception:
-        pass
     return _load_offline(workdir)
 
 

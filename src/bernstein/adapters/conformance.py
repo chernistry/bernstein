@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -210,20 +211,16 @@ def load_golden_transcripts(directory: Path) -> list[GoldenTranscript]:
 
     transcripts: list[GoldenTranscript] = []
     for path in sorted(directory.glob("*.yaml")) or []:
-        try:
+        with suppress(Exception):
             raw = yaml.safe_load(path.read_text(encoding="utf-8"))
             if isinstance(raw, dict) and "name" in raw and "adapter_class" in raw:
                 transcripts.append(GoldenTranscript.from_dict(raw))
-        except Exception:
-            pass  # Skip malformed YAML transcript files
 
     for path in sorted(directory.glob("*.json")) or []:
-        try:
+        with suppress(Exception):
             raw = json.loads(path.read_text(encoding="utf-8"))
             if isinstance(raw, dict) and "name" in raw and "adapter_class" in raw:
                 transcripts.append(GoldenTranscript.from_dict(raw))
-        except Exception:
-            pass  # Skip malformed JSON transcript files
 
     return sorted(transcripts, key=lambda t: t.name)
 

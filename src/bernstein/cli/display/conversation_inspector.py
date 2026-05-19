@@ -180,11 +180,11 @@ def format_inspector_output(
     lines: list[str] = []
 
     # Header summary.
-    lines.append("[bold]Conversation Inspector[/bold]")
-    lines.append(f"  Messages: {view.total_messages}  |  ~{view.total_tokens} tokens")
+    lines.extend(
+        ("[bold]Conversation Inspector[/bold]", f"  Messages: {view.total_messages}  |  ~{view.total_tokens} tokens")
+    )
     role_summary = "  ".join(f"{r}: {c}" for r, c in sorted(view.by_role.items()))
-    lines.append(f"  By role: {role_summary}")
-    lines.append("")
+    lines.extend((f"  By role: {role_summary}", ""))
 
     # Determine which indices to show.
     indices = search_messages(view, search) if search is not None else list(range(len(view.messages)))
@@ -193,8 +193,7 @@ def format_inspector_output(
         msg = view.messages[idx]
         if role_filter and msg.get("role") != role_filter:
             continue
-        lines.append(format_message(msg, idx))
-        lines.append("")  # blank separator
+        lines.extend((format_message(msg, idx), ""))  # blank separator
 
     if not lines or lines == [""]:
         lines.append("[dim]No matching messages.[/dim]")

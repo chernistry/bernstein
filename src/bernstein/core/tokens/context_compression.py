@@ -13,6 +13,7 @@ import ast
 import logging
 import operator
 import re
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -85,7 +86,7 @@ class DependencyGraph:
         # Build module → path index first (needed for resolution)
         self._module_index: dict[str, str] = {}
         for fpath in py_files:
-            try:
+            with suppress(Exception):
                 rel = fpath.relative_to(self.workdir).as_posix()
                 mod = self._path_to_module(rel)
                 self._module_index[mod] = rel
@@ -93,8 +94,6 @@ class DependencyGraph:
                 parts = mod.rsplit(".", 1)
                 if len(parts) == 2:
                     self._module_index.setdefault(parts[1], rel)
-            except Exception:
-                pass
 
         for fpath in py_files:
             try:
@@ -173,29 +172,23 @@ class DependencyGraph:
             # Pattern 1: direct module path
             candidate = self.workdir / Path(*parts).with_suffix(".py")
             if candidate.is_file():
-                try:
+                with suppress(ValueError):
                     file_deps.append(candidate.relative_to(self.workdir).as_posix())
                     continue
-                except ValueError:
-                    pass
 
             # Pattern 2: package __init__.py
             candidate = self.workdir / Path(*parts) / "__init__.py"
             if candidate.is_file():
-                try:
+                with suppress(ValueError):
                     file_deps.append(candidate.relative_to(self.workdir).as_posix())
                     continue
-                except ValueError:
-                    pass
 
             # Pattern 3: src/ subdirectory
             candidate = self.workdir / "src" / Path(*parts).with_suffix(".py")
             if candidate.is_file():
-                try:
+                with suppress(ValueError):
                     file_deps.append(candidate.relative_to(self.workdir).as_posix())
                     continue
-                except ValueError:
-                    pass
 
         return file_deps
 
@@ -392,12 +385,10 @@ class ContextCompressor:
         file_contents: dict[str, str] = {}
         try:
             for fpath in _iter_python_files(workdir):
-                try:
+                with suppress(Exception):
                     rel_path = fpath.relative_to(workdir).as_posix()
                     content = fpath.read_text(encoding="utf-8", errors="ignore")
                     file_contents[rel_path] = content[:500] + " " + rel_path
-                except Exception:
-                    pass
         except Exception as e:
             logger.warning("Failed to build BM25 index: %s", e)
 
@@ -445,14 +436,12 @@ class ContextCompressor:
 
         if self.ranker is None:
             # No files to rank; return owned files + first max_files from workdir
-            try:
+            with suppress(Exception):
                 all_py = sorted(f.relative_to(self.workdir).as_posix() for f in self.workdir.rglob("*.py"))
                 for f in all_py:
                     if len(selected) >= max_files:
                         break
                     selected.add(f)
-            except Exception:
-                pass
             return sorted(selected)[:max_files], len(bm25_matches), len(dependency_matches)
 
         # Phase 1: Embedding-based scoring (broader semantic match)
@@ -502,13 +491,11 @@ class ContextCompressor:
         """
         total_chars = 0
         for fpath in files:
-            try:
+            with suppress(Exception):
                 full_path = self.workdir / fpath
                 if full_path.is_file():
                     content = full_path.read_text(encoding="utf-8", errors="ignore")
                     total_chars += len(content)
-            except Exception:
-                pass
         return max(1, total_chars // 4)
 
     def compress(

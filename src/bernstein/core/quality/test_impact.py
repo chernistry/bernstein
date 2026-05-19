@@ -10,6 +10,7 @@ import ast
 import hashlib
 import json
 import logging
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -602,10 +603,8 @@ class TestImpactAnalyzer:
         init_file = self._src_root.joinpath(*parts, "__init__.py")
         for candidate in (module_file, init_file):
             if candidate.exists():
-                try:
+                with suppress(ValueError):
                     return candidate.relative_to(self._root).as_posix()
-                except ValueError:
-                    pass
         return None
 
     def get_dependent_source_files(self, changed_files: list[str]) -> list[str]:

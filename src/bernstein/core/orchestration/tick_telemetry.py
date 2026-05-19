@@ -222,15 +222,13 @@ def _start_otel_span(name: str, attributes: dict[str, Any]) -> Any:
     Returns:
         Opaque context token, or None.
     """
-    try:
+    with contextlib.suppress(Exception):
         from bernstein.core.telemetry import get_tracer
 
         tracer = get_tracer()
         if tracer is not None:
             span = tracer.start_span(name, attributes=attributes)
             return span
-    except Exception:
-        pass
     return None
 
 

@@ -84,12 +84,10 @@ class TestFuzzedYAMLNoCrash:
     @given(text=malformed_yaml_text())
     def test_malformed_yaml_text_no_crash(self, text: str) -> None:
         """Malformed YAML text must not crash yaml.safe_load or config parser."""
-        try:
+        with contextlib.suppress(yaml.YAMLError, TypeError, ValueError):
             parsed = yaml.safe_load(text)
             if isinstance(parsed, dict):
                 BernsteinConfig.model_validate(parsed)
-        except (yaml.YAMLError, TypeError, ValueError):
-            pass  # Expected for garbage input
 
 
 class TestSpecificMalformedConfigs:
@@ -114,12 +112,10 @@ class TestSpecificMalformedConfigs:
 
     def test_negative_max_agents(self) -> None:
         # Negative values may be accepted or rejected depending on validators
-        try:
+        with contextlib.suppress(ValidationError):
             cfg = BernsteinConfig.model_validate({"max_agents": -5})
             # If accepted, at least it didn't crash
             assert cfg.max_agents == -5
-        except ValidationError:
-            pass
 
     def test_deeply_nested_roles(self) -> None:
         data = {"roles": {"a" * 1000: {"cli": "claude"}}}

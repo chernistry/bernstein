@@ -368,15 +368,18 @@ def format_notebook_summary(snapshot: NotebookSnapshot) -> str:
         Formatted summary string.
     """
     lines: list[str] = []
-    lines.append(f"Notebook: {snapshot.path}")
-    lines.append(f"  Kernel: {snapshot.kernel_name}")
-    lines.append(f"  Language: {snapshot.language}")
-    lines.append(f"  Cells: {len(snapshot.cells)}")
+    lines.extend(
+        (
+            f"Notebook: {snapshot.path}",
+            f"  Kernel: {snapshot.kernel_name}",
+            f"  Language: {snapshot.language}",
+            f"  Cells: {len(snapshot.cells)}",
+        )
+    )
 
     code_cells = sum(1 for c in snapshot.cells if c.cell_type == "code")
     md_cells = sum(1 for c in snapshot.cells if c.cell_type == "markdown")
-    lines.append(f"    Code cells: {code_cells}")
-    lines.append(f"    Markdown cells: {md_cells}")
+    lines.extend((f"    Code cells: {code_cells}", f"    Markdown cells: {md_cells}"))
 
     return "\n".join(lines)
 

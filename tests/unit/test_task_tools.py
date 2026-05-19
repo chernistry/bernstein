@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
+
 from bernstein.core.task_tools import (
     TaskToolConfig,
     TaskToolDefinition,
@@ -45,11 +47,9 @@ class TestTaskToolDefinition:
 
     def test_frozen(self) -> None:
         tool = TaskToolDefinition(name="a", description="b", command="c")
-        try:
+        with suppress(AttributeError):
             tool.name = "changed"  # type: ignore[misc]
             raise AssertionError("Should have raised FrozenInstanceError")
-        except AttributeError:
-            pass
 
 
 class TestTaskToolConfig:
@@ -68,11 +68,9 @@ class TestTaskToolConfig:
 
     def test_frozen(self) -> None:
         config = TaskToolConfig(task_id="t")
-        try:
+        with suppress(AttributeError):
             config.task_id = "changed"  # type: ignore[misc]
             raise AssertionError("Should have raised FrozenInstanceError")
-        except AttributeError:
-            pass
 
 
 # ---------------------------------------------------------------------------

@@ -12,6 +12,7 @@ import sys
 import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
 from importlib.metadata import entry_points
 from pathlib import Path
 from typing import Any, ClassVar, cast
@@ -303,12 +304,10 @@ class CommandHook:
         """Handle exit code 2 (blocking error) by raising HookBlockingError."""
         error_detail: str = proc.stderr.strip() or proc.stdout.strip()
         if proc.stdout.strip():
-            try:
+            with suppress(json.JSONDecodeError, TypeError):
                 response = cast("dict[str, Any]", json.loads(proc.stdout))
                 if response.get("message"):
                     error_detail = str(response["message"])
-            except (json.JSONDecodeError, TypeError):
-                pass  # Non-JSON error output; use raw text fallback
         raise HookBlockingError(hook_name, error_detail)
 
     def _execute_hook_script(

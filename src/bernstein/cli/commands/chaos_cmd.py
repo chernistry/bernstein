@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import random
 import time
+from contextlib import suppress
 from pathlib import Path
 
 import click
@@ -246,7 +247,7 @@ def _show_active_rate_limit() -> None:
     rate_limit_file = CHAOS_DIR / "rate_limit_active.json"
     if not rate_limit_file.exists():
         return
-    try:
+    with suppress(json.JSONDecodeError, OSError):
         rl = json.loads(rate_limit_file.read_text())
         expires_at = float(str(rl.get("expires_at", 0)))
         if expires_at <= time.time():
@@ -257,8 +258,6 @@ def _show_active_rate_limit() -> None:
             f"provider={rl.get('provider')} "
             f"expires={time.strftime('%H:%M:%S', time.localtime(expires_at))}"
         )
-    except (json.JSONDecodeError, OSError):
-        pass
 
 
 @chaos_group.command("slo")
@@ -335,8 +334,5 @@ def _record_chaos_event(
         "error": error,
         "timestamp": time.time(),
     }
-    try:
-        with log_path.open("a") as f:
-            f.write(json.dumps(event) + "\n")
-    except OSError:
-        pass  # Best-effort logging; non-critical
+    with suppress(OSError), log_path.open("a") as f:
+        f.write(json.dumps(event) + "\n")

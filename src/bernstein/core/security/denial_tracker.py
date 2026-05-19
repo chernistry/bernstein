@@ -214,7 +214,6 @@ class DenialTracker:
         self._persist_path.parent.mkdir(parents=True, exist_ok=True)
         entry = {
             "session_id": session_id,
-            **asdict(event),
-        }
+        } | asdict(event)
         with open(self._persist_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")

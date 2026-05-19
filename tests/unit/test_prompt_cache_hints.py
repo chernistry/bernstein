@@ -7,6 +7,8 @@ cache savings tracking in CostTracker.
 
 from __future__ import annotations
 
+from contextlib import suppress
+
 from pytest import approx
 
 from bernstein.adapters.claude import build_cacheable_system_blocks
@@ -103,11 +105,9 @@ class TestMarkCacheablePrefix:
     def test_cacheable_block_is_frozen(self) -> None:
         """CacheableBlock should be immutable (frozen dataclass)."""
         block = CacheableBlock(content="test", cacheable=True)
-        try:
+        with suppress(AttributeError):
             block.content = "modified"  # type: ignore[misc]
             raise AssertionError("Should not allow mutation")
-        except AttributeError:
-            pass  # Expected for frozen dataclass
 
     def test_content_preserved_exactly(self) -> None:
         """Block content should preserve the original string exactly."""

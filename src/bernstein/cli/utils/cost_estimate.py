@@ -214,18 +214,19 @@ def format_cost_estimate(estimate: RunCostEstimate) -> str:
         A multi-line string suitable for ``rich.console.Console.print``.
     """
     lines: list[str] = []
-    lines.append("[bold cyan]Pre-Run Cost Estimate[/bold cyan]")
-    lines.append("")
+    lines.extend(("[bold cyan]Pre-Run Cost Estimate[/bold cyan]", ""))
 
     if not estimate.tasks:
         lines.append("[dim]No tasks to estimate.[/dim]")
         return "\n".join(lines)
 
     # Header
-    lines.append(
-        f"  {'Task':<12} {'Role':<12} {'Cplx':<10} {'Scope':<8} {'Est. Cost':>10}  {'Conf':>5}  {'Tokens':>10}  Bar"
+    lines.extend(
+        (
+            f"  {'Task':<12} {'Role':<12} {'Cplx':<10} {'Scope':<8} {'Est. Cost':>10}  {'Conf':>5}  {'Tokens':>10}  Bar",  # noqa: E501
+            "  " + "─" * 90,
+        )
     )
-    lines.append("  " + "\u2500" * 90)
 
     max_cost = max(t.estimated_cost_usd for t in estimate.tasks) if estimate.tasks else 1.0
 
@@ -238,8 +239,7 @@ def format_cost_estimate(estimate: RunCostEstimate) -> str:
             f"{t.estimated_tokens:>10,}  {bar}"
         )
 
-    lines.append("  " + "\u2500" * 90)
-    lines.append(f"  [bold]Total: ${estimate.total_estimated_usd:.4f}[/bold]")
+    lines.extend(("  " + "─" * 90, f"  [bold]Total: ${estimate.total_estimated_usd:.4f}[/bold]"))
 
     # Budget comparison
     if estimate.budget_usd is not None:
@@ -255,7 +255,6 @@ def format_cost_estimate(estimate: RunCostEstimate) -> str:
             )
 
     # Confidence interval
-    lines.append("")
-    lines.append(f"  Confidence range: {estimate.confidence_low:.0%} \u2013 {estimate.confidence_high:.0%}")
+    lines.extend(("", f"  Confidence range: {estimate.confidence_low:.0%} – {estimate.confidence_high:.0%}"))  # noqa: RUF001
 
     return "\n".join(lines)

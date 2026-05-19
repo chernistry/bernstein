@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import operator
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -156,7 +157,7 @@ def list_scratchpad_files(scratchpad_root: Path | None = None) -> list[Scratchpa
         return []
 
     entries: list[ScratchpadEntry] = []
-    try:
+    with suppress(PermissionError):
         for item in scratchpad_root.rglob("*"):
             if item.is_file():
                 stat = item.stat()
@@ -168,8 +169,6 @@ def list_scratchpad_files(scratchpad_root: Path | None = None) -> list[Scratchpa
                         modified=stat.st_mtime,
                     )
                 )
-    except PermissionError:
-        pass  # Cannot traverse scratchpad directory; return partial results
 
     # Sort newest first
     entries.sort(key=lambda e: e.modified, reverse=True)

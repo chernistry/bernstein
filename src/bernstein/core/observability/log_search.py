@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import re
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -347,11 +348,9 @@ class LogSearchIndex:
     def _scan_dir(self, log_dir: Path) -> list[LogEntry]:
         """Scan a single directory for ``*.log`` files and parse them."""
         entries: list[LogEntry] = []
-        try:
+        with suppress(OSError):
             for log_file in sorted(log_dir.glob("*.log")):
                 entries.extend(self._parse_file(log_file))
-        except OSError:
-            pass
         return entries
 
     def _parse_file(self, log_file: Path) -> list[LogEntry]:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -118,15 +119,13 @@ def _get_historical_metrics(metrics_dir: Path) -> dict[str, float]:
     # Read cost data
     cost_files = sorted(metrics_dir.glob("costs_*.json"))
     if cost_files:
-        try:
+        with suppress(json.JSONDecodeError, OSError):
             data = json.loads(cost_files[-1].read_text())
             total_cost = data.get("total_spent_usd", 0.0)
             # Estimate task count from per_agent
             task_count = len(data.get("per_agent", {}))
             if task_count > 0:
                 result["avg_cost_per_task"] = total_cost / task_count
-        except (json.JSONDecodeError, OSError):
-            pass
 
     return result
 

@@ -40,25 +40,29 @@ def _synthesize_python_file(path: Path, target_lines: int = 5000) -> int:
     while len(lines) < target_lines:
         if func_idx % 5 == 4:
             cls_idx += 1
-            lines.append(f"class Widget{cls_idx}:")
-            lines.append(f'    """Widget number {cls_idx}."""')
-            lines.append("")
+            lines.extend((f"class Widget{cls_idx}:", f'    """Widget number {cls_idx}."""', ""))
             for m in range(3):
-                lines.append(f"    def method_{m}(self, x: int) -> int:")
-                lines.append(f'        """Method {m} of widget {cls_idx}."""')
-                lines.append("        total = 0")
+                lines.extend(
+                    (
+                        f"    def method_{m}(self, x: int) -> int:",
+                        f'        """Method {m} of widget {cls_idx}."""',
+                        "        total = 0",
+                    )
+                )
                 for k in range(8):
                     lines.append(f"        total += x * {k} + {m}")
-                lines.append("        return total")
-                lines.append("")
+                lines.extend(("        return total", ""))
         else:
-            lines.append(f"def helper_{func_idx}(x: int, y: int = 1) -> int:")
-            lines.append(f'    """Helper function {func_idx}."""')
-            lines.append("    acc = x + y")
+            lines.extend(
+                (
+                    f"def helper_{func_idx}(x: int, y: int = 1) -> int:",
+                    f'    """Helper function {func_idx}."""',
+                    "    acc = x + y",
+                )
+            )
             for k in range(6):
                 lines.append(f"    acc += {k} * x - y")
-            lines.append("    return acc")
-            lines.append("")
+            lines.extend(("    return acc", ""))
         func_idx += 1
 
     text = "\n".join(lines) + "\n"

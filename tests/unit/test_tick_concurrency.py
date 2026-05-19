@@ -208,7 +208,7 @@ class TestWALHashConsistency:
             "actor": "test",
             "committed": True,
         }
-        modified = {**base, "inputs": {"a": 2}}
+        modified = base | {"inputs": {"a": 2}}
         assert _compute_entry_hash(base) != _compute_entry_hash(modified)
 
 

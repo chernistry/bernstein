@@ -451,8 +451,9 @@ def _tail_log(session_id: str, n: int = 5, log_path: str = "") -> list[str]:
     candidates = []
     if log_path:
         candidates.append(Path(log_path))
-    candidates.append(Path(f".sdd/runtime/{session_id}.log"))
-    candidates.append(Path(f".sdd/worktrees/{session_id}/.sdd/runtime/{session_id}.log"))
+    candidates.extend(
+        (Path(f".sdd/runtime/{session_id}.log"), Path(f".sdd/worktrees/{session_id}/.sdd/runtime/{session_id}.log"))
+    )
 
     for p in candidates:
         if p.exists():

@@ -11,6 +11,7 @@ import json
 import logging
 import threading
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -110,7 +111,7 @@ def _read_latency_samples(
     samples: list[dict[str, object]],
 ) -> None:
     """Read and filter latency samples from a single JSONL file."""
-    try:
+    with suppress(OSError):
         for line in jsonl_file.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line:
@@ -127,8 +128,6 @@ def _read_latency_samples(
             if model and record.get("model") != model:
                 continue
             samples.append(record)
-    except OSError:
-        pass
 
 
 class ProviderLatencyTracker:

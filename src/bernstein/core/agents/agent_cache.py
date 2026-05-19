@@ -23,6 +23,7 @@ import logging
 import operator
 import os
 import time
+from contextlib import suppress
 from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -222,11 +223,9 @@ class AgentCache:
     @staticmethod
     def _remove_empty_dir(session_dir: Path) -> None:
         """Remove a directory if it's empty."""
-        try:
+        with suppress(OSError):
             if session_dir.is_dir() and not any(session_dir.iterdir()):
                 session_dir.rmdir()
-        except OSError:
-            pass
 
     def cleanup(self, max_age_seconds: float = 3600.0) -> int:
         """Remove entries older than *max_age_seconds*.
@@ -266,11 +265,9 @@ class AgentCache:
                 continue
             for entry_file in session_dir.iterdir():
                 if entry_file.name.endswith(_JSON_EXT) and not entry_file.is_symlink():
-                    try:
+                    with suppress(OSError):
                         total_size += entry_file.stat().st_size
                         entry_count += 1
-                    except OSError:
-                        pass
         return total_size, entry_count
 
     def stats(self) -> dict[str, Any]:
@@ -308,11 +305,9 @@ class AgentCache:
         for _created_at, size, path in entries:
             if total_size <= self._max_size_bytes:
                 break
-            try:
+            with suppress(OSError):
                 path.unlink()
                 total_size -= size
-            except OSError:
-                pass
 
     def _collect_cache_entries(self) -> tuple[list[tuple[float, int, Path]], int]:
         """Collect all real (non-symlink) cache entries with timestamps and sizes."""
@@ -326,14 +321,12 @@ class AgentCache:
                     continue
                 if entry_file.is_symlink():
                     continue
-                try:
+                with suppress(OSError, ValueError):
                     data = json.loads(entry_file.read_text(encoding="utf-8"))
                     created = float(data.get("created_at", 0.0))
                     size = entry_file.stat().st_size
                     entries.append((created, size, entry_file))
                     total_size += size
-                except (OSError, ValueError):
-                    pass
         return entries, total_size
 
     def list_keys(self, session: str | None = None) -> list[str]:
@@ -353,9 +346,7 @@ class AgentCache:
         for entry_file in session_dir.iterdir():
             if not entry_file.name.endswith(_JSON_EXT):
                 continue
-            try:
+            with suppress(OSError, KeyError, json.JSONDecodeError):
                 data = json.loads(entry_file.read_text(encoding="utf-8"))
                 keys.append(str(data["key"]))
-            except (OSError, KeyError, json.JSONDecodeError):
-                pass
         return keys

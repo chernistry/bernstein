@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -56,7 +57,7 @@ class TimelineEvent:
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
     """Read all records from a JSONL file."""
     records: list[dict[str, Any]] = []
-    try:
+    with suppress(OSError):
         for line in path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line:
@@ -64,8 +65,6 @@ def _read_jsonl(path: Path) -> list[dict[str, Any]]:
                     records.append(json.loads(line))
                 except json.JSONDecodeError:
                     continue
-    except OSError:
-        pass
     return records
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from contextlib import suppress
 from pathlib import Path
 
 from bernstein.cli.tip_integration import (
@@ -57,11 +58,9 @@ class TestTipTrigger:
 
     def test_frozen(self) -> None:
         t = TipTrigger(command="run", condition="first_run", tip_text="hello")
-        try:
+        with suppress(AttributeError):
             t.command = "stop"  # type: ignore[misc]
             raise AssertionError("Should have raised FrozenInstanceError")
-        except AttributeError:
-            pass  # expected for frozen dataclass
 
     def test_contextual_triggers_populated(self) -> None:
         assert len(CONTEXTUAL_TRIGGERS) >= 4

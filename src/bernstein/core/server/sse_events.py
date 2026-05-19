@@ -65,8 +65,7 @@ class SSEEvent:
         lines.append(f"event: {self.event.value}")
         payload = self.data.copy()
         payload["timestamp"] = self.timestamp
-        lines.append(f"data: {json.dumps(payload)}")
-        lines.append("")  # trailing blank line
+        lines.extend((f"data: {json.dumps(payload)}", ""))  # trailing blank line
         return "\n".join(lines) + "\n"
 
     # -- factory classmethods ------------------------------------------------
@@ -85,7 +84,11 @@ class SSEEvent:
         """
         return cls(
             event=SSEEventType.TASK_CREATED,
-            data={"task_id": task_id, "title": title, **extra},
+            data={
+                "task_id": task_id,
+                "title": title,
+            }
+            | extra,
         )
 
     @classmethod
@@ -101,7 +104,10 @@ class SSEEvent:
         """
         return cls(
             event=SSEEventType.TASK_COMPLETED,
-            data={"task_id": task_id, **extra},
+            data={
+                "task_id": task_id,
+            }
+            | extra,
         )
 
     @classmethod
@@ -118,7 +124,11 @@ class SSEEvent:
         """
         return cls(
             event=SSEEventType.TASK_FAILED,
-            data={"task_id": task_id, "reason": reason, **extra},
+            data={
+                "task_id": task_id,
+                "reason": reason,
+            }
+            | extra,
         )
 
     @classmethod
@@ -135,7 +145,11 @@ class SSEEvent:
         """
         return cls(
             event=SSEEventType.AGENT_SPAWNED,
-            data={"agent_id": agent_id, "role": role, **extra},
+            data={
+                "agent_id": agent_id,
+                "role": role,
+            }
+            | extra,
         )
 
     @classmethod
@@ -152,7 +166,11 @@ class SSEEvent:
         """
         return cls(
             event=SSEEventType.GATE_RESULT,
-            data={"gate_name": gate_name, "passed": passed, **extra},
+            data={
+                "gate_name": gate_name,
+                "passed": passed,
+            }
+            | extra,
         )
 
     @classmethod
@@ -168,7 +186,10 @@ class SSEEvent:
         """
         return cls(
             event=SSEEventType.COST_UPDATE,
-            data={"total_usd": total_usd, **extra},
+            data={
+                "total_usd": total_usd,
+            }
+            | extra,
         )
 
     @classmethod
@@ -185,7 +206,11 @@ class SSEEvent:
         """
         return cls(
             event=SSEEventType.MERGE_COMPLETED,
-            data={"branch": branch, "result": result, **extra},
+            data={
+                "branch": branch,
+                "result": result,
+            }
+            | extra,
         )
 
     @classmethod
@@ -201,5 +226,8 @@ class SSEEvent:
         """
         return cls(
             event=SSEEventType.RUN_COMPLETED,
-            data={"run_id": run_id, **extra},
+            data={
+                "run_id": run_id,
+            }
+            | extra,
         )

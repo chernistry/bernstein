@@ -44,6 +44,7 @@ import os
 import re
 import subprocess
 import time
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -425,7 +426,7 @@ class SecurityIncidentResponder:
 
     def _capture_branch_head(self, branch: str) -> dict[str, str]:
         """Return the HEAD commit info for *branch*, or empty dict on failure."""
-        try:
+        with suppress(subprocess.TimeoutExpired, OSError):
             result = subprocess.run(
                 ["git", "rev-parse", branch],
                 capture_output=True,
@@ -441,8 +442,6 @@ class SecurityIncidentResponder:
                     "branch_head_commit": commit_hash,
                     "branch_head_captured_at": datetime.now(UTC).isoformat(),
                 }
-        except (subprocess.TimeoutExpired, OSError):
-            pass
         return {}
 
     # ------------------------------------------------------------------
@@ -490,8 +489,8 @@ class SecurityIncidentResponder:
             },
             "task": {
                 "task_id": task_id,
-                **task_context,
-            },
+            }
+            | task_context,
             "environment": self._safe_env_snapshot(),
             "git_state": self._capture_git_state(),
             "extra": extra,

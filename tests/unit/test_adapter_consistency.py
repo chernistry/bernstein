@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import inspect
 import subprocess
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -48,11 +49,9 @@ def _instantiate_adapter(name: str) -> CLIAdapter:
 # Collect adapters that can be instantiated without external dependencies
 _TESTABLE_ADAPTERS: list[tuple[str, CLIAdapter]] = []
 for _name in _all_adapter_names():
-    try:
+    with suppress(Exception):
         _adapter = _instantiate_adapter(_name)
         _TESTABLE_ADAPTERS.append((_name, _adapter))
-    except Exception:
-        pass  # Skip adapters that need special setup
 
 
 # ---------------------------------------------------------------------------

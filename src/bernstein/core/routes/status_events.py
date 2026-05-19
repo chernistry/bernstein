@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -101,12 +102,10 @@ def _read_avg_quality_score(sdd_dir: Any) -> float:
     for line in quality_file.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
-        try:
+        with suppress(ValueError):
             data: dict[str, Any] = json.loads(line)
             if "total" in data:
                 scores.append(int(data["total"]))
-        except ValueError:
-            pass
     return sum(scores) / len(scores) if scores else 0.0
 
 

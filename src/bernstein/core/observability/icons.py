@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import suppress
 from dataclasses import dataclass
 
 
@@ -141,12 +142,10 @@ def _needs_ascii_fallback() -> bool:
         return False
 
     # Check stdout encoding
-    try:
+    with suppress(Exception):
         encoding = sys.stdout.encoding
         if encoding and encoding.lower() in ("utf-8", "utf8"):
             return False
-    except Exception:
-        pass
 
     # Default to ASCII on Windows to be safe
     return True

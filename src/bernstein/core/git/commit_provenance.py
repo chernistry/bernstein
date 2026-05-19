@@ -308,18 +308,23 @@ def render_provenance_report(chain: ProvenanceChain) -> str:
         Markdown string with a summary table.
     """
     lines: list[str] = []
-    lines.append(f"# Provenance Report -- run {chain.run_id}")
-    lines.append("")
-    lines.append(f"**Verified:** {'yes' if chain.verified else 'no'}  ")
-    lines.append(f"**Records:** {len(chain.records)}")
-    lines.append("")
+    lines.extend(
+        (
+            f"# Provenance Report -- run {chain.run_id}",
+            "",
+            f"**Verified:** {'yes' if chain.verified else 'no'}  ",
+            f"**Records:** {len(chain.records)}",
+            "",
+        )
+    )
 
     if not chain.records:
         lines.append("_No provenance records found._")
         return "\n".join(lines)
 
-    lines.append("| Commit | Agent | Task | Model | Role | Signature |")
-    lines.append("|--------|-------|------|-------|------|-----------|")
+    lines.extend(
+        ("| Commit | Agent | Task | Model | Role | Signature |", "|--------|-------|------|-------|------|-----------|")
+    )
 
     for r in chain.records:
         short_sha = r.commit_sha[:8]

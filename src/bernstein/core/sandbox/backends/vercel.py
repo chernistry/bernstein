@@ -105,7 +105,9 @@ class VercelSandboxSession(SandboxSession):
 
     async def read(self, path: str) -> bytes:
         resolved = resolve_posix_path(self.workdir, path)
-        params = {"path": resolved, **self._team_query}
+        params = {
+            "path": resolved,
+        } | self._team_query
         response = await self._client.get(
             f"/v1/sandboxes/{self._sandbox_id}/files",
             params=params,
@@ -140,7 +142,10 @@ class VercelSandboxSession(SandboxSession):
 
     async def ls(self, path: str) -> list[str]:
         resolved = resolve_posix_path(self.workdir, path)
-        params = {"path": resolved, "list": "true", **self._team_query}
+        params = {
+            "path": resolved,
+            "list": "true",
+        } | self._team_query
         response = await self._client.get(
             f"/v1/sandboxes/{self._sandbox_id}/files",
             params=params,

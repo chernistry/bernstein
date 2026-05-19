@@ -114,7 +114,7 @@ def write_shutdown_signals(reason: str = "User requested stop") -> list[str]:
     signaled: list[str] = []
     if not agents_json.exists():
         return signaled
-    try:
+    with contextlib.suppress(OSError, ValueError):
         agent_data = json.loads(agents_json.read_text())
         for agent in agent_data.get("agents", []):
             session_id: str = agent.get("id", "")
@@ -125,8 +125,6 @@ def write_shutdown_signals(reason: str = "User requested stop") -> list[str]:
                     f"# SHUTDOWN\nReason: {reason}\nSave your work, commit WIP, and exit.\n"
                 )
                 signaled.append(session_id)
-    except (OSError, ValueError):
-        pass
     return signaled
 
 
@@ -162,14 +160,12 @@ def return_claimed_to_open() -> int:
         if not f.exists():
             continue
         num = f.name.split("-")[0]
-        try:
+        with contextlib.suppress(FileNotFoundError):
             if num in closed_nums:
                 f.unlink()  # already completed - remove duplicate
             else:
                 f.rename(open_dir / f.name)
                 count += 1
-        except FileNotFoundError:
-            pass  # already moved by drain coordinator
     return count
 
 
@@ -386,14 +382,12 @@ def _collect_pids_from_agents_json(killed: set[int]) -> None:
     agents_json = Path(_AGENTS_JSON_PATH)
     if not agents_json.exists():
         return
-    try:
+    with contextlib.suppress(OSError, ValueError):
         agent_data = json.loads(agents_json.read_text())
         for agent in agent_data.get("agents", []):
             pid = agent.get("pid")
             if pid and is_alive(pid):
                 _kill_agent_pid(pid, agent.get("id", "?"), killed)
-    except (OSError, ValueError):
-        pass
 
 
 def _extract_pids_from_meta(meta: dict[str, Any]) -> list[int]:
@@ -458,7 +452,7 @@ def _list_process_snapshots() -> list[_ProcessSnapshot]:
 def _list_process_snapshots_windows() -> list[_ProcessSnapshot]:
     """Windows: use WMIC or PowerShell to list processes."""
     snapshots: list[_ProcessSnapshot] = []
-    try:
+    with contextlib.suppress(OSError, subprocess.SubprocessError):
         # Use PowerShell for better reliability
         result = subprocess.run(
             [
@@ -491,8 +485,6 @@ def _list_process_snapshots_windows() -> list[_ProcessSnapshot]:
                     snapshots.append(_ProcessSnapshot(pid=pid, ppid=ppid, pgid=0, command=command))
                 except (ValueError, IndexError):
                     continue
-    except (OSError, subprocess.SubprocessError):
-        pass
     return snapshots
 
 
@@ -609,13 +601,11 @@ def _collect_repo_processes(killed: set[int]) -> None:
 
 def _kill_port_holder(port: int, killed: set[int]) -> None:
     """Kill whatever process is holding a port (last resort)."""
-    try:
+    with contextlib.suppress(OSError, ValueError, subprocess.TimeoutExpired):
         pids = _find_port_pids_win32(port) if sys.platform == "win32" else _find_port_pids_unix(port)
         for pid in pids:
             if pid not in killed:
                 _kill_named_pid(pid, f"Port {port} holder", killed)
-    except (OSError, ValueError, subprocess.TimeoutExpired):
-        pass
 
 
 def _find_port_pids_win32(port: int) -> list[int]:

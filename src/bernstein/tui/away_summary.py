@@ -212,9 +212,7 @@ def format_away_report(summary: AwaySummary) -> str:
         Formatted report string suitable for terminal display.
     """
     lines: list[str] = []
-    lines.append("")
-    lines.append("  [bold cyan]-- Since You Were Away --[/bold cyan]")
-    lines.append("")
+    lines.extend(("", "  [bold cyan]-- Since You Were Away --[/bold cyan]", ""))
 
     # Duration
     dur_h = summary.duration_s / 3600

@@ -365,8 +365,7 @@ def _build_create_args(
     all_labels = {
         "bernstein.session": session_id,
         "bernstein.managed": "true",
-        **config.labels,
-    }
+    } | config.labels
     for label_key, label_val in sorted(all_labels.items()):
         args.extend(["--label", f"{label_key}={label_val}"])
 
@@ -707,7 +706,7 @@ class ContainerManager:
         Returns:
             Exit code, or None if the container is still running.
         """
-        try:
+        with contextlib.suppress(subprocess.TimeoutExpired, OSError, ValueError):
             result = subprocess.run(
                 [
                     self._runtime_cmd,
@@ -725,8 +724,6 @@ class ContainerManager:
             if result.returncode == 0:
                 code = result.stdout.strip()
                 return int(code) if code else None
-        except (subprocess.TimeoutExpired, OSError, ValueError):
-            pass
         return None
 
     def get_resource_usage(self, handle: ContainerHandle) -> dict[str, Any]:
@@ -738,7 +735,7 @@ class ContainerManager:
         Returns:
             Dict with cpu_percent, memory_mb, memory_limit_mb, pids.
         """
-        try:
+        with contextlib.suppress(subprocess.TimeoutExpired, OSError, json.JSONDecodeError):
             result = subprocess.run(
                 [
                     self._runtime_cmd,
@@ -764,8 +761,6 @@ class ContainerManager:
                     "net_io": stats.get("NetIO", _ZERO_BYTES),
                     "block_io": stats.get("BlockIO", _ZERO_BYTES),
                 }
-        except (subprocess.TimeoutExpired, OSError, json.JSONDecodeError):
-            pass
         return {}
 
     def stop(self, handle: ContainerHandle, timeout_s: int = 10) -> None:
@@ -837,7 +832,7 @@ class ContainerManager:
             name = name.strip()
             if not name or name in tracked_names:
                 continue
-            try:
+            with contextlib.suppress(subprocess.TimeoutExpired, OSError):
                 subprocess.run(
                     [self._runtime_cmd, "rm", "-f", name],
                     capture_output=True,
@@ -845,8 +840,6 @@ class ContainerManager:
                 )
                 removed += 1
                 logger.info("Cleaned up stale container: %s", name)
-            except (subprocess.TimeoutExpired, OSError):
-                pass
 
         return removed
 
@@ -1002,7 +995,7 @@ class ContainerManager:
 
     def _get_container_pid(self, handle: ContainerHandle) -> int | None:
         """Retrieve the PID of the container's init process."""
-        try:
+        with contextlib.suppress(subprocess.TimeoutExpired, OSError, ValueError):
             result = subprocess.run(
                 [
                     self._runtime_cmd,
@@ -1020,8 +1013,6 @@ class ContainerManager:
             if result.returncode == 0:
                 pid_str = result.stdout.strip()
                 return int(pid_str) if pid_str and pid_str != "0" else None
-        except (subprocess.TimeoutExpired, OSError, ValueError):
-            pass
         return None
 
     def _force_kill(self, handle: ContainerHandle) -> None:
@@ -1079,7 +1070,7 @@ def ensure_agent_image(
         True if the image is ready, False if build failed.
     """
     # Check if image already exists
-    try:
+    with contextlib.suppress(subprocess.TimeoutExpired, OSError):
         result = subprocess.run(
             [runtime_cmd, "image", "inspect", image_name],
             capture_output=True,
@@ -1087,8 +1078,6 @@ def ensure_agent_image(
         )
         if result.returncode == 0:
             return True
-    except (subprocess.TimeoutExpired, OSError):
-        pass
 
     # Build the image
     build_args = [runtime_cmd, "build", "-t", image_name]

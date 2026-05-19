@@ -103,8 +103,7 @@ class InjectionPayload:
             _render_gate_result(result, lines)
 
         if self.action_required:
-            lines.append("\n## Action Required")
-            lines.append("Please fix the errors above and re-run the quality gates.")
+            lines.extend(("\n## Action Required", "Please fix the errors above and re-run the quality gates."))
 
         return "\n".join(lines)
 

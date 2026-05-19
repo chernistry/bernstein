@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import time
+from contextlib import suppress
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -413,7 +414,7 @@ def load_bridge_lineage(workdir: Path, session_id: str | None = None) -> list[Br
     if not lineage_path.exists():
         return []
     events: list[BridgeTransportEvent] = []
-    try:
+    with suppress(OSError):
         for line in lineage_path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line:
@@ -435,8 +436,6 @@ def load_bridge_lineage(workdir: Path, session_id: str | None = None) -> list[Br
                     gap_seconds=d.get("gap_seconds"),
                 )
             )
-    except OSError:
-        pass
     return events
 
 
@@ -516,7 +515,7 @@ def load_task_notifications(
     if not notif_path.exists():
         return []
     notifications: list[TaskStatusNotification] = []
-    try:
+    with suppress(OSError):
         for line in notif_path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line:
@@ -541,8 +540,6 @@ def load_task_notifications(
                     ts=float(d.get("ts", 0.0)),
                 )
             )
-    except OSError:
-        pass
     return notifications
 
 

@@ -236,10 +236,14 @@ def format_reliability_report(report: ReliabilityReport) -> str:
 
     for result in report.scenarios:
         verdict = "PASS" if result.passed else "FAIL"
-        lines.append(f"  [{verdict}] {result.scenario.name}")
-        lines.append(f"         type       : {result.scenario.failure_type.value}")
-        lines.append(f"         target     : {result.scenario.target_service}")
-        lines.append(f"         recovery   : {result.recovery_time_s:.1f} s")
+        lines.extend(
+            (
+                f"  [{verdict}] {result.scenario.name}",
+                f"         type       : {result.scenario.failure_type.value}",
+                f"         target     : {result.scenario.target_service}",
+                f"         recovery   : {result.recovery_time_s:.1f} s",
+            )
+        )
         if result.data_loss:
             lines.append("         !! data loss detected")
         if result.task_duplication:
@@ -250,8 +254,6 @@ def format_reliability_report(report: ReliabilityReport) -> str:
             for obs in result.observations:
                 lines.append(f"         - {obs}")
 
-    lines.append("=" * 58)
-    lines.append(f"  Overall grade: {report.overall_grade}")
-    lines.append("")
+    lines.extend(("=" * 58, f"  Overall grade: {report.overall_grade}", ""))
 
     return "\n".join(lines)

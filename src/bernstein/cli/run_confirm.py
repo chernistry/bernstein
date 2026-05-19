@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -449,14 +450,12 @@ def _print_demo_summary(project_dir: Path, server_url: str, elapsed_secs: float 
 
     tasks_data: list[dict[str, Any]] = []
     total_cost: float = 0.0
-    try:
+    with suppress(Exception):
         resp = httpx.get(f"{server_url}/status", timeout=3.0, headers=auth_headers())
         if resp.status_code == 200:
             payload = resp.json()
             tasks_data = payload.get("tasks", [])
             total_cost = payload.get("total_cost_usd", 0.0)
-    except Exception:
-        pass
 
     done = sum(1 for t in tasks_data if t.get("status") == "done")
     failed = sum(1 for t in tasks_data if t.get("status") == "failed")
@@ -582,7 +581,7 @@ def _poll_demo_completion(server_url: str, deadline: float) -> None:
         poll_task = progress.add_task("Agents working\u2026", total=None)
 
         while time.monotonic() < deadline:
-            try:
+            with suppress(Exception):
                 resp = httpx.get(f"{server_url}/status", timeout=3.0, headers=auth_headers())
                 if resp.status_code == 200:
                     payload = resp.json()
@@ -599,8 +598,6 @@ def _poll_demo_completion(server_url: str, deadline: float) -> None:
                     )
                     if total_tasks > 0 and done_count + failed_count >= total_tasks:
                         break
-            except Exception:
-                pass
             time.sleep(2)
 
 

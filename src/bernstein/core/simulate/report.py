@@ -330,27 +330,34 @@ def render_markdown(report: SimulationReport) -> str:
     bias = report.criterion_bias
 
     lines: list[str] = []
-    lines.append(f"# Bernstein simulate - {report.plan_name}")
-    lines.append("")
-    lines.append(f"Plan: `{report.plan_path}` - seed `{report.seed}` - {report.task_count} task(s)")
-    lines.append("")
-    lines.append("## TL;DR")
-    lines.append("")
-    lines.append(f"- **Cost band**: {_format_usd(agg.total_cost_p50)} (p50) .. {_format_usd(agg.total_cost_p90)} (p90)")
-    lines.append(f"- **Wall-clock**: {agg.wall_clock_p50:.0f}s (p50) .. {agg.wall_clock_p90:.0f}s (p90)")
-    lines.append(f"- **Expected abandonments**: {agg.expected_abandonments:.2f}")
-    lines.append(f"- **Max blast-radius**: {agg.max_blast_radius:.2f}")
+    lines.extend(
+        (
+            f"# Bernstein simulate - {report.plan_name}",
+            "",
+            f"Plan: `{report.plan_path}` - seed `{report.seed}` - {report.task_count} task(s)",
+            "",
+            "## TL;DR",
+            "",
+            f"- **Cost band**: {_format_usd(agg.total_cost_p50)} (p50) .. {_format_usd(agg.total_cost_p90)} (p90)",
+            f"- **Wall-clock**: {agg.wall_clock_p50:.0f}s (p50) .. {agg.wall_clock_p90:.0f}s (p90)",
+            f"- **Expected abandonments**: {agg.expected_abandonments:.2f}",
+            f"- **Max blast-radius**: {agg.max_blast_radius:.2f}",
+        )
+    )
     if agg.budget_cap is not None:
         flag = " - BREACH" if agg.budget_breach else " - within cap"
         lines.append(f"- **Budget cap**: {_format_usd(agg.budget_cap)}{flag}")
     if report.cold_start:
         lines.append("- *Note: cold-start, heuristic fallback used.*")
-    lines.append("")
-
-    lines.append("## Per-task predictions")
-    lines.append("")
-    lines.append("| Task | Role | Cost p50 | Cost p90 | Abandon | Blast |")
-    lines.append("|------|------|---------:|---------:|--------:|------:|")
+    lines.extend(
+        (
+            "",
+            "## Per-task predictions",
+            "",
+            "| Task | Role | Cost p50 | Cost p90 | Abandon | Blast |",
+            "|------|------|---------:|---------:|--------:|------:|",
+        )
+    )
     for task in report.tasks:
         warn = " !" if task.budget_violation else ""
         lines.append(
@@ -358,29 +365,28 @@ def render_markdown(report: SimulationReport) -> str:
             f"{_format_usd(task.cost_p50)} | {_format_usd(task.cost_p90)} | "
             f"{task.abandon_probability:.2f} | {task.blast_radius_score:.2f} |"
         )
-    lines.append("")
-
-    lines.append("## Bottlenecks")
-    lines.append("")
+    lines.extend(("", "## Bottlenecks", ""))
     if report.bottlenecks:
         for bn in report.bottlenecks:
             lines.append(f"- `{bn.task_id}` ({bn.reason}, score={bn.score:.2f}) - {bn.title}")
     else:
         lines.append("- None identified.")
-    lines.append("")
-
-    lines.append("## Criterion-profile bias")
-    lines.append("")
-    lines.append(f"- speed    {_bar(bias.speed)}  {bias.speed:.2f}")
-    lines.append(f"- cost     {_bar(bias.cost)}  {bias.cost:.2f}")
-    lines.append(f"- quality  {_bar(bias.quality)}  {bias.quality:.2f}")
-    lines.append(f"- safety   {_bar(bias.safety)}  {bias.safety:.2f}")
-    lines.append("")
-
-    lines.append("## Decision flow")
-    lines.append("")
-    lines.append("```mermaid")
-    lines.append("graph TD")
+    lines.extend(
+        (
+            "",
+            "## Criterion-profile bias",
+            "",
+            f"- speed    {_bar(bias.speed)}  {bias.speed:.2f}",
+            f"- cost     {_bar(bias.cost)}  {bias.cost:.2f}",
+            f"- quality  {_bar(bias.quality)}  {bias.quality:.2f}",
+            f"- safety   {_bar(bias.safety)}  {bias.safety:.2f}",
+            "",
+            "## Decision flow",
+            "",
+            "```mermaid",
+            "graph TD",
+        )
+    )
     for edge in report.decision_edges:
         label = f"|{edge.label}|" if edge.label else ""
         # Mermaid node ids must be ascii-safe; the plan loader already
@@ -388,12 +394,10 @@ def render_markdown(report: SimulationReport) -> str:
         from_node = edge.from_task.replace("-", "_")
         to_node = edge.to_task.replace("-", "_")
         lines.append(f"  {from_node} -->{label} {to_node}")
-    lines.append("```")
-    lines.append("")
+    lines.extend(("```", ""))
 
     if report.notes:
-        lines.append("## Notes")
-        lines.append("")
+        lines.extend(("## Notes", ""))
         for note in report.notes:
             lines.append(f"- {note}")
         lines.append("")

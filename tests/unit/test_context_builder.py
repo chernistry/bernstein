@@ -219,8 +219,8 @@ class TestBuildFileIndex:
             ["git", "commit", "-m", "init", "--no-gpg-sign"],
             cwd=tmp_path,
             capture_output=True,
-            env={
-                **__import__("os").environ,
+            env=__import__("os").environ
+            | {
                 "GIT_AUTHOR_NAME": "test",
                 "GIT_AUTHOR_EMAIL": "t@t",
                 "GIT_COMMITTER_NAME": "test",
@@ -254,8 +254,8 @@ class TestRefreshKnowledgeBase:
             ["git", "commit", "-m", "init", "--no-gpg-sign"],
             cwd=tmp_path,
             capture_output=True,
-            env={
-                **__import__("os").environ,
+            env=__import__("os").environ
+            | {
                 "GIT_AUTHOR_NAME": "test",
                 "GIT_AUTHOR_EMAIL": "t@t",
                 "GIT_COMMITTER_NAME": "test",

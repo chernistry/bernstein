@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import os
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -57,10 +58,8 @@ def _check_interval_seconds() -> int:
     """Resolve ``mcp.catalog.check_interval`` from env or defaults."""
     raw = os.environ.get("BERNSTEIN_MCP_CATALOG_CHECK_INTERVAL")
     if raw:
-        try:
+        with suppress(ValueError):
             return max(1, int(raw))
-        except ValueError:
-            pass
     return DEFAULT_CHECK_INTERVAL_SECONDS
 
 
@@ -68,10 +67,8 @@ def _revalidate_seconds() -> int:
     """Resolve the cache revalidation window from env or defaults."""
     raw = os.environ.get("BERNSTEIN_MCP_CATALOG_REVALIDATE_INTERVAL")
     if raw:
-        try:
+        with suppress(ValueError):
             return max(1, int(raw))
-        except ValueError:
-            pass
     return DEFAULT_REVALIDATE_SECONDS
 
 

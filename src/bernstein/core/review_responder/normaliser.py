@@ -13,6 +13,7 @@ does not need to special-case the source.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, cast
 
 from bernstein.core.review_responder.models import ReviewComment
@@ -110,10 +111,8 @@ def _pr_number(envelope: Mapping[str, Any], comment: Mapping[str, Any]) -> int:
     pr_url = _str(comment, "pull_request_url")
     if pr_url:
         # ``.../pulls/<n>``
-        try:
+        with suppress(ValueError):
             return int(pr_url.rsplit("/", 1)[-1])
-        except ValueError:
-            pass
     return _int(comment, "pull_request_number", 0)
 
 

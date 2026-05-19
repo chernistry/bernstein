@@ -237,8 +237,7 @@ def load_compositions(yaml_path: Path | None = None) -> list[CompositeToolDef]:
     if yaml_path is not None:
         candidates.append(yaml_path)
     else:
-        candidates.append(_Path("bernstein.yaml"))
-        candidates.append(_Path.home() / ".bernstein" / "bernstein.yaml")
+        candidates.extend((_Path("bernstein.yaml"), _Path.home() / ".bernstein" / "bernstein.yaml"))
 
     for path in candidates:
         if not path.exists():

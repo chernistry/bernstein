@@ -42,7 +42,7 @@ async def client(app) -> AsyncClient:  # type: ignore[no-untyped-def]
 
 
 async def _create_task(client: AsyncClient, **overrides: object) -> dict:  # type: ignore[type-arg]
-    payload = {**TASK_PAYLOAD, **overrides}
+    payload = TASK_PAYLOAD | overrides
     resp = await client.post("/tasks", json=payload)
     assert resp.status_code == 201
     return resp.json()  # type: ignore[no-any-return]

@@ -192,7 +192,7 @@ class TestDetailsByteTamper:
         self, tmp_path_factory: pytest.TempPathFactory, events: list[dict[str, Any]]
     ) -> None:
         # Force at least one populated details dict so the mutation actually changes bytes.
-        events[0] = {**events[0], "details": {"k": "v"}}
+        events[0] = events[0] | {"details": {"k": "v"}}
         tmp_path = tmp_path_factory.mktemp("details_tamper")
         log = _make_log(tmp_path, len(events), events)
         log_files = sorted((tmp_path / "audit").glob("*.jsonl"))

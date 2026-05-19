@@ -400,9 +400,7 @@ def _format_lesson_block(lesson: Lesson, now: float) -> str:
     if stale:
         age_days = compute_lesson_staleness(lesson.created_timestamp, now)
         parts.append(f"**Staleness:** This lesson is {age_days:.0f} days old and may be outdated.")
-    parts.append("")
-    parts.append(lesson.content)
-    parts.append("")
+    parts.extend(("", lesson.content, ""))
     return "\n".join(parts)
 
 

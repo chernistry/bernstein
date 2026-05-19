@@ -398,51 +398,54 @@ def format_report(report: AnalyticsReport) -> str:
         Formatted report string.
     """
     lines: list[str] = []
-    lines.append("=" * 60)
-    lines.append("SESSION ANALYTICS REPORT")
-    lines.append(f"Generated: {report.generated_at.isoformat()}")
-    lines.append("=" * 60)
-    lines.append("")
-
-    lines.append("SUMMARY")
-    lines.append("-" * 30)
-    lines.append(f"  Total sessions:      {report.total_sessions}")
-    lines.append(f"  Successful:          {report.successful_sessions}")
-    lines.append(f"  Failed:              {report.failed_sessions}")
+    lines.extend(
+        (
+            "=" * 60,
+            "SESSION ANALYTICS REPORT",
+            f"Generated: {report.generated_at.isoformat()}",
+            "=" * 60,
+            "",
+            "SUMMARY",
+            "-" * 30,
+            f"  Total sessions:      {report.total_sessions}",
+            f"  Successful:          {report.successful_sessions}",
+            f"  Failed:              {report.failed_sessions}",
+        )
+    )
     if report.total_sessions > 0:
         success_rate = report.successful_sessions / report.total_sessions * 100
         lines.append(f"  Success rate:        {success_rate:.1f}%")
-    lines.append(f"  Avg duration:        {report.avg_duration_seconds:.0f}s")
-    lines.append(f"  Avg helpfulness:     {report.avg_helpfulness:.1f}/100")
-    lines.append("")
+    lines.extend(
+        (
+            f"  Avg duration:        {report.avg_duration_seconds:.0f}s",
+            f"  Avg helpfulness:     {report.avg_helpfulness:.1f}/100",
+            "",
+        )
+    )
 
     if report.category_breakdown:
-        lines.append("TASK CATEGORIES")
-        lines.append("-" * 30)
+        lines.extend(("TASK CATEGORIES", "-" * 30))
         for cat, count in sorted(report.category_breakdown.items(), key=operator.itemgetter(1), reverse=True):
             bar = "█" * count
             lines.append(f"  {cat:15s} {count:4d} {bar}")
         lines.append("")
 
     if report.role_breakdown:
-        lines.append("AGENT ROLES")
-        lines.append("-" * 30)
+        lines.extend(("AGENT ROLES", "-" * 30))
         for role, count in sorted(report.role_breakdown.items(), key=operator.itemgetter(1), reverse=True):
             bar = "█" * count
             lines.append(f"  {role:15s} {count:4d} {bar}")
         lines.append("")
 
     if report.model_breakdown:
-        lines.append("MODELS")
-        lines.append("-" * 30)
+        lines.extend(("MODELS", "-" * 30))
         for model, count in sorted(report.model_breakdown.items(), key=operator.itemgetter(1), reverse=True):
             bar = "█" * count
             lines.append(f"  {model:15s} {count:4d} {bar}")
         lines.append("")
 
     if report.top_goals:
-        lines.append("TOP GOALS")
-        lines.append("-" * 30)
+        lines.extend(("TOP GOALS", "-" * 30))
         for goal, count in report.top_goals[:5]:
             lines.append(f"  [{count}x] {goal}")
         lines.append("")

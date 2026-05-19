@@ -82,8 +82,8 @@ def graduation_status(request: Request) -> JSONResponse:
     return JSONResponse(
         {
             "sessions": [
-                {
-                    **r.to_dict(),
+                r.to_dict()
+                | {
                     "can_graduate": evaluator.can_graduate(r)[0],
                     "graduation_reason": evaluator.can_graduate(r)[1],
                 }
@@ -139,8 +139,8 @@ def session_graduation(request: Request, session_id: str) -> JSONResponse:
     evaluator = GraduationEvaluator()
     can_grad, grad_reason = evaluator.can_graduate(record)
     return JSONResponse(
-        {
-            **record.to_dict(),
+        record.to_dict()
+        | {
             "can_graduate": can_grad,
             "graduation_reason": grad_reason,
         }

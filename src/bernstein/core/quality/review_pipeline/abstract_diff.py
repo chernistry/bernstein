@@ -483,40 +483,22 @@ def render_pr_body(summaries: list[IntentSummary], *, raw_diff: str | None = Non
         else:
             lines.append("- _(no behavioural summary available)_")
         if s.confidence:
-            lines.append("")
-            lines.append(f"_confidence: {s.confidence:.2f}_")
+            lines.extend(("", f"_confidence: {s.confidence:.2f}_"))
         if s.pseudocode_blocks:
-            lines.append("")
-            lines.append("<details><summary>Pseudocode</summary>")
-            lines.append("")
+            lines.extend(("", "<details><summary>Pseudocode</summary>", ""))
             for block in s.pseudocode_blocks:
-                lines.append("```text")
-                lines.append(block)
-                lines.append("```")
-            lines.append("")
-            lines.append("</details>")
+                lines.extend(("```text", block, "```"))
+            lines.extend(("", "</details>"))
         slice_diff = file_diffs.get(s.path, "")
         if slice_diff:
-            lines.append("")
-            lines.append("<details><summary>Raw diff</summary>")
-            lines.append("")
-            lines.append("```diff")
-            lines.append(slice_diff)
-            lines.append("```")
-            lines.append("")
-            lines.append("</details>")
+            lines.extend(
+                ("", "<details><summary>Raw diff</summary>", "", "```diff", slice_diff, "```", "", "</details>")
+            )
         elif s.raw_diff_link:
-            lines.append("")
-            lines.append(f"[Raw diff]({s.raw_diff_link})")
+            lines.extend(("", f"[Raw diff]({s.raw_diff_link})"))
         lines.append("")
 
     if raw_diff and len(summaries) > 1:
-        lines.append("<details><summary>Full raw diff</summary>")
-        lines.append("")
-        lines.append("```diff")
-        lines.append(raw_diff)
-        lines.append("```")
-        lines.append("")
-        lines.append("</details>")
+        lines.extend(("<details><summary>Full raw diff</summary>", "", "```diff", raw_diff, "```", "", "</details>"))
 
     return "\n".join(lines).rstrip() + "\n"

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, cast
 
@@ -37,7 +38,7 @@ def load_mcp_config(
     # 1. Read user global config (~/.claude/mcp.json)
     global_path = Path.home() / ".claude" / "mcp.json"
     if global_path.exists():
-        try:
+        with suppress(OSError, json.JSONDecodeError):
             global_cfg = json.loads(global_path.read_text(encoding="utf-8"))
             if isinstance(global_cfg, dict):
                 # mcp.json has {"mcpServers": {...}} structure
@@ -45,8 +46,6 @@ def load_mcp_config(
                 servers = cfg.get("mcpServers", cfg)
                 if isinstance(servers, dict):
                     merged.update(cast(_CAST_DICT_STR_ANY, servers))
-        except (OSError, json.JSONDecodeError):
-            pass  # Global MCP config unreadable; skip
 
     # 2. Merge project-level config (overrides global)
     if project_servers:

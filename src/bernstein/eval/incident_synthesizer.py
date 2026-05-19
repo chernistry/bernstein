@@ -404,8 +404,7 @@ def _build_prompt_from_dlq(entry: DLQEntry) -> str:
         f"Failure reason: {entry.reason}",
     ]
     if error:
-        parts.append("Last error (trimmed):")
-        parts.append(_collapse_traceback(error))
+        parts.extend(("Last error (trimmed):", _collapse_traceback(error)))
     body = "\n".join(parts)
     if len(body) > _MAX_PROMPT_LEN:
         body = body[:_MAX_PROMPT_LEN] + "..."

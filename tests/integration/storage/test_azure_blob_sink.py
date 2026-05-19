@@ -23,6 +23,7 @@ from __future__ import annotations
 import importlib.util
 import os
 import uuid
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 import pytest
@@ -79,16 +80,12 @@ class TestAzureBlobSinkConformance(ArtifactSinkConformance):
         # Ensure the container exists (Azurite needs explicit creation).
         import contextlib
 
-        try:
+        with suppress(Exception):
             container_client = await s._ensure_container()
             from azure.core.exceptions import ResourceExistsError  # type: ignore[import-not-found]
 
             with contextlib.suppress(ResourceExistsError):
                 container_client.create_container()
-        except Exception:
-            # Defer any setup errors to the actual test — some backends
-            # don't allow implicit container creation.
-            pass
         try:
             yield s
         finally:

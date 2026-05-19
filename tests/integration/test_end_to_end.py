@@ -124,7 +124,7 @@ def test_orchestrator_respects_max_agents(tmp_path: Path) -> None:
     with TestClient(app) as client:
         # Create 5 tasks
         for i in range(5):
-            client.post("/tasks", json={**TASK_PAYLOAD, "title": f"Task {i}"})
+            client.post("/tasks", json=TASK_PAYLOAD | {"title": f"Task {i}"})
 
         config = OrchestratorConfig(
             server_url="http://testserver",
@@ -182,8 +182,8 @@ def test_two_tasks_different_roles_spawn_separately(tmp_path: Path) -> None:
     mock_spawner = _make_mock_spawner()
 
     with TestClient(app) as client:
-        client.post("/tasks", json={**TASK_PAYLOAD, "role": "backend"})
-        client.post("/tasks", json={**TASK_PAYLOAD, "title": "QA task", "role": "qa"})
+        client.post("/tasks", json=TASK_PAYLOAD | {"role": "backend"})
+        client.post("/tasks", json=TASK_PAYLOAD | {"title": "QA task", "role": "qa"})
 
         config = OrchestratorConfig(
             server_url="http://testserver",
@@ -225,7 +225,7 @@ def test_server_status_endpoint_returns_summary(tmp_path: Path) -> None:
     with TestClient(app) as client:
         # Create a couple of tasks
         client.post("/tasks", json=TASK_PAYLOAD)
-        client.post("/tasks", json={**TASK_PAYLOAD, "title": "Another task"})
+        client.post("/tasks", json=TASK_PAYLOAD | {"title": "Another task"})
 
         resp = client.get("/status")
         assert resp.status_code == 200

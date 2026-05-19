@@ -420,7 +420,6 @@ class RubricHistoryWriter:
         event: dict[str, Any] = {
             "timestamp": datetime.now(UTC).isoformat(),
             "task_id": task_id,
-            **result.as_dict(),
-        }
+        } | result.as_dict()
         with self._path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(event, sort_keys=True) + "\n")

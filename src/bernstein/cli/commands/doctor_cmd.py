@@ -264,12 +264,16 @@ def run_all_checks() -> list[dict[str, Any]]:
     checks.append(check_python_version())
     checks.extend(check_adapters_installed())
     checks.extend(check_api_keys())
-    checks.append(check_config_valid())
-    checks.append(check_disk_space())
-    checks.append(check_git_installed())
-    checks.append(check_server_reachable())
-    checks.append(check_port_available())
-    checks.append(check_sdd_workspace())
+    checks.extend(
+        (
+            check_config_valid(),
+            check_disk_space(),
+            check_git_installed(),
+            check_server_reachable(),
+            check_port_available(),
+            check_sdd_workspace(),
+        )
+    )
     return checks
 
 

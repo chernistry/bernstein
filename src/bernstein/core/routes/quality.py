@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import time
 from collections import defaultdict
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
@@ -160,7 +161,7 @@ def _read_quality_gates(metrics_dir: Path, days: int = 30) -> list[dict[str, Any
         return records
 
     cutoff = time.time() - days * 86400
-    try:
+    with suppress(OSError):
         for raw in gates_file.read_text(encoding="utf-8").splitlines():
             raw = raw.strip()
             if not raw:
@@ -171,8 +172,6 @@ def _read_quality_gates(metrics_dir: Path, days: int = 30) -> list[dict[str, Any
                     records.append(rec)
             except json.JSONDecodeError:
                 continue
-    except OSError:
-        pass
 
     return records
 
@@ -258,8 +257,8 @@ def _compute_gate_stats(gate_records: list[dict[str, Any]]) -> dict[str, Any]:
             by_gate[gate]["flagged"] += 1
 
     return {
-        gate: {
-            **counts,
+        gate: counts
+        | {
             "pass_rate": counts["pass"] / counts["total"] if counts["total"] > 0 else 1.0,
         }
         for gate, counts in by_gate.items()
@@ -407,7 +406,7 @@ def _read_quality_scores(metrics_dir: Path, days: int = 90) -> list[dict[str, An
         return records
 
     cutoff = time.time() - days * 86400
-    try:
+    with suppress(OSError):
         for raw in scores_file.read_text(encoding="utf-8").splitlines():
             raw = raw.strip()
             if not raw:
@@ -418,8 +417,6 @@ def _read_quality_scores(metrics_dir: Path, days: int = 90) -> list[dict[str, An
                     records.append(rec)
             except json.JSONDecodeError:
                 continue
-    except OSError:
-        pass
 
     return records
 

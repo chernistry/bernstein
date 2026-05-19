@@ -223,21 +223,23 @@ def format_plan_explanation(plan_data: dict[str, Any]) -> str:
 
     # Title
     name = plan_data.get("name", "Untitled Plan")
-    lines.append(f"Plan: {name}")
-    lines.append("")
+    lines.extend((f"Plan: {name}", ""))
 
     # Description
     if summary.description:
-        lines.append(summary.description)
-        lines.append("")
+        lines.extend((summary.description, ""))
 
     # Stats table
-    lines.append("Summary")
-    lines.append("-" * 40)
-    lines.append(f"  Stages:          {summary.total_stages}")
-    lines.append(f"  Steps:           {summary.total_steps}")
-    lines.append(f"  Roles:           {', '.join(summary.roles_used) if summary.roles_used else 'none'}")
-    lines.append(f"  Peak agents:     {summary.estimated_agents}")
+    lines.extend(
+        (
+            "Summary",
+            "-" * 40,
+            f"  Stages:          {summary.total_stages}",
+            f"  Steps:           {summary.total_steps}",
+            f"  Roles:           {', '.join(summary.roles_used) if summary.roles_used else 'none'}",
+            f"  Peak agents:     {summary.estimated_agents}",
+        )
+    )
     cp_suffix = "s" if summary.critical_path_length != 1 else ""
     lines.append(f"  Critical path:   {summary.critical_path_length} stage{cp_suffix}")
     low, high = summary.estimated_cost_range

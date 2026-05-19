@@ -18,6 +18,7 @@ formats the report and chooses the exit code.
 from __future__ import annotations
 
 import os
+from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -322,27 +323,21 @@ def check_policy_blocks_known_endpoints() -> Check:
     lazily so it works in slim test environments.
     """
     declared: list[tuple[str, int, str]] = []
-    try:
+    with suppress(Exception):
         from bernstein.adapters.claude import ClaudeCodeAdapter
 
         for host, port in ClaudeCodeAdapter.external_endpoints:
             declared.append((host, port, "claude"))
-    except Exception:
-        pass
-    try:
+    with suppress(Exception):
         from bernstein.adapters.codex import CodexAdapter
 
         for host, port in CodexAdapter.external_endpoints:
             declared.append((host, port, "codex"))
-    except Exception:
-        pass
-    try:
+    with suppress(Exception):
         from bernstein.adapters.cloudflare_agents import CloudflareAgentsAdapter
 
         for host, port in CloudflareAgentsAdapter.external_endpoints:
             declared.append((host, port, "cloudflare"))
-    except Exception:
-        pass
 
     if not declared:
         return Check(

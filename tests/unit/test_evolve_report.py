@@ -121,8 +121,8 @@ class TestCycleRecord:
 
     def test_success_rate_zero_tasks(self) -> None:
         rec = CycleRecord.from_dict(
-            {
-                **SAMPLE_CYCLES[0],
+            SAMPLE_CYCLES[0]
+            | {
                 "tasks_completed": 0,
                 "tasks_failed": 0,
             }
@@ -136,8 +136,8 @@ class TestCycleRecord:
 
     def test_test_pass_rate_zero(self) -> None:
         rec = CycleRecord.from_dict(
-            {
-                **SAMPLE_CYCLES[0],
+            SAMPLE_CYCLES[0]
+            | {
                 "tests_passed": 0,
                 "tests_failed": 0,
             }

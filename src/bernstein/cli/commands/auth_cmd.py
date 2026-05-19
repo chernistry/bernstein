@@ -6,6 +6,7 @@ import json
 import os
 import time
 import webbrowser
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -212,7 +213,7 @@ def auth_login(server: str | None, sso: bool) -> None:
 
 def _show_profile(target: str, token: str) -> None:
     """Display profile info for the authenticated user (best-effort)."""
-    try:
+    with suppress(Exception):
         resp = httpx.get(
             f"{target}/auth/me",
             headers={"Authorization": f"Bearer {token}"},
@@ -223,8 +224,6 @@ def _show_profile(target: str, token: str) -> None:
             console.print(f"  User:  {profile.get('display_name', 'unknown')}")
             console.print(f"  Email: {profile.get('email', 'unknown')}")
             console.print(f"  Role:  {profile.get('role', 'unknown')}")
-    except Exception:
-        pass
 
 
 def _poll_for_token(target: str, device_code: str, expires_in: int, interval: int) -> None:

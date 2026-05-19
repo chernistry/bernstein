@@ -356,8 +356,7 @@ def _render_list_section(
     empty_label: str,
 ) -> None:
     """Render a Markdown section with a bullet list or an empty placeholder."""
-    lines.append(f"## {heading}")
-    lines.append("")
+    lines.extend((f"## {heading}", ""))
     if items:
         lines.extend(f"- {item}" for item in items)
     else:
@@ -377,8 +376,7 @@ def render_profile_summary(profile: SandboxProfile) -> str:
     lines: list[str] = [f"# Sandbox Profile: {profile.name}", ""]
 
     if profile.description:
-        lines.append(profile.description)
-        lines.append("")
+        lines.extend((profile.description, ""))
 
     network_items = [
         f"`{r.host}:{'all ports' if r.port == 0 else r.port}` ({r.protocol})" for r in profile.network_rules

@@ -648,7 +648,10 @@ def review_resolve_cmd(pr_number: int, as_json: bool) -> None:
             click.echo(f"review_router: no registration for PR #{pr_number}", err=True)
         sys.exit(1)
     if as_json:
-        payload = {"pr_number": pr_number, "found": True, **record.to_payload()}
+        payload = {
+            "pr_number": pr_number,
+            "found": True,
+        } | record.to_payload()
         click.echo(json.dumps(payload, sort_keys=True))
         return
     line = f"PR #{record.pr_number}  worktree={record.worktree_path}"

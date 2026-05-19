@@ -20,6 +20,7 @@ from __future__ import annotations
 import ast
 import logging
 import re
+from contextlib import suppress
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -242,12 +243,10 @@ def _cross_file_dep_score(owned_files: list[str], workdir: Path) -> float:
     # Also include dotted package paths relative to workdir
     module_dotted: set[str] = set()
     for p in paths:
-        try:
+        with suppress(ValueError):
             rel = p.relative_to(workdir)
             dotted = ".".join(rel.with_suffix("").parts)
             module_dotted.add(dotted)
-        except ValueError:
-            pass
 
     files_with_internal_imports = 0
     for p in paths:

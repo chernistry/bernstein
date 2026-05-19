@@ -6,6 +6,7 @@ import json
 import logging
 import subprocess
 import time
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -131,11 +132,9 @@ def _active_worktree_count(request: Request) -> int:
     worktrees_dir = sdd_dir / "worktrees"
     if not worktrees_dir.exists():
         return 0
-    try:
+    with suppress(OSError, subprocess.SubprocessError):
         if (workdir / ".git").exists():
             return len(WorktreeManager(workdir).list_active())
-    except (OSError, subprocess.SubprocessError):
-        pass
     return sum(1 for entry in worktrees_dir.iterdir() if entry.is_dir())
 
 
@@ -665,8 +664,7 @@ def _load_live_costs(request: Request) -> dict[str, Any]:
                 day = datetime.fromtimestamp(usage.timestamp, tz=UTC).strftime("%Y-%m-%d")
                 daily[day] = daily.get(day, 0.0) + usage.cost_usd
         status = tracker.status()
-        return {
-            **status.to_dict(),
+        return status.to_dict() | {
             "per_model": per_model,
             "per_agent": per_agent,
             "daily_costs": daily,

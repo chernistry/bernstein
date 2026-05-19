@@ -130,7 +130,6 @@ async def merge_prometheus_metrics(
             body_parts.append(f'# fleet_project_offline {{project="{project.name}"}} 1')
             continue
         merge.ok_projects.append(project.name)
-        body_parts.append(f"# === project: {project.name} ===")
-        body_parts.append(merge_text(project.name, text))
+        body_parts.extend((f"# === project: {project.name} ===", merge_text(project.name, text)))
     merge.body = "\n".join(body_parts) + "\n"
     return merge

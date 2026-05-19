@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+from contextlib import suppress
 from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import APIRouter, Request
@@ -40,7 +41,7 @@ def file_locks_endpoint(request: Request) -> JSONResponse:
     locks_by_agent: dict[str, dict[str, Any]] = {}
 
     if locks_path.exists():
-        try:
+        with suppress(OSError, KeyError, ValueError):
             raw = json.loads(locks_path.read_text(encoding="utf-8"))
             for entry in raw:
                 file_path = str(entry.get("file_path", ""))
@@ -71,8 +72,6 @@ def file_locks_endpoint(request: Request) -> JSONResponse:
                         "files": [],
                     }
                 cast("list[str]", locks_by_agent[agent_id]["files"]).append(file_path)
-        except (OSError, KeyError, ValueError):
-            pass
 
     return JSONResponse(
         {

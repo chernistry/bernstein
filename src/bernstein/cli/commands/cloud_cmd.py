@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -255,12 +256,10 @@ def _load_token() -> dict[str, str] | None:
     """Load cloud credentials from disk."""
     if not _TOKEN_FILE.exists():
         return None
-    try:
+    with suppress(json.JSONDecodeError, OSError):
         data: dict[str, str] = json.loads(_TOKEN_FILE.read_text(encoding="utf-8"))
         if "api_key" in data:
             return data
-    except (json.JSONDecodeError, OSError):
-        pass
     return None
 
 

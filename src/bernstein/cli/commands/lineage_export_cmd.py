@@ -278,13 +278,15 @@ def render_html(rows: list[dict[str, Any]], *, run_id: str) -> str:
             f"{sig_cell}"
             "</tr>"
         )
-    parts.append("</tbody></table>")
-    parts.append(
-        '<div class="footer">'
-        "This artefact is suitable for inclusion in a DORA / NIS2 evidence package. "
-        "Each record is independently signed by the customer key (when configured); "
-        "the customer auditor can verify the signatures using the corresponding public key."
-        "</div>",
+    parts.extend(
+        (
+            "</tbody></table>",
+            '<div class="footer">'
+            "This artefact is suitable for inclusion in a DORA / NIS2 evidence package. "
+            "Each record is independently signed by the customer key (when configured); "
+            "the customer auditor can verify the signatures using the corresponding public key."
+            "</div>",
+            "</body></html>",
+        )
     )
-    parts.append("</body></html>")
     return "\n".join(parts) + "\n"

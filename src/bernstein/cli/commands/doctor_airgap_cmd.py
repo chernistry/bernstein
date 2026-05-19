@@ -131,8 +131,8 @@ def _render_json(report: AirgapReport, *, simulated: bool = False) -> None:
         "ok": report.ok,
         "simulated_airgap_env": simulated,
         "checks": [
-            {
-                **asdict(check),
+            asdict(check)
+            | {
                 "status": check.status.value,
             }
             for check in report.checks

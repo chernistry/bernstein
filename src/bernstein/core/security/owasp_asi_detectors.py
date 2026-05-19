@@ -590,11 +590,11 @@ class OwaspAsiGuardrail:
         )
 
     def check_input(self, prompt: str, context: dict[str, Any]) -> GuardrailResult:
-        merged = {**context, "prompt": prompt}
+        merged = context | {"prompt": prompt}
         return self._aggregate(merged)
 
     def check_output(self, output: str, context: dict[str, Any]) -> GuardrailResult:
-        merged = {**context, "agent_output": output}
+        merged = context | {"agent_output": output}
         return self._aggregate(merged)
 
 

@@ -107,8 +107,7 @@ _PRIORITY_MAP: dict[str, int] = {"low": 3, "medium": 2, "high": 1}
 def _render_markdown(payload: TicketPayload) -> str:
     lines: list[str] = [f"# {payload.title}" if payload.title else f"# {payload.id}", ""]
     if payload.description:
-        lines.append(payload.description.rstrip())
-        lines.append("")
+        lines.extend((payload.description.rstrip(), ""))
     if payload.labels:
         lines.append(f"**Labels:** {', '.join(payload.labels)}")
     if payload.assignee:

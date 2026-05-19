@@ -220,9 +220,7 @@ def _format_prior_envelope(prior: list[PerspectiveVerdict]) -> str:
         return ""
     lines: list[str] = ["## Prior reviewer verdicts", ""]
     for pv in prior:
-        lines.append(f"### {pv.perspective} (adapter={pv.adapter})")
-        lines.append(pv.content.strip())
-        lines.append("")
+        lines.extend((f"### {pv.perspective} (adapter={pv.adapter})", pv.content.strip(), ""))
     return "\n".join(lines).rstrip() + "\n"
 
 

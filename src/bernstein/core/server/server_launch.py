@@ -11,6 +11,7 @@ import os
 import subprocess
 import sys
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -354,12 +355,10 @@ def _wait_for_server(port: int, server_url: str | None = None) -> bool:
     base = server_url or f"http://127.0.0.1:{port}"
     url = f"{base}/health"
     while time.monotonic() < deadline:
-        try:
+        with suppress(httpx.ConnectError, httpx.ReadTimeout, httpx.TimeoutException):
             resp = httpx.get(url, timeout=5.0)
             if resp.status_code == 200:
                 return True
-        except (httpx.ConnectError, httpx.ReadTimeout, httpx.TimeoutException):
-            pass
         time.sleep(_SERVER_POLL_INTERVAL_S)
     return False
 
@@ -601,8 +600,7 @@ def auto_write_bernstein_yaml(workdir: Path) -> None:
         'budget: "$10"',
     ]
     if constraints:
-        lines.append("")
-        lines.append("constraints:")
+        lines.extend(("", "constraints:"))
         for c in constraints:
             lines.append(f'  - "{c}"')
     lines.extend(

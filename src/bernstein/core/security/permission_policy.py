@@ -35,6 +35,7 @@ import json
 import logging
 import os
 import re
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -501,7 +502,7 @@ def _record_denial(
     # Best-effort propagation into the in-process denial tracker so the
     # over-threshold alert path fires consistently. Imported lazily to
     # keep the dependency one-way.
-    try:
+    with suppress(Exception):
         tracker = _default_tracker()
         if tracker is not None:
             tracker.record_denial(
@@ -509,8 +510,6 @@ def _record_denial(
                 command_or_path=call.shell_cmd or call.path or call.host or call.tool,
                 reason=f"[{profile.name}] {decision.reason}",
             )
-    except Exception:  # pragma: no cover - defensive
-        pass
 
 
 _TRACKER_SINGLETON: Any = None

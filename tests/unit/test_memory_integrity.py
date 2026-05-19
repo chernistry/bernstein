@@ -62,7 +62,7 @@ def _make_lesson_dict(
 
 def _append_lesson(path: Path, lesson_dict: dict, integrity: EntryIntegrity) -> None:
     """Write a lesson + integrity to the JSONL file."""
-    data = {**lesson_dict, **integrity.as_dict()}
+    data = lesson_dict | integrity.as_dict()
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(data) + "\n")
 
@@ -234,7 +234,7 @@ class TestVerifyChain:
         p = tmp_path / "lessons.jsonl"
         d = _make_lesson_dict()
         integrity = build_entry_integrity(d, GENESIS_HASH)
-        data = {**d, **integrity.as_dict()}
+        data = d | integrity.as_dict()
 
         # Tamper with the content before writing
         data["content"] = "ATTACKER REPLACED THIS"
@@ -262,7 +262,7 @@ class TestVerifyChain:
         d_injected = _make_lesson_dict(lesson_id="injected", content="Injected!")
         # Use a broken prev_hash to simulate attack
         i_injected = build_entry_integrity(d_injected, "fake-prev-hash")
-        injected_line = json.dumps({**d_injected, **i_injected.as_dict()})
+        injected_line = json.dumps(d_injected | i_injected.as_dict())
         lines.insert(1, injected_line)
         p.write_text("\n".join(lines) + "\n")
 
@@ -331,7 +331,7 @@ class TestVerifyChain:
 
         d1 = _make_lesson_dict(lesson_id="id-1")
         i1 = build_entry_integrity(d1, GENESIS_HASH)
-        data = {**d1, **i1.as_dict()}
+        data = d1 | i1.as_dict()
         data["content"] = "tampered"  # break line 1
         with open(p, "a") as f:
             f.write(json.dumps(data) + "\n")
@@ -547,7 +547,7 @@ class TestAuditProvenance:
         p = tmp_path / "lessons.jsonl"
         d = _make_lesson_dict()
         integrity = build_entry_integrity(d, GENESIS_HASH)
-        data = {**d, **integrity.as_dict(), "content": "TAMPERED"}
+        data = d | integrity.as_dict() | {"content": "TAMPERED"}
         p.write_text(json.dumps(data) + "\n")
 
         trail = audit_provenance(p)

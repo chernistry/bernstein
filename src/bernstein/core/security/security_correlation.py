@@ -343,13 +343,17 @@ def format_correlation_report(matches: list[CorrelationMatch]) -> str:
     lines: list[str] = ["Security Correlation Report", "=" * 40]
 
     for idx, match in enumerate(matches, 1):
-        lines.append("")
-        lines.append(f"Match #{idx}: {match.pattern.pattern_id}")
-        lines.append(f"  Severity : {match.pattern.severity}")
-        lines.append(f"  Description: {match.pattern.description}")
-        lines.append(f"  Events   : {match.count}")
-        lines.append(f"  First    : {match.first_seen}")
-        lines.append(f"  Last     : {match.last_seen}")
+        lines.extend(
+            (
+                "",
+                f"Match #{idx}: {match.pattern.pattern_id}",
+                f"  Severity : {match.pattern.severity}",
+                f"  Description: {match.pattern.description}",
+                f"  Events   : {match.count}",
+                f"  First    : {match.first_seen}",
+                f"  Last     : {match.last_seen}",
+            )
+        )
         for evt in match.events:
             lines.append(f"    - [{evt.severity}] {evt.event_type}: {evt.details} (agent={evt.agent_id})")
 

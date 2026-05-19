@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from pathlib import Path
 
 import yaml
@@ -82,11 +83,9 @@ def test_load_plan_yaml_invalid_type(tmp_path: Path) -> None:
 
 def test_load_plan_yaml_missing_file(tmp_path: Path) -> None:
     plan_file = tmp_path / "missing.yaml"
-    try:
+    with suppress(FileNotFoundError):
         load_plan_yaml(plan_file)
         raise AssertionError("Expected FileNotFoundError")
-    except FileNotFoundError:
-        pass
 
 
 # ---------------------------------------------------------------------------

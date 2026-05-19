@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
+
 import pytest
 from bernstein.cli.cost_estimate import (
     COST_PER_COMPLEXITY,
@@ -50,11 +52,9 @@ def test_task_cost_estimate_is_frozen() -> None:
         confidence=0.5,
         estimated_tokens=1000,
     )
-    try:
+    with suppress(AttributeError):
         est.confidence = 0.9  # type: ignore[misc]
         raise AssertionError("Expected FrozenInstanceError")  # pragma: no cover
-    except AttributeError:
-        pass  # expected
 
 
 # ---------------------------------------------------------------------------

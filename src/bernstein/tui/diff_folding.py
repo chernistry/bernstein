@@ -247,8 +247,12 @@ def format_file_summary(file_diff: FileDiff) -> str:
     """
     hunks_count = len(file_diff.hunks)
     parts = [f"  {file_diff.filename}"]
-    parts.append(f"(+{file_diff.total_added}/-{file_diff.total_removed}")
-    parts.append(f"{hunks_count} {'hunk' if hunks_count == 1 else 'hunks'})")
+    parts.extend(
+        (
+            f"(+{file_diff.total_added}/-{file_diff.total_removed}",
+            f"{hunks_count} {'hunk' if hunks_count == 1 else 'hunks'})",
+        )
+    )
 
     return " ".join(parts)
 

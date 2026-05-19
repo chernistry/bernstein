@@ -647,8 +647,7 @@ def _evidence_integrity_section(verification: dict[str, Any]) -> list[str]:
             lines.append(f"- {err}")
     verified_at = hmac_info.get("verified_at", "")
     if verified_at:
-        lines.append("")
-        lines.append(f"Verified at: {verified_at}")
+        lines.extend(("", f"Verified at: {verified_at}"))
     return lines
 
 
@@ -659,12 +658,16 @@ def _evidence_merkle_section(merkle_attestation: dict[str, Any] | None) -> list[
         lines.append("*No Merkle seals found for this period.*")
         return lines
 
-    lines.append(f"**Latest root hash**: `{merkle_attestation['latest_root_hash']}`")
-    lines.append(f"**Sealed at**: {merkle_attestation['latest_sealed_at']}")
-    lines.append(f"**Total seals**: {merkle_attestation['total_seals']}")
-    lines.append("")
-    lines.append("| Seal File | Root Hash | Sealed At |")
-    lines.append("|-----------|-----------|-----------|")
+    lines.extend(
+        (
+            f"**Latest root hash**: `{merkle_attestation['latest_root_hash']}`",
+            f"**Sealed at**: {merkle_attestation['latest_sealed_at']}",
+            f"**Total seals**: {merkle_attestation['total_seals']}",
+            "",
+            "| Seal File | Root Hash | Sealed At |",
+            "|-----------|-----------|-----------|",
+        )
+    )
     for s in merkle_attestation["seals"]:
         root_short = s["root_hash"][:16] + "..." if len(s["root_hash"]) > 16 else s["root_hash"]
         lines.append(f"| {s['file']} | `{root_short}` | {s['sealed_at']} |")

@@ -18,6 +18,7 @@ from __future__ import annotations
 import ast
 import logging
 import subprocess
+from contextlib import suppress
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -517,7 +518,7 @@ def check_git_diff(workdir: Path, base_ref: str = "HEAD~1") -> CompatReport:
 
 def _git_show(workdir: Path, ref: str, rel_path: str) -> str:
     """Retrieve file contents at a given git ref. Returns empty string on failure."""
-    try:
+    with suppress(subprocess.TimeoutExpired, OSError):
         result = subprocess.run(
             ["git", "show", f"{ref}:{rel_path}"],
             cwd=workdir,
@@ -529,6 +530,4 @@ def _git_show(workdir: Path, ref: str, rel_path: str) -> str:
         )
         if result.returncode == 0:
             return result.stdout
-    except (subprocess.TimeoutExpired, OSError):
-        pass
     return ""

@@ -771,12 +771,9 @@ def _terminate_pid(pid: int) -> None:
     """SIGTERM *pid*'s process group, falling back to the bare pid."""
     if pid <= 0:
         return
-    try:
+    with contextlib.suppress(ProcessLookupError, PermissionError, OSError):
         os.killpg(os.getpgid(pid), signal.SIGTERM)
         return
-    except (ProcessLookupError, PermissionError, OSError):
-        # Fall through to a direct SIGTERM below.
-        pass
     with contextlib.suppress(ProcessLookupError, PermissionError, OSError):
         os.kill(pid, signal.SIGTERM)
 

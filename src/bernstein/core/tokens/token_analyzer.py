@@ -307,16 +307,24 @@ def to_markdown(analysis: TokenAnalysis) -> str:
     lines.append(f"- **Total output tokens:** {analysis.total_tokens_completion:,}")
     lines.append(f"- **Overall input:output ratio:** {analysis.overall_io_ratio:.1f}:1")
     eff = "good" if analysis.overall_io_ratio <= EFFICIENCY_RATIO_THRESHOLD else "high"
-    lines.append(f"- **Efficiency:** {eff} (target < {EFFICIENCY_RATIO_THRESHOLD:.0f}:1)")
-    lines.append(f"- **Total cost:** ${analysis.total_cost_usd:.4f}")
-    lines.append("")
+    lines.extend(
+        (
+            f"- **Efficiency:** {eff} (target < {EFFICIENCY_RATIO_THRESHOLD:.0f}:1)",
+            f"- **Total cost:** ${analysis.total_cost_usd:.4f}",
+            "",
+        )
+    )
 
     # Spend by model.
     if analysis.model_spend:
-        lines.append("## Spend by Model")
-        lines.append("")
-        lines.append("| Model | Tasks | Input Tokens | Output Tokens | Cost USD |")
-        lines.append("|-------|------:|-------------:|--------------:|---------:|")
+        lines.extend(
+            (
+                "## Spend by Model",
+                "",
+                "| Model | Tasks | Input Tokens | Output Tokens | Cost USD |",
+                "|-------|------:|-------------:|--------------:|---------:|",
+            )
+        )
         for ms in analysis.model_spend:
             lines.append(
                 f"| {ms.model} | {ms.task_count} "
@@ -328,10 +336,14 @@ def to_markdown(analysis: TokenAnalysis) -> str:
 
     # Top 5 most token-hungry tasks.
     if analysis.top_5_hungry:
-        lines.append("## Top 5 Most Token-Hungry Tasks")
-        lines.append("")
-        lines.append("| Task | Model | Input | Output | Ratio | Cost |")
-        lines.append("|------|-------|------:|-------:|------:|-----:|")
+        lines.extend(
+            (
+                "## Top 5 Most Token-Hungry Tasks",
+                "",
+                "| Task | Model | Input | Output | Ratio | Cost |",
+                "|------|-------|------:|-------:|------:|-----:|",
+            )
+        )
         for ts in analysis.top_5_hungry:
             short_title = ts.title[:50] + ("..." if len(ts.title) > 50 else "")
             lines.append(
@@ -345,17 +357,13 @@ def to_markdown(analysis: TokenAnalysis) -> str:
 
     # Waste patterns / suggestions.
     if analysis.waste_patterns:
-        lines.append("## Suggestions")
-        lines.append("")
+        lines.extend(("## Suggestions", ""))
         for wp in analysis.waste_patterns:
             short_title = wp.title[:60] + ("..." if len(wp.title) > 60 else "")
             lines.append(f"- **{short_title}** ({wp.task_id}): {wp.detail}")
         lines.append("")
 
     if not analysis.waste_patterns:
-        lines.append("## Suggestions")
-        lines.append("")
-        lines.append("No waste patterns detected.")
-        lines.append("")
+        lines.extend(("## Suggestions", "", "No waste patterns detected.", ""))
 
     return "\n".join(lines)

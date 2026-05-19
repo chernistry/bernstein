@@ -12,6 +12,7 @@ state corruption.
 from __future__ import annotations
 
 import logging
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -138,14 +139,12 @@ def _collect_multi_link_inodes(directory: Path) -> set[tuple[int, int]]:
         Set of (device, inode) tuples for hardlinked files.
     """
     inodes: set[tuple[int, int]] = set()
-    try:
+    with suppress(OSError):
         for f in directory.rglob("*"):
             if f.is_file() and not f.is_symlink():
                 st = f.stat()
                 if st.st_nlink > 1:
                     inodes.add((st.st_dev, st.st_ino))
-    except OSError:
-        pass
     return inodes
 
 
@@ -160,7 +159,7 @@ def _find_hardlink_violations(wt_dir: Path, parent_inodes: set[tuple[int, int]])
         List of violation descriptions.
     """
     violations: list[str] = []
-    try:
+    with suppress(OSError):
         for wt_file in wt_dir.rglob("*"):
             if not wt_file.is_file() or wt_file.is_symlink():
                 continue
@@ -173,8 +172,6 @@ def _find_hardlink_violations(wt_dir: Path, parent_inodes: set[tuple[int, int]])
                     f"Hardlink detected: {wt_file} shares inode with parent repo "
                     f"(dev={st.st_dev}, ino={st.st_ino}, nlink={st.st_nlink})"
                 )
-    except OSError:
-        pass
     return violations
 
 

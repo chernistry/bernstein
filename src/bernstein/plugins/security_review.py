@@ -369,8 +369,7 @@ def format_security_review(results: list[SecurityReviewResult]) -> str:
     }
 
     lines: list[str] = []
-    lines.append(f"[bold red]\u2718 Security review: {len(results)} issue(s) found[/bold red]")
-    lines.append("")
+    lines.extend((f"[bold red]✘ Security review: {len(results)} issue(s) found[/bold red]", ""))
 
     by_file: dict[str, list[SecurityReviewResult]] = {}
     for r in results:

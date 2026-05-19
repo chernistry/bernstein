@@ -188,7 +188,7 @@ class TestMultiCycleHandoff:
         payload["next_action"] = "MALICIOUS"
         path.write_text(json.dumps(payload))
         # Default env key may not match our test key; pass explicit env to align.
-        env = {**os.environ, "BERNSTEIN_RELAY_KEY": ("6b" * 32)}
+        env = os.environ | {"BERNSTEIN_RELAY_KEY": ("6b" * 32)}
         # Our store wrote with key=b'k'*32 == 0x6b * 32 hex.
         r = runner.invoke(consensus_group, ["--path", str(root), "verify"], env=env)
         assert r.exit_code != 0

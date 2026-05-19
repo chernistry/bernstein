@@ -62,12 +62,10 @@ def _wait_http_ok(url: str, timeout_s: float = SERVER_READY_TIMEOUT_S) -> bool:
     """Poll ``url`` until it returns 2xx or the deadline expires."""
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        try:
+        with contextlib.suppress(httpx.HTTPError):
             resp = httpx.get(url, timeout=2.0)
             if 200 <= resp.status_code < 300:
                 return True
-        except httpx.HTTPError:
-            pass
         time.sleep(SERVER_READY_POLL_S)
     return False
 
@@ -76,22 +74,17 @@ def _terminate(proc: subprocess.Popen[bytes] | None, kill_grace_s: float = 2.0) 
     """Send SIGTERM; escalate to SIGKILL if the child does not exit."""
     if proc is None or proc.poll() is not None:
         return
-    try:
+    with contextlib.suppress(Exception):
         proc.terminate()
-        try:
+        with contextlib.suppress(subprocess.TimeoutExpired):
             proc.wait(timeout=kill_grace_s)
             return
-        except subprocess.TimeoutExpired:
-            pass
         try:
             proc.kill()
         except ProcessLookupError:
             return
         with contextlib.suppress(subprocess.TimeoutExpired):
             proc.wait(timeout=kill_grace_s)
-    except Exception:
-        # Best-effort; teardown must not raise.
-        pass
 
 
 # --------------------------------------------------------------------------- #

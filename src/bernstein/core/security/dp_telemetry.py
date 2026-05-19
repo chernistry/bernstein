@@ -212,7 +212,7 @@ class DPTelemetryExporter:
             total_epsilon=config.epsilon,
             max_queries=config.max_queries,
         )
-        self._sensitivities = {**_DEFAULT_SENSITIVITIES, **config.field_sensitivities}
+        self._sensitivities = _DEFAULT_SENSITIVITIES | config.field_sensitivities
         self._export_count = 0
 
     @property

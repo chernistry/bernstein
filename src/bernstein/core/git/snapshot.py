@@ -186,7 +186,7 @@ def _write_tree(cwd: Path) -> str:
     import subprocess
 
     tmp_index = cwd / ".git" / f"bernstein-snapshot-index.{time.time_ns()}"
-    merged_env = {**os.environ, "GIT_INDEX_FILE": str(tmp_index)}
+    merged_env = os.environ | {"GIT_INDEX_FILE": str(tmp_index)}
     try:
         # Seed the temp index from HEAD when one exists. Without HEAD
         # (fresh repo with no commits) we simply start from an empty

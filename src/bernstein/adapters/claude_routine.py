@@ -93,8 +93,7 @@ def build_fire_payload(
     if task_id:
         parts.append(f"**Task ID**: {task_id}")
     if repo:
-        parts.append(f"\n### Repository: {repo}")
-        parts.append(f"Base branch: {base_branch}")
+        parts.extend((f"\n### Repository: {repo}", f"Base branch: {base_branch}"))
     if context_files:
         parts.append(f"Related files: {', '.join(context_files[:10])}")
     if test_command:

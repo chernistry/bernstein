@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import time
 from collections import deque
+from contextlib import suppress
 from typing import Any
 
 import httpx
@@ -227,19 +228,19 @@ class LiveView:
         Polls the task server at the configured interval and updates
         the Rich Live display.
         """
-        try:
-            with Live(
+        with (
+            suppress(KeyboardInterrupt),
+            Live(
                 Text("Connecting\u2026", style="dim"),
                 console=self._console,
                 refresh_per_second=8,
                 screen=True,
-            ) as live:
-                while True:
-                    data = self._fetch()
-                    live.update(self._render(data))
-                    time.sleep(min(self._interval, 1.0))
-        except KeyboardInterrupt:
-            pass
+            ) as live,
+        ):
+            while True:
+                data = self._fetch()
+                live.update(self._render(data))
+                time.sleep(min(self._interval, 1.0))
         self._console.print("\n[dim]Live display stopped.[/dim]")
 
 

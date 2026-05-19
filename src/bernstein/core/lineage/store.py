@@ -262,11 +262,8 @@ class LineageStore:
         """
         tip_path = self._tip_path(artefact_path)
         if tip_path.exists():
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 return json.loads(tip_path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
-                # Torn write — fall through to recomputation.
-                pass
         return self._recompute_tips_for(artefact_path)
 
     def reindex(self) -> None:

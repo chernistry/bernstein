@@ -369,10 +369,14 @@ class EvolutionReport:
             f"| Tests (first -> last) | {self.first_tests_passed} -> {self.last_tests_passed} (+{self.test_delta}) |"
         )
         if self.experiments:
-            lines.append(f"| Experiments run | {len(self.experiments)} |")
-            lines.append(f"| Experiments accepted | {self.experiments_accepted} |")
-            lines.append(f"| Experiments rejected | {self.experiments_rejected} |")
-            lines.append(f"| Total evolution cost | ${self.total_experiment_cost_usd:.4f} |")
+            lines.extend(
+                (
+                    f"| Experiments run | {len(self.experiments)} |",
+                    f"| Experiments accepted | {self.experiments_accepted} |",
+                    f"| Experiments rejected | {self.experiments_rejected} |",
+                    f"| Total evolution cost | ${self.total_experiment_cost_usd:.4f} |",
+                )
+            )
 
         # Trajectory sparkline
         lines.append("\n## Test Count Trajectory\n")
@@ -395,9 +399,13 @@ class EvolutionReport:
 
         # Experiments section
         if self.experiments:
-            lines.append("\n## Experiments\n")
-            lines.append("| ID | Title | Risk | Delta | Cost | Result |")
-            lines.append("|----|-------|------|-------|------|--------|")
+            lines.extend(
+                (
+                    "\n## Experiments\n",
+                    "| ID | Title | Risk | Delta | Cost | Result |",
+                    "|----|-------|------|-------|------|--------|",
+                )
+            )
             for e in self.experiments:
                 delta_str = f"{e.delta:+.3f}" if e.delta != 0 else "—"
                 result = "✓ accepted" if e.accepted else "✗ rejected"

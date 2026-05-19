@@ -233,11 +233,9 @@ def render_image_report(result: ImageCleanupResult) -> str:
         f"- **Images kept (recent):** {result.kept_recent}",
     ]
     if result.images_removed == 0 and result.images_found > 0:
-        lines.append("")
-        lines.append("All images are within the keep window; nothing to clean.")
+        lines.extend(("", "All images are within the keep window; nothing to clean."))
     elif result.images_found == 0:
-        lines.append("")
-        lines.append("No images found in context.")
+        lines.extend(("", "No images found in context."))
     return "\n".join(lines)
 
 

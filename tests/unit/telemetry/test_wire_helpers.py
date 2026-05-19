@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from pathlib import Path
 
 import httpx
@@ -109,11 +110,9 @@ def test_first_run_timer_records_set_error(tmp_home: Path) -> None:
 
 def test_first_run_timer_records_exception(tmp_home: Path) -> None:
     c = _enabled_client(tmp_home)
-    try:
+    with suppress(RuntimeError):
         with FirstRunTimer(client=c):
             raise RuntimeError("kaboom")
-    except RuntimeError:
-        pass
     text = queue_path(home=tmp_home).read_text(encoding="utf-8")
     assert '"error_category":"unknown"' in text
 

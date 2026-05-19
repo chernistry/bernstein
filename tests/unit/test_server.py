@@ -144,8 +144,8 @@ async def test_create_task_auto_estimate(client: AsyncClient) -> None:
 async def test_claim_next_task(client: AsyncClient) -> None:
     """GET /tasks/next/{role} returns and claims the highest-priority task."""
     # Create two tasks — priority 1 (critical) and priority 3.
-    await client.post("/tasks", json={**TASK_PAYLOAD, "priority": 3})
-    await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Critical fix", "priority": 1})
+    await client.post("/tasks", json=TASK_PAYLOAD | {"priority": 3})
+    await client.post("/tasks", json=TASK_PAYLOAD | {"title": "Critical fix", "priority": 1})
 
     resp = await client.get("/tasks/next/backend")
     assert resp.status_code == 200
@@ -164,7 +164,7 @@ async def test_claim_next_no_tasks(client: AsyncClient) -> None:
 @pytest.mark.anyio
 async def test_claim_next_role_filter(client: AsyncClient) -> None:
     """GET /tasks/next/{role} only returns tasks matching the role."""
-    await client.post("/tasks", json={**TASK_PAYLOAD, "role": "frontend"})
+    await client.post("/tasks", json=TASK_PAYLOAD | {"role": "frontend"})
 
     resp = await client.get("/tasks/next/backend")
     assert resp.status_code == 404
@@ -220,7 +220,7 @@ async def test_status_includes_provider_status_snapshot(client: AsyncClient, app
 @pytest.mark.anyio
 async def test_depends_on_nonexistent_task(client: AsyncClient) -> None:
     """POST /tasks returns 422 when depends_on references a non-existent task."""
-    resp = await client.post("/tasks", json={**TASK_PAYLOAD, "depends_on": ["deadbeef0000"]})
+    resp = await client.post("/tasks", json=TASK_PAYLOAD | {"depends_on": ["deadbeef0000"]})
     assert resp.status_code == 422
     assert "non-existent" in resp.json()["detail"]
 
@@ -229,7 +229,7 @@ async def test_depends_on_nonexistent_task(client: AsyncClient) -> None:
 async def test_depends_on_valid_chain(client: AsyncClient) -> None:
     """POST /tasks succeeds for a valid A -> B dependency chain (no cycle)."""
     a = (await client.post("/tasks", json=TASK_PAYLOAD)).json()["id"]
-    b_resp = await client.post("/tasks", json={**TASK_PAYLOAD, "depends_on": [a]})
+    b_resp = await client.post("/tasks", json=TASK_PAYLOAD | {"depends_on": [a]})
     assert b_resp.status_code == 201
     assert b_resp.json()["depends_on"] == [a]
 
@@ -241,7 +241,7 @@ async def test_simple_cycle_rejected(client: AsyncClient) -> None:
     # that depends on B — simulated by creating two independent tasks first,
     # then attempting a task that would close a cycle.
     a = (await client.post("/tasks", json=TASK_PAYLOAD)).json()["id"]
-    (await client.post("/tasks", json={**TASK_PAYLOAD, "depends_on": [a]})).json()["id"]
+    (await client.post("/tasks", json=TASK_PAYLOAD | {"depends_on": [a]})).json()["id"]
     # Now attempt a task that depends on B and on A — not a cycle by itself.
     # To get a real cycle we need to create task C that depends on B,
     # then a task D that depends on C and C depends back on D — but tasks are
@@ -536,7 +536,7 @@ async def test_cancel_task_cascade_cancels_children(client: AsyncClient) -> None
 async def test_list_all_tasks(client: AsyncClient) -> None:
     """GET /tasks returns all tasks."""
     await client.post("/tasks", json=TASK_PAYLOAD)
-    await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Second"})
+    await client.post("/tasks", json=TASK_PAYLOAD | {"title": "Second"})
 
     resp = await client.get("/tasks")
     assert resp.status_code == 200
@@ -551,7 +551,7 @@ async def test_list_tasks_with_status_filter(client: AsyncClient) -> None:
     await client.post(f"/tasks/{task_id}/claim")
     await client.post(f"/tasks/{task_id}/complete", json={"result_summary": "ok"})
 
-    await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Still open"})
+    await client.post("/tasks", json=TASK_PAYLOAD | {"title": "Still open"})
 
     resp = await client.get("/tasks", params={"status": "open"})
     assert resp.status_code == 200
@@ -567,8 +567,8 @@ async def test_list_tasks_with_status_filter(client: AsyncClient) -> None:
 async def test_list_tasks_paginated(client: AsyncClient) -> None:
     """GET /tasks?limit=1&offset=0 returns paginated envelope."""
     await client.post("/tasks", json=TASK_PAYLOAD)
-    await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Second"})
-    await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Third"})
+    await client.post("/tasks", json=TASK_PAYLOAD | {"title": "Second"})
+    await client.post("/tasks", json=TASK_PAYLOAD | {"title": "Third"})
 
     resp = await client.get("/tasks", params={"limit": 2, "offset": 0})
     assert resp.status_code == 200
@@ -585,7 +585,7 @@ async def test_list_tasks_paginated(client: AsyncClient) -> None:
 async def test_list_tasks_paginated_offset(client: AsyncClient) -> None:
     """GET /tasks?limit=2&offset=2 returns the remaining tasks."""
     for i in range(5):
-        await client.post("/tasks", json={**TASK_PAYLOAD, "title": f"Task {i}"})
+        await client.post("/tasks", json=TASK_PAYLOAD | {"title": f"Task {i}"})
 
     resp = await client.get("/tasks", params={"limit": 2, "offset": 2})
     assert resp.status_code == 200
@@ -611,9 +611,9 @@ async def test_list_tasks_paginated_beyond_end(client: AsyncClient) -> None:
 async def test_list_tasks_paginated_with_status_filter(client: AsyncClient) -> None:
     """Pagination works together with status filter."""
     for i in range(3):
-        await client.post("/tasks", json={**TASK_PAYLOAD, "title": f"Task {i}"})
+        await client.post("/tasks", json=TASK_PAYLOAD | {"title": f"Task {i}"})
     # Complete one task so it's not 'open' anymore
-    create_resp = await client.post("/tasks", json={**TASK_PAYLOAD, "title": "done"})
+    create_resp = await client.post("/tasks", json=TASK_PAYLOAD | {"title": "done"})
     tid = create_resp.json()["id"]
     await client.post(f"/tasks/{tid}/claim")
     await client.post(f"/tasks/{tid}/complete", json={"result_summary": "ok"})
@@ -629,7 +629,7 @@ async def test_list_tasks_paginated_with_status_filter(client: AsyncClient) -> N
 async def test_list_tasks_legacy_format_without_pagination(client: AsyncClient) -> None:
     """GET /tasks without limit/offset returns a flat list (backward compat)."""
     await client.post("/tasks", json=TASK_PAYLOAD)
-    await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Second"})
+    await client.post("/tasks", json=TASK_PAYLOAD | {"title": "Second"})
 
     resp = await client.get("/tasks")
     assert resp.status_code == 200
@@ -685,16 +685,16 @@ async def test_task_counts_reflects_statuses(client: AsyncClient) -> None:
     """GET /tasks/counts accurately reflects task status distribution."""
     # Create 3 open tasks
     for i in range(3):
-        await client.post("/tasks", json={**TASK_PAYLOAD, "title": f"Task {i}"})
+        await client.post("/tasks", json=TASK_PAYLOAD | {"title": f"Task {i}"})
 
     # Claim and complete one
-    create_resp = await client.post("/tasks", json={**TASK_PAYLOAD, "title": "complete-me"})
+    create_resp = await client.post("/tasks", json=TASK_PAYLOAD | {"title": "complete-me"})
     tid = create_resp.json()["id"]
     await client.post(f"/tasks/{tid}/claim")
     await client.post(f"/tasks/{tid}/complete", json={"result_summary": "ok"})
 
     # Claim and fail one
-    create_resp2 = await client.post("/tasks", json={**TASK_PAYLOAD, "title": "fail-me"})
+    create_resp2 = await client.post("/tasks", json=TASK_PAYLOAD | {"title": "fail-me"})
     tid2 = create_resp2.json()["id"]
     await client.post(f"/tasks/{tid2}/claim")
     await client.post(f"/tasks/{tid2}/fail", json={"reason": "boom"})
@@ -727,8 +727,8 @@ async def test_status_counts(client: AsyncClient) -> None:
     """GET /status returns correct counts after mixed operations."""
     # Create 3 tasks
     r1 = await client.post("/tasks", json=TASK_PAYLOAD)
-    r2 = await client.post("/tasks", json={**TASK_PAYLOAD, "title": "T2"})
-    await client.post("/tasks", json={**TASK_PAYLOAD, "title": "T3", "role": "qa"})
+    r2 = await client.post("/tasks", json=TASK_PAYLOAD | {"title": "T2"})
+    await client.post("/tasks", json=TASK_PAYLOAD | {"title": "T3", "role": "qa"})
 
     # Complete one, fail another
     await client.post(f"/tasks/{r1.json()['id']}/claim")
@@ -945,8 +945,7 @@ def test_stale_agent_detection(tmp_path: Path) -> None:
 @pytest.mark.anyio
 async def test_create_task_with_completion_signals_stored(client: AsyncClient) -> None:
     """POST /tasks with completion_signals stores them and returns them."""
-    payload = {
-        **TASK_PAYLOAD,
+    payload = TASK_PAYLOAD | {
         "completion_signals": [
             {"type": "path_exists", "value": "src/foo.py"},
             {"type": "file_contains", "value": "def main"},
@@ -964,8 +963,7 @@ async def test_create_task_with_completion_signals_stored(client: AsyncClient) -
 @pytest.mark.anyio
 async def test_get_task_returns_completion_signals(client: AsyncClient) -> None:
     """GET /tasks/{id} returns completion_signals that were set on creation."""
-    payload = {
-        **TASK_PAYLOAD,
+    payload = TASK_PAYLOAD | {
         "completion_signals": [
             {"type": "glob_exists", "value": "tests/**/*.py"},
         ],
@@ -990,7 +988,7 @@ async def test_all_six_signal_types_accepted(client: AsyncClient) -> None:
         {"type": "llm_review", "value": "Verify the implementation is correct"},
         {"type": "llm_judge", "value": "Does the output satisfy the requirements?"},
     ]
-    payload = {**TASK_PAYLOAD, "completion_signals": all_signals}
+    payload = TASK_PAYLOAD | {"completion_signals": all_signals}
     resp = await client.post("/tasks", json=payload)
     assert resp.status_code == 201
     data = resp.json()
@@ -1017,8 +1015,7 @@ async def test_empty_completion_signals_backward_compat(client: AsyncClient) -> 
 @pytest.mark.anyio
 async def test_invalid_signal_type_rejected(client: AsyncClient) -> None:
     """POST /tasks with an invalid signal type returns 422."""
-    payload = {
-        **TASK_PAYLOAD,
+    payload = TASK_PAYLOAD | {
         "completion_signals": [{"type": "not_a_real_signal", "value": "whatever"}],
     }
     resp = await client.post("/tasks", json=payload)
@@ -1076,8 +1073,7 @@ async def test_progress_on_missing_task_returns_404(client: AsyncClient) -> None
 @pytest.mark.anyio
 async def test_completion_signals_preserved_after_complete(client: AsyncClient) -> None:
     """Completing a task does not discard completion_signals."""
-    payload = {
-        **TASK_PAYLOAD,
+    payload = TASK_PAYLOAD | {
         "completion_signals": [{"type": "test_passes", "value": "pytest"}],
     }
     create_resp = await client.post("/tasks", json=payload)
@@ -1095,8 +1091,7 @@ async def test_completion_signals_preserved_after_complete(client: AsyncClient) 
 @pytest.mark.anyio
 async def test_list_tasks_returns_completion_signals(client: AsyncClient) -> None:
     """GET /tasks includes completion_signals for each task in the list."""
-    payload = {
-        **TASK_PAYLOAD,
+    payload = TASK_PAYLOAD | {
         "completion_signals": [{"type": "path_exists", "value": "README.md"}],
     }
     await client.post("/tasks", json=payload)
@@ -1170,7 +1165,7 @@ async def test_archive_endpoint_returns_records(client: AsyncClient, tmp_path: P
     store._archive_path = archive_path
 
     r1 = await client.post("/tasks", json=TASK_PAYLOAD)
-    r2 = await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Task 2"})
+    r2 = await client.post("/tasks", json=TASK_PAYLOAD | {"title": "Task 2"})
     await client.post(f"/tasks/{r1.json()['id']}/claim")
     await client.post(f"/tasks/{r1.json()['id']}/complete", json={"result_summary": "ok"})
     await client.post(f"/tasks/{r2.json()['id']}/claim")
@@ -1193,7 +1188,7 @@ async def test_archive_endpoint_limit(client: AsyncClient, tmp_path: Path) -> No
     store._archive_path = archive_path
 
     for i in range(3):
-        r = await client.post("/tasks", json={**TASK_PAYLOAD, "title": f"T{i}"})
+        r = await client.post("/tasks", json=TASK_PAYLOAD | {"title": f"T{i}"})
         await client.post(f"/tasks/{r.json()['id']}/claim")
         await client.post(f"/tasks/{r.json()['id']}/complete", json={"result_summary": "ok"})
 
@@ -1278,8 +1273,8 @@ async def test_status_cost_per_role_breakdown(client_with_metrics: AsyncClient, 
     ]
     metrics_jsonl_path.write_text("\n".join(json.dumps(r) for r in records) + "\n")
     # Also create tasks so per_role is populated
-    await client_with_metrics.post("/tasks", json={**TASK_PAYLOAD, "role": "backend"})
-    await client_with_metrics.post("/tasks", json={**TASK_PAYLOAD, "role": "qa"})
+    await client_with_metrics.post("/tasks", json=TASK_PAYLOAD | {"role": "backend"})
+    await client_with_metrics.post("/tasks", json=TASK_PAYLOAD | {"role": "qa"})
 
     resp = await client_with_metrics.get("/status")
     data = resp.json()
@@ -1311,8 +1306,8 @@ async def test_create_upgrade_task(client: AsyncClient) -> None:
     }
     resp = await client.post(
         "/tasks",
-        json={
-            **TASK_PAYLOAD,
+        json=TASK_PAYLOAD
+        | {
             "task_type": "upgrade_proposal",
             "upgrade_details": upgrade_details,
         },
@@ -1331,8 +1326,8 @@ async def test_create_task_with_model_effort(client: AsyncClient) -> None:
     """POST /tasks with model and effort stores both fields."""
     resp = await client.post(
         "/tasks",
-        json={
-            **TASK_PAYLOAD,
+        json=TASK_PAYLOAD
+        | {
             "model": "opus",
             "effort": "max",
         },
@@ -1349,8 +1344,8 @@ async def test_create_task_with_depends_on(client: AsyncClient) -> None:
     dep = (await client.post("/tasks", json=TASK_PAYLOAD)).json()["id"]
     resp = await client.post(
         "/tasks",
-        json={
-            **TASK_PAYLOAD,
+        json=TASK_PAYLOAD
+        | {
             "depends_on": [dep],
         },
     )
@@ -1634,7 +1629,7 @@ async def test_claim_by_id_already_claimed(client: AsyncClient) -> None:
 async def test_claim_batch_all_succeed(client: AsyncClient) -> None:
     """POST /tasks/claim-batch claims all listed open tasks."""
     r1 = await client.post("/tasks", json=TASK_PAYLOAD)
-    r2 = await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Task B"})
+    r2 = await client.post("/tasks", json=TASK_PAYLOAD | {"title": "Task B"})
     id1 = r1.json()["id"]
     id2 = r2.json()["id"]
 
@@ -1652,7 +1647,7 @@ async def test_claim_batch_all_succeed(client: AsyncClient) -> None:
 async def test_claim_batch_partial_failure(client: AsyncClient) -> None:
     """POST /tasks/claim-batch skips already-claimed tasks."""
     r1 = await client.post("/tasks", json=TASK_PAYLOAD)
-    r2 = await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Task B"})
+    r2 = await client.post("/tasks", json=TASK_PAYLOAD | {"title": "Task B"})
     id1 = r1.json()["id"]
     id2 = r2.json()["id"]
 
@@ -1728,7 +1723,7 @@ async def test_get_task_unknown(client: AsyncClient) -> None:
 async def test_create_task_with_invalid_scope(client: AsyncClient) -> None:
     """POST /tasks with scope='bogus' should not succeed (raises ValueError or returns non-201)."""
     try:
-        resp = await client.post("/tasks", json={**TASK_PAYLOAD, "scope": "bogus"})
+        resp = await client.post("/tasks", json=TASK_PAYLOAD | {"scope": "bogus"})
     except ValueError:
         pass  # ValueError propagated through ASGI transport — server rejected input
     else:
@@ -1739,7 +1734,7 @@ async def test_create_task_with_invalid_scope(client: AsyncClient) -> None:
 async def test_create_task_with_invalid_complexity(client: AsyncClient) -> None:
     """POST /tasks with complexity='bogus' should not succeed (raises ValueError or returns non-201)."""
     try:
-        resp = await client.post("/tasks", json={**TASK_PAYLOAD, "complexity": "bogus"})
+        resp = await client.post("/tasks", json=TASK_PAYLOAD | {"complexity": "bogus"})
     except ValueError:
         pass  # ValueError propagated through ASGI transport — server rejected input
     else:
@@ -1781,14 +1776,14 @@ async def test_claim_next_skips_tasks_with_unmet_deps(client: AsyncClient) -> No
     2. After the dep is completed, GET /tasks/next/{role} can claim the previously blocked task.
     """
     # Create the dependency task (qa role — stays open, different from backend)
-    dep_resp = await client.post("/tasks", json={**TASK_PAYLOAD, "role": "qa", "title": "Dep task"})
+    dep_resp = await client.post("/tasks", json=TASK_PAYLOAD | {"role": "qa", "title": "Dep task"})
     dep_id = dep_resp.json()["id"]
 
     # Create a backend task that depends on the qa dep
     blocked_resp = await client.post(
         "/tasks",
-        json={
-            **TASK_PAYLOAD,
+        json=TASK_PAYLOAD
+        | {
             "title": "Blocked task",
             "depends_on": [dep_id],
         },
@@ -1813,8 +1808,7 @@ async def test_claim_next_skips_tasks_with_unmet_deps(client: AsyncClient) -> No
 @pytest.mark.anyio
 async def test_create_task_with_completion_signals(client: AsyncClient) -> None:
     """POST /tasks with completion_signals field is accepted and task is created."""
-    payload = {
-        **TASK_PAYLOAD,
+    payload = TASK_PAYLOAD | {
         "completion_signals": [
             {"type": "path_exists", "value": "src/foo.py"},
             {"type": "test_passes", "value": "uv run pytest tests/ -q"},
@@ -1847,15 +1841,15 @@ async def test_heartbeat_unknown_agent(client: AsyncClient) -> None:
 async def test_dependency_blocks_open_listing(client: AsyncClient) -> None:
     """Task B with depends_on=[A.id] is hidden from GET /tasks?status=open until A is done."""
     # Create task A
-    resp_a = await client.post("/tasks", json={**TASK_PAYLOAD, "title": "Task A"})
+    resp_a = await client.post("/tasks", json=TASK_PAYLOAD | {"title": "Task A"})
     assert resp_a.status_code == 201
     task_a_id = resp_a.json()["id"]
 
     # Create task B that depends on A
     resp_b = await client.post(
         "/tasks",
-        json={
-            **TASK_PAYLOAD,
+        json=TASK_PAYLOAD
+        | {
             "title": "Task B",
             "depends_on": [task_a_id],
         },
@@ -2103,7 +2097,7 @@ async def test_list_nodes_empty(cluster_client: AsyncClient) -> None:
 async def test_list_nodes_after_register(cluster_client: AsyncClient) -> None:
     """GET /cluster/nodes returns registered nodes."""
     await cluster_client.post("/cluster/nodes", json=NODE_PAYLOAD)
-    await cluster_client.post("/cluster/nodes", json={**NODE_PAYLOAD, "name": "worker-2", "url": "http://w2:8052"})
+    await cluster_client.post("/cluster/nodes", json=NODE_PAYLOAD | {"name": "worker-2", "url": "http://w2:8052"})
     resp = await cluster_client.get("/cluster/nodes")
     assert resp.status_code == 200
     assert len(resp.json()) == 2
@@ -2115,7 +2109,7 @@ async def test_node_heartbeat(cluster_client: AsyncClient) -> None:
     reg = await cluster_client.post("/cluster/nodes", json=NODE_PAYLOAD)
     node_id = reg.json()["id"]
 
-    hb_payload = {"capacity": {**NODE_PAYLOAD["capacity"], "available_slots": 2, "active_agents": 2}}
+    hb_payload = {"capacity": NODE_PAYLOAD["capacity"] | {"available_slots": 2, "active_agents": 2}}
     resp = await cluster_client.post(f"/cluster/nodes/{node_id}/heartbeat", json=hb_payload)
     assert resp.status_code == 200
     data = resp.json()

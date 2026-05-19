@@ -224,19 +224,18 @@ class DrainScreen(Screen[DrainReport | None]):
         lines: list[str] = []
 
         # Task stats.
-        lines.append(
-            f"Tasks: {report.tasks_done} done  \u00b7  "
-            f"{report.tasks_partial} partial  \u00b7  "
-            f"{report.tasks_failed} failed"
+        lines.extend(
+            (
+                f"Tasks: {report.tasks_done} done  ·  {report.tasks_partial} partial  ·  {report.tasks_failed} failed",
+                f"Cost: ${report.cost_usd:.2f}  ·  Duration: {duration}",
+            )
         )
-        lines.append(f"Cost: ${report.cost_usd:.2f}  \u00b7  Duration: {duration}")
 
         # Merge results.
         merged = sum(1 for m in report.merges if m.action == "merged")
         skipped = sum(1 for m in report.merges if m.action != "merged")
         if report.merges:
-            lines.append("")
-            lines.append("Merge results (Opus):")
+            lines.extend(("", "Merge results (Opus):"))
             if merged:
                 lines.append(
                     f"[green]\u2713 {merged} branch{'es' if merged != 1 else ''} cherry-picked to main[/green]"
@@ -245,11 +244,13 @@ class DrainScreen(Screen[DrainReport | None]):
                 lines.append(f"[dim]\u2298 {skipped} branch{'es' if skipped != 1 else ''} skipped[/dim]")
 
         # Cleanup stats.
-        lines.append("")
-        lines.append("Cleanup:")
-        lines.append(
-            f"[green]\u2713 {report.worktrees_removed} worktrees removed  "
-            f"\u00b7  {report.branches_deleted} branches deleted[/green]"
+        lines.extend(
+            (
+                "",
+                "Cleanup:",
+                f"[green]✓ {report.worktrees_removed} worktrees removed  "
+                f"·  {report.branches_deleted} branches deleted[/green]",
+            )
         )
         if report.tasks_partial:
             lines.append(f"[green]\u2713 {report.tasks_partial} partial tickets annotated[/green]")

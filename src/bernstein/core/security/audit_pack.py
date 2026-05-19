@@ -385,7 +385,7 @@ def _resolve_one(
 
     age_days = (now_ts - mtime) / 86400.0
     if age_days > stale_after_days:
-        details = {**details, "age_days": round(age_days, 1)}
+        details = details | {"age_days": round(age_days, 1)}
         return ResolvedEvidence(
             source=source,
             status=STATUS_STALE,

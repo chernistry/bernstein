@@ -30,8 +30,7 @@ def _run(args: list[str], lock_file: Path, **env_extra: str):
         "PR_PUSH_LOCK_FILE": str(lock_file),
         "PR_PUSH_LOCK_RETRY_COUNT": "2",
         "PR_PUSH_LOCK_RETRY_SLEEP_SEC": "0",
-        **env_extra,
-    }
+    } | env_extra
     return subprocess.run(
         ["bash", str(SCRIPT), *args],
         capture_output=True,

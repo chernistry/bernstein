@@ -1647,7 +1647,10 @@ class TaskStore:
             await asyncio.to_thread(
                 self._append_progress_record,
                 task_id,
-                {"kind": "entry", **entry},
+                {
+                    "kind": "entry",
+                }
+                | entry,
             )
             return task
 
@@ -2183,7 +2186,9 @@ class TaskStore:
 
         per_role = []
         for role, counts in sorted(role_counts.items()):
-            entry: dict[str, Any] = {"role": role, **counts}
+            entry: dict[str, Any] = {
+                "role": role,
+            } | counts
             if role in cost_by_role:
                 entry["cost_usd"] = round(cost_by_role[role], 4)
             per_role.append(entry)

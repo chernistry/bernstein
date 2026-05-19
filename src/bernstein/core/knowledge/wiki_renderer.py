@@ -138,8 +138,7 @@ def _render_top_level_structure(files: list[str]) -> list[str]:
     lines = ["## Top-level structure", ""]
     dirs = _collect_top_level_dirs(files)
     if not dirs:
-        lines.append("_No tracked source directories detected._")
-        lines.append("")
+        lines.extend(("_No tracked source directories detected._", ""))
         return lines
     for top in dirs:
         lines.append(f"- `{top}/`")
@@ -164,13 +163,11 @@ def _render_public_api(graph: SemanticGraph) -> list[str]:
     lines = ["## Public API summary", ""]
     by_pkg = _collect_packages(graph)
     if not by_pkg:
-        lines.append("_No public symbols extracted from the graph._")
-        lines.append("")
+        lines.extend(("_No public symbols extracted from the graph._", ""))
         return lines
     packages = sorted(by_pkg.keys())[:_MAX_PACKAGES_LISTED]
     for pkg in packages:
-        lines.append(f"### `{pkg}`")
-        lines.append("")
+        lines.extend((f"### `{pkg}`", ""))
         for node in by_pkg[pkg][:_MAX_PUBLIC_SYMBOLS_PER_PACKAGE]:
             lines.append(_format_symbol(node))
         remaining = len(by_pkg[pkg]) - _MAX_PUBLIC_SYMBOLS_PER_PACKAGE
@@ -179,8 +176,7 @@ def _render_public_api(graph: SemanticGraph) -> list[str]:
         lines.append("")
     skipped = len(by_pkg) - len(packages)
     if skipped > 0:
-        lines.append(f"_+{skipped} more sub-packages not shown._")
-        lines.append("")
+        lines.extend((f"_+{skipped} more sub-packages not shown._", ""))
     return lines
 
 
@@ -189,8 +185,7 @@ def _render_test_layout(files: list[str]) -> list[str]:
     lines = ["## Test layout", ""]
     test_files = [p for p in files if _is_test_file(p) and _is_python_file(p)]
     if not test_files:
-        lines.append("_No tests detected._")
-        lines.append("")
+        lines.extend(("_No tests detected._", ""))
         return lines
     dirs = _collect_test_dirs(test_files)
     lines.append(f"- {len(test_files)} test file(s) tracked.")

@@ -80,8 +80,7 @@ def _render_ascii_graph(data: dict[str, Any]) -> str:
 
     edges = cast(_CAST_LIST_DICT_STR_ANY, data.get("edges", []))
     if edges:
-        lines.append("")
-        lines.append("Dependencies:")
+        lines.extend(("", "Dependencies:"))
         for edge in edges:
             source_id = str(edge.get("from", ""))
             target_id = str(edge.get("to", ""))
@@ -90,18 +89,14 @@ def _render_ascii_graph(data: dict[str, Any]) -> str:
             lines.append(f"  {source_id[:8]} {source_title} --> {target_id[:8]} {target_title}")
 
     if critical_path:
-        lines.append("")
-        lines.append("Critical path:")
-        lines.append("  " + " -> ".join(task_id[:8] for task_id in critical_path))
+        lines.extend(("", "Critical path:", "  " + " -> ".join(task_id[:8] for task_id in critical_path)))
         minutes = int(data.get("critical_path_minutes", 0) or 0)
         if minutes > 0:
             lines.append(f"  Estimated duration: {minutes} min")
 
     bottlenecks = cast(_CAST_LIST_OBJ, data.get("bottlenecks", []))
     if bottlenecks:
-        lines.append("")
-        lines.append("Bottlenecks:")
-        lines.append("  " + ", ".join(str(task_id)[:8] for task_id in bottlenecks))
+        lines.extend(("", "Bottlenecks:", "  " + ", ".join(str(task_id)[:8] for task_id in bottlenecks)))
 
     return "\n".join(lines)
 
@@ -121,9 +116,13 @@ def _render_mermaid_graph(data: dict[str, Any]) -> str:
     for edge in edges:
         lines.append(f"    {edge.get('from', '')!s} --> {edge.get('to', '')!s}")
     if critical_set:
-        lines.append("")
-        lines.append("    classDef critical stroke:#d97706,stroke-width:3px;")
-        lines.append("    class " + ",".join(sorted(critical_set)) + " critical;")
+        lines.extend(
+            (
+                "",
+                "    classDef critical stroke:#d97706,stroke-width:3px;",
+                "    class " + ",".join(sorted(critical_set)) + " critical;",
+            )
+        )
     return "\n".join(lines)
 
 

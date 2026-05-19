@@ -6,6 +6,7 @@ import os
 import signal
 import sys
 import time
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -310,12 +311,10 @@ def is_json() -> bool:
     This returns ``True`` when either ``--json`` or ``--output json`` was
     passed to the top-level CLI group or to the current subcommand.
     """
-    try:
+    with suppress(Exception):
         ctx = click.get_current_context(silent=True)
         if ctx and ctx.obj:
             return bool(ctx.obj.get("JSON", False))
-    except Exception:
-        pass
     return False
 
 
@@ -325,13 +324,11 @@ def set_json_output(enabled: bool = True) -> None:
     Args:
         enabled: Whether to enable or disable JSON output.
     """
-    try:
+    with suppress(Exception):
         ctx = click.get_current_context(silent=True)
         if ctx:
             ctx.ensure_object(dict)
             ctx.obj["JSON"] = enabled
-    except Exception:
-        pass
 
 
 def print_json(data: Any) -> None:

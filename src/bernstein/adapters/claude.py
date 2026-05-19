@@ -485,12 +485,10 @@ class ClaudeCodeAdapter(CLIAdapter):
         # Merge with existing settings if present
         existing: dict[str, Any] = {}
         if settings_path.exists():
-            try:
+            with contextlib.suppress(json.JSONDecodeError, OSError):
                 raw = json.loads(settings_path.read_text(encoding="utf-8"))
                 if isinstance(raw, dict):
                     existing = cast(_CAST_DICT_STR_ANY, raw)
-            except (json.JSONDecodeError, OSError):
-                pass  # Settings file missing or corrupt; start fresh
 
         existing["hooks"] = hooks_config
         try:
@@ -532,9 +530,9 @@ class ClaudeCodeAdapter(CLIAdapter):
         if mcp_config:
             if "mcpServers" in mcp_config:
                 effective_mcp = {**mcp_config}
-                effective_mcp["mcpServers"] = {**mcp_config["mcpServers"], "bernstein": bridge_server}
+                effective_mcp["mcpServers"] = mcp_config["mcpServers"] | {"bernstein": bridge_server}
             else:
-                effective_mcp = {"mcpServers": {**mcp_config, "bernstein": bridge_server}}
+                effective_mcp = {"mcpServers": mcp_config | {"bernstein": bridge_server}}
         else:
             effective_mcp = {"mcpServers": {"bernstein": bridge_server}}
 

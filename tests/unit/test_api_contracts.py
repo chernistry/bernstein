@@ -143,7 +143,7 @@ class TestTaskResponseContract:
         from bernstein.core.models import TaskStatus
 
         for s in TaskStatus:
-            data = {**self._FULL_RESPONSE, "status": s.value}
+            data = self._FULL_RESPONSE | {"status": s.value}
             _validate_round_trip(TaskResponse, data)
 
     def test_json_serializable(self) -> None:

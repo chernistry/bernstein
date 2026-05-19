@@ -484,7 +484,10 @@ def test_hooks_with_valid_hmac_returns_200(monkeypatch: pytest.MonkeyPatch, tmp_
     response = client.post(
         "/hooks/agent-123",
         content=body,
-        headers={"Content-Type": "application/json", **_hmac_header(body, secret)},
+        headers={
+            "Content-Type": "application/json",
+        }
+        | _hmac_header(body, secret),
     )
 
     assert response.status_code == 200, response.text

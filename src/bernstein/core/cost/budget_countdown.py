@@ -26,6 +26,7 @@ adapter hot paths.
 from __future__ import annotations
 
 import os
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -217,7 +218,7 @@ def record_graceful_finish(card: AgentIdentityCard, turn_state: TurnState) -> No
     from bernstein.core.observability import prometheus as _prom
 
     role = card.role or "unknown"
-    try:
+    with suppress(Exception):
         # ``prometheus_client`` ships without type stubs, hence the
         # ``reportUnknownMemberType`` pragmas. The pattern mirrors
         # :mod:`bernstein.core.agents.spawner_prompt`.
@@ -229,10 +230,6 @@ def record_graceful_finish(card: AgentIdentityCard, turn_state: TurnState) -> No
         ).observe(  # pyright: ignore[reportUnknownMemberType]
             float(turn_state.percentage_left(card)),
         )
-    except Exception:  # pragma: no cover — telemetry must not break callers
-        # Prometheus stub falls through silently, but a real registry may
-        # raise on duplicate registration in noisy multi-test environments.
-        pass
 
 
 def task_budgets_env_overlay(card: AgentIdentityCard) -> dict[str, str]:

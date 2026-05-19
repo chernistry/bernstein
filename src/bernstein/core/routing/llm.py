@@ -6,6 +6,7 @@ import asyncio as _asyncio
 import logging
 import time
 import urllib.request as _urllib_request
+from contextlib import suppress
 from typing import TYPE_CHECKING
 
 from openai import AsyncOpenAI
@@ -135,13 +136,11 @@ async def _call_cli_provider(prompt: str, model: str, provider: str) -> str:
         prompt_flag, model_flag, extra = _CLI_FLAGS[provider]
     else:
         prompt_flag, model_flag, extra = "-p", "-m", []
-        try:
+        with suppress(Exception):
             from bernstein.adapters.registry import get_adapter
 
             get_adapter(provider)
             logger.debug("Using registered adapter '%s' as internal LLM CLI", provider)
-        except Exception:
-            pass
 
     logger.debug("Calling %s CLI: model=%s", cli_binary, model)
     try:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
+
 from bernstein.tui.vim_mode import (
     VimAction,
     VimActionKind,
@@ -39,11 +41,9 @@ class TestVimAction:
 
     def test_is_frozen(self) -> None:
         action = VimAction(VimActionKind.NONE)
-        try:
+        with suppress(AttributeError):
             action.kind = VimActionKind.SCROLL_UP  # type: ignore[misc]
             raise AssertionError("Should have raised")
-        except AttributeError:
-            pass
 
 
 # --- VimState: normal mode basics ---

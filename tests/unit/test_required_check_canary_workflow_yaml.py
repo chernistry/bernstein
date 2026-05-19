@@ -252,9 +252,7 @@ def test_stub_emits_ci_gate_check(stub_doc: dict[str, object]) -> None:
     jobs = stub_doc.get("jobs")
     assert isinstance(jobs, dict)
     job = jobs.get(REQUIRED_JOB_KEY)
-    assert isinstance(job, dict), (
-        f"ci-gate-stub.yml must define a `{REQUIRED_JOB_KEY}` job."
-    )
+    assert isinstance(job, dict), f"ci-gate-stub.yml must define a `{REQUIRED_JOB_KEY}` job."
     assert job.get("name") == REQUIRED_CONTEXT, (
         f"ci-gate-stub.yml::{REQUIRED_JOB_KEY}.name must equal "
         f"{REQUIRED_CONTEXT!r} so branch protection's required context "
@@ -262,9 +260,7 @@ def test_stub_emits_ci_gate_check(stub_doc: dict[str, object]) -> None:
     )
 
 
-def test_stub_paths_mirror_ci_paths_ignore(
-    ci_doc: dict[str, object], stub_doc: dict[str, object]
-) -> None:
+def test_stub_paths_mirror_ci_paths_ignore(ci_doc: dict[str, object], stub_doc: dict[str, object]) -> None:
     """The stub's ``paths:`` list MUST be identical to ci.yml's
     ``pull_request.paths-ignore:`` list. Otherwise a PR could fail both
     filters and emit no `CI gate` check at all (BLOCKED forever), or

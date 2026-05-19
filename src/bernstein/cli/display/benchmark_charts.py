@@ -206,14 +206,11 @@ def render_comparison_report(data_points: list[BenchmarkDataPoint]) -> str:
     sections: list[str] = ["=" * 60, "Benchmark Comparison Report", "=" * 60, ""]
 
     for metric in ("completion_time", "cost", "quality"):
-        sections.append(render_trend_chart(data_points, metric))
-        sections.append("")
+        sections.extend((render_trend_chart(data_points, metric), ""))
 
     # Summary table
     if data_points:
-        sections.append("-" * 60)
-        sections.append("Summary")
-        sections.append("-" * 60)
+        sections.extend(("-" * 60, "Summary", "-" * 60))
         header = f"  {'Run ID':>16}  {'Time(s)':>8}  {'Cost($)':>8}  {'Quality':>8}  {'Pass':>6}"
         sections.append(header)
         for pt in data_points:

@@ -320,11 +320,9 @@ def format_usage_report(budget: UsageBudget) -> str:
 
     # --- Overall status ---
     if is_over_budget(budget):
-        lines.append("")
-        lines.append("  [bold red]OVER BUDGET. Stop spawning agents until reset[/bold red]")
+        lines.extend(("", "  [bold red]OVER BUDGET. Stop spawning agents until reset[/bold red]"))
     else:
-        lines.append("")
-        lines.append("  [green]Within budget[/green]")
+        lines.extend(("", "  [green]Within budget[/green]"))
 
     if budget.reset_at_ts > 0:
         reset_dt = datetime.fromtimestamp(budget.reset_at_ts, tz=UTC)

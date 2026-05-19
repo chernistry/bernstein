@@ -145,7 +145,7 @@ def test_property_non_iso_dates_rejected(bad: str) -> None:
     )
 )
 def test_property_extra_keys_do_not_break_validation(extra: dict[str, Any]) -> None:
-    meta = {**_base(), **extra}
+    meta = _base() | extra
     rep = validate_ticket_metadata(meta)
     assert rep.ok
 

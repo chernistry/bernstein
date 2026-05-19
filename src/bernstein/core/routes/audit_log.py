@@ -103,8 +103,7 @@ def _normalise_audit_row(raw: dict[str, Any]) -> dict[str, Any]:
     ts = raw.get("ts") or raw.get("timestamp") or ""
     hash_val = raw.get("hash") or raw.get("sha") or ""
     action = raw.get("action") or raw.get("event_type") or ""
-    return {
-        **raw,
+    return raw | {
         "id": str(raw.get("id", hash_val[:12] if hash_val else "")),
         "ts": str(ts),
         "actor": str(raw.get("actor", "system")),

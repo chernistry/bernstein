@@ -128,7 +128,7 @@ def parse_session_output(
             continue
 
         # Try JSON parsing first.
-        try:
+        with contextlib.suppress(json.JSONDecodeError):
             obj = json.loads(stripped)
             if isinstance(obj, dict):
                 typed_obj = cast("dict[str, Any]", obj)
@@ -137,8 +137,6 @@ def parse_session_output(
                 if typed_obj.get("type") == "assistant" or typed_obj.get("role") == "assistant":
                     turns += 1
                 continue
-        except json.JSONDecodeError:
-            pass
 
         # Try regex patterns for text output.
         cost_match = _COST_LINE_PATTERN.search(stripped)

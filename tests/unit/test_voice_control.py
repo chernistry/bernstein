@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import textwrap
+from contextlib import suppress
 from pathlib import Path
 
 import pytest
@@ -32,11 +33,9 @@ def test_voice_intent_defaults() -> None:
 def test_voice_intent_is_frozen() -> None:
     """VoiceIntent instances cannot be mutated."""
     intent = VoiceIntent(action="stop", confidence=0.8)
-    try:
+    with suppress(AttributeError):
         intent.confidence = 0.1  # type: ignore[misc]
         raise AssertionError("Expected FrozenInstanceError")  # pragma: no cover
-    except AttributeError:
-        pass  # expected
 
 
 # ---------------------------------------------------------------------------
@@ -201,11 +200,9 @@ def test_voice_config_defaults() -> None:
 def test_voice_config_is_frozen() -> None:
     """VoiceConfig instances cannot be mutated."""
     cfg = VoiceConfig()
-    try:
+    with suppress(AttributeError):
         cfg.enabled = True  # type: ignore[misc]
         raise AssertionError("Expected FrozenInstanceError")  # pragma: no cover
-    except AttributeError:
-        pass  # expected
 
 
 # ---------------------------------------------------------------------------

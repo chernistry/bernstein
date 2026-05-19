@@ -84,5 +84,5 @@ warning.
 
 - Source: `src/bernstein/core/planning/spec_assertions.py`
 - Drain hook: `src/bernstein/core/orchestration/drain.py`
-- Run flag: `src/bernstein/cli/commands/run_cmd.py`
+- Run flag: `src/bernstein/cli/run_cmd.py`
 - PR #1003

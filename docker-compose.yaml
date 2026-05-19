@@ -157,7 +157,7 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:v2.52.0
+    image: prom/prometheus:v2.55.1
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"

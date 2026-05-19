@@ -219,6 +219,13 @@ class AbstractTrackerAdapter(ABC):
         *,
         idempotency_key: str | None = None,
     ) -> AttachResult:
-        """Attach a binary blob to ``ticket_id`` (default: not supported)."""
+        """Attach a binary blob to ``ticket_id`` (default: not supported).
+
+        Subclasses override this to upload ``blob`` using the declared
+        ``mime`` type. The default implementation discards the inputs so
+        ``mime`` is referenced here to keep the signature documented and
+        satisfy dead-code scanners.
+        """
+        del ticket_id, blob, mime, idempotency_key
         msg = f"{self.name} adapter does not support attach_blob"
         raise NotImplementedError(msg)

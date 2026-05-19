@@ -669,7 +669,14 @@ def splash(
     task_count: int = 0,
     skip_animation: bool = False,
 ) -> None:
-    """Show the startup splash, falling back to compact on any error."""
+    """Show the startup splash, falling back to compact on any error.
+
+    The bare ``except Exception`` below is load-bearing: any renderer crash
+    must not abort startup.  However a silent fallback hides regressions
+    where the premium splash silently turns into the compact one (the
+    "where is my banner" class of bug).  Set ``BERNSTEIN_DEBUG_SPLASH=1``
+    to surface the underlying error to stderr instead of swallowing it.
+    """
     try:
         from pathlib import Path
 
@@ -699,8 +706,16 @@ def splash(
             skip_animation=skip_animation,
             config=config,
         )
-    except Exception:
-        # Premium splash failed — fall back to compact splash.
+    except Exception as premium_err:
+        # Premium splash failed -- fall back to compact splash.  In debug
+        # mode the underlying error is surfaced so regressions of the
+        # "banner is gone" class are caught early instead of being masked.
+        if os.environ.get("BERNSTEIN_DEBUG_SPLASH"):
+            import traceback
+
+            sys.stderr.write(f"[splash] premium renderer failed: {premium_err!r}\n")
+            traceback.print_exc(file=sys.stderr)
+
         from bernstein.cli.splash import splash as compact_splash
 
         compact_splash(

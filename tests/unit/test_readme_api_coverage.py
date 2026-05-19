@@ -223,6 +223,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "bundle",
         # Playwright-based self-testing for UI/web agent runs
         "sandbox",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "trend-scan",
     }
 )
 

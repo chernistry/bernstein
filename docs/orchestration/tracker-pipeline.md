@@ -1,0 +1,205 @@
+# Tracker comments as a multi-agent handoff bus
+
+## TL;DR
+
+| Component | Purpose |
+|-----------|---------|
+| `PipelineConfig` | Typed view over `bernstein.yaml: orchestration.tracker_pipeline`. |
+| `PipelineStage` | One role in the pipeline (claim status, success status, failure status, optional prior-role gate). |
+| `ClaimLedger` | SQLite-backed distributed claim ledger with lease TTL. |
+| `make_idempotency_key` | Stable `sha256(tracker || ticket_id || role || stage || stage_attempt)`. |
+| `FailurePayload` + `format_failure_comment` | Structured failure taxonomy embedded in a fenced YAML block. |
+| `TrackerPipeline` | Stateless sweep loop binding the above pieces together. |
+| `tracker_pipeline.handoff` hook | Lifecycle hook fired on every stage transition. |
+
+Each specialist role (architect, backend, qa, security) reads and writes
+the same tracker ticket. The tracker is the durable, audit-trailed,
+human-observable substrate. No queue server, no DB, no service mesh.
+
+## Configuration
+
+Add a block to `bernstein.yaml`:
+
+```yaml
+orchestration:
+  tracker_pipeline:
+    claim_lock_ttl_seconds: 600
+    concurrency:
+      per_role_max_in_flight: 1
+    pipeline_stages:
+      - role: architect
+        claim_status: ready-for-design
+        success_status: design-approved
+        failure_status: design-blocked
+      - role: backend
+        claim_status: design-approved
+        success_status: code-review
+        failure_status: blocked
+        requires_prior_role: architect
+      - role: qa
+        claim_status: code-review
+        success_status: qa-passed
+        failure_status: qa-blocked
+        requires_prior_role: backend
+```
+
+Field reference:
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `pipeline_stages` | ordered list | Stage records (see below). |
+| `claim_lock_ttl_seconds` | integer | Lease duration for a stage claim. Default `600`. |
+| `concurrency.per_role_max_in_flight` | integer | Max live claims per role across trackers. Default `1`. |
+
+Stage record fields:
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `role` | string | Bernstein role prompt name. |
+| `claim_status` | string | Tracker status the stage claims from. |
+| `success_status` | string | Target status on success. |
+| `failure_status` | string | Target status on a non-transient failure. Transient failures return the ticket to `claim_status`. |
+| `requires_prior_role` | string (optional) | Stage may only claim if a structured success block from this role appears on the ticket. |
+
+## Distributed claim ledger
+
+The ledger lives at `.sdd/state/tracker_claims.db` (override with
+`--state-root`). Rows are keyed by `(tracker, ticket_id, role)`. The
+schema is created on first use.
+
+Two agents racing for the same `(tracker, ticket_id, role)` produce
+exactly one `INSERT OR FAIL` success. The losing caller learns the
+holder's `claimer_id` and skips the ticket on the current tick. A
+crashed worker's claim ages out after `claim_lock_ttl_seconds` and the
+next caller picks it up.
+
+The ledger also enforces `per_role_max_in_flight`: when a role's live
+claim count reaches the ceiling, the loop stops dispatching new claims
+for that role until somebody releases.
+
+## Idempotency keys
+
+Every tracker write carries a stable key:
+
+```text
+sha256(tracker || "\x1f" || ticket_id || "\x1f" || role || "\x1f" || stage || "\x1f" || stage_attempt)
+```
+
+The pipeline derives the key inside `_process_ticket` and threads
+`<key>:comment` and `<key>:transition` into the adapter calls. Adapters
+that honour HTTP `Idempotency-Key` headers reuse the same key; adapters
+that need an in-comment fingerprint embed the key in the structured
+block.
+
+## Structured failure taxonomy
+
+Every failure-side stage transition writes a comment with a fenced
+block:
+
+````text
+qa noticed three flaky cases.
+
+```yaml bernstein:failure
+role: "qa"
+stage_attempt: 1
+idempotency_key: "<sha256-hex>"
+reason_code: "tests.failed"
+category: "transient"
+transient: true
+next_action: "retry"
+detail: "3 cases red"
+```
+````
+
+Allowed categories: `transient`, `permanent`, `policy`, `unknown`.
+Allowed `next_action`: `retry`, `escalate`, `abandon`, `manual`.
+
+`parse_failure_block(comment_body)` lifts the block back into a Python
+dict so downstream automation does not need to re-implement YAML
+parsing.
+
+The success path writes a symmetric ``bernstein:success`` block with the
+role's free-text summary so handoff consumers recognise a clean
+transition without re-parsing prose.
+
+## Lifecycle hook
+
+On every stage transition the pipeline fires the
+`tracker_pipeline.handoff` event through any `HookRegistry` instance
+attached on the `TrackerPipeline`. The payload keys:
+
+* `handoff_event_name`: always `"tracker_pipeline.handoff"`.
+* `tracker`, `ticket_id`, `role`.
+* `from_status`, `to_status`.
+* `stage_attempt`, `outcome` (`"success"` or `"failure"`),
+  `idempotency_key`.
+
+Operators wire metrics dashboards, escalation rules, and tracker
+mirroring through this single seam.
+
+## Worked example: architect -> backend -> qa
+
+```python
+from pathlib import Path
+
+from bernstein.core.lifecycle.hooks import HookRegistry
+from bernstein.core.orchestration.tracker_pipeline import (
+    build_pipeline_from_yaml,
+)
+
+raw = {
+    "pipeline_stages": [
+        {
+            "role": "architect",
+            "claim_status": "ready-for-design",
+            "success_status": "design-approved",
+            "failure_status": "design-blocked",
+        },
+        {
+            "role": "backend",
+            "claim_status": "design-approved",
+            "success_status": "code-review",
+            "failure_status": "blocked",
+            "requires_prior_role": "architect",
+        },
+        {
+            "role": "qa",
+            "claim_status": "code-review",
+            "success_status": "qa-passed",
+            "failure_status": "qa-blocked",
+            "requires_prior_role": "backend",
+        },
+    ],
+    "claim_lock_ttl_seconds": 600,
+    "concurrency": {"per_role_max_in_flight": 1},
+}
+
+# trackers and dispatcher are supplied by the orchestrator; see
+# bernstein.core.trackers.contract for the adapter contract.
+pipeline = build_pipeline_from_yaml(
+    raw,
+    trackers=trackers,        # mapping name -> AbstractTrackerAdapter
+    dispatcher=dispatcher,    # supplies role execution
+    state_root=Path(".sdd"),
+    hook_registry=HookRegistry(),
+)
+
+# One non-blocking sweep across configured trackers. Schedule via cron,
+# systemd, or `bernstein daemon`.
+pipeline.tick()
+```
+
+## CLI
+
+| Command | Purpose |
+|---------|---------|
+| `bernstein pipeline run --dry-run` | Print resolved pipeline without dispatching. |
+| `bernstein pipeline run` | One non-blocking sweep across configured trackers. |
+| `bernstein pipeline status` | Print open handoffs from the SQLite ledger. |
+| `bernstein pipeline status --as-json` | Machine-readable output for dashboards. |
+
+## What is deliberately out of scope
+
+* Tracker adapter implementations themselves (separate per-tracker tickets).
+* Webhook ingestion (separate ticket).
+* Auto-discovery of pipeline shape from a tracker workflow.

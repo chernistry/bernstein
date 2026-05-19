@@ -244,6 +244,7 @@ from bernstein.cli.commands.autofix_cmd import autofix_group
 from bernstein.cli.commands.creds_cmd import connect_cmd, creds_group
 from bernstein.cli.commands.daemon_cmd import daemon_group
 from bernstein.cli.commands.hooks_cmd import hooks as hooks_group
+from bernstein.cli.commands.pipeline_cmd import pipeline_group
 from bernstein.cli.commands.pr_cmd import pr_cmd
 from bernstein.cli.commands.preview_cmd import preview_group
 from bernstein.cli.commands.remote_cmd import remote_group
@@ -916,6 +917,7 @@ cli.add_command(tunnel_group, "tunnel")
 cli.add_command(preview_group, "preview")
 cli.add_command(daemon_group, "daemon")
 cli.add_command(autofix_group, "autofix")
+cli.add_command(pipeline_group, "pipeline")
 cli.add_command(connect_cmd, "connect")
 cli.add_command(creds_group, "creds")
 cli.add_command(criterion_profile_group, "criterion-profile")

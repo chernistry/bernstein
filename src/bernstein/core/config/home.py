@@ -352,7 +352,7 @@ def resolve_config(
     """
     project_config = _load_project_config(project_dir)
     global_data = home.load_raw()
-    combined_session_overrides = {**_session_overrides_from_env(), **dict(session_overrides or {})}
+    combined_session_overrides = _session_overrides_from_env() | dict(session_overrides or {})
 
     layers: list[ConfigProvenanceLayer] = []
     if key in combined_session_overrides:

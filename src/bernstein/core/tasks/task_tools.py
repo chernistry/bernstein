@@ -192,7 +192,7 @@ def merge_mcp_configs(
     base_servers: dict[str, Any] = dict(base.get("mcpServers", {}))
     task_servers: dict[str, Any] = task_tools.get("mcpServers", {})
 
-    merged_servers = {**base_servers, **task_servers}
+    merged_servers = base_servers | task_servers
     return {"mcpServers": merged_servers}
 
 

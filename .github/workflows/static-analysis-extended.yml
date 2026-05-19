@@ -119,11 +119,20 @@ jobs:
             --sarif-output=semgrep.sarif \
             "${extra_args[@]}" \
             src/
+      - name: Drop suppressed SARIF results
+        # Inline `# nosemgrep: <rule-id>` markers populate the SARIF
+        # `suppressions` array but Code Scanning still ingests the
+        # result. Strip those locally so the Security tab matches local
+        # intent. See scripts/sarif_drop_suppressed.py.
+        if: always()
+        run: |
+          python3 scripts/sarif_drop_suppressed.py \
+            semgrep.sarif > semgrep.filtered.sarif
       - name: Upload SARIF to Code Scanning
         if: always()
         uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
         with:
-          sarif_file: semgrep.sarif
+          sarif_file: semgrep.filtered.sarif
           category: semgrep-ce
       - name: Upload SARIF as workflow artifact
         if: always()
@@ -163,11 +172,16 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "0"
+      - name: Drop suppressed SARIF results
+        if: always()
+        run: |
+          python3 scripts/sarif_drop_suppressed.py \
+            trivy-fs.sarif > trivy-fs.filtered.sarif
       - name: Upload SARIF to Code Scanning
         if: always()
         uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
         with:
-          sarif_file: trivy-fs.sarif
+          sarif_file: trivy-fs.filtered.sarif
           category: trivy-fs
       - name: Run Trivy filesystem scan (failing gate)
         # Re-run with exit-code=1 to fail the job on any HIGH/CRITICAL
@@ -224,11 +238,16 @@ jobs:
           # from IaC misconfig checks.
           skip-dirs: ".clusterfuzzlite"
           exit-code: "0"
+      - name: Drop suppressed SARIF results
+        if: always()
+        run: |
+          python3 scripts/sarif_drop_suppressed.py \
+            trivy-iac.sarif > trivy-iac.filtered.sarif
       - name: Upload SARIF to Code Scanning
         if: always()
         uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
         with:
-          sarif_file: trivy-iac.sarif
+          sarif_file: trivy-iac.filtered.sarif
           category: trivy-iac
       - name: Run Trivy IaC scan (failing gate)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
@@ -291,11 +310,16 @@ jobs:
             --tool vulture \
             --input vulture.txt \
             --output vulture.sarif
+      - name: Drop suppressed SARIF results
+        if: always()
+        run: |
+          python3 scripts/sarif_drop_suppressed.py \
+            vulture.sarif > vulture.filtered.sarif
       - name: Upload SARIF to Code Scanning
         if: always()
         uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
         with:
-          sarif_file: vulture.sarif
+          sarif_file: vulture.filtered.sarif
           category: vulture
       - name: Upload SARIF as workflow artifact
         if: always()
@@ -343,11 +367,16 @@ jobs:
             --tool refurb \
             --input refurb.txt \
             --output refurb.sarif
+      - name: Drop suppressed SARIF results
+        if: always()
+        run: |
+          python3 scripts/sarif_drop_suppressed.py \
+            refurb.sarif > refurb.filtered.sarif
       - name: Upload SARIF to Code Scanning
         if: always()
         uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
         with:
-          sarif_file: refurb.sarif
+          sarif_file: refurb.filtered.sarif
           category: refurb
       - name: Upload SARIF as workflow artifact
         if: always()
@@ -405,11 +434,16 @@ jobs:
             --tool perflint \
             --input perflint.txt \
             --output perflint.sarif
+      - name: Drop suppressed SARIF results
+        if: always()
+        run: |
+          python3 scripts/sarif_drop_suppressed.py \
+            perflint.sarif > perflint.filtered.sarif
       - name: Upload SARIF to Code Scanning
         if: always()
         uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
         with:
-          sarif_file: perflint.sarif
+          sarif_file: perflint.filtered.sarif
           category: perflint
       - name: Upload SARIF as workflow artifact
         if: always()

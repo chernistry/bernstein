@@ -61,7 +61,16 @@ jobs:
           path: results.sarif
           retention-days: 5
 
+      - name: Drop suppressed SARIF results
+        # No-op for scorecard output today (the action does not emit
+        # `suppressions`), but kept consistent with the other SARIF
+        # uploads so any future inline-suppression markers are honoured
+        # before reaching the Security tab.
+        run: |
+          python3 scripts/sarif_drop_suppressed.py \
+            results.sarif > results.filtered.sarif
+
       - name: Upload to Code Scanning
         uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
         with:
-          sarif_file: results.sarif
+          sarif_file: results.filtered.sarif

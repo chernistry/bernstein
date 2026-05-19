@@ -15,6 +15,7 @@ on:
       - "docs/**"
       - "src/bernstein/**"
       - "scripts/check_docs_drift.py"
+      - "scripts/check_data_freshness.py"
       - "scripts/gen_agents_md.py"
       - ".github/workflows/docs-drift.yml"
       - "AGENTS.md"
@@ -29,6 +30,7 @@ on:
       - "docs/**"
       - "src/bernstein/**"
       - "scripts/check_docs_drift.py"
+      - "scripts/check_data_freshness.py"
       - "scripts/gen_agents_md.py"
       - ".github/workflows/docs-drift.yml"
       - "AGENTS.md"
@@ -125,6 +127,39 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           python scripts/check_docs_drift.py --strict
+
+  docs-data-freshness:
+    # Advisory check: flags time-stamped metric lines (stars, downloads,
+    # dated qualifiers) older than 30 days as a soft warning. On push to
+    # main, markers older than 60 days fail this job. This job is NOT in
+    # the canary list of required checks: time-stamped metrics drift
+    # between scheduled refreshes and the gate catches them automatically.
+    name: Data freshness (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Run data-freshness check (soft on PR, strict on push to main)
+        run: |
+          set -e
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF}" = "refs/heads/main" ]; then
+            python scripts/check_data_freshness.py --strict
+          else
+            python scripts/check_data_freshness.py
+          fi
+        shell: bash
 
   trigger-landing-mirror:
     name: Trigger bernstein-landing docs mirror

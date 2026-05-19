@@ -145,6 +145,57 @@ here from a drift-check pass.
 |-----|-----------------|--------------|-------------|
 | `docs/benchmarks/BENCHMARKS.md` | `src/bernstein/benchmark/`, `scripts/generate_benchmark_docs.py`, simulation harness inputs | New benchmark added, methodology change | `gen-benchmarks` (regenerate) or `manual-prose` |
 
+## Data-freshness drift (time-stamped metrics)
+
+Some docs include time-stamped factual metrics (stars, downloads, dates) that
+grow stale even when the code does not change. These lines look like
+`as of YYYY-MM-DD: ...` or `(YYYY-MM-DD)` in a table heading. The drift gate
+here is purely temporal: the underlying numbers were correct on the recorded
+date and are expected to drift between scheduled refreshes.
+
+To enumerate the known time-stamped lines, run:
+
+```bash
+rg -n 'as of 20\d\d-\d\d-\d\d|\(20\d\d-\d\d-\d\d\)' README.md docs/
+```
+
+The current inventory is:
+
+| File | Stale-prone substring shape | Data source | Refresh command |
+|------|-----------------------------|-------------|-----------------|
+| `README.md` (intro line) | `as of YYYY-MM-DD: N stars, N forks, ~N pypi downloads/day (~Nk/month)` | GitHub API, PyPI | `gh api repos/sipyourdrink-ltd/bernstein --jq '{stargazers_count, forks_count}'` and `curl -sS https://pypistats.org/api/packages/bernstein/recent \| jq .data` |
+| `README.md` (regulatory anchors) | `### regulatory anchors (as of YYYY-MM-DD)` | Regulator publications | Manual review of cited regulations |
+| `README.md` (comparison table) | `\| Stars (YYYY-MM-DD) \| ...` | GitHub API per row | `gh api repos/<owner>/<repo> --jq .stargazers_count` for each linked competitor repo |
+| `docs/adapter-deferred.md` | `## <Tool> - <STATUS> (YYYY-MM-DD)` | Vendor announcements | Manual review of each named tool's release notes |
+| `docs/llm-citation-surface.md` | `"as of YYYY-MM-DD: ..."` example string | Self-reference to README line | Refresh together with the README intro line above |
+| `docs/compare/bernstein-vs-github-agent-hq.md` | `as of YYYY-MM-DD` qualifier on absent published numbers | GitHub-published benchmarks | Manual review of GitHub Agent HQ release notes |
+| `docs/compare/index.html` | `(YYYY-MM-DD)` pilot-run date | Internal pilot snapshot | Manual update when a new pilot is run |
+
+### Refresh commands
+
+For the README intro stats line:
+
+```bash
+gh api repos/sipyourdrink-ltd/bernstein --jq '{stargazers_count, forks_count}'
+curl -sS https://pypistats.org/api/packages/bernstein/recent | jq .data
+```
+
+For each competitor row in the comparison table (substitute the repo from the
+link target in the table header):
+
+```bash
+gh api repos/<owner>/<repo> --jq .stargazers_count
+```
+
+### Staleness policy
+
+- An `as of YYYY-MM-DD` marker older than 30 days is considered stale and
+  emits a soft warning from `scripts/check_data_freshness.py`.
+- A marker older than 60 days is a hard fail on push to `main`; the workflow
+  job `docs-data-freshness` exits with status 1.
+- The `docs-data-freshness` check is advisory and is not part of the canary
+  list of required checks.
+
 ## Cross-repo
 
 The public website and several long-form pages live in

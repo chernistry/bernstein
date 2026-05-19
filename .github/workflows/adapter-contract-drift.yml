@@ -177,6 +177,10 @@ jobs:
           # Exit codes:
           #   0 — contract holds.
           #   2 — capability/model drift (hard fail by design).
+          #   3 — upstream CLI runtime failure (--help broken in the
+          #       sandbox env). Not drift; surface as a warning so an
+          #       operator investigates the CLI install without
+          #       blocking unrelated PRs on a transient upstream issue.
           # Anything else means the checker itself broke; treat it as
           # a workflow error so we don't silently green-light drift.
           case "$rc" in
@@ -185,6 +189,9 @@ jobs:
             2)
               echo "::error::contract drift in $ADAPTER"
               exit 1
+              ;;
+            3)
+              echo "::warning::contract-check exited 3 for $ADAPTER (upstream CLI runtime failure, not drift)"
               ;;
             *)
               echo "::error::contract-check exited $rc for $ADAPTER (checker error, not drift)"

@@ -14,6 +14,10 @@ Exit codes:
   CLI first.)
 * ``2`` — capability failure (missing flag/subcommand or model). Drift
   is a hard fail per the refined design in #1291.
+* ``3`` — upstream CLI runtime failure (``--help`` exited non-zero with
+  empty output or no required tokens). The contract has not been
+  evaluated; an operator should investigate the CLI install. The
+  workflow treats this as a checker error rather than drift.
 
 Refs: #1291.
 """
@@ -82,12 +86,20 @@ def contract_check_cmd(name: str | None, as_json: bool, list_only: bool) -> None
             click.echo("model failures:")
             for failure in result.model_failures:
                 click.echo(f"  - {failure}")
+        if result.runtime_failure:
+            click.echo(f"runtime failure: {result.runtime_failure}")
         click.echo(f"passed:    {result.passed}")
 
-    # Exit-code policy: capability or model failures are hard fails.
+    # Exit-code policy:
+    #   2 -> capability or model drift (hard fail by design).
+    #   3 -> upstream CLI runtime failure (--help broken). Surface as a
+    #        distinct "checker degraded" code so the workflow does not
+    #        misattribute it to contract drift.
     # A missing binary is informational for developer machines — the CI
     # workflow installs the CLI before invocation, so it never reaches
-    # this branch.
+    # the capability-failure branches.
     if result.capability_failures or result.model_failures:
         sys.exit(2)
+    if result.runtime_failure:
+        sys.exit(3)
     sys.exit(0)

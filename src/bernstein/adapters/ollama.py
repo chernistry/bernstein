@@ -234,7 +234,7 @@ class OllamaAdapter(CLIAdapter):
             f"ollama/{ollama_model}",
             "--message",
             prompt,
-            "--yes",
+            "--yes-always",
             "--auto-commits",
             "--map-tokens",
             "1024",

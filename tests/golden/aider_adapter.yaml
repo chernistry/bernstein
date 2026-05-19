@@ -10,7 +10,7 @@ steps:
       - "anthropic/claude-sonnet-4-6"
       - "--message"
       - "fix the bug in main.py"
-      - "--yes"
+      - "--yes-always"
       - "--auto-commits"
       - "--map-tokens"
       - "2048"

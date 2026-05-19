@@ -361,6 +361,121 @@ def test_check_contract_capability_fails(monkeypatch: pytest.MonkeyPatch) -> Non
     assert "--gone" in result.capability_failures[0]
 
 
+def test_check_contract_help_nonzero_empty_output_is_runtime_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-zero --help exit with empty output is reported as a runtime
+    failure, not as N "missing flag" entries against an empty haystack.
+
+    This prevents a broken upstream CLI (e.g. an unrelated runtime error
+    during --help) from producing misleading drift issues that look like
+    every required flag was removed at once.
+    """
+    spec = _contract.ContractSpec(
+        adapter="brittle",
+        binary="brittle",
+        install_method="",
+        install_spec="",
+        auth_required_for_help=False,
+        auth_required_for_models=False,
+        auth_secret_env="",
+        required_flags=("--alpha", "--beta", "--gamma"),
+        required_subcommands=(),
+        help_command=(),
+        models_command=(),
+        models_required_present=(),
+    )
+    monkeypatch.setattr(_contract.shutil, "which", lambda _name: "/fake/bin/brittle")
+    monkeypatch.setattr(
+        _contract,
+        "_run_capture",
+        _make_run_capture({("brittle", "--help"): (1, "")}),
+    )
+    result = _contract.check_contract(spec)
+    assert result.passed is False
+    # Runtime failure surfaces on a dedicated field, not as N "missing
+    # flag" entries. The capability list stays empty so the workflow can
+    # distinguish a checker-degraded run from real contract drift.
+    assert result.capability_failures == []
+    assert "runtime failure" in result.runtime_failure
+    assert "exited 1" in result.runtime_failure
+
+
+def test_check_contract_help_nonzero_all_flags_missing_is_runtime_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Non-zero exit with output that lacks ALL required tokens is a
+    runtime failure, not drift.
+
+    Pattern seen in CI: an upstream CLI prints an error preamble plus a
+    truncated usage stub, exits non-zero, and the truncated stub does
+    not advertise any of the contract's required flags. Reporting every
+    flag as missing is misleading; the real signal is the broken
+    --help, which an operator needs to investigate.
+    """
+    spec = _contract.ContractSpec(
+        adapter="stub",
+        binary="stub",
+        install_method="",
+        install_spec="",
+        auth_required_for_help=False,
+        auth_required_for_models=False,
+        auth_secret_env="",
+        required_flags=("--alpha", "--beta"),
+        required_subcommands=(),
+        help_command=(),
+        models_command=(),
+        models_required_present=(),
+    )
+    monkeypatch.setattr(_contract.shutil, "which", lambda _name: "/fake/bin/stub")
+    monkeypatch.setattr(
+        _contract,
+        "_run_capture",
+        _make_run_capture(
+            {("stub", "--help"): (1, "error: missing API key\nusage: stub [-h]\n")}
+        ),
+    )
+    result = _contract.check_contract(spec)
+    assert result.passed is False
+    assert result.capability_failures == []
+    assert "runtime failure" in result.runtime_failure
+    assert "no required tokens advertised" in result.runtime_failure
+
+
+def test_check_contract_help_nonzero_with_output_still_checks_flags(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-zero help exit *with* output still drives flag matching.
+
+    Some CLIs return non-zero from --help by design (e.g. they print help
+    on usage error). As long as we see real help text, we should still
+    detect flag drift normally.
+    """
+    spec = _contract.ContractSpec(
+        adapter="grumpy",
+        binary="grumpy",
+        install_method="",
+        install_spec="",
+        auth_required_for_help=False,
+        auth_required_for_models=False,
+        auth_secret_env="",
+        required_flags=("--alpha",),
+        required_subcommands=(),
+        help_command=(),
+        models_command=(),
+        models_required_present=(),
+    )
+    monkeypatch.setattr(_contract.shutil, "which", lambda _name: "/fake/bin/grumpy")
+    monkeypatch.setattr(
+        _contract,
+        "_run_capture",
+        _make_run_capture({("grumpy", "--help"): (2, "Usage: grumpy --alpha <x>\n")}),
+    )
+    result = _contract.check_contract(spec)
+    assert result.passed is True
+    assert result.capability_failures == []
+
+
 def test_check_contract_binary_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     spec = _contract.ContractSpec(
         adapter="ghost",

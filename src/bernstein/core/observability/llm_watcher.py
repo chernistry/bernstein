@@ -554,7 +554,7 @@ def cost_runaway_detector(event: WatcherEvent) -> list[Suggestion]:
         Zero or one :class:`Suggestion`.  Empty when no cost field is
         present or no threshold is breached.
     """
-    payload = event.payload or {}
+    payload = event.payload
     task_cost = float(payload.get("task_cost_usd") or 0.0)
     run_cost = float(payload.get("run_cost_usd") or 0.0)
     run_budget = float(payload.get("run_budget_usd") or _DEFAULT_RUN_BUDGET_USD)
@@ -603,7 +603,7 @@ def stuck_spawn_detector(event: WatcherEvent) -> list[Suggestion]:
     Returns:
         Zero or one :class:`Suggestion`.
     """
-    payload = event.payload or {}
+    payload = event.payload
     claim_confirmed = bool(payload.get("claim_confirmed"))
     task_completed = bool(payload.get("task_completed"))
     audit_emissions = int(payload.get("audit_emissions") or 0)
@@ -648,7 +648,7 @@ def repeated_failure_detector(event: WatcherEvent) -> list[Suggestion]:
     Returns:
         Zero or one :class:`Suggestion`.
     """
-    payload = event.payload or {}
+    payload = event.payload
     failure_count = int(payload.get("failure_count") or 0)
     exit_signature = str(payload.get("exit_signature") or "").strip()
     task_id = str(payload.get("task_id") or "?")
@@ -688,7 +688,7 @@ def suspicious_tool_mask_detector(event: WatcherEvent) -> list[Suggestion]:
     Returns:
         Zero or one :class:`Suggestion`.
     """
-    payload = event.payload or {}
+    payload = event.payload
     available = int(payload.get("available_tools") or 0)
     masked = int(payload.get("masked_tools") or 0)
     if available <= 0:
@@ -728,7 +728,7 @@ def audit_chain_break_detector(event: WatcherEvent) -> list[Suggestion]:
     Returns:
         Zero or one :class:`Suggestion`.
     """
-    payload = event.payload or {}
+    payload = event.payload
     prev = str(payload.get("prev_hmac") or "").strip()
     expected = str(payload.get("expected_prev_hmac") or "").strip()
     if not prev or not expected:

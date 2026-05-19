@@ -135,7 +135,7 @@ def build_skills_from_mcp_server(mcp_server: FastMCP) -> list[MCPToolInfo]:  # t
     tools = mcp_server._tool_manager.list_tools()  # pyright: ignore[reportPrivateUsage]
     infos: list[MCPToolInfo] = []
     for tool in tools:
-        name: str = tool.name or ""
-        description: str = tool.description or ""
+        name: str = tool.name
+        description: str = tool.description
         infos.append(MCPToolInfo(name=name, description=description, server_name=server_name))
     return infos

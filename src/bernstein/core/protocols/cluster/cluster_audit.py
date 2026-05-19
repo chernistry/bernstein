@@ -107,7 +107,7 @@ def record_node_left(node_id: str, *, reason: str) -> None:
     *reason* is bucketed against the closed set graceful / timeout /
     unregistered.  Anything else is normalised to ``"unknown"``.
     """
-    bucket = (reason or "").strip().lower()
+    bucket = (reason).strip().lower()
     if bucket not in _KNOWN_LEAVE_REASONS:
         bucket = "unknown"
     _safe_log(

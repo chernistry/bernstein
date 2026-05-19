@@ -160,7 +160,7 @@ def detect_install_method() -> str:
     ``sys.executable`` for the launcher path. Returns one of
     ``editable``, ``pipx``, ``uv-tool``, ``pip``, or ``unknown``.
     """
-    exe = sys.executable or ""
+    exe = sys.executable
     exe_lower = exe.lower()
 
     # pipx and uv tool place wrappers under a recognisable directory.

@@ -211,7 +211,7 @@ def render_failure_block(failure: FailureSummary) -> str:
     """
     stage = failure.failing_stage or "n/a"
     task_ids = ", ".join(failure.task_ids) if failure.task_ids else "n/a"
-    excerpt = failure.last_error or ""
+    excerpt = failure.last_error
     truncated = False
     if len(excerpt) > _MAX_ERROR_CHARS:
         excerpt = excerpt[-_MAX_ERROR_CHARS:]

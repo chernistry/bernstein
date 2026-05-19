@@ -148,7 +148,7 @@ def emit_command_invoked(
 ) -> None:
     """Emit command_invoked.  ``name_only`` must be the command name only."""
     # Defensive: strip anything that looks like an arg or a path separator.
-    clean = (name_only or "").strip().split()[0] if name_only else ""
+    clean = (name_only).strip().split()[0] if name_only else ""
     clean = clean.replace("/", "_").replace("\\", "_")
     if not clean:
         return

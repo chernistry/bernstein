@@ -88,7 +88,7 @@ _KNOWN_DRIFT_REASONS: frozenset[str] = frozenset(
 
 def _normalise_reason(raw: str) -> str:
     """Normalise a drift reason against the closed taxonomy."""
-    value = (raw or "").strip().lower()
+    value = (raw).strip().lower()
     return value if value in _KNOWN_DRIFT_REASONS else "unknown"
 
 

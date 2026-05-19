@@ -98,7 +98,7 @@ class ShellSink:
 
         if proc.returncode == 0:
             return
-        stderr_text = (stderr or b"").decode("utf-8", errors="replace").strip()[:500]
+        stderr_text = (stderr).decode("utf-8", errors="replace").strip()[:500]
         msg = f"shell sink {self.sink_id!r} exited {proc.returncode}: {stderr_text}"
         if self._non_zero_permanent:
             raise NotificationPermanentError(msg)

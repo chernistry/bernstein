@@ -542,7 +542,7 @@ _KNOWN_ADMISSION_REASONS: frozenset[str] = frozenset(
 
 def _bucket(value: str, allowed: frozenset[str], fallback: str = "unknown") -> str:
     """Bucket *value* under *fallback* if it isn't in the closed *allowed* set."""
-    normalised = (value or "").strip().lower()
+    normalised = (value).strip().lower()
     return normalised if normalised in allowed else fallback
 
 

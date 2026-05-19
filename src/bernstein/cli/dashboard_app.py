@@ -829,7 +829,7 @@ class BernsteinApp(App[None]):
         if monitoring:
             self._apply_monitoring_data(bar, monitoring)
 
-        bar.retry_count = sum(_task_retry_count(task) for task in (tasks or []) if isinstance(task, dict))
+        bar.retry_count = sum(_task_retry_count(task) for task in (tasks) if isinstance(task, dict))
         bar.agent_error_count = _summarize_agent_errors(agents)[0]
         self._sync_header(header, bar, sd)
 

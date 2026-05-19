@@ -185,7 +185,7 @@ class HeuristicDeltaPredictor:
 
         # Heuristic guess: scale rationale length into [-0.1, 0.1].
         # Empty rationale → -0.1, well-argued (>= 200 chars) → +0.1.
-        rationale_len = len(proposal.rationale or "")
+        rationale_len = len(proposal.rationale)
         if rationale_len == 0:
             return -self.SYNTHETIC_BOUND
         ratio = min(rationale_len, 200) / 200.0  # 0..1

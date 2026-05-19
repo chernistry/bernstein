@@ -173,7 +173,7 @@ def render_palette(
     """Render the full command palette as Rich Text."""
     text = Text()
     text.append("> ", style="cyan bold")
-    text.append(palette.query or "", style="bold")
+    text.append(palette.query, style="bold")
     text.append("\n")
     text.append("\u2500" * 40, style="dim")
     text.append("\n")

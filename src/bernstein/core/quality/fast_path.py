@@ -350,7 +350,7 @@ def _run_rename(workdir: Path, owned_files: list[str], task: Task | None = None)
         )
 
     old_name, new_name = match.group(1), match.group(2)
-    targets = owned_files or []
+    targets = owned_files
     if not targets:
         return FastPathResult(
             success=False,

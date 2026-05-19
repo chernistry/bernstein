@@ -119,6 +119,21 @@ class LifecycleEvent(StrEnum):
     # ------------------------------------------------------------------
     AGENT_RETRY_CONTINUATION = "agent.retry_continuation"
 
+    # ------------------------------------------------------------------
+    # ProgressWatch liveness probe
+    # (feat-progress-watch-liveness-probe).
+    # Emitted when the watcher detects that an agent's session log has
+    # not grown for at least ``agents.progress_watch.inactivity_seconds``.
+    # Payload keys on ``context.data``:
+    #
+    # * ``adapter``: adapter name (e.g. ``"claude"``).
+    # * ``log_path``: stringified path of the watched log.
+    # * ``last_log_growth_ts``: unix timestamp of the most recent
+    #   observed growth (mtime or size move).
+    # * ``detected_ts``: unix timestamp the stall was detected.
+    # ------------------------------------------------------------------
+    AGENT_PROGRESS_STALLED = "agent.progress_stalled"
+
 
 #: The cross-CLI standardised event vocabulary introduced by issue #1323.
 #: Pre-existing snake_case events remain supported but are not part of

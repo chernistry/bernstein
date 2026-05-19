@@ -22,7 +22,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Mapping  # noqa: TC003 — runtime use in ClassVar annotations
-from pathlib import Path  # noqa: TC003 — kept at runtime so tests can patch ``claude.Path.home``
+from pathlib import Path
 from typing import Any, ClassVar, cast
 
 from bernstein.adapters.base import DEFAULT_TIMEOUT_SECONDS, CLIAdapter, SpawnResult, build_worker_cmd
@@ -115,6 +115,10 @@ class ClaudeCodeAdapter(CLIAdapter):
     # rate-limit panel. Anthropic uses HTTP 429 plus structured
     # ``rate_limit_error`` types on the messages API.
     rate_limit_provider = "anthropic"
+    # Claude Code writes a JSONL transcript per session under
+    # ``~/.claude/projects/<encoded-cwd>/<session-uuid>.jsonl``.
+    # ProgressWatch can read this directly as a liveness signal.
+    supports_session_log_watch = True
 
     # Opt into the retry-with-continuation path. Claude Code's CLI
     # exposes ``--resume <session-id>`` to re-enter a prior conversation
@@ -658,6 +662,51 @@ class ClaudeCodeAdapter(CLIAdapter):
         the correct prior session without explicit id plumbing.
         """
         return ["--continue"]
+
+    def session_log_path_for(self, session_id: str) -> Path | None:
+        """Return the Claude Code JSONL transcript path for this session.
+
+        Claude Code writes per-session transcripts under
+        ``~/.claude/projects/<encoded-cwd>/<session-uuid>.jsonl``. The
+        ``<session-uuid>`` is assigned by Claude itself and is not the
+        Bernstein ``session_id``, so we return the most recently modified
+        JSONL under the encoded-cwd directory that matches the worktree
+        the agent is running in.
+
+        Args:
+            session_id: Bernstein session id. Currently unused for path
+                resolution but accepted for forward compatibility.
+
+        Returns:
+            Absolute path to the latest JSONL transcript, or ``None`` if
+            the projects directory or any transcript file is missing.
+        """
+        del session_id
+        try:
+            home = Path.home()
+        except (OSError, RuntimeError):
+            return None
+        # Claude encodes the current working directory by replacing path
+        # separators with dashes. We accept any subdirectory under
+        # ``~/.claude/projects/`` because the spawn cwd may be a worktree
+        # whose encoding the caller does not know.
+        projects_dir = home / ".claude" / "projects"
+        if not projects_dir.is_dir():
+            return None
+        cwd = Path.cwd().resolve()
+        # Best-effort: match a directory whose name encodes ``cwd``.
+        encoded = str(cwd).replace("/", "-")
+        candidates = list(projects_dir.glob(f"*{encoded}*/*.jsonl"))
+        if not candidates:
+            # Fall back to the newest JSONL across all projects so the
+            # watcher still has a signal even if encoding differs.
+            candidates = list(projects_dir.glob("*/*.jsonl"))
+        if not candidates:
+            return None
+        try:
+            return max(candidates, key=lambda p: p.stat().st_mtime)
+        except OSError:
+            return None
 
     def detect_tier(self) -> ApiTierInfo | None:
         """Detect Claude API tier based on environment and API key type.

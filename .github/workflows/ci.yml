@@ -1449,7 +1449,13 @@ jobs:
     #
     # Coverage / JUnit / Codecov uploads are NOT mirrored here; they
     # remain ubuntu-only (matches the previous matrix gating).
-    name: Test (macos-latest, Python ${{ matrix.python-version }})
+    # Literal job name -- NOT templated. The branch-protection required
+    # context for macOS test runs depends on this exact string; when the
+    # job is skipped via the `if:` gate, GitHub posts the templated form
+    # verbatim, which never matches a required-context rule. The literal
+    # form keeps the name resolvable in every state (success, fail, skip).
+    # required-check-canary.yml asserts this remains literal.
+    name: Test (macos-latest, Python 3.13)
     needs: [lint, determine-changes]
     if: >-
       github.event_name == 'push' ||

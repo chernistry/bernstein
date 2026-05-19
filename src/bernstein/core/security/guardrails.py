@@ -404,10 +404,7 @@ def check_secrets(diff: str) -> list[PermissionDecision]:
     Returns:
         List with one PermissionDecision for the "secret_detection" check.
     """
-    found: list[str] = []
-    for name, pattern in _SECRET_PATTERNS:
-        if pattern.search(diff):
-            found.append(name)
+    found = [name for name, pattern in _SECRET_PATTERNS if pattern.search(diff)]
 
     if found:
         return [

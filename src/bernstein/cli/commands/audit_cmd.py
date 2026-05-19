@@ -187,8 +187,7 @@ def _verify_hmac_chain() -> bool:
     """Verify HMAC chain and print results. Returns True if valid."""
     from bernstein.core.audit import AuditLog
 
-    audit_log = AuditLog(AUDIT_DIR)
-    hmac_valid, hmac_errors = audit_log.verify()
+    hmac_valid, hmac_errors = AuditLog(AUDIT_DIR).verify()
 
     console.print()
     if hmac_valid:
@@ -234,8 +233,7 @@ def verify_hmac_cmd() -> None:
         console.print(f"[red]Audit directory not found:[/red] {AUDIT_DIR}")
         raise SystemExit(1)
 
-    audit_log = AuditLog(AUDIT_DIR)
-    valid, errors = audit_log.verify()
+    valid, errors = AuditLog(AUDIT_DIR).verify()
 
     console.print()
     if valid:
@@ -1246,8 +1244,7 @@ def query_cmd(event_type: str | None, actor: str | None, since: str | None, limi
         console.print(f"[red]Audit directory not found:[/red] {AUDIT_DIR}")
         raise SystemExit(1)
 
-    audit_log = AuditLog(AUDIT_DIR)
-    events = audit_log.query(event_type=event_type, actor=actor, since=since)
+    events = AuditLog(AUDIT_DIR).query(event_type=event_type, actor=actor, since=since)
     events = events[:limit]
 
     if not events:
@@ -1674,8 +1671,7 @@ def _print_post_archive_verify(audit_dir: Path) -> int:
     """
     from bernstein.core.security.audit import AuditLog
 
-    audit_log = AuditLog(audit_dir)
-    valid, errors = audit_log.verify()
+    valid, errors = AuditLog(audit_dir).verify()
     console.print()
     if valid:
         console.print(

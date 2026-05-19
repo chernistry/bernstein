@@ -40,8 +40,7 @@ def triggers_list() -> None:
         console.print(f"[dim]Create {config_path} to define trigger rules.[/dim]")
         return
 
-    mgr = TriggerManager(sdd_dir)
-    triggers = mgr.list_triggers()
+    triggers = TriggerManager(sdd_dir).list_triggers()
 
     if not triggers:
         console.print("[yellow]No triggers defined in triggers.yaml.[/yellow]")
@@ -89,8 +88,7 @@ def triggers_history(limit: int) -> None:
         console.print("[red]No .sdd/ directory found.[/red]")
         raise SystemExit(1)
 
-    mgr = TriggerManager(sdd_dir)
-    history = mgr.get_fire_history(limit=limit)
+    history = TriggerManager(sdd_dir).get_fire_history(limit=limit)
 
     if not history:
         console.print("[dim]No trigger fire history.[/dim]")

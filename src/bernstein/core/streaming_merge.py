@@ -186,11 +186,10 @@ def _extract_file_references(text: str) -> list[str]:
     """
     # Pattern for file paths with common extensions.
     # Group 1: action-word + path.  Group 2: bare path with known prefix.
-    file_pattern = re.compile(
+    matches = (re.compile(
         r"(?:Creating|Writing|Modified|Updated|Created)\s+(?:file\s+)?[`']?([^\s`'\"]+\.\w{1,10})[`']?"
         r"|((?:src|lib|tests?|examples|docs?|scripts?|pkg)/[^\s`'\"]+\.\w{1,10})"
-    )
-    matches = file_pattern.findall(text)
+    )).findall(text)
 
     # Each match is a tuple (group1, group2); pick whichever matched.
     files: list[str] = []

@@ -275,5 +275,4 @@ class JunieAdapter(CLIAdapter):
             provider_value = getattr(provider_obj, "value", str(provider_obj))
             if provider_value:
                 return str(provider_value).lower()
-        env_value = os.environ.get(_JUNIE_PROVIDER_KEY, "")
-        return env_value.lower()
+        return os.environ.get(_JUNIE_PROVIDER_KEY, "").lower()

@@ -179,10 +179,8 @@ class SemanticGraph:
         for _ in range(depth):
             next_frontier: set[str] = set()
             for sid in frontier:
-                for callee in self.callees_of(sid):
-                    next_frontier.add(callee)
-                for caller in self.callers_of(sid):
-                    next_frontier.add(caller)
+                next_frontier.update(self.callees_of(sid))
+                next_frontier.update(self.callers_of(sid))
             frontier = next_frontier - included
             included.update(frontier)
             if len(included) >= max_nodes:

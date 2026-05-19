@@ -247,8 +247,7 @@ def disable_framework(framework: str, workdir: Path) -> None:
     """
     fw = ComplianceFramework(framework.lower())
     config_dir = workdir / ".sdd" / "compliance"
-    lib = CompliancePolicyLibrary()
-    lib.disable(fw, config_dir=config_dir)
+    CompliancePolicyLibrary().disable(fw, config_dir=config_dir)
     click.echo(f"Disabled {fw.value} compliance framework.")
 
 
@@ -447,8 +446,7 @@ def export_rego(framework: str, output_dir: Path | None, workdir: Path) -> None:
     """
     fw = ComplianceFramework(framework.lower())
     dest = output_dir or (workdir / ".sdd" / "compliance" / "rego" / fw.value)
-    lib = CompliancePolicyLibrary()
-    paths = lib.export_rego(fw, dest_dir=dest)
+    paths = CompliancePolicyLibrary().export_rego(fw, dest_dir=dest)
     click.echo(f"Exported {len(paths)} Rego policies to: {dest}")
 
 

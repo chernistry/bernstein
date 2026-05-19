@@ -53,8 +53,7 @@ def show_policy(policy_file: Path, as_json: bool) -> None:
     An empty allow-list for a role means **all adapters allowed** (the
     back-compat default). A role missing from the map is also unrestricted.
     """
-    policy = load_policy_file(policy_file)
-    payload = policy.to_dict()
+    payload = load_policy_file(policy_file).to_dict()
     if as_json:
         click.echo(json.dumps(payload, indent=2, sort_keys=True))
         return

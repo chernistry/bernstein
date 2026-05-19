@@ -124,9 +124,8 @@ def render_plan_prompt(
     Returns:
         Fully rendered prompt ready for the LLM.
     """
-    template = _load_template(templates_dir, "plan.md", sdd_dir=sdd_dir, task_id=task_id)
     return (
-        template.replace("{{GOAL}}", goal)
+        _load_template(templates_dir, "plan.md", sdd_dir=sdd_dir, task_id=task_id).replace("{{GOAL}}", goal)
         .replace("{{CONTEXT}}", context)
         .replace("{{AVAILABLE_ROLES}}", _format_roles(roles))
         .replace("{{EXISTING_TASKS}}", _format_existing_tasks(existing_tasks))

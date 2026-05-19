@@ -84,8 +84,7 @@ def ci_fix(run_url: str, token: str | None, server: str) -> None:
     if ctx.file_path:
         console.print(f"  File:  [dim]{ctx.file_path}:{ctx.line_number}[/dim]")
 
-    pipeline = CIAutofixPipeline(server_url=server)
-    task_id = pipeline.create_fix_task(ctx, run_url=run_url)
+    task_id = CIAutofixPipeline(server_url=server).create_fix_task(ctx, run_url=run_url)
 
     if task_id:
         console.print(f"\n[green]Fix task created:[/green] [bold]{task_id}[/bold]")

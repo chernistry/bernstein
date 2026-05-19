@@ -708,8 +708,7 @@ class ClaimLedger:
         callers can render a deterministic snapshot.
         """
         current = float(time.time() if now is None else now)
-        conn = self._connect()
-        cursor = conn.execute(
+        cursor = self._connect().execute(
             "SELECT tracker, ticket_id, role, claimer_id, lease_expires_at, "
             "stage_attempt FROM claims WHERE lease_expires_at > ? "
             "ORDER BY tracker, role, ticket_id",
@@ -733,8 +732,7 @@ class ClaimLedger:
 
         Returns ``True`` when a row was removed.
         """
-        conn = self._connect()
-        cursor = conn.execute(
+        cursor = self._connect().execute(
             "DELETE FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ? AND claimer_id = ?",
             (tracker, ticket_id, role, claimer_id),
         )
@@ -742,8 +740,7 @@ class ClaimLedger:
 
     def attempt_count(self, *, tracker: str, ticket_id: str, role: str) -> int:
         """Return ``stage_attempt`` for the live or last claim row, or ``0``."""
-        conn = self._connect()
-        row = conn.execute(
+        row = self._connect().execute(
             "SELECT stage_attempt FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ?",
             (tracker, ticket_id, role),
         ).fetchone()

@@ -283,10 +283,7 @@ class AbortChain:
         with self._lock:
             siblings = set(self._graph.get(parent_id, set())) - {session_id}
 
-        aborted: list[str] = []
-        for sibling_id in siblings:
-            if self._write_sibling_shutdown(sibling_id, triggering_session_id, reason):
-                aborted.append(sibling_id)
+        aborted = [sibling_id for sibling_id in siblings if self._write_sibling_shutdown(sibling_id, triggering_session_id, reason)]
 
         if aborted:
             logger.info(

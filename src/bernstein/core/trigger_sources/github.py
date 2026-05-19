@@ -24,8 +24,7 @@ def normalize_push(payload: dict[str, Any], sender: str, repo: str) -> TriggerEv
 
     commits = payload.get("commits", [])
     commit_messages = "\n".join(c.get("message", "") for c in commits)
-    head_commit = payload.get("head_commit", {})
-    sha = head_commit.get("id", payload.get("after", ""))
+    sha = payload.get("head_commit", {}).get("id", payload.get("after", ""))
 
     # Collect all changed files from all commits
     changed_files: list[str] = []

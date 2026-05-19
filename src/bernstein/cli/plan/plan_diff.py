@@ -131,8 +131,7 @@ def _extract_deps(plan: dict) -> set[tuple[str, str]]:
     deps: set[tuple[str, str]] = set()
     for stage in plan.get("stages") or []:
         stage_name = str(stage.get("name", ""))
-        for dep in stage.get("depends_on") or []:
-            deps.add((stage_name, str(dep)))
+        deps.update((stage_name, str(dep)) for dep in stage.get("depends_on") or [])
     return deps
 
 

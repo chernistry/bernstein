@@ -359,8 +359,7 @@ def run_cmd(name_or_path: str, goal: str, dry_run: bool) -> None:
             console.print(f"  [bold]Layer {index}:[/bold] {ids}")
         return
 
-    runner = WorkflowRunner(workdir=Path.cwd())
-    execution = runner.run(spec, goal=goal)
+    execution = WorkflowRunner(workdir=Path.cwd()).run(spec, goal=goal)
 
     table = Table(title=f"Run {execution.run_id}")
     table.add_column("Node")

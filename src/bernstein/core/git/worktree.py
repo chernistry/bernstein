@@ -402,8 +402,7 @@ def _graveyard_timestamp(now: float | None = None) -> str:
     """Return a filesystem- and ref-safe timestamp like ``20260418T103045Z``."""
     import datetime as _dt
 
-    ts = _dt.datetime.fromtimestamp(now if now is not None else time.time(), tz=_dt.UTC)
-    return ts.strftime("%Y%m%dT%H%M%SZ")
+    return _dt.datetime.fromtimestamp(now if now is not None else time.time(), tz=_dt.UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def preserve_branch_to_graveyard(

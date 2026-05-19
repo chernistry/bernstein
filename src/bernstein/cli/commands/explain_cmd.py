@@ -217,8 +217,7 @@ def explain_cmd(task_id: str, as_json: bool, traces_dir: str) -> None:
     # 2. Load traces
     from bernstein.core.traces import TraceStore
 
-    store = TraceStore(Path(traces_dir))
-    traces = store.read_by_task(task_id)
+    traces = TraceStore(Path(traces_dir)).read_by_task(task_id)
 
     # 3. JSON output
     if as_json:

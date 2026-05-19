@@ -544,8 +544,7 @@ def _run_opa_eval(policy_path: Path, payload: dict[str, Any]) -> object:
         input_path.unlink(missing_ok=True)
     if completed.returncode != 0:
         raise OSError(completed.stderr.strip() or completed.stdout.strip() or "opa eval failed")
-    parsed = json.loads(completed.stdout)
-    results = parsed.get("result", [])
+    results = json.loads(completed.stdout).get("result", [])
     if not results:
         return []
     expressions = results[0].get("expressions", [])

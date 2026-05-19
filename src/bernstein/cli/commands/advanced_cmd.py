@@ -104,11 +104,10 @@ def live(interval: float, classic: bool, no_splash: bool) -> None:
 
     print_banner()
 
-    view = LiveView(
+    (LiveView(
         server_url=SERVER_URL,
         interval=interval,
-    )
-    view.run()
+    )).run()
 
 
 def _load_live_seed_config(seed_path: Path | None) -> Any:
@@ -1173,8 +1172,7 @@ def trace_reindex_cmd(ctx: click.Context) -> None:
     from bernstein.core.observability.trace_store import ContentAddressedTraceStore
 
     traces_dir = (ctx.obj or {}).get("traces_dir", ".sdd/traces")
-    store = ContentAddressedTraceStore(Path(traces_dir))
-    count = store.reindex()
+    count = ContentAddressedTraceStore(Path(traces_dir)).reindex()
     console.print(f"[green]Reindex complete:[/green] {count} entries")
 
 

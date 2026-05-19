@@ -197,8 +197,7 @@ def observability_budget(request: Request) -> dict[str, Any]:
 @router.get("/observability/deps")
 def observability_deps(request: Request) -> dict[str, Any]:
     """Return dependency-graph validation status for current tasks."""
-    store = _get_store(request)
-    tasks = store.list_tasks()
+    tasks = _get_store(request).list_tasks()
     validator = DependencyValidator()
     validation = validator.validate(tasks)
     return {
@@ -879,7 +878,7 @@ def token_breakdown(request: Request) -> dict[str, Any]:
         session_id = tokens_file.stem
         input_tokens, output_tokens = _parse_token_file(tokens_file)
 
-        if input_tokens == 0 and output_tokens == 0:
+        if input_tokens == output_tokens == 0:
             continue
 
         info = session_info.get(session_id, {})

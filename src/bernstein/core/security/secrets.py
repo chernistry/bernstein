@@ -512,5 +512,4 @@ def check_provider_connectivity(config: SecretsConfig) -> tuple[bool, str]:
     Returns:
         Tuple of (ok, detail_message).
     """
-    provider = _create_provider(config.provider)
-    return provider.check_connectivity()
+    return _create_provider(config.provider).check_connectivity()

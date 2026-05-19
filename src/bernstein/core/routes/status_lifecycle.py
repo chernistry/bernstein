@@ -186,8 +186,7 @@ async def shutdown_server(request: Request) -> JSONResponse:
     # is delivered before the process starts tearing down.
     from bernstein.core.platform_compat import kill_process
 
-    loop = asyncio.get_running_loop()
-    loop.call_later(0.5, kill_process, os.getpid(), signal.SIGTERM)
+    asyncio.get_running_loop().call_later(0.5, kill_process, os.getpid(), signal.SIGTERM)
 
     return JSONResponse(
         content={"status": "shutting_down", "message": "Shutdown signal received"},
@@ -254,10 +253,8 @@ def metrics_endpoint(request: Request) -> PlainTextResponse:
     Updates all gauges from the current task store state, then
     returns the full metric exposition in Prometheus text format.
     """
-    store = _get_store(request)
-    status_dict = store.status_summary()
-    live_costs = _load_live_costs(request)
-    per_model = live_costs.get("per_model")
+    status_dict = _get_store(request).status_summary()
+    per_model = _load_live_costs(request).get("per_model")
     if isinstance(per_model, dict):
         status_dict["cost_by_model_usd"] = per_model
     update_metrics_from_status(status_dict)

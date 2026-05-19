@@ -309,8 +309,7 @@ def generate_ab_report(workdir: Path) -> ABTestReport:
         When fewer than two distinct models have been recorded, the winner is
         ``"insufficient_data"``.
     """
-    store = ABTestStore(workdir)
-    records = store.load()
+    records = ABTestStore(workdir).load()
 
     if not records:
         empty = ModelStats("(none)", 0, 0, 0, 0.0, 0.0, 0.0, 0)

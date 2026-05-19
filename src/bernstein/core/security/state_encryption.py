@@ -71,13 +71,12 @@ def derive_key(password: str, salt: bytes | None = None) -> tuple[bytes, bytes]:
 
         salt = secrets.token_bytes(16)
 
-    kdf = PBKDF2HMAC(
+    key = (PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
         salt=salt,
         iterations=600_000,  # OWASP 2023 recommendation
-    )
-    key = kdf.derive(password.encode("utf-8"))
+    )).derive(password.encode("utf-8"))
     return key, salt
 
 
@@ -414,8 +413,7 @@ class KeyManager:
         salt = secrets.token_bytes(_KEY_SALT_LEN)
         kek, _ = derive_key(passphrase, salt=salt)
         iv = secrets.token_bytes(_KEY_IV_LEN)
-        aesgcm = AESGCM(kek)
-        wrapped = aesgcm.encrypt(iv, raw_key, _KEY_FILE_MAGIC)
+        wrapped = AESGCM(kek).encrypt(iv, raw_key, _KEY_FILE_MAGIC)
         return _KEY_FILE_MAGIC + salt + iv + wrapped
 
     @classmethod

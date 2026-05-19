@@ -311,8 +311,7 @@ window.location.href = '/dashboard';
 @router.get("/saml/metadata", responses={503: {"description": "SSO authentication not configured"}})
 def saml_metadata(request: Request) -> Response:
     """SAML SP metadata endpoint for IdP configuration."""
-    svc = _get_auth_service(request)
-    metadata = svc.get_saml_sp_metadata()
+    metadata = _get_auth_service(request).get_saml_sp_metadata()
     return Response(content=metadata, media_type="application/xml")
 
 
@@ -332,8 +331,7 @@ def device_code_request(request: Request, body: DeviceCodeRequest) -> DeviceCode
     The user enters the user_code in the web dashboard after SSO login
     to authorize the CLI session.
     """
-    svc = _get_auth_service(request)
-    req = svc.create_device_request()
+    req = _get_auth_service(request).create_device_request()
 
     server_url = str(request.base_url).rstrip("/")
     return DeviceCodeResponse(
@@ -424,14 +422,12 @@ def get_profile(request: Request) -> UserProfileResponse:
 @router.post("/logout", responses={503: {"description": "SSO authentication not configured"}})
 def logout(request: Request) -> JSONResponse:
     """Logout and revoke the current session."""
-    claims = getattr(request.state, "auth_claims", {})
-    session_id = claims.get("session_id", "")
+    session_id = getattr(request.state, "auth_claims", {}).get("session_id", "")
 
     if not session_id:
         return JSONResponse(content={"status": "ok", "detail": "No active session"})
 
-    svc = _get_auth_service(request)
-    svc.logout(session_id)
+    _get_auth_service(request).logout(session_id)
     return JSONResponse(content={"status": "ok", "detail": "Session revoked"})
 
 
@@ -446,8 +442,7 @@ def logout(request: Request) -> JSONResponse:
 )
 def get_group_mappings(request: Request) -> GroupMappingsResponse:
     """Get current SSO group → role mappings."""
-    svc = _get_auth_service(request)
-    mappings = svc.group_role_map
+    mappings = _get_auth_service(request).group_role_map
     return GroupMappingsResponse(mappings=[GroupMappingEntry(group=g, role=r.value) for g, r in mappings.items()])
 
 
@@ -510,8 +505,7 @@ def list_users(request: Request) -> JSONResponse:
     if not user.has_permission("auth:manage"):
         raise HTTPException(status_code=403, detail="Admin role required")
 
-    svc = _get_auth_service(request)
-    users = svc.store.list_users()
+    users = _get_auth_service(request).store.list_users()
     return JSONResponse(
         content={
             "users": [u.to_dict() for u in users],

@@ -151,8 +151,7 @@ def score_cmd(
                 paths.append(stripped)
     diff_text = diff_file.read_text(encoding="utf-8") if diff_file is not None else ""
 
-    scorer = BlastRadiusScorer()
-    report = scorer.score(files=paths, diff_text=diff_text)
+    report = BlastRadiusScorer().score(files=paths, diff_text=diff_text)
     click.echo(_format_report(report, fmt=fmt.lower()))
 
     if save_as is not None:

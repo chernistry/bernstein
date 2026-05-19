@@ -102,8 +102,7 @@ class TerminalCaps:
         use :func:`detect_capabilities` for a cached, production-safe call.
         """
         term = os.environ.get("TERM", "")
-        term_program = os.environ.get("TERM_PROGRAM", "")
-        term_program_lower = term_program.lower()
+        term_program_lower = os.environ.get("TERM_PROGRAM", "").lower()
         colorterm = os.environ.get("COLORTERM", "").lower()
 
         truecolor = colorterm in ("truecolor", "24bit")

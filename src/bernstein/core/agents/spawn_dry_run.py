@@ -135,18 +135,12 @@ class SpawnDryRunValidator:
         """
         report = DryRunReport(adapter_name=adapter_name)
 
-        report.checks.append(self._check_adapter(adapter_name))
-        report.checks.append(self._check_binary(adapter_name))
-        report.checks.append(self._check_model(adapter_name, model))
-        report.checks.append(self._check_repo_root())
-        report.checks.append(self._check_sdd_dir())
-        report.checks.append(self._check_tasks(tasks))
+        report.checks.extend((self._check_adapter(adapter_name), self._check_binary(adapter_name), self._check_model(adapter_name, model), self._check_repo_root(), self._check_sdd_dir(), self._check_tasks(tasks)))
 
         if mcp_config:
             report.checks.append(self._check_mcp(mcp_config))
 
-        report.checks.append(self._check_git())
-        report.checks.append(self._check_disk_space())
+        report.checks.extend((self._check_git(), self._check_disk_space()))
 
         if report.passed:
             report.would_spawn = max(1, len(tasks))

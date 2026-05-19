@@ -53,8 +53,7 @@ def list_file_health(request: Request) -> JSONResponse:
 
     grade_filter = params.get("grade", "").upper() or None
 
-    tracker = _get_tracker(request)
-    scores = tracker.get_all()
+    scores = _get_tracker(request).get_all()
 
     # Apply filters
     if min_score is not None:
@@ -92,8 +91,7 @@ def list_flagged_files(request: Request) -> JSONResponse:
 
     Returns ``files`` list with detailed health scores and degradation context.
     """
-    tracker = _get_tracker(request)
-    flagged = tracker.get_flagged()
+    flagged = _get_tracker(request).get_flagged()
 
     return JSONResponse(
         {
@@ -113,8 +111,7 @@ def get_file_health(file_path: str, request: Request) -> JSONResponse:
 
     Returns 404 if the file has never been tracked.
     """
-    tracker = _get_tracker(request)
-    score = tracker.get(file_path)
+    score = _get_tracker(request).get(file_path)
     if score is None:
         raise HTTPException(status_code=404, detail=f"File '{file_path}' not tracked yet")
 

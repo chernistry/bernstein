@@ -74,8 +74,7 @@ def task_detail(request: Request, task_id: str) -> TaskDetailResponse:
     Args:
         task_id: Task identifier.
     """
-    store = _get_store(request)
-    task = store.get_task(task_id)
+    task = _get_store(request).get_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
 
@@ -457,8 +456,7 @@ def task_diff(request: Request, task_id: str) -> TaskDiffResponse:
            a structured per-file representation.
         3. Cap the unified diff at ``_DIFF_MAX_BYTES`` to keep payloads sane.
     """
-    store = _get_store(request)
-    task = store.get_task(task_id)
+    task = _get_store(request).get_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
 

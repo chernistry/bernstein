@@ -711,13 +711,12 @@ def eval_gate(
     Returns:
         EvalGateResult with accept/reject decision.
     """
-    gate = EvalGate(
+    return (EvalGate(
         eval_harness=eval_harness,
         state_dir=state_dir,
         regression_tolerance=regression_tolerance,
         promotion_threshold=promotion_threshold,
-    )
-    return gate.evaluate(proposal, risk_level, sandbox_dir=sandbox_dir)
+    )).evaluate(proposal, risk_level, sandbox_dir=sandbox_dir)
 
 
 # ======================================================================

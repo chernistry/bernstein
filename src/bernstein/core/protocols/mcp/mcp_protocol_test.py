@@ -232,10 +232,7 @@ def _required_arguments(schema: dict[str, Any]) -> tuple[str, ...]:
     raw_required = schema.get("required")
     if not isinstance(raw_required, list):
         return ()
-    required_names: list[str] = []
-    for item in cast("list[object]", raw_required):
-        if isinstance(item, str) and item.strip():
-            required_names.append(item)
+    required_names = [item for item in cast("list[object]", raw_required) if isinstance(item, str) and item.strip()]
     return tuple(required_names)
 
 

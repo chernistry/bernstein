@@ -362,8 +362,7 @@ def emit_token(
     Returns:
         The freshly issued :class:`HandoffToken`.
     """
-    store = HandoffTokenStore(workdir, ttl_s=ttl_s)
-    return store.issue(
+    return HandoffTokenStore(workdir, ttl_s=ttl_s).issue(
         session_id=session_id,
         task_id=task_id,
         source_surface=source_surface,
@@ -395,5 +394,4 @@ def claim_token(
         HandoffUnknownTokenError: When the token was never issued.
         HandoffClaimError: When the token is expired or already claimed.
     """
-    store = HandoffTokenStore(workdir, ttl_s=ttl_s)
-    return store.claim(token, claimed_by=claimed_by)
+    return HandoffTokenStore(workdir, ttl_s=ttl_s).claim(token, claimed_by=claimed_by)

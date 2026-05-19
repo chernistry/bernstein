@@ -101,8 +101,7 @@ class FileBackend(CredentialVault):
         path: Path | None = None,
         environ: Mapping[str, str] | None = None,
     ) -> None:
-        env = environ if environ is not None else os.environ
-        passphrase = env.get(passphrase_env, "")
+        passphrase = (environ if environ is not None else os.environ).get(passphrase_env, "")
         if not passphrase:
             raise FileBackendUnavailable(
                 f"Vault file backend requires a passphrase in {passphrase_env}; the variable is unset or empty."
@@ -121,13 +120,12 @@ class FileBackend(CredentialVault):
         from cryptography.hazmat.primitives import hashes
         from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-        kdf = PBKDF2HMAC(
+        return (PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=_KEY_LEN,
             salt=salt,
             iterations=_KDF_ITERATIONS,
-        )
-        return kdf.derive(self._passphrase)
+        )).derive(self._passphrase)
 
     def _encrypt(self, plaintext: bytes, salt: bytes) -> str:
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM

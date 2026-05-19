@@ -586,8 +586,7 @@ class CascadeRouter:
         cost_usd: float,
         latency_s: float,
     ) -> None:
-        bandit = self._get_bandit()
-        bandit.record(role=role, model=model, success=success, cost_usd=cost_usd, latency_s=latency_s)
+        self._get_bandit().record(role=role, model=model, success=success, cost_usd=cost_usd, latency_s=latency_s)
 
     def _select_initial_model(self, task: Task) -> tuple[str, str]:
         """Pick the cheapest viable model for the first attempt.
@@ -674,7 +673,7 @@ class CascadeRouter:
             Tuple of (should_escalate, reason_string).
         """
         # Hard failure — explicit task failure
-        if not attempt.success and janitor_passed is None and output is None:
+        if not attempt.success and janitor_passed is output is None:
             # Caller explicitly set success=False without further info
             return True, "task failed"
 

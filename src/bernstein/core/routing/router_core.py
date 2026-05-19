@@ -671,7 +671,7 @@ class TierAwareRouter:
     ) -> ResidencyAttestation | None:
         """Build an attestation record when routing is residency constrained."""
         required_region = self.state.model_policy.required_region
-        if required_region is None and provider.residency_attestation is None:
+        if required_region is provider.residency_attestation is None:
             return None
         return ResidencyAttestation(
             provider=provider.name,

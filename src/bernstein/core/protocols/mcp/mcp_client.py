@@ -177,8 +177,7 @@ class MCPClientSession:
         Raises:
             MCPClientError: If the request fails.
         """
-        result = await self._send_jsonrpc("tools/list")
-        raw_tools = result.get("tools", [])
+        raw_tools = (await self._send_jsonrpc("tools/list")).get("tools", [])
 
         self._tools = []
         for tool_data in raw_tools:
@@ -225,10 +224,7 @@ class MCPClientSession:
 
         # Parse MCP tool result content
         content_parts = result.get("content", [])
-        text_parts: list[str] = []
-        for part in content_parts:
-            if isinstance(part, dict) and part.get("type") == "text":
-                text_parts.append(part.get("text", ""))
+        text_parts = [part.get("text", "") for part in content_parts if isinstance(part, dict) and part.get("type") == "text"]
 
         return ToolCallResult(
             content="\n".join(text_parts) if text_parts else json.dumps(result),

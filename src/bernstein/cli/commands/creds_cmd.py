@@ -220,8 +220,7 @@ def creds_group() -> None:
 @_backend_options
 def creds_list(backend: BackendChoice | None, passphrase_env: str | None) -> None:
     """List stored credentials. Never prints the secret itself."""
-    vault = _open_vault_or_exit(backend, passphrase_env)
-    records = vault.list()
+    records = _open_vault_or_exit(backend, passphrase_env).list()
     if not records:
         console.print("[yellow]No credentials stored.[/yellow]  Run [bold]bernstein connect <provider>[/bold] first.")
         return

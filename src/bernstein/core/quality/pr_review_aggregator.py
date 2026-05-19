@@ -729,10 +729,7 @@ def render_report_markdown(report: PRReviewReport) -> str:
 
     # Stable file order: scored clusters keep their rank position so the
     # by-file traversal is well-defined.
-    seen_files: list[str] = []
-    for cluster in report.clusters:
-        if cluster.file not in seen_files:
-            seen_files.append(cluster.file)
+    seen_files = [cluster.file for cluster in report.clusters if cluster.file not in seen_files]
 
     for file in seen_files:
         header = file or "_(unattributed)_"

@@ -92,8 +92,7 @@ def _file_enabled(home: Path | None) -> bool | None:
     path = config_file_path(home)
     if not path.exists():
         return None
-    cfg = _load_yaml_config(path)
-    value = cfg.get("enabled")
+    value = _load_yaml_config(path).get("enabled")
     if isinstance(value, bool):
         return value
     return None

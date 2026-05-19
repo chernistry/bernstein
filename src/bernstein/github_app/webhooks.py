@@ -66,8 +66,7 @@ def parse_webhook(headers: dict[str, str], body: bytes) -> WebhookEvent:
         ValueError: If required headers or payload fields are missing.
     """
     # Normalise header keys to lowercase for case-insensitive lookup
-    lower_headers = {k.lower(): v for k, v in headers.items()}
-    event_type = lower_headers.get("x-github-event", "")
+    event_type = ({k.lower(): v for k, v in headers.items()}).get("x-github-event", "")
     if not event_type:
         msg = "Missing X-GitHub-Event header"
         raise ValueError(msg)

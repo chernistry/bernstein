@@ -461,8 +461,7 @@ def _parse_extra_patterns(raw: str | None) -> list[re.Pattern[str]]:
     if not raw:
         return []
     # Normalize newlines to the separator, then split
-    payload = raw.replace("\r\n", "\n").replace("\n", _EXTRA_ALLOW_SEPARATOR)
-    raw_entries = payload.split(_EXTRA_ALLOW_SEPARATOR)
+    raw_entries = raw.replace("\r\n", "\n").replace("\n", _EXTRA_ALLOW_SEPARATOR).split(_EXTRA_ALLOW_SEPARATOR)
     out: list[re.Pattern[str]] = []
     for entry in raw_entries:
         pattern = entry.strip()
@@ -698,10 +697,7 @@ def classify_command(cmd: str) -> ApprovalResult:
                 matched_pattern=deny_pat,
             )
 
-    unmatched: list[str] = []
-    for sub in sub_commands:
-        if _match_allow(sub) is None:
-            unmatched.append(sub)
+    unmatched = [sub for sub in sub_commands if _match_allow(sub) is None]
 
     if unmatched:
         return ApprovalResult(

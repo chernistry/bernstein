@@ -46,8 +46,7 @@ def team_summary(request: Request) -> JSONResponse:
 @router.get("/team/active")
 def team_active(request: Request) -> JSONResponse:
     """Return only active team members."""
-    store = TeamStateStore(_get_sdd_dir(request))
-    members = store.list_members(active_only=True)
+    members = TeamStateStore(_get_sdd_dir(request)).list_members(active_only=True)
     return JSONResponse({"members": [m.to_dict() for m in members]})
 
 
@@ -62,8 +61,7 @@ def team_member(request: Request, agent_id: str) -> JSONResponse:
 
     Returns 404 if the agent is not in the team roster.
     """
-    store = TeamStateStore(_get_sdd_dir(request))
-    member = store.get_member(agent_id)
+    member = TeamStateStore(_get_sdd_dir(request)).get_member(agent_id)
     if member is None:
         return JSONResponse({"error": f"Agent {agent_id!r} not found in team"}, status_code=404)
     return JSONResponse(member.to_dict())

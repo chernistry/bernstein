@@ -90,8 +90,7 @@ class SolutionPackInfo(BaseModel):
 @router.get("/packs", response_model=list[SolutionPackInfo], responses={503: {"description": "Sandbox not enabled"}})
 async def list_solution_packs(request: Request) -> list[dict[str, Any]]:
     """List available solution packs."""
-    mgr = _get_manager(request)
-    return mgr.get_solution_packs()
+    return _get_manager(request).get_solution_packs()
 
 
 @router.post(
@@ -126,8 +125,7 @@ async def create_session(body: CreateSessionRequest, request: Request) -> dict[s
 @router.get("/sessions", response_model=list[SessionResponse], responses={503: {"description": "Sandbox not enabled"}})
 async def list_sessions(request: Request, include_finished: bool = False) -> list[dict[str, Any]]:
     """List sandbox sessions."""
-    mgr = _get_manager(request)
-    return mgr.list_sessions(include_finished=include_finished)
+    return _get_manager(request).list_sessions(include_finished=include_finished)
 
 
 @router.get(
@@ -137,8 +135,7 @@ async def list_sessions(request: Request, include_finished: bool = False) -> lis
 )
 async def get_session(session_id: str, request: Request) -> dict[str, Any]:
     """Get sandbox session details."""
-    mgr = _get_manager(request)
-    session = mgr.get_session(session_id)
+    session = _get_manager(request).get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     return session.to_dict()
@@ -173,8 +170,7 @@ async def cancel_session(session_id: str, request: Request) -> dict[str, str]:
 async def sandbox_dashboard(session_id: str, request: Request) -> HTMLResponse:
     """Serve the sandbox session dashboard page."""
     session_id = _validate_session_id(session_id)
-    mgr = _get_manager(request)
-    session = mgr.get_session(session_id)
+    session = _get_manager(request).get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     # html.escape at the call site so CodeQL's taint tracker sees the

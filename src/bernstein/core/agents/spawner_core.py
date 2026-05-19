@@ -703,10 +703,7 @@ def _render_prompt(
         sections.append(deduplicate_section(f"\n## File-scope context\n{file_scope_context}\n"))
     # Parent context inheritance: inject parent's context summary
     # when a task was created from decomposing a larger parent task.
-    parent_ctx_parts: list[str] = []
-    for t in tasks:
-        if t.parent_context:
-            parent_ctx_parts.append(t.parent_context)
+    parent_ctx_parts = [t.parent_context for t in tasks if t.parent_context]
     if parent_ctx_parts:
         sections.append(
             "\n## Parent context (inherited)\n"

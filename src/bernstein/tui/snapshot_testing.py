@@ -79,8 +79,7 @@ def capture_widget_text(_widget_class_name: str, render_text: str) -> str:
     Returns:
         Normalized text ready for diffing.
     """
-    cleaned = _strip_ansi(render_text)
-    lines = cleaned.splitlines()
+    lines = _strip_ansi(render_text).splitlines()
     normalized: list[str] = []
     for line in lines:
         # Collapse internal whitespace runs and strip trailing spaces.

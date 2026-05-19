@@ -110,8 +110,7 @@ def _get_acp_handler(request: Request) -> ACPHandler:
 @router.get("/.well-known/acp.json")
 def acp_discovery(request: Request) -> ACPDiscoveryResponse:
     """ACP discovery document — editors poll this to find ACP-compatible agents."""
-    handler = _get_acp_handler(request)
-    doc = handler.discovery_doc()
+    doc = _get_acp_handler(request).discovery_doc()
     return ACPDiscoveryResponse(
         protocol=doc["protocol"],
         version=doc["version"],
@@ -127,8 +126,7 @@ def acp_discovery(request: Request) -> ACPDiscoveryResponse:
 @router.get("/acp/v0/agents")
 def list_acp_agents(request: Request) -> list[ACPAgentListEntry]:
     """List all ACP-advertised agents."""
-    handler = _get_acp_handler(request)
-    doc = handler.discovery_doc()
+    doc = _get_acp_handler(request).discovery_doc()
     return [ACPAgentListEntry(**a) for a in doc["agents"]]
 
 
@@ -140,8 +138,7 @@ def get_acp_agent(agent_id: str, request: Request) -> ACPAgentResponse:
     """Get detailed metadata for a specific ACP agent."""
     if agent_id != "bernstein":
         raise HTTPException(status_code=404, detail=f"ACP agent '{agent_id}' not found")
-    handler = _get_acp_handler(request)
-    meta = handler.agent_metadata()
+    meta = _get_acp_handler(request).agent_metadata()
     return ACPAgentResponse(
         name=meta["name"],
         description=meta["description"],

@@ -164,10 +164,8 @@ def _parse_python_imports(source: str) -> set[str]:
         Set of top-level module name strings.
     """
     modules: set[str] = set()
-    for m in re.finditer(r"^\s*import\s+([\w.]+)", source, re.MULTILINE):
-        modules.add(m.group(1).split(".")[0])
-    for m in re.finditer(r"^\s*from\s+([\w.]+)\s+import", source, re.MULTILINE):
-        modules.add(m.group(1).split(".")[0])
+    modules.update(m.group(1).split(".")[0] for m in re.finditer(r"^\s*import\s+([\w.]+)", source, re.MULTILINE))
+    modules.update(m.group(1).split(".")[0] for m in re.finditer(r"^\s*from\s+([\w.]+)\s+import", source, re.MULTILINE))
     return modules
 
 

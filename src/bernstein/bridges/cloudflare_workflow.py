@@ -174,8 +174,7 @@ class CloudflareWorkflowBridge(RuntimeBridge):
                 status_code=resp.status_code,
             )
 
-        data = resp.json()
-        result = data.get("result", {})
+        result = resp.json().get("result", {})
         now = time.time()
         return AgentStatus(
             agent_id=request.agent_id,
@@ -218,8 +217,7 @@ class CloudflareWorkflowBridge(RuntimeBridge):
                 status_code=resp.status_code,
             )
 
-        data = resp.json()
-        result = data.get("result", {})
+        result = resp.json().get("result", {})
         step = result.get("current_step", "")
         status_str = result.get("status", "")
         state = self._map_step_to_state(step, status_str)
@@ -355,8 +353,7 @@ class CloudflareWorkflowBridge(RuntimeBridge):
                 status_code=resp.status_code,
             )
 
-        data = resp.json()
-        result = data.get("result", {})
+        result = resp.json().get("result", {})
         step_str = result.get("current_step", "claim")
         status_str = result.get("status", "")
 

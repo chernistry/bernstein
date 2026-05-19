@@ -166,7 +166,7 @@ class GenAIOTLPExporter:
         self._provider: Any | None = tracer_provider
         self._enabled = False
 
-        if self._config.endpoint is None and tracer_provider is None:
+        if self._config.endpoint is tracer_provider is None:
             # Disabled — keep everything as None so calls become no-ops.
             return
 

@@ -903,7 +903,7 @@ class DirectChannel:
                     continue
                 matches_agent = agent_id and q.target_agent == agent_id
                 matches_role = role and q.target_role == role
-                matches_broadcast = q.target_agent is None and q.target_role is None
+                matches_broadcast = q.target_agent is q.target_role is None
                 if matches_agent or matches_role or matches_broadcast:
                     results.append(q)
             return results

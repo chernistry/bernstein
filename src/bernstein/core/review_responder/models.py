@@ -94,10 +94,7 @@ class ReviewRound:
     @property
     def reviewers(self) -> tuple[str, ...]:
         """Distinct reviewer usernames present in the bundle, in arrival order."""
-        seen: list[str] = []
-        for c in self.comments:
-            if c.reviewer not in seen:
-                seen.append(c.reviewer)
+        seen = [c.reviewer for c in self.comments if c.reviewer not in seen]
         return tuple(seen)
 
 

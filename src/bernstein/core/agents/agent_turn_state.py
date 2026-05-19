@@ -296,8 +296,5 @@ class AgentTurnStateMachine:
         Returns:
             A list of ``(event_name, next_state_name)`` tuples.
         """
-        result: list[tuple[str, str]] = []
-        for (src, evt), tgt in _VALID_TRANSITIONS.items():
-            if src is state:
-                result.append((evt.value, tgt.value))
+        result = [(evt.value, tgt.value) for (src, evt), tgt in _VALID_TRANSITIONS.items() if src is state]
         return result

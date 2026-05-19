@@ -76,8 +76,7 @@ def get_scenario_detail(scenario_id: str, scenarios_dir: Path | None = None) -> 
     Returns full scenario with task breakdown, or None if not found.
     """
     root = scenarios_dir or _SCENARIOS_DIR
-    library = load_scenario_library(root)
-    recipe = library.get(scenario_id)
+    recipe = load_scenario_library(root).get(scenario_id)
     if recipe is None:
         return None
     return {
@@ -129,8 +128,7 @@ async def invoke_scenario_via_server(
         ``estimated_minutes``, and ``task_ids``. On failure to POST, returns
         a dict with an ``error`` key.
     """
-    library = load_scenario_library(scenarios_dir or _SCENARIOS_DIR)
-    recipe = library.get(scenario_id)
+    recipe = load_scenario_library(scenarios_dir or _SCENARIOS_DIR).get(scenario_id)
     if recipe is None:
         return {"error": f"Unknown scenario: {scenario_id}"}
 

@@ -242,8 +242,7 @@ def fail_task(client: httpx.Client, base_url: str, task_id: str, reason: str) ->
         task_id: ID of the task to fail.
         reason: Why the task failed.
     """
-    resp = client.post(f"{base_url}/tasks/{task_id}/fail", json={"reason": reason})
-    resp.raise_for_status()
+    client.post(f"{base_url}/tasks/{task_id}/fail", json={"reason": reason}).raise_for_status()
 
 
 def block_task(client: httpx.Client, base_url: str, task_id: str, reason: str) -> None:
@@ -255,8 +254,7 @@ def block_task(client: httpx.Client, base_url: str, task_id: str, reason: str) -
         task_id: ID of the task to block.
         reason: Why the task is blocked.
     """
-    resp = client.post(f"{base_url}/tasks/{task_id}/block", json={"reason": reason})
-    resp.raise_for_status()
+    client.post(f"{base_url}/tasks/{task_id}/block", json={"reason": reason}).raise_for_status()
 
 
 def close_task(client: httpx.Client, base_url: str, task_id: str) -> None:
@@ -267,8 +265,7 @@ def close_task(client: httpx.Client, base_url: str, task_id: str) -> None:
         base_url: Server base URL.
         task_id: ID of the task to close.
     """
-    resp = client.post(f"{base_url}/tasks/{task_id}/close", json={})
-    resp.raise_for_status()
+    client.post(f"{base_url}/tasks/{task_id}/close", json={}).raise_for_status()
 
 
 def complete_task(

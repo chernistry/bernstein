@@ -110,8 +110,7 @@ def export_tasks(request: Request, format: str = "json") -> Response:
     Query params:
         format: ``csv`` or ``json`` (default ``json``).
     """
-    store = _get_store(request)
-    all_tasks = store.list_tasks()
+    all_tasks = _get_store(request).list_tasks()
     rows = [_task_to_export_dict(t) for t in all_tasks]
 
     if format == "csv":

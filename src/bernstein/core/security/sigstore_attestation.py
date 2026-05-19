@@ -464,8 +464,7 @@ def verify_local_attestation(bundle_path: Path, attestation_dir: Path) -> bool:
         raise ValueError(msg)
     public_key = serialization.load_pem_public_key(pub_key_file.read_bytes())
 
-    payload_obj = AttestationPayload(**bundle["payload"])
-    payload_bytes = payload_obj.canonical_json().encode()
+    payload_bytes = AttestationPayload(**bundle["payload"]).canonical_json().encode()
     signature = bytes.fromhex(bundle["signature_hex"])
 
     try:

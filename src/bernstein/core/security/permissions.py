@@ -344,10 +344,7 @@ def check_file_permissions(
     if not changed_files:
         return [PermissionDecision(type=DecisionType.ALLOW, reason="No files changed")]
 
-    violations: list[str] = []
-    for filepath in changed_files:
-        if not is_path_allowed(filepath, permissions):
-            violations.append(filepath)
+    violations = [filepath for filepath in changed_files if not is_path_allowed(filepath, permissions)]
 
     if violations:
         return [

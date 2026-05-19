@@ -364,8 +364,7 @@ def check_session_management(project_root: Path) -> PolicyResult:
 def check_password_policy(project_root: Path) -> PolicyResult:
     """Verify that a minimum password length policy is configured."""
     config = _load_yaml_config(project_root)
-    security = config.get("security", {})
-    min_len = security.get("password_min_length", 0)
+    min_len = config.get("security", {}).get("password_min_length", 0)
     passed = min_len >= 12  # NIST 800-63B recommendation
     evidence = f"Password min length: {min_len}" if min_len > 0 else "No password policy configured"
     remediation = "" if passed else "Set security.password_min_length to at least 12 characters (NIST 800-63B)."

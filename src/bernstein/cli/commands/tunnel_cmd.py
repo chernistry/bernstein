@@ -100,8 +100,7 @@ def start_cmd(port: int, provider: str, name: str | None) -> None:
 @tunnel_group.command("list")
 def list_cmd() -> None:
     """Show every active tunnel."""
-    reg = _build_registry()
-    handles = reg.list_active()
+    handles = _build_registry().list_active()
     if not handles:
         console.print("[dim]No active tunnels.[/dim]")
         return

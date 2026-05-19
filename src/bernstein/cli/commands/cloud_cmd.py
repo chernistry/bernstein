@@ -103,8 +103,7 @@ def cloud_run(goal: str, max_agents: int, model: str, budget: float, *, wait: bo
     }
     resp = _cloud_request("POST", _RUNS_PATH, token, json=payload)
     resp.raise_for_status()
-    data = resp.json()
-    run_id = data.get("id", "unknown")
+    run_id = resp.json().get("id", "unknown")
     click.echo(f"Started cloud run: {run_id}")
 
     if wait:

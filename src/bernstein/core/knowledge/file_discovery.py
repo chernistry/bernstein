@@ -143,10 +143,7 @@ def available_roles(templates_dir: Path) -> list[str]:
     """
     if not templates_dir.is_dir():
         return []
-    roles: list[str] = []
-    for child in sorted(templates_dir.iterdir()):
-        if child.is_dir() and (child / "system_prompt.md").exists():
-            roles.append(child.name)
+    roles = [child.name for child in sorted(templates_dir.iterdir()) if child.is_dir() and (child / "system_prompt.md").exists()]
     return roles
 
 

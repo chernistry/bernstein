@@ -126,10 +126,7 @@ def _extract_python_chunks(source: str, rel_path: str) -> list[dict[str, object]
     total = len(lines)
 
     # Collect top-level and nested function/class definitions.
-    nodes: list[ast.AST] = []
-    for node in ast.walk(tree):
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            nodes.append(node)
+    nodes = [node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))]
 
     if not nodes:
         return _line_chunks(source, rel_path)

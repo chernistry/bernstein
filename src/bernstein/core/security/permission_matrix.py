@@ -201,8 +201,7 @@ def resolve_permission(
     Returns:
         ResolutionOutcome.
     """
-    matrix = PermissionResolutionMatrix()
-    return matrix.resolve_simple(rule_outcome, hook_outcome)
+    return PermissionResolutionMatrix().resolve_simple(rule_outcome, hook_outcome)
 
 
 def log_resolution(

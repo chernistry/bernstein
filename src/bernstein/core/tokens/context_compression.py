@@ -46,10 +46,7 @@ def _should_skip(rel_parts: tuple[str, ...]) -> bool:
 
 def _iter_python_files(workdir: Path) -> list[Path]:
     """Collect all .py files in workdir, skipping hidden/vendored dirs."""
-    result: list[Path] = []
-    for fpath in workdir.rglob("*.py"):
-        if not _should_skip(fpath.relative_to(workdir).parts):
-            result.append(fpath)
+    result = [fpath for fpath in workdir.rglob("*.py") if not _should_skip(fpath.relative_to(workdir).parts)]
     return result
 
 
@@ -141,8 +138,7 @@ class DependencyGraph:
         imports: set[str] = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
-                for alias in node.names:
-                    imports.add(alias.name)
+                imports.update(alias.name for alias in node.names)
             elif isinstance(node, ast.ImportFrom) and node.module:
                 imports.add(node.module)
         return imports

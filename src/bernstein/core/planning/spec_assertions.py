@@ -131,10 +131,7 @@ class AssertionReport:
         return [r for r in self.results if not r.passed]
 
     def failed_feature_ids(self) -> list[str]:
-        seen: list[str] = []
-        for r in self.results:
-            if not r.passed and r.feature_id not in seen:
-                seen.append(r.feature_id)
+        seen = [r.feature_id for r in self.results if not r.passed and r.feature_id not in seen]
         return seen
 
 

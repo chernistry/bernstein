@@ -188,8 +188,7 @@ class PermissionProfileManager:
         Returns:
             Dict suitable for .claude/settings.json.
         """
-        profile = self.get_profile(role)
-        return profile.to_settings_json()
+        return self.get_profile(role).to_settings_json()
 
     def inject_settings(self, role: str, workdir: Path) -> Path:
         """Write permission settings to the agent's working directory.

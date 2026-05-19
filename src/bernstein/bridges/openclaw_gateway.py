@@ -170,8 +170,7 @@ class _IdentityStore:
 
     def save_device_token(self, token: str) -> None:
         """Persist a gateway-issued device token."""
-        token_path = self._dir / _DEVICE_TOKEN_FILE
-        token_path.write_text(token.strip(), encoding="utf-8")
+        (self._dir / _DEVICE_TOKEN_FILE).write_text(token.strip(), encoding="utf-8")
 
 
 class OpenClawGatewayClient:
@@ -282,10 +281,7 @@ class OpenClawGatewayClient:
             candidates = payload
         if not isinstance(candidates, list):
             return []
-        result: list[dict[str, Any]] = []
-        for item_raw in cast("list[object]", candidates):
-            if isinstance(item_raw, dict):
-                result.append(cast("dict[str, Any]", item_raw))
+        result = [cast("dict[str, Any]", item_raw) for item_raw in cast("list[object]", candidates) if isinstance(item_raw, dict)]
         return result
 
     async def _connect_websocket(self) -> ClientConnection:
@@ -333,8 +329,7 @@ class OpenClawGatewayClient:
         payload_raw = challenge.get("payload")
         if not isinstance(payload_raw, dict):
             raise BridgeError("OpenClaw connect.challenge payload missing")
-        payload = cast(_CAST_DICT_STR_OBJ, payload_raw)
-        nonce = payload.get("nonce")
+        nonce = cast(_CAST_DICT_STR_OBJ, payload_raw).get("nonce")
         if not isinstance(nonce, str) or not nonce:
             raise BridgeError("OpenClaw connect.challenge nonce missing")
 
@@ -375,10 +370,8 @@ class OpenClawGatewayClient:
                 }
             )
         )
-        response = await self._await_response(websocket, request_id)
-        payload_raw = response.get("payload")
-        payload_dict = cast(_CAST_DICT_STR_OBJ, payload_raw) if isinstance(payload_raw, dict) else {}
-        auth_payload = payload_dict.get("auth")
+        payload_raw = (await self._await_response(websocket, request_id)).get("payload")
+        auth_payload = (cast(_CAST_DICT_STR_OBJ, payload_raw) if isinstance(payload_raw, dict) else {}).get("auth")
         if isinstance(auth_payload, dict):
             auth_dict = cast(_CAST_DICT_STR_OBJ, auth_payload)
             device_token = auth_dict.get("deviceToken")
@@ -390,8 +383,7 @@ class OpenClawGatewayClient:
         request_id = uuid.uuid4().hex
         frame = {"type": "req", "id": request_id, "method": method, "params": params}
         await websocket.send(json.dumps(frame))
-        response = await self._await_response(websocket, request_id)
-        payload = response.get("payload")
+        payload = (await self._await_response(websocket, request_id)).get("payload")
         if not isinstance(payload, dict):
             return {}
         return cast("dict[str, Any]", payload)

@@ -115,8 +115,7 @@ def write_quarantine_metadata(
         metadata["files"] = files
     if branch:
         metadata["branch"] = branch
-    out_path = quarantine_dir / f"{session_id}.json"
-    out_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    (quarantine_dir / f"{session_id}.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     logger.info("Quarantine metadata written for agent %s (branch: %s)", session_id, branch)
 
 
@@ -167,8 +166,7 @@ def enforce_kill_signal(
     if files:
         kill_payload["files"] = files
 
-    kill_file = runtime_dir / f"{session_id}.kill"
-    kill_file.write_text(json.dumps(kill_payload), encoding="utf-8")
+    (runtime_dir / f"{session_id}.kill").write_text(json.dumps(kill_payload), encoding="utf-8")
     logger.warning(
         "Kill signal written for agent %s (reason=%s): %s",
         session_id,
@@ -250,10 +248,7 @@ def _files_outside_scope(changed_files: list[str], owned_files: list[str]) -> li
     Returns:
         Files that do not match any entry in *owned_files*.
     """
-    out_of_scope: list[str] = []
-    for f in changed_files:
-        if not any(f == owned or f.startswith(owned.rstrip("/") + "/") for owned in owned_files):
-            out_of_scope.append(f)
+    out_of_scope = [f for f in changed_files if not any(f == owned or f.startswith(owned.rstrip("/") + "/") for owned in owned_files)]
     return out_of_scope
 
 

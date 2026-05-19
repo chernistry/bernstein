@@ -166,8 +166,7 @@ def token_report_cmd(metrics_dir: str, as_json: bool, as_markdown: bool) -> None
         raise SystemExit(1)
 
     workdir = mdir.parent.parent  # .sdd/metrics -> .sdd -> workdir
-    analyzer = TokenUsageAnalyzer(workdir)
-    analysis = analyzer.analyze()
+    analysis = TokenUsageAnalyzer(workdir).analyze()
 
     if not analysis.task_stats:
         if as_json or is_json():

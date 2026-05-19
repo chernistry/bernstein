@@ -92,8 +92,7 @@ def show_cmd(
 ) -> None:
     """Show audit entries chronologically with optional filters."""
     key = _load_key(secret_env)
-    log = TrackerAuditLog(log_path, hmac_key=key)
-    entries = log.filter(
+    entries = TrackerAuditLog(log_path, hmac_key=key).filter(
         tracker_name=tracker_name,
         ticket_id=ticket_id,
         since_ns=since_ns,
@@ -162,8 +161,7 @@ def export_cmd(
 ) -> None:
     """Write a filtered signed JSONL bundle for an auditor."""
     key = _load_key(secret_env)
-    log = TrackerAuditLog(log_path, hmac_key=key)
-    n = log.export_bundle(
+    n = TrackerAuditLog(log_path, hmac_key=key).export_bundle(
         output_path,
         tracker_name=tracker_name,
         ticket_id=ticket_id,
@@ -189,8 +187,7 @@ def export_cmd(
 def verify_cmd(log_path: Path, secret_env: str) -> None:
     """Verify chain integrity + HMAC. Exits non-zero on tampering."""
     key = _load_key(secret_env)
-    log = TrackerAuditLog(log_path, hmac_key=key)
-    result = log.verify()
+    result = TrackerAuditLog(log_path, hmac_key=key).verify()
     if result.ok:
         console.print(f"[green]tracker-audit verify:[/green] OK ({result.entry_count} entry(ies))")
         return

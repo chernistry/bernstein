@@ -123,10 +123,7 @@ def detect_environments(
     exists = file_exists if file_exists is not None else _default_file_exists
     probe_list = list(probes) if probes is not None else ENVIRONMENT_PROBES
 
-    matches: list[EnvironmentProbe] = []
-    for probe in probe_list:
-        if probe.matches(env_map, exists):
-            matches.append(probe)
+    matches = [probe for probe in probe_list if probe.matches(env_map, exists)]
 
     if len(matches) > 1:
         specific = [p for p in matches if p.label != "Generic CI"]

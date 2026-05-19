@@ -74,8 +74,7 @@ def _extract_recipe_stages(recipe_path: Path) -> list[RecipeStage]:
     raw_data = yaml.safe_load(recipe_path.read_text(encoding="utf-8"))
     if not isinstance(raw_data, dict):
         return []
-    data = cast(_CAST_DICT_STR_ANY, raw_data)
-    raw_stages = data.get("stages")
+    raw_stages = cast(_CAST_DICT_STR_ANY, raw_data).get("stages")
     if not isinstance(raw_stages, list):
         return []
 
@@ -192,7 +191,7 @@ def _format_recipe_progress(
     line = f"Sprint {sprint_done}/{max(len(stages), 1)} | {pct_complete}% complete | ${spent_usd:.2f} spent"
 
     total = int(status_payload.get("total", 0) or 0)
-    is_complete = total > 0 and open_count == 0 and claimed_count == 0 and agent_count == 0
+    is_complete = total > 0 and open_count == claimed_count == 0 and (agent_count == 0)
     return line, is_complete
 
 
@@ -395,8 +394,7 @@ def setup_demo_project(project_dir: Path, adapter: str) -> None:
     for d in SDD_DIRS:
         (project_dir / d).mkdir(parents=True, exist_ok=True)
 
-    config_path = project_dir / ".sdd" / "config.yaml"
-    config_path.write_text(
+    (project_dir / ".sdd" / "config.yaml").write_text(
         "# Bernstein demo workspace\n"
         f"server_port: {_DEMO_PORT}\n"
         "max_workers: 2\n"

@@ -378,13 +378,12 @@ def get_budget_forecast(request: Request) -> JSONResponse:
     sdd_dir = _get_sdd_dir(request)
     store = _get_store(request)
     metrics_dir = sdd_dir / "metrics"
-    forecast = forecast_planned_backlog(
+    payload = (forecast_planned_backlog(
         store.list_tasks(),
         metrics_dir=metrics_dir if metrics_dir.exists() else None,
         current_spend_usd=_read_current_spend(metrics_dir),
         budget_usd=_load_budget_from_seed(sdd_dir),
-    )
-    payload = forecast.to_dict()
+    )).to_dict()
     payload["generated_at"] = time.time()
     return JSONResponse(payload)
 

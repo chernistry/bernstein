@@ -220,7 +220,7 @@ def make_preexec_fn(limits: ResourceLimits) -> Callable[[], None] | None:
     """
     if not _IS_POSIX:
         return None
-    if limits.memory_mb == 0 and limits.cpu_seconds == 0 and limits.open_files == 0:
+    if limits.memory_mb == limits.cpu_seconds == 0 and limits.open_files == 0:
         return None
 
     _limits = limits  # capture for closure

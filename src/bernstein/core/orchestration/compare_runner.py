@@ -358,7 +358,7 @@ def _diff_against_snapshot(snapshot: Path, worktree: Path) -> dict[str, str]:
     for rel in all_rel:
         snap_text = snap_files.get(rel)
         work_text = work_files.get(rel)
-        if snap_text is None and work_text is None:
+        if snap_text is work_text is None:
             continue
         if snap_text == work_text:
             continue

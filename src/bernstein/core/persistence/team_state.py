@@ -244,8 +244,7 @@ class TeamStateStore:
 
     def get_member(self, agent_id: str) -> TeamMember | None:
         """Look up a single team member by agent ID."""
-        members = self._read_all()
-        return members.get(agent_id)
+        return self._read_all().get(agent_id)
 
     def list_members(self, *, active_only: bool = False) -> list[TeamMember]:
         """Return all team members, optionally filtered to active ones.

@@ -477,8 +477,7 @@ def _today_start_timestamp() -> float:
     from datetime import datetime
 
     now = datetime.now(tz=UTC)
-    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    return midnight.timestamp()
+    return now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
 
 
 def _current_period() -> str:

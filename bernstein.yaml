@@ -59,3 +59,36 @@ autofix:
   cost_cap_per_pr: 1.0
   ladder:
     enabled: false
+  # Telemetry-grounded autofix sources. Each entry wires one
+  # adapter (Sentry/GlitchTip, GitHub Actions failure, ...).
+  # Every source is opt-in - set enabled to true and configure
+  # secret_env before the receiver will dispatch.
+  # MVP: sentry and gha_failure ship with full dispatch wiring;
+  # datadog, loki, and custom_jsonl are stubbed (audit-only).
+  telemetry_sources:
+    - source: sentry
+      enabled: false
+      endpoint: /webhooks/telemetry/sentry/
+      secret_env: BERNSTEIN_SENTRY_WEBHOOK_SECRET
+      fingerprint_path: ""
+      cost_cap_usd: 0.20
+    - source: gha_failure
+      enabled: false
+      endpoint: /webhooks/telemetry/gha_failure/
+      secret_env: BERNSTEIN_GHA_WEBHOOK_SECRET
+      cost_cap_usd: 0.20
+    - source: datadog
+      enabled: false
+      endpoint: /webhooks/telemetry/datadog/
+      secret_env: BERNSTEIN_DATADOG_WEBHOOK_SECRET
+      cost_cap_usd: 0.20
+    - source: loki
+      enabled: false
+      endpoint: /webhooks/telemetry/loki/
+      secret_env: BERNSTEIN_LOKI_WEBHOOK_SECRET
+      cost_cap_usd: 0.20
+    - source: custom_jsonl
+      enabled: false
+      endpoint: /webhooks/telemetry/custom_jsonl/
+      secret_env: BERNSTEIN_CUSTOM_JSONL_WEBHOOK_SECRET
+      cost_cap_usd: 0.20

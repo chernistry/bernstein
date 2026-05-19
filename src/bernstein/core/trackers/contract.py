@@ -59,6 +59,15 @@ class Ticket:
         etag: Opaque revision token for optimistic concurrency control.
         routing_hint: Optional routing metadata.
         raw: Tracker-specific payload kept for adapters that need it.
+        cost_cap_usd: Optional hard USD ceiling for the agent run that
+            processes this ticket. ``None`` (default) keeps existing
+            behaviour and lets the orchestrator-level budget apply. When
+            set to a positive value the per-ticket cost cap enforcement
+            in :mod:`bernstein.core.cost.ticket_cap` halts the agent at
+            the next tool-call boundary once cumulative spend on the
+            ticket would breach the cap. A value of ``0.0`` is treated
+            as "halt immediately" (no work permitted) and is useful in
+            tests/dry-runs.
     """
 
     id: str
@@ -70,6 +79,7 @@ class Ticket:
     etag: str | None = None
     routing_hint: RoutingHint = field(default_factory=RoutingHint)
     raw: dict[str, Any] = field(default_factory=dict)
+    cost_cap_usd: float | None = None
 
 
 @dataclass(frozen=True)

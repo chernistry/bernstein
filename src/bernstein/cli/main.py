@@ -299,6 +299,50 @@ from bernstein.cli.stop_cmd import (
 from bernstein.cli.test_cmd import test_cmd
 
 # ---------------------------------------------------------------------------
+# Error telemetry bootstrap
+# ---------------------------------------------------------------------------
+
+
+def _init_error_telemetry() -> None:
+    """Initialise the operator-managed error-telemetry sink, if configured.
+
+    Wires sentry-sdk to a Sentry-protocol-compatible error sink whose DSN is
+    supplied via ``GLITCHTIP_DSN``.  The function is a no-op when:
+
+    * ``GLITCHTIP_DSN`` is unset or empty (operator has not yet stood up the
+      sink), or
+    * the ``sentry-sdk`` package is not importable (minimal install without
+      the ``observability`` extra).
+
+    Sample rates are set to zero, so no events fire on the happy path -- only
+    explicit ``sentry_sdk.capture_*`` calls and unhandled exceptions reach the
+    sink.  ``send_default_pii`` is disabled so no operator identifiers leave
+    the process unless captured explicitly.
+    """
+    import os
+
+    dsn = os.environ.get("GLITCHTIP_DSN")
+    if not dsn:
+        return
+    try:
+        import sentry_sdk  # type: ignore[import-not-found]
+    except ImportError:
+        return
+    from bernstein import __version__
+
+    sentry_sdk.init(
+        dsn=dsn,
+        traces_sample_rate=0.0,
+        profiles_sample_rate=0.0,
+        send_default_pii=False,
+        release=__version__,
+    )
+
+
+_init_error_telemetry()
+
+
+# ---------------------------------------------------------------------------
 # Rich help
 # ---------------------------------------------------------------------------
 

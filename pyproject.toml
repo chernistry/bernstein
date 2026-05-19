@@ -152,6 +152,11 @@ dev = [
     # its own env. See docs/contributing/flake-handling.md.
     "pytest-xflaky>=1.0.3",
     "pytest-json-report>=1.5",
+    # Error-telemetry SDK for the operator-managed Sentry-protocol-compatible
+    # error sink. Imported lazily in src/bernstein/cli/main.py and only
+    # initialised when GLITCHTIP_DSN is set. Kept in dev so the test-suite
+    # can exercise the no-op + initialised paths.
+    "sentry-sdk[fastapi]>=2.20",
     # NOTE: semgrep is intentionally NOT a dev dep. Its transitive pins
     # (click<8.2, opentelemetry-sdk<1.38) collide with our production
     # floors (click>=8.3.3, opentelemetry-sdk>=1.41.1). Install via
@@ -209,6 +214,14 @@ gui = [
 #   pip install 'bernstein[otel]'
 otel = [
     "opentelemetry-exporter-otlp-proto-grpc>=1.41.1",
+]
+# Error-telemetry SDK wired to an operator-managed Sentry-protocol-compatible
+# error sink (src/bernstein/cli/main.py:_init_error_telemetry). The SDK is
+# imported lazily and only initialises when GLITCHTIP_DSN is set, so minimal
+# installs pay zero overhead. Enable with:
+#   pip install 'bernstein[observability]'
+observability = [
+    "sentry-sdk[fastapi]>=2.20",
 ]
 
 [project.scripts]
@@ -710,6 +723,10 @@ dev = [
     # ad-hoc. See docs/contributing/flake-handling.md.
     "pytest-xflaky>=1.0.3",
     "pytest-json-report>=1.5",
+    # Error-telemetry SDK for the operator-managed Sentry-protocol-compatible
+    # error sink. Mirror of [project.optional-dependencies].dev; the lazy
+    # init in src/bernstein/cli/main.py keeps no-op installs free.
+    "sentry-sdk[fastapi]>=2.20",
     # semgrep installed via `uv tool install semgrep` in CI — pins
     # click<8.2 and opentelemetry-sdk<1.38, conflicts with our
     # click>=8.3.3 / opentelemetry-sdk>=1.41.1 floors. Mirror of

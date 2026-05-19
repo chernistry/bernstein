@@ -122,8 +122,15 @@ class _VaultInjector:
     """Vault dynamic secrets: fetch a new lease, inject env vars, revoke on exit."""
 
     def __init__(self) -> None:
+        from bernstein.core.security.url_allowlist import UrlSchemeError, ensure_http_url
+
         self._addr = os.environ.get("VAULT_ADDR", "http://127.0.0.1:8200")
         self._token = os.environ.get("VAULT_TOKEN", "")
+        try:
+            # VAULT_ADDR is operator-supplied via env; require http(s).
+            ensure_http_url(self._addr, allow_http=True, source="VAULT_ADDR")
+        except UrlSchemeError as exc:
+            raise VaultInjectionError(f"Invalid VAULT_ADDR: {exc}") from exc
 
     def inject(self, config: InjectionConfig) -> tuple[dict[str, str], CredentialLease]:
         """Fetch Vault dynamic credentials and return (env_vars, lease)."""
@@ -147,6 +154,8 @@ class _VaultInjector:
         req.add_header("Content-Type", "application/json")
 
         try:
+            # ``self._addr`` was scheme-validated in :meth:`__init__`.
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=15) as resp:
                 body: dict[str, Any] = json.loads(resp.read().decode())
         except urllib.error.HTTPError as exc:
@@ -201,6 +210,8 @@ class _VaultInjector:
         req.add_header("Content-Type", "application/json")
 
         try:
+            # ``self._addr`` was scheme-validated in :meth:`__init__`.
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=10):
                 pass  # Response body not needed for revocation
             logger.info("Vault lease revoked: %s", lease.lease_id)

@@ -192,13 +192,21 @@ def _get_identity_token() -> str | None:
         try:
             import urllib.request
 
+            from bernstein.core.security.url_allowlist import ensure_http_url
+
             request_url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"]
             request_token = os.environ.get("ACTIONS_ID_TOKEN_REQUEST_TOKEN", "")
             url = f"{request_url}&audience=sigstore"
+            # ACTIONS_ID_TOKEN_REQUEST_URL is injected by GitHub Actions and
+            # is always https in legitimate runs; rejecting other schemes
+            # blocks tampered env vars from redirecting the OIDC fetch to a
+            # local file or attacker-controlled scheme.
+            ensure_http_url(url, source="sigstore.actions_oidc")
             req = urllib.request.Request(
                 url,
                 headers={"Authorization": f"bearer {request_token}"},
             )
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read())
                 return str(data.get("value", ""))

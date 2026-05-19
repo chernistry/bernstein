@@ -344,6 +344,10 @@ def _content_id(
         sort_keys=True,
         separators=(",", ":"),
     )
+    # Non-security identity derivation: SHA-1 is used only to build a short,
+    # stable ID for synthetic eval scenarios. `usedforsecurity=False` documents
+    # intent; collisions here only affect dedup of generated cases.
+    # nosemgrep: python.lang.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
     digest = hashlib.sha1(payload.encode("utf-8"), usedforsecurity=False).hexdigest()
     return f"syn-{digest[:12]}"
 
@@ -373,6 +377,9 @@ def _deterministic_timestamp(scenario: str, seed: int, params: Mapping[str, Any]
         sort_keys=True,
         separators=(",", ":"),
     )
+    # Non-security deterministic mapping: we only need a stable byte stream
+    # to derive a fake timestamp; collisions are irrelevant.
+    # nosemgrep: python.lang.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
     digest = hashlib.sha1(payload.encode("utf-8"), usedforsecurity=False).digest()
     # Take the first 4 bytes as an int in [0, 2**32) — divide to land
     # in a sub-second window for readability.

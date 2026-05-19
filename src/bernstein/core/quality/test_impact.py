@@ -36,7 +36,12 @@ class AnalyzerCacheData(TypedDict):
 
 
 def _file_hash(path: Path) -> str:
-    """Return a short content hash for a file."""
+    """Return a short content hash for a file.
+
+    Non-security: used purely as a cache fingerprint for the test-impact
+    analyzer. ``usedforsecurity=False`` documents that intent.
+    """
+    # nosemgrep: python.lang.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
     return hashlib.sha1(path.read_bytes(), usedforsecurity=False).hexdigest()[:16]
 
 

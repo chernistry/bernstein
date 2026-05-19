@@ -30,6 +30,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
+from bernstein.core.security.url_allowlist import ensure_http_url
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_WEBHOOK_TIMEOUT_SECS: float = 5.0
@@ -85,6 +87,9 @@ class WebhookAlertSink:
         max_retries: int = DEFAULT_WEBHOOK_MAX_RETRIES,
         backoff_secs: float = DEFAULT_WEBHOOK_BACKOFF_SECS,
     ) -> None:
+        # ``url`` is operator-supplied SIEM/webhook target. Restrict to
+        # http(s); localhost http is allowed to support on-prem collectors.
+        ensure_http_url(url, allow_http=True, source="lineage_alert.webhook")
         self.url = url
         self._headers = dict(headers or {})
         self._headers.setdefault("Content-Type", "application/json")
@@ -103,6 +108,9 @@ class WebhookAlertSink:
                     headers=self._headers,
                     method="POST",
                 )
+                # ``self.url`` was scheme-validated by :func:`ensure_http_url`
+                # in :meth:`__init__`.
+                # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
                 with urllib.request.urlopen(req, timeout=self._timeout_secs) as resp:
                     status = getattr(resp, "status", 200)
                     if 200 <= status < 300:

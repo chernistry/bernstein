@@ -220,7 +220,13 @@ def generate_sdk_from_app(base_url: str = "http://127.0.0.1:8052") -> str:
     """
     import urllib.request
 
+    from bernstein.core.security.url_allowlist import ensure_http_url
+
     url = f"{base_url.rstrip('/')}/openapi.json"
+    # ``base_url`` is operator-supplied; permit http for localhost / on-prem
+    # dev servers, otherwise require https.
+    ensure_http_url(url, allow_http=True, source="sdk_generator")
+    # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
     with urllib.request.urlopen(url) as resp:
         spec = json.loads(resp.read().decode("utf-8"))
     return generate_sdk(spec)

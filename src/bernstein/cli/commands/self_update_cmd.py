@@ -62,6 +62,8 @@ def _fetch_latest_pypi_version() -> str | None:
             _PYPI_URL,
             headers={"Accept": "application/json", "User-Agent": f"bernstein/{_get_installed_version()}"},
         )
+        # Internal-only: ``_PYPI_URL`` is a hard-coded module constant.
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=10) as resp:
             data: dict[str, object] = json.loads(resp.read())
         info = data.get("info")
@@ -114,6 +116,9 @@ def _fetch_changelog(current: str, latest: str) -> list[str]:
                 "User-Agent": f"bernstein/{current}",
             },
         )
+        # Internal-only: ``_GITHUB_RELEASES_URL`` is a hard-coded module
+        # constant pointing at the project's release feed.
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=10) as resp:
             releases: list[dict[str, object]] = json.loads(resp.read())
     except (json.JSONDecodeError, OSError):

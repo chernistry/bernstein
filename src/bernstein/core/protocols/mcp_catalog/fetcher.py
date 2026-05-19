@@ -24,6 +24,7 @@ from bernstein.core.protocols.mcp_catalog.manifest import (
     CatalogValidationError,
     validate_catalog,
 )
+from bernstein.core.security.url_allowlist import ensure_http_url
 
 logger = logging.getLogger(__name__)
 
@@ -80,8 +81,13 @@ class _UrllibTransport:
     """Default transport backed by :mod:`urllib.request`."""
 
     def get(self, url: str, *, headers: dict[str, str]) -> HTTPResponse:
+        # Operators may override the catalog URL via config; restrict the
+        # scheme so a malicious config cannot turn this transport into a
+        # ``file://`` reader.
+        ensure_http_url(url, allow_http=True, source="mcp_catalog.fetcher")
         request = urllib.request.Request(url, headers=headers)
         try:
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(request, timeout=15) as resp:
                 body = resp.read()
                 etag = resp.headers.get("ETag")

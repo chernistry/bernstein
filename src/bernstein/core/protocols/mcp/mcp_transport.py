@@ -17,6 +17,8 @@ import subprocess
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
+from bernstein.core.security.url_allowlist import ensure_http_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -229,6 +231,10 @@ class SseTransport:
             raise TransportError("SseTransport requires a non-empty url")
         from bernstein.core.security.network_policy import policy_from_env
 
+        # Defence-in-depth: reject non-HTTP(S) schemes early. The network
+        # policy below only checks host/port; without this guard a config
+        # like ``file:///etc/passwd`` would pass it through.
+        ensure_http_url(config.url, allow_http=True, source="mcp:sse")
         policy_from_env().check_url(config.url, source="mcp:sse")
         self._url = config.url
         self._timeout = config.timeout
@@ -243,6 +249,9 @@ class SseTransport:
             import urllib.request
 
             req = urllib.request.Request(self._url, method="HEAD")
+            # ``self._url`` was validated by :func:`ensure_http_url` at
+            # connect-time, so plain ``urlopen`` is safe here.
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=self._timeout):
                 return True
         except Exception:
@@ -293,6 +302,8 @@ class StreamableHttpTransport:
             raise TransportError("StreamableHttpTransport requires a non-empty url")
         from bernstein.core.security.network_policy import policy_from_env
 
+        # Defence-in-depth scheme check; see :class:`SseTransport.connect`.
+        ensure_http_url(config.url, allow_http=True, source="mcp:streamable_http")
         policy_from_env().check_url(config.url, source="mcp:streamable_http")
         self._url = config.url
         self._timeout = config.timeout
@@ -308,6 +319,9 @@ class StreamableHttpTransport:
             import urllib.request
 
             req = urllib.request.Request(self._url, method="HEAD", headers=self._headers)
+            # ``self._url`` was validated by :func:`ensure_http_url` at
+            # connect-time.
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=self._timeout):
                 return True
         except Exception:

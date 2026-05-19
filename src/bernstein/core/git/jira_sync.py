@@ -17,6 +17,8 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
+from bernstein.core.security.url_allowlist import UrlSchemeError, ensure_http_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,12 +60,21 @@ def fetch_jira_issues(config: JiraSyncConfig) -> list[dict[str, Any]]:
         f"{config.base_url.rstrip('/')}/rest/api/2/search"
         f"?jql={jql}&maxResults=100&fields=summary,description,status,labels"
     )
+    try:
+        # ``config.base_url`` is operator-supplied; reject anything but
+        # http(s) before opening the URL. Plain http is permitted for
+        # localhost mocks via :func:`ensure_http_url`.
+        ensure_http_url(url, allow_http=True, source="jira_sync")
+    except UrlSchemeError as exc:
+        logger.warning("Refusing to query Jira: %s", exc)
+        return []
 
     req = Request(url)
     req.add_header("Authorization", f"Basic {token}")
     req.add_header("Accept", "application/json")
 
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urlopen(req, timeout=30) as resp:
             data: dict[str, Any] = json.loads(resp.read().decode("utf-8"))
             issues: list[dict[str, Any]] = data.get("issues", [])

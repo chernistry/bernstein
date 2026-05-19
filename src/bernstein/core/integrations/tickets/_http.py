@@ -13,6 +13,7 @@ import json
 from typing import Any, cast
 
 from bernstein.core.integrations.tickets import TicketAuthError, TicketParseError
+from bernstein.core.security.url_allowlist import UrlSchemeError, ensure_http_url
 
 DEFAULT_TIMEOUT_SECONDS = 10.0
 
@@ -44,6 +45,13 @@ def http_get_json(
         TicketParseError: Any other 4xx / 5xx response.
     """
     try:
+        # ``url`` is operator-supplied (Jira/GitHub/Linear base + path);
+        # reject non-HTTP(S) schemes regardless of transport implementation.
+        ensure_http_url(url, allow_http=True, source=f"tickets.{provider_label}")
+    except UrlSchemeError as exc:
+        raise TicketParseError(str(exc)) from exc
+
+    try:
         import httpx
 
         resp = httpx.get(url, headers=headers, timeout=timeout)
@@ -61,6 +69,8 @@ def http_get_json(
 
         req = urllib.request.Request(url, headers=headers)
         try:
+            # ``url`` was scheme-validated by :func:`ensure_http_url` above.
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=timeout) as handle:
                 return cast(dict[str, Any], json.loads(handle.read().decode("utf-8")))
         except urllib.error.HTTPError as exc:

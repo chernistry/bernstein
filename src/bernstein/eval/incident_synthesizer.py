@@ -494,7 +494,10 @@ _SECRET_REDACTION_RES: tuple[re.Pattern[str], ...] = (
 
 
 def _content_id(prompt: str, severity: Severity, role: str) -> str:
-    digest = hashlib.sha1(f"{severity}|{role}|{prompt}".encode()).hexdigest()
+    # Non-security identity derivation: SHA-1 builds a short, stable ID for
+    # synthesised incident eval cases. `usedforsecurity=False` documents intent.
+    # nosemgrep: python.lang.security.insecure-hash-algorithms.insecure-hash-algorithm-sha1
+    digest = hashlib.sha1(f"{severity}|{role}|{prompt}".encode(), usedforsecurity=False).hexdigest()
     return f"inc-{digest[:12]}"
 
 

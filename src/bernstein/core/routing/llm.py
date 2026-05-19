@@ -336,6 +336,8 @@ async def preconnect_api(
     """
     import urllib.parse
 
+    from bernstein.core.security.url_allowlist import UrlSchemeError, ensure_http_url
+
     parsed = urllib.parse.urlparse(base_url)
     host = parsed.hostname or ""
     # Skip local/proxy providers
@@ -344,9 +346,17 @@ async def preconnect_api(
         return False
 
     try:
+        # ``base_url`` is operator-supplied; require http(s).
+        ensure_http_url(base_url, allow_http=True, source="routing.llm.preconnect")
+    except UrlSchemeError as exc:
+        logger.debug("API preconnect refused (bad scheme): %s — %s", base_url, exc)
+        return False
+
+    try:
         loop = _asyncio.get_event_loop()
         await loop.run_in_executor(
             None,
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             lambda: _urllib_request.urlopen(
                 _urllib_request.Request(base_url, method="HEAD"),
                 timeout=timeout,

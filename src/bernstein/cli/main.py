@@ -70,6 +70,7 @@ from bernstein.cli.commands.skills_cmd import skills_group
 from bernstein.cli.compliance_cmd import compliance_group
 from bernstein.cli.config_path_cmd import config_path_cmd
 from bernstein.cli.cost import cost_cmd, cost_envelopes_group, estimate_cmd
+from bernstein.cli.debug_bundle import debug_group
 from bernstein.cli.debug_cmd import debug_cmd
 from bernstein.cli.dep_impact_cmd import dep_impact_cmd
 from bernstein.cli.diff_cmd import diff_cmd
@@ -955,7 +956,10 @@ cli.add_command(debug_cmd, "debug-bundle")
 # These are the tool-call resolvers; task-level ``approve``/``reject`` live in task_cmd.
 cli.add_command(approve_tool_cmd, "approve-tool")
 cli.add_command(reject_tool_cmd, "reject-tool")
-cli.add_command(debug_cmd, "debug")  # backward-compat alias
+# ``bernstein debug`` is the structured diagnostics group; ``debug bundle``
+# exports a redacted ZIP for bug reports. The flat ``debug-bundle`` alias
+# above stays for back-compat with older issue templates.
+cli.add_command(debug_group, "debug")
 
 # Chat-control bridges (op-001)
 from bernstein.cli.commands.chat_cmd import chat_group  # noqa: E402

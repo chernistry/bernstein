@@ -1,0 +1,67 @@
+name: SBOM upload
+
+# Generate a CycloneDX SBOM and upload it to an operator-managed
+# Dependency-Track instance.  The upload step is gated on both
+# DT_API_URL and DT_API_KEY being non-empty, so the workflow stays green
+# until the operator has stood up Dependency-Track.
+#
+# See docs/operations/observability.md for the DSN / DT_API_URL flow.
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+concurrency:
+  group: sbom-upload-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    name: Generate and upload SBOM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DT_API_URL: ${{ vars.DT_API_URL || 'https://dt.bernstein.run' }}
+      DT_API_KEY: ${{ secrets.DT_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Install cyclonedx-bom
+        run: python -m pip install --upgrade "cyclonedx-bom>=4.5"
+
+      - name: Generate CycloneDX SBOM
+        run: cyclonedx-py environment --output-file bernstein.cyclonedx.json
+
+      - name: Check operator endpoint
+        id: gate
+        run: |
+          if [ -z "${DT_API_URL}" ] || [ -z "${DT_API_KEY}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "DT_API_URL or DT_API_KEY is empty -- skipping upload."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload SBOM to Dependency-Track
+        if: steps.gate.outputs.skip == 'false'
+        uses: DependencyTrack/gh-upload-sbom@48feab3080ff9e8f51f4d21861d9fc914eb744f5  # v3.1.0
+        with:
+          serverHostname: ${{ env.DT_API_URL }}
+          apiKey: ${{ env.DT_API_KEY }}
+          projectName: bernstein
+          projectVersion: ${{ github.ref_name }}
+          bomFilename: bernstein.cyclonedx.json
+          autoCreate: true

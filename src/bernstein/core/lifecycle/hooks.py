@@ -85,6 +85,11 @@ class LifecycleEvent(StrEnum):
     # successfully loads a checkpoint and is about to re-spawn the task.
     # Plugins can react to track resume metrics, gate flaky tasks, etc.
     TASK_RESUME = "task.resume"
+    # feat-cross-task-kb: fires when a task publishes a fact through the
+    # cross-task knowledge-base facade. Payload carries the attribution
+    # triple ``(producer_task_id, ts_ns, content_hash)`` plus ``tag``,
+    # ``key``, and ``scope``.
+    KB_FACT_PUBLISHED = "kb.fact_published"
 
     # ------------------------------------------------------------------
     # Cross-CLI lifecycle events (camelCase, T1323).

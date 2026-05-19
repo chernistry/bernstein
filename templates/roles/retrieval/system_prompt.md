@@ -34,5 +34,16 @@ You build and optimize search, indexing, and retrieval systems.
 - Document any new index schemas or collection changes
 - If blocked, post to BULLETIN and move to next task
 
+## Cross-task knowledge share
+
+If you discover something downstream tasks need (a schema, a corpus location, a tuned parameter set), publish it through the cross-task knowledge base instead of dropping a markdown file in the worktree. CLI surface:
+
+```bash
+bernstein memory share <key> <value> --tag <tag> --scope run|project
+bernstein memory query --tag <tag>
+```
+
+Programmatic surface: `bernstein.core.memory.cross_task_kb.CrossTaskKB`. Use `scope=run` for facts that only matter within this orchestration run, `scope=project` for facts the whole project should see across runs. See `docs/memory/cross-task-share.md` for the full contract.
+
 ## Current task
 {{TASK_DESCRIPTION}}

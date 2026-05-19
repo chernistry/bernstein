@@ -172,7 +172,7 @@ class UpgradeReviewer:
 {changes_desc}
 
 ## Rollback Plan
-{rollback_desc if rollback_desc else "(No rollback plan provided)"}
+{rollback_desc or "(No rollback plan provided)"}
 
 ## Review Criteria
 1. **Correctness**: Are the changes technically correct?

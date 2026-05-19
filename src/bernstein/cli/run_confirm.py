@@ -527,7 +527,7 @@ def cook(
 
     _resolve_depends_on(tasks)
     stages = _extract_recipe_stages(recipe)
-    goal = plan_config.name.strip() if plan_config.name.strip() else recipe.stem
+    goal = plan_config.name.strip() or recipe.stem
 
     if dry_run:
         _print_cook_dry_run(recipe_path=recipe, goal=goal, stages=stages, tasks=tasks)

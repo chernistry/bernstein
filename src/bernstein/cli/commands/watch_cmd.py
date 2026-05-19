@@ -121,7 +121,7 @@ def _find_affected_tasks(changed_path: Path, workdir: Path, open_tasks: list[dic
         if rel_str in haystack or filename in haystack:
             matched.append(task)
 
-    return matched if matched else open_tasks
+    return matched or open_tasks
 
 
 # ---------------------------------------------------------------------------

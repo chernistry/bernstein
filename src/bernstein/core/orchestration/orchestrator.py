@@ -1359,7 +1359,7 @@ class Orchestrator:
             alive_per_role=_alive_per_role,
             priority_overrides=priority_overrides,
             task_created_at=task_created_at,
-            agent_affinity=self._agent_affinity if self._agent_affinity else None,
+            agent_affinity=self._agent_affinity or None,
             cost_estimates=cost_estimates or None,
             budget_remaining_usd=budget_status.remaining_usd,
         )

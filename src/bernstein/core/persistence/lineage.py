@@ -258,11 +258,11 @@ def _record_from_wal(inputs: dict[str, Any], output: dict[str, Any], ts: float) 
     regulatory_class_norm: str | None = None
     if regulatory_class is not None:
         rc_str = str(regulatory_class)
-        regulatory_class_norm = rc_str if rc_str else None
+        regulatory_class_norm = rc_str or None
     customer_signature_norm: str | None = None
     if customer_signature is not None:
         cs_str = str(customer_signature)
-        customer_signature_norm = cs_str if cs_str else None
+        customer_signature_norm = cs_str or None
     inputs_list_raw = inputs.get("inputs", [])
     inputs_list: list[Any] = cast("list[Any]", inputs_list_raw) if isinstance(inputs_list_raw, list) else []
     return LineageRecord(

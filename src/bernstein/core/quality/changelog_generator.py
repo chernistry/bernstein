@@ -345,7 +345,7 @@ def render_markdown(changelog: Changelog) -> str:
     """
     lines: list[str] = []
 
-    version_label = changelog.version if changelog.version else changelog.run_id
+    version_label = changelog.version or changelog.run_id
     lines.extend(
         [
             f"# Changelog — {version_label}",

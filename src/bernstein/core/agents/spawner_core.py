@@ -1999,7 +1999,7 @@ class AgentSpawner:
                     seen.add(n)
                     unique_names.append(n)
             # Pass None to get all servers when no specific ones requested
-            requested = unique_names if unique_names else None
+            requested = unique_names or None
             effective_mcp = self._mcp_manager.build_mcp_config_for_task(
                 task_mcp_servers=requested,
                 base_config=effective_mcp,
@@ -2012,7 +2012,7 @@ class AgentSpawner:
 
                 validate_mcp_readiness(
                     self._mcp_manager,
-                    server_names=unique_names if unique_names else None,
+                    server_names=unique_names or None,
                     fail_on_error=False,
                 )
             except Exception:

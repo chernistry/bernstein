@@ -112,9 +112,9 @@ def get_predictions(
     run_start_timestamp = _read_run_start(sdd_dir)
 
     alerts = _engine.evaluate_all(
-        cost_history=cost_history if cost_history else None,
+        cost_history=cost_history or None,
         budget_cap_usd=budget_cap,
-        completion_timestamps=completion_timestamps if completion_timestamps else None,
+        completion_timestamps=completion_timestamps or None,
         tasks_done=tasks_done,
         tasks_remaining=tasks_remaining,
         run_start_timestamp=run_start_timestamp,

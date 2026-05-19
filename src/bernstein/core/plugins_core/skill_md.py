@@ -253,6 +253,6 @@ def load_skill_md(path: Path, *, role_fallback: str | None = None) -> SkillMD | 
         paths=list(fields.get("paths", [])),
         context=str(fields.get("context", "")),
         effort=str(fields.get("effort", "normal")),
-        body=body if body else text.strip(),
+        body=body or text.strip(),
         source=str(path),
     )

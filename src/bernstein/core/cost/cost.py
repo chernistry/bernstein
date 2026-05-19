@@ -489,7 +489,7 @@ class EpsilonGreedyBandit:
         Returns:
             Model name string (e.g. "haiku", "sonnet", "opus").
         """
-        models = candidate_models if candidate_models else list(CASCADE)
+        models = candidate_models or list(CASCADE)
 
         # Exploration: random choice with probability epsilon
         # S311: not security-sensitive — bandit exploration, not cryptography.

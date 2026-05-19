@@ -203,7 +203,7 @@ def classify_task(task: Task) -> ClassificationResult:
 def _run_ruff_format(workdir: Path, owned_files: list[str]) -> FastPathResult:
     """Run ruff format on owned files or entire project."""
     start = time.monotonic()
-    targets = owned_files if owned_files else ["."]
+    targets = owned_files or ["."]
 
     try:
         proc = subprocess.run(
@@ -245,7 +245,7 @@ def _run_ruff_format(workdir: Path, owned_files: list[str]) -> FastPathResult:
 def _run_ruff_fix(workdir: Path, owned_files: list[str]) -> FastPathResult:
     """Run ruff check --fix on owned files or entire project."""
     start = time.monotonic()
-    targets = owned_files if owned_files else ["."]
+    targets = owned_files or ["."]
 
     try:
         proc = subprocess.run(
@@ -280,7 +280,7 @@ def _run_ruff_fix(workdir: Path, owned_files: list[str]) -> FastPathResult:
 def _run_sort_imports(workdir: Path, owned_files: list[str]) -> FastPathResult:
     """Run ruff check --select I --fix to sort imports."""
     start = time.monotonic()
-    targets = owned_files if owned_files else ["."]
+    targets = owned_files or ["."]
 
     try:
         proc = subprocess.run(
@@ -350,7 +350,7 @@ def _run_rename(workdir: Path, owned_files: list[str], task: Task | None = None)
         )
 
     old_name, new_name = match.group(1), match.group(2)
-    targets = owned_files if owned_files else []
+    targets = owned_files or []
     if not targets:
         return FastPathResult(
             success=False,

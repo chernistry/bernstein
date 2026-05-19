@@ -156,7 +156,7 @@ def _read_previous_version() -> str | None:
     if not _PREV_VERSION_FILE.exists():
         return None
     text = _PREV_VERSION_FILE.read_text().strip()
-    return text if text else None
+    return text or None
 
 
 def _pip_install(spec: str) -> bool:

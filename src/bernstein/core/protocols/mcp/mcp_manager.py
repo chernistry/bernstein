@@ -62,7 +62,7 @@ def _resolve_signing_mode(
     """
     src = env if env is not None else os.environ
     raw = (src.get(ENV_MCP_SIGNING_MODE) or "").strip().lower()
-    candidate: str = raw or (mode if mode else "warn")
+    candidate: str = raw or (mode or "warn")
     if candidate not in ("warn", "strict", "off"):
         logger.warning(
             "Unrecognised MCP signing mode %r; falling back to 'warn'. Valid values: warn, strict, off.",

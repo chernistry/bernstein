@@ -61,7 +61,7 @@ def list_memory(memory_type: str | None, tag: list[str], limit: int) -> None:
         return
 
     store = SQLiteMemoryStore(db_path)
-    entries = store.list(type=_coerce_memory_type(memory_type), tags=tag if tag else None, limit=limit)
+    entries = store.list(type=_coerce_memory_type(memory_type), tags=tag or None, limit=limit)
 
     if not entries:
         console.print("[dim]No matching memories found.[/dim]")

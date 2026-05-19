@@ -266,7 +266,7 @@ def _agent_summary(report: _ExportReport) -> str:
     """Build a human-readable agent summary string."""
     model_counts: dict[str, int] = {}
     for row in report.task_rows:
-        m = row.model if row.model else "unknown"
+        m = row.model or "unknown"
         model_counts[m] = model_counts.get(m, 0) + 1
     parts = [f"{m} x{n}" for m, n in sorted(model_counts.items())]
     return f"{report.agents_spawned} ({', '.join(parts)})"
@@ -346,7 +346,7 @@ def _render_html(report: _ExportReport) -> str:
     agent_rows_html = ""
     model_counts: dict[str, int] = {}
     for row in report.task_rows:
-        m = row.model if row.model else "unknown"
+        m = row.model or "unknown"
         model_counts[m] = model_counts.get(m, 0) + 1
     for m, n in sorted(model_counts.items()):
         agent_rows_html += f"""\
@@ -402,7 +402,7 @@ def _render_html(report: _ExportReport) -> str:
 <tr><th>Task</th><th>Start (offset)</th><th>End (offset)</th></tr>
 </thead>
 <tbody>
-{timeline_rows_html if timeline_rows_html else _TIMELINE_EMPTY_ROW}</tbody>
+{timeline_rows_html or _TIMELINE_EMPTY_ROW}</tbody>
 </table>
 
 <h2>Quality Gates</h2>
@@ -526,7 +526,7 @@ def _render_markdown(report: _ExportReport) -> str:
     lines.append("")
     model_counts: dict[str, int] = {}
     for row in report.task_rows:
-        m = row.model if row.model else "unknown"
+        m = row.model or "unknown"
         model_counts[m] = model_counts.get(m, 0) + 1
     if model_counts:
         lines.append("| Model | Tasks |")

@@ -468,7 +468,7 @@ def _sanitize_reason(raw: str) -> str:
     if len(_seen_reasons) >= _CARDINALITY_LIMIT:
         return "unknown"
     _seen_reasons.add(value)
-    return value if value else "unknown"
+    return value or "unknown"
 
 
 # ---------------------------------------------------------------------------

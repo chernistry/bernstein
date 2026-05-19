@@ -177,7 +177,7 @@ def tick_cmd(repo: str, pr_numbers: tuple[int, ...]) -> None:
 
     listener = PollingListener(
         repo=repo,
-        pr_numbers=pr_numbers if pr_numbers else None,
+        pr_numbers=pr_numbers or None,
         on_comment=_capture,
     )
     n = listener.tick()

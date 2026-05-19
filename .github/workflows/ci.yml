@@ -1226,6 +1226,11 @@ jobs:
       # Required by mikepenz/action-junit-report to create check-run
       # annotations surfaced in the PR Checks tab.
       checks: write
+      # Required by ctrf-io/github-test-reporter to post the test-result
+      # summary comment on the PR that triggered the run. The action no-
+      # ops gracefully on push events; the workflow-level Step Summary
+      # is always populated.
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -1367,6 +1372,41 @@ jobs:
           check_retries: true
           fail_on_failure: false
           require_tests: false
+      - name: CTRF test reporter (markdown summary + flaky breakdown)
+        # Renders a markdown test-result summary in the workflow Step
+        # Summary tab and (when the triggering event is a PR) posts the
+        # same content as a PR comment. The action ingests our existing
+        # junit.xml in-place; no extra producer step required. Pairs
+        # with the nightly flake-quarantine.yml workflow which auto-PRs
+        # quarantine markers for tests that flake repeatedly.
+        #
+        # Gated to the same matrix cell as the JUnit producer step so we
+        # only invoke the reporter when junit.xml actually exists.
+        if: always() && !cancelled() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && github.event_name == 'push'
+        uses: ctrf-io/github-test-reporter@0f299074936c32ccaab5be5230511f6b2b9080aa # v1.0.28
+        with:
+          report-path: junit.xml
+          summary-report: true
+          failed-report: true
+          flaky-report: true
+          test-list-report: false
+          pull-request: true
+          update-comment: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload CTRF report artifact
+        # Persist the CTRF JSON the reporter emits so the nightly flake-
+        # quarantine job has a 7-day window of historical reports to
+        # mine. retention-days lines up with the xflaky look-back window.
+        if: always() && !cancelled() && matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && github.event_name == 'push'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ctrf-report
+          path: |
+            ctrf/
+            junit.xml
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Upload coverage artifact
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13' && github.event_name == 'push'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

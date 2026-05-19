@@ -237,6 +237,7 @@ nav:
       - Verification tracking: operations/verification-tracking.md
       - Observability: operations/observability-overview.md
       - LLM watcher (opt-in): observability/llm-watcher.md
+      - Per-ticket transcript bundle: observability/ticket-bundle.md
       - Notifications: operations/notifications.md
       - Cost optimization: operations/cost-optimization.md
       - Performance tuning: operations/performance-tuning.md

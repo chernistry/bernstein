@@ -72,20 +72,42 @@ jobs:
           CHAIN_LEN=1
           CHAIN_DETAILS=""
           ROOT_SHA=""
+          ROOT_MSG=""
 
-          CURSOR="${HEAD_SHA}"
-          for i in $(seq 1 "${MAX_DEPTH}"); do
-            PARENT=$(gh api "repos/${REPO}/commits/${CURSOR}" \
-              --jq '.parents[0].sha // ""' 2>/dev/null || echo "")
-            if [ -z "${PARENT}" ]; then
+          # One batched API call returns the head commit followed by
+          # up to per_page-1 ancestors along the first-parent chain,
+          # replacing the previous N sequential .parents[0].sha walks.
+          # per_page is set to MAX_DEPTH+4 so we still have a few extra
+          # entries in case the window-age check trims the tail.
+          PER_PAGE=$((MAX_DEPTH + 4))
+          COMMITS_JSON=$(gh api \
+            "/repos/${REPO}/commits?sha=${HEAD_SHA}&per_page=${PER_PAGE}" \
+            2>/dev/null || echo '[]')
+
+          # Slice off the head commit itself (.[1:]) so we iterate only
+          # ancestors; everything we need for each ancestor (sha, first
+          # message line, author date) is already in the payload.
+          ANCESTORS=$(echo "${COMMITS_JSON}" \
+            | jq -c '.[1:][] | {sha: .sha, msg: (.commit.message | split("\n")[0]), date: .commit.author.date}' \
+            2>/dev/null || echo "")
+
+          if [ -z "${ANCESTORS}" ]; then
+            echo "No ancestor commits returned; skipping walk."
+          fi
+
+          DEPTH=0
+          while IFS= read -r ENTRY; do
+            [ -z "${ENTRY}" ] && continue
+            DEPTH=$((DEPTH + 1))
+            if [ "${DEPTH}" -gt "${MAX_DEPTH}" ]; then
               break
             fi
 
-            PARENT_JSON=$(gh api "repos/${REPO}/commits/${PARENT}" 2>/dev/null || echo '{}')
-            PARENT_MSG=$(echo "${PARENT_JSON}" | jq -r '.commit.message // ""' | head -1)
-            PARENT_DATE=$(echo "${PARENT_JSON}" | jq -r '.commit.author.date // ""')
+            PARENT=$(echo "${ENTRY}" | jq -r '.sha // ""')
+            PARENT_MSG=$(echo "${ENTRY}" | jq -r '.msg // ""')
+            PARENT_DATE=$(echo "${ENTRY}" | jq -r '.date // ""')
 
-            if [ -z "${PARENT_DATE}" ]; then
+            if [ -z "${PARENT}" ] || [ -z "${PARENT_DATE}" ]; then
               break
             fi
 
@@ -104,7 +126,6 @@ jobs:
                 CHAIN_LEN=$((CHAIN_LEN + 1))
                 CHAIN_DETAILS="${CHAIN_DETAILS}- \`${PARENT:0:7}\`: ${PARENT_MSG}"$'\n'
                 ROOT_SHA="${PARENT}"
-                CURSOR="${PARENT}"
                 continue
                 ;;
               *)
@@ -116,7 +137,7 @@ jobs:
                 break
                 ;;
             esac
-          done
+          done <<< "${ANCESTORS}"
 
           echo "Hotfix chain length R = ${CHAIN_LEN}"
 

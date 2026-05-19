@@ -191,5 +191,5 @@ def _atomic_write(path: Path, content: str) -> None:
     except Exception:
         # Clean up the temp file if replace never happened.
         with contextlib.suppress(OSError):
-            os.unlink(tmp_name)
+            Path(tmp_name).unlink()
         raise

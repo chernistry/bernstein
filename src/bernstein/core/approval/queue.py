@@ -69,7 +69,7 @@ def _atomic_write(path: Path, payload: str) -> None:
         # Clean up temp on failure; swallow cleanup errors so the original
         # exception surfaces.
         with contextlib.suppress(OSError):
-            os.unlink(tmp_name)
+            Path(tmp_name).unlink()
         raise
 
 

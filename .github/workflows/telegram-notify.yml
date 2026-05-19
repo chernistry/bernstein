@@ -1,20 +1,36 @@
 name: Telegram CI Notifications
 
-# Safety note (zizmor dangerous-triggers): this workflow uses `workflow_run`
-# so it can notify on completion of the upstream CI run. It runs only on the
-# `main` branch of the canonical repo (fork PRs are excluded by the
-# `branches: [main]` selector), never checks out any code, and only forwards
-# a fixed metadata set (conclusion, branch, sha, run id) to Telegram. No
-# attacker-controlled value reaches a `run:` block.
-on:  # zizmor: ignore[dangerous-triggers]
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
-
-concurrency:
-  group: telegram-${{ github.event.workflow_run.head_branch }}
-  cancel-in-progress: true
+# Telegram fan-out for CI completion events. Originally listened to
+# `workflow_run: CI completed` directly; now invoked by
+# `post-ci-dispatcher.yml` via workflow_call so the dispatcher pays the
+# cold start once and routes to every child reusable in a single boot.
+#
+# The file path stays at .github/workflows/telegram-notify.yml so existing
+# branch protection rules, runtime tooling, and operator runbooks keep
+# resolving the workflow by name. Only the trigger surface changed.
+on:
+  workflow_call:
+    inputs:
+      conclusion:
+        description: CI run conclusion (success/failure/cancelled/timed_out/...).
+        required: true
+        type: string
+      head_branch:
+        description: Branch the upstream CI run executed on.
+        required: true
+        type: string
+      head_sha:
+        description: Full 40-char SHA the upstream CI run executed on.
+        required: true
+        type: string
+      run_id:
+        description: GitHub Actions run id of the upstream CI run.
+        required: true
+        type: string
+      html_url:
+        description: HTML URL of the upstream CI run.
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -22,14 +38,14 @@ permissions:
 
 jobs:
   notify:
-    # Notify on anything that isn't 'success' (so cancelled/timed_out/
-    # action_required runs no longer disappear silently — see #1273).
-    # 'skipped' is intentional and stays quiet.
-    if: >-
-      github.event.workflow_run.conclusion != 'success'
-      && github.event.workflow_run.conclusion != 'skipped'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # Defence-in-depth: the dispatcher already gates this child, but keep
+    # the local guard so an ad-hoc workflow_call invocation can't fire a
+    # success-state Telegram message.
+    if: >-
+      inputs.conclusion != 'success' &&
+      inputs.conclusion != 'skipped'
     steps:
       - name: Harden runner (audit mode)
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
@@ -39,11 +55,11 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          STATUS: ${{ github.event.workflow_run.conclusion }}
-          BRANCH: ${{ github.event.workflow_run.head_branch }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
-          HTML_URL: ${{ github.event.workflow_run.html_url }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
+          STATUS: ${{ inputs.conclusion }}
+          BRANCH: ${{ inputs.head_branch }}
+          SHA: ${{ inputs.head_sha }}
+          HTML_URL: ${{ inputs.html_url }}
+          RUN_ID: ${{ inputs.run_id }}
           REPO: ${{ github.repository }}
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then

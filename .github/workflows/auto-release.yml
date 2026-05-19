@@ -3,21 +3,35 @@ name: Auto-release
 # Triggers after CI passes on main — bumps patch version and publishes
 # Only releases when meaningful source/test/template files changed.
 #
-# Safety note (zizmor dangerous-triggers): this workflow is intentionally
-# `workflow_run`-driven. It runs in the context of the canonical repo, only
-# fires on the `main` branch (fork PRs are filtered out by the
-# `branches: [main]` selector), and never checks out untrusted PR head code
-# — it only reads commit metadata via `gh api` and tags releases from main.
-# No fork-controlled inputs reach a `run:` script.
-on:  # zizmor: ignore[dangerous-triggers]
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
-
-concurrency:
-  group: auto-release-${{ github.event.workflow_run.head_branch }}
-  cancel-in-progress: true
+# This workflow is invoked by `post-ci-dispatcher.yml` via workflow_call.
+# The dispatcher pays the workflow_run cold start once and routes here
+# along with the other post-CI children. The file path stays at
+# .github/workflows/auto-release.yml so external tooling
+# (scripts/safe-push-main.sh, operator runbooks) keeps resolving runs by
+# name.
+on:
+  workflow_call:
+    inputs:
+      conclusion:
+        description: CI run conclusion forwarded from the dispatcher.
+        required: true
+        type: string
+      head_branch:
+        description: Branch the upstream CI run executed on.
+        required: true
+        type: string
+      head_sha:
+        description: Full 40-char SHA the upstream CI run executed on.
+        required: true
+        type: string
+      run_id:
+        description: GitHub Actions run id of the upstream CI run.
+        required: true
+        type: string
+      html_url:
+        description: HTML URL of the upstream CI run.
+        required: true
+        type: string
 
 permissions: {}
 
@@ -35,7 +49,7 @@ jobs:
     # or operator-cancelled, not a real failure worth alerting.
     if: >-
       contains(fromJSON('["failure","timed_out","action_required"]'),
-        github.event.workflow_run.conclusion)
+        inputs.conclusion)
     permissions:
       contents: read
       issues: write
@@ -46,8 +60,8 @@ jobs:
           egress-policy: audit
       - name: Log the skipped trigger
         env:
-          STATUS: ${{ github.event.workflow_run.conclusion }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
+          STATUS: ${{ inputs.conclusion }}
+          SHA: ${{ inputs.head_sha }}
         run: |
           echo "::error::release skipped — CI conclusion was ${STATUS} on ${SHA}"
 
@@ -55,10 +69,10 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          STATUS: ${{ github.event.workflow_run.conclusion }}
-          BRANCH: ${{ github.event.workflow_run.head_branch }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
-          HTML_URL: ${{ github.event.workflow_run.html_url }}
+          STATUS: ${{ inputs.conclusion }}
+          BRANCH: ${{ inputs.head_branch }}
+          SHA: ${{ inputs.head_sha }}
+          HTML_URL: ${{ inputs.html_url }}
           REPO: ${{ github.repository }}
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
@@ -79,9 +93,9 @@ jobs:
       - name: Open or update tracking issue
         env:
           GH_TOKEN: ${{ github.token }}
-          STATUS: ${{ github.event.workflow_run.conclusion }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
-          HTML_URL: ${{ github.event.workflow_run.html_url }}
+          STATUS: ${{ inputs.conclusion }}
+          SHA: ${{ inputs.head_sha }}
+          HTML_URL: ${{ inputs.html_url }}
           REPO: ${{ github.repository }}
         run: |
           SHORT_SHA="${SHA:0:7}"
@@ -161,7 +175,7 @@ jobs:
     name: Detect open auto-release-skipped issues
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: github.event.workflow_run.conclusion == 'success'
+    if: inputs.conclusion == 'success'
     permissions:
       contents: read
       issues: read
@@ -199,7 +213,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: detect-stale-alerts
-    if: github.event.workflow_run.conclusion == 'success' && needs.detect-stale-alerts.outputs.has_stale == 'true'
+    if: inputs.conclusion == 'success' && needs.detect-stale-alerts.outputs.has_stale == 'true'
     permissions:
       contents: read
       issues: write
@@ -212,8 +226,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          NEW_SHA: ${{ github.event.workflow_run.head_sha }}
-          HTML_URL: ${{ github.event.workflow_run.html_url }}
+          NEW_SHA: ${{ inputs.head_sha }}
+          HTML_URL: ${{ inputs.html_url }}
         run: |
           SHORT_NEW="${NEW_SHA:0:7}"
           # Match issues opened by the alert job above. Author scope is
@@ -242,7 +256,7 @@ jobs:
     permissions:
       contents: read
     timeout-minutes: 5
-    if: github.event.workflow_run.conclusion == 'success'
+    if: inputs.conclusion == 'success'
     outputs:
       should_release: ${{ steps.decide.outputs.should_release }}
     steps:
@@ -255,7 +269,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
         run: |
           # Skip bot commits (prevents release loop)
           AUTHOR=$(gh api "repos/${REPO}/commits/${HEAD_SHA}" \

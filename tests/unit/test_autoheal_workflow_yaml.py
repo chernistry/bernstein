@@ -47,15 +47,43 @@ def test_workflow_name_is_v2(workflow: dict[str, object]) -> None:
     assert "Auto-heal" in name or "auto-heal" in name
 
 
-def test_workflow_run_trigger_pinned_to_ci(workflow: dict[str, object]) -> None:
+def test_workflow_call_trigger_with_inputs(workflow: dict[str, object]) -> None:
+    """v2 is now invoked by post-ci-dispatcher.yml via workflow_call.
+
+    The workflow_run fanout was consolidated into a single dispatcher so
+    we no longer pay a per-child cold start. The dispatcher reads the
+    upstream CI run metadata once and forwards it via workflow_call inputs.
+    """
     # PyYAML parses ``on:`` as boolean True under YAML 1.1 -- so the key
     # arrives as ``True``. Tolerate both forms.
     on = workflow.get(True, workflow.get("on"))
     assert isinstance(on, dict)
-    wfr = on.get("workflow_run")
-    assert isinstance(wfr, dict)
-    assert wfr.get("workflows") == ["CI"]
-    assert wfr.get("branches") == ["main"]
+    wfc = on.get("workflow_call")
+    assert isinstance(wfc, dict), "auto-heal must declare workflow_call"
+    assert "workflow_run" not in on, (
+        "auto-heal must not listen to workflow_run directly; "
+        "post-ci-dispatcher.yml owns that surface now"
+    )
+    inputs = wfc.get("inputs", {})
+    assert isinstance(inputs, dict)
+    for key in ("head_sha", "run_id", "display_title"):
+        assert key in inputs, f"workflow_call input {key} missing"
+
+
+def test_workflow_call_exposes_heal_outcome(workflow: dict[str, object]) -> None:
+    """Dispatcher gates bernstein-ci-fix on this output.
+
+    Acceptance criterion: auto-heal and bernstein-ci-fix call each other
+    via dispatcher (instead of both firing in parallel). The serialisation
+    relies on the dispatcher reading the heal outcome via this output.
+    """
+    on = workflow.get(True, workflow.get("on"))
+    assert isinstance(on, dict)
+    wfc = on.get("workflow_call")
+    assert isinstance(wfc, dict)
+    outputs = wfc.get("outputs", {})
+    assert isinstance(outputs, dict)
+    assert "heal_outcome" in outputs, "heal_outcome workflow_call output missing"
 
 
 def test_workflow_level_permissions_are_empty(workflow: dict[str, object]) -> None:
@@ -63,12 +91,17 @@ def test_workflow_level_permissions_are_empty(workflow: dict[str, object]) -> No
     assert perms == {} or perms == "{}"
 
 
-def test_concurrency_group_is_v2_namespaced(workflow: dict[str, object]) -> None:
-    conc = workflow.get("concurrency")
-    assert isinstance(conc, dict)
-    group = conc.get("group", "")
-    assert isinstance(group, str)
-    assert "ci-heal-v2-" in group
+def test_no_top_level_concurrency_under_workflow_call(workflow: dict[str, object]) -> None:
+    """Top-level concurrency is owned by the dispatcher now.
+
+    The dispatcher applies a per-SHA concurrency group covering all
+    fanout children; per-child concurrency would cancel cousin runs and
+    is left out so the dispatcher stays the single arbitrator.
+    """
+    assert "concurrency" not in workflow, (
+        "auto-heal must not set its own concurrency; "
+        "post-ci-dispatcher.yml owns the per-SHA concurrency group"
+    )
 
 
 def test_all_action_uses_pinned_to_sha(workflow_text: str) -> None:

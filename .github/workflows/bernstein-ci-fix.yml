@@ -1,38 +1,46 @@
 name: "Bernstein CI Fix"
 
-# Trigger when CI completes with a failure on main. Bernstein then runs
-# in headless mode against the failing commit, attempts a fix, and either:
+# When CI fails on main, Bernstein runs in headless mode against the failing
+# commit, attempts a fix, and either:
 #   - opens an `auto-heal/<sha>` PR with the proposed diff, or
 #   - falls back to creating a `ci-fix` issue documenting what was tried.
 #
-# Guards:
-#   - Only fires on the canonical repo (head_repository.full_name == github.repository)
-#     so fork-PR pushes can't burn the LLM budget.
+# Invocation: this workflow is now invoked by `post-ci-dispatcher.yml`
+# via workflow_call. The dispatcher reserves bernstein-ci-fix as the
+# fallback fixer: it only runs when auto-heal v2 did not open a heal PR.
+# That ordering removes the parallel race the two heals previously ran
+# into on the same failing SHA.
+#
+# Guards (re-enforced locally for defence in depth):
+#   - Only fires on the canonical repo (head_repository.full_name == github.repository).
 #   - Recursion guard: skips when the failing run was itself an `auto-heal:` PR.
-#   - Concurrency: one attempt per failing SHA (idempotent — a re-run on the
-#     same SHA cancels the older attempt).
 #   - Feature flag `BERNSTEIN_CI_FIX_ENABLED` (repo variable) gates the whole
 #     workflow so it stays off until explicitly enabled per environment.
 #   - No `actions: write` permission — auto-heal cannot trigger more
 #     workflows recursively.
-#
-# Safety note (zizmor dangerous-triggers): this workflow uses `workflow_run`
-# intentionally so it can fix CI failures landed on main. The canonical-repo
-# gate (head_repository.full_name == github.repository), the `branches: [main]`
-# selector, and the recursion guard above ensure fork PRs and auto-heal
-# commits never reach the LLM. The auto-heal job operates on a fresh branch
-# from the trusted main HEAD, not on attacker-supplied PR head code.
-on:  # zizmor: ignore[dangerous-triggers]
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
-
-# One attempt per SHA; cancels older attempts on the same SHA so a re-run is
-# idempotent.
-concurrency:
-  group: auto-heal-${{ github.event.workflow_run.head_sha }}
-  cancel-in-progress: true
+on:
+  workflow_call:
+    inputs:
+      head_sha:
+        description: Full 40-char SHA the upstream CI run executed on.
+        required: true
+        type: string
+      head_branch:
+        description: Branch the upstream CI run executed on.
+        required: true
+        type: string
+      run_id:
+        description: GitHub Actions run id of the upstream CI run.
+        required: true
+        type: string
+      display_title:
+        description: Display title of the upstream CI run (commit subject).
+        required: true
+        type: string
+      actor_login:
+        description: Login of the actor that triggered the upstream CI run.
+        required: true
+        type: string
 
 # Workflow-level permissions are minimal; each job below declares
 # the narrower scopes it actually needs (zizmor excessive-permissions).
@@ -48,30 +56,15 @@ jobs:
       actions: read
       pull-requests: read
       contents: read
-    # Gate: only run on a real CI failure on the canonical repo, with the
-    # autofix variable enabled, and not on auto-heal commits (recursion guard).
-    #
-    # Recursion guard rationale:
-    #   The triggering workflow_run carries the head commit's message via
-    #   `display_title`. Auto-heal commits are formatted as
-    #   `auto-heal: fix CI on <sha>`; if such a commit fails CI, we must
-    #   NOT spin up another auto-heal attempt — that would loop. Also skip
-    #   bot-authored commits in general (bernstein[bot], dependabot, etc.)
-    #   to avoid burning budget on automated traffic.
-    #
-    # Cost guard rationale:
-    #   `head_repository.full_name == github.repository` is the only
-    #   non-forgeable check on a workflow_run event payload (Sonar S8232).
-    #   Forks have a different head_repository, so this implicitly limits
-    #   auto-heal to org commits.
-    if: >
-      github.event.workflow_run.conclusion == 'failure' &&
+    # Gate: only run when the autofix variable is enabled and the upstream
+    # run was not an auto-heal commit (recursion guard). Conclusion / branch
+    # / canonical-repo gating already happened in the dispatcher.
+    if: >-
       vars.BERNSTEIN_CI_FIX_ENABLED == 'true' &&
-      github.event.workflow_run.head_repository.full_name == github.repository &&
-      !startsWith(github.event.workflow_run.display_title, 'auto-heal:') &&
-      github.event.workflow_run.actor.login != 'bernstein[bot]' &&
-      github.event.workflow_run.actor.login != 'bernstein-orchestrator[bot]' &&
-      github.event.workflow_run.actor.login != 'github-actions[bot]'
+      !startsWith(inputs.display_title, 'auto-heal:') &&
+      inputs.actor_login != 'bernstein[bot]' &&
+      inputs.actor_login != 'bernstein-orchestrator[bot]' &&
+      inputs.actor_login != 'github-actions[bot]'
     outputs:
       head_sha: ${{ steps.meta.outputs.head_sha }}
       short_sha: ${{ steps.meta.outputs.short_sha }}
@@ -89,9 +82,9 @@ jobs:
       - name: Extract failure metadata
         id: meta
         env:
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          BRANCH: ${{ github.event.workflow_run.head_branch }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          BRANCH: ${{ inputs.head_branch }}
+          RUN_ID: ${{ inputs.run_id }}
         run: |
           SHORT_SHA="${HEAD_SHA:0:12}"
           {

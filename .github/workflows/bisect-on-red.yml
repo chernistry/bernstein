@@ -15,16 +15,25 @@ name: Bisect on Red
 # red event). Instead we report the most-likely culprit based on file
 # overlap between the failing workflow's scope and each candidate
 # merge's diff. Operators can escalate to manual bisect from there.
+#
+# Trigger: invoked by `post-ci-dispatcher.yml` via workflow_call so the
+# fanout shares a single dispatcher boot with the other post-CI children.
 
 on:
-  workflow_run: # zizmor: ignore[dangerous-triggers]
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
-
-concurrency:
-  group: bisect-on-red-${{ github.event.workflow_run.head_sha }}
-  cancel-in-progress: false
+  workflow_call:
+    inputs:
+      head_sha:
+        description: Full 40-char SHA the upstream CI run executed on.
+        required: true
+        type: string
+      run_id:
+        description: GitHub Actions run id of the upstream CI run.
+        required: true
+        type: string
+      html_url:
+        description: HTML URL of the upstream CI run.
+        required: true
+        type: string
 
 permissions: {}
 
@@ -33,7 +42,6 @@ jobs:
     name: Identify culprit PR
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: github.event.workflow_run.conclusion == 'failure'
     permissions:
       contents: read
       pull-requests: write
@@ -56,7 +64,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ID: ${{ inputs.run_id }}
         run: |
           set -euo pipefail
 
@@ -77,9 +85,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
           FAILED_JOBS: ${{ steps.failing.outputs.jobs }}
-          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_URL: ${{ inputs.html_url }}
         run: |
           set -euo pipefail
 

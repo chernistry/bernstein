@@ -358,7 +358,7 @@ def _parse_unified_diff(text: str) -> list[DiffFile]:
             cur.status = "added"
         elif line.startswith("deleted file mode"):
             cur.status = "deleted"
-        elif line.startswith("Binary files ") or line.startswith("GIT binary patch"):
+        elif line.startswith(("Binary files ", "GIT binary patch")):
             cur.binary = True
             cur.status = "binary"
         elif line.startswith("--- "):
@@ -436,7 +436,7 @@ def _resolve_branch_for_task(workdir: Path, assigned_agent: str | None) -> str |
         prefix = f"agent/{assigned_agent}"
         for branch in out.splitlines():
             branch = branch.strip()
-            if branch == prefix or branch.startswith(prefix + "-") or branch.startswith(prefix):
+            if branch == prefix or branch.startswith((prefix + "-", prefix)):
                 return branch
     return None
 

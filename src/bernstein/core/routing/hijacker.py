@@ -94,7 +94,7 @@ class EnvVarTierDetector:
         if config.tier == ApiTier.FREE:
             return True
         # Check for trial-specific key prefixes
-        return value.startswith("sk-trial-") or value.startswith("trial-")
+        return value.startswith(("sk-trial-", "trial-"))
 
     def _estimate_tokens(self, tier: ApiTier) -> int:
         """Estimate free token allocation based on tier."""

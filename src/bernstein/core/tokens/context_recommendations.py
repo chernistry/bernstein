@@ -294,9 +294,9 @@ class RecommendationEngine:
     def _severity_for_text(self, text: str, *, default: str = "suggestion") -> str:
         """Infer recommendation severity from imperative wording."""
         lowered = text.lower()
-        if lowered.startswith("never") or lowered.startswith("do not") or "never " in lowered:
+        if lowered.startswith(("never", "do not")) or "never " in lowered:
             return "critical"
-        if lowered.startswith("always") or lowered.startswith("run ") or lowered.startswith("use "):
+        if lowered.startswith(("always", "run ", "use ")):
             return "important"
         return default
 

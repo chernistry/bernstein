@@ -87,7 +87,7 @@ def _is_test_file(path: Path) -> bool:
     stem = path.stem  # filename without extension
     if name.startswith("test_") or name.endswith("_test.py"):
         return True
-    return stem.endswith(".test") or stem.endswith(".spec")
+    return stem.endswith((".test", ".spec"))
 
 
 def _should_skip_dir(name: str) -> bool:

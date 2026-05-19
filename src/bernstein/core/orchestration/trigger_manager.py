@@ -284,9 +284,9 @@ def compute_dedup_key(trigger_name: str, event: TriggerEvent) -> str:
 def _infer_role_from_files(files: list[str]) -> str:
     """Infer task role from changed file paths."""
     for f in files:
-        if f.startswith("tests/") or f.startswith("test_"):
+        if f.startswith(("tests/", "test_")):
             return "qa"
-        if f.startswith("docs/") or f.startswith("README"):
+        if f.startswith(("docs/", "README")):
             return "docs"
     return "backend"
 

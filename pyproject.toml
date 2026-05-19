@@ -304,6 +304,11 @@ artifacts = [
     # firewall loads them at startup to validate every incoming MCP tool
     # call. Loader: bernstein.mcp.input_validation.load_registry.
     "src/bernstein/mcp/tool_schemas/*.json",
+    # Doctor doc-suggestion seed list. Curated list of common documentation
+    # gaps surfaced by `bernstein doctor --suggest-docs`. Operator refreshes
+    # it on each release. Loader:
+    # bernstein.cli.doctor.suggest_docs.load_unanswered_topics.
+    "src/bernstein/_default_templates/docs/*.json",
 ]
 
 [tool.hatch.build.targets.wheel.force-include]

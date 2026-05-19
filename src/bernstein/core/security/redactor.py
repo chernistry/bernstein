@@ -77,8 +77,33 @@ def redact_text(text: str) -> tuple[str, int]:
         cosmetic, not a security action.
     """
     cleaned, count = redact_secrets(text)
+    cleaned, broker_count = _scrub_broker_registry(cleaned)
     cleaned = collapse_home(cleaned)
-    return cleaned, count
+    return cleaned, count + broker_count
+
+
+def _scrub_broker_registry(text: str) -> tuple[str, int]:
+    """Replace any value registered with the secrets broker with ``***``.
+
+    The registry is consulted lazily and tolerantly: import failures or an
+    empty registry are no-ops so this function never breaks the broader
+    redaction pipeline.
+    """
+    try:
+        from bernstein.core.security.secrets_broker import get_redactable_values
+    except Exception:
+        return text, 0
+    values = get_redactable_values()
+    if not values:
+        return text, 0
+    out = text
+    count = 0
+    # Replace longest values first so prefixes never mask longer matches.
+    for value in sorted(values, key=len, reverse=True):
+        if value and value in out:
+            count += out.count(value)
+            out = out.replace(value, "***")
+    return out, count
 
 
 def mask(value: Any, *, keep: int = 0) -> str:

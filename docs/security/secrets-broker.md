@@ -85,7 +85,7 @@ Zero-dependency fallback: a Fernet-encrypted JSON object on disk.
 Requires `cryptography`. The encryption key is supplied via
 `BERNSTEIN_BROKER_KEY` (urlsafe base64) or a file path in
 `backend_settings.key_path`. Build the store by encrypting a JSON
-object that maps secret name to value.
+object that maps secret names to values.
 
 ## CLI
 

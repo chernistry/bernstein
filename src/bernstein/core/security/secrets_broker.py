@@ -559,6 +559,8 @@ class SecretsBroker:
         self._clock = clock
         self._lock = threading.Lock()
         self._registry: dict[str, _Registration] = {}
+        # Secondary index keyed by token value so ``resolve`` is O(1).
+        self._by_value: dict[str, _Registration] = {}
 
     # -- public API ---------------------------------------------------------
 
@@ -604,8 +606,10 @@ class SecretsBroker:
             expires_at=now + ttl,
             ttl_seconds=ttl,
         )
+        registration = _Registration(token=token, raw_value=raw_value)
         with self._lock:
-            self._registry[token_id] = _Registration(token=token, raw_value=raw_value)
+            self._registry[token_id] = registration
+            self._by_value[token_value] = registration
         register_secret_for_redaction(raw_value)
         register_secret_for_redaction(token_value)
         self._emit(
@@ -644,69 +648,81 @@ class SecretsBroker:
         if not token_value:
             raise SecretsBrokerError("empty token value")
         now = self._clock()
+        # Stage the audit event inside the lock, dispatch it outside so a
+        # slow audit sink cannot stall every other broker operation.
+        deferred: AuditEvent | None = None
+        expired = False
+        raw_value: str | None = None
         with self._lock:
-            for reg in self._registry.values():
-                if reg.token.value != token_value:
-                    continue
-                if reg.revoked:
-                    raise SecretsBrokerError("token has been revoked")
-                if now >= reg.token.expires_at:
-                    reg.revoked = True
-                    self._emit_unlocked(
-                        AuditEvent(
-                            kind="expire",
-                            token_id=reg.token.token_id,
-                            secret_name=reg.token.secret_name,
-                            task_id=reg.token.task_id,
-                            ts_ns=time.time_ns(),
-                            ttl_seconds=reg.token.ttl_seconds,
-                            reason="ttl",
-                        )
-                    )
-                    raise SecretsBrokerError("token has expired")
-                self._emit_unlocked(
-                    AuditEvent(
-                        kind="resolve",
-                        token_id=reg.token.token_id,
-                        secret_name=reg.token.secret_name,
-                        task_id=reg.token.task_id,
-                        ts_ns=time.time_ns(),
-                    )
+            reg = self._by_value.get(token_value)
+            if reg is None:
+                raise SecretsBrokerError("unknown token")
+            if reg.revoked:
+                raise SecretsBrokerError("token has been revoked")
+            if now >= reg.token.expires_at:
+                reg.revoked = True
+                expired = True
+                deferred = AuditEvent(
+                    kind="expire",
+                    token_id=reg.token.token_id,
+                    secret_name=reg.token.secret_name,
+                    task_id=reg.token.task_id,
+                    ts_ns=time.time_ns(),
+                    ttl_seconds=reg.token.ttl_seconds,
+                    reason="ttl",
                 )
-                return reg.raw_value
-        raise SecretsBrokerError("unknown token")
+            else:
+                raw_value = reg.raw_value
+                deferred = AuditEvent(
+                    kind="resolve",
+                    token_id=reg.token.token_id,
+                    secret_name=reg.token.secret_name,
+                    task_id=reg.token.task_id,
+                    ts_ns=time.time_ns(),
+                )
+        if deferred is not None:
+            self._emit(deferred)
+        if expired:
+            raise SecretsBrokerError("token has expired")
+        if raw_value is None:  # pragma: no cover - defensive; branch above ensures non-None
+            raise SecretsBrokerError("broker internal state corrupt")
+        return raw_value
 
     def revoke(self, token_id: str, *, reason: str = "explicit") -> bool:
         """Revoke a single token by id. Returns ``True`` when it existed."""
+        deferred: AuditEvent | None = None
+        token_value_to_drop: str | None = None
         with self._lock:
             reg = self._registry.get(token_id)
             if reg is None or reg.revoked:
                 return False
             reg.revoked = True
-            self._emit_unlocked(
-                AuditEvent(
-                    kind="revoke",
-                    token_id=token_id,
-                    secret_name=reg.token.secret_name,
-                    task_id=reg.token.task_id,
-                    ts_ns=time.time_ns(),
-                    ttl_seconds=reg.token.ttl_seconds,
-                    reason=reason,
-                )
+            deferred = AuditEvent(
+                kind="revoke",
+                token_id=token_id,
+                secret_name=reg.token.secret_name,
+                task_id=reg.token.task_id,
+                ts_ns=time.time_ns(),
+                ttl_seconds=reg.token.ttl_seconds,
+                reason=reason,
             )
-            unregister_secret_for_redaction(reg.token.value)
-            return True
+            token_value_to_drop = reg.token.value
+        if token_value_to_drop is not None:
+            unregister_secret_for_redaction(token_value_to_drop)
+        if deferred is not None:
+            self._emit(deferred)
+        return True
 
     def revoke_task(self, task_id: str, *, reason: str = "task-exit") -> int:
         """Revoke every live token owned by ``task_id``. Returns count."""
-        revoked = 0
+        deferred: list[AuditEvent] = []
+        token_values_to_drop: list[str] = []
         with self._lock:
             for reg in self._registry.values():
                 if reg.revoked or reg.token.task_id != task_id:
                     continue
                 reg.revoked = True
-                revoked += 1
-                self._emit_unlocked(
+                deferred.append(
                     AuditEvent(
                         kind="revoke",
                         token_id=reg.token.token_id,
@@ -717,8 +733,12 @@ class SecretsBroker:
                         reason=reason,
                     )
                 )
-                unregister_secret_for_redaction(reg.token.value)
-        return revoked
+                token_values_to_drop.append(reg.token.value)
+        for value in token_values_to_drop:
+            unregister_secret_for_redaction(value)
+        for event in deferred:
+            self._emit(event)
+        return len(deferred)
 
     def list_live(self) -> list[MintedToken]:
         """Return every token that is neither revoked nor expired."""
@@ -750,13 +770,13 @@ class SecretsBroker:
         return int(self._config.ttl_seconds_default)
 
     def _emit(self, event: AuditEvent) -> None:
-        # Public emit path (no lock held).
-        self._emit_unlocked(event)
+        """Dispatch *event* to the logger and the optional audit sink.
 
-    def _emit_unlocked(self, event: AuditEvent) -> None:
-        # Internal emit path (lock may be held by caller).
-        # token_id and secret_name are non-secret identifiers; raw values
-        # are never logged.
+        Callers must release the broker lock before invoking this helper so
+        that a slow or misbehaving sink cannot stall other broker operations.
+        token id and secret name are non-secret identifiers; raw values are
+        never logged.
+        """
         logger.info(
             "broker.%s token_id=%s secret_name=%s task_id=%s ttl=%ss reason=%s",
             event.kind,

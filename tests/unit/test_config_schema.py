@@ -290,13 +290,13 @@ class TestCFGEnvVarExpansion:
             assert expand_env_vars("https://${HOST}/api") == "https://example.com/api"
 
     def test_default_fallback(self) -> None:
-        env = dict(os.environ)
+        env = os.environ.copy()
         env.pop("UNSET_VAR", None)
         with patch.dict(os.environ, env, clear=True):
             assert expand_env_vars("${UNSET_VAR:-fallback}") == "fallback"
 
     def test_default_empty_string(self) -> None:
-        env = dict(os.environ)
+        env = os.environ.copy()
         env.pop("UNSET_VAR", None)
         with patch.dict(os.environ, env, clear=True):
             assert expand_env_vars("${UNSET_VAR:-}") == ""
@@ -306,7 +306,7 @@ class TestCFGEnvVarExpansion:
             assert expand_env_vars("${SET_VAR:-default}") == "actual"
 
     def test_unset_no_default_raises(self) -> None:
-        env = dict(os.environ)
+        env = os.environ.copy()
         env.pop("MISSING_VAR", None)
         with patch.dict(os.environ, env, clear=True):
             with pytest.raises(EnvExpansionError, match="MISSING_VAR.*not set"):
@@ -397,7 +397,7 @@ class TestCFGConfigMigration:
             _config_schema_mod.CURRENT_CONFIG_VERSION = 2
 
             def migrate_v1_to_v2(data: dict[str, Any]) -> dict[str, Any]:
-                data = dict(data)
+                data = data.copy()
                 if "old_field" in data:
                     data["new_field"] = data.pop("old_field")
                 return data
@@ -562,7 +562,7 @@ class TestLoadAndValidate:
     def test_load_with_env_expansion(self, tmp_path: Path) -> None:
         data = _minimal_config(internal_llm_model="${TEST_MODEL:-fallback-model}")
         p = _write_yaml(tmp_path, data)
-        env = dict(os.environ)
+        env = os.environ.copy()
         env.pop("TEST_MODEL", None)
         with patch.dict(os.environ, env, clear=True):
             cfg = load_and_validate(p)

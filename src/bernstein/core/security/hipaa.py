@@ -239,7 +239,7 @@ class PHIDetector:
         extra_patterns: list[tuple[PHICategory, re.Pattern[str], str]] | None = None,
     ) -> None:
         self._require_health_context = require_health_context
-        self._patterns = list(_PHI_PATTERNS)
+        self._patterns = _PHI_PATTERNS.copy()
         if extra_patterns:
             self._patterns.extend(extra_patterns)
 

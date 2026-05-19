@@ -173,7 +173,7 @@ class GraduatedAccessManager:
         policies: dict[TrustLevel, AccessPolicy] | None = None,
     ) -> None:
         self._records: dict[str, AgentTrustRecord] = {}
-        self._policies = policies if policies is not None else dict(_DEFAULT_POLICIES)
+        self._policies = policies if policies is not None else _DEFAULT_POLICIES.copy()
 
     # -- record helpers -----------------------------------------------------
 

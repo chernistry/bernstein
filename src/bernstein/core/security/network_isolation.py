@@ -241,11 +241,9 @@ class NetworkIsolationValidator:
         Returns:
             Aggregate result of all checks.
         """
-        checks: list[IsolationCheck] = []
-
-        # Check allowed endpoints are reachable
-        for endpoint in self._policy.allowed_endpoints:
-            checks.append(self.check_endpoint_reachable(endpoint))
+        checks: list[IsolationCheck] = [
+            self.check_endpoint_reachable(endpoint) for endpoint in self._policy.allowed_endpoints
+        ]
 
         # Check denied endpoints are blocked
         for endpoint in self._policy.denied_endpoints:

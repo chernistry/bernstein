@@ -300,7 +300,7 @@ def resolve_profile(
         # skeleton named after what the operator asked for so the
         # audit trail shows the typo verbatim.
         logger.warning("Unknown permission profile %r; falling back to deny-all", chosen)
-        base = PermissionProfile(name=str(chosen_norm), default="deny")
+        base = PermissionProfile(name=chosen_norm, default="deny")
 
     overrides = section.get(chosen_norm)
     if isinstance(overrides, dict):
@@ -482,7 +482,7 @@ def _record_denial(
         "actor": call.actor,
     }
     if call.extra:
-        record["extra"] = dict(call.extra)
+        record["extra"] = call.extra.copy()
 
     logger.warning(
         "Permission denial: tool=%s profile=%s reason=%s",

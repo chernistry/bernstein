@@ -330,9 +330,9 @@ def _sherman_morrison_update(mat_inv: list[list[float]], x: list[float]) -> list
                 recovered[i][j] += x[i] * x[j]
         return _inv(recovered)
 
-    updated: list[list[float]] = []
-    for i, row in enumerate(mat_inv):
-        updated.append([value - (mat_x[i] * mat_x[j]) / denom for j, value in enumerate(row)])
+    updated: list[list[float]] = [
+        [value - (mat_x[i] * mat_x[j]) / denom for j, value in enumerate(row)] for i, row in enumerate(mat_inv)
+    ]
     return updated
 
 

@@ -146,7 +146,7 @@ class BundleManifest:
             "ticket_id": self.ticket_id,
             "files": [entry.to_dict() for entry in self.files],
             "pr_number": self.pr_number,
-            "commits": list(self.commits),
+            "commits": self.commits.copy(),
         }
 
     def canonical_bytes(self) -> bytes:
@@ -508,16 +508,15 @@ class TicketBundle:
             arc = f"pr/pr_{pr_number if pr_number is not None else 'unknown'}.json"
             entries.append((arc, "pr", pr_bytes))
 
-        manifest_entries: list[ManifestEntry] = []
-        for arcname, section, data in entries:
-            manifest_entries.append(
-                ManifestEntry(
-                    arcname=arcname,
-                    size_bytes=len(data),
-                    sha256=_sha256_bytes(data),
-                    section=section,
-                ),
+        manifest_entries: list[ManifestEntry] = [
+            ManifestEntry(
+                arcname=arcname,
+                size_bytes=len(data),
+                sha256=_sha256_bytes(data),
+                section=section,
             )
+            for arcname, section, data in entries
+        ]
         manifest_entries.sort(key=lambda e: e.arcname)
 
         manifest = BundleManifest(
@@ -528,7 +527,7 @@ class TicketBundle:
             ticket_id=self.ticket_id,
             files=manifest_entries,
             pr_number=pr_number,
-            commits=list(commits),
+            commits=commits.copy(),
         )
 
         out.parent.mkdir(parents=True, exist_ok=True)

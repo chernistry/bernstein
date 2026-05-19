@@ -309,7 +309,7 @@ class SessionMemory:
             "ts_ns": turn.ts_ns,
             "task_id": self._task_id,
             "session_id": self._session_id,
-            "tags": list(turn.tags),
+            "tags": turn.tags.copy(),
             "content_hash": chash,
         }
         line = json.dumps(record, ensure_ascii=False, separators=(",", ":"))

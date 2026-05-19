@@ -245,9 +245,9 @@ class ScenarioResult:
             "expectation": self.scenario.expectation,
             "passed": self.passed,
             "steps": [asdict(step) for step in self.steps],
-            "console_messages": list(self.console_messages),
-            "network_errors": list(self.network_errors),
-            "screenshots": list(self.screenshots),
+            "console_messages": self.console_messages.copy(),
+            "network_errors": self.network_errors.copy(),
+            "screenshots": self.screenshots.copy(),
             "output_dir": self.output_dir,
         }
 
@@ -301,13 +301,17 @@ class PlaywrightRunResult:
                 for shot in scenario.screenshots:
                     lines.append(f"  - {shot}")
         if self.judge_verdict is not None:
-            lines.append("")
-            lines.append("### Judge verdict")
-            lines.append(f"verdict: {self.judge_verdict.verdict}")
-            lines.append(f"correctness: {self.judge_verdict.correctness}")
-            lines.append(f"style: {self.judge_verdict.style}")
-            lines.append(f"test_coverage: {self.judge_verdict.test_coverage}")
-            lines.append(f"safety: {self.judge_verdict.safety}")
+            lines.extend(
+                (
+                    "",
+                    "### Judge verdict",
+                    f"verdict: {self.judge_verdict.verdict}",
+                    f"correctness: {self.judge_verdict.correctness}",
+                    f"style: {self.judge_verdict.style}",
+                    f"test_coverage: {self.judge_verdict.test_coverage}",
+                    f"safety: {self.judge_verdict.safety}",
+                )
+            )
             if self.judge_verdict.issues:
                 lines.append("issues:")
                 for issue in self.judge_verdict.issues:

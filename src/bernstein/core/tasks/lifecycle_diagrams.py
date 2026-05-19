@@ -127,15 +127,14 @@ def extract_task_lifecycle() -> StateMachine:
     from bernstein.core.tasks.lifecycle import TASK_TRANSITIONS, TERMINAL_TASK_STATUSES
     from bernstein.core.tasks.models import TaskStatus
 
-    states: list[State] = []
-    for ts in TaskStatus:
-        states.append(
-            State(
-                name=ts.value,
-                description=_TASK_STATE_DESCRIPTIONS.get(ts.value, ts.value),
-                is_terminal=ts in TERMINAL_TASK_STATUSES,
-            )
+    states: list[State] = [
+        State(
+            name=ts.value,
+            description=_TASK_STATE_DESCRIPTIONS.get(ts.value, ts.value),
+            is_terminal=ts in TERMINAL_TASK_STATUSES,
         )
+        for ts in TaskStatus
+    ]
 
     transitions: list[Transition] = []
     for from_ts, to_ts in TASK_TRANSITIONS:
@@ -172,15 +171,14 @@ def extract_agent_lifecycle() -> StateMachine:
 
     # Terminal = no outbound transitions.
     sources = {from_s for from_s, _ in AGENT_TRANSITIONS}
-    states: list[State] = []
-    for sn in state_names:
-        states.append(
-            State(
-                name=sn,
-                description=_AGENT_STATE_DESCRIPTIONS.get(sn, sn),
-                is_terminal=sn not in sources,
-            )
+    states: list[State] = [
+        State(
+            name=sn,
+            description=_AGENT_STATE_DESCRIPTIONS.get(sn, sn),
+            is_terminal=sn not in sources,
         )
+        for sn in state_names
+    ]
 
     transitions: list[Transition] = []
     for from_s, to_s in AGENT_TRANSITIONS:

@@ -620,7 +620,7 @@ class ClaimLedger:
             granted and, on failure, why.
         """
         current = float(time.time() if now is None else now)
-        expires_at = current + max(1, int(ttl_seconds))
+        expires_at = current + max(1, ttl_seconds)
         conn = self._connect()
         try:
             conn.execute("BEGIN IMMEDIATE")
@@ -715,18 +715,17 @@ class ClaimLedger:
             "ORDER BY tracker, role, ticket_id",
             (current,),
         )
-        rows: list[dict[str, Any]] = []
-        for tracker, ticket_id, role, claimer_id, expires, attempt in cursor.fetchall():
-            rows.append(
-                {
-                    "tracker": tracker,
-                    "ticket_id": ticket_id,
-                    "role": role,
-                    "claimer_id": claimer_id,
-                    "stage_attempt": int(attempt),
-                    "lease_seconds_remaining": float(expires) - current,
-                }
-            )
+        rows: list[dict[str, Any]] = [
+            {
+                "tracker": tracker,
+                "ticket_id": ticket_id,
+                "role": role,
+                "claimer_id": claimer_id,
+                "stage_attempt": int(attempt),
+                "lease_seconds_remaining": float(expires) - current,
+            }
+            for tracker, ticket_id, role, claimer_id, expires, attempt in cursor.fetchall()
+        ]
         return rows
 
     def release(self, *, tracker: str, ticket_id: str, role: str, claimer_id: str) -> bool:

@@ -94,7 +94,7 @@ class _ScriptedCritic:
         score = self.scores[idx] if idx < len(self.scores) else self.scores[-1]
         issues: list[CritiqueIssue] = []
         if self.issues_per_round is not None and idx < len(self.issues_per_round):
-            issues = list(self.issues_per_round[idx])
+            issues = self.issues_per_round[idx].copy()
         veto = round_index in self.veto_rounds
         return Critique(score=score, issues=issues, veto=veto, rationale=f"round-{round_index}")
 
@@ -859,8 +859,8 @@ def test_property_monotone_in_budget(budget: float, per_round_cost: float) -> No
 def test_property_deterministic_with_seed(seed: int, rounds: int) -> None:
     """Two runners with the same seed produce identical reports."""
     scores = [0.1 + 0.1 * i for i in range(rounds)]
-    r1 = _runner(critic=_ScriptedCritic(scores=list(scores)), seed=seed, plateau_window=rounds + 10)
-    r2 = _runner(critic=_ScriptedCritic(scores=list(scores)), seed=seed, plateau_window=rounds + 10)
+    r1 = _runner(critic=_ScriptedCritic(scores=scores.copy()), seed=seed, plateau_window=rounds + 10)
+    r2 = _runner(critic=_ScriptedCritic(scores=scores.copy()), seed=seed, plateau_window=rounds + 10)
     rep1 = r1.run(_task(refinement_rounds=rounds))
     rep2 = r2.run(_task(refinement_rounds=rounds))
     assert rep1.rounds_run == rep2.rounds_run
@@ -1031,8 +1031,8 @@ def test_property_critique_round_trip(score: float, veto: bool, rationale: str) 
 def test_property_seeded_run_report_stable_across_repeat(rounds: int, seed: int) -> None:
     """A seeded runner produces identical reports on repeated invocation."""
     scores = [0.05 * (i + 1) for i in range(rounds)]
-    r1 = _runner(critic=_ScriptedCritic(scores=list(scores)), seed=seed, plateau_window=rounds + 10)
-    r2 = _runner(critic=_ScriptedCritic(scores=list(scores)), seed=seed, plateau_window=rounds + 10)
+    r1 = _runner(critic=_ScriptedCritic(scores=scores.copy()), seed=seed, plateau_window=rounds + 10)
+    r2 = _runner(critic=_ScriptedCritic(scores=scores.copy()), seed=seed, plateau_window=rounds + 10)
     rep1 = r1.run(_task(refinement_rounds=rounds))
     rep2 = r2.run(_task(refinement_rounds=rounds))
     assert rep1.per_round_critique == rep2.per_round_critique

@@ -758,7 +758,7 @@ def resolve_default_policy(
     """
     import os
 
-    source_env = env if env is not None else dict(os.environ)
+    source_env = env if env is not None else os.environ.copy()
     base = Path(workdir) if workdir is not None else Path.cwd()
 
     # 1. Explicit opt-out — short-circuit before any I/O.

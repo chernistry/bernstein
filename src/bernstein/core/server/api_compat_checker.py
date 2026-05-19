@@ -451,17 +451,16 @@ def _breaking_from_deleted_file(rel_path: str, old_source: str) -> list[Breaking
     except SyntaxError:
         return []
 
-    breaks: list[BreakingChange] = []
-    for func_info in _extract_functions(old_tree).values():
-        breaks.append(
-            BreakingChange(
-                file=rel_path,
-                name=func_info.name,
-                change_type=ChangeType.REMOVED_FUNCTION,
-                description=f"Public function '{func_info.name}' removed (file deleted)",
-                line=func_info.line,
-            )
+    breaks: list[BreakingChange] = [
+        BreakingChange(
+            file=rel_path,
+            name=func_info.name,
+            change_type=ChangeType.REMOVED_FUNCTION,
+            description=f"Public function '{func_info.name}' removed (file deleted)",
+            line=func_info.line,
         )
+        for func_info in _extract_functions(old_tree).values()
+    ]
     for cls_info in _extract_classes(old_tree).values():
         breaks.append(
             BreakingChange(

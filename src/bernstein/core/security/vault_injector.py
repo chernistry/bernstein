@@ -378,7 +378,7 @@ def _apply_env_map(raw: dict[str, str], env_map: dict[str, str]) -> dict[str, st
         Dict mapping env var names to values.
     """
     if not env_map:
-        return dict(raw)
+        return raw.copy()
     result: dict[str, str] = {}
     for field_name, env_var in env_map.items():
         value = raw.get(field_name)

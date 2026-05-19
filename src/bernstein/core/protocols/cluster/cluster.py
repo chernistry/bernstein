@@ -93,20 +93,19 @@ class NodeRegistry:
         if self._persist_path is None:
             return
         try:
-            data: list[dict[str, Any]] = []
-            for node in self._nodes.values():
-                data.append(
-                    {
-                        "id": node.id,
-                        "name": node.name,
-                        "url": node.url,
-                        "max_agents": node.capacity.max_agents,
-                        "supported_models": node.capacity.supported_models,
-                        "registered_at": node.registered_at,
-                        "labels": node.labels,
-                        "cell_ids": node.cell_ids,
-                    }
-                )
+            data: list[dict[str, Any]] = [
+                {
+                    "id": node.id,
+                    "name": node.name,
+                    "url": node.url,
+                    "max_agents": node.capacity.max_agents,
+                    "supported_models": node.capacity.supported_models,
+                    "registered_at": node.registered_at,
+                    "labels": node.labels,
+                    "cell_ids": node.cell_ids,
+                }
+                for node in self._nodes.values()
+            ]
             self._persist_path.parent.mkdir(parents=True, exist_ok=True)
             self._persist_path.write_text(json.dumps(data, indent=2))
         except Exception as exc:

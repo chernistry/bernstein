@@ -767,7 +767,7 @@ class SecretsBroker:
         per_secret = self._config.ttl_overrides.get(secret_name)
         if per_secret is not None:
             return int(per_secret)
-        return int(self._config.ttl_seconds_default)
+        return self._config.ttl_seconds_default
 
     def _emit(self, event: AuditEvent) -> None:
         """Dispatch *event* to the logger and the optional audit sink.

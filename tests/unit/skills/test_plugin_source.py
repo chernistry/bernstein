@@ -33,7 +33,7 @@ def _patch_entry_points(monkeypatch: pytest.MonkeyPatch, eps: list[_FakeEntryPoi
         group: str | None = None,
     ) -> Iterator[_FakeEntryPoint] | list[_FakeEntryPoint]:
         assert group == PLUGIN_ENTRY_POINT_GROUP
-        return list(eps)
+        return eps.copy()
 
     monkeypatch.setattr(
         "bernstein.core.skills.sources.plugin.entry_points",

@@ -115,7 +115,7 @@ async def test_generic_webhook_enforces_hmac_only(client: AsyncClient, monkeypat
     )
     assert plaintext.status_code == 401
 
-    wrong_sig = dict(_signed_headers(body))
+    wrong_sig = _signed_headers(body).copy()
     wrong_sig["x-bernstein-webhook-signature-256"] = "sha256=deadbeef"
     rejected = await client.post("/webhook", content=body, headers=wrong_sig)
     assert rejected.status_code == 401

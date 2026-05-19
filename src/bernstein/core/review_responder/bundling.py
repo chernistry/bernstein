@@ -133,16 +133,15 @@ class RoundBundler:
         """
         cap = max(1, self.config.max_comments_per_round)
         chunks: list[list[ReviewComment]] = [bundle.comments[i : i + cap] for i in range(0, len(bundle.comments), cap)]
-        rounds: list[ReviewRound] = []
-        for chunk in chunks:
-            rounds.append(
-                ReviewRound(
-                    round_id=f"rnd-{uuid.uuid4().hex[:12]}",
-                    repo=bundle.repo,
-                    pr_number=bundle.pr_number,
-                    comments=tuple(chunk),
-                    opened_at=bundle.opened_at,
-                    sealed_at=sealed_at,
-                )
+        rounds: list[ReviewRound] = [
+            ReviewRound(
+                round_id=f"rnd-{uuid.uuid4().hex[:12]}",
+                repo=bundle.repo,
+                pr_number=bundle.pr_number,
+                comments=tuple(chunk),
+                opened_at=bundle.opened_at,
+                sealed_at=sealed_at,
             )
+            for chunk in chunks
+        ]
         return rounds

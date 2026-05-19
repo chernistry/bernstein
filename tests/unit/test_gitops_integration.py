@@ -61,7 +61,7 @@ class _FakeClock:
     """Injectable clock for testing wait_for_sync."""
 
     def __init__(self, times: list[float]) -> None:
-        self._times = list(times)
+        self._times = times.copy()
         self._idx = 0
 
     def time(self) -> float:

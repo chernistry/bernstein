@@ -385,18 +385,17 @@ class SLOTracker:
 
     def get_dashboard(self) -> dict[str, object]:
         """Return SLO dashboard data for TUI/web rendering."""
-        slos: list[dict[str, object]] = []
-        for name, target in self.targets.items():
-            slos.append(
-                {
-                    "name": name,
-                    "description": target.description,
-                    "target": target.target,
-                    "current": round(target.current, 4),
-                    "status": target.status.value,
-                    "met": target.met,
-                }
-            )
+        slos: list[dict[str, object]] = [
+            {
+                "name": name,
+                "description": target.description,
+                "target": target.target,
+                "current": round(target.current, 4),
+                "status": target.status.value,
+                "met": target.met,
+            }
+            for name, target in self.targets.items()
+        ]
         return {
             "slos": slos,
             "error_budget": {

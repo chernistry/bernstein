@@ -242,9 +242,7 @@ class VcrFixture:
                 result[k_str] = self.hydrate_value(v)
             return result
         if isinstance(value, list):
-            items: list[Any] = []
-            for item in cast("list[Any]", value):
-                items.append(self.hydrate_value(item))
+            items: list[Any] = [self.hydrate_value(item) for item in cast("list[Any]", value)]
             return items
         return value
 

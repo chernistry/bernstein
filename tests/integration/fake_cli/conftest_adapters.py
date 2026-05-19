@@ -115,8 +115,8 @@ class FakeCLIHandle:
         """
         lines: list[str] = [
             f"export BERNSTEIN_FAKE_CLI_MODE={_shell_quote(mode)}",
-            f"export BERNSTEIN_FAKE_CLI_EXIT_CODE={int(exit_code)}",
-            f"export BERNSTEIN_FAKE_CLI_DELAY_S={float(delay_s)}",
+            f"export BERNSTEIN_FAKE_CLI_EXIT_CODE={exit_code}",
+            f"export BERNSTEIN_FAKE_CLI_DELAY_S={delay_s}",
             f"export BERNSTEIN_FAKE_CLI_ARGV_DUMP={_shell_quote(str(self.argv_dump))}",
             f"export BERNSTEIN_FAKE_CLI_ENV_DUMP={_shell_quote(str(self.env_dump))}",
         ]

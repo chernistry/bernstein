@@ -304,20 +304,19 @@ class TestBuildProvenanceChain:
         assert chain.records[0].agent_id == "a1"
 
     def test_records_sorted_by_timestamp(self, tmp_path: Path) -> None:
-        entries = []
-        for i, ts in enumerate([3.0, 1.0, 2.0]):
-            entries.append(
-                {
-                    "commit_sha": f"{'0' * 39}{i}",
-                    "agent_id": f"a{i}",
-                    "task_id": f"t{i}",
-                    "run_id": _RUN_ID,
-                    "model": "sonnet",
-                    "role": "backend",
-                    "timestamp": ts,
-                    "signature_type": "none",
-                }
-            )
+        entries = [
+            {
+                "commit_sha": f"{'0' * 39}{i}",
+                "agent_id": f"a{i}",
+                "task_id": f"t{i}",
+                "run_id": _RUN_ID,
+                "model": "sonnet",
+                "role": "backend",
+                "timestamp": ts,
+                "signature_type": "none",
+            }
+            for i, ts in enumerate([3.0, 1.0, 2.0])
+        ]
         lines = "\n".join(json.dumps(e) for e in entries) + "\n"
         (tmp_path / "provenance.jsonl").write_text(lines)
         chain = build_provenance_chain(_RUN_ID, tmp_path)

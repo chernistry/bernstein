@@ -641,9 +641,7 @@ def _find_port_pids_unix(port: int) -> list[int]:
         errors="replace",
         timeout=5,
     )
-    pids: list[int] = []
-    for line in result.stdout.strip().splitlines():
-        pids.append(int(line.strip()))
+    pids: list[int] = [int(line.strip()) for line in result.stdout.strip().splitlines()]
     return pids
 
 

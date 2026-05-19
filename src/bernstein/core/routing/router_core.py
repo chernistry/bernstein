@@ -764,9 +764,7 @@ class TierAwareRouter:
         tasks: list[Task],
     ) -> list[RoutingDecision]:
         """Route a batch of tasks, returning decisions for each."""
-        decisions: list[RoutingDecision] = []
-        for task in tasks:
-            decisions.append(self.select_provider_for_task(task))
+        decisions: list[RoutingDecision] = [self.select_provider_for_task(task) for task in tasks]
         return decisions
 
     def get_provider_summary(self) -> dict[str, dict[str, Any]]:

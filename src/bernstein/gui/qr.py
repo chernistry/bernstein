@@ -115,9 +115,7 @@ def _matrix_to_text(matrix: list[list[bool]]) -> str:
     """
     lines: list[str] = []
     for row in matrix:
-        line_parts: list[str] = []
-        for cell in row:
-            line_parts.append(QR_DARK if cell else QR_LIGHT)
+        line_parts: list[str] = [QR_DARK if cell else QR_LIGHT for cell in row]
         lines.append("".join(line_parts))
     return "\n".join(lines)
 

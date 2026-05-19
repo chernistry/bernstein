@@ -748,21 +748,20 @@ class PostgresTaskStore(BaseTaskStore):
                 """,
                 limit,
             )
-        records: list[ArchiveRecord] = []
-        for row in reversed(rows):  # oldest-first
-            records.append(
-                AR(
-                    task_id=row["task_id"],
-                    title=row["title"],
-                    role=row["role"],
-                    status=row["status"],
-                    created_at=row["created_at"],
-                    completed_at=row["completed_at"],
-                    duration_seconds=row["duration_seconds"],
-                    result_summary=row["result_summary"],
-                    cost_usd=row["cost_usd"],
-                )
+        records: list[ArchiveRecord] = [
+            AR(
+                task_id=row["task_id"],
+                title=row["title"],
+                role=row["role"],
+                status=row["status"],
+                created_at=row["created_at"],
+                completed_at=row["completed_at"],
+                duration_seconds=row["duration_seconds"],
+                result_summary=row["result_summary"],
+                cost_usd=row["cost_usd"],
             )
+            for row in reversed(rows)
+        ]
         return records
 
     # -- agent heartbeats ----------------------------------------------------

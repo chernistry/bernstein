@@ -79,7 +79,7 @@ def _make_dispatcher(
     audit_calls: list[tuple[str, str, str, dict[str, object]]] = []
 
     def _audit_hook(actor: str, rt: str, rid: str, details: dict[str, object]) -> None:
-        audit_calls.append((actor, rt, rid, dict(details)))
+        audit_calls.append((actor, rt, rid, details.copy()))
 
     dispatcher = NotificationDispatcher(
         tmp_path,

@@ -431,9 +431,7 @@ def test_check_contract_help_nonzero_all_flags_missing_is_runtime_failure(
     monkeypatch.setattr(
         _contract,
         "_run_capture",
-        _make_run_capture(
-            {("stub", "--help"): (1, "error: missing API key\nusage: stub [-h]\n")}
-        ),
+        _make_run_capture({("stub", "--help"): (1, "error: missing API key\nusage: stub [-h]\n")}),
     )
     result = _contract.check_contract(spec)
     assert result.passed is False

@@ -59,7 +59,7 @@ class _StubAdapter:
 
     def continuation_args(self, session_id: str) -> list[str]:
         self.continuation_args_calls.append(session_id)
-        return list(self.continuation_args_value)
+        return self.continuation_args_value.copy()
 
 
 @dataclass
@@ -70,7 +70,7 @@ class _SpawnRecorder:
     return_value: object | None = "spawn-ok"
 
     def __call__(self, prompt: str, continuation_args: list[str]) -> object | None:
-        self.calls.append((prompt, list(continuation_args)))
+        self.calls.append((prompt, continuation_args.copy()))
         return self.return_value
 
 

@@ -59,7 +59,7 @@ def _sarif(*results_per_run: list[dict[str, Any]]) -> dict[str, Any]:
         "runs": [
             {
                 "tool": {"driver": {"name": f"tool-{idx}"}},
-                "results": list(results),
+                "results": results.copy(),
             }
             for idx, results in enumerate(results_per_run)
         ],

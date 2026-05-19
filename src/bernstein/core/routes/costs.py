@@ -495,14 +495,13 @@ def _bucket_usages(
             slot = int(ts // bucket_seconds) * bucket_seconds
             buckets[slot] += float(usage.cost_usd)
 
-    series: list[dict[str, Any]] = []
-    for slot in sorted(buckets):
-        series.append(
-            {
-                "ts": datetime.fromtimestamp(slot, tz=UTC).isoformat(),
-                "usd": round(buckets[slot], 6),
-            }
-        )
+    series: list[dict[str, Any]] = [
+        {
+            "ts": datetime.fromtimestamp(slot, tz=UTC).isoformat(),
+            "usd": round(buckets[slot], 6),
+        }
+        for slot in sorted(buckets)
+    ]
     return series
 
 

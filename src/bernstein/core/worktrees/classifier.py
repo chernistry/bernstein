@@ -196,17 +196,16 @@ def classify_worktrees(
     """
     clock = time.time() if now is None else now
     git_paths = _git_worktree_paths(repo_root)
-    rows: list[ClassifiedWorktree] = []
-    for path in iter_worktree_dirs(repo_root):
-        rows.append(
-            _classify_one(
-                path,
-                repo_root=repo_root,
-                git_paths=git_paths,
-                now=clock,
-                stale_trace_age_s=stale_trace_age_s,
-            )
+    rows: list[ClassifiedWorktree] = [
+        _classify_one(
+            path,
+            repo_root=repo_root,
+            git_paths=git_paths,
+            now=clock,
+            stale_trace_age_s=stale_trace_age_s,
         )
+        for path in iter_worktree_dirs(repo_root)
+    ]
     return rows
 
 

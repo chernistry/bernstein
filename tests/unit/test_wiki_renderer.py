@@ -135,19 +135,18 @@ def test_render_wiki_skips_test_files_from_public_api() -> None:
 
 
 def test_render_wiki_truncates_oversized_packages() -> None:
-    nodes: list[SymbolNode] = []
-    for i in range(20):
-        nodes.append(
-            SymbolNode(
-                id=f"src/pkg/mod.py::fn_{i:02d}",
-                name=f"fn_{i:02d}",
-                kind="function",
-                file="src/pkg/mod.py",
-                line_start=i + 1,
-                line_end=i + 2,
-                signature=f"def fn_{i:02d}() -> None",
-            ),
+    nodes: list[SymbolNode] = [
+        SymbolNode(
+            id=f"src/pkg/mod.py::fn_{i:02d}",
+            name=f"fn_{i:02d}",
+            kind="function",
+            file="src/pkg/mod.py",
+            line_start=i + 1,
+            line_end=i + 2,
+            signature=f"def fn_{i:02d}() -> None",
         )
+        for i in range(20)
+    ]
     graph = _make_graph_with(*nodes)
     output = render_wiki(graph, ["src/pkg/mod.py"], repo_name="big")
 

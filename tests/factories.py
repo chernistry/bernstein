@@ -183,7 +183,7 @@ def make_task_batch(
         msg = "count must be >= 1"
         raise ValueError(msg)
 
-    effective_roles = roles or list(_DEFAULT_ROLES)
+    effective_roles = roles or _DEFAULT_ROLES.copy()
     tasks: list[Task] = []
 
     for i in range(count):

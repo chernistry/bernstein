@@ -394,7 +394,7 @@ class ClusterHandle:
         if ready_file.exists():
             ready_file.unlink()
         log = self.workdir / f"worker-{name}.log"
-        env = dict(os.environ)
+        env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
         # Workers always traverse the partition proxy.
         script = _worker_script(self.proxied_url, name, self.cluster_secret, ready_file, log)
@@ -473,7 +473,7 @@ class ClusterHandle:
     # ---- teardown ----------------------------------------------------- #
 
     def shutdown(self) -> None:
-        for w in list(self.workers):
+        for w in self.workers.copy():
             _terminate(w.proc)
         self.workers.clear()
         _terminate(self.central_proc)
@@ -497,7 +497,7 @@ def _start_central(
     nodes_json: Path,
 ) -> subprocess.Popen[bytes]:
     """Launch ``uvicorn bernstein.core.server:app`` as a subprocess."""
-    env = dict(os.environ)
+    env = os.environ.copy()
     env["BERNSTEIN_CLUSTER_ENABLED"] = "1"
     env["BERNSTEIN_CLUSTER_AUTH_SECRET"] = secret
     env["BERNSTEIN_AUTH_DISABLED"] = "1"

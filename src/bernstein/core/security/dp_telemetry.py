@@ -106,7 +106,7 @@ class PrivacyBudgetTracker:
     @property
     def entries(self) -> list[BudgetEntry]:
         """Return the budget expenditure log."""
-        return list(self._entries)
+        return self._entries.copy()
 
     def can_spend(self, epsilon: float) -> bool:
         """Check if spending epsilon would stay within budget.

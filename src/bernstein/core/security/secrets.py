@@ -458,7 +458,7 @@ def _apply_field_map(raw: dict[str, str], field_map: dict[str, str]) -> dict[str
         Remapped dict.
     """
     if not field_map:
-        return dict(raw)
+        return raw.copy()
 
     result: dict[str, str] = {}
     for secret_field, env_var in field_map.items():

@@ -428,9 +428,9 @@ def _build_profile(
 
 # Pre-built profiles keyed by AgentSeccompProfile.
 _PROFILE_SYSCALLS: dict[AgentSeccompProfile, list[str]] = {
-    AgentSeccompProfile.STRICT: list(_SYSCALLS_BASE),
-    AgentSeccompProfile.HTTP_AGENT: list(_SYSCALLS_BASE) + list(_SYSCALLS_NETWORK),
-    AgentSeccompProfile.DEFAULT: list(_SYSCALLS_BASE) + list(_SYSCALLS_NETWORK) + list(_SYSCALLS_SUBPROCESS),
+    AgentSeccompProfile.STRICT: _SYSCALLS_BASE.copy(),
+    AgentSeccompProfile.HTTP_AGENT: _SYSCALLS_BASE.copy() + _SYSCALLS_NETWORK.copy(),
+    AgentSeccompProfile.DEFAULT: _SYSCALLS_BASE.copy() + _SYSCALLS_NETWORK.copy() + _SYSCALLS_SUBPROCESS.copy(),
 }
 
 
@@ -462,7 +462,7 @@ def build_custom_profile(
     Returns:
         Seccomp profile as a JSON-serialisable dict.
     """
-    syscalls = list(_PROFILE_SYSCALLS[base])
+    syscalls = _PROFILE_SYSCALLS[base].copy()
     if extra_syscalls:
         syscalls.extend(extra_syscalls)
     return _build_profile(syscalls, name)

@@ -92,16 +92,15 @@ class WorkflowDefinition:
         This hash is recorded in run metadata so auditors can verify
         which workflow definition was used for a given run.
         """
-        canonical: list[dict[str, object]] = []
-        for phase in self.phases:
-            canonical.append(
-                {
-                    "name": phase.name,
-                    "allowed_roles": sorted(phase.allowed_roles),
-                    "completion_statuses": sorted(s.value for s in phase.completion_statuses),
-                    "requires_approval": phase.requires_approval,
-                }
-            )
+        canonical: list[dict[str, object]] = [
+            {
+                "name": phase.name,
+                "allowed_roles": sorted(phase.allowed_roles),
+                "completion_statuses": sorted(s.value for s in phase.completion_statuses),
+                "requires_approval": phase.requires_approval,
+            }
+            for phase in self.phases
+        ]
         payload = json.dumps(
             {"name": self.name, "version": self.version, "phases": canonical},
             sort_keys=True,

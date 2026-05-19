@@ -171,7 +171,7 @@ def evaluate_approval(
 
     return ApprovalStatus(
         request=request,
-        responses=list(responses),
+        responses=responses.copy(),
         is_approved=is_approved,
         is_expired=is_expired,
         is_denied=is_denied,

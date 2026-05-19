@@ -637,9 +637,10 @@ def _render_prompt(
     # Specialist agents from agency catalog
     specialist_block = ""
     if agency_catalog and role == "manager":
-        specialists: list[str] = []
-        for agent in sorted(agency_catalog.values(), key=lambda a: a.role):
-            specialists.append(f"- **{agent.name}** ({agent.role}): {agent.description}")
+        specialists: list[str] = [
+            f"- **{agent.name}** ({agent.role}): {agent.description}"
+            for agent in sorted(agency_catalog.values(), key=lambda a: a.role)
+        ]
         if specialists:
             specialist_block = (
                 "\n\n## Available specialist agents (from Agency catalog)\n"

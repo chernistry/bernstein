@@ -114,7 +114,7 @@ def _stub_bisect_env(
         return GitResult(returncode=0, stdout="", stderr="")
 
     def _fake_run(cmd: list[str], *args: object, **kwargs: object) -> subprocess.CompletedProcess[str]:
-        captured_argv.append(list(cmd))
+        captured_argv.append(cmd.copy())
         # Pretend `git check-ref-format --branch X` passes for non-malicious input.
         if len(cmd) >= 2 and cmd[:2] == ["git", "check-ref-format"]:
             return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")

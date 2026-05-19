@@ -359,9 +359,7 @@ def _vector_normalise(matrix: list[list[float]]) -> list[list[float]]:
         norms.append(math.sqrt(col_sq))
     out: list[list[float]] = []
     for row in matrix:
-        new_row: list[float] = []
-        for j, v in enumerate(row):
-            new_row.append(v / norms[j] if norms[j] > 0.0 else 0.0)
+        new_row: list[float] = [v / norms[j] if norms[j] > 0.0 else 0.0 for j, v in enumerate(row)]
         out.append(new_row)
     return out
 
@@ -404,18 +402,15 @@ def render_ranking_json(
     the snapshot deterministic across platforms (where the last 1-2
     ULPs of a ``math.sqrt`` may differ).
     """
-    rows: list[dict[str, object]] = []
-    for r in ranked:
-        rows.append(
-            {
-                "key": r.key,
-                "rank": r.rank,
-                "closeness": round(r.closeness, precision),
-                "normalised_scores": {
-                    name: round(r.normalised_scores.get(name, 0.0), precision) for name in profile.names
-                },
-            }
-        )
+    rows: list[dict[str, object]] = [
+        {
+            "key": r.key,
+            "rank": r.rank,
+            "closeness": round(r.closeness, precision),
+            "normalised_scores": {name: round(r.normalised_scores.get(name, 0.0), precision) for name in profile.names},
+        }
+        for r in ranked
+    ]
     winner_key = rows[0]["key"] if rows else None
     return {
         "method": "topsis",

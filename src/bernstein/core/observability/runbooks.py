@@ -164,17 +164,16 @@ class RunbookEngine:
             return _default_runbook_rules()
         try:
             data = json.loads(config_path.read_text())
-            rules: list[RunbookRule] = []
-            for entry in data.get("runbooks", []):
-                rules.append(
-                    RunbookRule(
-                        name=entry["name"],
-                        detect=entry["detect"],
-                        action=entry["action"],
-                        auto_execute=entry.get("auto_execute", False),
-                        max_retries=entry.get("max_retries", 2),
-                    )
+            rules: list[RunbookRule] = [
+                RunbookRule(
+                    name=entry["name"],
+                    detect=entry["detect"],
+                    action=entry["action"],
+                    auto_execute=entry.get("auto_execute", False),
+                    max_retries=entry.get("max_retries", 2),
                 )
+                for entry in data.get("runbooks", [])
+            ]
             return rules
         except (json.JSONDecodeError, KeyError, OSError) as exc:
             logger.warning("Failed to load runbook config: %s", exc)

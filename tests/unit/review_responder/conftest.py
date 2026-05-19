@@ -102,7 +102,7 @@ def make_round(*comments: ReviewComment, round_id: str = "rnd-test") -> ReviewRo
         round_id=round_id,
         repo=comments[0].repo,
         pr_number=comments[0].pr_number,
-        comments=tuple(comments),
+        comments=comments,
         opened_at=1.0,
         sealed_at=2.0,
     )
@@ -131,7 +131,7 @@ class FakeGhRunner:
         stdin: str | None = None,
     ) -> subprocess.CompletedProcess[str]:
         """Record the call and return the canned response."""
-        self.calls.append((list(args), stdin))
+        self.calls.append((args.copy(), stdin))
         joined = " ".join(args)
         for needle, (rc, stdout) in self.responses.items():
             if needle in joined:

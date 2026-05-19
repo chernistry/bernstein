@@ -72,17 +72,16 @@ def test_upsert_replaces_same_date_and_prunes_old_history(tmp_path: Path) -> Non
 def test_compute_trends_detects_upward_spend_shift() -> None:
     """compute_trends marks the trend as up when the current 30-day window is materially higher."""
     today = date.today()
-    snapshots: list[DailyCostSnapshot] = []
-    for days_ago in range(60, 30, -1):
-        snapshots.append(
-            DailyCostSnapshot(
-                date_str=(today - timedelta(days=days_ago)).isoformat(),
-                spent_usd=10.0,
-                budget_usd=0.0,
-                run_count=1,
-                timestamp=0.0,
-            )
+    snapshots: list[DailyCostSnapshot] = [
+        DailyCostSnapshot(
+            date_str=(today - timedelta(days=days_ago)).isoformat(),
+            spent_usd=10.0,
+            budget_usd=0.0,
+            run_count=1,
+            timestamp=0.0,
         )
+        for days_ago in range(60, 30, -1)
+    ]
     for days_ago in range(30, 0, -1):
         snapshots.append(
             DailyCostSnapshot(

@@ -180,7 +180,7 @@ async def test_webhook_malformed_timestamp_returns_401(client: AsyncClient, monk
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     body = json.dumps(_WEBHOOK_PAYLOAD).encode()
     # Start from a valid header set, then clobber the timestamp.
-    headers = dict(_signed(body))
+    headers = _signed(body).copy()
     headers["x-bernstein-timestamp"] = "not-a-number"
     resp = await client.post("/webhook", content=body, headers=headers)
     assert resp.status_code == 401
@@ -241,7 +241,7 @@ async def test_webhook_with_wrong_signature_returns_401(client: AsyncClient, mon
     """POST with a wrong HMAC signature must return 401."""
     monkeypatch.setenv("BERNSTEIN_WEBHOOK_SECRET", _WEBHOOK_SECRET)
     body = json.dumps(_WEBHOOK_PAYLOAD).encode()
-    headers = dict(_signed(body))
+    headers = _signed(body).copy()
     headers["x-bernstein-webhook-signature-256"] = "sha256=deadbeef"
     resp = await client.post("/webhook", content=body, headers=headers)
     assert resp.status_code == 401

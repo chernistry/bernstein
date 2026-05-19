@@ -796,7 +796,7 @@ class TestProperties:
     @given(snap=_snapshot())
     def test_input_permutation_invariant(self, snap: dict[str, Any]) -> None:
         assume(snap["run_id"])
-        rev = dict(snap)
+        rev = snap.copy()
         rev["models"] = list(reversed(snap["models"]))
         rev["prompts"] = list(reversed(snap["prompts"]))
         rev["adapters"] = list(reversed(snap["adapters"]))
@@ -817,7 +817,7 @@ class TestProperties:
     def test_content_hash_changes_with_run_id(self, snap: dict[str, Any]) -> None:
         assume(snap["run_id"])
         bom_a = generate_bom(snap)
-        snap_b = dict(snap)
+        snap_b = snap.copy()
         snap_b["run_id"] = snap["run_id"] + "x"
         bom_b = generate_bom(snap_b)
         assert bom_content_hash(bom_a) != bom_content_hash(bom_b)
@@ -837,7 +837,7 @@ class TestProperties:
     @given(snap=_snapshot())
     def test_models_dedup_invariant_on_doubling(self, snap: dict[str, Any]) -> None:
         assume(snap["run_id"])
-        doubled = dict(snap)
+        doubled = snap.copy()
         doubled["models"] = snap["models"] + snap["models"]
         bom_single = generate_bom(snap)
         bom_doubled = generate_bom(doubled)

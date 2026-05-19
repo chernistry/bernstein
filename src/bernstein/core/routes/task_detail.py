@@ -92,15 +92,14 @@ def task_detail(request: Request, task_id: str) -> TaskDetailResponse:
         agent_status = "assigned"
 
     # Build progress entries from task.progress_log (list[dict[str, Any]])
-    progress_entries: list[dict[str, Any]] = []
-    for entry in task.progress_log:
-        progress_entries.append(
-            {
-                "message": str(entry.get("message", "")),
-                "percent": int(entry.get("percent", 0)),
-                "timestamp": float(entry.get("timestamp", 0)),
-            }
-        )
+    progress_entries: list[dict[str, Any]] = [
+        {
+            "message": str(entry.get("message", "")),
+            "percent": int(entry.get("percent", 0)),
+            "timestamp": float(entry.get("timestamp", 0)),
+        }
+        for entry in task.progress_log
+    ]
 
     return TaskDetailResponse(
         task=task_to_response(task),

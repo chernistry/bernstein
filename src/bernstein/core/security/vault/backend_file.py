@@ -261,7 +261,7 @@ class FileBackend(CredentialVault):
             stored = _record_to_stored(record)
             out.append(
                 CredentialRecord(
-                    provider_id=str(provider_id),
+                    provider_id=provider_id,
                     account=stored.account,
                     fingerprint=stored.fingerprint,
                     created_at=stored.created_at,

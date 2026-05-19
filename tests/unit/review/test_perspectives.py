@@ -139,7 +139,7 @@ def _fake_adapter_call(
         prior: list[PerspectiveVerdict],
     ) -> str:
         seen_envelopes[spec.name] = input_text
-        seen_priors[spec.name] = list(prior)
+        seen_priors[spec.name] = prior.copy()
         return f"verdict[{spec.name}/{spec.adapter}]"
 
     return _call

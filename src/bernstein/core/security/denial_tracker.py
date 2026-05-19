@@ -178,7 +178,7 @@ class DenialTracker:
         Returns:
             Dict mapping session IDs to their denial records.
         """
-        return dict(self._sessions)
+        return self._sessions.copy()
 
     def clear_session(self, session_id: str) -> None:
         """Remove tracking data for a session.

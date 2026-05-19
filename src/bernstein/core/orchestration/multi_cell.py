@@ -95,26 +95,25 @@ def _fetch_tasks_for_cell(
         params={"status": status, "cell_id": cell_id},
     )
     resp.raise_for_status()
-    tasks: list[Task] = []
-    for raw in resp.json():
-        tasks.append(
-            Task(
-                id=raw["id"],
-                title=raw["title"],
-                description=raw["description"],
-                role=raw["role"],
-                priority=raw.get("priority", 2),
-                scope=Scope(raw.get("scope", "medium")),
-                complexity=Complexity(raw.get("complexity", "medium")),
-                estimated_minutes=raw.get("estimated_minutes", 30),
-                status=TaskStatus(raw.get("status", "open")),
-                depends_on=raw.get("depends_on", []),
-                owned_files=raw.get("owned_files", []),
-                assigned_agent=raw.get("assigned_agent"),
-                result_summary=raw.get("result_summary"),
-                cell_id=raw.get("cell_id"),
-            )
+    tasks: list[Task] = [
+        Task(
+            id=raw["id"],
+            title=raw["title"],
+            description=raw["description"],
+            role=raw["role"],
+            priority=raw.get("priority", 2),
+            scope=Scope(raw.get("scope", "medium")),
+            complexity=Complexity(raw.get("complexity", "medium")),
+            estimated_minutes=raw.get("estimated_minutes", 30),
+            status=TaskStatus(raw.get("status", "open")),
+            depends_on=raw.get("depends_on", []),
+            owned_files=raw.get("owned_files", []),
+            assigned_agent=raw.get("assigned_agent"),
+            result_summary=raw.get("result_summary"),
+            cell_id=raw.get("cell_id"),
         )
+        for raw in resp.json()
+    ]
     return tasks
 
 

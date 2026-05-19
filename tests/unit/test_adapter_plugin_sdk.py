@@ -59,7 +59,7 @@ class _StubPluginAdapter(PluginAdapter):
         return self._healthy
 
     def supported_models(self) -> list[str]:
-        return list(self._models)
+        return self._models.copy()
 
     def spawn(
         self,

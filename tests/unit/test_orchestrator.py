@@ -5566,18 +5566,17 @@ class TestRunManagerQueueReview:
     ):  # type: ignore[no-untyped-def]
         from bernstein.core.manager import QueueCorrection, QueueReviewResult
 
-        parsed_corrections = []
-        for c in corrections:
-            parsed_corrections.append(
-                QueueCorrection(
-                    action=c["action"],
-                    task_id=c.get("task_id"),
-                    new_role=c.get("new_role"),
-                    new_priority=c.get("new_priority"),
-                    reason=c.get("reason", ""),
-                    new_task=c.get("new_task"),
-                )
+        parsed_corrections = [
+            QueueCorrection(
+                action=c["action"],
+                task_id=c.get("task_id"),
+                new_role=c.get("new_role"),
+                new_priority=c.get("new_priority"),
+                reason=c.get("reason", ""),
+                new_task=c.get("new_task"),
             )
+            for c in corrections
+        ]
         return QueueReviewResult(corrections=parsed_corrections, reasoning=reasoning)
 
     def test_resets_counters_and_sets_last_review_ts(self, tmp_path: Path) -> None:

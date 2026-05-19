@@ -619,20 +619,19 @@ class EpsilonGreedyBandit:
 
     def summary(self) -> list[dict[str, Any]]:
         """Return a summary of all arm statistics, sorted by role then cost."""
-        rows: list[dict[str, Any]] = []
-        for arm in sorted(self._arms.values(), key=lambda a: (a.role, _model_cost(a.model))):
-            rows.append(
-                {
-                    "role": arm.role,
-                    "model": arm.model,
-                    "observations": arm.observations,
-                    "success_rate": round(arm.success_rate, 3),
-                    "avg_cost_usd": round(arm.avg_cost_usd, 6),
-                    "avg_latency_s": round(arm.avg_latency_s, 1),
-                    "trusted": arm.observations >= self.min_observations,
-                    "meets_quality": arm.success_rate >= self.quality_threshold,
-                }
-            )
+        rows: list[dict[str, Any]] = [
+            {
+                "role": arm.role,
+                "model": arm.model,
+                "observations": arm.observations,
+                "success_rate": round(arm.success_rate, 3),
+                "avg_cost_usd": round(arm.avg_cost_usd, 6),
+                "avg_latency_s": round(arm.avg_latency_s, 1),
+                "trusted": arm.observations >= self.min_observations,
+                "meets_quality": arm.success_rate >= self.quality_threshold,
+            }
+            for arm in sorted(self._arms.values(), key=lambda a: (a.role, _model_cost(a.model)))
+        ]
         return rows
 
     def get_arm(self, role: str, model: str) -> BanditArm | None:

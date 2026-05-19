@@ -181,7 +181,7 @@ class TestInstall:
     def test_installs_on_root(self) -> None:
         root = logging.getLogger()
         # Remove any existing filter from prior test runs
-        for f in list(root.filters):
+        for f in root.filters.copy():
             if isinstance(f, PiiRedactingFilter):
                 root.removeFilter(f)
         if hasattr(root, "_bernstein_pii_filter"):
@@ -252,7 +252,7 @@ class TestEndToEnd:
 
         # Cleanup
         test_logger.removeHandler(handler)
-        for f in list(test_logger.filters):
+        for f in test_logger.filters.copy():
             if isinstance(f, PiiRedactingFilter):
                 test_logger.removeFilter(f)
         if hasattr(test_logger, "_bernstein_pii_filter"):

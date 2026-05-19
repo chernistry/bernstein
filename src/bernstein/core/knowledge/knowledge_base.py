@@ -253,11 +253,7 @@ class TaskContextBuilder:
         Returns:
             Formatted task context string.
         """
-        sections: list[str] = []
-
-        # Per-file context
-        for fpath in files[:5]:  # Limit to first 5 files
-            sections.append(self.file_context(fpath, max_chars=800))
+        sections: list[str] = [self.file_context(fpath, max_chars=800) for fpath in files[:5]]
 
         # Cross-file info
         all_imports: set[str] = set()

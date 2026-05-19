@@ -347,23 +347,24 @@ def build_rollup_markdown(
     """
 
     lines: list[str] = []
-    lines.append("# Trend scan rollup")
-    lines.append("")
-    lines.append(f"_Generated: {generated_at}_")
-    lines.append("")
-    lines.append(
-        "Scheduled job that ingests upstream dependency-relevant signals into the "
-        "orchestrator state. No tickets are filed automatically - the operator "
-        "reviews this rollup and runs `bernstein backlog new` for the rows that "
-        "warrant a ticket."
+    lines.extend(
+        (
+            "# Trend scan rollup",
+            "",
+            f"_Generated: {generated_at}_",
+            "",
+            "Scheduled job that ingests upstream dependency-relevant signals into the "
+            "orchestrator state. No tickets are filed automatically - the operator "
+            "reviews this rollup and runs `bernstein backlog new` for the rows that "
+            "warrant a ticket.",
+            "",
+            f"Sources scanned: {len(sources)}. Candidates surfaced: {len(candidates)}.",
+            "",
+        )
     )
-    lines.append("")
-    lines.append(f"Sources scanned: {len(sources)}. Candidates surfaced: {len(candidates)}.")
-    lines.append("")
 
     if not candidates:
-        lines.append("No candidates passed the per-source filters this run.")
-        lines.append("")
+        lines.extend(("No candidates passed the per-source filters this run.", ""))
         return "\n".join(lines)
 
     by_tier: dict[int, list[Candidate]] = {}
@@ -371,10 +372,14 @@ def build_rollup_markdown(
         by_tier.setdefault(cand.tier, []).append(cand)
 
     for tier in sorted(by_tier):
-        lines.append(f"## Tier {tier}")
-        lines.append("")
-        lines.append("| Source | Title | Status | Score | Matched | Refs |")
-        lines.append("| --- | --- | --- | --- | --- | --- |")
+        lines.extend(
+            (
+                f"## Tier {tier}",
+                "",
+                "| Source | Title | Status | Score | Matched | Refs |",
+                "| --- | --- | --- | --- | --- | --- |",
+            )
+        )
         for cand in by_tier[tier]:
             title_cell = f"[{_escape(cand.title)}]({cand.url})" if cand.url else _escape(cand.title)
             matched_cell = ", ".join(cand.matched_keywords) or "-"
@@ -385,12 +390,15 @@ def build_rollup_markdown(
             )
         lines.append("")
 
-    lines.append("---")
-    lines.append("")
-    lines.append(
-        "_Operator action: review the `new` rows; ignore `duplicate` and `recently-closed` unless context has changed._"
+    lines.extend(
+        (
+            "---",
+            "",
+            "_Operator action: review the `new` rows; ignore `duplicate` and"
+            " `recently-closed` unless context has changed._",
+            "",
+        )
     )
-    lines.append("")
     return "\n".join(lines)
 
 

@@ -66,6 +66,7 @@ from bernstein.cli.commands.export_cmd import export_cmd
 from bernstein.cli.commands.fleet_cmd import fleet_group
 from bernstein.cli.commands.integrations_cmd import integrations_group
 from bernstein.cli.commands.knowledge_cmd import knowledge_group
+from bernstein.cli.commands.trackers_cmd import trackers_group
 from bernstein.cli.commands.resume_cmd import resume_cmd
 from bernstein.cli.commands.role_adapter_policy_cmd import security_group as _role_adapter_security_group
 from bernstein.cli.commands.skills_cmd import skills_group
@@ -936,6 +937,7 @@ cli.add_command(stop)
 cli.add_command(test_adapter, "test-adapter")
 cli.add_command(adapters_group, "adapters")
 cli.add_command(integrations_group, "integrations")
+cli.add_command(trackers_group, "trackers")
 cli.add_command(run, "run")  # visible: `bernstein run [plan.yaml]`
 cli.add_command(cook, "cook")
 cli.add_command(init)

@@ -992,6 +992,25 @@ class PluginManager:
         if entries:
             registry.register_plugin_servers(plugin_name, entries)  # type: ignore[union-attr]
 
+    def collect_plugin_tracker_adapters(self) -> int:
+        """Collect tracker adapters from registered plugins.
+
+        Iterates over every loaded plugin that implements
+        ``provide_tracker_adapter`` and registers its returned adapters
+        on the process-wide tracker registry. The registry coerces tuple
+        and ``TrackerRegistration`` shapes; this method only forwards.
+
+        Returns:
+            Number of adapters newly registered.
+        """
+        from bernstein.core.trackers.registry import discover_plugin_trackers
+
+        try:
+            return discover_plugin_trackers(self)
+        except Exception as exc:  # pragma: no cover - defensive
+            log.warning("collect_plugin_tracker_adapters failed: %s", exc)
+            return 0
+
     def discover_entry_points(self) -> None:
         """Load all plugins registered via the ``bernstein.plugins`` entry-point group."""
         eps = entry_points(group="bernstein.plugins")

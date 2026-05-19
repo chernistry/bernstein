@@ -595,6 +595,42 @@ class BernsteinSpec:
         """
 
     @hookspec
+    def provide_tracker_adapter(self) -> Any:
+        """Provide one or more tracker adapter registrations.
+
+        Tracker adapters are external task-source integrations (Linear,
+        Jira, GitHub Projects v2, GitLab, ClickUp, Asana, Plane,
+        ServiceNow, or a private tracker an enterprise customer runs).
+        Each adapter implements
+        :class:`bernstein.core.trackers.contract.AbstractTrackerAdapter`.
+
+        Plugins implementing this hook return one of:
+
+        * ``None`` -- opt out for this call.
+        * A single
+          :class:`bernstein.core.trackers.registry.TrackerRegistration`.
+        * A ``(name, factory)`` tuple where ``factory`` constructs the
+          adapter when called with keyword arguments.
+        * A list containing any mix of the above.
+
+        The plugin manager registers each entry on the process-wide
+        tracker registry under ``source="plugin"`` with the plugin name
+        recorded as provenance. Duplicate names are skipped with a
+        warning; the first registration wins.
+
+        Adapter construction is deferred until the orchestrator resolves
+        the adapter by name (typically when
+        ``bernstein.yaml: trackers.enabled = [...]`` lists it). The hook
+        is called once during plugin discovery, not on every ticket
+        pull, so factories may do non-trivial work at construction time
+        (TLS handshake, schema discovery, etc.) without taxing the hot
+        path.
+
+        Returns:
+            A registration, list of registrations, or ``None``.
+        """
+
+    @hookspec
     def on_metric_record(
         self,
         metric_type: str,

@@ -380,9 +380,11 @@ class WorkflowRunner:
 
     def _loop_predicate_passes(self, predicate: str) -> bool:
         """Return ``True`` when the bash predicate exits with status 0."""
+        # SECURITY: shell=True required because loop predicates are manifest-authored
+        # bash expressions (e.g. "test -f marker") that rely on shell parsing; not user input.
         proc = subprocess.run(
             predicate,
-            shell=True,
+            shell=True,  # nosemgrep: python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
             cwd=str(self._workdir),
             env=self._env,
             capture_output=True,
@@ -421,9 +423,11 @@ class WorkflowRunner:
         """
         assert node.command is not None
         try:
+            # SECURITY: shell=True required because command-typed workflow nodes are
+            # manifest-authored bash strings using idiomatic pipes/redirects/&&; not user input.
             proc = subprocess.run(
                 node.command,
-                shell=True,
+                shell=True,  # nosemgrep: python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
                 cwd=str(self._workdir),
                 env=self._env,
                 capture_output=True,

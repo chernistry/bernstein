@@ -743,11 +743,12 @@ def _check_test_passes(command: str, workdir: Path) -> bool:
         True if exit code is 0.
     """
     try:
+        # SECURITY: shell=True required because janitor commands are internally
+        # constructed test invocations (e.g. "pytest tests/...") that may use shell
+        # features; not user input.
         result = subprocess.run(
             command,
-            shell=True,  # SECURITY: shell=True required because janitor commands are
-            # internally-constructed test invocations (e.g. "pytest tests/...")
-            # that may use shell features; not user input
+            shell=True,  # nosemgrep: python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
             cwd=workdir,
             capture_output=True,
             timeout=120,

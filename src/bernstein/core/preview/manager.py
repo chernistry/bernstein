@@ -665,10 +665,13 @@ class SubprocessDevServerRunner(DevServerRunner):
         # ``;`` and ``&&`` chaining to keep the audit trail honest).
         if any(token in command for token in (";", "&&", "||")):
             raise PreviewError("Pipeline / chained commands are not allowed")
+        # SECURITY: shell=True required because the dev-server command (e.g. "npm run dev")
+        # is operator-configured and may use shell argument parsing. Pipeline tokens
+        # (`;`, `&&`, `||`) are explicitly rejected above to keep the audit trail honest.
         proc = subprocess.Popen(
             command,
             cwd=str(cwd),
-            shell=True,
+            shell=True,  # nosemgrep: python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,

@@ -381,11 +381,12 @@ class ScenarioRunner:
         if scenario.setup.command is None:
             return True
         try:
+            # SECURITY: shell=True required because scenario setup commands are
+            # developer-authored YAML configs that may use shell features (pipes,
+            # redirects); not user input.
             result = subprocess.run(
                 scenario.setup.command,
-                shell=True,  # SECURITY: shell=True required because scenario setup
-                # commands are developer-authored YAML configs that may use
-                # shell features; not user input
+                shell=True,  # nosemgrep: python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -667,11 +668,11 @@ class ScenarioRunner:
             True if the command exits with code 0.
         """
         try:
+            # SECURITY: shell=True required because eval scenario validation commands
+            # are developer-authored shell strings from YAML configs; not user input.
             result = subprocess.run(
                 command,
-                shell=True,  # SECURITY: shell=True required because eval scenario
-                # validation commands are developer-authored shell strings
-                # from YAML configs; not user input
+                shell=True,  # nosemgrep: python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
                 capture_output=True,
                 text=True,
                 encoding="utf-8",

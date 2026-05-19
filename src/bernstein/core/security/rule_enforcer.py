@@ -392,11 +392,11 @@ def _check_command(rule: RuleSpec, run_dir: Path, timeout_s: int = 60) -> RuleVi
         return None
 
     try:
+        # SECURITY: shell=True required because rule commands are developer-defined
+        # enforcement scripts that may use shell features (pipes, globs); not user input.
         proc = subprocess.run(
             rule.command,
-            shell=True,  # SECURITY: shell=True required because rule commands are
-            # developer-defined enforcement scripts that may use shell
-            # features; not user input
+            shell=True,  # nosemgrep: python.lang.security.audit.subprocess-shell-true.subprocess-shell-true
             cwd=run_dir,
             capture_output=True,
             text=True,

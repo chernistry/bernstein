@@ -118,7 +118,7 @@ def classify_batch_mode(task: Task) -> BatchClassification:
         )
 
     # Respect explicit premium model overrides from the manager
-    if task.model and task.model.lower() in ("opus",):
+    if task.model and task.model.lower() == "opus":
         return BatchClassification(
             mode=BatchMode.REALTIME,
             reason="manager requested opus — real-time API",

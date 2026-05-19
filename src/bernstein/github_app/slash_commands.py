@@ -99,7 +99,7 @@ def slash_command_to_task(
     else:
         title = f"[/bernstein {action}] #{issue_number}"
 
-    priority = 1 if action in ("fix",) else 2
+    priority = 1 if action == "fix" else 2
 
     task: dict[str, Any] = {
         "title": title,

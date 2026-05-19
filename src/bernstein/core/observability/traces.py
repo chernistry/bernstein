@@ -248,7 +248,7 @@ def parse_log_to_steps(log_path: Path) -> list[TraceStep]:
         ts = estimated_start + (i / total) * time_span
         m = _TOOL_RE.match(line.strip())
         if m is None:
-            if line.strip() and last_type not in ("plan",):
+            if line.strip() and last_type != "plan":
                 if last_type and current_files:
                     _flush(last_type, current_ts, current_files)
                     current_files = []

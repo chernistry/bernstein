@@ -154,7 +154,7 @@ def classify_task(task: Task) -> ClassificationResult:
         return ClassificationResult(level=TaskLevel.L2, reason="critical priority")
 
     # Check for manager-specified model/effort overrides (respect explicit routing)
-    if task.model and task.model.lower() in ("opus",):
+    if task.model and task.model.lower() == "opus":
         return ClassificationResult(level=TaskLevel.L2, reason="manager requested opus")
 
     text = f"{task.title} {task.description}".lower()

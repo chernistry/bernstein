@@ -127,7 +127,7 @@ def cell_status(cell: Cell) -> CellStatus:
     Returns:
         CellStatus with task and agent counts.
     """
-    alive = sum(1 for w in cell.workers if w.status not in ("dead",))
+    alive = sum(1 for w in cell.workers if w.status != "dead")
     if cell.manager and cell.manager.status != "dead":
         alive += 1
 
@@ -295,7 +295,7 @@ class MultiCellOrchestrator:
         batches = group_by_role(open_tasks, self._config.max_tasks_per_agent, task_created_at=task_created_at)
 
         # Count alive agents in this cell
-        alive_count = sum(1 for w in cell.workers if w.status not in ("dead",))
+        alive_count = sum(1 for w in cell.workers if w.status != "dead")
         if cell.manager and cell.manager.status != "dead":
             alive_count += 1
         result.active_agents = alive_count

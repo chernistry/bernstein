@@ -44,6 +44,7 @@ only in v1.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from dataclasses import asdict, dataclass, field
@@ -602,6 +603,11 @@ class PlaywrightRunner:
             await self._dispatch_step(page=page, step=step)
             status: StepStatus = "passed"
             error: str | None = None
+        except asyncio.CancelledError:
+            # Cooperative task cancellation must propagate; do not record
+            # the step as a benign "failed" or it masks the cancel signal
+            # and prevents the parent task from cleaning up promptly.
+            raise
         except Exception as exc:
             logger.warning(
                 "Playwright step %d (%s) failed: %s",
@@ -703,6 +709,11 @@ class PlaywrightRunner:
         )
         try:
             return await judge.dual_attempt(prompt)
+        except asyncio.CancelledError:
+            # Cancellation must propagate so the caller can tear down the
+            # judge attempt cleanly; do not swallow it as a generic
+            # judge failure.
+            raise
         except Exception:
             logger.exception("Playwright judge call failed")
             return None
@@ -757,6 +768,10 @@ async def _capture_screenshot(page: Any, target: Path) -> str | None:
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
         await page.screenshot(path=str(target), full_page=True)
+    except asyncio.CancelledError:
+        # Propagate cancellation; a partial screenshot is not worth
+        # masking the cancel.
+        raise
     except Exception:
         logger.exception("Failed to capture screenshot to %s", target)
         return None

@@ -225,6 +225,11 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "sandbox",
         # Bot-added: drift autofix (regen_contract_drift.py)
         "trend-scan",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "issue-to-pr",
+        "pipeline",
+        "secrets",
+        "trackers",
     }
 )
 

@@ -368,6 +368,235 @@ def reindex_cmd(log_path: Path) -> None:
     console.print(f"[green]Reindexed:[/green] {written} projection(s) under {log_path.parent}")
 
 
+@lineage_cmd.command(name="conflicts")
+@click.option(
+    "--artefact",
+    "artefact_filter",
+    default=None,
+    help="Restrict listing to a single artefact path.",
+)
+@click.option(
+    "--log",
+    "log_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=Path(".sdd/lineage/log.jsonl"),
+    show_default=True,
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit JSON output.")
+def conflicts_cmd(artefact_filter: str | None, log_path: Path, as_json: bool) -> None:
+    """List unresolved lineage forks in a human-readable, side-by-side form.
+
+    A fork appears whenever two-or-more agents write distinct content for the
+    same artefact off the same parent hash. The listing surfaces the artefact
+    path, the competing entry hashes, the sibling agent ids, and the timestamp
+    of each candidate so the operator can pick a merge policy.
+    """
+    import json as _json
+
+    from bernstein.cli.commands._lineage_conflict_helpers import build_conflict_views
+    from bernstein.cli.commands._lineage_v1_helpers import read_entries
+
+    if not log_path.exists():
+        if as_json:
+            click.echo(_json.dumps([]))
+        else:
+            console.print(f"[yellow]No log at {log_path}[/yellow]")
+        return
+
+    entries = read_entries(log_path)
+    views = build_conflict_views(entries, artefact_filter)
+    if as_json:
+        click.echo(_json.dumps([v.to_dict() for v in views], indent=2, sort_keys=True))
+        return
+
+    if not views:
+        if artefact_filter is not None:
+            console.print(f"[green]No unresolved forks for[/green] {artefact_filter}")
+        else:
+            console.print("[green]No unresolved forks.[/green]")
+        return
+
+    console.print(f"[red]{len(views)} unresolved fork(s):[/red]")
+    for v in views:
+        table = Table(
+            title=v.artefact_path,
+            show_header=True,
+            header_style="bold magenta",
+            show_lines=False,
+        )
+        table.add_column("Candidate", style="dim", no_wrap=True)
+        table.add_column("Agent", no_wrap=True)
+        table.add_column("ts_ns", justify="right")
+        table.add_column("Content hash", no_wrap=True)
+        table.add_column("Entry hash", no_wrap=True)
+        for c in v.candidates:
+            table.add_row(
+                "candidate",
+                c.agent_id,
+                str(c.ts_ns),
+                c.content_hash[:24] + "...",
+                c.entry_hash[:24] + "...",
+            )
+        console.print(table)
+        console.print(f"  parent={v.parent_hash[:24]}...   char-count diff: {v.char_count_diff} byte(s)")
+
+
+@lineage_cmd.command(name="resolve")
+@click.argument("artefact_path", required=True)
+@click.option(
+    "--policy",
+    "policy_name",
+    required=True,
+    help="Merge policy: human, first-writer, or agent:<id>.",
+)
+@click.option(
+    "--reason",
+    default="",
+    help="Free-form operator note attached to the audit record.",
+)
+@click.option(
+    "--diff",
+    "show_diff",
+    is_flag=True,
+    help="Print a full unified diff of the competing entries (human policy).",
+)
+@click.option(
+    "--yes",
+    "auto_yes",
+    is_flag=True,
+    help="Skip the interactive prompt; pick the first candidate for human policy.",
+)
+@click.option(
+    "--log",
+    "log_path",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=Path(".sdd/lineage/log.jsonl"),
+    show_default=True,
+)
+@click.option(
+    "--sdd-dir",
+    "sdd_dir",
+    type=click.Path(file_okay=False, path_type=Path),
+    default=Path(".sdd"),
+    show_default=True,
+    help="Project .sdd directory; merge-audit JSONL lands underneath it.",
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit JSON output.")
+def resolve_cmd(
+    artefact_path: str,
+    policy_name: str,
+    reason: str,
+    show_diff: bool,
+    auto_yes: bool,
+    log_path: Path,
+    sdd_dir: Path,
+    as_json: bool,
+) -> None:
+    """Resolve one unresolved fork using a named ``MergePolicy``.
+
+    The ``human`` policy presents a side-by-side summary and (unless
+    ``--yes`` is set) asks the operator which candidate wins. The
+    ``first-writer`` and ``agent:<id>`` policies pick deterministically;
+    they exit non-zero when no candidate satisfies the rule. Every
+    successful resolution emits a ``lineage.merge_entry`` lifecycle hook
+    so downstream auditors see the decision.
+    """
+    import json as _json
+    import sys
+
+    from bernstein.cli.commands._lineage_conflict_helpers import (
+        FirstWriterPolicy,
+        HumanPolicy,
+        LineageConflict,
+        build_conflict_views,
+        format_unified_diff,
+        index_entries,
+        resolve_one,
+        resolve_policy_name,
+    )
+    from bernstein.cli.commands._lineage_v1_helpers import read_entries
+    from bernstein.core.lineage.audit import emit_lineage_merge_entry
+    from bernstein.core.lineage.tips import detect_forks
+
+    if not log_path.exists():
+        console.print(f"[red]No log at {log_path}[/red]")
+        sys.exit(1)
+
+    entries = read_entries(log_path)
+    forks = [f for f in detect_forks(entries) if f.artefact_path == artefact_path]
+    if not forks:
+        console.print(f"[yellow]No unresolved fork for[/yellow] {artefact_path}")
+        sys.exit(1)
+    fork = forks[0]
+    by_hash = index_entries(entries)
+
+    try:
+        policy = resolve_policy_name(policy_name)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        sys.exit(2)
+
+    # Human policy needs an interactive choice; raise on its own otherwise.
+    if isinstance(policy, HumanPolicy):
+        views = build_conflict_views(entries, artefact_path)
+        if not views:
+            console.print(f"[yellow]No unresolved fork for[/yellow] {artefact_path}")
+            sys.exit(1)
+        view = views[0]
+        if show_diff:
+            diff = format_unified_diff(by_hash, fork)
+            if diff:
+                console.print(diff)
+        if auto_yes:
+            winner_hash = view.candidates[0].entry_hash
+        else:
+            console.print(f"[bold]Resolve fork for[/bold] {artefact_path}")
+            for idx, c in enumerate(view.candidates, start=1):
+                console.print(
+                    f"  [{idx}] agent={c.agent_id} ts_ns={c.ts_ns} "
+                    f"entry={c.entry_hash[:24]}... content={c.content_hash[:24]}..."
+                )
+            choice = click.prompt(
+                "Pick a candidate index",
+                type=click.IntRange(1, len(view.candidates)),
+            )
+            winner_hash = view.candidates[choice - 1].entry_hash
+        winner = by_hash[winner_hash]
+    else:
+        try:
+            winner = resolve_one(fork, by_hash, policy)
+        except LineageConflict as exc:
+            console.print(f"[red]{exc}[/red]")
+            sys.exit(1)
+        # FirstWriterPolicy ties off-the-shelf; AgentPolicy already filtered.
+        winner_hash = next(
+            h for h in fork.child_hashes if by_hash[h].agent_id == winner.agent_id and by_hash[h].ts_ns == winner.ts_ns
+        )
+        # Type narrowing for the lint pass.
+        assert isinstance(policy, (FirstWriterPolicy,)) or policy_name.startswith("agent:")
+
+    payload = emit_lineage_merge_entry(
+        artefact_path=artefact_path,
+        policy=policy_name,
+        winner_hash=winner_hash,
+        candidate_hashes=list(fork.child_hashes),
+        parent_hash=fork.parent_hash,
+        reason=reason,
+        sdd_dir=sdd_dir,
+    )
+
+    if as_json:
+        click.echo(_json.dumps(payload.to_dict(), indent=2, sort_keys=True))
+        return
+
+    console.print(
+        f"[green]Resolved[/green] {artefact_path}: policy={policy_name} "
+        f"winner={winner_hash[:24]}... agent={winner.agent_id}"
+    )
+    if reason:
+        console.print(f"  reason: {reason}")
+
+
 @lineage_cmd.command(name="merge")
 @click.argument("artefact_path", required=True)
 @click.option(

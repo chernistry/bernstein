@@ -13,8 +13,8 @@ from bernstein.core.trackers import RateLimited, TrackerUnavailable
 from bernstein.core.trackers.builtin.gitlab_adapter import (
     DEFAULT_GITLAB_URL,
     GITLAB_API_PATH,
+    GitLabAdapter,
     GitLabConfig,
-    GitLabTracker,
     _project_segment,
     _resolve_base_url,
     _resolve_token,
@@ -56,7 +56,7 @@ def _make_adapter(
     state_label_map: dict[str, str] | None = None,
     cli_choice_label_prefix: str | None = None,
     project_id_or_path: str = "my-group/my-project",
-) -> GitLabTracker:
+) -> GitLabAdapter:
     config = GitLabConfig(
         project_id_or_path=project_id_or_path,
         instance_url=instance_url,
@@ -66,7 +66,7 @@ def _make_adapter(
         state_label_map=state_label_map or {},
         cli_choice_label_prefix=cli_choice_label_prefix,
     )
-    return GitLabTracker(
+    return GitLabAdapter(
         config=config,
         token_provider=lambda: "tok-test",
     )
@@ -336,7 +336,7 @@ def test_self_hosted_via_gitlab_url_env(monkeypatch: pytest.MonkeyPatch) -> None
         project_id_or_path="12345",
         token_env="GITLAB_TEST_TOKEN",
     )
-    adapter = GitLabTracker(config=config)
+    adapter = GitLabAdapter(config=config)
     route = respx.get(f"https://gitlab.self.example{GITLAB_API_PATH}/projects/12345/issues").mock(
         return_value=httpx.Response(200, json=[])
     )
@@ -390,7 +390,7 @@ def test_rate_limit_with_retry_after_header() -> None:
 
 
 @respx.mock
-def test_forbidden_is_treated_as_rate_limited() -> None:
+def test_plain_forbidden_is_tracker_unavailable() -> None:
     adapter = _make_adapter()
     respx.get(_issues_url()).mock(
         return_value=httpx.Response(
@@ -399,10 +399,28 @@ def test_forbidden_is_treated_as_rate_limited() -> None:
         )
     )
     try:
-        with pytest.raises(RateLimited):
+        with pytest.raises(TrackerUnavailable):
             list(adapter.pull_open_tickets())
     finally:
         adapter.close()
+
+
+@respx.mock
+def test_forbidden_with_rate_limit_headers_is_rate_limited() -> None:
+    adapter = _make_adapter()
+    respx.get(_issues_url()).mock(
+        return_value=httpx.Response(
+            403,
+            json={"message": "rate-limited"},
+            headers={"Retry-After": "7"},
+        )
+    )
+    try:
+        with pytest.raises(RateLimited) as exc:
+            list(adapter.pull_open_tickets())
+    finally:
+        adapter.close()
+    assert exc.value.retry_after == 7.0
 
 
 @respx.mock

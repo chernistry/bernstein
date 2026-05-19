@@ -146,7 +146,7 @@ def _resolve_base_url(config: GitLabConfig) -> str:
 
 def _project_segment(config: GitLabConfig) -> str:
     """Return the URL-encoded project identifier for use in API paths."""
-    raw = str(config.project_id_or_path)
+    raw = config.project_id_or_path
     if raw.isdigit():
         return raw
     return quote(raw, safe="")
@@ -166,7 +166,7 @@ class _TokenBucket:
     """
 
     def __init__(self, min_interval: float) -> None:
-        self._min_interval = max(0.0, float(min_interval))
+        self._min_interval = max(0.0, min_interval)
         self._next_allowed = 0.0
         self._lock = threading.Lock()
 
@@ -187,7 +187,7 @@ class _TokenBucket:
 # ---------------------------------------------------------------------------
 
 
-class GitLabTracker(AbstractTrackerAdapter):
+class GitLabAdapter(AbstractTrackerAdapter):
     """GitLab Issues adapter.
 
     The adapter is intentionally thin: every call is a single REST
@@ -212,7 +212,7 @@ class GitLabTracker(AbstractTrackerAdapter):
         token_provider: Any | None = None,
     ) -> None:
         if httpx is None:  # pragma: no cover - dep is declared in pyproject
-            msg = "httpx is required for GitLabTracker"
+            msg = "httpx is required for GitLabAdapter"
             raise RuntimeError(msg)
         self._config = config
         self._client: Any = http_client or httpx.Client(timeout=30.0)
@@ -232,7 +232,7 @@ class GitLabTracker(AbstractTrackerAdapter):
             except Exception:  # pragma: no cover - best effort
                 logger.debug("ignoring error while closing httpx client", exc_info=True)
 
-    def __enter__(self) -> GitLabTracker:
+    def __enter__(self) -> GitLabAdapter:
         return self
 
     def __exit__(self, *exc: object) -> None:
@@ -438,7 +438,14 @@ class GitLabTracker(AbstractTrackerAdapter):
             raise TrackerUnavailable(msg) from exc
 
         status_code = getattr(response, "status_code", 0)
-        if status_code in {429, 403}:
+        if status_code == 429:
+            retry_after = _parse_retry_after(response)
+            msg = f"GitLab rate-limited (status={status_code})"
+            raise RateLimited(msg, retry_after=retry_after)
+        if status_code == 403 and _looks_like_rate_limit(response):
+            # GitLab occasionally signals rate limiting via HTTP 403 with
+            # ``RateLimit-*`` / ``Retry-After`` headers. Treat those as
+            # transient rate limits; plain 403s remain permission errors.
             retry_after = _parse_retry_after(response)
             msg = f"GitLab rate-limited (status={status_code})"
             raise RateLimited(msg, retry_after=retry_after)
@@ -462,6 +469,22 @@ class GitLabTracker(AbstractTrackerAdapter):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _looks_like_rate_limit(response: Any) -> bool:
+    """Return True if a 403 response carries GitLab rate-limit signals.
+
+    Standard 403 (Forbidden) is an auth or permission failure; the
+    operator should not auto-retry. GitLab does, however, occasionally
+    return 403 specifically for rate limiting and surfaces it via
+    ``Retry-After`` or ``RateLimit-*`` headers. Only those count.
+    """
+    headers = getattr(response, "headers", {}) or {}
+    if not hasattr(headers, "get"):
+        return False
+    if headers.get("Retry-After"):
+        return True
+    return any(headers.get(key) is not None for key in ("RateLimit-Reset", "RateLimit-Remaining", "RateLimit-Limit"))
 
 
 def _parse_retry_after(response: Any) -> float | None:

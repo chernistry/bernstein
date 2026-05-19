@@ -1,9 +1,19 @@
 name: idea-to-pr
 description: "Take a goal from idea to merged PR: research, plan, implement, test, ship."
 version: "1.0.0"
+# Per-step CLI / model routing.
+#
+# Workflow manifest nodes inherit the orchestrator's adapter and model
+# defaults (the top-level `cli:` in bernstein.yaml and the role policy).
+# When one node needs a different runtime, lift the manifest into a
+# plan YAML and pin `cli:` / `model:` / `effort:` per step there.
+# See docs/workflows/per-step-routing.md for the discoverability gap
+# this comment addresses (discussion #962) and the worked example.
 nodes:
   - id: research
     agent: manager
+    # No per-node override: research runs on the orchestrator-wide
+    # default adapter and model from bernstein.yaml + role policy.
     prompt: |
       Research the goal: {goal}
 
@@ -14,6 +24,9 @@ nodes:
   - id: plan
     depends_on: [research]
     agent: architect
+    # Architects benefit from a heavier model; express that by lifting
+    # this step into a plan YAML and pinning `model: opus` /
+    # `effort: high`. See docs/workflows/per-step-routing.md.
     prompt: |
       Turn the research brief into a concrete plan for: {goal}
 
@@ -24,6 +37,15 @@ nodes:
   - id: implement
     depends_on: [plan]
     agent: backend
+    # The backend implement step is the canonical place to pin a
+    # different adapter when the team has a cheaper / faster runtime
+    # for code edits than for review. In a plan YAML this looks like:
+    #
+    #   - title: "Carry out the plan"
+    #     role: backend
+    #     cli: opencode      # cheaper runtime for the bulk of edits
+    #
+    # See docs/workflows/per-step-routing.md for the full pattern.
     prompt: |
       Carry out the plan for: {goal}
 

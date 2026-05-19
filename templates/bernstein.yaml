@@ -1,5 +1,13 @@
 ## bernstein.yaml — project seed file
 ## Copy to your project root and edit before running `bernstein run`.
+##
+## The top-level `cli:` and `model:` keys below apply to every step
+## the orchestrator schedules. When one stage of a run needs a
+## different adapter or model than the rest (e.g. opencode for the
+## red/green/refactor loop, claude for the review pass), declare the
+## override on the matching step in a plan YAML. See
+## `docs/workflows/per-step-routing.md` for the full pattern and
+## `templates/plan.yaml` for the in-repo example.
 
 # Required: high-level objective for this run.
 goal: >
@@ -7,13 +15,37 @@ goal: >
 
 # CLI agent backend.  One of: auto, claude, codex, gemini, qwen.
 # "auto" detects installed agents and picks the best available.
+# Per-step overrides live on plan steps (see docs/workflows/per-step-routing.md).
 cli: auto
 
 # Maximum number of agents running concurrently.
 max_agents: 4
 
 # Optional model override (e.g. opus, sonnet, gpt-5.4).
+# Per-step `model:` on a plan step wins over this default.
 # model: opus
+
+# ---------------------------------------------------------------------------
+# Per-step routing (commented example)
+# ---------------------------------------------------------------------------
+# `bernstein.yaml` only takes plan-wide adapter and model defaults. To pin a
+# different adapter or model on one step of a run, lift the work into a plan
+# YAML (`bernstein run --from-plan path/to/plan.yaml`) and declare the
+# override on the matching step:
+#
+#   stages:
+#     - name: refactor
+#       steps:
+#         - title: "Refactor the auth module"
+#           role: backend
+#           cli: opencode           # adapter override for this step only
+#           model: sonnet           # model override for this step only
+#           effort: high            # effort tier override (Claude-compatible)
+#
+# When the step has no `cli:` / `model:` it inherits the values above.
+# See docs/workflows/per-step-routing.md for the worked red/green/refactor
+# example, the verification recipe, and the full list of where the hint is
+# forwarded vs. dropped.
 
 # Role team.  "auto" lets the manager choose; or list explicit roles.
 # team: auto

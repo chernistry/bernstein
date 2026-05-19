@@ -1,9 +1,18 @@
 name: refactor-with-tests
 description: "Find a target, propose a refactor, implement it, and loop on tests until green."
 version: "1.0.0"
+# Per-step CLI / model routing.
+#
+# This is the canonical red/green/refactor shape from discussion #962.
+# The propose / implement / verify nodes below are the three places
+# operators most often want to pin different adapters or models.
+# Workflow manifest nodes inherit the orchestrator defaults; lift this
+# manifest into a plan YAML when you want to pin one CLI per stage.
+# See docs/workflows/per-step-routing.md for the worked example.
 nodes:
   - id: find-target
     agent: architect
+    # Inherits the orchestrator default adapter and model.
     prompt: |
       Identify the highest-value refactor target inside: {goal}
 
@@ -13,6 +22,14 @@ nodes:
   - id: propose
     depends_on: [find-target]
     agent: architect
+    # The "red" step: author the failing tests / design proposal.
+    # In a plan YAML, pin a cheap adapter here:
+    #
+    #   - title: "Propose the refactor"
+    #     role: architect
+    #     cli: opencode     # cheap runtime for the write-up
+    #
+    # See docs/workflows/per-step-routing.md.
     prompt: |
       Propose a refactor for the target identified above.
 
@@ -22,6 +39,14 @@ nodes:
   - id: implement
     depends_on: [propose]
     agent: backend
+    # The "green" step: apply the refactor and write tests.
+    # Pin a different adapter when implementation cost is the bottleneck:
+    #
+    #   - title: "Apply the refactor"
+    #     role: backend
+    #     cli: codex        # alternate runtime for the bulk edits
+    #
+    # See docs/workflows/per-step-routing.md.
     prompt: |
       Apply the proposed refactor. Keep behavioural diffs zero;
       everything else (renames, splits, parameterisations) is fair
@@ -30,6 +55,18 @@ nodes:
 
   - id: tests-green
     depends_on: [implement]
+    # The "refactor" / verify step: loops until pytest exits 0.
+    # When you lift this into a plan YAML and add a separate review
+    # step after `tests-green`, pin the review pass to a heavier
+    # adapter and model:
+    #
+    #   - title: "Independent review of the refactor"
+    #     role: reviewer
+    #     cli: claude       # different runtime for the review
+    #     model: opus       # heavier model for the review pass
+    #     effort: high
+    #
+    # See docs/workflows/per-step-routing.md.
     command: "pytest -x -q"
     loop:
       until: "pytest -x -q"

@@ -189,6 +189,11 @@ one). `fresh_context: true` mints a new agent session per iteration. The
 `interactive: true` flag is reserved for the approval-gate work tracked in
 ticket #1110 and currently raises a clear `NotImplementedError`.
 
+Need one step to run on a different CLI adapter or model than the rest of
+the run (e.g. opencode for red/green/refactor, claude for the review)? See
+[Per-step CLI and model routing](docs/workflows/per-step-routing.md) for the
+worked plan-YAML example and the trace-verification recipe.
+
 
 ## use cases
 

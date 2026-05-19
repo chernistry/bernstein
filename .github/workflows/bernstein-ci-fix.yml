@@ -387,10 +387,13 @@ jobs:
       contents: read
       issues: write
     steps:
-      - name: Bootstrap
-        uses: ./.github/actions/bootstrap
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
         with:
-          setup-uv: "false"
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - name: Create or update ci-fix issue
         # Dedup behaviour (refs #1273, March 30 issue-flood incident):
         #   - At most ONE open `ci-fix` issue at a time.

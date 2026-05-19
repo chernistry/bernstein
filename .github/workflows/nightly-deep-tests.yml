@@ -29,8 +29,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Bootstrap
-        uses: ./.github/actions/bootstrap
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/bootstrap
       - name: Run property suite under deep profile
         env:
           HYPOTHESIS_PROFILE: deep
@@ -44,8 +50,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Bootstrap
-        uses: ./.github/actions/bootstrap
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/bootstrap
       - name: Run Schemathesis deep profile
         env:
           SCHEMATHESIS_PROFILE: deep
@@ -65,8 +77,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Bootstrap
-        uses: ./.github/actions/bootstrap
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/bootstrap
       - name: Run CrossHair on persistence + agents helpers
         run: |
           uv run crosshair check \
@@ -85,8 +103,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Bootstrap
-        uses: ./.github/actions/bootstrap
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/bootstrap
       - name: Install dev group (mutmut)
         run: uv sync --group dev
       - name: Run mutmut on the configured critical paths
@@ -110,8 +134,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Bootstrap
-        uses: ./.github/actions/bootstrap
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/bootstrap
       - name: Run Bandit at -ll (MEDIUM + HIGH)
         run: uv run bandit -r src/ -ll | tee bandit-nightly.txt
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -129,8 +159,14 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Bootstrap
-        uses: ./.github/actions/bootstrap
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/bootstrap
       - name: Run pip-audit including dev deps
         run: uv run pip-audit --strict
 
@@ -145,7 +181,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Bootstrap
-        uses: ./.github/actions/bootstrap
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/bootstrap
       - name: Run stress suite (-m stress)
         run: uv run pytest tests/stress -m stress --no-cov --no-header -q

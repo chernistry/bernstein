@@ -7,10 +7,19 @@ name: OSSF Scorecard
 #   https://api.securityscorecards.dev/projects/github.com/sipyourdrink-ltd/bernstein/badge
 #
 # Ref: #1273
+#
+# Job split: the scorecard-action webapp publish enforces "scorecard job
+# must only have steps with `uses`" (see
+# https://github.com/ossf/scorecard-action#workflow-restrictions). Any
+# `run:` step in the same job causes publish_results to fail and skip
+# the SARIF upload, leaving stale Code Scanning alerts. We therefore
+# keep the `analysis` job pure-`uses` and do post-processing
+# (suppression filtering, Code Scanning upload) in a downstream job
+# that consumes the uploaded artifact.
 
 on:
   # Scorecard scores rolling repo posture (signed releases, branch protection,
-  # pinned actions, fuzzing, etc.) — designed for weekly tracking, not
+  # pinned actions, fuzzing, etc.) - designed for weekly tracking, not
   # per-commit gating. Triggering on every push-to-main produces noisy
   # "failures" when individual high-severity findings exist (expected during
   # first-time setup). Restricted to schedule + dispatch + branch-protection
@@ -39,6 +48,11 @@ jobs:
       contents: read
       actions: read
     steps:
+      # IMPORTANT: this job must contain ONLY `uses:` steps. Adding any
+      # `run:` step here causes the scorecard webapp publish to reject
+      # results with "scorecard job must only have steps with `uses`",
+      # which in turn skips SARIF upload to Code Scanning and leaves
+      # stale alerts. Post-processing happens in the `upload` job below.
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
@@ -60,6 +74,25 @@ jobs:
           name: scorecard-results
           path: results.sarif
           retention-days: 5
+
+  upload:
+    name: Filter suppressions and upload to Code Scanning
+    needs: analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Download SARIF artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: scorecard-results
 
       - name: Drop suppressed SARIF results
         # No-op for scorecard output today (the action does not emit

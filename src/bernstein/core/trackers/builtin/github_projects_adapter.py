@@ -131,13 +131,24 @@ def _resolve_token(config: GitHubProjectsV2Config) -> str:
 
         private_key = ""
         if config.private_key_path:
-            with open(config.private_key_path) as fh:
-                private_key = fh.read()
+            try:
+                with open(config.private_key_path) as fh:
+                    private_key = fh.read()
+            except OSError as exc:
+                # Normalise file IO failures to the adapter's typed error
+                # surface so callers never see raw FileNotFoundError /
+                # PermissionError from the auth path.
+                msg = f"GitHub App private key could not be read: {config.private_key_path}"
+                raise TrackerUnavailable(msg) from exc
         else:
             env_pk = os.environ.get("GITHUB_APP_PRIVATE_KEY", "")
             if env_pk and os.path.isfile(env_pk):
-                with open(env_pk) as fh:
-                    private_key = fh.read()
+                try:
+                    with open(env_pk) as fh:
+                        private_key = fh.read()
+                except OSError as exc:
+                    msg = f"GitHub App private key could not be read: {env_pk}"
+                    raise TrackerUnavailable(msg) from exc
             else:
                 private_key = env_pk
         if not private_key:
@@ -511,6 +522,12 @@ class GitHubProjectsV2Adapter(AbstractTrackerAdapter):
     ) -> Ticket | None:
         content = raw_item.get("content") or {}
         kind = content.get("__typename")
+        # Skip items whose content is null or of an unknown typename. We
+        # only know how to materialise issues, PRs, and draft issues; any
+        # other shape produces tickets with empty title/body/content ids
+        # and pollutes downstream consumers.
+        if kind not in {"Issue", "PullRequest", "DraftIssue"}:
+            return None
         if kind == "DraftIssue" and not include_drafts:
             return None
 

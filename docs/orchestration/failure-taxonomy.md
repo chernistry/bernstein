@@ -73,7 +73,7 @@ A downstream parser:
 
 1. Searches the comment body for the literal fence
    `` ```bernstein-failure-v1\n ``.
-2. Reads until the next `` \n``` ``.
+2. Reads until the next closing ``` fence appearing on its own line.
 3. Passes the inner text to a YAML 1.1+ `safe_load`.
 4. Validates that the result is a mapping with at least
    `reason_code`, `category`, `transient`, `next_action`,

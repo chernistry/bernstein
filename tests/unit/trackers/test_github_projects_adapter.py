@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
@@ -360,11 +361,15 @@ def test_add_comment_targets_underlying_subject() -> None:
 
     assert result.comment_id == "IC_1"
     assert result.ticket_id == "I_1"
-    # Inspect the captured mutation payload.
+    # Inspect the captured mutation payload. Parse JSON rather than match
+    # raw byte substrings so formatting / key-order changes in the request
+    # serializer do not flap the assertions.
     sent = route.calls[0].request
-    assert b"addComment" in sent.content
-    assert b'"subjectId":"I_1"' in sent.content
-    assert b'"clientMutationId":"k1"' in sent.content
+    payload = json.loads(sent.content.decode("utf-8"))
+    assert "addComment" in payload.get("query", "")
+    variables = payload.get("variables") or {}
+    assert variables.get("subjectId") == "I_1"
+    assert variables.get("clientMutationId") == "k1"
 
 
 # ---------------------------------------------------------------------------
@@ -457,6 +462,31 @@ def test_rate_limit_with_retry_after_header() -> None:
     finally:
         adapter.close()
     assert exc.value.retry_after == 17.0
+
+
+@respx.mock
+def test_abuse_detection_rate_limit_403() -> None:
+    """HTTP 403 abuse-detection responses surface as ``RateLimited``.
+
+    GitHub returns 403 (not 429) for the abuse-detection / secondary
+    rate-limit branch. The adapter must map this to the typed
+    :class:`RateLimited` error so retry orchestration sees the same
+    signal as a 429.
+    """
+    adapter = _make_adapter()
+    respx.post(GITHUB_GRAPHQL_URL).mock(
+        return_value=httpx.Response(
+            403,
+            json={"message": "You have exceeded a secondary rate limit"},
+            headers={"Retry-After": "23"},
+        )
+    )
+    try:
+        with pytest.raises(RateLimited) as exc:
+            list(adapter.pull_open_tickets())
+    finally:
+        adapter.close()
+    assert exc.value.retry_after == 23.0
 
 
 @respx.mock

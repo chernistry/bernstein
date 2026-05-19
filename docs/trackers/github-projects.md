@@ -43,9 +43,22 @@ trackers:
 
 ### Personal Access Token
 
-For solo developers and small teams, a fine-grained PAT with
-`read:project`, `repo`, and `write:project` is sufficient. Point the
-adapter at an environment variable holding the token:
+For solo developers and small teams, a fine-grained personal access
+token is sufficient. Fine-grained PATs use granular per-resource
+permissions rather than the classic scope strings, so configure the
+token with:
+
+- Organization permissions: **Projects: Read and write** (required for
+  Projects v2 API access; the project owner must be an organization for
+  fine-grained PATs).
+- Repository permissions: **Issues: Read and write** and
+  **Pull requests: Read and write** for the repositories whose content
+  is linked into the project.
+
+The legacy scope strings `read:project`, `repo`, and `write:project`
+only apply to classic PATs and are not valid fine-grained PAT
+permissions. Point the adapter at an environment variable holding the
+token:
 
 ```yaml
 trackers:

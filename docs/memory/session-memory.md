@@ -95,13 +95,17 @@ prior = load_recent_turns(
 mem.prune(older_than_ns)
 ```
 
-Drops every turn for this instance's `(task_id, session_id)` whose
-`ts_ns` is strictly less than the cutoff. The episodic JSONL file is
-rewritten in place via a sibling temp file plus atomic rename, so a
-crash mid-prune leaves either the old log or the new log intact.
+Prune operates at two different scopes, on purpose:
 
-The semantic index delete is scoped to `task_id` so a parallel task
-sharing the same `.sdd/memory/` root is never touched.
+- Episodic JSONL pruning is scoped to this instance's
+  `(task_id, session_id)` and drops every turn whose `ts_ns` is strictly
+  less than the cutoff. The JSONL file is rewritten in place via a
+  sibling temp file plus atomic rename, so a crash mid-prune leaves
+  either the old log or the new log intact.
+- Semantic index deletion is scoped to `task_id` only, so a parallel
+  task sharing the same `.sdd/memory/` root is never touched and stale
+  embeddings for other sessions of the same task are cleared in one
+  pass.
 
 ## On-disk layout
 

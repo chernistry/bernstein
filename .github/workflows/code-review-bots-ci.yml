@@ -72,12 +72,14 @@ jobs:
 
       - name: Install Sourcery
         if: steps.check.outputs.skip != 'true'
+        continue-on-error: true
         run: |
           uv tool install sourcery
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Sourcery login
         if: steps.check.outputs.skip != 'true'
+        continue-on-error: true
         env:
           SOURCERY_TOKEN: ${{ secrets.SOURCERY_API_KEY }}
         run: |

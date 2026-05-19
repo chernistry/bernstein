@@ -45,19 +45,12 @@ rule_settings:
 
 metrics:
   quality_threshold: 25.0
-  enable:
-    - method_length
-    - method_lines
-    - method_cyclomatic_complexity
-    - method_cognitive_complexity
-    - method_working_memory
 
 clone_detection:
   min_lines: 6
   min_duplicates: 2
 
 github:
-  review: true
   sourcery_branch: sourcery/{base_branch}
 
 proxy:

@@ -103,7 +103,10 @@ def approve_tool_cmd(
 
     console.print(_render(approval))
     decision = ApprovalDecision.ALWAYS if always else ApprovalDecision.ALLOW
-    queue.resolve(approval.id, decision, reason="cli")
+    # The CLI is a human-channel surface: it reads the on-disk record
+    # which carries the nonce, and threads it back so the gate enforces
+    # the single-use binding uniformly across TUI, HTTP, and CLI paths.
+    queue.resolve(approval.id, decision, reason="cli", nonce=approval.nonce)
     if always:
         try:
             target = promote_to_always_allow(approval, workdir=Path(workdir))
@@ -149,7 +152,7 @@ def reject_tool_cmd(
         return
 
     console.print(_render(approval))
-    queue.resolve(approval.id, ApprovalDecision.REJECT, reason="cli")
+    queue.resolve(approval.id, ApprovalDecision.REJECT, reason="cli", nonce=approval.nonce)
     console.print(f"[red]Rejected {approval.id}[/]")
 
 

@@ -22,6 +22,8 @@ from __future__ import annotations
 
 from bernstein.core.approval.models import (
     ApprovalDecision,
+    ApprovalNonceExpired,
+    ApprovalNonceMismatch,
     ApprovalTimeoutError,
     PendingApproval,
     ResolvedApproval,
@@ -58,6 +60,8 @@ __all__ = [
     "ApprovalDecision",
     "ApprovalGate",
     "ApprovalMode",
+    "ApprovalNonceExpired",
+    "ApprovalNonceMismatch",
     "ApprovalQueue",
     "ApprovalResult",
     "ApprovalTimeoutError",

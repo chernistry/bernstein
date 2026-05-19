@@ -223,9 +223,7 @@ def check_terminal_signal(stdout_lines: list[str], *, run_id: str) -> MissingTer
     signals = iter_signals(stdout_lines)
     if has_terminal_signal(signals):
         return None
-    return MissingTerminalSignal(
-        f"adapter run {run_id!r} did not emit a terminal stream signal (COMPLETED or FAILED)"
-    )
+    return MissingTerminalSignal(f"adapter run {run_id!r} did not emit a terminal stream signal (COMPLETED or FAILED)")
 
 
 # ---------------------------------------------------------------------------

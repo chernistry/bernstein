@@ -91,7 +91,7 @@ class TestMalformedLines:
             "BERNSTEIN:",  # prefix only, no kind
             "BERNSTEIN: ",  # prefix + whitespace
             "BERNSTEIN:UNKNOWN_KIND",  # unrecognised kind
-            'BERNSTEIN:QUESTION {malformed json',  # broken JSON
+            "BERNSTEIN:QUESTION {malformed json",  # broken JSON
             "BERNSTEIN:QUESTION not-json-at-all",  # non-JSON payload
             'BERNSTEIN:QUESTION ["array","payload"]',  # JSON array, not object
             "BERNSTEIN:QUESTION 42",  # scalar payload
@@ -134,7 +134,7 @@ class TestIterSignals:
     def test_filters_noise_and_preserves_order(self) -> None:
         lines = [
             "starting agent...",
-            "BERNSTEIN:PLAN_DRAFT {\"markdown\":\"# Draft\"}",
+            'BERNSTEIN:PLAN_DRAFT {"markdown":"# Draft"}',
             "doing work",
             'BERNSTEIN:QUESTION {"question":"go?"}',
             "more output",

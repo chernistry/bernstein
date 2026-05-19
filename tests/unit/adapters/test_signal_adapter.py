@@ -157,7 +157,7 @@ class TestDefaultParser:
 # ---------------------------------------------------------------------------
 
 
-class TestOverridenParser:
+class TestOverriddenParser:
     """Adapters that override the hook can map native events to canonical."""
 
     def test_native_finish_ok_maps_to_completed(self) -> None:
@@ -185,7 +185,7 @@ class TestOverridenParser:
     def test_override_falls_back_to_canonical(self) -> None:
         """Override still accepts plain canonical signals."""
         adapter = _NativeJsonAdapter()
-        result = adapter.stream_signal_parser("BERNSTEIN:BLOCKED {\"reason\":\"x\"}")
+        result = adapter.stream_signal_parser('BERNSTEIN:BLOCKED {"reason":"x"}')
         assert isinstance(result, StreamSignal)
         assert result.kind is SignalKind.BLOCKED
 
@@ -314,7 +314,7 @@ def test_unknown_signal_is_skipped_in_stream() -> None:
     """One bad signal between two good ones must not break the others."""
     adapter = _StubAdapter()
     lines = [
-        "BERNSTEIN:PLAN_DRAFT {\"markdown\":\"# a\"}",
+        'BERNSTEIN:PLAN_DRAFT {"markdown":"# a"}',
         "BERNSTEIN:UNSUPPORTED_KIND",
         "BERNSTEIN:QUESTION {malformed",
         "BERNSTEIN:COMPLETED",

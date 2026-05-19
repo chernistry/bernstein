@@ -568,9 +568,15 @@ def parse_failure_comment(body: str) -> _ParsedYAMLBlock:
 
     Used by downstream parsers (auto-escalation, dead-letter pipeline).
     A missing fence returns an empty :class:`_ParsedYAMLBlock`; this
-    function never raises.
+    function never raises. Tolerant of ``\\r\\n`` line endings introduced
+    by tracker UIs or paste pipelines (GitHub web editor, Plane, etc.).
     """
 
+    # Normalise CRLF / CR to LF before fence matching so the search
+    # strings below stay simple. yaml.safe_load handles either style,
+    # but the literal `\n` boundary in `fence_open` / `fence_close`
+    # would otherwise miss a payload that arrived with CRLF endings.
+    body = body.replace("\r\n", "\n").replace("\r", "\n")
     fence_open = f"```{FAILURE_YAML_FENCE}\n"
     fence_close = "\n```"
     open_idx = body.find(fence_open)

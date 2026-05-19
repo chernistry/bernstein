@@ -247,6 +247,7 @@ from bernstein.cli.commands.pr_cmd import pr_cmd
 from bernstein.cli.commands.preview_cmd import preview_group
 from bernstein.cli.commands.remote_cmd import remote_group
 from bernstein.cli.commands.review_responder_cmd import review_responder_group
+from bernstein.cli.commands.sandbox_cmd import sandbox_group
 from bernstein.cli.commands.ticket_cmd import from_ticket, ticket_group
 from bernstein.cli.commands.tunnel_cmd import tunnel_group
 from bernstein.cli.helpers import (
@@ -912,6 +913,7 @@ cli.add_command(remote_group, "remote")
 cli.add_command(hooks_group, "hooks")
 cli.add_command(tunnel_group, "tunnel")
 cli.add_command(preview_group, "preview")
+cli.add_command(sandbox_group, "sandbox")
 cli.add_command(daemon_group, "daemon")
 cli.add_command(autofix_group, "autofix")
 cli.add_command(connect_cmd, "connect")

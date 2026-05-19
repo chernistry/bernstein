@@ -1,0 +1,58 @@
+[
+  {
+    "topic": "How to wire a custom CLI adapter without forking",
+    "related_command": "bernstein adapters add",
+    "doc_page_proposed": "docs/adapters/custom-adapter-quickstart.md",
+    "source": "operator-curated-2026-05-19",
+    "count": 14
+  },
+  {
+    "topic": "Resuming an interrupted run after host reboot",
+    "related_command": "bernstein resume",
+    "doc_page_proposed": "docs/operations/resume-after-reboot.md",
+    "source": "operator-curated-2026-05-19",
+    "count": 12
+  },
+  {
+    "topic": "Air-gapped install: wheelhouse layout and verification",
+    "related_command": "bernstein doctor airgap",
+    "doc_page_proposed": "docs/operations/airgap-install-walkthrough.md",
+    "source": "operator-curated-2026-05-19",
+    "count": 11
+  },
+  {
+    "topic": "Setting per-role API key allowlists for credential scoping",
+    "related_command": "bernstein doctor scoping",
+    "doc_page_proposed": "docs/operations/credential-scoping-howto.md",
+    "source": "operator-curated-2026-05-19",
+    "count": 9
+  },
+  {
+    "topic": "Configuring worktree garbage collection cadence",
+    "related_command": "bernstein worktrees gc",
+    "doc_page_proposed": "docs/operations/worktree-gc-tuning.md",
+    "source": "operator-curated-2026-05-19",
+    "count": 8
+  },
+  {
+    "topic": "Reading the dead-letter queue and replaying failed tasks",
+    "related_command": "bernstein replay",
+    "doc_page_proposed": "docs/operations/dead-letter-replay.md",
+    "source": "operator-curated-2026-05-19",
+    "count": 7
+  },
+  {
+    "topic": "Tuning cost envelopes per agent role",
+    "related_command": "bernstein cost envelopes",
+    "doc_page_proposed": "docs/operations/cost-envelopes-per-role.md",
+    "source": "operator-curated-2026-05-19",
+    "count": 6
+  },
+  {
+    "topic": "Running the orchestrator behind a corporate HTTPS proxy",
+    "related_command": "bernstein doctor",
+    "doc_page_proposed": "docs/operations/corporate-proxy-setup.md",
+    "source": "operator-curated-2026-05-19",
+    "count": 5
+  }
+]

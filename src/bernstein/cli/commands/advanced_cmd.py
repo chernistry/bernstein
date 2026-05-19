@@ -540,22 +540,56 @@ def plugins_cmd(workdir: str) -> None:
 )
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
 @click.option("--fix", "auto_fix", is_flag=True, default=False, help="Attempt to auto-fix issues.")
+@click.option(
+    "--suggest-docs",
+    "suggest_docs",
+    is_flag=True,
+    default=False,
+    help="Print the top curated documentation gaps and exit.",
+)
 @click.pass_context
-def doctor(ctx: click.Context, as_json: bool, auto_fix: bool) -> None:
+def doctor(ctx: click.Context, as_json: bool, auto_fix: bool, suggest_docs: bool) -> None:
     """Run self-diagnostics: check Python, adapters, API keys, port, and workspace.
 
     \b
-      bernstein doctor          # print diagnostic report
-      bernstein doctor --json   # machine-readable output
-      bernstein doctor --fix    # attempt to auto-fix issues
-      bernstein doctor airgap   # battery of checks for an air-gapped run
+      bernstein doctor                # print diagnostic report
+      bernstein doctor --json         # machine-readable output
+      bernstein doctor --fix          # attempt to auto-fix issues
+      bernstein doctor --suggest-docs # surface top curated documentation gaps
+      bernstein doctor airgap         # battery of checks for an air-gapped run
     """
     if ctx.invoked_subcommand is not None:
         ctx.obj = {"as_json": as_json, "auto_fix": auto_fix}
         return
+
+    if suggest_docs:
+        from bernstein.cli.doctor.suggest_docs import (
+            DEFAULT_TOP_N,
+            load_unanswered_topics,
+            render_suggestions,
+        )
+
+        topics = load_unanswered_topics()
+        render_suggestions(console, topics, limit=DEFAULT_TOP_N)
+        return
+
+    from bernstein.cli.doctor.suggest_docs import hint_line
     from bernstein.cli.status_cmd import doctor as _doctor_impl
 
-    ctx.invoke(_doctor_impl, as_json=as_json, auto_fix=auto_fix)
+    # Run the existing diagnostics first. The implementation raises
+    # SystemExit on failure, so we capture and re-raise after printing
+    # the trailing hint to keep the exit code unchanged.
+    exit_code = 0
+    try:
+        ctx.invoke(_doctor_impl, as_json=as_json, auto_fix=auto_fix)
+    except SystemExit as exc:
+        exit_code = int(exc.code or 0)
+
+    if not as_json:
+        console.print(f"[dim]{hint_line()}[/dim]")
+
+    if exit_code:
+        raise SystemExit(exit_code)
 
 
 @doctor.command("airgap")

@@ -11,6 +11,7 @@ context.
 
 ```bash
 bernstein doctor                                      # legacy report
+bernstein doctor --suggest-docs                       # top curated documentation gaps
 bernstein doctor extended                             # full extended report
 bernstein doctor extended --json                      # machine-readable output
 bernstein doctor extended --adapter claude --provider anthropic
@@ -19,6 +20,30 @@ BERNSTEIN_OFFLINE=1 bernstein doctor extended         # skip every network probe
 
 Exit code: `1` if any check fails, `0` otherwise. Warnings do not
 trigger a non-zero exit but are echoed to stderr.
+
+## Documentation gap hints
+
+`bernstein doctor --suggest-docs` reads a small operator-curated list
+of common in-CLI documentation gaps and prints the top entries so
+operators can navigate to (or request) the closest matching page. The
+default doctor run ends with a one-line hint pointing at the flag.
+
+The list ships in the wheel at
+`bernstein._default_templates/docs/_unanswered.json` and is refreshed
+by the maintainer on each release as part of release preparation.
+
+Schema (one entry per object):
+
+| Field               | Type   | Purpose                                               |
+|---------------------|--------|-------------------------------------------------------|
+| `topic`             | string | Short label of the gap                                |
+| `related_command`   | string | Closest existing CLI command for navigation           |
+| `doc_page_proposed` | string | Repo-relative path for the proposed new page          |
+| `source`            | string | Provenance tag, e.g. `operator-curated-YYYY-MM-DD`    |
+| `count`             | int    | Weight; higher counts surface first                   |
+
+Malformed or missing files degrade to a friendly "no gaps recorded"
+note so the flag never crashes the diagnostic surface.
 
 ## Check categories
 

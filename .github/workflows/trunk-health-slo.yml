@@ -14,10 +14,11 @@ name: Trunk Health SLO
 
 on:
   schedule:
-    # Every 30 minutes is a reasonable refresh interval: short enough
-    # that operators are not blocked unnecessarily after recovery, long
-    # enough to avoid thrashing on a single flaky run.
-    - cron: "*/30 * * * *"
+    # Every two hours keeps the trunk-health view fresh enough for
+    # operator decisions while cutting GitHub API consumption by 75%
+    # versus the previous */30 cadence. Manual workflow_dispatch is
+    # still available for an immediate refresh after recovery.
+    - cron: "0 */2 * * *"
   workflow_dispatch:
     inputs:
       threshold_pct:

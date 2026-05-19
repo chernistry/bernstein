@@ -26,19 +26,35 @@ name: Auto-heal v2
 # All Python state lives under .sdd/ which is gitignored. The workflow
 # never commits state - only patches that pass the cordon and self-test.
 #
-# Safety note (zizmor dangerous-triggers): workflow_run is intentional
-# so we can react to CI failures landed on main. The canonical-repo
-# gate, the branches: [main] filter, the bot-author filter, and the
-# fix(ci-heal-v2): commit-prefix recursion guard prevent self-triggers.
-on:  # zizmor: ignore[dangerous-triggers]
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: [main]
-
-concurrency:
-  group: ci-heal-v2-${{ github.event.workflow_run.head_sha }}
-  cancel-in-progress: true
+# Invocation: this workflow is now invoked by `post-ci-dispatcher.yml`
+# via workflow_call. The dispatcher reads the upstream CI run metadata
+# once and routes here together with the other post-CI children, so we
+# no longer pay an independent workflow_run cold start per fanout child.
+# The dispatcher also serialises auto-heal with bernstein-ci-fix via
+# the `heal_outcome` workflow output below: bernstein-ci-fix runs only
+# when this heal did not open a PR.
+on:
+  workflow_call:
+    inputs:
+      head_sha:
+        description: Full 40-char SHA the upstream CI run executed on.
+        required: true
+        type: string
+      run_id:
+        description: GitHub Actions run id of the upstream CI run.
+        required: true
+        type: string
+      display_title:
+        description: Display title of the upstream CI run (commit subject).
+        required: true
+        type: string
+    outputs:
+      heal_outcome:
+        description: >-
+          Outcome label of the heal attempt: applied, skipped_no_jobs, or
+          failed_validation. Consumed by post-ci-dispatcher to decide
+          whether bernstein-ci-fix should run as a fallback fixer.
+        value: ${{ jobs.heal.outputs.outcome }}
 
 permissions: {}
 
@@ -56,13 +72,12 @@ jobs:
       actions: read
       pull-requests: read
       contents: read
+    # Recursion guard: skip when the failing run was itself a heal commit.
+    # Conclusion / branch / canonical-repo gating already happened in the
+    # dispatcher.
     if: >
-      github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.head_repository.full_name == github.repository &&
-      !startsWith(github.event.workflow_run.display_title, 'fix(ci-heal-v2):') &&
-      !startsWith(github.event.workflow_run.display_title, 'fix(ci-heal):') &&
-      github.event.workflow_run.actor.login != 'github-actions[bot]'
+      !startsWith(inputs.display_title, 'fix(ci-heal-v2):') &&
+      !startsWith(inputs.display_title, 'fix(ci-heal):')
     outputs:
       head_sha: ${{ steps.meta.outputs.head_sha }}
       short_sha: ${{ steps.meta.outputs.short_sha }}
@@ -80,11 +95,11 @@ jobs:
           egress-policy: audit
 
       # Scorecard dangerous-workflow note: this checkout uses the trusted
-      # `main` branch ref, NOT the event-supplied head_sha. The filters at
-      # the top of the workflow already guarantee `head_branch == 'main'`
-      # and `head_repository.full_name == github.repository`, so the
-      # failing-commit SHA is always reachable from origin/main at runtime.
-      # We then `git checkout` that SHA after explicitly verifying it is
+      # `main` branch ref, NOT the event-supplied head_sha. The dispatcher
+      # has already gated on `head_branch == 'main'` and
+      # `head_repository.full_name == github.repository`, so the failing-
+      # commit SHA is always reachable from origin/main at runtime. We
+      # then `git checkout` that SHA after explicitly verifying it is
       # reachable from the freshly-fetched main ref, which gives Scorecard
       # an attacker-controlled-input-free entrypoint while preserving the
       # "operate on the failing SHA" semantic.
@@ -97,7 +112,7 @@ jobs:
 
       - name: Verify and pin to failing commit
         env:
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
         run: |
           set -euo pipefail
           # Guard rails: refuse anything that doesn't look like a full SHA
@@ -129,8 +144,8 @@ jobs:
       - name: Extract failure metadata
         id: meta
         env:
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          RUN_ID: ${{ inputs.run_id }}
         run: |
           {
             echo "head_sha=${HEAD_SHA}"

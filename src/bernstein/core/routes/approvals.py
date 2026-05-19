@@ -26,7 +26,11 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from bernstein.core.approval.models import ApprovalDecision
+from bernstein.core.approval.models import (
+    ApprovalDecision,
+    ApprovalNonceExpired,
+    ApprovalNonceMismatch,
+)
 from bernstein.core.approval.models import PendingApproval as QueuedApproval
 from bernstein.core.approval.queue import get_default_queue, promote_to_always_allow
 from bernstein.core.sanitize import sanitize_log
@@ -224,7 +228,13 @@ def reject_task(task_id: str, body: ApprovalDecisionRequest) -> dict[str, str]:
 
 
 class QueuedApprovalResponse(BaseModel):
-    """One queued tool-call approval from the op-002 approval queue."""
+    """One queued tool-call approval from the op-002 approval queue.
+
+    The ``nonce`` field is the hex-encoded single-use token the reply
+    must echo. It travels only over the human-channel surface (TUI,
+    dashboard, chat bridge) and never reaches agent stdin or any
+    rendered prompt template.
+    """
 
     id: str
     session_id: str
@@ -233,6 +243,7 @@ class QueuedApprovalResponse(BaseModel):
     tool_args: dict[str, object]
     created_at: float
     ttl_seconds: int
+    nonce: str
 
 
 class QueuedApprovalsResponse(BaseModel):
@@ -242,9 +253,17 @@ class QueuedApprovalsResponse(BaseModel):
 
 
 class ResolveRequest(BaseModel):
-    """Body for ``POST /approvals/{id}/resolve``."""
+    """Body for ``POST /approvals/{id}/resolve``.
+
+    The reply must echo the exact ``nonce`` hex string issued when the
+    approval was queued. ``nonce`` defaults to an empty string at the
+    schema layer so a missing field flows through the handler as a
+    nonce mismatch (``409 NONCE_MISMATCH``) rather than a Pydantic 422
+    validation error, matching the documented contract.
+    """
 
     decision: Literal["allow", "reject", "always"]
+    nonce: str = ""
     reason: str = ""
 
 
@@ -258,6 +277,7 @@ def _to_response(approval: QueuedApproval) -> QueuedApprovalResponse:
         tool_args=dict(approval.tool_args),
         created_at=approval.created_at,
         ttl_seconds=approval.ttl_seconds,
+        nonce=approval.nonce_hex,
     )
 
 
@@ -278,21 +298,38 @@ def list_queued_approvals(session_id: str | None = None) -> QueuedApprovalsRespo
     responses={
         400: {"description": "Invalid approval id or decision"},
         404: {"description": "No pending approval with that id"},
+        409: {"description": "NONCE_MISMATCH"},
+        410: {"description": "NONCE_EXPIRED"},
     },
 )
 def resolve_queued_approval(approval_id: str, body: ResolveRequest) -> dict[str, str]:
-    """Resolve a queued approval with ``allow``, ``reject``, or ``always``."""
+    """Resolve a queued approval with ``allow``, ``reject``, or ``always``.
+
+    The request body must echo the ``nonce`` the gate issued when the
+    approval was queued. Mismatches return ``409 NONCE_MISMATCH``; a
+    nonce replayed against an already-resolved or evicted approval
+    returns ``410 NONCE_EXPIRED``.
+    """
     if not re.fullmatch(r"[a-zA-Z0-9_-]+", approval_id):
         raise HTTPException(status_code=400, detail="Invalid approval id format")
     queue = get_default_queue()
     approval = queue.get(approval_id)
     if approval is None:
+        # An already-resolved approval with a supplied nonce is reported
+        # as gone rather than missing so replay attempts are visible.
+        if queue.get_resolution(approval_id) is not None:
+            raise HTTPException(status_code=410, detail="NONCE_EXPIRED")
         raise HTTPException(status_code=404, detail=f"No pending approval {approval_id}")
     try:
         decision = ApprovalDecision(body.decision)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"Invalid decision: {body.decision}") from exc
-    resolution = queue.resolve(approval_id, decision, reason=body.reason)
+    try:
+        resolution = queue.resolve(approval_id, decision, reason=body.reason, nonce=body.nonce)
+    except ApprovalNonceMismatch as exc:
+        raise HTTPException(status_code=409, detail="NONCE_MISMATCH") from exc
+    except ApprovalNonceExpired as exc:
+        raise HTTPException(status_code=410, detail="NONCE_EXPIRED") from exc
     if decision is ApprovalDecision.ALWAYS:
         try:
             promote_to_always_allow(approval)
@@ -320,8 +357,9 @@ def approvals_live_fragment(session_id: str | None = None) -> HTMLResponse:
     rows: list[str] = []
     for approval in pending:
         args_json = html.escape(json.dumps(approval.tool_args))
+        nonce_attr = html.escape(approval.nonce_hex)
         rows.append(
-            f'<div class="approval-row" data-id="{html.escape(approval.id)}">'
+            f'<div class="approval-row" data-id="{html.escape(approval.id)}" data-nonce="{nonce_attr}">'
             f'<div class="approval-meta">'
             f'<span class="approval-tool">{html.escape(approval.tool_name)}</span> '
             f'<span class="approval-role">{html.escape(approval.agent_role)}</span> '
@@ -337,10 +375,12 @@ def approvals_live_fragment(session_id: str | None = None) -> HTMLResponse:
     script = (
         "<script>"
         "function resolveApproval(id, decision){"
+        "var el=document.querySelector('[data-id=\"'+id+'\"]');"
+        "var nonce=el?el.getAttribute('data-nonce'):'';"
         "fetch('/approvals/'+encodeURIComponent(id)+'/resolve',"
         "{method:'POST',headers:{'Content-Type':'application/json'},"
-        "body:JSON.stringify({decision:decision})})"
-        ".then(function(){var el=document.querySelector('[data-id=\"'+id+'\"]');if(el)el.remove();});}"
+        "body:JSON.stringify({decision:decision,nonce:nonce})})"
+        ".then(function(r){if(r.ok && el){el.remove();}});}"
         "</script>"
     )
     body = f'<section id="approvals-panel"><h3>Pending approvals</h3>{"".join(rows)}{script}</section>'

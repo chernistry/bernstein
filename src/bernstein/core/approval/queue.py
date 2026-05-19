@@ -28,6 +28,8 @@ import yaml
 
 from bernstein.core.approval.models import (
     ApprovalDecision,
+    ApprovalNonceExpired,
+    ApprovalNonceMismatch,
     ApprovalTimeoutError,
     PendingApproval,
     ResolvedApproval,
@@ -49,6 +51,31 @@ _RESOLVED_SUFFIX = ".resolved.json"
 
 #: Filename suffix for pending approval records.
 _PENDING_SUFFIX = ".json"
+
+
+def _coerce_nonce(value: bytes | bytearray | str) -> bytes | None:
+    """Return *value* normalised to raw bytes, or ``None`` if unparseable.
+
+    Accepts raw bytes (already in the right form) or a hex string (the
+    wire form used over HTTP/SSE). Anything else, including the empty
+    string, returns ``None`` so the caller surfaces a nonce mismatch
+    rather than silently accepting the reply.
+    """
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value) if value else None
+    if isinstance(value, str) and value:
+        try:
+            return bytes.fromhex(value)
+        except ValueError:
+            return None
+    return None
+
+
+def _nonces_equal(a: bytes, b: bytes) -> bool:
+    """Constant-time equality check for two nonce byte-strings."""
+    import hmac
+
+    return hmac.compare_digest(a, b)
 
 
 def _atomic_write(path: Path, payload: str) -> None:
@@ -209,6 +236,7 @@ class ApprovalQueue:
         decision: ApprovalDecision,
         *,
         reason: str = "",
+        nonce: bytes | str | None = None,
     ) -> ResolvedApproval:
         """Record an operator decision for *approval_id*.
 
@@ -221,6 +249,12 @@ class ApprovalQueue:
             approval_id: Id of the pending approval to resolve.
             decision: Operator verdict.
             reason: Optional free-form note included in the sentinel.
+            nonce: Single-use token issued when the approval was queued.
+                Required for any human-channel reply path; only server-
+                internal callers (TTL eviction, sweeper) may omit it.
+                Mismatches raise :class:`ApprovalNonceMismatch`; replays
+                or stale nonces against an already-resolved or expired
+                approval raise :class:`ApprovalNonceExpired`.
 
         Returns:
             The authoritative :class:`ResolvedApproval`.
@@ -228,13 +262,29 @@ class ApprovalQueue:
         Raises:
             KeyError: When *approval_id* has neither a pending entry nor
                 an already-resolved record.
+            ApprovalNonceMismatch: When *nonce* was supplied but does
+                not match the pending approval's nonce.
+            ApprovalNonceExpired: When *nonce* was supplied for an
+                approval that has already been resolved or evicted, so
+                replaying the same nonce twice is rejected.
         """
         with self._lock:
             existing = self._resolved.get(approval_id)
             if existing is not None:
+                # Idempotent for nonce-less internal callers; nonce
+                # replay attempts against an already-resolved approval
+                # are rejected as expired to foreclose stale-button
+                # double-tap on superseded prompts.
+                if nonce is not None:
+                    raise ApprovalNonceExpired(f"Approval {approval_id} is already resolved; nonce replay rejected.")
                 return existing
             if approval_id not in self._pending:
                 raise KeyError(f"Unknown approval id: {approval_id}")
+            pending = self._pending[approval_id]
+            if nonce is not None:
+                supplied = _coerce_nonce(nonce)
+                if supplied is None or not _nonces_equal(supplied, pending.nonce):
+                    raise ApprovalNonceMismatch(f"Approval {approval_id} nonce does not match; refusing to resolve.")
             resolution = ResolvedApproval(approval_id=approval_id, decision=decision, reason=reason)
             self._resolved[approval_id] = resolution
             event = self._events.setdefault(approval_id, asyncio.Event())

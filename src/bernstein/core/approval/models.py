@@ -25,6 +25,27 @@ class ApprovalTimeoutError(RuntimeError):
     """
 
 
+class ApprovalNonceMismatch(RuntimeError):
+    """Raised when an approval reply carries a nonce that does not match.
+
+    The gate mints a 16-byte single-use nonce when a request is queued.
+    The reply must echo the exact nonce; a missing, stale, replayed, or
+    forged nonce raises this error so the gate refuses to resolve. The
+    failure is surfaced as ``409 NONCE_MISMATCH`` over HTTP and
+    ``EAPPRVL_NONCE`` over IPC.
+    """
+
+
+class ApprovalNonceExpired(RuntimeError):
+    """Raised when the nonce belongs to a superseded or expired approval.
+
+    The original approval may have timed out, been replaced by a newer
+    request for the same target, or already been resolved. Replaying the
+    old nonce surfaces this error and the gate refuses to resolve. HTTP
+    callers see ``410 NONCE_EXPIRED``.
+    """
+
+
 class ApprovalDecision(StrEnum):
     """Operator verdict on a pending tool-call approval.
 
@@ -45,6 +66,15 @@ def _new_id() -> str:
     return f"ap-{secrets.token_hex(6)}"
 
 
+#: Length of the single-use nonce minted per approval.
+NONCE_BYTES: int = 16
+
+
+def _new_nonce() -> bytes:
+    """Return a fresh single-use 16-byte nonce."""
+    return secrets.token_bytes(NONCE_BYTES)
+
+
 @dataclass(frozen=True)
 class PendingApproval:
     """A tool call awaiting an operator decision.
@@ -62,6 +92,10 @@ class PendingApproval:
         ttl_seconds: Time-to-live in seconds. After ``created_at +
             ttl_seconds`` the approval is considered expired and the
             default resolver rejects it.
+        nonce: Server-generated single-use 16-byte token. The reply must
+            echo this exact value or the gate refuses to resolve. Never
+            written into adapter-visible state, agent stdin, or any
+            rendered prompt template.
     """
 
     id: str = field(default_factory=_new_id)
@@ -71,6 +105,12 @@ class PendingApproval:
     tool_args: dict[str, Any] = field(default_factory=dict)
     created_at: float = field(default_factory=time.time)
     ttl_seconds: int = 600
+    nonce: bytes = field(default_factory=_new_nonce)
+
+    @property
+    def nonce_hex(self) -> str:
+        """Return the nonce as a lowercase hex string for HTTP/SSE wire use."""
+        return self.nonce.hex()
 
     @property
     def expires_at(self) -> float:
@@ -86,17 +126,42 @@ class PendingApproval:
         current = time.time() if now is None else now
         return current >= self.expires_at
 
-    def to_dict(self) -> dict[str, Any]:
-        """Return a JSON-serialisable representation."""
-        return asdict(self)
+    def to_dict(self, *, include_nonce: bool = True) -> dict[str, Any]:
+        """Return a JSON-serialisable representation.
+
+        Args:
+            include_nonce: When ``False`` the ``nonce`` key is omitted,
+                so it can be used for any surface visible to agent
+                processes, rendered prompts, or third-party adapters.
+                The default ``True`` includes the hex-encoded nonce for
+                on-disk persistence read by the human-channel resolvers.
+        """
+        payload = asdict(self)
+        nonce_bytes = payload.pop("nonce", b"")
+        if include_nonce:
+            payload["nonce"] = nonce_bytes.hex() if isinstance(nonce_bytes, (bytes, bytearray)) else str(nonce_bytes)
+        return payload
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PendingApproval:
         """Build a :class:`PendingApproval` from a JSON-decoded mapping.
 
         Unknown keys are ignored so the on-disk format can grow without
-        breaking older readers.
+        breaking older readers. A missing ``nonce`` field rehydrates with
+        a fresh nonce so legacy on-disk records load (they will still be
+        rejected on resolve because the in-memory minted nonce will not
+        match anything the operator can supply).
         """
+        raw_nonce = data.get("nonce")
+        if isinstance(raw_nonce, (bytes, bytearray)):
+            nonce = bytes(raw_nonce)
+        elif isinstance(raw_nonce, str) and raw_nonce:
+            try:
+                nonce = bytes.fromhex(raw_nonce)
+            except ValueError:
+                nonce = _new_nonce()
+        else:
+            nonce = _new_nonce()
         known = {
             "id": str(data.get("id", _new_id())),
             "session_id": str(data.get("session_id", "")),
@@ -105,6 +170,7 @@ class PendingApproval:
             "tool_args": dict(data.get("tool_args", {}) or {}),
             "created_at": float(data.get("created_at", time.time())),
             "ttl_seconds": int(data.get("ttl_seconds", 600)),
+            "nonce": nonce,
         }
         return cls(**known)
 

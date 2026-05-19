@@ -1,6 +1,6 @@
 {
   "name": "Bernstein",
-  "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm",
+  "image": "mcr.microsoft.com/devcontainers/python:3-3.12-bookworm",
   "features": {
     "ghcr.io/devcontainers-contrib/features/pipx-package:1": {
       "package": "pipx"

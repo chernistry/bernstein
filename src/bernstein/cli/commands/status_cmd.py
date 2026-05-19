@@ -19,7 +19,7 @@ from bernstein.cli.helpers import (
     print_json,
     server_get,
 )
-from bernstein.cli.status import render_status
+from bernstein.cli.status import collect_rate_limit_snapshots, render_status
 from bernstein.cli.ui import make_console
 from bernstein.core.agent_discovery import AgentCapabilities, DiscoveryResult, discover_agents_cached
 from bernstein.tui.worker_badges import format_worker_badge, get_badge_for_worker
@@ -174,6 +174,15 @@ def status(as_json: bool, no_color: bool, view_mode: str | None) -> None:
                 "[red]Cannot reach task server.[/red] Is Bernstein running? Run [bold]bernstein[/bold] to start."
             )
         raise SystemExit(1)
+
+    # Attach the local rate-limit meter snapshots so JSON consumers see
+    # the same surface the rendered panel uses. The server payload may
+    # also carry an entry under ``rate_limit_meters``; we let local data
+    # win when present because the orchestrator process owns the meter
+    # state. The key is namespaced so legacy schema readers ignore it.
+    snapshots = collect_rate_limit_snapshots()
+    if snapshots:
+        data["rate_limit_meters"] = snapshots
 
     if as_json or is_json():
         print_json(data)

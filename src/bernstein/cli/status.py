@@ -15,6 +15,7 @@ from rich.text import Text
 if TYPE_CHECKING:
     from rich.console import Console
 
+from bernstein.adapters.base import RATE_LIMIT_WINDOW_SECONDS, get_rate_limit_meters
 from bernstein.cli.ui import (
     STATUS_COLORS,
     AgentInfo,
@@ -197,6 +198,80 @@ def _build_provider_table(provider_status: dict[str, Any]) -> Table | None:
             str(payload.get("tier", "unknown")),
             str(payload.get("model", "\u2014")),
             _format_quota(snapshot),
+        )
+    return table
+
+
+def _format_last_429_cell(snapshot: dict[str, Any]) -> str:
+    """Render the "last 429" cell as a short human duration."""
+    ago_obj = snapshot.get("last_429_ago_seconds")
+    if not isinstance(ago_obj, (int, float)):
+        return "-"
+    return f"{format_duration(float(ago_obj))} ago"
+
+
+def _format_backoff_cell(snapshot: dict[str, Any]) -> str:
+    """Render the "current backoff" cell, hiding zero values."""
+    backoff = float(snapshot.get("backoff_seconds_current", 0.0) or 0.0)
+    if backoff <= 0:
+        return "-"
+    return f"{backoff:.0f}s"
+
+
+def _format_rpm_cell(snapshot: dict[str, Any]) -> str:
+    """Render the "requests-in-window" cell with the operator's RPM target."""
+    hits = int(snapshot.get("hits_in_window", 0) or 0)
+    window_seconds = int(snapshot.get("window_seconds", RATE_LIMIT_WINDOW_SECONDS) or RATE_LIMIT_WINDOW_SECONDS)
+    target = int(snapshot.get("requests_per_minute_target", 0) or 0)
+    base = f"{hits}/{window_seconds // 60}m"
+    if target > 0:
+        return f"{base} (target {target}/m)"
+    return base
+
+
+def collect_rate_limit_snapshots(
+    *,
+    window_seconds: int = RATE_LIMIT_WINDOW_SECONDS,
+    now: float | None = None,
+) -> list[dict[str, Any]]:
+    """Return the meter snapshots that have fired inside ``window_seconds``.
+
+    Each snapshot already carries the adapter name, provider, hit count,
+    and current advisory backoff. Sorted by ``last_429_ts`` descending so
+    the freshest pressure shows up first.
+    """
+    snapshots: list[dict[str, Any]] = []
+    for meter in get_rate_limit_meters().values():
+        if not meter.is_active(now=now, window_seconds=window_seconds):
+            continue
+        snapshots.append(meter.to_snapshot(now=now, window_seconds=window_seconds))
+    snapshots.sort(key=lambda snap: float(snap.get("last_429_ts", 0.0) or 0.0), reverse=True)
+    return snapshots
+
+
+def _build_rate_limit_table(snapshots: list[dict[str, Any]]) -> Table | None:
+    """Build the ``Rate limits`` panel; returns ``None`` when nothing active."""
+    if not snapshots:
+        return None
+
+    table = Table(
+        title="Rate limits",
+        show_lines=False,
+        header_style=_STYLE_BOLD_CYAN,
+    )
+    table.add_column("Adapter", min_width=10)
+    table.add_column("Provider", min_width=14)
+    table.add_column("Requests-in-window", min_width=18)
+    table.add_column("Last 429", min_width=12)
+    table.add_column("Backoff", min_width=10)
+
+    for snapshot in snapshots:
+        table.add_row(
+            str(snapshot.get("adapter", "-")),
+            str(snapshot.get("provider", "-")),
+            _format_rpm_cell(snapshot),
+            _format_last_429_cell(snapshot),
+            _format_backoff_cell(snapshot),
         )
     return table
 
@@ -430,6 +505,18 @@ def render_status(
         if provider_table is not None:
             con.print()
             con.print(provider_table)
+
+    # Rate-limit panel renders only when at least one adapter meter has
+    # fired inside the rolling window; the panel stays dark on idle runs
+    # so it does not add noise to the default status view.
+    rate_limit_snapshots = data.get("rate_limit_meters")
+    if not isinstance(rate_limit_snapshots, list) or not rate_limit_snapshots:
+        rate_limit_snapshots = collect_rate_limit_snapshots()
+    typed_snapshots = [snap for snap in rate_limit_snapshots if isinstance(snap, dict)]
+    rate_limit_table = _build_rate_limit_table(typed_snapshots)
+    if rate_limit_table is not None:
+        con.print()
+        con.print(rate_limit_table)
 
     dependency_scan_line = _format_dependency_scan_line(dependency_scan)
     if dependency_scan_line is not None:

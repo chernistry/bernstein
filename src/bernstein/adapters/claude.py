@@ -111,6 +111,10 @@ class ClaudeCodeAdapter(CLIAdapter):
     """Spawn and monitor Claude Code CLI sessions."""
 
     external_endpoints = (("api.anthropic.com", 443),)
+    # Surface the upstream provider on the ``bernstein status``
+    # rate-limit panel. Anthropic uses HTTP 429 plus structured
+    # ``rate_limit_error`` types on the messages API.
+    rate_limit_provider = "anthropic"
 
     # Track Popen objects for reliable is_alive() via poll()
     _procs: ClassVar[dict[int, subprocess.Popen[bytes]]] = {}
@@ -173,6 +177,10 @@ class ClaudeCodeAdapter(CLIAdapter):
                 "Claude Code rate-limited; blocking spawns for %.0fs",
                 _RATE_LIMIT_COOLDOWN,
             )
+            # Record on the per-adapter meter so ``bernstein status`` can
+            # surface the hit before the spawn loop reaches ``_probe_fast_exit``.
+            with contextlib.suppress(Exception):
+                self.record_rate_limit_hit(error_code="anthropic_rate_limit_probe")
             return True
 
         self._rate_limit_checked_at = now

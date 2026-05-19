@@ -17,7 +17,15 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-MemoryType = Literal["convention", "decision", "learning", "episodic", "semantic", "procedural"]
+MemoryType = Literal[
+    "convention",
+    "decision",
+    "learning",
+    "episodic",
+    "semantic",
+    "procedural",
+    "cross_task",
+]
 
 
 @dataclass(frozen=True)

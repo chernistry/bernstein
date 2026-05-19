@@ -101,7 +101,7 @@
   },
   "devDependencies": {
     "@types/jest": "^29.5",
-    "@types/node": "^20",
+    "@types/node": "^24.0.0",
     "@types/vscode": "^1.100.0",
     "@vscode/vsce": "^3.0.0",
     "ovsx": "^0.10.0",

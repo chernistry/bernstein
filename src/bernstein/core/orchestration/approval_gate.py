@@ -130,6 +130,46 @@ def _emit_audit(
         )
 
 
+def _publish_actor_event(
+    *,
+    session_id: str | None,
+    kind: Literal["approval_requested", "approval_granted", "approval_denied"],
+    task_id: str,
+    extras: dict[str, object] | None = None,
+) -> None:
+    """Mirror an approval-gate decision into a registered :class:`RunActor`.
+
+    The bridge is best-effort: if no actor is registered for the given
+    session id (the common case today), this is a silent no-op. The
+    file-driven gate remains the source of truth either way; the actor
+    feed is an opt-in observability channel that runs alongside it.
+    """
+    if not session_id:
+        return
+    try:
+        from bernstein.core.orchestration.run_actor import Event
+        from bernstein.core.orchestration.run_actor_registry import (
+            publish_event_sync,
+        )
+    except Exception:
+        logger.debug("approval gate: actor bridge import failed", exc_info=True)
+        return
+    payload: dict[str, object] = {"approval_id": task_id, "task_id": task_id}
+    if extras:
+        payload.update(extras)
+    try:
+        publish_event_sync(
+            session_id,
+            Event(kind=kind, payload=payload, source="approval_gate"),
+        )
+    except Exception:
+        logger.debug(
+            "approval gate: actor bridge publish failed for %s",
+            task_id,
+            exc_info=True,
+        )
+
+
 def _pending_path(workdir: Path, task_id: str) -> Path:
     """Return the ``<task_id>.pending`` sentinel path."""
     return _approvals_dir(workdir) / f"{task_id}.pending"
@@ -272,6 +312,7 @@ def wait_for_approval(
     now: float | None = None,
     monotonic: object | None = None,
     sleep: object | None = None,
+    session_id: str | None = None,
 ) -> ApprovalOutcome:
     """Block until the operator decides or the TTL fires.
 
@@ -290,6 +331,13 @@ def wait_for_approval(
         workdir: Project root. Defaults to the current working directory.
         audit_log: Optional explicit audit log; defaults to the
             lifecycle-registered singleton.
+        session_id: Optional run-actor session id. When set, the gate
+            mirrors ``approval_requested`` / ``approval_granted`` /
+            ``approval_denied`` events into a :class:`RunActor`
+            registered under that id (see
+            :mod:`bernstein.core.orchestration.run_actor_registry`). The
+            mirror is best-effort and never affects the file-driven
+            decision contract.
         poll_interval_s: Seconds between filesystem checks.
         now: Optional injected wall-clock timestamp (used by
             :func:`write_pending_sentinel` for deterministic ISO strings).
@@ -334,11 +382,23 @@ def wait_for_approval(
                 "default_action": spec.default_action,
             },
         )
+        _publish_actor_event(
+            session_id=session_id,
+            kind="approval_requested",
+            task_id=task_id,
+            extras={"prompt": spec.prompt},
+        )
         _emit_audit(
             audit_log,
             event_type="approval_resolved",
             task_id=task_id,
             details={"outcome": outcome, "decision_source": source},
+        )
+        _publish_actor_event(
+            session_id=session_id,
+            kind="approval_granted" if outcome == "approved" else "approval_denied",
+            task_id=task_id,
+            extras={"decision_source": source},
         )
         _cleanup_pending(root, task_id)
         return outcome
@@ -355,6 +415,12 @@ def wait_for_approval(
             "default_action": spec.default_action,
         },
     )
+    _publish_actor_event(
+        session_id=session_id,
+        kind="approval_requested",
+        task_id=task_id,
+        extras={"prompt": spec.prompt},
+    )
 
     deadline = monotonic_clock() + float(spec.timeout_seconds)  # type: ignore[operator]
     while True:
@@ -366,6 +432,12 @@ def wait_for_approval(
                 event_type="approval_resolved",
                 task_id=task_id,
                 details={"outcome": outcome, "decision_source": source},
+            )
+            _publish_actor_event(
+                session_id=session_id,
+                kind="approval_granted" if outcome == "approved" else "approval_denied",
+                task_id=task_id,
+                extras={"decision_source": source},
             )
             _cleanup_pending(root, task_id)
             return outcome
@@ -392,6 +464,15 @@ def wait_for_approval(
                     "decision_source": "timeout-default",
                     "default_action": spec.default_action,
                     "applied_outcome": outcome,
+                },
+            )
+            _publish_actor_event(
+                session_id=session_id,
+                kind="approval_granted" if outcome == "approved" else "approval_denied",
+                task_id=task_id,
+                extras={
+                    "decision_source": "timeout-default",
+                    "default_action": spec.default_action,
                 },
             )
             _cleanup_pending(root, task_id)

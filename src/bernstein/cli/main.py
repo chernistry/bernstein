@@ -1096,3 +1096,8 @@ cli.add_command(simulate_cmd, "simulate")
 from bernstein.cli.commands.telemetry_cmd import telemetry_group  # noqa: E402
 
 cli.add_command(telemetry_group, "telemetry")
+
+# Scheduled upstream-signal sweep (operator-reviewable rollup, no auto-filing).
+from bernstein.cli.commands.trend_scan_cmd import trend_scan_group  # noqa: E402
+
+cli.add_command(trend_scan_group, "trend-scan")

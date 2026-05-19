@@ -337,7 +337,10 @@ def load_scenarios(path: Path) -> list[PlaywrightScenario]:
     """
     if not path.is_file():
         raise FileNotFoundError(f"Scenarios file not found: {path}")
-    raw: object = yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        raw: object = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise PlaywrightScenarioError(f"{path}: invalid YAML: {exc}") from exc
     if raw is None:
         raise PlaywrightScenarioError(f"Scenarios file is empty: {path}")
 
@@ -570,7 +573,7 @@ class PlaywrightRunner:
                     scenario_dir=scenario_dir,
                 )
                 result.steps.append(step_result)
-                if step_result.screenshot_path is not None:
+                if step_result.screenshot_path:
                     result.screenshots.append(step_result.screenshot_path)
                 if step_result.status == "failed":
                     all_passed = False
@@ -600,6 +603,13 @@ class PlaywrightRunner:
             status: StepStatus = "passed"
             error: str | None = None
         except Exception as exc:
+            logger.warning(
+                "Playwright step %d (%s) failed: %s",
+                index,
+                step.type,
+                exc,
+                exc_info=True,
+            )
             status = "failed"
             error = f"{type(exc).__name__}: {exc}"
         finally:
@@ -736,14 +746,20 @@ def _wire_capture(page: Any, result: ScenarioResult) -> None:
     page.on("requestfailed", _on_requestfailed)
 
 
-async def _capture_screenshot(page: Any, target: Path) -> str:
-    """Capture a full-page screenshot. Returns the POSIX path on success."""
+async def _capture_screenshot(page: Any, target: Path) -> str | None:
+    """Capture a full-page screenshot.
+
+    Returns:
+        The POSIX path on success, ``None`` when capture failed. ``None`` so
+        callers can distinguish a missing screenshot from a recorded one
+        without treating an empty string as a valid path.
+    """
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
         await page.screenshot(path=str(target), full_page=True)
     except Exception:
         logger.exception("Failed to capture screenshot to %s", target)
-        return ""
+        return None
     return target.as_posix()
 
 

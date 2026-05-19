@@ -226,6 +226,15 @@ def test_load_scenarios_rejects_non_mapping_step(tmp_path: Path) -> None:
         load_scenarios(path)
 
 
+def test_load_scenarios_normalises_yaml_parse_errors(tmp_path: Path) -> None:
+    # Malformed YAML must surface as PlaywrightScenarioError so the CLI's
+    # except clause converts it into a clean ClickException.
+    path = tmp_path / "broken.yaml"
+    path.write_text("scenarios: [name: x\n  steps: -\n", encoding="utf-8")
+    with pytest.raises(PlaywrightScenarioError, match="invalid YAML"):
+        load_scenarios(path)
+
+
 # ---------------------------------------------------------------------------
 # Runner — happy path + capture
 # ---------------------------------------------------------------------------
@@ -485,6 +494,38 @@ async def test_runner_surfaces_unavailable_playwright(
     )
     with pytest.raises(PlaywrightUnavailableError):
         await runner.run([scenario])
+
+
+def test_cli_rejects_unsafe_task_id(tmp_path: Path) -> None:
+    """task_id with path separators or traversal must be rejected upfront."""
+    from click.testing import CliRunner
+
+    from bernstein.cli.commands.sandbox_cmd import sandbox_group
+
+    scenarios = tmp_path / "scenarios.yaml"
+    scenarios.write_text(
+        "- {name: x, steps: [{type: navigate, url: /}]}",
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+    bad_inputs = ["../escape", "task/with/slash", "..", ""]
+    for bad in bad_inputs:
+        result = runner.invoke(
+            sandbox_group,
+            [
+                "web-test",
+                bad,
+                "--url",
+                "http://localhost:5173",
+                "--scenarios",
+                str(scenarios),
+            ],
+        )
+        assert result.exit_code != 0, f"task_id {bad!r} should be rejected"
+        # Empty string trips Click's "argument required" check before our
+        # regex, but every non-empty bad input must hit BadParameter.
+        if bad:
+            assert "task_id must match" in result.output
 
 
 def test_run_result_self_test_block_includes_failure_details(tmp_path: Path) -> None:

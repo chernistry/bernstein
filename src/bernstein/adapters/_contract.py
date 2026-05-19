@@ -284,6 +284,21 @@ def check_contract(spec: ContractSpec) -> ContractResult:
         result.skipped_reason = help_text.strip()
         return result
 
+    # Guard: a non-zero help exit with no usable output is a CLI runtime
+    # failure, not contract drift. Reporting every required flag as
+    # "missing" against an empty haystack produces misleading drift issues
+    # (each flag fires its own failure line) when the real problem is a
+    # broken --help. Treat this as a checker error so operators
+    # investigate the runtime regression instead of churning the contract.
+    stripped_help = _strip_ansi(help_text).strip()
+    if rc != 0 and not stripped_help:
+        snippet = help_text.strip()[:200] or "<no output>"
+        result.capability_failures = [
+            f"`{' '.join(spec.resolved_help_command())}` exited {rc} with no output; "
+            f"upstream CLI runtime failure, not contract drift: {snippet}"
+        ]
+        return result
+
     result.capability_failures = _capability_failures(spec, help_text)
 
     # 2. Optional model-presence check.

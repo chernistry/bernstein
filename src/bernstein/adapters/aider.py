@@ -16,7 +16,7 @@ from bernstein.adapters.env_isolation import build_filtered_env
 # Map Bernstein short model names to aider model identifiers.
 # Aider accepts provider-prefixed names (e.g. "openai/gpt-5.5", "anthropic/claude-opus-4-7").
 # Short names are mapped to the most common aider-compatible IDs; unknown names pass through.
-# Last verified against upstream aider-chat 0.86.x on 2026-05-05 — install: `pip install aider-chat`.
+# Last verified against upstream aider-chat 0.86.2 on 2026-05-19 - install: `pip install aider-chat`.
 _MODEL_MAP: dict[str, str] = {
     "opus": "anthropic/claude-opus-4-7",
     "opus-4-6": "anthropic/claude-opus-4-6",  # pinned fallback
@@ -33,8 +33,9 @@ class AiderAdapter(CLIAdapter):
     """Spawn and monitor Aider CLI sessions.
 
     Aider runs in non-interactive mode via ``--message``, auto-confirms prompts
-    with ``--yes``, and commits changes automatically. In a Bernstein worktree
-    those commits stay isolated until the orchestrator merges the branch.
+    with ``--yes-always``, and commits changes automatically. In a Bernstein
+    worktree those commits stay isolated until the orchestrator merges the
+    branch.
     """
 
     def spawn(
@@ -62,7 +63,7 @@ class AiderAdapter(CLIAdapter):
             model_id,
             "--message",
             prompt,
-            "--yes",  # auto-confirm all prompts
+            "--yes-always",  # auto-confirm all prompts (upstream renamed from --yes)
             "--auto-commits",  # explicit: create a commit per change for clean worktree history
             "--map-tokens",
             "2048",  # larger repo map for better codebase navigation

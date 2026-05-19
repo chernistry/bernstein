@@ -923,7 +923,7 @@ class TestHarnessSelfCheck:
     ) -> None:
         fake_cli_fixture.configure(mode="error", exit_code=11)
         result = subprocess.run(
-            ["aider", "--model", "x", "--message", "y", "--yes"],
+            ["aider", "--model", "x", "--message", "y", "--yes-always"],
             capture_output=True,
             text=True,
             timeout=5,

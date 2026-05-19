@@ -13,7 +13,7 @@ auth:
 required_flags:
   - "--model"
   - "--message"
-  - "--yes"
+  - "--yes-always"
   - "--auto-commits"
   - "--map-tokens"
   - "--no-auto-lint"

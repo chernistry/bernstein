@@ -135,7 +135,9 @@ class TestAiderAdapterSpawn:
                 session_id="aider-s7",
             )
         inner = _inner_cmd(popen.call_args.args[0])
-        assert "--yes" in inner
+        # Aider 0.85+ renamed --yes to --yes-always (argparse still accepts
+        # the prefix, but the literal flag name is what appears in --help).
+        assert "--yes-always" in inner
 
     def test_auto_commits_flag_present(self, tmp_path: Path) -> None:
         adapter = AiderAdapter()

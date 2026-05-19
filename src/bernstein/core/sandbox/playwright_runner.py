@@ -44,6 +44,7 @@ only in v1.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from dataclasses import asdict, dataclass, field
@@ -337,7 +338,10 @@ def load_scenarios(path: Path) -> list[PlaywrightScenario]:
     """
     if not path.is_file():
         raise FileNotFoundError(f"Scenarios file not found: {path}")
-    raw: object = yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        raw: object = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise PlaywrightScenarioError(f"{path}: invalid YAML: {exc}") from exc
     if raw is None:
         raise PlaywrightScenarioError(f"Scenarios file is empty: {path}")
 
@@ -570,7 +574,7 @@ class PlaywrightRunner:
                     scenario_dir=scenario_dir,
                 )
                 result.steps.append(step_result)
-                if step_result.screenshot_path is not None:
+                if step_result.screenshot_path:
                     result.screenshots.append(step_result.screenshot_path)
                 if step_result.status == "failed":
                     all_passed = False
@@ -599,7 +603,19 @@ class PlaywrightRunner:
             await self._dispatch_step(page=page, step=step)
             status: StepStatus = "passed"
             error: str | None = None
+        except asyncio.CancelledError:
+            # Cooperative task cancellation must propagate; do not record
+            # the step as a benign "failed" or it masks the cancel signal
+            # and prevents the parent task from cleaning up promptly.
+            raise
         except Exception as exc:
+            logger.warning(
+                "Playwright step %d (%s) failed: %s",
+                index,
+                step.type,
+                exc,
+                exc_info=True,
+            )
             status = "failed"
             error = f"{type(exc).__name__}: {exc}"
         finally:
@@ -693,6 +709,11 @@ class PlaywrightRunner:
         )
         try:
             return await judge.dual_attempt(prompt)
+        except asyncio.CancelledError:
+            # Cancellation must propagate so the caller can tear down the
+            # judge attempt cleanly; do not swallow it as a generic
+            # judge failure.
+            raise
         except Exception:
             logger.exception("Playwright judge call failed")
             return None
@@ -736,14 +757,24 @@ def _wire_capture(page: Any, result: ScenarioResult) -> None:
     page.on("requestfailed", _on_requestfailed)
 
 
-async def _capture_screenshot(page: Any, target: Path) -> str:
-    """Capture a full-page screenshot. Returns the POSIX path on success."""
+async def _capture_screenshot(page: Any, target: Path) -> str | None:
+    """Capture a full-page screenshot.
+
+    Returns:
+        The POSIX path on success, ``None`` when capture failed. ``None`` so
+        callers can distinguish a missing screenshot from a recorded one
+        without treating an empty string as a valid path.
+    """
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
         await page.screenshot(path=str(target), full_page=True)
+    except asyncio.CancelledError:
+        # Propagate cancellation; a partial screenshot is not worth
+        # masking the cancel.
+        raise
     except Exception:
         logger.exception("Failed to capture screenshot to %s", target)
-        return ""
+        return None
     return target.as_posix()
 
 

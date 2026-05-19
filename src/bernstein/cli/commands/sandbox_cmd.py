@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -36,6 +37,10 @@ logger = logging.getLogger(__name__)
 
 
 _DEFAULT_OUTPUT_ROOT = Path(".sdd/sandbox")
+# Allowed task_id shape: must be a single safe slug (letters, digits, dot,
+# hyphen, underscore). Rejects path separators and traversal sequences so
+# `_DEFAULT_OUTPUT_ROOT / task_id` cannot escape the sandbox root.
+_TASK_ID_PATTERN = re.compile(r"\A[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 
 
 @click.group("sandbox")
@@ -115,6 +120,12 @@ def web_test(
     as_json: bool,
 ) -> None:
     """Run Playwright scenarios and emit a structured self-test block."""
+    if not _TASK_ID_PATTERN.fullmatch(task_id):
+        raise click.BadParameter(
+            "task_id must match [A-Za-z0-9][A-Za-z0-9._-]{0,127}: no path separators or traversal segments allowed.",
+            param_hint="TASK_ID",
+        )
+
     try:
         scenarios = load_scenarios(scenarios_path)
     except (FileNotFoundError, PlaywrightScenarioError) as exc:

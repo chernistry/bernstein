@@ -322,20 +322,17 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+      - name: Bootstrap
+        # Full clone so ``bernstein agents-md verify`` can resolve the
+        # default branch via ``git rev-parse --verify origin/main``.
+        # The default depth=1 single-ref fetch leaves origin/main
+        # unfetched and the verify step silently drops the
+        # git-workflow section, producing drift against locally-synced
+        # content.
+        uses: ./.github/actions/bootstrap
         with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-          # Full clone so ``bernstein agents-md verify`` can resolve the
-          # default branch via ``git rev-parse --verify origin/main``.
-          # The default depth=1 single-ref fetch leaves origin/main
-          # unfetched and the verify step silently drops the
-          # git-workflow section, producing drift against locally-synced
-          # content.
-          fetch-depth: 0
+          fetch-depth: "0"
+          setup-uv: "false"
       - name: Establish origin/HEAD
         # actions/checkout does not set ``refs/remotes/origin/HEAD`` even
         # with full fetch. The generator's first-choice resolver reads
@@ -391,16 +388,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - run: uv run ruff check src/
       - run: uv run ruff format --check src/
       - name: Architecture contracts (import-linter)
@@ -413,13 +402,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
         with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
+          setup-uv: "false"
       - uses: crate-ci/typos@aca895bf05aec0cb7dffa6f94495e923224d9f17 # v1
 
   actionlint:
@@ -429,13 +415,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
         with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
+          setup-uv: "false"
       - uses: reviewdog/action-actionlint@6fb7acc99f4a1008869fa8a0f09cfca740837d9d # v1
         with:
           reporter: github-check
@@ -461,16 +444,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - name: Run lineage gate
         run: |
           if [ -f .sdd/lineage/log.jsonl ]; then
@@ -489,16 +464,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - name: Run pyright (advisory)
         run: |
           uv run pyright 2>&1 | tail -1 || true
@@ -511,16 +478,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - run: uv tool install vulture
       - run: vulture src/ vulture_whitelist.py --min-confidence 80 --exclude "tests,docs"
 
@@ -531,16 +490,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - name: Build and check size
         run: |
           uv build
@@ -799,16 +750,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - name: Run Hypothesis property suite (smoke profile)
         env:
           HYPOTHESIS_PROFILE: smoke
@@ -825,16 +768,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - name: Run snapshot tests
         run: uv run pytest tests/snapshot/ -q --no-cov
 
@@ -850,16 +785,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - name: Run Schemathesis smoke profile
         env:
           SCHEMATHESIS_PROFILE: smoke
@@ -876,16 +803,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - name: Install Semgrep (isolated env)
         # semgrep pins click<8.2 + opentelemetry-sdk<1.38, which conflict
         # with our project floors (click>=8.3.3, opentelemetry-sdk>=1.41.1).
@@ -909,16 +828,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - name: Run Bandit (HIGH severity gate via baseline)
         run: |
           # Baseline file `.bandit-baseline.json` captures the 11 known
@@ -938,16 +849,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - name: Export production requirements (no project, hashed)
         # Audit the resolved lockfile without including bernstein itself.
         # `pip-audit` chokes on editable distributions even with
@@ -977,16 +880,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - name: Run lineage-signer tests under beartype claw
         # The beartype-claw allow-list is in tests/_beartype_claw.py.
         # Today only ``bernstein.core.persistence.lineage_signer`` is
@@ -1010,17 +905,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
         with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+          fetch-depth: "0"
       - name: Compute changed src/ files
         id: diff
         env:
@@ -1070,17 +958,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
         with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+          fetch-depth: "0"
       - name: Download coverage report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -1113,16 +994,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - name: Run pyright strict on the curated allow-list
         # The strict-zone allow-list is in pyrightconfig.strict.json. The
         # repo-wide pyright run uses pyproject.toml [tool.pyright]. Add
@@ -1157,16 +1030,9 @@ jobs:
       matrix:
         python-version: ["3.13"]
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
         with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
           python-version: ${{ matrix.python-version }}
       - name: Run fake-CLI adapter integration tests
         run: uv run pytest tests/integration/test_adapter_e2e.py -x -q --timeout=60
@@ -1198,16 +1064,9 @@ jobs:
       matrix:
         python-version: ["3.13"]
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
         with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
           python-version: ${{ matrix.python-version }}
       - name: Run fake-CLI adapter integration tests
         run: uv run pytest tests/integration/test_adapter_e2e.py -x -q --timeout=60
@@ -1242,16 +1101,9 @@ jobs:
           - os: windows-latest
             python-version: "3.12"
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
         with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
           python-version: ${{ matrix.python-version }}
       - name: Fetch base ref for impacted-test selection
         if: github.event_name == 'pull_request' && runner.os != 'Windows'
@@ -1425,16 +1277,9 @@ jobs:
       matrix:
         python-version: ["3.13"]
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
         with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
           python-version: ${{ matrix.python-version }}
       - name: Fetch base ref for impacted-test selection
         if: github.event_name == 'pull_request'
@@ -1471,14 +1316,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
         with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-          fetch-depth: 5
+          fetch-depth: "5"
+          setup-uv: "false"
       - name: Check for autofix loop
         id: loop_check
         run: |
@@ -1527,13 +1369,10 @@ jobs:
       contents: read
       issues: write
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
         with:
-          egress-policy: audit
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
+          setup-uv: "false"
       - name: Close ci-fix issues
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

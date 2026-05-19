@@ -97,6 +97,25 @@ Each child reusable workflow re-checks its own preconditions
 defence-in-depth. The dispatcher gates are routing decisions, not
 security boundaries.
 
+### Secret passthrough
+
+The dispatcher does not use `secrets: inherit` (zizmor flags that as
+`secrets-inherit`: every repository secret would be exposed to every
+child). Each child reusable workflow declares the exact secrets it
+needs in its `on: workflow_call.secrets:` block, and the dispatcher
+forwards only those:
+
+| Child | Secrets forwarded |
+|---|---|
+| `telegram-notify` | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` |
+| `auto-release` | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` |
+| `auto-heal` | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (both optional) |
+| `bernstein-ci-fix` | `GEMINI_API_KEY` (optional) |
+| `bisect-on-red` | none |
+
+`GITHUB_TOKEN` is provided automatically to every reusable workflow
+invocation and does not need to be listed.
+
 ## Operator runbook
 
 | Question | Answer |

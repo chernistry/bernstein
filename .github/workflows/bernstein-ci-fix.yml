@@ -41,6 +41,13 @@ on:
         description: Login of the actor that triggered the upstream CI run.
         required: true
         type: string
+    secrets:
+      GEMINI_API_KEY:
+        description: >-
+          Gemini API key used by the bernstein-ci-fix triage agent.
+          Optional - jobs that need it gate on a non-empty value at
+          step level.
+        required: false
 
 # Workflow-level permissions are minimal; each job below declares
 # the narrower scopes it actually needs (zizmor excessive-permissions).

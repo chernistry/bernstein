@@ -1,0 +1,22 @@
+# Hash-pinned dependency list for the ClusterFuzzLite builder image.
+# Consumed by build.sh via `pip3 install --require-hashes -r ...`.
+#
+# Why pinned: OSSF Scorecard's pinned-dependencies check (and zizmor's
+# pip-install audit) flag unpinned `pip install <pkg>` invocations as a
+# supply-chain risk. Routing through --require-hashes anchors the build
+# to bit-identical artefacts even if PyPI mutates.
+#
+# Refresh: when bumping the PyYAML pin, fetch the new hashes from PyPI
+# (`pip download --no-deps --dest /tmp/wheels pyyaml==<version>` then
+# `pip hash /tmp/wheels/*`). Keep at least the manylinux x86_64 wheel
+# matching the OSS-Fuzz base image's Python tag plus the sdist as a
+# fallback for ABI mismatches.
+
+pyyaml==6.0.3 \
+    --hash=sha256:d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f \
+    --hash=sha256:10892704fc220243f5305762e276552a0395f7beb4dbf9b14ec8fd43b57f126c \
+    --hash=sha256:b8bb0864c5a28024fac8a632c443c87c5aa6f215c0b126c449ae1a150412f31d \
+    --hash=sha256:9149cad251584d5fb4981be1ecde53a1ca46c891a79788c0df828d2f166bda28 \
+    --hash=sha256:ba1cc08a7ccde2d2ec775841541641e4548226580ab850948cbfda66a1befcdc \
+    --hash=sha256:b30236e45cf30d2b8e7b3e85881719e98507abed1011bf463a8fa23e9c3e98a8 \
+    --hash=sha256:9c7708761fccb9397fe64bbc0395abcae8c4bf7b0eac081e12b809bf47700d0b

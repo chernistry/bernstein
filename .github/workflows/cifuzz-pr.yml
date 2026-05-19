@@ -33,9 +33,13 @@ jobs:
     name: Build and run fuzzers
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Scorecard TokenPermissionsID: keep this job strictly read-only.
+    # The previous `security-events: write` was only needed to upload
+    # SARIF via run_fuzzers (output-sarif: true). Crash artefacts are
+    # surfaced through actions/upload-artifact below, which gives PR
+    # authors enough signal without the elevated token scope.
     permissions:
       contents: read
-      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -57,7 +61,12 @@ jobs:
           fuzz-seconds: 120
           mode: code-change
           sanitizer: address
-          output-sarif: true
+          # output-sarif disabled intentionally: enabling it would
+          # require `security-events: write` on this job (Scorecard
+          # TokenPermissionsID flags that as a score-0 risk). Crash
+          # artefacts are uploaded via actions/upload-artifact below
+          # which is enough signal for PR-time triage.
+          output-sarif: false
 
       - name: Upload crash artifacts
         if: failure() && steps.run.outcome == 'failure'

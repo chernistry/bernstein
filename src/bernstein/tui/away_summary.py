@@ -172,7 +172,7 @@ def generate_away_summary(since_ts: float, workdir: Path) -> AwaySummary:
             events.append(f"Task {task_id} completed: {task_title}" if task_title else f"Task {task_id} completed")
         elif evt.get("status") == "failed":
             failed_tasks += 1
-            reason = evt.get("result_summary") or f"{task_title}"
+            reason = evt.get("result_summary") or str(task_title)
             events.append(f"Task {task_id} failed: {reason}")
 
     # Collect API usage / cost

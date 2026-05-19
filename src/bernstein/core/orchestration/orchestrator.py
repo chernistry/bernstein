@@ -2450,7 +2450,7 @@ class Orchestrator:
 
                 if has_wip:
                     graveyard_root = self._workdir / ".sdd" / "graveyard" / task_id
-                    graveyard_dest = graveyard_root / f"{int(time.time())}"
+                    graveyard_dest = graveyard_root / str(int(time.time()))
                     try:
                         graveyard_dest.parent.mkdir(parents=True, exist_ok=True)
                         shutil.move(str(src), str(graveyard_dest))

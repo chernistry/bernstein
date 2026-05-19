@@ -231,7 +231,7 @@ class StatusPanel:
         """
         lines = Text()
         lines.append("Tasks: ", style="bold")
-        lines.append(f"{summary.done}", style="green")
+        lines.append(str(summary.done), style="green")
         lines.append(f"/{summary.total} done  ", style="bold")
         if summary.in_progress:
             lines.append(f"{summary.in_progress} working  ", style="yellow")

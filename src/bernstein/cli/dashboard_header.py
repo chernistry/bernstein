@@ -296,7 +296,7 @@ class AgentWidget(Static):
 
         t.append(f" {dot} ", style=f"bold {color}")
         t.append(f"{agent_icon} ", style=f"bold {role_color(str(role))}")
-        t.append(f"{role.upper()}", style=f"bold {role_color(str(role))}")
+        t.append(str(role.upper()), style=f"bold {role_color(str(role))}")
         if source_suffix:
             t.append(source_suffix, style=f"italic {color}")
         t.append(f"  {model}", style=f"bold {model_color(adapter)}")

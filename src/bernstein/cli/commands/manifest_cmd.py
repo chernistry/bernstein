@@ -180,8 +180,8 @@ def manifest_diff(run_a: str, run_b: str) -> None:
 
     table = Table(show_header=True, header_style="bold")
     table.add_column("Field", style="bold")
-    table.add_column(f"{run_a}", style="red")
-    table.add_column(f"{run_b}", style="green")
+    table.add_column(str(run_a), style="red")
+    table.add_column(str(run_b), style="green")
 
     for field_name, (va, vb) in sorted(diffs.items()):
         table.add_row(field_name, _format_value(va), _format_value(vb))

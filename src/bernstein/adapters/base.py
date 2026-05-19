@@ -768,6 +768,37 @@ class CLIAdapter(ABC):
         """
         return None
 
+    def stream_signal_parser(self, line: str) -> object | None:
+        """Map one line of adapter stdout to a canonical stream signal.
+
+        The default implementation delegates to
+        :func:`bernstein.core.protocols.stream_signals.parse_signal`,
+        which recognises any line that follows the canonical
+        ``BERNSTEIN:<KIND> [json]`` grammar.
+
+        Adapters whose upstream CLI emits a different native protocol
+        (Claude stream-json, Codex stream-json, etc.) override this
+        method to translate their native event shape onto the canonical
+        :class:`~bernstein.core.protocols.stream_signals.SignalKind`
+        vocabulary, so the orchestrator can observe completion,
+        question, plan-handoff, and blocked events through one
+        interface regardless of upstream wire format.
+
+        Args:
+            line: One line of adapter stdout (newline-stripped or not).
+
+        Returns:
+            A
+            :class:`~bernstein.core.protocols.stream_signals.StreamSignal`
+            when the line carries a recognised signal, otherwise
+            ``None``. The return type is declared as ``object`` so
+            adapter subclasses are not forced to import the protocol
+            module just to satisfy the signature.
+        """
+        from bernstein.core.protocols.stream_signals import parse_signal
+
+        return parse_signal(line)
+
     def continuation_args(self, _session_id: str) -> list[str]:
         """Return CLI flags that re-enter the adapter's prior session.
 

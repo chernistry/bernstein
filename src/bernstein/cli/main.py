@@ -1027,6 +1027,11 @@ from bernstein.cli.commands.lineage_cmd import lineage_cmd  # noqa: E402
 
 cli.add_command(lineage_cmd, "lineage")
 
+# Per-tool-call snapshots + stacked agent branches.
+from bernstein.cli.commands.git_cmd import git_cmd  # noqa: E402
+
+cli.add_command(git_cmd, "git")
+
 # Canonical AGENTS.md generator + cross-CLI rewrite (cursor / claude / aider / goose).
 from bernstein.cli.commands.agents_md_cmd import agents_md_cmd  # noqa: E402
 from bernstein.cli.commands.analyze_cmd import analyze_cmd  # noqa: E402

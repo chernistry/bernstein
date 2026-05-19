@@ -57,11 +57,15 @@ jobs:
 
       - name: Upload SBOM to Dependency-Track
         if: steps.gate.outputs.skip == 'false'
-        uses: DependencyTrack/gh-upload-sbom@48feab3080ff9e8f51f4d21861d9fc914eb744f5  # v3.1.0
-        with:
-          serverHostname: ${{ env.DT_API_URL }}
-          apiKey: ${{ env.DT_API_KEY }}
-          projectName: bernstein
-          projectVersion: ${{ github.ref_name }}
-          bomFilename: bernstein.cyclonedx.json
-          autoCreate: true
+        env:
+          DT_API_URL: ${{ env.DT_API_URL }}
+          DT_API_KEY: ${{ env.DT_API_KEY }}
+        run: |
+          # multipart/form-data upload via curl - more reliable than the bundled action
+          curl -fS --max-time 90 \
+            -H "X-Api-Key: $DT_API_KEY" \
+            -F "autoCreate=true" \
+            -F "projectName=bernstein" \
+            -F "projectVersion=${{ github.ref_name }}" \
+            -F "bom=@bernstein.cyclonedx.json" \
+            "$DT_API_URL/api/v1/bom"

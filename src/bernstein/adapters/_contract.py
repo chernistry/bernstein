@@ -292,7 +292,7 @@ def check_contract(spec: ContractSpec) -> ContractResult:
     # investigate the runtime regression instead of churning the contract.
     stripped_help = _strip_ansi(help_text).strip()
     if rc != 0 and not stripped_help:
-        snippet = help_text.strip()[:200] or "<no output>"
+        snippet = stripped_help[:200] or "<no output>"
         result.capability_failures = [
             f"`{' '.join(spec.resolved_help_command())}` exited {rc} with no output; "
             f"upstream CLI runtime failure, not contract drift: {snippet}"

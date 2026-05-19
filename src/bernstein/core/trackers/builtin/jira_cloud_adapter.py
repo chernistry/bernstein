@@ -165,7 +165,7 @@ class _TokenBucket:
     """
 
     def __init__(self, min_interval: float) -> None:
-        self._min_interval = max(0.0, float(min_interval))
+        self._min_interval = max(0.0, min_interval)
         self._next_allowed = 0.0
         self._lock = threading.Lock()
 
@@ -418,7 +418,7 @@ class JiraCloudTracker(AbstractTrackerAdapter):
             raise TrackerUnavailable(msg) from exc
 
         status_code = getattr(response, "status_code", 0)
-        if status_code == 412 or status_code == 409:
+        if status_code in (412, 409):
             msg = f"Jira Cloud precondition/conflict (status={status_code})"
             raise OptimisticConcurrencyError(msg)
         if status_code == 429:
@@ -479,7 +479,5 @@ def _adf_to_text(node: dict[str, Any]) -> str:
         return ""
     if node.get("type") == "text":
         return str(node.get("text") or "")
-    out: list[str] = []
-    for child in node.get("content") or []:
-        out.append(_adf_to_text(child))
+    out: list[str] = [_adf_to_text(child) for child in node.get("content") or []]
     return "".join(out)

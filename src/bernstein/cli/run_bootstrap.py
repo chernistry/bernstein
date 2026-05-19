@@ -535,6 +535,19 @@ def _generate_default_yaml(project_type: str) -> str:
     return "\n".join(lines)
 
 
+def is_codespace_runtime() -> bool:
+    """Return True when running inside a GitHub Codespace.
+
+    GitHub injects ``CODESPACES=true`` into every Codespace shell. The
+    devcontainer also sets ``BERNSTEIN_REMOTE_QUICKSTART=1`` so a manual
+    opt-in is possible from any other remote-container surface that
+    follows the same convention.
+    """
+    if os.environ.get("CODESPACES", "").lower() == "true":
+        return True
+    return os.environ.get("BERNSTEIN_REMOTE_QUICKSTART", "") == "1"
+
+
 @click.command("init")
 @click.option(
     "--dir",
@@ -561,10 +574,31 @@ def _generate_default_yaml(project_type: str) -> str:
     type=click.Choice(["signed", "audited-by", "orchestrated-by", "crew-managed-by"]),
     help="Badge variant when --add-badge is passed.",
 )
-def init(target_dir: str, *, add_badge: bool = False, badge_variant: str = "signed") -> None:
+@click.option(
+    "--remote",
+    "remote",
+    is_flag=True,
+    default=False,
+    help=(
+        "Initialise for a remote container quickstart (e.g. GitHub Codespaces). "
+        "Skips local-binary checks that would fail in a fresh container."
+    ),
+)
+def init(
+    target_dir: str,
+    *,
+    add_badge: bool = False,
+    badge_variant: str = "signed",
+    remote: bool = False,
+) -> None:
     """Init workspace -- create .sdd/ structure."""
     try:
-        _init_impl(target_dir, add_badge=add_badge, badge_variant=badge_variant)
+        _init_impl(
+            target_dir,
+            add_badge=add_badge,
+            badge_variant=badge_variant,
+            remote=remote,
+        )
     except (click.UsageError, SystemExit):
         raise
     except BaseException as exc:
@@ -583,16 +617,36 @@ def _is_verbose() -> bool:
     return bool(obj.get("VERBOSE", False))
 
 
-def _init_impl(target_dir: str, *, add_badge: bool, badge_variant: str) -> None:
+def _init_impl(
+    target_dir: str,
+    *,
+    add_badge: bool,
+    badge_variant: str,
+    remote: bool = False,
+) -> None:
     """Concrete init implementation; wrapped by :func:`init` for hinting."""
     print_banner()
     root = Path(target_dir).resolve()
     console.print(f"Initialising Bernstein workspace in [bold]{root}[/bold]")
 
-    # Auto-detect project type
-    project_type = _detect_project_type(root)
-    if project_type != "generic":
-        console.print(f"[cyan]Detected[/cyan] {project_type} project")
+    # Remote-quickstart mode: assume a fresh container without the local
+    # CLI binaries (brew/pipx/uv may not be present yet). The flag is
+    # auto-enabled when running inside a Codespace so users hitting the
+    # devcontainer postCreate get the right defaults without remembering
+    # the flag.
+    if remote or is_codespace_runtime():
+        remote = True
+        console.print("[cyan]Remote-quickstart mode[/cyan]: skipping local-binary checks (Codespaces / devcontainer).")
+
+    # Auto-detect project type. Skipped in remote mode because the
+    # detection probes local toolchains (e.g. brew adapter check) that
+    # are not expected to be installed in a fresh container.
+    if not remote:
+        project_type = _detect_project_type(root)
+        if project_type != "generic":
+            console.print(f"[cyan]Detected[/cyan] {project_type} project")
+    else:
+        project_type = "generic"
 
     for d in SDD_DIRS:
         p = root / d

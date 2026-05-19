@@ -757,6 +757,10 @@ def _summarise_lineage(sdd_dir: Any) -> dict[str, Any]:
     Surfaces ``unresolved_forks`` so ``bernstein status`` can flag operator
     follow-ups without the operator having to run ``bernstein lineage
     conflicts`` first. Returns an empty dict when no lineage log is on disk.
+
+    The read path is intentionally inlined (rather than reusing the CLI
+    helper) so this route module stays in the ``core``-only import layer
+    enforced by ``.importlinter``.
     """
     if not isinstance(sdd_dir, Path):
         return {}
@@ -764,10 +768,20 @@ def _summarise_lineage(sdd_dir: Any) -> dict[str, Any]:
     if not log_path.exists():
         return {}
     try:
-        from bernstein.cli.commands._lineage_v1_helpers import read_entries
+        from bernstein.core.lineage.entry import LineageEntry
         from bernstein.core.lineage.tips import detect_forks
 
-        entries = read_entries(log_path)
+        entries: list[LineageEntry] = []
+        with log_path.open() as f:
+            for line in f:
+                stripped = line.strip()
+                if not stripped:
+                    continue
+                try:
+                    obj = json.loads(stripped)
+                    entries.append(LineageEntry(**obj))
+                except (json.JSONDecodeError, TypeError, ValueError):
+                    continue
         forks = detect_forks(entries)
     except Exception:  # pragma: no cover - defensive: never break /status
         return {}

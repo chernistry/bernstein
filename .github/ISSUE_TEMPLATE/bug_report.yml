@@ -46,9 +46,18 @@ body:
     attributes:
       label: Debug bundle
       description: |
-        Run `bernstein debug` and attach the generated zip file. This collects
-        logs, config (secrets redacted), and runtime state in one file.
-        If the command isn't available yet, attach any relevant files from `.sdd/runtime/`.
+        Run `bernstein debug bundle --last` and attach the generated zip
+        file. The bundle contains a redacted `bernstein.yaml`, a
+        `doctor.json` snapshot, recent traces and metrics, and the tail
+        of `.sdd/runtime/*.log`. Secrets (API keys, tokens, passwords,
+        bearer headers, JWTs, SSH keys) are removed and `$HOME` paths
+        are collapsed to `~` before the zip is written.
+
+        Quick check before sharing: `unzip -p bernstein-debug-*.zip manifest.json`
+        prints the manifest with version, OS, and file list.
+
+        If you cannot run the command, attach any relevant files from
+        `.sdd/runtime/`.
       placeholder: "Drag and drop the bernstein-debug-*.zip file here"
     validations:
       required: false

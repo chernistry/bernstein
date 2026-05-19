@@ -2,6 +2,21 @@
 
 All notable project changes are tracked here (code + docs).
 
+## [2.3.0] - Tracker-adapter family
+
+127 commits since v2.2.0. Full notes: [`docs/release-notes/v2.3.0.md`](docs/release-notes/v2.3.0.md).
+
+### Highlights
+
+- 10 tracker adapters land under a single `TrackerContract` (Asana, ClickUp, GitHub Projects v2, GitLab Issues, Jira Cloud, Jira DC, Linear, Plane, ServiceNow, plus webhook ingestion).
+- Tracker plugin hookspec + registry + CLI for third-party tracker integrations (#1599).
+- Issue -> plan-comment -> PR orchestration pipeline (#1600); tracker comments as multi-agent handoff bus (#1606).
+- Review-bot acknowledgement gate: CodeRabbit / Sourcery must-address findings block merge until addressed or acknowledged (#1583).
+- Signed lineage v2 audit log of tracker state moves (#1602).
+- Playwright-based self-testing sandbox for UI/web agent runs (#1603).
+- Secrets broker for short-lived per-task tokens (#1605).
+- Bulk refurb auto-fix waves 1 + 2 across `src/` (#1558, #1582).
+
 ## [2.0.0] — Web UI
 
 Bernstein now ships a web interface. The major bump is signalling the new operator surface, not a breaking API change. v1.10.x configs, plans, adapters, audit chain, lineage, and CLI / TUI surfaces are unchanged.

@@ -1,0 +1,417 @@
+name: static-analysis (extended)
+
+# Additional static-analysis surface that complements the existing
+# ruff + mypy + bandit + CodeQL lane in ci.yml. Catches dead code
+# (vulture), outdated idioms (refurb), hot-path antipatterns
+# (perflint), pattern-based Python rules (Semgrep CE), and
+# IaC/filesystem CVEs (Trivy) that single-tool lanes miss.
+#
+# Each job runs in parallel and uploads SARIF to GitHub Code
+# Scanning so the Security tab is the single source of truth.
+#
+# Ref: .sdd/backlog/open/2026-05-19-feat-ci-semgrep-trivy-pipaudit.md
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "Dockerfile"
+      - "docker/**"
+      - "deploy/**"
+      - "examples/**/Dockerfile*"
+      - "examples/**/docker-compose*.yml"
+      - ".github/workflows/static-analysis-extended.yml"
+      - ".semgrep/**"
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "Dockerfile"
+      - "docker/**"
+      - "deploy/**"
+      - "examples/**/Dockerfile*"
+      - "examples/**/docker-compose*.yml"
+      - ".github/workflows/static-analysis-extended.yml"
+      - ".semgrep/**"
+  schedule:
+    # Weekly safety net so dormant findings still surface even when
+    # only docs change. Sunday 05:23 UTC keeps it clear of the
+    # zizmor / trufflehog / scorecard slots.
+    - cron: "23 5 * * 0"
+  workflow_dispatch:
+
+concurrency:
+  group: static-analysis-extended-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    # Semgrep CE registry rules (p/python + p/security-audit).
+    # Project-specific rules already run in ci.yml semgrep job; this
+    # lane covers the broader community ruleset and uses the git
+    # baseline so only NEW findings fail PRs.
+    name: Semgrep (CE rules)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          # Full history required so --baseline-commit can resolve the
+          # merge-base on pull_request runs.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+        with:
+          enable-cache: true
+      - name: Install Semgrep (isolated env)
+        # Semgrep pins click<8.2 + opentelemetry-sdk<1.38, which collide
+        # with project floors. Install via `uv tool` so its transitive
+        # pins never touch the project resolver. Mirrors the install
+        # pattern used by the existing ci.yml semgrep job.
+        run: uv tool install semgrep
+      - name: Determine baseline ref
+        id: baseline
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${BASE_SHA}" ]; then
+            echo "ref=${BASE_SHA}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run Semgrep (SARIF, baseline-aware)
+        env:
+          BASELINE_REF: ${{ steps.baseline.outputs.ref }}
+        run: |
+          set -euo pipefail
+          extra_args=()
+          if [ -n "${BASELINE_REF}" ]; then
+            extra_args+=("--baseline-commit=${BASELINE_REF}")
+          fi
+          uv tool run semgrep scan \
+            --config p/python \
+            --config p/security-audit \
+            --severity ERROR \
+            --severity WARNING \
+            --metrics off \
+            --sarif \
+            --sarif-output=semgrep.sarif \
+            "${extra_args[@]}" \
+            src/
+      - name: Upload SARIF to Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep-ce
+      - name: Upload SARIF as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          if-no-files-found: warn
+          retention-days: 14
+
+  trivy-fs:
+    # Filesystem scan for vulnerable OS / language packages + leaked
+    # secrets across the repo. HIGH/CRITICAL fails the job; lower
+    # severities surface in Code Scanning but do not block.
+    name: Trivy (filesystem)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Run Trivy filesystem scan (SARIF)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+      - name: Upload SARIF to Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+      - name: Run Trivy filesystem scan (failing gate)
+        # Re-run with exit-code=1 to fail the job on any HIGH/CRITICAL
+        # finding. We split SARIF upload from the failing gate so
+        # findings still reach Code Scanning when the gate fires.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Upload SARIF as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: trivy-fs-sarif
+          path: trivy-fs.sarif
+          if-no-files-found: warn
+          retention-days: 14
+
+  trivy-iac:
+    # Infrastructure-as-Code scan: Dockerfile, docker-compose, helm,
+    # kustomize. Misconfigurations like missing USER directive,
+    # privileged containers, latest tags, etc.
+    name: Trivy (IaC)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Run Trivy IaC scan (SARIF)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-iac.sarif
+          severity: HIGH,CRITICAL
+          hide-progress: true
+          exit-code: "0"
+      - name: Upload SARIF to Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
+        with:
+          sarif_file: trivy-iac.sarif
+          category: trivy-iac
+      - name: Run Trivy IaC scan (failing gate)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: table
+          severity: HIGH,CRITICAL
+          hide-progress: true
+          exit-code: "1"
+      - name: Upload SARIF as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: trivy-iac-sarif
+          path: trivy-iac.sarif
+          if-no-files-found: warn
+          retention-days: 14
+
+  vulture:
+    # Dead-code detection. Ruff's F401 only catches unused imports
+    # within a file; vulture spots unused functions/classes/vars
+    # across the 40-adapter tree. Findings are advisory (job does
+    # not fail) until the existing dead-code follow-ups land.
+    name: vulture (dead code)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+        with:
+          enable-cache: true
+      - name: Install vulture (isolated env)
+        run: uv tool install vulture
+      - name: Run vulture (capture text output)
+        # `|| true` keeps the step green so the SARIF upload always
+        # runs; the workflow is advisory pending the dead-code
+        # cleanup track. vulture_whitelist.py is the existing
+        # opt-out file at the repo root.
+        run: |
+          uv tool run vulture src/ vulture_whitelist.py \
+            --min-confidence 70 \
+            > vulture.txt || true
+          wc -l vulture.txt
+      - name: Convert vulture output to SARIF
+        run: |
+          python scripts/text_to_sarif.py \
+            --tool vulture \
+            --input vulture.txt \
+            --output vulture.sarif
+      - name: Upload SARIF to Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
+        with:
+          sarif_file: vulture.sarif
+          category: vulture
+      - name: Upload SARIF as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: vulture-sarif
+          path: |
+            vulture.sarif
+            vulture.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+  refurb:
+    # Outdated-idiom detection. refurb flags constructs that have
+    # cleaner modern Python equivalents (e.g. `list(map(...))` ->
+    # list comprehension). Advisory.
+    name: refurb (idioms)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+        with:
+          enable-cache: true
+      - name: Install refurb (isolated env)
+        run: uv tool install refurb
+      - name: Run refurb (capture text output)
+        run: |
+          uv tool run refurb src/ > refurb.txt || true
+          wc -l refurb.txt
+      - name: Convert refurb output to SARIF
+        run: |
+          python scripts/text_to_sarif.py \
+            --tool refurb \
+            --input refurb.txt \
+            --output refurb.sarif
+      - name: Upload SARIF to Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
+        with:
+          sarif_file: refurb.sarif
+          category: refurb
+      - name: Upload SARIF as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: refurb-sarif
+          path: |
+            refurb.sarif
+            refurb.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+  perflint:
+    # Hot-path antipattern detection. perflint flags patterns that
+    # have measurable cost in tight loops (string concat in loops,
+    # try/except in hot paths, etc.). Matters for the orchestrator
+    # tick loop. Advisory.
+    name: perflint (hot-path antipatterns)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7.6.0
+        with:
+          enable-cache: true
+      - name: Install perflint (isolated env)
+        # perflint is a pylint plugin; install both so pylint can
+        # load the perflint checkers.
+        run: uv tool install perflint --with pylint
+      - name: Run perflint (capture text output)
+        run: |
+          uv tool run --from perflint pylint \
+            --load-plugins=perflint \
+            --disable=all \
+            --enable=W8101,W8102,W8201,W8202,W8203,W8204,W8205,W8206,W8301 \
+            --output-format=parseable \
+            --score=n \
+            --reports=n \
+            src/ > perflint.txt || true
+          wc -l perflint.txt
+      - name: Convert perflint output to SARIF
+        run: |
+          python scripts/text_to_sarif.py \
+            --tool perflint \
+            --input perflint.txt \
+            --output perflint.sarif
+      - name: Upload SARIF to Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba  # v4
+        with:
+          sarif_file: perflint.sarif
+          category: perflint
+      - name: Upload SARIF as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: perflint-sarif
+          path: |
+            perflint.sarif
+            perflint.txt
+          if-no-files-found: warn
+          retention-days: 14

@@ -375,9 +375,7 @@ jobs:
           if [ -n "$ERRORS" ]; then
             exit 1
           fi
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: AGENTS.md cross-CLI sync drift check
         # Fails if AGENTS.md / CLAUDE.md / CONVENTIONS.md / .aider.conf.yml /
         # .goosehints / .cursor/rules/*.mdc drift from `bernstein agents-md
@@ -398,9 +396,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - run: uv run ruff check src/
       - run: uv run ruff format --check src/
       - name: Architecture contracts (import-linter)
@@ -468,9 +464,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Run lineage gate
         run: |
           if [ -f .sdd/lineage/log.jsonl ]; then
@@ -496,9 +490,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Run pyright (advisory)
         run: |
           uv run pyright 2>&1 | tail -1 || true
@@ -518,9 +510,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - run: uv tool install vulture
       - run: vulture src/ vulture_whitelist.py --min-confidence 80 --exclude "tests,docs"
 
@@ -538,9 +528,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Build and check size
         run: |
           uv build
@@ -709,9 +697,10 @@ jobs:
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
         with:
           egress-policy: audit
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          enable-cache: true
+          persist-credentials: false
+      - uses: ./.github/actions/bootstrap
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.12"
@@ -806,9 +795,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Run Hypothesis property suite (smoke profile)
         env:
           HYPOTHESIS_PROFILE: smoke
@@ -832,9 +819,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Run snapshot tests
         run: uv run pytest tests/snapshot/ -q --no-cov
 
@@ -857,9 +842,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Run Schemathesis smoke profile
         env:
           SCHEMATHESIS_PROFILE: smoke
@@ -883,9 +866,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Install Semgrep (isolated env)
         # semgrep pins click<8.2 + opentelemetry-sdk<1.38, which conflict
         # with our project floors (click>=8.3.3, opentelemetry-sdk>=1.41.1).
@@ -916,9 +897,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Run Bandit (HIGH severity gate via baseline)
         run: |
           # Baseline file `.bandit-baseline.json` captures the 11 known
@@ -945,9 +924,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Export production requirements (no project, hashed)
         # Audit the resolved lockfile without including bernstein itself.
         # `pip-audit` chokes on editable distributions even with
@@ -984,9 +961,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Run lineage-signer tests under beartype claw
         # The beartype-claw allow-list is in tests/_beartype_claw.py.
         # Today only ``bernstein.core.persistence.lineage_signer`` is
@@ -1018,9 +993,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Compute changed src/ files
         id: diff
         env:
@@ -1078,9 +1051,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Download coverage report
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -1120,9 +1091,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - uses: ./.github/actions/bootstrap
       - name: Run pyright strict on the curated allow-list
         # The strict-zone allow-list is in pyrightconfig.strict.json. The
         # repo-wide pyright run uses pyproject.toml [tool.pyright]. Add
@@ -1164,9 +1133,8 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: ./.github/actions/bootstrap
         with:
-          enable-cache: true
           python-version: ${{ matrix.python-version }}
       - name: Run fake-CLI adapter integration tests
         run: uv run pytest tests/integration/test_adapter_e2e.py -x -q --timeout=60
@@ -1205,9 +1173,8 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: ./.github/actions/bootstrap
         with:
-          enable-cache: true
           python-version: ${{ matrix.python-version }}
       - name: Run fake-CLI adapter integration tests
         run: uv run pytest tests/integration/test_adapter_e2e.py -x -q --timeout=60
@@ -1254,9 +1221,8 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: ./.github/actions/bootstrap
         with:
-          enable-cache: true
           python-version: ${{ matrix.python-version }}
       - name: Fetch base ref for impacted-test selection
         if: github.event_name == 'pull_request' && runner.os != 'Windows'
@@ -1478,9 +1444,8 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: ./.github/actions/bootstrap
         with:
-          enable-cache: true
           python-version: ${{ matrix.python-version }}
       - name: Fetch base ref for impacted-test selection
         if: github.event_name == 'pull_request'
@@ -1535,9 +1500,7 @@ jobs:
             exit 0
           fi
       - if: steps.loop_check.outputs.skip != 'true'
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+        uses: ./.github/actions/bootstrap
       - name: Auto-fix ruff
         if: steps.loop_check.outputs.skip != 'true'
         run: |

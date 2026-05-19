@@ -26,9 +26,9 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: ./.github/actions/bootstrap
         with:
-          enable-cache: false
+          enable-uv-cache: "false"
 
       - name: Run protocol compatibility check
         env:
@@ -108,9 +108,9 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: ./.github/actions/bootstrap
         with:
-          enable-cache: false
+          enable-uv-cache: "false"
       - name: Quick lint check (full tests already passed in CI)
         run: uv run ruff check src/
 
@@ -154,9 +154,9 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+      - uses: ./.github/actions/bootstrap
         with:
-          enable-cache: false
+          enable-uv-cache: "false"
       - run: uv build
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

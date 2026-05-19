@@ -76,6 +76,9 @@ class CachingAdapter(CLIAdapter):
             f.write(event.to_json_line() + "\n")
 
         correlation = self._correlator.add_event(event)
+        # ``new_cache_key`` is a hash of prompt prefix bytes (not a
+        # credential); ``delta_tokens`` is an LLM-token count.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.info(
             "Cache break: reason=%s, key=%s, delta_tokens=%s, break_label=%s",
             event.reason.value,

@@ -240,6 +240,8 @@ def create_installation_token(config: GitHubAppConfig, installation_id: int) -> 
             logger.info("Created installation token via JWT + httpx")
             return token
     except Exception as exc:
+        # Only the exception message is logged here (no token value).
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.warning("JWT-based token creation failed: %s", exc)
 
     msg = f"Failed to create installation token for installation {installation_id}"

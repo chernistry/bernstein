@@ -203,6 +203,8 @@ def _get_identity_token() -> str | None:
                 data = json.loads(resp.read())
                 return str(data.get("value", ""))
         except Exception as exc:
+            # Only the exception (no token value) is logged here.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.debug("Failed to fetch GitHub OIDC token: %s", exc)
 
     return None  # sigstore will trigger interactive flow

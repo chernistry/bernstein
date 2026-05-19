@@ -4566,7 +4566,9 @@ if __name__ == "__main__":
             resolve_default_policy(workdir=workdir)
         except Exception as exc:
             # Never let policy load kill the orchestrator — log and fall
-            # through to the legacy unscoped path.
+            # through to the legacy unscoped path. Only the exception
+            # message is logged here, not credential values.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.warning("Credential policy resolution failed: %s", exc)
 
         # Load MCP config from user global + project seed

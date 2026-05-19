@@ -808,6 +808,8 @@ def _handle_auto_kill(orch: Any, session: Any, monitor: Any, total: int) -> bool
     if not monitor.should_kill(session.id, files_changed, tenant_id=tenant_id):
         return False
 
+    # "token" here counts LLM context tokens, not credentials.
+    # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
     logger.warning(
         "Token runaway: agent %s consumed %d tokens with 0 file changes (tenant=%s threshold=%d) — killing",
         session.id,
@@ -837,6 +839,8 @@ def _handle_quadratic_warning(orch: Any, session: Any, monitor: Any, total: int)
         return
     if monitor.was_warned(session.id):
         return
+    # "token" here counts LLM context tokens, not credentials.
+    # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
     logger.warning(
         "Quadratic token growth detected for agent %s: %d tokens and rising super-linearly",
         session.id,
@@ -880,6 +884,8 @@ def _handle_budget_nudge(orch: Any, session: Any, monitor: Any) -> None:
         return
     if not monitor.should_nudge_budget(session.id, session.tokens_used, session.token_budget):
         return
+    # "token" here counts LLM context tokens, not credentials.
+    # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
     logger.info(
         "Token budget nudge fired for agent %s (%d/%d tokens, %.0f%%)",
         session.id,

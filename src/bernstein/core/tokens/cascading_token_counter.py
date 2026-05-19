@@ -94,6 +94,8 @@ def _count_tokens_via_api(text: str, model: str) -> int | None:
             logger.debug("cascading_token_counter: API tier returned %d tokens", count)
             return count
     except (urllib.error.URLError, KeyError, ValueError, OSError) as exc:
+        # "token" here counts LLM tokens, not credentials.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.debug("cascading_token_counter: API tier failed: %s", exc)
         return None
 
@@ -159,6 +161,8 @@ async def _count_tokens_via_cheap_model(text: str) -> int | None:
         return None
 
     except Exception as exc:
+        # "token" here counts LLM tokens, not credentials.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.debug("cascading_token_counter: cheap-model tier failed: %s", exc)
         return None
 

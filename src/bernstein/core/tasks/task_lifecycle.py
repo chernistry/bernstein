@@ -707,6 +707,8 @@ def retry_or_fail_task(
             # Canonical escalation: double the previous limit (default 4k -> 8k -> 16k...)
             current_limit = task.max_output_tokens or 4096
             new_max_output_tokens = min(current_limit * 2, 1_000_000)
+            # "token" here is the LLM output budget, not a credential.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.info(
                 "Escalating max_output_tokens for task %s: %d -> %d",
                 task_id,

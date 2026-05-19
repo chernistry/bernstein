@@ -244,6 +244,8 @@ class AuthLifecycleManager:
             session.expires_at = new_expiry
             session.state = AuthState.ACTIVE
             session.refresh_count = 0  # reset on success
+            # Only the MCP server name (a public identifier) is logged.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.info("Token refreshed for MCP server '%s'", name)
             return RefreshOutcome(
                 server_name=name,
@@ -252,6 +254,8 @@ class AuthLifecycleManager:
             )
         except Exception as exc:
             session.state = AuthState.EXPIRED
+            # Only the MCP server name and exception message are logged.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.warning("Token refresh failed for '%s': %s", name, exc)
             return RefreshOutcome(
                 server_name=name,

@@ -175,6 +175,8 @@ class PermissionDelegator:
 
         self._tokens[token.token_id] = token
 
+        # ``token_id`` is an opaque internal handle (not the JWT itself).
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.info(
             "Created delegation token %s for worker %s (scope: %s)",
             token.token_id,
@@ -233,6 +235,8 @@ class PermissionDelegator:
 
         # Check permission
         if required_permission not in token.permissions:
+            # ``token_id`` is an opaque internal handle (not the JWT itself).
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.warning(
                 "Token %s lacks permission %s",
                 token_id,
@@ -279,6 +283,8 @@ class PermissionDelegator:
         """
         if token_id in self._tokens:
             del self._tokens[token_id]
+            # ``token_id`` is an opaque internal handle (not the JWT itself).
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.info("Revoked delegation token %s", token_id)
             return True
         return False
@@ -297,6 +303,8 @@ class PermissionDelegator:
         for token_id in to_revoke:
             del self._tokens[token_id]
 
+        # Counts and worker_id only — not credentials.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.info(
             "Revoked %d tokens for worker %s",
             len(to_revoke),

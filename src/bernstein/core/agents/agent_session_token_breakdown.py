@@ -182,6 +182,8 @@ def _load_prompt_token_report(sdd_dir: Path, session_id: str) -> dict[str, Any] 
         # so an attacker cannot inject fake log lines (CodeQL
         # py/log-injection #98).
         safe_sid = session_id.replace("\r", "").replace("\n", "")
+        # "token" here is an LLM context-token usage report, not a credential.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.debug("Cannot load prompt token report for %s: %s", safe_sid, exc)
         return None
 

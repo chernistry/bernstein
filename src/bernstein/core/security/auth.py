@@ -1015,7 +1015,18 @@ class AuthService:
                 timeout=10.0,
             )
             if resp.status_code != 200:
-                logger.error("OIDC token exchange failed: %s %s", resp.status_code, resp.text)
+                # ``resp.text`` from an IdP token endpoint can echo back the
+                # client_secret or contain an ``access_token`` even on
+                # non-200 paths (some IdPs return tokens with HTTP 4xx); mask
+                # the body before it reaches stdout/log files.
+                from bernstein.core.security.redactor import mask
+
+                # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure  # noqa: E501
+                logger.error(
+                    "OIDC token exchange failed: %s %s",
+                    resp.status_code,
+                    mask(resp.text),
+                )
                 return None
             return resp.json()  # type: ignore[no-any-return]
 

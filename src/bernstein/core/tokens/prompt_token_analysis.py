@@ -278,7 +278,11 @@ def save_prompt_token_report(
     out_path = metrics_dir / name
     try:
         out_path.write_text(json.dumps(report.to_dict(), indent=2), encoding="utf-8")
+        # "token" here is an LLM context-token usage report, not a credential.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.debug("Prompt token report written: %s", out_path)
     except OSError as exc:
+        # "token" here is an LLM context-token usage report, not a credential.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.warning("Failed to write prompt token report: %s", exc)
     return out_path

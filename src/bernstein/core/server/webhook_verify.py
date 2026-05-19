@@ -70,6 +70,8 @@ class WebhookSignatureVerifier:
         """
         secret = self._resolve_secret(request)
         if not secret:
+            # Only the env-var *name* (not the secret value) is logged.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.error(
                 "Rejecting webhook request: no secret configured (checked app state and %s). Endpoint is disabled.",
                 self._secret_env_var,

@@ -990,6 +990,8 @@ def refresh_oauth_token(
             access_token = data.get("access_token")
             if not access_token:
                 raise OAuthRefreshError(f"No access_token in refresh response for '{server_name}'")
+            # Only the MCP server name (a public identifier) is logged.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.info("OAuth token refreshed for MCP server '%s'", server_name)
             return str(access_token)
     except urllib.error.HTTPError as exc:

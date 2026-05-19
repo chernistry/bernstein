@@ -159,6 +159,9 @@ def run_post_tool_enforcement(
     )
 
     if secrets_found:
+        # Only the count of detected secrets and tool metadata are logged; the
+        # actual secret values stay in the redacted-output buffer.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.debug(
             "Post-tool redaction: %d secret(s) found in tool output — session=%s, tool=%s",
             len(secrets_found),

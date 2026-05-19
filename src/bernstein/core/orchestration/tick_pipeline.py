@@ -806,6 +806,8 @@ def collapse_prompt_sections(
         )
         return sections, result
 
+    # "token" here counts LLM context tokens, not credentials.
+    # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
     logger.info(
         "Prompt sections exceed token budget%s: %d > %d tokens — applying staged collapse",
         task_ctx,
@@ -824,6 +826,8 @@ def collapse_prompt_sections(
         )
     else:
         freed = result.original_tokens - result.compressed_tokens
+        # "token" here counts LLM context tokens, not credentials.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.info(
             "Context collapse freed %d tokens%s (%d → %d, %.0f%% reduction)",
             freed,

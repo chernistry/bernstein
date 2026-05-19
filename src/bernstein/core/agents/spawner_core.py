@@ -1014,6 +1014,9 @@ class AgentSpawner:
             os.close(fd)
 
         self._agent_token_files[session_id] = token_path
+        # Only the session_id and task list (non-secret) are logged; the
+        # token itself stays in the on-disk file referenced by token_path.
+        # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
         logger.info("Issued zero-trust token for session %s (tasks=%s)", session_id, task_ids or "unrestricted")
         return token_path
 
@@ -1033,6 +1036,8 @@ class AgentSpawner:
             try:
                 token_path.unlink()
             except OSError as exc:
+                # Only the file path (not its contents) is logged.
+                # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure  # noqa: E501
                 logger.debug("Could not delete token file %s: %s", token_path, exc)
 
     def set_shutdown_event(self, shutdown_event: threading.Event | None) -> None:
@@ -1910,6 +1915,8 @@ class AgentSpawner:
             _token_path = self._issue_agent_token(session_id, role, task_ids_for_scope)
             prompt = prompt + _render_auth_section(_token_path)
         except Exception as _token_exc:
+            # Only the session_id and exception are logged.
+            # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure
             logger.warning("Zero-trust token issuance failed for %s: %s", session_id, _token_exc)
 
         # Prompt size pre-check: estimate token count and reject or

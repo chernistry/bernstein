@@ -16,24 +16,25 @@ feed it any UTF-8 file content without bespoke parsing.
 
 Usage::
 
-    from bernstein.core.security.redactor import redact_text, redact_file
+    from bernstein.core.security.redactor import redact_text, redact_file, mask
 
     cleaned = redact_text(raw)
     cleaned, count = redact_file(Path("bernstein.yaml"))
+    safe = mask(api_key)  # short-value helper for logger.info("got %s", mask(token))
 """
 
 from __future__ import annotations
 
 import os
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from bernstein.core.observability.debug_bundle import redact_secrets
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-__all__ = ["collapse_home", "redact_file", "redact_text"]
+__all__ = ["collapse_home", "mask", "redact_file", "redact_text"]
 
 _HOME_RE: re.Pattern[str] | None = None
 
@@ -78,6 +79,41 @@ def redact_text(text: str) -> tuple[str, int]:
     cleaned, count = redact_secrets(text)
     cleaned = collapse_home(cleaned)
     return cleaned, count
+
+
+def mask(value: Any, *, keep: int = 0) -> str:
+    """Mask an individual short value for safe inclusion in a log line.
+
+    Use this for credential-shaped scalars (API keys, bearer tokens, OAuth
+    response bodies, JWT signatures) where the file-level
+    :func:`redact_text` pipeline is overkill but you still want a
+    one-shot, hard-to-misuse helper at the call site::
+
+        logger.info("token issued: %s", mask(token))
+        logger.error("OAuth failed: %s %s", status, mask(resp.text))
+
+    Args:
+        value: Anything stringifiable. ``None`` becomes ``"<none>"`` so
+            log lines stay scannable without leaking type info.
+        keep: Number of trailing characters to keep visible (default
+            ``0``). Use sparingly for correlation; values above ``4``
+            risk re-exposing short secrets and are clamped.
+
+    Returns:
+        A redacted string of the form ``"***"`` (default) or
+        ``"***abcd"`` when ``keep > 0``. Empty strings render as
+        ``"<empty>"`` so a missing secret is visually distinct from a
+        masked one.
+    """
+    if value is None:
+        return "<none>"
+    text = str(value)
+    if not text:
+        return "<empty>"
+    keep = max(0, min(keep, 4))
+    if keep == 0 or len(text) <= keep:
+        return "***"
+    return f"***{text[-keep:]}"
 
 
 def redact_file(path: Path) -> tuple[str, int]:

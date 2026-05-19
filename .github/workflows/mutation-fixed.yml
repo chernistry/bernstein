@@ -86,18 +86,8 @@ jobs:
           - lineage_merge
           - config_seed_parser
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
-        with:
-          egress-policy: audit
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-      - name: Set up uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
-        with:
-          enable-cache: true
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
       - name: Install dev group (mutmut + test deps)
         run: uv sync --group dev
       # Workflow_dispatch with a specific module: skip every other matrix
@@ -151,14 +141,10 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - name: Harden runner (audit mode)
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+      - name: Bootstrap
+        uses: ./.github/actions/bootstrap
         with:
-          egress-policy: audit
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
+          setup-uv: "false"
       - name: Download all module results
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

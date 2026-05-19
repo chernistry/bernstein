@@ -48,3 +48,10 @@ jobs:
             Python-2.0,
             Unlicense,
             CC0-1.0
+          # Specific dependencies exempted from the license allow-list.
+          # SonarSource/sonarqube-scan-action is LGPL-3.0 (CI-only GitHub
+          # Action, not linked into the distributed wheel — runs in an
+          # isolated workflow runner, so library-level LGPL obligations
+          # do not propagate to the project's binaries).
+          allow-dependencies-licenses: >-
+            pkg:githubactions/SonarSource/sonarqube-scan-action

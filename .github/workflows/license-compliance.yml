@@ -43,10 +43,12 @@ jobs:
       - name: Export dependencies
         # `uv pip install -e .` uses the SHA-pinned uv binary above, so
         # there is no unpinned `pip install` step left
-        # (Scorecard pinned-dependencies).
+        # (Scorecard pinned-dependencies). Install into a uv-managed venv
+        # since the runner's system Python is externally-managed (PEP 668).
         run: |
-          uv pip install --system -e .
-          uv pip freeze --system > requirements-all.txt
+          uv venv --python 3.12 .venv-license
+          uv pip install --python .venv-license/bin/python -e .
+          uv pip freeze --python .venv-license/bin/python > requirements-all.txt
 
       - name: Check licenses
         id: license_check_report

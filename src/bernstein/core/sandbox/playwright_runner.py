@@ -64,9 +64,6 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 
-# Cast-type constants for Sonar S1192 avoidance.
-_CAST_DICT_STR_OBJ = "dict[str, object]"
-
 VALID_STEP_TYPES = frozenset({"navigate", "click", "type", "assert_visible", "screenshot"})
 
 # Default per-step timeout (milliseconds). Playwright's own default is 30s;
@@ -234,14 +231,10 @@ class ScenarioResult:
 
     scenario: PlaywrightScenario
     passed: bool
-    steps: list[StepResult] = field(default_factory=list["StepResult"])
-    console_messages: list[dict[str, Any]] = field(
-        default_factory=list["dict[str, Any]"]
-    )
-    network_errors: list[dict[str, Any]] = field(
-        default_factory=list["dict[str, Any]"]
-    )
-    screenshots: list[str] = field(default_factory=list[str])
+    steps: list[StepResult] = field(default_factory=lambda: [])
+    console_messages: list[dict[str, Any]] = field(default_factory=lambda: [])
+    network_errors: list[dict[str, Any]] = field(default_factory=lambda: [])
+    screenshots: list[str] = field(default_factory=lambda: [])
     output_dir: str = ""
 
     def to_dict(self) -> dict[str, Any]:
@@ -312,6 +305,7 @@ class PlaywrightRunResult:
             lines.append(f"verdict: {self.judge_verdict.verdict}")
             lines.append(f"correctness: {self.judge_verdict.correctness}")
             lines.append(f"style: {self.judge_verdict.style}")
+            lines.append(f"test_coverage: {self.judge_verdict.test_coverage}")
             lines.append(f"safety: {self.judge_verdict.safety}")
             if self.judge_verdict.issues:
                 lines.append("issues:")
@@ -387,15 +381,11 @@ def _parse_scenario(
         raise PlaywrightScenarioError(f"{source}: scenario {name!r} is missing 'steps' list")
     expectation = payload.get("expectation", "")
     if not isinstance(expectation, str):
-        raise PlaywrightScenarioError(
-            f"{source}: scenario {name!r} 'expectation' must be a string"
-        )
+        raise PlaywrightScenarioError(f"{source}: scenario {name!r} 'expectation' must be a string")
     steps: list[PlaywrightStep] = []
     for step_index, step_raw in enumerate(cast("list[object]", steps_raw)):
         if not isinstance(step_raw, dict):
-            raise PlaywrightScenarioError(
-                f"{source}: scenario {name!r} step {step_index + 1} is not a mapping"
-            )
+            raise PlaywrightScenarioError(f"{source}: scenario {name!r} step {step_index + 1} is not a mapping")
         steps.append(_parse_step(cast("dict[str, object]", step_raw)))
     scenario = PlaywrightScenario(
         name=name,

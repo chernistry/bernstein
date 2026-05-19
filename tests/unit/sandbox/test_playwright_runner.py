@@ -424,6 +424,9 @@ async def test_runner_invokes_judge_and_attaches_verdict(
     block = result.to_self_test_block()
     assert "Judge verdict" in block
     assert "verdict: PASS" in block
+    # All four judge axes (including test_coverage) surface in the block so
+    # the agent can react to coverage feedback as well as correctness.
+    assert "test_coverage: 4" in block
 
 
 @pytest.mark.asyncio

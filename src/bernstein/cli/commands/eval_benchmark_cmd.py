@@ -1012,7 +1012,7 @@ def eval_generate_scenarios(from_traces: int, out_dir: str | None, seed: int) ->
         console.print("[yellow]Synthetic eval generator disabled via BERNSTEIN_SYNTHETIC_EVAL_OFF.[/yellow]")
         return
 
-    workdir = Path().resolve()
+    workdir = Path.cwd()
     out_path = Path(out_dir) if out_dir else workdir.joinpath(*DEFAULT_OUT_DIR)
 
     result = generate_from_traces(

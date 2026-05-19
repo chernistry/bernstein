@@ -148,7 +148,7 @@ def _load_aliases(alias_file: Path) -> dict[str, str]:
     try:
         import yaml  # already a project dep (bernstein.yaml parsing)
 
-        with open(alias_file) as fh:
+        with alias_file.open() as fh:
             data = yaml.safe_load(fh)
         if not isinstance(data, dict):
             return {}

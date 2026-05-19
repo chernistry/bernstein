@@ -1349,7 +1349,7 @@ class CacheBaselineCollector:
             "metadata": drop.metadata,
         }
 
-        with open(self.cache_drops_file, "a", encoding="utf-8") as f:
+        with self.cache_drops_file.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record) + "\n")
 
         logger.warning(

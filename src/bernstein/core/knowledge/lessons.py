@@ -284,7 +284,7 @@ def get_lessons_for_agent(
     now = time.time()
 
     try:
-        with open(lessons_path, encoding="utf-8") as f:
+        with lessons_path.open(encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:

@@ -439,7 +439,7 @@ class PromptCachingManager:
         """Load existing cache manifest if it exists."""
         if self._manifest_path.exists():
             try:
-                with open(self._manifest_path) as f:
+                with self._manifest_path.open() as f:
                     line = f.read().strip()
                     if line:
                         self._manifest = CacheManifest.from_json_line(line)
@@ -547,7 +547,7 @@ class PromptCachingManager:
     def save_manifest(self) -> None:
         """Persist manifest to .sdd/caching/manifest.jsonl."""
         self._manifest_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._manifest_path, "w") as f:
+        with self._manifest_path.open("w") as f:
             f.write(self._manifest.to_json_line())
         logger.debug("Saved cache manifest to %s", self._manifest_path)
 

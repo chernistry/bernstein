@@ -87,7 +87,7 @@ def load_trigger_configs(path: Path) -> list[TriggerConfig]:
     if not path.exists():
         raise FileNotFoundError(f"Trigger config not found: {path}")
     try:
-        with open(path) as f:
+        with path.open() as f:
             data = yaml.safe_load(f)
     except yaml.YAMLError as exc:
         raise ValueError(f"Malformed trigger config: {exc}") from exc
@@ -429,7 +429,7 @@ class TriggerManager:
                 self._configs = load_trigger_configs(self._config_path)
                 self._config_mtime = mtime
                 # Read global defaults
-                with open(self._config_path) as f:
+                with self._config_path.open() as f:
                     data = yaml.safe_load(f)
                 defaults = data.get("defaults", {}) if isinstance(data, dict) else {}
                 self._max_tasks_per_minute = int(defaults.get("max_tasks_per_minute", _DEFAULT_MAX_TASKS_PER_MINUTE))
@@ -467,7 +467,7 @@ class TriggerManager:
         path = self._runtime_dir / "dedup_cache.json"
         if path.exists():
             try:
-                with open(path) as f:
+                with path.open() as f:
                     self._dedup_cache = json.load(f)
             except (json.JSONDecodeError, OSError):
                 logger.warning("Corrupt dedup cache, treating as empty")
@@ -478,7 +478,7 @@ class TriggerManager:
         now = time.time()
         self._dedup_cache = {k: v for k, v in self._dedup_cache.items() if v > now}
         path = self._runtime_dir / "dedup_cache.json"
-        with open(path, "w") as f:
+        with path.open("w") as f:
             json.dump(self._dedup_cache, f)
 
     def _check_dedup(self, dedup_key: str) -> bool:
@@ -496,7 +496,7 @@ class TriggerManager:
         path = self._runtime_dir / "cron_state.json"
         if path.exists():
             try:
-                with open(path) as f:
+                with path.open() as f:
                     data = json.load(f)
                 self._cron_state = {k: v.get("last_fire_minute", "") for k, v in data.items()}
             except (json.JSONDecodeError, OSError):
@@ -506,7 +506,7 @@ class TriggerManager:
     def _save_cron_state(self) -> None:
         path = self._runtime_dir / "cron_state.json"
         data = {k: {"last_fire_minute": v, "last_fired": time.time()} for k, v in self._cron_state.items()}
-        with open(path, "w") as f:
+        with path.open("w") as f:
             json.dump(data, f)
 
     # -- Fire log -----------------------------------------------------------
@@ -514,7 +514,7 @@ class TriggerManager:
     def _record_fire(self, record: TriggerFireRecord) -> None:
         """Append a fire record to the fire log."""
         path = self._runtime_dir / _FIRE_LOG_FILENAME
-        with open(path, "a") as f:
+        with path.open("a") as f:
             f.write(json.dumps(asdict(record)) + "\n")
 
     def _last_fire_time(self, trigger_name: str) -> float | None:

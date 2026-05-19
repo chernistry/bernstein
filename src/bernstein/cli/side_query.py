@@ -134,7 +134,7 @@ def post_side_query(
                 if e.agent_id == agent_id and e.task_id == task_id and e.question == question and e.status != "skipped":
                     return e
         line = json.dumps(query.to_dict(), default=str)
-        with open(path, "a", encoding="utf-8") as f:
+        with path.open("a", encoding="utf-8") as f:
             f.write(line + "\n")
     return query
 
@@ -205,7 +205,7 @@ def answer_side_query(store_dir: Path, query_id: str, answer: str) -> bool:
         found.answer = answer
         found.answered_at = time.time()
         line = json.dumps(found.to_dict(), default=str)
-        with open(path, "a", encoding="utf-8") as f:
+        with path.open("a", encoding="utf-8") as f:
             f.write(line + "\n")
     return True
 
@@ -234,7 +234,7 @@ def skip_side_query(store_dir: Path, query_id: str) -> bool:
             return False
         found.status = "skipped"
         line = json.dumps(found.to_dict(), default=str)
-        with open(path, "a", encoding="utf-8") as f:
+        with path.open("a", encoding="utf-8") as f:
             f.write(line + "\n")
     return True
 

@@ -465,7 +465,7 @@ def load_formal_verification_config(workdir: Path) -> FormalVerificationConfig |
     try:
         import yaml
 
-        with open(seed_path, encoding="utf-8") as f:
+        with seed_path.open(encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
     except Exception as exc:
         logger.warning("load_formal_verification_config: could not read bernstein.yaml: %s", exc)

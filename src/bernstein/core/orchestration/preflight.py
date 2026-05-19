@@ -208,7 +208,7 @@ def _codex_has_config_toml() -> tuple[bool, str | None]:
             return False, None
 
     try:
-        with open(config_path, "rb") as f:
+        with config_path.open("rb") as f:
             config = tomllib.load(f)
         model = config.get("model")
         if isinstance(model, str) and model:

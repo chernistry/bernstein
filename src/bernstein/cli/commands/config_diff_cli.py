@@ -15,7 +15,7 @@ def _load_current_config() -> dict[str, object]:
     for name in ("bernstein.yaml", "bernstein.yml"):
         p = Path.cwd() / name
         if p.is_file():
-            with open(p) as f:
+            with p.open() as f:
                 raw = yaml.safe_load(f)
             if isinstance(raw, dict):
                 return dict(raw)  # type: ignore[arg-type]

@@ -105,7 +105,7 @@ def _cross_process_lock(lock_path: Path) -> Iterator[None]:
     # Open for read+write so Windows msvcrt.locking can take an exclusive lock
     # on byte 0. Using ``a+b`` avoids truncating the file if something useful
     # was ever written there (we never write to the lock file itself).
-    fh = open(lock_path, "a+b")  # noqa: SIM115 - manual close in finally
+    fh = lock_path.open("a+b")
     try:
         _os_lock(fh)
         try:

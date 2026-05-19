@@ -111,7 +111,7 @@ def check_config_valid() -> dict[str, Any]:
     try:
         import yaml
 
-        with open(yaml_path) as f:
+        with yaml_path.open() as f:
             yaml.safe_load(f)
         return {
             "name": _CONFIG_FILE_LABEL,

@@ -245,7 +245,7 @@ def _load_archive_tasks(path: Path, since: float | None = None) -> tuple[list[di
     import json as _json
 
     try:
-        with open(path) as f:
+        with path.open() as f:
             for line in f:
                 if not line.strip():
                     continue

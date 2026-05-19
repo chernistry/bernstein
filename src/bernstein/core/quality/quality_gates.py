@@ -1145,7 +1145,7 @@ def _record_gate_event(
     if extra:
         event.update(extra)
     try:
-        with open(metrics_dir / "quality_gates.jsonl", "a", encoding="utf-8") as f:
+        with (metrics_dir / "quality_gates.jsonl").open("a", encoding="utf-8") as f:
             f.write(json.dumps(event) + "\n")
     except OSError as exc:
         logger.debug("Could not write quality gate event: %s", exc)

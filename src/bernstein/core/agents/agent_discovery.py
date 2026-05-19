@@ -181,7 +181,7 @@ def _load_toml(path: Path) -> dict[str, object] | None:
         except ImportError:
             return None
     try:
-        with open(path, "rb") as f:
+        with path.open("rb") as f:
             return tomllib.load(f)  # type: ignore[return-value]
     except Exception:
         return None

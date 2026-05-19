@@ -278,7 +278,7 @@ class ApiUsageTracker:
 
         # Persist calls
         calls_file = self.metrics_dir / "api_calls.jsonl"
-        with open(calls_file, "a", encoding="utf-8") as f:
+        with calls_file.open("a", encoding="utf-8") as f:
             for call in self.calls[-1:]:  # Append only the latest call
                 f.write(json.dumps(asdict(call)) + "\n")
 
@@ -305,7 +305,7 @@ class ApiUsageTracker:
             }
             for k, v in self.sessions.items()
         }
-        with open(sessions_file, "w", encoding="utf-8") as f:
+        with sessions_file.open("w", encoding="utf-8") as f:
             json.dump(sessions_data, f, indent=2)
 
 

@@ -673,7 +673,7 @@ def read_log_tail(path: Path, offset: int = 0) -> str:
         return ""
     if size == 0:
         return ""
-    with open(path, "rb") as f:
+    with path.open("rb") as f:
         f.seek(offset)
         data = f.read()
     if not data:

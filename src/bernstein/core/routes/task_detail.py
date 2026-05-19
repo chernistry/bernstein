@@ -148,7 +148,7 @@ async def task_log_stream(request: Request, task_id: str) -> StreamingResponse:
         current_size = log_path.stat().st_size
         if current_size <= last_size:
             return None
-        with open(log_path, encoding="utf-8", errors="replace") as f:
+        with log_path.open(encoding="utf-8", errors="replace") as f:
             f.seek(last_size)
             return f.read(), current_size
 

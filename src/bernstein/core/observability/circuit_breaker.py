@@ -68,7 +68,7 @@ def log_kill_event(
     }
     if files:
         event["files"] = files
-    with open(metrics_dir / "kill_audit.jsonl", "a", encoding="utf-8") as f:
+    with (metrics_dir / "kill_audit.jsonl").open("a", encoding="utf-8") as f:
         f.write(json.dumps(event) + "\n")
 
 

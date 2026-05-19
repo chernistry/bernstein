@@ -643,7 +643,7 @@ def _parse_file_total(jsonl_file: Path) -> float:
     """
     file_total = 0.0
     try:
-        with open(jsonl_file, encoding="utf-8", errors="replace") as fh:
+        with jsonl_file.open(encoding="utf-8", errors="replace") as fh:
             for line in fh:
                 line = line.strip()
                 if not line:

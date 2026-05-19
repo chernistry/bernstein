@@ -296,7 +296,7 @@ class BernsteinApp(App[None]):
             try:
                 log_path = Path(activity_log_path)
                 log_path.parent.mkdir(parents=True, exist_ok=True)
-                self._activity_log_file = open(log_path, "a", encoding="utf-8")  # noqa: SIM115
+                self._activity_log_file = log_path.open("a", encoding="utf-8")
             except OSError as exc:
                 logging.getLogger(__name__).warning("Failed to open activity log file: %s", exc)
 

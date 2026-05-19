@@ -277,7 +277,7 @@ class SemanticCacheManager:
     def save(self) -> None:
         """Persist the current manifest to disk."""
         self._cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._cache_path, "w") as fh:
+        with self._cache_path.open("w") as fh:
             fh.write(self._manifest.to_json_line())
         logger.debug("Semantic cache saved to %s", self._cache_path)
 
@@ -560,7 +560,7 @@ class ResponseCacheManager:
     def save(self) -> None:
         """Persist the current manifest to disk."""
         self._cache_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._cache_path, "w") as fh:
+        with self._cache_path.open("w") as fh:
             fh.write(self._manifest.to_json_line())
         logger.debug("Response cache saved to %s", self._cache_path)
 

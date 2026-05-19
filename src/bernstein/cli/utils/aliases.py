@@ -62,7 +62,7 @@ def _load_user_aliases() -> dict[str, str]:
     if not _USER_ALIASES_PATH.is_file():
         return {}
     try:
-        with open(_USER_ALIASES_PATH) as f:
+        with _USER_ALIASES_PATH.open() as f:
             raw: object = yaml.safe_load(f) or {}
         if not isinstance(raw, dict):
             return {}

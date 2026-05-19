@@ -40,6 +40,14 @@ from bernstein.core.lineage.merge import (
     resolve_policy,
 )
 from bernstein.core.lineage.tips import Fork, TipSet, compute_tips, detect_forks
+from bernstein.core.lineage.tracker_audit import (
+    AuditingTrackerAdapter,
+    LineageCtx,
+    TrackerActor,
+    TrackerAuditEntry,
+    TrackerAuditLog,
+    wrap_adapter,
+)
 from bernstein.core.lineage.v2_store import (
     LINEAGE_V2_ENTRY_VERSION,
     ChildBody,
@@ -56,18 +64,23 @@ __all__ = [
     "LINEAGE_V2_ENTRY_VERSION",
     "AgentCard",
     "AgentPolicy",
+    "AuditingTrackerAdapter",
     "ChildBody",
     "FirstWriterPolicy",
     "Fork",
     "GateResult",
     "HumanPolicy",
     "LineageConflict",
+    "LineageCtx",
     "LineageEntry",
     "LineageV2Store",
     "MergePolicy",
     "ParentRef",
     "StewardKey",
     "TipSet",
+    "TrackerActor",
+    "TrackerAuditEntry",
+    "TrackerAuditLog",
     "VerifyResult",
     "build_merge_entry",
     "canonicalise",
@@ -81,4 +94,5 @@ __all__ = [
     "resolve_policy",
     "sign_detached",
     "verify_detached",
+    "wrap_adapter",
 ]

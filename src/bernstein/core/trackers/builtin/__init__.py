@@ -14,6 +14,10 @@ from bernstein.core.trackers.builtin.github_projects_adapter import (
     GitHubProjectsV2Adapter,
     GitHubProjectsV2Config,
 )
+from bernstein.core.trackers.builtin.gitlab_adapter import (
+    GitLabAdapter,
+    GitLabConfig,
+)
 from bernstein.core.trackers.builtin.jira_dc_adapter import (
     JiraDataCenterAdapter,
     JiraDataCenterConfig,
@@ -30,6 +34,8 @@ __all__ = [
     "ClickUpConfig",
     "GitHubProjectsV2Adapter",
     "GitHubProjectsV2Config",
+    "GitLabAdapter",
+    "GitLabConfig",
     "JiraDataCenterAdapter",
     "JiraDataCenterConfig",
     "PlaneAdapter",

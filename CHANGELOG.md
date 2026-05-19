@@ -33,6 +33,10 @@ Hand-curated release notes: [`docs/release-notes/v2.0.0.md`](docs/release-notes/
 
 ## Unreleased
 
+### CI
+
+- **Install-path smoke matrix against the built wheel.** Added `install-smoke-pipx` (matrix: ubuntu-latest x macos-latest x Python 3.12 / 3.13, matching `requires-python = ">=3.12"`) and `install-smoke-uv` (leaner: ubuntu-latest + macos-latest, Python 3.12) jobs to `.github/workflows/ci.yml`. Both jobs install from the wheel produced by the `dist-size` job (never editable), then run `bernstein --version`, `bernstein --help`, and an `importlib.resources` probe against the pipx- or uv-managed interpreter to confirm `console_scripts`, entry-point loading, and `package-data` (MCP tool schemas, force-included default templates) survive the build. Wheel size is gated at 25 MB inside the smoke jobs (independent of the tighter 10 MB day-to-day ceiling enforced by `dist-size`). Both jobs are wired into the `CI gate` required-check rollup so a regression on the pipx or `uv tool install` path now blocks merge instead of surfacing through user reports. Closes the regression-coverage gap on the install path documented first in README.
+
 ### Security
 
 - **Strip invisible Unicode Tag codepoints from injected skills (spec 2026-05-17).** Public research (Feb 2026, Embrace the Red; Snyk skill-pack audit of 3,984 public files showing 36.82% with security flaws) demonstrated that invisible glyphs in the U+E0000-U+E007F Tag block are interpreted as instructions by Claude, Gemini, and Grok. Bernstein now strips every Cf-category, Tag-block, and interlinear-annotation codepoint from skill bodies before they are written into `.claude/skills/*.md` in agent worktrees. The new `bernstein.core.skills.sanitizer.strip_invisible_tags` function returns the cleaned body plus the count of stripped codepoints; the `SkillLoader` and `skills_injector` both invoke it at index time. A WARN log line plus a Prometheus counter `bernstein_skills_unicode_tags_stripped_total{source_name}` fire on every hit so operators can pinpoint a poisoned upstream source. Default ON; opt out with the hidden `--unsafe-allow-unicode-tags` CLI flag (or `BERNSTEIN_UNSAFE_ALLOW_UNICODE_TAGS=1`) only when reproducing an incident in a controlled environment.
@@ -49,6 +53,10 @@ Hand-curated release notes: [`docs/release-notes/v2.0.0.md`](docs/release-notes/
 ### Repo hygiene
 
 - **Worktree-debris cleanup (2026-05-17).** Reaped 50 stale parent-level `bernstein-wt-*` worktrees plus `bernstein-audit-6e` (hireex/rebirth worktree on a bernstein-named path). Every branch tip was tag-rescued under `rescue/<branch>-20260517T152307Z` and pushed to origin before the worktree was force-removed and the local branch deleted. Three active-agent worktrees were preserved (`bernstein-wt-fix-determine-changes`, `bernstein-wt-fix-reviewer-prompts`, `bernstein-wt-syn-gitlab`). `git worktree list` is back to canonical: the main checkout plus the in-repo `.claude/worktrees/` registry.
+
+### Documentation
+
+- **Per-step CLI and model routing surfaced.** Added [`docs/workflows/per-step-routing.md`](docs/workflows/per-step-routing.md) documenting the existing per-step `cli:` / `model:` / `effort:` plan fields, the surfaces that honour them, the surfaces that drop them, and a trace-based verification recipe. `templates/bernstein.yaml` now ships a commented-out per-stage override example that points at the new page. `templates/workflows/idea-to-pr.yaml` and `templates/workflows/refactor-with-tests.yaml` carry inline comments showing where operators most often want to pin different adapters or models and the plan-YAML lift to do it. The runtime support already existed (`plan_loader._parse_step` at `plan_loader.py:255-294`, `planner.py:86-96`); this PR closes the discoverability gap raised in discussion #962.
 
 ## [1.10.1] — 2026-05-07
 

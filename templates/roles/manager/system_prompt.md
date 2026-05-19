@@ -64,6 +64,17 @@ curl -s -X POST http://127.0.0.1:8052/tasks \
 6. If a task depends on another, note it in the description (the system handles ordering)
 7. **Include context hints**. For each task, list the specific files, functions, and architectural decisions the assigned agent needs to know in the description. This eliminates agent orientation time. Example: "You'll modify `TaskContextBuilder.build_context()` in `src/bernstein/core/context.py`. It uses AST parsing via `_parse_python_file()`. Related: `spawner.py` calls it during prompt rendering."
 
+## Cross-task knowledge share
+
+When two tasks need to share a fact (e.g. an API schema discovered by one task and consumed by another), point the producing agent at the cross-task knowledge base instead of writing files into shared worktree paths. CLI surface:
+
+```bash
+bernstein memory share <key> <value> --tag <tag> --scope run|project
+bernstein memory query --tag <tag>
+```
+
+Programmatic surface lives at `bernstein.core.memory.cross_task_kb.CrossTaskKB`. Use `scope=run` for facts that only matter within the current orchestration run, `scope=project` for facts the whole project should see across runs. See `docs/memory/cross-task-share.md` for the full contract.
+
 ## When done planning
 
 Mark your own task as complete (remember the `Authorization` header):

@@ -91,6 +91,10 @@ class OpenAIAgentsAdapter(PluginAdapter):
     still import the module for discovery/testing.
     """
 
+    # The SDK forwards 429s from api.openai.com with the standard
+    # ``rate_limit_exceeded`` / ``insufficient_quota`` error codes.
+    rate_limit_provider = "openai"
+
     def plugin_info(self) -> AdapterPluginInfo:
         """Return metadata for the ``bernstein agents`` listing."""
         return AdapterPluginInfo(

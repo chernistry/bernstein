@@ -22,6 +22,11 @@ class CopilotAdapter(CLIAdapter):
     initial prompt.
     """
 
+    # GitHub Copilot surfaces 429s when the underlying account hits the
+    # Copilot quota; we record under the Copilot label so the panel
+    # attributes pressure to the right surface.
+    rate_limit_provider = "github_copilot"
+
     def spawn(
         self,
         *,
@@ -89,6 +94,9 @@ class CopilotAdapter(CLIAdapter):
                 raise RuntimeError(msg) from exc
             except PermissionError as exc:
                 raise RuntimeError(f"Permission denied executing copilot: {exc}") from exc
+
+        # Detect spawn-time 429s; updates the meter through the base hook.
+        self._probe_fast_exit(proc, log_path, provider_name="copilot")
 
         result = SpawnResult(pid=proc.pid, log_path=log_path, proc=proc)
         if timeout_seconds > 0:

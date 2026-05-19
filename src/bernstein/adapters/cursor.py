@@ -59,6 +59,11 @@ from bernstein.core.models import ApiTier, ApiTierInfo, ModelConfig, ProviderTyp
 class CursorAdapter(CLIAdapter):
     """Spawn and monitor Cursor Agent CLI sessions."""
 
+    # Cursor surfaces 429s when its proxy back-pressures the upstream
+    # model account; we record under the proxy label so the panel does
+    # not falsely attribute the hit to the underlying model vendor.
+    rate_limit_provider = "cursor"
+
     def spawn(
         self,
         *,
@@ -154,6 +159,11 @@ class CursorAdapter(CLIAdapter):
                 ) from exc
             except PermissionError as exc:
                 raise RuntimeError(f"Permission denied executing cursor-agent: {exc}") from exc
+
+        # Detect fast-exit rate-limit signals before declaring the spawn
+        # successful; this also records on the per-adapter meter via the
+        # base-class hook.
+        self._probe_fast_exit(proc, log_path, provider_name="cursor")
 
         # ``proc`` MUST be threaded into ``SpawnResult``; downstream
         # spawner_core uses it for stdin-IPC registration and ``bernstein

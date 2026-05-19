@@ -38,6 +38,7 @@ __all__ = [
     "HookRegistry",
     "LifecycleContext",
     "LifecycleEvent",
+    "bind_rate_limit_emit",
     "discover_default_hook_scripts",
     "parse_hook_decision",
 ]
@@ -85,6 +86,11 @@ class LifecycleEvent(StrEnum):
     # successfully loads a checkpoint and is about to re-spawn the task.
     # Plugins can react to track resume metrics, gate flaky tasks, etc.
     TASK_RESUME = "task.resume"
+    # feat-cross-task-kb: fires when a task publishes a fact through the
+    # cross-task knowledge-base facade. Payload carries the attribution
+    # triple ``(producer_task_id, ts_ns, content_hash)`` plus ``tag``,
+    # ``key``, and ``scope``.
+    KB_FACT_PUBLISHED = "kb.fact_published"
 
     # ------------------------------------------------------------------
     # Cross-CLI lifecycle events (camelCase, T1323).
@@ -96,6 +102,13 @@ class LifecycleEvent(StrEnum):
     ERROR_OCCURRED = "errorOccurred"
     IDLE = "idle"
     SESSION_END = "sessionEnd"
+
+    # ------------------------------------------------------------------
+    # Adapter rate-limit observability (feat/adapter-rate-limit-meter).
+    # Emitted once per 429-class upstream signal, with the adapter name
+    # and provider error code on ``context.data``.
+    # ------------------------------------------------------------------
+    RATE_LIMIT_HIT = "rate_limit.hit"
 
 
 #: The cross-CLI standardised event vocabulary introduced by issue #1323.
@@ -561,6 +574,36 @@ def _apply_decision(
 DEFAULT_HOOK_DIR_NAME: str = ".bernstein/hooks"
 
 _DEFAULT_HOOK_SUFFIXES: tuple[str, ...] = (".sh", ".py")
+
+
+def bind_rate_limit_emit(registry: HookRegistry) -> None:
+    """Wire the adapter rate-limit meter into ``registry``.
+
+    After this call, every ``record_rate_limit_hit(...)`` from
+    :mod:`bernstein.adapters.base` synchronously runs the registry for
+    :attr:`LifecycleEvent.RATE_LIMIT_HIT` with a context whose ``data``
+    field carries ``adapter``, ``provider``, ``error_code`` and the
+    meter snapshot.
+
+    The orchestrator typically calls this once at startup.
+    """
+    # Import lazily so importing this module does not pull in the
+    # adapters package eagerly (and so the test surface can replace the
+    # callback without touching the import order).
+    from bernstein.adapters import base as _adapters_base
+
+    def _emit(meter: _adapters_base.RateLimitMeter, error_code: str) -> None:
+        snapshot = meter.to_snapshot()
+        payload: dict[str, Any] = {
+            "adapter": meter.adapter_name,
+            "provider": meter.provider,
+            "error_code": error_code,
+            "meter": snapshot,
+        }
+        ctx = LifecycleContext(event=LifecycleEvent.RATE_LIMIT_HIT, data=payload)
+        registry.run(LifecycleEvent.RATE_LIMIT_HIT, ctx)
+
+    _adapters_base.set_rate_limit_emit_callback(_emit)
 
 
 def discover_default_hook_scripts(

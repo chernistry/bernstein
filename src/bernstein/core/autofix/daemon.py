@@ -29,6 +29,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from bernstein.core.autofix.dispatcher import AttemptRecord  # re-exported via __all__
+from bernstein.core.autofix.ladder import (
+    AutofixOutcome,
+    CIFailure,
+    LadderSettings,
+    Rung,
+    build_default_ladder,
+    load_ladder_settings,
+    run_ladder_for_failure,
+)
 
 if TYPE_CHECKING:
     from bernstein.core.autofix.config import AutofixConfig, RepoConfig
@@ -308,6 +317,81 @@ def tick_once(
 
 
 # ---------------------------------------------------------------------------
+# Ladder integration (RFC #1415)
+# ---------------------------------------------------------------------------
+
+
+class LadderFailureSource(Protocol):
+    """Callable that yields :class:`CIFailure` records for the ladder.
+
+    The protocol intentionally returns the ladder's :class:`CIFailure`
+    rather than the dispatcher's :class:`FailingCandidate` because the
+    ladder consumes a smaller, normalised shape.  Production wiring
+    converts the GitHub Checks payload + PR diff into the right shape
+    before calling :func:`ladder_tick`.
+    """
+
+    def __call__(self, repo_config: RepoConfig) -> list[CIFailure]: ...
+
+
+def ladder_tick(
+    *,
+    settings: LadderSettings,
+    failure_source: LadderFailureSource,
+    repos: tuple[RepoConfig, ...],
+    apply_lint_patch: object,
+    post_comment: object,
+    audit: object | None,
+    extra_repo_filter: set[str] | None = None,
+) -> list[AutofixOutcome]:
+    """Run one ladder pass across the configured repos.
+
+    The function is small on purpose: callers wire the ladder
+    feature-flag check, build the rungs once, and iterate failures.
+    When ``settings.enabled`` is ``False`` the ladder short-circuits to
+    an empty result so the existing dispatcher path remains the only
+    side-effecting code in the tick.
+
+    Args:
+        settings: Effective :class:`LadderSettings`.
+        failure_source: Callable that yields :class:`CIFailure` per repo.
+        repos: Tuple of repo configs the daemon is watching.
+        apply_lint_patch: Callable wired into the Rung 0 actor. Signature
+            matches :class:`bernstein.core.autofix.ladder.LintDriftActor`.
+        post_comment: Callable wired into the Rung 3 actor.
+        audit: Optional :class:`AuditEmitter` used for the lifecycle event.
+        extra_repo_filter: Optional repo allow-list.
+
+    Returns:
+        List of :class:`AutofixOutcome` produced this tick.
+    """
+    if not settings.enabled:
+        return []
+    ladder: tuple[Rung, ...] = build_default_ladder(
+        apply_lint_patch=apply_lint_patch,  # type: ignore[arg-type]
+        post_comment=post_comment,  # type: ignore[arg-type]
+    )
+    outcomes: list[AutofixOutcome] = []
+    for repo_config in repos:
+        if extra_repo_filter is not None and repo_config.name not in extra_repo_filter:
+            continue
+        try:
+            failures = failure_source(repo_config)
+        except Exception:
+            logger.exception("ladder: failure source raised for %s", repo_config.name)
+            continue
+        for failure in failures:
+            outcome = run_ladder_for_failure(
+                failure=failure,
+                settings=settings,
+                ladder=ladder,
+                audit=audit,  # type: ignore[arg-type]
+            )
+            outcomes.append(outcome)
+    return outcomes
+
+
+# ---------------------------------------------------------------------------
 # Lifecycle
 # ---------------------------------------------------------------------------
 
@@ -474,7 +558,11 @@ __all__ = [
     "DaemonStatus",
     "FailingCandidate",
     "FailingPRSource",
+    "LadderFailureSource",
+    "LadderSettings",
     "append_status",
+    "ladder_tick",
+    "load_ladder_settings",
     "read_status",
     "recent_attempts",
     "start",

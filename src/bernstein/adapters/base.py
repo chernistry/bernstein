@@ -46,6 +46,260 @@ class RateLimitError(SpawnError):
     """Raised when an adapter detects provider-side rate limiting on startup."""
 
 
+# ---------------------------------------------------------------------------
+# Rate-limit meter (per-adapter observability surface)
+# ---------------------------------------------------------------------------
+
+#: Default panel/window for rolling 429 counts, in seconds.
+RATE_LIMIT_WINDOW_SECONDS: int = 300
+
+#: Initial backoff after the first 429, in seconds.
+_DEFAULT_INITIAL_BACKOFF_SECONDS: float = 1.0
+
+#: Hard cap on exponential backoff growth, in seconds.
+_DEFAULT_MAX_BACKOFF_SECONDS: float = 60.0
+
+
+@dataclass
+class RateLimitMeter:
+    """Per-adapter rolling counters for upstream rate-limit pressure.
+
+    The meter records, reports, and decays. It does not enforce: there
+    is no token-bucket scheduler here. The intent is to give
+    ``bernstein status`` and trace consumers a single place to read
+    "how often is this adapter hitting 429 right now and how long is it
+    waiting between retries".
+
+    Attributes:
+        adapter_name: Short adapter identifier (e.g. ``"claude"``).
+        provider: Human-readable upstream provider label.
+        requests_per_minute_target: Operator-declared RPM target, when
+            known. ``0`` means "unset", and the meter just records
+            429-related stats without an RPM denominator.
+        last_429_ts: Unix timestamp of the most recent 429-class event,
+            or ``0.0`` if none observed.
+        consecutive_429_count: 429-class events observed since the last
+            successful request. Reset by :meth:`record_success`.
+        backoff_seconds_current: Current advisory backoff. Grows
+            exponentially per consecutive 429, capped at
+            ``_DEFAULT_MAX_BACKOFF_SECONDS``.
+        window_hits: Timestamps of 429-class events within the active
+            rolling window, used for the "x<n> in last <window>"
+            summary line.
+        last_error_code: Last observed provider-side error label, when
+            the adapter could supply one (e.g. ``"anthropic_429"``).
+    """
+
+    adapter_name: str
+    provider: str = ""
+    requests_per_minute_target: int = 0
+    last_429_ts: float = 0.0
+    consecutive_429_count: int = 0
+    backoff_seconds_current: float = 0.0
+    window_hits: list[float] = field(default_factory=list[float])
+    last_error_code: str = ""
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
+
+    def record_hit(
+        self,
+        *,
+        error_code: str = "",
+        now: float | None = None,
+        window_seconds: int = RATE_LIMIT_WINDOW_SECONDS,
+    ) -> None:
+        """Register one 429-class event on this meter.
+
+        Args:
+            error_code: Provider-specific error label (optional).
+            now: Override clock for tests; defaults to ``time.time()``.
+            window_seconds: Rolling window for ``window_hits`` retention.
+        """
+        ts = time.time() if now is None else now
+        with self._lock:
+            self.last_429_ts = ts
+            self.consecutive_429_count += 1
+            self.last_error_code = error_code
+            self.window_hits.append(ts)
+            self._prune_locked(ts, window_seconds)
+            # Exponential backoff: 1s, 2s, 4s, ... capped.
+            prev = self.backoff_seconds_current
+            if prev <= 0:
+                self.backoff_seconds_current = _DEFAULT_INITIAL_BACKOFF_SECONDS
+            else:
+                self.backoff_seconds_current = min(prev * 2.0, _DEFAULT_MAX_BACKOFF_SECONDS)
+
+    def record_success(self) -> None:
+        """Reset the consecutive-failure counter after a clean request."""
+        with self._lock:
+            self.consecutive_429_count = 0
+            self.backoff_seconds_current = 0.0
+
+    def hits_in_window(
+        self,
+        *,
+        now: float | None = None,
+        window_seconds: int = RATE_LIMIT_WINDOW_SECONDS,
+    ) -> int:
+        """Return the number of 429-class events within the rolling window."""
+        ts = time.time() if now is None else now
+        with self._lock:
+            self._prune_locked(ts, window_seconds)
+            return len(self.window_hits)
+
+    def is_active(
+        self,
+        *,
+        now: float | None = None,
+        window_seconds: int = RATE_LIMIT_WINDOW_SECONDS,
+    ) -> bool:
+        """Return True when at least one 429 fired inside the window."""
+        return self.hits_in_window(now=now, window_seconds=window_seconds) > 0
+
+    def to_snapshot(
+        self,
+        *,
+        now: float | None = None,
+        window_seconds: int = RATE_LIMIT_WINDOW_SECONDS,
+    ) -> dict[str, Any]:
+        """Return a JSON-serialisable snapshot for status surfaces."""
+        ts = time.time() if now is None else now
+        with self._lock:
+            self._prune_locked(ts, window_seconds)
+            last_ago = (ts - self.last_429_ts) if self.last_429_ts > 0 else None
+            return {
+                "adapter": self.adapter_name,
+                "provider": self.provider,
+                "requests_per_minute_target": self.requests_per_minute_target,
+                "last_429_ts": self.last_429_ts,
+                "last_429_ago_seconds": last_ago,
+                "consecutive_429_count": self.consecutive_429_count,
+                "backoff_seconds_current": self.backoff_seconds_current,
+                "window_seconds": window_seconds,
+                "hits_in_window": len(self.window_hits),
+                "last_error_code": self.last_error_code,
+            }
+
+    def _prune_locked(self, now: float, window_seconds: int) -> None:
+        """Drop hits older than ``window_seconds``. Caller holds ``_lock``."""
+        cutoff = now - window_seconds
+        self.window_hits = [t for t in self.window_hits if t >= cutoff]
+
+
+# ---------------------------------------------------------------------------
+# Process-local meter registry
+# ---------------------------------------------------------------------------
+
+_METERS_LOCK: threading.Lock = threading.Lock()
+_METERS: dict[str, RateLimitMeter] = {}
+
+#: Optional emit callback. Bound by the orchestrator to a HookRegistry so
+#: meter updates can fire ``rate_limit.hit`` lifecycle events without the
+#: adapters taking a hard dependency on the lifecycle package.
+_RATE_LIMIT_EMIT: Callable[[RateLimitMeter, str], None] | None = None
+
+
+def register_rate_limit_meter(meter: RateLimitMeter) -> None:
+    """Make ``meter`` visible to ``bernstein status`` and trace consumers.
+
+    Safe to call repeatedly with the same meter: the registry keys on
+    ``adapter_name`` so re-registration just refreshes the entry.
+    """
+    with _METERS_LOCK:
+        _METERS[meter.adapter_name] = meter
+
+
+def get_rate_limit_meters() -> dict[str, RateLimitMeter]:
+    """Return a shallow copy of the currently-registered meter set."""
+    with _METERS_LOCK:
+        return dict(_METERS)
+
+
+def reset_rate_limit_meters() -> None:
+    """Drop every registered meter. For tests only."""
+    with _METERS_LOCK:
+        _METERS.clear()
+
+
+def set_rate_limit_emit_callback(
+    callback: Callable[[RateLimitMeter, str], None] | None,
+) -> None:
+    """Bind (or clear) the optional ``rate_limit.hit`` emit callback.
+
+    The orchestrator owns its :class:`HookRegistry`; calling this with a
+    bound emit lets adapters surface the event without importing the
+    lifecycle subsystem directly. Passing ``None`` clears the binding —
+    used by tests that want to assert no event was emitted.
+    """
+    global _RATE_LIMIT_EMIT
+    _RATE_LIMIT_EMIT = callback
+
+
+def fold_rate_limit_events(
+    events: list[dict[str, Any]],
+    *,
+    window_seconds: int = RATE_LIMIT_WINDOW_SECONDS,
+) -> list[str]:
+    """Collapse a sequence of ``rate_limit.hit`` events into one line per adapter.
+
+    Each input dict is expected to carry at least an ``adapter`` key — the
+    standard payload emitted by :func:`record_rate_limit_hit`. Events
+    missing an adapter label are grouped under ``"unknown"`` so they
+    remain visible to operators rather than being silently dropped.
+
+    Args:
+        events: Ordered list of ``rate_limit.hit`` event payload dicts.
+        window_seconds: Window length to mention in the folded summary.
+
+    Returns:
+        One human-readable line per adapter, sorted alphabetically:
+        ``"<adapter> hit 429 x<n> in last <window>"``.
+    """
+    counts: dict[str, int] = {}
+    for event in events:
+        adapter_raw = event.get("adapter") if isinstance(event, dict) else None
+        adapter = str(adapter_raw) if adapter_raw else "unknown"
+        counts[adapter] = counts.get(adapter, 0) + 1
+    window_label = _format_window_label(window_seconds)
+    return [f"{adapter} hit 429 x{count} in last {window_label}" for adapter, count in sorted(counts.items())]
+
+
+def _format_window_label(window_seconds: int) -> str:
+    """Render a window length as the shortest natural-language label."""
+    if window_seconds <= 0:
+        return "0s"
+    if window_seconds % 3600 == 0:
+        hours = window_seconds // 3600
+        return f"{hours}h"
+    if window_seconds % 60 == 0:
+        minutes = window_seconds // 60
+        return f"{minutes}min"
+    return f"{window_seconds}s"
+
+
+def record_rate_limit_hit(
+    meter: RateLimitMeter,
+    *,
+    error_code: str = "",
+    now: float | None = None,
+    window_seconds: int = RATE_LIMIT_WINDOW_SECONDS,
+) -> None:
+    """Update ``meter`` and fire ``rate_limit.hit`` if a callback is bound.
+
+    Centralised so every touchpoint emits the same payload and so the
+    meter registration stays in lockstep with the emit.
+    """
+    meter.record_hit(error_code=error_code, now=now, window_seconds=window_seconds)
+    register_rate_limit_meter(meter)
+    callback = _RATE_LIMIT_EMIT
+    if callback is None:
+        return
+    try:
+        callback(meter, error_code)
+    except Exception as exc:
+        # Observability must never break the spawn/spawn-probe path.
+        logger.warning("rate_limit.hit emit failed for %s: %s", meter.adapter_name, exc)
+
+
 @dataclass
 class SpawnResult:
     """Result of spawning an agent process."""
@@ -127,8 +381,50 @@ class CLIAdapter(ABC):
 
     external_endpoints: tuple[tuple[str, int], ...] = ()
 
+    #: Subclasses may override to declare the upstream provider label that
+    #: shows up in the ``bernstein status`` rate-limit panel. Defaults to
+    #: the adapter name when left blank.
+    rate_limit_provider: str = ""
+
+    #: Subclasses may override to declare an operator-visible RPM target.
+    #: ``0`` keeps the column unset.
+    rate_limit_target_rpm: int = 0
+
     def __init__(self) -> None:
         self._resource_limits: ResourceLimits | None = None
+        self._rate_limit_meter: RateLimitMeter | None = None
+
+    @property
+    def rate_limit_meter(self) -> RateLimitMeter:
+        """Return the per-adapter meter, instantiating it on first read.
+
+        The meter is created lazily so adapters that never see a 429 do
+        not pay for an unused dataclass instance. The first access also
+        registers the meter so ``bernstein status`` can find it even if
+        no hit has yet been recorded.
+        """
+        if self._rate_limit_meter is None:
+            try:
+                adapter_name = self.name()
+            except Exception:
+                adapter_name = type(self).__name__.lower()
+            provider = self.rate_limit_provider or adapter_name
+            self._rate_limit_meter = RateLimitMeter(
+                adapter_name=adapter_name,
+                provider=provider,
+                requests_per_minute_target=self.rate_limit_target_rpm,
+            )
+            register_rate_limit_meter(self._rate_limit_meter)
+        return self._rate_limit_meter
+
+    def record_rate_limit_hit(self, *, error_code: str = "") -> None:
+        """Convenience hook for adapter HTTP error handlers.
+
+        Concrete adapters call this from their 429 detection paths so
+        the meter is updated and the lifecycle event fires through one
+        well-known funnel.
+        """
+        record_rate_limit_hit(self.rate_limit_meter, error_code=error_code)
 
     def enforce_network_policy(self) -> None:
         """Refuse to spawn when the adapter's known endpoints are denied.
@@ -335,6 +631,12 @@ class CLIAdapter(ABC):
         tail_lines = self._read_last_lines(log_path, n=10)
         tail_text = tail_lines[-1] if tail_lines else "(no log output)"
         if self._is_rate_limit_error(tail_lines):
+            # Tap the meter once before raising so the panel and the
+            # ``rate_limit.hit`` event both see the spawn-time 429.
+            try:
+                self.record_rate_limit_hit(error_code=f"{provider_name}_fast_exit_429")
+            except Exception as exc:
+                logger.debug("rate-limit meter update failed for %s: %s", provider_name, exc)
             raise RateLimitError(f"{provider_name} rate-limited during startup: {tail_text}")
         raise SpawnError(f"{provider_name} exited early with code {exit_code}: {tail_text}")
 

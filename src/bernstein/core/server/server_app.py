@@ -905,6 +905,9 @@ def create_app(
     from bernstein.core.routes.telemetry_webhooks import (
         router as telemetry_webhooks_router,
     )
+    from bernstein.core.routes.tracker_webhooks import (
+        router as tracker_webhooks_router,
+    )
     from bernstein.core.routes.webhooks import router as webhooks_router
     from bernstein.core.routes.workspace import router as workspace_router
 
@@ -1261,6 +1264,7 @@ def create_app(
         workspace_router,
         webhooks_router,
         telemetry_webhooks_router,
+        tracker_webhooks_router,
         discord_router,
         slack_router,
         costs_router,

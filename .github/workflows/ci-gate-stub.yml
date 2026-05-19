@@ -1,0 +1,121 @@
+name: CI gate stub
+
+# Synthetic emitter for the `CI gate` required check on PRs whose diff
+# is entirely paths-ignored by `.github/workflows/ci.yml`.
+#
+# Problem
+# -------
+# Branch protection on `main` requires a single context named `CI gate`,
+# emitted by the `ci-gate` job in `ci.yml`. `ci.yml` is configured with
+# a `paths-ignore:` list (SDKs, packaging, docs, infra configs, etc.)
+# so PRs whose diff is fully contained in those paths never trigger
+# `ci.yml` at all — and therefore never publish a `CI gate` check.
+# Such PRs sit `BLOCKED` indefinitely (e.g. Renovate lockfile bumps
+# under `sdk/typescript/**` or `packages/vscode/**`).
+#
+# Fix
+# ---
+# This workflow's `paths:` filter MIRRORS `ci.yml`'s `paths-ignore:`
+# list. When a PR touches any of these files, this workflow fires and
+# emits a job named exactly `CI gate` that immediately succeeds. For
+# PRs whose diff is *fully* paths-ignored by ci.yml, this is the only
+# emitter and unblocks the merge. For PRs with a mixed diff (some
+# ignored, some not), both this stub AND the real `ci-gate` job in
+# ci.yml fire; branch protection treats two passing checks with the
+# same name as passing.
+#
+# IMPORTANT — keep in sync
+# ------------------------
+# The `paths:` list below MUST stay aligned with the `paths-ignore:`
+# list in `.github/workflows/ci.yml`. The canary
+# `tests/unit/test_required_check_canary_workflow_yaml.py` asserts
+# that exactly two files emit a `CI gate` check
+# (ci.yml + ci-gate-stub.yml) and no others. If you add or remove an
+# entry from `ci.yml`'s `paths-ignore:`, update the matching entry
+# here.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      # Documentation & prose
+      - "docs/**"
+      - "*.md"
+      - "!README.md"
+      - "LICENSE"
+      - "CONTRIBUTORS.md"
+      # Runtime state (never committed)
+      - ".sdd/**"
+      # Non-Python packages & SDKs
+      - "sdk/typescript/**"
+      - "packages/vscode/**"
+      - "packages/cursor-plugin/**"
+      - "packaging/**"
+      - "Formula/**"
+      # Deployment & infra configs
+      - "deploy/**"
+      - "docker/**"
+      - "docker-compose.yaml"
+      - "Dockerfile"
+      - "action.yml"
+      - "action/**"
+      # CI tool configs
+      - "codecov.yml"
+      - "sonar-project.properties"
+      # GitHub meta
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/FUNDING.yml"
+      - ".github/CODEOWNERS"
+      - ".github/pull_request_template.md"
+      - ".github/dependabot.yml"
+      - ".github/labeler.yml"
+      - ".github/release-drafter.yml"
+      - ".github/copilot-instructions.md"
+      - ".github/codeql/**"
+      # Non-code project files
+      - "marketing/**"
+      - "benchmarks/**"
+      - "examples/**"
+      - "plans/**"
+      - "agents/**"
+      - "commands/**"
+      - "rules/**"
+      - ".bernstein/**"
+      - ".plugin/**"
+      - "scripts/gen_tickets_*.py"
+      - "scripts/gen_roadmap_*.py"
+      - "scripts/generate_benchmark_docs.py"
+
+concurrency:
+  group: ci-gate-stub-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci-gate:
+    # The check-run name posted to the PR is taken from this `name:`.
+    # It MUST equal the required-context string `CI gate` so branch
+    # protection's single required check is satisfied. The canary
+    # (required-check-canary.yml + tests/unit/test_required_check_canary_workflow_yaml.py)
+    # asserts this exact string and allow-lists this file alongside
+    # ci.yml as the only two emitters.
+    name: CI gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - name: Emit synthetic CI gate success
+        run: |
+          echo "Diff is fully (or partially) contained in ci.yml's paths-ignore list."
+          echo "Emitting synthetic 'CI gate' success so branch protection on main"
+          echo "does not block PRs whose only changes are in SDK/packaging/docs/infra paths."
+          echo ""
+          echo "If you expected the real CI to run for this PR, verify that at least"
+          echo "one changed path is NOT covered by ci.yml's paths-ignore list."

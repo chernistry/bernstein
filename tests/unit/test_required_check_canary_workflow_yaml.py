@@ -14,8 +14,11 @@ Invariants exercised here:
    literal string ``Test (macos-latest, Python 3.13)`` (no ``${{ ... }}``
    template, which would resolve to a different string when the job is
    skipped via the gate condition).
-3. No other job across ``.github/workflows/*.yml`` emits a check-run
-   named ``CI gate``. The required context must be uniquely produced.
+3. Exactly two files under ``.github/workflows/*.yml`` emit a check-run
+   named ``CI gate``: ``ci.yml`` (real aggregator) and
+   ``ci-gate-stub.yml`` (synthetic emitter for PRs whose diff is fully
+   paths-ignored by ci.yml — see PR opening this allow-list). No other
+   workflow may emit this check name.
 4. The canary workflow file itself exists and is wired to the
    ``pull_request``/``schedule``/``workflow_dispatch`` triggers, with
    every action SHA-pinned and the verify step asserting the same set
@@ -37,12 +40,26 @@ except ModuleNotFoundError:  # pragma: no cover - dev env should have pyyaml
 
 CI = Path(".github/workflows/ci.yml")
 CANARY = Path(".github/workflows/required-check-canary.yml")
+STUB = Path(".github/workflows/ci-gate-stub.yml")
 WORKFLOWS_DIR = Path(".github/workflows")
 
 REQUIRED_CONTEXT = "CI gate"
 REQUIRED_JOB_KEY = "ci-gate"
 MACOS_JOB_KEY = "test-macos"
 MACOS_JOB_NAME = "Test (macos-latest, Python 3.13)"
+
+# Allow-listed `CI gate` emitters. Branch protection still depends on
+# a single required-context *name*, but two workflow files now legitimately
+# produce it:
+#   - ci.yml::ci-gate       — real rolled-up aggregator
+#   - ci-gate-stub.yml::ci-gate — synthetic success for PRs whose diff is
+#     entirely contained in ci.yml's paths-ignore list, otherwise such PRs
+#     are permanently BLOCKED (e.g. Renovate lockfile bumps under
+#     sdk/typescript/** or packages/vscode/**).
+ALLOWED_CI_GATE_EMITTERS = {
+    (CI, REQUIRED_JOB_KEY),
+    (STUB, REQUIRED_JOB_KEY),
+}
 
 
 @pytest.fixture(scope="module")
@@ -104,8 +121,23 @@ def test_test_macos_name_is_literal(ci_doc: dict[str, object]) -> None:
     )
 
 
-def test_ci_gate_check_run_name_is_unique_across_workflows() -> None:
-    collisions: list[str] = []
+def test_ci_gate_check_run_name_emitters_are_allow_listed() -> None:
+    """Only the allow-listed workflow files may emit a `CI gate` check.
+
+    Two emitters are intentional:
+      * ``ci.yml::ci-gate`` -- the real aggregator that rolls up every
+        required upstream job.
+      * ``ci-gate-stub.yml::ci-gate`` -- a synthetic success for PRs whose
+        diff is entirely contained in ci.yml's ``paths-ignore`` list (so
+        ci.yml never fires). Without this stub such PRs sit ``BLOCKED``
+        on ``main`` indefinitely (Renovate lockfile bumps for
+        ``sdk/typescript/**`` were the originally reported regression).
+
+    Any additional emitter is rejected so a future refactor cannot
+    weaken branch protection by silently introducing a third source
+    of the required context.
+    """
+    seen: list[str] = []
     for wf_path in sorted(WORKFLOWS_DIR.glob("*.yml")):
         wf = yaml.safe_load(wf_path.read_text(encoding="utf-8"))
         if not isinstance(wf, dict):
@@ -118,12 +150,23 @@ def test_ci_gate_check_run_name_is_unique_across_workflows() -> None:
                 continue
             if body.get("name") != REQUIRED_CONTEXT:
                 continue
-            if wf_path == CI and key == REQUIRED_JOB_KEY:
-                continue
-            collisions.append(f"{wf_path}:{key}")
-    assert not collisions, (
-        f"Multiple jobs emit a check named {REQUIRED_CONTEXT!r}: {collisions}. "
-        "Branch protection's single required context must be uniquely produced."
+            seen.append(f"{wf_path}:{key}")
+
+    seen_pairs = set()
+    for entry in seen:
+        wf_str, key = entry.rsplit(":", 1)
+        seen_pairs.add((Path(wf_str), key))
+
+    unexpected = seen_pairs - ALLOWED_CI_GATE_EMITTERS
+    missing = ALLOWED_CI_GATE_EMITTERS - seen_pairs
+    assert not unexpected, (
+        f"Unexpected emitters of {REQUIRED_CONTEXT!r}: {sorted(unexpected)}. "
+        "Branch protection's required context is allow-listed to "
+        f"{sorted(ALLOWED_CI_GATE_EMITTERS)} only."
+    )
+    assert not missing, (
+        f"Missing expected emitters of {REQUIRED_CONTEXT!r}: {sorted(missing)}. "
+        "Both ci.yml::ci-gate and ci-gate-stub.yml::ci-gate must remain."
     )
 
 
@@ -185,3 +228,65 @@ def test_canary_asserts_required_context_name(canary_text: str) -> None:
     assert f'REQUIRED_JOB_KEY: "{REQUIRED_JOB_KEY}"' in canary_text
     assert f'MACOS_JOB_KEY: "{MACOS_JOB_KEY}"' in canary_text
     assert f'MACOS_JOB_NAME: "{MACOS_JOB_NAME}"' in canary_text
+
+
+# ---------------------------------------------------------------------------
+# Invariants on the synthetic CI gate stub
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def stub_doc() -> dict[str, object]:
+    return yaml.safe_load(STUB.read_text(encoding="utf-8"))
+
+
+def test_stub_workflow_exists() -> None:
+    assert STUB.exists(), (
+        "ci-gate-stub.yml is missing. Without it, PRs whose diff is entirely "
+        "paths-ignored by ci.yml sit BLOCKED on `main` because the required "
+        "`CI gate` context is never published."
+    )
+
+
+def test_stub_emits_ci_gate_check(stub_doc: dict[str, object]) -> None:
+    jobs = stub_doc.get("jobs")
+    assert isinstance(jobs, dict)
+    job = jobs.get(REQUIRED_JOB_KEY)
+    assert isinstance(job, dict), (
+        f"ci-gate-stub.yml must define a `{REQUIRED_JOB_KEY}` job."
+    )
+    assert job.get("name") == REQUIRED_CONTEXT, (
+        f"ci-gate-stub.yml::{REQUIRED_JOB_KEY}.name must equal "
+        f"{REQUIRED_CONTEXT!r} so branch protection's required context "
+        "is satisfied on paths-ignored-only PRs."
+    )
+
+
+def test_stub_paths_mirror_ci_paths_ignore(
+    ci_doc: dict[str, object], stub_doc: dict[str, object]
+) -> None:
+    """The stub's ``paths:`` list MUST be identical to ci.yml's
+    ``pull_request.paths-ignore:`` list. Otherwise a PR could fail both
+    filters and emit no `CI gate` check at all (BLOCKED forever), or
+    succeed both and waste a runner.
+    """
+    ci_on = ci_doc.get(True, ci_doc.get("on"))
+    assert isinstance(ci_on, dict)
+    pr = ci_on.get("pull_request")
+    assert isinstance(pr, dict)
+    ci_paths_ignore = pr.get("paths-ignore")
+    assert isinstance(ci_paths_ignore, list)
+
+    stub_on = stub_doc.get(True, stub_doc.get("on"))
+    assert isinstance(stub_on, dict)
+    stub_pr = stub_on.get("pull_request")
+    assert isinstance(stub_pr, dict)
+    stub_paths = stub_pr.get("paths")
+    assert isinstance(stub_paths, list)
+
+    assert stub_paths == ci_paths_ignore, (
+        "ci-gate-stub.yml `paths:` must mirror ci.yml `pull_request.paths-ignore:` exactly.\n"
+        f"  ci.yml paths-ignore : {ci_paths_ignore}\n"
+        f"  stub paths          : {stub_paths}\n"
+        "When you add or remove an entry in one file, update the other in the same PR."
+    )

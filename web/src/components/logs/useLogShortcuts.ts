@@ -20,7 +20,7 @@ export interface LogShortcuts {
 }
 
 export interface UseLogShortcutsOptions extends LogShortcuts {
-  containerRef: RefObject<HTMLElement>;
+  containerRef: RefObject<HTMLElement | null>;
   enabled: boolean;
 }
 

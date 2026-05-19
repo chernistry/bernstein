@@ -1,0 +1,92 @@
+name: TypeScript typecheck
+
+# tsc --noEmit gate for every TypeScript package in the tree.
+#
+# Problem
+# -------
+# Before this workflow existed, no CI job ran ``tsc --noEmit`` on the
+# TypeScript packages outside ``packages/vscode`` (publish-extension.yml
+# already covers that one). PRs that broke types in ``sdk/typescript``,
+# ``web``, ``packages/vscode/webview-ui``, or
+# ``templates/cloudflare-mcp-server`` were merged green because:
+#
+#  1. ``ci.yml`` paths-ignores ``sdk/typescript/**`` and
+#     ``packages/vscode/**`` -- it never sees those diffs.
+#  2. ``ci-gate-stub.yml`` fires on those paths but emits a synthetic
+#     ``CI gate`` success without running any TS tooling.
+#
+# A regression coverage gap surfaced this when the Renovate ``typescript
+# v5 -> v6`` PR slipped through with 45 typecheck errors no required
+# check would catch.
+#
+# Fix
+# ---
+# This workflow runs ``tsc --noEmit`` (or ``tsc -b`` for composite
+# projects) on every TypeScript package on PRs that touch TS sources,
+# tsconfigs, or package manifests. It does NOT emit a check named
+# ``CI gate`` -- the canary in ``tests/unit/test_required_check_canary
+# _workflow_yaml.py`` allow-lists exactly two emitters of that string
+# (ci.yml + ci-gate-stub.yml) and rejects a third. Branch protection
+# should add this workflow's per-package job names as additional
+# required contexts.
+
+on:
+  pull_request:
+    paths:
+      - "sdk/typescript/**"
+      - "packages/vscode/**"
+      - "web/**"
+      - ".github/workflows/typecheck-ts.yml"
+  push:
+    branches: [main]
+    paths:
+      - "sdk/typescript/**"
+      - "packages/vscode/**"
+      - "web/**"
+      - ".github/workflows/typecheck-ts.yml"
+
+concurrency:
+  group: typecheck-ts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    name: typecheck (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: sdk/typescript
+            command: npx tsc --noEmit
+          - package: packages/vscode
+            command: npx tsc --noEmit
+          - package: web
+            command: npx tsc -b
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6 # zizmor: ignore[cache-poisoning]
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.package }}
+        run: npm ci
+
+      - name: Type check
+        working-directory: ${{ matrix.package }}
+        run: ${{ matrix.command }}

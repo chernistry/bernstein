@@ -147,7 +147,7 @@ services:
 
   # Jaeger all-in-one: receives traces from OTel Collector (profile: otel)
   jaeger:
-    image: jaegertracing/all-in-one:1.57
+    image: jaegertracing/all-in-one:1.60
     profiles: [otel]
     environment:
       COLLECTOR_OTLP_ENABLED: "true"

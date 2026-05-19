@@ -78,6 +78,9 @@ class HookEvent(Enum):
     # -- Cluster --
     CLUSTER_NODE_JOINED = "cluster.node_joined"
 
+    # -- Lineage --
+    LINEAGE_MERGE_ENTRY = "lineage.merge_entry"
+
     # -- Blocking pre-action events (HOOK-002) --
     PRE_MERGE = "pre_merge"
     PRE_SPAWN = "pre_spawn"
@@ -438,6 +441,43 @@ class ClusterPayload(HookPayload):
 
 
 @dataclass(frozen=True)
+class LineageMergePayload(HookPayload):
+    """Payload for ``lineage.merge_entry`` events.
+
+    Emitted whenever an operator resolves a fork through the
+    ``bernstein lineage resolve`` CLI. Downstream auditors consume the
+    payload to record which sibling won and under which policy.
+
+    Attributes:
+        artefact_path: Path of the artefact whose fork was resolved.
+        policy: Merge policy name (``"human"``, ``"first-writer"``,
+            ``"agent:<id>"``).
+        winner_hash: Entry hash of the child the policy selected.
+        candidate_hashes: All child hashes that competed for the fork.
+        parent_hash: Shared parent hash of the resolved fork.
+        reason: Free-form operator note attached at resolution time.
+    """
+
+    artefact_path: str = ""
+    policy: str = ""
+    winner_hash: str = ""
+    candidate_hashes: list[str] = field(default_factory=list[str])
+    parent_hash: str = ""
+    reason: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        d = super().to_dict()
+        d["artefact_path"] = self.artefact_path
+        d["policy"] = self.policy
+        d["winner_hash"] = self.winner_hash
+        d["candidate_hashes"] = list(self.candidate_hashes)
+        d["parent_hash"] = self.parent_hash
+        if self.reason:
+            d["reason"] = self.reason
+        return d
+
+
+@dataclass(frozen=True)
 class BlockingHookPayload(HookPayload):
     """Payload for blocking pre-action events (HOOK-002).
 
@@ -491,6 +531,7 @@ EVENT_PAYLOAD_MAP: dict[HookEvent, type[HookPayload]] = {
     HookEvent.SECRET_DETECTED: SecretDetectedPayload,
     HookEvent.CIRCUIT_BREAKER_TRIPPED: CircuitBreakerPayload,
     HookEvent.CLUSTER_NODE_JOINED: ClusterPayload,
+    HookEvent.LINEAGE_MERGE_ENTRY: LineageMergePayload,
     HookEvent.PRE_MERGE: BlockingHookPayload,
     HookEvent.PRE_SPAWN: BlockingHookPayload,
     HookEvent.PRE_APPROVE: BlockingHookPayload,

@@ -26,7 +26,7 @@
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"What is deterministic scheduling in AI orchestration?","acceptedAnswer":{"@type":"Answer","text":"Deterministic scheduling means Bernstein uses pure Python code, not LLM calls, to assign tasks to agents. This makes scheduling auditable, reproducible, and costs zero tokens."}},{"@type":"Question","name":"How does Bernstein isolate agents?","acceptedAnswer":{"@type":"Answer","text":"Each agent runs in its own git worktree — an isolated copy of the repository. The main branch stays clean until work is verified and merged."}},{"@type":"Question","name":"What is the janitor in Bernstein?","acceptedAnswer":{"@type":"Answer","text":"The janitor is Bernstein's verification system. After an agent completes a task, the janitor checks concrete signals: tests pass, files exist, lint is clean, types are correct."}}]}
 </script>
   <link rel="stylesheet" href="style.css" />
-  <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css" />
+  <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css" />
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="script.js"></script>
 </head>
@@ -522,6 +522,6 @@ stages:
   </div>
 </footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
 </body>
 </html>

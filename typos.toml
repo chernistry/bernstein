@@ -38,6 +38,9 @@ Optin = "Optin"      # capitalised form for class names / docs
 # Proper nouns and product names
 Hashi = "Hashi"      # HashiCorp
 certifi = "certifi"  # Python CA certificate package
+SIE = "SIE"          # appears as a fragment of "SIEM"/"SIEMs"
+SIEM = "SIEM"        # Security Information & Event Management (acronym)
+SIEMs = "SIEMs"      # plural of SIEM (compliance/audit docs)
 
 [default.extend-identifiers]
 # Truncated benchmark task names (generated data)

@@ -163,7 +163,7 @@ def _format_relative_age(timestamp: float) -> str:
 @click.option(
     "--workdir",
     type=click.Path(path_type=Path, file_okay=False),
-    default=Path("."),
+    default=Path(),
     show_default=True,
     help="Project root containing .sdd/runtime and .sdd/worktrees.",
 )
@@ -214,7 +214,7 @@ def cleanup_cmd(workdir: Path, yes: bool, force: bool) -> None:
 @click.option(
     "--workdir",
     type=click.Path(path_type=Path, file_okay=False),
-    default=Path("."),
+    default=Path(),
     show_default=True,
     help="Project root containing .sdd/archive/tasks.jsonl.",
 )

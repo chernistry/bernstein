@@ -52,7 +52,7 @@ def _run_swe_bench_command(
 
     from bernstein.benchmark.swe_bench import InstanceResult, SWEBenchRunner, compute_report, save_results
 
-    workdir = Path(".")
+    workdir = Path()
     subset_literal = cast("Literal['lite', 'full']", subset)
     runner = SWEBenchRunner(workdir=workdir, sample=sample, instance_id=instance_id, subset=subset_literal)
 
@@ -200,7 +200,7 @@ def _run_programbench_command(
         save_results,
     )
 
-    workdir = Path(".")
+    workdir = Path()
     harness = ProgramBenchHarness(
         workdir=workdir,
         sample=tasks_limit,
@@ -472,7 +472,7 @@ def benchmark_compare(tasks_dir: str, modes: tuple[str, ...]) -> None:
 
     console.print(f"[bold]Comparative benchmark[/bold]: {len(tasks)} task(s), modes: {', '.join(modes)}")
 
-    suite = ComparativeBenchmark(tasks=tasks, workdir=Path("."))
+    suite = ComparativeBenchmark(tasks=tasks, workdir=Path())
     report = suite.run_suite(modes=list(modes))  # type: ignore[arg-type]
 
     md = suite.generate_markdown_report(report)
@@ -710,7 +710,7 @@ def eval_run(tier: str | None, compare_prev: bool, save: bool) -> None:
 
     from bernstein.eval.harness import EvalHarness, TaskEvalResult
 
-    workdir = Path(".")
+    workdir = Path()
     state_dir = workdir / ".sdd"
     harness = EvalHarness(state_dir=state_dir, repo_root=workdir)
 
@@ -784,7 +784,7 @@ def eval_report() -> None:
     """Generate a markdown report from the most recent eval run."""
     from bernstein.eval.harness import EvalHarness
 
-    workdir = Path(".")
+    workdir = Path()
     state_dir = workdir / ".sdd"
     harness = EvalHarness(state_dir=state_dir, repo_root=workdir)
 
@@ -823,7 +823,7 @@ def eval_failures() -> None:
 
     from rich.table import Table
 
-    workdir = Path(".")
+    workdir = Path()
     runs_dir = workdir / ".sdd" / "eval" / "runs"
 
     if not runs_dir.is_dir():
@@ -963,7 +963,7 @@ def eval_synth_generate(
         console.print(f"[red]Invalid --params:[/red] {exc}")
         raise SystemExit(2) from exc
 
-    out_path = Path(out_dir) if out_dir else Path(".").joinpath(*DEFAULT_OUT_DIR)
+    out_path = Path(out_dir) if out_dir else Path().joinpath(*DEFAULT_OUT_DIR)
 
     try:
         cases, written = materialise_and_write(
@@ -1012,7 +1012,7 @@ def eval_generate_scenarios(from_traces: int, out_dir: str | None, seed: int) ->
         console.print("[yellow]Synthetic eval generator disabled via BERNSTEIN_SYNTHETIC_EVAL_OFF.[/yellow]")
         return
 
-    workdir = Path(".").resolve()
+    workdir = Path().resolve()
     out_path = Path(out_dir) if out_dir else workdir.joinpath(*DEFAULT_OUT_DIR)
 
     result = generate_from_traces(

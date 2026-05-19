@@ -228,7 +228,7 @@ def worktrees_group() -> None:
 @click.option(
     "--workdir",
     type=click.Path(path_type=Path, file_okay=False),
-    default=Path("."),
+    default=Path(),
     show_default=True,
     help="Project root containing .sdd/.",
 )
@@ -257,7 +257,7 @@ def list_cmd(workdir: Path, as_json: bool) -> None:
 @click.option(
     "--workdir",
     type=click.Path(path_type=Path, file_okay=False),
-    default=Path("."),
+    default=Path(),
     show_default=True,
     help="Project root containing .sdd/.",
 )

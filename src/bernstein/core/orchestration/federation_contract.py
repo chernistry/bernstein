@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable
 
 __all__ = [
     "Comment",
@@ -119,8 +119,3 @@ class TrackerAdapter(Protocol):
 
     def transition(self, ticket_id: str, state: str) -> None:  # pragma: no cover - protocol
         """Transition the ticket to ``state``; raise ``TrackerReadOnlyError`` if not writable."""
-
-
-def _silence_unused_imports() -> None:
-    """Reference type-checking-only imports so vulture stays happy."""
-    _ = Sequence

@@ -19,12 +19,14 @@ from rich.console import Console
 from rich.table import Table
 
 from bernstein.core.fleet import (
+    DirectoryRegistry,
     FleetAggregator,
     FleetConfig,
     bulk_cost_report,
     bulk_pause,
     bulk_resume,
     bulk_stop,
+    default_fleet_root,
     default_projects_config_path,
     load_projects_config,
     select_projects,
@@ -297,3 +299,104 @@ def ls_cmd(ctx: click.Context) -> None:
         table.add_row(project.name, str(project.path), project.task_server_url)
     _console.print(table)
     _print_config_errors(config)
+
+
+# ---------------------------------------------------------------------------
+# Directory registry subcommands
+# ---------------------------------------------------------------------------
+
+
+@fleet_group.command("list")
+@click.option(
+    "--root",
+    "root_path",
+    default=None,
+    help=f"Override fleet root (default: {default_fleet_root()}).",
+)
+@click.pass_context
+def list_cmd(ctx: click.Context, root_path: str | None) -> None:
+    """List instances discovered under the fleet root directory.
+
+    Scans ``$BERNSTEIN_FLEET_ROOT`` (or ``--root``) for subdirectories
+    containing a ``bernstein.yaml`` manifest. Each enabled instance is
+    rendered; disabled instances (with a ``.disabled`` flag file) are
+    summarised at the end.
+    """
+    root = Path(root_path).expanduser() if root_path else None
+    registry = DirectoryRegistry(root)
+    scan = registry.scan()
+    table = Table(title=f"Bernstein fleet - instances under {registry.root}")
+    table.add_column("Name")
+    table.add_column("Directory")
+    table.add_column("Project path")
+    table.add_column("Task server")
+    for spec in scan.instances:
+        table.add_row(
+            spec.name,
+            str(spec.directory),
+            str(spec.project_path),
+            spec.task_server_url,
+        )
+    _console.print(table)
+    if scan.disabled:
+        names = ", ".join(s.name for s in scan.disabled)
+        _console.print(f"[yellow]disabled (.disabled flag):[/yellow] {names}")
+    for err in scan.errors:
+        tag = "root" if err.index < 0 else f"instance[{err.index}]"
+        _console.print(f"[yellow]scan {tag}:[/yellow] {err.message}")
+
+
+@fleet_group.command("reload")
+@click.option(
+    "--root",
+    "root_path",
+    default=None,
+    help=f"Override fleet root (default: {default_fleet_root()}).",
+)
+@click.option(
+    "--json",
+    "as_json",
+    is_flag=True,
+    help="Emit a machine-readable JSON summary instead of a table.",
+)
+@click.pass_context
+def reload_cmd(ctx: click.Context, root_path: str | None, as_json: bool) -> None:
+    """Rescan the fleet root and report what would be picked up.
+
+    The supervisor consumes the same :class:`DirectoryRegistry` API on
+    its own reload signal; this subcommand simply exposes the result to
+    operators so they can verify a new instance directory before the
+    supervisor picks it up.
+    """
+    root = Path(root_path).expanduser() if root_path else None
+    registry = DirectoryRegistry(root)
+    scan = registry.scan()
+    if as_json:
+        payload = {
+            "root": str(registry.root),
+            "instances": [
+                {
+                    "name": s.name,
+                    "directory": str(s.directory),
+                    "project_path": str(s.project_path),
+                    "task_server_url": s.task_server_url,
+                }
+                for s in scan.instances
+            ],
+            "disabled": [s.name for s in scan.disabled],
+            "errors": [{"index": e.index, "message": e.message} for e in scan.errors],
+        }
+        _console.print_json(json.dumps(payload))
+        return
+    _console.print(
+        f"[green]Rescanned[/green] {registry.root}: "
+        f"{len(scan.instances)} active, {len(scan.disabled)} disabled, "
+        f"{len(scan.errors)} error(s)."
+    )
+    for spec in scan.instances:
+        _console.print(f"  - {spec.name} -> {spec.task_server_url}")
+    for spec in scan.disabled:
+        _console.print(f"  - {spec.name} (disabled)")
+    for err in scan.errors:
+        tag = "root" if err.index < 0 else f"instance[{err.index}]"
+        _console.print(f"[yellow]scan {tag}:[/yellow] {err.message}")

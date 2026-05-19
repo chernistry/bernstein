@@ -21,7 +21,7 @@ jobs:
   scan:
     name: SonarQube scan
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     if: ${{ vars.SONAR_HOST_URL != '' }}
     steps:
       - name: Harden runner
@@ -33,7 +33,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
-          fetch-depth: 0  # Sonar needs full history for blame
+          fetch-depth: 0  # Sonar needs full git history for accurate blame
           persist-credentials: false
 
       - name: Set up Python
@@ -41,13 +41,22 @@ jobs:
         with:
           python-version: '3.14'
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
+        with:
+          enable-cache: true
+
+      - name: Sync dev deps
+        timeout-minutes: 15
+        run: uv sync --group dev
+
       - name: Run coverage
+        timeout-minutes: 30
         run: |
-          pip install --quiet uv
-          uv sync --group dev
           uv run pytest --cov=src/bernstein --cov-report=xml --cov-branch tests/unit/ -q || true
 
       - name: SonarQube scan
+        timeout-minutes: 10
         uses: SonarSource/sonarqube-scan-action@7006c4492b2e0ee0f816d36501671557c97f5995  # v8.1.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

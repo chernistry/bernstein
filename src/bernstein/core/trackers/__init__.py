@@ -22,6 +22,7 @@ from bernstein.core.trackers.contract import (
     TrackerUnavailable,
     TransitionResult,
 )
+from bernstein.core.trackers.linear import LinearConfig, LinearTracker
 from bernstein.core.trackers.servicenow import ServiceNowConfig, ServiceNowTracker
 
 __all__ = [
@@ -31,6 +32,8 @@ __all__ = [
     "Comment",
     "CommentResult",
     "IdempotencyConflict",
+    "LinearConfig",
+    "LinearTracker",
     "OptimisticConcurrencyError",
     "RateLimited",
     "RoutingHint",
@@ -54,6 +57,8 @@ def get_tracker(name: str, **kwargs: object) -> AbstractTrackerAdapter:
     """
     if name == "servicenow":
         return ServiceNowTracker(**kwargs)  # type: ignore[arg-type]
+    if name == "linear":
+        return LinearTracker(**kwargs)  # type: ignore[arg-type]
     if name == "github_projects" or name == "github_projects_v2":
         from bernstein.core.trackers.builtin import (
             GitHubProjectsV2Adapter,

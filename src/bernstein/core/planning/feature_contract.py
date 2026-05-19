@@ -141,7 +141,7 @@ def _canonical_payload(features: Iterable[Feature]) -> bytes:
             "id": f.id,
             "category": f.category,
             "description": f.description,
-            "acceptance_steps": list(f.acceptance_steps),
+            "acceptance_steps": f.acceptance_steps.copy(),
             "acceptance_check": f.acceptance_check,
         }
         for f in features

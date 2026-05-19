@@ -170,7 +170,7 @@ class BacklogEntry:
             attempts=int(raw.get("attempts") or 0),
             max_attempts=int(raw["max_attempts"]) if raw.get("max_attempts") is not None else None,
             claimed_at=float(raw["claimed_at"]) if raw.get("claimed_at") is not None else None,
-            metadata=dict(metadata_values),
+            metadata=metadata_values.copy(),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -185,9 +185,9 @@ class BacklogEntry:
         if self.project is not None:
             data["project"] = self.project
         if self.capabilities:
-            data["capabilities"] = list(self.capabilities)
+            data["capabilities"] = self.capabilities.copy()
         if self.depends_on:
-            data["depends_on"] = list(self.depends_on)
+            data["depends_on"] = self.depends_on.copy()
         if self.attempts:
             data["attempts"] = self.attempts
         if self.max_attempts is not None:
@@ -195,7 +195,7 @@ class BacklogEntry:
         if self.claimed_at is not None:
             data["claimed_at"] = self.claimed_at
         if self.metadata:
-            data["metadata"] = dict(self.metadata)
+            data["metadata"] = self.metadata.copy()
         return data
 
     def claim(self, claimer_id: str, now: float | None = None) -> None:

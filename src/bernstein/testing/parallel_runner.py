@@ -164,7 +164,7 @@ def build_parallel_report(
         wall_time_s=round(wall_time, 3),
         cpu_time_s=round(cpu_time, 3),
         speedup=round(speedup, 2),
-        results=list(results),
+        results=results.copy(),
         failures=failures,
     )
 

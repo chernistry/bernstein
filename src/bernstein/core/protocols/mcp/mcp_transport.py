@@ -112,7 +112,7 @@ def _merge_env(extra: dict[str, str]) -> dict[str, str]:
     """Merge extra env vars with current process environment."""
     import os
 
-    env = dict(os.environ)
+    env = os.environ.copy()
     env.update(extra)
     return env
 
@@ -296,7 +296,7 @@ class StreamableHttpTransport:
         policy_from_env().check_url(config.url, source="mcp:streamable_http")
         self._url = config.url
         self._timeout = config.timeout
-        self._headers = dict(config.headers)
+        self._headers = config.headers.copy()
         self._connected = True
         logger.info("StreamableHttpTransport connected to %s", self._url)
 

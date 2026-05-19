@@ -232,7 +232,7 @@ class TickMetrics:
         Returns:
             List of snapshots in chronological order.
         """
-        return list(self._history)
+        return self._history.copy()
 
     def avg_tick_ms(self, window: int = 0) -> float:
         """Compute average tick duration.

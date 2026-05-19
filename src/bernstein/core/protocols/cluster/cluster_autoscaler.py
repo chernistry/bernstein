@@ -163,7 +163,7 @@ class ClusterAutoscaler:
     @property
     def history(self) -> list[ScaleDecision]:
         """Return the scaling decision history."""
-        return list(self._history)
+        return self._history.copy()
 
     def _in_cooldown(self) -> bool:
         """Check if we are still within a scaling cooldown period."""
@@ -363,7 +363,7 @@ class NoOpBackend(ScalingBackend):
     @property
     def actions(self) -> list[dict[str, Any]]:
         """Return the log of simulated scaling actions."""
-        return list(self._actions)
+        return self._actions.copy()
 
     def current_node_count(self) -> int:
         return self._count
@@ -556,7 +556,7 @@ class AutoscaleExecutor:
     @property
     def results(self) -> list[ScaleResult]:
         """Return past execution results."""
-        return list(self._results)
+        return self._results.copy()
 
     def tick(self, snapshot: QueueSnapshot) -> tuple[ScaleDecision, ScaleResult | None]:
         """Run one evaluation-and-execute cycle.

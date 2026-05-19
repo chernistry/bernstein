@@ -292,7 +292,7 @@ def _try_recover_safety_prompt(
         "action": recovery.action,
         "session_id": recovery.session_id,
     }
-    _emit_audit_event(audit_path, "watchdog.recover.detected", dict(base_payload))
+    _emit_audit_event(audit_path, "watchdog.recover.detected", base_payload.copy())
     delivered = False
     try:
         delivered = bool(respond(session.session_id, "y\n"))
@@ -304,7 +304,7 @@ def _try_recover_safety_prompt(
         )
         delivered = False
     outcome_event = "watchdog.recover.succeeded" if delivered else "watchdog.recover.failed"
-    _emit_audit_event(audit_path, outcome_event, dict(base_payload))
+    _emit_audit_event(audit_path, outcome_event, base_payload.copy())
     return recovery
 
 

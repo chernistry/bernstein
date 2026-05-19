@@ -237,7 +237,7 @@ def _percentile(samples: Sequence[float], q: float) -> float:
     if not samples:
         return 0.0
     if len(samples) == 1:
-        return float(samples[0])
+        return samples[0]
     idx = round(q * 100) - 1
     idx = max(0, min(98, idx))
     cuts = statistics.quantiles(list(samples), n=100, method="inclusive")

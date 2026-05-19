@@ -281,7 +281,7 @@ def render_startup_splash(
     renderer.render(
         SplashContext(
             version=version,
-            agents=[dict(a) for a in (agents or [])],
+            agents=[a.copy() for a in (agents or [])],
             seed_file=seed_file,
             goal_preview=goal_preview,
             budget=budget,

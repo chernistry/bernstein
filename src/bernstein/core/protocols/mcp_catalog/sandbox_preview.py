@@ -177,7 +177,7 @@ def run_install_preview(
     if argv and argv[0] in runner.executable_overrides:
         argv[0] = runner.executable_overrides[argv[0]]
 
-    env: dict[str, str] = dict(os.environ)
+    env: dict[str, str] = os.environ.copy()
     if runner.env is not None:
         env.update(runner.env)
     # Make the sandbox feel sandbox-y: never write to host caches.

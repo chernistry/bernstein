@@ -184,7 +184,7 @@ class MultiCellOrchestrator:
     @property
     def cells(self) -> dict[str, Cell]:
         """Currently tracked cells, keyed by cell_id."""
-        return dict(self._cells)
+        return self._cells.copy()
 
     @property
     def bulletin(self) -> BulletinBoard:

@@ -529,7 +529,7 @@ class CascadeRouter:
             chain_id=chain_id,
             task_id=task.id,
             role=task.role,
-            attempts=list(attempts),
+            attempts=attempts.copy(),
             final_model=final_model,
             succeeded=succeeded,
             total_cost_usd=round(total_cost, 6),

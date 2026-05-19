@@ -74,7 +74,7 @@ class PluginErrorRegistry:
     def get_errors(self) -> list[PluginError]:
         """Return a copy of all recorded errors."""
         with self._lock:
-            return list(self._errors)
+            return self._errors.copy()
 
     def clear(self) -> None:
         """Clear all recorded errors."""

@@ -692,7 +692,7 @@ def compute_total_spent(workdir: Path) -> float:
     # from the cached total incrementally.
     removed_paths = cached_paths - current_paths
     total = cached_total
-    new_file_data: dict[str, tuple[int, float]] = dict(cached_file_data)
+    new_file_data: dict[str, tuple[int, float]] = cached_file_data.copy()
     for removed in removed_paths:
         _, old_file_total = new_file_data.pop(removed)
         total -= old_file_total

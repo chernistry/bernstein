@@ -172,7 +172,7 @@ async def run_adapter_checks(
     adapters). Unknown adapters are still checked - the report will mark
     them missing rather than silently skipping.
     """
-    table = dict(binaries) if binaries is not None else dict(ADAPTER_BINARIES)
+    table = dict(binaries) if binaries is not None else ADAPTER_BINARIES.copy()
     names = (
         list(adapter_names)
         if adapter_names is not None

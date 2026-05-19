@@ -455,7 +455,7 @@ async def summarize_diff(
             for f in files
         ]
     )
-    return list(results)
+    return results.copy()
 
 
 def render_pr_body(summaries: list[IntentSummary], *, raw_diff: str | None = None) -> str:

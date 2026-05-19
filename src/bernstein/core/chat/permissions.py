@@ -52,7 +52,7 @@ class AllowList:
     def extend(self, more: Iterable[str]) -> None:
         """Merge additional user ids into the allow-list."""
         for uid in more:
-            cleaned = str(uid).strip()
+            cleaned = uid.strip()
             if cleaned:
                 self.users.add(cleaned)
 

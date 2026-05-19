@@ -355,7 +355,7 @@ class WebhookDispatcher:
     @property
     def targets(self) -> list[WebhookTarget]:
         """Return the configured webhook targets."""
-        return list(self._targets)
+        return self._targets.copy()
 
     def dispatch(self, payload: HookPayload) -> list[DeliveryResult]:
         """Send a payload to all matching webhook targets.

@@ -190,7 +190,7 @@ async def await_tool_call(
         session_id=session_id,
         agent_role=agent_role,
         tool_name=tool_name,
-        tool_args=dict(tool_args),
+        tool_args=tool_args.copy(),
         ttl_seconds=cfg.timeout_seconds,
     )
     q.push(approval)

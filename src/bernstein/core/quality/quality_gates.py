@@ -937,9 +937,9 @@ def _run_dlp_gate(
         block_license_violations=config.dlp_block_license_violations,
         block_regulated_data=config.dlp_block_regulated_data,
         block_proprietary_data=config.dlp_block_proprietary_data,
-        internal_url_patterns=list(config.dlp_internal_url_patterns),
-        ignore_paths=list(config.dlp_ignore_paths),
-        allowlist_prefixes=list(config.dlp_allowlist_prefixes),
+        internal_url_patterns=config.dlp_internal_url_patterns.copy(),
+        ignore_paths=config.dlp_ignore_paths.copy(),
+        allowlist_prefixes=config.dlp_allowlist_prefixes.copy(),
     )
     scanner = DLPScanner(dlp_config)
 

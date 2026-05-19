@@ -166,19 +166,19 @@ class CriterionProfile:
     def as_vector(self) -> tuple[float, float, float, float]:
         """Return weights as a tuple in :data:`AXES` order."""
         return (
-            float(self.correctness),
-            float(self.cost),
-            float(self.latency),
-            float(self.reversibility),
+            self.correctness,
+            self.cost,
+            self.latency,
+            self.reversibility,
         )
 
     def as_dict(self) -> dict[str, float]:
         """Return weights as a plain dict keyed by axis name."""
         return {
-            "correctness": float(self.correctness),
-            "cost": float(self.cost),
-            "latency": float(self.latency),
-            "reversibility": float(self.reversibility),
+            "correctness": self.correctness,
+            "cost": self.cost,
+            "latency": self.latency,
+            "reversibility": self.reversibility,
         }
 
     # -- dominant-axis queries ------------------------------------------
@@ -301,7 +301,7 @@ def _extract_weights(raw: object, *, check_finite: bool = False) -> dict[str, fl
     if missing:
         raise CriterionProfileError(f"missing required axis keys: {', '.join(sorted(missing))}")
 
-    extra = [str(key) for key in raw_mapping if key not in AXES]
+    extra = [key for key in raw_mapping if key not in AXES]
     if extra:
         raise CriterionProfileError(f"unknown axis keys: {', '.join(sorted(extra))}")
 
@@ -347,7 +347,7 @@ def from_dict(
         cost=coerced["cost"],
         latency=coerced["latency"],
         reversibility=coerced["reversibility"],
-        name=str(name),
+        name=name,
     )
     profile.validate()
     return profile
@@ -379,7 +379,7 @@ def normalize(
         cost=rescaled["cost"],
         latency=rescaled["latency"],
         reversibility=rescaled["reversibility"],
-        name=str(name),
+        name=name,
     )
     profile.validate()
     return profile

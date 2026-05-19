@@ -38,7 +38,7 @@ def clamp_score(value: float) -> float:
         return 0.0
     if value > 1.0:
         return 1.0
-    return float(value)
+    return value
 
 
 def _empty_issues() -> list[CritiqueIssue]:
@@ -108,7 +108,7 @@ class Critique:
         return {
             "score": clamp_score(self.score),
             "issues": [i.to_dict() for i in self.issues],
-            "veto": bool(self.veto),
+            "veto": self.veto,
             "rationale": self.rationale,
         }
 

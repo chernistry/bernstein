@@ -160,7 +160,7 @@ class TickTelemetryTracker:
     @property
     def completed_spans(self) -> list[SpanRecord]:
         """Return all completed spans from the most recent tick."""
-        return list(self._spans)
+        return self._spans.copy()
 
     def slowest_phases(self, top_n: int = 5) -> list[SpanRecord]:
         """Return the slowest phase spans from the most recent tick.
@@ -201,9 +201,9 @@ class _MutableSpan:
             start_ns=self.start_ns,
             end_ns=self.end_ns,
             duration_ms=self.duration_ms,
-            attributes=dict(self.attributes),
+            attributes=self.attributes.copy(),
             error=self.error,
-            children=list(self.children),
+            children=self.children.copy(),
         )
 
 

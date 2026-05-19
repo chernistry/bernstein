@@ -243,7 +243,7 @@ class DeadLetterQueue:
             Filtered list of DLQ entries (newest first).
         """
         self._ensure_loaded()
-        result = list(self._entries)
+        result = self._entries.copy()
         if pending_only:
             result = [e for e in result if not e.replayed]
         if role is not None:

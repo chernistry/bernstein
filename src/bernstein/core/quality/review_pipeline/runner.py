@@ -348,7 +348,7 @@ async def _run_stage(
     agent_verdicts = await asyncio.gather(*[_gated(a) for a in stage.agents])
     elapsed = time.monotonic() - started
 
-    sv = aggregate_stage(stage, list(agent_verdicts), pipeline)
+    sv = aggregate_stage(stage, agent_verdicts.copy(), pipeline)
 
     # Forward stage context via bulletin board — same mechanism agents use
     # for cross-agent findings.  No new IPC.

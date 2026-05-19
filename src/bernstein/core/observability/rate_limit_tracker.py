@@ -197,7 +197,7 @@ class RateLimitTracker:
 
     def get_all_active_counts(self) -> dict[str, int]:
         """Return a snapshot of active-agent counts keyed by provider name."""
-        return dict(self._active_counts)
+        return self._active_counts.copy()
 
     # ------------------------------------------------------------------
     # Throttle management

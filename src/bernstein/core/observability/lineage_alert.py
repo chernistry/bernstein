@@ -139,11 +139,11 @@ def _event_to_dict(event: LineageTamperEvent) -> dict[str, Any]:
     return {
         "type": "lineage_tamper_detected",
         "run_id": event.run_id,
-        "errors": list(event.errors),
+        "errors": event.errors.copy(),
         "record_count": event.record_count,
         "detected_at": event.detected_at,
         "source": event.source,
-        "extra": dict(event.extra),
+        "extra": event.extra.copy(),
     }
 
 

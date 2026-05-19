@@ -451,7 +451,7 @@ def analyse(
         A :class:`DeadCodeReport` with all detected issues.
     """
     report = DeadCodeReport()
-    report.checked_files = list(changed_files)
+    report.checked_files = changed_files.copy()
     report.searched_files = _count_py_files(workdir)
 
     # Per-file AST checks

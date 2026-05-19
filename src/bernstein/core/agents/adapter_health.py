@@ -259,7 +259,7 @@ class AdapterHealthMonitor:
         """
         for stats in self._stats.values():
             self._prune_window(stats)
-        return dict(self._stats)
+        return self._stats.copy()
 
     def reset(self, adapter_name: str) -> None:
         """Reset all stats for an adapter.

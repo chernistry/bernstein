@@ -983,7 +983,7 @@ def _parse_openai_output(job: BatchJobRecord, raw_output: str) -> BatchPollResul
         usage = body.get("usage", {})
         return BatchPollResult(
             done=True,
-            output_text=str(content),
+            output_text=content,
             input_tokens=int(usage.get("prompt_tokens", 0) or 0),
             output_tokens=int(usage.get("completion_tokens", 0) or 0),
         )

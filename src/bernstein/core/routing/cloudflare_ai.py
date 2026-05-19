@@ -190,4 +190,4 @@ class WorkersAIProvider:
         Returns:
             Dict mapping model name to metadata (free, context, speed).
         """
-        return dict(WORKERS_AI_MODELS)
+        return WORKERS_AI_MODELS.copy()

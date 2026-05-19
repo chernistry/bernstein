@@ -144,7 +144,7 @@ def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     if not isinstance(parsed, dict):
         return {}, body
 
-    return dict(cast("dict[str, Any]", parsed)), body
+    return cast("dict[str, Any]", parsed).copy(), body
 
 
 def normalise_skill(data: dict[str, Any], defaults: dict[str, Any] | None = None) -> dict[str, Any]:

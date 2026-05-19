@@ -48,7 +48,7 @@ class ModeProfile:
     def filter_tools(self, available: list[str]) -> list[str]:
         """Return *available* tools intersected with this profile's allowlist."""
         if not self.tool_subset:
-            return list(available)
+            return available.copy()
         allowed = set(self.tool_subset)
         return [t for t in available if t in allowed]
 

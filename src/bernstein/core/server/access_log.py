@@ -198,7 +198,7 @@ class StructuredAccessLogMiddleware(BaseHTTPMiddleware):
             actor=extract_request_actor(request),
             method=request.method,
             path=request.url.path,
-            status=int(response.status_code),
+            status=response.status_code,
             duration_ms=duration_ms,
             remote_ip=extract_remote_ip(request),
             user_agent=request.headers.get("user-agent", ""),

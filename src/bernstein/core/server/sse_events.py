@@ -63,7 +63,7 @@ class SSEEvent:
         if self.id is not None:
             lines.append(f"id: {self.id}")
         lines.append(f"event: {self.event.value}")
-        payload = dict(self.data)
+        payload = self.data.copy()
         payload["timestamp"] = self.timestamp
         lines.append(f"data: {json.dumps(payload)}")
         lines.append("")  # trailing blank line

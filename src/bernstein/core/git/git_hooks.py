@@ -84,7 +84,7 @@ class GitHookInstaller:
     @property
     def denied_paths(self) -> list[str]:
         """The denied path patterns this hook enforces."""
-        return list(self._denied_paths)
+        return self._denied_paths.copy()
 
     def install(self, worktree_path: str | Path) -> Path:
         """Install the pre-commit hook in a worktree.

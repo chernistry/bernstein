@@ -701,7 +701,7 @@ def _parse_catalog_entry(raw: dict[str, Any]) -> CatalogEntry:
     if not all(isinstance(v, str) for v in field_map_checked.values()):
         raise ValueError(f"catalog '{name}': field_map must be a string-to-string mapping")
 
-    field_map_typed: dict[str, str] = {str(k): str(v) for k, v in field_map_checked.items()}
+    field_map_typed: dict[str, str] = {k: str(v) for k, v in field_map_checked.items()}
 
     return CatalogEntry(
         name=name,

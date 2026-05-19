@@ -96,7 +96,7 @@ def record_node_registered(
             "node_id": node_id,
             "role": role,
             "registered_at": registered_at,
-            "initial_capacity": int(initial_capacity),
+            "initial_capacity": initial_capacity,
         },
     )
 
@@ -158,7 +158,7 @@ def record_task_stolen(
             "task_id": task_id,
             "from_node": from_node,
             "to_node": to_node,
-            "queue_depth_delta": int(queue_depth_delta),
+            "queue_depth_delta": queue_depth_delta,
         },
     )
 
@@ -178,9 +178,9 @@ def record_scale_decision(
         resource_id=backend,
         details={
             "action": action,
-            "target_count": int(target_count),
+            "target_count": target_count,
             "backend": backend,
-            "dry_run": bool(dry_run),
+            "dry_run": dry_run,
         },
     )
 

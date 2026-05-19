@@ -113,7 +113,7 @@ def load_user_overrides(path: Path | None = None) -> dict[str, str]:
             logger.warning("Keybindings file %s is not a JSON object", path)
             return {}
         typed: dict[str, Any] = cast("dict[str, Any]", data)
-        return {str(k): str(v) for k, v in typed.items()}
+        return {k: str(v) for k, v in typed.items()}
     except (json.JSONDecodeError, OSError) as exc:
         logger.warning("Failed to load keybindings from %s: %s", path, exc)
         return {}

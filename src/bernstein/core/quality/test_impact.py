@@ -207,7 +207,7 @@ def _build_module_to_tests_map(test_deps: dict[str, object]) -> dict[str, set[st
             continue
         entry_dict = cast(_CAST_DICT_STR_OBJ, entry)
         for module in _normalize_string_list(entry_dict.get("imports", [])):
-            module_to_tests.setdefault(module, set()).add(str(test_rel))
+            module_to_tests.setdefault(module, set()).add(test_rel)
     return module_to_tests
 
 
@@ -216,8 +216,8 @@ def _expand_transitive_modules(
     source_imports: dict[str, object],
 ) -> set[str]:
     """Expand changed modules transitively via reverse import edges."""
-    all_affected = set(changed_modules)
-    worklist = set(changed_modules)
+    all_affected = changed_modules.copy()
+    worklist = changed_modules.copy()
     while worklist:
         current = worklist.pop()
         for module, info in source_imports.items():
@@ -226,8 +226,8 @@ def _expand_transitive_modules(
             info_dict = cast(_CAST_DICT_STR_OBJ, info)
             imports = _normalize_string_list(info_dict.get("imports", []))
             if current in imports and module not in all_affected:
-                all_affected.add(str(module))
-                worklist.add(str(module))
+                all_affected.add(module)
+                worklist.add(module)
     return all_affected
 
 
@@ -569,8 +569,8 @@ class TestImpactAnalyzer:
 
     def _expand_impacted_modules(self, start_modules: set[str]) -> set[str]:
         """Expand changed modules to transitive reverse dependencies."""
-        affected = set(start_modules)
-        worklist = set(start_modules)
+        affected = start_modules.copy()
+        worklist = start_modules.copy()
         while worklist:
             current = worklist.pop()
             for module, imports in self._source_imports.items():

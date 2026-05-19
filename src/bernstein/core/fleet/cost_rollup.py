@@ -53,10 +53,10 @@ def render_sparkline(series: list[float]) -> CostSparkline:
         return CostSparkline()
     peak = max(series)
     if peak <= 0:
-        return CostSparkline(series=list(series), glyphs=" " * len(series), peak=0.0)
+        return CostSparkline(series=series.copy(), glyphs=" " * len(series), peak=0.0)
     last_idx = len(_SPARKLINE_GLYPHS) - 1
     glyphs = "".join(_SPARKLINE_GLYPHS[min(last_idx, max(0, round((v / peak) * last_idx)))] for v in series)
-    return CostSparkline(series=list(series), glyphs=glyphs, peak=peak)
+    return CostSparkline(series=series.copy(), glyphs=glyphs, peak=peak)
 
 
 @dataclass(slots=True)

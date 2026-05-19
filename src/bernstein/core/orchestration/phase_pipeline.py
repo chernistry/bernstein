@@ -179,11 +179,11 @@ class PhaseArtifact:
         Extras are merged in last so a malicious caller cannot shadow the
         four core fields by stuffing same-named keys into ``extras``.
         """
-        out: dict[str, Any] = dict(self.extras)
+        out: dict[str, Any] = self.extras.copy()
         out["summary"] = self.summary
-        out["decisions"] = list(self.decisions)
-        out["constraints"] = list(self.constraints)
-        out["open_questions"] = list(self.open_questions)
+        out["decisions"] = self.decisions.copy()
+        out["constraints"] = self.constraints.copy()
+        out["open_questions"] = self.open_questions.copy()
         return out
 
     def to_json(self) -> str:
@@ -550,7 +550,7 @@ class PhasedRunner:
                 summary="<initial seed; previous attempt failed mechanical gate>",
                 decisions=[],
                 constraints=[],
-                open_questions=list(violation_questions),
+                open_questions=violation_questions.copy(),
             )
         return PhaseArtifact(
             summary=prior.summary,

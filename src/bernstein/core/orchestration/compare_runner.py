@@ -426,7 +426,7 @@ def _run_to_dict(r: AdapterRun) -> dict[str, Any]:
         "worktree": str(r.worktree),
         "exit_code": r.exit_code,
         "duration_ms": r.duration_ms,
-        "changed_files": dict(r.changed_files),
+        "changed_files": r.changed_files.copy(),
         "stdout_tail": r.stdout_tail,
         "error": r.error,
         "compare_run_id": r.compare_run_id,

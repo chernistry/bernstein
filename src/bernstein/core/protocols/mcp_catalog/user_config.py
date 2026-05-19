@@ -73,7 +73,7 @@ class InstalledEntry:
         if self.args:
             out["args"] = list(self.args)
         if self.env:
-            out["env"] = dict(self.env)
+            out["env"] = self.env.copy()
         if self.signature is not None:
             out["signature"] = self.signature
         return out

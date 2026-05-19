@@ -496,7 +496,7 @@ class ReproducibleBenchmark:
             Ordered list of tasks for this run.
         """
         rng = random.Random(self._config.seed)
-        tasks = list(self._all_tasks)
+        tasks = self._all_tasks.copy()
         rng.shuffle(tasks)
 
         if self._config.task_ids:

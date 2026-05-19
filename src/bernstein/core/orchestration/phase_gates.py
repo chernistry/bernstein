@@ -304,7 +304,7 @@ def _has_cycle(edges: list[tuple[str, str]]) -> tuple[bool, list[str]]:
         if color[start] != WHITE:
             continue
         # Stack of (node, iterator over neighbours)
-        stack: list[tuple[str, list[str]]] = [(start, list(adj[start]))]
+        stack: list[tuple[str, list[str]]] = [(start, adj[start].copy())]
         color[start] = GRAY
         path: list[str] = [start]
         while stack:
@@ -462,7 +462,7 @@ def parse_rule_filter(items: list[str] | None) -> tuple[list[str], list[str]]:
     if not items:
         return allowed, denied
     for raw in items:
-        token = str(raw).strip()
+        token = raw.strip()
         if not token:
             continue
         if token.startswith(_DENY_PREFIX):

@@ -155,7 +155,7 @@ class AgentInfo:
             role=str(data.get("role", "")),
             model=str(data.get("model", "")),
             status=str(data.get("status", "idle")),
-            task_ids=[str(t) for t in cast("list[str]", data.get("task_ids") or [])],
+            task_ids=[t for t in cast("list[str]", data.get("task_ids") or [])],
             runtime_s=float(data.get("runtime_s", 0.0)),
             abort_reason=str(data.get("abort_reason", "")),
             abort_detail=str(data.get("abort_detail", "")),

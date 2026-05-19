@@ -410,7 +410,7 @@ class LineageWriter:
 def _replace_regulatory_class(record: LineageRecord, value: str) -> LineageRecord:
     return LineageRecord(
         output_artifact=record.output_artifact,
-        inputs=list(record.inputs),
+        inputs=record.inputs.copy(),
         producer=record.producer,
         prompt_sha=record.prompt_sha,
         model=record.model,
@@ -426,7 +426,7 @@ def _replace_regulatory_class(record: LineageRecord, value: str) -> LineageRecor
 def _replace_customer_signature(record: LineageRecord, value: str) -> LineageRecord:
     return LineageRecord(
         output_artifact=record.output_artifact,
-        inputs=list(record.inputs),
+        inputs=record.inputs.copy(),
         producer=record.producer,
         prompt_sha=record.prompt_sha,
         model=record.model,

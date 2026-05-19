@@ -226,7 +226,7 @@ class CacheTokenTracker:
     @property
     def records(self) -> list[CacheUsageRecord]:
         """All recorded cache usage entries (read-only copy)."""
-        return list(self._records)
+        return self._records.copy()
 
 
 def _compute_model_savings(

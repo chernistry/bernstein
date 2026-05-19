@@ -63,7 +63,7 @@ class RecommendationEngine:
         """Return all built recommendations in deterministic order."""
         if not self._built:
             self.build()
-        return list(self._recommendations)
+        return self._recommendations.copy()
 
     def render_for_prompt(self, role: str, max_chars: int = 2000) -> str:
         """Render recommendations as a prompt section."""

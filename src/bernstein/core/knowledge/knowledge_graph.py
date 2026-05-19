@@ -433,7 +433,7 @@ def query_impact(workdir: Path, file_query: str, max_age_minutes: int = 30) -> I
         reverse_file_edges = _build_reverse_file_edges(connection)
 
         impacted: set[str] = set()
-        queue = list(matched_files)
+        queue = matched_files.copy()
         visited = set(matched_files)
         while queue:
             current = queue.pop(0)

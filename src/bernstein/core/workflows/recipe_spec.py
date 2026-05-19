@@ -339,7 +339,7 @@ def _substitute_node(node: dict[str, Any], values: dict[str, str | int | float |
     recipe rewire its own DAG at launch, which the spec deliberately
     forbids.
     """
-    out: dict[str, Any] = dict(node)
+    out: dict[str, Any] = node.copy()
     for key in ("prompt", "command"):
         raw = out.get(key)
         if isinstance(raw, str):

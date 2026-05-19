@@ -138,7 +138,7 @@ def _launch_server(state: _SupervisorState) -> int:
 
     pid_path = workdir / ".sdd" / "runtime" / "server.pid"
 
-    env = dict(os.environ)
+    env = os.environ.copy()
     if state.cluster_enabled:
         env["BERNSTEIN_CLUSTER_ENABLED"] = "1"
     env["BERNSTEIN_BIND_HOST"] = bind_host

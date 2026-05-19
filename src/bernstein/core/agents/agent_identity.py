@@ -187,8 +187,8 @@ class AgentCredential:
             "algorithm": self.algorithm,
             "jti": self.jti,
             "tenant_id": self.tenant_id,
-            "task_ids": list(self.task_ids),
-            "allowed_files": list(self.allowed_files),
+            "task_ids": self.task_ids.copy(),
+            "allowed_files": self.allowed_files.copy(),
         }
 
     @classmethod
@@ -278,8 +278,8 @@ class AgentIdentity:
             "credential": self.credential.to_dict() if self.credential else None,
             "parent_identity_id": self.parent_identity_id,
             "metadata": self.metadata,
-            "task_ids": list(self.task_ids),
-            "allowed_files": list(self.allowed_files),
+            "task_ids": self.task_ids.copy(),
+            "allowed_files": self.allowed_files.copy(),
         }
 
     @classmethod

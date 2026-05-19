@@ -34,7 +34,7 @@ def normalize_webhook(
         metadata={
             "request_path": path,
             "request_method": method,
-            "request_headers": dict(headers),
+            "request_headers": headers.copy(),
             "environment": payload.get("environment", ""),
         },
     )

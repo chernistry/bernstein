@@ -124,7 +124,7 @@ class TunnelRegistry:
         Returns:
             Dictionary of provider name to driver instance.
         """
-        return dict(self._providers)
+        return self._providers.copy()
 
     # ------------------------------------------------------------------
     # Query

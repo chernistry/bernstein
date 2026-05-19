@@ -70,7 +70,7 @@ class CommandPalette:
             self.query = query
         q = self.query.strip()
         if not q:
-            return list(self.commands)
+            return self.commands.copy()
 
         scored: list[tuple[int, PaletteCommand]] = []
         for command in self.commands:
@@ -229,7 +229,7 @@ class CommandPaletteScreen(ModalScreen[str | None]):
 
     def __init__(self, palette: CommandPalette | None = None, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self._palette = palette or CommandPalette(commands=list(DEFAULT_PALETTE_COMMANDS))
+        self._palette = palette or CommandPalette(commands=DEFAULT_PALETTE_COMMANDS.copy())
 
     def compose(self) -> ComposeResult:
         with Vertical(id="command-palette-shell"):

@@ -170,7 +170,7 @@ def get_skill_set(adapter: str, model: str, agent_id: str) -> AgentSkillSet:
         agent_id=agent_id,
         adapter=adapter,
         model=model,
-        badges=list(badges),
+        badges=badges.copy(),
     )
 
 

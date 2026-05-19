@@ -337,7 +337,7 @@ class RunloopSandboxBackend:
         env = require_env("runloop", ("RUNLOOP_API_KEY",))
         api_url = os.environ.get("RUNLOOP_API_URL") or _DEFAULT_API_URL
         spec = HttpClientSpec(
-            base_url=str(api_url).rstrip("/"),
+            base_url=api_url.rstrip("/"),
             headers={
                 "Authorization": f"Bearer {env['RUNLOOP_API_KEY']}",
                 "Accept": "application/json",

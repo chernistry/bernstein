@@ -351,7 +351,7 @@ class Dispatcher:
             self._record_terminal(record)
             return record
 
-        cost_usd = float(result.cost_usd)
+        cost_usd = result.cost_usd
         commit_sha = result.commit_sha
 
         # ---- cost-cap post-check ----------------------------------------

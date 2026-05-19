@@ -319,7 +319,7 @@ def judge_candidates(
     spending a judge call.
     """
     if judge is None or not _defaults.BEST_OF_N.judge_enabled:
-        return list(candidates)
+        return candidates.copy()
     if not candidates:
         return []
     judgeable = [c for c in candidates if c.diff]
@@ -442,7 +442,7 @@ class BestOfNRunner:
         return BestOfNOutcome(
             winner=winner,
             losers=losers,
-            candidates=list(scored),
+            candidates=scored.copy(),
             n_requested=clamped,
             n_actual=len(scored),
         )

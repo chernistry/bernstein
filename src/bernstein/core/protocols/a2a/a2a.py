@@ -146,7 +146,7 @@ class AgentCard:
         return {
             "name": self.name,
             "description": self.description,
-            "capabilities": list(self.capabilities),
+            "capabilities": self.capabilities.copy(),
             "protocol_version": self.protocol_version,
             "endpoint": self.endpoint,
             "provider": self.provider,

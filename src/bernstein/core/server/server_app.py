@@ -310,7 +310,7 @@ def task_to_response(task: Task) -> TaskResponse:
         metadata=task.metadata,
         created_at=task.created_at,
         claimed_at=task.claimed_at,
-        progress_log=list(cast("list[ProgressEntry]", task.progress_log)),  # type: ignore[reportUnknownMemberType]
+        progress_log=cast("list[ProgressEntry]", task.progress_log).copy(),  # type: ignore[reportUnknownMemberType]
         version=task.version,
         parent_session_id=task.parent_session_id,
         # expose typed retry bookkeeping so clients read the
@@ -510,7 +510,7 @@ class SSEBus:
                 per_ip_used[owner] += queue.qsize()
         # Snapshot the subscriber list so mutations during publish (tests
         # exercise this) do not raise.
-        for queue in list(self._subscribers):
+        for queue in self._subscribers.copy():
             owner = self._subscriber_ip.get(id(queue))
             if owner is not None and per_ip_used[owner] >= self._max_buffer_per_ip:
                 dropped += 1

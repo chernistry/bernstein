@@ -202,7 +202,7 @@ class LoadBasedAgentScaler:
         Returns:
             List of LoadAdjustmentResult instances.
         """
-        return list(self._history)
+        return self._history.copy()
 
     def get_summary(self) -> dict[str, Any]:
         """Get scaler summary.

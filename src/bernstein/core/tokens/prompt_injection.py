@@ -181,7 +181,7 @@ class PromptInjectionScanner:
         extra_patterns: list[tuple[str, str, re.Pattern[str]]] | None = None,
         score_threshold: int = 30,
     ) -> None:
-        self._patterns = list(_INJECTION_PATTERNS)
+        self._patterns = _INJECTION_PATTERNS.copy()
         if extra_patterns:
             self._patterns.extend(extra_patterns)
         self._score_threshold = score_threshold

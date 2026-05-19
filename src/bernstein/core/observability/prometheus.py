@@ -762,7 +762,7 @@ def _sync_cost_by_model(status_data: dict[str, Any]) -> None:
         return
     raw_map = cast("dict[str, Any]", per_model_raw)
     for model, raw_cost in raw_map.items():
-        model_name = str(model).strip() or "unknown"
+        model_name = model.strip() or "unknown"
         current_model_cost = float(raw_cost or 0.0)
         _inc_counter_delta(
             _prev_cost_by_model,

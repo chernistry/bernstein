@@ -485,7 +485,7 @@ def generate_run_changelog(
         generated_at=time.time(),
         since_ref=since_ref,
         tasks_total=len(tasks),
-        changes=dict(changes_by_component),
+        changes=changes_by_component.copy(),
         breaking_changes=breaking_changes,
     )
 

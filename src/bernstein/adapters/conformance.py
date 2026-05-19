@@ -408,7 +408,7 @@ class ConformanceHarness:
         """
         result = TranscriptResult(transcript_name=transcript.name, adapter_class=transcript.adapter_class)
 
-        merged_kwargs = dict(transcript.ctor_kwargs)
+        merged_kwargs = transcript.ctor_kwargs.copy()
         if ctor_kwargs:
             merged_kwargs.update(ctor_kwargs)
 

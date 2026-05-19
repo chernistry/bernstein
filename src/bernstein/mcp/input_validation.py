@@ -401,7 +401,7 @@ def validate_tool_call(
         )
         return _maybe_demote(err, payload, is_permissive)
 
-    typed_payload: dict[str, Any] = cast("dict[str, Any]", dict(cast("dict[Any, Any]", payload)))
+    typed_payload: dict[str, Any] = cast("dict[str, Any]", cast("dict[Any, Any]", payload).copy())
 
     deny_violations = _apply_deny_rules(tool_name, typed_payload, reg)
     if deny_violations:
@@ -458,7 +458,7 @@ def _maybe_demote(
         err.errors,
     )
     if isinstance(payload, dict):
-        dict_payload: dict[str, Any] = cast("dict[str, Any]", dict(cast("dict[Any, Any]", payload)))
+        dict_payload: dict[str, Any] = cast("dict[str, Any]", cast("dict[Any, Any]", payload).copy())
         return ValidatedPayload(tool_name=err.tool_name, payload=dict_payload)
     return ValidatedPayload(tool_name=err.tool_name, payload={})
 
@@ -475,6 +475,6 @@ def to_jsonrpc_error(err: ValidationError) -> dict[str, Any]:
         "message": err.message,
         "data": {
             "tool": err.tool_name,
-            "errors": list(err.errors),
+            "errors": err.errors.copy(),
         },
     }

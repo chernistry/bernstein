@@ -470,7 +470,7 @@ class LineageMergePayload(HookPayload):
         d["artefact_path"] = self.artefact_path
         d["policy"] = self.policy
         d["winner_hash"] = self.winner_hash
-        d["candidate_hashes"] = list(self.candidate_hashes)
+        d["candidate_hashes"] = self.candidate_hashes.copy()
         d["parent_hash"] = self.parent_hash
         if self.reason:
             d["reason"] = self.reason

@@ -127,7 +127,7 @@ def extract_failed_log(
             error="`gh` CLI not found on PATH",
         )
 
-    cmd: list[str] = ["gh", "run", "view", str(run_id), "--log-failed"]
+    cmd: list[str] = ["gh", "run", "view", run_id, "--log-failed"]
     if repo:
         cmd.extend(["-R", repo])
 

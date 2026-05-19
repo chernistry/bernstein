@@ -142,8 +142,8 @@ class NotificationEvent:
             "session_id": self.session_id,
             "run_id": self.run_id,
             "timestamp": self.timestamp,
-            "labels": dict(self.labels),
-            "details": dict(self.details),
+            "labels": self.labels.copy(),
+            "details": self.details.copy(),
         }
 
 

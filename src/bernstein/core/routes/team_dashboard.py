@@ -159,9 +159,9 @@ def _task_stats(store: TaskStore) -> dict[str, Any]:
         "failed": failed,
         "in_progress": in_progress,
         "completion_rate_pct": round((completed / total) * 100, 1) if total > 0 else 0.0,
-        "by_status": dict(by_status),
-        "by_role": dict(by_role),
-        "by_agent": {k: dict(v) for k, v in by_agent.items()},
+        "by_status": by_status.copy(),
+        "by_role": by_role.copy(),
+        "by_agent": {k: v.copy() for k, v in by_agent.items()},
     }
 
 

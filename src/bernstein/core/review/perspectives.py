@@ -284,7 +284,7 @@ async def _run_sequential(
     for position, spec in enumerate(config.perspectives):
         envelope = _build_envelope(diff, out)
         started = time.monotonic()
-        content = await adapter_call(spec, envelope, list(out))
+        content = await adapter_call(spec, envelope, out.copy())
         elapsed = time.monotonic() - started
         verdict = PerspectiveVerdict(
             perspective=spec.name,

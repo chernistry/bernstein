@@ -80,7 +80,7 @@ def observe_score(
         bucket: One of ``"tiny"``, ``"small"``, ``"medium"``, ``"large"``.
             Unknown values collapse to ``"unknown"``.
     """
-    clamped = max(0.0, min(1.0, float(value)))
+    clamped = max(0.0, min(1.0, value))
     bucket_label = bucket if bucket in _KNOWN_BUCKETS else "unknown"
     promptware_score.labels(
         adapter=_safe_label(adapter),

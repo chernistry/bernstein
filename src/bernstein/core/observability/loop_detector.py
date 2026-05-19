@@ -291,7 +291,7 @@ class LoopDetector:
                         waits_for[waiting_agent].add(holder_agent)
 
         # Detect cycles via DFS
-        cycles = _find_cycles(dict(waits_for))
+        cycles = _find_cycles(waits_for.copy())
 
         results: list[DeadlockDetection] = []
         seen: set[frozenset[str]] = set()
@@ -305,7 +305,7 @@ class LoopDetector:
             desc = " → ".join([*cycle, cycle[0]])
             results.append(
                 DeadlockDetection(
-                    agents=list(cycle),
+                    agents=cycle.copy(),
                     description=f"Deadlock: {desc}",
                     victim_agent_id=victim,
                 )
@@ -351,7 +351,7 @@ def _dfs_cycles_from(start: str, graph: dict[str, set[str]], visited: set[str]) 
         node, path, path_set = stack.pop()
         for neighbor in sorted(graph.get(node, set())):
             if neighbor == start and len(path) > 1:
-                cycles.append(list(path))
+                cycles.append(path.copy())
             elif neighbor not in path_set and neighbor not in visited:
                 stack.append((neighbor, [*path, neighbor], path_set | {neighbor}))
     return cycles

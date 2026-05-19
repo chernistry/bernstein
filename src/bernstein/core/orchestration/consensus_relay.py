@@ -177,14 +177,14 @@ class RelayDecision:
         confidence: object = self.confidence
         if not isinstance(confidence, (int, float)):  # type: ignore[unreachable]
             raise RelayValidationError("decision.confidence must be numeric")
-        if not (0.0 <= float(self.confidence) <= 1.0):
+        if not (0.0 <= self.confidence <= 1.0):
             raise RelayValidationError("decision.confidence must be in [0, 1]")
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "title": self.title,
             "rationale": self.rationale,
-            "confidence": float(self.confidence),
+            "confidence": self.confidence,
         }
 
 
@@ -257,14 +257,14 @@ class RelayDocument:
                     RelayDecision(
                         title=str(d.get("title", "")),
                         rationale=str(d.get("rationale", "")),
-                        confidence=float(cast(float, d.get("confidence", 0.0))),
+                        confidence=cast(float, d.get("confidence", 0.0)),
                     )
                 )
             calibration_raw = payload.get("calibration", {})
             if not isinstance(calibration_raw, Mapping):
                 raise RelayValidationError("calibration must be a mapping")
             calibration_map = cast(Mapping[str, Any], calibration_raw)
-            calibration: dict[str, str] = {str(k): str(calibration_map[k]) for k in calibration_map}
+            calibration: dict[str, str] = {k: str(calibration_map[k]) for k in calibration_map}
             open_questions_raw = payload.get("open_questions", [])
             blockers_raw = payload.get("blockers", [])
             if not isinstance(open_questions_raw, list):
@@ -274,12 +274,12 @@ class RelayDocument:
             prev_cycle_id_raw = payload.get("prev_cycle_id")
             lineage_child_raw = payload.get("lineage_child")
             return cls(
-                v=int(cast(int, payload.get("v", RELAY_VERSION))),
+                v=cast(int, payload.get("v", RELAY_VERSION)),
                 cycle_id=str(payload["cycle_id"]),
                 prev_cycle_id=(None if prev_cycle_id_raw in (None, "") else str(prev_cycle_id_raw)),
                 prev_hash=str(payload.get("prev_hash", GENESIS_PREV_HASH)),
                 phase=str(payload["phase"]),
-                last_updated_ns=int(cast(int, payload["last_updated_ns"])),
+                last_updated_ns=cast(int, payload["last_updated_ns"]),
                 did_this_cycle=str(payload.get("did_this_cycle", "")),
                 decisions=tuple(decisions_list),
                 open_questions=tuple(str(x) for x in cast(list[Any], open_questions_raw)),
@@ -388,7 +388,7 @@ def compute_relay_hmac(doc: RelayDocument, key: bytes) -> str:
         raise TypeError("HMAC key must be bytes")
     if not key:
         raise ValueError("HMAC key must be non-empty")
-    return _hmac.new(bytes(key), canonicalise_relay(doc), hashlib.sha256).hexdigest()
+    return _hmac.new(key, canonicalise_relay(doc), hashlib.sha256).hexdigest()
 
 
 def _relay_entry_hash(doc: RelayDocument) -> str:

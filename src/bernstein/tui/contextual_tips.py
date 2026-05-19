@@ -81,7 +81,7 @@ class TipState:
 
     def to_dict(self) -> dict[str, dict[str, float]]:
         """Serialise to a JSON-safe dict."""
-        return {"last_seen": dict(self.last_seen)}
+        return {"last_seen": self.last_seen.copy()}
 
     @classmethod
     def from_dict(cls, d: dict[str, object]) -> TipState:
@@ -176,7 +176,7 @@ class TipsCatalog:
             List of matching TipEntry objects.
         """
         if category is None:
-            return list(self._tips)
+            return self._tips.copy()
         return [t for t in self._tips if t.category == category]
 
     def get_categories(self) -> list[str]:

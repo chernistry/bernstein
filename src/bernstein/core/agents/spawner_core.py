@@ -1342,8 +1342,8 @@ class AgentSpawner:
                 details={
                     "role": role,
                     "reason": decision.reason,
-                    "chain": list(chain),
-                    "catalog_tools": list(catalog_tools),
+                    "chain": chain.copy(),
+                    "catalog_tools": catalog_tools.copy(),
                     "triggered": sorted(c.value for c in decision.triggered),
                     "offending_tools": list(decision.offending_tools),
                     "unknown_tools": list(decision.unknown_tools),
@@ -1613,7 +1613,7 @@ class AgentSpawner:
         provider_name: str | None = None
         # Per-step `cli:` is treated as a synthetic pinned adapter so the
         # router-skip decision matches the role_model_policy cli case.
-        effective_role_policy: dict[str, Any] = dict(role_policy)
+        effective_role_policy: dict[str, Any] = role_policy.copy()
         if tasks[0].cli and "cli" not in effective_role_policy:
             effective_role_policy["cli"] = tasks[0].cli
         use_router = _should_use_router(

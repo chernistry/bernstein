@@ -186,7 +186,7 @@ class TaskGraph:
     @property
     def edges(self) -> list[Edge]:
         """All edges in the graph."""
-        return list(self._edges)
+        return self._edges.copy()
 
     def dependents(self, task_id: str) -> list[str]:
         """Task IDs that directly depend on *task_id*."""

@@ -669,7 +669,7 @@ def migrate_config(data: dict[str, Any]) -> dict[str, Any]:
     if version < 1:
         raise ValueError(f"config_version must be >= 1, got {version}.")
 
-    result = dict(data)
+    result = data.copy()
     while version < CURRENT_CONFIG_VERSION:
         fn = _MIGRATIONS.get(version)
         if fn is None:

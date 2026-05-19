@@ -883,7 +883,7 @@ class Orchestrator:
     @property
     def active_agents(self) -> dict[str, AgentSession]:
         """Currently tracked agent sessions, keyed by session id."""
-        return dict(self._agents)
+        return self._agents.copy()
 
     @property
     def permission_mode(self) -> PermissionMode:
@@ -988,7 +988,7 @@ class Orchestrator:
         """
         if self._notifier is None:
             return
-        payload = NotificationPayload(event=event, title=title, body=body, metadata=dict(metadata))
+        payload = NotificationPayload(event=event, title=title, body=body, metadata=metadata.copy())
         self._notifier.notify(event, payload)
 
     def _evaluate_budget_policy(self, tasks: list[Task]) -> Any | None:

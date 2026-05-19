@@ -187,7 +187,7 @@ def merge_mcp_configs(
         Merged MCP config dict with ``mcpServers`` key.
     """
     if not base:
-        return dict(task_tools)
+        return task_tools.copy()
 
     base_servers: dict[str, Any] = dict(base.get("mcpServers", {}))
     task_servers: dict[str, Any] = task_tools.get("mcpServers", {})

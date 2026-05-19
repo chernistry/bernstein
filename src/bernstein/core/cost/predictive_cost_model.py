@@ -387,7 +387,7 @@ class PredictiveCostModel:
                 "active": n >= self._min_observations,
                 "avg_error_tokens": round(avg_error, 1),
                 "confidence": round(self._compute_confidence(), 3),
-                "weights": list(self._weights),
+                "weights": self._weights.copy(),
                 "bias": round(self._bias, 4),
                 "residual_count": self._residual_count,
             }

@@ -302,14 +302,14 @@ class BackstageExporter:
                 "namespace": entity.namespace,
                 "description": entity.description,
             },
-            "spec": dict(spec),
+            "spec": spec.copy(),
         }
         if entity.labels:
-            doc["metadata"]["labels"] = dict(entity.labels)
+            doc["metadata"]["labels"] = entity.labels.copy()
         if entity.annotations:
-            doc["metadata"]["annotations"] = dict(entity.annotations)
+            doc["metadata"]["annotations"] = entity.annotations.copy()
         if relations:
-            doc["relations"] = [dict(r) for r in relations]
+            doc["relations"] = [r.copy() for r in relations]
 
         return yaml.dump(doc, default_flow_style=False, sort_keys=False)
 

@@ -170,7 +170,7 @@ def get_optimal_schedule(
 
     result: list[dict[str, Any]] = []
     for t in ordered:
-        copy = dict(t)
+        copy = t.copy()
         if _is_expensive(t):
             copy["recommended_model"] = config.offpeak_model if not peak else config.peak_model
         else:

@@ -460,7 +460,7 @@ class RetryBudget:
                 ),
             )
         new_criterion = target.degraded()
-        snapshot_map = dict(self._criteria)
+        snapshot_map = self._criteria.copy()
         snapshot_map[new_criterion.name] = new_criterion
         if consume:
             self._criteria[new_criterion.name] = new_criterion

@@ -279,7 +279,7 @@ def _drop_sections(
         return sections, []
 
     steps: list[CollapseStep] = []
-    result = list(sections)
+    result = sections.copy()
 
     # Build ordered drop candidates from least important to most
     drop_order: list[tuple[str, int, int]] = []  # (name, tokens, priority)
@@ -354,7 +354,7 @@ def _strip_metadata(
         return sections, []
 
     steps: list[CollapseStep] = []
-    result = list(sections)
+    result = sections.copy()
 
     # Identify metadata sections sorted by token count descending
     meta_sections: list[tuple[str, int, int]] = []  # (name, tokens, index)

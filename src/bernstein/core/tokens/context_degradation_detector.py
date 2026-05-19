@@ -222,7 +222,7 @@ class ContextDegradationDetector:
 
     def degraded_sessions(self) -> set[str]:
         """Return a snapshot of sessions currently flagged for restart."""
-        return set(self._degraded)
+        return self._degraded.copy()
 
     # ------------------------------------------------------------------
     # Checkpoint & context generation

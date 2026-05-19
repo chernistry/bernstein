@@ -247,7 +247,7 @@ def _verify_python_eval(prop: FormalProperty, context: dict[str, Any]) -> Proper
         None if the expression evaluates to True, PropertyViolation otherwise.
     """
     try:
-        result = eval(prop.invariant, {"__builtins__": {}}, dict(context))
+        result = eval(prop.invariant, {"__builtins__": {}}, context.copy())
         if not result:
             return PropertyViolation(
                 property_name=prop.name,

@@ -195,7 +195,7 @@ def repair_transcript(
     orphans = find_orphaned_tool_uses(messages)
     if not orphans:
         return OrphanRepairResult(
-            messages=list(messages),
+            messages=messages.copy(),
             orphan_count=0,
             orphan_ids=[],
         )
@@ -212,7 +212,7 @@ def repair_transcript(
     # Build the repaired message list by inserting synthetic user messages
     # after each affected assistant turn.  We iterate in reverse order of
     # insertion point so earlier indices stay valid as we splice.
-    repaired = list(messages)
+    repaired = messages.copy()
     for msg_idx in sorted(by_msg_idx.keys(), reverse=True):
         orphaned_blocks = by_msg_idx[msg_idx]
         synthetic_results: list[dict[str, Any]] = []

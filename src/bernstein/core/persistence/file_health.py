@@ -221,7 +221,7 @@ def _compute_churn_score(file_path: Path, workdir: Path, days: int = 30) -> int:
         return 70
 
     # Scale: 0 commits → 100, 20+ commits → 0
-    score = max(0, int(100 - commit_count * 5))
+    score = max(0, 100 - commit_count * 5)
     return min(100, score)
 
 
@@ -258,7 +258,7 @@ def _compute_coverage_score(file_path: Path, metrics_dir: Path) -> int:
 def _find_file_coverage(files: dict[str, object], rel: str) -> int:
     """Look up coverage percentage for a file path by suffix matching."""
     for cov_path_raw, info in files.items():
-        cov_path = str(cov_path_raw)
+        cov_path = cov_path_raw
         if not (cov_path.endswith(rel) or rel.endswith(cov_path)):
             continue
         if not isinstance(info, dict):

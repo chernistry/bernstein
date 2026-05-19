@@ -266,7 +266,7 @@ def _start_server(
     # Build env for the server subprocess — inherit parent env and overlay
     # cluster-specific and storage vars so the server's module-level app
     # factory picks them up.
-    env = dict(os.environ)
+    env = os.environ.copy()
     if cluster_enabled:
         env["BERNSTEIN_CLUSTER_ENABLED"] = "1"
     env["BERNSTEIN_BIND_HOST"] = bind_host
@@ -442,7 +442,7 @@ def _start_spawner(
 
     # Pass cluster-related env vars to the spawner subprocess so the
     # orchestrator's __main__ block can build ClusterConfig from them.
-    env = dict(os.environ)
+    env = os.environ.copy()
     if server_url:
         env["BERNSTEIN_SERVER_URL"] = server_url
     if auth_token:

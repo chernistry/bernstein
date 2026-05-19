@@ -102,7 +102,7 @@ def build_merkle_tree(leaf_hashes: list[tuple[str, str]]) -> MerkleTree:
         return MerkleTree(root=empty, leaf_count=0, leaves=[])
 
     leaves = [MerkleNode(hash=h, leaf_path=p) for p, h in leaf_hashes]
-    level: list[MerkleNode] = list(leaves)
+    level: list[MerkleNode] = leaves.copy()
 
     while len(level) > 1:
         next_level: list[MerkleNode] = []

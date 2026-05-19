@@ -277,7 +277,7 @@ class InProcessAgent:
     def active_sessions(self) -> dict[str, _ThreadResult]:
         """Return a copy of active session records."""
         with self._lock:
-            return dict(self._sessions)
+            return self._sessions.copy()
 
     # ------------------------------------------------------------------
     # Internal

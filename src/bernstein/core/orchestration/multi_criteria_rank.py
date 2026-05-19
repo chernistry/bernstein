@@ -197,7 +197,7 @@ def build_criterion_profile(
     built: list[Criterion] = []
     for name, w in zip(criteria, weights, strict=True):
         direction = _COST if name in cost_set else _BENEFIT
-        built.append(Criterion(name=name, direction=direction, weight=float(w)))
+        built.append(Criterion(name=name, direction=direction, weight=w))
     return CriterionProfile(criteria=tuple(built))
 
 
@@ -338,7 +338,7 @@ def _build_matrix(candidates: Sequence[Candidate], profile: CriterionProfile) ->
     matrix: list[list[float]] = []
     for cand in candidates:
         _check_scores_present(cand, profile)
-        row = [float(cand.scores[name]) for name in profile.names]
+        row = [cand.scores[name] for name in profile.names]
         matrix.append(row)
     return matrix
 

@@ -251,7 +251,7 @@ class LogSearchIndex:
         Returns:
             Number of log entries indexed.
         """
-        self._entries = list(self._scan_all())
+        self._entries = self._scan_all().copy()
         return len(self._entries)
 
     def search(

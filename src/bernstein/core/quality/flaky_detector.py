@@ -130,7 +130,7 @@ class FlakyDetector:
             grouped[run.test_id].append(run)
 
         current_quarantine = set(self.get_quarantined())
-        next_quarantine = set(current_quarantine)
+        next_quarantine = current_quarantine.copy()
         reports: list[FlakyTestReport] = []
         newly_detected: list[str] = []
         resolved: list[str] = []

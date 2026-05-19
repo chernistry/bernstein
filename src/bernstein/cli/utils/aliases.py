@@ -54,7 +54,7 @@ def get_alias(name: str) -> str | None:
 
 def get_all_aliases() -> dict[str, str]:
     """Return a copy of the alias registry."""
-    return dict(ALIASES)
+    return ALIASES.copy()
 
 
 def _load_user_aliases() -> dict[str, str]:

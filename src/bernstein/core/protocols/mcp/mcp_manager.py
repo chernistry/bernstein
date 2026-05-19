@@ -141,9 +141,9 @@ class MCPServerConfig:
         else:
             if not self.command:
                 return {}
-            entry = {"command": self.command[0], "args": list(self.command[1:])}
+            entry = {"command": self.command[0], "args": self.command[1:].copy()}
         if self.env:
-            entry["env"] = dict(self.env)
+            entry["env"] = self.env.copy()
         return entry
 
 
@@ -270,7 +270,7 @@ class MCPManager:
     @property
     def configs(self) -> list[MCPServerConfig]:
         """All registered server configurations."""
-        return list(self._configs)
+        return self._configs.copy()
 
     @property
     def server_names(self) -> list[str]:
@@ -680,7 +680,7 @@ def _merge_env(extra: dict[str, str]) -> dict[str, str]:
     """
     import os
 
-    env = dict(os.environ)
+    env = os.environ.copy()
     env.update(extra)
     return env
 

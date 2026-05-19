@@ -450,7 +450,7 @@ def resolve_pr_number(
     if explicit is not None:
         return explicit
 
-    env = environ if environ is not None else dict(os.environ)
+    env = environ if environ is not None else os.environ.copy()
     raw_env = env.get(_ENV_VAR, "").strip()
     if raw_env:
         try:

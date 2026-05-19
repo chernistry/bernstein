@@ -114,7 +114,7 @@ class CallTags:
             out["quota_envelope"] = self.quota_envelope
         for k, v in self.extra.items():
             if v:
-                out[str(k)] = str(v)
+                out[k] = v
         return out
 
 
@@ -250,7 +250,7 @@ class SpendLedger:
         Cost values below zero are clamped to zero (defensive — a
         misconfigured pricing table must not corrupt the ledger).
         """
-        cost = max(0.0, float(cost_usd))
+        cost = max(0.0, cost_usd)
         now = ts if ts is not None else time.time()
         merged = tags.merged()
         envelope = tags.quota_envelope or "subscription"
@@ -263,10 +263,10 @@ class SpendLedger:
             role=tags.role,
             feature_label=tags.feature_label,
             model=model,
-            input_tokens=int(input_tokens),
-            output_tokens=int(output_tokens),
-            cache_read_tokens=int(cache_read_tokens),
-            cache_write_tokens=int(cache_write_tokens),
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cache_read_tokens=cache_read_tokens,
+            cache_write_tokens=cache_write_tokens,
             cost_usd=cost,
             quota_envelope=envelope,
             tags=merged,
@@ -509,7 +509,7 @@ def aggregate_entries(
         bucket["calls"] += 1
         bucket["input_tokens"] += e.input_tokens
         bucket["output_tokens"] += e.output_tokens
-    return dict(out)
+    return out.copy()
 
 
 __all__ = [

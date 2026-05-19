@@ -90,7 +90,7 @@ class SkillLoader:
     """
 
     def __init__(self, sources: list[SkillSource]) -> None:
-        self._sources: list[SkillSource] = list(sources)
+        self._sources: list[SkillSource] = sources.copy()
         self._skills: dict[str, LoadedSkill] = {}
         self._source_by_skill: dict[str, SkillSource] = {}
         self._reload()

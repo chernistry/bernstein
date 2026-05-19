@@ -604,8 +604,8 @@ def _parse_openclaw_runtime_config(raw: object) -> OpenClawBridgeConfig | None:
         agent_id=agent_id,
         workspace_mode="shared_workspace",
         fallback_to_local=fallback_raw,
-        connect_timeout_s=float(connect_timeout_raw),
-        request_timeout_s=float(request_timeout_raw),
+        connect_timeout_s=connect_timeout_raw,
+        request_timeout_s=request_timeout_raw,
         session_prefix=session_prefix_raw.strip(),
         max_log_bytes=max_log_bytes_raw,
         model_override=model_override_raw.strip() if isinstance(model_override_raw, str) else None,
@@ -868,8 +868,8 @@ def _parse_cluster(raw: object) -> ClusterConfig | None:
         enabled=bool(cluster_dict.get("enabled", False)),
         topology=topology,
         auth_token=auth_token,
-        node_heartbeat_interval_s=int(cast("int", cluster_dict.get("node_heartbeat_interval_s", 15))),
-        node_timeout_s=int(cast("int", cluster_dict.get("node_timeout_s", 60))),
+        node_heartbeat_interval_s=cast("int", cluster_dict.get("node_heartbeat_interval_s", 15)),
+        node_timeout_s=cast("int", cluster_dict.get("node_timeout_s", 60)),
         server_url=server_url,
         bind_host=str(cluster_dict.get("bind_host", "127.0.0.1")),
     )
@@ -1001,7 +1001,7 @@ def _parse_secrets(raw: object) -> SecretsConfig | None:
         for fk, fv in cast("_StrObjDict", field_map_raw).items():
             if not isinstance(fv, str):
                 raise SeedError(f"secrets.field_map values must be strings, got: {type(fv).__name__}")
-            field_map[str(fk)] = fv
+            field_map[fk] = fv
     return SecretsConfig(
         provider=secrets_provider_raw,  # type: ignore[arg-type]
         path=secrets_path_raw,
@@ -1401,7 +1401,7 @@ def _parse_cost_envelopes(data: dict[str, object]) -> dict[str, dict[str, Any]]:
                     f"cost.envelopes.{name}.model_allowlist must be a list, got: {type(allow_raw).__name__}"
                 )
             norm["model_allowlist"] = [str(x) for x in cast("list[Any]", allow_raw) if str(x).strip()]
-        out[str(name)] = norm
+        out[name] = norm
     return out
 
 

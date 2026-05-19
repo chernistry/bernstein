@@ -91,8 +91,8 @@ class StalledManagerDiagnostic:
             "manager_task_id": self.manager_task_id,
             "runtime_s": round(self.runtime_s, 2),
             "hook_event_count": self.hook_event_count,
-            "last_bash_commands": list(self.last_bash_commands),
-            "env_seen": dict(self.env_seen),
+            "last_bash_commands": self.last_bash_commands.copy(),
+            "env_seen": self.env_seen.copy(),
             "remediation": self.remediation,
             "detected_at": time.time(),
         }

@@ -173,7 +173,7 @@ def get_all_bandit_arms() -> list[str]:
     """
     seen: set[str] = set()
     arms: list[str] = []
-    for model in list(CASCADE) + list(_EXTRA_BANDIT_ARMS):
+    for model in CASCADE.copy() + list(_EXTRA_BANDIT_ARMS):
         if model in seen:
             continue
         if model not in _MODEL_COST_USD_PER_1K:
@@ -489,7 +489,7 @@ class EpsilonGreedyBandit:
         Returns:
             Model name string (e.g. "haiku", "sonnet", "opus").
         """
-        models = candidate_models or list(CASCADE)
+        models = candidate_models or CASCADE.copy()
 
         # Exploration: random choice with probability epsilon
         # S311: not security-sensitive — bandit exploration, not cryptography.
@@ -726,7 +726,7 @@ def get_cascade_model(task: Task, retry_count: int = 0) -> str:
     ):
         cascade = ["sonnet", "opus"]
     else:
-        cascade = list(CASCADE)  # ["haiku", "sonnet", "opus"]
+        cascade = CASCADE.copy()  # ["haiku", "sonnet", "opus"]
 
     idx = min(retry_count, len(cascade) - 1)
     return cascade[idx]

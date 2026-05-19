@@ -59,7 +59,7 @@ def set_active_sessions(count: int) -> None:
         count: Current number of open ACP sessions.
     """
     with contextlib.suppress(Exception):
-        acp_active_sessions.set(max(0, int(count)))
+        acp_active_sessions.set(max(0, count))
 
 
 __all__ = [

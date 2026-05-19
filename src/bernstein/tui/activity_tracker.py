@@ -137,7 +137,7 @@ class ActivitySession:
             List of all completed ActivityMetric instances.
         """
         with self._lock:
-            completed = list(self._completed)
+            completed = self._completed.copy()
             self._completed.clear()
             self._active_start = None
             self._active_category = None

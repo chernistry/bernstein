@@ -642,8 +642,8 @@ def get_cache_pricing(model_name: str) -> dict[str, float]:
         if key == "_default":
             continue
         if key in model_lower or model_lower.startswith(key):
-            return dict(pricing)
-    return dict(_CACHE_PRICING["_default"])
+            return pricing.copy()
+    return _CACHE_PRICING["_default"].copy()
 
 
 def compute_cache_cost(

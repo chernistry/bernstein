@@ -309,7 +309,7 @@ class HandoffTokenStore:
                 token = HandoffToken.from_dict(cast("dict[str, Any]", value))
             except (KeyError, ValueError):
                 continue
-            out[str(key)] = token
+            out[key] = token
         return out
 
     def _save_locked(self, tokens: dict[str, HandoffToken]) -> None:

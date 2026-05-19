@@ -263,7 +263,7 @@ def parse_pipeline_yaml(text: str, *, source: Path | str = "<string>") -> Review
         first = exc.errors()[0]
         loc = first.get("loc", ())
         msg = first.get("msg", "validation error")
-        line = _line_for_pointer(tuple(loc), raw_data, text)
+        line = _line_for_pointer(loc, raw_data, text)
         path_str = ".".join(str(p) for p in loc) if loc else "<root>"
         raise ReviewPipelineError(source, f"{path_str}: {msg}", line) from exc
 

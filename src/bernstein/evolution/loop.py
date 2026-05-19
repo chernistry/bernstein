@@ -616,8 +616,8 @@ class EvolutionLoop:
             and ``consecutive_errors`` (current consecutive streak per type).
         """
         return {
-            "errors_by_type": dict(self._error_counts),
-            "consecutive_errors": dict(self._consecutive_errors),
+            "errors_by_type": self._error_counts.copy(),
+            "consecutive_errors": self._consecutive_errors.copy(),
         }
 
     # ------------------------------------------------------------------

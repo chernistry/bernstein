@@ -177,7 +177,7 @@ class _DebounceHandler:
     def _fire(self) -> None:
         """Drain the pending set and invoke the callback."""
         with self._lock:
-            paths = set(self._pending)
+            paths = self._pending.copy()
             self._pending.clear()
             self._timer = None
         if paths:

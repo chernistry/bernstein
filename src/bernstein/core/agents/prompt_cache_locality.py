@@ -201,7 +201,7 @@ def build_stable_prefix(
         Otherwise a :class:`StablePrefix` bundle with vendor-specific
         cache hints.
     """
-    items = sorted((str(k), str(v)) for k, v in (header or {}).items())
+    items = sorted((k, v) for k, v in (header or {}).items())
     header_str = "\n".join(f"{k}: {v}" for k, v in items)
     text = f"{header_str}{_HEADER_SEPARATOR}{body}"
 

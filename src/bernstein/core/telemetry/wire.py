@@ -113,7 +113,7 @@ def emit_first_run_started(
         client,
         TelemetryEvent.FIRST_RUN_STARTED,
         FirstRunStartedPayload(
-            time_since_install_seconds=max(0, int(time_since_install_seconds)),
+            time_since_install_seconds=max(0, time_since_install_seconds),
         ),
     )
 
@@ -135,7 +135,7 @@ def emit_first_run_completed(
         TelemetryEvent.FIRST_RUN_COMPLETED,
         FirstRunCompletedPayload(
             ok=ok,
-            duration_ms=max(0, int(duration_ms)),
+            duration_ms=max(0, duration_ms),
             error_category=error_category,
         ),
     )

@@ -103,7 +103,7 @@ def diff_config_snapshots(previous: JsonValue, current: JsonValue, *, max_change
         if before_dict is not None and after_dict is not None:
             keys = sorted(set(before_dict) | set(after_dict))
             for key in keys:
-                next_path = f"{path}.{key}" if path else str(key)
+                next_path = f"{path}.{key}" if path else key
                 before_has = key in before_dict
                 after_has = key in after_dict
                 if before_has and after_has:

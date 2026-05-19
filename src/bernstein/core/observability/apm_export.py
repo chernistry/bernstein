@@ -281,7 +281,7 @@ class APMExporter:
         Returns:
             An :class:`APMEvent` tagged with the provider.
         """
-        merged = dict(self._config.tags)
+        merged = self._config.tags.copy()
         merged["type"] = "span"
         merged["service"] = self._config.service_name
         if attributes:
@@ -313,7 +313,7 @@ class APMExporter:
         Returns:
             An :class:`APMEvent` tagged with the provider.
         """
-        merged: dict[str, Any] = dict(self._config.tags)
+        merged: dict[str, Any] = self._config.tags.copy()
         merged["type"] = "metric"
         merged["metric_value"] = value
         merged["service"] = self._config.service_name
@@ -346,7 +346,7 @@ class APMExporter:
         Returns:
             An :class:`APMEvent` tagged with the provider.
         """
-        merged: dict[str, Any] = dict(self._config.tags)
+        merged: dict[str, Any] = self._config.tags.copy()
         merged["type"] = "log"
         merged["level"] = level
         merged["service"] = self._config.service_name

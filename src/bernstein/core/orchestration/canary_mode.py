@@ -292,7 +292,7 @@ def build_canary_report(
 
     return CanaryReport(
         total_tasks=total,
-        decisions=list(canary),
+        decisions=canary.copy(),
         diffs=diffs,
         match_rate=match_rate,
         generated_at=generated_at,

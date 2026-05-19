@@ -399,6 +399,14 @@ class CLIAdapter(ABC):
     #: ``False`` so unknown adapters never trigger the retry path.
     supports_session_continuation: bool = False
 
+    #: Whether this adapter can supply a structured per-session log path
+    #: for the ProgressWatch liveness probe (see
+    #: :mod:`bernstein.core.observability.progress_watch`). Adapters that
+    #: write to a deterministic on-disk log set this to ``True`` and
+    #: override :meth:`session_log_path_for`. The default is ``False`` so
+    #: the dispatch loop falls back to plain process-exit detection.
+    supports_session_log_watch: bool = False
+
     def __init__(self) -> None:
         self._resource_limits: ResourceLimits | None = None
         self._rate_limit_meter: RateLimitMeter | None = None
@@ -709,6 +717,27 @@ class CLIAdapter(ABC):
             _session_id: Agent session ID.
             _batch_id: The batch identifier to cancel.
         """
+
+    def session_log_path_for(self, _session_id: str) -> Path | None:
+        """Return the structured per-session log path, if any.
+
+        Optional capability declared by :attr:`supports_session_log_watch`.
+        Adapters whose upstream CLI writes a deterministic JSONL/text log
+        per session override this method and return the absolute path
+        Bernstein should watch. The default returns ``None``, meaning the
+        ProgressWatch dispatch loop should skip this adapter and rely on
+        plain process-exit detection.
+
+        Args:
+            _session_id: The Bernstein session id under which the agent
+                was spawned. Adapters may translate this into the CLI's
+                own session identifier as needed.
+
+        Returns:
+            Absolute :class:`~pathlib.Path` to the session log, or
+            ``None`` when the adapter has no structured log to expose.
+        """
+        return None
 
     def resume(
         self,

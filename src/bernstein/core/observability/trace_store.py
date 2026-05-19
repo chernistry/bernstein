@@ -233,7 +233,7 @@ def _extract_hints_from_bytes(raw: bytes) -> TraceMetadataHints:
         if not hints.model:
             hints.model = str(last.get("model", "") or "")
         if not hints.cost_usd:
-            hints.cost_usd = float(last.get("cost_usd", 0.0) or 0.0)
+            hints.cost_usd = _coerce_float(last.get("cost_usd")) or 0.0
     return hints
 
 
@@ -254,7 +254,7 @@ def _hints_from_obj(obj: dict[str, Any]) -> TraceMetadataHints:
         started_at=started if started is not None else 0.0,
         ended_at=ended,
         model=str(obj.get("model", "") or ""),
-        cost_usd=float(obj.get("cost_usd", 0.0) or 0.0),
+        cost_usd=_coerce_float(obj.get("cost_usd")) or 0.0,
     )
 
 
@@ -348,7 +348,8 @@ class ContentAddressedTraceStore:
         if not isinstance(trace_bytes, (bytes, bytearray)):
             msg = "trace_bytes must be bytes"
             raise TypeError(msg)
-        raw = bytes(trace_bytes)
+        # Normalise bytearray to bytes; passthrough for bytes is a no-op.
+        raw = bytes(trace_bytes) if isinstance(trace_bytes, bytearray) else trace_bytes
         sha256 = hashlib.sha256(raw).hexdigest()
 
         existing = self._existing_blob_path(sha256)
@@ -505,7 +506,7 @@ class ContentAddressedTraceStore:
         if not trace_id:
             return None
         for entry in self._read_index():
-            if entry.trace_id == trace_id or entry.sha256 == trace_id:
+            if trace_id in (entry.trace_id, entry.sha256):
                 return entry
         return None
 
@@ -605,9 +606,8 @@ def _render_index_html(
 ) -> str:
     import html as _html
 
-    rows: list[str] = []
-    for entry in entries:
-        rows.append(
+    rows: list[str] = [
+        (
             "<tr>"
             f"<td>{_html.escape(_fmt_ts(entry.started_at))}</td>"
             f'<td class="id">{_html.escape(entry.task_id) or "-"}</td>'
@@ -622,14 +622,17 @@ def _render_index_html(
             "</td>"
             "</tr>"
         )
+        for entry in entries
+    ]
     if not rows:
         rows.append(
             '<tr><td colspan="8" style="text-align:center; color:#57606a; padding:1rem;">'
             "No traces match the current filter.</td></tr>"
         )
+    total_indexed = len(store.index())
     return (
         _VIEWER_INDEX_HTML.replace("__ROOT__", _html.escape(str(store.root)))
-        .replace("__COUNT__", str(len(entries)))
+        .replace("__COUNT__", str(total_indexed))
         .replace("__TASK__", _html.escape(task))
         .replace("__MODEL__", _html.escape(model))
         .replace("__Q__", _html.escape(q))
@@ -774,7 +777,7 @@ def _render_timeline_html(trace_id: str, raw: bytes) -> str:
         for step in steps:
             step_type = _html.escape(str(step.get("type", "step")))
             detail = _html.escape(str(step.get("detail", "")))
-            ts = _fmt_ts(float(step.get("timestamp", 0.0) or 0.0))
+            ts = _fmt_ts(_coerce_float(step.get("timestamp")) or 0.0)
             items.append(
                 f'<li><span class="type">{step_type}</span>'
                 f'<span class="detail">{detail}</span>'

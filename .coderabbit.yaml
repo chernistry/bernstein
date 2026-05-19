@@ -1,0 +1,63 @@
+# CodeRabbit AI code review config
+# Repo: sipyourdrink-ltd/bernstein
+# Public OSS repo — CodeRabbit Pro features apply at no cost.
+# Docs: https://docs.coderabbit.ai/getting-started/configure-coderabbit
+
+language: en
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+
+  tools:
+    # Lean on existing CI for these; skip duplicate noise
+    ruff:
+      enabled: false
+    markdownlint:
+      enabled: false
+    shellcheck:
+      enabled: true
+    yamllint:
+      enabled: true
+    gitleaks:
+      enabled: false   # already covered by trufflehog.yml workflow
+    languagetool:
+      enabled: false   # noise on technical writing
+    # Keep AI-grounded ones on
+    ast-grep:
+      enabled: true
+
+  path_filters:
+    - "!.sdd/**"
+    - "!.worktrees/**"
+    - "!**/_default_templates/**"
+    - "!docs/api/**"
+    - "!**/*.lock"
+    - "!**/*.snap"
+
+  path_instructions:
+    - path: "src/bernstein/adapters/**"
+      instructions: |
+        Adapter conformance is enforced by tests/unit/adapters/conformance.py.
+        Comment only on logic / safety, not on adapter stub coverage.
+    - path: ".github/workflows/**"
+      instructions: |
+        SHA-pin all third-party actions. Add `permissions:` and `concurrency:`
+        blocks if missing. Flag any `--no-verify`, force-push, or `-i` flag.
+    - path: "src/bernstein/core/lineage/**"
+      instructions: |
+        Lineage records must be append-only and signed. Flag any code that
+        mutates an existing entry or skips the HMAC step.
+
+chat:
+  auto_reply: true

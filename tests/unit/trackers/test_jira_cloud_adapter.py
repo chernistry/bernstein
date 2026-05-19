@@ -329,6 +329,19 @@ def test_transition_uses_status_map() -> None:
     assert b'"id":"41"' in sent_body
 
 
+@respx.mock
+def test_transition_propagates_idempotency_key_header() -> None:
+    adapter = _make_adapter()
+    url = f"https://{DOMAIN}/rest/api/3/issue/ACME-1/transitions"
+    route = respx.post(url).mock(return_value=httpx.Response(204))
+    try:
+        adapter.transition("ACME-1", "41", idempotency_key="k1")
+    finally:
+        adapter.close()
+    headers = route.calls[0].request.headers
+    assert headers["X-Bernstein-Idempotency-Key"] == "k1"
+
+
 # ---------------------------------------------------------------------------
 # Rate-limit & concurrency
 # ---------------------------------------------------------------------------
@@ -357,6 +370,20 @@ def test_conflict_raises_optimistic_concurrency() -> None:
     adapter = _make_adapter()
     url = f"https://{DOMAIN}/rest/api/3/issue/ACME-1/transitions"
     respx.post(url).mock(return_value=httpx.Response(409, json={"message": "conflict"}))
+    try:
+        with pytest.raises(OptimisticConcurrencyError):
+            adapter.transition("ACME-1", "41")
+    finally:
+        adapter.close()
+
+
+@respx.mock
+def test_precondition_failed_raises_optimistic_concurrency() -> None:
+    adapter = _make_adapter()
+    url = f"https://{DOMAIN}/rest/api/3/issue/ACME-1/transitions"
+    respx.post(url).mock(
+        return_value=httpx.Response(412, json={"message": "precondition failed"})
+    )
     try:
         with pytest.raises(OptimisticConcurrencyError):
             adapter.transition("ACME-1", "41")

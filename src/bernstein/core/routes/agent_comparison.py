@@ -126,7 +126,7 @@ def _resolve_agent_status(agent: Any) -> str:
     agent_status = getattr(agent, "status", "working")
     if agent_status == "dead":
         return "done" if getattr(agent, "exit_code", None) == 0 else "failed"
-    if agent_status in ("idle",):
+    if agent_status == "idle":
         return "done"
     return "working"
 

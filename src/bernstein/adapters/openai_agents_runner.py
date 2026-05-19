@@ -206,7 +206,7 @@ def _build_agent_kwargs(manifest: RunnerManifest) -> dict[str, Any]:
     if instructions:
         kwargs["instructions"] = instructions
     if manifest.tools:
-        kwargs["tools"] = list(manifest.tools)
+        kwargs["tools"] = manifest.tools.copy()
     return kwargs
 
 
@@ -220,7 +220,7 @@ def _build_run_config(manifest: RunnerManifest) -> dict[str, Any]:
         "sandbox_provider": manifest.sandbox_provider,
         "workdir": manifest.workdir,
         "timeout_seconds": manifest.timeout_seconds,
-        "mcp_servers": dict(manifest.mcp_servers),
+        "mcp_servers": manifest.mcp_servers.copy(),
     }
 
 

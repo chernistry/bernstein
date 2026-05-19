@@ -1326,7 +1326,7 @@ class CacheBaselineDrop:
     drop_percentage: float
     threshold: float
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
-    metadata: dict[str, Any] = field(default_factory=lambda: {})
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class CacheBaselineCollector:
@@ -1349,7 +1349,7 @@ class CacheBaselineCollector:
             "metadata": drop.metadata,
         }
 
-        with open(self.cache_drops_file, "a", encoding="utf-8") as f:
+        with self.cache_drops_file.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record) + "\n")
 
         logger.warning(

@@ -121,7 +121,7 @@ def _find_affected_tasks(changed_path: Path, workdir: Path, open_tasks: list[dic
         if rel_str in haystack or filename in haystack:
             matched.append(task)
 
-    return matched if matched else open_tasks
+    return matched or open_tasks
 
 
 # ---------------------------------------------------------------------------
@@ -177,7 +177,7 @@ class _DebounceHandler:
     def _fire(self) -> None:
         """Drain the pending set and invoke the callback."""
         with self._lock:
-            paths = set(self._pending)
+            paths = self._pending.copy()
             self._pending.clear()
             self._timer = None
         if paths:

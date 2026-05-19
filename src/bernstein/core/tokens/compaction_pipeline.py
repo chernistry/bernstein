@@ -243,7 +243,7 @@ class CompactionPipeline:
 
         # Stage 3b: re-append retained failures + any explicit ones.
         if keep_failed_actions:
-            tail_blocks: list[str] = list(carved_failures)
+            tail_blocks: list[str] = carved_failures.copy()
             if retained_failures:
                 rendered = tag_failed_actions(
                     retained_failures,

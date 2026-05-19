@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import operator
 import time
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, cast
@@ -962,7 +963,7 @@ class PostMortemGenerator:
                 counts[trace.dominant_failure] = counts.get(trace.dominant_failure, 0) + 1
 
         factors: list[ContributingFactor] = []
-        for category, count in sorted(counts.items(), key=lambda kv: kv[1], reverse=True):
+        for category, count in sorted(counts.items(), key=operator.itemgetter(1), reverse=True):
             desc = _FACTOR_DESCRIPTIONS.get(category, f"Repeated {category} errors.")
             factors.append(ContributingFactor(category=category, count=count, description=desc))
         return factors

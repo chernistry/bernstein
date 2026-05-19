@@ -213,7 +213,7 @@ def _build_verify_payload(audit_dir: Path, events: list[dict[str, Any]]) -> dict
     if events:
         first, last = events[0], events[-1]
         head_id = str(last.get("id", len(events))) or str(len(events))
-        head_hash = str(last.get("hash", last.get("sha", ""))) or ""
+        head_hash = str(last.get("hash", last.get("sha", "")))
         walked_from = str(first.get("hash", first.get("sha", ""))) or None
         walked_to = head_hash or None
         ts_raw = last.get("ts") or last.get("timestamp")

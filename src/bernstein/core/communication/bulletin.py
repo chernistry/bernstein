@@ -518,7 +518,7 @@ class BulletinBoard:
             Number of messages written.
         """
         with self._lock:
-            messages = list(self._messages)
+            messages = self._messages.copy()
 
         if not messages:
             return 0
@@ -616,7 +616,7 @@ class BulletinBoard:
                 data: dict[str, object] = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            ts = float(cast("float", data.get("timestamp", 0.0)))
+            ts = cast("float", data.get("timestamp", 0.0))
             if ts in existing_ts:
                 continue
             msg = BulletinMessage(
@@ -651,7 +651,7 @@ class BulletinBoard:
             The internal list is cleared after this call.
         """
         with self._lock:
-            result = list(self._status_notifications)
+            result = self._status_notifications.copy()
             self._status_notifications.clear()
         return result
 
@@ -687,7 +687,7 @@ class BulletinBoard:
             Mapping of agent_id -> AgentActivitySummary.
         """
         with self._lock:
-            return dict(self._activity_summaries)
+            return self._activity_summaries.copy()
 
 
 # ---------------------------------------------------------------------------

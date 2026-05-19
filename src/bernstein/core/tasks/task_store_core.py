@@ -2144,7 +2144,7 @@ class TaskStore:
                         "Ignoring illegal heartbeat transition %s -> %s for %s",
                         sanitize_log(str(agent.status)),
                         sanitize_log(str(status)),
-                        sanitize_log(str(agent_id)),
+                        sanitize_log(agent_id),
                     )
         else:
             self._agents[agent_id] = AgentSession(
@@ -2268,11 +2268,11 @@ class TaskStore:
         O(new_lines) instead of O(all_lines).
         """
         if not self._metrics_jsonl_path.exists():
-            return dict(self._cost_cache)
+            return self._cost_cache.copy()
         stat = self._metrics_jsonl_path.stat()
         mtime = stat.st_mtime
         if mtime == self._cost_cache_mtime:
-            return dict(self._cost_cache)
+            return self._cost_cache.copy()
         file_size = stat.st_size
         # Handle truncation: if offset is past end of file, reset.
         if self._cost_cache_offset > file_size:
@@ -2301,7 +2301,7 @@ class TaskStore:
                 self._cost_cache[role] = self._cost_cache.get(role, 0.0) + float(cost)
         self._cost_cache_offset = new_offset
         self._cost_cache_mtime = mtime
-        return dict(self._cost_cache)
+        return self._cost_cache.copy()
 
     @property
     def agents(self) -> dict[str, AgentSession]:

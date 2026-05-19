@@ -110,7 +110,7 @@ def setup_json_logging(level: int = logging.INFO) -> None:
     root_logger.setLevel(level)
 
     # Clear existing handlers
-    for handler in root_logger.handlers[:]:
+    for handler in root_logger.handlers.copy():
         root_logger.removeHandler(handler)
 
     # Add new JSON handler to stderr

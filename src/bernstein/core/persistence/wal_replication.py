@@ -294,7 +294,7 @@ class WALReplicationManager:
         Returns:
             Copy of the follower state dictionary.
         """
-        return dict(self._followers)
+        return self._followers.copy()
 
     def is_quorum_met(self, seq: int) -> bool:
         """Check if a quorum of followers have acknowledged a sequence.

@@ -64,7 +64,7 @@ def export_cmd(
     if last and run_id:
         raise click.BadParameter("Cannot specify both --last and --run-id.")
 
-    _run_id = run_id if run_id else None
+    _run_id = run_id or None
 
     workdir_path = Path(workdir).resolve()
     out = export_run_report(

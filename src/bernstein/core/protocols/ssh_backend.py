@@ -86,7 +86,7 @@ class SSHHostConfig:
     key: str = ""
     remote_dir: str = "~/bernstein-workdir"
     rsync_excludes: tuple[str, ...] = ()
-    env: dict[str, str] = field(default_factory=lambda: {})
+    env: dict[str, str] = field(default_factory=dict)
     connect_timeout: int = 15
 
     def ssh_target(self) -> str:
@@ -161,7 +161,7 @@ def parse_ssh_config(raw: object | None) -> SSHHostConfig | None:
     env_raw: Any = cfg.get("env") or {}
     if not isinstance(env_raw, dict):
         raise ValueError("remote.env must be a mapping")
-    env: dict[str, str] = {str(k): str(v) for k, v in cast("dict[str, object]", env_raw).items()}
+    env: dict[str, str] = {k: str(v) for k, v in cast("dict[str, object]", env_raw).items()}
 
     timeout_raw = cfg.get("connect_timeout", 15)
     if not isinstance(timeout_raw, int):

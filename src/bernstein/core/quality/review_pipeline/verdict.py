@@ -154,7 +154,7 @@ def aggregate_stage(
         approve_count=approves,
         total_count=total,
         pass_score=score,
-        agents=list(agent_verdicts),
+        agents=agent_verdicts.copy(),
         feedback=feedback,
     )
 
@@ -300,6 +300,6 @@ def aggregate_pipeline(
         verdict=verdict,
         feedback=feedback,
         pass_score=score,
-        stages=list(stage_verdicts),
+        stages=stage_verdicts.copy(),
         block_on_fail=pipeline.block_on_fail,
     )

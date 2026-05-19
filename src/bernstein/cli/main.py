@@ -729,7 +729,7 @@ def cli(
         raise click.UsageError("Cannot use --verbose and --quiet together.")
     # Propagate the verbosity flag so the first-run hint guard can decide
     # whether to render the original traceback below the hint panel.
-    ctx.obj["VERBOSE"] = bool(verbose)
+    ctx.obj["VERBOSE"] = verbose
     apply_verbosity(verbose, quiet)
 
     # Parse the iterative-refinement spec (issue #1403). Failing fast on a

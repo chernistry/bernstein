@@ -151,7 +151,7 @@ class McpHealthMonitor:
     @property
     def history(self) -> list[HealthProbeResult]:
         """Read-only copy of recent probe results."""
-        return list(self._history)
+        return self._history.copy()
 
     def get_restart_state(self, server_name: str) -> _RestartState | None:
         """Return the restart state for a server, or None if never tracked."""

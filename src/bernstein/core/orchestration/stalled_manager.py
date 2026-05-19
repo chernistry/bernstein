@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import logging
+import operator
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -91,8 +92,8 @@ class StalledManagerDiagnostic:
             "manager_task_id": self.manager_task_id,
             "runtime_s": round(self.runtime_s, 2),
             "hook_event_count": self.hook_event_count,
-            "last_bash_commands": list(self.last_bash_commands),
-            "env_seen": dict(self.env_seen),
+            "last_bash_commands": self.last_bash_commands.copy(),
+            "env_seen": self.env_seen.copy(),
             "remediation": self.remediation,
             "detected_at": time.time(),
         }
@@ -164,7 +165,7 @@ def _find_manager_session(agents: dict[str, Any], now: float) -> Any | None:
     if not candidates:
         return None
     # Oldest session first — that's the one we judge against the threshold.
-    candidates.sort(key=lambda item: item[0], reverse=True)
+    candidates.sort(key=operator.itemgetter(0), reverse=True)
     return candidates[0][1]
 
 

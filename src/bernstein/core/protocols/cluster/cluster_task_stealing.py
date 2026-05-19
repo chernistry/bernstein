@@ -171,7 +171,7 @@ class TaskStealingEngine:
     @property
     def history(self) -> list[StealAttempt]:
         """Return the steal attempt history."""
-        return list(self._history)
+        return self._history.copy()
 
     def find_victim(
         self,

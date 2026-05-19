@@ -127,7 +127,7 @@ def filter_recent(entries: list[DiaryEntry], window_days: int, *, now: datetime 
     callers can opt out of windowing without a magic sentinel.
     """
     if window_days <= 0:
-        return list(entries)
+        return entries.copy()
     moment = now if now is not None else datetime.now(UTC)
     window = timedelta(days=window_days)
     return [e for e in entries if _within_window(e, moment, window)]

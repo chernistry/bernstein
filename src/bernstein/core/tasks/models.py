@@ -1340,7 +1340,7 @@ class TaskPlan:
                     "estimated_tokens": e.estimated_tokens,
                     "estimated_cost_usd": round(e.estimated_cost_usd, 6),
                     "risk_level": e.risk_level,
-                    "risk_reasons": list(e.risk_reasons),
+                    "risk_reasons": e.risk_reasons.copy(),
                 }
                 for e in self.task_estimates
             ],

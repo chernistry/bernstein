@@ -426,7 +426,7 @@ class AbortChain:
             Dict mapping parent session IDs to sets of child session IDs.
         """
         with self._lock:
-            return {parent: set(children) for parent, children in self._graph.items()}
+            return {parent: children.copy() for parent, children in self._graph.items()}
 
     # ------------------------------------------------------------------
     # Internal helpers

@@ -234,7 +234,7 @@ class CommandHook:
         home_dir: BernsteinHome = BernsteinHome.default()
 
         return {
-            "PLUGIN_ROOT": str(self._plugin_root) if self._plugin_root else "",
+            "PLUGIN_ROOT": self._plugin_root if self._plugin_root else "",
             "DATA_DIR": str(hooks_dir.parent),
             "HOOKS_DIR": str(hooks_dir),
             "WORK_DIR": str(Path.cwd()),
@@ -340,7 +340,7 @@ class CommandHook:
         return current_payload, False
 
     def _run_command(self, hook_name: str, **kwargs: Any) -> None:
-        current_payload = dict(kwargs)
+        current_payload = kwargs.copy()
         validate_hook_payload(hook_name, current_payload)
 
         hook_path = self._hooks_dir / hook_name
@@ -1158,7 +1158,7 @@ class PluginManager:
     @property
     def registered_names(self) -> list[str]:
         """Names of all successfully registered plugins."""
-        return list(self._registered_names)
+        return self._registered_names.copy()
 
     def plugin_hooks(self, plugin_name: str) -> list[str]:
         """Return names of hooks implemented by *plugin_name*.

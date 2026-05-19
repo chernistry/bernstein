@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import logging
+import operator
 import time
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -632,7 +633,7 @@ def load_cost_history(metrics_dir: Path) -> list[tuple[float, float]]:
         except OSError:
             continue
 
-    points.sort(key=lambda p: p[0])
+    points.sort(key=operator.itemgetter(0))
     return points
 
 

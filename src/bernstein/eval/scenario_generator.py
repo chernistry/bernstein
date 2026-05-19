@@ -260,7 +260,7 @@ class _BaseGenerator:
             severity=self.severity,
             prompt=prompt,
             expected_outcome=self.outcome,
-            params=dict(merged),
+            params=merged.copy(),
             tags=self.tags,
             source="synthetic",
             seed=seed,
@@ -596,7 +596,7 @@ def materialise(
     for i in range(count):
         per_seed = rng.randrange(0, 2**31 - 1)
         # Pick axis values deterministically when not pinned.
-        axis_overrides = dict(base_params)
+        axis_overrides = base_params.copy()
         for axis, values in gen.axes.items():
             if axis in axis_overrides:
                 continue

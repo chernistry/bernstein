@@ -245,7 +245,7 @@ def _parse_warm_pool_section(section: dict[str, Any]) -> WarmPoolConfig:
         roles_raw = []
     return WarmPoolConfig(
         max_slots=max_slots,
-        slot_ttl_seconds=float(slot_ttl),
+        slot_ttl_seconds=slot_ttl,
         roles=[str(r) for r in cast("list[Any]", roles_raw)],
     )
 

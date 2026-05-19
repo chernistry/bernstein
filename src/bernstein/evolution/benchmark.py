@@ -73,7 +73,7 @@ class BenchmarkResult:
     tier: Tier
     passed: bool
     goal: str
-    signal_results: list[SignalResult] = field(default_factory=lambda: [])
+    signal_results: list[SignalResult] = field(default_factory=list)
     duration_seconds: float = 0.0
     error: str | None = None
 
@@ -86,7 +86,7 @@ class RunSummary:
     total: int
     passed: int
     failed: int
-    results: list[BenchmarkResult] = field(default_factory=lambda: [])
+    results: list[BenchmarkResult] = field(default_factory=list)
     run_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
 

@@ -102,7 +102,7 @@ def _sanitize(value: float) -> float:
     else is rounded to two decimals.
     """
     try:
-        amount = float(value)
+        amount = value
     except (TypeError, ValueError):
         return 0.0
     if amount != amount:  # NaN

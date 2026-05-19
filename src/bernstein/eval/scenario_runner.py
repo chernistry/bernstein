@@ -309,7 +309,7 @@ class ScenarioRunner:
         command_timeout: int = 60,
     ) -> None:
         self._scenarios_dir = Path(scenarios_dir)
-        self._repo_root = Path(repo_root) if repo_root is not None else Path(".")
+        self._repo_root = Path(repo_root) if repo_root is not None else Path()
         self._executor = executor
         self._command_timeout = command_timeout
 

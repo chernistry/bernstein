@@ -85,7 +85,7 @@ def render_worktrees_table(rows: Iterable[ClassifiedWorktree]) -> Table:
     for row in rows:
         style = _STATE_STYLE.get(row.state, "white")
         task_display = row.task_id[:12] if row.task_id else "—"
-        pid_display = "—" if row.pid is None else (f"{row.pid}" + ("" if row.pid_alive else "✗"))
+        pid_display = "—" if row.pid is None else (str(row.pid) + ("" if row.pid_alive else "✗"))
         table.add_row(
             str(row.path),
             task_display,
@@ -228,7 +228,7 @@ def worktrees_group() -> None:
 @click.option(
     "--workdir",
     type=click.Path(path_type=Path, file_okay=False),
-    default=Path("."),
+    default=Path(),
     show_default=True,
     help="Project root containing .sdd/.",
 )
@@ -257,7 +257,7 @@ def list_cmd(workdir: Path, as_json: bool) -> None:
 @click.option(
     "--workdir",
     type=click.Path(path_type=Path, file_okay=False),
-    default=Path("."),
+    default=Path(),
     show_default=True,
     help="Project root containing .sdd/.",
 )

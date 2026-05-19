@@ -144,8 +144,8 @@ class CascadeMetrics:
         """Serialise to a JSON-safe dict."""
         return {
             "cascade_count": self.cascade_count,
-            "fallback_model_usage": dict(self.fallback_model_usage),
-            "trigger_counts": dict(self.trigger_counts),
+            "fallback_model_usage": self.fallback_model_usage.copy(),
+            "trigger_counts": self.trigger_counts.copy(),
         }
 
 
@@ -177,7 +177,7 @@ class CascadeFallbackManager:
         self._tracker = rate_limit_tracker
         self._budget_remaining = budget_remaining
         self._budget_threshold = budget_threshold
-        self._cascade_order = cascade_order or list(DEFAULT_CASCADE_ORDER)
+        self._cascade_order = cascade_order or DEFAULT_CASCADE_ORDER.copy()
         self._sticky_duration_s = sticky_duration_s
         self._sticky: StickyFallback | None = None
         self._metrics = CascadeMetrics()

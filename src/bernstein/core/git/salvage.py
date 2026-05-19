@@ -390,6 +390,6 @@ def salvage_worktree(
         branch=branch,
         branch_pushed=pushed,
         patch_path=patch_path,
-        untracked_files=list(untracked),
+        untracked_files=untracked.copy(),
         errors=errors,
     )

@@ -297,6 +297,6 @@ def parse_status_output(output: str) -> str:
                 return "Running"
             if body.startswith("failed"):
                 return "Failed"
-            if body.startswith("inactive") or body.startswith("deactivating"):
+            if body.startswith(("inactive", "deactivating")):
                 return "Stopped"
     return "Unknown"

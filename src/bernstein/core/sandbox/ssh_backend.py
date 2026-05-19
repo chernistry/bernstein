@@ -241,7 +241,7 @@ class SSHSandboxSession(SandboxSession):
             raise ValueError("cmd must be a non-empty argv list")
         effective_cwd = self._resolve(cwd) if cwd is not None else self.workdir
         effective_timeout = timeout if timeout is not None else self._default_timeout
-        merged_env: dict[str, str] = dict(self._base_env)
+        merged_env: dict[str, str] = self._base_env.copy()
         if env:
             merged_env.update(env)
 

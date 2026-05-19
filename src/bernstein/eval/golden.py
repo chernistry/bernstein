@@ -97,7 +97,7 @@ def _parse_golden_text(text: str, tier: Tier, source: str) -> GoldenTask | None:
         logger.warning("Golden task frontmatter is not a dict: %s", source)
         return None
 
-    m: dict[str, Any] = dict(cast("dict[str, Any]", meta))
+    m: dict[str, Any] = cast("dict[str, Any]", meta).copy()
     body = parts[2].strip()
     # Stem from the source path/name (drop ``.md`` if present).
     stem = source.rsplit("/", 1)[-1].removesuffix(".md")

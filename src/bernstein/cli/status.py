@@ -6,6 +6,7 @@ active agents, total cost, and elapsed time.
 
 from __future__ import annotations
 
+import operator
 import time
 from typing import TYPE_CHECKING, Any, cast
 
@@ -186,7 +187,7 @@ def _build_provider_table(provider_status: dict[str, Any]) -> Table | None:
     table.add_column("Quota", min_width=18)
 
     providers = cast(_CAST_DICT_STR_OBJ, providers_obj)
-    for provider_name, payload_obj in sorted(providers.items(), key=lambda item: item[0]):
+    for provider_name, payload_obj in sorted(providers.items(), key=operator.itemgetter(0)):
         if not isinstance(payload_obj, dict):
             continue
         payload = cast(_CAST_DICT_STR_OBJ, payload_obj)

@@ -1347,8 +1347,8 @@ class AgentSpawner:
                 details={
                     "role": role,
                     "reason": decision.reason,
-                    "chain": list(chain),
-                    "catalog_tools": list(catalog_tools),
+                    "chain": chain.copy(),
+                    "catalog_tools": catalog_tools.copy(),
                     "triggered": sorted(c.value for c in decision.triggered),
                     "offending_tools": list(decision.offending_tools),
                     "unknown_tools": list(decision.unknown_tools),
@@ -1618,7 +1618,7 @@ class AgentSpawner:
         provider_name: str | None = None
         # Per-step `cli:` is treated as a synthetic pinned adapter so the
         # router-skip decision matches the role_model_policy cli case.
-        effective_role_policy: dict[str, Any] = dict(role_policy)
+        effective_role_policy: dict[str, Any] = role_policy.copy()
         if tasks[0].cli and "cli" not in effective_role_policy:
             effective_role_policy["cli"] = tasks[0].cli
         use_router = _should_use_router(
@@ -2006,7 +2006,7 @@ class AgentSpawner:
                     seen.add(n)
                     unique_names.append(n)
             # Pass None to get all servers when no specific ones requested
-            requested = unique_names if unique_names else None
+            requested = unique_names or None
             effective_mcp = self._mcp_manager.build_mcp_config_for_task(
                 task_mcp_servers=requested,
                 base_config=effective_mcp,
@@ -2019,7 +2019,7 @@ class AgentSpawner:
 
                 validate_mcp_readiness(
                     self._mcp_manager,
-                    server_names=unique_names if unique_names else None,
+                    server_names=unique_names or None,
                     fail_on_error=False,
                 )
             except Exception:

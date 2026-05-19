@@ -115,17 +115,17 @@ def _freeze_dict_str_float(mapping: dict[str, float]) -> Mapping[str, float]:
     Using :class:`types.MappingProxyType` blocks in-place item mutation so that
     ``TASK.scope_timeout_s['small'] = 1`` raises :class:`TypeError`.
     """
-    return MappingProxyType(dict(mapping))
+    return MappingProxyType(mapping.copy())
 
 
 def _freeze_dict_str_int(mapping: dict[str, int]) -> Mapping[str, int]:
     """Read-only view for ``Mapping[str, int]`` default factories."""
-    return MappingProxyType(dict(mapping))
+    return MappingProxyType(mapping.copy())
 
 
 def _freeze_dict_str_str(mapping: dict[str, str]) -> Mapping[str, str]:
     """Read-only view for ``Mapping[str, str]`` default factories."""
-    return MappingProxyType(dict(mapping))
+    return MappingProxyType(mapping.copy())
 
 
 @dataclass(frozen=True)

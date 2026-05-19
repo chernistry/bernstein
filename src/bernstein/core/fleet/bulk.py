@@ -100,7 +100,7 @@ def select_projects(
     by_name: dict[str, ProjectConfig] = {p.name: p for p in projects}
     snap_by_name: dict[str, ProjectSnapshot] = {s.name: s for s in snapshots}
 
-    candidates = [by_name[n] for n in names if n in by_name] if names else list(projects)
+    candidates = [by_name[n] for n in names if n in by_name] if names else projects.copy()
 
     if not filter_expression:
         return candidates

@@ -55,7 +55,7 @@ def cache_group() -> None:
 @click.option(
     "--workdir",
     type=click.Path(path_type=Path, file_okay=False),
-    default=Path("."),
+    default=Path(),
     show_default=True,
     help="Project root containing .sdd/caching/response_cache.jsonl.",
 )
@@ -101,7 +101,7 @@ def list_cache_entries(workdir: Path, limit: int, as_json: bool) -> None:
 @click.option(
     "--workdir",
     type=click.Path(path_type=Path, file_okay=False),
-    default=Path("."),
+    default=Path(),
     show_default=True,
     help="Project root containing .sdd/caching/response_cache.jsonl.",
 )
@@ -136,7 +136,7 @@ def inspect_cache_entry(task_id: str, workdir: Path, as_json: bool) -> None:
 @click.option(
     "--workdir",
     type=click.Path(path_type=Path, file_okay=False),
-    default=Path("."),
+    default=Path(),
     show_default=True,
     help="Project root containing .sdd/caching/response_cache.jsonl.",
 )
@@ -175,7 +175,7 @@ def action_cache_subgroup() -> None:
 @click.option(
     "--workdir",
     type=click.Path(path_type=Path, file_okay=False),
-    default=Path("."),
+    default=Path(),
     show_default=True,
     help="Project root containing .sdd/runtime/action_cache/.",
 )
@@ -193,7 +193,7 @@ def action_cache_stats(workdir: Path) -> None:
 @click.option(
     "--workdir",
     type=click.Path(path_type=Path, file_okay=False),
-    default=Path("."),
+    default=Path(),
     show_default=True,
     help="Project root containing .sdd/runtime/action_cache/.",
 )

@@ -296,7 +296,7 @@ class BernsteinApp(App[None]):
             try:
                 log_path = Path(activity_log_path)
                 log_path.parent.mkdir(parents=True, exist_ok=True)
-                self._activity_log_file = open(log_path, "a", encoding="utf-8")  # noqa: SIM115
+                self._activity_log_file = log_path.open("a", encoding="utf-8")
             except OSError as exc:
                 logging.getLogger(__name__).warning("Failed to open activity log file: %s", exc)
 
@@ -829,7 +829,7 @@ class BernsteinApp(App[None]):
         if monitoring:
             self._apply_monitoring_data(bar, monitoring)
 
-        bar.retry_count = sum(_task_retry_count(task) for task in (tasks or []) if isinstance(task, dict))
+        bar.retry_count = sum(_task_retry_count(task) for task in (tasks) if isinstance(task, dict))
         bar.agent_error_count = _summarize_agent_errors(agents)[0]
         self._sync_header(header, bar, sd)
 
@@ -1379,7 +1379,7 @@ class BernsteinApp(App[None]):
             # If user also asked to stop, do it after save
             if wants_stop:
                 self.notify("Stopping all agents...", severity="warning")
-                self.set_timer(1.0, lambda: self.action_stop_bernstein())
+                self.set_timer(1.0, self.action_stop_bernstein)
         elif action == "stop":
             self.notify("Stopping all agents...", severity="warning")
             self.action_stop_bernstein()

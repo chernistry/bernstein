@@ -8,6 +8,7 @@ agent prompts as warm context before they start working.
 from __future__ import annotations
 
 import logging
+import operator
 import re
 import subprocess
 from collections import Counter
@@ -41,7 +42,7 @@ def _run_git(args: list[str], cwd: Path, *, timeout: int = 10) -> str | None:
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
     except (subprocess.TimeoutExpired, OSError) as exc:
-        args_str = " ".join(str(a) for a in args)
+        args_str = " ".join(a for a in args)
         logger.debug("git %s failed: %s", args_str, exc)
     return None
 
@@ -127,7 +128,7 @@ def _dedup_blame_entries(changes: list[tuple[str, str, str]], max_entries: int) 
             seen.add(summary)
             unique.append((author, summary, ts))
 
-    unique.sort(key=lambda x: x[2], reverse=True)
+    unique.sort(key=operator.itemgetter(2), reverse=True)
     return unique[:max_entries]
 
 

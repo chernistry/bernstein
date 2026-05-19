@@ -158,7 +158,7 @@ def _validate_properties(properties: Any) -> list[SchemaValidationError]:
     errors: list[SchemaValidationError] = []
     props_dict: dict[str, Any] = cast(_CAST_DICT_STR_ANY, properties)
     for prop_name_raw, prop_schema_raw in props_dict.items():
-        prop_name: str = str(prop_name_raw)
+        prop_name: str = prop_name_raw
         prop_path = f"/properties/{prop_name}"
         if not isinstance(prop_schema_raw, dict):
             errors.append(SchemaValidationError(path=prop_path, message="Property schema must be an object"))

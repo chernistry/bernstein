@@ -139,7 +139,7 @@ async def run_network_checks(
             )
         ]
 
-    table = dict(hosts) if hosts is not None else dict(PROVIDER_HOSTS)
+    table = dict(hosts) if hosts is not None else PROVIDER_HOSTS.copy()
     names = list(provider_names) if provider_names is not None else list(table.keys())
     if not names:
         return [

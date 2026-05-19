@@ -119,7 +119,7 @@ def detect_environments(
     The ``Generic CI`` probe is suppressed when a more specific CI
     environment has already matched (it exists as a fallback signal).
     """
-    env_map = env if env is not None else dict(os.environ)
+    env_map = env if env is not None else os.environ.copy()
     exists = file_exists if file_exists is not None else _default_file_exists
     probe_list = list(probes) if probes is not None else ENVIRONMENT_PROBES
 

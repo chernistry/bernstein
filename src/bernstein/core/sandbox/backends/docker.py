@@ -264,7 +264,7 @@ class DockerSandboxSession(SandboxSession):
             raise NotImplementedError("Docker backend does not yet support stdin injection; tracked in oai-002b")
         effective_cwd = cwd if cwd is not None else self.workdir
         effective_timeout = timeout if timeout is not None else self._default_timeout
-        merged_env = dict(self._base_env)
+        merged_env = self._base_env.copy()
         if env:
             merged_env.update(env)
         env_list = [f"{key}={value}" for key, value in merged_env.items()]

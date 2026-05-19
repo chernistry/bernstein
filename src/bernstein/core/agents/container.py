@@ -1094,7 +1094,7 @@ def ensure_agent_image(
     build_args = [runtime_cmd, "build", "-t", image_name]
     if dockerfile is not None:
         build_args.extend(["-f", str(dockerfile)])
-    build_args.append(str(build_context or Path(".")))
+    build_args.append(str(build_context or Path()))
 
     logger.info("Building agent image: %s", image_name)
     try:

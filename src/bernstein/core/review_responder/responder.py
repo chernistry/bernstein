@@ -109,7 +109,7 @@ def _compose_prompt(round_obj: ReviewRound) -> str:
     for c in round_obj.comments:
         lines.append(f"  - file=`{c.path}` lines={c.line_start}-{c.line_end} reviewer=@{c.reviewer} id={c.comment_id}")
         body = textwrap.indent(c.body.strip(), "      | ")
-        lines.append(body if body else "      | (empty body)")
+        lines.append(body or "      | (empty body)")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 

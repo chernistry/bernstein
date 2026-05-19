@@ -138,7 +138,7 @@ def compact_small_tasks(
         return batches
 
     effective_max = min(max_per_batch, TASK.max_tasks_per_compacted_batch)
-    result = [list(batch) for batch in batches]
+    result = [batch.copy() for batch in batches]
     merged_indices: set[int] = set()
 
     for pos, idx in enumerate(small_indices):

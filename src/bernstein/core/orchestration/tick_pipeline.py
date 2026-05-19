@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, cast
@@ -643,7 +642,7 @@ def _parse_file_total(jsonl_file: Path) -> float:
     """
     file_total = 0.0
     try:
-        with open(jsonl_file, encoding="utf-8", errors="replace") as fh:
+        with jsonl_file.open(encoding="utf-8", errors="replace") as fh:
             for line in fh:
                 line = line.strip()
                 if not line:
@@ -692,7 +691,7 @@ def compute_total_spent(workdir: Path) -> float:
     # from the cached total incrementally.
     removed_paths = cached_paths - current_paths
     total = cached_total
-    new_file_data: dict[str, tuple[int, float]] = dict(cached_file_data)
+    new_file_data: dict[str, tuple[int, float]] = cached_file_data.copy()
     for removed in removed_paths:
         _, old_file_total = new_file_data.pop(removed)
         total -= old_file_total
@@ -700,7 +699,7 @@ def compute_total_spent(workdir: Path) -> float:
     for jsonl_file in current_files:
         path_str = str(jsonl_file)
         try:
-            mtime_ns = os.stat(jsonl_file).st_mtime_ns
+            mtime_ns = jsonl_file.stat().st_mtime_ns
         except OSError:
             continue
 

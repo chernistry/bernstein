@@ -161,7 +161,7 @@ class MCPRegistry:
     @property
     def servers(self) -> list[MCPServerEntry]:
         """All registered MCP server entries."""
-        return list(self._servers)
+        return self._servers.copy()
 
     def _load(self, path: Path) -> None:
         """Load server catalog from YAML file.

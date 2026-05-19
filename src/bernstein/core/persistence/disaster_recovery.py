@@ -171,7 +171,7 @@ def _get_crypto(
     else:
         key_b64 = None  # type: ignore[assignment]
 
-    return Fernet(key_b64 if key_b64 else Fernet.generate_key()), salt  # type: ignore[arg-type]
+    return Fernet(key_b64 or Fernet.generate_key()), salt  # type: ignore[arg-type]
 
 
 def backup_sdd(

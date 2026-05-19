@@ -51,7 +51,7 @@ QUEUE_ROTATION_DAYS: Final[int] = 7
 
 def _resolve_endpoint(env: dict[str, str] | None = None) -> str:
     """Return the receiver URL.  Operators may override via env."""
-    real_env = env if env is not None else dict(os.environ)
+    real_env = env if env is not None else os.environ.copy()
     return real_env.get(ENDPOINT_ENV) or DEFAULT_ENDPOINT
 
 

@@ -125,7 +125,7 @@ def build_task_payload(
     priority: str | None,
 ) -> dict[str, Any]:
     """Build the JSON payload for ``POST /tasks`` from a ticket + CLI flags."""
-    chosen_role = role if role else infer_role(ticket.labels)
+    chosen_role = role or infer_role(ticket.labels)
     scope = infer_scope(ticket.labels)
     priority_int = _PRIORITY_MAP.get(priority or "medium", 2)
     description = _render_markdown(ticket)

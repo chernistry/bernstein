@@ -109,7 +109,7 @@ class CatalogEntry:
         if self.args:
             out["args"] = list(self.args)
         if self.env:
-            out["env"] = dict(self.env)
+            out["env"] = self.env.copy()
         return out
 
 

@@ -196,7 +196,7 @@ class ModelFallbackTracker:
                 provided, overrides fallback_model — the first entry becomes
                 the initial fallback target.
         """
-        chain = list(fallback_chain) if fallback_chain else list(self._chain_config.fallback_chain)
+        chain = list(fallback_chain) if fallback_chain else self._chain_config.fallback_chain.copy()
         effective_fallback = fallback_model
         if chain and not effective_fallback:
             effective_fallback = chain[0]

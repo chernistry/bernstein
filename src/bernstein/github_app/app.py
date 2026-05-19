@@ -25,6 +25,7 @@ import os
 import subprocess
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -70,7 +71,7 @@ class GitHubAppConfig:
             raise ValueError(msg)
 
         # Support file path for the private key
-        if not private_key.startswith("-----") and os.path.isfile(private_key):
+        if not private_key.startswith("-----") and Path(private_key).is_file():
             with open(private_key) as f:
                 private_key = f.read()
 

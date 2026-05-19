@@ -121,7 +121,7 @@ class MCPClientSession:
     @property
     def tools(self) -> list[RemoteTool]:
         """List of discovered tools (copy)."""
-        return list(self._tools)
+        return self._tools.copy()
 
     @property
     def is_connected(self) -> bool:
@@ -195,7 +195,7 @@ class MCPClientSession:
             len(self._tools),
             self._config.name,
         )
-        return list(self._tools)
+        return self._tools.copy()
 
     async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> ToolCallResult:
         """Call a tool on the remote server.
@@ -398,7 +398,7 @@ class MCPClientManager:
     @property
     def sessions(self) -> dict[str, MCPClientSession]:
         """Active sessions by server name (copy)."""
-        return dict(self._sessions)
+        return self._sessions.copy()
 
     async def connect(self, config: RemoteServerConfig) -> MCPClientSession:
         """Connect to a remote MCP server.
@@ -522,7 +522,7 @@ class MCPClientManager:
         Returns:
             Updated agent configuration dict.
         """
-        config = dict(agent_config)
+        config = agent_config.copy()
         targets = server_names or list(self._sessions.keys())
 
         mcp_servers: dict[str, Any] = {}

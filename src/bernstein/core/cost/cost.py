@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
+import operator
 import random
 import time
 from dataclasses import dataclass, field
@@ -173,7 +174,7 @@ def get_all_bandit_arms() -> list[str]:
     """
     seen: set[str] = set()
     arms: list[str] = []
-    for model in list(CASCADE) + list(_EXTRA_BANDIT_ARMS):
+    for model in CASCADE.copy() + list(_EXTRA_BANDIT_ARMS):
         if model in seen:
             continue
         if model not in _MODEL_COST_USD_PER_1K:
@@ -489,7 +490,7 @@ class EpsilonGreedyBandit:
         Returns:
             Model name string (e.g. "haiku", "sonnet", "opus").
         """
-        models = candidate_models if candidate_models else list(CASCADE)
+        models = candidate_models or CASCADE.copy()
 
         # Exploration: random choice with probability epsilon
         # S311: not security-sensitive — bandit exploration, not cryptography.
@@ -531,7 +532,7 @@ class EpsilonGreedyBandit:
             logger.debug("Bandit[%s]: no qualifying arms, fallback → %s", role, fallback)
             return fallback
 
-        chosen = min(qualifying, key=lambda t: t[1])[0]
+        chosen = min(qualifying, key=operator.itemgetter(1))[0]
         logger.debug("Bandit[%s]: exploit → %s (cost=%.5f)", role, chosen, dict(qualifying)[chosen])
         return chosen
 
@@ -726,7 +727,7 @@ def get_cascade_model(task: Task, retry_count: int = 0) -> str:
     ):
         cascade = ["sonnet", "opus"]
     else:
-        cascade = list(CASCADE)  # ["haiku", "sonnet", "opus"]
+        cascade = CASCADE.copy()  # ["haiku", "sonnet", "opus"]
 
     idx = min(retry_count, len(cascade) - 1)
     return cascade[idx]
@@ -1042,7 +1043,7 @@ class CachePricingTier:
     standard_read_usd_per_1m: float  # USD per 1 million standard read tokens
     standard_write_usd_per_1m: float  # USD per 1 million standard write tokens
     savings_percentage: float = 0.0  # Percentage savings vs standard pricing
-    metadata: dict[str, Any] = field(default_factory=lambda: {})
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class CachePricingRegistry:

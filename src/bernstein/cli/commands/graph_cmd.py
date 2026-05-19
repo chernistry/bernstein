@@ -25,7 +25,7 @@ def graph_group() -> None:
 @click.argument("file_query")
 def graph_impact(file_query: str) -> None:
     """Print downstream files impacted by changing FILE_QUERY."""
-    result = query_impact(Path("."), file_query)
+    result = query_impact(Path(), file_query)
     if not result.matched_files:
         console.print(f"[yellow]No file matched:[/yellow] {file_query}")
         raise SystemExit(1)

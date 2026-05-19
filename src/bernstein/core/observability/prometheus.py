@@ -468,7 +468,7 @@ def _sanitize_reason(raw: str) -> str:
     if len(_seen_reasons) >= _CARDINALITY_LIMIT:
         return "unknown"
     _seen_reasons.add(value)
-    return value if value else "unknown"
+    return value or "unknown"
 
 
 # ---------------------------------------------------------------------------
@@ -542,7 +542,7 @@ _KNOWN_ADMISSION_REASONS: frozenset[str] = frozenset(
 
 def _bucket(value: str, allowed: frozenset[str], fallback: str = "unknown") -> str:
     """Bucket *value* under *fallback* if it isn't in the closed *allowed* set."""
-    normalised = (value or "").strip().lower()
+    normalised = (value).strip().lower()
     return normalised if normalised in allowed else fallback
 
 
@@ -762,7 +762,7 @@ def _sync_cost_by_model(status_data: dict[str, Any]) -> None:
         return
     raw_map = cast("dict[str, Any]", per_model_raw)
     for model, raw_cost in raw_map.items():
-        model_name = str(model).strip() or "unknown"
+        model_name = model.strip() or "unknown"
         current_model_cost = float(raw_cost or 0.0)
         _inc_counter_delta(
             _prev_cost_by_model,

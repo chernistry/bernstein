@@ -142,14 +142,14 @@ class MinHash:
     @property
     def signature(self) -> list[int]:
         """Return a copy of the hash values (for serialisation)."""
-        return list(self._hashvalues)
+        return self._hashvalues.copy()
 
     @classmethod
     def from_signature(cls, values: list[int]) -> MinHash:
         """Reconstruct a MinHash from a previously serialised signature."""
         obj = cls.__new__(cls)
         obj._num_perm = len(values)
-        obj._hashvalues = list(values)
+        obj._hashvalues = values.copy()
         return obj
 
     def __init__(self, num_perm: int = _DEFAULT_NUM_PERM) -> None:
@@ -158,7 +158,7 @@ class MinHash:
 
     @property
     def hashvalues(self) -> list[int]:
-        return list(self._hashvalues)
+        return self._hashvalues.copy()
 
     def update(self, shingles: set[str]) -> None:
         """Update the MinHash signature with a set of shingles."""

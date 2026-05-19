@@ -95,7 +95,7 @@ def resolve_run_budget_usd(
         return float(run_config_value)
     if seed_value is not None and seed_value > 0.0:
         return float(seed_value)
-    return max(0.0, float(default))
+    return max(0.0, default)
 
 
 # ---------------------------------------------------------------------------
@@ -225,7 +225,7 @@ class EnvelopeConfig:
         if isinstance(raw_allow, list | tuple):
             allow_iter = [str(x) for x in cast("list[Any]", raw_allow) if str(x).strip()]
         return cls(
-            name=str(name),
+            name=name,
             budget_usd=float(d.get("budget_usd", 0.0) or 0.0),
             hard_budget_usd=float(d.get("hard_budget_usd", 0.0) or 0.0),
             model_allowlist=tuple(allow_iter),
@@ -364,8 +364,8 @@ class TokenUsage:
         """Deserialise from a dict."""
         raw_tags: object = d.get("cost_tags", {})
         tags: dict[str, str]
-        if isinstance(raw_tags, dict):
-            tags = {str(k): str(v) for k, v in cast("dict[str, Any]", raw_tags).items()}
+        if isinstance(raw_tags, dict):  # noqa: SIM108 - clearer than long ternary
+            tags = {k: str(v) for k, v in cast("dict[str, Any]", raw_tags).items()}
         else:
             tags = {}
         env_raw: object = d.get("quota_envelope", DEFAULT_QUOTA_ENVELOPE)
@@ -801,10 +801,10 @@ class CostTracker:
         else:
             prev_input, prev_output, prev_cache_read, prev_cache_write = prev
 
-        cur_input = max(0, int(total_input_tokens))
-        cur_output = max(0, int(total_output_tokens))
-        cur_cache_read = max(0, int(total_cache_read_tokens))
-        cur_cache_write = max(0, int(total_cache_write_tokens))
+        cur_input = max(0, total_input_tokens)
+        cur_output = max(0, total_output_tokens)
+        cur_cache_read = max(0, total_cache_read_tokens)
+        cur_cache_write = max(0, total_cache_write_tokens)
 
         delta_input = max(0, cur_input - prev_input)
         delta_output = max(0, cur_output - prev_output)
@@ -884,7 +884,7 @@ class CostTracker:
         Existing envelope spend totals are preserved — the new
         configuration only affects future records.
         """
-        self.envelopes = dict(envelopes)
+        self.envelopes = envelopes.copy()
 
     def set_envelope_threshold_hook(self, hook: object) -> None:
         """Register a callable fired when an envelope crosses its threshold.
@@ -900,12 +900,12 @@ class CostTracker:
     def spent_by_envelope(self) -> dict[str, float]:
         """Return a shallow copy of the per-envelope spend map."""
         with self._lock:
-            return dict(self._spent_by_envelope)
+            return self._spent_by_envelope.copy()
 
     def calls_by_envelope(self) -> dict[str, int]:
         """Return a shallow copy of the per-envelope invocation map."""
         with self._lock:
-            return dict(self._calls_by_envelope)
+            return self._calls_by_envelope.copy()
 
     def envelope_report(self, name: str) -> EnvelopeReport:
         """Return the live :class:`EnvelopeReport` for ``name``.
@@ -1081,7 +1081,7 @@ class CostTracker:
 
     def spent_by_model(self) -> dict[str, float]:
         """Return cumulative spend by model."""
-        return dict(self._spent_by_model)
+        return self._spent_by_model.copy()
 
     # ---- persistence ------------------------------------------------------
 
@@ -1117,8 +1117,8 @@ class CostTracker:
                 for k, v in self._cumulative_tokens.items()
             },
             "envelopes": {name: cfg.to_dict() for name, cfg in self.envelopes.items()},
-            "spent_by_envelope": dict(self._spent_by_envelope),
-            "calls_by_envelope": dict(self._calls_by_envelope),
+            "spent_by_envelope": self._spent_by_envelope.copy(),
+            "calls_by_envelope": self._calls_by_envelope.copy(),
         }
         file_path.write_text(json.dumps(data, indent=2))
         return file_path
@@ -1174,16 +1174,14 @@ class CostTracker:
                 env_map: dict[str, EnvelopeConfig] = {}
                 for name, payload in cast("dict[str, Any]", raw_env_cfg).items():
                     if isinstance(payload, dict):
-                        env_map[str(name)] = EnvelopeConfig.from_dict(str(name), cast("dict[str, Any]", payload))
+                        env_map[name] = EnvelopeConfig.from_dict(name, cast("dict[str, Any]", payload))
                 tracker.envelopes = env_map
             raw_env_spent = data.get("spent_by_envelope", {})
             if isinstance(raw_env_spent, dict):
-                tracker._spent_by_envelope = {
-                    str(k): float(v) for k, v in cast("dict[str, Any]", raw_env_spent).items()
-                }
+                tracker._spent_by_envelope = {k: float(v) for k, v in cast("dict[str, Any]", raw_env_spent).items()}
             raw_env_calls = data.get("calls_by_envelope", {})
             if isinstance(raw_env_calls, dict):
-                tracker._calls_by_envelope = {str(k): int(v) for k, v in cast("dict[str, Any]", raw_env_calls).items()}
+                tracker._calls_by_envelope = {k: int(v) for k, v in cast("dict[str, Any]", raw_env_calls).items()}
 
             # If we loaded usages but not envelope spend, derive it from
             # usage records so old snapshots still aggregate by envelope.
@@ -1262,7 +1260,7 @@ class CostTracker:
                 agent_id=aid,
                 total_cost_usd=round(float(d["total"]), 6),
                 task_count=int(d["count"]),
-                model_breakdown={m: round(float(c), 6) for m, c in cast("dict[str, float]", d["models"]).items()},
+                model_breakdown={m: round(c, 6) for m, c in cast("dict[str, float]", d["models"]).items()},
             )
             for aid, d in sorted(self._agent_accum.items(), key=lambda kv: float(kv[1]["total"]), reverse=True)
         ]
@@ -1279,7 +1277,7 @@ class CostTracker:
         return [
             ModelCostBreakdown(
                 model=model,
-                total_cost_usd=round(float(d["total"]), 6),
+                total_cost_usd=round(d["total"], 6),
                 total_tokens=int(d["tokens"]),
                 invocation_count=int(d["count"]),
                 input_tokens=int(d["input"]),
@@ -1287,7 +1285,7 @@ class CostTracker:
                 cache_read_tokens=int(d["cache_read"]),
                 cache_write_tokens=int(d["cache_write"]),
             )
-            for model, d in sorted(self._model_accum.items(), key=lambda kv: float(kv[1]["total"]), reverse=True)
+            for model, d in sorted(self._model_accum.items(), key=lambda kv: kv[1]["total"], reverse=True)
         ]
 
     def project(self, tasks_done: int, tasks_remaining: int) -> RunCostProjection:

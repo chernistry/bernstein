@@ -190,9 +190,9 @@ class TaskMCPFilter:
             for name in result.blocked:
                 result.reasons[name] = f"no rule allows server for role '{role}'"
         elif self._default_allow_all or not self._rules:
-            result.allowed = list(all_server_names)
+            result.allowed = all_server_names.copy()
         else:
-            result.blocked = list(all_server_names)
+            result.blocked = all_server_names.copy()
             for name in result.blocked:
                 result.reasons[name] = f"no matching rule for role '{role}'"
 
@@ -211,7 +211,7 @@ class TaskMCPFilter:
     @property
     def rules(self) -> list[RoleServerRule]:
         """Return all registered rules."""
-        return list(self._rules)
+        return self._rules.copy()
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize filter configuration to a dict."""

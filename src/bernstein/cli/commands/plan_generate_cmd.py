@@ -282,7 +282,7 @@ def _shape_check_yaml_plan(
         load_shape_config,
     )
 
-    base = load_shape_config(Path("."))
+    base = load_shape_config(Path())
     cfg = ShapeConfig(
         enforce_vertical=True,
         max_loc_hard=max_loc if max_loc is not None else base.max_loc_hard,

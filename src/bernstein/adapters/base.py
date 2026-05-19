@@ -211,7 +211,7 @@ def register_rate_limit_meter(meter: RateLimitMeter) -> None:
 def get_rate_limit_meters() -> dict[str, RateLimitMeter]:
     """Return a shallow copy of the currently-registered meter set."""
     with _METERS_LOCK:
-        return dict(_METERS)
+        return _METERS.copy()
 
 
 def reset_rate_limit_meters() -> None:

@@ -256,7 +256,7 @@ def build_entry(task_id: str, transcript: str) -> DiaryEntry:
     """
     if not task_id or not task_id.strip():
         raise DiaryError("task_id must be a non-empty string")
-    cleaned = redact(transcript or "")
+    cleaned = redact(transcript)
     sections = extract_sections(cleaned)
     rationale = " ".join(sections["rationale"]).strip()
     if not rationale:
@@ -275,7 +275,7 @@ def build_entry(task_id: str, transcript: str) -> DiaryEntry:
         failed=tuple(sections["failed"]),
         rationale=rationale,
         tags=tags,
-        redaction_hash=compute_redaction_hash(transcript or ""),
+        redaction_hash=compute_redaction_hash(transcript),
     )
 
 

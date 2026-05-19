@@ -158,7 +158,7 @@ class WorktreeSandboxSession(SandboxSession):
             raise ValueError("cmd must be a non-empty argv list")
         effective_cwd = self._resolve(cwd) if cwd is not None else self._worktree_path
         effective_timeout = timeout if timeout is not None else self._default_timeout
-        effective_env = dict(os.environ)
+        effective_env = os.environ.copy()
         effective_env.update(self._base_env)
         if env:
             effective_env.update(env)

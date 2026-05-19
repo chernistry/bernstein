@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import operator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -70,7 +71,7 @@ class CommandPalette:
             self.query = query
         q = self.query.strip()
         if not q:
-            return list(self.commands)
+            return self.commands.copy()
 
         scored: list[tuple[int, PaletteCommand]] = []
         for command in self.commands:
@@ -84,7 +85,7 @@ class CommandPalette:
             if best_match:
                 scored.append((best_score, command))
 
-        scored.sort(key=lambda item: item[0])
+        scored.sort(key=operator.itemgetter(0))
         return [command for _, command in scored]
 
     def set_query(self, query: str) -> None:
@@ -173,7 +174,7 @@ def render_palette(
     """Render the full command palette as Rich Text."""
     text = Text()
     text.append("> ", style="cyan bold")
-    text.append(palette.query or "", style="bold")
+    text.append(palette.query, style="bold")
     text.append("\n")
     text.append("\u2500" * 40, style="dim")
     text.append("\n")
@@ -229,7 +230,7 @@ class CommandPaletteScreen(ModalScreen[str | None]):
 
     def __init__(self, palette: CommandPalette | None = None, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self._palette = palette or CommandPalette(commands=list(DEFAULT_PALETTE_COMMANDS))
+        self._palette = palette or CommandPalette(commands=DEFAULT_PALETTE_COMMANDS.copy())
 
     def compose(self) -> ComposeResult:
         with Vertical(id="command-palette-shell"):

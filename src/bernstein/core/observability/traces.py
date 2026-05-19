@@ -41,7 +41,7 @@ class TraceStep:
     type: Literal["spawn", "orient", "plan", "edit", "verify", "complete", "fail", "compact"]
     timestamp: float
     detail: str = ""
-    files: list[str] = field(default_factory=lambda: [])
+    files: list[str] = field(default_factory=list)
     tokens: int = 0
     duration_ms: int = 0
     # Per-turn budget accounting (populated at turn boundaries)
@@ -105,10 +105,10 @@ class AgentTrace:
     effort: str
     spawn_ts: float
     end_ts: float | None = None
-    steps: list[TraceStep] = field(default_factory=lambda: [])
+    steps: list[TraceStep] = field(default_factory=list)
     outcome: Literal["success", "failed", "unknown"] = "unknown"
     log_path: str = ""
-    task_snapshots: list[dict[str, Any]] = field(default_factory=lambda: [])
+    task_snapshots: list[dict[str, Any]] = field(default_factory=list)
     # Budget snapshot at turn boundaries
     total_allocated_budget: int = 0
     total_consumed: int = 0
@@ -240,7 +240,7 @@ def parse_log_to_steps(log_path: Path) -> list[TraceStep]:
                 type=step_type,  # type: ignore[arg-type]
                 timestamp=ts,
                 detail=f"{step_type.capitalize()}: {', '.join(files[:3])}{'...' if len(files) > 3 else ''}",
-                files=files[:],
+                files=files.copy(),
             )
         )
 
@@ -248,7 +248,7 @@ def parse_log_to_steps(log_path: Path) -> list[TraceStep]:
         ts = estimated_start + (i / total) * time_span
         m = _TOOL_RE.match(line.strip())
         if m is None:
-            if line.strip() and last_type not in ("plan",):
+            if line.strip() and last_type != "plan":
                 if last_type and current_files:
                     _flush(last_type, current_ts, current_files)
                     current_files = []
@@ -945,7 +945,7 @@ def _flush_tool_batch(
     out.append(
         ToolBatch(
             batch_id=batch_id,
-            steps=steps[:],
+            steps=steps.copy(),
             start_ts=start_ts,
             end_ts=end_ts,
             is_concurrent=is_concurrent,
@@ -1389,7 +1389,7 @@ class TokenEscalationEvent:
     max_allowed_tokens: int
     escalation_reason: str
     timestamp: float = field(default_factory=time.time)
-    metadata: dict[str, Any] = field(default_factory=lambda: {})
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 def record_token_escalation(

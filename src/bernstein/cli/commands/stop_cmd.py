@@ -487,7 +487,7 @@ def _list_process_snapshots_windows() -> list[_ProcessSnapshot]:
                 try:
                     pid = int(parts[0])
                     ppid = int(parts[1]) if parts[1] else 0
-                    command = parts[2] if parts[2] else ""
+                    command = parts[2]
                     snapshots.append(_ProcessSnapshot(pid=pid, ppid=ppid, pgid=0, command=command))
                 except (ValueError, IndexError):
                     continue

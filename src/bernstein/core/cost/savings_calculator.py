@@ -40,7 +40,7 @@ def calculate_savings(
 
     completed = [m for m in task_metrics if m.end_time is not None]
     sequential_time_seconds = sum(max(float(m.end_time or 0.0) - float(m.start_time), 0.0) for m in completed)
-    parallel_time_seconds = max(float(wall_clock_seconds), 0.0)
+    parallel_time_seconds = max(wall_clock_seconds, 0.0)
     if sequential_time_seconds <= 0.0:
         sequential_time_seconds = parallel_time_seconds
     time_saved_seconds = max(sequential_time_seconds - parallel_time_seconds, 0.0)

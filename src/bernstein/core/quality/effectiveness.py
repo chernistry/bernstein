@@ -282,13 +282,13 @@ class EffectivenessScorer:
     def _extract_pass_rate(report: Any, total: int) -> float:
         """Extract pass rate from a gate report's results list."""
         if hasattr(report, "results"):
-            results = list(cast("list[Any]", report.results))
+            results = cast("list[Any]", report.results).copy()
             passes = sum(
                 1 for result in results if str(getattr(result, "status", "")) in {"pass", "skipped", "bypassed"}
             )
             return (passes / len(results)) if results else 0.0
         if hasattr(report, "gate_results"):
-            results = list(cast("list[Any]", report.gate_results))
+            results = cast("list[Any]", report.gate_results).copy()
             passes = sum(1 for result in results if bool(getattr(result, "passed", False)))
             return (passes / len(results)) if results else 0.0
         return 1.0 if total == 100 else 0.0

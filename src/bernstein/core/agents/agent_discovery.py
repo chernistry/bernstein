@@ -107,7 +107,7 @@ def _extract_version(result: subprocess.CompletedProcess[str] | None) -> str:
     text = (result.stdout + result.stderr).strip()
     # Many CLIs print "name vX.Y.Z" or just "X.Y.Z"
     for token in text.split():
-        stripped = token.lstrip("v").strip(",").strip("(").strip(")")
+        stripped = token.lstrip("v").strip(",").strip("()")
         if stripped and stripped[0].isdigit():
             return stripped
     return text[:40] if text else "unknown"
@@ -181,7 +181,7 @@ def _load_toml(path: Path) -> dict[str, object] | None:
         except ImportError:
             return None
     try:
-        with open(path, "rb") as f:
+        with path.open("rb") as f:
             return tomllib.load(f)  # type: ignore[return-value]
     except Exception:
         return None

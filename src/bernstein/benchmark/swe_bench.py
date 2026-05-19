@@ -299,7 +299,7 @@ def compute_report(results: list[InstanceResult]) -> BenchmarkReport:
         median_cost_usd=_median([r.cost_usd for r in results]),
         median_duration_seconds=_median([r.duration_seconds for r in results]),
         cost_effectiveness_ratio=cost_effectiveness,
-        instance_results=list(results),
+        instance_results=results.copy(),
     )
 
 

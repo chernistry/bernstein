@@ -715,9 +715,9 @@ def _detect_scope(staged_files: list[str]) -> str:
         parts = Path(f).parts
         if len(parts) >= 3 and parts[0] == "src" and parts[1] == "bernstein":
             dirs[parts[2]] += 1
-        elif len(parts) > 0 and parts[0] == "tests":
+        elif parts and parts[0] == "tests":
             dirs["tests"] += 1
-        elif len(parts) > 0:
+        elif parts:
             dirs[parts[0]] += 1
 
     if not dirs:

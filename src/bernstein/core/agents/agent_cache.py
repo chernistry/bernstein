@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import operator
 import os
 import time
 from dataclasses import asdict, dataclass
@@ -303,7 +304,7 @@ class AgentCache:
             return
 
         # Sort oldest-first and remove until under budget
-        entries.sort(key=lambda e: e[0])
+        entries.sort(key=operator.itemgetter(0))
         for _created_at, size, path in entries:
             if total_size <= self._max_size_bytes:
                 break

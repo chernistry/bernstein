@@ -485,7 +485,7 @@ def generate_run_changelog(
         generated_at=time.time(),
         since_ref=since_ref,
         tasks_total=len(tasks),
-        changes=dict(changes_by_component),
+        changes=changes_by_component.copy(),
         breaking_changes=breaking_changes,
     )
 
@@ -544,7 +544,7 @@ def format_markdown(cl: RunChangelog, *, repo_url: str | None = None) -> str:
     lines: list[str] = ["# Run Changelog", ""]
 
     ts = datetime.datetime.fromtimestamp(cl.generated_at).strftime("%Y-%m-%d %H:%M")
-    since_label = cl.since_ref if cl.since_ref else "last 24 hours"
+    since_label = cl.since_ref or "last 24 hours"
     lines.append(f"_Generated {ts} · {cl.tasks_total} tasks · since {since_label}_")
     lines.append("")
 
@@ -583,7 +583,7 @@ def format_console(cl: RunChangelog, *, _repo_url: str | None = None) -> str:
     parts: list[str] = []
 
     ts = datetime.datetime.fromtimestamp(cl.generated_at).strftime("%Y-%m-%d %H:%M")
-    since_label = cl.since_ref if cl.since_ref else "last 24 hours"
+    since_label = cl.since_ref or "last 24 hours"
     parts.append(f"[dim]Generated {ts} · {cl.tasks_total} tasks · since {since_label}[/dim]")
     parts.append("")
 

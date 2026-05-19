@@ -65,7 +65,7 @@ class TaskProgress:
         if isinstance(progress_raw, dict):
             progress = cast("dict[str, Any]", progress_raw)
             pct_raw: object = progress.get("percentage")
-            custom_pct: float | None = float(cast("float", pct_raw)) if pct_raw is not None else None
+            custom_pct: float | None = cast("float", pct_raw) if pct_raw is not None else None
             return cls(
                 task_id=str(raw.get("id", raw.get("task_id", ""))),
                 completed_steps=int(progress.get("completed_steps", 0)),

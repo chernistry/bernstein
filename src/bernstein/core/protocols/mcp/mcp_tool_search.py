@@ -174,7 +174,7 @@ def _schema_blob(schema: Mapping[str, Any]) -> str:
         return ""
     parts: list[str] = []
     for key, value in schema.items():
-        parts.append(str(key))
+        parts.append(key)
         if isinstance(value, Mapping):
             parts.append(_schema_blob(value))
         elif isinstance(value, list | tuple):

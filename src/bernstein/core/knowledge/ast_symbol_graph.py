@@ -173,8 +173,8 @@ class SemanticGraph:
         max_nodes: int = 50,
     ) -> set[str]:
         """Expand from seed symbols through call edges up to *depth* hops."""
-        included = set(seed_ids)
-        frontier = set(seed_ids)
+        included = seed_ids.copy()
+        frontier = seed_ids.copy()
 
         for _ in range(depth):
             next_frontier: set[str] = set()

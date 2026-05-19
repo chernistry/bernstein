@@ -62,7 +62,7 @@ class ProfileResult:
     """
 
     total_time: float
-    top_functions: list[tuple[str, float, int]] = field(default_factory=lambda: [])
+    top_functions: list[tuple[str, float, int]] = field(default_factory=list)
     output_path: Path | None = None
 
 

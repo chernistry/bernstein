@@ -154,7 +154,7 @@ def classify_task(task: Task) -> ClassificationResult:
         return ClassificationResult(level=TaskLevel.L2, reason="critical priority")
 
     # Check for manager-specified model/effort overrides (respect explicit routing)
-    if task.model and task.model.lower() in ("opus",):
+    if task.model and task.model.lower() == "opus":
         return ClassificationResult(level=TaskLevel.L2, reason="manager requested opus")
 
     text = f"{task.title} {task.description}".lower()
@@ -203,7 +203,7 @@ def classify_task(task: Task) -> ClassificationResult:
 def _run_ruff_format(workdir: Path, owned_files: list[str]) -> FastPathResult:
     """Run ruff format on owned files or entire project."""
     start = time.monotonic()
-    targets = owned_files if owned_files else ["."]
+    targets = owned_files or ["."]
 
     try:
         proc = subprocess.run(
@@ -245,7 +245,7 @@ def _run_ruff_format(workdir: Path, owned_files: list[str]) -> FastPathResult:
 def _run_ruff_fix(workdir: Path, owned_files: list[str]) -> FastPathResult:
     """Run ruff check --fix on owned files or entire project."""
     start = time.monotonic()
-    targets = owned_files if owned_files else ["."]
+    targets = owned_files or ["."]
 
     try:
         proc = subprocess.run(
@@ -280,7 +280,7 @@ def _run_ruff_fix(workdir: Path, owned_files: list[str]) -> FastPathResult:
 def _run_sort_imports(workdir: Path, owned_files: list[str]) -> FastPathResult:
     """Run ruff check --select I --fix to sort imports."""
     start = time.monotonic()
-    targets = owned_files if owned_files else ["."]
+    targets = owned_files or ["."]
 
     try:
         proc = subprocess.run(
@@ -350,7 +350,7 @@ def _run_rename(workdir: Path, owned_files: list[str], task: Task | None = None)
         )
 
     old_name, new_name = match.group(1), match.group(2)
-    targets = owned_files if owned_files else []
+    targets = owned_files
     if not targets:
         return FastPathResult(
             success=False,

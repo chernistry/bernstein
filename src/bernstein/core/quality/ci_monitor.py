@@ -313,7 +313,7 @@ def parse_log_to_context(raw_log: str) -> FailureContext:
 
     if not error_message and not test_name:
         snippet = raw_log[:500].strip()
-        error_message = snippet if snippet else "Unknown CI failure"
+        error_message = snippet or "Unknown CI failure"
 
     return FailureContext(
         test_name=test_name,

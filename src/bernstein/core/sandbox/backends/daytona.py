@@ -345,7 +345,7 @@ class DaytonaSandboxBackend:
         api_url = os.environ.get("DAYTONA_API_URL") or _DEFAULT_API_URL
         org_id = os.environ.get("DAYTONA_ORG_ID")
         spec = HttpClientSpec(
-            base_url=str(api_url).rstrip("/"),
+            base_url=api_url.rstrip("/"),
             headers=_build_headers(env["DAYTONA_API_KEY"], org_id),
             timeout=120.0,
             tls=self._tls,

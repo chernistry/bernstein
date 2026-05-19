@@ -233,7 +233,7 @@ def format_discord(payload: NotificationPayload) -> dict[str, Any]:
         {"name": "Event", "value": f"`{payload.event}`", "inline": True},
     ]
     for k, v in payload.metadata.items():
-        fields.append({"name": str(k), "value": str(v), "inline": True})
+        fields.append({"name": k, "value": str(v), "inline": True})
 
     embed: dict[str, Any] = {
         "title": payload.title,

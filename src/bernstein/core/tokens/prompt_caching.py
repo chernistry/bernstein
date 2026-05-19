@@ -439,7 +439,7 @@ class PromptCachingManager:
         """Load existing cache manifest if it exists."""
         if self._manifest_path.exists():
             try:
-                with open(self._manifest_path) as f:
+                with self._manifest_path.open() as f:
                     line = f.read().strip()
                     if line:
                         self._manifest = CacheManifest.from_json_line(line)
@@ -547,7 +547,7 @@ class PromptCachingManager:
     def save_manifest(self) -> None:
         """Persist manifest to .sdd/caching/manifest.jsonl."""
         self._manifest_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._manifest_path, "w") as f:
+        with self._manifest_path.open("w") as f:
             f.write(self._manifest.to_json_line())
         logger.debug("Saved cache manifest to %s", self._manifest_path)
 
@@ -642,8 +642,8 @@ def get_cache_pricing(model_name: str) -> dict[str, float]:
         if key == "_default":
             continue
         if key in model_lower or model_lower.startswith(key):
-            return dict(pricing)
-    return dict(_CACHE_PRICING["_default"])
+            return pricing.copy()
+    return _CACHE_PRICING["_default"].copy()
 
 
 def compute_cache_cost(
@@ -783,7 +783,7 @@ class CacheBreak:
     new_hash: str
     old_content: str
     new_content: str
-    diff_lines: list[str] = field(default_factory=lambda: [])
+    diff_lines: list[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
 
     def generate_diff(self, context_lines: int = 3) -> None:
@@ -848,7 +848,7 @@ class CacheBaselineAlert:
     drop_percentage: float
     threshold: float
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
-    metadata: dict[str, Any] = field(default_factory=lambda: {})
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class CacheBaselineMonitor:

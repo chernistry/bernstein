@@ -13,7 +13,6 @@ Usage::
 from __future__ import annotations
 
 import logging
-import os
 import stat
 import textwrap
 from pathlib import Path
@@ -84,7 +83,7 @@ class GitHookInstaller:
     @property
     def denied_paths(self) -> list[str]:
         """The denied path patterns this hook enforces."""
-        return list(self._denied_paths)
+        return self._denied_paths.copy()
 
     def install(self, worktree_path: str | Path) -> Path:
         """Install the pre-commit hook in a worktree.
@@ -199,7 +198,7 @@ class GitHookInstaller:
             text = git_path.read_text(encoding="utf-8").strip()
             if text.startswith("gitdir:"):
                 gitdir = text.split(":", 1)[1].strip()
-                if not os.path.isabs(gitdir):
+                if not Path(gitdir).is_absolute():
                     gitdir = str((worktree_path / gitdir).resolve())
                 return Path(gitdir) / "hooks"
 

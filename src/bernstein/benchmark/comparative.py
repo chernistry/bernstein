@@ -225,7 +225,7 @@ def compute_report(results: list[BenchmarkResult]) -> BenchmarkReport:
     for mode_key, mode_results in by_mode.items():
         summary[mode_key] = _compute_mode_summary(mode_key, mode_results)  # type: ignore[arg-type]
 
-    return BenchmarkReport(results=list(results), summary=summary)
+    return BenchmarkReport(results=results.copy(), summary=summary)
 
 
 # ---------------------------------------------------------------------------
@@ -285,7 +285,7 @@ class ComparativeBenchmark:
     @property
     def tasks(self) -> list[BenchmarkTask]:
         """The benchmark tasks this suite will execute."""
-        return list(self._tasks)
+        return self._tasks.copy()
 
     # ------------------------------------------------------------------
     # Single-agent execution

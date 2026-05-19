@@ -174,7 +174,7 @@ def _monitor_logs(
             if current_size > last_size:
                 with log_path.open("r", encoding="utf-8", errors="replace") as f:
                     f.seek(last_size)
-                    for line in f.readlines():
+                    for line in f:
                         m = _BASH_ERROR_RE.search(line)
                         if m and _handle_tool_error(
                             m,
@@ -407,7 +407,7 @@ class PermissionDeniedHint:
     pattern: str  # Regex pattern to match error messages
     suggestion: str  # Suggested fix or retry hint
     priority: int = 1  # Priority (higher = more important)
-    context: dict[str, Any] = field(default_factory=lambda: {})
+    context: dict[str, Any] = field(default_factory=dict)
 
 
 class PermissionDeniedHook:

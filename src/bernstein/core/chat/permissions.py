@@ -43,7 +43,7 @@ class AllowList:
     the entire world.
     """
 
-    users: set[str] = field(default_factory=lambda: set())
+    users: set[str] = field(default_factory=set)
 
     def is_allowed(self, user_id: str | int) -> bool:
         """Return True iff the string form of ``user_id`` is permitted."""
@@ -52,7 +52,7 @@ class AllowList:
     def extend(self, more: Iterable[str]) -> None:
         """Merge additional user ids into the allow-list."""
         for uid in more:
-            cleaned = str(uid).strip()
+            cleaned = uid.strip()
             if cleaned:
                 self.users.add(cleaned)
 

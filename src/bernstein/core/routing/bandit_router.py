@@ -339,10 +339,10 @@ def _sherman_morrison_update(mat_inv: list[list[float]], x: list[float]) -> list
 def _load_arms(value: object, fallback: list[str]) -> list[str]:
     """Load model arms from JSON, falling back when the payload is invalid."""
     if not isinstance(value, list):
-        return list(fallback)
+        return fallback.copy()
     raw_items = cast(_CAST_LIST_OBJ, value)
     arms = [item for item in raw_items if isinstance(item, str) and item]
-    return arms or list(fallback)
+    return arms or fallback.copy()
 
 
 def _is_vector(value: object, dim: int) -> TypeGuard[list[float]]:
@@ -553,9 +553,9 @@ def _load_arm_matrices(
         if not _is_matrix(raw_matrix, FEATURE_DIM) or not _is_vector(raw_vector, FEATURE_DIM):
             logger.info("BanditPolicy: resetting %s because arm %s has incompatible dimensions", path, arm)
             return None
-        matrix = [[float(value) for value in row] for row in raw_matrix]
+        matrix = [[value for value in row] for row in raw_matrix]
         loaded_inv[arm] = matrix if arm in raw_inv_by_arm else _inv(matrix)
-        loaded_vec[arm] = [float(value) for value in raw_vector]
+        loaded_vec[arm] = [value for value in raw_vector]
 
     return loaded_inv, loaded_vec, legacy_loaded
 
@@ -582,7 +582,7 @@ class BanditPolicy:
 
     def __init__(self, arms: list[str], alpha: float = _DEFAULT_ALPHA) -> None:
         d = FEATURE_DIM
-        self.arms = list(arms)
+        self.arms = arms.copy()
         self.alpha = alpha
         self.total_updates: int = 0
         # Per-arm matrices: A_a^-1 (d x d) and b_a (d,)
@@ -687,7 +687,7 @@ class BanditPolicy:
             return
 
         clamped = max(0.0, min(1.0, mean_reward))
-        n = max(1, int(virtual_observations))
+        n = max(1, virtual_observations)
 
         # Bias feature at index 5. For the identity init, a rank-1 update with
         # x = e_bias repeated n times collapses to:
@@ -739,7 +739,7 @@ class BanditPolicy:
         Returns:
             Loaded (or fresh) ``BanditPolicy``.
         """
-        default_arms = arms or list(_DEFAULT_ARMS)
+        default_arms = arms or _DEFAULT_ARMS.copy()
         if not path.exists():
             return cls(arms=default_arms)
         try:
@@ -812,7 +812,7 @@ class EffortBandit:
         c: float = _EFFORT_UCB_C,
         min_pulls_per_key: int = _EFFORT_MIN_PULLS_PER_KEY,
     ) -> None:
-        self.arms = tuple(arms)
+        self.arms = arms
         self.c = c
         self.min_pulls_per_key = min_pulls_per_key
         # Per-key counters keyed by "task_type|model".  Two parallel tables
@@ -1053,7 +1053,7 @@ class BanditRouter:
         alpha: float = _DEFAULT_ALPHA,
     ) -> None:
         self._warmup_min = warmup_min
-        self._arms = arms or list(_DEFAULT_ARMS)
+        self._arms = arms or _DEFAULT_ARMS.copy()
         self._policy_dir = policy_dir
         self._alpha = alpha
         self._policy: BanditPolicy | None = None
@@ -1280,7 +1280,7 @@ class BanditRouter:
             Dict mapping model name → selection count.
         """
         self._ensure_loaded()
-        return dict(self._selection_counts)
+        return self._selection_counts.copy()
 
     def seed_arm(
         self,
@@ -1406,7 +1406,7 @@ class BanditRouter:
             "clamp": True,
             "capability_floor": floor,
         }
-        self._shadow_pending[task.id] = dict(payload)
+        self._shadow_pending[task.id] = payload.copy()
         self._shadow_counters["total_decisions"] += 1.0
         shadow_path = self._policy_dir / self.SHADOW_DECISIONS_FILE
         try:
@@ -1460,7 +1460,7 @@ class BanditRouter:
             "selected_score": _arm_score_payload(selected_score),
             "executed_score": _arm_score_payload(executed_score),
         }
-        self._shadow_pending[task.id] = dict(payload)
+        self._shadow_pending[task.id] = payload.copy()
         self._shadow_counters["total_decisions"] += 1.0
         shadow_path = self._policy_dir / self.SHADOW_DECISIONS_FILE
         try:
@@ -1484,7 +1484,7 @@ class BanditRouter:
             "total_completions": self._total_completions,
             "warmup_min": self._warmup_min,
             "exploration_rate": round(self.exploration_rate, 4),
-            "selection_frequency": dict(self._selection_counts),
+            "selection_frequency": self._selection_counts.copy(),
             "exploration_stats": self._exploration_stats(),
             "shadow_stats": self._shadow_stats(),
             "effort_bandit": self._effort_bandit.to_dict(),

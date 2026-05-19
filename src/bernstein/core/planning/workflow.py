@@ -251,7 +251,7 @@ class WorkflowExecutor:
     @property
     def events(self) -> list[WorkflowPhaseEvent]:
         """All phase events emitted so far."""
-        return list(self._events)
+        return self._events.copy()
 
     def grant_approval(self, reason: str = "approved") -> None:
         """Grant human approval for the current phase.
@@ -306,7 +306,7 @@ class WorkflowExecutor:
         if phase.allowed_roles:
             phase_tasks = [t for t in all_tasks if t.role in phase.allowed_roles]
         else:
-            phase_tasks = list(all_tasks)
+            phase_tasks = all_tasks.copy()
 
         if not phase_tasks:
             return False  # no tasks yet = not complete

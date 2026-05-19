@@ -85,7 +85,7 @@ def set_budget_context(
             (default ``DEFAULT_OPUS_TASK_COST_USD``).
     """
     _budget_context_state["budget_remaining_usd"] = budget_remaining_usd
-    _budget_context_state["enabled"] = bool(enabled)
+    _budget_context_state["enabled"] = enabled
     if estimated_opus_cost_usd is not None:
         _budget_context_state["estimated_opus_cost_usd"] = float(estimated_opus_cost_usd)
 
@@ -316,7 +316,7 @@ class RouterState:
     active_agent_counts: dict[str, int] = field(default_factory=dict[str, int])
 
     # Model policy (CISO-level provider constraints)
-    model_policy: ModelPolicy = field(default_factory=lambda: ModelPolicy())
+    model_policy: ModelPolicy = field(default_factory=ModelPolicy)
 
 
 class TierAwareRouter:
@@ -725,7 +725,7 @@ class TierAwareRouter:
         Args:
             counts: Mapping of provider name -> number of active agents.
         """
-        self.state.active_agent_counts = dict(counts)
+        self.state.active_agent_counts = counts.copy()
 
     def record_outcome(
         self,
@@ -1294,7 +1294,7 @@ def _parse_provider_models(raw_models: object) -> dict[str, ModelConfig]:
     for model_id, mc_raw in raw_models_dict.items():
         if isinstance(mc_raw, dict):
             mc: dict[str, Any] = cast(_CAST_DICT_STR_ANY, mc_raw)
-            models[str(model_id)] = ModelConfig(
+            models[model_id] = ModelConfig(
                 model=str(mc.get("model", model_id)),
                 effort=str(mc.get("effort", "high")),
                 aliases=list(mc.get("aliases", [])),
@@ -1360,11 +1360,11 @@ def load_providers_from_yaml(path: Path, router: TierAwareRouter) -> None:
         if not isinstance(cfg_raw, dict):
             continue
         try:
-            provider = _parse_provider_config(str(name), cast(_CAST_DICT_STR_ANY, cfg_raw))
+            provider = _parse_provider_config(name, cast(_CAST_DICT_STR_ANY, cfg_raw))
             router.register_provider(provider)
-            logger.debug("Registered provider '%s' (tier=%s) from %s", str(name), provider.tier.value, path)
+            logger.debug("Registered provider '%s' (tier=%s) from %s", name, provider.tier.value, path)
         except Exception as exc:
-            logger.warning("Skipping malformed provider '%s' in %s: %s", str(name), path, exc)
+            logger.warning("Skipping malformed provider '%s' in %s: %s", name, path, exc)
 
 
 # Default router instance for convenience

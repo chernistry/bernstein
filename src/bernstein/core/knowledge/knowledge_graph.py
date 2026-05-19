@@ -139,7 +139,7 @@ def _module_index(paths: list[str]) -> dict[str, str]:
 
 
 def _file_path_to_module(path: str) -> str:
-    trimmed = path[4:] if path.startswith("src/") else path
+    trimmed = path.removeprefix("src/")
     if trimmed.endswith(".py"):
         trimmed = trimmed[:-3]
     if trimmed.endswith("/__init__"):
@@ -433,7 +433,7 @@ def query_impact(workdir: Path, file_query: str, max_age_minutes: int = 30) -> I
         reverse_file_edges = _build_reverse_file_edges(connection)
 
         impacted: set[str] = set()
-        queue = list(matched_files)
+        queue = matched_files.copy()
         visited = set(matched_files)
         while queue:
             current = queue.pop(0)

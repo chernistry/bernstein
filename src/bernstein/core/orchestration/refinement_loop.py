@@ -189,7 +189,7 @@ def clamp_rounds(requested: int) -> int:
         return 1
     if requested > MAX_REFINEMENT_ROUNDS:
         return MAX_REFINEMENT_ROUNDS
-    return int(requested)
+    return requested
 
 
 def is_refinement(task: Task) -> bool:
@@ -418,7 +418,7 @@ class RefinementLoopRunner:
 
         for round_index in range(1, rounds + 1):
             last_round = round_index
-            costs.append(max(0.0, float(current.cost_usd)))
+            costs.append(max(0.0, current.cost_usd))
             critique = self.critic(task, current, round_index)
             critique = _normalise_critique(critique)
             critiques.append(critique)
@@ -534,7 +534,7 @@ def _record_decision(task: Task, report: RefinementReport) -> None:
                 f"stop={report.early_stop_reason} cost={report.cumulative_cost_usd:.4f}"
             ),
             confidence=clamp_score(winner_score),
-            winner_score=float(winner_score),
+            winner_score=winner_score,
             policy_path=("refinement_loop",),
             inputs={
                 "task_id": getattr(task, "id", ""),

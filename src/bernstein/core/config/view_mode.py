@@ -143,4 +143,4 @@ def save_view_mode(workdir: Path, mode: ViewMode) -> None:
             pass
 
     data["view_mode"] = mode.value
-    config_path.write_text(yaml.dump(dict(data), default_flow_style=False), encoding="utf-8")
+    config_path.write_text(yaml.dump(data.copy(), default_flow_style=False), encoding="utf-8")

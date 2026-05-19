@@ -55,7 +55,7 @@ def _atomic_write_text(path: Path, content: str) -> bool:
         os.replace(tmp_name, path)
     except Exception:
         with contextlib.suppress(OSError):
-            os.unlink(tmp_name)
+            Path(tmp_name).unlink()
         raise
     return not pre_exists
 

@@ -7,6 +7,7 @@ degrade when stdout is not a TTY (e.g. piped output or CI).
 
 from __future__ import annotations
 
+import operator
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -155,7 +156,7 @@ class AgentInfo:
             role=str(data.get("role", "")),
             model=str(data.get("model", "")),
             status=str(data.get("status", "idle")),
-            task_ids=[str(t) for t in cast("list[str]", data.get("task_ids") or [])],
+            task_ids=[t for t in cast("list[str]", data.get("task_ids") or [])],
             runtime_s=float(data.get("runtime_s", 0.0)),
             abort_reason=str(data.get("abort_reason", "")),
             abort_detail=str(data.get("abort_detail", "")),
@@ -231,7 +232,7 @@ class StatusPanel:
         """
         lines = Text()
         lines.append("Tasks: ", style="bold")
-        lines.append(f"{summary.done}", style="green")
+        lines.append(str(summary.done), style="green")
         lines.append(f"/{summary.total} done  ", style="bold")
         if summary.in_progress:
             lines.append(f"{summary.in_progress} working  ", style="yellow")
@@ -359,7 +360,7 @@ class CostBurnPanel:
     def _render_model_breakdown(self, text: Text, per_model: dict[str, float]) -> None:
         """Render per-model cost breakdown."""
         text.append("  |  ", style="dim")
-        for i, (model, cost) in enumerate(sorted(per_model.items(), key=lambda kv: kv[1], reverse=True)):
+        for i, (model, cost) in enumerate(sorted(per_model.items(), key=operator.itemgetter(1), reverse=True)):
             if i > 0:
                 text.append("  ", style="")
             text.append(f"{model}:", style="dim")
@@ -367,7 +368,7 @@ class CostBurnPanel:
 
     def _render_agent_breakdown(self, text: Text, per_agent: dict[str, float]) -> None:
         """Render per-agent cost breakdown (top 5)."""
-        top = sorted(per_agent.items(), key=lambda kv: kv[1], reverse=True)[:5]
+        top = sorted(per_agent.items(), key=operator.itemgetter(1), reverse=True)[:5]
         text.append("\nAgents: ", style="dim")
         for i, (agent_id, cost) in enumerate(top):
             if i > 0:

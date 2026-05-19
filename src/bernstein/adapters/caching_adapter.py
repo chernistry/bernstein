@@ -72,7 +72,7 @@ class CachingAdapter(CLIAdapter):
             event: The cache break event to record.
         """
         self._cache_break_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._cache_break_path, "a") as f:
+        with self._cache_break_path.open("a") as f:
             f.write(event.to_json_line() + "\n")
 
         correlation = self._correlator.add_event(event)

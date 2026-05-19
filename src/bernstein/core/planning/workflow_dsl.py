@@ -534,7 +534,7 @@ def _parse_nodes(raw: dict[str, Any]) -> tuple[DAGNode, ...]:
 
         nodes.append(
             DAGNode(
-                id=str(node_id),
+                id=node_id,
                 phase=phase,
                 role=role,
                 description=str(spec.get("description", "")),
@@ -604,7 +604,7 @@ def _parse_dict_dep(dep: dict[str, Any], node_id: str, index: int) -> DAGEdge:
         )
         raise DSLError(msg) from None
 
-    return DAGEdge(source=source, target=str(node_id), condition=condition, edge_type=edge_type)
+    return DAGEdge(source=source, target=node_id, condition=condition, edge_type=edge_type)
 
 
 def _parse_edges_from_nodes(raw: dict[str, Any]) -> tuple[DAGEdge, ...]:
@@ -620,9 +620,9 @@ def _parse_edges_from_nodes(raw: dict[str, Any]) -> tuple[DAGEdge, ...]:
 
         for i, dep in enumerate(deps):
             if isinstance(dep, str):
-                edges.append(DAGEdge(source=dep, target=str(node_id)))
+                edges.append(DAGEdge(source=dep, target=node_id))
             elif isinstance(dep, dict):
-                edges.append(_parse_dict_dep(dep, str(node_id), i))
+                edges.append(_parse_dict_dep(dep, node_id, i))
             else:
                 msg = f"nodes.{node_id}.depends_on[{i}]: must be a string or mapping"
                 raise DSLError(msg)

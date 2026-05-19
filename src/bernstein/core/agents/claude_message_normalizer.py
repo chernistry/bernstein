@@ -249,7 +249,7 @@ class MessageNormalizer:
             data = json.loads(stripped)
         except json.JSONDecodeError:
             # Not JSON -- treat as plain text assistant message.
-            if stripped.startswith("{") or stripped.startswith("["):
+            if stripped.startswith(("{", "[")):
                 self.parse_errors += 1
                 return None
             return NormalizedMessage(role="assistant", content=stripped, raw_type="text")

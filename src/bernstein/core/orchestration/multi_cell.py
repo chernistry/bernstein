@@ -67,10 +67,10 @@ class MultiCellTickResult:
         errors: Any errors encountered during the tick.
     """
 
-    cell_results: dict[str, TickResult] = field(default_factory=lambda: {})
-    vp_actions: list[str] = field(default_factory=lambda: [])
+    cell_results: dict[str, TickResult] = field(default_factory=dict)
+    vp_actions: list[str] = field(default_factory=list)
     blockers_found: int = 0
-    errors: list[str] = field(default_factory=lambda: [])
+    errors: list[str] = field(default_factory=list)
 
 
 def _fetch_tasks_for_cell(
@@ -127,7 +127,7 @@ def cell_status(cell: Cell) -> CellStatus:
     Returns:
         CellStatus with task and agent counts.
     """
-    alive = sum(1 for w in cell.workers if w.status not in ("dead",))
+    alive = sum(1 for w in cell.workers if w.status != "dead")
     if cell.manager and cell.manager.status != "dead":
         alive += 1
 
@@ -184,7 +184,7 @@ class MultiCellOrchestrator:
     @property
     def cells(self) -> dict[str, Cell]:
         """Currently tracked cells, keyed by cell_id."""
-        return dict(self._cells)
+        return self._cells.copy()
 
     @property
     def bulletin(self) -> BulletinBoard:
@@ -295,7 +295,7 @@ class MultiCellOrchestrator:
         batches = group_by_role(open_tasks, self._config.max_tasks_per_agent, task_created_at=task_created_at)
 
         # Count alive agents in this cell
-        alive_count = sum(1 for w in cell.workers if w.status not in ("dead",))
+        alive_count = sum(1 for w in cell.workers if w.status != "dead")
         if cell.manager and cell.manager.status != "dead":
             alive_count += 1
         result.active_agents = alive_count

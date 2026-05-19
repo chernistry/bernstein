@@ -431,7 +431,7 @@ class GateRunner:
             "test_expansion": lambda s, t, rd, cf: asyncio.to_thread(self._run_test_expansion_gate_sync, s, t, rd, cf),
             "lint": self._execute_lint_gate,
             "type_check": self._execute_type_check_gate,
-            "tests": lambda s, t, rd, cf: self._run_tests_gate(s, t, rd, cf),
+            "tests": self._run_tests_gate,
             "security_scan": self._execute_security_scan_gate,
             "pii_scan": self._execute_scan_gate,
             "dlp_scan": self._execute_scan_gate,

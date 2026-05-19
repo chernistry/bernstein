@@ -728,7 +728,7 @@ class AutoDistiller:
 
         return DistillationStats(
             total_examples=self._total_examples,
-            examples_per_key=dict(self._examples_per_key),
+            examples_per_key=self._examples_per_key.copy(),
             active_batches=active_batches,
             completed_batches=completed_batches,
             active_models=active_models,

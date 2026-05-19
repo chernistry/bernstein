@@ -9,6 +9,7 @@ import asyncio
 import csv
 import io
 import json
+import operator
 import time
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
@@ -689,7 +690,7 @@ def forecast_costs(request: Request) -> JSONResponse:
 
     # Calculate burn rate from most recent runs
     # Sort by timestamp
-    recent_costs.sort(key=lambda x: x[0])
+    recent_costs.sort(key=operator.itemgetter(0))
     time_span = recent_costs[-1][0] - recent_costs[0][0]
     cost_span = recent_costs[-1][1] - recent_costs[0][1]
 
@@ -977,7 +978,7 @@ def token_efficiency(request: Request) -> JSONResponse:
         )
 
     # Rank by tokens per line (lower is better)
-    efficiency_ranking.sort(key=lambda x: x["tokens_per_line"])
+    efficiency_ranking.sort(key=operator.itemgetter("tokens_per_line"))
 
     return JSONResponse(
         content={
@@ -1027,7 +1028,7 @@ def _build_adapter_breakdown(sdd_dir: Any, costs_dir: Any, *, hours: int) -> lis
 
     total_cost = sum(cur_cost.values())
     rows: list[dict[str, Any]] = []
-    for adapter, cost in sorted(cur_cost.items(), key=lambda kv: kv[1], reverse=True):
+    for adapter, cost in sorted(cur_cost.items(), key=operator.itemgetter(1), reverse=True):
         share = (cost / total_cost * 100.0) if total_cost > 0 else 0.0
         prior = prior_cost.get(adapter, 0.0)
         delta = ((cost - prior) / prior * 100.0) if prior > 0 else 0.0
@@ -1151,7 +1152,7 @@ def get_costs_top_tasks(request: Request, limit: int = 10, hours: int = 24) -> J
             }
             for task_id, data in task_cost.items()
         ),
-        key=lambda r: r["cost_usd"],
+        key=operator.itemgetter("cost_usd"),
         reverse=True,
     )
     return JSONResponse(content=rows[: max(1, limit)])

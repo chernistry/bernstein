@@ -294,7 +294,7 @@ def _normalize_paths(files: Iterable[str]) -> tuple[str, ...]:
     seen: set[str] = set()
     ordered: list[str] = []
     for path in files:
-        p = str(path).strip()
+        p = path.strip()
         if not p or p in seen:
             continue
         seen.add(p)

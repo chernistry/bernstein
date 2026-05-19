@@ -111,7 +111,7 @@ def enforce_source_policy(
         A :class:`SourcePolicyViolation` if the source is disallowed, else
         ``None``.
     """
-    policies = dict(_ALLOWED_SOURCE_POLICIES)
+    policies = _ALLOWED_SOURCE_POLICIES.copy()
     if extra_policies:
         policies.update(extra_policies)
 
@@ -209,7 +209,7 @@ class BernsteinHome:
     def load_raw(self) -> dict[str, object]:
         """Return raw persisted global settings without default expansion."""
         data = self._load()
-        return {str(key): value for key, value in data.items()}
+        return {key: value for key, value in data.items()}
 
     def _save(self, data: dict[str, Any]) -> None:
         """Persist data to config.yaml, creating home dir if needed."""
@@ -251,7 +251,7 @@ class BernsteinHome:
             Dict containing all known config keys and their effective values.
         """
         data = self._load()
-        merged = dict(_DEFAULTS)
+        merged = _DEFAULTS.copy()
         merged.update(data)
         return merged
 
@@ -352,7 +352,7 @@ def resolve_config(
     """
     project_config = _load_project_config(project_dir)
     global_data = home.load_raw()
-    combined_session_overrides = {**_session_overrides_from_env(), **dict(session_overrides or {})}
+    combined_session_overrides = _session_overrides_from_env() | dict(session_overrides or {})
 
     layers: list[ConfigProvenanceLayer] = []
     if key in combined_session_overrides:

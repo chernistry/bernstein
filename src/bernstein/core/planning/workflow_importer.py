@@ -46,7 +46,6 @@ def detect_workflow_files(workdir: Path) -> list[Path]:
     Returns:
         List of discovered workflow file paths, in detection order.
     """
-    import os
 
     found: list[Path] = []
     seen_inodes: set[tuple[int, int]] = set()  # (device, inode) pairs
@@ -54,7 +53,7 @@ def detect_workflow_files(workdir: Path) -> list[Path]:
         candidate = workdir / name
         if candidate.is_file():
             try:
-                st = os.stat(candidate)
+                st = candidate.stat()
                 inode_key = (st.st_dev, st.st_ino)
             except OSError:
                 continue

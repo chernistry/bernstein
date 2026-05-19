@@ -278,8 +278,8 @@ async def generate_and_run(
                 errors=["Test execution timed out."],
             )
 
-        pytest_output = (stdout_bytes or b"").decode(errors="replace")
-        pytest_stderr = (stderr_bytes or b"").decode(errors="replace")
+        pytest_output = (stdout_bytes).decode(errors="replace")
+        pytest_stderr = (stderr_bytes).decode(errors="replace")
         full_output = pytest_output + (f"\n{pytest_stderr}" if pytest_stderr.strip() else "")
 
         passed = proc.returncode == 0

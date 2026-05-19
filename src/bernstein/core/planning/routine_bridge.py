@@ -359,7 +359,7 @@ class RoutineBridge:
         for k, v in data_dict.items():
             if isinstance(v, dict):
                 v_dict = cast("dict[str, Any]", v)
-                out[str(k)] = dict(v_dict)
+                out[str(k)] = v_dict.copy()
         return out
 
     def _save_registry(self, data: dict[str, dict[str, Any]]) -> None:

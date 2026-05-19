@@ -262,7 +262,7 @@ class ElicitationHandler:
 
     def get_resolved(self) -> list[ElicitationRequest]:
         """Return all resolved elicitation requests."""
-        return list(self._resolved)
+        return self._resolved.copy()
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize handler state to a JSON-compatible dict."""

@@ -147,7 +147,7 @@ def parse_diff(diff_text: str) -> list[FileDiff]:
             current_hunk_header = None
             continue
 
-        if line.startswith("--- a/") or line.startswith("+++ b/"):
+        if line.startswith(("--- a/", "+++ b/")):
             if line.startswith("+++ b/"):
                 current_file = line[6:]
             continue

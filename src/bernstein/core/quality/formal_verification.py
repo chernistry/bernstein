@@ -247,7 +247,7 @@ def _verify_python_eval(prop: FormalProperty, context: dict[str, Any]) -> Proper
         None if the expression evaluates to True, PropertyViolation otherwise.
     """
     try:
-        result = eval(prop.invariant, {"__builtins__": {}}, dict(context))
+        result = eval(prop.invariant, {"__builtins__": {}}, context.copy())
         if not result:
             return PropertyViolation(
                 property_name=prop.name,
@@ -465,7 +465,7 @@ def load_formal_verification_config(workdir: Path) -> FormalVerificationConfig |
     try:
         import yaml
 
-        with open(seed_path, encoding="utf-8") as f:
+        with seed_path.open(encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
     except Exception as exc:
         logger.warning("load_formal_verification_config: could not read bernstein.yaml: %s", exc)

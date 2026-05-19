@@ -83,7 +83,7 @@ class CostAllocation:
     currency: str = "USD"
     period_start: str = ""
     period_end: str = ""
-    labels: dict[str, str] = field(default_factory=lambda: {})
+    labels: dict[str, str] = field(default_factory=dict)
     namespace: str | None = None
     account_id: str | None = None
 

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -218,7 +219,7 @@ def build_filtered_env(
     if "PYTHONPATH" not in env:
         import sys
 
-        src_dirs = [p for p in sys.path if p and os.path.isdir(p)]
+        src_dirs = [p for p in sys.path if p and Path(p).is_dir()]
         if src_dirs:
             env["PYTHONPATH"] = os.pathsep.join(src_dirs)
 

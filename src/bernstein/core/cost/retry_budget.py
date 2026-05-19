@@ -277,9 +277,9 @@ class RetryBudget:
     """
 
     retries: int
-    criterion_degradation: Sequence[Criterion] = field(default_factory=lambda: [])
+    criterion_degradation: Sequence[Criterion] = field(default_factory=list)
     _attempts_used: int = field(default=0, init=False)
-    _criteria: dict[str, Criterion] = field(default_factory=lambda: {}, init=False)
+    _criteria: dict[str, Criterion] = field(default_factory=dict, init=False)
 
     def __post_init__(self) -> None:
         if self.retries < 0:
@@ -460,7 +460,7 @@ class RetryBudget:
                 ),
             )
         new_criterion = target.degraded()
-        snapshot_map = dict(self._criteria)
+        snapshot_map = self._criteria.copy()
         snapshot_map[new_criterion.name] = new_criterion
         if consume:
             self._criteria[new_criterion.name] = new_criterion

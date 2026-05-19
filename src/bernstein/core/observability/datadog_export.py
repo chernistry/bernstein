@@ -104,7 +104,7 @@ class DogStatsDExporter:
         with self._lock:
             if not self._buf:
                 return
-            lines = list(self._buf)
+            lines = self._buf.copy()
             self._buf.clear()
             self._last_flush = time.monotonic()
 
@@ -190,7 +190,7 @@ class DogStatsDExporter:
 
     def _safe_flush_locked(self) -> None:
         """Flush without re-acquiring the lock (called from _enqueue)."""
-        lines = list(self._buf)
+        lines = self._buf.copy()
         self._buf.clear()
         self._last_flush = time.monotonic()
 

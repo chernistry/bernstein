@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import operator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -85,7 +86,7 @@ class StatusBar(Static):
         if transition_reasons:
             agent_reasons = transition_reasons.get("agent", {})
             if agent_reasons:
-                top = sorted(agent_reasons.items(), key=lambda kv: kv[1], reverse=True)[:3]
+                top = sorted(agent_reasons.items(), key=operator.itemgetter(1), reverse=True)[:3]
                 parts = " ".join(f"{r}:{int(c)}" for r, c in top)
                 left_parts.append(f"[dim]exits:[/dim] {parts}")
 

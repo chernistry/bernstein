@@ -268,7 +268,7 @@ def _get_func_params(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
     """Return the public parameter names of a function, excluding ``self``/``cls``."""
     params: list[str] = []
     args = node.args
-    all_args = list(args.args) + list(args.posonlyargs) + list(args.kwonlyargs)
+    all_args = args.args.copy() + args.posonlyargs.copy() + args.kwonlyargs.copy()
     if args.vararg:
         all_args.append(args.vararg)
     if args.kwarg:
@@ -530,7 +530,7 @@ def analyse(
         A :class:`CommentQualityReport` with all detected issues.
     """
     report = CommentQualityReport()
-    report.checked_files = list(changed_files)
+    report.checked_files = changed_files.copy()
 
     for rel_path in changed_files:
         abs_path = workdir / rel_path

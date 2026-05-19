@@ -263,4 +263,4 @@ def all_suggestions() -> Sequence[ErrorSuggestion]:
     Returns:
         Sequence of all ``ErrorSuggestion`` objects.
     """
-    return list(_SUGGESTIONS)
+    return _SUGGESTIONS.copy()

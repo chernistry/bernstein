@@ -148,7 +148,7 @@ def get_supported_versions(protocol: str) -> list[ProtocolVersion]:
     key = protocol.lower()
     if key not in _SUPPORTED_VERSIONS:
         raise ValueError(f"Unknown protocol {protocol!r}; expected one of {sorted(_SUPPORTED_VERSIONS)}")
-    return list(_SUPPORTED_VERSIONS[key])
+    return _SUPPORTED_VERSIONS[key].copy()
 
 
 def version_is_compatible(local: ProtocolVersion, remote: ProtocolVersion) -> bool:

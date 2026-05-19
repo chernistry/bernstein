@@ -358,7 +358,7 @@ def compute_report(results: list[TaskResult]) -> ProgramBenchReport:
         median_cost_usd=_median([r.cost_usd for r in results]),
         median_duration_seconds=_median([r.duration_seconds for r in results]),
         per_adapter_breakdown=_compute_adapter_breakdown(results),
-        per_task=list(results),
+        per_task=results.copy(),
     )
 
 
@@ -505,7 +505,7 @@ def _run_assert_sandbox(
             "task_id": task_id,
             "setup_code": setup_code,
             "candidate_code": candidate_code,
-            "asserts": list(asserts),
+            "asserts": asserts.copy(),
         }
     )
 
@@ -697,7 +697,7 @@ class ProgramBenchHarness:
         Returns:
             Tuple of ``(asserts_passed, asserts_total, error_or_None)``.
         """
-        all_asserts = list(task.asserts) + list(task.hidden_asserts)
+        all_asserts = task.asserts.copy() + task.hidden_asserts.copy()
         if not all_asserts:
             return 0, 0, "no asserts defined"
 

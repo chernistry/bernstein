@@ -232,7 +232,7 @@ _EVENT_RUN_COMPLETED = "run.completed"
 _EVENT_TASK_COMPLETED = HookEvent.TASK_COMPLETED.value
 _EVENT_TASK_FAILED = HookEvent.TASK_FAILED.value
 # ---------------------------------------------------------------------------
-_task_from_dict: Callable[[dict[str, Any]], Task] = lambda raw: Task.from_dict(raw)  # noqa: E731
+_task_from_dict: Callable[[dict[str, Any]], Task] = Task.from_dict
 _fetch_all_tasks = fetch_all_tasks
 _fail_task = fail_task
 _block_task = block_task
@@ -883,7 +883,7 @@ class Orchestrator:
     @property
     def active_agents(self) -> dict[str, AgentSession]:
         """Currently tracked agent sessions, keyed by session id."""
-        return dict(self._agents)
+        return self._agents.copy()
 
     @property
     def permission_mode(self) -> PermissionMode:
@@ -988,7 +988,7 @@ class Orchestrator:
         """
         if self._notifier is None:
             return
-        payload = NotificationPayload(event=event, title=title, body=body, metadata=dict(metadata))
+        payload = NotificationPayload(event=event, title=title, body=body, metadata=metadata.copy())
         self._notifier.notify(event, payload)
 
     def _evaluate_budget_policy(self, tasks: list[Task]) -> Any | None:
@@ -1359,7 +1359,7 @@ class Orchestrator:
             alive_per_role=_alive_per_role,
             priority_overrides=priority_overrides,
             task_created_at=task_created_at,
-            agent_affinity=self._agent_affinity if self._agent_affinity else None,
+            agent_affinity=self._agent_affinity or None,
             cost_estimates=cost_estimates or None,
             budget_remaining_usd=budget_status.remaining_usd,
         )
@@ -2450,7 +2450,7 @@ class Orchestrator:
 
                 if has_wip:
                     graveyard_root = self._workdir / ".sdd" / "graveyard" / task_id
-                    graveyard_dest = graveyard_root / f"{int(time.time())}"
+                    graveyard_dest = graveyard_root / str(int(time.time()))
                     try:
                         graveyard_dest.parent.mkdir(parents=True, exist_ok=True)
                         shutil.move(str(src), str(graveyard_dest))

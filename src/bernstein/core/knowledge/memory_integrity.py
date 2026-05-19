@@ -415,7 +415,7 @@ def verify_chain(lessons_path: Path) -> ChainVerifyResult:
     count = 0
 
     try:
-        with open(lessons_path, encoding="utf-8") as f:
+        with lessons_path.open(encoding="utf-8") as f:
             for lineno, raw in enumerate(f, start=1):
                 raw = raw.strip()
                 if not raw:
@@ -511,7 +511,7 @@ def audit_provenance(lessons_path: Path) -> list[ProvenanceEntry]:
     expected_prev = GENESIS_HASH
 
     try:
-        with open(lessons_path, encoding="utf-8") as f:
+        with lessons_path.open(encoding="utf-8") as f:
             for lineno, raw in enumerate(f, start=1):
                 raw = raw.strip()
                 if not raw:
@@ -588,7 +588,7 @@ def get_last_chain_hash(lessons_path: Path) -> str:
 
     last_chain: str = GENESIS_HASH
     try:
-        with open(lessons_path, encoding="utf-8") as f:
+        with lessons_path.open(encoding="utf-8") as f:
             for raw in f:
                 raw = raw.strip()
                 if not raw:

@@ -65,7 +65,7 @@ class Binding:
     adapter: str = ""
     goal: str = ""
     status_message_id: str = ""
-    created_at: float = field(default_factory=lambda: time.time())
+    created_at: float = field(default_factory=time.time)
 
     @property
     def key(self) -> str:
@@ -191,5 +191,5 @@ def _atomic_write(path: Path, content: str) -> None:
     except Exception:
         # Clean up the temp file if replace never happened.
         with contextlib.suppress(OSError):
-            os.unlink(tmp_name)
+            Path(tmp_name).unlink()
         raise

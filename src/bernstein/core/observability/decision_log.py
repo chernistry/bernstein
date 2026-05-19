@@ -128,7 +128,7 @@ class Alternative:
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise to a JSON-friendly dict."""
-        return {"id": self.id, "score": float(self.score), "reason": self.reason}
+        return {"id": self.id, "score": self.score, "reason": self.reason}
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Alternative:
@@ -180,7 +180,7 @@ class DecisionRecord:
             "policy_path": list(self.policy_path),
             "alternatives": [a.to_dict() for a in self.alternatives],
             "parent_decision_id": self.parent_decision_id,
-            "inputs": dict(self.inputs),
+            "inputs": self.inputs.copy(),
         }
 
     @classmethod
@@ -326,7 +326,7 @@ def record_decision(
 
     if kind not in VALID_KINDS:
         raise ValueError(f"unknown decision kind: {kind!r}; allowed: {sorted(VALID_KINDS)}")
-    if not 0.0 <= float(confidence) <= 1.0:
+    if not 0.0 <= confidence <= 1.0:
         raise ValueError(f"confidence must be in [0.0, 1.0]; got {confidence!r}")
     if not chosen:
         raise ValueError("chosen must be a non-empty string")
@@ -335,13 +335,13 @@ def record_decision(
         ts=time.time() if ts is None else float(ts),
         decision_id=new_decision_id(),
         kind=kind,
-        chosen=str(chosen),
+        chosen=chosen,
         alternatives=_clamp_alternatives(alternatives),
-        confidence=float(confidence),
-        rationale=_truncate_rationale(str(rationale)),
+        confidence=confidence,
+        rationale=_truncate_rationale(rationale),
         parent_decision_id=parent_decision_id,
-        policy_path=tuple(str(p) for p in policy_path),
-        winner_score=float(winner_score),
+        policy_path=tuple(p for p in policy_path),
+        winner_score=winner_score,
         inputs=dict(inputs or {}),
     )
 

@@ -244,7 +244,7 @@ def _checkout_files_from_branch(workdir: Path, branch: str, files: list[str]) ->
         return []
     # On failure, report all requested files as failed
     logger.warning("git checkout %s -- files failed: %s", branch, result.stderr.strip())
-    return list(files)
+    return files.copy()
 
 
 def _dirty_target_files(workdir: Path, files: list[str]) -> list[str]:
@@ -275,7 +275,7 @@ def _dirty_target_files(workdir: Path, files: list[str]) -> list[str]:
             workdir,
             result.stderr.strip(),
         )
-        return list(files)
+        return files.copy()
     dirty: list[str] = []
     requested = set(files)
     for line in result.stdout.splitlines():

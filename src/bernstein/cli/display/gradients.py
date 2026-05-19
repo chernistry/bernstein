@@ -12,6 +12,7 @@ Performance target: <20ms for an 80x24 gradient.
 from __future__ import annotations
 
 import math
+import operator
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
@@ -78,7 +79,7 @@ def _make_stops(
             raise ValueError(f"stops length {len(stops)} != colors length {n}")
         positions = list(stops)
 
-    return sorted(zip(positions, colors, strict=False), key=lambda s: s[0])
+    return sorted(zip(positions, colors, strict=False), key=operator.itemgetter(0))
 
 
 def _lerp_color(t: float, color_stops: list[tuple[float, RGB]]) -> RGB:
@@ -277,7 +278,7 @@ def radial_gradient(
     if extra_stops:
         color_stops.extend(extra_stops)
     color_stops.append((1.0, edge_color))
-    color_stops.sort(key=lambda s: s[0])
+    color_stops.sort(key=operator.itemgetter(0))
 
     cx = center_x * (width - 1)
     cy = center_y * (pixel_height - 1)

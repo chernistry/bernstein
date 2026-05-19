@@ -104,7 +104,7 @@ def resolve(
     home: Path | None = None,
 ) -> OptInState:
     """Resolve the opt-in state.  ``env``/``home`` may be injected for tests."""
-    real_env = env if env is not None else dict(os.environ)
+    real_env = env if env is not None else os.environ.copy()
 
     if real_env.get(_DO_NOT_TRACK) == "1":
         return OptInState(enabled=False, source=OptInSource.DO_NOT_TRACK)

@@ -1528,7 +1528,7 @@ def render_spawn_prompt(
     # Indent all user-supplied content by 4 spaces so structural directives
     # (e.g. "System:") cannot be injected as top-level prompt elements.
     def _indent(text: str) -> str:
-        return "\n".join(f"    {line}" for line in str(text).splitlines())
+        return "\n".join(f"    {line}" for line in text.splitlines())
 
     lines: list[str] = [
         f"## Session: {session_id}",

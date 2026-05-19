@@ -30,6 +30,7 @@ import hashlib
 import inspect
 import json
 import logging
+import operator
 import os
 import pickle
 import textwrap
@@ -255,7 +256,7 @@ class MemoStore:
         total = sum(size for _, size, _ in entries)
         if total <= self._max_bytes:
             return
-        entries.sort(key=lambda t: t[2])  # oldest atime first
+        entries.sort(key=operator.itemgetter(2))  # oldest atime first
         for path, size, _ in entries:
             if total <= self._max_bytes:
                 break

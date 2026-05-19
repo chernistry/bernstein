@@ -112,7 +112,7 @@ class NotifyLifecycleBridge:
     @property
     def sinks(self) -> list[NotificationSink]:
         """Return a snapshot of the live sinks the bridge owns."""
-        return list(self._sinks)
+        return self._sinks.copy()
 
     def attach_to_registry(
         self,

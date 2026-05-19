@@ -180,7 +180,7 @@ def check_evolve(orch: Any, result: Any, tasks_by_status: dict[str, list[Any]]) 
     # Step 4: PLAN
     focus_areas: list[str] = _EVOLVE_FOCUS_AREAS
     focus_idx: int = cycle_count % len(focus_areas)
-    focus: str = str(focus_areas[focus_idx])
+    focus: str = focus_areas[focus_idx]
     orch._evolve_spawn_manager(
         cycle_number=cycle_number,
         focus_area=focus,

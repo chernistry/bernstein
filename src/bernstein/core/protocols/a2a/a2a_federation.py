@@ -142,7 +142,7 @@ class FederationPeer:
             "name": self.name,
             "endpoint": self.endpoint,
             "state": self.state.value,
-            "capabilities": list(self.capabilities),
+            "capabilities": self.capabilities.copy(),
             "last_seen": self.last_seen,
             "task_count": self.task_count,
         }

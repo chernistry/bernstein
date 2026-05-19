@@ -61,7 +61,7 @@ def list_memory(memory_type: str | None, tag: list[str], limit: int) -> None:
         return
 
     store = SQLiteMemoryStore(db_path)
-    entries = store.list(type=_coerce_memory_type(memory_type), tags=tag if tag else None, limit=limit)
+    entries = store.list(type=_coerce_memory_type(memory_type), tags=tag or None, limit=limit)
 
     if not entries:
         console.print("[dim]No matching memories found.[/dim]")
@@ -104,7 +104,7 @@ def add_memory(content: str, memory_type: str, tag: list[str]) -> None:
     """Add a new persistent memory entry."""
     db_path = Path(_MEMORY_DB_PATH)
     store = SQLiteMemoryStore(db_path)
-    entry_id = store.add(type=cast("MemoryType", memory_type), content=content, tags=list(tag))
+    entry_id = store.add(type=cast("MemoryType", memory_type), content=content, tags=tag.copy())
     console.print(f"[green]✓[/green] Added memory entry [bold]#{entry_id}[/bold]")
 
 

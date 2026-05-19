@@ -209,7 +209,7 @@ def _aggregate_by_agent(records: list[dict[str, Any]]) -> dict[str, dict[str, An
         agent = str(rec.get("agent_id", "") or rec.get("role", "unknown"))
         rows[agent]["tasks"] += 1
         rows[agent]["cost_usd"] += float(rec.get("cost_usd", 0.0) or 0.0)
-    return dict(rows)
+    return rows.copy()
 
 
 def _aggregate_by_task(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -220,7 +220,7 @@ def _aggregate_by_task(records: list[dict[str, Any]]) -> dict[str, dict[str, Any
         rows[tid]["tasks"] += 1
         rows[tid]["cost_usd"] += float(rec.get("cost_usd", 0.0) or 0.0)
         rows[tid]["model"] = str(rec.get("model", "") or "")
-    return dict(rows)
+    return rows.copy()
 
 
 def _aggregate_by_day(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -233,7 +233,7 @@ def _aggregate_by_day(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]
         day = _dt.datetime.fromtimestamp(ts, tz=_dt.UTC).strftime("%Y-%m-%d") if ts > 0 else "unknown"
         rows[day]["tasks"] += 1
         rows[day]["cost_usd"] += float(rec.get("cost_usd", 0.0) or 0.0)
-    return dict(rows)
+    return rows.copy()
 
 
 def _aggregate_from_ledger_or_tasks(
@@ -274,7 +274,7 @@ def _aggregate_from_ledger_or_tasks(
             label = str(tags.get("feature_label", "") or "unknown") if isinstance(tags, dict) else "unknown"
         rows[label]["tasks"] += 1
         rows[label]["cost_usd"] += float(rec.get("cost_usd", 0.0) or 0.0)
-    return dict(rows)
+    return rows.copy()
 
 
 def _compute_downgrade_tip(records: list[dict[str, Any]]) -> tuple[str, float] | None:
@@ -368,7 +368,7 @@ def _aggregate_fast_path_savings(task_records: list[dict[str, Any]]) -> dict[str
     return {
         "tasks_bypassed": bypassed,
         "estimated_savings_usd": savings,
-        "actions": dict(actions),
+        "actions": actions.copy(),
     }
 
 
@@ -423,7 +423,7 @@ def _aggregate(
         if model not in rows:
             rows[model]  # ensure key exists (defaultdict)
 
-    return dict(rows)
+    return rows.copy()
 
 
 @click.command("estimate")
@@ -931,7 +931,7 @@ def _read_envelopes_from_yaml(yaml_path: Path) -> dict[str, dict[str, Any]]:
     for name, payload in envelopes_block.items():
         if isinstance(payload, dict):
             payload_d = cast("dict[str, Any]", payload)
-            out[str(name)] = {str(k): v for k, v in payload_d.items()}
+            out[name] = {k: v for k, v in payload_d.items()}
     return out
 
 

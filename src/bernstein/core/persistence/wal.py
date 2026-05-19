@@ -656,8 +656,8 @@ class WALRecovery:
             "run_id": run_id,
             "closed_at": time.time(),
             "reason": reason,
-            "uncommitted_count": int(uncommitted_count),
-            "orphaned_count": int(orphaned_count),
+            "uncommitted_count": uncommitted_count,
+            "orphaned_count": orphaned_count,
         }
         with marker.open("w") as f:
             f.write(json.dumps(payload, separators=(",", ":")))

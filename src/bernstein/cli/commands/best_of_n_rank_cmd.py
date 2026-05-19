@@ -133,7 +133,7 @@ def _recompute_ranking(
             scores: dict[str, float] = {}
             for sk, sv in cast(dict[str, Any], raw_scores).items():
                 if isinstance(sv, (int, float)) and not isinstance(sv, bool):
-                    scores[str(sk)] = float(sv)
+                    scores[sk] = float(sv)
             cands.append(Candidate(key=key, scores=scores))
         ranked = rank_candidates(cands, profile)
         return cast(dict[str, Any], render_ranking_json(ranked, profile))

@@ -103,7 +103,7 @@ def scan_for_adapters(
     Returns:
         ScanResult with found and missing adapters.
     """
-    binaries = dict(_KNOWN_BINARIES)
+    binaries = _KNOWN_BINARIES.copy()
     if extra_binaries:
         binaries.update(extra_binaries)
 

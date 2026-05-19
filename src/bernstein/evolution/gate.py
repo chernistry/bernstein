@@ -202,7 +202,7 @@ class ApprovalGate:
         thresholds: dict[RiskLevel, float] | None = None,
         decisions_dir: Path | None = None,
     ) -> None:
-        self.thresholds = thresholds or dict(AUTO_APPROVE_THRESHOLDS)
+        self.thresholds = thresholds or AUTO_APPROVE_THRESHOLDS.copy()
         self._decisions_dir = decisions_dir
         self._classifier = RiskClassifier()
         if self._decisions_dir is not None:

@@ -164,7 +164,7 @@ class InProcessAgent:
         while time.monotonic() < deadline and thread.ident is None:
             time.sleep(0.01)
 
-        real_tid = thread.ident if thread.ident else fake_pid
+        real_tid = thread.ident or fake_pid
         with self._lock:
             session.pid = real_tid
 
@@ -277,7 +277,7 @@ class InProcessAgent:
     def active_sessions(self) -> dict[str, _ThreadResult]:
         """Return a copy of active session records."""
         with self._lock:
-            return dict(self._sessions)
+            return self._sessions.copy()
 
     # ------------------------------------------------------------------
     # Internal

@@ -156,9 +156,9 @@ class LifecycleContext:
             "task": self.task,
             "session_id": self.session_id,
             "workdir": str(self.workdir),
-            "env": dict(self.env),
+            "env": self.env.copy(),
             "timestamp": self.timestamp,
-            "data": dict(self.data),
+            "data": self.data.copy(),
         }
 
 
@@ -479,7 +479,7 @@ def _build_script_env(context: LifecycleContext) -> dict[str, str]:
 
 def _read_parent_env() -> MappingProxyType[str, str] | dict[str, str]:
     """Indirection point so tests can monkeypatch environment inheritance."""
-    return dict(os.environ)
+    return os.environ.copy()
 
 
 # ---------------------------------------------------------------------- decisions
@@ -524,8 +524,8 @@ def parse_hook_decision(stdout: bytes | str) -> HookDecision | None:
     return HookDecision(
         decision=decision_value,
         reason=reason_value,
-        data=dict(data_value),
-        raw=dict(parsed),
+        data=data_value.copy(),
+        raw=parsed.copy(),
     )
 
 
@@ -549,19 +549,19 @@ def _apply_decision(
             task=context.task,
             session_id=context.session_id,
             workdir=context.workdir,
-            env=dict(context.env),
+            env=context.env.copy(),
             timestamp=context.timestamp,
             data=dict(decision.data),
         )
     if decision.decision == DECISION_ANNOTATE:
-        merged = dict(context.data)
+        merged = context.data.copy()
         merged.update(decision.data)
         return LifecycleContext(
             event=context.event,
             task=context.task,
             session_id=context.session_id,
             workdir=context.workdir,
-            env=dict(context.env),
+            env=context.env.copy(),
             timestamp=context.timestamp,
             data=merged,
         )

@@ -57,7 +57,7 @@ def register_mcp_skills(server_name: str, skills: list[SkillDefinition]) -> None
             server_name,
         )
         return
-    _REGISTRY[server_name] = list(skills)
+    _REGISTRY[server_name] = skills.copy()
     log.debug(
         "mcp_skill_registry: registered %d skill(s) for server %r",
         len(skills),

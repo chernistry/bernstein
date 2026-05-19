@@ -123,12 +123,12 @@ class TickBudget:
     @property
     def phases(self) -> list[PhaseRecord]:
         """Return all recorded phases (executed and skipped)."""
-        return list(self._phases)
+        return self._phases.copy()
 
     @property
     def skipped_phases(self) -> list[str]:
         """Return names of phases that were skipped."""
-        return list(self._skipped_phases)
+        return self._skipped_phases.copy()
 
     def summary(self) -> TickBudgetSummary:
         """Build a summary of the tick budget execution.
@@ -144,7 +144,7 @@ class TickBudget:
             over_budget=total_ms > self.budget_ms,
             phases_executed=len(executed),
             phases_skipped=len(self._skipped_phases),
-            skipped_phase_names=list(self._skipped_phases),
+            skipped_phase_names=self._skipped_phases.copy(),
             phase_durations={p.name: p.duration_ms for p in executed},
         )
 

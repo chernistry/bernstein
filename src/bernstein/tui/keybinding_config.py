@@ -103,7 +103,7 @@ def load_yaml_keybindings(yaml_path: Path | None = None) -> dict[str, str]:
         typed_bindings: dict[str, object] = cast("dict[str, object]", keybindings_raw)
         result: dict[str, str] = {}
         for action, key in typed_bindings.items():
-            action_str = str(action)
+            action_str = action
             key_str = str(key)
             normalized = key_str.lower().strip()
             if normalized in RESERVED_KEYS:

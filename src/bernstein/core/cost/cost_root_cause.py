@@ -7,6 +7,7 @@ overshoot and produce a structured explanation.
 from __future__ import annotations
 
 import logging
+import operator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -175,7 +176,7 @@ def _aggregate_by_agent(usages: list[TokenUsage]) -> list[tuple[str, float]]:
     totals: dict[str, float] = {}
     for u in usages:
         totals[u.agent_id] = totals.get(u.agent_id, 0.0) + u.cost_usd
-    return sorted(totals.items(), key=lambda kv: kv[1], reverse=True)
+    return sorted(totals.items(), key=operator.itemgetter(1), reverse=True)
 
 
 def _aggregate_by_task(usages: list[TokenUsage]) -> list[tuple[str, float]]:
@@ -183,7 +184,7 @@ def _aggregate_by_task(usages: list[TokenUsage]) -> list[tuple[str, float]]:
     totals: dict[str, float] = {}
     for u in usages:
         totals[u.task_id] = totals.get(u.task_id, 0.0) + u.cost_usd
-    return sorted(totals.items(), key=lambda kv: kv[1], reverse=True)
+    return sorted(totals.items(), key=operator.itemgetter(1), reverse=True)
 
 
 def _reason_for_agent(agent_id: str, usages: list[TokenUsage]) -> str:

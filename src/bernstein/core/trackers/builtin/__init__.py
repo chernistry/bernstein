@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from bernstein.core.trackers.builtin.asana_adapter import (
+    AsanaAdapter,
+    AsanaConfig,
+)
 from bernstein.core.trackers.builtin.clickup_adapter import (
     ClickUpAdapter,
     ClickUpConfig,
@@ -12,6 +16,8 @@ from bernstein.core.trackers.builtin.github_projects_adapter import (
 )
 
 __all__ = [
+    "AsanaAdapter",
+    "AsanaConfig",
     "ClickUpAdapter",
     "ClickUpConfig",
     "GitHubProjectsV2Adapter",

@@ -119,11 +119,14 @@ class ContractResult:
     model_failures: list[str] = field(default_factory=list)
     models_checked: bool = False
     skipped_reason: str = ""
+    runtime_failure: str = ""
 
     @property
     def passed(self) -> bool:
-        """True when binary is present and no capability/model failures."""
+        """True when binary is present and no capability/model/runtime failures."""
         if not self.binary_installed:
+            return False
+        if self.runtime_failure:
             return False
         return not self.capability_failures and not self.model_failures
 
@@ -137,6 +140,7 @@ class ContractResult:
             "model_failures": self.model_failures.copy(),
             "models_checked": self.models_checked,
             "skipped_reason": self.skipped_reason,
+            "runtime_failure": self.runtime_failure,
             "passed": self.passed,
         }
 
@@ -284,22 +288,33 @@ def check_contract(spec: ContractSpec) -> ContractResult:
         result.skipped_reason = help_text.strip()
         return result
 
-    # Guard: a non-zero help exit with no usable output is a CLI runtime
-    # failure, not contract drift. Reporting every required flag as
-    # "missing" against an empty haystack produces misleading drift issues
-    # (each flag fires its own failure line) when the real problem is a
-    # broken --help. Treat this as a checker error so operators
-    # investigate the runtime regression instead of churning the contract.
+    # Guard: a non-zero help exit that fails to advertise the required
+    # contract surface is a CLI runtime failure, not contract drift.
+    # Reporting every required flag as "missing" against an empty (or
+    # truncated) haystack produces misleading drift issues (one failure
+    # line per required flag) when the real problem is a broken --help.
+    # Cover two patterns seen in real CI:
+    #   * help_text empty (CLI crashed before emitting anything).
+    #   * help_text non-empty but ALL required flags missing (CLI emitted
+    #     a stub or error preamble and bailed before the flag section).
+    # Surface the runtime failure on a dedicated field so the CLI can
+    # exit with a "checker error" status rather than a drift status; the
+    # workflow distinguishes the two and only treats real drift as
+    # contract regression.
     stripped_help = _strip_ansi(help_text).strip()
-    if rc != 0 and not stripped_help:
-        snippet = stripped_help[:200] or "<no output>"
-        result.capability_failures = [
-            f"`{' '.join(spec.resolved_help_command())}` exited {rc} with no output; "
+    raw_failures = _capability_failures(spec, help_text)
+    total_required = len(spec.required_flags) + len(spec.required_subcommands)
+    all_required_missing = total_required > 0 and len(raw_failures) == total_required
+    if rc != 0 and (not stripped_help or all_required_missing):
+        snippet = stripped_help[:300] or "<no output>"
+        reason = "no output" if not stripped_help else "no required tokens advertised"
+        result.runtime_failure = (
+            f"`{' '.join(spec.resolved_help_command())}` exited {rc} with {reason}; "
             f"upstream CLI runtime failure, not contract drift: {snippet}"
-        ]
+        )
         return result
 
-    result.capability_failures = _capability_failures(spec, help_text)
+    result.capability_failures = raw_failures
 
     # 2. Optional model-presence check.
     if spec.models_required_present and spec.models_command:

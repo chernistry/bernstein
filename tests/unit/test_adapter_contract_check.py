@@ -393,10 +393,53 @@ def test_check_contract_help_nonzero_empty_output_is_runtime_failure(
     )
     result = _contract.check_contract(spec)
     assert result.passed is False
-    # One runtime-failure entry, not three "missing flag" entries.
-    assert len(result.capability_failures) == 1
-    assert "runtime failure" in result.capability_failures[0]
-    assert "exited 1" in result.capability_failures[0]
+    # Runtime failure surfaces on a dedicated field, not as N "missing
+    # flag" entries. The capability list stays empty so the workflow can
+    # distinguish a checker-degraded run from real contract drift.
+    assert result.capability_failures == []
+    assert "runtime failure" in result.runtime_failure
+    assert "exited 1" in result.runtime_failure
+
+
+def test_check_contract_help_nonzero_all_flags_missing_is_runtime_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Non-zero exit with output that lacks ALL required tokens is a
+    runtime failure, not drift.
+
+    Pattern seen in CI: an upstream CLI prints an error preamble plus a
+    truncated usage stub, exits non-zero, and the truncated stub does
+    not advertise any of the contract's required flags. Reporting every
+    flag as missing is misleading; the real signal is the broken
+    --help, which an operator needs to investigate.
+    """
+    spec = _contract.ContractSpec(
+        adapter="stub",
+        binary="stub",
+        install_method="",
+        install_spec="",
+        auth_required_for_help=False,
+        auth_required_for_models=False,
+        auth_secret_env="",
+        required_flags=("--alpha", "--beta"),
+        required_subcommands=(),
+        help_command=(),
+        models_command=(),
+        models_required_present=(),
+    )
+    monkeypatch.setattr(_contract.shutil, "which", lambda _name: "/fake/bin/stub")
+    monkeypatch.setattr(
+        _contract,
+        "_run_capture",
+        _make_run_capture(
+            {("stub", "--help"): (1, "error: missing API key\nusage: stub [-h]\n")}
+        ),
+    )
+    result = _contract.check_contract(spec)
+    assert result.passed is False
+    assert result.capability_failures == []
+    assert "runtime failure" in result.runtime_failure
+    assert "no required tokens advertised" in result.runtime_failure
 
 
 def test_check_contract_help_nonzero_with_output_still_checks_flags(

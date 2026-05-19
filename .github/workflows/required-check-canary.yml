@@ -18,8 +18,10 @@ name: Required-check name canary
 #   3. The `test-macos` job's `name:` is a literal string (no `${{ ... }}`
 #      template) and equals `Test (macos-latest, Python 3.13)`. Required
 #      context names must resolve in every job state including `skipped`.
-#   4. No other job in any `.github/workflows/*.yml` file emits a
-#      check-run named `CI gate`. The required context must be unique.
+#   4. Exactly two workflow files emit a check-run named `CI gate`:
+#      `ci.yml::ci-gate` (real aggregator) and
+#      `ci-gate-stub.yml::ci-gate` (synthetic emitter for PRs whose diff
+#      is entirely paths-ignored by ci.yml). No other emitter allowed.
 #
 # Run modes:
 #   * pull_request -- only when a workflow file under `.github/workflows/`
@@ -64,6 +66,7 @@ jobs:
           REQUIRED_JOB_KEY: "ci-gate"
           MACOS_JOB_KEY: "test-macos"
           MACOS_JOB_NAME: "Test (macos-latest, Python 3.13)"
+          STUB_WORKFLOW: ".github/workflows/ci-gate-stub.yml"
         run: |
           python3 - <<'PY'
           """Assert that the in-tree workflow files still match the single
@@ -87,9 +90,18 @@ jobs:
           REQUIRED_JOB_KEY = os.environ["REQUIRED_JOB_KEY"]
           MACOS_JOB_KEY = os.environ["MACOS_JOB_KEY"]
           MACOS_JOB_NAME = os.environ["MACOS_JOB_NAME"]
+          STUB_WORKFLOW = os.environ["STUB_WORKFLOW"]
 
           CI = Path(".github/workflows/ci.yml")
+          STUB = Path(STUB_WORKFLOW)
           WORKFLOWS_DIR = Path(".github/workflows")
+
+          # Allow-listed (file, job-key) pairs that may emit the
+          # `CI gate` check. See workflow header for rationale.
+          ALLOWED_EMITTERS = {
+              (CI, REQUIRED_JOB_KEY),
+              (STUB, REQUIRED_JOB_KEY),
+          }
 
           failures: list[str] = []
 
@@ -155,8 +167,11 @@ jobs:
                       "runbook."
                   )
 
-          # Invariant 4: no other workflow emits a job named "CI gate".
-          collisions: list[str] = []
+          # Invariant 4: only allow-listed workflow files emit a job
+          # named "CI gate". Two emitters are intentional: ci.yml (real
+          # aggregator) and ci-gate-stub.yml (synthetic success for
+          # paths-ignored-only PRs).
+          seen_emitters: set[tuple[Path, str]] = set()
           for wf_path in sorted(WORKFLOWS_DIR.glob("*.yml")):
               try:
                   wf = yaml.safe_load(wf_path.read_text(encoding="utf-8"))
@@ -170,16 +185,23 @@ jobs:
                       continue
                   if body.get("name") != REQUIRED_CONTEXT:
                       continue
-                  if wf_path == CI and key == REQUIRED_JOB_KEY:
-                      continue
-                  collisions.append(f"{wf_path}:{key}")
+                  seen_emitters.add((wf_path, key))
 
-          if collisions:
+          unexpected = seen_emitters - ALLOWED_EMITTERS
+          missing = ALLOWED_EMITTERS - seen_emitters
+          if unexpected:
               failures.append(
-                  f"Found extra jobs emitting `{REQUIRED_CONTEXT}` check: "
-                  + ", ".join(collisions)
-                  + ". Branch protection's single required context must be "
-                  "uniquely produced."
+                  f"Unexpected emitters of `{REQUIRED_CONTEXT}` check: "
+                  + ", ".join(f"{p}:{k}" for p, k in sorted(unexpected))
+                  + ". Allow-list is "
+                  + ", ".join(f"{p}:{k}" for p, k in sorted(ALLOWED_EMITTERS))
+                  + "."
+              )
+          if missing:
+              failures.append(
+                  f"Missing required emitters of `{REQUIRED_CONTEXT}` check: "
+                  + ", ".join(f"{p}:{k}" for p, k in sorted(missing))
+                  + ". Both ci.yml and ci-gate-stub.yml must keep their `ci-gate` job."
               )
 
           # Report.

@@ -2,5 +2,22 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "description": "Pin python to 3.13 until aider-chat and other adapters confirm 3.14 compatibility.",
+      "matchManagers": [
+        "github-actions",
+        "docker-compose",
+        "dockerfile",
+        "regex"
+      ],
+      "matchPackagePatterns": [
+        "^python$",
+        "actions/python-versions",
+        "actions/setup-python"
+      ],
+      "allowedVersions": "<=3.13"
+    }
   ]
 }

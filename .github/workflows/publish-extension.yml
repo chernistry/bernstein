@@ -7,6 +7,10 @@ on:
     tags:
       - 'ext-v*'   # trigger: git tag ext-v0.1.0 && git push --tags
 
+concurrency:
+  group: publish-extension-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 

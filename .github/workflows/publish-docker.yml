@@ -17,6 +17,10 @@ on:
         description: "Git tag to build (e.g. v2.0.1). Defaults to the workflow ref."
         required: false
 
+concurrency:
+  group: publish-docker-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions: {}
 
 jobs:

@@ -24,6 +24,10 @@ on:
         type: number
         default: 0
 
+concurrency:
+  group: cleanup-runs-${{ github.ref }}
+  cancel-in-progress: false
+
 # Default-deny at workflow scope; the cleanup job re-asserts the writes
 # it actually needs (Scorecard token-permissions).
 permissions:

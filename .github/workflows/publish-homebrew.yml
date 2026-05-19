@@ -9,6 +9,10 @@ on:
         description: "Version to publish (e.g. 1.4.0)"
         required: true
 
+concurrency:
+  group: publish-homebrew-${{ github.ref }}
+  cancel-in-progress: false
+
 # The cross-repo push targets chernistry/homebrew-tap via HOMEBREW_TAP_TOKEN,
 # not GITHUB_TOKEN on this repo, so the workflow token can stay read-only
 # (Scorecard token-permissions).

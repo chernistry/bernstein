@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: "0 4 * * *"
 
+concurrency:
+  group: stale-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   issues: write
   pull-requests: write

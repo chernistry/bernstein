@@ -5,6 +5,10 @@ name: "Bernstein PR Review"
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'templates/**'
 
 concurrency:
   group: bernstein-pr-${{ github.event.pull_request.number }}

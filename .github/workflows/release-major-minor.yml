@@ -21,6 +21,10 @@ on:
         type: boolean
         default: false
 
+concurrency:
+  group: release-major-minor-${{ github.ref }}
+  cancel-in-progress: false
+
 # Default-deny at workflow scope; the release job re-asserts the writes
 # it actually needs (Scorecard token-permissions).
 permissions:

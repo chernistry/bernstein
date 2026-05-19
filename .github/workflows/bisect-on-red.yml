@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6  # zizmor: ignore[artipacked]
         with:
           ref: main
-          fetch-depth: 10
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Identify the failing job(s)

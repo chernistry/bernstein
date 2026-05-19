@@ -23,6 +23,15 @@ from bernstein.core.trackers.contract import (
     TransitionResult,
 )
 from bernstein.core.trackers.linear import LinearConfig, LinearTracker
+from bernstein.core.trackers.registry import (
+    DuplicateTrackerError,
+    TrackerFactory,
+    TrackerRegistration,
+    TrackerRegistry,
+    discover_plugin_trackers,
+    get_registry,
+    register_tracker,
+)
 from bernstein.core.trackers.servicenow import ServiceNowConfig, ServiceNowTracker
 
 __all__ = [
@@ -31,6 +40,7 @@ __all__ = [
     "ClaimResult",
     "Comment",
     "CommentResult",
+    "DuplicateTrackerError",
     "IdempotencyConflict",
     "LinearConfig",
     "LinearTracker",
@@ -41,8 +51,14 @@ __all__ = [
     "ServiceNowTracker",
     "Status",
     "Ticket",
+    "TrackerFactory",
+    "TrackerRegistration",
+    "TrackerRegistry",
     "TrackerUnavailable",
     "TransitionResult",
+    "discover_plugin_trackers",
+    "get_registry",
+    "register_tracker",
 ]
 
 

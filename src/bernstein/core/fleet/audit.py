@@ -129,21 +129,20 @@ def load_recent_entries(project: str, sdd_dir: Path, *, max_entries: int = 500) 
     Returns:
         Parsed entries in chronological order (oldest first).
     """
-    rows: list[AuditEntry] = []
-    for filename, line_no, entry in _iter_recent_entries(sdd_dir / "audit", max_entries):
-        rows.append(
-            AuditEntry(
-                project=project,
-                ts=_coerce_ts(entry),
-                role=str(entry.get("role", "") or ""),
-                adapter=str(entry.get("adapter", "") or ""),
-                outcome=str(entry.get("outcome", entry.get("status", "")) or ""),
-                kind=str(entry.get("kind", entry.get("event", "")) or ""),
-                line_no=line_no,
-                source_file=filename,
-                raw=entry,
-            )
+    rows: list[AuditEntry] = [
+        AuditEntry(
+            project=project,
+            ts=_coerce_ts(entry),
+            role=str(entry.get("role", "") or ""),
+            adapter=str(entry.get("adapter", "") or ""),
+            outcome=str(entry.get("outcome", entry.get("status", "")) or ""),
+            kind=str(entry.get("kind", entry.get("event", "")) or ""),
+            line_no=line_no,
+            source_file=filename,
+            raw=entry,
         )
+        for filename, line_no, entry in _iter_recent_entries(sdd_dir / "audit", max_entries)
+    ]
     return rows
 
 

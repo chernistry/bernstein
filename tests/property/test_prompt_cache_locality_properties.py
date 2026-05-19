@@ -88,7 +88,7 @@ def test_one_header_change_increments_drift_by_exactly_one(
     snap2 = locality.snapshot(role)
     assert snap2.drift_count == 0, "identical prefix incremented drift"
 
-    altered = dict(header)
+    altered = header.copy()
     altered[extra_key] = extra_val
     prefix2 = build_stable_prefix(header=altered, body=body)
     locality.observe(role=role, prefix=prefix2)

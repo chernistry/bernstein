@@ -553,15 +553,14 @@ def list_scenarios(
     if is_disabled():
         return []
     reg = registry or build_default_registry()
-    out: list[dict[str, Any]] = []
-    for sid, gen in reg.items():
-        out.append(
-            {
-                "id": sid,
-                "severity": gen.severity,
-                "axes": {k: list(v) for k, v in gen.axes.items()},
-            }
-        )
+    out: list[dict[str, Any]] = [
+        {
+            "id": sid,
+            "severity": gen.severity,
+            "axes": {k: list(v) for k, v in gen.axes.items()},
+        }
+        for sid, gen in reg.items()
+    ]
     return out
 
 

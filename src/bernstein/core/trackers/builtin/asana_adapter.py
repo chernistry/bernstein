@@ -151,7 +151,7 @@ class _TokenBucket:
     """
 
     def __init__(self, min_interval: float) -> None:
-        self._min_interval = max(0.0, float(min_interval))
+        self._min_interval = max(0.0, min_interval)
         self._next_allowed = 0.0
         self._lock = threading.Lock()
 

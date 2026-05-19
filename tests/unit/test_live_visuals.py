@@ -97,7 +97,7 @@ def test_splash_screen_wrapper_delegates_to_v2(monkeypatch: pytest.MonkeyPatch) 
     calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
 
     def fake_render(*args: object, **kwargs: object) -> None:
-        calls.append((args, dict(kwargs)))
+        calls.append((args, kwargs.copy()))
 
     def fake_resolve(raw: object | None = None) -> VisualConfig:
         return VisualConfig()

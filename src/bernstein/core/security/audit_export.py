@@ -591,21 +591,20 @@ class WebhookExporter(BaseSIEMExporter):
         Returns:
             List of JSON-serialisable event dicts.
         """
-        events: list[dict[str, Any]] = []
-        for entry in entries:
-            events.append(
-                {
-                    "timestamp": entry.timestamp,
-                    "event_type": entry.event_type,
-                    "actor": entry.actor,
-                    "resource": entry.resource,
-                    "action": entry.action,
-                    "outcome": entry.outcome,
-                    "details": entry.details,
-                    "hmac": entry.hmac,
-                    "source": "bernstein-audit",
-                },
-            )
+        events: list[dict[str, Any]] = [
+            {
+                "timestamp": entry.timestamp,
+                "event_type": entry.event_type,
+                "actor": entry.actor,
+                "resource": entry.resource,
+                "action": entry.action,
+                "outcome": entry.outcome,
+                "details": entry.details,
+                "hmac": entry.hmac,
+                "source": "bernstein-audit",
+            }
+            for entry in entries
+        ]
         return events
 
 
@@ -644,20 +643,19 @@ class FileExporter(BaseSIEMExporter):
         Returns:
             JSON-serialisable event dicts.
         """
-        docs: list[dict[str, Any]] = []
-        for entry in entries:
-            docs.append(
-                {
-                    "timestamp": entry.timestamp,
-                    "event_type": entry.event_type,
-                    "actor": entry.actor,
-                    "resource": entry.resource,
-                    "action": entry.action,
-                    "outcome": entry.outcome,
-                    "details": entry.details,
-                    "hmac": entry.hmac,
-                },
-            )
+        docs: list[dict[str, Any]] = [
+            {
+                "timestamp": entry.timestamp,
+                "event_type": entry.event_type,
+                "actor": entry.actor,
+                "resource": entry.resource,
+                "action": entry.action,
+                "outcome": entry.outcome,
+                "details": entry.details,
+                "hmac": entry.hmac,
+            }
+            for entry in entries
+        ]
         return docs
 
     def flush(self) -> ExportResult:

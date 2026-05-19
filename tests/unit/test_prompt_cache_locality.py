@@ -229,7 +229,7 @@ class _RecordingCounter:
         self._last: dict[str, str] = {}
 
     def labels(self, **kwargs: str) -> _RecordingCounter:
-        self._last = dict(kwargs)
+        self._last = kwargs.copy()
         return self
 
     def inc(self, value: float = 1.0) -> None:

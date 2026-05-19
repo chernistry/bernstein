@@ -349,7 +349,7 @@ class PolicyHookRegistry:
     @property
     def hooks(self) -> list[ExternalPolicyHook]:
         """Return the list of registered hooks."""
-        return list(self._hooks)
+        return self._hooks.copy()
 
     def register(self, hook: ExternalPolicyHook) -> None:
         """Register an external policy hook.

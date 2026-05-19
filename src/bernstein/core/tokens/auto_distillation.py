@@ -744,18 +744,17 @@ class AutoDistiller:
         """
         self._ensure_loaded()
         s = self.stats()
-        models_info: list[dict[str, Any]] = []
-        for m in self._models.values():
-            models_info.append(
-                {
-                    "model_name": m.model_name,
-                    "key": m.distillation_key,
-                    "active": m.active,
-                    "tasks_routed": m.tasks_routed,
-                    "success_rate": round(m.success_rate, 3),
-                    "avg_cost_usd": round(m.avg_cost_usd, 6),
-                }
-            )
+        models_info: list[dict[str, Any]] = [
+            {
+                "model_name": m.model_name,
+                "key": m.distillation_key,
+                "active": m.active,
+                "tasks_routed": m.tasks_routed,
+                "success_rate": round(m.success_rate, 3),
+                "avg_cost_usd": round(m.avg_cost_usd, 6),
+            }
+            for m in self._models.values()
+        ]
         return {
             "enabled": self._config.enabled,
             "total_examples": s.total_examples,

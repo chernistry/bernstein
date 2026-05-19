@@ -864,7 +864,7 @@ def test_spawn_passes_clm_namespaced_extras_only(tmp_path: Path) -> None:
     from bernstein.adapters.env_isolation import build_filtered_env as real_build
 
     def _spy(extra_keys: list[str], **kwargs: object) -> dict[str, str]:
-        captured["extra_keys"] = list(extra_keys)
+        captured["extra_keys"] = extra_keys.copy()
         return real_build(extra_keys, **kwargs)
 
     with (

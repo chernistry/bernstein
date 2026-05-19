@@ -205,24 +205,23 @@ class RunSession:
         _complexity_map = {c.value: c for c in Complexity}
         _type_map = {t.value: t for t in TaskType}
 
-        result: list[Task] = []
-        for d in self.tasks:
-            result.append(
-                Task(
-                    id=d.get("id", ""),
-                    title=d.get("title", ""),
-                    description=d.get("description", ""),
-                    role=d.get("role", "backend"),
-                    priority=int(d.get("priority", 5)),
-                    scope=_scope_map.get(d.get("scope", "medium"), Scope.MEDIUM),
-                    complexity=_complexity_map.get(d.get("complexity", "medium"), Complexity.MEDIUM),
-                    status=_status_map.get(d.get("status", "open"), TaskStatus.OPEN),
-                    estimated_minutes=int(d.get("estimated_minutes", 30)),
-                    depends_on=d.get("depends_on") or [],
-                    owned_files=d.get("owned_files") or [],
-                    task_type=_type_map.get(d.get("task_type", "standard"), TaskType.STANDARD),
-                )
+        result: list[Task] = [
+            Task(
+                id=d.get("id", ""),
+                title=d.get("title", ""),
+                description=d.get("description", ""),
+                role=d.get("role", "backend"),
+                priority=int(d.get("priority", 5)),
+                scope=_scope_map.get(d.get("scope", "medium"), Scope.MEDIUM),
+                complexity=_complexity_map.get(d.get("complexity", "medium"), Complexity.MEDIUM),
+                status=_status_map.get(d.get("status", "open"), TaskStatus.OPEN),
+                estimated_minutes=int(d.get("estimated_minutes", 30)),
+                depends_on=d.get("depends_on") or [],
+                owned_files=d.get("owned_files") or [],
+                task_type=_type_map.get(d.get("task_type", "standard"), TaskType.STANDARD),
             )
+            for d in self.tasks
+        ]
         return result  # type: ignore[return-value]
 
     # ------------------------------------------------------------------

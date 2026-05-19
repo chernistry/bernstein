@@ -386,19 +386,18 @@ def test_export_no_data(tmp_path: Path) -> None:
 def test_size_limit_enforced(tmp_path: Path) -> None:
     """export_run_report raises ValueError when report exceeds 500KB."""
     # Create a mock report and directly call the render function with oversized data
-    large_rows = []
-    for i in range(3000):
-        large_rows.append(
-            _TaskRow(
-                title=f"Very long task title number {i} with extra padding to make it much larger so we exceed the limit",
-                role="backend",
-                status="done",
-                model="test-model",
-                duration_s=60.0,
-                cost_usd=0.01,
-                janitor_passed=True,
-            )
+    large_rows = [
+        _TaskRow(
+            title=f"Very long task title number {i} with extra padding to make it much larger so we exceed the limit",
+            role="backend",
+            status="done",
+            model="test-model",
+            duration_s=60.0,
+            cost_usd=0.01,
+            janitor_passed=True,
         )
+        for i in range(3000)
+    ]
 
     report = _ExportReport(
         goal="",

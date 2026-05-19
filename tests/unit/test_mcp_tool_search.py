@@ -36,16 +36,15 @@ def small_catalog() -> ToolCatalog:
 
 @pytest.fixture()
 def large_catalog() -> ToolCatalog:
-    entries: list[ToolEntry] = []
-    for i in range(80):
-        entries.append(
-            _entry(
-                f"server{i}.tool_{i}",
-                "do something useful with the input parameters and return a structured response payload",
-                server=f"server{i}",
-                schema={"a": "string", "b": "number", "c": "boolean", "d": {"nested": "object"}},
-            )
+    entries: list[ToolEntry] = [
+        _entry(
+            f"server{i}.tool_{i}",
+            "do something useful with the input parameters and return a structured response payload",
+            server=f"server{i}",
+            schema={"a": "string", "b": "number", "c": "boolean", "d": {"nested": "object"}},
         )
+        for i in range(80)
+    ]
     return ToolCatalog(entries)
 
 

@@ -63,9 +63,7 @@ def generate_run_summary(
         completed_tasks=total_completed,
     )
 
-    task_lines: list[str] = []
-    for task in sorted(done_tasks, key=lambda t: t.title):
-        task_lines.append(f"- [x] {task.title}")
+    task_lines: list[str] = [f"- [x] {task.title}" for task in sorted(done_tasks, key=lambda t: t.title)]
     for task in sorted(failed_tasks, key=lambda t: t.title):
         task_lines.append(f"- [ ] {task.title} *(failed)*")
 

@@ -88,7 +88,7 @@ class _FakeSession(SandboxSession):
         stdin: bytes | None = None,
     ) -> ExecResult:
         del cwd, env, timeout, stdin
-        self._exec_calls.append(list(cmd))
+        self._exec_calls.append(cmd.copy())
         if self._exec_blocker is not None:
             await self._exec_blocker.wait()
         return ExecResult(

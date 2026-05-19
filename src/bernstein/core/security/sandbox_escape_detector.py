@@ -155,7 +155,7 @@ class SandboxEscapeDetector:
     @property
     def violations(self) -> list[EscapeViolation]:
         """Return all recorded violations."""
-        return list(self._violations)
+        return self._violations.copy()
 
     def check_filesystem(
         self,

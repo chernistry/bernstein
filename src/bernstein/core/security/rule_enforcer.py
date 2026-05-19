@@ -172,7 +172,7 @@ def load_rules_config(workdir: Path) -> RulesConfig | None:
             logger.warning("Skipping rule with missing/empty id: %r", rule_raw)
             continue
         exclude_raw: object = rule_raw.get("exclude", [])
-        exclude: list[str] = list(cast("list[str]", exclude_raw)) if isinstance(exclude_raw, list) else []
+        exclude: list[str] = cast("list[str]", exclude_raw).copy() if isinstance(exclude_raw, list) else []
         pattern_val: str | None = cast(_CAST_STR_NONE, rule_raw.get("pattern"))
         files_val: str | None = cast(_CAST_STR_NONE, rule_raw.get("files"))
         path_val: str | None = cast(_CAST_STR_NONE, rule_raw.get("path"))

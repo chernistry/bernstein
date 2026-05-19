@@ -151,45 +151,44 @@ def render_jsonld(rows: list[dict[str, Any]], *, run_id: str) -> str:
     model are kept as additionalProperty so a verifier sees the raw
     values without inventing schema.org terms.
     """
-    actions: list[dict[str, Any]] = []
-    for row in rows:
-        actions.append(
-            {
-                "@type": "Action",
-                "actionStatus": "CompletedActionStatus",
-                "startTime": row["timestamp"],
-                "agent": {
-                    "@type": "SoftwareApplication",
-                    "identifier": row["agent_id"],
-                    "applicationSuite": row["model"],
-                },
-                "object": {
-                    "@type": "DigitalDocument",
-                    "identifier": row["output_path"],
-                    "sha256": row["output_sha256"],
-                    "lineStart": row["output_line_start"],
-                    "lineEnd": row["output_line_end"],
-                },
-                "instrument": [
-                    {"@type": "DigitalDocument", "identifier": p, "sha256": s}
-                    for p, s in zip(
-                        row["input_paths"].split("|") if row["input_paths"] else [],
-                        row["input_shas"].split("|") if row["input_shas"] else [],
-                        strict=False,
-                    )
-                ],
-                "additionalProperty": [
-                    {"@type": "PropertyValue", "name": "schema_version", "value": row["schema_version"]},
-                    {"@type": "PropertyValue", "name": "run_id", "value": row["run_id"]},
-                    {"@type": "PropertyValue", "name": "tick_id", "value": row["tick_id"]},
-                    {"@type": "PropertyValue", "name": "prompt_sha", "value": row["prompt_sha"]},
-                    {"@type": "PropertyValue", "name": "cost_usd", "value": row["cost_usd"]},
-                    {"@type": "PropertyValue", "name": "tokens", "value": row["tokens"]},
-                    {"@type": "PropertyValue", "name": "regulatory_class", "value": row["regulatory_class"]},
-                    {"@type": "PropertyValue", "name": "customer_signature", "value": row["customer_signature"]},
-                ],
-            }
-        )
+    actions: list[dict[str, Any]] = [
+        {
+            "@type": "Action",
+            "actionStatus": "CompletedActionStatus",
+            "startTime": row["timestamp"],
+            "agent": {
+                "@type": "SoftwareApplication",
+                "identifier": row["agent_id"],
+                "applicationSuite": row["model"],
+            },
+            "object": {
+                "@type": "DigitalDocument",
+                "identifier": row["output_path"],
+                "sha256": row["output_sha256"],
+                "lineStart": row["output_line_start"],
+                "lineEnd": row["output_line_end"],
+            },
+            "instrument": [
+                {"@type": "DigitalDocument", "identifier": p, "sha256": s}
+                for p, s in zip(
+                    row["input_paths"].split("|") if row["input_paths"] else [],
+                    row["input_shas"].split("|") if row["input_shas"] else [],
+                    strict=False,
+                )
+            ],
+            "additionalProperty": [
+                {"@type": "PropertyValue", "name": "schema_version", "value": row["schema_version"]},
+                {"@type": "PropertyValue", "name": "run_id", "value": row["run_id"]},
+                {"@type": "PropertyValue", "name": "tick_id", "value": row["tick_id"]},
+                {"@type": "PropertyValue", "name": "prompt_sha", "value": row["prompt_sha"]},
+                {"@type": "PropertyValue", "name": "cost_usd", "value": row["cost_usd"]},
+                {"@type": "PropertyValue", "name": "tokens", "value": row["tokens"]},
+                {"@type": "PropertyValue", "name": "regulatory_class", "value": row["regulatory_class"]},
+                {"@type": "PropertyValue", "name": "customer_signature", "value": row["customer_signature"]},
+            ],
+        }
+        for row in rows
+    ]
     doc: dict[str, Any] = {
         "@context": "https://schema.org",
         "@type": "ItemList",

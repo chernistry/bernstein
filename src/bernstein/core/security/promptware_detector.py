@@ -67,7 +67,7 @@ def is_enabled(env: dict[str, str] | None = None) -> bool:
     into a hard guardrail. Truthy values are case-insensitive: ``on``,
     ``1``, ``true``, ``yes``.
     """
-    source = env if env is not None else dict(os.environ)
+    source = env if env is not None else os.environ.copy()
     raw = source.get(ENV_FLAG, "").strip().lower()
     return raw in {"on", "1", "true", "yes"}
 

@@ -239,10 +239,7 @@ def test_compute_band_rounds_to_two_decimals(metrics_dir: Path) -> None:
 def test_compute_band_mixed_pair_ignores_other_pairs(metrics_dir: Path) -> None:
     """A file that mixes pairs only consumes records matching the query."""
     history = metrics_dir / "cost.jsonl"
-    records: list[dict[str, object]] = []
-    # Heavy noise for the wrong pair.
-    for _ in range(60):
-        records.append({"role": "qa", "adapter": "codex", "cost_usd": 99.0})
+    records: list[dict[str, object]] = [{"role": "qa", "adapter": "codex", "cost_usd": 99.0} for _ in range(60)]
     # Only three matching records — small history, but still > 0 samples.
     records.extend(
         [

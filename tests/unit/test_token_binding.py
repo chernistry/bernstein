@@ -159,9 +159,7 @@ class TestTokenRateLimit:
             enforce_run_binding=False,
         )
         claims = {"jti": "token-1", "iat": time.time()}
-        results = []
-        for _ in range(5):
-            results.append(validator.validate(claims))
+        results = [validator.validate(claims) for _ in range(5)]
         # First 3 should succeed, 4th and 5th should fail
         assert results[0].valid
         assert results[1].valid

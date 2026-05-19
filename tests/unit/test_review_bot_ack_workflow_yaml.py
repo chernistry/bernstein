@@ -70,15 +70,11 @@ def test_gate_job_emits_review_bot_ack_check(
 ) -> None:
     jobs = gate_doc.get("jobs")
     assert isinstance(jobs, dict)
-    assert "review-bot-ack" in jobs, (
-        "gate workflow must define a job that produces the "
-        "`review-bot-ack` check name"
-    )
+    assert "review-bot-ack" in jobs, "gate workflow must define a job that produces the `review-bot-ack` check name"
     job = jobs["review-bot-ack"]
     assert isinstance(job, dict)
     assert job.get("name") == "review-bot-ack", (
-        "job `name:` must equal the literal check name "
-        "`review-bot-ack` (branch protection keys on the literal name)"
+        "job `name:` must equal the literal check name `review-bot-ack` (branch protection keys on the literal name)"
     )
 
 

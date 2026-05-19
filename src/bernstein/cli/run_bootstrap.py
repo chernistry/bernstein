@@ -56,19 +56,18 @@ def _build_synthetic_plan(goal: str, team: list[str] | None = None) -> tuple[Any
     from bernstein.core.plan_approval import create_plan
 
     roles = team or ["manager"]
-    tasks: list[Task] = []
-    for i, role in enumerate(roles):
-        tasks.append(
-            Task(
-                id=f"planned-{i + 1}",
-                title=f"[{role}] {goal[:70]}",
-                description=goal,
-                role=role,
-                priority=i + 1,
-                scope=Scope.MEDIUM,
-                complexity=Complexity.MEDIUM,
-            )
+    tasks: list[Task] = [
+        Task(
+            id=f"planned-{i + 1}",
+            title=f"[{role}] {goal[:70]}",
+            description=goal,
+            role=role,
+            priority=i + 1,
+            scope=Scope.MEDIUM,
+            complexity=Complexity.MEDIUM,
         )
+        for i, role in enumerate(roles)
+    ]
     plan = create_plan(goal, tasks)
     return plan, tasks
 

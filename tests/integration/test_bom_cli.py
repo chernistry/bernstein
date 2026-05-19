@@ -289,7 +289,7 @@ class TestRoundTrip:
 
     def test_multi_run_emits_are_independent(self, tmp_path: Path) -> None:
         snap_a = _snapshot()
-        snap_b = dict(snap_a)
+        snap_b = snap_a.copy()
         snap_b["run_id"] = "20260518-test-002"
         a_path = tmp_path / "a.json"
         b_path = tmp_path / "b.json"

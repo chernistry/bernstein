@@ -45,7 +45,7 @@ class _StubPaginator:
         self._pages = pages
 
     def paginate(self, **_: Any) -> list[dict[str, Any]]:
-        return list(self._pages)
+        return self._pages.copy()
 
 
 class _StubS3Client:
@@ -67,7 +67,7 @@ class _StubS3Client:
             "ETag": '"stub-etag"',
         }
         self.store_meta[key] = meta
-        self.calls.append(("put_object", dict(kwargs)))
+        self.calls.append(("put_object", kwargs.copy()))
         return {}
 
     def get_object(self, Bucket: str, Key: str) -> dict[str, Any]:

@@ -187,7 +187,7 @@ class TestIdempotencyKey:
         base = dict(tracker="x", ticket_id="T-1", role="qa", stage="qa", stage_attempt=0)
         keys = {make_idempotency_key(**base)}
         for field_name in ("tracker", "ticket_id", "role", "stage"):
-            mutated = dict(base)
+            mutated = base.copy()
             mutated[field_name] = "OTHER"
             keys.add(make_idempotency_key(**mutated))
         assert len(keys) == 5

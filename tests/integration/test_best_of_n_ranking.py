@@ -84,7 +84,7 @@ def _runner_for(
         return ids[:n]
 
     def await_results(_ids: list[str]) -> list[CandidateResult]:
-        return list(candidates)
+        return candidates.copy()
 
     return BestOfNRunner(spawner=spawn, awaiter=await_results)
 

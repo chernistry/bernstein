@@ -324,7 +324,7 @@ class LineageV2Store:
             child_run_id=draft.child_run_id,
             seq=draft.seq,
             kind=draft.kind,
-            payload=dict(draft.payload),
+            payload=draft.payload.copy(),
             ts_ns=draft.ts_ns,
             prev_hmac=draft.prev_hmac,
             hmac=h,
@@ -353,7 +353,7 @@ class LineageV2Store:
                 child_run_id=child_body.child_run_id,
                 seq=child_body.seq,
                 kind=child_body.kind,
-                payload=dict(child_body.payload),
+                payload=child_body.payload.copy(),
                 ts_ns=child_body.ts_ns,
                 prev_hmac="",
                 hmac="",
@@ -370,7 +370,7 @@ class LineageV2Store:
                 child_run_id=child_body.child_run_id,
                 seq=child_body.seq,
                 kind=child_body.kind,
-                payload=dict(child_body.payload),
+                payload=child_body.payload.copy(),
                 ts_ns=child_body.ts_ns,
                 prev_hmac=prev_child_hmac,
                 hmac="",
@@ -425,7 +425,7 @@ class LineageV2Store:
                 child_run_id=body.child_run_id,
                 seq=body.seq,
                 kind=body.kind,
-                payload=dict(body.payload),
+                payload=body.payload.copy(),
                 ts_ns=body.ts_ns,
                 prev_hmac=prev,
                 hmac="",
@@ -531,7 +531,7 @@ class LineageV2Store:
                         child_run_id=body.child_run_id,
                         seq=body.seq,
                         kind=body.kind,
-                        payload=dict(body.payload),
+                        payload=body.payload.copy(),
                         ts_ns=body.ts_ns,
                         prev_hmac="",
                         hmac="",
@@ -706,7 +706,7 @@ def is_v2_enabled(env: dict[str, str] | None = None, cfg: dict[str, Any] | None 
 
     Defaults to False (v1 stays the default).
     """
-    e: dict[str, str] = dict(env) if env is not None else dict(os.environ)
+    e: dict[str, str] = dict(env) if env is not None else os.environ.copy()
     flag = e.get("BERNSTEIN_LINEAGE_V2", "").strip().lower()
     if flag in {"1", "true", "yes", "on"}:
         return True

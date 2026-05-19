@@ -78,7 +78,7 @@ def _make_pair(task_id: str, child_run_id: str, ts_ns: int, payload: dict[str, o
         child_run_id=child_run_id,
         seq=0,
         kind="subagent.started",
-        payload=dict(payload),
+        payload=payload.copy(),
         ts_ns=ts_ns,
         prev_hmac="",
         hmac="",
@@ -314,7 +314,7 @@ def test_property_roundtrip(
             child_run_id=run_id,
             seq=0,
             kind="x",
-            payload=dict(payload),
+            payload=payload.copy(),
             ts_ns=ts_ns,
             prev_hmac="",
             hmac="",
@@ -349,8 +349,8 @@ def test_property_child_sha_distinguishes_distinct_seeds(
     seq_a: int,
     seq_b: int,
 ) -> None:
-    sa = compute_child_sha(ChildBody(v=2, task_id="t", child_run_id="r", seq=seq_a, kind="x", payload=dict(a)))
-    sb = compute_child_sha(ChildBody(v=2, task_id="t", child_run_id="r", seq=seq_b, kind="x", payload=dict(b)))
+    sa = compute_child_sha(ChildBody(v=2, task_id="t", child_run_id="r", seq=seq_a, kind="x", payload=a.copy()))
+    sb = compute_child_sha(ChildBody(v=2, task_id="t", child_run_id="r", seq=seq_b, kind="x", payload=b.copy()))
     if (a, seq_a) == (b, seq_b):
         assert sa == sb
     else:
@@ -625,7 +625,7 @@ def test_property_stamp_idempotent(payload: dict[str, object]) -> None:
         child_run_id="r",
         seq=0,
         kind="x",
-        payload=dict(payload),
+        payload=payload.copy(),
         ts_ns=0,
         prev_hmac="",
         hmac="",

@@ -223,7 +223,7 @@ class ToolResultInjector:
         action_required = len(failed_gates) > 0
 
         return InjectionPayload(
-            gate_results=list(self.results),
+            gate_results=self.results.copy(),
             summary=summary,
             action_required=action_required,
             format=fmt,

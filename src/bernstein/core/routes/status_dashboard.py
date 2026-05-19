@@ -1123,22 +1123,21 @@ def dashboard_data(request: Request) -> JSONResponse:
     merge_queue = _read_merge_queue(request)
 
     # -- Task timeline data for Gantt ----------------------------------------
-    task_timeline: list[dict[str, Any]] = []
-    for t in tasks:
-        task_timeline.append(
-            {
-                "id": t.id,
-                "title": t.title[:50],
-                "role": t.role,
-                "status": t.status.value,
-                "priority": t.priority,
-                "assigned_agent": t.assigned_agent,
-                "created_at": t.created_at,
-                "progress": _task_progress_pct(t),
-                "owned_files": t.owned_files,
-                "depends_on": list(getattr(t, "depends_on", None) or []),
-            }
-        )
+    task_timeline: list[dict[str, Any]] = [
+        {
+            "id": t.id,
+            "title": t.title[:50],
+            "role": t.role,
+            "status": t.status.value,
+            "priority": t.priority,
+            "assigned_agent": t.assigned_agent,
+            "created_at": t.created_at,
+            "progress": _task_progress_pct(t),
+            "owned_files": t.owned_files,
+            "depends_on": list(getattr(t, "depends_on", None) or []),
+        }
+        for t in tasks
+    ]
 
     # -- Agent details with cost + task info ---------------------------------
     live_per_agent: dict[str, float] = live_costs.get("per_agent") or {}

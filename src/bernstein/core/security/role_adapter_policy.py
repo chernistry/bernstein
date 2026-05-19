@@ -107,9 +107,9 @@ class RolePolicy:
         normalised: dict[str, tuple[str, ...]] = {}
         for role, allowed in data.items():
             if isinstance(allowed, (list, tuple, set)):
-                normalised[str(role)] = tuple(sorted({str(a) for a in allowed}))
+                normalised[role] = tuple(sorted({str(a) for a in allowed}))
             else:
-                normalised[str(role)] = ()
+                normalised[role] = ()
         return cls(per_role_allowlists=normalised)
 
 

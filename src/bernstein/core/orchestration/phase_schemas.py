@@ -246,16 +246,15 @@ def validate_phase_output(phase: Phase | str, payload: object) -> list[PhaseSche
         ]
 
     validator = Draft202012Validator(schema)
-    errors: list[PhaseSchemaError] = []
-    for err in sorted(validator.iter_errors(payload), key=lambda e: list(e.absolute_path)):
-        errors.append(
-            PhaseSchemaError(
-                phase=name,
-                schema_id=schema_id,
-                field_path=_format_path(err),
-                message=err.message,
-            )
+    errors: list[PhaseSchemaError] = [
+        PhaseSchemaError(
+            phase=name,
+            schema_id=schema_id,
+            field_path=_format_path(err),
+            message=err.message,
         )
+        for err in sorted(validator.iter_errors(payload), key=lambda e: list(e.absolute_path))
+    ]
     return errors
 
 

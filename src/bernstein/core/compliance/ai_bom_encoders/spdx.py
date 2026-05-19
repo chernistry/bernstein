@@ -37,9 +37,7 @@ DATA_LICENSE = "CC0-1.0"
 
 def encode_spdx(bom: AIBOM) -> bytes:
     """Return SPDX 2.3 JSON bytes."""
-    packages: list[dict[str, Any]] = []
-    for model in bom.models:
-        packages.append(_model_package(model))
+    packages: list[dict[str, Any]] = [_model_package(model) for model in bom.models]
     for prompt in bom.prompts:
         packages.append(_prompt_package(prompt))
     for adapter in bom.adapters:

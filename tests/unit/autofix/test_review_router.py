@@ -93,7 +93,7 @@ class _GhSpy:
     captured: list[list[str]] = field(default_factory=list)
 
     def __call__(self, argv: list[str]) -> str:
-        self.captured.append(list(argv))
+        self.captured.append(argv.copy())
         if not self.payloads:
             raise AssertionError("gh runner called more times than payloads provided")
         item = self.payloads.pop(0)
@@ -446,7 +446,7 @@ def test_resolve_pr_number_falls_back_to_git_config() -> None:
     captured: list[list[str]] = []
 
     def _git_runner(argv: list[str], _workdir: Path | None) -> str:
-        captured.append(list(argv))
+        captured.append(argv.copy())
         return "33\n"
 
     assert (

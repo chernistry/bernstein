@@ -566,9 +566,7 @@ def collect_bundle_records(sdd_dir: Path, *, max_records: int = 500) -> list[dic
     cases generally want the latest activity, not the oldest.
     """
     reader = LineageReader(sdd_dir)
-    records: list[dict[str, Any]] = []
-    for record in reader.iter_records():
-        records.append(record_to_dict(record))
+    records: list[dict[str, Any]] = [record_to_dict(record) for record in reader.iter_records()]
     if len(records) > max_records:
         records = records[-max_records:]
     return records

@@ -596,17 +596,15 @@ Be precise and complete. Include all necessary imports, tests, and documentation
             text = text.strip()
 
             changes_data: Any = json.loads(text)
-            changes: list[FileChange] = []
-
-            for item in changes_data:
-                changes.append(
-                    FileChange(
-                        path=item.get("path", ""),
-                        operation=item.get("operation", "modify"),
-                        new_content=item.get("new_content"),
-                        old_content=item.get("old_content"),
-                    )
+            changes: list[FileChange] = [
+                FileChange(
+                    path=item.get("path", ""),
+                    operation=item.get("operation", "modify"),
+                    new_content=item.get("new_content"),
+                    old_content=item.get("old_content"),
                 )
+                for item in changes_data
+            ]
 
             return changes
 

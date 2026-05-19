@@ -265,9 +265,9 @@ class CatalogService:
     ) -> list[tuple[InstalledEntry, CatalogEntry | None]]:
         """Pair each installed entry with its current catalog entry, if any."""
         catalog = self.browse(force_refresh=force_refresh)
-        out: list[tuple[InstalledEntry, CatalogEntry | None]] = []
-        for installed in self.list_installed():
-            out.append((installed, catalog.find(installed.id)))
+        out: list[tuple[InstalledEntry, CatalogEntry | None]] = [
+            (installed, catalog.find(installed.id)) for installed in self.list_installed()
+        ]
         return out
 
     # ------------------------------------------------------------------

@@ -279,12 +279,12 @@ class PermissionGraph:
     @property
     def layers(self) -> list[PermissionLayer]:
         """Return the ordered list of layers."""
-        return list(self._layers)
+        return self._layers.copy()
 
     @property
     def audit_log(self) -> list[GraphResult]:
         """Return the full audit log of past evaluations."""
-        return list(self._audit_log)
+        return self._audit_log.copy()
 
     def add_layer(self, layer: PermissionLayer) -> None:
         """Append a layer to the evaluation stack.

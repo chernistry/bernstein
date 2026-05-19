@@ -325,7 +325,7 @@ def _rebuild_slice_chain(
             "prev_hmac": prev,
         }
         slice_hmac = _compute_event_hmac(key, prev, payload)
-        emitted = dict(payload)
+        emitted = payload.copy()
         emitted["hmac"] = slice_hmac
         rebuilt.append(emitted)
         prev = slice_hmac

@@ -128,7 +128,7 @@ def test_write_profile_default_dir_is_tmp(monkeypatch: pytest.MonkeyPatch) -> No
     # Check that passing None dest_dir doesn't raise and file ends up somewhere sensible
     out = write_profile(AgentSeccompProfile.STRICT, dest_dir=None)
     assert out.exists()
-    assert str(tempfile.gettempdir()) in str(out)
+    assert tempfile.gettempdir() in str(out)
 
 
 def test_write_custom_profile(tmp_path: Path) -> None:

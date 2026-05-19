@@ -300,28 +300,27 @@ def test_concurrent_claims_exactly_one_winner(
     from pathlib import Path as _P
 
     worker_script = _P(__file__).parent / "_worker_proc.py"
-    procs: list[subprocess.Popen[bytes]] = []
-    for result_file in (result_a, result_b):
-        procs.append(
-            subprocess.Popen(
-                [
-                    sys.executable,
-                    str(worker_script),
-                    "--server",
-                    handle.central_url,
-                    "--task-id",
-                    task_id,
-                    "--token",
-                    admin_token,
-                    "--result-file",
-                    str(result_file),
-                    "--start-at",
-                    str(start_at),
-                    "--expected-version",
-                    "1",
-                ],
-            )
+    procs: list[subprocess.Popen[bytes]] = [
+        subprocess.Popen(
+            [
+                sys.executable,
+                str(worker_script),
+                "--server",
+                handle.central_url,
+                "--task-id",
+                task_id,
+                "--token",
+                admin_token,
+                "--result-file",
+                str(result_file),
+                "--start-at",
+                str(start_at),
+                "--expected-version",
+                "1",
+            ],
         )
+        for result_file in (result_a, result_b)
+    ]
 
     for p in procs:
         p.wait(timeout=15.0)

@@ -273,7 +273,7 @@ class DataResidencyController:
             List of attestation records.
         """
         if tenant_id is None:
-            return list(self._attestations)
+            return self._attestations.copy()
         return [a for a in self._attestations if a.tenant_id == tenant_id]
 
     def get_non_compliant(

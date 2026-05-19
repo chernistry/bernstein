@@ -96,18 +96,17 @@ class GateRunner:
         format_steps = [s for s in pipeline if s.name == "auto_format"]
         other_steps = [s for s in pipeline if s.name != "auto_format"]
 
-        format_results: list[GateResult] = []
-        for step in format_steps:
-            format_results.append(
-                await self._run_step(
-                    step,
-                    task,
-                    run_dir,
-                    changed_files,
-                    skip_set=skip_set,
-                    bypass_reason=bypass_reason,
-                )
+        format_results: list[GateResult] = [
+            await self._run_step(
+                step,
+                task,
+                run_dir,
+                changed_files,
+                skip_set=skip_set,
+                bypass_reason=bypass_reason,
             )
+            for step in format_steps
+        ]
 
         other_results = list(
             await asyncio.gather(

@@ -262,7 +262,7 @@ class DirectoryRegistry:
         scan = self.scan()
         config = FleetConfig(
             projects=[s.to_project_config() for s in scan.instances],
-            errors=list(scan.errors),
+            errors=scan.errors.copy(),
             source_path=self._root,
         )
         for index, spec in enumerate(scan.disabled):

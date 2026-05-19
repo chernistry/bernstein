@@ -381,9 +381,7 @@ def test_conflict_raises_optimistic_concurrency() -> None:
 def test_precondition_failed_raises_optimistic_concurrency() -> None:
     adapter = _make_adapter()
     url = f"https://{DOMAIN}/rest/api/3/issue/ACME-1/transitions"
-    respx.post(url).mock(
-        return_value=httpx.Response(412, json={"message": "precondition failed"})
-    )
+    respx.post(url).mock(return_value=httpx.Response(412, json={"message": "precondition failed"}))
     try:
         with pytest.raises(OptimisticConcurrencyError):
             adapter.transition("ACME-1", "41")

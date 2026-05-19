@@ -338,7 +338,7 @@ class TokenRefreshScheduler:
         token = self._manager.create_token(
             session_id=self._session_id,
             user_id=self._user_id,
-            scopes=list(self._scopes),
+            scopes=self._scopes.copy(),
         )
         payload = self._manager.verify_token(token)
         if payload is None:

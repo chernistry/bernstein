@@ -187,7 +187,7 @@ class AgentKeyUpdater:
     @property
     def update_log(self) -> list[AgentUpdateResult]:
         """Return the log of update results."""
-        return list(self._update_log)
+        return self._update_log.copy()
 
     def register_agent(self, agent_id: str, env_vars: dict[str, str]) -> None:
         """Register an agent and its environment variables.
@@ -196,7 +196,7 @@ class AgentKeyUpdater:
             agent_id: The agent identifier.
             env_vars: The agent's environment variables.
         """
-        self._agent_env[agent_id] = dict(env_vars)
+        self._agent_env[agent_id] = env_vars.copy()
 
     def unregister_agent(self, agent_id: str) -> None:
         """Remove an agent from the registry.

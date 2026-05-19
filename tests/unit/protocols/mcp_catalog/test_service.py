@@ -63,7 +63,7 @@ def _good_catalog(version: str = "1.0.0") -> dict[str, Any]:
 
 class _FakeTransport:
     def __init__(self, responses: list[HTTPResponse]) -> None:
-        self._responses = list(responses)
+        self._responses = responses.copy()
 
     def get(self, url: str, *, headers: dict[str, str]) -> HTTPResponse:
         if not self._responses:

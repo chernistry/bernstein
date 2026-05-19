@@ -768,9 +768,7 @@ class TestSchedulerFairness:
             # Create 3-5 tasks for "overserved" role, 1-2 for "starving"
             n_overserved = rng.randint(3, 5)
             n_starving = rng.randint(1, 2)
-            tasks = []
-            for i in range(n_overserved):
-                tasks.append(_make_task(id=f"T-os-{trial}-{i}", role="backend", priority=2))
+            tasks = [_make_task(id=f"T-os-{trial}-{i}", role="backend", priority=2) for i in range(n_overserved)]
             for i in range(n_starving):
                 tasks.append(_make_task(id=f"T-sv-{trial}-{i}", role="qa", priority=2))
 

@@ -129,7 +129,7 @@ def _aggregate_by_tag(
         for k, v in u.cost_tags.items():
             if tag_key is None or k == tag_key:
                 by_tag[k][v] += u.cost_usd
-    return {k: dict(vals) for k, vals in by_tag.items()}
+    return {k: vals.copy() for k, vals in by_tag.items()}
 
 
 class TestByTagAggregation:

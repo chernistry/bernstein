@@ -110,7 +110,7 @@ def test_leaf_swap_changes_root(pairs: list[tuple[str, str]]) -> None:
     pairs_sorted = sorted(pairs)
     if pairs_sorted[0][1] == pairs_sorted[1][1]:
         pytest.skip("identical leaf hashes — swap is a no-op")
-    swapped = list(pairs_sorted)
+    swapped = pairs_sorted.copy()
     swapped[0], swapped[1] = swapped[1], swapped[0]
     root_a = build_merkle_tree(pairs_sorted).root.hash
     root_b = build_merkle_tree(swapped).root.hash

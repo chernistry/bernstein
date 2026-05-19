@@ -956,7 +956,7 @@ class AuthService:
 
     @property
     def group_role_map(self) -> dict[str, AuthRole]:
-        return dict(self._group_role_map)
+        return self._group_role_map.copy()
 
     # -- OIDC --
 

@@ -243,7 +243,7 @@ class VulnerabilityDisclosureManager:
     @property
     def reports(self) -> dict[str, VulnReport]:
         """Return a shallow copy of all tracked reports."""
-        return dict(self._reports)
+        return self._reports.copy()
 
     # -- Report submission ---------------------------------------------------
 

@@ -137,7 +137,7 @@ class AgentCardKeystore:
                 touching real wall-clock state.
         """
         self._dir = (key_dir or DEFAULT_KEY_DIR).resolve()
-        self._grace_seconds = max(0, int(grace_seconds))
+        self._grace_seconds = max(0, grace_seconds)
         self._clock = clock or _dt.datetime
         self._lock = threading.Lock()
 

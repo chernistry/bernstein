@@ -81,7 +81,7 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     Lists and scalars in *override* replace those in *base*.
     Nested dicts are merged recursively.
     """
-    merged: dict[str, Any] = dict(base)
+    merged: dict[str, Any] = base.copy()
     for key, value in override.items():
         if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
             merged[key] = _deep_merge(
@@ -110,7 +110,7 @@ def apply_org_policies(
     Returns:
         New config dict with all policy overrides merged in.
     """
-    result = dict(config)
+    result = config.copy()
     for tpl in templates:
         result = _deep_merge(result, tpl.overrides)
     return result

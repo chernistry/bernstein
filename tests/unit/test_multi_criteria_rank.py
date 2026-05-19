@@ -31,7 +31,7 @@ from bernstein.core.orchestration.multi_criteria_rank import (
 
 
 def _cand(key: str, **scores: float) -> Candidate:
-    return Candidate(key=key, scores=dict(scores))
+    return Candidate(key=key, scores=scores.copy())
 
 
 # ---------------------------------------------------------------------------

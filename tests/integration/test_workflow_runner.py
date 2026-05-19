@@ -44,7 +44,7 @@ def captured_audit() -> tuple[list[tuple[str, str, dict[str, Any]]], Callable[..
     log: list[tuple[str, str, dict[str, Any]]] = []
 
     def _emit(event_type: str, resource_id: str, details: dict[str, Any]) -> None:
-        log.append((event_type, resource_id, dict(details)))
+        log.append((event_type, resource_id, details.copy()))
 
     return log, _emit
 

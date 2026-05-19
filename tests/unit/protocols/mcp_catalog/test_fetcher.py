@@ -45,7 +45,7 @@ class _FakeTransport:
         self.queue.append(resp)
 
     def get(self, url: str, *, headers: dict[str, str]) -> HTTPResponse:
-        self.calls.append((url, dict(headers)))
+        self.calls.append((url, headers.copy()))
         if not self.queue:
             raise AssertionError(f"unexpected request to {url}")
         return self.queue.pop(0)

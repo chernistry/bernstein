@@ -28,7 +28,7 @@ class _InMemorySource(SkillSource):
         return self._label
 
     def iter_skills(self) -> list[SkillArtifact]:
-        return list(self._artifacts)
+        return self._artifacts.copy()
 
 
 def _artifact(name: str, origin: str) -> SkillArtifact:

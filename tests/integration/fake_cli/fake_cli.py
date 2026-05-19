@@ -377,7 +377,7 @@ def _maybe_dump_env() -> None:
         return
     try:
         Path(dump_path).write_text(
-            json.dumps(dict(os.environ), sort_keys=True),
+            json.dumps(os.environ.copy(), sort_keys=True),
             encoding="utf-8",
         )
     except OSError as exc:

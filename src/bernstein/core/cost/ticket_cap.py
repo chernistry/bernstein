@@ -82,8 +82,8 @@ class CostCapExceeded(RuntimeError):
     ) -> None:
         super().__init__(f"ticket {ticket_id!r} exceeded cost cap: spent=${cost_usd:.4f} cap=${cap_usd:.4f} ({reason})")
         self.ticket_id = ticket_id
-        self.cost_usd = float(cost_usd)
-        self.cap_usd = float(cap_usd)
+        self.cost_usd = cost_usd
+        self.cap_usd = cap_usd
         self.reason = reason
 
 
@@ -321,7 +321,7 @@ class TicketCostCapMeter:
         Args:
             cost_usd: USD delta to add. Non-positive values are ignored.
         """
-        delta = max(0.0, float(cost_usd))
+        delta = max(0.0, cost_usd)
         with self._lock:
             self._spent_usd += delta
             if self._should_halt_locked():

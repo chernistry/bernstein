@@ -45,9 +45,7 @@ CYCLONEDX_SERIAL_NS = "urn:uuid:bernstein-ai-bom"
 
 def encode_cyclonedx(bom: AIBOM) -> bytes:
     """Return CycloneDX 1.5 (AI/ML extension) JSON bytes."""
-    components: list[dict[str, Any]] = []
-    for model in bom.models:
-        components.append(_model_component(model))
+    components: list[dict[str, Any]] = [_model_component(model) for model in bom.models]
     for prompt in bom.prompts:
         components.append(_prompt_component(prompt))
     for adapter in bom.adapters:

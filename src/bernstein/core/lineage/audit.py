@@ -60,7 +60,7 @@ class LineageMergeAuditRecord:
             "artefact_path": self.artefact_path,
             "policy": self.policy,
             "winner_hash": self.winner_hash,
-            "candidate_hashes": list(self.candidate_hashes),
+            "candidate_hashes": self.candidate_hashes.copy(),
             "parent_hash": self.parent_hash,
             "reason": self.reason,
         }
@@ -134,7 +134,7 @@ def emit_lineage_merge_entry(
         artefact_path=artefact_path,
         policy=policy,
         winner_hash=winner_hash,
-        candidate_hashes=list(candidate_hashes),
+        candidate_hashes=candidate_hashes.copy(),
         parent_hash=parent_hash,
         reason=reason,
     )

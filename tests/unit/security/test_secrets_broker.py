@@ -42,7 +42,7 @@ class _MemoryBackend(SecretsBackend):
     name = "memory"
 
     def __init__(self, secrets: dict[str, str]) -> None:
-        self._secrets = dict(secrets)
+        self._secrets = secrets.copy()
         self.reads: list[str] = []
 
     def read(self, secret_name: str) -> str:

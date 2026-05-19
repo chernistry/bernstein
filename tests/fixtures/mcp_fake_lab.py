@@ -291,7 +291,7 @@ class McpFakeLab:
     @property
     def requests(self) -> list[httpx.Request]:
         """All HTTP requests captured during this lab session, in order."""
-        return list(self._requests)
+        return self._requests.copy()
 
     def assert_called(self, method: str, path: str) -> None:
         """Assert that at least one request with *method* and *path* was made.

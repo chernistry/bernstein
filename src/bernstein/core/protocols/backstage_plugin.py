@@ -273,9 +273,7 @@ class BackstageExporter:
             msg = "entries must not be empty"
             raise ValueError(msg)
 
-        docs: list[str] = []
-        for entry in entries:
-            docs.append(self.build_entity_yaml(entry.entity, entry.spec, entry.relations))
+        docs: list[str] = [self.build_entity_yaml(entry.entity, entry.spec, entry.relations) for entry in entries]
         return "---\n".join(docs)
 
     def build_entity_yaml(

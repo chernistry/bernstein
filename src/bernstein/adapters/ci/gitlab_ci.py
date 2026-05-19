@@ -77,10 +77,7 @@ def _extract_steps(clean_log: str) -> list[GitLabCIStep]:
         List of ``GitLabCIStep`` objects.
     """
     steps: list[GitLabCIStep] = []
-    positions: list[tuple[str, int]] = []
-
-    for m in _SECTION_START_RE.finditer(clean_log):
-        positions.append((m.group(1), m.end()))
+    positions: list[tuple[str, int]] = [(m.group(1), m.end()) for m in _SECTION_START_RE.finditer(clean_log)]
 
     for i, (name, start_pos) in enumerate(positions):
         end_pos = positions[i + 1][1] if i + 1 < len(positions) else len(clean_log)

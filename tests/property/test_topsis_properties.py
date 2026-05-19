@@ -99,7 +99,7 @@ def test_no_nan_propagates_to_normalised_scores(candidates: list[Candidate]) -> 
 def test_permutation_symmetry_of_winner(candidates: list[Candidate], seed: int) -> None:
     """Shuffling the input order must not change the (key, closeness) set."""
     rng = random.Random(seed)
-    shuffled = list(candidates)
+    shuffled = candidates.copy()
     rng.shuffle(shuffled)
     base = {(r.key, round(r.closeness, 9)) for r in rank_candidates(candidates, _PROFILE)}
     shuf = {(r.key, round(r.closeness, 9)) for r in rank_candidates(shuffled, _PROFILE)}
@@ -109,7 +109,7 @@ def test_permutation_symmetry_of_winner(candidates: list[Candidate], seed: int) 
 @given(_candidates_strategy(), st.integers(min_value=0, max_value=10_000))
 def test_winner_key_is_stable_under_shuffle(candidates: list[Candidate], seed: int) -> None:
     rng = random.Random(seed)
-    shuffled = list(candidates)
+    shuffled = candidates.copy()
     rng.shuffle(shuffled)
     w1 = rank_candidates(candidates, _PROFILE)[0].key
     w2 = rank_candidates(shuffled, _PROFILE)[0].key

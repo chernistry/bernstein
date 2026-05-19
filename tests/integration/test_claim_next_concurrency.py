@@ -206,7 +206,7 @@ def _run_claimer_process(
     *,
     role: str | None = None,
 ) -> subprocess.Popen[str]:
-    env = dict(os.environ)
+    env = os.environ.copy()
     env["BACKLOG_PATH"] = str(backlog_path)
     env["CLAIMER_ID"] = claimer_id
     if role is not None:

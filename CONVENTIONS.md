@@ -233,6 +233,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `taxonomy.py`             | Failure taxonomy — classify every eval failure into a closed set |
 | `telemetry.py`            | Telemetry contract — strict schema for agent output metadata |
 | `vcr_fixture.py`          | VCR fixture pattern — dehydrate/hydrate deterministic test fixtures (T805) |
+| `yaml_runner.py`          | YAML eval harness - operator-runnable spec format with judge and golden diff |
 | `golden_data/`            | Packaged golden benchmark fixtures (ships in wheel via package-data) |
 
 ### `src/bernstein/plugins/` — plugin system (pluggy)

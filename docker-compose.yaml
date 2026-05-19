@@ -194,7 +194,7 @@ services:
 
   # ── Infrastructure ─────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     environment:
       POSTGRES_USER: bernstein
       POSTGRES_PASSWORD: bernstein  # NOSONAR — development-only default, not used in production

@@ -368,7 +368,15 @@ class LinearTracker(AbstractTrackerAdapter):
             - the workflow state name (resolved via the cached schema)
             - a key in ``config.state_map`` (resolved twice: through the
               map then through the schema)
+
+        ``idempotency_key`` is accepted for ``AbstractTrackerAdapter``
+        contract compatibility but intentionally not forwarded: Linear's
+        ``issueUpdate`` mutation is naturally idempotent on
+        ``(issueId, stateId)`` and exposes no client-side key field.
+        Adding a body annotation here (as ``comment`` does) would not
+        bind the dedup to the transition itself, so we drop the key.
         """
+        _ = idempotency_key  # contract-compat; see docstring
         schema = self._ensure_schema()
         state_id = self._resolve_state_id(schema, status_id)
         variables = {"issueId": ticket_id, "stateId": state_id}

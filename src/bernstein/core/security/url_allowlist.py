@@ -26,7 +26,11 @@ class UrlSchemeError(ValueError):
 
 _HTTPS_ONLY: Final[frozenset[str]] = frozenset({"https"})
 _HTTP_AND_HTTPS: Final[frozenset[str]] = frozenset({"http", "https"})
-_LOCAL_HOSTS: Final[frozenset[str]] = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
+# Hosts that always permit plain HTTP. ``0.0.0.0`` is intentionally NOT
+# included: it is the "bind-any" address, not a loopback target, and
+# treating it as loopback would silently allow non-localhost HTTP in
+# environments that translate ``0.0.0.0`` to a routable interface.
+_LOCAL_HOSTS: Final[frozenset[str]] = frozenset({"localhost", "127.0.0.1", "::1"})
 
 
 def ensure_http_url(

@@ -101,7 +101,11 @@ def mask(value: Any, *, keep: int = 0) -> str:
 
     Returns:
         A redacted string of the form ``"***"`` (default) or
-        ``"***abcd"`` when ``keep > 0``. Empty strings render as
+        ``"***abcd"`` when ``keep > 0`` AND the input is longer than
+        ``keep`` characters. Inputs that are ``<= keep`` characters
+        long are fully masked to ``"***"`` rather than exposing their
+        entire value (otherwise a 4-character secret with ``keep=4``
+        would be printed verbatim). Empty strings render as
         ``"<empty>"`` so a missing secret is visually distinct from a
         masked one.
     """

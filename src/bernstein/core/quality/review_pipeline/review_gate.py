@@ -220,9 +220,7 @@ class ReviewGate:
     verdict_parser: VerdictParser
     model_selection: ModelSelection = ModelSelection.DifferentModelPreferred
     requires_fresh_session: bool = True
-    prompt_template: str = (
-        "## Spec\n\n{spec}\n\n## Diff\n\n{diff}\n\n## Test output\n\n{test_output}\n"
-    )
+    prompt_template: str = "## Spec\n\n{spec}\n\n## Diff\n\n{diff}\n\n## Test output\n\n{test_output}\n"
 
     def __post_init__(self) -> None:
         # ``requires_fresh_session`` is part of the public contract; the
@@ -230,8 +228,7 @@ class ReviewGate:
         # that try to disable it.
         if not self.requires_fresh_session:
             raise FreshContextViolation(
-                "ReviewGate requires fresh-session semantics; "
-                "requires_fresh_session must be True",
+                "ReviewGate requires fresh-session semantics; requires_fresh_session must be True",
             )
 
     # -- model selection ---------------------------------------------------
@@ -260,10 +257,9 @@ class ReviewGate:
                 and no distinct candidate exists.
         """
         if explicit_reviewer is not None:
-            if (
-                self.model_selection is ModelSelection.DifferentModelRequired
-                and _normalised(explicit_reviewer) == _normalised(implementer_model)
-            ):
+            if self.model_selection is ModelSelection.DifferentModelRequired and _normalised(
+                explicit_reviewer
+            ) == _normalised(implementer_model):
                 raise EvalGateConfigError(
                     f"DifferentModelRequired: explicit reviewer "
                     f"{explicit_reviewer!r} matches implementer model "
@@ -271,9 +267,7 @@ class ReviewGate:
                 )
             return explicit_reviewer
 
-        distinct = [
-            c for c in candidates if _normalised(c) != _normalised(implementer_model)
-        ]
+        distinct = [c for c in candidates if _normalised(c) != _normalised(implementer_model)]
 
         if distinct:
             return distinct[0]
@@ -445,9 +439,7 @@ def parse_structured_verdict(
 
     text = raw.strip()
     if text.startswith("```"):
-        text = "\n".join(
-            line for line in text.splitlines() if not line.strip().startswith("```")
-        ).strip()
+        text = "\n".join(line for line in text.splitlines() if not line.strip().startswith("```")).strip()
 
     try:
         data = json.loads(text)
@@ -479,13 +471,9 @@ def parse_structured_verdict(
         state = "fail"
 
     issues_raw = data.get("issues", [])
-    issues: list[str] = (
-        [str(i) for i in issues_raw] if isinstance(issues_raw, list) else []
-    )
+    issues: list[str] = [str(i) for i in issues_raw] if isinstance(issues_raw, list) else []
     questions_raw = data.get("questions", [])
-    questions: list[str] = (
-        [str(q) for q in questions_raw] if isinstance(questions_raw, list) else []
-    )
+    questions: list[str] = [str(q) for q in questions_raw] if isinstance(questions_raw, list) else []
 
     confidence_raw = data.get("confidence", 1.0)
     try:

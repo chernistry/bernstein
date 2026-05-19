@@ -255,13 +255,15 @@ class QueuedApprovalsResponse(BaseModel):
 class ResolveRequest(BaseModel):
     """Body for ``POST /approvals/{id}/resolve``.
 
-    The ``nonce`` is mandatory: the reply must echo the exact hex string
-    issued when the approval was queued. A missing or unparseable value
-    is rejected with ``409 NONCE_MISMATCH``.
+    The reply must echo the exact ``nonce`` hex string issued when the
+    approval was queued. ``nonce`` defaults to an empty string at the
+    schema layer so a missing field flows through the handler as a
+    nonce mismatch (``409 NONCE_MISMATCH``) rather than a Pydantic 422
+    validation error, matching the documented contract.
     """
 
     decision: Literal["allow", "reject", "always"]
-    nonce: str
+    nonce: str = ""
     reason: str = ""
 
 

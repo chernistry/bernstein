@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import cast
 
@@ -9,11 +10,27 @@ import click
 from rich.console import Console
 from rich.table import Table
 
+from bernstein.core.memory.cross_task_kb import CrossTaskKB, Scope, redact_value
 from bernstein.core.memory.sqlite_store import MemoryType, SQLiteMemoryStore
 
 _MEMORY_DB_PATH = ".sdd/memory/memory.db"
 
 console = Console()
+
+
+def _resolve_db_path() -> Path:
+    """Return the SQLite path the CLI should operate on."""
+    return Path(_MEMORY_DB_PATH)
+
+
+def _resolve_run_id() -> str:
+    """Return the active run id; falls back to ``BERNSTEIN_RUN_ID`` env var."""
+    return os.environ.get("BERNSTEIN_RUN_ID", "")
+
+
+def _resolve_task_id() -> str:
+    """Return the active task id; falls back to ``BERNSTEIN_TASK_ID`` env var."""
+    return os.environ.get("BERNSTEIN_TASK_ID", "manual-cli")
 
 
 @click.group("memory")
@@ -103,3 +120,95 @@ def remove_memory(entry_id: int) -> None:
         console.print(f"[green]✓[/green] Removed memory entry [bold]#{entry_id}[/bold]")
     else:
         console.print(f"[red]✗[/red] Entry [bold]#{entry_id}[/bold] not found")
+
+
+# ---------------------------------------------------------------------------
+# Cross-task knowledge share: publish/subscribe on tag-indexed memory.
+# ---------------------------------------------------------------------------
+
+
+@memory_group.command("share")
+@click.argument("key")
+@click.argument("value")
+@click.option("--tag", required=True, help="Subscription tag for this fact.")
+@click.option(
+    "--scope",
+    type=click.Choice(["run", "project"]),
+    default="project",
+    help="run = current orchestration run only; project = whole .sdd/ root.",
+)
+def share_fact(key: str, value: str, tag: str, scope: str) -> None:
+    """Publish a fact under ``tag``/``key`` for other tasks to subscribe to.
+
+    Manual operator escape hatch over the cross-task knowledge-base facade.
+    """
+    db_path = _resolve_db_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    store = SQLiteMemoryStore(db_path)
+    facade = CrossTaskKB(
+        store,
+        run_id=_resolve_run_id(),
+        producer_task_id=_resolve_task_id(),
+    )
+    fact = facade.publish(
+        tag=tag,
+        key=key,
+        value=value,
+        scope=cast("Scope", scope),
+    )
+    console.print(
+        f"[green]✓[/green] Published [bold]{fact.tag}/{fact.key}[/bold] "
+        f"(scope={fact.scope}, hash={fact.content_hash[:19]}...)"
+    )
+
+
+@memory_group.command("query")
+@click.option("--tag", required=True, help="Subscription tag to query.")
+@click.option(
+    "--scope",
+    type=click.Choice(["run", "project"]),
+    default="project",
+    help="run = current orchestration run only; project = whole .sdd/ root.",
+)
+@click.option(
+    "--raw",
+    is_flag=True,
+    default=False,
+    help="Print raw values without PII redaction. Off by default.",
+)
+def query_facts(tag: str, scope: str, raw: bool) -> None:
+    """List facts published under ``tag`` with values redacted by default."""
+    db_path = _resolve_db_path()
+    if not db_path.exists():
+        console.print("[dim]No memory database found.[/dim]")
+        return
+
+    store = SQLiteMemoryStore(db_path)
+    facade = CrossTaskKB(
+        store,
+        run_id=_resolve_run_id(),
+        producer_task_id=_resolve_task_id(),
+    )
+    facts = list(facade.subscribe(tag=tag, scope=cast("Scope", scope)))
+    if not facts:
+        console.print(f"[dim]No facts published under tag={tag!r} scope={scope!r}.[/dim]")
+        return
+
+    table = Table(title=f"Cross-task facts (tag={tag}, scope={scope})")
+    table.add_column("Key", style="cyan")
+    table.add_column("Producer", style="green")
+    table.add_column("Value")
+    table.add_column("Hash", style="dim")
+
+    for fact in facts:
+        display = fact.value if raw else redact_value(fact.value)
+        if len(display) > 200:
+            display = display[:200] + "..."
+        table.add_row(
+            fact.key,
+            fact.producer_task_id or "(unknown)",
+            display,
+            fact.content_hash[:19] + "...",
+        )
+
+    console.print(table)

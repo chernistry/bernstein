@@ -3735,6 +3735,17 @@ class Orchestrator:
         else:
             duration_str = f"{seconds}s"
 
+        # Cross-task KB counters are best-effort: the import is lazy so a
+        # broken module never blocks summary generation.
+        kb_publish = 0
+        kb_subscribe = 0
+        try:
+            from bernstein.core.memory.cross_task_kb import get_global_counter
+
+            kb_publish, kb_subscribe = get_global_counter().snapshot()
+        except Exception as exc:  # pragma: no cover - summary must never break
+            logger.debug("cross_task_kb counter snapshot failed: %s", exc)
+
         lines = [
             "# Run Summary",
             "",
@@ -3743,6 +3754,8 @@ class Orchestrator:
             f"**Files modified:** {files_modified}",
             f"**Estimated cost:** ${total_cost:.4f}",
             f"**Wall-clock duration:** {duration_str}",
+            f"**kb.publish:** {kb_publish}",
+            f"**kb.subscribe:** {kb_subscribe}",
             "",
             "## Tasks",
             "",

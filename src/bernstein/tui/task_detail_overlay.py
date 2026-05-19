@@ -86,7 +86,7 @@ def _render_header(detail: TaskDetail) -> str:
         Formatted header string.
     """
     lines: list[str] = []
-    lines.extend((f"{'=' * 60}", f"  Status: {detail.status}  |  Task: {detail.task_id}"))
+    lines.extend(("=" * 60, f"  Status: {detail.status}  |  Task: {detail.task_id}"))
     if detail.result:
         lines.append(f"  Result: {detail.result}")
     lines.extend((f"  Title: {detail.title}", f"  Role: {detail.role}"))

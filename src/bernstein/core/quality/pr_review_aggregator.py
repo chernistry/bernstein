@@ -711,6 +711,11 @@ def render_report_markdown(report: PRReviewReport) -> str:
     Intentionally simple — emoji-free, GitHub-Flavoured-Markdown safe,
     deterministic line ordering.  Downstream code (e.g. a future
     ``post_grouped_review``) wraps this in a PR-review API call.
+
+    Each surfaced cluster now carries a detected-by provenance tag
+    (``[detected by N/M bots, agreement Y%]``) sourced from
+    :mod:`bernstein.core.quality.review_consensus` so the review-bot-ack
+    sticky comment shows cross-reviewer agreement at a glance.
     """
     lines: list[str] = [
         "# PR review summary",
@@ -736,12 +741,47 @@ def render_report_markdown(report: PRReviewReport) -> str:
         lines.extend(["", f"## {header}", ""])
         for cluster in report.by_file[file]:
             location = f":{cluster.line}" if cluster.line is not None else ""
+            provenance = _cluster_provenance(cluster, n_reviewers=report.n_reviewers)
             lines.append(
                 f"- **[{cluster.severity}]** {cluster.canonical_message} "
                 f"_(score={cluster.score:.2f}, reviewers={cluster.reviewer_count}"
-                f"{', file' + location if location else ''})_"
+                f"{', file' + location if location else ''})_ "
+                f"{provenance}"
             )
     return "\n".join(lines)
+
+
+def _cluster_provenance(cluster: FindingCluster, *, n_reviewers: int) -> str:
+    """Render the detected-by provenance tag for one cluster.
+
+    Bridges the aggregator's :class:`FindingCluster` (which counts
+    distinct reviewer *roles*) to the consensus engine's provenance line
+    so the sticky comment renders one consistent format.
+    """
+    from bernstein.core.quality.review_consensus import (
+        ConsensusFinding,
+        ConsensusLevel,
+        render_provenance,
+    )
+
+    detected_by = tuple(sorted(cluster.reviewer_roles))
+    denom = max(n_reviewers, 1)
+    agreement = min(len(detected_by) / denom, 1.0)
+    proxy = ConsensusFinding(
+        file=cluster.file,
+        line=cluster.line,
+        category="",
+        title=cluster.canonical_message,
+        severity=cluster.severity,
+        detected_by=detected_by,
+        bots_ran=denom,
+        agreement_ratio=agreement,
+        max_confidence=1.0,
+        consensus_score=agreement,
+        level=ConsensusLevel.UNVERIFIED,
+        members=(),
+    )
+    return render_provenance(proxy)
 
 
 __all__ = [

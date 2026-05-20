@@ -49,6 +49,7 @@ _CLI_REDIRECT_MAP: dict[str, str] = {
     "delegate_cmd": "bernstein.cli.commands.delegate_cmd",
     "dep_impact_cmd": "bernstein.cli.commands.dep_impact_cmd",
     "diff_cmd": "bernstein.cli.commands.diff_cmd",
+    "desktop_register_cmd": "bernstein.cli.commands.desktop_register_cmd",
     "disaster_recovery_cmd": "bernstein.cli.commands.disaster_recovery_cmd",
     "doctor_cmd": "bernstein.cli.commands.doctor_cmd",
     "drain_screen": "bernstein.cli.display.drain_screen",

@@ -200,6 +200,7 @@ nav:
       - OpenAI Agents SDK: adapters/openai-agents.md
       - CLM (Cyber Language Model): adapters/clm.md
       - DeepSeek V4 (self-hosted): adapters/deepseek.md
+      - Session isolation: adapters/session_isolation.md
       - Compatibility: adapters/compatibility.md
       - Deferred adapters: adapter-deferred.md
       - Hook system: integrations/hook-system.md

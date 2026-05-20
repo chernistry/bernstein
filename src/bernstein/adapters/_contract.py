@@ -66,6 +66,14 @@ class ContractSpec:
     help_command: tuple[str, ...]
     models_command: tuple[str, ...]
     models_required_present: tuple[str, ...]
+    #: CLI flag that accepts a caller-supplied session id (for example
+    #: ``"--session-id"``), or ``None`` when the upstream CLI does not let
+    #: the caller pin one. Adapters with a flag receive the deterministic
+    #: id derived by :func:`bernstein.adapters.session_id.derive_session_id`
+    #: at spawn time; adapters without one have the derived id recorded in
+    #: orchestrator state for cross-reference but pass no flag. See
+    #: ``docs/adapters/session_isolation.md``.
+    session_id_flag: str | None = None
 
     @classmethod
     def load(cls, name: str, contracts_dir: Path | None = None) -> ContractSpec:
@@ -80,6 +88,8 @@ class ContractSpec:
         install = data.get("install") or {}
         auth = data.get("auth") or {}
         expected = data.get("expected_models") or {}
+        raw_session_flag = data.get("session_id_flag")
+        session_id_flag = str(raw_session_flag) if raw_session_flag else None
         return cls(
             adapter=str(data.get("adapter", name)),
             binary=str(data.get("binary", name)),
@@ -93,6 +103,7 @@ class ContractSpec:
             help_command=tuple(data.get("help_command") or ()),
             models_command=tuple(expected.get("command") or ()),
             models_required_present=tuple(expected.get("required_present") or ()),
+            session_id_flag=session_id_flag,
         )
 
     def resolved_help_command(self) -> list[str]:

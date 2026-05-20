@@ -22,6 +22,8 @@ The gateway is OFF by default. Set ``BERNSTEIN_RECORD=1`` or pass
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from bernstein.core.replay.diff import (
     DivergenceResult,
     diff_event_logs,
@@ -36,6 +38,37 @@ from bernstein.core.replay.gateway import (
     is_recording_enabled,
 )
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from bernstein.adapters.session_id import SessionIdRecord
+
+
+def locate_run(sdd_dir: Path, conversation_id: str, adapter_name: str) -> SessionIdRecord | None:
+    """Locate a previously recorded run by ``(conversation_id, adapter_name)``.
+
+    Resolves the run directly from the deterministic session-id index under
+    ``<sdd_dir>/session_index.json`` without scanning any ``events.jsonl``
+    logs (AC #4 of deterministic session-id binding). Returns ``None`` when
+    the pair was never recorded.
+    """
+    from bernstein.adapters.session_id import SessionIdIndex
+
+    return SessionIdIndex(sdd_dir).lookup(conversation_id, adapter_name)
+
+
+def record_run(sdd_dir: Path, conversation_id: str, adapter_name: str, run_id: str) -> SessionIdRecord:
+    """Bind ``(conversation_id, adapter_name)`` to ``run_id`` for later replay.
+
+    Writes the deterministic session-id index entry that :func:`locate_run`
+    reads back. The latest binding for a key wins, so a rerun overwrites the
+    prior slot rather than appending a duplicate.
+    """
+    from bernstein.adapters.session_id import SessionIdIndex
+
+    return SessionIdIndex(sdd_dir).record(conversation_id, adapter_name, run_id)
+
+
 __all__ = [
     "EVENTS_FILENAME",
     "RECORD_ENV_VAR",
@@ -46,4 +79,6 @@ __all__ = [
     "diff_event_logs",
     "is_recording_enabled",
     "load_events",
+    "locate_run",
+    "record_run",
 ]

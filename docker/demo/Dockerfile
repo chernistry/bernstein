@@ -5,7 +5,7 @@
 #
 # Stage 1: build the bernstein wheel
 # python:3.12-slim
-FROM python:3.14-slim@sha256:7a500125bc50693f2214e842a621440a1b1b9cbb2188f74ab045d29ed2ea5856 AS build
+FROM python:3.14-slim@sha256:a24bfbc0bd39cfa24de47147ada92b65916ad693e6ab5034636ef21f5663ef13 AS build
 
 WORKDIR /app
 COPY . /app
@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir hatchling==1.29.0 && \
 
 # Stage 2: runtime with Node.js for Claude Code
 # python:3.12-slim
-FROM python:3.14-slim@sha256:7a500125bc50693f2214e842a621440a1b1b9cbb2188f74ab045d29ed2ea5856
+FROM python:3.14-slim@sha256:a24bfbc0bd39cfa24de47147ada92b65916ad693e6ab5034636ef21f5663ef13
 
 # Node.js + Claude Code + git + curl
 RUN apt-get update && apt-get install -y --no-install-recommends \

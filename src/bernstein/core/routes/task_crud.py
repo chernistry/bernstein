@@ -618,20 +618,15 @@ async def claim_batch(body: BatchClaimRequest, request: Request) -> BatchClaimRe
     with start_span("task.claim_batch", {"agent_id": body.agent_id, "task_count": len(body.task_ids)}):
         store = _get_store(request)
         tenant_id = _resolve_request_tenant_scope(request)
-        authorized_ids: list[str] = []
-        unauthorized_ids: list[str] = []
-        for task_id in body.task_ids:
-            task = store.get_task(task_id)
-            if task is None or task.tenant_id != tenant_id:
-                unauthorized_ids.append(task_id)
-                continue
-            authorized_ids.append(task_id)
+        # Tenant authorization is enforced inside store.claim_batch under
+        # the same lock that performs the claim, so the check cannot be
+        # invalidated by a concurrent delete or tenant rewrite (TOCTOU).
         claimed, failed = await store.claim_batch(
-            authorized_ids,
+            list(body.task_ids),
             body.agent_id,
             claimed_by_session=body.claimed_by_session,
+            tenant_id=tenant_id,
         )
-        failed.extend(unauthorized_ids)
         return BatchClaimResponse(claimed=claimed, failed=failed)
 
 

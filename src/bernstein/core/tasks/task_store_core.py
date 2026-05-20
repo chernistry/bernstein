@@ -1259,6 +1259,7 @@ class TaskStore:
         agent_id: str,
         agent_role: str | None = None,
         claimed_by_session: str | None = None,
+        tenant_id: str | None = None,
     ) -> tuple[list[str], list[str]]:
         """Atomically claim multiple tasks by ID with optional role matching.
 
@@ -1271,16 +1272,29 @@ class TaskStore:
             agent_id: The agent claiming the tasks.
             agent_role: If set, only tasks with matching role can be claimed.
             claimed_by_session: Parent orchestrator session ID to record as claim owner.
+            tenant_id: If set, tasks must belong to this tenant scope.
+                Tasks outside the scope (including tasks that no longer
+                exist or whose tenant has changed) are reported as failed.
+                The check runs inside the lock so the authorization decision
+                is atomic with the claim, eliminating a TOCTOU race against
+                concurrent deletes or tenant rewrites.
 
         Returns:
             A tuple of (claimed_ids, failed_ids).
         """
         claimed: list[str] = []
         failed: list[str] = []
+        normalized_tenant = normalize_tenant_id(tenant_id) if tenant_id is not None else None
         async with self._lock:
             for task_id in task_ids:
                 task = self._tasks.get(task_id)
                 if task is None or task.status != TaskStatus.OPEN or not self._dependencies_satisfied(task):
+                    failed.append(task_id)
+                    continue
+                # Tenant authorization happens inside the lock so it cannot
+                # be invalidated between check and claim by a concurrent
+                # request mutating the task.
+                if normalized_tenant is not None and task.tenant_id != normalized_tenant:
                     failed.append(task_id)
                     continue
                 if agent_role is not None and task.role != agent_role:

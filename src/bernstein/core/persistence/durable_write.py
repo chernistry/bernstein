@@ -48,16 +48,17 @@ def fsynced_write(
     path: Path,
     *,
     mode: str = "a",
-    encoding: str | None = "utf-8",
+    encoding: str = "utf-8",
 ) -> Iterator[IO[str]]:
-    """Yield an open file handle that is fsynced on clean exit.
+    """Yield an open text file handle that is fsynced on clean exit.
 
-    The handle is opened with the given ``mode`` (defaults to ``"a"``
-    for append-only JSONL files) and ``encoding`` (defaults to UTF-8;
-    pass ``None`` for binary modes).  On clean exit the handle is
+    This helper is text-only; it is intended for JSONL appenders where
+    every record is a UTF-8 line. The handle is opened with the given
+    ``mode`` (defaults to ``"a"`` for append-only JSONL files) and
+    ``encoding`` (defaults to UTF-8). On clean exit the handle is
     flushed and ``os.fsync(handle.fileno())`` is invoked so the bytes
-    reach stable storage before the context returns.  On an exception
-    the fsync is skipped — partial writes cannot be promised durable —
+    reach stable storage before the context returns. On an exception
+    the fsync is skipped (partial writes cannot be promised durable)
     but the handle is closed in the ``finally`` clause regardless so no
     descriptor leaks.
 
@@ -65,13 +66,14 @@ def fsynced_write(
         path: File to open.  Parent directories must already exist;
             this helper does not create them so callers retain control
             over the directory layout.
-        mode: File mode passed to ``open()``.  Defaults to ``"a"``.
-        encoding: Text encoding passed to ``open()``.  Pass ``None`` for
-            binary modes.
+        mode: File mode passed to ``open()``.  Must be a text mode;
+            defaults to ``"a"``.
+        encoding: Text encoding passed to ``open()``.  Defaults to
+            ``"utf-8"``.
 
     Yields:
-        The open file handle.  Callers write to it as usual; the helper
-        owns flush, fsync, and close.
+        The open text-mode file handle.  Callers write ``str`` lines to
+        it as usual; the helper owns flush, fsync, and close.
 
     Raises:
         Any exception raised by the caller's block is re-raised

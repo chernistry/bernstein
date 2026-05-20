@@ -19,6 +19,7 @@ from __future__ import annotations
 import collections
 import concurrent.futures
 import contextlib
+import itertools
 import json
 import logging
 import os
@@ -1242,7 +1243,7 @@ class Orchestrator:
         # 1c. Build task graph and compute optimal parallelism
         #     Graph analysis + dependency validation are expensive — gate behind
         #     _run_normal. The all_tasks list and task ID cache are always needed.
-        all_tasks = [t for status_tasks in tasks_by_status.values() for t in status_tasks]
+        all_tasks = list(itertools.chain.from_iterable(tasks_by_status.values()))
         self._latest_tasks_by_id = {task.id: task for task in all_tasks}
 
         task_graph: TaskGraph | None = None
@@ -1398,13 +1399,13 @@ class Orchestrator:
         # batched tasks' model fields in place for DOWNGRADE_MODEL so the
         # spawner picks up the cheaper tier.
         budget_decision = self._evaluate_budget_policy(
-            [t for b in batches for t in b],
+            list(itertools.chain.from_iterable(batches)),
         )
         if self._cost_autopilot is not None:
             _ap_override = self._cost_autopilot.evaluate()
             if _ap_override is not None:
                 logger.info("CostAutopilot: %s", _ap_override.reason)
-                for _task in [t for b in batches for t in b]:
+                for _task in itertools.chain.from_iterable(batches):
                     if not _task.model or _task.model == _ap_override.from_model:
                         _task.model = _ap_override.to_model
         if self._config.dry_run:
@@ -1483,7 +1484,7 @@ class Orchestrator:
 
         # 4a-wf. Governed workflow: try to advance phase after processing completions
         if self._workflow_executor is not None and not self._workflow_executor.is_completed:
-            all_tasks = [t for status_tasks in tasks_by_status.values() for t in status_tasks]
+            all_tasks = list(itertools.chain.from_iterable(tasks_by_status.values()))
             phase_event = self._workflow_executor.try_advance(all_tasks)
             if phase_event is not None:
                 self._recorder.record(

@@ -159,7 +159,7 @@ class _TokenBucket:
 # ---------------------------------------------------------------------------
 
 
-_QUERY_TEAM = """
+_QUERY_TEAM = """\
 query($key: String!) {
   teams(filter: { key: { eq: $key } }, first: 1) {
     nodes {
@@ -171,11 +171,11 @@ query($key: String!) {
       }
     }
   }
-}
-""".strip()
+}\
+"""
 
 
-_QUERY_ISSUES = """
+_QUERY_ISSUES = """\
 query($teamId: String!, $first: Int!, $after: String, $includeArchived: Boolean) {
   issues(
     filter: { team: { id: { eq: $teamId } } }
@@ -196,28 +196,28 @@ query($teamId: String!, $first: Int!, $after: String, $includeArchived: Boolean)
       labels(first: 20) { nodes { name } }
     }
   }
-}
-""".strip()
+}\
+"""
 
 
-_MUTATION_ADD_COMMENT = """
+_MUTATION_ADD_COMMENT = """\
 mutation($issueId: String!, $body: String!) {
   commentCreate(input: { issueId: $issueId, body: $body }) {
     success
     comment { id }
   }
-}
-""".strip()
+}\
+"""
 
 
-_MUTATION_UPDATE_STATE = """
+_MUTATION_UPDATE_STATE = """\
 mutation($issueId: String!, $stateId: String!) {
   issueUpdate(id: $issueId, input: { stateId: $stateId }) {
     success
     issue { id updatedAt }
   }
-}
-""".strip()
+}\
+"""
 
 
 # ---------------------------------------------------------------------------

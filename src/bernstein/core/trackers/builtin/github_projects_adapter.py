@@ -207,7 +207,7 @@ class _TokenBucket:
 # ---------------------------------------------------------------------------
 
 
-_QUERY_PROJECT_ID = """
+_QUERY_PROJECT_ID = """\
 query($login: String!, $number: Int!) {
   organization(login: $login) {
     projectV2(number: $number) {
@@ -237,11 +237,11 @@ query($login: String!, $number: Int!) {
       }
     }
   }
-}
-""".strip()
+}\
+"""
 
 
-_QUERY_ITEMS = """
+_QUERY_ITEMS = """\
 query($projectId: ID!, $first: Int!, $after: String) {
   node(id: $projectId) {
     ... on ProjectV2 {
@@ -280,20 +280,20 @@ query($projectId: ID!, $first: Int!, $after: String) {
       }
     }
   }
-}
-""".strip()
+}\
+"""
 
 
-_MUTATION_ADD_COMMENT = """
+_MUTATION_ADD_COMMENT = """\
 mutation($subjectId: ID!, $body: String!, $clientMutationId: String) {
   addComment(input: { subjectId: $subjectId, body: $body, clientMutationId: $clientMutationId }) {
     commentEdge { node { id } }
   }
-}
-""".strip()
+}\
+"""
 
 
-_MUTATION_UPDATE_STATUS = """
+_MUTATION_UPDATE_STATUS = """\
 mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!, $clientMutationId: String) {
   updateProjectV2ItemFieldValue(input: {
     projectId: $projectId,
@@ -304,8 +304,8 @@ mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!, $clie
   }) {
     projectV2Item { id }
   }
-}
-""".strip()
+}\
+"""
 
 
 # ---------------------------------------------------------------------------

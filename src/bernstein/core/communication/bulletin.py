@@ -11,6 +11,7 @@ and optionally waits for a response.
 
 from __future__ import annotations
 
+import itertools
 import json
 import threading
 import time
@@ -978,7 +979,7 @@ class DirectChannel:
         """
         with self._lock:
             queries = list(self._queries.values())
-            responses = [r for rs in self._responses.values() for r in rs]
+            responses = list(itertools.chain.from_iterable(self._responses.values()))
 
         if not queries and not responses:
             return 0

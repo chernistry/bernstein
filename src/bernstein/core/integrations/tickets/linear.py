@@ -27,7 +27,7 @@ _TIMEOUT_S = 10.0
 _KEY_RE = re.compile(r"([A-Z0-9]{1,16}-\d{1,8})", re.IGNORECASE)
 
 
-_QUERY = """
+_QUERY = """\
 query IssueByIdentifier($id: String!) {
   issue(id: $id) {
     id
@@ -38,8 +38,8 @@ query IssueByIdentifier($id: String!) {
     labels { nodes { name } }
     assignee { name displayName }
   }
-}
-""".strip()
+}\
+"""
 
 
 def _extract_key(url: str) -> str:

@@ -43,8 +43,22 @@ def _catalog_path() -> Path:
     show_default=True,
     help="Bernstein server URL.",
 )
+@click.option(
+    "--mcp-tier",
+    "mcp_tier",
+    type=click.Choice(["core", "standard", "all"]),
+    default=None,
+    help=("Tool tier to advertise (context-budget knob). Overrides BERNSTEIN_MCP_TOOL_TIER; defaults to 'standard'."),
+)
 @click.pass_context
-def mcp_server(ctx: click.Context, transport: str, host: str, port: int, server_url: str) -> None:
+def mcp_server(
+    ctx: click.Context,
+    transport: str,
+    host: str,
+    port: int,
+    server_url: str,
+    mcp_tier: str | None,
+) -> None:
     """Run the MCP server or manage the bundled MCP marketplace."""
     if ctx.invoked_subcommand is not None:
         return
@@ -59,11 +73,11 @@ def mcp_server(ctx: click.Context, transport: str, host: str, port: int, server_
     from bernstein.mcp.server import run_sse, run_stdio
 
     if transport == "stdio":
-        run_stdio(server_url=server_url)
+        run_stdio(server_url=server_url, tier=mcp_tier)
     else:
         console.print(f"[cyan]MCP Server[/cyan] starting on SSE ({host}:{port})")
         console.print(f"[dim]Backend: {server_url}[/dim]")
-        run_sse(server_url=server_url, host=host, port=port)
+        run_sse(server_url=server_url, host=host, port=port, tier=mcp_tier)
 
 
 @mcp_server.command("list")
@@ -160,6 +174,64 @@ def test_server(server_name: str, json_output: bool) -> None:
         raise click.ClickException(
             f"MCP protocol validation failed for {entry.name} ({len(report.failures)} issue(s))."
         )
+
+
+@mcp_server.command("tools")
+@click.option(
+    "--tier",
+    "tier",
+    type=click.Choice(["core", "standard", "all"]),
+    default=None,
+    help="Show tools for a single tier. Omit to audit every tier.",
+)
+@click.option(
+    "--json-output",
+    is_flag=True,
+    default=False,
+    help="Emit the audit as JSON instead of a Rich table.",
+)
+def tools_audit(tier: str | None, json_output: bool) -> None:
+    """Enumerate which MCP tools each tier would advertise.
+
+    Operators audit this before switching the ``BERNSTEIN_MCP_TOOL_TIER``
+    knob (or the ``--mcp-tier`` session flag), trading capability for
+    context budget without surprises.
+    """
+    from rich.table import Table
+
+    from bernstein.core.protocols.mcp.tool_tiers import (
+        DEFAULT_TIER,
+        normalize_tier,
+        tier_audit,
+        tools_for_tier,
+    )
+
+    if tier is not None:
+        resolved = normalize_tier(tier)
+        names = tools_for_tier(resolved)
+        if json_output:
+            console.print_json(json.dumps({resolved: names}))
+            return
+        table = Table(title=f"MCP tools - tier {resolved}", show_header=True, header_style=_STYLE_BOLD_CYAN)
+        table.add_column("Tool")
+        for name in names:
+            table.add_row(name)
+        console.print(table)
+        console.print(f"[dim]{len(names)} tool(s) advertised under tier {resolved}.[/dim]")
+        return
+
+    audit = tier_audit()
+    if json_output:
+        console.print_json(json.dumps(audit))
+        return
+    table = Table(title="MCP tool tiers", show_header=True, header_style=_STYLE_BOLD_CYAN)
+    table.add_column("Tier")
+    table.add_column("Count")
+    table.add_column("Tools")
+    for tier_name, names in audit.items():
+        label = f"{tier_name} (default)" if tier_name == DEFAULT_TIER else tier_name
+        table.add_row(label, str(len(names)), ", ".join(names) or "--")
+    console.print(table)
 
 
 @mcp_server.command("usage")

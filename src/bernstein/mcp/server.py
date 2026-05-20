@@ -30,6 +30,11 @@ from typing import Any
 import httpx
 from mcp.server.fastmcp import FastMCP
 
+from bernstein.core.protocols.mcp.tool_tiers import (
+    ToolTier,
+    resolve_active_tier,
+    tool_in_tier,
+)
 from bernstein.mcp.input_validation import (
     ValidatedPayload,
     ValidationError,
@@ -468,12 +473,33 @@ def _lineage_mcp_default(*, default: bool) -> bool:
     return raw.strip().lower() not in {"0", "false", "no", "off", ""}
 
 
+def _apply_tool_tier(mcp: FastMCP[None], active_tier: ToolTier) -> None:
+    """Drop every registered tool that is outside ``active_tier``.
+
+    Tools are registered unconditionally above, then filtered here so the
+    tier annotation stays a property of the registration (see
+    :data:`bernstein.core.protocols.mcp.tool_tiers.TOOL_TIERS`) rather than
+    a branch in each registrar. A dropped tool is neither advertised in the
+    ``tools/list`` response nor callable.
+
+    Args:
+        mcp: The FastMCP server whose tools should be filtered.
+        active_tier: The currently selected tier.
+    """
+    # FastMCP exposes no public per-tool filter, so drop out-of-tier tools
+    # directly from the tool manager's registry after registration.
+    out_of_tier = [name for name in list(mcp._tool_manager._tools) if not tool_in_tier(name, active_tier)]
+    for name in out_of_tier:
+        mcp._tool_manager._tools.pop(name, None)
+
+
 def create_mcp_server(
     server_url: str = _DEFAULT_SERVER_URL,
     name: str = "bernstein",
     *,
     lineage_enabled: bool = False,
     lineage_root: Path | None = None,
+    tier: str | None = None,
 ) -> FastMCP[None]:
     """Build and return the Bernstein FastMCP server instance.
 
@@ -481,14 +507,19 @@ def create_mcp_server(
         server_url: Base URL of the Bernstein task server.
         name: MCP server name advertised to clients.
         lineage_enabled: When ``True``, register the lineage resources +
-            ``verify_chain`` tool. Defaults to ``False`` — callers running
+            ``verify_chain`` tool. Defaults to ``False`` - callers running
             stdio should pass ``True`` explicitly (``run_stdio`` does).
         lineage_root: Override the lineage store path. Defaults to
             ``<cwd>/.sdd/lineage``.
+        tier: Optional explicit tool tier (``core`` / ``standard`` / ``all``)
+            overriding the ``BERNSTEIN_MCP_TOOL_TIER`` env var. When ``None``
+            the env var is consulted, falling back to the ``standard``
+            default. Out-of-tier tools are not advertised and not callable.
 
     Returns:
-        Configured FastMCP instance with all Bernstein tools registered.
+        Configured FastMCP instance with the active tier's tools registered.
     """
+    active_tier = resolve_active_tier(tier)
     mcp: FastMCP[None] = FastMCP(name)
     _register_health_tool(mcp)
     _register_query_tools(mcp, server_url)
@@ -505,10 +536,11 @@ def create_mcp_server(
         root = lineage_root if lineage_root is not None else Path.cwd() / ".sdd" / "lineage"
         register_lineage_resources(mcp, lineage_root=root, enabled=True)
 
+    _apply_tool_tier(mcp, active_tier)
     return mcp
 
 
-def run_stdio(server_url: str = _DEFAULT_SERVER_URL) -> None:
+def run_stdio(server_url: str = _DEFAULT_SERVER_URL, *, tier: str | None = None) -> None:
     """Start the MCP server in stdio transport mode (for local IDE integration).
 
     Lineage MCP resources default ON for local stdio (ADR-009 §7.3) and can
@@ -516,18 +548,27 @@ def run_stdio(server_url: str = _DEFAULT_SERVER_URL) -> None:
 
     Args:
         server_url: Bernstein task server URL.
+        tier: Optional explicit tool tier overriding
+            ``BERNSTEIN_MCP_TOOL_TIER`` (the ``--mcp-tier`` session flag).
     """
     mcp = create_mcp_server(
         server_url=server_url,
         lineage_enabled=_lineage_mcp_default(default=True),
+        tier=tier,
     )
     mcp.run(transport="stdio")
 
 
-def run_sse(server_url: str = _DEFAULT_SERVER_URL, host: str = "127.0.0.1", port: int = 8053) -> None:
+def run_sse(
+    server_url: str = _DEFAULT_SERVER_URL,
+    host: str = "127.0.0.1",
+    port: int = 8053,
+    *,
+    tier: str | None = None,
+) -> None:
     """Start the MCP server in SSE transport mode (for remote/web integration).
 
-    Lineage MCP resources default OFF for SSE (ADR-009 §7.3) — operators
+    Lineage MCP resources default OFF for SSE (ADR-009 §7.3) - operators
     that explicitly want to expose them remotely can set
     ``BERNSTEIN_LINEAGE_MCP_ENABLED=1``.
 
@@ -535,10 +576,13 @@ def run_sse(server_url: str = _DEFAULT_SERVER_URL, host: str = "127.0.0.1", port
         server_url: Bernstein task server URL.
         host: Host to bind the SSE server to.
         port: Port to bind the SSE server to.
+        tier: Optional explicit tool tier overriding
+            ``BERNSTEIN_MCP_TOOL_TIER`` (the ``--mcp-tier`` session flag).
     """
     mcp = create_mcp_server(
         server_url=server_url,
         lineage_enabled=_lineage_mcp_default(default=False),
+        tier=tier,
     )
     import uvicorn
 

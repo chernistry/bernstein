@@ -454,12 +454,21 @@ class StreamableHTTPTransport:
         session: MCPSession,
         params: dict[str, Any],
     ) -> dict[str, Any]:
-        """Handle 'initialize' — return server info and capabilities."""
+        """Handle 'initialize' — return server info and capabilities.
+
+        Alongside the static spec ``capabilities`` object, the result carries
+        a runtime ``capabilityCard`` describing the live transports, auth
+        modes, active tool tier, and cost-meter state so a client can decide
+        how to connect without trial and error.
+        """
+        from bernstein.mcp.capability import build_capability_card
+
         session.metadata["client_info"] = params.get("clientInfo", {})
         return {
             "protocolVersion": "2025-03-26",
             "serverInfo": _SERVER_INFO,
             "capabilities": _CAPABILITIES,
+            "capabilityCard": build_capability_card(),
         }
 
     async def _method_tools_list(

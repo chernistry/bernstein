@@ -551,8 +551,11 @@ def create_mcp_server(
     Returns:
         Configured FastMCP instance with the active tier's tools registered.
     """
+    from bernstein.mcp.capability import register_capability_resource
+
     active_tier = resolve_active_tier(tier)
     mcp: FastMCP[None] = FastMCP(name)
+    register_capability_resource(mcp)
     _register_health_tool(mcp)
     _register_query_tools(mcp, server_url)
     _register_action_tools(mcp, server_url)

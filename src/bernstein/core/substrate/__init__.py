@@ -20,12 +20,20 @@ from bernstein.core.substrate.host_registry import (
     get_host,
     known_host_names,
 )
+from bernstein.core.substrate.register import (
+    RegisterResult,
+    is_registered,
+    register_host,
+)
 
 __all__ = [
     "HOST_REGISTRY",
     "HostSpec",
     "HostStatus",
+    "RegisterResult",
     "bernstein_server_entry",
     "get_host",
+    "is_registered",
     "known_host_names",
+    "register_host",
 ]

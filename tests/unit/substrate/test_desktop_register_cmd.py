@@ -37,16 +37,22 @@ def test_register_claude_desktop_via_cli(tmp_path, monkeypatch) -> None:
     home = tmp_path / "home"
     home.mkdir()
     monkeypatch.setenv("HOME", str(home))
+    # Pin the config-path resolution under HOME so the assertion is
+    # deterministic regardless of the runner's ambient environment.
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.delenv("APPDATA", raising=False)
 
     result = CliRunner().invoke(desktop_register_cmd, ["--host", "claude-desktop", "--json"])
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["action"] == "registered"
 
-    cfg = home / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
-    if not cfg.exists():
-        # Non-macOS CI resolves to the XDG path instead.
-        cfg = home / ".config" / "Claude" / "claude_desktop_config.json"
+    candidates = [
+        home / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json",
+        home / ".config" / "Claude" / "claude_desktop_config.json",
+    ]
+    cfg = next((p for p in candidates if p.exists()), None)
+    assert cfg is not None, "expected desktop-register to write a Claude Desktop config file"
     data = json.loads(cfg.read_text())
     assert SERVER_ID in data["mcpServers"]
 

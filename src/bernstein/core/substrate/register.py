@@ -47,17 +47,18 @@ class RegisterResult:
 
 
 def _load_config(path: Path) -> dict[str, Any]:
-    """Read an existing JSON host config, tolerating absence/garbage.
+    """Read an existing JSON host config, tolerating absence.
 
-    A missing or unparseable file yields an empty dict so registration can
-    bootstrap a fresh config without discarding a valid one.
+    A missing file yields an empty dict so registration can bootstrap a
+    fresh config. An unreadable or invalid file raises ``ValueError`` so a
+    mutating write never clobbers existing-but-unreadable state.
     """
     if not path.exists():
         return {}
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError:
-        return {}
+    except OSError as exc:
+        raise ValueError(f"existing config at {path} is not readable; refusing to overwrite") from exc
     if not text.strip():
         return {}
     try:
@@ -71,7 +72,7 @@ def _load_config(path: Path) -> dict[str, Any]:
 
 def _backup(path: Path, *, now: datetime | None = None) -> Path:
     """Copy ``path`` to a timestamped ``.bak`` sibling and return its path."""
-    stamp = (now or datetime.now(tz=UTC)).strftime("%Y%m%d%H%M%S")
+    stamp = (now or datetime.now(tz=UTC)).strftime("%Y%m%d%H%M%S%f")
     backup = path.with_name(f"{path.name}.{stamp}.bak")
     shutil.copy2(path, backup)
     return backup
@@ -118,7 +119,7 @@ def register_host(
 
     config = _load_config(target)
     raw_servers = config.get(host.config_key)
-    servers: dict[str, Any] = dict(cast("dict[str, Any]", raw_servers)) if isinstance(raw_servers, dict) else {}
+    servers: dict[str, Any] = cast("dict[str, Any]", raw_servers).copy() if isinstance(raw_servers, dict) else {}
 
     desired = bernstein_server_entry()
     existing_entry: Any = servers.get(SERVER_ID)

@@ -88,6 +88,9 @@ def desktop_register_cmd(host_name: str | None, do_list: bool, as_json: bool) ->
       bernstein desktop-register --host claude-desktop
       bernstein desktop-register --host claude-code
     """
+    if do_list and host_name is not None:
+        raise click.UsageError("Use either --list or --host <name>, not both.")
+
     if do_list or host_name is None:
         if host_name is None and not do_list:
             console.print("[yellow]Specify --host <name> or --list.[/yellow]\n")

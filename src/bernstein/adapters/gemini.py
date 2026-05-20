@@ -76,7 +76,7 @@ class BinaryNotInstalledError(SpawnError):
 
 def resolve_google_cli_binary(
     *,
-    which: Any = shutil.which,
+    which: Any = None,
     env: dict[str, str] | None = None,
 ) -> str:
     """Resolve the Google CLI binary to invoke for this adapter.
@@ -98,9 +98,12 @@ def resolve_google_cli_binary(
             cascade entry resolves.
     """
     source_env = env if env is not None else os.environ
+    # Resolve ``shutil.which`` at call time so tests that patch
+    # ``bernstein.adapters.gemini.shutil.which`` see the swap.
+    resolver = which if which is not None else shutil.which
     override = (source_env.get(BINARY_ENV_VAR) or "").strip()
     if override:
-        if which(override) is None:
+        if resolver(override) is None:
             raise BinaryNotInstalledError(
                 f"{BINARY_ENV_VAR}={override!r} but {override!r} is not on PATH. "
                 f"Unset {BINARY_ENV_VAR} to fall back to discovery, or install the binary."
@@ -108,7 +111,7 @@ def resolve_google_cli_binary(
         return override
 
     for candidate in _DISCOVERY_CASCADE:
-        if which(candidate) is not None:
+        if resolver(candidate) is not None:
             return candidate
 
     raise BinaryNotInstalledError(
@@ -263,8 +266,8 @@ class GeminiAdapter(CLIAdapter):
 __all__ = [
     "ANTIGRAVITY_BINARY",
     "BINARY_ENV_VAR",
+    "LEGACY_GEMINI_BINARY",
     "BinaryNotInstalledError",
     "GeminiAdapter",
-    "LEGACY_GEMINI_BINARY",
     "resolve_google_cli_binary",
 ]

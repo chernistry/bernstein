@@ -264,12 +264,7 @@ def _login_success_page(display_name: str, role: str, token: str) -> HTMLRespons
     """
     safe_name = html.escape(display_name)
     safe_role = html.escape(role)
-    js_token = (
-        json.dumps(token)
-        .replace("<", "\\u003c")
-        .replace(">", "\\u003e")
-        .replace("&", "\\u0026")
-    )
+    js_token = json.dumps(token).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
     return HTMLResponse(
         content=f"""<!DOCTYPE html>
 <html><head><title>Login Successful</title></head>

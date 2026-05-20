@@ -168,6 +168,7 @@ def create_live_dashboard(
 
     # Progress bar inside a small panel, then the log panel
     progress_text = progress.render(summary)
+    # Log panel
     renderables.extend(
         (
             Panel(progress_text, title="Progress", border_style="cyan"),

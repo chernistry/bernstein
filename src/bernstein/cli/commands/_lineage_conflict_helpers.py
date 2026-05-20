@@ -16,18 +16,10 @@ from typing import TYPE_CHECKING
 
 from bernstein.core.lineage.entry import LineageEntry, canonicalise, entry_hash
 from bernstein.core.lineage.merge import (
-    AgentPolicy as AgentPolicy,
-)
-from bernstein.core.lineage.merge import (
-    FirstWriterPolicy as FirstWriterPolicy,
-)
-from bernstein.core.lineage.merge import (
-    HumanPolicy as HumanPolicy,
-)
-from bernstein.core.lineage.merge import (
-    LineageConflict as LineageConflict,
-)
-from bernstein.core.lineage.merge import (
+    AgentPolicy,
+    FirstWriterPolicy,
+    HumanPolicy,
+    LineageConflict,
     MergePolicy,
     resolve_policy,
 )
@@ -193,3 +185,7 @@ def resolve_one(
             matching candidate).
     """
     return policy.resolve(fork, by_hash)
+
+
+# Re-exports so the CLI command module does not need to import twice.
+__all__ = [*__all__, "AgentPolicy", "FirstWriterPolicy", "HumanPolicy", "LineageConflict"]

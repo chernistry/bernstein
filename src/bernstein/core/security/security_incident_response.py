@@ -656,7 +656,7 @@ class SecurityIncidentResponder:
             "detail": detail,
             "containment_steps": steps_taken,
         }
-        with open(metrics_dir / "security_incidents.jsonl", "a", encoding="utf-8") as fh:
+        with (metrics_dir / "security_incidents.jsonl").open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(audit_entry) + "\n")
 
         logger.critical(
@@ -715,7 +715,7 @@ class SecurityIncidentResponder:
         }
 
         try:
-            with open(bulletin_file, "a", encoding="utf-8") as fh:
+            with bulletin_file.open("a", encoding="utf-8") as fh:
                 fh.write(json.dumps(message) + "\n")
         except OSError:
             logger.exception("Failed to write security alert to bulletin board for %s", incident_id)

@@ -311,22 +311,20 @@ def _check_error_codes(
         return []
 
     producer_codes = set(producer.error_codes)
-    issues: list[ConsistencyIssue] = []
-    for code in consumer.error_codes:
-        if code not in producer_codes:
-            issues.append(
-                ConsistencyIssue(
-                    issue_type=ConsistencyIssueType.UNHANDLED_ERROR_CODE,
-                    endpoint=endpoint,
-                    method=method,
-                    description=(
-                        f"Consumer '{consumer_id}' handles error code {code} "
-                        f"for {method} {endpoint}, but producer '{producer_id}' never emits it"
-                    ),
-                    agents_involved=[producer_id, consumer_id],
-                )
-            )
-    return issues
+    return [
+        ConsistencyIssue(
+            issue_type=ConsistencyIssueType.UNHANDLED_ERROR_CODE,
+            endpoint=endpoint,
+            method=method,
+            description=(
+                f"Consumer '{consumer_id}' handles error code {code} "
+                f"for {method} {endpoint}, but producer '{producer_id}' never emits it"
+            ),
+            agents_involved=[producer_id, consumer_id],
+        )
+        for code in consumer.error_codes
+        if code not in producer_codes
+    ]
 
 
 def _build_endpoint_index(

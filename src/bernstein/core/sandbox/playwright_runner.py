@@ -232,10 +232,10 @@ class ScenarioResult:
 
     scenario: PlaywrightScenario
     passed: bool
-    steps: list[StepResult] = field(default_factory=lambda: [])
-    console_messages: list[dict[str, Any]] = field(default_factory=lambda: [])
-    network_errors: list[dict[str, Any]] = field(default_factory=lambda: [])
-    screenshots: list[str] = field(default_factory=lambda: [])
+    steps: list[StepResult] = field(default_factory=list)
+    console_messages: list[dict[str, Any]] = field(default_factory=list)
+    network_errors: list[dict[str, Any]] = field(default_factory=list)
+    screenshots: list[str] = field(default_factory=list)
     output_dir: str = ""
 
     def to_dict(self) -> dict[str, Any]:

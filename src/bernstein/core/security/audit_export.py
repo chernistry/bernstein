@@ -686,8 +686,7 @@ class FileExporter(BaseSIEMExporter):
 
             if self._file.format == "jsonl":
                 with out_path.open("a") as fh:
-                    for doc in formatted:
-                        fh.write(json.dumps(doc) + "\n")
+                    fh.writelines(json.dumps(doc) + "\n" for doc in formatted)
             else:
                 existing: list[dict[str, Any]] = []
                 if out_path.exists():

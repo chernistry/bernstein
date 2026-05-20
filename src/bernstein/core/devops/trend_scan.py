@@ -69,7 +69,7 @@ _WORD_RE = re.compile(r"[A-Za-z][A-Za-z0-9_+-]{1,}")
 def _tokens(text: str) -> list[str]:
     """Lowercased word tokens. Cheap, deterministic, no external deps."""
 
-    return [match.group(0).lower() for match in _WORD_RE.finditer(text or "")]
+    return [match.group(0).lower() for match in _WORD_RE.finditer(text)]
 
 
 @dataclass(frozen=True)

@@ -36,6 +36,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
+from itertools import starmap
 from pathlib import Path
 from typing import Any
 
@@ -333,7 +334,7 @@ async def _run_parallel(
             chain_position=position,
         )
 
-    return list(await asyncio.gather(*[_call(i, s) for i, s in enumerate(config.perspectives)]))
+    return list(await asyncio.gather(*starmap(_call, enumerate(config.perspectives))))
 
 
 # ---------------------------------------------------------------------------

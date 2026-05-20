@@ -247,8 +247,7 @@ def chunk_for_review(path: str | Path, budget_tokens: int = 4000) -> list[Review
         return _line_based_chunks(path_str, source, budget)
 
     # Strip a leading UTF-8 BOM so editor-saved files still take the AST path.
-    if source.startswith(_UTF8_BOM):
-        source = source[len(_UTF8_BOM) :]
+    source = source.removeprefix(_UTF8_BOM)
 
     try:
         tree = ast.parse(source, filename=path_str)

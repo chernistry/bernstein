@@ -1685,8 +1685,7 @@ class Orchestrator:
         # 8b. Generate run completion summary for non-evolve runs (reuse cached tasks)
         if (
             not self._config.evolve_mode
-            and result.open_tasks == 0
-            and result.active_agents == 0
+            and result.open_tasks == result.active_agents == 0
             and not self._summary_written
         ):
             self._generate_run_summary(tasks_by_status["done"], tasks_by_status["failed"])

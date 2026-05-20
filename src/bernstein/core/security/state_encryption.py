@@ -114,7 +114,7 @@ class EncryptedFile:
 
     def __enter__(self) -> EncryptedFile:
         if self._mode == "rb":
-            self._fh = open(self._path, "rb")
+            self._fh = self._path.open("rb")
         elif self._mode in ("wb", "ab"):
             # Read existing file content if in append mode
             if self._mode == "ab" and self._path.exists():
@@ -129,7 +129,7 @@ class EncryptedFile:
                     aesgcm = AESGCM(self._key)
                     with contextlib.suppress(Exception):
                         self._write_buf = bytearray(aesgcm.decrypt(iv, ciphertext + auth_tag, aad))
-            self._fh = open(self._path, "wb")
+            self._fh = self._path.open("wb")
         return self
 
     def __exit__(self, *args: object) -> None:

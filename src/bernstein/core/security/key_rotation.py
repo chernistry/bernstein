@@ -202,9 +202,7 @@ class KeyRotationManager:
         self._secrets_config = secrets_config
         self._keys: dict[str, ManagedKey] = {}
         self._lock = threading.Lock()
-        self._leak_patterns = [
-            re.compile(p) for p in (config.leak_patterns if config.leak_patterns else _DEFAULT_LEAK_PATTERNS)
-        ]
+        self._leak_patterns = [re.compile(p) for p in (config.leak_patterns or _DEFAULT_LEAK_PATTERNS)]
         self._state_path = Path(config.state_dir) / "state.json"
         self._load_state()
 

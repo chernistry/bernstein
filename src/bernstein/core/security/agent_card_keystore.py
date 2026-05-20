@@ -275,7 +275,7 @@ class AgentCardKeystore:
         if stat.st_mode & _PRIVATE_MODE_MASK:
             msg = (
                 f"agent-card private key {self._private_path} has unsafe permissions "
-                f"{oct(stat.st_mode & 0o777)} — refusing to load. Run "
+                f"{stat.st_mode & 0o777:#o} - refusing to load. Run "
                 f"'chmod 600 {self._private_path}' and retry."
             )
             raise PermissionError(msg)

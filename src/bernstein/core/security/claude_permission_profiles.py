@@ -143,7 +143,7 @@ class PermissionProfileManager:
         overrides: Per-task permission overrides.
     """
 
-    profiles: dict[str, PermissionProfile] = field(default_factory=lambda: _PROFILES.copy())
+    profiles: dict[str, PermissionProfile] = field(default_factory=_PROFILES.copy)
     overrides: dict[str, PermissionProfile] = field(default_factory=dict[str, PermissionProfile])
 
     def get_profile(self, role: str) -> PermissionProfile:

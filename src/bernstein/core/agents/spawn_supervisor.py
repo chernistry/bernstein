@@ -418,7 +418,7 @@ def hook_registry_publisher(registry: Any) -> BusPublisher:
         ctx = LifecycleContext(
             event=LifecycleEvent.AGENT_STARTUP_EXHAUSTED,
             session_id=payload.get("session_id"),
-            data=dict(payload),
+            data=payload.copy(),
         )
         registry.run(LifecycleEvent.AGENT_STARTUP_EXHAUSTED, ctx)
 

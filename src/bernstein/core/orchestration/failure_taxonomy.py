@@ -560,7 +560,7 @@ class _ParsedYAMLBlock:
     """Internal: result of locating the YAML payload in a rendered body."""
 
     raw: str = ""
-    payload: dict[str, object] = field(default_factory=lambda: {})
+    payload: dict[str, object] = field(default_factory=dict)
 
 
 def parse_failure_comment(body: str) -> _ParsedYAMLBlock:

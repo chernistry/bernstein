@@ -161,7 +161,7 @@ def verify_cmd(
       bernstein verify --memory-audit             Audit lesson memory provenance
       bernstein verify --formal <task-id>         Run Z3/Lean4 property checks
     """
-    if wheelhouse_path is wal_run_id is determinism_run_id is None and not memory_audit and formal_task_id is None:
+    if wheelhouse_path is wal_run_id is determinism_run_id is formal_task_id is None and not memory_audit:
         console.print(
             "[dim]Use <wheelhouse-path>, --wal-integrity <run-id>, --determinism <run-id>, "
             "--memory-audit, or --formal <task-id>.[/dim]"

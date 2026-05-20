@@ -354,11 +354,11 @@ class EvolutionReport:
         lines: list[str] = []
         now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
-        lines.extend(("# Bernstein Evolution Report", f"\n_Generated {now}_\n"))
-
         # Summary section
         lines.extend(
             (
+                "# Bernstein Evolution Report",
+                f"\n_Generated {now}_\n",
                 "## Summary\n",
                 "| Metric | Value |",
                 "|--------|-------|",
@@ -379,12 +379,11 @@ class EvolutionReport:
                 )
             )
 
-        # Trajectory sparkline
-        lines.extend(("\n## Test Count Trajectory\n", f"```\n{self._tests_sparkline()}\n```"))
-
-        # Cycle breakdown
+        # Trajectory sparkline / cycle breakdown
         lines.extend(
             (
+                "\n## Test Count Trajectory\n",
+                f"```\n{self._tests_sparkline()}\n```",
                 "\n## Cycle Breakdown\n",
                 "| # | Time (UTC) | Focus | Tasks ✓ | Tasks ✗ | Tests | Success% | Commits | Duration |",
                 "|---|-----------|-------|---------|---------|-------|----------|---------|----------|",

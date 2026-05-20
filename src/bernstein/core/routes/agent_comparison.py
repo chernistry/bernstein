@@ -170,7 +170,7 @@ def _extract_sessions(request: Request) -> list[dict[str, Any]]:
     agents: dict[str, Any] = store.agents
     sessions: list[dict[str, Any]] = []
 
-    for _agent_id, agent in agents.items():
+    for agent in agents.values():
         provider = getattr(agent, "provider", None) or "unknown"
         model_cfg = getattr(agent, "model_config", None)
         model = getattr(model_cfg, "model", "unknown") if model_cfg else "unknown"

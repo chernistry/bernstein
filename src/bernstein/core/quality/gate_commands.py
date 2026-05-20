@@ -331,7 +331,7 @@ class GateRunnerCommandsMixin:
 
         full_detail = "\n".join(detail_parts) or vulture_detail
         lost_caller_issues = [i for i in report.issues if i.kind == "lost_caller"]
-        has_breaking = bool(lost_caller_issues) or (not ok and vulture_detail.startswith("Command error:") is not False)
+        has_breaking = bool(lost_caller_issues) or (not ok and vulture_detail.startswith("Command error:"))
 
         status: GateStatus = "fail" if (step.required or lost_caller_issues) else "warn"
         return GateResult(

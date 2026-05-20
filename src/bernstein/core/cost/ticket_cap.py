@@ -321,7 +321,7 @@ class TicketCostCapMeter:
         Args:
             cost_usd: USD delta to add. Non-positive values are ignored.
         """
-        delta = max(0.0, float(cost_usd))
+        delta = max(0.0, cost_usd)
         with self._lock:
             self._spent_usd += delta
             if self._should_halt_locked():

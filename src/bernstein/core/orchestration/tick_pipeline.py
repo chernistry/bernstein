@@ -576,10 +576,9 @@ def group_by_role(
     # Within each round, the most critical roles (lowest priority value) go first.
     result: list[list[Task]] = []
     while any(role_batch_queues.values()):
-        round_batches: list[list[Task]] = []
-        for role in role_batch_queues:
-            if role_batch_queues[role]:
-                round_batches.append(role_batch_queues[role].pop(0))
+        round_batches: list[list[Task]] = [
+            role_batch_queues[role].pop(0) for role in role_batch_queues if role_batch_queues[role]
+        ]
         round_batches.sort(key=lambda b: b[0].priority)
         result.extend(round_batches)
 

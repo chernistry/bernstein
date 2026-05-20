@@ -39,6 +39,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import operator
 import subprocess
 import tarfile
 from dataclasses import dataclass, field
@@ -542,7 +543,7 @@ class TicketBundle:
             tarfile.open(fileobj=gz, mode="w") as tf,
         ):
             self._add_bytes(tf, "manifest.json", manifest_bytes)
-            for arcname, _section, data in sorted(entries, key=lambda triple: triple[0]):
+            for arcname, _section, data in sorted(entries, key=operator.itemgetter(0)):
                 self._add_bytes(tf, arcname, data)
 
         self.output_path = out

@@ -213,7 +213,7 @@ def topological_iter_with_parallel(dag: TaskDag) -> Iterator[frozenset[TaskNode]
         TaskDagCycleError: if the DAG has a cycle (unmet deps remain
             after no node can progress).
     """
-    pending: dict[str, TaskNode] = dict(dag.nodes)
+    pending: dict[str, TaskNode] = dag.nodes.copy()
     completed: set[str] = set()
 
     while pending:
@@ -256,8 +256,7 @@ def format_plan(dag: TaskDag) -> str:
             lines.append(f"    - {node.task_id}{story}: {node.description}")
     stories = dag.stories()
     if stories:
-        lines.append("")
-        lines.append("User-story rollback groups:")
+        lines.extend(("", "User-story rollback groups:"))
         for story_id, members in sorted(stories.items()):
             ids = ", ".join(n.task_id for n in members)
             lines.append(f"  {story_id}: {ids}")

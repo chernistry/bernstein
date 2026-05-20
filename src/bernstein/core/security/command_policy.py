@@ -178,7 +178,7 @@ def _parse_role_policy(role_name: str, role_cfg: object) -> RoleCommandPolicy | 
                 deny_messages[int(k)] = str(v)
 
     return RoleCommandPolicy(
-        role=str(role_name),
+        role=role_name,
         allow=_parse_string_list(rc.get("allow", [])),
         deny=_parse_string_list(rc.get("deny", [])),
         deny_messages=deny_messages,

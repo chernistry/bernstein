@@ -263,8 +263,7 @@ def _extract_file_from_diff_header(header: str) -> str | None:
     parts = header.split(" ", 3)
     if len(parts) < 3:
         return None
-    raw_path = parts[2]
-    return raw_path[2:] if raw_path.startswith("a/") else raw_path
+    return parts[2].removeprefix("a/")
 
 
 def _process_diff_line(
@@ -524,7 +523,7 @@ def _record_violation_event(task_id: str, violation: RuleViolation, workdir: Pat
     if violation.files:
         event["files"] = violation.files[:20]
     try:
-        with open(metrics_dir / "rule_violations.jsonl", "a", encoding="utf-8") as f:
+        with (metrics_dir / "rule_violations.jsonl").open("a", encoding="utf-8") as f:
             f.write(json.dumps(event) + "\n")
     except OSError as exc:
         logger.debug("Could not write rule violation event: %s", exc)

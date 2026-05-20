@@ -28,6 +28,7 @@ reading the spec path passed in by the caller.
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 from dataclasses import dataclass, field
@@ -431,14 +432,12 @@ def _resolve_spec_input(spec: Path | str) -> tuple[Path, str]:
     """
     if isinstance(spec, Path):
         return spec, spec.read_text(encoding="utf-8")
-    try:
+    # Inline spec text that is not a valid filesystem path (e.g. embedded
+    # NUL bytes or an over-long name) falls back to inline mode.
+    with contextlib.suppress(OSError):
         candidate = Path(spec)
         if candidate.exists() and candidate.is_file():
             return candidate, candidate.read_text(encoding="utf-8")
-    except OSError:
-        # Inline spec text that is not a valid filesystem path (e.g. embedded
-        # NUL bytes or an over-long name) falls back to inline mode.
-        pass
     return Path("<inline>"), spec
 
 

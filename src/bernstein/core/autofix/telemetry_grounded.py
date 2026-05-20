@@ -606,8 +606,8 @@ class RecentJsonlLogRetriever:
         scan_bytes: int = 256 * 1024,
     ) -> None:
         self._log_path = log_path
-        self._max_lines = max(1, int(max_lines))
-        self._scan_bytes = max(1024, int(scan_bytes))
+        self._max_lines = max(1, max_lines)
+        self._scan_bytes = max(1024, scan_bytes)
 
     def retrieve(self, event: TelemetryEvent) -> GroundingContext:
         if not event.fingerprint:

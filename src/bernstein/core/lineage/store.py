@@ -86,7 +86,7 @@ def _atomic_write_text(target: Path, payload: str) -> None:
     except BaseException:
         # Clean up the tempfile on any failure so we don't leave orphan files.
         with contextlib.suppress(FileNotFoundError):
-            os.unlink(tmp_name)
+            Path(tmp_name).unlink()
         raise
 
 

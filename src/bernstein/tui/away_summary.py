@@ -215,6 +215,7 @@ def format_away_report(summary: AwaySummary) -> str:
     dur_h = summary.duration_s / 3600
     dur_m = (summary.duration_s % 3600) / 60
     dur_s = summary.duration_s % 60
+    # Tasks
     lines.extend(
         (
             f"  [dim]Duration: {int(dur_h)}h {int(dur_m)}m {int(dur_s)}s[/dim]",

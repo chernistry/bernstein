@@ -364,7 +364,6 @@ class DeadLetterQueue:
         try:
             self._dlq_path.parent.mkdir(parents=True, exist_ok=True)
             with self._dlq_path.open("w") as f:
-                for entry in self._entries:
-                    f.write(json.dumps(entry.to_dict()) + "\n")
+                f.writelines(json.dumps(entry.to_dict()) + "\n" for entry in self._entries)
         except OSError as exc:
             logger.warning("Failed to rewrite DLQ file: %s", exc)

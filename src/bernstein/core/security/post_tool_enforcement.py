@@ -224,7 +224,7 @@ def _write_audit(audit: AuditRecord, workdir: Path | None) -> None:
             "dangerous": audit.dangerous,
             "blocked": audit.blocked,
         }
-        with open(metrics_dir / "tool_audit.jsonl", "a", encoding="utf-8") as f:
+        with (metrics_dir / "tool_audit.jsonl").open("a", encoding="utf-8") as f:
             f.write(json.dumps(record) + "\n")
     except OSError as exc:
         logger.debug("Failed to write tool audit record: %s", exc)

@@ -106,10 +106,7 @@ def _rel_path_to_module(rel_path: str) -> str:
         "src/bernstein/core/foo.py"  →  "bernstein.core.foo"
         "bernstein/core/foo.py"       →  "bernstein.core.foo"
     """
-    p = rel_path.replace("\\", "/").removesuffix(".py")
-    if p.startswith("src/"):
-        p = p[4:]
-    return p.replace("/", ".")
+    return rel_path.replace("\\", "/").removesuffix(".py").removeprefix("src/").replace("/", ".")
 
 
 # ---------------------------------------------------------------------------

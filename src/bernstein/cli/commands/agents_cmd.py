@@ -564,6 +564,45 @@ def agents_sandbox_backends() -> None:
     console.print(f"\n[dim]{len(backends)} backend(s) installed[/dim]")
 
 
+@agents_group.command("parked")
+def agents_parked() -> None:
+    """List sessions parked after exhausting their respawn budget.
+
+    \b
+    A parked session has crash-looped past its respawn budget. The
+    supervisor will not respawn it again until an operator runs:
+      bernstein agents resume <id>
+    """
+    from bernstein.core.agents.spawn_supervisor import get_supervisor
+
+    parked = get_supervisor().parked_sessions()
+    if not parked:
+        console.print("[green]No parked sessions.[/green]")
+        return
+
+    console.print(f"[bold yellow]Parked sessions ({len(parked)}):[/bold yellow]")
+    for session_id in parked:
+        console.print(f"  [yellow]parked[/yellow]  [cyan]{session_id}[/cyan]")
+    console.print("\n[dim]Resume with: bernstein agents resume <id>[/dim]")
+
+
+@agents_group.command("resume")
+@click.argument("session_id")
+def agents_resume(session_id: str) -> None:
+    """Resume a parked agent session, resetting its respawn budget.
+
+    \b
+    Example:
+      bernstein agents resume worker-3
+    """
+    from bernstein.core.agents.spawn_supervisor import get_supervisor
+
+    if get_supervisor().resume(session_id):
+        console.print(f"[green]Resumed session '{session_id}'; respawn budget reset.[/green]")
+    else:
+        console.print(f"[yellow]No tracked session '{session_id}'.[/yellow]")
+
+
 @agents_group.command("discover")
 @click.option("--net", "include_network", is_flag=True, default=False, help="Also search GitHub and npm.")
 def agents_discover(include_network: bool) -> None:

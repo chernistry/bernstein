@@ -135,6 +135,21 @@ class LifecycleEvent(StrEnum):
     # ------------------------------------------------------------------
     AGENT_PROGRESS_STALLED = "agent.progress_stalled"
 
+    # ------------------------------------------------------------------
+    # Respawn-budget exhaustion (feat/respawn-supervisor-budget).
+    # Emitted once when an agent exhausts its bounded respawn budget and
+    # the supervisor parks the session. Payload keys on ``context.data``:
+    #
+    # * ``reason``: machine-readable park reason (always
+    #   ``"respawn_budget_exhausted"``).
+    # * ``last_error``: stringified final spawn error, or empty string.
+    # * ``attempts``: number of respawn attempts that were consumed
+    #   (excludes the initial spawn).
+    # * ``window_seconds``: the rolling window size the budget used.
+    # * ``max_respawns``: the configured respawn ceiling.
+    # ------------------------------------------------------------------
+    AGENT_STARTUP_EXHAUSTED = "agent.startup_exhausted"
+
 
 #: The cross-CLI standardised event vocabulary introduced by issue #1323.
 #: Pre-existing snake_case events remain supported but are not part of

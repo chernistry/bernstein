@@ -319,6 +319,10 @@ class TaskStore:
         # Secondary indices for O(1) status/role lookups
         self._by_status: dict[TaskStatus, dict[str, Task]] = {s: {} for s in TaskStatus}
         self._by_role_status: dict[tuple[str, TaskStatus], list[str]] = {}
+        # parent_task_id -> set of child task ids. Maintained alongside
+        # ``_by_status`` and ``_by_role_status`` inside ``self._lock`` so route
+        # callers can count subtasks without walking the full task list.
+        self._by_parent: dict[str, set[str]] = {}
         # Min-heaps keyed by (role, status) — entries are (priority, task_id)
         # Uses lazy deletion: stale entries are discarded in claim_next()
         self._priority_queues: dict[tuple[str, TaskStatus], list[tuple[int, str]]] = {}
@@ -365,6 +369,44 @@ class TaskStore:
         if ids is not None:
             with contextlib.suppress(ValueError):
                 ids.remove(task.id)
+
+    def _parent_index_add(self, task: Task) -> None:
+        """Add *task* to the parent->children index.
+
+        ``_by_parent`` tracks task identity (not status), so this is invoked
+        only when a task first enters ``self._tasks`` (create, batch create,
+        replay). Callers must hold ``self._lock`` for create paths; replay
+        runs single-threaded at startup before the lock is in use.
+        """
+        if task.parent_task_id is None:
+            return
+        children = self._by_parent.setdefault(task.parent_task_id, set())
+        children.add(task.id)
+
+    def _parent_index_remove(self, task: Task) -> None:
+        """Remove *task* from the parent->children index.
+
+        Currently unused (the store soft-archives via status; it never deletes
+        records from ``self._tasks``). Provided for symmetry so that any future
+        hard-delete path can keep the index consistent.
+        """
+        if task.parent_task_id is None:
+            return
+        children = self._by_parent.get(task.parent_task_id)
+        if children is None:
+            return
+        children.discard(task.id)
+        if not children:
+            self._by_parent.pop(task.parent_task_id, None)
+
+    def count_subtasks(self, parent_task_id: str) -> int:
+        """Return the number of direct subtasks for *parent_task_id*.
+
+        O(1) lookup via the ``_by_parent`` index. Replaces the
+        ``sum(1 for t in store.list_tasks() ...)`` pattern in the
+        self-create route, which materialised the whole task list per call.
+        """
+        return len(self._by_parent.get(parent_task_id, ()))
 
     # -- persistence --------------------------------------------------------
 
@@ -414,6 +456,7 @@ class TaskStore:
                     task = Task.from_dict(cast("dict[str, Any]", record))
                     self._tasks[task_id] = task
                     self._index_add(task)
+                    self._parent_index_add(task)
         self.replay_progress()
 
     def recover_stale_claimed_tasks(self) -> int:
@@ -947,6 +990,7 @@ class TaskStore:
                     )
             self._tasks[task.id] = task
             self._index_add(task)
+            self._parent_index_add(task)
             await self._append_jsonl(self._task_to_record(task))
 
         # SOC 2 audit: log task creation (not a status transition, so lifecycle doesn't cover it)
@@ -1084,6 +1128,7 @@ class TaskStore:
 
                 self._tasks[task.id] = task
                 self._index_add(task)
+                self._parent_index_add(task)
                 await self._append_jsonl(self._task_to_record(task))
 
                 if dedup_by_title:

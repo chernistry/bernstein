@@ -500,6 +500,15 @@ STRATEGY_MATRIX: dict[str, AdapterStrategy] = {
         dangerous_mode=DangerousModeStrategy.CLI_FLAG,
         event_channel=EventChannel.STREAM_JSON,
     ),
+    # Antigravity is the upstream rename of the Gemini CLI binary
+    # (transition deadline 2026-06-18 for free / Pro / Ultra). Same
+    # strategy on every axis - it is the same adapter, only the
+    # discovered binary name differs.
+    "antigravity": AdapterStrategy(
+        resume=ResumeStrategy.UNSUPPORTED,
+        dangerous_mode=DangerousModeStrategy.CLI_FLAG,
+        event_channel=EventChannel.STREAM_JSON,
+    ),
     # CLI-flag dangerous mode, text-signal channel, fresh-session resume.
     "cline": AdapterStrategy(dangerous_mode=DangerousModeStrategy.CLI_FLAG),
     "charm": AdapterStrategy(dangerous_mode=DangerousModeStrategy.CLI_FLAG),

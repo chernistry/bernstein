@@ -476,8 +476,7 @@ def _today_start_timestamp() -> float:
     """Return unix timestamp for midnight UTC today."""
     from datetime import datetime
 
-    now = datetime.now(tz=UTC)
-    return now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    return datetime.now(tz=UTC).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
 
 
 def _current_period() -> str:

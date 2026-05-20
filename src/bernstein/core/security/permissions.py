@@ -137,8 +137,7 @@ def has_path_traversal(filepath: str) -> bool:
     normalized = filepath.replace("\\", "/")
 
     # Direct .. traversal (including encoded variants)
-    segments = normalized.split("/")
-    if ".." in segments:
+    if ".." in normalized.split("/"):
         return True
 
     # URL-encoded traversal (%2e%2e or %2f)

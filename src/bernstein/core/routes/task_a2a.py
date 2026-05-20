@@ -63,8 +63,7 @@ def agent_card(request: Request) -> A2AAgentCardResponse:
     ``routes.well_known``; this endpoint is preserved for callers that
     historically pulled the orchestrator's own A2A card.
     """
-    a2a_handler = _get_a2a_handler(request)
-    d = a2a_handler.orchestrator_card().to_dict()
+    d = _get_a2a_handler(request).orchestrator_card().to_dict()
     return A2AAgentCardResponse(**d)
 
 

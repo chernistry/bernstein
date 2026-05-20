@@ -1063,9 +1063,7 @@ def get_partial_merge_state(task_id: str, request: Request) -> PartialMergeRespo
     """
     from bernstein.core.incremental_merge import get_incremental_merge_state
 
-    store = _get_store(request)
-
-    task = store.get_task(task_id)
+    task = _get_store(request).get_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
     _require_task_access(task, request)

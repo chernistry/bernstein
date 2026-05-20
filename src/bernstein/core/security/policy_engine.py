@@ -466,7 +466,7 @@ def _scalar_field_value(field: str, subject: PolicySubject, diff: PolicyDiff) ->
 def _coerce_scalar(raw_value: str) -> str | int | float:
     """Coerce a comparison value from policy text."""
 
-    value = raw_value.strip().strip('"').strip("'")
+    value = raw_value.strip().strip("\"'")
     try:
         return int(value)
     except ValueError:

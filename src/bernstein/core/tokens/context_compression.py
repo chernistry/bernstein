@@ -111,8 +111,7 @@ class DependencyGraph:
         Returns:
             Module name like ``bernstein.core.spawner``.
         """
-        p = rel.removeprefix("src/").removesuffix(".py").removesuffix("/__init__")
-        return p.replace("/", ".")
+        return rel.removeprefix("src/").removesuffix(".py").removesuffix("/__init__").replace("/", ".")
 
     def _extract_imports_from_file(self, fpath: Path) -> set[str]:
         """Extract imported module names from a Python file via AST.

@@ -614,15 +614,14 @@ def export_costs(request: Request, format: str = "json") -> Response:
             media_type="text/csv",
             headers={"Content-Disposition": "attachment; filename=costs_export.csv"},
         )
-    else:
-        return JSONResponse(
-            content={
-                "total_spent_usd": round(total_spent, 6),
-                "total_records": len(all_usages),
-                "runs": all_usages,
-            },
-            headers={"Content-Disposition": "attachment; filename=costs_export.json"},
-        )
+    return JSONResponse(
+        content={
+            "total_spent_usd": round(total_spent, 6),
+            "total_records": len(all_usages),
+            "runs": all_usages,
+        },
+        headers={"Content-Disposition": "attachment; filename=costs_export.json"},
+    )
 
 
 @router.get("/costs/forecast")

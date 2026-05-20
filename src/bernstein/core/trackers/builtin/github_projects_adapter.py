@@ -508,7 +508,7 @@ class GitHubProjectsV2Adapter(AbstractTrackerAdapter):
         """Resolve ``status_id`` (id, name, or mapped name) to an option id."""
         mapped = self._config.status_map.get(status_id, status_id)
         for option in field_node.get("options") or []:
-            if option.get("id") == mapped or option.get("name") == mapped:
+            if mapped in (option.get("id"), option.get("name")):
                 return str(option["id"])
         msg = f"Status '{status_id}' (mapped='{mapped}') not found in field '{field_node.get('name')}'"
         raise TrackerUnavailable(msg)

@@ -213,8 +213,7 @@ def execute_graphql(
             return {"data": {"agents": []}}
         case "costs":
             return {"data": {"costs": {"total_usd": 0.0, "per_model": []}}}
-        case _:
-            return {"errors": [{"message": f"Unknown operation: {parsed.operation}"}]}
+    return {"errors": [{"message": f"Unknown operation: {parsed.operation}"}]}
 
 
 @router.post("/graphql")

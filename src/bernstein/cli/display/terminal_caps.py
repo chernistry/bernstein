@@ -109,17 +109,12 @@ class TerminalCaps:
         color256 = "256color" in term or truecolor
 
         # Kitty: native env var, WezTerm (full Kitty support), Ghostty
-        kitty = (
-            bool(os.environ.get("KITTY_WINDOW_ID"))
-            or term_program_lower == "wezterm"
-            or term_program_lower == "ghostty"
-        )
+        kitty = bool(os.environ.get("KITTY_WINDOW_ID")) or term_program_lower in ("wezterm", "ghostty")
 
         # iTerm2: native iTerm2, WezTerm, VS Code, Konsole
         iterm2 = (
             "iterm" in term_program_lower
-            or term_program_lower == "wezterm"
-            or term_program_lower == "vscode"
+            or term_program_lower in ("wezterm", "vscode")
             or bool(os.environ.get("KONSOLE_VERSION"))
         )
 
@@ -128,9 +123,7 @@ class TerminalCaps:
         #        of emulators set it without sixel support (Tabby, Alacritty,
         #        Terminal.app, etc.).  Only match explicit TERM_PROGRAM values.
         sixel = (
-            term_program_lower in ("wezterm", "foot")
-            or term_program_lower == "mlterm"
-            or term_program_lower == "vscode"
+            term_program_lower in ("wezterm", "foot", "mlterm", "vscode")
             or bool(os.environ.get("WT_SESSION"))
             or bool(os.environ.get("KONSOLE_VERSION"))
         )

@@ -350,11 +350,11 @@ class EvolutionCoordinator:
             p
             for p in self._pending_upgrades
             if p.status
-            not in [
+            not in (
                 UpgradeStatus.APPLIED,
                 UpgradeStatus.REJECTED,
                 UpgradeStatus.ROLLED_BACK,
-            ]
+            )
         ]
 
         return executed

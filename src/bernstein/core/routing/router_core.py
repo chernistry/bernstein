@@ -556,7 +556,7 @@ class TierAwareRouter:
 
         # Fallback to other tiers if enabled
         if self.state.fallback_enabled:
-            for tier in [Tier.STANDARD, Tier.PREMIUM]:
+            for tier in (Tier.STANDARD, Tier.PREMIUM):
                 if tier == self.state.preferred_tier:
                     continue
 

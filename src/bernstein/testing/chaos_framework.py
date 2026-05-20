@@ -187,7 +187,7 @@ def _compute_grade(total: int, failed: int) -> str:
 
     When *total* is 0, returns ``"A"`` (vacuous truth).
     """
-    if total == 0 or failed == 0:
+    if 0 in (total, failed):
         return "A"
     idx = min(failed, len(_GRADE_THRESHOLDS) - 1)
     return _GRADE_THRESHOLDS[idx]

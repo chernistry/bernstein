@@ -41,7 +41,7 @@ class JsonFormatter(logging.Formatter):
         }
 
         # Context fields from CorrelationFilter
-        for field in ["task_id", "agent_id", "correlation_id"]:
+        for field in ("task_id", "agent_id", "correlation_id"):
             if hasattr(record, field):
                 log_data[field] = getattr(record, field)
             else:

@@ -344,8 +344,7 @@ def _make_renderer(caps: TerminalCaps) -> BaseRenderer:
             return HalfBlockRenderer()
         case Protocol.BRAILLE:
             return BrailleRenderer()
-        case _:
-            return NullRenderer()
+    return NullRenderer()
 
 
 # ── Public API ─────────────────────────────────────────────────────────────

@@ -149,14 +149,14 @@ def return_claimed_to_open() -> int:
     closed_nums: set[str] = set()
     closed_dir = Path(".sdd/backlog/closed")
     if closed_dir.exists():
-        closed_nums = {f.name.split("-")[0] for f in [*closed_dir.glob(_YAML_GLOB), *closed_dir.glob("*.md")]}
+        closed_nums = {f.name.split("-")[0] for f in (*closed_dir.glob(_YAML_GLOB), *closed_dir.glob("*.md"))}
     # Also check backlog/done/ which some codepaths use
     done_dir = Path(".sdd/backlog/done")
     if done_dir.exists():
-        closed_nums |= {f.name.split("-")[0] for f in [*done_dir.glob(_YAML_GLOB), *done_dir.glob("*.md")]}
+        closed_nums |= {f.name.split("-")[0] for f in (*done_dir.glob(_YAML_GLOB), *done_dir.glob("*.md"))}
 
     count = 0
-    for f in [*claimed_dir.glob(_YAML_GLOB), *claimed_dir.glob("*.md")]:
+    for f in (*claimed_dir.glob(_YAML_GLOB), *claimed_dir.glob("*.md")):
         if not f.exists():
             continue
         num = f.name.split("-")[0]

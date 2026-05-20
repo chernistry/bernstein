@@ -291,8 +291,7 @@ def _dispatch_github_event(event: Any, store: TaskStore) -> list[dict[str, Any]]
             return list(push_to_tasks(event))
         case ("workflow_run", "completed"):
             return _handle_workflow_run(event, store)
-        case _:
-            return []
+    return []
 
 
 @router.post("/webhooks/github", status_code=200)

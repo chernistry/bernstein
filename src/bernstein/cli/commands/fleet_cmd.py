@@ -110,7 +110,7 @@ def _fallback_table_render(aggregator: FleetAggregator, config: FleetConfig) -> 
 
     rows, total = build_rows(aggregator)
     table = Table(title="Bernstein fleet")
-    for col in [
+    for col in (
         "Project",
         "State",
         "Run",
@@ -120,7 +120,7 @@ def _fallback_table_render(aggregator: FleetAggregator, config: FleetConfig) -> 
         "Cost (7d)",
         "Sparkline",
         "Chain",
-    ]:
+    ):
         table.add_column(col)
     for row in rows:
         table.add_row(

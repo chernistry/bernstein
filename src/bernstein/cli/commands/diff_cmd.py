@@ -69,7 +69,7 @@ def _get_numstat(args: list[str], cwd: Path) -> list[FileDiffStat]:
                         path=parts[2],
                         additions=add,
                         deletions=dele,
-                        is_binary=parts[0] == "-" or parts[1] == "-",
+                        is_binary="-" in (parts[0], parts[1]),
                     )
                 )
             except ValueError:
@@ -273,11 +273,11 @@ def resolve_diff(identifier: str, root: Path, agents: list[dict[str, Any]], base
     file_stats: list[FileDiffStat] = []
 
     if session_id:
-        for try_fn in [
+        for try_fn in (
             lambda: _try_worktree_diff(session_id, root, base),
             lambda: _try_branch_diff(session_id, root, base),
             lambda: _try_merge_commit_diff(session_id, root),
-        ]:
+        ):
             diff_text, source_label, stat_text, file_stats = try_fn()
             if diff_text:
                 break

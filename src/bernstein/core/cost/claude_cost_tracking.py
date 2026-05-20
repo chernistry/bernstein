@@ -134,7 +134,7 @@ def parse_session_output(
                 typed_obj = cast("dict[str, Any]", obj)
                 _extract_from_json(typed_obj, data)
                 # Count assistant turns.
-                if typed_obj.get("type") == "assistant" or typed_obj.get("role") == "assistant":
+                if "assistant" in (typed_obj.get("type"), typed_obj.get("role")):
                     turns += 1
                 continue
 

@@ -38,7 +38,7 @@ def detect_color_mode() -> ColorMode:
         return ColorMode.TRUECOLOR
 
     # Known CI environments
-    if os.environ.get("CI") == "true" or os.environ.get("GITHUB_ACTIONS") == "true":
+    if "true" in (os.environ.get("CI"), os.environ.get("GITHUB_ACTIONS")):
         return ColorMode.ANSI
 
     # TERM variable encoding - check if it's explicitly set

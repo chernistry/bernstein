@@ -20,8 +20,7 @@ def format_agent_duration(start_time: float) -> str:
 
     if hours > 0:
         return f"{hours}h {minutes:02d}m"
-    else:
-        return f"{minutes}m {seconds:02d}s"
+    return f"{minutes}m {seconds:02d}s"
 
 
 def get_duration_color(start_time: float) -> str:
@@ -38,7 +37,6 @@ def get_duration_color(start_time: float) -> str:
 
     if minutes < 10:
         return "green"
-    elif minutes < 30:
+    if minutes < 30:
         return "yellow"
-    else:
-        return "red"
+    return "red"

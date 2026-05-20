@@ -76,8 +76,7 @@ def evaluate_signal(signal: CompletionSignal, workdir: Path) -> tuple[bool, str]
         case "llm_judge":
             # llm_judge requires async evaluation — use judge_task() instead.
             return False, "llm_judge requires async evaluation via judge_task()"
-        case _:  # pyright: ignore[reportUnnecessaryComparison]
-            return False, f"unknown signal type: {signal.type}"
+    return False, f"unknown signal type: {signal.type}"
 
 
 def verify_task(task: Task, workdir: Path) -> tuple[bool, list[str]]:

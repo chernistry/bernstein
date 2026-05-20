@@ -54,7 +54,7 @@ class RoleServerRule:
 
     def matches_role(self, task_role: str) -> bool:
         """Return True if this rule applies to the given role."""
-        return self.role == "*" or self.role == task_role
+        return self.role in ("*", task_role)
 
     def matches_scope(self, owned_files: list[str]) -> bool:
         """Return True if scope patterns match at least one owned file.

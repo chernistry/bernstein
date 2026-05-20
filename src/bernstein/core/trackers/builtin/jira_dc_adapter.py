@@ -436,7 +436,7 @@ class JiraDataCenterAdapter(AbstractTrackerAdapter):
         if status_code == 412:
             msg = "Precondition Failed (etag mismatch)"
             raise OptimisticConcurrencyError(msg)
-        if status_code == 429 or status_code == 503:
+        if status_code in (429, 503):
             retry_after = _parse_retry_after(response)
             if status_code == 429 or retry_after is not None:
                 msg = f"Jira DC rate-limited (status={status_code})"

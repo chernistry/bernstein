@@ -83,7 +83,7 @@ def resolve_catalog_server(server_name: str, catalog_path: Path) -> MCPServerEnt
     """Return a catalog entry by case-insensitive name."""
     normalized = server_name.strip().lower()
     for entry in load_catalog_entries(catalog_path):
-        if entry.name.lower() == normalized or entry.namespaced_name.lower() == normalized:
+        if normalized in (entry.name.lower(), entry.namespaced_name.lower()):
             return entry
     return None
 

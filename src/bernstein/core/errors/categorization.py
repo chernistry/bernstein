@@ -91,7 +91,7 @@ def _categorize_oserror(exc: OSError) -> ErrorCategory | None:
         return ErrorCategory.MODEL_UNREACHABLE
     if err == errno.ETIMEDOUT:
         return ErrorCategory.TIMEOUT
-    if err == errno.EACCES or err == errno.EPERM:
+    if err in (errno.EACCES, errno.EPERM):
         return ErrorCategory.PERMISSION_DENIED
     if err == errno.ENOENT and _filename_looks_like_config(getattr(exc, "filename", None)):
         return ErrorCategory.CONFIG_MISSING

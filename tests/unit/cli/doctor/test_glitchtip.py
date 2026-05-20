@@ -27,9 +27,9 @@ from bernstein.cli.commands.doctor.glitchtip import (
     write_baseline,
 )
 from bernstein.core.observability.glitchtip_insights import (
-    DEFAULT_BASE_URL,
     DEFAULT_ORG_SLUG,
     ENV_GLITCHTIP_BASE_URL,
+    ENV_GLITCHTIP_DSN,
     ENV_GLITCHTIP_ORG,
     ENV_GLITCHTIP_TOKEN,
     KNOWN_LEVELS,
@@ -40,6 +40,10 @@ from bernstein.core.observability.glitchtip_insights import (
     summarise_severity,
     top_unresolved,
 )
+
+# Illustrative base URL used across the suite. The package ships with no
+# hardcoded host; tests must supply one explicitly or via a DSN.
+_TEST_BASE_URL = "https://glitchtip.example.com"
 
 # ---------------------------------------------------------------------------
 # Stub HTTP getter
@@ -64,7 +68,7 @@ def _issue_row(
         "userCount": "0",
         "firstSeen": first_seen,
         "lastSeen": first_seen,
-        "permalink": f"https://errors.bernstein.run/bernstein/issues/{short_id}",
+        "permalink": f"https://glitchtip.example.com/bernstein/issues/{short_id}",
     }
 
 
@@ -98,8 +102,47 @@ def test_fetch_insights_soft_fails_when_token_missing() -> None:
     assert called["n"] == 0
     assert not result.ok
     assert ENV_GLITCHTIP_TOKEN in result.reason
-    assert result.base_url == DEFAULT_BASE_URL
+    # No hardcoded host: base_url is empty until configured.
+    assert result.base_url == ""
     assert result.org_slug == DEFAULT_ORG_SLUG
+
+
+def test_fetch_insights_soft_fails_when_base_url_unresolved() -> None:
+    """A token but no base URL or DSN host -> ok=False; no HTTP call.
+
+    Guards the privacy contract: with no base URL configured the feature
+    must never fall back to any specific host.
+    """
+    called = {"n": 0}
+
+    def _getter(*_args: Any, **_kwargs: Any) -> tuple[int, Any]:
+        called["n"] += 1
+        return 200, []
+
+    result = fetch_insights(env={ENV_GLITCHTIP_TOKEN: "tok"}, http_get=_getter)
+
+    assert called["n"] == 0
+    assert not result.ok
+    assert result.base_url == ""
+    assert ENV_GLITCHTIP_BASE_URL in result.reason
+
+
+def test_fetch_insights_derives_base_url_from_dsn_host() -> None:
+    """When no base URL is set, the host is derived from the DSN."""
+    captured: dict[str, str] = {}
+
+    def _getter(url: str, token: str, timeout: float) -> tuple[int, Any]:
+        captured["url"] = url
+        return 200, []
+
+    fetch_insights(
+        env={
+            ENV_GLITCHTIP_TOKEN: "tok",
+            ENV_GLITCHTIP_DSN: "https://pub_key@glitchtip.example.com/42",
+        },
+        http_get=_getter,
+    )
+    assert captured["url"].startswith("https://glitchtip.example.com/api/0/organizations/bernstein/issues/")
 
 
 def test_fetch_insights_populates_from_24h_payload() -> None:
@@ -110,7 +153,7 @@ def test_fetch_insights_populates_from_24h_payload() -> None:
         _issue_row("C", level="error", status="resolved", count=99),
     ]
     result = fetch_insights(
-        env={ENV_GLITCHTIP_TOKEN: "tok"},
+        env={ENV_GLITCHTIP_TOKEN: "tok", ENV_GLITCHTIP_BASE_URL: _TEST_BASE_URL},
         http_get=_make_getter(payload),
     )
 
@@ -131,7 +174,7 @@ def test_fetch_insights_handles_non_2xx() -> None:
         return 503, None
 
     result = fetch_insights(
-        env={ENV_GLITCHTIP_TOKEN: "tok"},
+        env={ENV_GLITCHTIP_TOKEN: "tok", ENV_GLITCHTIP_BASE_URL: _TEST_BASE_URL},
         http_get=_getter,
     )
     assert not result.ok
@@ -377,6 +420,7 @@ def test_cli_renders_table_when_wired(monkeypatch: Any, tmp_path: Path) -> None:
     """A live-style fetch returns issue counts and writes the baseline."""
 
     monkeypatch.setenv(ENV_GLITCHTIP_TOKEN, "tok")
+    monkeypatch.setenv(ENV_GLITCHTIP_BASE_URL, _TEST_BASE_URL)
     monkeypatch.setenv("BERNSTEIN_GLITCHTIP_BASELINE", str(tmp_path / "baseline.json"))
 
     payload_24h = [_issue_row("Q", level="error", count=4)]

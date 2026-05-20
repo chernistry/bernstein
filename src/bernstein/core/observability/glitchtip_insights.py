@@ -35,17 +35,34 @@ if TYPE_CHECKING:
 #: orchestrator process write credentials.
 ENV_GLITCHTIP_TOKEN = "BERNSTEIN_GLITCHTIP_TOKEN"
 
-#: Environment variable carrying the optional override for the base
-#: URL. Defaults to the public bernstein.run endpoint so a typical
-#: operator only needs to export the token.
+#: Environment variable carrying the base URL of the GlitchTip API.
+#: There is no hardcoded default host: the package ships with no
+#: observability backend wired. The base URL is resolved from this
+#: variable, or derived from the host of the runtime DSN
+#: (``BERNSTEIN_GLITCHTIP_DSN`` / ``BERNSTEIN_TELEMETRY_DSN`` /
+#: ``GLITCHTIP_DSN``). When neither is set, the feature soft-fails with
+#: a clear "not configured" reason. An illustrative value would be
+#: ``https://glitchtip.example.com``.
 ENV_GLITCHTIP_BASE_URL = "BERNSTEIN_GLITCHTIP_BASE_URL"
 
+#: Environment variable carrying the runtime DSN. When the base URL is
+#: not given explicitly, the host of this DSN is used to derive it so an
+#: operator who already wired the DSN does not have to repeat the host.
+ENV_GLITCHTIP_DSN = "BERNSTEIN_GLITCHTIP_DSN"
+
+#: Fallback DSN variables, in precedence order, used to derive the base
+#: URL when neither the base-URL nor the primary DSN variable is set.
+DSN_ENV_FALLBACKS: tuple[str, ...] = (
+    ENV_GLITCHTIP_DSN,
+    "BERNSTEIN_TELEMETRY_DSN",
+    "GLITCHTIP_DSN",
+)
+
 #: Environment variable carrying the GlitchTip organisation slug. Most
-#: operators run a single org, so the default matches the bernstein.run
-#: deployment.
+#: deployments run a single org, so the slug defaults to ``bernstein``;
+#: this is a project name, not a host, and reaches no network on its own.
 ENV_GLITCHTIP_ORG = "BERNSTEIN_GLITCHTIP_ORG"
 
-DEFAULT_BASE_URL = "https://errors.bernstein.run"
 DEFAULT_ORG_SLUG = "bernstein"
 
 #: Severity labels used by the Sentry-protocol API. Anything outside this
@@ -96,20 +113,63 @@ class InsightsResult:
         return payload
 
 
+def _base_url_from_dsn(dsn: str) -> str | None:
+    """Derive the API base URL from a Sentry-protocol DSN.
+
+    A DSN looks like ``https://<public_key>@<host>[:<port>]/<project_id>``.
+    The API base URL is ``<scheme>://<host>[:<port>]``. Returns ``None``
+    when the DSN cannot be parsed into a usable scheme and host.
+    """
+    from urllib.parse import urlsplit
+
+    try:
+        parts = urlsplit(dsn.strip())
+    except ValueError:
+        return None
+    if not parts.scheme or not parts.hostname:
+        return None
+    host = parts.hostname
+    if parts.port:
+        host = f"{host}:{parts.port}"
+    return f"{parts.scheme}://{host}"
+
+
+def _resolve_base_url(source: dict[str, str]) -> str | None:
+    """Resolve the base URL from env, or derive it from a DSN host.
+
+    Precedence: explicit ``BERNSTEIN_GLITCHTIP_BASE_URL`` first, then the
+    host of the first DSN variable that is set. Returns ``None`` when the
+    base URL cannot be determined: there is no hardcoded fallback host, so
+    the caller soft-fails rather than reaching any specific server.
+    """
+    explicit = source.get(ENV_GLITCHTIP_BASE_URL)
+    if explicit:
+        return explicit.rstrip("/")
+    for var in DSN_ENV_FALLBACKS:
+        dsn = source.get(var)
+        if dsn:
+            derived = _base_url_from_dsn(dsn)
+            if derived:
+                return derived.rstrip("/")
+    return None
+
+
 def _read_env(
     env: dict[str, str] | None,
-) -> tuple[str | None, str, str]:
-    """Resolve token, base URL, and org slug from env with defaults.
+) -> tuple[str | None, str | None, str]:
+    """Resolve token, base URL, and org slug from env.
 
-    A ``None`` ``env`` argument means read ``os.environ``. The token is
-    returned verbatim (``None`` when missing) so the caller can soft-fail
-    with a precise reason string.
+    A ``None`` ``env`` argument means read ``os.environ``. The token and
+    base URL are returned verbatim (``None`` when they cannot be
+    resolved) so the caller can soft-fail with a precise reason string.
+    There is no hardcoded default host: the base URL must come from
+    ``BERNSTEIN_GLITCHTIP_BASE_URL`` or be derived from a DSN host.
     """
     source = env if env is not None else dict(os.environ)
     token = source.get(ENV_GLITCHTIP_TOKEN) or None
-    base_url = source.get(ENV_GLITCHTIP_BASE_URL) or DEFAULT_BASE_URL
+    base_url = _resolve_base_url(source)
     org_slug = source.get(ENV_GLITCHTIP_ORG) or DEFAULT_ORG_SLUG
-    return token, base_url.rstrip("/"), org_slug
+    return token, base_url, org_slug
 
 
 def _coerce_issue(raw: Any) -> GlitchTipIssue | None:
@@ -258,7 +318,16 @@ def fetch_insights(
         return InsightsResult(
             ok=False,
             reason=f"{ENV_GLITCHTIP_TOKEN} not set; cannot query GlitchTip API",
-            base_url=base_url,
+            base_url=base_url or "",
+            org_slug=org_slug,
+        )
+    if not base_url:
+        return InsightsResult(
+            ok=False,
+            reason=(
+                f"{ENV_GLITCHTIP_BASE_URL} not set and no DSN host available; GlitchTip insights are not configured"
+            ),
+            base_url="",
             org_slug=org_slug,
         )
 

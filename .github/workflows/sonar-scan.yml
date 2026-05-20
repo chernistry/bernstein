@@ -50,12 +50,49 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
 
-      - name: Download coverage artifact from CI
+      - name: Download coverage artifact (workflow_run)
         if: github.event_name == 'workflow_run'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with:
           name: coverage-report
           run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # When triggered manually we have no upstream run-id, so resolve the
+      # most recent successful CI run on main and pull its coverage-report
+      # artifact. This lets an operator bootstrap or re-scan the project with
+      # full Python coverage even when the latest main CI runs were cancelled
+      # by ci.yml's cancel-in-progress concurrency (which is the normal state
+      # under a rapid merge cadence and is why workflow_run almost never sees
+      # a 'success' conclusion to fire on).
+      - name: Resolve latest successful CI run (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        id: ci_run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          run_id=$(gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow ci.yml \
+            --branch main \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId')
+          if [ -n "$run_id" ]; then
+            echo "Found successful CI run: $run_id"
+            echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No successful CI run found on main; scanning without coverage"
+          fi
+
+      - name: Download coverage artifact (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch' && steps.ci_run.outputs.run_id != ''
+        continue-on-error: true  # coverage is advisory; never block the bootstrap scan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+        with:
+          name: coverage-report
+          run-id: ${{ steps.ci_run.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify coverage.xml present

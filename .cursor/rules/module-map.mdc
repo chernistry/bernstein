@@ -58,6 +58,7 @@ alwaysApply: false
 | `simulate/`             | Digital-twin orchestration simulator (issue #1374) |
 | `skills/`               | Progressive-disclosure skill packs (oai-004) |
 | `storage/`              | Pluggable artifact storage sinks (oai-003) |
+| `substrate/`            | Substrate: register Bernstein into host applications (MCP servers, etc.) |
 | `tasks/`                | tasks sub-package |
 | `telemetry/`            | Opt-in operator observability for Bernstein |
 | `tokens/`               | tokens sub-package |

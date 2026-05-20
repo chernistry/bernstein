@@ -108,7 +108,7 @@ def _extract_version(result: subprocess.CompletedProcess[str] | None) -> str:
     text = (result.stdout + result.stderr).strip()
     # Many CLIs print "name vX.Y.Z" or just "X.Y.Z"
     for token in text.split():
-        stripped = token.lstrip("v").strip(",").strip("()")
+        stripped = token.lstrip("v").strip("(),")
         if stripped and stripped[0].isdigit():
             return stripped
     return text[:40] if text else "unknown"

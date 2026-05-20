@@ -441,8 +441,7 @@ class RunActor:
         """Enqueue an event and await its applied sequence number."""
         if not self._started:
             raise RuntimeError("RunActor.submit_and_wait called before start()")
-        loop = asyncio.get_running_loop()
-        fut: asyncio.Future[int] = loop.create_future()
+        fut: asyncio.Future[int] = asyncio.get_running_loop().create_future()
         await self._queue.put((event, fut))
         return await fut
 

@@ -65,8 +65,7 @@ def compact(
         summary only.
     """
     before_tokens = estimate_tokens(ctx.context_text)
-    pipeline = CompactionPipeline()
-    result = pipeline.execute(
+    result = CompactionPipeline().execute(
         session_id=ctx.session_id,
         context_text=ctx.context_text,
         tokens_before=before_tokens,

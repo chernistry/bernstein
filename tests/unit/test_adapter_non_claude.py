@@ -221,7 +221,11 @@ class TestGeminiAdapterSpawn:
             )
         cmd = popen.call_args.args[0]
         inner = _inner_cmd(cmd)
-        assert inner[0] == "gemini"
+        # Discovery prefers ``antigravity`` (the new canonical binary)
+        # and falls back to ``gemini`` when the former is missing on
+        # PATH. In CI neither is installed, so non-strict discovery
+        # returns the first cascade entry. See #1740.
+        assert inner[0] in {"antigravity", "gemini"}
 
     def test_model_flag(self, tmp_path: Path) -> None:
         adapter = GeminiAdapter()

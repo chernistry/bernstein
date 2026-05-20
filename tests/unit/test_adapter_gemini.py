@@ -418,13 +418,25 @@ class TestBinaryDiscoveryCascade:
         with patch.dict("os.environ", {"PATH": "/usr/bin"}, clear=True):
             assert resolve_google_cli_binary(which=only_legacy) == LEGACY_GEMINI_BINARY
 
-    def test_neither_raises_binary_not_installed(self) -> None:
-        """When neither resolves the operator gets a typed error."""
+    def test_neither_raises_binary_not_installed_in_strict_mode(self) -> None:
+        """Strict mode (used by ``adapters check``) raises a typed error
+        when neither cascade entry resolves. The spawn path uses the
+        non-strict default and lets ``subprocess.Popen`` raise.
+        """
         with (
             patch.dict("os.environ", {"PATH": "/usr/bin"}, clear=True),
             pytest.raises(BinaryNotInstalledError, match="antigravity"),
         ):
-            resolve_google_cli_binary(which=lambda _name: None)
+            resolve_google_cli_binary(which=lambda _name: None, strict=True)
+
+    def test_neither_returns_default_in_non_strict_mode(self) -> None:
+        """Non-strict mode returns the first cascade entry as fallback
+        so ``subprocess.Popen`` raises the natural ``FileNotFoundError``
+        instead of the resolver raising eagerly. Matches the codex /
+        aider adapter posture.
+        """
+        with patch.dict("os.environ", {"PATH": "/usr/bin"}, clear=True):
+            assert resolve_google_cli_binary(which=lambda _name: None) == ANTIGRAVITY_BINARY
 
     def test_env_override_wins_over_cascade(self) -> None:
         """``BERNSTEIN_GEMINI_BINARY`` short-circuits the cascade."""
@@ -436,12 +448,12 @@ class TestBinaryDiscoveryCascade:
             assert resolve_google_cli_binary(which=both_present) == "vendor-cli"
 
     def test_env_override_missing_binary_raises(self) -> None:
-        """An override that does not resolve is a hard error."""
+        """An override that does not resolve is a hard error regardless of strict."""
         with (
             patch.dict("os.environ", {"PATH": "/usr/bin", BINARY_ENV_VAR: "vendor-cli"}, clear=True),
             pytest.raises(BinaryNotInstalledError, match=BINARY_ENV_VAR),
         ):
-            resolve_google_cli_binary(which=lambda _name: None)
+            resolve_google_cli_binary(which=lambda _name: None, strict=False)
 
     def test_empty_env_override_falls_through_to_cascade(self) -> None:
         """A blank override behaves as if unset (no surprise pinning)."""

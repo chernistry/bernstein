@@ -501,10 +501,17 @@ def test_golden_transcripts_all_pass(tmp_path: Path) -> None:
         pytest.skip("No golden transcripts found")
 
     harness = ConformanceHarness()
-    # Patch subprocess at the base level for all adapters
-    with patch("bernstein.adapters.codex.subprocess.Popen", side_effect=[_make_popen(i) for i in range(100)]):
-        with patch("bernstein.adapters.generic.subprocess.Popen", side_effect=[_make_popen(i) for i in range(100)]):
-            report = harness.run_all(transcripts, workdir=tmp_path)
+    # Patch subprocess at the base level for the adapters the harness
+    # actually drives. Gemini joined the patched set in #1740 when the
+    # discovery cascade started returning ``antigravity`` as the
+    # non-strict default, which subprocess.Popen would otherwise try
+    # to spawn for real in CI where neither binary is installed.
+    with (
+        patch("bernstein.adapters.codex.subprocess.Popen", side_effect=[_make_popen(i) for i in range(100)]),
+        patch("bernstein.adapters.generic.subprocess.Popen", side_effect=[_make_popen(i) for i in range(100)]),
+        patch("bernstein.adapters.gemini.subprocess.Popen", side_effect=[_make_popen(i) for i in range(100)]),
+    ):
+        report = harness.run_all(transcripts, workdir=tmp_path)
 
     failed = report.regressions
     assert not failed, f"Golden transcript conformance FAILED: {failed}"

@@ -210,7 +210,7 @@ class SideChannelEvent:
         source in the GlitchTip UI. The ``bernstein.category`` tag carries
         the same value for tag-based search.
         """
-        tags = dict(self.tags)
+        tags = self.tags.copy()
         tags.setdefault("bernstein.category", self.category)
         return {
             "event_id": self.event_id,
@@ -220,7 +220,7 @@ class SideChannelEvent:
             "logger": f"bernstein.{self.category}",
             "message": self.message,
             "tags": tags,
-            "extra": dict(self.extra),
+            "extra": self.extra.copy(),
             "sdk": {"name": "bernstein.sidechannel", "version": "1"},
         }
 

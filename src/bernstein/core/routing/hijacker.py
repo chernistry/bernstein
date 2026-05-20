@@ -515,45 +515,41 @@ def create_default_detectors() -> list[TierDetector]:
     """Create default tier detectors for common providers."""
     detectors: list[TierDetector] = []
 
-    # Anthropic environment detection
-    detectors.append(
-        EnvVarTierDetector(
-            [
-                EnvVarConfig(
-                    env_var="ANTHROPIC_API_KEY",
-                    provider_type=ProviderType.CLAUDE,
-                    tier=ApiTier.FREE,
-                    description="Anthropic API key detected",
-                ),
-            ]
-        )
-    )
-
-    # OpenAI environment detection
-    detectors.append(
-        EnvVarTierDetector(
-            [
-                EnvVarConfig(
-                    env_var="OPENAI_API_KEY",
-                    provider_type=ProviderType.CODEX,
-                    tier=ApiTier.FREE,
-                    description="OpenAI API key detected",
-                ),
-            ]
-        )
-    )
-
-    # Gemini environment detection
-    detectors.append(
-        EnvVarTierDetector(
-            [
-                EnvVarConfig(
-                    env_var="GEMINI_API_KEY",
-                    provider_type=ProviderType.GEMINI,
-                    tier=ApiTier.FREE,
-                    description="Gemini API key detected",
-                ),
-            ]
+    detectors.extend(
+        (
+            # Anthropic environment detection
+            EnvVarTierDetector(
+                [
+                    EnvVarConfig(
+                        env_var="ANTHROPIC_API_KEY",
+                        provider_type=ProviderType.CLAUDE,
+                        tier=ApiTier.FREE,
+                        description="Anthropic API key detected",
+                    ),
+                ]
+            ),
+            # OpenAI environment detection
+            EnvVarTierDetector(
+                [
+                    EnvVarConfig(
+                        env_var="OPENAI_API_KEY",
+                        provider_type=ProviderType.CODEX,
+                        tier=ApiTier.FREE,
+                        description="OpenAI API key detected",
+                    ),
+                ]
+            ),
+            # Gemini environment detection
+            EnvVarTierDetector(
+                [
+                    EnvVarConfig(
+                        env_var="GEMINI_API_KEY",
+                        provider_type=ProviderType.GEMINI,
+                        tier=ApiTier.FREE,
+                        description="Gemini API key detected",
+                    ),
+                ]
+            ),
         )
     )
 

@@ -165,7 +165,7 @@ def _read_env(
     There is no hardcoded default host: the base URL must come from
     ``BERNSTEIN_GLITCHTIP_BASE_URL`` or be derived from a DSN host.
     """
-    source = env if env is not None else dict(os.environ)
+    source = env if env is not None else os.environ.copy()
     token = source.get(ENV_GLITCHTIP_TOKEN) or None
     base_url = _resolve_base_url(source)
     org_slug = source.get(ENV_GLITCHTIP_ORG) or DEFAULT_ORG_SLUG

@@ -460,16 +460,19 @@ def _render_markdown(report: _ExportReport) -> str:
 
     if report.goal:
         lines.append(f"**Goal:** {report.goal}")
-    lines.append(f"**Tasks:** {report.tasks_completed} completed, {report.tasks_failed} failed")
-    lines.append(f"**Agents:** {agent_sum}")
-    lines.append(f"**Duration:** {_fmt_duration_short(report.duration_s)} (sequential estimate: {seq_est})")
-    lines.append(f"**Cost:** ${report.total_cost_usd:.2f}")
-    lines.append(f"**Quality:** {report.quality_pass_count}/{total_gates} gates passed")
-    lines.append("")
+    lines.extend(
+        (
+            f"**Tasks:** {report.tasks_completed} completed, {report.tasks_failed} failed",
+            f"**Agents:** {agent_sum}",
+            f"**Duration:** {_fmt_duration_short(report.duration_s)} (sequential estimate: {seq_est})",
+            f"**Cost:** ${report.total_cost_usd:.2f}",
+            f"**Quality:** {report.quality_pass_count}/{total_gates} gates passed",
+            "",
+        )
+    )
 
     # Task breakdown
-    lines.append("## Task Breakdown")
-    lines.append("")
+    lines.extend(("## Task Breakdown", ""))
     if report.task_rows:
         lines.extend(
             (
@@ -489,8 +492,7 @@ def _render_markdown(report: _ExportReport) -> str:
     lines.append("")
 
     # Task timeline
-    lines.append("## Task Timeline")
-    lines.append("")
+    lines.extend(("## Task Timeline", ""))
     if report.timeline_entries:
         lines.extend(("| Task | Start (offset) | End (offset) |", "|------|----------------|--------------|"))
         for entry in report.timeline_entries:
@@ -500,16 +502,19 @@ def _render_markdown(report: _ExportReport) -> str:
     lines.append("")
 
     # Quality gates
-    lines.append("## Quality Gates")
-    lines.append("")
-    lines.append(f"- **Passed:** {report.quality_pass_count}")
-    lines.append(f"- **Failed:** {report.quality_fail_count}")
-    lines.append(f"- **Total:** {total_gates}")
-    lines.append("")
+    lines.extend(
+        (
+            "## Quality Gates",
+            "",
+            f"- **Passed:** {report.quality_pass_count}",
+            f"- **Failed:** {report.quality_fail_count}",
+            f"- **Total:** {total_gates}",
+            "",
+        )
+    )
 
     # Cost breakdown
-    lines.append("## Cost Breakdown by Model")
-    lines.append("")
+    lines.extend(("## Cost Breakdown by Model", ""))
     if report.model_costs:
         lines.extend(("| Model | Cost | Invocations | Tokens |", "|-------|------|-------------|--------|"))
         for mc in report.model_costs:
@@ -519,8 +524,7 @@ def _render_markdown(report: _ExportReport) -> str:
     lines.append("")
 
     # Per-agent stats
-    lines.append("## Per-Agent Stats")
-    lines.append("")
+    lines.extend(("## Per-Agent Stats", ""))
     model_counts: dict[str, int] = {}
     for row in report.task_rows:
         m = row.model or "unknown"

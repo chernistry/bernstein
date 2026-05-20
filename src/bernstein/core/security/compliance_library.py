@@ -1131,12 +1131,15 @@ def render_compliance_report(report: ComplianceReport) -> str:
     framework_label = report.framework.value.upper().replace("_", " ")
     lines.extend((f"# {framework_label} Compliance Report", ""))
     pct = report.score * 100
-    lines.append(f"**Score:** {pct:.1f}% ({report.rules_passed}/{report.rules_checked} passed)")
-    lines.append("")
+    lines.extend((f"**Score:** {pct:.1f}% ({report.rules_passed}/{report.rules_checked} passed)", ""))
 
     # Summary table
-    lines.append("| Status | Rule ID | Title | Severity | Evidence |")
-    lines.append("|--------|---------|-------|----------|----------|")
+    lines.extend(
+        (
+            "| Status | Rule ID | Title | Severity | Evidence |",
+            "|--------|---------|-------|----------|----------|",
+        )
+    )
     for result in report.results:
         status = "PASS" if result.passed else "FAIL"
         icon = "+" if result.passed else "-"

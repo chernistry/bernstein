@@ -297,15 +297,18 @@ def to_markdown(analysis: TokenAnalysis) -> str:
     """
     lines: list[str] = []
 
-    lines.append("# Token Usage Report")
-    lines.append("")
+    lines.extend(("# Token Usage Report", ""))
 
     # Summary.
-    lines.append("## Summary")
-    lines.append("")
-    lines.append(f"- **Total input tokens:** {analysis.total_tokens_prompt:,}")
-    lines.append(f"- **Total output tokens:** {analysis.total_tokens_completion:,}")
-    lines.append(f"- **Overall input:output ratio:** {analysis.overall_io_ratio:.1f}:1")
+    lines.extend(
+        (
+            "## Summary",
+            "",
+            f"- **Total input tokens:** {analysis.total_tokens_prompt:,}",
+            f"- **Total output tokens:** {analysis.total_tokens_completion:,}",
+            f"- **Overall input:output ratio:** {analysis.overall_io_ratio:.1f}:1",
+        )
+    )
     eff = "good" if analysis.overall_io_ratio <= EFFICIENCY_RATIO_THRESHOLD else "high"
     lines.extend(
         (

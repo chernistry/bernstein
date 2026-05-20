@@ -84,7 +84,7 @@ class SonarInsights:
     project_key: str
     coverage_pct: float | None = None
     code_smells_total: int = 0
-    smells_by_severity: dict[str, int] = field(default_factory=lambda: dict(_SEVERITY_ZERO))
+    smells_by_severity: dict[str, int] = field(default_factory=_SEVERITY_ZERO.copy)
     bugs: int = 0
     vulnerabilities: int = 0
     security_hotspots: int = 0
@@ -209,7 +209,7 @@ def fetch_smell_severities(
         "facets": "severities",
         "ps": "1",
     }
-    out: dict[str, int] = dict(_SEVERITY_ZERO)
+    out: dict[str, int] = _SEVERITY_ZERO.copy()
     try:
         if client is None:
             with httpx.Client(timeout=timeout, auth=_auth(config.token)) as c:
@@ -387,7 +387,7 @@ def save_baseline(insights: SonarInsights, *, path: Path | None = None) -> None:
         "project_key": insights.project_key,
         "coverage_pct": insights.coverage_pct,
         "code_smells_total": insights.code_smells_total,
-        "smells_by_severity": dict(insights.smells_by_severity),
+        "smells_by_severity": insights.smells_by_severity.copy(),
         "bugs": insights.bugs,
         "vulnerabilities": insights.vulnerabilities,
         "security_hotspots": insights.security_hotspots,

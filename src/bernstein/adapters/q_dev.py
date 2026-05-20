@@ -258,6 +258,11 @@ def _has_q_login_cache() -> bool:
         if xdg_data:
             candidates.append(Path(xdg_data) / "amazon-q")
         # macOS users sometimes end up with the legacy ~/.amazon-q layout.
-        candidates.extend((home / ".local" / "share" / "amazon-q", home / ".amazon-q"))
+        candidates.extend(
+            (
+                home / ".local" / "share" / "amazon-q",
+                home / ".amazon-q",
+            )
+        )
 
     return any(p.exists() for p in candidates)

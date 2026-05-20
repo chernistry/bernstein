@@ -228,8 +228,12 @@ class FleetAggregator:
             return
         self._started = True
         for project in self._projects.values():
-            self._tasks.append(asyncio.create_task(self._poll_loop(project), name=f"fleet-poll-{project.name}"))
-            self._tasks.append(asyncio.create_task(self._sse_loop(project), name=f"fleet-sse-{project.name}"))
+            self._tasks.extend(
+                (
+                    asyncio.create_task(self._poll_loop(project), name=f"fleet-poll-{project.name}"),
+                    asyncio.create_task(self._sse_loop(project), name=f"fleet-sse-{project.name}"),
+                )
+            )
 
     async def stop(self) -> None:
         """Cancel workers and close the HTTP client."""

@@ -56,6 +56,22 @@ def _read_json(path: Path, default: dict[str, Any]) -> dict[str, Any]:
         return default
 
 
+def _tasks_by_id(request: Request, store: TaskStore) -> dict[str, Any]:
+    """Return a ``{task.id: task}`` map materialised once per request.
+
+    Both ``observability_agents`` and ``observability_token_budget`` need the
+    same dict in a single request lifecycle. Caching it on ``request.state``
+    avoids rebuilding ``{t.id: t for t in store.list_tasks()}`` twice on each
+    /observability call (issue #1728 finding 2).
+    """
+    cached = getattr(request.state, "tasks_by_id", None)
+    if isinstance(cached, dict):
+        return cast("dict[str, Any]", cached)
+    fresh: dict[str, Any] = {task.id: task for task in store.list_tasks()}
+    request.state.tasks_by_id = fresh
+    return fresh
+
+
 def _overall_trend(scores: list[int]) -> str:
     """Classify the overall score trend from a recent sample."""
     if len(scores) < 4:
@@ -80,7 +96,7 @@ def observability_agents(request: Request) -> dict[str, Any]:
     timeout_s = float(getattr(getattr(request.app.state, "seed_config", None), "heartbeat_timeout_s", 120) or 120)
     monitor = HeartbeatMonitor(workdir, timeout_s=timeout_s)
     aggregator = AgentLogAggregator(workdir)
-    tasks_by_id = {task.id: task for task in store.list_tasks()}
+    tasks_by_id = _tasks_by_id(request, store)
 
     agents: list[dict[str, Any]] = []
     active = 0
@@ -862,7 +878,7 @@ def token_breakdown(request: Request) -> dict[str, Any]:
 
     # Load agents snapshot for role/task_id mapping
     snapshot = _read_json(runtime_dir / "agents.json", {"agents": []})
-    tasks_by_id = {task.id: task for task in store.list_tasks()}
+    tasks_by_id = _tasks_by_id(request, store)
 
     session_info: dict[str, dict[str, Any]] = {}
     for raw in cast(_CAST_LIST_DICT_STR_ANY, snapshot.get("agents", [])):

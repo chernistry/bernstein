@@ -104,13 +104,22 @@ def _make_csv(rows: list[dict[str, Any]], fields: list[str]) -> str:
 
 
 @router.get("/export/tasks")
-def export_tasks(request: Request, format: str = "json") -> Response:
-    """Export all tasks as CSV or JSON.
+def export_tasks(
+    request: Request,
+    format: str = "json",
+    limit: int | None = None,
+    offset: int | None = None,
+) -> Response:
+    """Export tasks as CSV or JSON.
 
     Query params:
         format: ``csv`` or ``json`` (default ``json``).
+        limit: Optional max number of tasks to return. Pushed into
+            ``TaskStore.list_tasks`` so large stores no longer materialise
+            the whole table (issue #1728 finding 3).
+        offset: Optional number of tasks to skip before returning rows.
     """
-    all_tasks = _get_store(request).list_tasks()
+    all_tasks = _get_store(request).list_tasks(limit=limit, offset=offset)
     rows = [_task_to_export_dict(t) for t in all_tasks]
 
     if format == "csv":

@@ -365,7 +365,7 @@ class StreamableHTTPTransport:
         self,
         headers: dict[str, str],
     ) -> tuple[int, dict[str, str], bytes]:
-        """Handle GET: server-initiated SSE stream endpoint (stub — 501).
+        """Handle GET: server-initiated SSE stream endpoint (stub - 501).
 
         Client-to-server streaming, cancellation, and partial-result
         preservation are handled over POST (``tools/call`` plus
@@ -472,7 +472,7 @@ class StreamableHTTPTransport:
         session: MCPSession,
         params: dict[str, Any],
     ) -> dict[str, Any]:
-        """Handle 'initialize' — return server info and capabilities.
+        """Handle 'initialize' - return server info and capabilities.
 
         Alongside the static spec ``capabilities`` object, the result carries
         a runtime ``capabilityCard`` describing the live transports, auth
@@ -504,7 +504,7 @@ class StreamableHTTPTransport:
         params: dict[str, Any],
         req_id: int | str | None = None,
     ) -> dict[str, Any]:
-        """Handle 'tools/call' — execute a tool and return result.
+        """Handle 'tools/call' - execute a tool and return result.
 
         The tool runs inside a cancellable task tracked by its JSON-RPC id, so
         a ``notifications/cancelled`` for that id stops the work and the
@@ -571,7 +571,7 @@ class StreamableHTTPTransport:
         session: MCPSession,
         params: dict[str, Any],
     ) -> dict[str, Any]:
-        """Handle 'notifications/cancelled' — stop an in-flight tool call.
+        """Handle 'notifications/cancelled' - stop an in-flight tool call.
 
         Per the MCP spec the notification carries ``requestId`` (the id of the
         ``tools/call`` to cancel). Cancelling marks the tracked call and

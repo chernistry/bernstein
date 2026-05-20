@@ -34,7 +34,7 @@ import subprocess
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import yaml
 
@@ -432,6 +432,20 @@ class EventChannel(StrEnum):
     NONE = "none"
 
 
+class StrategyView(TypedDict):
+    """JSON-serialisable view of an :class:`AdapterStrategy`'s three axes."""
+
+    resume: str
+    dangerous_mode: str
+    event_channel: str
+
+
+class StrategyRow(StrategyView):
+    """A :class:`StrategyView` plus the adapter name, one row per adapter."""
+
+    adapter: str
+
+
 @dataclass(frozen=True)
 class AdapterStrategy:
     """The declared strategy of a single adapter across all three axes."""
@@ -440,7 +454,7 @@ class AdapterStrategy:
     dangerous_mode: DangerousModeStrategy = DangerousModeStrategy.UNSUPPORTED
     event_channel: EventChannel = EventChannel.TEXT_SIGNALS
 
-    def to_dict(self) -> dict[str, str]:
+    def to_dict(self) -> StrategyView:
         """Return a JSON-serialisable view for operator-facing tables."""
         return {
             "resume": str(self.resume),
@@ -582,19 +596,18 @@ def undeclared_strategies(adapter_names: list[str]) -> list[str]:
     return sorted(name for name in adapter_names if name not in STRATEGY_MATRIX)
 
 
-def strategy_table(adapter_names: list[str] | None = None) -> list[dict[str, str]]:
+def strategy_table(adapter_names: list[str] | None = None) -> list[StrategyRow]:
     """Return one row per adapter for the operator-facing strategy table.
 
-    Each row is ``{"adapter", "resume", "dangerous_mode", "event_channel"}``.
+    Each row is a :class:`StrategyRow` (``adapter`` plus the three axes).
     Rows are sorted by adapter name so operators can compare adapters at a
     glance (issue #1627 AC #4). When ``adapter_names`` is ``None`` the full
     matrix is rendered.
     """
     names = sorted(adapter_names) if adapter_names is not None else sorted(STRATEGY_MATRIX)
-    rows: list[dict[str, str]] = []
+    rows: list[StrategyRow] = []
     for name in names:
-        row = {"adapter": name}
-        row.update(strategy_for(name).to_dict())
+        row: StrategyRow = {"adapter": name, **strategy_for(name).to_dict()}
         rows.append(row)
     return rows
 

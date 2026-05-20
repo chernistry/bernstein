@@ -27,7 +27,9 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from bernstein.adapters._contract import (
     CONTRACTS_DIR,
+    DEFAULT_ADAPTER_STRATEGY,
     ContractSpec,
+    StrategyView,
     _capability_failures,  # pyright: ignore[reportPrivateUsage]
     _strip_ansi,  # pyright: ignore[reportPrivateUsage]
     strategy_for,
@@ -101,7 +103,7 @@ class AdapterStatus:
     conformance_detail: str
     last_modified_utc: str
     contract_hash: str
-    strategy: dict[str, str] = field(default_factory=dict[str, str])
+    strategy: StrategyView = field(default_factory=DEFAULT_ADAPTER_STRATEGY.to_dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-friendly dict.

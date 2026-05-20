@@ -27,7 +27,7 @@ import json
 from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
 
 import yaml
@@ -39,6 +39,9 @@ from bernstein.core.protocols.stream_signals import (
     has_terminal_signal,
     iter_signals,
 )
+
+if TYPE_CHECKING:
+    from bernstein.adapters._contract import StrategyRow
 
 # ---------------------------------------------------------------------------
 # Data types
@@ -239,7 +242,7 @@ def assert_strategies_declared(adapter_names: list[str] | None = None) -> None:
         )
 
 
-def strategy_conformance_table() -> list[dict[str, str]]:
+def strategy_conformance_table() -> list[StrategyRow]:
     """Return the per-adapter strategy table for the live registry.
 
     One row per registered adapter (issue #1627 AC #4) so operators can

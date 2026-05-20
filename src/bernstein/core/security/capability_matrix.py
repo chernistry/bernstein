@@ -27,6 +27,7 @@ Usage::
 
 from __future__ import annotations
 
+import itertools
 import logging
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -177,7 +178,7 @@ class CapabilityRegistry:
                 mode=self.mode,
             )
 
-        offending_tools = tuple(sorted({tool for tools_list in offending.values() for tool in tools_list}))
+        offending_tools = tuple(sorted(set(itertools.chain.from_iterable(offending.values()))))
         reason = self.UNKNOWN_REASON if unknown else self.DEFAULT_REASON
 
         if self.mode is EnforcementMode.OFF:

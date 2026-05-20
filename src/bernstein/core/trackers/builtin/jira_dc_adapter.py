@@ -378,7 +378,7 @@ class JiraDataCenterAdapter(AbstractTrackerAdapter):
             id=key,
             external_url=external_url,
             title=str(fields_block.get("summary") or ""),
-            body=str(fields_block.get("description") or "") or "",
+            body=str(fields_block.get("description") or ""),
             status=str(status_block.get("name") or ""),
             labels=labels,
             etag=None,

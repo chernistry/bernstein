@@ -10,7 +10,6 @@ import contextlib
 import heapq
 import json
 import logging
-import os
 import time
 import uuid
 from collections import deque
@@ -23,7 +22,9 @@ from typing_extensions import TypedDict
 
 from bernstein.core.defaults import TASK as _TASK_DEFAULTS
 from bernstein.core.hook_events import HookEvent
+from bernstein.core.persistence.durable_write import fsynced_write
 from bernstein.core.persistence.runtime_state import rotate_log_file
+from bernstein.core.tasks.errors import TaskDomainError
 from bernstein.core.tasks.lifecycle import IllegalTransitionError, transition_agent, transition_task
 from bernstein.core.tasks.models import (
     AgentSession,
@@ -268,7 +269,7 @@ _EMPTY_COMPLETION_REASON = "completion missing summary"
 _PROGRESS_ROTATE_BYTES: int = 5 * 1024 * 1024
 
 
-class EmptyCompletionError(Exception):
+class EmptyCompletionError(TaskDomainError):
     """Raised when ``complete()`` is called with an empty ``result_summary``.
 
     Before raising, ``complete()`` auto-transitions the task to ``FAILED``
@@ -472,10 +473,8 @@ class TaskStore:
         """
         line = json.dumps(record, default=str) + "\n"
         self._jsonl_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._jsonl_path.open("a") as handle:
+        with fsynced_write(self._jsonl_path) as handle:
             handle.write(line)
-            handle.flush()
-            os.fsync(handle.fileno())
 
         try:
             tenant_paths = ensure_tenant_layout(self._sdd_dir, str(record["tenant_id"]))
@@ -503,10 +502,8 @@ class TaskStore:
         self._write_buffer.clear()
 
         def _write() -> None:
-            with self._jsonl_path.open("a") as f:
+            with fsynced_write(self._jsonl_path) as f:
                 f.write(data)
-                f.flush()
-                os.fsync(f.fileno())
 
         await _retry_io(_write)
 
@@ -593,10 +590,8 @@ class TaskStore:
         line = json.dumps(record, default=str) + "\n"
 
         def _write() -> None:
-            with self._archive_path.open("a") as f:
+            with fsynced_write(self._archive_path) as f:
                 f.write(line)
-                f.flush()
-                os.fsync(f.fileno())
 
         await _retry_io(_write)
         await self._append_tenant_archive_record(task.tenant_id, line)
@@ -648,10 +643,8 @@ class TaskStore:
         rotate_log_file(path, max_bytes=_PROGRESS_ROTATE_BYTES, max_backups=1)
         line = json.dumps(record, default=str) + "\n"
         try:
-            with path.open("a", encoding="utf-8") as handle:
+            with fsynced_write(path) as handle:
                 handle.write(line)
-                handle.flush()
-                os.fsync(handle.fileno())
         except OSError as exc:
             # Progress is advisory: the in-memory log is already updated and
             # the task itself has its own durable JSONL.  Log and move on so

@@ -335,9 +335,7 @@ def test_load_baseline_returns_empty_on_malformed(tmp_path: Path) -> None:
     assert load_baseline(target) == {}
 
 
-def test_baseline_path_honours_xdg_data_home(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_baseline_path_honours_xdg_data_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
     resolved = baseline_path()
     assert resolved == tmp_path / "bernstein" / "sonar-baseline.json"
@@ -386,9 +384,7 @@ def test_nudge_threshold_is_override_aware() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_run_doctor_sonar_soft_fails_without_env(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_run_doctor_sonar_soft_fails_without_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.delenv(ENV_HOST, raising=False)
     monkeypatch.delenv(ENV_TOKEN, raising=False)
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
@@ -418,9 +414,7 @@ def test_doctor_group_exposes_sonar_subcommand() -> None:
     assert "sonar" in doctor_group.commands
 
 
-def test_cli_sonar_soft_fail_does_not_crash(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_cli_sonar_soft_fail_does_not_crash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.delenv(ENV_HOST, raising=False)
     monkeypatch.delenv(ENV_TOKEN, raising=False)
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
@@ -430,9 +424,7 @@ def test_cli_sonar_soft_fail_does_not_crash(
     assert "not configured" in result.output
 
 
-def test_cli_sonar_json_flag_emits_json(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_cli_sonar_json_flag_emits_json(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.delenv(ENV_HOST, raising=False)
     monkeypatch.delenv(ENV_TOKEN, raising=False)
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))

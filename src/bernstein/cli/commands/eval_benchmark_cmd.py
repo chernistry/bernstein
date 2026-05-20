@@ -922,9 +922,7 @@ def eval_report() -> None:
 
     workdir = Path()
     state_dir = workdir / ".sdd"
-    harness = EvalHarness(state_dir=state_dir, repo_root=workdir)
-
-    prev = harness.load_previous_run()
+    prev = EvalHarness(state_dir=state_dir, repo_root=workdir).load_previous_run()
     if not prev:
         console.print(_NO_EVAL_RUNS_MSG)
         raise SystemExit(1)

@@ -188,9 +188,8 @@ def logs_search(
     from bernstein.core.log_search import LogSearchIndex
 
     workdir_path = Path(workdir).resolve()
-    index = LogSearchIndex(workdir_path)
 
-    result = index.search(
+    result = LogSearchIndex(workdir_path).search(
         query,
         time_range=time_range,
         agent_role=agent_role,

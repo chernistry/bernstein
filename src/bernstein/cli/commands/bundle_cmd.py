@@ -43,7 +43,7 @@ def bundle_group() -> None:
 @click.option(
     "--workdir",
     type=click.Path(file_okay=False, exists=True, path_type=Path),
-    default=Path("."),
+    default=Path(),
     help="Project root directory containing .sdd/ (default: current).",
 )
 @click.option(

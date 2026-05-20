@@ -470,14 +470,17 @@ class ComparativeBenchmark:
             Markdown string with per-task and summary comparison tables.
         """
         lines: list[str] = []
-        lines.append("# Comparative Benchmark Report")
-        lines.append("")
+        lines.extend(("# Comparative Benchmark Report", ""))
 
         # Per-task results table
-        lines.append("## Per-Task Results")
-        lines.append("")
-        lines.append("| Task ID | Mode | Wall Time (s) | Cost (USD) | Tokens | Success | Verified |")
-        lines.append("|---------|------|---------------|------------|--------|---------|----------|")
+        lines.extend(
+            (
+                "## Per-Task Results",
+                "",
+                "| Task ID | Mode | Wall Time (s) | Cost (USD) | Tokens | Success | Verified |",
+                "|---------|------|---------------|------------|--------|---------|----------|",
+            )
+        )
 
         for r in sorted(report.results, key=lambda x: (x.task_id, x.mode)):
             success_mark = "Yes" if r.success else "No"

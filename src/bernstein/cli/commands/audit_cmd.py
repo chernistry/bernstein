@@ -1358,7 +1358,7 @@ def _parse_filename_date(name: str) -> date | None:
     """Return the date encoded in ``YYYY-MM-DD.jsonl`` or ``None``."""
     from datetime import datetime
 
-    stem = name[: -len(".jsonl")] if name.endswith(".jsonl") else name
+    stem = name.removesuffix(".jsonl")
     try:
         return datetime.strptime(stem, "%Y-%m-%d").date()
     except ValueError:

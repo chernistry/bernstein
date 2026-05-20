@@ -159,7 +159,7 @@ def probe_sonar(env: dict[str, str] | None = None) -> BackendReport:
     back to a quality-gate fetch if that is unavailable.
     """
 
-    env = env or dict(os.environ)
+    env = env or os.environ.copy()
     host = (env.get("SONAR_HOST_URL") or "").strip()
     token = (env.get("SONAR_TOKEN") or "").strip()
     if not host or not token:
@@ -307,7 +307,7 @@ def probe_glitchtip(env: dict[str, str] | None = None) -> BackendReport:
     ``bernstein doctor glitchtip``.
     """
 
-    env = env or dict(os.environ)
+    env = env or os.environ.copy()
     token = (env.get("BERNSTEIN_GLITCHTIP_TOKEN") or "").strip()
     if not token:
         return BackendReport(
@@ -393,7 +393,7 @@ def probe_dt(env: dict[str, str] | None = None) -> BackendReport:
     from env. Soft-fails if not configured.
     """
 
-    env = env or dict(os.environ)
+    env = env or os.environ.copy()
     url = (env.get("DTRACK_URL") or "").strip()
     token = (env.get("DTRACK_TOKEN") or "").strip()
     project = (env.get("DTRACK_PROJECT") or "").strip()
@@ -435,21 +435,20 @@ def probe_dt(env: dict[str, str] | None = None) -> BackendReport:
         overall = ProbeStatus.FAIL
     elif counts["high"] > 0:
         overall = ProbeStatus.WARN
-    rows: list[MetricRow] = []
-    for sev, value in counts.items():
-        rows.append(
-            MetricRow(
-                name=f"{sev}_vulns",
-                value=str(value),
-                numeric=float(value),
-                threshold="0" if sev in ("critical", "high") else "",
-                threshold_status=_classify(
-                    float(value),
-                    warn_above=1 if sev in ("critical", "high", "medium") else None,
-                    fail_above=1 if sev == "critical" else 5 if sev == "high" else None,
-                ),
-            )
+    rows: list[MetricRow] = [
+        MetricRow(
+            name=f"{sev}_vulns",
+            value=str(value),
+            numeric=float(value),
+            threshold="0" if sev in ("critical", "high") else "",
+            threshold_status=_classify(
+                float(value),
+                warn_above=1 if sev in ("critical", "high", "medium") else None,
+                fail_above=1 if sev == "critical" else 5 if sev == "high" else None,
+            ),
         )
+        for sev, value in counts.items()
+    ]
     return BackendReport(
         backend="dt",
         status=overall,
@@ -466,7 +465,7 @@ def probe_code_scanning(env: dict[str, str] | None = None) -> BackendReport:
     either is missing.
     """
 
-    env = env or dict(os.environ)
+    env = env or os.environ.copy()
     token = (env.get("GITHUB_TOKEN") or "").strip()
     repo = (env.get("GITHUB_REPOSITORY") or "").strip()
     if not token or not repo:

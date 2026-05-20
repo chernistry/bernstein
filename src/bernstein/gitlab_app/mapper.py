@@ -256,8 +256,7 @@ def pipeline_to_tasks(
         fetch_and_parse_failures,
     )
 
-    project: dict[str, Any] = event.payload.get("project", {})
-    project_id = project.get("id", "")
+    project_id = event.payload.get("project", {}).get("id", "")
 
     failures = fetch_and_parse_failures(
         project_id=project_id,

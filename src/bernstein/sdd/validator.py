@@ -302,17 +302,15 @@ def _issue_from_error(err: jsonschema.ValidationError) -> ValidationIssue:
 
 
 def _missing_recommended(metadata: Mapping[str, Any], keys: tuple[str, ...]) -> list[ValidationIssue]:
-    out: list[ValidationIssue] = []
-    for key in keys:
-        if key not in metadata:
-            out.append(
-                ValidationIssue(
-                    message=f"recommended key missing: {key}",
-                    path=(key,),
-                    code="recommended_missing",
-                )
-            )
-    return out
+    return [
+        ValidationIssue(
+            message=f"recommended key missing: {key}",
+            path=(key,),
+            code="recommended_missing",
+        )
+        for key in keys
+        if key not in metadata
+    ]
 
 
 def validate_ticket_metadata(

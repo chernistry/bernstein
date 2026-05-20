@@ -199,7 +199,7 @@ class ConformanceReport:
         return {
             "passed": self.passed,
             "regressions": self.regressions,
-            "missing_terminal_signal": list(self.missing_terminal_signal),
+            "missing_terminal_signal": self.missing_terminal_signal.copy(),
             "results": [r.to_dict() for r in self.results],
         }
 

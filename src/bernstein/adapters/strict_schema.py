@@ -234,7 +234,7 @@ def assert_schema_sealed(schema: Mapping[str, Any]) -> None:
                 msg = f"object node at {location} does not seal additionalProperties"
                 raise ValueError(msg)
             for key, value in mapping.items():
-                _walk(value, f"{path}/{key}" if path else str(key))
+                _walk(value, f"{path}/{key}" if path else key)
         elif isinstance(node, list):
             items = cast("list[Any]", node)
             for index, item in enumerate(items):

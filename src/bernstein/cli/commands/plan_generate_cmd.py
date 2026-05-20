@@ -176,8 +176,7 @@ def _extract_yaml(raw: str) -> str:
     raw = raw.strip()
     # Strip ```yaml ... ``` fences
     raw = re.sub(r"^```(?:yaml)?\s*\n", "", raw, flags=re.MULTILINE)
-    raw = re.sub(r"\n```\s*$", "", raw, flags=re.MULTILINE)
-    return raw.strip()
+    return re.sub(r"\n```\s*$", "", raw, flags=re.MULTILINE).strip()
 
 
 _COST_PER_STEP = 0.08  # rough USD per agent step (medium complexity, sonnet)

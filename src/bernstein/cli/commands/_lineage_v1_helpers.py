@@ -62,8 +62,7 @@ def reindex(log_path: Path) -> int:
         out = by_artefact_root / shard / (digest + ".jsonl")
         out.parent.mkdir(parents=True, exist_ok=True)
         with out.open("w") as f:
-            for e in group:
-                f.write(json.dumps(_asdict(e), sort_keys=True) + "\n")
+            f.writelines(json.dumps(_asdict(e), sort_keys=True) + "\n" for e in group)
         # Tips
         tip_data = tips.get(path, {"open": [entry_hash(group[-1])], "merged": []})
         tips_out = tips_root / (digest + ".json")

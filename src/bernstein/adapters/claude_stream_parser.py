@@ -286,9 +286,7 @@ class ClaudeStreamParser:
         message_raw = msg.get("message", {})
         if not isinstance(message_raw, dict):
             return []
-        message = cast(_CAST_DICT_STR_ANY, message_raw)
-
-        content_raw = message.get("content", [])
+        content_raw = cast(_CAST_DICT_STR_ANY, message_raw).get("content", [])
         if not isinstance(content_raw, list):
             return []
 

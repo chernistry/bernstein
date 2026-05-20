@@ -166,12 +166,14 @@ def create_live_dashboard(
         cost_panel.render(total_cost_usd, elapsed_seconds),
     ]
 
-    # Progress bar inside a small panel
+    # Progress bar inside a small panel, then the log panel
     progress_text = progress.render(summary)
-    renderables.append(Panel(progress_text, title="Progress", border_style="cyan"))
-
-    # Log panel
-    renderables.append(_build_log_panel(log_lines or []))
+    renderables.extend(
+        (
+            Panel(progress_text, title="Progress", border_style="cyan"),
+            _build_log_panel(log_lines or []),
+        )
+    )
 
     return Group(*renderables)
 

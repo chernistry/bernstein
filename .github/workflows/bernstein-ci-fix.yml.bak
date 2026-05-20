@@ -16,7 +16,7 @@ name: "Bernstein CI Fix"
 #   - Recursion guard: skips when the failing run was itself an `auto-heal:` PR.
 #   - Feature flag `BERNSTEIN_CI_FIX_ENABLED` (repo variable) gates the whole
 #     workflow so it stays off until explicitly enabled per environment.
-#   - No `actions: write` permission - auto-heal cannot trigger more
+#   - No `actions: write` permission — auto-heal cannot trigger more
 #     workflows recursively.
 on:
   workflow_call:
@@ -125,7 +125,7 @@ jobs:
             --jq '.[0].number // ""' 2>/dev/null || echo "")
           if [ -n "$EXISTING" ]; then
             echo "existing_pr=$EXISTING" >> "$GITHUB_OUTPUT"
-            echo "::notice::Auto-heal PR #$EXISTING already exists for $BRANCH_NAME - skipping."
+            echo "::notice::Auto-heal PR #$EXISTING already exists for $BRANCH_NAME — skipping."
           else
             echo "existing_pr=" >> "$GITHUB_OUTPUT"
           fi
@@ -150,7 +150,7 @@ jobs:
           #   - Dead code (Vulture)            (unused vars/imports)
           #   - Test (...)                     (contract-drift fixtures only,
           #                                     guarded by a strict max-LOC cap
-          #                                     downstream - see #1273.)
+          #                                     downstream — see #1273.)
           #
           # `Test (...)` matrix legs were added so trivial contract drift
           # (e.g. "expected gui in DOCUMENTED_COMMANDS",
@@ -170,11 +170,11 @@ jobs:
           if [ -z "$FAILED" ]; then
             echo "safe_for_gemini=false" >> "$GITHUB_OUTPUT"
             echo "failed_jobs=" >> "$GITHUB_OUTPUT"
-            echo "::notice::No failed jobs detected via gh run view - falling back to issue."
+            echo "::notice::No failed jobs detected via gh run view — falling back to issue."
             exit 0
           fi
 
-          # Multi-line output via heredoc - preserve newlines for downstream readers.
+          # Multi-line output via heredoc — preserve newlines for downstream readers.
           {
             echo "failed_jobs<<EOF"
             echo "$FAILED"
@@ -185,9 +185,9 @@ jobs:
           while IFS= read -r job; do
             [ -z "$job" ] && continue
             if echo "$job" | grep -qE "$ALLOWED"; then
-              echo "::notice::'$job' - allowlisted for Gemini auto-heal."
+              echo "::notice::'$job' — allowlisted for Gemini auto-heal."
             else
-              echo "::notice::'$job' - not in allowlist, escalating to human triage."
+              echo "::notice::'$job' — not in allowlist, escalating to human triage."
               UNSAFE=1
             fi
           done <<< "$FAILED"
@@ -303,15 +303,15 @@ jobs:
           # both columns; treat those as oversized to force human review.
           if git diff HEAD --numstat | awk '{ if ($1 == "-" || $2 == "-") { exit 2 } added+=$1; removed+=$2 } END { exit (added+removed > '"$MAX_LOC"') ? 1 : 0 }'; then
             TOTAL=$(git diff HEAD --numstat | awk '{ added+=$1; removed+=$2 } END { print added+removed }')
-            echo "::notice::Auto-heal diff is ${TOTAL} LOC (cap ${MAX_LOC}) - within cap."
+            echo "::notice::Auto-heal diff is ${TOTAL} LOC (cap ${MAX_LOC}) — within cap."
             echo "within_cap=true" >> "$GITHUB_OUTPUT"
           else
             STATUS=$?
             if [ "$STATUS" = "2" ]; then
-              echo "::warning::Auto-heal diff contains binary changes - refusing to auto-PR."
+              echo "::warning::Auto-heal diff contains binary changes — refusing to auto-PR."
             else
               TOTAL=$(git diff HEAD --numstat | awk '{ added+=$1; removed+=$2 } END { print added+removed }')
-              echo "::warning::Auto-heal diff is ${TOTAL} LOC, exceeds cap ${MAX_LOC} - escalating to fallback issue."
+              echo "::warning::Auto-heal diff is ${TOTAL} LOC, exceeds cap ${MAX_LOC} — escalating to fallback issue."
             fi
             echo "within_cap=false" >> "$GITHUB_OUTPUT"
           fi
@@ -342,7 +342,7 @@ jobs:
           - Failing CI run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${RUN_ID}
           - Auto-heal branch: \`${AUTO_HEAL_BRANCH}\`
 
-          A human reviewer must verify the proposed diff before merge - the
+          A human reviewer must verify the proposed diff before merge — the
           standard required CI checks must still pass on this PR.
 
           <details>

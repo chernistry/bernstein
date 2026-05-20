@@ -166,7 +166,7 @@ DEFAULT_RECURRENCE_WINDOW_SECONDS: Final[float] = 24 * 3600.0
 #: ("fixed > 2 times in 24h").
 DEFAULT_RECURRENCE_THRESHOLD: Final[int] = 2
 
-#: Additional cordon glob - Tier-3 may write contract YAMLs even
+#: Additional cordon glob — Tier-3 may write contract YAMLs even
 #: though the standard auto-heal cordon does not enumerate them.
 TIER3_EXTRA_GLOBS: Final[tuple[str, ...]] = ("tests/contract/contracts/*.yaml",)
 
@@ -430,7 +430,7 @@ def evaluate_cordon(paths: Sequence[str]) -> tuple[bool, tuple[str, ...]]:
     A path is accepted when either:
 
     * The standard auto-heal cordon accepts it (whitespace-only check
-      is *not* applied at Tier-3 - Tier-3 patches are intentionally
+      is *not* applied at Tier-3 — Tier-3 patches are intentionally
       content edits, the whitespace carve-out exists only for ruff-
       format passes).
     * It matches one of :data:`TIER3_EXTRA_GLOBS`.
@@ -456,7 +456,7 @@ def extract_paths_from_unified_diff(diff: str) -> tuple[str, ...]:
     """Pull the set of ``b/...`` paths out of a unified-diff blob.
 
     Tier-3 receives a unified diff from the injected hook. We do not
-    parse the full hunk format - only the ``+++ b/<path>`` headers are
+    parse the full hunk format — only the ``+++ b/<path>`` headers are
     needed so the cordon check stays cheap and predictable.
     """
     paths: list[str] = []
@@ -699,28 +699,28 @@ class Tier3Runner:
         Pipeline order (each gate short-circuits with its own outcome
         kind so the operator surface can read the kind and decide):
 
-        1. ``flag_off`` - Tier-3 not enabled by env.
-        2. ``tier2_produced_patch`` - Tier-2 already produced a patch.
-        3. ``unsafe_class`` - failure class is not in the allowlist.
-        4. ``recurrence_escalated`` - recurrence threshold breached;
+        1. ``flag_off`` — Tier-3 not enabled by env.
+        2. ``tier2_produced_patch`` — Tier-2 already produced a patch.
+        3. ``unsafe_class`` — failure class is not in the allowlist.
+        4. ``recurrence_escalated`` — recurrence threshold breached;
            hand off to Tier-4.
-        5. ``shadow_empty`` - provider returned no patch.
-        6. ``cordon_violation`` - patch touched out-of-cordon paths.
-        7. ``shadow_captured`` - patch persisted, lineage + decision +
+        5. ``shadow_empty`` — provider returned no patch.
+        6. ``cordon_violation`` — patch touched out-of-cordon paths.
+        7. ``shadow_captured`` — patch persisted, lineage + decision +
            envelope rows written, no push.
-        8. ``promoted_push`` - only reachable when
+        8. ``promoted_push`` — only reachable when
            ``promote_from_shadow=True``; mirrors ``shadow_captured``
            and signals the workflow to actually push.
         """
         # 1. flag-off no-op. We deliberately do NOT touch the
         # decision-log, the recurrence tracker, or any filesystem path
-        # when Tier-3 is disabled - the flag-off branch must leave zero
+        # when Tier-3 is disabled — the flag-off branch must leave zero
         # observable side-effects so the workflow can keep the
         # variable unset on shared infrastructure.
         if not self.config.enabled:
             return Tier3Outcome(kind="flag_off", reason="BERNSTEIN_CI_SELF_DRIVE not set to tier3")
 
-        # 2. tier-2 already produced a patch - defer to it.
+        # 2. tier-2 already produced a patch — defer to it.
         if context.tier2_produced_patch:
             return Tier3Outcome(
                 kind="tier2_produced_patch",
@@ -737,7 +737,7 @@ class Tier3Runner:
         assert self.recurrence_tracker is not None  # populated in __post_init__
         now_ts = float(self.clock())
 
-        # 4. recurrence detection - same class + nodeid fixed too often.
+        # 4. recurrence detection — same class + nodeid fixed too often.
         if self.recurrence_tracker.should_escalate(
             failure_class=context.failure_class,
             failing_test_nodeid=context.failing_test_nodeid,

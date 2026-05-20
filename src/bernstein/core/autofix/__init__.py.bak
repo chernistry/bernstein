@@ -1,4 +1,4 @@
-"""Bernstein autofix daemon - auto-repair CI failures on Bernstein PRs.
+"""Bernstein autofix daemon — auto-repair CI failures on Bernstein PRs.
 
 The autofix package watches a configured set of GitHub repositories for
 failed checks on pull requests opened by a Bernstein session, claims
@@ -10,24 +10,24 @@ the failing logs.
 The package is intentionally split across several modules so each
 concern can be unit-tested in isolation:
 
-* :mod:`bernstein.core.autofix.config` - typed reader for the
+* :mod:`bernstein.core.autofix.config` — typed reader for the
   ``~/.config/bernstein/autofix.toml`` configuration file.
-* :mod:`bernstein.core.autofix.classifier` - pure-function classifier
+* :mod:`bernstein.core.autofix.classifier` — pure-function classifier
   that maps a failing-log blob to ``flaky``, ``config`` or ``security``
   and chooses a bandit arm (``sonnet`` / ``haiku`` / ``opus``).
-* :mod:`bernstein.core.autofix.gh_logs` - wraps ``gh run view
+* :mod:`bernstein.core.autofix.gh_logs` — wraps ``gh run view
   --log-failed`` and applies the configured byte budget.
-* :mod:`bernstein.core.autofix.ownership` - reads PR metadata,
+* :mod:`bernstein.core.autofix.ownership` — reads PR metadata,
   validates the ``bernstein-session-id`` trailer, and enforces the
   ``bernstein-autofix`` label gate.
-* :mod:`bernstein.core.autofix.dispatcher` - orchestrates a single
+* :mod:`bernstein.core.autofix.dispatcher` — orchestrates a single
   attempt: cost-cap check, classifier lookup, audit-chain open, goal
   synthesis, dispatch, audit-chain close.
-* :mod:`bernstein.core.autofix.metrics` - Prometheus counters that
+* :mod:`bernstein.core.autofix.metrics` — Prometheus counters that
   surface attempts and spend per repo.
-* :mod:`bernstein.core.autofix.daemon` - process supervisor that
+* :mod:`bernstein.core.autofix.daemon` — process supervisor that
   exposes ``start``, ``stop``, ``status`` and ``attach`` semantics.
-* :mod:`bernstein.core.autofix.tier3` - OpenRouter free-tier shadow-mode
+* :mod:`bernstein.core.autofix.tier3` — OpenRouter free-tier shadow-mode
   escalation that picks up when Tier-1 (deterministic contract-drift
   regen) and Tier-2 (Gemini auto-heal) both produced nothing on a
   failing class in the safe allowlist. Captures a unified-diff under

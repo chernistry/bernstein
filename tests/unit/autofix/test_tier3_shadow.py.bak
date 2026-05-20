@@ -2,22 +2,22 @@
 
 The acceptance-criteria coverage map (see #1711):
 
-* ``test_flag_off_no_op_writes_nothing`` - flag-off is a true no-op.
-* ``test_tier2_produced_patch_skips_tier3`` - Tier-2 wins; Tier-3 stays
+* ``test_flag_off_no_op_writes_nothing`` — flag-off is a true no-op.
+* ``test_tier2_produced_patch_skips_tier3`` — Tier-2 wins; Tier-3 stays
   out of the way.
-* ``test_unsafe_failure_class_is_rejected_before_run_hook`` - class
+* ``test_unsafe_failure_class_is_rejected_before_run_hook`` — class
   allowlist gate fires before any provider call.
-* ``test_shadow_capture_writes_patch_envelope_decision_lineage`` - the
+* ``test_shadow_capture_writes_patch_envelope_decision_lineage`` — the
   happy-path capture writes the diff, the envelope row, the
   decision-log entry and produces the lineage-v2 child body shape.
-* ``test_cordon_violation_rejected_with_decision_log_kind`` - a patch
+* ``test_cordon_violation_rejected_with_decision_log_kind`` — a patch
   that touches paths outside the cordon is rejected with the
   ``cordon_violation`` decision-log kind.
-* ``test_recurrence_threshold_escalates_to_tier4`` - three captures in
+* ``test_recurrence_threshold_escalates_to_tier4`` — three captures in
   a window flip to ``recurrence_escalation``.
-* ``test_run_hook_429_falls_back_to_next_model`` - the fallback walk is
+* ``test_run_hook_429_falls_back_to_next_model`` — the fallback walk is
   invisible to the runner; only the final ``model_used`` is recorded.
-* ``test_promote_from_shadow_flag_flips_kind`` - promotion gate exists
+* ``test_promote_from_shadow_flag_flips_kind`` — promotion gate exists
   but is off by default.
 """
 
@@ -164,7 +164,7 @@ def test_flag_off_no_op_writes_nothing(tmp_path: Path) -> None:
 
 
 def test_tier2_produced_patch_skips_tier3(tmp_path: Path) -> None:
-    """Tier-2 already produced a patch - Tier-3 does not run.
+    """Tier-2 already produced a patch — Tier-3 does not run.
 
     The hook must not be invoked, no patch must be persisted, and the
     outcome kind reflects the short-circuit.
@@ -249,7 +249,7 @@ def test_shadow_capture_writes_patch_envelope_decision_lineage(
     assert recurrence_rows[0]["failure_class"] == "Lint"
     assert recurrence_rows[0]["failing_test_nodeid"] == "tests/unit/test_a.py::test_z"
 
-    # Decision log entry - kind=tier3_shadow with the right inputs.
+    # Decision log entry — kind=tier3_shadow with the right inputs.
     records = dl.replay(decision_path)
     assert len(records) == 1
     record = records[0]
@@ -260,7 +260,7 @@ def test_shadow_capture_writes_patch_envelope_decision_lineage(
     assert record.inputs["quota_envelope"] == "ci-autoheal"
     assert record.inputs["promoted"] is False
 
-    # Lineage payload - matches the AutohealLineagePayload shape.
+    # Lineage payload — matches the AutohealLineagePayload shape.
     lineage = outcome.lineage_payload
     assert lineage["failed_run_id"] == "987654321"
     assert lineage["tier"] == 3
@@ -283,7 +283,7 @@ def test_cordon_violation_rejected_with_decision_log_kind(tmp_path: Path) -> Non
     sdd = tmp_path / "sdd"
     decision_path = tmp_path / "decisions.jsonl"
     # The patch touches src/bernstein/core/server.py (non-whitespace
-    # change - would only be cordon-allowed under a whitespace-only
+    # change — would only be cordon-allowed under a whitespace-only
     # diff) which is exactly the kind of touch the cordon must refuse.
     patch = _diff_for("src/bernstein/core/server.py", body="+raise Boom")
     hook = _RecordingRunHook(queued=[RunResult(patch=patch, model_used="x", cost_usd=0.0)])
@@ -334,7 +334,7 @@ def test_recurrence_threshold_escalates_to_tier4(tmp_path: Path) -> None:
     decision_path = tmp_path / "decisions.jsonl"
     recurrence_path = sdd / "autoheal" / "recurrence.jsonl"
     recurrence_path.parent.mkdir(parents=True, exist_ok=True)
-    # Two pre-existing captures inside the window - current capture is
+    # Two pre-existing captures inside the window — current capture is
     # the third.
     for i in range(3):
         recurrence_path.open("a", encoding="utf-8").write(
@@ -376,7 +376,7 @@ def test_recurrence_threshold_escalates_to_tier4(tmp_path: Path) -> None:
 def test_run_hook_429_falls_back_to_next_model(tmp_path: Path) -> None:
     """The fallback list semantics are exercised by the hook contract.
 
-    The runner does not orchestrate the fallback walk itself - that is
+    The runner does not orchestrate the fallback walk itself — that is
     the hook's job (so the actual provider quirks stay testable in
     one place). The hook contract surface here just asserts that the
     primary + fallback list is passed through and that the
@@ -570,7 +570,7 @@ def test_recurrence_tracker_ignores_old_rows(tmp_path: Path) -> None:
         )
 
     tracker = RecurrenceTracker(path=path, window_seconds=60.0, threshold=1)
-    # Window is 60s, now is 1000s - the old rows are out of band.
+    # Window is 60s, now is 1000s — the old rows are out of band.
     assert (
         tracker.count_recent(
             failure_class="Lint",

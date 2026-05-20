@@ -52,7 +52,7 @@ def _normalise_failure_class(raw: str) -> str:
     everything after the first ``" ("`` only when the class is
     enumerated by the workflow allowlist, so the resulting string lines
     up with :data:`SAFE_FAILURE_CLASSES`. Anything we cannot map is
-    surfaced verbatim - the safe-allowlist gate inside the module will
+    surfaced verbatim — the safe-allowlist gate inside the module will
     refuse it.
     """
     cleaned = raw.strip()

@@ -16,7 +16,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `streaming_merge.py`    | Streaming task results for long-running agents (incremental merge) |
 | `agents/`               | agents sub-package |
 | `approval/`             | Interactive tool-call approval (op-002) |
-| `autofix/`              | Bernstein autofix daemon — auto-repair CI failures on Bernstein PRs |
+| `autofix/`              | Bernstein autofix daemon - auto-repair CI failures on Bernstein PRs |
 | `autoheal/`             | Auto-heal v2 subpackage |
 | `chat/`                 | Chat-control bridges for driving Bernstein agents from messaging apps |
 | `communication/`        | communication sub-package |

@@ -113,6 +113,10 @@ def build_capability_card() -> dict[str, Any]:
             "advertised": tools_for_tier(active_tier),
             "tiers": tier_audit(),
         },
+        "prompts": {
+            "supported": True,
+            "catalogue": ["orchestrate_goal", "triage_failed_tasks", "cost_recap"],
+        },
         "costMeter": {
             "enabled": cost_meter_enabled(),
             "envVar": COST_METER_ENV,

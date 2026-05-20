@@ -253,10 +253,42 @@ _SERVER_INFO: dict[str, Any] = {
 
 _CAPABILITIES: dict[str, Any] = {
     "tools": {"listChanged": False},
+    # Server-side prompt templates surfaced via prompts/list and prompts/get.
+    "prompts": {"listChanged": False},
     # The server honours notifications/cancelled for in-flight tool calls and
     # preserves partial output on cancel.
     "experimental": {"cancellation": {"partialResults": True}},
 }
+
+
+# Built-in prompt catalogue mirroring src/bernstein/mcp/prompts.py. Mirroring
+# here keeps the streamable HTTP transport self-contained: it does not need
+# to spin up a FastMCP instance to answer prompts/list and prompts/get.
+_PROMPT_DEFS: list[dict[str, Any]] = [
+    {
+        "name": "orchestrate_goal",
+        "description": "Plan a Bernstein orchestration run for a single goal.",
+        "arguments": [
+            {"name": "goal", "description": "What to accomplish.", "required": True},
+            {"name": "role", "description": "Specialist role.", "required": False},
+            {"name": "scope", "description": "Task scope.", "required": False},
+        ],
+    },
+    {
+        "name": "triage_failed_tasks",
+        "description": "Triage the most recent failed tasks and propose next actions.",
+        "arguments": [
+            {"name": "limit", "description": "Max tasks to inspect.", "required": False},
+        ],
+    },
+    {
+        "name": "cost_recap",
+        "description": "Summarise Bernstein cost by role for a stated window.",
+        "arguments": [
+            {"name": "window", "description": "Window label (e.g. today).", "required": False},
+        ],
+    },
+]
 
 
 class StreamableHTTPTransport:
@@ -459,6 +491,8 @@ class StreamableHTTPTransport:
             "initialize": self._method_initialize,
             "tools/list": self._method_tools_list,
             "tools/call": self._method_tools_call,
+            "prompts/list": self._method_prompts_list,
+            "prompts/get": self._method_prompts_get,
             "ping": self._method_ping,
             "notifications/initialized": self._method_noop,
             "notifications/cancelled": self._method_cancelled,
@@ -564,6 +598,72 @@ class StreamableHTTPTransport:
             await self._inflight.discard(req_id)
         return {
             "content": [{"type": "text", "text": wrap_envelope(text, meter)}],
+        }
+
+    async def _method_prompts_list(
+        self,
+        session: MCPSession,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Handle 'prompts/list' - return the built-in prompt catalogue.
+
+        Common auto-discovery hosts probe this surface to populate a prompt
+        picker. The catalogue is the same one the FastMCP server registers,
+        kept in sync via ``_PROMPT_DEFS`` on this transport.
+        """
+        return {"prompts": _PROMPT_DEFS}
+
+    async def _method_prompts_get(
+        self,
+        session: MCPSession,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Handle 'prompts/get' - render a named prompt with arguments.
+
+        Args:
+            session: Current MCP session.
+            params: JSON-RPC params carrying ``name`` and optional ``arguments``.
+
+        Returns:
+            A prompt response with a single user-role text message.
+
+        Raises:
+            ValueError: When the requested prompt name is unknown.
+        """
+        from bernstein.mcp.prompts import (
+            _cost_recap_template,
+            _orchestrate_goal_template,
+            _triage_failed_tasks_template,
+        )
+
+        name = params.get("name", "")
+        arguments = params.get("arguments", {}) or {}
+        if name == "orchestrate_goal":
+            body = _orchestrate_goal_template(
+                goal=arguments.get("goal", ""),
+                role=arguments.get("role", "backend"),
+                scope=arguments.get("scope", "medium"),
+            )
+        elif name == "triage_failed_tasks":
+            limit_raw = arguments.get("limit", 5)
+            try:
+                limit = int(limit_raw)
+            except (TypeError, ValueError):
+                limit = 5
+            body = _triage_failed_tasks_template(limit=limit)
+        elif name == "cost_recap":
+            body = _cost_recap_template(window=arguments.get("window", "today"))
+        else:
+            msg = f"Unknown prompt: {name}"
+            raise ValueError(msg)
+        return {
+            "description": next((p["description"] for p in _PROMPT_DEFS if p["name"] == name), ""),
+            "messages": [
+                {
+                    "role": "user",
+                    "content": {"type": "text", "text": body},
+                }
+            ],
         }
 
     async def _method_cancelled(

@@ -33,13 +33,14 @@ covered, the gap is recorded as a follow-up rather than left undefined.
 | Streaming tool-call output | Common | Tool calls run as cancellable tasks on the HTTP transport | Partial |
 | Cancel in-flight tool call | Common | `notifications/cancelled` by request id | Yes |
 | Partial-result preservation on cancel | Less common | Cancelled calls return `cancelled: true` with preserved `partial` chunks | Yes |
-| Resource listing: prompts/sampling routes | Common | Lineage resources and the capability card; no prompt/sampling routes | Partial |
+| Resource listing: prompts routes | Common | Built-in prompt catalogue served via `prompts/list` and `prompts/get`; see `src/bernstein/mcp/prompts.py` | Yes |
+| Resource listing: sampling routes | Less common | Not implemented; advertised under `auth.planned`-style follow-up | Planned |
 | Observability: per-call latency | Less common | `_meter.latency_ms` on every response | Yes |
 | Observability: per-call cost meter | Uncommon | `_meter.cost_usd` envelope on every response | Yes |
 | Observability: call trace id | Less common | `_meter.call_id` on every response | Yes |
 | Tool-catalogue richness | Varies | Tiered catalogue (`core` / `standard` / `all`); see `docs/mcp/tool_tiers.md` | Yes |
 
-## Surfaces landed in this pass
+## Surfaces landed in earlier passes
 
 1. Per-call cost-meter envelope on every tool response (`result` plus `_meter`
    with latency, cost, trace id, status), uniform across stdio, SSE, and the
@@ -50,14 +51,28 @@ covered, the gap is recorded as a follow-up rather than left undefined.
 3. Streaming tool-call cancel with partial-result preservation on the
    streamable HTTP transport, via `notifications/cancelled`.
 
+## Surfaces landed in this pass
+
+1. Built-in prompt catalogue exposed via `prompts/list` and `prompts/get` on
+   the FastMCP server and the streamable HTTP transport. Three orchestration
+   prompts (`orchestrate_goal`, `triage_failed_tasks`, `cost_recap`) are
+   rendered server-side from arguments; see `src/bernstein/mcp/prompts.py`.
+2. OAuth-2 PKCE authorization-server metadata published at the
+   `.well-known/oauth-authorization-server` discovery path on the streamable
+   HTTP transport. The metadata is opt-in (configured via
+   `BERNSTEIN_MCP_OAUTH_ISSUER`) so a client that auto-discovers protected
+   resource metadata can locate the IdP without the server itself issuing
+   tokens; see `src/bernstein/mcp/oauth.py`.
+
 ## Follow-ups (tracked, not in this pass)
 
-- OAuth-2 PKCE and OIDC federation auth paths. The capability card already
-  advertises these under `auth.planned` so a client sees the gap as
-  acknowledged rather than undefined.
+- Full OAuth-2 PKCE token issuance and OIDC federation behind the metadata.
+  The discovery metadata advertises the IdP a host should redirect to;
+  bearer-token validation against that issuer is still the static-bearer
+  path.
 - WebSocket transport.
 - Server-initiated SSE push channel over GET.
-- Prompt and sampling resource routes.
+- Sampling resource routes (`sampling/createMessage`).
 
 New tools are out of scope for this pass by design; this work closes
 protocol-surface gaps only.

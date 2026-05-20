@@ -340,8 +340,7 @@ class MessageBoard:
 
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as f:
-            for d in delegations:
-                f.write(json.dumps(d.to_dict(), default=str) + "\n")
+            f.writelines(json.dumps(d.to_dict(), default=str) + "\n" for d in delegations)
         return len(delegations)
 
     def load_from_disk(self, path: Path) -> int:
@@ -526,8 +525,7 @@ class BulletinBoard:
 
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as f:
-            for msg in messages:
-                f.write(json.dumps(asdict(msg), default=str) + "\n")
+            f.writelines(json.dumps(asdict(msg), default=str) + "\n" for msg in messages)
         return len(messages)
 
     def summary(self, limit: int = 10) -> str:

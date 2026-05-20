@@ -229,8 +229,7 @@ class ToolUseContext:
         jsonl_path = metrics_dir / "tool_use_context.jsonl"
         try:
             with jsonl_path.open("a") as f:
-                for inv in self.invocations:
-                    f.write(json.dumps(inv.to_dict()) + "\n")
+                f.writelines(json.dumps(inv.to_dict()) + "\n" for inv in self.invocations)
         except OSError as exc:
             logger.warning("Failed to persist tool-use context: %s", exc)
 

@@ -245,22 +245,20 @@ def _detect_oversized_contexts(records: list[TokenRecord], interval_threshold: i
     Returns:
         List of :class:`WasteFinding` with ``category="oversized_context"``.
     """
-    findings: list[WasteFinding] = []
-    for i, rec in enumerate(records):
-        if rec.total >= interval_threshold:
-            findings.append(
-                WasteFinding(
-                    category="oversized_context",
-                    token_count=rec.total,
-                    description=(
-                        f"Oversized context at record {i}: {rec.total:,} tokens "
-                        f"in a single turn (in={rec.input_tokens:,}, out={rec.output_tokens:,}, "
-                        f"threshold={interval_threshold:,})"
-                    ),
-                    record_index=i,
-                )
-            )
-    return findings
+    return [
+        WasteFinding(
+            category="oversized_context",
+            token_count=rec.total,
+            description=(
+                f"Oversized context at record {i}: {rec.total:,} tokens "
+                f"in a single turn (in={rec.input_tokens:,}, out={rec.output_tokens:,}, "
+                f"threshold={interval_threshold:,})"
+            ),
+            record_index=i,
+        )
+        for i, rec in enumerate(records)
+        if rec.total >= interval_threshold
+    ]
 
 
 # ---------------------------------------------------------------------------

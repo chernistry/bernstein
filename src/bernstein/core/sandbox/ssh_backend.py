@@ -245,7 +245,7 @@ class SSHSandboxSession(SandboxSession):
         if env:
             merged_env.update(env)
 
-        quoted_cmd = " ".join(shlex.quote(arg) for arg in cmd)
+        quoted_cmd = shlex.join(cmd)
         env_prefix = " ".join(f"{k}={shlex.quote(v)}" for k, v in merged_env.items())
         script = f"cd {shlex.quote(effective_cwd)} && "
         if env_prefix:
@@ -548,7 +548,7 @@ class SSHSandboxBackend:
         if env:
             env_prefix = " ".join(f"{k}={shlex.quote(v)}" for k, v in env.items()) + " "
         cd_prefix = f"cd {shlex.quote(cwd)} && " if cwd else ""
-        quoted = " ".join(shlex.quote(arg) for arg in cmd)
+        quoted = shlex.join(cmd)
         script = f"{cd_prefix}{env_prefix}{quoted}".strip()
         argv = self._build_ssh_cmd(script)
         return subprocess.Popen(

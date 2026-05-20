@@ -144,7 +144,7 @@ def _classify(goal: str, role: str | None) -> str:
     lowered = goal.lower()
 
     for prefix in _CC_PREFIXES:
-        if lowered.startswith(f"{prefix}:") or lowered.startswith(f"{prefix}("):
+        if lowered.startswith((f"{prefix}:", f"{prefix}(")):
             return prefix
 
     if any(kw in lowered for kw in _FIX_KEYWORDS):

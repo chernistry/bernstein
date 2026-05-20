@@ -46,6 +46,7 @@ import re
 import shlex
 import subprocess
 from dataclasses import dataclass, field
+from itertools import starmap
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -401,7 +402,7 @@ def assertions_to_pytest(
     of the spec test file.
     """
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    rendered = "\n".join(_render_pytest_case(idx, a) for idx, a in enumerate(assertions))
+    rendered = "\n".join(starmap(_render_pytest_case, enumerate(assertions)))
     body = _PYTEST_HEADER + (rendered or _PYTEST_EMPTY_PLACEHOLDER) + "\n"
     out_path.write_text(body)
     return out_path

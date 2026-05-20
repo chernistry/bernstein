@@ -40,6 +40,7 @@ import hmac as _hmac
 import io
 import json
 import logging
+import operator
 import zipfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -489,7 +490,7 @@ def _zip_artefacts(
                 ("data_catalog.json", data_catalog),
                 ("clause_map.json", clause_map),
             ),
-            key=lambda kv: kv[0],
+            key=operator.itemgetter(0),
         )
     )
 

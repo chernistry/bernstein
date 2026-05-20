@@ -222,8 +222,7 @@ def upsert_daily_snapshot(
 
     path = _history_path(sdd_dir)
     with path.open("w") as fh:
-        for s in updated:
-            fh.write(json.dumps(s.to_dict()) + "\n")
+        fh.writelines(json.dumps(s.to_dict()) + "\n" for s in updated)
 
     return snap
 

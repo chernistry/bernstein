@@ -178,15 +178,11 @@ def _validate_required(required: Any, properties: Any) -> list[SchemaValidationE
         return [SchemaValidationError(path="/required", message="'required' must be an array")]
     if properties is None or not isinstance(properties, dict):
         return []
-    errors: list[SchemaValidationError] = []
-    for req_name in cast("list[str]", required):
-        if req_name not in properties:
-            errors.append(
-                SchemaValidationError(
-                    path="/required", message=f"Required property {req_name!r} not found in properties"
-                )
-            )
-    return errors
+    return [
+        SchemaValidationError(path="/required", message=f"Required property {req_name!r} not found in properties")
+        for req_name in cast("list[str]", required)
+        if req_name not in properties
+    ]
 
 
 def _validate_items(items: Any) -> list[SchemaValidationError]:
@@ -236,13 +232,11 @@ def _check_required_params(params: dict[str, Any], schema: dict[str, Any]) -> li
     required_raw: Any = schema.get("required", [])
     if not isinstance(required_raw, list):
         return []
-    errors: list[SchemaValidationError] = []
-    for req_name in cast("list[str]", required_raw):
-        if req_name not in params:
-            errors.append(
-                SchemaValidationError(path=f"/params/{req_name}", message=f"Missing required parameter: {req_name!r}")
-            )
-    return errors
+    return [
+        SchemaValidationError(path=f"/params/{req_name}", message=f"Missing required parameter: {req_name!r}")
+        for req_name in cast("list[str]", required_raw)
+        if req_name not in params
+    ]
 
 
 def _check_param_types(params: dict[str, Any], schema: dict[str, Any]) -> list[SchemaValidationError]:

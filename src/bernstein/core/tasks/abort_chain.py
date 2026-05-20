@@ -327,11 +327,7 @@ class AbortChain:
             List of child session IDs that were sent a ``SHUTDOWN`` signal.
         """
         descendants = self._collect_descendants(session_id)
-        aborted: list[str] = []
-
-        for child_id in descendants:
-            if self._write_shutdown(child_id, session_id):
-                aborted.append(child_id)
+        aborted: list[str] = [child_id for child_id in descendants if self._write_shutdown(child_id, session_id)]
 
         if aborted:
             logger.info(

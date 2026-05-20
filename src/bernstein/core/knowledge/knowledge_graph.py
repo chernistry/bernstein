@@ -139,8 +139,7 @@ def _module_index(paths: list[str]) -> dict[str, str]:
 
 
 def _file_path_to_module(path: str) -> str:
-    trimmed = path.removeprefix("src/").removesuffix(".py").removesuffix("/__init__")
-    return trimmed.replace("/", ".")
+    return path.removeprefix("src/").removesuffix(".py").removesuffix("/__init__").replace("/", ".")
 
 
 def _resolve_import_file(module_index: dict[str, str], imported_path: str) -> str | None:

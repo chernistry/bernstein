@@ -347,10 +347,7 @@ def score_change(
 
     hits: list[DetectorHit] = []
     for det in detectors_list:
-        matched_paths: list[str] = []
-        for p in paths:
-            if _match_path(det, p):
-                matched_paths.append(p)
+        matched_paths: list[str] = [p for p in paths if _match_path(det, p)]
 
         snippets: list[str] = []
         if det.kind == "content_regex":

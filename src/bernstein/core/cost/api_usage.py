@@ -279,8 +279,8 @@ class ApiUsageTracker:
         # Persist calls
         calls_file = self.metrics_dir / "api_calls.jsonl"
         with calls_file.open("a", encoding="utf-8") as f:
-            for call in self.calls[-1:]:  # Append only the latest call
-                f.write(json.dumps(asdict(call)) + "\n")
+            # Append only the latest call.
+            f.writelines(json.dumps(asdict(call)) + "\n" for call in self.calls[-1:])
 
         # Persist summary
         summary_file = self.metrics_dir / "summary.json"

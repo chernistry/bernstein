@@ -171,7 +171,7 @@ def _is_within_revalidate_window(fetched_at: str, *, revalidate_seconds: int, no
     if not fetched_at:
         return False
     try:
-        ts = datetime.fromisoformat(fetched_at.replace("Z", "+00:00"))
+        ts = datetime.fromisoformat(fetched_at)
     except ValueError:
         return False
     current = now or datetime.now(tz=UTC)

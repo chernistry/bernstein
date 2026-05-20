@@ -12,6 +12,7 @@ import logging
 import os
 import re
 from contextlib import suppress
+from itertools import starmap
 from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import urlparse
 
@@ -1224,7 +1225,7 @@ def _parse_quality_gate_pipeline(raw: object) -> list[GatePipelineStep] | None:
         return None
     if not isinstance(raw, list):
         raise SeedError(f"quality_gates.pipeline must be a list, got: {type(raw).__name__}")
-    return [_parse_single_pipeline_step(i, entry) for i, entry in enumerate(raw)]
+    return list(starmap(_parse_single_pipeline_step, enumerate(raw)))
 
 
 def _parse_quality_gate_benchmark(raw: object) -> BenchmarkConfig:
@@ -1279,7 +1280,7 @@ def _parse_formal_properties(raw: object) -> list[FormalProperty]:
     """Parse the ``formal_verification.properties`` list."""
     if not isinstance(raw, list):
         raise SeedError("formal_verification.properties must be a list")
-    return [_parse_single_formal_property(i, entry) for i, entry in enumerate(raw)]
+    return list(starmap(_parse_single_formal_property, enumerate(raw)))
 
 
 def _parse_catalogs(raw: object) -> CatalogRegistry | None:

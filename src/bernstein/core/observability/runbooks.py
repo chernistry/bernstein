@@ -138,20 +138,20 @@ class RunbookEngine:
         path = metrics_dir / "runbook_log.jsonl"
         try:
             with path.open("a") as f:
-                for ex in self.executions:
-                    f.write(
-                        json.dumps(
-                            {
-                                "rule_name": ex.rule_name,
-                                "task_id": ex.task_id,
-                                "action": ex.action,
-                                "timestamp": ex.timestamp,
-                                "success": ex.success,
-                                "output": ex.output[:500],  # Truncate long output
-                            }
-                        )
-                        + "\n"
+                f.writelines(
+                    json.dumps(
+                        {
+                            "rule_name": ex.rule_name,
+                            "task_id": ex.task_id,
+                            "action": ex.action,
+                            "timestamp": ex.timestamp,
+                            "success": ex.success,
+                            "output": ex.output[:500],  # Truncate long output
+                        }
                     )
+                    + "\n"
+                    for ex in self.executions
+                )
             # Clear in-memory after flush
             self.executions.clear()
         except OSError as exc:

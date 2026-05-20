@@ -1462,7 +1462,7 @@ class GateRunner:
         return [path for path in changed_files if path.endswith(".py")]
 
     def _quote_paths(self, paths: list[str]) -> str:
-        return " ".join(shlex.quote(path) for path in paths)
+        return shlex.join(paths)
 
     @staticmethod
     def _find_tests_by_name(run_dir: Path, module_name: str) -> set[str]:

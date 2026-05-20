@@ -24,6 +24,7 @@ import logging
 import re
 from dataclasses import dataclass
 from enum import StrEnum
+from itertools import starmap
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -264,7 +265,7 @@ class VersionChecker:
         Returns:
             List of compatibility results.
         """
-        return [self.check(name, version) for name, version in servers.items()]
+        return list(starmap(self.check, servers.items()))
 
     def get_incompatible(self) -> list[CompatResult]:
         """Return results for all servers checked as incompatible."""

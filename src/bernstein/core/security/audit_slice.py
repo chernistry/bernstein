@@ -180,8 +180,7 @@ def write_slice_jsonl(result: AuditSliceResult, out_path: Path) -> Path:
     out_path = out_path.expanduser().resolve()
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as fh:
-        for entry in result.events:
-            fh.write(json.dumps(entry, sort_keys=True) + "\n")
+        fh.writelines(json.dumps(entry, sort_keys=True) + "\n" for entry in result.events)
     return out_path
 
 

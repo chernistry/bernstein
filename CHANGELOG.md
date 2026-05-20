@@ -2,6 +2,40 @@
 
 All notable project changes are tracked here (code + docs).
 
+## [2.4.0] - Observability surfaces, single-writer run state, approval-nonce binding
+
+14 commits since v2.3.1. Full notes: [`docs/release-notes/v2.4.0.md`](docs/release-notes/v2.4.0.md).
+
+### Added
+
+- `bernstein doctor sonar` subcommand surfacing coverage, code smells by severity, bugs, vulnerabilities, security hotspots, and cognitive-complexity hotspots from a configured SonarQube server; advisory baseline cache and parent-doctor nudge when open smells exceed the threshold or vulnerabilities regress (#1648).
+- `bernstein doctor glitchtip` subcommand surfacing last-24h issue counts by severity, a 7-day trend, and top unresolved issues; optional baseline cache and parent-doctor nudge when new unresolved issues appear (#1646).
+- Sticky PR Sonar comment workflow and daily GlitchTip alert sweep workflow (06:30 UTC) that mirrors fatal-level issues into sticky GitHub issues labelled `glitchtip-alert` and auto-closes them when the GlitchTip side resolves (#1646, #1648).
+- Canonical stream-signal protocol (`COMPLETED`, `FAILED`, `QUESTION`, `PLAN_DRAFT`, `PLAN_READY`, `BLOCKED`) parseable from any wrapped CLI stdout; optional `stream_signal_parser` hook on `CLIAdapter`; `ConformanceReport` soft-warns on missing terminal signals (#1638).
+- Single-writer `RunActor` with one async event queue, monotonic seq numbers, and a bounded `ReplayBuffer` that emits an explicit `Gap{up_to_seq}` marker on eviction; approval gate gains an opt-in `session_id` kwarg that mirrors approval events through `run_actor_registry` (#1641).
+- Empirical-confidence ledger: append-only SQLite store of per-decision outcomes plus a sample-size-gated `ConfidenceQuery` (default 5) wired into the model recommender ahead of the capability-tier heuristic and the bandit arm (#1653).
+- Declarative task DAG: `Task.parallel_safe` and `Task.story_id` fields, `[T<id>] [P] [USn]` backlog parser, `core/orchestration/task_dag.py` with `topological_iter_with_parallel` yielding ready batches, and `bernstein plan dag` / `bernstein tasks dag` CLI renderers (#1655).
+
+### Changed
+
+- HTTP approval replies now require a single-use 16-byte server-minted `nonce`; mismatches surface `409 NONCE_MISMATCH` and replays against an evicted approval surface `410 NONCE_EXPIRED` (#1642).
+- Sonar scan workflow switched from a direct trigger to `workflow_run` on the CI workflow; the scan now consumes the existing `coverage-report` artifact instead of re-running the full test suite under a single non-sharded `pytest --cov` (#1645).
+- `bernstein approve-tool` / `bernstein reject-tool` read the on-disk pending-approval record and thread the nonce back through `resolve()` (#1642).
+
+### Fixed
+
+- Re-add `str()` coercion inside the `OSError` / `TimeoutExpired` handler of `git_context._run_git` so callers passing a `Path` in the `argv` list (`test_context`, `test_context_builder`, `test_failure_reduction` via `cochange_files`) do not crash the debug formatter with `expected str instance, PosixPath found` (#1644).
+- Apply `ruff format` to `core/quality/review_pipeline/review_gate.py` after #1638 collapsed several string and comprehension wrappings under the 120-character line length, fixing `ruff format --check` on main (#1640).
+- Default empty `nonce` body field to an empty string at the schema layer so a missing field flows through the handler and surfaces as `409 NONCE_MISMATCH` instead of `422` (#1642).
+- Move `Iterator` and `Path` imports under `TYPE_CHECKING` in `core/orchestration/task_dag.py`, replace `== True` with `is True` in `tests/unit/tasks/test_parallel_flag.py`, and run `ruff format` across the four files added or touched by #1655, fixing the Lint job that turned main red after the task-DAG merge (#1657).
+
+### Internal
+
+- Refurb auto-fix wave 4: FURB184 197 -> 34, FURB138 42 -> 8, FURB124 29 -> 3, FURB142 16 -> 0, FURB113 23 -> 21 in `src/`; plus a `ruff format` pass over 36 files to wrap `E501` long-line comprehensions and four targeted fixes for broken `seen in seen` self-referential dedup comprehensions (#1643).
+- Refurb cluster D: FURB139 / FURB143 / FURB179 strings and enumerate, 16 autofixes (#1647).
+- Refurb cluster E: FURB182 / FURB183 / FURB142 / FURB101 miscellaneous, 33 autofixes across 21 files; refurb now reports 0 alerts for these rules in `src/` (#1649).
+- Review-bot acknowledgement gate caught seven CodeRabbit must-address findings on #1646: HTTP status validation, `gh issue` subprocess `check=True`, doc clarification on soft-fail conditions, narrower import-time exception handling, logging of unexpected fetch failures, `IntRange(min=1)` on `--top-n`, and dropping a truthy fallback in `summarise_severity` / `_bucket_trend_by_day` that was inflating zero counts to one.
+
 ## [2.3.1] - Maintenance
 
 4 commits since v2.3.0. Full notes: [`docs/release-notes/v2.3.1.md`](docs/release-notes/v2.3.1.md).

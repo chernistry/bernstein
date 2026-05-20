@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
 import os
 import sys
 from dataclasses import dataclass
@@ -46,6 +47,8 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
     from rich.console import Console
+
+_LOGGER = logging.getLogger(__name__)
 
 #: Environment variable carrying the runtime DSN. We only read this so we
 #: can produce a precise soft-fail reason when neither the token nor the
@@ -300,6 +303,10 @@ def suggest_nudge_line(
     try:
         result: InsightsResult = fetch(env=source)
     except Exception:
+        # The nudge is purely advisory: log the unexpected failure so we
+        # can diagnose regressions, but never propagate it to the doctor
+        # command above us.
+        _LOGGER.warning("GlitchTip fetch failed in suggest_nudge_line", exc_info=True)
         return None
 
     if not result.ok:
@@ -337,7 +344,7 @@ def suggest_nudge_line(
 @click.option(
     "--top-n",
     "top_n",
-    type=int,
+    type=click.IntRange(min=1),
     default=DEFAULT_TOP_N,
     show_default=True,
     help="Number of top unresolved issues to surface.",

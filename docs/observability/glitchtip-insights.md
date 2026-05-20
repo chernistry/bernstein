@@ -27,9 +27,9 @@ unresolved issues without leaving the terminal.
 | `BERNSTEIN_GLITCHTIP_ORG` | Organisation slug. | `bernstein` |
 | `BERNSTEIN_GLITCHTIP_BASELINE` | Override for the baseline cache path. | `~/.local/share/bernstein/glitchtip-baseline.json` |
 
-If both `BERNSTEIN_GLITCHTIP_TOKEN` and `BERNSTEIN_GLITCHTIP_DSN` are
-missing, the doctor soft-fails with a one-line hint and exit code 0.
-No operator workflow is interrupted.
+If `BERNSTEIN_GLITCHTIP_TOKEN` is missing, the doctor soft-fails with a
+one-line hint and exit code 0. `BERNSTEIN_GLITCHTIP_DSN` is informational
+only and does not affect the soft-fail. No operator workflow is interrupted.
 
 ## CLI
 

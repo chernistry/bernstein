@@ -149,7 +149,7 @@ def summarise_severity(issues: Iterable[GlitchTipIssue]) -> dict[str, int]:
     counts["other"] = 0
     for issue in issues:
         bucket = issue.level if issue.level in KNOWN_LEVELS else "other"
-        counts[bucket] += issue.count or 1
+        counts[bucket] += issue.count
     return counts
 
 
@@ -335,5 +335,5 @@ def _bucket_trend_by_day(issues: Iterable[GlitchTipIssue]) -> list[int]:
             continue
         age_days = (now - first).days
         if 0 <= age_days < 7:
-            buckets[6 - age_days] += issue.count or 1
+            buckets[6 - age_days] += issue.count
     return buckets

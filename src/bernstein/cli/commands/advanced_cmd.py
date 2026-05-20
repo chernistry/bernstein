@@ -16,6 +16,7 @@ from __future__ import annotations
 import contextlib
 import datetime as dt
 import json
+import logging
 import sys
 import time
 from pathlib import Path
@@ -36,6 +37,8 @@ from bernstein.cli.mcp_cmd import mcp_server as mcp_server  # re-exported for ma
 from bernstein.core.runtime_state import read_session_replay_metadata
 from bernstein.core.traces import TraceStore, build_replay_task_request, render_replay_diff
 from bernstein.core.visual_config import VisualConfig, resolve_visual_config
+
+_LOGGER = logging.getLogger(__name__)
 
 _STYLE_BOLD_CYAN = "bold cyan"
 
@@ -641,11 +644,14 @@ def _maybe_print_glitchtip_nudge(*, as_json: bool) -> None:
         return
     try:
         from bernstein.cli.commands.doctor.glitchtip import suggest_nudge_line
-    except Exception:  # pragma: no cover - defensive
+    except ImportError:  # pragma: no cover - defensive
         return
     try:
         line = suggest_nudge_line()
     except Exception:  # pragma: no cover - defensive
+        # Log unexpected failures so we can diagnose regressions, but never
+        # raise: the nudge is advisory and must not crash `bernstein doctor`.
+        _LOGGER.warning("GlitchTip nudge failed", exc_info=True)
         return
     if line:
         console.print(f"[dim yellow]{line}[/dim yellow]")

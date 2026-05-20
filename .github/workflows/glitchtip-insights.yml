@@ -73,8 +73,14 @@ jobs:
           fi
           # Resolved+ignored mirror so we can close stale GitHub issues.
           resolved_url="${GLITCHTIP_BASE_URL%/}/api/0/organizations/${GLITCHTIP_ORG}/issues/?statsPeriod=7d&query=level:fatal+is:resolved&limit=100"
-          curl -sS -H "Authorization: Bearer ${GLITCHTIP_API_TOKEN}" \
-              "$resolved_url" > .glitchtip-sweep/resolved.json
+          resolved_http_code=$(curl -sS -o .glitchtip-sweep/resolved.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${GLITCHTIP_API_TOKEN}" \
+              "$resolved_url")
+          if [ "$resolved_http_code" != "200" ]; then
+            echo "GlitchTip resolved API returned HTTP $resolved_http_code; aborting." >&2
+            cat .glitchtip-sweep/resolved.json >&2 || true
+            exit 1
+          fi
 
       - name: Reconcile GitHub issues
         if: steps.check_token.outputs.skip == 'false'
@@ -166,18 +172,18 @@ jobs:
                   if row.get("state") == "CLOSED":
                       subprocess.run(
                           ["gh", "issue", "reopen", str(row["number"]), "--repo", REPO],
-                          check=False, capture_output=True,
+                          check=True, capture_output=True,
                       )
                   subprocess.run(
                       ["gh", "issue", "edit", str(row["number"]),
                        "--repo", REPO, "--body", body],
-                      check=False, capture_output=True,
+                      check=True, capture_output=True,
                   )
               else:
                   subprocess.run(
                       ["gh", "issue", "create", "--repo", REPO,
                        "--title", title, "--label", LABEL, "--body", body],
-                      check=False, capture_output=True,
+                      check=True, capture_output=True,
                   )
 
           # Auto-close GH mirrors whose GlitchTip side is resolved.
@@ -191,7 +197,7 @@ jobs:
                       ["gh", "issue", "close", str(row["number"]),
                        "--repo", REPO,
                        "--comment", "GlitchTip issue is resolved; closing the auto-opened mirror."],
-                      check=False, capture_output=True,
+                      check=True, capture_output=True,
                   )
           PY
 

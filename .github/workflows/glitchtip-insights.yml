@@ -1,0 +1,204 @@
+name: glitchtip-insights
+
+# Daily 06:30 UTC sweep of GlitchTip for the bernstein project. When a
+# CRITICAL (fatal-level) issue is observed the workflow opens a sticky
+# GitHub issue with the GlitchTip title, first-seen time, and event
+# count. Resolved GlitchTip issues auto-close the GitHub mirror.
+#
+# The workflow soft-fails (exit 0) when GLITCHTIP_API_TOKEN is not
+# configured so a fresh fork stays green until the operator wires the
+# token. The token is minted by the operator in GlitchTip and stored as
+# a repo secret named GLITCHTIP_API_TOKEN.
+
+on:
+  schedule:
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+    inputs:
+      org_slug:
+        description: "GlitchTip organisation slug (default: bernstein)"
+        required: false
+        default: "bernstein"
+      base_url:
+        description: "GlitchTip base URL (default: https://errors.bernstein.run)"
+        required: false
+        default: "https://errors.bernstein.run"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: glitchtip-insights
+  cancel-in-progress: false
+
+env:
+  GLITCHTIP_API_TOKEN: ${{ secrets.GLITCHTIP_API_TOKEN }}
+  GLITCHTIP_BASE_URL: ${{ github.event.inputs.base_url || 'https://errors.bernstein.run' }}
+  GLITCHTIP_ORG: ${{ github.event.inputs.org_slug || 'bernstein' }}
+  GLITCHTIP_LABEL: glitchtip-alert
+
+jobs:
+  sweep:
+    name: sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check token presence
+        id: check_token
+        env:
+          TOKEN_PRESENT: ${{ secrets.GLITCHTIP_API_TOKEN != '' }}
+        run: |
+          if [ "${TOKEN_PRESENT}" != "true" ]; then
+            echo "GLITCHTIP_API_TOKEN is not configured; skipping sweep."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch fatal-level issues (last 24h)
+        if: steps.check_token.outputs.skip == 'false'
+        id: fetch
+        run: |
+          set -euo pipefail
+          mkdir -p .glitchtip-sweep
+          url="${GLITCHTIP_BASE_URL%/}/api/0/organizations/${GLITCHTIP_ORG}/issues/?statsPeriod=24h&query=level:fatal+is:unresolved&limit=100"
+          http_code=$(curl -sS -o .glitchtip-sweep/unresolved.json -w "%{http_code}" \
+              -H "Authorization: Bearer ${GLITCHTIP_API_TOKEN}" \
+              "$url")
+          if [ "$http_code" != "200" ]; then
+            echo "GlitchTip API returned HTTP $http_code; aborting." >&2
+            cat .glitchtip-sweep/unresolved.json >&2 || true
+            exit 1
+          fi
+          # Resolved+ignored mirror so we can close stale GitHub issues.
+          resolved_url="${GLITCHTIP_BASE_URL%/}/api/0/organizations/${GLITCHTIP_ORG}/issues/?statsPeriod=7d&query=level:fatal+is:resolved&limit=100"
+          curl -sS -H "Authorization: Bearer ${GLITCHTIP_API_TOKEN}" \
+              "$resolved_url" > .glitchtip-sweep/resolved.json
+
+      - name: Reconcile GitHub issues
+        if: steps.check_token.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          LABEL = os.environ["GLITCHTIP_LABEL"]
+          REPO = os.environ["REPO"]
+          BASE_URL = os.environ["GLITCHTIP_BASE_URL"].rstrip("/")
+          ORG = os.environ["GLITCHTIP_ORG"]
+
+          def gh(*args: str, capture: bool = False) -> str:
+              proc = subprocess.run(
+                  ["gh", *args, "--repo", REPO],
+                  check=True,
+                  text=True,
+                  capture_output=True,
+              )
+              return proc.stdout if capture else ""
+
+          def ensure_label() -> None:
+              try:
+                  subprocess.run(
+                      ["gh", "label", "create", LABEL,
+                       "--repo", REPO,
+                       "--color", "B60205",
+                       "--description", "Auto-opened by glitchtip-insights workflow"],
+                      check=False, capture_output=True,
+                  )
+              except Exception:
+                  pass
+
+          def load(path: str) -> list[dict]:
+              raw = Path(path).read_text(encoding="utf-8")
+              try:
+                  data = json.loads(raw)
+              except json.JSONDecodeError:
+                  return []
+              return data if isinstance(data, list) else []
+
+          unresolved = load(".glitchtip-sweep/unresolved.json")
+          resolved = load(".glitchtip-sweep/resolved.json")
+
+          ensure_label()
+
+          # Map existing GH issues by short_id encoded in the title prefix.
+          existing_raw = subprocess.run(
+              ["gh", "issue", "list", "--repo", REPO,
+               "--label", LABEL, "--state", "all",
+               "--limit", "200",
+               "--json", "number,title,state,url"],
+              check=True, capture_output=True, text=True,
+          ).stdout
+          existing = {}
+          for row in json.loads(existing_raw):
+              title = row.get("title", "")
+              prefix = title.split(" ", 1)[0].strip()
+              if prefix.startswith("[") and prefix.endswith("]"):
+                  existing[prefix[1:-1]] = row
+
+          for issue in unresolved:
+              short_id = str(issue.get("shortId", ""))
+              if not short_id:
+                  continue
+              title = f"[{short_id}] {issue.get('title', '')[:120]}"
+              first_seen = issue.get("firstSeen", "?")
+              count = issue.get("count", "?")
+              permalink = issue.get("permalink") or f"{BASE_URL}/{ORG}/issues/{short_id}"
+              body = (
+                  f"Auto-opened by `.github/workflows/glitchtip-insights.yml`.\n\n"
+                  f"- GlitchTip id: `{short_id}`\n"
+                  f"- Level: `{issue.get('level', '?')}`\n"
+                  f"- First seen: `{first_seen}`\n"
+                  f"- Event count (24h): `{count}`\n"
+                  f"- Link: {permalink}\n\n"
+                  f"This issue auto-closes when the matching GlitchTip issue moves to resolved."
+              )
+              if short_id in existing:
+                  row = existing[short_id]
+                  if row.get("state") == "CLOSED":
+                      subprocess.run(
+                          ["gh", "issue", "reopen", str(row["number"]), "--repo", REPO],
+                          check=False, capture_output=True,
+                      )
+                  subprocess.run(
+                      ["gh", "issue", "edit", str(row["number"]),
+                       "--repo", REPO, "--body", body],
+                      check=False, capture_output=True,
+                  )
+              else:
+                  subprocess.run(
+                      ["gh", "issue", "create", "--repo", REPO,
+                       "--title", title, "--label", LABEL, "--body", body],
+                      check=False, capture_output=True,
+                  )
+
+          # Auto-close GH mirrors whose GlitchTip side is resolved.
+          for issue in resolved:
+              short_id = str(issue.get("shortId", ""))
+              if not short_id or short_id not in existing:
+                  continue
+              row = existing[short_id]
+              if row.get("state") == "OPEN":
+                  subprocess.run(
+                      ["gh", "issue", "close", str(row["number"]),
+                       "--repo", REPO,
+                       "--comment", "GlitchTip issue is resolved; closing the auto-opened mirror."],
+                      check=False, capture_output=True,
+                  )
+          PY
+
+      - name: Upload sweep artefacts
+        if: steps.check_token.outputs.skip == 'false'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: glitchtip-sweep
+          path: .glitchtip-sweep/
+          retention-days: 14

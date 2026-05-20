@@ -840,7 +840,11 @@ jobs:
     name: Schemathesis smoke
     needs: [lint]
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    # Smoke profile wall-clock runs ~7m30s, which raced the previous
+    # 8-minute window and got cancelled, failing the CI gate aggregator.
+    # Widen to 20m for headroom; uv setup is already cached via bootstrap
+    # and the in-process ASGI schema build is not separately cacheable.
+    timeout-minutes: 20
     permissions:
       contents: read
     steps:

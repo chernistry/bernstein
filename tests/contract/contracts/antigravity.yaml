@@ -1,0 +1,25 @@
+# Contract for the Google Antigravity CLI (adapter: antigravity).
+#
+# Antigravity is the upstream rename of the Gemini CLI binary. The legacy
+# ``gemini`` binary stops serving free / AI Pro / Ultra subscribers on
+# 2026-06-18; ``antigravity`` carries the same model set and the same
+# ``--output-format`` semantics forward. The flags below mirror
+# ``gemini.yaml`` because the adapter passes the same command line.
+adapter: antigravity
+binary: antigravity
+install:
+  method: shell
+  spec: "antigravity (Go binary; install via the upstream installer documented in docs/adapters/antigravity.md)"
+auth:
+  required_for_help: false
+  required_for_models: false
+  secret_env: "GEMINI_API_KEY"
+required_flags:
+  - "-p"
+  - "-m"
+  - "--output-format"
+  - "--yolo"
+required_subcommands: []
+expected_models:
+  command: []
+  required_present: []

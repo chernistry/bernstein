@@ -1,31 +1,129 @@
-"""Google Gemini CLI adapter.
+"""Google Gemini / Antigravity CLI adapter.
 
-Last verified against upstream @google/gemini-cli 0.40.x on 2026-05-05.
-Install: ``npm install -g @google/gemini-cli``.  Recommended models:
-``gemini-3.1-pro`` (highest reasoning), ``gemini-3-flash`` (default in the
-Gemini app, Pro-grade reasoning at Flash speed), or ``gemini-3.1-flash-lite``
-for the cheapest tier.
+The upstream CLI is changing binary names ahead of a deprecation date:
+the legacy ``gemini`` binary stops serving free / AI Pro / Ultra
+subscribers on 2026-06-18; the replacement ``antigravity`` binary uses
+the same model set and the same ``--output-format`` semantics.
+Enterprise customers retain the legacy binary via paid API keys.
+
+The adapter is dual-binary aware. At spawn time it discovers which
+binary is on ``PATH`` using a deterministic cascade:
+
+1. The operator override ``BERNSTEIN_GEMINI_BINARY`` wins when set.
+2. Otherwise ``antigravity`` is preferred.
+3. The legacy ``gemini`` binary is used as a fallback.
+4. If neither resolves, the adapter raises
+   :class:`BinaryNotInstalledError`.
+
+The adapter contract (flags, env-isolation allow-list, sandbox
+profile, rate-limit meter, network policy) is unchanged: only the
+binary name and the discovery step differ.
+
+Recommended models (identical on both binaries):
+``gemini-3.1-pro`` (highest reasoning), ``gemini-3-flash`` (default in
+the Gemini app, Pro-grade reasoning at Flash speed), or
+``gemini-3.1-flash-lite`` for the cheapest tier.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import shutil
 import subprocess
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-from bernstein.adapters.base import DEFAULT_TIMEOUT_SECONDS, CLIAdapter, SpawnResult, build_worker_cmd
+from bernstein.adapters.base import (
+    DEFAULT_TIMEOUT_SECONDS,
+    CLIAdapter,
+    SpawnError,
+    SpawnResult,
+    build_worker_cmd,
+)
 from bernstein.adapters.env_isolation import build_filtered_env
 from bernstein.core.models import ApiTier, ApiTierInfo, ModelConfig, ProviderType, RateLimit
 
 logger = logging.getLogger(__name__)
 
+#: Operator override env var for the binary name. Takes precedence over
+#: the cascade so operators on a non-default install path do not have to
+#: rely on ``PATH`` ordering.
+BINARY_ENV_VAR: str = "BERNSTEIN_GEMINI_BINARY"
+
+#: Replacement binary shipped by the upstream CLI rename.
+ANTIGRAVITY_BINARY: str = "antigravity"
+
+#: Legacy binary name, retained for operators still on the deprecated
+#: install path or on a paid Enterprise license.
+LEGACY_GEMINI_BINARY: str = "gemini"
+
+#: Discovery cascade in priority order. ``antigravity`` first; the
+#: legacy binary as fallback.
+_DISCOVERY_CASCADE: tuple[str, ...] = (ANTIGRAVITY_BINARY, LEGACY_GEMINI_BINARY)
+
+
+class BinaryNotInstalledError(SpawnError):
+    """Raised when neither ``antigravity`` nor ``gemini`` resolves on ``PATH``.
+
+    The message lists both expected binaries and the override env var so
+    the operator-facing error is self-explanatory without consulting the
+    docs.
+    """
+
+
+def resolve_google_cli_binary(
+    *,
+    which: Any = None,
+    env: dict[str, str] | None = None,
+) -> str:
+    """Resolve the Google CLI binary to invoke for this adapter.
+
+    Args:
+        which: Callable matching :func:`shutil.which`. Tests override
+            this to simulate ``PATH`` contents without touching the
+            real filesystem.
+        env: Environment mapping to consult for
+            :data:`BINARY_ENV_VAR`. Defaults to :data:`os.environ`.
+
+    Returns:
+        The binary name to invoke. Operator override (when set and
+        non-empty) wins. Otherwise the first cascade entry that
+        resolves on ``PATH`` is returned.
+
+    Raises:
+        BinaryNotInstalledError: When neither the override nor any
+            cascade entry resolves.
+    """
+    source_env = env if env is not None else os.environ
+    # Resolve ``shutil.which`` at call time so tests that patch
+    # ``bernstein.adapters.gemini.shutil.which`` see the swap.
+    resolver = which if which is not None else shutil.which
+    override = (source_env.get(BINARY_ENV_VAR) or "").strip()
+    if override:
+        if resolver(override) is None:
+            raise BinaryNotInstalledError(
+                f"{BINARY_ENV_VAR}={override!r} but {override!r} is not on PATH. "
+                f"Unset {BINARY_ENV_VAR} to fall back to discovery, or install the binary."
+            )
+        return override
+
+    for candidate in _DISCOVERY_CASCADE:
+        if resolver(candidate) is not None:
+            return candidate
+
+    raise BinaryNotInstalledError(
+        "Neither 'antigravity' nor 'gemini' was found on PATH. "
+        "Install the Antigravity CLI (per docs/adapters/antigravity.md), "
+        "or set "
+        f"{BINARY_ENV_VAR}=<path-or-name> to override discovery."
+    )
+
 
 class GeminiAdapter(CLIAdapter):
-    """Spawn and monitor Google Gemini CLI sessions."""
+    """Spawn and monitor Google Gemini / Antigravity CLI sessions."""
 
     external_endpoints = (("generativelanguage.googleapis.com", 443),)
     # Google Generative Language returns HTTP 429 with status
@@ -51,11 +149,14 @@ class GeminiAdapter(CLIAdapter):
 
         api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
         if not api_key:
-            # Gemini CLI supports OAuth auth without API keys — this is just informational
+            # Both binaries support keyring / OAuth auth without API
+            # keys - this is just informational.
             logger.debug("GeminiAdapter: no GOOGLE_API_KEY/GEMINI_API_KEY set (using OAuth)")
 
+        binary = resolve_google_cli_binary()
+
         cmd = [
-            "gemini",
+            binary,
             "-p",
             prompt,
             "-m",
@@ -100,12 +201,13 @@ class GeminiAdapter(CLIAdapter):
                 )
             except FileNotFoundError as exc:
                 raise RuntimeError(
-                    "gemini not found in PATH. Install it with: npm install -g @google/gemini-cli"
+                    f"{binary} not found in PATH. Install the Antigravity CLI "
+                    "or the legacy Gemini CLI; see docs/adapters/antigravity.md."
                 ) from exc
             except PermissionError as exc:
-                raise RuntimeError(f"Permission denied executing gemini: {exc}") from exc
+                raise RuntimeError(f"Permission denied executing {binary}: {exc}") from exc
 
-        self._probe_fast_exit(proc, log_path, provider_name="gemini")
+        self._probe_fast_exit(proc, log_path, provider_name=binary)
 
         result = SpawnResult(pid=proc.pid, log_path=log_path, proc=proc)
         if timeout_seconds > 0:
@@ -159,3 +261,13 @@ class GeminiAdapter(CLIAdapter):
             rate_limit=rate_limit,
             is_active=True,
         )
+
+
+__all__ = [
+    "ANTIGRAVITY_BINARY",
+    "BINARY_ENV_VAR",
+    "LEGACY_GEMINI_BINARY",
+    "BinaryNotInstalledError",
+    "GeminiAdapter",
+    "resolve_google_cli_binary",
+]

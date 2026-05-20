@@ -79,6 +79,11 @@ _ADAPTERS: dict[str, type[CLIAdapter] | CLIAdapter] = {
     "devin_terminal": DevinTerminalAdapter,
     "droid": DroidAdapter,
     "forge": ForgeAdapter,
+    # The Google CLI ships under two binary names during the 2026-06-18
+    # transition. Both registry keys resolve to the same dual-binary aware
+    # adapter; the adapter discovers ``antigravity`` first on PATH and falls
+    # back to ``gemini`` (or honours BERNSTEIN_GEMINI_BINARY) at spawn time.
+    "antigravity": GeminiAdapter,
     "gemini": GeminiAdapter,
     "generic": GenericAdapter,
     "goose": GooseAdapter,

@@ -1,4 +1,12 @@
-"""Unit tests for GeminiAdapter spawn/kill/is_alive."""
+"""Unit tests for GeminiAdapter spawn/kill/is_alive.
+
+Every spawn test is parametrised over both supported binary names
+(``antigravity`` and ``gemini``) so the suite proves the adapter's
+discovery cascade works against either binary. A dedicated
+``TestBinaryDiscoveryCascade`` block exercises the cascade itself:
+both binaries present, only legacy, neither (raises
+:class:`BinaryNotInstalledError`), and the operator override.
+"""
 
 from __future__ import annotations
 
@@ -10,10 +18,22 @@ from unittest.mock import MagicMock, patch
 import pytest
 from bernstein.core.models import ApiTier, ModelConfig, ProviderType
 
-from bernstein.adapters.gemini import GeminiAdapter
+from bernstein.adapters.gemini import (
+    ANTIGRAVITY_BINARY,
+    BINARY_ENV_VAR,
+    LEGACY_GEMINI_BINARY,
+    BinaryNotInstalledError,
+    GeminiAdapter,
+    resolve_google_cli_binary,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+# Parametrisation surface: both supported binary names. Every spawn-side
+# test runs against both so a regression in either path is caught.
+ALL_BINARIES = (ANTIGRAVITY_BINARY, LEGACY_GEMINI_BINARY)
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -33,18 +53,31 @@ def _inner_cmd(full_cmd: list[str]) -> list[str]:
     return full_cmd[sep + 1 :]
 
 
+def _which_only(binary: str) -> object:
+    """Return a ``shutil.which`` stub that resolves only ``binary``."""
+
+    def stub(name: str) -> str | None:
+        return f"/usr/local/bin/{name}" if name == binary else None
+
+    return stub
+
+
 # ---------------------------------------------------------------------------
-# GeminiAdapter.spawn() — command construction
+# GeminiAdapter.spawn() - command construction, parametrised on binary name
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("binary", ALL_BINARIES)
 class TestGeminiAdapterSpawn:
-    """GeminiAdapter.spawn() builds correct command."""
+    """GeminiAdapter.spawn() builds correct command on each supported binary."""
 
-    def test_wrapped_with_worker(self, tmp_path: Path) -> None:
+    def test_wrapped_with_worker(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=100)
-        with patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen:
+        with (
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
+            patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen,
+        ):
             adapter.spawn(
                 prompt="fix the bug",
                 workdir=tmp_path,
@@ -55,12 +88,15 @@ class TestGeminiAdapterSpawn:
         assert cmd[0] == sys.executable
         assert cmd[1:3] == ["-m", "bernstein.core.orchestration.worker"]
         inner = _inner_cmd(cmd)
-        assert inner[0] == "gemini"
+        assert inner[0] == binary
 
-    def test_model_flag_passthrough(self, tmp_path: Path) -> None:
+    def test_model_flag_passthrough(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=101)
-        with patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen:
+        with (
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
+            patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen,
+        ):
             adapter.spawn(
                 prompt="hello",
                 workdir=tmp_path,
@@ -71,10 +107,13 @@ class TestGeminiAdapterSpawn:
         assert "-m" in inner
         assert inner[inner.index("-m") + 1] == "gemini-3-flash"
 
-    def test_output_format_json_flag(self, tmp_path: Path) -> None:
+    def test_output_format_json_flag(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=102)
-        with patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen:
+        with (
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
+            patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen,
+        ):
             adapter.spawn(
                 prompt="hello",
                 workdir=tmp_path,
@@ -85,10 +124,13 @@ class TestGeminiAdapterSpawn:
         assert "--output-format" in inner
         assert inner[inner.index("--output-format") + 1] == "json"
 
-    def test_prompt_flag_used(self, tmp_path: Path) -> None:
+    def test_prompt_flag_used(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=103)
-        with patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen:
+        with (
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
+            patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen,
+        ):
             adapter.spawn(
                 prompt="my-unique-prompt",
                 workdir=tmp_path,
@@ -99,10 +141,13 @@ class TestGeminiAdapterSpawn:
         assert "-p" in inner
         assert inner[inner.index("-p") + 1] == "my-unique-prompt"
 
-    def test_yolo_flag_present(self, tmp_path: Path) -> None:
+    def test_yolo_flag_present(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=108)
-        with patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen:
+        with (
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
+            patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen,
+        ):
             adapter.spawn(
                 prompt="hello",
                 workdir=tmp_path,
@@ -112,10 +157,13 @@ class TestGeminiAdapterSpawn:
         inner = _inner_cmd(popen.call_args.args[0])
         assert "--yolo" in inner
 
-    def test_creates_log_dir(self, tmp_path: Path) -> None:
+    def test_creates_log_dir(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=104)
-        with patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock):
+        with (
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
+            patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock),
+        ):
             adapter.spawn(
                 prompt="hello",
                 workdir=tmp_path,
@@ -124,10 +172,13 @@ class TestGeminiAdapterSpawn:
             )
         assert (tmp_path / ".sdd" / "runtime").is_dir()
 
-    def test_spawn_result_pid(self, tmp_path: Path) -> None:
+    def test_spawn_result_pid(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=105)
-        with patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock):
+        with (
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
+            patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock),
+        ):
             result = adapter.spawn(
                 prompt="hello",
                 workdir=tmp_path,
@@ -136,10 +187,13 @@ class TestGeminiAdapterSpawn:
             )
         assert result.pid == 105
 
-    def test_log_path_uses_session_id(self, tmp_path: Path) -> None:
+    def test_log_path_uses_session_id(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=106)
-        with patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock):
+        with (
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
+            patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock),
+        ):
             result = adapter.spawn(
                 prompt="hello",
                 workdir=tmp_path,
@@ -148,10 +202,13 @@ class TestGeminiAdapterSpawn:
             )
         assert result.log_path.name == "my-gemini-session.log"
 
-    def test_start_new_session_enabled(self, tmp_path: Path) -> None:
+    def test_start_new_session_enabled(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=107)
-        with patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen:
+        with (
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
+            patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen,
+        ):
             adapter.spawn(
                 prompt="hello",
                 workdir=tmp_path,
@@ -163,14 +220,15 @@ class TestGeminiAdapterSpawn:
 
 
 # ---------------------------------------------------------------------------
-# spawn() — env isolation
+# spawn() - env isolation, parametrised on binary name
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("binary", ALL_BINARIES)
 class TestGeminiEnvIsolation:
     """spawn() passes only Google-specific keys to subprocess."""
 
-    def test_env_contains_google_keys(self, tmp_path: Path) -> None:
+    def test_env_contains_google_keys(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=200)
         with (
@@ -180,6 +238,7 @@ class TestGeminiEnvIsolation:
                 {"GOOGLE_API_KEY": "AIza-test", "GOOGLE_CLOUD_PROJECT": "my-proj", "PATH": "/usr/bin"},
                 clear=True,
             ),
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
         ):
             adapter.spawn(
                 prompt="hello",
@@ -191,7 +250,7 @@ class TestGeminiEnvIsolation:
         assert "GOOGLE_API_KEY" in env
         assert env["GOOGLE_API_KEY"] == "AIza-test"
 
-    def test_env_excludes_unrelated_keys(self, tmp_path: Path) -> None:
+    def test_env_excludes_unrelated_keys(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=201)
         with (
@@ -207,6 +266,7 @@ class TestGeminiEnvIsolation:
                 },
                 clear=True,
             ),
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
         ):
             adapter.spawn(
                 prompt="hello",
@@ -219,12 +279,13 @@ class TestGeminiEnvIsolation:
         assert "OPENAI_API_KEY" not in env
         assert "DATABASE_URL" not in env
 
-    def test_env_includes_path(self, tmp_path: Path) -> None:
+    def test_env_includes_path(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=202)
         with (
             patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen,
             patch.dict("os.environ", {"PATH": "/usr/bin", "GOOGLE_API_KEY": "AIza-x"}, clear=True),
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
         ):
             adapter.spawn(
                 prompt="hello",
@@ -247,14 +308,16 @@ class TestGeminiAdapterName:
 
 
 # ---------------------------------------------------------------------------
-# Missing binary / PermissionError
+# Missing binary / PermissionError, parametrised on binary name
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("binary", ALL_BINARIES)
 class TestGeminiSpawnMissingBinary:
-    def test_file_not_found_raises_runtime_error(self, tmp_path: Path) -> None:
+    def test_file_not_found_raises_runtime_error(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         with (
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
             patch(
                 "bernstein.adapters.gemini.subprocess.Popen",
                 side_effect=FileNotFoundError("No such file"),
@@ -268,9 +331,10 @@ class TestGeminiSpawnMissingBinary:
                 session_id="missing",
             )
 
-    def test_permission_error_raises_runtime_error(self, tmp_path: Path) -> None:
+    def test_permission_error_raises_runtime_error(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         with (
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
             patch(
                 "bernstein.adapters.gemini.subprocess.Popen",
                 side_effect=PermissionError("Permission denied"),
@@ -285,13 +349,20 @@ class TestGeminiSpawnMissingBinary:
             )
 
 
+@pytest.mark.parametrize("binary", ALL_BINARIES)
 class TestGeminiWarnings:
-    def test_logs_debug_when_no_api_key_present(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_logs_debug_when_no_api_key_present(
+        self,
+        tmp_path: Path,
+        binary: str,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=301)
         with (
             patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock),
             patch.dict("os.environ", {"PATH": "/usr/bin"}, clear=True),
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
             caplog.at_level("DEBUG"),
         ):
             adapter.spawn(
@@ -302,12 +373,13 @@ class TestGeminiWarnings:
             )
         assert "no GOOGLE_API_KEY/GEMINI_API_KEY set" in caplog.text
 
-    def test_populates_gemini_api_key_from_google_key(self, tmp_path: Path) -> None:
+    def test_populates_gemini_api_key_from_google_key(self, tmp_path: Path, binary: str) -> None:
         adapter = GeminiAdapter()
         proc_mock = _make_popen_mock(pid=302)
         with (
             patch("bernstein.adapters.gemini.subprocess.Popen", return_value=proc_mock) as popen,
             patch.dict("os.environ", {"GOOGLE_API_KEY": "AIza-test", "PATH": "/usr/bin"}, clear=True),
+            patch("bernstein.adapters.gemini.shutil.which", side_effect=_which_only(binary)),
         ):
             adapter.spawn(
                 prompt="hello",
@@ -321,7 +393,68 @@ class TestGeminiWarnings:
 
 
 # ---------------------------------------------------------------------------
-# is_alive() and kill() — inherited from CLIAdapter base
+# Binary discovery cascade (issue #1740)
+# ---------------------------------------------------------------------------
+
+
+class TestBinaryDiscoveryCascade:
+    """Cover the four discovery outcomes the adapter contract promises."""
+
+    def test_antigravity_wins_when_both_present(self) -> None:
+        """When both binaries resolve, ``antigravity`` is preferred."""
+
+        def both_present(name: str) -> str | None:
+            return f"/usr/local/bin/{name}" if name in {ANTIGRAVITY_BINARY, LEGACY_GEMINI_BINARY} else None
+
+        with patch.dict("os.environ", {"PATH": "/usr/bin"}, clear=True):
+            assert resolve_google_cli_binary(which=both_present) == ANTIGRAVITY_BINARY
+
+    def test_legacy_wins_when_only_legacy_present(self) -> None:
+        """When only the legacy binary resolves, the cascade falls back."""
+
+        def only_legacy(name: str) -> str | None:
+            return "/usr/local/bin/gemini" if name == LEGACY_GEMINI_BINARY else None
+
+        with patch.dict("os.environ", {"PATH": "/usr/bin"}, clear=True):
+            assert resolve_google_cli_binary(which=only_legacy) == LEGACY_GEMINI_BINARY
+
+    def test_neither_raises_binary_not_installed(self) -> None:
+        """When neither resolves the operator gets a typed error."""
+        with (
+            patch.dict("os.environ", {"PATH": "/usr/bin"}, clear=True),
+            pytest.raises(BinaryNotInstalledError, match="antigravity"),
+        ):
+            resolve_google_cli_binary(which=lambda _name: None)
+
+    def test_env_override_wins_over_cascade(self) -> None:
+        """``BERNSTEIN_GEMINI_BINARY`` short-circuits the cascade."""
+
+        def both_present(name: str) -> str | None:
+            return f"/usr/local/bin/{name}" if name in {"antigravity", "gemini", "vendor-cli"} else None
+
+        with patch.dict("os.environ", {"PATH": "/usr/bin", BINARY_ENV_VAR: "vendor-cli"}, clear=True):
+            assert resolve_google_cli_binary(which=both_present) == "vendor-cli"
+
+    def test_env_override_missing_binary_raises(self) -> None:
+        """An override that does not resolve is a hard error."""
+        with (
+            patch.dict("os.environ", {"PATH": "/usr/bin", BINARY_ENV_VAR: "vendor-cli"}, clear=True),
+            pytest.raises(BinaryNotInstalledError, match=BINARY_ENV_VAR),
+        ):
+            resolve_google_cli_binary(which=lambda _name: None)
+
+    def test_empty_env_override_falls_through_to_cascade(self) -> None:
+        """A blank override behaves as if unset (no surprise pinning)."""
+
+        def only_antigravity(name: str) -> str | None:
+            return "/usr/local/bin/antigravity" if name == ANTIGRAVITY_BINARY else None
+
+        with patch.dict("os.environ", {"PATH": "/usr/bin", BINARY_ENV_VAR: "   "}, clear=True):
+            assert resolve_google_cli_binary(which=only_antigravity) == ANTIGRAVITY_BINARY
+
+
+# ---------------------------------------------------------------------------
+# is_alive() and kill() - inherited from CLIAdapter base
 # ---------------------------------------------------------------------------
 
 

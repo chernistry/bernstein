@@ -44,11 +44,14 @@ batch contains a serial task, it is yielded alone.  Cycles raise
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from dataclasses import dataclass, field
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from bernstein.core.tasks.backlog_parser import ParsedTaskLine, parse_task_lines
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
 
 
 class TaskDagError(Exception):
@@ -60,9 +63,7 @@ class TaskDagCycleError(TaskDagError):
 
     def __init__(self, remaining: list[str]) -> None:
         self.remaining = remaining
-        super().__init__(
-            "Task DAG has a dependency cycle involving: " + ", ".join(sorted(remaining))
-        )
+        super().__init__("Task DAG has a dependency cycle involving: " + ", ".join(sorted(remaining)))
 
 
 @dataclass(frozen=True)
@@ -128,9 +129,7 @@ class TaskDag:
         try:
             import yaml  # type: ignore[import-untyped]
         except ImportError as exc:
-            raise TaskDagError(
-                "PyYAML is required to load YAML task DAG files"
-            ) from exc
+            raise TaskDagError("PyYAML is required to load YAML task DAG files") from exc
         loaded = yaml.safe_load(content) or {}
         if not isinstance(loaded, dict):
             raise TaskDagError("YAML task DAG root must be a mapping")
@@ -195,9 +194,7 @@ class TaskDag:
         for node in self.nodes.values():
             for dep in node.depends_on:
                 if dep not in self.nodes:
-                    raise TaskDagError(
-                        f"Task {node.task_id} depends on unknown task {dep}"
-                    )
+                    raise TaskDagError(f"Task {node.task_id} depends on unknown task {dep}")
 
 
 def topological_iter_with_parallel(dag: TaskDag) -> Iterator[frozenset[TaskNode]]:

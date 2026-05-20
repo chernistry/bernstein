@@ -201,6 +201,57 @@ class ConformanceReport:
         }
 
 
+class StrategyDeclarationError(AssertionError):
+    """Raised when a shipped adapter is missing its strategy declaration.
+
+    Issue #1627 AC #2: every adapter under the registry must declare its
+    resume / dangerous-mode / event-channel strategy. A missing row in
+    :data:`bernstein.adapters._contract.STRATEGY_MATRIX` is a hard failure
+    surfaced by :func:`assert_strategies_declared`.
+    """
+
+
+def assert_strategies_declared(adapter_names: list[str] | None = None) -> None:
+    """Fail when any registry adapter lacks a strategy declaration.
+
+    Args:
+        adapter_names: Adapter names to check. When ``None`` the live
+            registry is enumerated via
+            :func:`bernstein.adapters.registry.iter_adapter_specs`.
+
+    Raises:
+        StrategyDeclarationError: One or more adapters have no row in
+            ``STRATEGY_MATRIX``. The message lists every offender so the
+            fix is a contract-completion exercise, not a hunt.
+    """
+    from bernstein.adapters._contract import undeclared_strategies
+
+    if adapter_names is None:
+        from bernstein.adapters.registry import iter_adapter_specs
+
+        adapter_names = [name for name, _ in iter_adapter_specs()]
+
+    missing = undeclared_strategies(adapter_names)
+    if missing:
+        raise StrategyDeclarationError(
+            "adapters missing a strategy declaration in STRATEGY_MATRIX "
+            f"(resume / dangerous-mode / event-channel): {', '.join(missing)}"
+        )
+
+
+def strategy_conformance_table() -> list[dict[str, str]]:
+    """Return the per-adapter strategy table for the live registry.
+
+    One row per registered adapter (issue #1627 AC #4) so operators can
+    compare adapters at a glance via ``bernstein adapters check``.
+    """
+    from bernstein.adapters._contract import strategy_table
+    from bernstein.adapters.registry import iter_adapter_specs
+
+    names = [name for name, _ in iter_adapter_specs()]
+    return strategy_table(names)
+
+
 def check_terminal_signal(stdout_lines: list[str], *, run_id: str) -> MissingTerminalSignal | None:
     """Return a warning when ``stdout_lines`` carry no terminal signal.
 

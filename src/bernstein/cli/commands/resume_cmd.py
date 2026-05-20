@@ -20,7 +20,7 @@ import click
 from rich.panel import Panel
 from rich.table import Table
 
-from bernstein.adapters._contract import resume_capability
+from bernstein.adapters._contract import resume_capability, strategy_for
 from bernstein.cli.helpers import console
 from bernstein.core.lifecycle.hooks import HookRegistry, LifecycleContext, LifecycleEvent
 from bernstein.core.persistence.resume_prompt import build_resume_context
@@ -52,6 +52,10 @@ class ResumePlan:
     checkpoint: TaskResumeCheckpoint
     capability: str
     resume_context: str
+    #: The typed resume strategy (issue #1627). Dispatch sites branch on this
+    #: enum rather than the adapter name; ``capability`` is the legacy
+    #: two-state view retained for the ``bernstein resume`` env contract.
+    resume_strategy: str = ""
 
 
 def prepare_resume(
@@ -79,7 +83,9 @@ def prepare_resume(
     # file is corrupt we exit before incrementing the counter.
     load_checkpoint(workdir, task_id)
     checkpoint = bump_resume_count(workdir, task_id)
-    capability = resume_capability(checkpoint.adapter or "")
+    adapter_name = checkpoint.adapter or ""
+    capability = resume_capability(adapter_name)
+    resume_strategy = str(strategy_for(adapter_name).resume)
     resume_context = build_resume_context(checkpoint)
     if hooks is not None:
         hooks.run(
@@ -92,6 +98,7 @@ def prepare_resume(
                 env={
                     "BERNSTEIN_RESUME_COUNT": str(checkpoint.resume_count),
                     "BERNSTEIN_RESUME_CAPABILITY": capability,
+                    "BERNSTEIN_RESUME_STRATEGY": resume_strategy,
                 },
             ),
         )
@@ -99,6 +106,7 @@ def prepare_resume(
         checkpoint=checkpoint,
         capability=capability,
         resume_context=resume_context,
+        resume_strategy=resume_strategy,
     )
 
 
@@ -114,6 +122,7 @@ def _render_plan(workdir: Path, plan: ResumePlan, *, output_json: bool) -> None:
             "adapter": cp.adapter,
             "adapter_session_id": cp.adapter_session_id,
             "capability": plan.capability,
+            "resume_strategy": plan.resume_strategy,
             "worktree_path": cp.worktree_path,
             "checkpoint_path": str(checkpoint_path_for(workdir, cp.task_id)),
         }

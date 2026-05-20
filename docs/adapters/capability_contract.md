@@ -1,0 +1,146 @@
+# Adapter capability contract
+
+Every CLI agent expresses the same orchestration concepts differently.
+Resume is `--resume <id>` for one CLI, `--session-id <id>` for another, and
+a subcommand `<cli> resume <id>` for a third. "Skip permission prompts" is a
+flag here, an environment variable there, and an always-on default for CLIs
+with no permission system. The event surface Bernstein observes is
+stream-json for some, a plain-text signal grammar for others, and upstream
+hooks for the rest.
+
+To keep the orchestrator free of `if adapter == "X"` branches, each adapter
+declares its strategy on three typed axes. The orchestrator dispatches off
+the enum, so adding a new adapter is a contract-completion exercise rather
+than a hunt-and-patch across the core.
+
+The enums and the declaration matrix live in
+[`src/bernstein/adapters/_contract.py`](../../src/bernstein/adapters/_contract.py).
+Strategy is **declared**, not probed: Bernstein never runs the CLI at start
+just to discover its capabilities.
+
+## The three axes
+
+### Resume strategy (`ResumeStrategy`)
+
+How an adapter reattaches to a prior session for `bernstein resume`.
+
+| Value | Meaning |
+| --- | --- |
+| `flag` | A single flag carries the session id, e.g. `--resume <id>`. |
+| `flag-pair` | Two flags: one names the existing session, one mints a new one. |
+| `subcommand` | A dedicated subcommand, e.g. `<cli> resume <id>`. |
+| `unsupported` | No native resume; fall back to a fresh session with scratchpad reinjection. |
+
+The legacy two-state view (`native` / `fallback-fresh`) consumed by
+`bernstein resume` is derived from this axis: any value other than
+`unsupported` maps to `native`. See `resume_capability` in `_contract.py`.
+
+### Dangerous-mode strategy (`DangerousModeStrategy`)
+
+How an adapter is told to skip interactive permission prompts so it can run
+unattended.
+
+| Value | Meaning |
+| --- | --- |
+| `cli-flag` | A flag, e.g. `--yolo` or `--permission-mode bypassPermissions`. |
+| `env-var` | An environment variable the CLI reads at startup. |
+| `always-on` | The CLI has no permission system; it is always non-interactive. |
+| `unsupported` | The CLI cannot run unattended in dangerous mode. |
+
+### Event channel (`EventChannel`)
+
+The surface Bernstein reads for an adapter's lifecycle signals.
+
+| Value | Meaning |
+| --- | --- |
+| `stream-json` | Newline-delimited JSON events from the upstream CLI. |
+| `text-signals` | Plain stdout carrying the canonical `BERNSTEIN:<KIND>` grammar (see [stream_signals.md](stream_signals.md)). |
+| `hooks` | The upstream SDK fires hooks/callbacks Bernstein registers against. |
+| `poll-pty` | No structured channel; Bernstein polls a PTY or log for liveness. |
+| `none` | No event channel; process-exit detection only. |
+
+## Declaring a strategy
+
+The canonical declaration is a row in `STRATEGY_MATRIX`, keyed by registry
+name:
+
+```python
+STRATEGY_MATRIX = {
+    "claude": AdapterStrategy(
+        resume=ResumeStrategy.FLAG,
+        dangerous_mode=DangerousModeStrategy.CLI_FLAG,
+        event_channel=EventChannel.STREAM_JSON,
+    ),
+    # ...
+}
+```
+
+An adapter MAY instead keep the declaration next to its implementation by
+setting the class attribute `strategy_override` to an `AdapterStrategy`.
+Read the resolved strategy through `CLIAdapter.strategy()`, never the raw
+attribute: the resolver applies the inline override first, then the matrix
+keyed by registry name, then the conservative `DEFAULT_ADAPTER_STRATEGY`
+(no native resume, dangerous mode unsupported, text-signal channel).
+
+## Conformance
+
+Every shipped adapter must declare its strategy on each axis. The
+conformance harness calls `assert_strategies_declared()`, which raises
+`StrategyDeclarationError` listing any registry adapter missing a row in
+`STRATEGY_MATRIX`. `bernstein adapters check` surfaces the per-adapter
+strategy table (`strategy_conformance_table`) so operators can compare
+adapters at a glance.
+
+## Shipped adapter declarations
+
+| Adapter | Resume | Dangerous mode | Event channel |
+| --- | --- | --- | --- |
+| `aichat` | unsupported | unsupported | text-signals |
+| `aider` | unsupported | unsupported | text-signals |
+| `amp` | unsupported | unsupported | text-signals |
+| `auggie` | unsupported | unsupported | text-signals |
+| `autohand` | unsupported | unsupported | text-signals |
+| `charm` | unsupported | cli-flag | text-signals |
+| `claude` | flag | cli-flag | stream-json |
+| `cline` | unsupported | cli-flag | text-signals |
+| `clm` | unsupported | unsupported | text-signals |
+| `cloudflare` | unsupported | unsupported | hooks |
+| `codebuff` | unsupported | unsupported | text-signals |
+| `codex` | unsupported | cli-flag | text-signals |
+| `cody` | unsupported | unsupported | text-signals |
+| `composio` | unsupported | unsupported | hooks |
+| `continue` | unsupported | unsupported | text-signals |
+| `copilot` | unsupported | unsupported | text-signals |
+| `cursor` | unsupported | cli-flag | stream-json |
+| `devin_terminal` | unsupported | unsupported | poll-pty |
+| `droid` | unsupported | unsupported | text-signals |
+| `forge` | unsupported | unsupported | text-signals |
+| `gemini` | unsupported | cli-flag | stream-json |
+| `generic` | unsupported | unsupported | text-signals |
+| `goose` | unsupported | unsupported | text-signals |
+| `gptme` | unsupported | unsupported | text-signals |
+| `hermes` | unsupported | unsupported | text-signals |
+| `iac` | unsupported | unsupported | text-signals |
+| `junie` | unsupported | unsupported | text-signals |
+| `kilo` | unsupported | unsupported | text-signals |
+| `kimi` | unsupported | cli-flag | text-signals |
+| `kiro` | unsupported | unsupported | text-signals |
+| `letta_code` | unsupported | cli-flag | text-signals |
+| `mistral` | unsupported | unsupported | text-signals |
+| `mock` | unsupported | unsupported | text-signals |
+| `ollama` | unsupported | unsupported | text-signals |
+| `open_interpreter` | unsupported | unsupported | text-signals |
+| `openai_agents` | flag | always-on | hooks |
+| `opencode` | unsupported | unsupported | text-signals |
+| `openhands` | unsupported | unsupported | text-signals |
+| `pi` | unsupported | unsupported | text-signals |
+| `plandex` | unsupported | unsupported | text-signals |
+| `q_dev` | unsupported | unsupported | text-signals |
+| `qwen` | unsupported | unsupported | text-signals |
+| `ralphex` | unsupported | unsupported | text-signals |
+| `rovo` | unsupported | cli-flag | text-signals |
+
+The matrix is the source of truth; this table is regenerated from
+`strategy_conformance_table()`. Out of scope for this contract: runtime
+capability discovery, and removing every adapter-specific conditional (some
+output-formatting quirks remain as overrides).

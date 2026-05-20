@@ -1058,6 +1058,11 @@ from bernstein.cli.commands.acp_cmd import acp_group  # noqa: E402
 
 cli.add_command(acp_group, "acp")
 
+# Cross-organisation A2A interop: signed capability cards + lineage interop.
+from bernstein.cli.commands.interop_cmd import interop_group  # noqa: E402
+
+cli.add_command(interop_group, "interop")
+
 # release/1.9: outbound notification drivers (Telegram, Slack, Discord, Email, Webhook, Shell).
 from bernstein.cli.commands.notify_cmd import notify_group  # noqa: E402
 

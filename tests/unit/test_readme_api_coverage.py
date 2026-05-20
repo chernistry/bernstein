@@ -233,6 +233,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "spec",
         # Bot-added: drift autofix (regen_contract_drift.py)
         "run-lookup",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "interop",
     }
 )
 

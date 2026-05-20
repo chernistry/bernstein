@@ -91,7 +91,7 @@ def build_summary_card(data: RunSummaryData) -> Table:
     total = data.tasks_total
     failed = data.tasks_failed
 
-    if total == 0 or failed == 0:
+    if 0 in (total, failed):
         header_color = "green"
     elif failed / total >= 0.5:
         header_color = "red"

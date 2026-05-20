@@ -354,10 +354,10 @@ class TierHijacker:
             return True
 
         # Trial/promotional credits usually support standard models
-        if opportunity.source in [
+        if opportunity.source in (
             FreeTierSource.NEW_PROVIDER_TRIAL,
             FreeTierSource.PROMOTIONAL_CREDITS,
-        ]:
+        ):
             supported_models = ["haiku", "sonnet", "opus", "gpt-4", "gpt-3.5"]
             return any(m in model.lower() for m in supported_models)
 
@@ -423,12 +423,11 @@ class TierHijacker:
                 "mistral": ModelConfig("mistral", "high"),
                 "qwen": ModelConfig("qwen", "high"),
             }
-        else:
-            # Default to standard models
-            return {
-                "claude-sonnet": ModelConfig("sonnet", "high"),
-                "claude-opus": ModelConfig("opus", "max"),
-            }
+        # Default to standard models
+        return {
+            "claude-sonnet": ModelConfig("sonnet", "high"),
+            "claude-opus": ModelConfig("opus", "max"),
+        }
 
     def get_hijack_history(self) -> list[HijackResult]:
         """Get history of hijack attempts."""

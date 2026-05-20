@@ -465,7 +465,7 @@ uv run pytest tests/unit -x -q
 exit 0
 """
 
-    for hook_name, script in [("pre-commit", pre_commit_script), ("pre-push", pre_push_script)]:
+    for hook_name, script in (("pre-commit", pre_commit_script), ("pre-push", pre_push_script)):
         hook_path = hooks_dir / hook_name
         if hook_path.exists() and not force:
             console.print(f"[dim]Hook exists (use --force to overwrite):[/dim] {hook_path}")

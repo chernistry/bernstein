@@ -301,7 +301,7 @@ def _compute_downgrade_tip(records: list[dict[str, Any]]) -> tuple[str, float] |
             opus_simple += 1
             opus_simple_cost += float(rec.get("cost_usd", 0.0) or 0.0)
 
-    if opus_total == 0 or opus_simple == 0:
+    if 0 in (opus_total, opus_simple):
         return None
 
     # Sonnet is roughly 60% of opus cost

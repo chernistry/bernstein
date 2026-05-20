@@ -75,7 +75,7 @@ def get_tracker(name: str, **kwargs: object) -> AbstractTrackerAdapter:
         return ServiceNowTracker(**kwargs)  # type: ignore[arg-type]
     if name == "linear":
         return LinearTracker(**kwargs)  # type: ignore[arg-type]
-    if name == "github_projects" or name == "github_projects_v2":
+    if name in ("github_projects", "github_projects_v2"):
         from bernstein.core.trackers.builtin import (
             GitHubProjectsV2Adapter,
         )

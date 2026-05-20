@@ -116,7 +116,7 @@ def _safe_extract_single_file(tf: tarfile.TarFile, *, expected_name: str, resolv
         if member.name.startswith("/"):
             continue
 
-        if member.name == expected_name or member.name == absolute_form:
+        if member.name in (expected_name, absolute_form):
             acceptable.append(member)
 
     if not acceptable:

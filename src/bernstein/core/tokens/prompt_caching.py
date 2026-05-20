@@ -292,7 +292,7 @@ def extract_system_prefix(prompt: str) -> tuple[str, str]:
     signal_marker = "\n## Signal files —"
 
     split_points: list[int] = []
-    for marker in [task_marker, instruction_marker, signal_marker]:
+    for marker in (task_marker, instruction_marker, signal_marker):
         idx = prompt.find(marker)
         if idx != -1:
             split_points.append(idx)

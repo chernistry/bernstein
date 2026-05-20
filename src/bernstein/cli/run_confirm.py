@@ -417,11 +417,11 @@ def _stop_demo_processes(project_dir: Path) -> None:
         project_dir: Demo project root whose .sdd/runtime/ holds PID files.
     """
     runtime_dir = project_dir / ".sdd" / "runtime"
-    for pid_filename, _label in [
+    for pid_filename, _label in (
         ("watchdog.pid", "Watchdog"),
         ("spawner.pid", "Spawner"),
         ("server.pid", "Task server"),
-    ]:
+    ):
         pid_file = runtime_dir / pid_filename
         if not pid_file.exists():
             continue

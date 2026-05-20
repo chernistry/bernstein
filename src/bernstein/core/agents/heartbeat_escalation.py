@@ -63,12 +63,12 @@ class EscalationThresholds:
         errors: list[str] = []
         active = [
             (name, val)
-            for name, val in [
+            for name, val in (
                 ("warn_s", self.warn_s),
                 ("sigusr1_s", self.sigusr1_s),
                 ("sigterm_s", self.sigterm_s),
                 ("sigkill_s", self.sigkill_s),
-            ]
+            )
             if val > 0
         ]
 

@@ -960,7 +960,7 @@ def _collect_existing_titles(workdir: Path, backlog_open: Path) -> set[str]:
     for src_dir in (backlog_open, workdir / ".sdd" / "backlog" / "issues"):
         if not src_dir.is_dir():
             continue
-        for path in [*src_dir.glob("*.yaml"), *src_dir.glob("*.md")]:
+        for path in (*src_dir.glob("*.yaml"), *src_dir.glob("*.md")):
             if path.name.startswith("gh-"):
                 continue
             title = _extract_title_from_frontmatter(path)

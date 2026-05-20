@@ -279,11 +279,11 @@ def _collect_audit_evidence(
     file_count, entry_count = _count_jsonl_entries(audit_dir, period_start, period_end)
     if file_count <= 0:
         return
-    for control_id, desc in [
+    for control_id, desc in (
         ("CC6.1", "HMAC-chained audit event log entries"),
         ("CC6.3", "Authorization change audit trail"),
         (_CC7_1, "Change management audit trail"),
-    ]:
+    ):
         evidence.append(
             EvidenceSummary(
                 control_id=control_id,
@@ -365,10 +365,10 @@ def _collect_wal_evidence(wal_dir: Path, evidence: list[EvidenceSummary]) -> Non
     if not wal_files:
         return
     wal_entries = sum(1 for wf in wal_files for line in wf.read_text().splitlines() if line.strip())
-    for control_id, desc in [
+    for control_id, desc in (
         (_CC7_1, "Write-ahead log decision records"),
         (_CC9_2, "Decision integrity via hash-chained WAL"),
-    ]:
+    ):
         evidence.append(
             EvidenceSummary(
                 control_id=control_id,
@@ -387,10 +387,10 @@ def _collect_metrics_evidence(metrics_dir: Path, evidence: list[EvidenceSummary]
     metrics_files = list(metrics_dir.glob("*"))
     if not metrics_files:
         return
-    for control_id, desc in [
+    for control_id, desc in (
         ("CC7.2", "System monitoring and metrics data"),
         ("CC8.1", "Capacity monitoring data"),
-    ]:
+    ):
         evidence.append(
             EvidenceSummary(
                 control_id=control_id,

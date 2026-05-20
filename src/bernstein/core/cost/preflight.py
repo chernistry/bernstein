@@ -109,7 +109,7 @@ def _sanitize(value: float) -> float:
         return 0.0
     if amount < 0.0:
         return 0.0
-    if amount == float("inf") or amount == float("-inf"):
+    if amount in (float("inf"), float("-inf")):
         return 0.0
     return round(amount, 2)
 

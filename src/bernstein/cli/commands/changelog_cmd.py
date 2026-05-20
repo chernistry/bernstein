@@ -220,7 +220,7 @@ def _format_simple(
     lines: list[str] = [f"## {version}"]
     lines.append("")
 
-    for ctype in ["feat", "fix", "perf", "refactor", "docs", "build", "ci", "chore", "test", "style", "revert"]:
+    for ctype in ("feat", "fix", "perf", "refactor", "docs", "build", "ci", "chore", "test", "style", "revert"):
         type_entries = grouped.get(ctype, [])
         if not type_entries:
             continue

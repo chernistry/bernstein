@@ -145,7 +145,7 @@ class PermissionResolutionMatrix:
                 hook_outcome=hook_outcome,
                 metadata={"source": "hook_deny_no_rule"},
             )
-        elif hook_outcome == "allow":
+        if hook_outcome == "allow":
             # Case 7: Hook allow without rule → ALLOW
             return ResolutionResult(
                 outcome=ResolutionOutcome.ALLOW,
@@ -154,15 +154,14 @@ class PermissionResolutionMatrix:
                 hook_outcome=hook_outcome,
                 metadata={"source": "hook_allow_no_rule"},
             )
-        else:
-            # Case 8: No rule, hook neutral → ASK (default to safety)
-            return ResolutionResult(
-                outcome=ResolutionOutcome.ASK,
-                reason="No rule or hook decision, defaulting to approval",
-                rule_outcome=rule_outcome,
-                hook_outcome=hook_outcome,
-                metadata={"source": "default_ask"},
-            )
+        # Case 8: No rule, hook neutral → ASK (default to safety)
+        return ResolutionResult(
+            outcome=ResolutionOutcome.ASK,
+            reason="No rule or hook decision, defaulting to approval",
+            rule_outcome=rule_outcome,
+            hook_outcome=hook_outcome,
+            metadata={"source": "default_ask"},
+        )
 
     def resolve_simple(
         self,

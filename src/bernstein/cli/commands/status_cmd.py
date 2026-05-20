@@ -86,7 +86,7 @@ def _match_discovered_agent(
     command_token = Path(command_token).name
     for agent in discovery.agents:
         binary_name = Path(agent.binary).name.lower()
-        if command_token and (agent.name.lower() == command_token or binary_name == command_token):
+        if command_token and command_token in (agent.name.lower(), binary_name):
             return agent
 
     model_lower = model.lower()

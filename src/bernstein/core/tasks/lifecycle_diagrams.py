@@ -281,10 +281,10 @@ def generate_all_diagrams(output_dir: str | Path) -> list[Path]:
 
     generated: list[Path] = []
 
-    for extractor, filename, title in [
+    for extractor, filename, title in (
         (extract_task_lifecycle, "task_lifecycle.md", "Task Lifecycle"),
         (extract_agent_lifecycle, "agent_lifecycle.md", "Agent Lifecycle"),
-    ]:
+    ):
         sm = extractor()
         mermaid = render_mermaid(sm)
         # Indent mermaid body inside the fenced block.

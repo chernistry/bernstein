@@ -147,8 +147,7 @@ def _calculate_recommended_agents(total_tasks: int, estimated_hours: float) -> i
     target_hours = 8.0
     if estimated_hours <= target_hours:
         return min(total_tasks, 3)
-    else:
-        return min(total_tasks, max(3, int(estimated_hours / target_hours) + 1))
+    return min(total_tasks, max(3, int(estimated_hours / target_hours) + 1))
 
 
 def _breakdown_by_role(

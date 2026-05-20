@@ -408,7 +408,7 @@ def consider_cache_pricing_in_routing(
     recommended = (
         tier.savings_percentage >= 0.8  # At least 80% savings
         and estimated_tokens >= 1000  # At least 1k tokens
-        and task_complexity in ["high", "medium"]  # Complex tasks
+        and task_complexity in ("high", "medium")  # Complex tasks
     )
 
     return {

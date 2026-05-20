@@ -1,0 +1,96 @@
+name: PR observability summary
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR number to summarise (dispatch only)
+        required: true
+
+concurrency:
+  group: pr-observability-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  summary:
+    name: Sticky observability comment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: read
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Install bernstein
+        run: |
+          pip install --quiet uv
+          uv sync --group dev
+
+      - name: Run doctor observe (JSON)
+        id: observe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          BERNSTEIN_GLITCHTIP_TOKEN: ${{ secrets.BERNSTEIN_GLITCHTIP_TOKEN }}
+          BERNSTEIN_GLITCHTIP_BASE_URL: ${{ vars.BERNSTEIN_GLITCHTIP_BASE_URL }}
+          BERNSTEIN_GLITCHTIP_ORG: ${{ vars.BERNSTEIN_GLITCHTIP_ORG }}
+          DTRACK_URL: ${{ vars.DTRACK_URL }}
+          DTRACK_TOKEN: ${{ secrets.DTRACK_TOKEN }}
+          DTRACK_PROJECT: ${{ vars.DTRACK_PROJECT }}
+        run: |
+          set -euo pipefail
+          mkdir -p .ci/observability
+          uv run bernstein doctor observe --json --no-persist \
+            > .ci/observability/observe.json || true
+
+      - name: Build PR summary markdown
+        id: build
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref || '' }}
+        run: |
+          set -euo pipefail
+          uv run python scripts/observability/build_pr_summary.py \
+            --observe .ci/observability/observe.json \
+            --pr "$PR_NUMBER" \
+            --branch "$PR_BRANCH" \
+            --out .ci/observability/pr_summary.md
+          {
+            echo 'body<<OBSERVABILITY_EOF'
+            cat .ci/observability/pr_summary.md
+            echo 'OBSERVABILITY_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post sticky comment
+        uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31  # v2.9.0
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+          header: bernstein-observability
+          message: ${{ steps.build.outputs.body }}

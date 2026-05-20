@@ -1,0 +1,118 @@
+# Unified observability doctor
+
+`bernstein doctor observe` aggregates the four observability backends that
+Bernstein integrates with into a single operator-facing table: Sonar,
+GlitchTip, Dependency-Track, and GitHub Code Scanning.
+
+## TL;DR
+
+| Command | What it does |
+| --- | --- |
+| `bernstein doctor observe` | Run all four backends, render one Rich table |
+| `bernstein doctor observe --json` | Same data as JSON for jq / CI consumption |
+| `bernstein doctor observe --watch` | Refresh every 60s until Ctrl-C |
+| `bernstein doctor sonar` | Sonar-only deep dive (when wired) |
+| `bernstein doctor glitchtip` | GlitchTip-only deep dive (when wired) |
+| `bernstein doctor dt` | Dependency-Track-only deep dive |
+| `bernstein doctor code-scanning` | GitHub Code Scanning-only deep dive |
+
+Backends that are not configured soft-fail to `SKIPPED`, so a fresh
+checkout still produces a clean table.
+
+## Backend setup
+
+Each backend reads its credentials from the environment. Set whichever
+you have; missing ones soft-fail without error.
+
+| Backend | Required env-vars | Optional env-vars |
+| --- | --- | --- |
+| `sonar` | `SONAR_HOST_URL`, `SONAR_TOKEN` | `SONAR_PROJECT_KEY` |
+| `glitchtip` | `BERNSTEIN_GLITCHTIP_TOKEN` | `BERNSTEIN_GLITCHTIP_BASE_URL`, `BERNSTEIN_GLITCHTIP_ORG` |
+| `dt` | `DTRACK_URL`, `DTRACK_TOKEN`, `DTRACK_PROJECT` | - |
+| `code-scanning` | `GITHUB_TOKEN`, `GITHUB_REPOSITORY` | `GITHUB_API_URL` |
+
+The `GITHUB_TOKEN` used for `code-scanning` must carry
+`security_events: read`. The `GITHUB_REPOSITORY` env-var is set
+automatically inside GitHub Actions; locally, set it to
+`<owner>/<repo>`.
+
+## Output shape
+
+Every probe contributes rows to a single table:
+
+```
+backend         metric             value     delta    threshold   status
+sonar           coverage_pct       87.5%     +0.4     80.0%       ok
+sonar           code_smells        42        +3       50          ok
+glitchtip       issues_24h         3         -2       0           warn
+dt              critical_vulns     0         0        0           ok
+code-scanning   open_alerts        1         new      0           warn
+```
+
+The `delta` column is computed against a tiny snapshot cache at
+`.sdd/observability/<backend>.json`. Pass `--no-persist` to suppress
+the write (handy in CI). Delete the file to reset the baseline.
+
+## JSON contract
+
+`--json` emits one document per invocation. Shape:
+
+```json
+{
+  "summary": {"ok": 1, "warn": 1, "fail": 0, "skipped": 2, "error": 0},
+  "backends": [
+    {
+      "backend": "sonar",
+      "status": "ok",
+      "detail": "project bernstein",
+      "error": null,
+      "metrics": [
+        {"name": "coverage_pct", "value": "87.5%", "numeric": 87.5,
+         "threshold": "80.0%", "threshold_status": "ok", "delta": "+0.4"}
+      ]
+    }
+  ]
+}
+```
+
+Exit code: 0 when every backend is ok or skipped, 1 when any backend
+is warn/fail/error.
+
+## CI integration
+
+Two workflows ship alongside the command:
+
+- `.github/workflows/pr-observability-summary.yml`: posts a sticky
+  comment on every pull request with the observe table and any
+  branch-tagged GlitchTip issues. Triggered on
+  `pull_request: [opened, synchronize, reopened]` and via
+  `workflow_dispatch` for backfills.
+- `.github/workflows/docs-observability-snapshot.yml`: cron job at
+  06:00 UTC that writes today's snapshot to
+  `docs/observability/snapshots/<YYYY-MM-DD>.json` and re-renders
+  `docs/observability/trends.md` with the last 30 days as unicode
+  sparklines.
+
+## Local watch mode
+
+`bernstein doctor observe --watch` re-runs every 60s and refreshes the
+Rich table in place. Useful while triaging an incident:
+
+```sh
+SONAR_HOST_URL=https://sonar.example.com \
+SONAR_TOKEN=$(pass sonar/token) \
+BERNSTEIN_GLITCHTIP_TOKEN=$(pass glitchtip/read) \
+bernstein doctor observe --watch --interval 30
+```
+
+Ctrl-C stops the loop and exits 0.
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `status: skipped` on a configured backend | env-var typo, wrong prefix | check the table above; `code-scanning` uses `GITHUB_TOKEN`, not `BERNSTEIN_GITHUB_TOKEN` |
+| `status: error` with HTTP 401 | token expired or missing scope | regenerate; for code-scanning ensure `security_events: read` |
+| `delta: new` on every row | first run, or `.sdd/observability/` deleted | expected; the next run computes signed deltas |
+| Sticky PR comment not posted | `pull-requests: write` permission missing | the workflow already requests it; verify the repository allows write actions in PRs |
+| Trends document is empty | no daily snapshots have been captured yet | wait for the next 06:00 UTC cron, or trigger it manually |

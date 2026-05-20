@@ -604,9 +604,8 @@ class BulletinBoard:
         if not path.exists():
             return 0
 
-        existing_ts: set[float] = set()
         with self._lock:
-            existing_ts = {m.timestamp for m in self._messages}
+            existing_ts: set[float] = {m.timestamp for m in self._messages}
 
         loaded = 0
         for raw_line in path.read_text(encoding="utf-8").splitlines():

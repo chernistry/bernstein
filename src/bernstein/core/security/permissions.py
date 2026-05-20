@@ -96,7 +96,10 @@ def resolve_and_validate_path(
         cleaned = cleaned[2:]
 
     # Build absolute path
-    abs_path = Path(os.path.realpath(cleaned)) if os.path.isabs(cleaned) else Path(os.path.realpath(root / cleaned))
+    if Path(cleaned).is_absolute():
+        abs_path = Path(os.path.realpath(cleaned))
+    else:
+        abs_path = Path(os.path.realpath(root / cleaned))
 
     # Check containment: resolved path must be under root
     try:

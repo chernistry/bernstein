@@ -235,7 +235,7 @@ class CommandHook:
         home_dir: BernsteinHome = BernsteinHome.default()
 
         return {
-            "PLUGIN_ROOT": self._plugin_root,
+            "PLUGIN_ROOT": self._plugin_root or "",
             "DATA_DIR": str(hooks_dir.parent),
             "HOOKS_DIR": str(hooks_dir),
             "WORK_DIR": str(Path.cwd()),

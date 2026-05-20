@@ -44,12 +44,15 @@ References:
 from __future__ import annotations
 
 import logging
-import os
 import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import os
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +152,7 @@ StatFn = Callable[[Path], tuple[float, int]]
 
 def _default_stat(path: Path) -> tuple[float, int]:
     """Default :data:`StatFn` -- ``(mtime, size)`` from ``os.stat``."""
-    st = os.stat(path)
+    st = path.stat()
     return float(st.st_mtime), int(st.st_size)
 
 

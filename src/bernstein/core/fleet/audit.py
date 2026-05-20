@@ -222,9 +222,7 @@ def check_audit_tail(project: str, sdd_dir: Path, *, count: int = 100) -> AuditC
         cur_hmac = entry.get("hmac")
         if isinstance(cur_hmac, str) and cur_hmac:
             prev_hmac = cur_hmac
-        else:
-            # Skipping entries with no hmac is fine — older formats might lack one.
-            continue
+        # else: older formats might lack an hmac; skip and continue.
 
     return AuditChainStatus(
         project=project,

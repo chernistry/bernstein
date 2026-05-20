@@ -1021,5 +1021,5 @@ def _record_result(task_id: str, result: GuardrailResult, workdir: Path) -> None
         result.check,
         result_str,
         workdir,
-        files=result.files if result.files else None,
+        files=result.files or None,
     )

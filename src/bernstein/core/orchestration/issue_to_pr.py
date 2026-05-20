@@ -948,7 +948,7 @@ class IssueToPRPipeline:
                 detail=f"apply_diff raised: {exc!r}",
             )
         pr_body = f"Resolves #{issue_number}.\n\nPlan: see comment #{sticky.get('id')} on the issue.\n"
-        title = diff.commit_message if diff.commit_message else f"feat: resolve #{issue_number}"
+        title = diff.commit_message or f"feat: resolve #{issue_number}"
         pr = self.client.open_pull_request(
             repo=repo,
             head=diff.branch,

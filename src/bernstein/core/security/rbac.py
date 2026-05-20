@@ -156,7 +156,7 @@ class RBACEnforcer:
             if rule.method != "*" and rule.method.upper() != method_upper:
                 continue
             # Empty permission means no auth needed
-            return rule.permission if rule.permission else None
+            return rule.permission or None
 
         # Default: read for GET/HEAD, write for others
         if method_upper in ("GET", "HEAD", "OPTIONS"):

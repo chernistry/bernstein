@@ -142,7 +142,7 @@ def _resolve_token(config: GitHubProjectsV2Config) -> str:
                 raise TrackerUnavailable(msg) from exc
         else:
             env_pk = os.environ.get("GITHUB_APP_PRIVATE_KEY", "")
-            if env_pk and os.path.isfile(env_pk):
+            if env_pk and Path(env_pk).is_file():
                 try:
                     private_key = Path(env_pk).read_text()
                 except OSError as exc:

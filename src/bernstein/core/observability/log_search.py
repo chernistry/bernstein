@@ -305,7 +305,7 @@ class LogSearchIndex:
                 break
 
         # Newest first (entries with timestamp=0 go to the end)
-        matches.sort(key=lambda e: e.timestamp if e.timestamp > 0 else 0, reverse=True)
+        matches.sort(key=lambda e: max(e.timestamp, 0), reverse=True)
 
         return LogSearchResult(
             query=query,

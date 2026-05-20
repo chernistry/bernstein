@@ -334,7 +334,7 @@ class TenantIsolationVerifier:
                     name="wal_content_no_cross_leak",
                     description=f"No '{norm_b}' entries found in '{norm_a}' WAL files",
                     passed=not cross_leak,
-                    details=cross_leak if cross_leak else "no cross-tenant WAL entries",
+                    details=cross_leak or "no cross-tenant WAL entries",
                 )
             )
         else:
@@ -484,7 +484,7 @@ class TenantIsolationVerifier:
                     name="archive_tenant_content_isolated",
                     description=f"Tenant '{norm_a}' archive must not contain '{norm_b}' records",
                     passed=not leak,
-                    details=leak if leak else "no cross-tenant archive records",
+                    details=leak or "no cross-tenant archive records",
                 )
             )
         else:

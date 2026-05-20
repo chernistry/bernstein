@@ -86,7 +86,7 @@ class AlwaysAllowRule:
     tool: str
     input_pattern: str
     input_field: str = "path"
-    content_patterns: list[str] = field(default_factory=lambda: [])
+    content_patterns: list[str] = field(default_factory=list)
     description: str = ""
 
 
@@ -103,7 +103,7 @@ class AlwaysAllowMatch:
 class AlwaysAllowEngine:
     """Evaluates tool invocations against always-allow rules."""
 
-    rules: list[AlwaysAllowRule] = field(default_factory=lambda: [])
+    rules: list[AlwaysAllowRule] = field(default_factory=list)
 
     def match(
         self,

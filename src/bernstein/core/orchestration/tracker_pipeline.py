@@ -1201,10 +1201,7 @@ class TrackerPipeline:
         ctx = LifecycleContext(
             event=LifecycleEvent.POST_TASK,
             task=handoff.ticket_id,
-            data={
-                "handoff_event_name": HANDOFF_EVENT_NAME,
-                **handoff.to_payload(),
-            },
+            data={"handoff_event_name": HANDOFF_EVENT_NAME} | handoff.to_payload(),
         )
         try:
             self.hook_registry.run(LifecycleEvent.POST_TASK, ctx)

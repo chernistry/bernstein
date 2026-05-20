@@ -761,10 +761,8 @@ class PostMortemGenerator:
         except (subprocess.TimeoutExpired, OSError):
             pass
         finally:
-            import os as _os
-
             with contextlib.suppress(Exception):
-                _os.unlink(tmp_path)
+                _Path(tmp_path).unlink()
 
         # Fallback: save HTML and inform user.
         html_path = _Path(str(path).replace(".pdf", ".html"))

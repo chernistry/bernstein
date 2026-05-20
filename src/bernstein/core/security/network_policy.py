@@ -139,7 +139,7 @@ class NetworkPolicy:
         if host_l in loopback_aliases:
             candidates |= loopback_aliases
         try:
-            ip = ipaddress.ip_address(host_l if host_l not in {"localhost"} else "127.0.0.1")
+            ip = ipaddress.ip_address(host_l if host_l != "localhost" else "127.0.0.1")
         except ValueError:
             ip = None
         for hp in self._hosts:

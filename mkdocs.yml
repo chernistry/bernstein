@@ -165,6 +165,7 @@ nav:
       - Sandbox backends: architecture/sandbox.md
       - Warm pool: architecture/warm-pool.md
       - Adaptive parallelism: architecture/adaptive-parallelism.md
+      - Tiered context compaction: architecture/memory_tiers.md
       - Artifact storage: architecture/storage.md
       - Skill packs: architecture/skills.md
       - A2A v1.0 signed agent cards: architecture/a2a.md

@@ -1,9 +1,11 @@
 """Registry of host applications that can auto-discover Bernstein's MCP server.
 
-Each :class:`HostSpec` records how to locate a host's MCP config file per
-OS and whether registration is implemented yet. Two hosts are fully
-supported (``claude-desktop``, ``claude-code``); the rest are stubbed so
-the surface is discoverable without claiming behaviour that does not exist.
+Each :class:`HostSpec` records how to locate a host's config file per OS,
+which config format and key the host uses, and whether registration is
+implemented. Most priority hosts are JSON-with-``mcpServers``; Zed nests
+under ``context_servers`` and Aider uses YAML. The shape differences are
+captured declaratively so :mod:`bernstein.core.substrate.register` can
+stay format-agnostic.
 
 Path resolution is intentionally pure (no filesystem writes here) so it is
 trivially testable. Actual config merges live in
@@ -27,6 +29,17 @@ class HostStatus(StrEnum):
 
     SUPPORTED = "supported"
     STUBBED = "stubbed"
+
+
+class ConfigFormat(StrEnum):
+    """On-disk format of a host's config file.
+
+    JSON covers Claude Desktop, Claude Code, Cursor, Continue, Cline, Zed.
+    YAML covers Aider (whose ``.aider.conf.yml`` is YAML, not JSON).
+    """
+
+    JSON = "json"
+    YAML = "yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +92,51 @@ def _claude_code_path() -> Path:
     return Path.cwd() / ".mcp.json"
 
 
+def _cursor_path() -> Path:
+    # Cursor reads a user-global ``~/.cursor/mcp.json`` (and a project-local
+    # ``./.cursor/mcp.json``); we target the user-global path for parity
+    # with how Claude Desktop is registered.
+    return _home() / ".cursor" / "mcp.json"
+
+
+def _continue_path() -> Path:
+    # Continue reads ``~/.continue/config.json`` for legacy MCP server
+    # declarations. Newer Continue releases also accept ``config.yaml``;
+    # we target the JSON path because every shipped version still reads
+    # it and the merge is identical to the other JSON hosts.
+    return _home() / ".continue" / "config.json"
+
+
+def _cline_path() -> Path:
+    # Cline stores its MCP settings inside the VS Code extension global
+    # storage on every OS. The default location depends on the editor
+    # variant; we target the stable canonical name used by Cline's own
+    # docs, with an OS-specific parent.
+    plat = _platform_key()
+    vscode_user = "Code" + os.sep + "User"
+    rel = Path(vscode_user) / "globalStorage" / "saoudrizwan.claude-dev" / "settings" / "cline_mcp_settings.json"
+    if plat == "macos":
+        return _home() / "Library" / "Application Support" / rel
+    if plat == "windows":
+        return _windows_appdata() / rel
+    return _xdg_config_home() / rel
+
+
+def _zed_path() -> Path:
+    # Zed reads ``~/.config/zed/settings.json`` on Linux and
+    # ``~/.config/zed/settings.json`` (via ``$XDG_CONFIG_HOME``) on macOS
+    # too; Windows support is community-driven and shares the path.
+    return _xdg_config_home() / "zed" / "settings.json"
+
+
+def _aider_path() -> Path:
+    # Aider reads ``~/.aider.conf.yml`` for its YAML config. Aider does
+    # not natively load MCP servers; we record the entry under an
+    # ``mcp-servers`` key so a community wrapper or operator script can
+    # consume it (see ``docs/substrate/aider.md``).
+    return _home() / ".aider.conf.yml"
+
+
 # ---------------------------------------------------------------------------
 # Host specification
 # ---------------------------------------------------------------------------
@@ -86,13 +144,16 @@ def _claude_code_path() -> Path:
 
 @dataclass(frozen=True)
 class HostSpec:
-    """Describe one host application and where its MCP config lives.
+    """Describe one host application and where its config lives.
 
     Attributes:
         name: Stable CLI identifier (e.g. ``claude-desktop``).
         display_name: Human-friendly name for tables and docs.
         status: Whether registration is implemented or stubbed.
-        config_key: Top-level key holding the server map in the host config.
+        config_key: Top-level key holding the server map in the host
+            config (``mcpServers`` for Claude/Cursor/Continue/Cline,
+            ``context_servers`` for Zed, ``mcp-servers`` for Aider).
+        config_format: ``json`` or ``yaml``.
         scope: ``user`` (global config in home dir) or ``project`` (cwd).
         notes: One-line operator note (restart hint or stub reason).
         _path_resolver: Internal callable returning the config path.
@@ -102,6 +163,7 @@ class HostSpec:
     display_name: str
     status: HostStatus
     config_key: str = "mcpServers"
+    config_format: ConfigFormat = ConfigFormat.JSON
     scope: str = "user"
     notes: str = ""
     _path_resolver: object = field(default=None, repr=False, compare=False)
@@ -112,7 +174,7 @@ class HostSpec:
         return self.status is HostStatus.SUPPORTED
 
     def config_path(self) -> Path | None:
-        """Resolve the host's MCP config path for the current OS.
+        """Resolve the host's config path for the current OS.
 
         Returns ``None`` for stubbed hosts whose path is not yet wired up.
         """
@@ -123,7 +185,7 @@ class HostSpec:
 
 
 def bernstein_server_entry() -> dict[str, object]:
-    """Return the canonical ``mcpServers`` entry that launches Bernstein.
+    """Return the canonical entry that launches Bernstein.
 
     Mirrors the entry written by orchestration bootstrap so a manually
     registered host behaves identically to an auto-discovered project.
@@ -137,17 +199,6 @@ def bernstein_server_entry() -> dict[str, object]:
 # ---------------------------------------------------------------------------
 # The registry
 # ---------------------------------------------------------------------------
-
-
-def _stub(name: str, display: str, path_resolver: object, notes: str, scope: str = "user") -> HostSpec:
-    return HostSpec(
-        name=name,
-        display_name=display,
-        status=HostStatus.STUBBED,
-        scope=scope,
-        notes=notes,
-        _path_resolver=path_resolver,
-    )
 
 
 HOST_REGISTRY: dict[str, HostSpec] = {
@@ -167,48 +218,64 @@ HOST_REGISTRY: dict[str, HostSpec] = {
         notes="Writes .mcp.json in the current directory; reopen the project.",
         _path_resolver=_claude_code_path,
     ),
-    "cursor": _stub(
-        "cursor",
-        "Cursor",
-        lambda: _home() / ".cursor" / "mcp.json",
-        "Not yet implemented; would merge into ~/.cursor/mcp.json.",
-    ),
-    "continue": _stub(
-        "continue",
-        "Continue",
-        lambda: _home() / ".continue" / "config.json",
-        "Not yet implemented; Continue uses its own mcpServers schema.",
-    ),
-    "cline": _stub(
-        "cline",
-        "Cline",
-        lambda: _home() / ".cline" / "mcp_settings.json",
-        "Not yet implemented; VS Code extension settings vary by install.",
-    ),
-    "zed": _stub(
-        "zed",
-        "Zed",
-        lambda: _xdg_config_home() / "zed" / "settings.json",
-        "Not yet implemented; Zed nests servers under context_servers.",
+    "cursor": HostSpec(
+        name="cursor",
+        display_name="Cursor",
+        status=HostStatus.SUPPORTED,
         scope="user",
+        notes="Restart Cursor or reload the MCP servers panel.",
+        _path_resolver=_cursor_path,
     ),
-    "aider": _stub(
-        "aider",
-        "Aider",
-        lambda: _home() / ".aider.conf.yml",
-        "Not yet implemented; Aider config is YAML, not mcpServers JSON.",
+    "continue": HostSpec(
+        name="continue",
+        display_name="Continue",
+        status=HostStatus.SUPPORTED,
+        scope="user",
+        notes="Restart your editor so Continue reloads ~/.continue/config.json.",
+        _path_resolver=_continue_path,
     ),
-    "codex": _stub(
-        "codex",
-        "Codex",
-        lambda: _home() / ".codex" / "config.toml",
-        "Not yet implemented; Codex config is TOML.",
+    "cline": HostSpec(
+        name="cline",
+        display_name="Cline",
+        status=HostStatus.SUPPORTED,
+        scope="user",
+        notes="Reload the VS Code window so Cline picks up the new MCP server.",
+        _path_resolver=_cline_path,
     ),
-    "gemini": _stub(
-        "gemini",
-        "Gemini CLI",
-        lambda: _home() / ".gemini" / "settings.json",
-        "Not yet implemented; would merge into ~/.gemini/settings.json.",
+    "zed": HostSpec(
+        name="zed",
+        display_name="Zed",
+        status=HostStatus.SUPPORTED,
+        config_key="context_servers",
+        scope="user",
+        notes="Restart Zed after registering; servers nest under context_servers.",
+        _path_resolver=_zed_path,
+    ),
+    "aider": HostSpec(
+        name="aider",
+        display_name="Aider",
+        status=HostStatus.SUPPORTED,
+        config_key="mcp-servers",
+        config_format=ConfigFormat.YAML,
+        scope="user",
+        notes="Aider has no native MCP loader; the entry is recorded for community wrappers.",
+        _path_resolver=_aider_path,
+    ),
+    "codex": HostSpec(
+        name="codex",
+        display_name="Codex",
+        status=HostStatus.STUBBED,
+        scope="user",
+        notes="Not yet implemented; Codex config is TOML.",
+        _path_resolver=lambda: _home() / ".codex" / "config.toml",
+    ),
+    "gemini": HostSpec(
+        name="gemini",
+        display_name="Gemini CLI",
+        status=HostStatus.STUBBED,
+        scope="user",
+        notes="Not yet implemented; would merge into ~/.gemini/settings.json.",
+        _path_resolver=lambda: _home() / ".gemini" / "settings.json",
     ),
 }
 
@@ -235,6 +302,7 @@ def get_host(name: str) -> HostSpec:
 __all__ = [
     "HOST_REGISTRY",
     "SERVER_ID",
+    "ConfigFormat",
     "HostSpec",
     "HostStatus",
     "bernstein_server_entry",

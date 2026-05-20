@@ -330,6 +330,13 @@ class StreamableHTTPTransport:
         Returns:
             Tuple of (status_code, response_headers, response_body).
         """
+        # OAuth-2 / OIDC discovery metadata. Served without authentication so
+        # a client can locate the IdP before it has a token; standard well-known
+        # paths only return content when ``BERNSTEIN_MCP_OAUTH_ISSUER`` is set,
+        # otherwise 404 (anonymous/static-bearer remain the advertised path).
+        if method == "GET" and self._is_well_known(path):
+            return self._handle_well_known(path, headers)
+
         # Normalise path.
         if not path.rstrip("/").endswith(self._config.path.rstrip("/")):
             return (404, {"content-type": _CONTENT_TYPE_JSON}, b'{"error":"not found"}')
@@ -815,6 +822,56 @@ class StreamableHTTPTransport:
             )
             resp.raise_for_status()
             return resp.text
+
+    # -- OAuth discovery -----------------------------------------------------
+
+    @staticmethod
+    def _is_well_known(path: str) -> bool:
+        """Return True for the OAuth-2 / protected-resource discovery paths."""
+        from bernstein.mcp.oauth import AS_METADATA_PATH, PR_METADATA_PATH
+
+        return path in {AS_METADATA_PATH, PR_METADATA_PATH}
+
+    def _handle_well_known(
+        self,
+        path: str,
+        headers: dict[str, str],
+    ) -> tuple[int, dict[str, str], bytes]:
+        """Serve OAuth-2 authorization-server / protected-resource metadata.
+
+        Returns:
+            (200, headers, json-body) when discovery is enabled; 404 otherwise.
+        """
+        from bernstein.mcp.oauth import (
+            AS_METADATA_PATH,
+            PR_METADATA_PATH,
+            authorization_server_metadata,
+            protected_resource_metadata,
+        )
+
+        if path == AS_METADATA_PATH:
+            meta = authorization_server_metadata()
+        elif path == PR_METADATA_PATH:
+            # Build the absolute resource URL from the Host header so the
+            # advertised resource matches what the client called.
+            host = headers.get("host", f"{self._config.host}:{self._config.port}")
+            scheme = headers.get("x-forwarded-proto", "http")
+            resource_url = f"{scheme}://{host}{self._config.path}"
+            meta = protected_resource_metadata(resource_url)
+        else:
+            meta = None
+
+        if meta is None:
+            return (
+                404,
+                {"content-type": _CONTENT_TYPE_JSON},
+                b'{"error":"oauth discovery not configured"}',
+            )
+        return (
+            200,
+            {"content-type": _CONTENT_TYPE_JSON, "cache-control": "public, max-age=300"},
+            json.dumps(meta).encode(),
+        )
 
     # -- Auth ----------------------------------------------------------------
 

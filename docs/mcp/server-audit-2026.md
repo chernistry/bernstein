@@ -26,7 +26,7 @@ covered, the gap is recorded as a follow-up rather than left undefined.
 | Transport: WebSocket | Uncommon | Not implemented | Planned |
 | Auth: anonymous | Loopback-only convenience | Allowed on loopback only; refused on non-loopback binds | Yes |
 | Auth: static bearer | Common | Constant-time bearer check; token from env or config | Yes |
-| Auth: OAuth-2 PKCE | Emerging | Not implemented; advertised under `auth.planned` | Planned |
+| Auth: OAuth-2 PKCE | Emerging | Discovery metadata served at `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource` when `BERNSTEIN_MCP_OAUTH_ISSUER` is set; token issuance is delegated to the configured IdP. See `src/bernstein/mcp/oauth.py` | Partial |
 | Auth: OIDC federation | Emerging | Not implemented; advertised under `auth.planned` | Planned |
 | Capability negotiation: static manifest | Standard `initialize` capabilities | Static `capabilities` object on `initialize` | Yes |
 | Capability negotiation: runtime capability cards | Less common | `bernstein://capability` resource and `capabilityCard` on `initialize`, built from live process state | Yes |

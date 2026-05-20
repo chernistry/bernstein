@@ -28,6 +28,7 @@ reading the spec path passed in by the caller.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 from importlib.metadata import entry_points
@@ -36,6 +37,8 @@ from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "DEFAULT_MAX_AUTO_FIX_ITERATIONS",
@@ -110,9 +113,22 @@ class Rule:
     required: bool = True
 
     def evaluate(self, spec_text: str, workspace_root: Path | None) -> RuleResult:
-        """Run the rule against ``spec_text``, swallowing any exceptions."""
+        """Run the rule against ``spec_text``, swallowing any exceptions.
+
+        The ``rule_id`` of the returned result is normalised to this rule's
+        own ``rule_id`` so a misbehaving plugin cannot smuggle a mismatched
+        id past the ``required_failures`` filter.
+        """
         try:
-            return self.check(spec_text, workspace_root)
+            result = self.check(spec_text, workspace_root)
+            if result.rule_id != self.rule_id:
+                return RuleResult(
+                    rule_id=self.rule_id,
+                    passed=result.passed,
+                    message=result.message or f"rule returned mismatched id '{result.rule_id}'",
+                    hint=result.hint,
+                )
+            return result
         except Exception as exc:
             return RuleResult(
                 rule_id=self.rule_id,
@@ -344,12 +360,22 @@ def load_plugin_rules() -> list[Rule]:
     try:
         eps = entry_points(group=ENTRY_POINT_GROUP)
     except Exception:
+        logger.warning(
+            "Failed to discover spec-quality entry points for group %s",
+            ENTRY_POINT_GROUP,
+            exc_info=True,
+        )
         return rules
     for ep in eps:
         try:
             factory = ep.load()
             rule = factory()
         except Exception:
+            logger.warning(
+                "Failed to load spec-quality plugin rule: %s",
+                ep.name,
+                exc_info=True,
+            )
             continue
         if isinstance(rule, Rule):
             rules.append(rule)
@@ -376,6 +402,16 @@ def evaluate(
     """
     spec_path, spec_text = _resolve_spec_input(spec)
     effective_rules = list(rules) if rules is not None else (default_rules() + load_plugin_rules())
+    # Deduplicate by rule_id (keep first occurrence) so a plugin cannot
+    # reuse a default rule's id and flip its required/optional status.
+    seen: set[str] = set()
+    deduped_rules: list[Rule] = []
+    for rule in effective_rules:
+        if rule.rule_id in seen:
+            continue
+        seen.add(rule.rule_id)
+        deduped_rules.append(rule)
+    effective_rules = deduped_rules
     results = tuple(r.evaluate(spec_text, workspace_root) for r in effective_rules)
     required_ids = frozenset(r.rule_id for r in effective_rules if r.required)
     return ChecklistReport(
@@ -395,9 +431,14 @@ def _resolve_spec_input(spec: Path | str) -> tuple[Path, str]:
     """
     if isinstance(spec, Path):
         return spec, spec.read_text(encoding="utf-8")
-    candidate = Path(spec)
-    if candidate.exists() and candidate.is_file():
-        return candidate, candidate.read_text(encoding="utf-8")
+    try:
+        candidate = Path(spec)
+        if candidate.exists() and candidate.is_file():
+            return candidate, candidate.read_text(encoding="utf-8")
+    except OSError:
+        # Inline spec text that is not a valid filesystem path (e.g. embedded
+        # NUL bytes or an over-long name) falls back to inline mode.
+        pass
     return Path("<inline>"), spec
 
 

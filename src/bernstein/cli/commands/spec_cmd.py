@@ -130,7 +130,10 @@ def spec_auto_fix(
             return None
         last_text["text"] = patched
         if write:
-            path.write_text(patched, encoding="utf-8")
+            try:
+                path.write_text(patched, encoding="utf-8")
+            except OSError as exc:
+                raise click.ClickException(f"Failed to write patched spec: {path} ({exc})") from exc
         return patched
 
     try:

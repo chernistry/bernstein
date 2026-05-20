@@ -13,6 +13,19 @@ Example::
         - script: "scripts/notify.sh"
           timeout: 10
         - plugin: "bernstein_plugin_jira"
+
+A ``script:`` entry may carry an optional ``if:`` filter in the
+permission-rule grammar. The lifecycle runner evaluates the filter against
+the event payload before spawning the subprocess; a non-match skips the
+spawn entirely::
+
+    hooks:
+      preToolUse:
+        - script: "scripts/guard-push.sh"
+          if: "Bash(git push *)"
+
+Filters are parsed at config-load time, so a malformed ``if:`` raises
+:class:`HookConfigError` before the hook ever registers.
 """
 
 from __future__ import annotations
@@ -21,6 +34,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import cast
 
+from bernstein.core.lifecycle.hook_filter import HookFilter, HookFilterError, parse_hook_filter
 from bernstein.core.lifecycle.hooks import DEFAULT_TIMEOUT_SECONDS, HookRegistry, LifecycleEvent
 
 __all__ = [
@@ -39,10 +53,18 @@ class HookConfigError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class ScriptHookEntry:
-    """A script-hook declaration resolved from config."""
+    """A script-hook declaration resolved from config.
+
+    Attributes:
+        path: Filesystem path to the hook script.
+        timeout: Maximum wall-clock seconds before the subprocess is killed.
+        hook_filter: Optional permission-rule prefilter parsed from the
+            ``if:`` field. ``None`` means the hook always runs.
+    """
 
     path: Path
     timeout: int = DEFAULT_TIMEOUT_SECONDS
+    hook_filter: HookFilter | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,7 +142,10 @@ def _parse_entry(event: LifecycleEvent, item: object, config: HookConfig) -> Non
         timeout_raw = item_map.get("timeout", DEFAULT_TIMEOUT_SECONDS)
         if not isinstance(timeout_raw, int) or isinstance(timeout_raw, bool):
             raise HookConfigError(f"hooks.{event.value}[].timeout must be an integer (seconds)")
-        config.scripts[event].append(ScriptHookEntry(path=Path(path_value), timeout=timeout_raw))
+        hook_filter = _parse_entry_filter(event, item_map)
+        config.scripts[event].append(
+            ScriptHookEntry(path=Path(path_value), timeout=timeout_raw, hook_filter=hook_filter),
+        )
         return
 
     if "plugin" in item_map:
@@ -135,6 +160,23 @@ def _parse_entry(event: LifecycleEvent, item: object, config: HookConfig) -> Non
     )
 
 
+def _parse_entry_filter(event: LifecycleEvent, item_map: dict[object, object]) -> HookFilter | None:
+    """Parse and validate the optional ``if:`` filter on a script entry.
+
+    Parse errors surface as :class:`HookConfigError` at config-load time so
+    a malformed filter prevents the hook from registering.
+    """
+    if "if" not in item_map:
+        return None
+    filter_value = item_map["if"]
+    if not isinstance(filter_value, str):
+        raise HookConfigError(f"hooks.{event.value}[].if must be a string filter expression")
+    try:
+        return parse_hook_filter(filter_value)
+    except HookFilterError as exc:
+        raise HookConfigError(f"hooks.{event.value}[].if is invalid: {exc}") from exc
+
+
 def apply_config(registry: HookRegistry, config: HookConfig) -> None:
     """Register every script declaration from ``config`` against ``registry``.
 
@@ -143,4 +185,9 @@ def apply_config(registry: HookRegistry, config: HookConfig) -> None:
     """
     for event, entries in config.scripts.items():
         for entry in entries:
-            registry.register_script(event, entry.path, timeout=entry.timeout)
+            registry.register_script(
+                event,
+                entry.path,
+                timeout=entry.timeout,
+                hook_filter=entry.hook_filter,
+            )

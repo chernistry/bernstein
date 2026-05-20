@@ -27,14 +27,21 @@ bernstein migrate \
     --chunk-size 5 \
     --max-parallel 20
 
-# Use a saved migration plan
-bernstein migrate --plan templates/migrations/flask-to-fastapi.yaml
+# Pin a stable id for idempotent re-runs, and preview without spawning
+bernstein migrate \
+    --glob 'src/**/*.py' \
+    --transform 'convert all sync handler functions to async' \
+    --id sync-to-async \
+    --dry-run
 ```
 
-A migration plan YAML lives under `templates/migrations/`:
+The CLI takes the glob and transform inline. Reference migration plan
+YAMLs (`templates/migrations/sync_to_async.yaml`,
+`templates/migrations/pytest_asyncio.yaml`) document the same shape the
+`MigrationPlan` dataclass accepts:
 
 ```yaml
-# templates/migrations/sync-to-async.yaml
+# templates/migrations/sync_to_async.yaml
 glob: 'src/**/*.py'
 transform_prompt: |
   Convert every sync function in this file to async, replacing every
@@ -60,9 +67,9 @@ Re-running the same plan ID skips already-completed chunks
 
 | Knob | Default | Controls |
 |---|--:|---|
-| `--max-parallel` | `min(20, len(chunks))` | Parallel agent count; respects `adaptive_parallelism` cap. |
+| `--max-parallel` | `20` | Parallel agent count; clamped to the chunk count and the hard ceiling. |
 | `--chunk-size` | `5` | Files per chunk. |
-| `--plan-id` | hash of plan file | Idempotency key. |
+| `--id` | derived from the transform | Idempotency key for re-runs. |
 
 ## Limitations
 

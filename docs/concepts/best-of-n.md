@@ -58,9 +58,13 @@ verify.
 
 | Knob | Default | Controls |
 |---|--:|---|
-| `defaults.BEST_OF_N_DEFAULT` | `1` (off) | Default `best_of_n` for tasks that don't set one. |
-| `defaults.BEST_OF_N_MAX` | `5` | Hard cap, regardless of what a plan asks for. |
-| `defaults.BEST_OF_N_JUDGE_RUBRIC_PATH` | `templates/prompts/best_of_n_judge.md` | Rubric the LLM judge uses. |
+| `defaults.BEST_OF_N.enabled` | `false` | Master switch; tasks must set `best_of_n=K` *and* this must be on to fan out. |
+| `defaults.BEST_OF_N.default_candidates` | `1` (off) | Default `best_of_n` for tasks that don't set one. |
+| `defaults.BEST_OF_N.max_candidates` | `5` | Hard cap, regardless of what a plan asks for. |
+| `defaults.BEST_OF_N.judge_model` | `haiku` | Cheap-tier model the LLM judge runs on. |
+
+The judge rubric is an in-module default (`_DEFAULT_RUBRIC`); override
+it per run by passing `rubric=` to `BestOfNRunner`.
 
 Metrics:
 

@@ -1,10 +1,10 @@
 # Spec-as-test loop
 
-Plan files describe acceptance criteria as free-text. The
-`spec_assertions` module turns those bullets into **executable
-assertions** — file-exists / import-resolves / regex-in-file /
-test-passes — runs them after each stage drain, and routes failures
-back as auto-fix tasks or human-review bulletins.
+The [feature contract](feature-contract.md) describes acceptance
+criteria as free-text steps. The `spec_assertions` module turns those
+steps into **executable assertions** (file-exists / import-resolves /
+regex-in-file / test-passes), runs them after each stage drain, and
+routes failures back as auto-fix tasks or human-review bulletins.
 
 ## Why it exists
 
@@ -16,50 +16,63 @@ spec-as-test verifies the IS.
 
 ## How to use it
 
-Write your plan with explicit `acceptance:` bullets:
+Assertions are derived from the feature contract at
+`.sdd/contract/features.json`. Each `Feature` carries free-text
+`acceptance_steps` plus an `acceptance_check`:
 
-```yaml
-stages:
-  - name: feature
-    steps:
-      - role: backend
-        goal: "Add /healthz endpoint"
-        acceptance:
-          - "file_exists: src/api/healthz.py"
-          - "import_resolves: api.healthz.healthz_view"
-          - "regex_in_file: src/api/__init__.py /from .healthz import/"
-          - "test_passes: pytest tests/api/test_healthz.py"
+```json
+{
+  "features": [
+    {
+      "id": "healthz",
+      "description": "Add /healthz endpoint",
+      "acceptance_steps": [
+        "exists src/api/healthz.py",
+        "import api.healthz",
+        "contains src/api/__init__.py /from .healthz import/"
+      ],
+      "acceptance_check": "pytest tests/api/test_healthz.py"
+    }
+  ]
+}
 ```
 
-`extract_assertions(plan)` parses the bullets into typed `Assertion`
-records. `run_assertions(assertions, repo_root)` executes them after
-every stage drain. Failures post a bulletin and create an auto-fix
-task targeting the offending step.
+`extract_assertions(contract)` parses each feature into typed
+`Assertion` records, returned inside an `AssertionExtractionReport`
+(with `.assertions`, `.unparsed`, and `.skipped_features`). The
+`acceptance_check` becomes a `test_passes` assertion; each parseable
+step becomes a `file_exists` / `import_resolves` / `regex_in_file`
+assertion. `run_assertions(assertions, repo_root)` executes them after
+every stage drain; `verify_contract()` is the top-level entry point.
+Failures post a bulletin and create an auto-fix task targeting the
+offending feature.
 
 You can emit the assertions as a real pytest file for CI:
 
 ```python
+from pathlib import Path
 from bernstein.core.planning.spec_assertions import (
-    extract_assertions, assertions_to_pytest,
+    load_contract, extract_assertions, assertions_to_pytest,
 )
 
-assertions = extract_assertions(plan)
-assertions_to_pytest(assertions, out_path="tests/spec/test_plan_jwt.py")
+contract = load_contract()
+report = extract_assertions(contract)
+assertions_to_pytest(report.assertions, out_path=Path("tests/spec/test_plan_jwt.py"))
 ```
-
-Disable the loop for a run with `--no-spec-test` (default-on).
 
 ## Supported assertion kinds
 
-| Kind | Predicate |
-|---|---|
-| `file_exists` | path resolves to a regular file |
-| `import_resolves` | dotted import succeeds in the project venv |
-| `test_passes` | named pytest selector exits 0 |
-| `regex_in_file` | regex matches at least once in the file's bytes |
+The step grammar parsed out of `acceptance_steps`:
 
-Unknown kinds parse as `unknown` and are skipped with a logged
-warning.
+| Step syntax | Kind | Predicate |
+|---|---|---|
+| `exists <path>` (or `file exists <path>`) | `file_exists` | path resolves to a regular file |
+| `import <module>` | `import_resolves` | dotted import succeeds in the project venv |
+| `contains <path> /<regex>/` | `regex_in_file` | regex matches at least once in the file's bytes |
+| (the feature's `acceptance_check`) | `test_passes` | the command / pytest selector exits 0 |
+
+Steps that match no rule land in the report's `unparsed` list rather
+than running.
 
 ## Configuration
 
@@ -73,8 +86,8 @@ warning.
 
 - Only the four kinds listed above. Property-based testing,
   Gherkin/BDD, and LLM-generated assertions are out of scope.
-- Assertions are derived from the existing `acceptance:` field; no
-  separate spec format.
+- Assertions are derived from the feature contract's
+  `acceptance_steps` / `acceptance_check`; no separate spec format.
 - The pytest emitter writes synchronous tests; async-only test suites
   need a custom runner wrap.
 - Failures attach an auto-fix task but never block merge by themselves

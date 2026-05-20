@@ -32,24 +32,31 @@ class PlannerOutput(BaseModel):
 
 ctx = SchemaRetryContext()
 
+def validate(raw: str) -> PlannerOutput:
+    # raise ValueError on bad input; the retry loop catches it
+    return PlannerOutput.model_validate_json(raw)
+
 def ask_again(prompt_with_errors: str) -> str:
     # call your spawned agent / model with the augmented prompt
     return run_agent(prompt_with_errors)
 
 result = validate_with_retry(
-    payload=raw_text,
-    schema=PlannerOutput,
-    ctx=ctx,
-    max_attempts=3,
+    raw_text,             # initial_response (positional)
+    validate,             # parses-or-raises ValueError
+    ctx,
     ask_again=ask_again,
+    max_attempts=3,
 )
 ```
 
-On a malformed payload the helper:
+The second positional argument is a `validate` callable that parses the
+response or raises `ValueError`, not a schema class directly, so any
+validator (Pydantic, JSONSchema, hand-rolled) plugs in. On a malformed
+payload the helper:
 
-1. Runs the schema validator (Pydantic / JSONSchema).
-2. Records the error into `ctx`.
-3. Calls `ask_again(prompt + "you previously got these errors: …")`.
+1. Runs the `validate` callable.
+2. Records the `ValueError` into `ctx`.
+3. Calls `ask_again(base_prompt + "you previously got these errors: …")`.
 4. Loops up to `max_attempts`; raises `SchemaRetryExhausted` with the
    full error trail on terminal failure.
 

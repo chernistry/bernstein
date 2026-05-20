@@ -8,14 +8,9 @@ tags:
 
 # Troubleshooting
 
-## "Bernstein GUI requires the `gui` extra"
+## `ModuleNotFoundError: sse_starlette` or `qrcode`
 
-```text
-Bernstein GUI requires the `gui` extra:
-    pip install 'bernstein[gui]'
-```
-
-**Cause.** `sse-starlette` is not importable. The extras gate is in `src/bernstein/gui/cli.py` (`_check_gui_extras`).
+There is no runtime extras gate: `bernstein gui serve` runs on a plain install because `sse-starlette` arrives transitively via core deps and `fastapi` / `uvicorn` are already required (`src/bernstein/gui/cli.py` module docstring). You only need the `[gui]` extra to pin `qrcode` for `bernstein gui qr` / `--tunnel`.
 
 **Fix.**
 
@@ -48,13 +43,13 @@ npm run build      # writes to ../src/bernstein/gui/static/
 
 The committed `static/` directory is what the wheel ships; rebuild whenever `web/src/` changes.
 
-## Port collision on `:8000`
+## Port collision on `:8052`
 
 ```text
 [Errno 48] Address already in use
 ```
 
-**Cause.** Another Bernstein server, FastAPI process, or unrelated service holds `:8000`.
+**Cause.** Another Bernstein server, FastAPI process, or unrelated service holds `:8052`.
 
 **Fix.** Pass `--port`:
 
@@ -65,7 +60,7 @@ bernstein gui serve --port 8765
 Or kill the holder:
 
 ```bash
-lsof -i :8000           # macOS / Linux
+lsof -i :8052           # macOS / Linux
 kill <pid>
 ```
 

@@ -54,7 +54,7 @@ Manifest example (`team-hub.yaml`):
 
 ```yaml
 name: acme-platform-hub
-version: 1
+version: "1"
 ships:
   agents:
     - reviewer
@@ -83,7 +83,7 @@ ships:
 - Read-only by design. Clone, pull, and resolution-path merging
   live in later slices, so this loader can be unit-tested against
   a fixture directory without touching git.
-- Manifest size is capped at 4 KiB; a real `team-hub.yaml` is
+- Manifest size is capped at 64 KiB; a real `team-hub.yaml` is
   well under that. The cap prevents pathological YAML inputs from
   exhausting the loader.
 - Bucket vocabulary is fixed at `agents`, `skills`, `rules` for

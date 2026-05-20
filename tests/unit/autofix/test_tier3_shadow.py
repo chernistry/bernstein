@@ -76,6 +76,37 @@ def _diff_for(path: str, body: str = "+added line") -> str:
     return f"--- a/{path}\n+++ b/{path}\n@@ -1,1 +1,2 @@\n existing line\n{body}\n"
 
 
+def _deletion_diff_for(path: str) -> str:
+    """Render a minimal unified diff that deletes ``path`` entirely.
+
+    Matches the format ``git diff`` emits for a pure deletion: the
+    new-side header is ``+++ /dev/null`` and every existing line is a
+    ``-`` deletion line.
+    """
+    return f"--- a/{path}\n+++ /dev/null\n@@ -1,1 +0,0 @@\n-existing line\n"
+
+
+def _rename_diff(old: str, new: str) -> str:
+    """Render a minimal unified diff that renames ``old`` -> ``new``.
+
+    Matches the format ``git diff`` emits for a content-preserving
+    rename: ``rename from`` / ``rename to`` lines, then a paired
+    ``--- a/<old>`` / ``+++ b/<new>`` and a single edit hunk so the
+    file-pair headers are visible to the parser.
+    """
+    return (
+        f"diff --git a/{old} b/{new}\n"
+        "similarity index 95%\n"
+        f"rename from {old}\n"
+        f"rename to {new}\n"
+        f"--- a/{old}\n"
+        f"+++ b/{new}\n"
+        "@@ -1,1 +1,1 @@\n"
+        "-existing line\n"
+        "+edited line\n"
+    )
+
+
 def _ctx(**overrides: Any) -> FailureContext:
     base: dict[str, Any] = {
         "failed_run_id": "987654321",
@@ -301,6 +332,123 @@ def test_cordon_violation_rejected_with_decision_log_kind(tmp_path: Path) -> Non
     assert len(records) == 1
     assert records[0].kind == "cordon_violation"
     assert "src/bernstein/core/server.py" in records[0].inputs["rejected_paths"]
+
+
+def test_cordon_violation_deletion_outside_cordon(tmp_path: Path) -> None:
+    """A pure deletion outside the cordon must trip a violation.
+
+    The patch's new-side header is ``+++ /dev/null``; only the old-side
+    ``--- a/<path>`` carries the file the patch would delete. The
+    runner must surface that old-side path and reject the capture.
+    """
+    sdd = tmp_path / "sdd"
+    decision_path = tmp_path / "decisions.jsonl"
+    patch = _deletion_diff_for("src/bernstein/core/server.py")
+    hook = _RecordingRunHook(queued=[RunResult(patch=patch, model_used="x", cost_usd=0.0)])
+    runner, _ = _runner(sdd_dir=sdd, hook=hook, decision_log_path=decision_path)
+
+    outcome = runner.run(_ctx())
+
+    assert outcome.kind == "cordon_violation"
+    assert outcome.rejected_paths == ("src/bernstein/core/server.py",)
+    assert not (sdd / "autoheal" / "tier3-shadow" / "987654321.diff").exists()
+    records = dl.replay(decision_path)
+    assert len(records) == 1
+    assert records[0].kind == "cordon_violation"
+    # Decision log records the offending old-side path verbatim.
+    assert "src/bernstein/core/server.py" in records[0].inputs["rejected_paths"]
+    assert "src/bernstein/core/server.py" in records[0].inputs["touched_paths"]
+
+
+def test_cordon_violation_deletion_within_cordon_passes(tmp_path: Path) -> None:
+    """A pure deletion of a cordoned file must NOT trip a violation.
+
+    The deletion is a destructive operation, but the cordon's purpose
+    is to scope the blast radius, not to forbid deletion outright. A
+    deletion of e.g. ``typos.toml`` (cordon-allowed) should land just
+    like an addition or in-place edit.
+    """
+    sdd = tmp_path / "sdd"
+    decision_path = tmp_path / "decisions.jsonl"
+    patch = _deletion_diff_for("typos.toml")
+    hook = _RecordingRunHook(queued=[RunResult(patch=patch, model_used=DEFAULT_PRIMARY_MODEL)])
+    runner, _ = _runner(sdd_dir=sdd, hook=hook, decision_log_path=decision_path)
+
+    outcome = runner.run(_ctx())
+
+    assert outcome.kind == "shadow_captured"
+    assert outcome.rejected_paths == ()
+
+
+def test_cordon_violation_rename_out_of_cordon(tmp_path: Path) -> None:
+    """A rename that moves a cordoned file outside the cordon trips a violation.
+
+    Old side (``typos.toml``) passes the cordon; new side
+    (``src/bernstein/core/server.py``) does not. Without the rename
+    detection in ``extract_paths_from_unified_diff`` the patch would
+    have been accepted because only the new side would have been
+    inspected, then a follow-up patch could touch the renamed-out file
+    while it sits outside the cordon.
+    """
+    sdd = tmp_path / "sdd"
+    decision_path = tmp_path / "decisions.jsonl"
+    patch = _rename_diff("typos.toml", "src/bernstein/core/server.py")
+    hook = _RecordingRunHook(queued=[RunResult(patch=patch, model_used="x", cost_usd=0.0)])
+    runner, _ = _runner(sdd_dir=sdd, hook=hook, decision_log_path=decision_path)
+
+    outcome = runner.run(_ctx())
+
+    assert outcome.kind == "cordon_violation"
+    # Rejection surfaces the new-side path that left the cordon.
+    assert "src/bernstein/core/server.py" in outcome.rejected_paths
+    records = dl.replay(decision_path)
+    assert len(records) == 1
+    assert records[0].kind == "cordon_violation"
+    # Both sides of the rename are recorded under touched_paths.
+    touched = records[0].inputs["touched_paths"]
+    assert "typos.toml" in touched
+    assert "src/bernstein/core/server.py" in touched
+
+
+def test_cordon_violation_rename_into_cordon(tmp_path: Path) -> None:
+    """A rename that moves a file INTO the cordon also trips a violation.
+
+    Old side (``src/bernstein/core/server.py``) is out-of-cordon, even
+    though the new side is cordon-allowed. Without inspecting the old
+    side, a Tier-3 patch could rename an arbitrary file into the
+    cordon and then mutate it freely.
+    """
+    sdd = tmp_path / "sdd"
+    decision_path = tmp_path / "decisions.jsonl"
+    patch = _rename_diff("src/bernstein/core/server.py", "typos.toml")
+    hook = _RecordingRunHook(queued=[RunResult(patch=patch, model_used="x", cost_usd=0.0)])
+    runner, _ = _runner(sdd_dir=sdd, hook=hook, decision_log_path=decision_path)
+
+    outcome = runner.run(_ctx())
+
+    assert outcome.kind == "cordon_violation"
+    assert "src/bernstein/core/server.py" in outcome.rejected_paths
+    records = dl.replay(decision_path)
+    assert records[0].kind == "cordon_violation"
+    assert "src/bernstein/core/server.py" in records[0].inputs["rejected_paths"]
+
+
+def test_cordon_rename_within_cordon_passes(tmp_path: Path) -> None:
+    """A rename where both sides are inside the cordon must NOT trip.
+
+    Both ``typos.toml`` and ``AGENTS.md`` are cordon-allowed root
+    files; renaming one into the other is a legal Tier-3 edit.
+    """
+    sdd = tmp_path / "sdd"
+    decision_path = tmp_path / "decisions.jsonl"
+    patch = _rename_diff("typos.toml", "AGENTS.md")
+    hook = _RecordingRunHook(queued=[RunResult(patch=patch, model_used=DEFAULT_PRIMARY_MODEL)])
+    runner, _ = _runner(sdd_dir=sdd, hook=hook, decision_log_path=decision_path)
+
+    outcome = runner.run(_ctx())
+
+    assert outcome.kind == "shadow_captured"
+    assert outcome.rejected_paths == ()
 
 
 def test_cordon_violation_permits_tier3_yaml_extension(tmp_path: Path) -> None:
@@ -546,6 +694,29 @@ def test_extract_paths_from_unified_diff_multi_file() -> None:
     diff = _diff_for("typos.toml") + _diff_for("AGENTS.md", body="+ entry")
     paths = extract_paths_from_unified_diff(diff)
     assert paths == ("typos.toml", "AGENTS.md")
+
+
+def test_extract_paths_from_unified_diff_collects_deletion_old_side() -> None:
+    """A pure deletion must surface the old-side ``--- a/<path>``.
+
+    Without this the cordon sees only ``/dev/null`` on the new side and
+    a Tier-3 patch could delete an arbitrary out-of-cordon file.
+    """
+    diff = _deletion_diff_for("src/bernstein/core/server.py")
+    paths = extract_paths_from_unified_diff(diff)
+    assert paths == ("src/bernstein/core/server.py",)
+
+
+def test_extract_paths_from_unified_diff_collects_both_sides_of_rename() -> None:
+    """A rename must surface both the old-side and new-side paths.
+
+    Without the old side, a cordoned file could be renamed out of the
+    cordon (the new path passes; the old path is invisible) and a
+    follow-up patch would then bypass the cordon entirely.
+    """
+    diff = _rename_diff("typos.toml", "src/bernstein/core/server.py")
+    paths = extract_paths_from_unified_diff(diff)
+    assert paths == ("typos.toml", "src/bernstein/core/server.py")
 
 
 def test_recurrence_tracker_ignores_old_rows(tmp_path: Path) -> None:

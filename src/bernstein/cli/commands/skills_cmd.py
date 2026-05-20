@@ -11,12 +11,24 @@ the BASE/TEAM/USER layout get the layered view on demand.
 from __future__ import annotations
 
 import json
+import signal
+import time
 from pathlib import Path
 
 import click
 
 from bernstein import get_templates_dir
 from bernstein.cli.helpers import console
+from bernstein.core.skills.lifecycle import (
+    SKILLS_TOML_FILENAME,
+    InstallScope,
+    SkillLifecycleError,
+    SkillsTomlError,
+    install_local,
+    remove_skill,
+    sync_skills,
+)
+from bernstein.core.skills.lint import LintSeverity, lint_skill
 
 
 @click.group("skills")
@@ -212,3 +224,206 @@ def _skills_show_layered(name: str) -> None:
     for layer in sorted(fragments, key=lambda layer: layer.value):
         console.print(f"\n[bold]layer: {layer.label}[/bold] ([dim]{paths.for_layer(layer)}[/dim])")
         console.print(json.dumps(fragments[layer], indent=2, sort_keys=True))
+
+
+# ---------------------------------------------------------------------------
+# Lifecycle commands (issue 1720, track 1)
+# ---------------------------------------------------------------------------
+
+
+def _parse_scope(scope_str: str) -> InstallScope:
+    """Coerce the ``--scope`` CLI flag into an :class:`InstallScope`."""
+    try:
+        return InstallScope(scope_str)
+    except ValueError as exc:
+        raise click.BadParameter(f"unknown scope {scope_str!r}; expected project or user") from exc
+
+
+@skills_group.command("install")
+@click.argument("source", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--scope",
+    "scope",
+    type=click.Choice(["project", "user"]),
+    default="project",
+    help="Install scope: project (.bernstein/skills/) or user (~/.bernstein/skills/).",
+)
+@click.option(
+    "--name",
+    "override_name",
+    default=None,
+    help="Override the auto-detected skill name (uses source filename otherwise).",
+)
+def skills_install(source: Path, scope: str, override_name: str | None) -> None:
+    """Install a skill from a local path.
+
+    \b
+      bernstein skills install ./templates/skills/bernstein-test-runner.md
+      bernstein skills install ./my-skill-dir --scope user
+    """
+    install_scope = _parse_scope(scope)
+    try:
+        result = install_local(
+            source.resolve(),
+            scope=install_scope,
+            workdir=Path.cwd(),
+            override_name=override_name,
+        )
+    except SkillLifecycleError as exc:
+        console.print(f"[red]install failed:[/red] {exc}")
+        raise SystemExit(1) from exc
+    console.print(
+        f"[green]installed[/green] {result.name} -> {result.install_dir} (digest {result.digest.digest[:12]}...)",
+    )
+
+
+@skills_group.command("remove")
+@click.argument("name")
+@click.option(
+    "--scope",
+    "scope",
+    type=click.Choice(["project", "user"]),
+    default="project",
+    help="Remove from project or user scope.",
+)
+def skills_remove(name: str, scope: str) -> None:
+    """Remove a previously installed skill."""
+    install_scope = _parse_scope(scope)
+    removed = remove_skill(name, scope=install_scope, workdir=Path.cwd())
+    if removed:
+        console.print(f"[green]removed[/green] {name} from {scope} scope")
+    else:
+        console.print(f"[yellow]not installed[/yellow] {name} in {scope} scope")
+        raise SystemExit(1)
+
+
+@skills_group.command("sync")
+@click.option(
+    "--manifest",
+    "manifest",
+    type=click.Path(path_type=Path),
+    default=None,
+    help=f"Path to {SKILLS_TOML_FILENAME}. Defaults to <cwd>/{SKILLS_TOML_FILENAME}.",
+)
+@click.option(
+    "--scope",
+    "scope",
+    type=click.Choice(["project", "user"]),
+    default="project",
+    help="Where to install declared skills.",
+)
+def skills_sync(manifest: Path | None, scope: str) -> None:
+    """Install every skill declared in ``bernstein-skills.toml``.
+
+    Re-runs are idempotent: skills whose digest already matches are
+    skipped. The lock file (``skills.lock``) is rewritten beside the
+    manifest on every successful run.
+    """
+    toml_path = manifest if manifest is not None else (Path.cwd() / SKILLS_TOML_FILENAME)
+    install_scope = _parse_scope(scope)
+    try:
+        outcomes = sync_skills(
+            toml_path.resolve(),
+            scope=install_scope,
+            workdir=Path.cwd(),
+        )
+    except (SkillsTomlError, SkillLifecycleError) as exc:
+        console.print(f"[red]sync failed:[/red] {exc}")
+        raise SystemExit(1) from exc
+
+    if not outcomes:
+        console.print("[dim]no skills declared in manifest[/dim]")
+        return
+    for outcome in outcomes:
+        marker = {
+            "installed": "[green]+ installed[/green]",
+            "updated": "[yellow]~ updated[/yellow]",
+            "unchanged": "[dim]= unchanged[/dim]",
+        }.get(outcome.action, outcome.action)
+        console.print(f"{marker} {outcome.name} ({outcome.digest.digest[:12]}...)")
+
+
+@skills_group.command("lint")
+@click.argument("names", nargs=-1)
+@click.option(
+    "--scope",
+    "scope",
+    type=click.Choice(["project", "user"]),
+    default="project",
+    help="Lint installed skills from project or user scope.",
+)
+def skills_lint(names: tuple[str, ...], scope: str) -> None:
+    """Advisory lint: validate frontmatter, references, sensitive patterns.
+
+    Lint is non-blocking in this release. Exit code is 0 even when
+    errors are reported; the operator decides whether to act on them.
+    """
+    from bernstein.core.skills.lifecycle import scope_root
+
+    install_scope = _parse_scope(scope)
+    root = scope_root(install_scope, workdir=Path.cwd())
+    if not root.is_dir():
+        console.print(f"[dim]no installed skills under {root}[/dim]")
+        return
+
+    targets: list[Path] = [root / name for name in names] if names else sorted(p for p in root.iterdir() if p.is_dir())
+
+    all_findings = 0
+    for target in targets:
+        if not target.is_dir():
+            console.print(f"[red]missing[/red] {target.name} (not installed)")
+            all_findings += 1
+            continue
+        findings = lint_skill(target)
+        if not findings:
+            console.print(f"[green]ok[/green] {target.name}")
+            continue
+        all_findings += len(findings)
+        console.print(f"[bold]{target.name}[/bold]")
+        for finding in findings:
+            tag = "[red]error[/red]" if finding.severity is LintSeverity.ERROR else "[yellow]warn[/yellow]"
+            console.print(f"  {tag} {finding.code}: {finding.message}")
+
+    if all_findings:
+        console.print(f"\n[dim]{all_findings} finding(s) total (advisory only)[/dim]")
+
+
+@skills_group.command("watch")
+@click.argument(
+    "path",
+    type=click.Path(path_type=Path),
+    required=False,
+)
+def skills_watch(path: Path | None) -> None:
+    """Hot-reload the skill index on filesystem change.
+
+    Watches the project's ``.bernstein/skills/`` directory by default.
+    Pass an explicit path to watch a different root (e.g. an in-tree
+    ``templates/skills/``). Press Ctrl-C to stop.
+    """
+    from bernstein.core.skills.watcher import start_skill_watcher
+
+    watch_path = (path or Path.cwd() / ".bernstein" / "skills").resolve()
+    console.print(f"[cyan]watching[/cyan] {watch_path}")
+
+    reload_count = 0
+
+    def on_reload(_loader: object) -> None:
+        nonlocal reload_count
+        reload_count += 1
+        console.print(f"[green]reloaded[/green] index (event #{reload_count})")
+
+    handle = start_skill_watcher(watch_path, on_reload)
+    stopped = False
+
+    def _shutdown(_signum: int, _frame: object) -> None:
+        nonlocal stopped
+        stopped = True
+
+    signal.signal(signal.SIGINT, _shutdown)
+    try:
+        while not stopped:
+            time.sleep(0.2)
+    finally:
+        handle.stop()
+        console.print("[dim]watcher stopped[/dim]")

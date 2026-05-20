@@ -204,6 +204,8 @@ class RunStats:
     agents: list[AgentInfo] = field(default_factory=list[AgentInfo])
     elapsed_seconds: float = 0.0
     total_cost_usd: float = 0.0
+    run_id: str | None = None
+    run_name: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -574,6 +576,9 @@ def create_summary_table(stats: RunStats) -> Table:
     table.add_column("Value", justify="right", min_width=15)
 
     s = stats.summary
+    if stats.run_name:
+        table.add_row("Run", f"[bold]{stats.run_name}[/bold]")
+        table.add_section()
     table.add_row("Total tasks", str(s.total))
     table.add_row("[green]Done[/green]", f"[green]{s.done}[/green]")
     table.add_row("[yellow]In progress[/yellow]", f"[yellow]{s.in_progress}[/yellow]")
@@ -597,7 +602,10 @@ def create_summary_plain(stats: RunStats) -> str:
         A multi-line plain string.
     """
     s = stats.summary
-    lines = [
+    lines: list[str] = []
+    if stats.run_name:
+        lines.append(f"Run:           {stats.run_name}")
+    lines += [
         f"Total tasks: {s.total}",
         f"  Done:        {s.done}",
         f"  In progress: {s.in_progress}",

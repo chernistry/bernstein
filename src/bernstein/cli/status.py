@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from rich.console import Console
 
 from bernstein.adapters.base import RATE_LIMIT_WINDOW_SECONDS, get_rate_limit_meters
+from bernstein.cli.run_names import render_name
 from bernstein.cli.ui import (
     STATUS_COLORS,
     AgentInfo,
@@ -31,6 +32,27 @@ from bernstein.cli.ui import (
 from bernstein.core.view_mode import ViewConfig, ViewMode, get_view_config
 
 _STYLE_BOLD_CYAN = "bold cyan"
+
+
+def _derive_run_name(data: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Return ``(run_id, memorable_name)`` from the status payload.
+
+    The memorable name is rendered only when the payload carries a valid
+    UUID run id; otherwise both values fall back to whatever (possibly
+    ``None``) id the payload provided so the UUID still surfaces in
+    detail views.
+    """
+    from uuid import UUID
+
+    raw = data.get("run_id")
+    run_id = str(raw) if raw else None
+    if run_id is None:
+        return None, None
+    try:
+        return run_id, render_name(UUID(run_id))
+    except ValueError:
+        return run_id, None
+
 
 # ---------------------------------------------------------------------------
 # Task table
@@ -392,12 +414,15 @@ def _extract_run_stats(
     agents = [AgentInfo.from_dict(a) for a in agents_raw]
     elapsed = float(data.get("elapsed_seconds", 0))
     total_cost = _extract_spent_cost(data)
+    run_id, run_name = _derive_run_name(data)
 
     stats = RunStats(
         summary=summary,
         agents=agents,
         elapsed_seconds=elapsed,
         total_cost_usd=total_cost,
+        run_id=run_id,
+        run_name=run_name,
     )
     return tasks, agents, stats, per_role, provider_status, dependency_scan
 
@@ -432,6 +457,9 @@ def _render_verification_nudge(
 def _render_status_header(con: Console, stats: object, elapsed: float) -> None:
     """Render the task count status line and elapsed time."""
     summary = stats.summary  # type: ignore[attr-defined]
+    run_name = getattr(stats, "run_name", None)
+    if run_name:
+        con.print(Text.assemble(("Run: ", "bold"), (str(run_name), "bold cyan")))
     status_line = Text()
     status_line.append("Tasks: ", style="bold")
     status_line.append(f"{summary.total} total  ", style="bold")
@@ -605,11 +633,14 @@ def render_status_plain(data: dict[str, Any]) -> str:
     dependency_scan_obj = data.get("dependency_scan", {})
     dependency_scan = cast(_CAST_DICT_STR_ANY, dependency_scan_obj) if isinstance(dependency_scan_obj, dict) else {}
 
+    run_id, run_name = _derive_run_name(data)
     stats = RunStats(
         summary=summary,
         agents=agents,
         elapsed_seconds=elapsed,
         total_cost_usd=total_cost,
+        run_id=run_id,
+        run_name=run_name,
     )
     lineage_obj = data.get("lineage", {})
     lineage = cast(_CAST_DICT_STR_ANY, lineage_obj) if isinstance(lineage_obj, dict) else {}

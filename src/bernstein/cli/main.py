@@ -67,6 +67,7 @@ from bernstein.cli.commands.fleet_cmd import fleet_group
 from bernstein.cli.commands.integrations_cmd import integrations_group
 from bernstein.cli.commands.knowledge_cmd import knowledge_group
 from bernstein.cli.commands.resume_cmd import resume_cmd
+from bernstein.cli.commands.run_names_cmd import run_lookup_cmd
 from bernstein.cli.commands.role_adapter_policy_cmd import security_group as _role_adapter_security_group
 from bernstein.cli.commands.skills_cmd import skills_group
 from bernstein.cli.commands.spec_cmd import spec_group
@@ -1008,6 +1009,7 @@ cli.add_command(merge_cmd, "merge")
 cli.add_command(migrate_cmd, "migrate")
 cli.add_command(changelog_cmd, "changelog")
 cli.add_command(run_changelog_cmd, "run-changelog")
+cli.add_command(run_lookup_cmd, "run-lookup")
 cli.add_command(dr_group, "dr")
 cli.add_command(incident_cmd, "incident")
 cli.add_command(profile_cmd, "profile")

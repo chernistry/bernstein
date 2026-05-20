@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import bernstein
+from bernstein.cli.run_names import render_name
 
 # ---------------------------------------------------------------------------
 # Manifest
@@ -147,9 +148,22 @@ def format_archive_summary(manifest: ArchiveManifest) -> str:
         "===============",
         f"Created:   {manifest.created_at}",
         f"Version:   {manifest.bernstein_version}",
+        f"Run name:  {_archive_run_name(manifest.run_id)}",
         f"Run ID:    {manifest.run_id or '(none)'}",
         f"Files:     {manifest.file_count}",
         f"Size:      {size_kb:.1f} KB",
         f"Sections:  {', '.join(manifest.sections) if manifest.sections else '(none)'}",
     ]
     return "\n".join(lines)
+
+
+def _archive_run_name(run_id: str | None) -> str:
+    """Render the memorable name for an archive run id, if valid."""
+    from uuid import UUID
+
+    if not run_id:
+        return "(none)"
+    try:
+        return render_name(UUID(run_id))
+    except ValueError:
+        return "(unnamed)"

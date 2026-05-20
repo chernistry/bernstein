@@ -848,7 +848,9 @@ class CLIAdapter(ABC):
         1. An inline :attr:`strategy_override` set by the subclass, if any.
         2. The row in
            :data:`bernstein.adapters._contract.STRATEGY_MATRIX` keyed by the
-           adapter's registry namespace.
+           adapter's registry namespace (:meth:`_derive_session_namespace`,
+           with a small alias table covering adapters whose ``name()`` does
+           not match their registry key).
         3. The conservative
            :data:`bernstein.adapters._contract.DEFAULT_ADAPTER_STRATEGY`.
 
@@ -856,20 +858,17 @@ class CLIAdapter(ABC):
         dangerous-mode, event-channel) instead of branching on the adapter
         name. The return type is declared as ``object`` so subclasses are not
         forced to import the contract module just to read the attribute.
+
+        Resolution stays inside :mod:`bernstein.adapters._contract` so this
+        module never imports the registry: that would make every adapter
+        transitively depend on every other adapter and break the
+        ``adapters-independent`` import-linter contract.
         """
         from bernstein.adapters._contract import AdapterStrategy, strategy_for
 
         if isinstance(self.strategy_override, AdapterStrategy):
             return self.strategy_override
-
-        # Prefer the canonical registry key so the matrix lookup matches the
-        # declaration. Fall back to the session namespace when the adapter is
-        # not registered (e.g. ad-hoc test stubs); ``strategy_for`` then
-        # yields the conservative default.
-        from bernstein.adapters.registry import registry_name_for
-
-        key = registry_name_for(self) or self._derive_session_namespace()
-        return strategy_for(key)
+        return strategy_for(self._derive_session_namespace())
 
     def session_id_args(self, conversation_id: str) -> list[str]:
         """Return spawn-time argv for binding a deterministic session id.

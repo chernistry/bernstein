@@ -107,12 +107,12 @@ def test_strategy_for_unknown_adapter_returns_default() -> None:
 
 
 def test_adapter_strategy_to_dict_round_trips() -> None:
-    strat = AdapterStrategy(
+    strategy = AdapterStrategy(
         resume=ResumeStrategy.FLAG,
         dangerous_mode=DangerousModeStrategy.ENV_VAR,
         event_channel=EventChannel.HOOKS,
     )
-    assert strat.to_dict() == {
+    assert strategy.to_dict() == {
         "resume": "flag",
         "dangerous_mode": "env-var",
         "event_channel": "hooks",
@@ -125,10 +125,10 @@ def test_adapter_strategy_to_dict_round_trips() -> None:
 
 
 def test_claude_declares_native_flag_resume_and_stream_json() -> None:
-    strat = strategy_for("claude")
-    assert strat.resume is ResumeStrategy.FLAG
-    assert strat.dangerous_mode is DangerousModeStrategy.CLI_FLAG
-    assert strat.event_channel is EventChannel.STREAM_JSON
+    strategy = strategy_for("claude")
+    assert strategy.resume is ResumeStrategy.FLAG
+    assert strategy.dangerous_mode is DangerousModeStrategy.CLI_FLAG
+    assert strategy.event_channel is EventChannel.STREAM_JSON
 
 
 def test_stream_json_adapters_declared() -> None:
@@ -244,5 +244,7 @@ def test_resume_capability_unknown_defaults_fallback() -> None:
 
 def test_legacy_matrix_dict_matches_strategy_matrix() -> None:
     for name in STRATEGY_MATRIX:
-        expected = RESUME_NATIVE if strategy_for(name).resume is not ResumeStrategy.UNSUPPORTED else RESUME_FALLBACK_FRESH
+        expected = (
+            RESUME_NATIVE if strategy_for(name).resume is not ResumeStrategy.UNSUPPORTED else RESUME_FALLBACK_FRESH
+        )
         assert RESUME_CAPABILITY_MATRIX[name] == expected

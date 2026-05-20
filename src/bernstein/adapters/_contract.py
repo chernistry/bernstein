@@ -533,14 +533,43 @@ STRATEGY_MATRIX: dict[str, AdapterStrategy] = {
 }
 
 
+#: Maps the session-namespace form of an adapter (the lower-cased
+#: :meth:`CLIAdapter.name`) to its registry key, for the adapters whose
+#: human-readable name does not match the key the matrix is declared under.
+#: This keeps :meth:`CLIAdapter.strategy` free of any registry import (which
+#: would break the ``adapters-independent`` import-linter contract) while
+#: still resolving the correct row. Adapters whose ``name()`` already lowers
+#: to their registry key need no entry here.
+_NAMESPACE_ALIASES: dict[str, str] = {
+    "claude code": "claude",
+    "cloudflare agents": "cloudflare",
+    "composio agent orchestrator": "composio",
+    "continue.dev": "continue",
+    "github copilot": "copilot",
+    "generic cli": "generic",
+    "hermes agent": "hermes",
+    "iac (terraform/pulumi)": "iac",
+    "letta code": "letta_code",
+    "mistral vibe": "mistral",
+    "ollama (local)": "ollama",
+    "open interpreter": "open_interpreter",
+    "openai agents sdk": "openai_agents",
+    "qwen cli": "qwen",
+    "rovo dev": "rovo",
+}
+
+
 def strategy_for(adapter_name: str) -> AdapterStrategy:
     """Return the declared :class:`AdapterStrategy` for ``adapter_name``.
 
-    Unknown adapters fall back to :data:`DEFAULT_ADAPTER_STRATEGY`, which is
-    conservative on every axis (no native resume, dangerous mode
-    unsupported, text-signal event channel).
+    Accepts either a registry key (``"claude"``) or the session-namespace
+    form (``"claude code"``); the latter is mapped through
+    :data:`_NAMESPACE_ALIASES` first. Unknown adapters fall back to
+    :data:`DEFAULT_ADAPTER_STRATEGY`, which is conservative on every axis (no
+    native resume, dangerous mode unsupported, text-signal event channel).
     """
-    return STRATEGY_MATRIX.get(adapter_name, DEFAULT_ADAPTER_STRATEGY)
+    key = _NAMESPACE_ALIASES.get(adapter_name, adapter_name)
+    return STRATEGY_MATRIX.get(key, DEFAULT_ADAPTER_STRATEGY)
 
 
 def undeclared_strategies(adapter_names: list[str]) -> list[str]:

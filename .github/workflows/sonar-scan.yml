@@ -1,17 +1,21 @@
 name: SonarQube scan
 
+# Runs after the main CI workflow completes successfully on main.
+# Reuses the coverage.xml artifact uploaded by ci.yml so we do not
+# re-run the unit suite. The unit suite takes ~25 minutes when sharded
+# per-file in CI; re-running it inline here was hitting the 30 minute
+# step timeout (the suite barely reached 5% of files within 30 minutes
+# when run as a single pytest --cov invocation).
 on:
-  push:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
     branches: [main]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - 'pyproject.toml'
-      - '.github/workflows/sonar-scan.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: sonar-scan-${{ github.ref }}
@@ -21,8 +25,14 @@ jobs:
   scan:
     name: SonarQube scan
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    if: ${{ vars.SONAR_HOST_URL != '' }}
+    timeout-minutes: 15
+    # Only run when:
+    # - Triggered manually, or
+    # - The upstream CI run succeeded on main and SONAR_HOST_URL is set.
+    if: >-
+      ${{ vars.SONAR_HOST_URL != '' &&
+          (github.event_name == 'workflow_dispatch' ||
+           github.event.workflow_run.conclusion == 'success') }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
@@ -33,27 +43,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
-          fetch-depth: 0  # Sonar needs full git history for accurate blame
+          # Sonar needs full git history for accurate blame. When
+          # triggered by workflow_run, check out the SHA that CI ran
+          # against so the scan reflects that exact commit.
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+      - name: Download coverage artifact from CI
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
         with:
-          python-version: '3.14'
+          name: coverage-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b  # v8.1.0
-        with:
-          enable-cache: true
-
-      - name: Sync dev deps
-        timeout-minutes: 15
-        run: uv sync --group dev
-
-      - name: Run coverage
-        timeout-minutes: 30
+      - name: Verify coverage.xml present
         run: |
-          uv run pytest --cov=src/bernstein --cov-report=xml --cov-branch tests/unit/ -q || true
+          if [ ! -f coverage.xml ]; then
+            echo "::warning::coverage.xml not found; Sonar scan will run without Python coverage data"
+          else
+            echo "coverage.xml found ($(wc -c < coverage.xml) bytes)"
+          fi
 
       - name: SonarQube scan
         timeout-minutes: 10
@@ -70,3 +81,5 @@ jobs:
             -Dsonar.tests=tests
             -Dsonar.python.coverage.reportPaths=coverage.xml
             -Dsonar.exclusions=src/bernstein/_default_templates/**,src/bernstein/grpc_gen/**
+            -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha || github.sha }}
+            -Dsonar.ws.timeout=600

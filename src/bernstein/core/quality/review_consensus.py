@@ -342,7 +342,10 @@ def _finalise_cluster(
     line = min(lines) if lines else None
     title = max(members, key=lambda m: len(m.title)).title
     severity = _max_severity(members)
-    max_conf = max(m.confidence for m in members)
+    # Clamp each member confidence into [0.0, 1.0] before taking the max so a
+    # misbehaving adapter that reports out-of-range confidence cannot push the
+    # consensus score outside its band and skew gate promotion.
+    max_conf = max(min(max(m.confidence, 0.0), 1.0) for m in members)
 
     denom = max(bots_ran, 1)
     agreement = min(len(detected_by) / denom, 1.0)

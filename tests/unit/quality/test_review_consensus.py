@@ -145,6 +145,21 @@ class TestMultiBotAgree:
         # agreement 1.0 * 0.9 = 0.9.
         assert abs(out[0].consensus_score - 0.9) < 1e-9
 
+    def test_out_of_range_confidence_is_clamped(self) -> None:
+        # An adapter reporting confidence outside [0.0, 1.0] must not push the
+        # consensus score past its band; clamping keeps bucketing stable.
+        out = compute_consensus(
+            [
+                _finding("coderabbit", confidence=5.0),
+                _finding("sourcery", confidence=-2.0),
+            ],
+            bots_ran=2,
+        )
+        assert out[0].max_confidence == 1.0
+        # agreement 1.0 * clamped 1.0 = 1.0.
+        assert out[0].consensus_score == 1.0
+        assert out[0].level is ConsensusLevel.CONFIRMED
+
 
 # ---------------------------------------------------------------------------
 # Multi-bot disagreement

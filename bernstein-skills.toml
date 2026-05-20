@@ -1,0 +1,16 @@
+# Skill lifecycle manifest (issue #1720, track 1).
+#
+# Lists the skills `bernstein skills sync` installs into
+# `.bernstein/skills/` for this project. Only the `local` source type is
+# supported in this release; Git, OCI, and index sources land in
+# follow-up PRs.
+#
+# Re-running `bernstein skills sync` is idempotent: declared skills whose
+# digest matches the source are left in place. The companion
+# `skills.lock` file records the resolved digest of every installed skill
+# so a subsequent sync can detect drift.
+
+[[skills]]
+name = "bernstein-test-runner"
+source = "local"
+path = "./templates/skills/bernstein-test-runner.md"

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 from bernstein.core.bulletin import MessageType  # noqa: TC001 - Pydantic needs at runtime
 from bernstein.core.task_store import ProgressEntry  # noqa: TC001 - Pydantic needs at runtime
@@ -64,6 +64,26 @@ def _enforce_dict_size(value: dict[str, Any] | None, *, field_name: str) -> dict
     return value
 
 
+def _ensure_task_enum(value: str, field_name: str) -> str:
+    """Reject scope/complexity values outside their Task enum at the API boundary.
+
+    These fields stay typed as ``str`` for backward compatibility, so without
+    this check an out-of-range value (e.g. ``""``) passes pydantic and then
+    raises ``ValueError`` deep in the task store when ``Scope(value)`` /
+    ``Complexity(value)`` is constructed, surfacing as an unhandled 500.
+    Raising here turns that into a 422.
+    """
+    from bernstein.core.tasks.models import Complexity, Scope
+
+    enum_cls = Scope if field_name == "scope" else Complexity
+    try:
+        enum_cls(value)
+    except ValueError:
+        valid = ", ".join(m.value for m in enum_cls)
+        raise ValueError(f"{field_name} must be one of: {valid}") from None
+    return value
+
+
 class TaskCreate(BaseModel):
     """Body for POST /tasks."""
 
@@ -106,6 +126,11 @@ class TaskCreate(BaseModel):
     max_output_tokens: int | None = None  # Per-task output-token cap (escalated on retry)
     meta_messages: list[str] | None = Field(default=None, max_length=_MAX_LIST_LEN)
 
+    @field_validator("scope", "complexity")
+    @classmethod
+    def _validate_scope_complexity(cls, value: str, info: ValidationInfo) -> str:
+        return _ensure_task_enum(value, info.field_name or "")
+
     # cap serialized size of dict-of-any fields to block deeply-nested
     # or very wide payloads from wedging the server at pydantic-validation time.
     def model_post_init(self, _context: Any) -> None:
@@ -140,6 +165,11 @@ class TaskSelfCreate(BaseModel):
     estimated_minutes: int | None = None
     depends_on: list[str] = Field(default_factory=list)
     owned_files: list[str] = Field(default_factory=list)
+
+    @field_validator("scope", "complexity")
+    @classmethod
+    def _validate_scope_complexity(cls, value: str, info: ValidationInfo) -> str:
+        return _ensure_task_enum(value, info.field_name or "")
 
 
 class WebhookTaskCreate(TaskCreate):

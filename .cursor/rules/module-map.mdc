@@ -32,6 +32,7 @@ alwaysApply: false
 | `handoff/`              | Session handoff between terminal and chat/dashboard surfaces (op-005) |
 | `identity/`             | Install-rev identity module — passive, operator-decodable install fingerprint |
 | `integrations/`         | Integrations sub-package |
+| `interop/`              | Cross-organisation interoperability surfaces |
 | `knowledge/`            | knowledge sub-package |
 | `lifecycle/`            | Lifecycle-hooks subsystem |
 | `lineage/`              | Lineage v1 — Sigstore-style per-artefact transparency log |
@@ -319,10 +320,13 @@ alwaysApply: false
 
 | File                  | Purpose |
 |-----------------------|---------|
+| `capability.py`       | Runtime capability cards for the Bernstein MCP server |
+| `cost_meter.py`       | Per-call cost-meter and observability envelope for MCP tool responses |
 | `input_validation.py` | Schema-validated MCP tool-call inputs with deny-by-default |
 | `remote_transport.py` | Streamable HTTP transport for Bernstein MCP server |
 | `routine_tools.py`    | MCP tools for the rt-003 Routine <-> Scenario bridge |
 | `server.py`           | Bernstein MCP server |
+| `streaming.py`        | In-flight tool-call tracking with cancellation and partial-result preservation |
 | `resources/`          | MCP resource registrars for Bernstein |
 | `tool_schemas/`       | tool_schemas/ sub-package |
 

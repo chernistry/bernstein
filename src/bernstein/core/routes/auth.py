@@ -11,6 +11,7 @@ Provides endpoints for:
 from __future__ import annotations
 
 import html
+import json
 import logging
 import secrets
 import time
@@ -247,14 +248,36 @@ async def oidc_callback(request: Request) -> Response:
 
     user, token = result
     # Return a page that stores the token and redirects to dashboard
+    return _login_success_page(user.display_name, user.role.value, token)
+
+
+def _login_success_page(display_name: str, role: str, token: str) -> HTMLResponse:
+    """Render the post-login page that stashes the session token.
+
+    ``display_name`` and ``role`` originate from IdP-supplied claims, so
+    they are HTML-escaped before being placed in element text. ``token``
+    is embedded inside a JavaScript string literal inside a ``<script>``
+    block, so it is JSON-encoded (a safe, fully quoted JS string) and the
+    HTML-significant characters ``<``, ``>`` and ``&`` are then escaped to
+    ``\\uXXXX`` so a value containing ``</script>`` cannot break out of
+    the script element.
+    """
+    safe_name = html.escape(display_name)
+    safe_role = html.escape(role)
+    js_token = (
+        json.dumps(token)
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("&", "\\u0026")
+    )
     return HTMLResponse(
         content=f"""<!DOCTYPE html>
 <html><head><title>Login Successful</title></head>
 <body>
-<h2>Welcome, {user.display_name}!</h2>
-<p>Role: {user.role.value} | Redirecting to dashboard...</p>
+<h2>Welcome, {safe_name}!</h2>
+<p>Role: {safe_role} | Redirecting to dashboard...</p>
 <script>
-localStorage.setItem('bernstein_token', '{token}');
+localStorage.setItem('bernstein_token', {js_token});
 window.location.href = '/dashboard';
 </script>
 </body></html>"""
@@ -294,18 +317,7 @@ async def saml_acs(request: Request) -> Response:
         )
 
     user, token = result
-    return HTMLResponse(
-        content=f"""<!DOCTYPE html>
-<html><head><title>Login Successful</title></head>
-<body>
-<h2>Welcome, {user.display_name}!</h2>
-<p>Role: {user.role.value} | Redirecting to dashboard...</p>
-<script>
-localStorage.setItem('bernstein_token', '{token}');
-window.location.href = '/dashboard';
-</script>
-</body></html>"""
-    )
+    return _login_success_page(user.display_name, user.role.value, token)
 
 
 @router.get("/saml/metadata", responses={503: {"description": "SSO authentication not configured"}})

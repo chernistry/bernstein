@@ -197,7 +197,8 @@ def _rmtree_windows_safe(path: Path, max_attempts: int = 3) -> bool:
         with contextlib.suppress(OSError):
             # Intentional: clear read-only flag on internal worktree files
             # during cleanup so shutil.rmtree can delete them (Windows).
-            os.chmod(fpath, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+            # Owner-write is sufficient; do not grant group/other write.
+            os.chmod(fpath, stat.S_IWUSR)
             func(fpath)
 
     attempts = max_attempts if sys.platform == "win32" else 1

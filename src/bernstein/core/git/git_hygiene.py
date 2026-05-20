@@ -64,7 +64,9 @@ def _rmtree_windows_safe(path: Path, max_attempts: int = 3) -> bool:
     def _onerror(func: Callable[[str], object], fpath: str, exc_info: object) -> None:
         """Handle permission errors by making file writable and retrying."""
         with contextlib.suppress(OSError):
-            os.chmod(fpath, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+            # Owner-write is sufficient to let the current process delete the
+            # file; do not grant group/other write (avoids world-writable).
+            os.chmod(fpath, stat.S_IWUSR)
             func(fpath)
 
     is_windows = sys.platform == "win32"

@@ -522,8 +522,10 @@ class R2WorkspaceSync:
                     status_code=resp.status_code,
                 )
 
-        # Parse S3 XML response — extract <Key> elements
-        import xml.etree.ElementTree as ET
+        # Parse S3 XML response - extract <Key> elements. The body is an
+        # external HTTP response, so use defusedxml to block entity-expansion
+        # and external-entity attacks that the stdlib parser is vulnerable to.
+        import defusedxml.ElementTree as ET
 
         keys: list[str] = []
         try:

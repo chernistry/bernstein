@@ -33,9 +33,17 @@ COST_WEIGHT: float = TIER_COST_WEIGHT[Tier.TIME_BASED]
 IDLE_THRESHOLD_SECONDS: float = defaults.COMPACTION.idle_threshold_seconds
 
 # Matches a block opening with an age tag, capturing the age and the block
-# body up to the next blank-line boundary.
+# body up to the next age-tagged boundary (or end of text).
+#
+# The body is consumed one whole line at a time via ``(?:\n(?!\[age:)[^\n]*)*``
+# where every iteration mandatorily starts with a ``\n`` and the negative
+# lookahead stops it at the next ``[age:`` boundary. Because each iteration
+# anchors on a distinct newline there is no overlapping/ambiguous split, so
+# the engine cannot backtrack exponentially (CodeQL py/redos). The original
+# lazy form ``(?:[^\n]*\n?)*?`` allowed the same offset to be reached many
+# ways, which was the source of the catastrophic backtracking.
 _AGED_BLOCK_RE = re.compile(
-    r"\[age:(\d+)\][^\n]*\n(?:[^\n]*\n?)*?(?=\n\[age:|\n*\Z)",
+    r"\[age:(\d+)\][^\n]*(?:\n(?!\[age:)[^\n]*)*",
 )
 
 

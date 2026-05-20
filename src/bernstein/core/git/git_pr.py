@@ -520,7 +520,9 @@ def _worktree_manual_delete(cwd: Path, path: Path) -> GitResult | None:
     def _onerror(func, fpath, _exc_info):  # type: ignore[no-untyped-def]
         """Clear read-only flag and retry; ignore if still locked."""
         with suppress(OSError):
-            os.chmod(fpath, stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH)
+            # Owner-write is enough for this process to delete the file;
+            # avoid granting group/other write (no world-writable bit).
+            os.chmod(fpath, stat.S_IWUSR)
             func(fpath)
 
     try:

@@ -46,6 +46,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pathlib import Path
 
+from bernstein.core.security.sanitize import sanitize_log
 from bernstein.core.trackers.contract import RoutingHint, Ticket
 from bernstein.core.webhook_signatures import verify_hmac_sha256
 
@@ -320,7 +321,7 @@ class WebhookReceiver:
         try:
             event = handler.parse_event(lower_headers, payload)
         except Exception as exc:  # boundary
-            logger.debug("Parser raised for adapter=%s: %s", adapter, exc)
+            logger.debug("Parser raised for adapter=%s: %s", sanitize_log(adapter), exc)
             return ReceiveResult(status="bad_payload", delivery_id=delivery_id)
 
         # Record only after successful parse so a flaky parser does not

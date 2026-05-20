@@ -1,0 +1,16 @@
+{
+  "score": 0.72,
+  "issues": [
+    {
+      "severity": "high",
+      "message": "missing error handling on the parse path",
+      "suggestion": "wrap the decode in a try/except and classify the fault"
+    },
+    {
+      "severity": "low",
+      "message": "docstring omits the raises section"
+    }
+  ],
+  "veto": false,
+  "rationale": "close to acceptance once the parse path is hardened"
+}

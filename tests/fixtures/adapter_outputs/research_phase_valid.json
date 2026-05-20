@@ -1,0 +1,9 @@
+{
+  "schema": "research",
+  "payload": {
+    "summary": "scanned the orchestrator package and located the artefact boundary",
+    "decisions": ["reuse the existing TaskStore"],
+    "constraints": ["python 3.12"],
+    "open_questions": ["how does the batch policy interact with re-fire?"]
+  }
+}

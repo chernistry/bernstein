@@ -225,10 +225,9 @@ def recap(request: Request) -> dict[str, Any]:
     - Cost breakdown by model and role
     """
     workdir = _get_workdir(request)
-    store = _get_store(request)
 
     # Get all tasks from the store
-    all_tasks = store.list_tasks()
+    all_tasks = _get_store(request).list_tasks()
 
     # Compute basic stats
     total = len(all_tasks)

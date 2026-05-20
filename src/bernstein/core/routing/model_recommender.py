@@ -158,11 +158,35 @@ def recommend_models(
     # Determine minimum capability
     min_cap = _MIN_CAPABILITY.get(complexity_str, 2)
 
-    # Load historical success data if available
+    # Load historical success data if available. Empirical outcome history
+    # is preferred over the bandit arm because it is decoupled from the
+    # exploration policy and uses a documented sample-size gate. Bandit data
+    # only fills in when the empirical ledger has no qualifying sample.
+    from bernstein.core.quality.empirical_confidence import ConfidenceQuery
+
     historical_rates: dict[str, float] = {}
+
+    confidence_query: ConfidenceQuery | None = None
+    try:
+        confidence_query = ConfidenceQuery()
+    except Exception:  # pragma: no cover - storage failures must not break routing
+        logger.debug("Empirical confidence store unavailable; falling back", exc_info=True)
+
+    if confidence_query is not None:
+        for model_key in _MODEL_CAPABILITY:
+            decision_key = f"role:{task.role}|model:{model_key}"
+            measured = confidence_query.get(
+                agent_type="model_recommender",
+                decision_key=decision_key,
+            )
+            if measured.value is not None:
+                historical_rates[model_key] = measured.value
+
     if metrics_dir and metrics_dir.exists():
         bandit = EpsilonGreedyBandit.load(metrics_dir)
         for model_key in _MODEL_CAPABILITY:
+            if model_key in historical_rates:
+                continue  # empirical history wins
             arm = bandit.get_arm(task.role, model_key)
             if arm and arm.observations >= MIN_OBSERVATIONS:
                 historical_rates[model_key] = arm.success_rate
@@ -183,7 +207,9 @@ def recommend_models(
         savings = current_cost - est_cost
         savings_pct = (savings / current_cost * 100) if current_cost > 0 else 0.0
 
-        # Confidence from historical data or heuristic
+        # Confidence from historical data or heuristic. Empirical outcomes
+        # take precedence; the capability-tier defaults only apply when no
+        # measurement has accumulated past the sample-size gate.
         if model_key in historical_rates:
             confidence = historical_rates[model_key]
             reason = f"Historical success rate {confidence:.0%} for role '{task.role}'"

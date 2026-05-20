@@ -107,7 +107,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `droid.py`                 | Droid (Factory AI) CLI adapter |
 | `env_isolation.py`         | Environment variable isolation for spawned agents |
 | `forge.py`                 | Forge CLI adapter |
-| `gemini.py`                | Google Gemini CLI adapter |
+| `gemini.py`                | Google Gemini / Antigravity CLI adapter |
 | `generic.py`               | Generic CLI adapter for arbitrary coding agent CLIs |
 | `goose.py`                 | Goose CLI adapter for Bernstein |
 | `gptme.py`                 | gptme CLI adapter |

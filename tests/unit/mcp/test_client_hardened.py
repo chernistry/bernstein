@@ -234,13 +234,13 @@ class TestRetryWithContinuation:
         stream = _Stream(
             [
                 # attempt 0: emit a checkpoint then drop
-                [StreamChunk(text="hel", checkpoint_token="cp-1"), StreamChunk(dropped=True)],
+                [StreamChunk(text="part-one ", checkpoint_token="cp-1"), StreamChunk(dropped=True)],
                 # attempt 1 (resumed): finish
-                [StreamChunk(text="lo", final=True)],
+                [StreamChunk(text="part-two", final=True)],
             ]
         )
         result = await connected_session.call_tool_streaming("stream", {}, stream_factory=stream.factory)
-        assert result.content == "hello"
+        assert result.content == "part-one part-two"
         # Second attempt resumed from the checkpoint token.
         assert stream.attempts[0][0] is None
         assert stream.attempts[1][0] == "cp-1"

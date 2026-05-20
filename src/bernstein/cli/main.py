@@ -62,6 +62,7 @@ from bernstein.cli.commands.citation_cmd import quality_group as citation_qualit
 from bernstein.cli.commands.consensus_cmd import consensus_group
 from bernstein.cli.commands.criterion_profile_cmd import criterion_profile_group
 from bernstein.cli.commands.decisions_cmd import decisions_group
+from bernstein.cli.commands.desktop_register_cmd import desktop_register_cmd
 from bernstein.cli.commands.export_cmd import export_cmd
 from bernstein.cli.commands.fleet_cmd import fleet_group
 from bernstein.cli.commands.integrations_cmd import integrations_group
@@ -1035,6 +1036,7 @@ cli.add_command(citation_quality_group, "quality")
 cli.add_command(dry_run_cmd, "dry-run")
 cli.add_command(explain_help_cmd, "explain")
 cli.add_command(config_path_cmd, "config-path")
+cli.add_command(desktop_register_cmd, "desktop-register")
 cli.add_command(init_wizard_cmd, "init-wizard")
 cli.add_command(aliases_cmd, "aliases")
 cli.add_command(debug_cmd, "debug-bundle")

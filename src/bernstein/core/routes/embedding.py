@@ -99,7 +99,8 @@ def load_embedding_config(yaml_path: Path | None = None) -> EmbeddingConfig:
                 allow_embedding=bool(emb.get("allow_embedding", False)),
                 allowed_origins=list(emb.get("allowed_origins", [])),
             )
-        except Exception:
+        except (OSError, yaml.YAMLError, ValueError, TypeError):
+            # Skip malformed or unreadable config files; fall through to defaults.
             continue
     return EmbeddingConfig()
 

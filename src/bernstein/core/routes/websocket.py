@@ -69,6 +69,7 @@ async def websocket_live_dashboard(websocket: WebSocket) -> None:
                 await websocket.send_json({"event": "ping", "data": {}})
     except WebSocketDisconnect:
         logger.debug("WebSocket client disconnected")
+    # bot-ack: pre-existing-1723 (any unexpected WS error must close cleanly)
     except Exception:
         logger.debug("WebSocket connection closed", exc_info=True)
     finally:

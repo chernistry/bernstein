@@ -196,6 +196,7 @@ async def _handle_source(
 
     try:
         event = adapter.parse(payload)
+    # bot-ack: pre-existing-1723 (third-party adapter may raise anything)
     except Exception:
         # Full traceback is logged server-side; the response carries only a
         # generic message so adapter internals are never exposed to callers.

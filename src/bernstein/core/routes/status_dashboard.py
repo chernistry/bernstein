@@ -172,6 +172,7 @@ def _safe_call(label: str, fn: Any, default: Any) -> Any:
     """
     try:
         return fn()
+    # bot-ack: pre-existing-1723 (defensive wrapper: any failure must yield default)
     except Exception as exc:
         logger.warning("status field %r failed: %s: %s", label, type(exc).__name__, exc)
         return default
@@ -669,6 +670,7 @@ def _load_live_costs(request: Request) -> dict[str, Any]:
             "per_agent": per_agent,
             "daily_costs": daily,
         }
+    # bot-ack: pre-existing-1723 (cost summary fallback for dashboard)
     except Exception:
         return _empty
 
@@ -781,6 +783,7 @@ def _summarise_lineage(sdd_dir: Any) -> dict[str, Any]:
                 except (json.JSONDecodeError, TypeError, ValueError):
                     continue
         forks = detect_forks(entries)
+    # bot-ack: pre-existing-1723 (defensive: never break /status on lineage scan)
     except Exception:  # pragma: no cover - defensive: never break /status
         return {}
     return {
@@ -853,6 +856,7 @@ def status_dashboard(request: Request) -> JSONResponse:
     payload["alerts"] = build_alerts(store, live_agents, total_spent, now, agent_snapshots)
     try:
         payload["bandit"] = _bandit_state_payload(store)
+    # bot-ack: pre-existing-1723 (bandit payload must not break /status)
     except Exception as exc:
         logger.warning("status bandit payload failed: %s: %s", type(exc).__name__, exc)
         payload["bandit"] = {"mode": "bandit", "active": True, "error": "unavailable"}
@@ -953,6 +957,7 @@ def bandit_routing_stats(request: Request) -> JSONResponse:
     store = _get_store(request)
     try:
         return JSONResponse(content=_bandit_state_payload(store))
+    # bot-ack: pre-existing-1723 (route-level fallback to a 500 envelope)
     except Exception as exc:
         return _internal_error_response(
             "Failed to read routing bandit state",

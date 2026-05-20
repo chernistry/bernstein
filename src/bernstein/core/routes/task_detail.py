@@ -438,38 +438,46 @@ def _resolve_branch_for_task(workdir: Path, assigned_agent: str | None) -> str |
     "/dashboard/tasks/{task_id}/diff",
     responses={404: {"description": "Task not found"}},
 )
-def task_diff(request: Request, task_id: str) -> TaskDiffResponse:
+async def task_diff(request: Request, task_id: str) -> TaskDiffResponse:
     """Return the diff for a task's working branch against the base ref.
 
     Strategy:
-        1. Resolve the working branch from the task's ``assigned_agent`` —
+        1. Resolve the working branch from the task's ``assigned_agent`` --
            ``agent/<session-id>``. If no agent is assigned (or the branch
            does not exist yet), fall back to ``git diff HEAD`` so the user
            still sees uncommitted scratch work.
-        2. Run ``git diff <base>...<branch>`` (three-dot — symmetric
+        2. Run ``git diff <base>...<branch>`` (three-dot, symmetric
            difference relative to the merge base) and parse the output into
            a structured per-file representation.
         3. Cap the unified diff at ``_DIFF_MAX_BYTES`` to keep payloads sane.
+
+    The sync ``_run_git`` helper is reused (it is also called from other
+    sync helpers in this module). To keep the event loop responsive under
+    load (issue #1723) every blocking ``_run_git`` invocation is offloaded
+    to the default executor via ``asyncio.to_thread``. The helper itself
+    stays sync so non-route callers keep working.
     """
     task = _get_store(request).get_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
 
     workdir = _get_workdir(request)
-    base_ref = _resolve_base_ref(workdir)
-    branch = _resolve_branch_for_task(workdir, task.assigned_agent)
+    base_ref = await asyncio.to_thread(_resolve_base_ref, workdir)
+    branch = await asyncio.to_thread(_resolve_branch_for_task, workdir, task.assigned_agent)
     note: str | None = None
 
     if branch is not None:
         head_ref = branch
-        rc, raw, err = _run_git(
+        rc, raw, err = await asyncio.to_thread(
+            _run_git,
             ["diff", "--no-color", f"{base_ref}...{branch}"],
             workdir,
             timeout=_DIFF_TIMEOUT_S,
         )
     else:
         head_ref = None
-        rc, raw, err = _run_git(
+        rc, raw, err = await asyncio.to_thread(
+            _run_git,
             ["diff", "--no-color", "HEAD"],
             workdir,
             timeout=_DIFF_TIMEOUT_S,

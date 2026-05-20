@@ -53,6 +53,7 @@ def _check_store(request: Request) -> DependencyStatus:
             latency_ms=round(latency, 2),
             detail=f"task_count={total}",
         )
+    # bot-ack: pre-existing-1723 (dep probe must report any failure as "down")
     except Exception as exc:
         latency = (time.monotonic() - start) * 1000
         return DependencyStatus(

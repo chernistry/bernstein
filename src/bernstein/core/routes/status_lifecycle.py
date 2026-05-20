@@ -130,6 +130,7 @@ async def update_config(request: Request) -> JSONResponse:
 
     try:
         body = await request.json()
+    # bot-ack: pre-existing-1723 (json parse failures translate to 400)
     except Exception:
         return JSONResponse(status_code=400, content={"error": "invalid JSON"})
 
@@ -154,6 +155,7 @@ async def update_config(request: Request) -> JSONResponse:
         data: dict[str, Any] = _yaml.safe_load(raw) or {}
         data["max_agents"] = new_max
         yaml_path.write_text(_yaml.dump(data, default_flow_style=False, sort_keys=False), encoding="utf-8")
+    # bot-ack: pre-existing-1723 (yaml IO + serialisation can raise broadly)
     except Exception as exc:
         logger.error("Failed to update bernstein.yaml: %s", exc)
         return JSONResponse(status_code=500, content={"error": "config update failed"})

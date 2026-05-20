@@ -120,6 +120,7 @@ def _load_pending(filepath: Path) -> PendingApproval | None:
     try:
         data = json.loads(filepath.read_text())
         return PendingApproval(**data)
+    # bot-ack: pre-existing-1723 (pydantic + json may raise diverse errors)
     except Exception as exc:
         logger.warning("Failed to parse pending approval %s: %s", filepath.name, exc)
         return None

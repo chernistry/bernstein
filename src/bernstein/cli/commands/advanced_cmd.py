@@ -104,10 +104,12 @@ def live(interval: float, classic: bool, no_splash: bool) -> None:
 
     print_banner()
 
-    (LiveView(
-        server_url=SERVER_URL,
-        interval=interval,
-    )).run()
+    (
+        LiveView(
+            server_url=SERVER_URL,
+            interval=interval,
+        )
+    ).run()
 
 
 def _load_live_seed_config(seed_path: Path | None) -> Any:

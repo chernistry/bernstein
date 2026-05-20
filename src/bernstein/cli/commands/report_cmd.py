@@ -27,7 +27,7 @@ def report_cmd(run_id: str | None, workdir: str, save: bool) -> None:
     generator = RunReportGenerator(workdir_path, run_id=run_id)
     report = generator.generate()
 
-    if report.run_id == 'unknown' and report.tasks_completed == report.tasks_failed == 0:
+    if report.run_id == "unknown" and report.tasks_completed == report.tasks_failed == 0:
         console.print("[yellow]No run data found.[/yellow] Has a run completed in this project?")
         raise SystemExit(1)
 

@@ -175,11 +175,13 @@ def tick_cmd(repo: str, pr_numbers: tuple[int, ...]) -> None:
     def _capture(comment: ReviewComment) -> None:
         received.append(comment.comment_id)
 
-    n = (PollingListener(
-        repo=repo,
-        pr_numbers=pr_numbers or None,
-        on_comment=_capture,
-    )).tick()
+    n = (
+        PollingListener(
+            repo=repo,
+            pr_numbers=pr_numbers or None,
+            on_comment=_capture,
+        )
+    ).tick()
     console.print(f"[green]review-responder tick[/green] new_comments={n}")
     if received:
         console.print(json.dumps(received))

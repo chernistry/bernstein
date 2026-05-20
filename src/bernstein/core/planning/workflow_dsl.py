@@ -983,7 +983,11 @@ class DAGExecutor:
         task_id = f"{node.id}-{uuid.uuid4().hex[:8]}"
 
         # Collect unconditional blocking dependencies.
-        dep_ids = [edge.source for edge in self._edges_by_target.get(node.id, []) if edge.condition is None and edge.edge_type in {EdgeType.BLOCKS, EdgeType.VALIDATES}]
+        dep_ids = [
+            edge.source
+            for edge in self._edges_by_target.get(node.id, [])
+            if edge.condition is None and edge.edge_type in {EdgeType.BLOCKS, EdgeType.VALIDATES}
+        ]
 
         return Task(
             id=task_id,

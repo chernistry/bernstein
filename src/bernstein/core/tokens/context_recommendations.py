@@ -313,13 +313,16 @@ class RecommendationEngine:
 
     def _failure_history_text(self, gate: str) -> str:
         """Return a canned recommendation for repeated gate failures."""
-        return ({
-            "lint": "Recent lint failures suggest running `uv run ruff check` before completing the task.",
-            "type_check": "Recent type-check failures suggest running `uv run pyright` before completing the task.",
-            "tests": (
-                "Recent test failures suggest running targeted `uv run pytest ... -x -q` before completing the task."
-            ),
-            "coverage_delta": (
-                "Recent coverage regressions suggest running the coverage command locally before completion."
-            ),
-        }).get(gate, "")
+        return (
+            {
+                "lint": "Recent lint failures suggest running `uv run ruff check` before completing the task.",
+                "type_check": "Recent type-check failures suggest running `uv run pyright` before completing the task.",
+                "tests": (
+                    "Recent test failures suggest running targeted `uv run pytest ... -x -q` "
+                    "before completing the task."
+                ),
+                "coverage_delta": (
+                    "Recent coverage regressions suggest running the coverage command locally before completion."
+                ),
+            }
+        ).get(gate, "")

@@ -120,12 +120,14 @@ class FileBackend(CredentialVault):
         from cryptography.hazmat.primitives import hashes
         from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-        return (PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=_KEY_LEN,
-            salt=salt,
-            iterations=_KDF_ITERATIONS,
-        )).derive(self._passphrase)
+        return (
+            PBKDF2HMAC(
+                algorithm=hashes.SHA256(),
+                length=_KEY_LEN,
+                salt=salt,
+                iterations=_KDF_ITERATIONS,
+            )
+        ).derive(self._passphrase)
 
     def _encrypt(self, plaintext: bytes, salt: bytes) -> str:
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM

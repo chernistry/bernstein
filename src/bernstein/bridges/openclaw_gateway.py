@@ -281,7 +281,11 @@ class OpenClawGatewayClient:
             candidates = payload
         if not isinstance(candidates, list):
             return []
-        result = [cast("dict[str, Any]", item_raw) for item_raw in cast("list[object]", candidates) if isinstance(item_raw, dict)]
+        result = [
+            cast("dict[str, Any]", item_raw)
+            for item_raw in cast("list[object]", candidates)
+            if isinstance(item_raw, dict)
+        ]
         return result
 
     async def _connect_websocket(self) -> ClientConnection:

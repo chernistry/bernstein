@@ -1084,7 +1084,9 @@ class BernsteinApp(App[None]):
 
     def _refresh_notification_center(self) -> None:
         """Render the latest notification history into the side panel."""
-        self.query_one("#notification-center", NotificationCenterPanel).set_history(self._notifications.get_history(limit=5), self._notifications.get_unread_count())
+        self.query_one("#notification-center", NotificationCenterPanel).set_history(
+            self._notifications.get_history(limit=5), self._notifications.get_unread_count()
+        )
 
     @staticmethod
     def _count_active_agents() -> int:

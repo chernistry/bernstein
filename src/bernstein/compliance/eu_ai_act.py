@@ -371,7 +371,9 @@ class _AnnexIIIClassifier:
         now = datetime.now(tz=UTC).isoformat()
 
         # Step 1: Check Article 5 prohibitions
-        article5_triggers = [description for attr, description in self._ARTICLE5_CHECKS if getattr(descriptor, attr, False)]
+        article5_triggers = [
+            description for attr, description in self._ARTICLE5_CHECKS if getattr(descriptor, attr, False)
+        ]
 
         # Step 2: Check Annex III high-risk domains
         annex_iii_domain = AnnexIIIDomain.NOT_APPLICABLE
@@ -383,7 +385,9 @@ class _AnnexIIIClassifier:
                 break  # First match determines domain (most critical first)
 
         # Step 3: Check Article 50 transparency obligations
-        article50_triggers = [description for attr, description in self._ARTICLE50_CHECKS if getattr(descriptor, attr, False)]
+        article50_triggers = [
+            description for attr, description in self._ARTICLE50_CHECKS if getattr(descriptor, attr, False)
+        ]
 
         # Step 4: Determine risk category
         if article5_triggers:

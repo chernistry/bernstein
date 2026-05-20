@@ -119,7 +119,7 @@ def extract_failed_log(
         A :class:`LogExtraction` describing the outcome.  Callers
         should always inspect ``ok`` before using ``body``.
     """
-    if shutil.which('gh') is runner is None:
+    if shutil.which("gh") is runner is None:
         return LogExtraction(
             ok=False,
             body="",

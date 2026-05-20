@@ -100,7 +100,9 @@ def tenant_registry_from_seed(seed_config: object | None) -> TenantRegistry:
     tenants = getattr(seed_config, "tenants", ())
     if not isinstance(tenants, tuple):
         return TenantRegistry()
-    typed_tenants = [candidate for candidate in cast("tuple[object, ...]", tenants) if isinstance(candidate, TenantConfig)]
+    typed_tenants = [
+        candidate for candidate in cast("tuple[object, ...]", tenants) if isinstance(candidate, TenantConfig)
+    ]
     return build_tenant_registry(typed_tenants)
 
 

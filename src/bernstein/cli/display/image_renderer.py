@@ -311,9 +311,11 @@ class BrailleRenderer(BaseRenderer):
     def render(self, img: Image.Image, width: int, height: int) -> str:
         pixel_w = width * 2
         pixel_h = height * 4
-        pixels = (img.convert("L")
+        pixels = (
+            img.convert("L")
             .resize((pixel_w, pixel_h), Image.Resampling.LANCZOS)
-            .point(lambda p: 255 if p >= self._THRESHOLD else 0)).load()
+            .point(lambda p: 255 if p >= self._THRESHOLD else 0)
+        ).load()
         if pixels is None:  # pragma: no cover
             return ""
 

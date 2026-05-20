@@ -2278,12 +2278,14 @@ def _resolve_approval_workflow(orch: Any, task: Task) -> tuple[Any, float | None
         return None, None
 
     risk = getattr(task, "risk_level", "low")
-    mode_str = ({
-        "low": wf.low_risk,
-        "medium": wf.medium_risk,
-        "high": wf.high_risk,
-        "critical": getattr(wf, "critical_risk", wf.high_risk),
-    }).get(risk, "auto")
+    mode_str = (
+        {
+            "low": wf.low_risk,
+            "medium": wf.medium_risk,
+            "high": wf.high_risk,
+            "critical": getattr(wf, "critical_risk", wf.high_risk),
+        }
+    ).get(risk, "auto")
 
     from bernstein.core.approval import ApprovalMode
 
@@ -2315,7 +2317,9 @@ def _create_approval_pr(
 
     task_m = get_collector(orch._workdir / ".sdd" / "metrics").task_metrics.get(task.id)
     cost_usd = task_m.cost_usd if task_m else 0.0
-    test_summary = (completion_data or {"files_modified": [], "test_results": {}}).get("test_results", {}).get("summary", "")
+    test_summary = (
+        (completion_data or {"files_modified": [], "test_results": {}}).get("test_results", {}).get("summary", "")
+    )
     pr_url = orch._approval_gate.create_pr(
         task,
         worktree_path=worktree_path,

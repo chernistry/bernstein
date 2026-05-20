@@ -259,7 +259,9 @@ def _normalize_task_text(task: TaskLike) -> str:
 
 
 def _matched_reasons(haystack: str, rules: dict[str, tuple[str, ...]]) -> tuple[str, ...]:
-    reasons = [label.replace("_", " ") for label, keywords in rules.items() if any(keyword in haystack for keyword in keywords)]
+    reasons = [
+        label.replace("_", " ") for label, keywords in rules.items() if any(keyword in haystack for keyword in keywords)
+    ]
     return tuple(reasons)
 
 

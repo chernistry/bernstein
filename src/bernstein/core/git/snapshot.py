@@ -275,7 +275,9 @@ def _metadata_path(cwd: Path, snapshot_id: str) -> Path:
 
 
 def _write_metadata(cwd: Path, snapshot: Snapshot) -> None:
-    _metadata_path(cwd, snapshot.snapshot_id).write_text(json.dumps(snapshot.to_dict(), indent=2, sort_keys=True), encoding="utf-8")
+    _metadata_path(cwd, snapshot.snapshot_id).write_text(
+        json.dumps(snapshot.to_dict(), indent=2, sort_keys=True), encoding="utf-8"
+    )
 
 
 def _read_metadata(cwd: Path, snapshot_id: str) -> Snapshot | None:
@@ -572,7 +574,11 @@ class SnapshotStore:
         if older_than_days < 0:
             raise SnapshotError("older_than_days must be non-negative")
         cutoff_ns = time.time_ns() - older_than_days * 86_400 * 1_000_000_000
-        deleted = [snap.snapshot_id for snap in self.list() if snap.ts_ns and snap.ts_ns < cutoff_ns and self.delete(snap.snapshot_id)]
+        deleted = [
+            snap.snapshot_id
+            for snap in self.list()
+            if snap.ts_ns and snap.ts_ns < cutoff_ns and self.delete(snap.snapshot_id)
+        ]
         return deleted
 
 

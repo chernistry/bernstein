@@ -71,12 +71,14 @@ def derive_key(password: str, salt: bytes | None = None) -> tuple[bytes, bytes]:
 
         salt = secrets.token_bytes(16)
 
-    key = (PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        iterations=600_000,  # OWASP 2023 recommendation
-    )).derive(password.encode("utf-8"))
+    key = (
+        PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=600_000,  # OWASP 2023 recommendation
+        )
+    ).derive(password.encode("utf-8"))
     return key, salt
 
 

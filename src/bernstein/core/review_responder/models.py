@@ -94,8 +94,7 @@ class ReviewRound:
     @property
     def reviewers(self) -> tuple[str, ...]:
         """Distinct reviewer usernames present in the bundle, in arrival order."""
-        seen = [c.reviewer for c in self.comments if c.reviewer not in seen]
-        return tuple(seen)
+        return tuple(dict.fromkeys(c.reviewer for c in self.comments))
 
 
 @dataclass(frozen=True)

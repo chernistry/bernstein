@@ -143,11 +143,13 @@ def share_fact(key: str, value: str, tag: str, scope: str) -> None:
     db_path = _resolve_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
     store = SQLiteMemoryStore(db_path)
-    fact = (CrossTaskKB(
-        store,
-        run_id=_resolve_run_id(),
-        producer_task_id=_resolve_task_id(),
-    )).publish(
+    fact = (
+        CrossTaskKB(
+            store,
+            run_id=_resolve_run_id(),
+            producer_task_id=_resolve_task_id(),
+        )
+    ).publish(
         tag=tag,
         key=key,
         value=value,

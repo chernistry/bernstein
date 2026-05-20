@@ -90,7 +90,11 @@ class ScopeGuardrail:
         modified_files: list[str] = context.get("modified_files", [])
         if not scope or not modified_files:
             return GuardrailResult(passed=True, guardrail_name=self.name)
-        violations = [f"File {f} is outside allowed scope {scope}" for f in modified_files if not any(f.startswith(s) for s in scope)]
+        violations = [
+            f"File {f} is outside allowed scope {scope}"
+            for f in modified_files
+            if not any(f.startswith(s) for s in scope)
+        ]
         return GuardrailResult(
             passed=len(violations) == 0,
             guardrail_name=self.name,
@@ -138,7 +142,9 @@ class SecretLeakGuardrail:
         return GuardrailResult(passed=True, guardrail_name=self.name)
 
     def check_output(self, output: str, _context: dict[str, Any]) -> GuardrailResult:
-        violations = [f"Potential secret leak detected: {pattern.pattern}" for pattern in self._compiled if pattern.search(output)]
+        violations = [
+            f"Potential secret leak detected: {pattern.pattern}" for pattern in self._compiled if pattern.search(output)
+        ]
         return GuardrailResult(
             passed=len(violations) == 0,
             guardrail_name=self.name,

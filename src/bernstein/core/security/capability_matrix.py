@@ -362,7 +362,9 @@ def record_spawn_capabilities(
     import json
     from datetime import UTC, datetime
 
-    decision = (registry if registry is not None else CapabilityRegistry.load_default(workdir=workdir)).evaluate_chain(tools)
+    decision = (registry if registry is not None else CapabilityRegistry.load_default(workdir=workdir)).evaluate_chain(
+        tools
+    )
 
     runtime_dir = workdir / ".sdd" / "runtime" / "spawn_capabilities"
     try:

@@ -167,7 +167,11 @@ class CatalogService:
         needle = query.strip().lower()
         if not needle:
             return list(catalog.entries)
-        out = [entry for entry in catalog.entries if needle in entry.id.lower() or needle in entry.name.lower() or needle in entry.description.lower()]
+        out = [
+            entry
+            for entry in catalog.entries
+            if needle in entry.id.lower() or needle in entry.name.lower() or needle in entry.description.lower()
+        ]
         return out
 
     def info(self, entry_id: str, *, force_refresh: bool = False) -> CatalogEntry | None:

@@ -740,10 +740,14 @@ class ClaimLedger:
 
     def attempt_count(self, *, tracker: str, ticket_id: str, role: str) -> int:
         """Return ``stage_attempt`` for the live or last claim row, or ``0``."""
-        row = self._connect().execute(
-            "SELECT stage_attempt FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ?",
-            (tracker, ticket_id, role),
-        ).fetchone()
+        row = (
+            self._connect()
+            .execute(
+                "SELECT stage_attempt FROM claims WHERE tracker = ? AND ticket_id = ? AND role = ?",
+                (tracker, ticket_id, role),
+            )
+            .fetchone()
+        )
         if row is None:
             return 0
         return int(row[0])

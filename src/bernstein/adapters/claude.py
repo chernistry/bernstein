@@ -260,14 +260,18 @@ class ClaudeCodeAdapter(CLIAdapter):
         base_turns = COST.effort_base_turns.get(effort, 50)
         scope_multiplier = self._SCOPE_MULTIPLIERS.get(task_scope, 1.5)
         max_turns = self.BATCH_MAX_TURNS if batch_mode else int(base_turns * scope_multiplier)
-        claude_effort = ({"max": "max", "high": "high", "medium": "medium", "normal": "medium", "low": "low"}).get(effort, "high")
+        claude_effort = ({"max": "max", "high": "high", "medium": "medium", "normal": "medium", "low": "low"}).get(
+            effort, "high"
+        )
 
         # Choose fallback model: opus-4-7 → opus-4-6 → sonnet → haiku
-        fallback_model = ({
-            "claude-opus-4-7": "claude-opus-4-6",
-            "claude-opus-4-6": "claude-sonnet-4-6",
-            "claude-sonnet-4-6": "claude-haiku-4-5-20251001",
-        }).get(model_id)
+        fallback_model = (
+            {
+                "claude-opus-4-7": "claude-opus-4-6",
+                "claude-opus-4-6": "claude-sonnet-4-6",
+                "claude-sonnet-4-6": "claude-haiku-4-5-20251001",
+            }
+        ).get(model_id)
 
         cmd = [
             "claude",

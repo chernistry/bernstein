@@ -590,10 +590,12 @@ def _walk_chain(
         None,
     )
     ee_policy = ExtensionPolicy.permit_all()
-    verifier = (PolicyBuilder()
+    verifier = (
+        PolicyBuilder()
         .store(store)
         .time(verification_time)
-        .extension_policies(ca_policy=ca_policy, ee_policy=ee_policy)).build_client_verifier()
+        .extension_policies(ca_policy=ca_policy, ee_policy=ee_policy)
+    ).build_client_verifier()
     # ``verify`` raises VerificationError on failure; we use the client
     # verifier (no SAN required) because TSA certs do not carry server
     # SANs. The time-stamping EKU is checked via ``_has_timestamping_eku``

@@ -248,7 +248,11 @@ def _files_outside_scope(changed_files: list[str], owned_files: list[str]) -> li
     Returns:
         Files that do not match any entry in *owned_files*.
     """
-    out_of_scope = [f for f in changed_files if not any(f == owned or f.startswith(owned.rstrip("/") + "/") for owned in owned_files)]
+    out_of_scope = [
+        f
+        for f in changed_files
+        if not any(f == owned or f.startswith(owned.rstrip("/") + "/") for owned in owned_files)
+    ]
     return out_of_scope
 
 

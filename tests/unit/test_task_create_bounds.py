@@ -155,6 +155,32 @@ def test_task_create_happy_path_still_works() -> None:
 
 
 # ---------------------------------------------------------------------------
+# scope / complexity enum validation at the API boundary (reject -> 422)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("field", ["scope", "complexity"])
+@pytest.mark.parametrize("bad", ["", "MEDIUM", "huge", "n/a"])
+def test_task_create_rejects_invalid_scope_complexity(field: str, bad: str) -> None:
+    """Out-of-range scope/complexity is rejected by pydantic, not deferred to a 500.
+
+    Empty / wrong-case / unknown values used to pass validation and then raise
+    ValueError when ``Scope(value)`` / ``Complexity(value)`` ran in the store.
+    """
+    with pytest.raises(ValidationError):
+        TaskCreate(title="ok", description="ok", **{field: bad})
+
+
+@pytest.mark.parametrize("scope", ["small", "medium", "large"])
+@pytest.mark.parametrize("complexity", ["low", "medium", "high"])
+def test_task_create_accepts_valid_scope_complexity(scope: str, complexity: str) -> None:
+    """Every valid enum value is still accepted."""
+    t = TaskCreate(title="ok", description="ok", scope=scope, complexity=complexity)
+    assert t.scope == scope
+    assert t.complexity == complexity
+
+
+# ---------------------------------------------------------------------------
 # ContentLengthMiddleware: oversized Content-Length header -> 413
 # ---------------------------------------------------------------------------
 
@@ -354,3 +380,39 @@ def test_post_tasks_small_payload_still_works(_app_with_auth_disabled) -> None:
     status, body = asyncio.run(_run())
     assert status == 201, body
     assert body["title"] == "ok"
+
+
+def test_post_tasks_empty_complexity_returns_422_not_500(_app_with_auth_disabled) -> None:
+    """POST /tasks with complexity="" must 422, never 500 (regression).
+
+    Schemathesis fuzzing surfaced an unhandled 500 here: the empty string
+    passed pydantic and then raised ValueError in the task store.
+    """
+    transport = ASGITransport(app=_app_with_auth_disabled)
+    import asyncio
+
+    async def _run() -> int:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/tasks",
+                json={"title": "x", "description": "x", "complexity": ""},
+            )
+            return resp.status_code
+
+    assert asyncio.run(_run()) == 422
+
+
+def test_post_tasks_batch_invalid_scope_returns_422_not_500(_app_with_auth_disabled) -> None:
+    """POST /tasks/batch with an invalid scope must 422, never 500 (regression)."""
+    transport = ASGITransport(app=_app_with_auth_disabled)
+    import asyncio
+
+    async def _run() -> int:
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/tasks/batch",
+                json={"tasks": [{"title": "x", "description": "x", "scope": "nope"}]},
+            )
+            return resp.status_code
+
+    assert asyncio.run(_run()) == 422

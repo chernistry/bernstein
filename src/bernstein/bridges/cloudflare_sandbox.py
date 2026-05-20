@@ -459,8 +459,7 @@ class CloudflareSandboxBridge(RuntimeBridge):
             )
 
         data = resp.json()
-        result = data.get("result", data)
-        return result.get("files", [])
+        return data.get("result", data).get("files", [])
 
     def _api_url(self, path: str) -> str:
         """Build full Cloudflare sandbox API URL.

@@ -72,8 +72,7 @@ class GitHubAppConfig:
 
         # Support file path for the private key
         if not private_key.startswith("-----") and Path(private_key).is_file():
-            with open(private_key) as f:
-                private_key = f.read()
+            private_key = Path(private_key).read_text()
 
         webhook_secret = os.environ.get("GITHUB_WEBHOOK_SECRET", "")
         if not webhook_secret:

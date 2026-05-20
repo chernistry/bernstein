@@ -18,6 +18,7 @@ import os
 import platform
 from contextlib import suppress
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -272,8 +273,7 @@ def check_usage(pid: int, limits: ResourceLimits) -> ResourceUsage:
     # Check CPU time from /proc/stat
     with suppress(OSError, IndexError, ValueError):
         stat_path = f"/proc/{pid}/stat"
-        with open(stat_path) as f:
-            raw = f.read()
+        raw = Path(stat_path).read_text()
         # CPU time is fields 14 (utime) and 15 (stime) after the comm field
         # comm field is enclosed in parens and may contain spaces
         after_comm = raw[raw.rfind(")") + 2 :]

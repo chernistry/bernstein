@@ -58,11 +58,9 @@ def compute_tips(entries: Iterable[LineageEntry]) -> dict[str, TipSet]:
         referenced_as_parent: set[str] = set()
         merged_parents: set[str] = set()
         for e in group:
-            for ph in e.parent_hashes:
-                referenced_as_parent.add(ph)
+            referenced_as_parent.update(e.parent_hashes)
             if len(e.parent_hashes) >= 2:
-                for ph in e.parent_hashes:
-                    merged_parents.add(ph)
+                merged_parents.update(e.parent_hashes)
         open_tips = [h for h in hashes if h not in referenced_as_parent]
         merged_hashes = [h for h in hashes if h in merged_parents]
         result[path] = TipSet(open=open_tips, merged=merged_hashes)

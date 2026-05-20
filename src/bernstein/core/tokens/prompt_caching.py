@@ -259,8 +259,7 @@ def make_prompt_cache_key(
     Returns:
         Lowercase hex string (64 chars) of SHA-256 hash.
     """
-    h = hashlib.sha256()
-    h.update(system_prompt.encode("utf-8"))
+    h = hashlib.sha256(system_prompt.encode("utf-8"))
     if context_files:
         for path in sorted(context_files):
             with contextlib.suppress(OSError):

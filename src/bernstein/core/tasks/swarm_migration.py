@@ -176,8 +176,7 @@ def chunk_targets(targets: list[Path], chunk_size: int) -> list[list[Path]]:
 
 def _chunk_hash(plan_id: str, files: list[Path]) -> str:
     """Stable chunk hash derived from plan id and the chunk's file paths."""
-    h = hashlib.sha256()
-    h.update(plan_id.encode("utf-8"))
+    h = hashlib.sha256(plan_id.encode("utf-8"))
     h.update(b"\x00")
     for f in files:
         h.update(str(f).encode("utf-8"))

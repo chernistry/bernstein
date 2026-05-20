@@ -202,10 +202,8 @@ class TenantIsolationManager:
             Sorted list of tenant identifiers.
         """
         tenants: set[str] = set()
-        for cfg in self._registry.tenants:
-            tenants.add(cfg.id)
-        for tid in self._contexts:
-            tenants.add(tid)
+        tenants.update(cfg.id for cfg in self._registry.tenants)
+        tenants.update(self._contexts)
         return sorted(tenants)
 
     def persist_state(self) -> None:

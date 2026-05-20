@@ -50,8 +50,7 @@ def iter_metric_files(metrics_dir: Path, prefix: str) -> list[Path]:
     patterns = (f"{prefix}_*.jsonl", f"{prefix}_*.jsonl.*")
     seen: set[Path] = set()
     for pattern in patterns:
-        for path in metrics_dir.glob(pattern):
-            seen.add(path)
+        seen.update(metrics_dir.glob(pattern))
     return sorted(seen)
 
 

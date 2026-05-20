@@ -94,7 +94,7 @@ def _render_header(detail: TaskDetail) -> str:
         lines.append(f"  Agent: {detail.agent_id}")
     if detail.cost_usd is not None:
         lines.append(f"  Cost: ${detail.cost_usd:.2f}")
-    lines.append(f"{'=' * 60}")
+    lines.append("=" * 60)
     return "\n".join(lines)
 
 

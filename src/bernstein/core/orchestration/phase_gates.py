@@ -231,8 +231,7 @@ def _r002(prior: PhaseArtifact, current: PhaseArtifact, _spec: PhaseSpec) -> Gat
     """Every ``<id:foo>`` marker must resolve against the prior artefact."""
     known: set[str] = set()
     for entry in [*prior.decisions, *prior.constraints]:
-        for marker in _ID_MARKER_RE.findall(entry):
-            known.add(marker)
+        known.update(_ID_MARKER_RE.findall(entry))
         # The plain text after a ``<id:foo>`` marker is also addressable.
         # Tokens without markers are addressable by exact-string match —
         # rare, but we want decisions like ``"python 3.12"`` to count.

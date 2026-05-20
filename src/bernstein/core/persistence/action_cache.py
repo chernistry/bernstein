@@ -118,8 +118,7 @@ def derive_key(
     NOTE: this is **not** a fingerprint key.  We want hits across code
     changes — fingerprints want misses across code changes.
     """
-    hasher = hashlib.sha256()
-    hasher.update(model_id.encode("utf-8"))
+    hasher = hashlib.sha256(model_id.encode("utf-8"))
     hasher.update(b"\0")
     hasher.update(_normalize_prompt(prompt).encode("utf-8"))
     hasher.update(b"\0")

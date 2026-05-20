@@ -121,7 +121,7 @@ def show_cmd(
             entry.actor.role,
             entry.actor.model,
             f"{entry.cost_usd:.4f}",
-            f"{entry.tokens_in + entry.tokens_out}",
+            str(entry.tokens_in + entry.tokens_out),
             entry.entry_hash[:18] + "...",
         )
     console.print(table)

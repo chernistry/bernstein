@@ -141,8 +141,7 @@ class DependencyGraph:
         imports: set[str] = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
-                for alias in node.names:
-                    imports.add(alias.name)
+                imports.update(alias.name for alias in node.names)
             elif isinstance(node, ast.ImportFrom) and node.module:
                 imports.add(node.module)
         return imports

@@ -742,8 +742,7 @@ def generate_from_traces(
             if not records:
                 result.skipped_invalid_traces += 1
                 continue
-            for sid in _detect_scenarios(records):
-                detected.add(sid)
+            detected.update(_detect_scenarios(records))
 
     # Always emit at least the P0 prompt-injection scenario when nothing
     # is detected — operators want a non-empty corpus to attach to the

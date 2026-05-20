@@ -1310,8 +1310,7 @@ def claim_and_spawn_batches(
     _claimed_titles: set[str] = set()
     for agent in orch._agents.values():
         if agent.status != "dead":
-            for tid in agent.task_ids:
-                _claimed_titles.add(tid)
+            _claimed_titles.update(agent.task_ids)
 
     for batch in batches:
         if getattr(orch, "is_shutting_down", bool)():

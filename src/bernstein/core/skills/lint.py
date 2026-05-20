@@ -209,9 +209,7 @@ def lint_skill(skill_dir: Path, *, skill_name: str | None = None) -> list[LintFi
                         skill_name=name,
                         severity=LintSeverity.ERROR,
                         code="unsafe-reference-path",
-                        message=(
-                            f"manifest {bucket} path {filename!r} escapes the {bucket}/ root"
-                        ),
+                        message=(f"manifest {bucket} path {filename!r} escapes the {bucket}/ root"),
                         path=skill_md,
                     )
                 )

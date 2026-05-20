@@ -464,9 +464,7 @@ def install_local(
             _copy_skill_tree(source, staging_dir)
         else:
             if source.suffix != ".md":
-                raise SkillLifecycleError(
-                    f"{source}: local file source must have a .md extension"
-                )
+                raise SkillLifecycleError(f"{source}: local file source must have a .md extension")
             try:
                 content = source.read_text(encoding="utf-8")
             except OSError as exc:

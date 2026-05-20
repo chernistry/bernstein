@@ -47,6 +47,7 @@ class _FrontmatterSchema(TypedDict, total=False):
 
     version: str
 
+
 _logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------

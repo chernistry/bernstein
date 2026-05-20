@@ -26,8 +26,26 @@ at startup.
 | Anonymous | default on loopback | Allowed only on `127.0.0.1` / `localhost` / `::1`. |
 | Static bearer | `BERNSTEIN_MCP_TOKEN` (or `BERNSTEIN_MCP_AUTH_TOKEN`) | Constant-time check; required on non-loopback binds. |
 
-OAuth-2 PKCE and OIDC federation are not yet implemented. The capability card
-advertises them under `auth.planned` so a client sees the gap as acknowledged.
+OAuth-2 PKCE token issuance is delegated to an external IdP. When the operator
+sets `BERNSTEIN_MCP_OAUTH_ISSUER=https://idp.example.com`, the streamable
+HTTP transport serves the standard discovery documents so a host can
+auto-locate the IdP:
+
+| Path | Document |
+|------|----------|
+| `/.well-known/oauth-authorization-server` | RFC 8414 authorization-server metadata for the configured issuer (PKCE S256, code grant, public client allowed). |
+| `/.well-known/oauth-protected-resource` | RFC 9728 / MCP-draft protected-resource metadata pointing at the issuer; the `resource` field is built from the request `Host` and `X-Forwarded-Proto` headers. |
+
+Both well-known paths are served without authentication, since a client
+probing discovery has no token yet. When the env var is unset, the paths
+return 404 and only anonymous (loopback) / static bearer are advertised.
+
+`BERNSTEIN_MCP_OAUTH_SCOPES` (comma-separated) overrides the default
+`bernstein.read,bernstein.write` scope list in both documents.
+
+The capability card reports the discovery state under `auth.oauth` so a
+client that has already fetched the card can locate the well-known paths
+without probing. OIDC federation is still a follow-up.
 
 ## Capability cards
 
@@ -44,6 +62,23 @@ The card is available two ways:
   resource API);
 - under the `capabilityCard` key on the streamable HTTP transport's
   `initialize` result.
+
+## Built-in prompt catalogue
+
+The server ships three orchestration-focused prompt templates exposed via
+the MCP `prompts/list` and `prompts/get` routes. A host that auto-discovers
+MCP servers can populate a prompt picker without sending a tool call first.
+
+| Prompt | Arguments | Use when |
+|--------|-----------|----------|
+| `orchestrate_goal` | `goal` (required), `role`, `scope` | Planning a single Bernstein run from a free-form goal. |
+| `triage_failed_tasks` | `limit` (default 5) | Reviewing recent failed tasks and proposing next actions. |
+| `cost_recap` | `window` (default `today`) | Summarising cost-per-role across a labelled window. |
+
+Each prompt renders deterministically from its arguments and does not call
+the task server. The capability card lists the catalogue under
+`prompts.catalogue` so a client that has already fetched the card can pick a
+prompt without a second probe.
 
 ## Per-call cost-meter envelope
 
@@ -124,7 +159,33 @@ Cancelling an unknown or already-settled id is a no-op.
      -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"bernstein_status","arguments":{}}}'
    ```
 
-4. Cancel a long-running call by its id (in a second request, while the call
+4. List and fetch a built-in prompt:
+
+   ```bash
+   curl -s http://127.0.0.1:8053/mcp \
+     -H "Authorization: Bearer dev-token" \
+     -H "content-type: application/json" \
+     -d '{"jsonrpc":"2.0","id":3,"method":"prompts/list"}'
+
+   curl -s http://127.0.0.1:8053/mcp \
+     -H "Authorization: Bearer dev-token" \
+     -H "content-type: application/json" \
+     -d '{"jsonrpc":"2.0","id":4,"method":"prompts/get","params":{"name":"orchestrate_goal","arguments":{"goal":"ship X","role":"qa"}}}'
+   ```
+
+5. (Optional) Probe OAuth-2 discovery before authenticating:
+
+   ```bash
+   export BERNSTEIN_MCP_OAUTH_ISSUER=https://idp.example.com
+   # restart the server to pick up the env var, then:
+   curl -s http://127.0.0.1:8053/.well-known/oauth-authorization-server
+   curl -s http://127.0.0.1:8053/.well-known/oauth-protected-resource
+   ```
+
+   The client redirects the user to the IdP from these documents and presents
+   the resulting bearer token to the streamable HTTP transport.
+
+6. Cancel a long-running call by its id (in a second request, while the call
    is in flight):
 
    ```bash

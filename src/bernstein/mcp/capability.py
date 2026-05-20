@@ -51,17 +51,27 @@ def _auth_modes() -> dict[str, Any]:
     """Describe the auth paths the running server supports.
 
     Reports the modes the transport layer can enforce (anonymous on
-    loopback, static bearer token) and whether a token is currently
-    configured in the environment. Modes the server does not yet implement
-    are listed under ``planned`` so a client knows the gap is acknowledged
-    rather than undefined.
+    loopback, static bearer token, OAuth-2 PKCE discovery) and whether a
+    token is currently configured in the environment. When the OAuth issuer
+    env var is set, the discovery surface is advertised under ``oauth`` and
+    ``oauth2_pkce`` moves from ``planned`` into ``supported``.
     """
+    from bernstein.mcp.oauth import capability_card_oauth, oauth_discovery_enabled
+
     token_configured = any(os.environ.get(name) for name in ("BERNSTEIN_MCP_TOKEN", "BERNSTEIN_MCP_AUTH_TOKEN"))
+    oauth_active = oauth_discovery_enabled()
+    supported = ["anonymous", "bearer"]
+    planned = ["oidc"]
+    if oauth_active:
+        supported.append("oauth2_pkce")
+    else:
+        planned.insert(0, "oauth2_pkce")
     return {
-        "supported": ["anonymous", "bearer"],
-        "planned": ["oauth2_pkce", "oidc"],
+        "supported": supported,
+        "planned": planned,
         "bearer_token_configured": token_configured,
         "anonymous_scope": "loopback-only",
+        "oauth": capability_card_oauth(),
     }
 
 
@@ -112,6 +122,10 @@ def build_capability_card() -> dict[str, Any]:
             "tierEnvVar": "BERNSTEIN_MCP_TOOL_TIER",
             "advertised": tools_for_tier(active_tier),
             "tiers": tier_audit(),
+        },
+        "prompts": {
+            "supported": True,
+            "catalogue": ["orchestrate_goal", "triage_failed_tasks", "cost_recap"],
         },
         "costMeter": {
             "enabled": cost_meter_enabled(),

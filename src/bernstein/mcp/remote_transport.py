@@ -253,10 +253,42 @@ _SERVER_INFO: dict[str, Any] = {
 
 _CAPABILITIES: dict[str, Any] = {
     "tools": {"listChanged": False},
+    # Server-side prompt templates surfaced via prompts/list and prompts/get.
+    "prompts": {"listChanged": False},
     # The server honours notifications/cancelled for in-flight tool calls and
     # preserves partial output on cancel.
     "experimental": {"cancellation": {"partialResults": True}},
 }
+
+
+# Built-in prompt catalogue mirroring src/bernstein/mcp/prompts.py. Mirroring
+# here keeps the streamable HTTP transport self-contained: it does not need
+# to spin up a FastMCP instance to answer prompts/list and prompts/get.
+_PROMPT_DEFS: list[dict[str, Any]] = [
+    {
+        "name": "orchestrate_goal",
+        "description": "Plan a Bernstein orchestration run for a single goal.",
+        "arguments": [
+            {"name": "goal", "description": "What to accomplish.", "required": True},
+            {"name": "role", "description": "Specialist role.", "required": False},
+            {"name": "scope", "description": "Task scope.", "required": False},
+        ],
+    },
+    {
+        "name": "triage_failed_tasks",
+        "description": "Triage the most recent failed tasks and propose next actions.",
+        "arguments": [
+            {"name": "limit", "description": "Max tasks to inspect.", "required": False},
+        ],
+    },
+    {
+        "name": "cost_recap",
+        "description": "Summarise Bernstein cost by role for a stated window.",
+        "arguments": [
+            {"name": "window", "description": "Window label (e.g. today).", "required": False},
+        ],
+    },
+]
 
 
 class StreamableHTTPTransport:
@@ -298,6 +330,13 @@ class StreamableHTTPTransport:
         Returns:
             Tuple of (status_code, response_headers, response_body).
         """
+        # OAuth-2 / OIDC discovery metadata. Served without authentication so
+        # a client can locate the IdP before it has a token; standard well-known
+        # paths only return content when ``BERNSTEIN_MCP_OAUTH_ISSUER`` is set,
+        # otherwise 404 (anonymous/static-bearer remain the advertised path).
+        if method == "GET" and self._is_well_known(path):
+            return self._handle_well_known(path, headers)
+
         # Normalise path.
         if not path.rstrip("/").endswith(self._config.path.rstrip("/")):
             return (404, {"content-type": _CONTENT_TYPE_JSON}, b'{"error":"not found"}')
@@ -459,6 +498,8 @@ class StreamableHTTPTransport:
             "initialize": self._method_initialize,
             "tools/list": self._method_tools_list,
             "tools/call": self._method_tools_call,
+            "prompts/list": self._method_prompts_list,
+            "prompts/get": self._method_prompts_get,
             "ping": self._method_ping,
             "notifications/initialized": self._method_noop,
             "notifications/cancelled": self._method_cancelled,
@@ -564,6 +605,72 @@ class StreamableHTTPTransport:
             await self._inflight.discard(req_id)
         return {
             "content": [{"type": "text", "text": wrap_envelope(text, meter)}],
+        }
+
+    async def _method_prompts_list(
+        self,
+        session: MCPSession,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Handle 'prompts/list' - return the built-in prompt catalogue.
+
+        Common auto-discovery hosts probe this surface to populate a prompt
+        picker. The catalogue is the same one the FastMCP server registers,
+        kept in sync via ``_PROMPT_DEFS`` on this transport.
+        """
+        return {"prompts": _PROMPT_DEFS}
+
+    async def _method_prompts_get(
+        self,
+        session: MCPSession,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Handle 'prompts/get' - render a named prompt with arguments.
+
+        Args:
+            session: Current MCP session.
+            params: JSON-RPC params carrying ``name`` and optional ``arguments``.
+
+        Returns:
+            A prompt response with a single user-role text message.
+
+        Raises:
+            ValueError: When the requested prompt name is unknown.
+        """
+        from bernstein.mcp.prompts import (
+            _cost_recap_template,
+            _orchestrate_goal_template,
+            _triage_failed_tasks_template,
+        )
+
+        name = params.get("name", "")
+        arguments = params.get("arguments", {}) or {}
+        if name == "orchestrate_goal":
+            body = _orchestrate_goal_template(
+                goal=arguments.get("goal", ""),
+                role=arguments.get("role", "backend"),
+                scope=arguments.get("scope", "medium"),
+            )
+        elif name == "triage_failed_tasks":
+            limit_raw = arguments.get("limit", 5)
+            try:
+                limit = int(limit_raw)
+            except (TypeError, ValueError):
+                limit = 5
+            body = _triage_failed_tasks_template(limit=limit)
+        elif name == "cost_recap":
+            body = _cost_recap_template(window=arguments.get("window", "today"))
+        else:
+            msg = f"Unknown prompt: {name}"
+            raise ValueError(msg)
+        return {
+            "description": next((p["description"] for p in _PROMPT_DEFS if p["name"] == name), ""),
+            "messages": [
+                {
+                    "role": "user",
+                    "content": {"type": "text", "text": body},
+                }
+            ],
         }
 
     async def _method_cancelled(
@@ -715,6 +822,56 @@ class StreamableHTTPTransport:
             )
             resp.raise_for_status()
             return resp.text
+
+    # -- OAuth discovery -----------------------------------------------------
+
+    @staticmethod
+    def _is_well_known(path: str) -> bool:
+        """Return True for the OAuth-2 / protected-resource discovery paths."""
+        from bernstein.mcp.oauth import AS_METADATA_PATH, PR_METADATA_PATH
+
+        return path in {AS_METADATA_PATH, PR_METADATA_PATH}
+
+    def _handle_well_known(
+        self,
+        path: str,
+        headers: dict[str, str],
+    ) -> tuple[int, dict[str, str], bytes]:
+        """Serve OAuth-2 authorization-server / protected-resource metadata.
+
+        Returns:
+            (200, headers, json-body) when discovery is enabled; 404 otherwise.
+        """
+        from bernstein.mcp.oauth import (
+            AS_METADATA_PATH,
+            PR_METADATA_PATH,
+            authorization_server_metadata,
+            protected_resource_metadata,
+        )
+
+        if path == AS_METADATA_PATH:
+            meta = authorization_server_metadata()
+        elif path == PR_METADATA_PATH:
+            # Build the absolute resource URL from the Host header so the
+            # advertised resource matches what the client called.
+            host = headers.get("host", f"{self._config.host}:{self._config.port}")
+            scheme = headers.get("x-forwarded-proto", "http")
+            resource_url = f"{scheme}://{host}{self._config.path}"
+            meta = protected_resource_metadata(resource_url)
+        else:
+            meta = None
+
+        if meta is None:
+            return (
+                404,
+                {"content-type": _CONTENT_TYPE_JSON},
+                b'{"error":"oauth discovery not configured"}',
+            )
+        return (
+            200,
+            {"content-type": _CONTENT_TYPE_JSON, "cache-control": "public, max-age=300"},
+            json.dumps(meta).encode(),
+        )
 
     # -- Auth ----------------------------------------------------------------
 

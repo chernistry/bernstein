@@ -27,6 +27,13 @@ concern can be unit-tested in isolation:
   surface attempts and spend per repo.
 * :mod:`bernstein.core.autofix.daemon` — process supervisor that
   exposes ``start``, ``stop``, ``status`` and ``attach`` semantics.
+* :mod:`bernstein.core.autofix.tier3` — OpenRouter free-tier shadow-mode
+  escalation that picks up when Tier-1 (deterministic contract-drift
+  regen) and Tier-2 (Gemini auto-heal) both produced nothing on a
+  failing class in the safe allowlist. Captures a unified-diff under
+  ``.sdd/autoheal/tier3-shadow/`` plus lineage / decision-log /
+  envelope rows; does not push unless
+  ``BERNSTEIN_CI_SELF_DRIVE_PROMOTE_FROM_SHADOW=1`` is set.
 """
 
 from __future__ import annotations

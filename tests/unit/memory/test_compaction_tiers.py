@@ -133,17 +133,19 @@ class TestReduction:
         assert result.tier is Tier.AUTO
         assert result.after_tokens < result.before_tokens
 
-    def test_auto_uses_supplied_llm_call(self) -> None:
-        calls: list[str] = []
-
-        def fake_llm(prompt: str) -> str:
-            calls.append(prompt)
+    def test_auto_routes_llm_call_to_pipeline(self) -> None:
+        # The auto tier forwards ``llm_call`` to the shared pipeline, which
+        # delegates the actual summary to the orchestrator rather than
+        # calling the summarizer inline. With a callable supplied the
+        # delegated-summary path runs and the structural fallback does not.
+        def fake_llm(prompt: str) -> str:  # pragma: no cover - not invoked inline
             return "summary"
 
         ctx = TierContext(session_id="s", context_text="# h\n" + "x " * 200)
-        auto_tier.compact(ctx, llm_call=fake_llm)
-        # The pipeline delegates summary to the callable when provided.
-        assert isinstance(calls, list)
+        delegated = auto_tier.compact(ctx, llm_call=fake_llm)
+        structural = auto_tier.compact(TierContext(session_id="s", context_text="# h\n" + "x " * 200))
+        assert delegated.tier is Tier.AUTO
+        assert delegated.compacted_text != structural.compacted_text
 
     def test_session_memory_builds_durable_summary(self) -> None:
         text = "\n".join(f"# section {i}\n" + "detail " * 50 for i in range(30))

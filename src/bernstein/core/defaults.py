@@ -581,6 +581,39 @@ class LineageDefaults:
     tamper_alert_max_retries: int = 3
 
 
+@dataclass(frozen=True)
+class CompactionDefaults:
+    """Thresholds and cost weights for the tiered compaction strategy.
+
+    Used by :mod:`bernstein.core.memory.compaction`. Each tier has a
+    relative cost weight (a multiplier on the per-token rate) and a set of
+    trigger thresholds the policy consults to pick a tier.
+
+    Cost weights are keyed by the tier's string name (``"micro"`` etc.) so
+    this module stays free of an import on the compaction package; the
+    package rebuilds the enum-keyed mapping from these values.
+    """
+
+    # Relative cost weight per tier (multiplier on the per-token rate).
+    cost_weight_none: float = 0.0
+    cost_weight_micro: float = 0.05
+    cost_weight_auto: float = 0.5
+    cost_weight_session_memory: float = 1.0
+    cost_weight_time_based: float = 0.1
+    # Micro tier: collapse tool-result bodies longer than this, keeping a
+    # short head slice for context.
+    micro_body_char_threshold: int = 240
+    micro_keep_head_chars: int = 80
+    # Auto tier: fire at or above this context-use fraction.
+    auto_threshold_pct: float = 0.70
+    # Time-based tier: fire when idle for at least this many seconds; drop
+    # age-tagged blocks older than this many turns.
+    idle_threshold_seconds: float = 300.0
+    max_block_age_turns: int = 5
+    # Shared token estimator: characters per token for English text.
+    chars_per_token: int = 4
+
+
 # ---------------------------------------------------------------------------
 # Singletons (rebindable via override()/reset())
 # ---------------------------------------------------------------------------
@@ -607,6 +640,7 @@ ACTION_CACHE = ActionCacheDefaults()
 SCHEMA_RETRY = SchemaRetryDefaults()
 LINEAGE = LineageDefaults()
 REWORK_LEDGER = ReworkLedgerDefaults()
+COMPACTION = CompactionDefaults()
 
 # Module-level constant for direct import — preferred when only the
 # numeric cap is needed (no need to import the whole singleton).
@@ -622,6 +656,16 @@ ABSTRACT_DIFF_MAX_FILES: int = 50
 # spawner skips preamble injection and tool filtering — useful as a kill
 # switch while the feature is rolled out.
 MODE_PROFILES_ENABLED: bool = True
+
+# Tiered compaction direct-import constants (preferred when only the
+# scalar is needed). Cost weights stay enum-keyed in the compaction
+# package, which rebuilds them from the ``COMPACTION`` singleton.
+COMPACTION_MICRO_BODY_CHAR_THRESHOLD: int = COMPACTION.micro_body_char_threshold
+COMPACTION_MICRO_KEEP_HEAD_CHARS: int = COMPACTION.micro_keep_head_chars
+COMPACTION_AUTO_THRESHOLD_PCT: float = COMPACTION.auto_threshold_pct
+COMPACTION_IDLE_THRESHOLD_SECONDS: float = COMPACTION.idle_threshold_seconds
+COMPACTION_MAX_BLOCK_AGE_TURNS: int = COMPACTION.max_block_age_turns
+COMPACTION_CHARS_PER_TOKEN: int = COMPACTION.chars_per_token
 
 
 # Mapping of section name (as used in bernstein.yaml ``tuning:`` blocks) to the
@@ -651,6 +695,7 @@ _SECTION_TO_ATTR: Mapping[str, str] = MappingProxyType(
         "schema_retry": "SCHEMA_RETRY",
         "lineage": "LINEAGE",
         "rework_ledger": "REWORK_LEDGER",
+        "compaction": "COMPACTION",
     }
 )
 
@@ -680,6 +725,7 @@ _ATTR_TO_FACTORY: Mapping[str, type[Any]] = MappingProxyType(
         "SCHEMA_RETRY": SchemaRetryDefaults,
         "LINEAGE": LineageDefaults,
         "REWORK_LEDGER": ReworkLedgerDefaults,
+        "COMPACTION": CompactionDefaults,
     }
 )
 

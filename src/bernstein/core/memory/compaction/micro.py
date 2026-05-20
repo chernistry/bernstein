@@ -15,6 +15,7 @@ import re
 import uuid
 from typing import TYPE_CHECKING
 
+from bernstein.core import defaults
 from bernstein.core.memory.compaction.tiers import (
     TIER_COST_WEIGHT,
     Tier,
@@ -27,9 +28,6 @@ if TYPE_CHECKING:
 
 # Cost annotation: cheapest tier; no LLM call, structural only.
 COST_WEIGHT: float = TIER_COST_WEIGHT[Tier.MICRO]
-
-# A tool-call result body longer than this many characters is collapsed.
-_BODY_CHAR_THRESHOLD = 240
 
 # Matches a fenced ``tool_result`` block: header line plus body up to the
 # closing fence. Non-greedy so adjacent blocks are not merged.
@@ -60,9 +58,9 @@ def _collapse_tool_bodies(text: str) -> str:
 
     def _replace(match: re.Match[str]) -> str:
         header, body, fence = match.group(1), match.group(2), match.group(3)
-        if len(body) <= _BODY_CHAR_THRESHOLD:
+        if len(body) <= defaults.COMPACTION.micro_body_char_threshold:
             return match.group(0)
-        kept = body[:80].rstrip()
+        kept = body[: defaults.COMPACTION.micro_keep_head_chars].rstrip()
         return f"{header}{kept}\n[tool result body pruned: {len(body)} chars]{fence}"
 
     return _TOOL_RESULT_RE.sub(_replace, text)

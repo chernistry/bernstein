@@ -24,6 +24,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from types import MappingProxyType
+from typing import TypedDict
+
+from bernstein.core import defaults
 
 
 class Tier(StrEnum):
@@ -43,14 +47,18 @@ class Tier(StrEnum):
 # Relative cost weight per tier, used by the cost subsystem to attribute
 # spend back to the tier. Expressed as a multiplier on the per-token rate:
 # a cheap structural prune costs far less than a tier that issues an LLM
-# summary call. ``NONE`` never spends.
-TIER_COST_WEIGHT: dict[Tier, float] = {
-    Tier.NONE: 0.0,
-    Tier.MICRO: 0.05,
-    Tier.AUTO: 0.5,
-    Tier.SESSION_MEMORY: 1.0,
-    Tier.TIME_BASED: 0.1,
-}
+# summary call. ``NONE`` never spends. The values are sourced from the
+# ``COMPACTION`` defaults singleton (rebindable via ``defaults.override``)
+# and rebuilt here into an enum-keyed, read-only mapping.
+TIER_COST_WEIGHT: MappingProxyType[Tier, float] = MappingProxyType(
+    {
+        Tier.NONE: defaults.COMPACTION.cost_weight_none,
+        Tier.MICRO: defaults.COMPACTION.cost_weight_micro,
+        Tier.AUTO: defaults.COMPACTION.cost_weight_auto,
+        Tier.SESSION_MEMORY: defaults.COMPACTION.cost_weight_session_memory,
+        Tier.TIME_BASED: defaults.COMPACTION.cost_weight_time_based,
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -72,7 +80,19 @@ class BudgetPressure:
     session_complete: bool = False
 
 
-@dataclass
+class TierResultDict(TypedDict):
+    """JSON shape produced by :meth:`TierResult.to_dict`."""
+
+    tier: str
+    before_tokens: int
+    after_tokens: int
+    tokens_saved: int
+    cost_estimate: float
+    correlation_id: str
+    reason: str
+
+
+@dataclass(frozen=True)
 class TierResult:
     """Outcome of running a single tier over a context string.
 
@@ -99,24 +119,26 @@ class TierResult:
         """Tokens removed by this tier (never negative)."""
         return max(0, self.before_tokens - self.after_tokens)
 
-    def to_dict(self) -> dict[str, object]:
+    def to_dict(self) -> TierResultDict:
         """Serialise to a JSON-compatible dict for trace recording."""
-        return {
-            "tier": self.tier.value,
-            "before_tokens": self.before_tokens,
-            "after_tokens": self.after_tokens,
-            "tokens_saved": self.tokens_saved,
-            "cost_estimate": self.cost_estimate,
-            "correlation_id": self.correlation_id,
-            "reason": self.reason,
-        }
+        return TierResultDict(
+            tier=self.tier.value,
+            before_tokens=self.before_tokens,
+            after_tokens=self.after_tokens,
+            tokens_saved=self.tokens_saved,
+            cost_estimate=self.cost_estimate,
+            correlation_id=self.correlation_id,
+            reason=self.reason,
+        )
 
 
 def estimate_tokens(text: str) -> int:
-    """Rough token count: about four characters per token for English text.
+    """Rough token count: a few characters per token for English text.
 
     Mirrors the estimate used by the legacy compaction pipeline so token
-    deltas are comparable across the old and new entrypoints.
+    deltas are comparable across the old and new entrypoints. The
+    characters-per-token divisor is sourced from the ``COMPACTION``
+    defaults singleton.
 
     Args:
         text: The text to measure.
@@ -126,10 +148,10 @@ def estimate_tokens(text: str) -> int:
     """
     if not text:
         return 0
-    return max(1, len(text) // 4)
+    return max(1, len(text) // defaults.COMPACTION.chars_per_token)
 
 
-@dataclass
+@dataclass(frozen=True)
 class TierContext:
     """Bundle of inputs handed to a tier when it runs.
 

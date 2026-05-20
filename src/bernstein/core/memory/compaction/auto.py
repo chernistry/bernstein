@@ -14,6 +14,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
+from bernstein.core import defaults
 from bernstein.core.memory.compaction.tiers import (
     TIER_COST_WEIGHT,
     Tier,
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 COST_WEIGHT: float = TIER_COST_WEIGHT[Tier.AUTO]
 
 # Context-use fraction at or above which the auto tier fires.
-THRESHOLD_PCT: float = 0.70
+THRESHOLD_PCT: float = defaults.COMPACTION.auto_threshold_pct
 
 
 def should_run(pressure: BudgetPressure) -> bool:

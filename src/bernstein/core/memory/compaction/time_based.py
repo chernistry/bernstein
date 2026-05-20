@@ -15,6 +15,7 @@ import re
 import uuid
 from typing import TYPE_CHECKING
 
+from bernstein.core import defaults
 from bernstein.core.memory.compaction.tiers import (
     TIER_COST_WEIGHT,
     Tier,
@@ -29,10 +30,7 @@ if TYPE_CHECKING:
 COST_WEIGHT: float = TIER_COST_WEIGHT[Tier.TIME_BASED]
 
 # Idle seconds at or above which the time-based tier fires.
-IDLE_THRESHOLD_SECONDS: float = 300.0
-
-# Blocks tagged ``[age:<turns>]`` older than this many turns are dropped.
-_MAX_BLOCK_AGE_TURNS = 5
+IDLE_THRESHOLD_SECONDS: float = defaults.COMPACTION.idle_threshold_seconds
 
 # Matches a block opening with an age tag, capturing the age and the block
 # body up to the next blank-line boundary.
@@ -60,7 +58,7 @@ def _prune_aged_blocks(text: str) -> str:
 
     def _replace(match: re.Match[str]) -> str:
         age = int(match.group(1))
-        if age > _MAX_BLOCK_AGE_TURNS:
+        if age > defaults.COMPACTION.max_block_age_turns:
             return "[stale block pruned]\n"
         return match.group(0)
 

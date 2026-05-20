@@ -169,6 +169,7 @@ nav:
       - Artifact storage: architecture/storage.md
       - Skill packs: architecture/skills.md
       - A2A v1.0 signed agent cards: architecture/a2a.md
+      - A2A capability cards and lineage interop: interop/a2a.md
       - Design notes: architecture/DESIGN.md
       - Glossary: reference/GLOSSARY.md
       - AST-aware reviewer chunks: concepts/ast-aware-chunking.md

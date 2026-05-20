@@ -539,6 +539,27 @@ def _entry_from_payload(payload: dict[str, Any]) -> TrackerAuditEntry:
     )
 
 
+def entry_to_body(entry: TrackerAuditEntry) -> dict[str, Any]:
+    """Return ``entry`` as a plain dict ready for JCS canonicalisation.
+
+    Public wrapper over the internal serialiser so cross-module callers
+    (for instance the A2A lineage envelope) can read an entry's wire body
+    without reaching into module privates.
+    """
+
+    return _entry_body(entry)
+
+
+def entry_from_payload(payload: dict[str, Any]) -> TrackerAuditEntry:
+    """Reconstruct a :class:`TrackerAuditEntry` from a parsed JSON dict.
+
+    Public wrapper over the internal parser. Validates the entry shape via
+    the dataclass ``__post_init__`` invariants on construction.
+    """
+
+    return _entry_from_payload(payload)
+
+
 # ---------------------------------------------------------------------------
 # Tracker contract integration
 # ---------------------------------------------------------------------------
@@ -744,5 +765,7 @@ __all__ = [
     "compute_signature",
     "content_hash",
     "emit_audit_entry",
+    "entry_from_payload",
+    "entry_to_body",
     "wrap_adapter",
 ]

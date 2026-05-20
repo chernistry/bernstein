@@ -272,7 +272,7 @@ class Tier3Config:
         :data:`ENV_OPENROUTER_BASE_URL` then :data:`ENV_OPENAI_BASE_URL`;
         the shipped wheel never bakes a default hostname.
         """
-        source: dict[str, str] = dict(os.environ) if env is None else dict(env)
+        source: dict[str, str] = os.environ.copy() if env is None else dict(env)
         self_drive = source.get(ENV_SELF_DRIVE, "").strip().lower()
         promote = source.get(ENV_PROMOTE_FROM_SHADOW, "").strip() == "1"
         base_url = source.get(ENV_OPENROUTER_BASE_URL, "").strip() or source.get(ENV_OPENAI_BASE_URL, "").strip()
@@ -513,8 +513,7 @@ def extract_paths_from_unified_diff(diff: str) -> tuple[str, ...]:
                 # Rename: both sides must pass the cordon so a
                 # cordoned file cannot be moved out of the cordon (and
                 # a follow-up patch then bypasses the check).
-                paths.append(pending_old)
-                paths.append(new_path)
+                paths.extend((pending_old, new_path))
             else:
                 # Addition or in-place modification: the old and new
                 # paths agree (or the old side is absent), so a single
@@ -789,7 +788,7 @@ class Tier3Runner:
             )
 
         assert self.recurrence_tracker is not None  # populated in __post_init__
-        now_ts = float(self.clock())
+        now_ts = self.clock()
 
         # 4. recurrence detection - same class + nodeid fixed too often.
         if self.recurrence_tracker.should_escalate(

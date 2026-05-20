@@ -24,6 +24,7 @@ RTO = "RTO"          # Recovery Time Objective (compliance/DR, acronym)
 mis = "mis"          # false positive on partial words
 fo = "fo"            # fo = fan_out (test_complexity_correlation.py)
 thr = "thr"          # thr = threshold (scripts/mutmut_critical.py)
+hel = "hel"          # truncated stream chunk "hel" + "lo" = "hello" (test_client_hardened.py)
 Aktive = "Aktive"    # correct German word for "Active" (i18n.py)
 
 # Technical terms used consistently in the codebase

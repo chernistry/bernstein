@@ -950,10 +950,17 @@ jobs:
         # `--no-deps` is safe: the exported file is fully pinned and the
         # transitive closure is resolved by `uv.lock`. `--disable-pip`
         # avoids spinning up a sub-venv just to run `pip install`.
-        run: uv run pip-audit -r /tmp/req-prod.txt --strict --disable-pip --no-deps
+        #
+        # `--ignore-vuln PYSEC-2025-183` (CVE-2025-45768): disputed advisory
+        # against pyjwt that affects all released versions (introduced at 0,
+        # no fix version published) and is pulled in transitively via `mcp`.
+        # The maintainer disputes it because the key length is chosen by the
+        # calling application, not the library. There is nothing to upgrade
+        # to, so it is ignored with the rationale recorded here.
+        run: uv run pip-audit -r /tmp/req-prod.txt --strict --disable-pip --no-deps --ignore-vuln PYSEC-2025-183
       - name: Dev deps (advisory)
         continue-on-error: true
-        run: uv run pip-audit -r /tmp/req-dev.txt --strict --disable-pip --no-deps
+        run: uv run pip-audit -r /tmp/req-dev.txt --strict --disable-pip --no-deps --ignore-vuln PYSEC-2025-183
 
   beartype:
     # Runtime type-check enforcement via beartype.claw. Imports the

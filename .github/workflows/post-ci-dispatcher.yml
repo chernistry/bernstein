@@ -182,6 +182,12 @@ jobs:
     # on a non-empty value rather than failing the whole reusable call.
     secrets:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # OPENROUTER_API_KEY_FREE is optional on the called workflow; the
+      # Tier-3 shadow-mode escalation gates on the
+      # BERNSTEIN_CI_SELF_DRIVE feature flag (default off). When the
+      # repo secret is unset the called job degrades gracefully and
+      # records a flag_off / skipped outcome.
+      OPENROUTER_API_KEY_FREE: ${{ secrets.OPENROUTER_API_KEY_FREE }}
     with:
       head_sha: ${{ needs.meta.outputs.head_sha }}
       head_branch: ${{ needs.meta.outputs.head_branch }}

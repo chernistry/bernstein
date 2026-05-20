@@ -22,10 +22,16 @@ unresolved issues without leaving the terminal.
 | Env var | Purpose | Default |
 |---|---|---|
 | `BERNSTEIN_GLITCHTIP_TOKEN` | API token with org read scope. | (required for non-trivial output) |
-| `BERNSTEIN_GLITCHTIP_DSN` | Runtime DSN for event submission. | (informational here) |
-| `BERNSTEIN_GLITCHTIP_BASE_URL` | Override for the API base URL. | `https://errors.bernstein.run` |
+| `BERNSTEIN_GLITCHTIP_DSN` | Runtime DSN for event submission. | (informational here; host derives the base URL if `BERNSTEIN_GLITCHTIP_BASE_URL` is unset) |
+| `BERNSTEIN_GLITCHTIP_BASE_URL` | Override for the API base URL (for example `https://glitchtip.example.com`). | (no default; required when `BERNSTEIN_GLITCHTIP_DSN` is unset) |
 | `BERNSTEIN_GLITCHTIP_ORG` | Organisation slug. | `bernstein` |
 | `BERNSTEIN_GLITCHTIP_BASELINE` | Override for the baseline cache path. | `~/.local/share/bernstein/glitchtip-baseline.json` |
+
+The shipped package hardcodes no observability backend host. Configure
+the base URL at deployment time via `BERNSTEIN_GLITCHTIP_BASE_URL`, or
+provide `BERNSTEIN_GLITCHTIP_DSN` and the base URL will be derived from
+its host. When neither is configured, `bernstein doctor glitchtip`
+soft-fails with a clear "not configured" message and exit code 0.
 
 If `BERNSTEIN_GLITCHTIP_TOKEN` is missing, the doctor soft-fails with a
 one-line hint and exit code 0. `BERNSTEIN_GLITCHTIP_DSN` is informational

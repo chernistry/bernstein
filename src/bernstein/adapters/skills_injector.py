@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict, cast
 
 import yaml
 
@@ -36,6 +36,16 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from bernstein.core.models import Task
+
+
+class _FrontmatterSchema(TypedDict, total=False):
+    """Subset of Claude-Code skill frontmatter the injector reads.
+
+    The loose-YAML parse may surface extra keys; only the ones the
+    activation log needs are typed here.
+    """
+
+    version: str
 
 _logger = logging.getLogger(__name__)
 
@@ -196,7 +206,7 @@ def inject_skills(
             skill_name = template_name.rsplit(".", 1)[0]
             version = _extract_skill_version(sanitized)
             digest = hashlib.blake2b(sanitized.encode("utf-8"), digest_size=16).hexdigest()
-            for task in tasks or []:
+            for task in tasks:
                 log_activation(
                     ActivationRecord(
                         skill=skill_name,
@@ -253,7 +263,8 @@ def _extract_skill_version(content: str) -> str:
     except yaml.YAMLError:
         return ""
     if isinstance(data, dict):
-        version = data.get("version")
+        typed = cast("_FrontmatterSchema", data)
+        version = typed.get("version")
         if isinstance(version, str):
             return version
     return ""

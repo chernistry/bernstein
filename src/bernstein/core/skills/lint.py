@@ -25,10 +25,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from pathlib import Path  # noqa: TC003 - runtime annotation in dataclass field
+from pathlib import Path
 from typing import Any, cast
 
 import yaml
+from pydantic import ValidationError
 
 from bernstein.core.skills.manifest import SkillManifest
 from bernstein.core.skills.sanitizer import strip_invisible_tags
@@ -171,7 +172,7 @@ def lint_skill(skill_dir: Path, *, skill_name: str | None = None) -> list[LintFi
 
     try:
         manifest = SkillManifest.model_validate(_coerce_known_fields(raw_dict))
-    except Exception as exc:
+    except ValidationError as exc:
         findings.append(
             LintFinding(
                 skill_name=name,
@@ -184,8 +185,37 @@ def lint_skill(skill_dir: Path, *, skill_name: str | None = None) -> list[LintFi
         return findings
 
     for bucket in _VALID_BUCKETS:
+        bucket_root = (skill_dir / bucket).resolve()
         for filename in getattr(manifest, bucket):
-            candidate = skill_dir / bucket / filename
+            rel = Path(filename)
+            if rel.is_absolute() or ".." in rel.parts:
+                findings.append(
+                    LintFinding(
+                        skill_name=name,
+                        severity=LintSeverity.ERROR,
+                        code="unsafe-reference-path",
+                        message=(
+                            f"manifest declares unsafe {bucket} path {filename!r}; "
+                            "absolute paths and parent traversal are not allowed"
+                        ),
+                        path=skill_md,
+                    )
+                )
+                continue
+            candidate = (bucket_root / rel).resolve()
+            if not candidate.is_relative_to(bucket_root):
+                findings.append(
+                    LintFinding(
+                        skill_name=name,
+                        severity=LintSeverity.ERROR,
+                        code="unsafe-reference-path",
+                        message=(
+                            f"manifest {bucket} path {filename!r} escapes the {bucket}/ root"
+                        ),
+                        path=skill_md,
+                    )
+                )
+                continue
             if not candidate.is_file():
                 findings.append(
                     LintFinding(

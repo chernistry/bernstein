@@ -14,8 +14,12 @@ import json
 import signal
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
+
+if TYPE_CHECKING:
+    from bernstein.core.skills.loader import SkillLoader
 
 from bernstein import get_templates_dir
 from bernstein.cli.helpers import console
@@ -408,7 +412,7 @@ def skills_watch(path: Path | None) -> None:
 
     reload_count = 0
 
-    def on_reload(_loader: object) -> None:
+    def on_reload(_loader: SkillLoader) -> None:
         nonlocal reload_count
         reload_count += 1
         console.print(f"[green]reloaded[/green] index (event #{reload_count})")

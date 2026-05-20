@@ -63,11 +63,14 @@ def test_watcher_fires_on_file_change(tmp_path: Path) -> None:
         # file inside it is flushed).
         deadline = time.monotonic() + 5.0
         saw_beta = False
+        # Pre-declare ``names`` so the final assertion stays defined even
+        # if the loop body never executes under extreme scheduling stalls.
+        names: set[str] = set()
         while time.monotonic() < deadline:
             reload_event.wait(timeout=0.5)
             reload_event.clear()
             with lock:
-                names: set[str] = set()
+                names = set()
                 for loader in loaders_seen:
                     names.update(skill.name for skill in loader.list_all())
             if "beta" in names:

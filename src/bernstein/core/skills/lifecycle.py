@@ -263,13 +263,12 @@ def _canonical_frontmatter(front_raw: str) -> bytes:
         return front_raw.encode("utf-8")
     if loaded is None:
         return b"{}\n"
-    canonical = yaml.safe_dump(
+    return yaml.safe_dump(
         loaded,
         sort_keys=True,
         allow_unicode=True,
         default_flow_style=False,
-    )
-    return canonical.encode("utf-8")
+    ).encode("utf-8")
 
 
 def _split_skill_md(text: str) -> tuple[str, str]:
@@ -311,17 +310,32 @@ def _referenced_files(skill_dir: Path, frontmatter: dict[str, Any]) -> list[Path
     files are silently skipped here; lint surfaces them as errors.
     """
     out: list[Path] = []
+    try:
+        skill_root = skill_dir.resolve()
+    except OSError:
+        return out
     for bucket in ("references", "scripts", "assets"):
         values = frontmatter.get(bucket, [])
         if not isinstance(values, list):
             continue
+        bucket_root = (skill_dir / bucket).resolve()
         for entry in cast("list[object]", values):
             if not isinstance(entry, str):
                 continue
-            candidate = skill_dir / bucket / entry
+            entry_path = Path(entry)
+            if entry_path.is_absolute() or ".." in entry_path.parts:
+                # Reject traversal / absolute paths: the digest must not
+                # depend on files outside the skill directory.
+                continue
+            try:
+                candidate = (bucket_root / entry_path).resolve()
+            except OSError:
+                continue
+            if not candidate.is_relative_to(bucket_root):
+                continue
             if candidate.is_file():
                 out.append(candidate)
-    out.sort(key=lambda p: str(p.relative_to(skill_dir)))
+    out.sort(key=lambda p: str(p.resolve().relative_to(skill_root)))
     return out
 
 
@@ -433,26 +447,40 @@ def install_local(
     name = override_name or _detect_skill_name(source)
     dest_root = scope_root(scope, workdir=workdir, home=home)
     install_dir = dest_root / name
-    # Clear any prior install so we never leak files from an older version.
+    dest_root.mkdir(parents=True, exist_ok=True)
+    # Stage into a sibling temp directory first so a previously working
+    # install is preserved if validation or copy fails. The final swap is
+    # atomic via Path.replace.
+    staging_dir = dest_root / f".{name}.tmp"
+    if staging_dir.exists():
+        shutil.rmtree(staging_dir)
+    staging_dir.mkdir(parents=True)
+
+    try:
+        if source.is_dir():
+            skill_md = source / "SKILL.md"
+            if not skill_md.is_file():
+                raise SkillLifecycleError(f"{source}: directory does not contain SKILL.md")
+            _copy_skill_tree(source, staging_dir)
+        else:
+            if source.suffix != ".md":
+                raise SkillLifecycleError(
+                    f"{source}: local file source must have a .md extension"
+                )
+            try:
+                content = source.read_text(encoding="utf-8")
+            except OSError as exc:
+                raise SkillLifecycleError(f"{source}: cannot read source: {exc}") from exc
+            (staging_dir / "SKILL.md").write_text(content, encoding="utf-8")
+
+        digest = compute_skill_digest(staging_dir)
+    except Exception:
+        shutil.rmtree(staging_dir, ignore_errors=True)
+        raise
+
     if install_dir.exists():
         shutil.rmtree(install_dir)
-    install_dir.mkdir(parents=True, exist_ok=True)
-
-    if source.is_dir():
-        skill_md = source / "SKILL.md"
-        if not skill_md.is_file():
-            raise SkillLifecycleError(f"{source}: directory does not contain SKILL.md")
-        _copy_skill_tree(source, install_dir)
-    else:
-        if source.suffix != ".md":
-            raise SkillLifecycleError(f"{source}: local file source must have a .md extension")
-        try:
-            content = source.read_text(encoding="utf-8")
-        except OSError as exc:
-            raise SkillLifecycleError(f"{source}: cannot read source: {exc}") from exc
-        (install_dir / "SKILL.md").write_text(content, encoding="utf-8")
-
-    digest = compute_skill_digest(install_dir)
+    staging_dir.replace(install_dir)
     return InstallResult(name=name, install_dir=install_dir, digest=digest, changed=True)
 
 
@@ -472,9 +500,17 @@ def _copy_skill_tree(source: Path, dest: Path) -> None:
             continue
         dst_bucket = dest / bucket
         dst_bucket.mkdir(exist_ok=True)
-        for child in sorted(src_bucket.iterdir()):
-            if child.is_file():
-                shutil.copy2(child, dst_bucket / child.name)
+        # Walk the bucket recursively so nested manifest paths like
+        # ``references/guides/deep.md`` survive the install. Empty
+        # directories are skipped on purpose so the destination only
+        # contains paths that the manifest can actually address.
+        for child in sorted(src_bucket.rglob("*")):
+            if not child.is_file():
+                continue
+            rel = child.relative_to(src_bucket)
+            target = dst_bucket / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(child, target)
 
 
 def remove_skill(
@@ -571,12 +607,16 @@ def _write_lock(path: Path, entries: list[LockEntry]) -> None:
         "",
     ]
     for entry in sorted_entries:
-        lines.append("[[skills]]")
-        lines.append(f"name = {_toml_quote(entry.name)}")
-        lines.append(f"source = {_toml_quote(entry.source)}")
-        lines.append(f"path = {_toml_quote(entry.path)}")
-        lines.append(f"digest = {_toml_quote(entry.digest)}")
-        lines.append("")
+        lines.extend(
+            (
+                "[[skills]]",
+                f"name = {_toml_quote(entry.name)}",
+                f"source = {_toml_quote(entry.source)}",
+                f"path = {_toml_quote(entry.path)}",
+                f"digest = {_toml_quote(entry.digest)}",
+                "",
+            )
+        )
     path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
@@ -639,7 +679,17 @@ def sync_skills(
         # algorithm operates on installed-shape directories; for a real
         # directory source we can read it in place.
         existing_install = scope_root(scope, workdir=workdir, home=home) / entry.name
-        prior_digest = compute_skill_digest(existing_install).digest if existing_install.is_dir() else None
+        prior_digest: str | None
+        if existing_install.is_dir():
+            try:
+                prior_digest = compute_skill_digest(existing_install).digest
+            except SkillLifecycleError:
+                # A malformed prior install (e.g. missing SKILL.md after a
+                # partial write) counts as drift so sync can self-heal by
+                # reinstalling instead of aborting the whole batch.
+                prior_digest = None
+        else:
+            prior_digest = None
 
         if source_path.is_dir():
             source_digest = compute_skill_digest(source_path).digest

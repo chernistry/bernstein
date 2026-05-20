@@ -56,7 +56,10 @@ def test_inject_skills_writes_activation_log(
     log_path = activation_log_path(workdir)
     assert log_path.is_file()
     lines = [json.loads(line) for line in log_path.read_text().splitlines()]
-    # Two always-inject skills, one task = two activation records.
+    # Two always-inject skills, one task = two activation records. The
+    # exact count guard catches duplicate-log regressions that a
+    # set-equality check would silently swallow.
+    assert len(lines) == 2
     skills_seen = {row["skill"] for row in lines}
     assert skills_seen == {"bernstein-completion-protocol", "bernstein-signal-check"}
     for row in lines:

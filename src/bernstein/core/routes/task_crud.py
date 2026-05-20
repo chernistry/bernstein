@@ -26,6 +26,7 @@ from bernstein.core.eu_ai_act import (
 )
 from bernstein.core.lifecycle import IllegalTransitionError
 from bernstein.core.role_classifier import classify_role
+from bernstein.core.routes._rate_limit_headers import rate_limit_exception
 
 # Import Pydantic models from server — this works because server.py's
 # __getattr__ defers the `app` creation, so the module body (class defs)
@@ -424,7 +425,19 @@ async def create_task(body: TaskCreate, request: Request) -> TaskResponse:
             current_count = store.count_by_status(tenant_id=effective_tenant).get("total", 0)
             allowed, reason = tenant_mgr.check_quota(effective_tenant, current_count)
             if not allowed:
-                raise HTTPException(status_code=429, detail=reason)
+                # The tenant quota is a hard cap, not a rolling window.  We
+                # cannot promise a reset epoch, but we can advertise the
+                # bucket capacity (max_tasks) and a remaining budget of zero
+                # so the client back-off is informed.
+                limit_value: int | None = None
+                with suppress(Exception):
+                    ctx = tenant_mgr.get_context(effective_tenant)
+                    limit_value = int(ctx.quota.max_tasks)
+                raise rate_limit_exception(
+                    reason,
+                    limit=limit_value,
+                    remaining=0,
+                )
 
         # Pre-create hook: may block via HookBlockingError (T719)
         try:

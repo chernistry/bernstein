@@ -128,7 +128,7 @@ class SkillNotFoundError(FileNotFoundError):
         joined = ", ".join(str(p) for p in searched)
         super().__init__(f"skill {name!r} not found in any layer (searched: {joined})")
         self.skill_name = name
-        self.searched = list(searched)
+        self.searched = searched.copy()
 
 
 @dataclass(frozen=True)
@@ -168,9 +168,9 @@ class Skill:
             "author": self.author,
             "body": self.body,
             "trigger_keywords": list(self.trigger_keywords),
-            "references": [dict(r) for r in self.references],
-            "scripts": [dict(s) for s in self.scripts],
-            "assets": [dict(a) for a in self.assets],
+            "references": [r.copy() for r in self.references],
+            "scripts": [s.copy() for s in self.scripts],
+            "assets": [a.copy() for a in self.assets],
             "metadata": _deep_copy(self.metadata),
             "layers_present": [layer.label for layer in self.layers_present],
         }
@@ -310,7 +310,7 @@ def _merge_deep(field_name: str, values: list[Any]) -> dict[str, Any]:
 
 
 def _deep_merge_dicts(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
-    out: dict[str, Any] = dict(left)
+    out: dict[str, Any] = left.copy()
     for k, v in right.items():
         if k in out and isinstance(out[k], dict) and isinstance(v, dict):
             out[k] = _deep_merge_dicts(cast("dict[str, Any]", out[k]), cast("dict[str, Any]", v))

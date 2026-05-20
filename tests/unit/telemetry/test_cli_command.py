@@ -88,6 +88,103 @@ def test_status_overridden_by_env_off(
     assert "enabled: false" in output
 
 
+def test_enable_requires_confirmation_and_writes_flag(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Enable prints schema + redaction, confirms, then writes the TOML."""
+    xdg = tmp_path / "xdg-config"
+    xdg.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+    monkeypatch.delenv("DO_NOT_TRACK", raising=False)
+    monkeypatch.delenv("BERNSTEIN_TELEMETRY_SHARE", raising=False)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        telemetry_group,
+        ["enable", "--share-with-maintainer"],
+        input="y\n",
+    )
+    assert result.exit_code == 0, result.output
+    assert "Event schema" in result.output
+    assert "Redaction rules" in result.output
+    assert "share_with_maintainer = true" in result.output
+
+    toml_path = xdg / "bernstein" / "telemetry.toml"
+    assert toml_path.exists()
+    body = toml_path.read_text(encoding="utf-8")
+    assert "share_with_maintainer = true" in body
+
+
+def test_enable_declined_does_not_write_flag(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Declining the confirmation leaves the consent file untouched."""
+    xdg = tmp_path / "xdg-config"
+    xdg.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+    monkeypatch.delenv("DO_NOT_TRACK", raising=False)
+    monkeypatch.delenv("BERNSTEIN_TELEMETRY_SHARE", raising=False)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        telemetry_group,
+        ["enable", "--share-with-maintainer"],
+        input="n\n",
+    )
+    assert result.exit_code == 0, result.output
+    assert "consent declined" in result.output
+    assert not (xdg / "bernstein" / "telemetry.toml").exists()
+
+
+def test_disable_writes_false_flag(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Disable persists share_with_maintainer = false."""
+    xdg = tmp_path / "xdg-config"
+    xdg.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+    monkeypatch.delenv("DO_NOT_TRACK", raising=False)
+    monkeypatch.delenv("BERNSTEIN_TELEMETRY_SHARE", raising=False)
+
+    runner = CliRunner()
+    result = runner.invoke(telemetry_group, ["disable"])
+    assert result.exit_code == 0, result.output
+    toml_path = xdg / "bernstein" / "telemetry.toml"
+    assert toml_path.exists()
+    assert "share_with_maintainer = false" in toml_path.read_text(encoding="utf-8")
+
+
+def test_tail_empty_message_when_buffer_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tail prints a helpful message when no events have been buffered."""
+    from bernstein.core.observability import sidechannel
+
+    sidechannel.clear_preview()
+    runner = CliRunner()
+    result = runner.invoke(telemetry_group, ["tail"])
+    assert result.exit_code == 0, result.output
+    assert "no events buffered" in result.output
+
+
+def test_tail_prints_buffered_events(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tail prints the rendered events from the preview ring buffer."""
+    from bernstein.core.observability import sidechannel
+
+    sidechannel.clear_preview()
+    monkeypatch.delenv(sidechannel.DSN_ENV, raising=False)
+    # ``emit`` records the rendered payload in the preview buffer even when
+    # the sink is the Null sink, which is the operator-audit guarantee.
+    sidechannel.emit(category="run", message="first")
+    sidechannel.emit(category="run", message="second")
+    runner = CliRunner()
+    result = runner.invoke(telemetry_group, ["tail", "-n", "5"])
+    assert result.exit_code == 0, result.output
+    assert "first" in result.output
+    assert "second" in result.output
+
+
 def test_probe_without_dsn_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
     from bernstein.core.observability import sidechannel
 

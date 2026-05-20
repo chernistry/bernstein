@@ -29,7 +29,6 @@ from bernstein.cli.commands.telemetry_cmd import (
 )
 from bernstein.core.telemetry import events as events_module
 
-
 # The closed set of payload dataclasses that travel over the wire. Any new
 # event must add its payload class here so the guard sees it.
 PAYLOAD_CLASSES: tuple[type, ...] = (
@@ -76,9 +75,7 @@ def test_every_field_has_redaction_decision(payload_cls: type[Any]) -> None:
     """Every payload field must be listed as safe or carry a redaction entry."""
     field_names = [f.name for f in dataclasses.fields(payload_cls)]
     undecided: list[str] = [
-        name
-        for name in field_names
-        if name not in SAFE_PRIMITIVE_FIELDS and name not in REDACTION_RULES
+        name for name in field_names if name not in SAFE_PRIMITIVE_FIELDS and name not in REDACTION_RULES
     ]
     assert not undecided, (
         f"Payload {payload_cls.__name__} has fields without a redaction "

@@ -21,7 +21,6 @@ from bernstein.core.tasks.backlog_parser import (
 )
 from bernstein.core.tasks.models import Task
 
-
 # ──────────────────────────────────────────────────────────────────────────
 # Schema
 # ──────────────────────────────────────────────────────────────────────────
@@ -122,7 +121,7 @@ def test_parse_task_line_marker_order_independent() -> None:
     a = parse_task_line("- [ ] [T010] [P] [US2] Run gate")
     b = parse_task_line("- [ ] [T010] [US2] [P] Run gate")
     assert a is not None and b is not None
-    assert a.parallel_safe == b.parallel_safe == True
+    assert a.parallel_safe is True and b.parallel_safe is True
     assert a.story_id == b.story_id == "US2"
 
 

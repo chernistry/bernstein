@@ -81,9 +81,7 @@ def _run(coro: object) -> object:
 
 class TestFreshContextSeparation:
     def test_reviewer_session_distinct_from_implementer(self) -> None:
-        gate, captured = _make_gate(
-            json.dumps({"state": "pass", "summary": "lgtm", "issues": []})
-        )
+        gate, captured = _make_gate(json.dumps({"state": "pass", "summary": "lgtm", "issues": []}))
         verdict = _run(
             gate.run(
                 _impl(),
@@ -99,9 +97,7 @@ class TestFreshContextSeparation:
         # A long, distinctive transcript -- if any 80-char slice leaks
         # into the prompt, the gate raises.
         secret_transcript = "X" * 200 + "implementer-private-thoughts-" * 5
-        gate, captured = _make_gate(
-            json.dumps({"state": "pass", "summary": "ok", "issues": []})
-        )
+        gate, captured = _make_gate(json.dumps({"state": "pass", "summary": "ok", "issues": []}))
         verdict = _run(
             gate.run(
                 _impl(transcript=secret_transcript),
@@ -115,9 +111,7 @@ class TestFreshContextSeparation:
         assert "implementer-private-thoughts" not in prompt
 
     def test_prompt_built_only_from_spec_diff_test_output(self) -> None:
-        gate, captured = _make_gate(
-            json.dumps({"state": "pass", "summary": "ok", "issues": []})
-        )
+        gate, captured = _make_gate(json.dumps({"state": "pass", "summary": "ok", "issues": []}))
         _run(
             gate.run(
                 _impl(transcript="hidden transcript content"),
@@ -135,9 +129,7 @@ class TestFreshContextSeparation:
         # If a caller tries to paste the implementer transcript into the
         # spec field, the post-condition check should catch it.
         long_transcript = "leaked-priming-fragment-" * 20
-        gate, _captured = _make_gate(
-            json.dumps({"state": "pass", "summary": "ok", "issues": []})
-        )
+        gate, _captured = _make_gate(json.dumps({"state": "pass", "summary": "ok", "issues": []}))
         with pytest.raises(FreshContextViolation):
             _run(
                 gate.run(
@@ -375,9 +367,7 @@ class TestFailBlocksMerge:
                 }
             )
         )
-        verdict = _run(
-            gate.run(_impl(), _inputs(), candidates=["openai/gpt-review"])
-        )
+        verdict = _run(gate.run(_impl(), _inputs(), candidates=["openai/gpt-review"]))
         assert isinstance(verdict, ReviewVerdict)
         assert verdict.state == "fail"
         assert verdict.blocks_merge() is True
@@ -400,9 +390,7 @@ class TestQuestionsBlocksMerge:
                 }
             )
         )
-        verdict = _run(
-            gate.run(_impl(), _inputs(), candidates=["openai/gpt-review"])
-        )
+        verdict = _run(gate.run(_impl(), _inputs(), candidates=["openai/gpt-review"]))
         assert isinstance(verdict, ReviewVerdict)
         assert verdict.state == "questions"
         assert verdict.blocks_merge() is True
@@ -411,12 +399,8 @@ class TestQuestionsBlocksMerge:
         assert verdict.issues == []
 
     def test_pass_verdict_does_not_block_merge(self) -> None:
-        gate, _captured = _make_gate(
-            json.dumps({"state": "pass", "summary": "lgtm"})
-        )
-        verdict = _run(
-            gate.run(_impl(), _inputs(), candidates=["openai/gpt-review"])
-        )
+        gate, _captured = _make_gate(json.dumps({"state": "pass", "summary": "lgtm"}))
+        verdict = _run(gate.run(_impl(), _inputs(), candidates=["openai/gpt-review"]))
         assert isinstance(verdict, ReviewVerdict)
         assert verdict.state == "pass"
         assert verdict.blocks_merge() is False

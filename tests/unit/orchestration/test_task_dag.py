@@ -101,9 +101,7 @@ def test_cycle_detection_raises() -> None:
 
 def test_unknown_dependency_rejected_at_construction() -> None:
     with pytest.raises(TaskDagError):
-        TaskDag.from_nodes(
-            [TaskNode("T001", "a", depends_on=("T999",))]
-        )
+        TaskDag.from_nodes([TaskNode("T001", "a", depends_on=("T999",))])
 
 
 def test_duplicate_task_id_rejected_at_construction() -> None:

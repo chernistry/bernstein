@@ -70,6 +70,10 @@ def test_status_snapshot_default(tmp_home: Path) -> None:
         "config_file",
         "install_id_path",
         "queue",
+        "share_with_maintainer",
+        "share_source",
+        "share_config_file",
+        "dsn",
     ]
 
 

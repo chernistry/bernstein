@@ -94,7 +94,7 @@ from bernstein.core.autoheal.lineage_writer import (
 from bernstein.core.observability import decision_log as dl
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
     from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -683,7 +683,9 @@ class Tier3Runner:
     sdd_dir: Path
     recurrence_tracker: RecurrenceTracker | None = None
     decision_log_path: Path | None = None
-    clock: callable = field(default=time.time)  # type: ignore[type-arg]
+    # ``clock`` is the seam tests override to pin recurrence-window
+    # math; the production default is :func:`time.time`.
+    clock: Callable[[], float] = field(default=time.time)
 
     def __post_init__(self) -> None:
         if self.recurrence_tracker is None:

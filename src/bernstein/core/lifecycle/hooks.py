@@ -7,6 +7,7 @@ unavailable or undesired.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -21,6 +22,8 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from collections.abc import Callable
     from types import MappingProxyType
+
+    from bernstein.core.lifecycle.hook_filter import HookFilter
 
 log = logging.getLogger(__name__)
 
@@ -274,6 +277,7 @@ class HookFailure(RuntimeError):
 class _ScriptHook:
     path: Path
     timeout: int
+    hook_filter: HookFilter | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -304,6 +308,23 @@ class HookRegistry:
         self._executor: ThreadPoolExecutor | None = None
         # The pluggy bridge attaches itself here when installed.
         self._pluggy_dispatcher: Callable[[LifecycleEvent, LifecycleContext], None] | None = None
+        # Optional sink for ``hook.filtered`` metrics. Bound by the
+        # orchestrator; defaults to a no-op so the registry stays usable
+        # standalone in tests.
+        self._filtered_metric_sink: Callable[[LifecycleEvent, str, str], None] | None = None
+
+    def bind_filtered_metric_sink(
+        self,
+        sink: Callable[[LifecycleEvent, str, str], None],
+    ) -> None:
+        """Install a callback invoked when a hook is skipped by its filter.
+
+        The callback receives ``(event, hook_label, reason)``. ``reason`` is
+        the human-readable filter that did not match, e.g.
+        ``filter 'Bash(git *)' did not match``. This is the
+        ``hook.filtered{reason}`` metric described by issue #1628.
+        """
+        self._filtered_metric_sink = sink
 
     # ------------------------------------------------------------------ registration
 
@@ -312,6 +333,8 @@ class HookRegistry:
         event: LifecycleEvent,
         path: str | os.PathLike[str],
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
+        *,
+        hook_filter: HookFilter | None = None,
     ) -> None:
         """Register a shell script to run when ``event`` fires.
 
@@ -319,8 +342,12 @@ class HookRegistry:
             event: Lifecycle event to subscribe to.
             path: Filesystem path to the script; need not exist yet.
             timeout: Maximum wall-clock seconds before the subprocess is killed.
+            hook_filter: Optional parsed ``if:`` filter. When present, the
+                runner evaluates it against the event payload before
+                spawning the subprocess; a non-match skips the spawn and
+                emits a ``hook.filtered`` metric. ``None`` always matches.
         """
-        hook = _ScriptHook(path=Path(path), timeout=timeout)
+        hook = _ScriptHook(path=Path(path), timeout=timeout, hook_filter=hook_filter)
         idx = len(self._scripts[event])
         self._scripts[event].append(hook)
         self._order[event].append(("script", idx))
@@ -386,7 +413,10 @@ class HookRegistry:
         current = context
         for kind, idx in self._order[event]:
             if kind == "script":
-                decision = self._run_script(event, self._scripts[event][idx], current)
+                hook = self._scripts[event][idx]
+                if not self._filter_admits(event, hook, current):
+                    continue
+                decision = self._run_script(event, hook, current)
                 current = _apply_decision(event, current, decision)
             else:
                 self._run_callable(event, self._callables[event][idx], current)
@@ -417,6 +447,29 @@ class HookRegistry:
             self._executor = None
 
     # ------------------------------------------------------------------ internals
+
+    def _filter_admits(
+        self,
+        event: LifecycleEvent,
+        hook: _ScriptHook,
+        context: LifecycleContext,
+    ) -> bool:
+        """Return True if ``hook`` should run for this event payload.
+
+        A hook with no filter always runs. A hook whose filter does not
+        match the event payload is skipped before any subprocess spawn,
+        and a ``hook.filtered`` metric is emitted via the bound sink.
+        """
+        if hook.hook_filter is None:
+            return True
+        if hook.hook_filter.matches(context.data):
+            return True
+        reason = f"filter '{hook.hook_filter.source}' did not match"
+        log.debug("skipping hook %s for %s: %s", hook.path, event.value, reason)
+        if self._filtered_metric_sink is not None:
+            with contextlib.suppress(Exception):
+                self._filtered_metric_sink(event, f"script:{hook.path}", reason)
+        return False
 
     def _run_callable(
         self,

@@ -90,7 +90,7 @@ class CallMeter:
 
     def add_cost(self, usd: float) -> None:
         """Accumulate an estimated USD cost for this call."""
-        self.cost_usd += float(usd)
+        self.cost_usd += usd
 
     def finalise(self) -> None:
         """Record the elapsed wall-clock latency for this call in millis."""

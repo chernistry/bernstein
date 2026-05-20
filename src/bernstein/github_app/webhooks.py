@@ -80,15 +80,13 @@ def parse_webhook(headers: dict[str, str], body: bytes) -> WebhookEvent:
     action = payload.get("action", "")
 
     # Extract repo full name — different location for push vs other events
-    repo: dict[str, Any] = payload.get("repository", {})
-    repo_full_name = repo.get("full_name", "")
+    repo_full_name = payload.get("repository", {}).get("full_name", "")
     if not repo_full_name:
         msg = "Missing repository.full_name in payload"
         raise ValueError(msg)
 
     # Extract sender
-    sender_obj: dict[str, Any] = payload.get("sender", {})
-    sender = sender_obj.get("login", "unknown")
+    sender = payload.get("sender", {}).get("login", "unknown")
 
     from bernstein.core.sanitize import sanitize_log
 

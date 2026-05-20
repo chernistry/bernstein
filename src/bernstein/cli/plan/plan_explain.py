@@ -243,8 +243,7 @@ def format_plan_explanation(plan_data: dict[str, Any]) -> str:
     cp_suffix = "s" if summary.critical_path_length != 1 else ""
     lines.append(f"  Critical path:   {summary.critical_path_length} stage{cp_suffix}")
     low, high = summary.estimated_cost_range
-    lines.append(f"  Estimated cost:  ${low:.2f}-${high:.2f}")
-    lines.append("")
+    lines.extend((f"  Estimated cost:  ${low:.2f}-${high:.2f}", ""))
 
     # Explanation paragraph
     lines.append(explanation)

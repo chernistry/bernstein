@@ -376,8 +376,7 @@ def trigger_label_to_task(event: WebhookEvent) -> dict[str, Any] | None:
     if event.action != "labeled":
         return None
 
-    label: dict[str, Any] = event.payload.get("label", {})
-    label_name = label.get("name", "").lower()
+    label_name = event.payload.get("label", {}).get("name", "").lower()
 
     if label_name not in TRIGGER_LABELS:
         return None
@@ -439,8 +438,7 @@ def label_to_action(event: WebhookEvent) -> dict[str, Any] | None:
     if event.action != "labeled":
         return None
 
-    label: dict[str, Any] = event.payload.get("label", {})
-    label_name = label.get("name", "").lower()
+    label_name = event.payload.get("label", {}).get("name", "").lower()
 
     if label_name != "evolve-candidate":
         return None

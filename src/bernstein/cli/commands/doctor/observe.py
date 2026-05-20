@@ -129,7 +129,7 @@ def observe_cmd(as_json: bool, watch: bool, interval: int, no_persist: bool) -> 
       bernstein doctor observe --watch --interval 30
     """
 
-    interval = max(1, int(interval))
+    interval = max(1, interval)
     persist = not no_persist
 
     def _one_pass() -> int:

@@ -233,8 +233,7 @@ def _as_dict(raw: object) -> dict[str, object]:
 
 def _parse_setup_section(raw: dict[str, object]) -> ScenarioSetup:
     """Parse the ``setup`` section of a scenario YAML."""
-    setup_dict = _as_dict(raw.get("setup") or {})
-    setup_cmd: object = setup_dict.get("command")
+    setup_cmd: object = _as_dict(raw.get("setup") or {}).get("command")
     return ScenarioSetup(command=str(setup_cmd) if setup_cmd is not None else None)
 
 

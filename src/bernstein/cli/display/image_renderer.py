@@ -244,8 +244,7 @@ class HalfBlockRenderer(BaseRenderer):
 
     def render(self, img: Image.Image, width: int, height: int) -> str:
         pixel_h = height * 2  # two pixel rows per character row
-        img = img.convert("RGB").resize((width, pixel_h), Image.Resampling.LANCZOS)
-        pixels = img.load()
+        pixels = img.convert("RGB").resize((width, pixel_h), Image.Resampling.LANCZOS).load()
         if pixels is None:  # pragma: no cover
             return ""
 

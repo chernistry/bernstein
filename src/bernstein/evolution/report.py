@@ -354,19 +354,20 @@ class EvolutionReport:
         lines: list[str] = []
         now = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
 
-        lines.append("# Bernstein Evolution Report")
-        lines.append(f"\n_Generated {now}_\n")
+        lines.extend(("# Bernstein Evolution Report", f"\n_Generated {now}_\n"))
 
         # Summary section
-        lines.append("## Summary\n")
-        lines.append("| Metric | Value |")
-        lines.append("|--------|-------|")
-        lines.append(f"| Total cycles | {self.total_cycles} |")
-        lines.append(f"| Tasks completed | {self.total_tasks_completed} |")
-        lines.append(f"| Tasks failed | {self.total_tasks_failed} |")
-        lines.append(f"| Commits made | {self.total_commits} |")
-        lines.append(
-            f"| Tests (first -> last) | {self.first_tests_passed} -> {self.last_tests_passed} (+{self.test_delta}) |"
+        lines.extend(
+            (
+                "## Summary\n",
+                "| Metric | Value |",
+                "|--------|-------|",
+                f"| Total cycles | {self.total_cycles} |",
+                f"| Tasks completed | {self.total_tasks_completed} |",
+                f"| Tasks failed | {self.total_tasks_failed} |",
+                f"| Commits made | {self.total_commits} |",
+                f"| Tests (first -> last) | {self.first_tests_passed} -> {self.last_tests_passed} (+{self.test_delta}) |",
+            )
         )
         if self.experiments:
             lines.extend(
@@ -379,13 +380,16 @@ class EvolutionReport:
             )
 
         # Trajectory sparkline
-        lines.append("\n## Test Count Trajectory\n")
-        lines.append(f"```\n{self._tests_sparkline()}\n```")
+        lines.extend(("\n## Test Count Trajectory\n", f"```\n{self._tests_sparkline()}\n```"))
 
         # Cycle breakdown
-        lines.append("\n## Cycle Breakdown\n")
-        lines.append("| # | Time (UTC) | Focus | Tasks ✓ | Tasks ✗ | Tests | Success% | Commits | Duration |")
-        lines.append("|---|-----------|-------|---------|---------|-------|----------|---------|----------|")
+        lines.extend(
+            (
+                "\n## Cycle Breakdown\n",
+                "| # | Time (UTC) | Focus | Tasks ✓ | Tasks ✗ | Tests | Success% | Commits | Duration |",
+                "|---|-----------|-------|---------|---------|-------|----------|---------|----------|",
+            )
+        )
 
         for i, c in enumerate(self.cycles):
             dt = datetime.fromtimestamp(c.timestamp, tz=UTC)

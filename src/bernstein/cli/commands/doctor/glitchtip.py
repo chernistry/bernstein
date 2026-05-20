@@ -295,7 +295,7 @@ def suggest_nudge_line(
     operator sees a single concise line at the end of the diagnostic
     report rather than another full table.
     """
-    source = env if env is not None else dict(os.environ)
+    source = env if env is not None else os.environ.copy()
     if not source.get(ENV_GLITCHTIP_TOKEN):
         return None
 
@@ -372,7 +372,7 @@ def glitchtip_cmd(as_json: bool, top_n: int, skip_baseline: bool) -> None:
       bernstein doctor glitchtip --json
       bernstein doctor glitchtip --top-n 10
     """
-    env = dict(os.environ)
+    env = os.environ.copy()
     has_token = bool(env.get(ENV_GLITCHTIP_TOKEN))
     has_dsn = bool(env.get(ENV_GLITCHTIP_DSN))
 

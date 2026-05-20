@@ -38,6 +38,11 @@ class ParsedBacklogTask:
     require_review: bool = False
     require_human_approval: bool = False
     janitor_signals: tuple[dict[str, str], ...] = ()
+    # Issue #1634: declarative parallel-safety flag and user-story rollback
+    # grouping. ``parallel_safe`` defaults to False (serial-only) so that
+    # absence of the ``[P]`` marker is conservative.
+    parallel_safe: bool = False
+    story_id: str | None = None
 
     def to_task_payload(self) -> dict[str, object]:
         """Convert to POST /tasks payload."""
@@ -55,7 +60,34 @@ class ParsedBacklogTask:
             payload["effort"] = self.effort
         if self.estimated_minutes != 45:
             payload["estimated_minutes"] = self.estimated_minutes
+        if self.parallel_safe:
+            payload["parallel_safe"] = True
+        if self.story_id:
+            payload["story_id"] = self.story_id
         return payload
+
+
+@dataclass(frozen=True)
+class ParsedTaskLine:
+    """One row parsed from a task DAG markdown checkbox file.
+
+    The DAG format is one task per markdown checkbox line::
+
+        - [ ] [T001] [P] [US1] Add YAML loader
+
+    Markers (all optional except ``[T<id>]``):
+
+    * ``[T<id>]`` task identifier (required to differentiate from prose).
+    * ``[P]`` parallel-safe flag.
+    * ``[US<n>]`` user-story rollback grouping.
+    * ``-> T002, T003`` inline dependency arrow on the same line.
+    """
+
+    task_id: str
+    description: str
+    parallel_safe: bool = False
+    story_id: str | None = None
+    depends_on: tuple[str, ...] = ()
 
 
 def parse_backlog_text(filename: str, content: str) -> ParsedBacklogTask | None:
@@ -129,6 +161,9 @@ def _parse_yaml_frontmatter(filename: str, content: str) -> ParsedBacklogTask | 
     body = content[end + 4 :].strip()
     description = body or str(raw.get("description", title))
 
+    story_raw = raw.get("story_id")
+    story_id = str(story_raw).strip() if story_raw else None
+
     return ParsedBacklogTask(
         title=title,
         description=description,
@@ -149,6 +184,8 @@ def _parse_yaml_frontmatter(filename: str, content: str) -> ParsedBacklogTask | 
         require_review=bool(raw.get("require_review", False)),
         require_human_approval=bool(raw.get("require_human_approval", False)),
         janitor_signals=janitor,
+        parallel_safe=bool(raw.get("parallel_safe", False)),
+        story_id=story_id,
     )
 
 
@@ -208,3 +245,94 @@ def _parse_scope(raw: str) -> str:
 def _parse_complexity(raw: str) -> str:
     value = raw.strip().lower()
     return value if value in {"low", "medium", "high"} else "medium"
+
+
+# ---------------------------------------------------------------------------
+# Task DAG markdown checkbox format (issue #1634)
+# ---------------------------------------------------------------------------
+
+# Matches the leading checkbox token at the start of a stripped line.
+_CHECKBOX_PREFIX = re.compile(r"^[-*]\s+\[[ xX]\]\s+")
+# A single marker token like ``[T001]``, ``[P]``, ``[US1]`` at the
+# beginning of the description.  We strip these iteratively so the
+# remainder is the human-readable task description.
+_MARKER_TOKEN = re.compile(r"^\[([^\[\]]+)\]\s*")
+# Inline dependency arrow: ``-> T002, T003`` at the end of a line.
+_DEPENDS_INLINE = re.compile(r"(?:->|→)\s*([A-Za-z0-9_,\s\-]+?)\s*$")
+_TASK_ID = re.compile(r"^T[0-9]+[A-Za-z0-9_\-]*$")
+_STORY_ID = re.compile(r"^US[0-9]+[A-Za-z0-9_\-]*$", re.IGNORECASE)
+
+
+def parse_task_line(line: str) -> ParsedTaskLine | None:
+    """Parse one task DAG markdown checkbox line.
+
+    Returns ``None`` if the line is not a task row (header, blank, prose).
+    The format is::
+
+        - [ ] [T001] [P] [US1] Add YAML loader -> T000
+
+    Markers may appear in any order and any combination after the
+    checkbox.  An optional ``-> dep1, dep2`` arrow at the end of the line
+    declares inline dependencies.
+    """
+    stripped = line.strip()
+    if not stripped:
+        return None
+    match = _CHECKBOX_PREFIX.match(stripped)
+    if match is None:
+        return None
+    remainder = stripped[match.end() :]
+
+    task_id = ""
+    parallel_safe = False
+    story_id: str | None = None
+
+    while True:
+        m = _MARKER_TOKEN.match(remainder)
+        if m is None:
+            break
+        token = m.group(1).strip()
+        consumed = True
+        if _TASK_ID.match(token):
+            task_id = token
+        elif token.upper() == "P":
+            parallel_safe = True
+        elif _STORY_ID.match(token):
+            story_id = token.upper()
+        else:
+            consumed = False
+        if not consumed:
+            break
+        remainder = remainder[m.end() :]
+
+    if not task_id:
+        return None
+
+    depends_on: tuple[str, ...] = ()
+    dep_match = _DEPENDS_INLINE.search(remainder)
+    description = remainder
+    if dep_match is not None:
+        raw_deps = dep_match.group(1)
+        depends_on = tuple(d.strip() for d in raw_deps.split(",") if d.strip())
+        description = remainder[: dep_match.start()].rstrip(" -→")
+
+    return ParsedTaskLine(
+        task_id=task_id,
+        description=description.strip(),
+        parallel_safe=parallel_safe,
+        story_id=story_id,
+        depends_on=depends_on,
+    )
+
+
+def parse_task_lines(content: str) -> list[ParsedTaskLine]:
+    """Parse all task DAG rows from a markdown document.
+
+    Lines that are not task rows (headings, prose, blanks) are skipped.
+    """
+    out: list[ParsedTaskLine] = []
+    for line in content.splitlines():
+        parsed = parse_task_line(line)
+        if parsed is not None:
+            out.append(parsed)
+    return out

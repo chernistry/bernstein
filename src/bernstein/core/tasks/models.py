@@ -393,6 +393,17 @@ class Task:
     # Mirrors a ``context: fresh`` per-node semantic applied to retry
     # attempts.  Default False preserves existing retry behaviour.
     agent_restart_between_retries: bool = False
+    # Issue #1634: Declarative parallel-safety flag set at task generation time.
+    # When True, the orchestrator may schedule this task concurrently with
+    # other parallel-safe tasks whose dependencies are also satisfied.
+    # Absence (False) means the task runs serially. Set from the ``[P]``
+    # marker in the ``[T<id>] [P] [USn] description`` markdown checkbox
+    # format or the ``parallel_safe`` YAML frontmatter key.
+    parallel_safe: bool = False
+    # Issue #1634: Optional link to the user-story slice this task belongs to.
+    # All tasks sharing a ``story_id`` form a rollback grouping ("deliver the
+    # whole MVP slice or none of it"). Parsed from the ``[USn]`` marker.
+    story_id: str | None = None
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> Task:
@@ -490,6 +501,8 @@ class Task:
             best_of_n=(lambda v: None if v is None else int(v))(raw.get("best_of_n")),
             refinement_rounds=(lambda v: None if v is None else int(v))(raw.get("refinement_rounds")),
             agent_restart_between_retries=bool(raw.get("agent_restart_between_retries", False)),
+            parallel_safe=bool(raw.get("parallel_safe", False)),
+            story_id=(str(raw["story_id"]) if raw.get("story_id") else None),
         )
 
 

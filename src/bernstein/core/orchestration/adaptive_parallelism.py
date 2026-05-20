@@ -252,3 +252,49 @@ class AdaptiveParallelismStatus:
     cpu_percent: float
     last_adjustment_reason: str
     window_size: int
+
+
+# ---------------------------------------------------------------------------
+# Declarative parallel-safety (issue #1634)
+# ---------------------------------------------------------------------------
+
+
+def tasks_safe_to_run_in_parallel(task_a: object, task_b: object) -> bool:
+    """Return True when two tasks may execute concurrently.
+
+    Resolution order:
+
+    1. If **both** tasks carry an explicit ``parallel_safe`` attribute,
+       the declarative flag wins.  Both must be True to permit a
+       parallel run; either False forces serial.
+    2. Otherwise we fall back to the legacy file-overlap heuristic on
+       ``owned_files`` (only for legacy tasks that lack the flag).
+
+    This indirection keeps the orchestrator's scheduler honest: tasks
+    generated through the new planner path get exact semantics, while
+    tasks loaded from older stores still see the conservative
+    file-overlap default.
+    """
+    a_flag = _explicit_parallel_safe(task_a)
+    b_flag = _explicit_parallel_safe(task_b)
+    if a_flag is not None and b_flag is not None:
+        return a_flag and b_flag
+
+    return not _file_overlap(task_a, task_b)
+
+
+def _explicit_parallel_safe(task: object) -> bool | None:
+    """Return the explicit ``parallel_safe`` flag if the task declares one."""
+    value = getattr(task, "parallel_safe", None)
+    if value is None:
+        return None
+    return bool(value)
+
+
+def _file_overlap(task_a: object, task_b: object) -> bool:
+    """Legacy heuristic: True when two tasks share an owned file."""
+    files_a = set(getattr(task_a, "owned_files", []) or [])
+    files_b = set(getattr(task_b, "owned_files", []) or [])
+    if not files_a or not files_b:
+        return False
+    return bool(files_a & files_b)

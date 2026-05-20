@@ -98,6 +98,7 @@ from bernstein.cli.memory_cmd import memory_group
 from bernstein.cli.merge_cmd import merge_cmd
 from bernstein.cli.migrate_cmd import migrate_cmd
 from bernstein.cli.plan_archive_cmd import plan_ls, plan_show
+from bernstein.cli.plan_dag_cmd import plan_dag
 from bernstein.cli.plan_generate_cmd import plan_generate
 from bernstein.cli.plan_validate_cmd import validate_plan
 from bernstein.cli.policy_cmd import policy_group
@@ -858,6 +859,7 @@ cli.add_command(pending)
 plan.add_command(plan_generate)
 plan.add_command(plan_ls)
 plan.add_command(plan_show)
+plan.add_command(plan_dag)
 cli.add_command(plan)
 cli.add_command(plan, "tasks")
 cli.add_command(backlog_group, "backlog")

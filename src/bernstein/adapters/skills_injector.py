@@ -264,7 +264,7 @@ def _extract_skill_version(content: str) -> str:
     except yaml.YAMLError:
         return ""
     if isinstance(data, dict):
-        typed = cast("_FrontmatterSchema", data)
+        typed = cast(_FrontmatterSchema, data)
         version = typed.get("version")
         if isinstance(version, str):
             return version

@@ -695,7 +695,12 @@ def sync_skills(
             # For a single-file source, the digest depends only on the
             # SKILL.md content; we synthesise an empty-bucket directory
             # view by hashing the canonicalised frontmatter + body.
-            text = source_path.read_text(encoding="utf-8")
+            try:
+                text = source_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                raise SkillLifecycleError(
+                    f"{source_path}: cannot read source: {exc}"
+                ) from exc
             front_raw, body = _split_skill_md(text)
             hasher = hashlib.blake2b(digest_size=_DIGEST_SIZE)
             hasher.update(b"manifest:\n")

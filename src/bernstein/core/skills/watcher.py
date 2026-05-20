@@ -115,6 +115,8 @@ class _DebouncedHandler(FileSystemEventHandler):
     def _run(self) -> None:
         while not self._stop_event.is_set():
             time.sleep(_DEBOUNCE_SECONDS / 2)
+            if self._stop_event.is_set():
+                break
             with self._lock:
                 pending = self._pending_at
             if pending is None:
@@ -123,11 +125,18 @@ class _DebouncedHandler(FileSystemEventHandler):
                 continue
             with self._lock:
                 self._pending_at = None
+            if self._stop_event.is_set():
+                # ``stop()`` was called between the wake-up and now;
+                # skip the rebuild + callback so a freshly stopped
+                # watcher does not invoke user code one more time.
+                break
             try:
                 loader = _rebuild_loader(self._watch_path)
             except Exception:
                 logger.exception("skills.watcher rebuild failed")
                 continue
+            if self._stop_event.is_set():
+                break
             try:
                 self._callback(loader)
             except Exception:

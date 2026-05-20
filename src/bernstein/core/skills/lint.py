@@ -117,7 +117,19 @@ def lint_skill(skill_dir: Path, *, skill_name: str | None = None) -> list[LintFi
         )
         return findings
 
-    text = skill_md.read_text(encoding="utf-8")
+    try:
+        text = skill_md.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        findings.append(
+            LintFinding(
+                skill_name=name,
+                severity=LintSeverity.ERROR,
+                code="unreadable-skill-md",
+                message=f"failed to read SKILL.md: {exc}",
+                path=skill_md,
+            )
+        )
+        return findings
     split = _split_skill_md(text)
     if split is None:
         findings.append(
@@ -184,8 +196,14 @@ def lint_skill(skill_dir: Path, *, skill_name: str | None = None) -> list[LintFi
         )
         return findings
 
+    # Anchor containment to the resolved skill root so a symlinked
+    # bucket (``references -> /tmp/elsewhere``) cannot smuggle host
+    # files past the lint. The bucket directories themselves are not
+    # resolved; we build candidates from the unresolved path and check
+    # them against the resolved skill root.
+    skill_root = skill_dir.resolve()
     for bucket in _VALID_BUCKETS:
-        bucket_root = (skill_dir / bucket).resolve()
+        bucket_root = skill_root / bucket
         for filename in getattr(manifest, bucket):
             rel = Path(filename)
             if rel.is_absolute() or ".." in rel.parts:
@@ -202,7 +220,7 @@ def lint_skill(skill_dir: Path, *, skill_name: str | None = None) -> list[LintFi
                     )
                 )
                 continue
-            candidate = (bucket_root / rel).resolve()
+            candidate = (skill_dir / bucket / rel).resolve()
             if not candidate.is_relative_to(bucket_root):
                 findings.append(
                     LintFinding(

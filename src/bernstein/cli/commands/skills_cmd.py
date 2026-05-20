@@ -10,6 +10,7 @@ the BASE/TEAM/USER layout get the layered view on demand.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import signal
 import time
@@ -424,10 +425,19 @@ def skills_watch(path: Path | None) -> None:
         nonlocal stopped
         stopped = True
 
+    # Save the previous SIGINT handler so subsequent in-process CLI calls
+    # (and tests that run the watch command in-process) see the original
+    # disposition restored when this command returns.
+    previous_sigint = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGINT, _shutdown)
     try:
         while not stopped:
             time.sleep(0.2)
     finally:
+        # ``getsignal`` may return a value (e.g. an opaque C handler) that
+        # ``signal.signal`` cannot accept; leaving the current handler in
+        # place is preferable to crashing the cleanup path.
+        with contextlib.suppress(TypeError, ValueError):
+            signal.signal(signal.SIGINT, previous_sigint)
         handle.stop()
         console.print("[dim]watcher stopped[/dim]")

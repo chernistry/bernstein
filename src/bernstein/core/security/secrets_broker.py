@@ -73,6 +73,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Literal
 
 logger = logging.getLogger(__name__)
@@ -433,8 +434,7 @@ class FileEncryptedBackend(SecretsBackend):
         except ImportError as exc:
             raise SecretsBrokerError("'cryptography' is required for file_encrypted backend") from exc
         try:
-            with open(self._path, "rb") as fp:
-                ciphertext = fp.read()
+            ciphertext = Path(self._path).read_bytes()
         except OSError as exc:
             raise SecretsBrokerError(f"cannot read secrets file {self._path!r}: {exc}") from exc
         key = self._load_key()

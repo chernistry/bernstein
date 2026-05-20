@@ -33,6 +33,7 @@ import os
 import threading
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -132,8 +133,7 @@ def _resolve_token(config: GitHubProjectsV2Config) -> str:
         private_key = ""
         if config.private_key_path:
             try:
-                with open(config.private_key_path) as fh:
-                    private_key = fh.read()
+                private_key = Path(config.private_key_path).read_text()
             except OSError as exc:
                 # Normalise file IO failures to the adapter's typed error
                 # surface so callers never see raw FileNotFoundError /
@@ -144,8 +144,7 @@ def _resolve_token(config: GitHubProjectsV2Config) -> str:
             env_pk = os.environ.get("GITHUB_APP_PRIVATE_KEY", "")
             if env_pk and os.path.isfile(env_pk):
                 try:
-                    with open(env_pk) as fh:
-                        private_key = fh.read()
+                    private_key = Path(env_pk).read_text()
                 except OSError as exc:
                     msg = f"GitHub App private key could not be read: {env_pk}"
                     raise TrackerUnavailable(msg) from exc

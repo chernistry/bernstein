@@ -607,8 +607,7 @@ class BernsteinConfig(BaseModel):
             return float(raw)
         # raw is str at this point
         s = str(raw).strip()
-        if s.startswith("$"):
-            s = s[1:]
+        s = s.removeprefix("$")
         try:
             return float(s)
         except ValueError:

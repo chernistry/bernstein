@@ -300,10 +300,7 @@ def _parse_diff_files(diff: str) -> list[str]:
             # "diff --git a/path/to/file b/path/to/file"
             parts = line.split(" ", 3)
             if len(parts) >= 3:
-                path = parts[2]
-                if path.startswith("a/"):
-                    path = path[2:]
-                files.append(path)
+                files.append(parts[2].removeprefix("a/"))
     return files
 
 
@@ -323,11 +320,7 @@ def _parse_new_files(diff: str) -> list[str]:
     for line in diff.splitlines():
         if line.startswith(_DIFF_GIT_PREFIX):
             parts = line.split(" ", 3)
-            if len(parts) >= 3:
-                path = parts[2]
-                current_file = path[2:] if path.startswith("a/") else path
-            else:
-                current_file = None
+            current_file = parts[2].removeprefix("a/") if len(parts) >= 3 else None
         elif line.startswith("new file mode") and current_file is not None:
             new_files.append(current_file)
     return new_files
@@ -359,8 +352,7 @@ def _extract_file_from_diff_header(line: str) -> str | None:
     parts = line.split(" ", 3)
     if len(parts) < 3:
         return None
-    path = parts[2]
-    return path[2:] if path.startswith("a/") else path
+    return parts[2].removeprefix("a/")
 
 
 def _parse_deletion_pct_per_file(diff: str) -> dict[str, int]:
@@ -638,7 +630,7 @@ def record_guardrail_event(
     }
     if files:
         event["files"] = files
-    with open(metrics_dir / "guardrails.jsonl", "a", encoding="utf-8") as f:
+    with (metrics_dir / "guardrails.jsonl").open("a", encoding="utf-8") as f:
         f.write(json.dumps(event) + "\n")
 
 

@@ -225,7 +225,7 @@ class PolicyEngine:
         Returns:
             A configured PolicyEngine instance.
         """
-        with open(path) as f:
+        with path.open() as f:
             raw_data: object = yaml.safe_load(f)
 
         data: dict[str, Any] = cast("dict[str, Any]", raw_data) if isinstance(raw_data, dict) else {}

@@ -111,13 +111,7 @@ class DependencyGraph:
         Returns:
             Module name like ``bernstein.core.spawner``.
         """
-        p = rel
-        if p.startswith("src/"):
-            p = p[4:]
-        if p.endswith(".py"):
-            p = p[:-3]
-        if p.endswith("/__init__"):
-            p = p[:-9]
+        p = rel.removeprefix("src/").removesuffix(".py").removesuffix("/__init__")
         return p.replace("/", ".")
 
     def _extract_imports_from_file(self, fpath: Path) -> set[str]:

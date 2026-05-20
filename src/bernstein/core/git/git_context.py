@@ -42,7 +42,7 @@ def _run_git(args: list[str], cwd: Path, *, timeout: int = 10) -> str | None:
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
     except (subprocess.TimeoutExpired, OSError) as exc:
-        args_str = " ".join(str(a) for a in args)
+        args_str = " ".join(args)
         logger.debug("git %s failed: %s", args_str, exc)
     return None
 

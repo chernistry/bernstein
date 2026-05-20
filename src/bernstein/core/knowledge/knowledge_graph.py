@@ -139,11 +139,7 @@ def _module_index(paths: list[str]) -> dict[str, str]:
 
 
 def _file_path_to_module(path: str) -> str:
-    trimmed = path.removeprefix("src/")
-    if trimmed.endswith(".py"):
-        trimmed = trimmed[:-3]
-    if trimmed.endswith("/__init__"):
-        trimmed = trimmed[:-9]
+    trimmed = path.removeprefix("src/").removesuffix(".py").removesuffix("/__init__")
     return trimmed.replace("/", ".")
 
 

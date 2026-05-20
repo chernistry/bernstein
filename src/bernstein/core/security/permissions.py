@@ -379,8 +379,5 @@ def _parse_diff_files(diff: str) -> list[str]:
         if line.startswith("diff --git "):
             parts = line.split(" ", 3)
             if len(parts) >= 3:
-                path = parts[2]
-                if path.startswith("a/"):
-                    path = path[2:]
-                files.append(path)
+                files.append(parts[2].removeprefix("a/"))
     return files

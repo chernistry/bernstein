@@ -276,7 +276,7 @@ class ConfidenceQuery:
             agent_type=agent_type,
             decision_key=decision_key,
             outcome=1 if bool(outcome) else 0,
-            sampled_at=float(ts),
+            sampled_at=ts,
             evidence_uri=evidence_uri,
         )
 

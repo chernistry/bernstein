@@ -183,7 +183,7 @@ def _load_entries(path: Path) -> list[dict[str, object]]:
 def _sha256_of(path: Path) -> str:
     """Return the sha256 hex digest of *path*'s bytes."""
     h = hashlib.sha256()
-    with open(path, "rb") as f:
+    with path.open("rb") as f:
         for chunk in iter(lambda: f.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
@@ -236,8 +236,8 @@ def _record_tamper_event(workdir: Path, rules_path: Path, reason: str) -> None:
             "files": [str(rules_path)],
             "detail": _sanitized,
         }
-        with open(
-            metrics_dir / "guardrails.jsonl", "a", encoding="utf-8"
+        with (metrics_dir / "guardrails.jsonl").open(
+            "a", encoding="utf-8"
         ) as f:  # lgtm[py/clear-text-storage-sensitive-data]
             f.write(json.dumps(event) + "\n")
     except OSError as exc:

@@ -336,10 +336,7 @@ def _parse_unified_diff(text: str) -> list[DiffFile]:
             parts = line.split(" ")
             path = ""
             if len(parts) >= 4:
-                b_path = parts[-1]
-                if b_path.startswith("b/"):
-                    b_path = b_path[2:]
-                path = b_path
+                path = parts[-1].removeprefix("b/")
             cur = DiffFile(path=path, language=_language_for(path))
             i += 1
             continue
@@ -363,9 +360,7 @@ def _parse_unified_diff(text: str) -> list[DiffFile]:
             # old path; ignore if /dev/null (already covered by status)
             pass
         elif line.startswith("+++ "):
-            target = line[4:]
-            if target.startswith("b/"):
-                target = target[2:]
+            target = line[4:].removeprefix("b/")
             if target and target != "/dev/null":
                 cur.path = target
                 cur.language = _language_for(cur.path)

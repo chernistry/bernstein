@@ -258,8 +258,7 @@ def _session_id_from_branch(branch: str) -> str:
         Portion after the ``agent/`` prefix, or the original branch when it
         does not match the expected layout.
     """
-    prefix = "agent/"
-    return branch[len(prefix) :] if branch.startswith(prefix) else branch
+    return branch.removeprefix("agent/")
 
 
 def _delete_merged_agent_branches(

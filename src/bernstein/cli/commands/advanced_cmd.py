@@ -528,7 +528,7 @@ def plugins_cmd(workdir: str) -> None:
 @click.group(
     name="doctor",
     invoke_without_command=True,
-    subcommand_metavar="[airgap]",
+    subcommand_metavar="[airgap|sonar|...]",
 )
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
 @click.option("--fix", "auto_fix", is_flag=True, default=False, help="Attempt to auto-fix issues.")
@@ -549,6 +549,7 @@ def doctor(ctx: click.Context, as_json: bool, auto_fix: bool, suggest_docs: bool
       bernstein doctor --fix          # attempt to auto-fix issues
       bernstein doctor --suggest-docs # surface top curated documentation gaps
       bernstein doctor airgap         # battery of checks for an air-gapped run
+      bernstein doctor sonar          # surface SonarQube insights for the project
     """
     if ctx.invoked_subcommand is not None:
         ctx.obj = {"as_json": as_json, "auto_fix": auto_fix}
@@ -563,6 +564,7 @@ def doctor(ctx: click.Context, as_json: bool, auto_fix: bool, suggest_docs: bool
 
         topics = load_unanswered_topics()
         render_suggestions(console, topics, limit=DEFAULT_TOP_N)
+        _maybe_print_sonar_nudge(as_json=as_json)
         return
 
     from bernstein.cli.doctor.suggest_docs import hint_line
@@ -579,9 +581,48 @@ def doctor(ctx: click.Context, as_json: bool, auto_fix: bool, suggest_docs: bool
 
     if not as_json:
         console.print(f"[dim]{hint_line()}[/dim]")
+        _maybe_print_sonar_nudge(as_json=as_json)
 
     if exit_code:
         raise SystemExit(exit_code)
+
+
+def _maybe_print_sonar_nudge(*, as_json: bool) -> None:
+    """Print a single-line Sonar nudge when thresholds are crossed.
+
+    No-op when Sonar is not configured, the snapshot could not be
+    fetched, or when ``--json`` was requested (the nudge is advisory
+    and must not contaminate machine-readable output). All failures
+    here are swallowed so the doctor never crashes because of a side
+    integration.
+    """
+    if as_json:
+        return
+    try:
+        from bernstein.core.observability.sonar import (
+            collect_insights,
+            evaluate_nudge,
+            load_baseline,
+            load_config,
+        )
+    except Exception:  # pragma: no cover - defensive
+        return
+    config = load_config()
+    if config is None:
+        return
+    try:
+        insights = collect_insights(config)
+    except Exception:  # pragma: no cover - defensive
+        return
+    if not insights.fetched:
+        return
+    nudge = evaluate_nudge(insights, load_baseline())
+    if not nudge.should_nudge:
+        return
+    summary = "; ".join(nudge.reasons)
+    console.print(
+        f"[dim yellow]Sonar nudge: {summary}. Run `bernstein doctor sonar` for the full surface.[/dim yellow]"
+    )
 
 
 @doctor.command("airgap")
@@ -812,6 +853,66 @@ def doctor_promptware_scan_cmd(
             workdir=Path(workdir),
             threshold=threshold,
             as_json=as_json,
+        )
+    )
+
+
+@doctor.command("sonar")
+@click.option(
+    "--json",
+    "as_json_flag",
+    is_flag=True,
+    default=False,
+    help="Emit JSON instead of the Rich table.",
+)
+@click.option(
+    "--smell-threshold",
+    "smell_threshold",
+    type=int,
+    default=None,
+    help="Override the default code-smell nudge threshold (50).",
+)
+@click.option(
+    "--no-update-baseline",
+    "no_update_baseline",
+    is_flag=True,
+    default=False,
+    help="Do not write the current snapshot to the baseline file.",
+)
+@click.pass_context
+def doctor_sonar_cmd(
+    ctx: click.Context,
+    as_json_flag: bool,
+    smell_threshold: int | None,
+    no_update_baseline: bool,
+) -> None:
+    """Surface SonarQube insights for the current project.
+
+    \b
+    Reads SONAR_HOST_URL and SONAR_TOKEN from the environment, then
+    fetches:
+      - coverage % (line coverage as reported by Sonar)
+      - code smells total and counts by severity
+      - bugs, vulnerabilities, security hotspots
+      - cognitive complexity hotspots (top 5 files)
+
+    \b
+    Soft-fails (exit 0) when env vars are not set or the server is
+    unreachable. Use --json to pipe the snapshot into other tools.
+    """
+    from bernstein.cli.commands.doctor_sonar_cmd import (
+        DEFAULT_SMELL_NUDGE,
+        run_doctor_sonar,
+    )
+
+    parent = ctx.obj if isinstance(ctx.obj, dict) else {}
+    inherited_json = bool(parent.get("as_json", False))
+    threshold = smell_threshold if smell_threshold is not None else DEFAULT_SMELL_NUDGE
+    raise SystemExit(
+        run_doctor_sonar(
+            as_json=as_json_flag or inherited_json,
+            smell_threshold=threshold,
+            update_baseline=not no_update_baseline,
         )
     )
 

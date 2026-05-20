@@ -315,10 +315,14 @@ def _init_error_telemetry() -> None:
     """Initialise the operator-managed error-telemetry sink, if configured.
 
     Wires sentry-sdk to a Sentry-protocol-compatible error sink whose DSN is
-    supplied via ``GLITCHTIP_DSN``.  The function is a no-op when:
+    supplied via the portable ``BERNSTEIN_TELEMETRY_DSN`` (preferred) or the
+    legacy ``GLITCHTIP_DSN``.  The portable variable is the single, host-
+    agnostic contract documented in ``docs/observability/side-channel.md``;
+    ``GLITCHTIP_DSN`` is honoured as a fallback for existing deployments.
 
-    * ``GLITCHTIP_DSN`` is unset or empty (operator has not yet stood up the
-      sink), or
+    The function is a no-op when:
+
+    * neither DSN variable is set (operator has not yet stood up the sink), or
     * the ``sentry-sdk`` package is not importable (minimal install without
       the ``observability`` extra).
 
@@ -329,7 +333,7 @@ def _init_error_telemetry() -> None:
     """
     import os
 
-    dsn = os.environ.get("GLITCHTIP_DSN")
+    dsn = os.environ.get("BERNSTEIN_TELEMETRY_DSN") or os.environ.get("GLITCHTIP_DSN")
     if not dsn:
         return
     try:

@@ -82,3 +82,39 @@ def test_status_overridden_by_env_off(
     _code, output = _invoke(["status", "--home", str(tmp_home)])
     assert "source: do_not_track" in output
     assert "enabled: false" in output
+
+
+def test_probe_without_dsn_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
+    from bernstein.core.observability import sidechannel
+
+    monkeypatch.delenv(sidechannel.DSN_ENV, raising=False)
+    code, output = _invoke(["probe"])
+    assert code == 0
+    assert "is not set" in output
+    assert "nothing emitted" in output
+
+
+def test_probe_with_dsn_emits_synthetic_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    from bernstein.core.observability import sidechannel
+
+    sent: list[dict[str, object]] = []
+
+    class _Transport:
+        def send(self, payload: dict[str, object]) -> bool:
+            sent.append(payload)
+            return True
+
+    monkeypatch.setenv(sidechannel.DSN_ENV, "https://k@host/1")
+
+    real_build = sidechannel.build_sidechannel
+    monkeypatch.setattr(
+        sidechannel,
+        "build_sidechannel",
+        lambda **kw: real_build(transport=_Transport(), **kw),
+    )
+
+    code, output = _invoke(["probe", "--message", "hello probe"])
+    assert code == 0
+    assert "queued for delivery" in output
+    assert sent and sent[0]["message"] == "hello probe"
+    assert sent[0]["logger"] == "bernstein.probe"

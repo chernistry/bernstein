@@ -698,9 +698,7 @@ def sync_skills(
             try:
                 text = source_path.read_text(encoding="utf-8")
             except OSError as exc:
-                raise SkillLifecycleError(
-                    f"{source_path}: cannot read source: {exc}"
-                ) from exc
+                raise SkillLifecycleError(f"{source_path}: cannot read source: {exc}") from exc
             front_raw, body = _split_skill_md(text)
             hasher = hashlib.blake2b(digest_size=_DIGEST_SIZE)
             hasher.update(b"manifest:\n")

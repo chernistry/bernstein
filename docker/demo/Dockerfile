@@ -4,8 +4,8 @@
 #   docker build -f docker/demo/Dockerfile -t bernstein-demo .
 #
 # Stage 1: build the bernstein wheel
-# python:3.12-slim
-FROM python:3.14-slim@sha256:7a500125bc50693f2214e842a621440a1b1b9cbb2188f74ab045d29ed2ea5856 AS build
+# python:3.13-slim
+FROM python:3.13-slim@sha256:0bce18a835a2d7975cb8765dad3bf4d2f0cc7aadb7d3414ce2cba8ef4004bb93 AS build
 
 WORKDIR /app
 COPY . /app
@@ -14,8 +14,8 @@ RUN pip install --no-cache-dir hatchling==1.29.0 && \
     python -m hatchling build
 
 # Stage 2: runtime with Node.js for Claude Code
-# python:3.12-slim
-FROM python:3.14-slim@sha256:7a500125bc50693f2214e842a621440a1b1b9cbb2188f74ab045d29ed2ea5856
+# python:3.13-slim
+FROM python:3.13-slim@sha256:0bce18a835a2d7975cb8765dad3bf4d2f0cc7aadb7d3414ce2cba8ef4004bb93
 
 # Node.js + Claude Code + git + curl
 RUN apt-get update && apt-get install -y --no-install-recommends \

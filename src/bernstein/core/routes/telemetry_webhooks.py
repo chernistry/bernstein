@@ -181,8 +181,11 @@ async def _handle_source(
 
     try:
         payload = parse_json_payload(raw_body)
-    except ValueError as exc:
-        return JSONResponse(status_code=400, content={"detail": str(exc)})
+    except ValueError:
+        # Do not echo the parser exception text back to the caller: it can
+        # leak internal structure. Log server-side, return a generic 400.
+        logger.warning("telemetry_webhooks: malformed payload for source %s", source)
+        return JSONResponse(status_code=400, content={"detail": "malformed JSON payload"})
 
     adapter = state.sources.get(source)
     if adapter is None:
@@ -193,11 +196,13 @@ async def _handle_source(
 
     try:
         event = adapter.parse(payload)
-    except Exception as exc:
+    except Exception:
+        # Full traceback is logged server-side; the response carries only a
+        # generic message so adapter internals are never exposed to callers.
         logger.exception("telemetry_webhooks: adapter raised for %s", source)
         return JSONResponse(
             status_code=400,
-            content={"detail": f"adapter {source!r} could not parse payload: {exc}"},
+            content={"detail": f"adapter {source!r} could not parse payload"},
         )
 
     record = dispatch_telemetry_event(

@@ -2039,26 +2039,33 @@ class TaskStore:
         Returns:
             List of matching tasks.
         """
+        # Choose the smallest seed collection: when status is supplied, the
+        # by-status index is already partitioned, otherwise walk all tasks.
         if status is not None:
             try:
                 ts = TaskStatus(status)
-                tasks: list[Task] = list(self._by_status[ts].values())
+                seed: list[Task] = list(self._by_status[ts].values())
             except ValueError:
-                tasks = []
+                return []
         else:
-            tasks = list(self._tasks.values())
-        if cell_id is not None:
-            tasks = [t for t in tasks if t.cell_id == cell_id]
-        if tenant_id is not None:
-            normalized_tenant = normalize_tenant_id(tenant_id)
-            tasks = [t for t in tasks if t.tenant_id == normalized_tenant]
-        if claimed_by_session is not None:
-            tasks = [t for t in tasks if t.claimed_by_session == claimed_by_session]
-        if parent_session_id is not None:
-            tasks = [t for t in tasks if t.parent_session_id == parent_session_id]
-        if status == "open":
-            tasks = [t for t in tasks if self._dependencies_satisfied(t)]
-        return tasks
+            seed = list(self._tasks.values())
+
+        # Resolve filter constants once; previously each pass recomputed them
+        # (or normalized strings) on every iteration.
+        normalized_tenant = normalize_tenant_id(tenant_id) if tenant_id is not None else None
+        check_open_deps = status == "open"
+
+        # Single-pass filter: evaluate every predicate together so we walk
+        # the task list once instead of rebuilding it N times.
+        return [
+            t
+            for t in seed
+            if (cell_id is None or t.cell_id == cell_id)
+            and (normalized_tenant is None or t.tenant_id == normalized_tenant)
+            and (claimed_by_session is None or t.claimed_by_session == claimed_by_session)
+            and (parent_session_id is None or t.parent_session_id == parent_session_id)
+            and (not check_open_deps or self._dependencies_satisfied(t))
+        ]
 
     def count_by_status(self, tenant_id: str | None = None) -> dict[str, int]:
         """Return task counts per status without materialising task lists.

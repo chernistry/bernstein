@@ -2,12 +2,15 @@
 
 All notable project changes are tracked here (code + docs).
 
-## [2.4.0] - Observability surfaces, single-writer run state, approval-nonce binding
+## [2.4.0] - Observability surfaces, single-writer run state, declarative planning gates
 
-14 commits since v2.3.1. Full notes: [`docs/release-notes/v2.4.0.md`](docs/release-notes/v2.4.0.md).
+33 commits since v2.3.1. Full notes: [`docs/release-notes/v2.4.0.md`](docs/release-notes/v2.4.0.md).
 
 ### Added
 
+- Unified `bernstein doctor observe` umbrella that runs the Sonar, GlitchTip, Dependency-Track, and GitHub Code Scanning probes in order and renders one aggregated table with delta-since-last-check; supports `--json` and `--watch`, each backend soft-fails to `SKIPPED` when unset, deltas cache under `.sdd/observability/<backend>.json`. Adds a per-PR sticky summary workflow and a daily trends snapshot workflow that re-renders `docs/observability/trends.md` (#1650).
+- Spec-quality gate (`bernstein spec check` / `bernstein spec auto-fix`): a deterministic, library-only rule set (acceptance-criteria, out-of-scope, tested-via, no-TODO, no-placeholder, ref-paths-exist) that refuses to advance a failing spec, routes through a bounded auto-fix loop, and raises `SpecQualityUnresolvedError` when the budget is exhausted; rules pluggable via the `bernstein.spec_quality_rules` entry-point group (#1652).
+- Three-layer skill customization (BASE / TEAM / USER) under XDG paths with a per-field deterministic merge spec; `bernstein skills list --layered` and `bernstein skills show <name> --per-layer` surface layer-of-origin and the merged/raw diff (#1654).
 - `bernstein doctor sonar` subcommand surfacing coverage, code smells by severity, bugs, vulnerabilities, security hotspots, and cognitive-complexity hotspots from a configured SonarQube server; advisory baseline cache and parent-doctor nudge when open smells exceed the threshold or vulnerabilities regress (#1648).
 - `bernstein doctor glitchtip` subcommand surfacing last-24h issue counts by severity, a 7-day trend, and top unresolved issues; optional baseline cache and parent-doctor nudge when new unresolved issues appear (#1646).
 - Sticky PR Sonar comment workflow and daily GlitchTip alert sweep workflow (06:30 UTC) that mirrors fatal-level issues into sticky GitHub issues labelled `glitchtip-alert` and auto-closes them when the GlitchTip side resolves (#1646, #1648).
@@ -28,13 +31,28 @@ All notable project changes are tracked here (code + docs).
 - Apply `ruff format` to `core/quality/review_pipeline/review_gate.py` after #1638 collapsed several string and comprehension wrappings under the 120-character line length, fixing `ruff format --check` on main (#1640).
 - Default empty `nonce` body field to an empty string at the schema layer so a missing field flows through the handler and surfaces as `409 NONCE_MISMATCH` instead of `422` (#1642).
 - Move `Iterator` and `Path` imports under `TYPE_CHECKING` in `core/orchestration/task_dag.py`, replace `== True` with `is True` in `tests/unit/tasks/test_parallel_flag.py`, and run `ruff format` across the four files added or touched by #1655, fixing the Lint job that turned main red after the task-DAG merge (#1657).
+- Widen the Schemathesis smoke step timeout to stop the property-based API smoke run being cancelled mid-flight under the normal main merge cadence (#1659).
+- Pin the published runtime image and the demo image back to `python:3.13-slim` by digest (both had drifted to `python:3.14-slim` while their comments read 3.12), matching the repository python policy and adapter dependency constraints (#1664).
+- Repair the `sonar-scan` `workflow_run` trigger: make `workflow_dispatch` resolve the most recent successful CI run on main and pull its `coverage-report` artifact so a manual bootstrap scan carries full Python coverage instead of scanning coverage-less (#1665).
+- Stop the review-bot-ack gate from cancelling its own required status check: scope the concurrency group per-PR and per-head-sha with `cancel-in-progress: false` so each commit's gate run completes against its own sha and a `CANCELLED` conclusion no longer stalls the merge queue (#1666).
+
+### Documentation
+
+- Doc-drift refresh reconciling 16 `docs/concepts/` and `docs/gui/` documents with current source-of-truth public surfaces (renamed CLI subcommands, signatures, and config knobs); `docs/sdd/` verified in sync (#1677).
 
 ### Internal
 
 - Refurb auto-fix wave 4: FURB184 197 -> 34, FURB138 42 -> 8, FURB124 29 -> 3, FURB142 16 -> 0, FURB113 23 -> 21 in `src/`; plus a `ruff format` pass over 36 files to wrap `E501` long-line comprehensions and four targeted fixes for broken `seen in seen` self-referential dedup comprehensions (#1643).
 - Refurb cluster D: FURB139 / FURB143 / FURB179 strings and enumerate, 16 autofixes (#1647).
 - Refurb cluster E: FURB182 / FURB183 / FURB142 / FURB101 miscellaneous, 33 autofixes across 21 files; refurb now reports 0 alerts for these rules in `src/` (#1649).
+- Refurb cluster B: FURB109 / FURB108 / FURB126 control flow, 53 autofixes across 44 files; pure control-flow and literal rewrites with no behavioural change (#1651).
 - Review-bot acknowledgement gate caught seven CodeRabbit must-address findings on #1646: HTTP status validation, `gh issue` subprocess `check=True`, doc clarification on soft-fail conditions, narrower import-time exception handling, logging of unexpected fetch failures, `IntRange(min=1)` on `--top-n`, and dropping a truthy fallback in `summarise_severity` / `_bucket_trend_by_day` that was inflating zero counts to one.
+- Adds a CI workflow-health sweep summary at `docs/ci/workflow-health-2026-05-20.md` covering all 47 registered workflows (#1666).
+
+### Dependencies
+
+- Update dependency python to 3.13 and bump the `python:3.13-slim` and `gcr.io/oss-fuzz-base/base-builder-python` docker digests (#1663, #1678, #1670).
+- Bump `actions/setup-python` 5 -> 6, `peter-evans/create-pull-request` to 7.0.11 / 8.1.1, and `marocchino/sticky-pull-request-comment` to v2.9.4 / v3 (#1668, #1662, #1667, #1661, #1671, #1669).
 
 ## [2.3.1] - Maintenance
 

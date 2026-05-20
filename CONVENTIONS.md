@@ -134,7 +134,9 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `registry.py`              | Adapter registry — look up CLI adapters by name |
 | `report.py`                | Adapter conformance + capability report |
 | `rovo.py`                  | Atlassian Rovo Dev CLI adapter |
+| `session_id.py`            | Deterministic session-id binding for adapter replay isolation |
 | `skills_injector.py`       | Inject per-task Claude Code skills into the worktree before spawn |
+| `strict_schema.py`         | Strict structured-output validation and user-owned-field protection |
 | `use_cases.py`             | Per-adapter metadata for the ``bernstein integrations list`` command |
 | `ci/`                      | CI system adapters for log parsing and failure extraction |
 
@@ -173,6 +175,7 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 | `run_bootstrap.py`      | Main Click commands and execution bootstrap for Bernstein runs |
 | `run_cmd.py`            | Run commands: init, conduct, downbeat (legacy start), and the main CLI group |
 | `run_confirm.py`        | Recipe/cook commands, demo, and confirmation helpers for Bernstein runs |
+| `run_names.py`          | Memorable deterministic run names for user-facing surfaces (#1626) |
 | `run_preflight.py`      | Preflight cost estimation and runtime warnings for Bernstein runs |
 | `settings_snapshot.py`  | Settings snapshot — capture and serialize effective settings for traces |
 | `side_query.py`         | Side-question ("btw") protocol for non-blocking agent queries |

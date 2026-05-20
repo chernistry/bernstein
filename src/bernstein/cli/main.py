@@ -67,8 +67,8 @@ from bernstein.cli.commands.fleet_cmd import fleet_group
 from bernstein.cli.commands.integrations_cmd import integrations_group
 from bernstein.cli.commands.knowledge_cmd import knowledge_group
 from bernstein.cli.commands.resume_cmd import resume_cmd
-from bernstein.cli.commands.run_names_cmd import run_lookup_cmd
 from bernstein.cli.commands.role_adapter_policy_cmd import security_group as _role_adapter_security_group
+from bernstein.cli.commands.run_names_cmd import run_lookup_cmd
 from bernstein.cli.commands.skills_cmd import skills_group
 from bernstein.cli.commands.spec_cmd import spec_group
 from bernstein.cli.commands.trackers_cmd import trackers_group
@@ -916,6 +916,9 @@ from bernstein.cli.commands.doctor.code_scanning import (  # noqa: E402
 from bernstein.cli.commands.doctor.dt import (  # noqa: E402
     register as _register_doctor_dt,
 )
+from bernstein.cli.commands.doctor.migrations import (  # noqa: E402
+    register as _register_doctor_migrations,
+)
 from bernstein.cli.commands.doctor.observe import (  # noqa: E402
     register as _register_doctor_observe,
 )
@@ -923,6 +926,7 @@ from bernstein.cli.commands.doctor.observe import (  # noqa: E402
 _register_doctor_dt(doctor)
 _register_doctor_code_scanning(doctor)
 _register_doctor_observe(doctor)
+_register_doctor_migrations(doctor)
 
 cli.add_command(recap)
 cli.add_command(retro)

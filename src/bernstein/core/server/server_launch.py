@@ -131,7 +131,39 @@ def ensure_sdd(workdir: Path) -> bool:
         if "session.json" not in existing:
             gi_path.write_text(existing.rstrip("\n") + "\nsession.json\n")
 
+    # Apply any pending on-disk state migrations on load. On a fresh install
+    # this stamps the latest schema version; on an existing install it walks
+    # forward through any unrun migrations. Idempotent and offline.
+    _apply_state_migrations(workdir / ".sdd")
+
     return created
+
+
+def _apply_state_migrations(sdd_dir: Path) -> None:
+    """Run forward state migrations for *sdd_dir*, never crashing startup.
+
+    Migrations are idempotent and offline. A :class:`FutureSchemaVersionError`
+    (state written by a newer build) is surfaced as a logged warning rather
+    than an exception so an operator who downgraded gets a clear message
+    instead of a startup crash; the runtime then proceeds without touching
+    the newer state.
+    """
+    from bernstein.core.persistence.migrations import FutureSchemaVersionError, migrate
+
+    try:
+        report = migrate(sdd_dir)
+    except FutureSchemaVersionError as exc:
+        logger.warning("skipping state migrations: %s", exc)
+        return
+    except Exception as exc:
+        logger.error("state migration failed: %s", exc)
+        return
+    if report.applied:
+        logger.info(
+            "applied %d state migration(s); schema now at v%03d",
+            len(report.applied),
+            report.to_version,
+        )
 
 
 def _read_pid(pid_path: Path) -> int | None:

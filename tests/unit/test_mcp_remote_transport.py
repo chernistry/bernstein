@@ -71,6 +71,19 @@ def _jsonrpc_notification(method: str, params: dict | None = None) -> bytes:
     return json.dumps(msg).encode()
 
 
+def _tool_result(text: str) -> dict:
+    """Return a tool call's result payload, unwrapping the cost-meter envelope.
+
+    Tool responses are wrapped in ``{"result": ..., "_meter": ...}`` by the
+    per-call cost meter (issue #1674). This helper returns the inner result so
+    assertions read the tool payload regardless of whether the meter is on.
+    """
+    parsed = json.loads(text)
+    if isinstance(parsed, dict) and "_meter" in parsed:
+        return parsed["result"]
+    return parsed
+
+
 # ---------------------------------------------------------------------------
 # RemoteMCPConfig tests
 # ---------------------------------------------------------------------------
@@ -420,7 +433,7 @@ class TestToolExecution:
         data = json.loads(resp_body)
         content = data["result"]["content"]
         assert len(content) == 1
-        assert json.loads(content[0]["text"])["status"] == "ok"
+        assert _tool_result(content[0]["text"])["status"] == "ok"
 
     @pytest.mark.anyio
     async def test_unknown_tool_returns_error(self, transport: StreamableHTTPTransport) -> None:
@@ -449,7 +462,7 @@ class TestToolExecution:
         assert status == 200
         data = json.loads(resp_body)
         text = data["result"]["content"][0]["text"]
-        assert json.loads(text)["total"] == 5
+        assert _tool_result(text)["total"] == 5
 
     @pytest.mark.anyio
     async def test_stop_tool_writes_signal(self, transport: StreamableHTTPTransport, tmp_path: object) -> None:
@@ -463,7 +476,7 @@ class TestToolExecution:
         status, _, resp_body = await transport.handle_request("POST", "/mcp", {}, body)
         assert status == 200
         data = json.loads(resp_body)
-        text = json.loads(data["result"]["content"][0]["text"])
+        text = _tool_result(data["result"]["content"][0]["text"])
         assert text["status"] == "shutdown signal sent"
         signal_file = workdir / ".sdd" / "runtime" / "signals" / "SHUTDOWN"
         assert signal_file.exists()

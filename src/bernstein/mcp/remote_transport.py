@@ -13,10 +13,13 @@ import logging
 import os
 import time
 import uuid
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
+
+from bernstein.mcp.streaming import InFlightRegistry, cancelled_envelope
 
 logger = logging.getLogger(__name__)
 
@@ -250,6 +253,9 @@ _SERVER_INFO: dict[str, Any] = {
 
 _CAPABILITIES: dict[str, Any] = {
     "tools": {"listChanged": False},
+    # The server honours notifications/cancelled for in-flight tool calls and
+    # preserves partial output on cancel.
+    "experimental": {"cancellation": {"partialResults": True}},
 }
 
 
@@ -270,6 +276,7 @@ class StreamableHTTPTransport:
         self._server_url = server_url
         self._sessions: dict[str, MCPSession] = {}
         self._lock = asyncio.Lock()
+        self._inflight = InFlightRegistry()
 
     # -- public API ----------------------------------------------------------
 
@@ -358,7 +365,13 @@ class StreamableHTTPTransport:
         self,
         headers: dict[str, str],
     ) -> tuple[int, dict[str, str], bytes]:
-        """Handle GET: SSE stream endpoint (stub — returns 501)."""
+        """Handle GET: server-initiated SSE stream endpoint (stub - 501).
+
+        Client-to-server streaming, cancellation, and partial-result
+        preservation are handled over POST (``tools/call`` plus
+        ``notifications/cancelled``). A server-initiated SSE push channel is
+        not implemented, so GET still returns 501 with a pointer to POST.
+        """
         session_id = headers.get("mcp-session-id")
         if session_id and session_id not in self._sessions:
             return (
@@ -366,11 +379,11 @@ class StreamableHTTPTransport:
                 {"content-type": _CONTENT_TYPE_JSON},
                 b'{"error":"session not found"}',
             )
-        # Server-initiated SSE not yet implemented.
+        # Server-initiated SSE not implemented; cancellation is over POST.
         return (
             501,
             {"content-type": _CONTENT_TYPE_JSON},
-            b'{"error":"SSE stream not implemented - use POST for request/response"}',
+            b'{"error":"server-initiated SSE not implemented - use POST and notifications/cancelled"}',
         )
 
     async def _handle_delete(
@@ -424,7 +437,12 @@ class StreamableHTTPTransport:
             return _jsonrpc_error(_METHOD_NOT_FOUND, f"Method not found: {method}", req_id)
 
         try:
-            result = await handler(session, params)
+            # tools/call needs its JSON-RPC id so the call can be tracked for
+            # cancellation; other handlers take only (session, params).
+            if method == "tools/call":
+                result = await self._method_tools_call(session, params, req_id)
+            else:
+                result = await handler(session, params)
         except Exception as exc:
             logger.exception("Error handling method %s", method)
             if is_notification:
@@ -443,6 +461,7 @@ class StreamableHTTPTransport:
             "tools/call": self._method_tools_call,
             "ping": self._method_ping,
             "notifications/initialized": self._method_noop,
+            "notifications/cancelled": self._method_cancelled,
         }
         return handlers.get(method or "")
 
@@ -453,12 +472,21 @@ class StreamableHTTPTransport:
         session: MCPSession,
         params: dict[str, Any],
     ) -> dict[str, Any]:
-        """Handle 'initialize' — return server info and capabilities."""
+        """Handle 'initialize' - return server info and capabilities.
+
+        Alongside the static spec ``capabilities`` object, the result carries
+        a runtime ``capabilityCard`` describing the live transports, auth
+        modes, active tool tier, and cost-meter state so a client can decide
+        how to connect without trial and error.
+        """
+        from bernstein.mcp.capability import build_capability_card
+
         session.metadata["client_info"] = params.get("clientInfo", {})
         return {
             "protocolVersion": "2025-03-26",
             "serverInfo": _SERVER_INFO,
             "capabilities": _CAPABILITIES,
+            "capabilityCard": build_capability_card(),
         }
 
     async def _method_tools_list(
@@ -474,23 +502,87 @@ class StreamableHTTPTransport:
         self,
         session: MCPSession,
         params: dict[str, Any],
+        req_id: int | str | None = None,
     ) -> dict[str, Any]:
-        """Handle 'tools/call' — execute a tool and return result."""
+        """Handle 'tools/call' - execute a tool and return result.
+
+        The tool runs inside a cancellable task tracked by its JSON-RPC id, so
+        a ``notifications/cancelled`` for that id stops the work and the
+        accumulated partial output is returned (``cancelled: true`` with the
+        preserved ``partial`` chunks) rather than discarded.
+
+        The tool's JSON payload is wrapped in the per-call cost-meter envelope
+        (latency, cost, trace id, status) so the remote transport emits the
+        same observable shape as the stdio/SSE server. The envelope is a no-op
+        when the meter is disabled via ``BERNSTEIN_MCP_COST_METER``.
+        """
+        from bernstein.mcp.cost_meter import measure_call, wrap_envelope
+
         tool_name = params.get("name", "")
         arguments = params.get("arguments", {})
 
+        # Untracked calls (no id) still execute, just without cancel support.
+        call = await self._inflight.register(req_id, tool_name) if req_id is not None else None
+
+        meter_ctx = measure_call(tool_name)
+        meter = meter_ctx.__enter__()
         try:
-            text = await self._execute_tool(tool_name, arguments)
+            if call is not None:
+                # Seed a partial chunk so a cancel mid-flight preserves the
+                # in-progress context rather than returning an empty result.
+                call.append_partial(json.dumps({"status": "running", "tool": tool_name}))
+                task: asyncio.Task[str] = asyncio.ensure_future(self._execute_tool(tool_name, arguments))
+                await self._inflight.attach_task(req_id, task)  # type: ignore[arg-type]
+                text = await task
+            else:
+                text = await self._execute_tool(tool_name, arguments)
+        except asyncio.CancelledError:
+            # Client-initiated cancel: preserve and return partial output.
+            meter_ctx.__exit__(None, None, None)
+            current = await self._inflight.get(req_id) if req_id is not None else None
+            if req_id is not None:
+                await self._inflight.discard(req_id)
+            if current is not None and current.cancelled:
+                return cancelled_envelope(current, meter.to_dict())
+            # A cancel we did not initiate (e.g. transport shutdown): re-raise.
+            raise
         except Exception as exc:
+            # Finalise the meter for the failed call, then emit it alongside
+            # the error so observability covers failures too.
+            with suppress(Exception):
+                meter_ctx.__exit__(type(exc), exc, exc.__traceback__)
+            if req_id is not None:
+                await self._inflight.discard(req_id)
             logger.warning("Tool %s failed: %s", tool_name, exc)
+            error_payload = wrap_envelope(json.dumps({"error": str(exc)}), meter)
             return {
-                "content": [{"type": "text", "text": json.dumps({"error": str(exc)})}],
+                "content": [{"type": "text", "text": error_payload}],
                 "isError": True,
             }
-
+        meter_ctx.__exit__(None, None, None)
+        if req_id is not None:
+            await self._inflight.discard(req_id)
         return {
-            "content": [{"type": "text", "text": text}],
+            "content": [{"type": "text", "text": wrap_envelope(text, meter)}],
         }
+
+    async def _method_cancelled(
+        self,
+        session: MCPSession,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Handle 'notifications/cancelled' - stop an in-flight tool call.
+
+        Per the MCP spec the notification carries ``requestId`` (the id of the
+        ``tools/call`` to cancel). Cancelling marks the tracked call and
+        cancels its task; the originating ``tools/call`` handler then returns
+        the preserved partial output. Cancelling an unknown or already-settled
+        id is a no-op, as the spec requires.
+        """
+        request_id = params.get("requestId")
+        if request_id is not None:
+            await self._inflight.cancel(request_id)
+        return {}
 
     async def _method_ping(
         self,

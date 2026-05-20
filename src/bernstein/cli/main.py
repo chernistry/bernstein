@@ -69,6 +69,7 @@ from bernstein.cli.commands.knowledge_cmd import knowledge_group
 from bernstein.cli.commands.resume_cmd import resume_cmd
 from bernstein.cli.commands.role_adapter_policy_cmd import security_group as _role_adapter_security_group
 from bernstein.cli.commands.skills_cmd import skills_group
+from bernstein.cli.commands.spec_cmd import spec_group
 from bernstein.cli.commands.trackers_cmd import trackers_group
 from bernstein.cli.compliance_cmd import compliance_group
 from bernstein.cli.config_path_cmd import config_path_cmd
@@ -862,6 +863,7 @@ plan.add_command(plan_show)
 plan.add_command(plan_dag)
 cli.add_command(plan)
 cli.add_command(plan, "tasks")
+cli.add_command(spec_group)
 cli.add_command(backlog_group, "backlog")
 cli.add_command(logs_group, "logs")
 cli.add_command(decisions_group, "decisions")

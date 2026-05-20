@@ -276,6 +276,13 @@ bernstein-worker = "bernstein.core.worker:main"
 # this group. Example:
 # my_sink = "my_pkg.storage:MyArtifactSink"
 
+[project.entry-points."bernstein.spec_quality_rules"]
+# Spec-quality checklist rules (Rule factories). Each entry resolves to a
+# zero-arg callable returning a
+# ``bernstein.core.planning.spec_quality.Rule`` instance.
+# Example:
+# stakeholder = "my_pkg.spec_rules:stakeholder_factory"
+
 [project.entry-points."bernstein.notification_sinks"]
 # Outbound notification drivers (release 1.9). First-party drivers
 # (telegram, slack, discord, email_smtp, webhook, shell) ship in core

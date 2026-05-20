@@ -2080,6 +2080,8 @@ class TaskStore:
         tenant_id: str | None = None,
         claimed_by_session: str | None = None,
         parent_session_id: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
     ) -> list[Task]:
         """Return all tasks, optionally filtered by status, cell_id, and/or claim owner.
 
@@ -2094,6 +2096,11 @@ class TaskStore:
                 parent session are returned.
             parent_session_id: If provided, only tasks whose ``parent_session_id``
                 matches (tasks scoped to this coordinator session) are returned.
+            limit: If provided, return at most this many tasks after filtering.
+                Pushed into the store so routes (#1727 pagination, export, costs)
+                no longer slice in Python.
+            offset: If provided, skip this many tasks after filtering. Combine
+                with ``limit`` for paginated iteration.
 
         Returns:
             List of matching tasks.
@@ -2116,7 +2123,7 @@ class TaskStore:
 
         # Single-pass filter: evaluate every predicate together so we walk
         # the task list once instead of rebuilding it N times.
-        return [
+        filtered = [
             t
             for t in seed
             if (cell_id is None or t.cell_id == cell_id)
@@ -2125,6 +2132,15 @@ class TaskStore:
             and (parent_session_id is None or t.parent_session_id == parent_session_id)
             and (not check_open_deps or self._dependencies_satisfied(t))
         ]
+
+        if offset is None and limit is None:
+            return filtered
+
+        start = max(0, offset) if offset is not None else 0
+        if limit is None:
+            return filtered[start:]
+        end = start + max(0, limit)
+        return filtered[start:end]
 
     def count_by_status(self, tenant_id: str | None = None) -> dict[str, int]:
         """Return task counts per status without materialising task lists.

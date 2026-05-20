@@ -1130,16 +1130,23 @@ def get_costs_top_tasks(request: Request, limit: int = 10, hours: int = 24) -> J
             if not task_cost[task_id]["agent"]:
                 task_cost[task_id]["agent"] = str(getattr(usage, "agent_id", "") or "")
 
-    # Resolve titles from the task store when available.
+    # Resolve titles from the task store when available. Only look up the
+    # task ids that appear in the cost data (issue #1728 finding 3) — the
+    # previous full ``store.list_tasks()`` walk materialised every task in
+    # the store just to read a handful of titles.
     store = getattr(request.app.state, "store", None)
     titles: dict[str, str] = {}
     if store is not None:
-        try:
-            for task in store.list_tasks():
-                titles[task.id] = task.title
-        # bot-ack: pre-existing-1723 (best-effort title enrichment for costs view)
-        except Exception:
-            titles = {}
+        get_task = getattr(store, "get_task", None)
+        if callable(get_task):
+            for task_id in task_cost:
+                try:
+                    task = get_task(task_id)
+                # bot-ack: pre-existing-1723 (best-effort title enrichment for costs view)
+                except Exception:
+                    continue
+                if task is not None:
+                    titles[task_id] = task.title
 
     rows = sorted(
         (

@@ -75,10 +75,15 @@ rather than re-listing each entry so the index does not drift.
 1. Add a `<name>.py` module under `src/bernstein/adapters/` implementing
    `CLIAdapter`.
 2. Register the class in `src/bernstein/adapters/registry.py`.
-3. Add an entry to `src/bernstein/adapters/use_cases.py` so the new
+3. Declare the adapter's resume / dangerous-mode / event-channel strategy
+   in `STRATEGY_MATRIX` (see
+   [capability_contract.md](./capability_contract.md)); the conformance
+   harness fails when a registered adapter has no declaration.
+4. Add an entry to `src/bernstein/adapters/use_cases.py` so the new
    adapter shows up in `bernstein integrations list` with a meaningful
    headline.
-4. Cover the adapter with a conformance test under `tests/contract/`.
+5. Cover the adapter with a conformance test under `tests/contract/`.
 
 The contract for new adapters lives in
-[ADAPTER_GUIDE.md](./ADAPTER_GUIDE.md).
+[ADAPTER_GUIDE.md](./ADAPTER_GUIDE.md). The typed strategy axes are
+documented in [capability_contract.md](./capability_contract.md).

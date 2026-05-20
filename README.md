@@ -416,6 +416,7 @@ Commands that eliminate the glue code most teams end up writing around their run
 | `bernstein eval calibration report` | Brier score + ECE + reliability buckets over `.sdd/metrics/calibration.jsonl`. Example: `bernstein eval calibration report --since 7d --kind model_route --bins 10`. See [docs/operations/calibration.md](docs/operations/calibration.md). |
 | `bernstein lineage v2 show / verify / export` | Opt-in two-layer lineage store (parent timeline + detached children) with HMAC chains on both layers and content-addressed `child_sha` join pointers. Enable with `BERNSTEIN_LINEAGE_V2=1` or `bernstein.yaml` `lineage.version: 2`. See [docs/operations/lineage-v2.md](docs/operations/lineage-v2.md). |
 | `bernstein run --retry-budget SPEC` | Criterion-aware retry budget: `'3 retries, degrade: coverage>tests>style'`. Each retry dials down the next criterion instead of burning identical rerun budget. See [docs/operations/retry-budget.md](docs/operations/retry-budget.md). |
+| `bernstein run-lookup NAME` | Resolve a memorable run name back to its run UUID. Exits non-zero when the name is malformed or no known run id renders to it. Example: `bernstein run-lookup brave-otter-1234`. |
 
 ### retrieval & caching: what's actually under the hood
 

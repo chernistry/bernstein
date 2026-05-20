@@ -27,9 +27,12 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from bernstein.adapters._contract import (
     CONTRACTS_DIR,
+    DEFAULT_ADAPTER_STRATEGY,
     ContractSpec,
+    StrategyView,
     _capability_failures,  # pyright: ignore[reportPrivateUsage]
     _strip_ansi,  # pyright: ignore[reportPrivateUsage]
+    strategy_for,
 )
 
 if TYPE_CHECKING:
@@ -86,6 +89,9 @@ class AdapterStatus:
             file's mtime. Empty when the module path cannot be resolved.
         contract_hash: SHA-256 of the loaded contract bytes, or empty
             string when the adapter has no contract on disk.
+        strategy: The adapter's declared resume / dangerous-mode /
+            event-channel strategy as a ``{axis: value}`` dict so operators
+            can compare adapters at a glance (issue #1627 AC #4).
     """
 
     name: str
@@ -97,6 +103,7 @@ class AdapterStatus:
     conformance_detail: str
     last_modified_utc: str
     contract_hash: str
+    strategy: StrategyView = field(default_factory=DEFAULT_ADAPTER_STRATEGY.to_dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-friendly dict.
@@ -401,6 +408,7 @@ def _status_for_one(
         conformance_detail=verdict.detail,
         last_modified_utc=_module_mtime_utc(adapter),
         contract_hash=_contract_hash(name, contracts_dir=contracts_dir),
+        strategy=strategy_for(name).to_dict(),
     )
 
 

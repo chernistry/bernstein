@@ -164,6 +164,38 @@ def get_adapter(cli_name: str) -> CLIAdapter:
     return adapter_cls()
 
 
+def registry_name_for(adapter: CLIAdapter) -> str | None:
+    """Return the registry key an adapter instance is registered under.
+
+    Resolves the canonical registry name (e.g. ``"claude"``) for a live
+    adapter so callers can key per-adapter tables (such as the strategy
+    matrix in :mod:`bernstein.adapters._contract`) without each adapter
+    having to restate its own key.
+
+    Resolution prefers an explicit :attr:`CLIAdapter.registry_name`, then
+    falls back to a reverse lookup over the registered classes/instances.
+    Entry-point discovery runs first so third-party adapters resolve too.
+
+    Args:
+        adapter: A live :class:`CLIAdapter` instance.
+
+    Returns:
+        The registry key, or ``None`` when the adapter is not registered.
+    """
+    explicit = getattr(adapter, "registry_name", "") or ""
+    if explicit and explicit in _ADAPTERS:
+        return explicit
+
+    _load_entrypoint_adapters()
+    adapter_type = type(adapter)
+    for name, entry in _ADAPTERS.items():
+        if entry is adapter:
+            return name
+        if inspect.isclass(entry) and entry is adapter_type:
+            return name
+    return None
+
+
 def register_adapter(name: str, adapter: type[CLIAdapter] | CLIAdapter) -> None:
     """Register a custom adapter by name.
 

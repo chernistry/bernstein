@@ -32,8 +32,9 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
+from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 import yaml
 
@@ -365,82 +366,283 @@ def list_contracts(contracts_dir: Path | None = None) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Capability matrix — resume-from-checkpoint (feat-resume-from-checkpoint)
+# Per-adapter strategy enums (issue #1627)
 # ---------------------------------------------------------------------------
 #
-# Adapters opt into the resume protocol by implementing
-# :py:meth:`bernstein.adapters.base.CLIAdapter.resume`. The default
-# implementation declines via :data:`RESUME_FALLBACK_FRESH`, which signals
-# the CLI to spawn a fresh session and reinject the recovered scratchpad
-# (see ``bernstein.core.persistence.resume_prompt``).
+# Every CLI agent expresses the same three concepts differently:
 #
-# Keep this table in sync with adapter overrides. It is consulted by
-# ``bernstein adapters resume-matrix`` and surfaced in ``bernstein doctor``.
+#   * resume        - ``--resume <id>`` for some, ``--session-id <id>`` for
+#                     others, a subcommand ``<cli> resume <id>`` for a third
+#                     group, or no native resume at all.
+#   * dangerous mode - "skip permission prompts" is a flag here, an env var
+#                     there, always-on for adapters with no permission system,
+#                     and unsupported for the rest.
+#   * event channel  - the surface Bernstein observes for lifecycle signals:
+#                     stream-json, the canonical ``BERNSTEIN:<KIND>`` text
+#                     grammar, upstream hooks, or PTY polling.
+#
+# Capturing each axis as a typed per-adapter enum compresses the scattered
+# ``if adapter == "X"`` conditionals into one dispatch per axis and makes
+# adding a new adapter a contract-completion exercise rather than a
+# hunt-and-patch. Strategy is *declared* (see :data:`STRATEGY_MATRIX`); we do
+# not probe the CLI at runtime.
 
-#: Adapter resume capability — adapter inherits :class:`CLIAdapter.resume`'s
-#: default and the CLI falls back to a fresh session.
-RESUME_FALLBACK_FRESH: str = "fallback-fresh"
 
-#: Adapter overrides :class:`CLIAdapter.resume` to attach to the prior
-#: session via a provider-side session/resume id. The adapter is
-#: responsible for reinjecting any context it considers necessary.
-RESUME_NATIVE: str = "native"
+class ResumeStrategy(StrEnum):
+    """How an adapter reattaches to a prior session for ``bernstein resume``."""
 
-#: Tri-state capability rendered as ``adapter -> capability``. Adapters
-#: absent from this table are assumed :data:`RESUME_FALLBACK_FRESH`.
-RESUME_CAPABILITY_MATRIX: dict[str, str] = {
-    # Native resume — these adapters expose a stable session id that
-    # survives process restart and can be reattached.
-    "claude": RESUME_NATIVE,
-    "claude_routine": RESUME_NATIVE,
-    "openai_agents": RESUME_NATIVE,
-    # Everyone else — explicit "no native resume; fall back to fresh
-    # session with scratchpad reinjection".
-    "aichat": RESUME_FALLBACK_FRESH,
-    "aider": RESUME_FALLBACK_FRESH,
-    "amp": RESUME_FALLBACK_FRESH,
-    "auggie": RESUME_FALLBACK_FRESH,
-    "autohand": RESUME_FALLBACK_FRESH,
-    "charm": RESUME_FALLBACK_FRESH,
-    "cline": RESUME_FALLBACK_FRESH,
-    "codebuff": RESUME_FALLBACK_FRESH,
-    "codex": RESUME_FALLBACK_FRESH,
-    "cody": RESUME_FALLBACK_FRESH,
-    "composio": RESUME_FALLBACK_FRESH,
-    "continue_dev": RESUME_FALLBACK_FRESH,
-    "copilot": RESUME_FALLBACK_FRESH,
-    "cursor": RESUME_FALLBACK_FRESH,
-    "devin_terminal": RESUME_FALLBACK_FRESH,
-    "droid": RESUME_FALLBACK_FRESH,
-    "forge": RESUME_FALLBACK_FRESH,
-    "gemini": RESUME_FALLBACK_FRESH,
-    "generic": RESUME_FALLBACK_FRESH,
-    "goose": RESUME_FALLBACK_FRESH,
-    "gptme": RESUME_FALLBACK_FRESH,
-    "hermes": RESUME_FALLBACK_FRESH,
-    "junie": RESUME_FALLBACK_FRESH,
-    "kilo": RESUME_FALLBACK_FRESH,
-    "kimi": RESUME_FALLBACK_FRESH,
-    "kiro": RESUME_FALLBACK_FRESH,
-    "letta_code": RESUME_FALLBACK_FRESH,
-    "mistral": RESUME_FALLBACK_FRESH,
-    "mock": RESUME_FALLBACK_FRESH,
-    "ollama": RESUME_FALLBACK_FRESH,
-    "open_interpreter": RESUME_FALLBACK_FRESH,
-    "opencode": RESUME_FALLBACK_FRESH,
-    "openhands": RESUME_FALLBACK_FRESH,
-    "pi": RESUME_FALLBACK_FRESH,
-    "plandex": RESUME_FALLBACK_FRESH,
-    "q_dev": RESUME_FALLBACK_FRESH,
-    "qwen": RESUME_FALLBACK_FRESH,
-    "ralphex": RESUME_FALLBACK_FRESH,
-    "rovo": RESUME_FALLBACK_FRESH,
+    #: Single flag carrying the session id, e.g. ``--resume <id>``.
+    FLAG = "flag"
+    #: A pair of flags: one names the existing session, one mints a new one,
+    #: e.g. ``--continue-from <old> --session-id <new>``.
+    FLAG_PAIR = "flag-pair"
+    #: A dedicated subcommand, e.g. ``<cli> resume <id>``.
+    SUBCOMMAND = "subcommand"
+    #: No native resume; the orchestrator falls back to a fresh session with
+    #: scratchpad reinjection.
+    UNSUPPORTED = "unsupported"
+
+
+class DangerousModeStrategy(StrEnum):
+    """How an adapter is told to skip interactive permission prompts."""
+
+    #: A CLI flag, e.g. ``--yolo`` or ``--permission-mode bypassPermissions``.
+    CLI_FLAG = "cli-flag"
+    #: An environment variable the CLI reads at startup.
+    ENV_VAR = "env-var"
+    #: The CLI has no permission system; it is always non-interactive.
+    ALWAYS_ON = "always-on"
+    #: The CLI has no non-interactive mode and cannot be driven unattended
+    #: in dangerous mode.
+    UNSUPPORTED = "unsupported"
+
+
+class EventChannel(StrEnum):
+    """The surface Bernstein reads for an adapter's lifecycle signals."""
+
+    #: Upstream emits newline-delimited JSON events (Claude/Cursor/Gemini).
+    STREAM_JSON = "stream-json"
+    #: Plain stdout carrying the canonical ``BERNSTEIN:<KIND>`` text grammar.
+    TEXT_SIGNALS = "text-signals"
+    #: Upstream fires hooks/callbacks Bernstein registers against.
+    HOOKS = "hooks"
+    #: No structured channel; Bernstein polls a PTY/log for liveness.
+    POLL_PTY = "poll-pty"
+    #: No event channel at all (process-exit detection only).
+    NONE = "none"
+
+
+class StrategyView(TypedDict):
+    """JSON-serialisable view of an :class:`AdapterStrategy`'s three axes."""
+
+    resume: str
+    dangerous_mode: str
+    event_channel: str
+
+
+class StrategyRow(StrategyView):
+    """A :class:`StrategyView` plus the adapter name, one row per adapter."""
+
+    adapter: str
+
+
+@dataclass(frozen=True)
+class AdapterStrategy:
+    """The declared strategy of a single adapter across all three axes."""
+
+    resume: ResumeStrategy = ResumeStrategy.UNSUPPORTED
+    dangerous_mode: DangerousModeStrategy = DangerousModeStrategy.UNSUPPORTED
+    event_channel: EventChannel = EventChannel.TEXT_SIGNALS
+
+    def to_dict(self) -> StrategyView:
+        """Return a JSON-serialisable view for operator-facing tables."""
+        return {
+            "resume": str(self.resume),
+            "dangerous_mode": str(self.dangerous_mode),
+            "event_channel": str(self.event_channel),
+        }
+
+
+#: Default strategy applied to any adapter (built-in or third-party) absent
+#: from :data:`STRATEGY_MATRIX`. Conservative on every axis so an undeclared
+#: adapter never accidentally resumes natively or skips permissions.
+DEFAULT_ADAPTER_STRATEGY = AdapterStrategy()
+
+
+#: Per-adapter strategy declarations, keyed by registry name. Adding a new
+#: adapter means adding a row here; the conformance harness
+#: (:func:`undeclared_strategies`) reports any registry adapter missing a row.
+STRATEGY_MATRIX: dict[str, AdapterStrategy] = {
+    # Native session resume + structured event channel.
+    "claude": AdapterStrategy(
+        resume=ResumeStrategy.FLAG,
+        dangerous_mode=DangerousModeStrategy.CLI_FLAG,
+        event_channel=EventChannel.STREAM_JSON,
+    ),
+    "claude_routine": AdapterStrategy(
+        resume=ResumeStrategy.FLAG,
+        dangerous_mode=DangerousModeStrategy.CLI_FLAG,
+        event_channel=EventChannel.STREAM_JSON,
+    ),
+    "openai_agents": AdapterStrategy(
+        resume=ResumeStrategy.FLAG,
+        dangerous_mode=DangerousModeStrategy.ALWAYS_ON,
+        event_channel=EventChannel.HOOKS,
+    ),
+    # Stream-json adapters without native resume.
+    "cursor": AdapterStrategy(
+        resume=ResumeStrategy.UNSUPPORTED,
+        dangerous_mode=DangerousModeStrategy.CLI_FLAG,
+        event_channel=EventChannel.STREAM_JSON,
+    ),
+    "gemini": AdapterStrategy(
+        resume=ResumeStrategy.UNSUPPORTED,
+        dangerous_mode=DangerousModeStrategy.CLI_FLAG,
+        event_channel=EventChannel.STREAM_JSON,
+    ),
+    # CLI-flag dangerous mode, text-signal channel, fresh-session resume.
+    "cline": AdapterStrategy(dangerous_mode=DangerousModeStrategy.CLI_FLAG),
+    "charm": AdapterStrategy(dangerous_mode=DangerousModeStrategy.CLI_FLAG),
+    "kimi": AdapterStrategy(dangerous_mode=DangerousModeStrategy.CLI_FLAG),
+    "rovo": AdapterStrategy(dangerous_mode=DangerousModeStrategy.CLI_FLAG),
+    "letta_code": AdapterStrategy(dangerous_mode=DangerousModeStrategy.CLI_FLAG),
+    # Codex drives unattended via its sandbox/full-auto flag.
+    "codex": AdapterStrategy(dangerous_mode=DangerousModeStrategy.CLI_FLAG),
+    # Everyone else - no native resume, text-signal channel. Dangerous-mode
+    # default is ``UNSUPPORTED`` until an adapter declares otherwise.
+    "aichat": AdapterStrategy(),
+    "aider": AdapterStrategy(),
+    "amp": AdapterStrategy(),
+    "auggie": AdapterStrategy(),
+    "autohand": AdapterStrategy(),
+    "clm": AdapterStrategy(),
+    "cloudflare": AdapterStrategy(event_channel=EventChannel.HOOKS),
+    "codebuff": AdapterStrategy(),
+    "cody": AdapterStrategy(),
+    "composio": AdapterStrategy(event_channel=EventChannel.HOOKS),
+    "continue": AdapterStrategy(),
+    "copilot": AdapterStrategy(),
+    "devin_terminal": AdapterStrategy(event_channel=EventChannel.POLL_PTY),
+    "droid": AdapterStrategy(),
+    "forge": AdapterStrategy(),
+    "generic": AdapterStrategy(),
+    "goose": AdapterStrategy(),
+    "gptme": AdapterStrategy(),
+    "hermes": AdapterStrategy(),
+    "iac": AdapterStrategy(),
+    "junie": AdapterStrategy(),
+    "kilo": AdapterStrategy(),
+    "kiro": AdapterStrategy(),
+    "mistral": AdapterStrategy(),
+    "mock": AdapterStrategy(),
+    "ollama": AdapterStrategy(),
+    "open_interpreter": AdapterStrategy(),
+    "opencode": AdapterStrategy(),
+    "openhands": AdapterStrategy(),
+    "pi": AdapterStrategy(),
+    "plandex": AdapterStrategy(),
+    "q_dev": AdapterStrategy(),
+    "qwen": AdapterStrategy(),
+    "ralphex": AdapterStrategy(),
 }
 
 
-def resume_capability(adapter_name: str) -> str:
-    """Return the declared resume capability for ``adapter_name``.
+#: Maps the session-namespace form of an adapter (the lower-cased
+#: :meth:`CLIAdapter.name`) to its registry key, for the adapters whose
+#: human-readable name does not match the key the matrix is declared under.
+#: This keeps :meth:`CLIAdapter.strategy` free of any registry import (which
+#: would break the ``adapters-independent`` import-linter contract) while
+#: still resolving the correct row. Adapters whose ``name()`` already lowers
+#: to their registry key need no entry here.
+_NAMESPACE_ALIASES: dict[str, str] = {
+    "claude code": "claude",
+    "cloudflare agents": "cloudflare",
+    "composio agent orchestrator": "composio",
+    "continue.dev": "continue",
+    "github copilot": "copilot",
+    "generic cli": "generic",
+    "hermes agent": "hermes",
+    "iac (terraform/pulumi)": "iac",
+    "letta code": "letta_code",
+    "mistral vibe": "mistral",
+    "ollama (local)": "ollama",
+    "open interpreter": "open_interpreter",
+    "openai agents sdk": "openai_agents",
+    "qwen cli": "qwen",
+    "rovo dev": "rovo",
+}
 
+
+def strategy_for(adapter_name: str) -> AdapterStrategy:
+    """Return the declared :class:`AdapterStrategy` for ``adapter_name``.
+
+    Accepts either a registry key (``"claude"``) or the session-namespace
+    form (``"claude code"``); the latter is mapped through
+    :data:`_NAMESPACE_ALIASES` first. Unknown adapters fall back to
+    :data:`DEFAULT_ADAPTER_STRATEGY`, which is conservative on every axis (no
+    native resume, dangerous mode unsupported, text-signal event channel).
+    """
+    key = _NAMESPACE_ALIASES.get(adapter_name, adapter_name)
+    return STRATEGY_MATRIX.get(key, DEFAULT_ADAPTER_STRATEGY)
+
+
+def undeclared_strategies(adapter_names: list[str]) -> list[str]:
+    """Return the subset of ``adapter_names`` with no row in the matrix.
+
+    The conformance harness passes the registry's adapter names; a non-empty
+    result is a hard failure (issue #1627 AC #2): every shipped adapter must
+    declare its strategy on each axis.
+    """
+    return sorted(name for name in adapter_names if name not in STRATEGY_MATRIX)
+
+
+def strategy_table(adapter_names: list[str] | None = None) -> list[StrategyRow]:
+    """Return one row per adapter for the operator-facing strategy table.
+
+    Each row is a :class:`StrategyRow` (``adapter`` plus the three axes).
+    Rows are sorted by adapter name so operators can compare adapters at a
+    glance (issue #1627 AC #4). When ``adapter_names`` is ``None`` the full
+    matrix is rendered.
+    """
+    names = sorted(adapter_names) if adapter_names is not None else sorted(STRATEGY_MATRIX)
+    rows: list[StrategyRow] = []
+    for name in names:
+        row: StrategyRow = {"adapter": name, **strategy_for(name).to_dict()}
+        rows.append(row)
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# Resume-capability back-compat shim (feat-resume-from-checkpoint)
+# ---------------------------------------------------------------------------
+#
+# The resume axis used to be a standalone two-state string matrix. It is now
+# derived from :data:`STRATEGY_MATRIX` so there is a single source of truth.
+# The string constants and :func:`resume_capability` are retained verbatim so
+# ``bernstein resume`` and the lifecycle env var keep their stable contract.
+
+#: Adapter has no native resume; the CLI falls back to a fresh session.
+RESUME_FALLBACK_FRESH: str = "fallback-fresh"
+
+#: Adapter reattaches to the prior session via a provider-side session id.
+RESUME_NATIVE: str = "native"
+
+
+def resume_capability(adapter_name: str) -> str:
+    """Return the legacy two-state resume capability for ``adapter_name``.
+
+    Derived from :data:`STRATEGY_MATRIX`: any :class:`ResumeStrategy` other
+    than :attr:`ResumeStrategy.UNSUPPORTED` maps to :data:`RESUME_NATIVE`.
     Unknown adapters default to :data:`RESUME_FALLBACK_FRESH`.
     """
-    return RESUME_CAPABILITY_MATRIX.get(adapter_name, RESUME_FALLBACK_FRESH)
+    strategy = strategy_for(adapter_name)
+    if strategy.resume is ResumeStrategy.UNSUPPORTED:
+        return RESUME_FALLBACK_FRESH
+    return RESUME_NATIVE
+
+
+#: Legacy two-state view of the resume axis rendered as ``adapter ->
+#: capability``. Derived from :data:`STRATEGY_MATRIX` for back-compat with
+#: callers that imported the dict directly. Adapters absent are assumed
+#: :data:`RESUME_FALLBACK_FRESH`.
+RESUME_CAPABILITY_MATRIX: dict[str, str] = {name: resume_capability(name) for name in STRATEGY_MATRIX}

@@ -407,6 +407,16 @@ class CLIAdapter(ABC):
     #: the dispatch loop falls back to plain process-exit detection.
     supports_session_log_watch: bool = False
 
+    #: Per-adapter strategy declaration across the three axes defined in
+    #: :mod:`bernstein.adapters._contract` - resume, dangerous-mode, and
+    #: event-channel. Left ``None`` here so the canonical declaration lives
+    #: in ``STRATEGY_MATRIX`` keyed by registry name; subclasses MAY override
+    #: with an inline :class:`~bernstein.adapters._contract.AdapterStrategy`
+    #: to keep the declaration next to the implementation. Read it through
+    #: :meth:`strategy`, never directly - that resolver applies the matrix
+    #: fallback so undeclared adapters still get a conservative default.
+    strategy_override: Any = None
+
     def __init__(self) -> None:
         self._resource_limits: ResourceLimits | None = None
         self._rate_limit_meter: RateLimitMeter | None = None
@@ -829,6 +839,36 @@ class CLIAdapter(ABC):
         if self.registry_name:
             return self.registry_name
         return self.name().strip().lower() or type(self).__name__
+
+    def strategy(self) -> Any:
+        """Return this adapter's resolved :class:`AdapterStrategy`.
+
+        Resolution order:
+
+        1. An inline :attr:`strategy_override` set by the subclass, if any.
+        2. The row in
+           :data:`bernstein.adapters._contract.STRATEGY_MATRIX` keyed by the
+           adapter's registry namespace (:meth:`_derive_session_namespace`,
+           with a small alias table covering adapters whose ``name()`` does
+           not match their registry key).
+        3. The conservative
+           :data:`bernstein.adapters._contract.DEFAULT_ADAPTER_STRATEGY`.
+
+        The orchestrator dispatches off the returned enum fields (resume,
+        dangerous-mode, event-channel) instead of branching on the adapter
+        name. The return type is declared as ``object`` so subclasses are not
+        forced to import the contract module just to read the attribute.
+
+        Resolution stays inside :mod:`bernstein.adapters._contract` so this
+        module never imports the registry: that would make every adapter
+        transitively depend on every other adapter and break the
+        ``adapters-independent`` import-linter contract.
+        """
+        from bernstein.adapters._contract import AdapterStrategy, strategy_for
+
+        if isinstance(self.strategy_override, AdapterStrategy):
+            return self.strategy_override
+        return strategy_for(self._derive_session_namespace())
 
     def session_id_args(self, conversation_id: str) -> list[str]:
         """Return spawn-time argv for binding a deterministic session id.

@@ -1289,7 +1289,8 @@ def claim_and_spawn_batches(
     # group_by_role so no role is permanently delayed.
     _starving_roles: set[str] = {b[0].role for b in batches if b and _alive_per_role[b[0].role] == 0}
     if _starving_roles:
-        batches.sort(key=lambda b: 0 if (b and b[0].role in _starving_roles) else 1)
+        # Avoid in-place .sort(): batches is caller-owned. Rebind locally.
+        batches = sorted(batches, key=lambda b: 0 if (b and b[0].role in _starving_roles) else 1)
         logger.debug(
             "Starvation prevention: %d role(s) with 0 agents promoted to front: %s",
             len(_starving_roles),

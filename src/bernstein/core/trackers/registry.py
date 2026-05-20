@@ -150,7 +150,8 @@ class TrackerRegistry:
             summary=summary,
             source=source,
             provenance=provenance,
-            capabilities=capabilities,
+            # Normalize caller-supplied iterables to an immutable tuple.
+            capabilities=tuple(capabilities),
         )
         self._entries[name] = entry
         return entry

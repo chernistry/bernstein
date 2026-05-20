@@ -24,6 +24,7 @@ from typing_extensions import TypedDict
 from bernstein.core.defaults import TASK as _TASK_DEFAULTS
 from bernstein.core.hook_events import HookEvent
 from bernstein.core.persistence.runtime_state import rotate_log_file
+from bernstein.core.tasks.errors import TaskDomainError
 from bernstein.core.tasks.lifecycle import IllegalTransitionError, transition_agent, transition_task
 from bernstein.core.tasks.models import (
     AgentSession,
@@ -268,7 +269,7 @@ _EMPTY_COMPLETION_REASON = "completion missing summary"
 _PROGRESS_ROTATE_BYTES: int = 5 * 1024 * 1024
 
 
-class EmptyCompletionError(Exception):
+class EmptyCompletionError(TaskDomainError):
     """Raised when ``complete()`` is called with an empty ``result_summary``.
 
     Before raising, ``complete()`` auto-transitions the task to ``FAILED``

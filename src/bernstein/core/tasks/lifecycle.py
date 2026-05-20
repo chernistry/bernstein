@@ -15,6 +15,7 @@ import time
 from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Literal
 
+from bernstein.core.tasks.errors import TaskDomainError
 from bernstein.core.tasks.models import AbortReason, AgentSession, LifecycleEvent, Task, TaskStatus, TransitionReason
 
 if TYPE_CHECKING:
@@ -59,7 +60,7 @@ class _LRUSet:
 _seen_transition_ids = _LRUSet(_SEEN_TRANSITION_IDS_MAX)
 
 
-class DuplicateTransitionError(Exception):
+class DuplicateTransitionError(TaskDomainError):
     """Raised when a transition_id has already been applied."""
 
     def __init__(self, transition_id: str) -> None:
@@ -118,7 +119,7 @@ def _content_hash(data: Any) -> str:
 # ---------------------------------------------------------------------------
 
 
-class IllegalTransitionError(Exception):
+class IllegalTransitionError(TaskDomainError):
     """Raised when a status transition is not in the allowed table."""
 
     def __init__(self, entity_type: str, entity_id: str, from_status: str, to_status: str) -> None:

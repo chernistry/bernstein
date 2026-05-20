@@ -11,7 +11,9 @@ Schema (``schema_version=1``)::
         "schema_version": 1,
         "ts": 1700000000.123,
         "decision_id": "dec-...",
-        "kind": "model_route" | "mode_profile" | "criterion_profile" | "gate_fire" | "autoheal_strategy",
+        "kind": "model_route" | "mode_profile" | "criterion_profile"
+                | "gate_fire" | "autoheal_strategy" | "tier3_shadow"
+                | "cordon_violation" | "recurrence_escalation",
         "chosen": "<winner id>",
         "alternatives": [{"id": "...", "score": 0.0, "reason": "..."}, ...],
         "confidence": 0.0 .. 1.0,
@@ -74,7 +76,7 @@ new version in tests/unit/test_decision_log.py::test_schema_version.
 MAX_ALTERNATIVES: int = 64
 """Maximum number of alternative candidates persisted per record.
 
-Anything beyond this is dropped silently — the routing path always
+Anything beyond this is dropped silently - the routing path always
 fits comfortably under this cap; the bound exists to defend against
 pathological policy bugs."""
 
@@ -88,6 +90,9 @@ VALID_KINDS: frozenset[str] = frozenset(
         "criterion_profile",
         "gate_fire",
         "autoheal_strategy",
+        "tier3_shadow",
+        "cordon_violation",
+        "recurrence_escalation",
     }
 )
 """Decision kinds known to the schema.
@@ -99,6 +104,14 @@ documented in the module docstring before they are emitted.
 * ``autoheal_strategy`` is emitted by ``core.autoheal.wire`` so heal
   actions appear alongside routing / profile / gate decisions in the
   same operator surface (``bernstein decisions tail``).
+* ``tier3_shadow`` / ``cordon_violation`` / ``recurrence_escalation``
+  are emitted by ``core.autofix.tier3`` for the OpenRouter free-tier
+  shadow-mode self-driving CI escalation. ``tier3_shadow`` records a
+  captured (but not pushed) patch; ``cordon_violation`` records a
+  refusal because the patch touched out-of-cordon paths;
+  ``recurrence_escalation`` records the hand-off to Tier-4 (operator
+  notification) when the same failure class / test nodeid has been
+  fixed too often in the recurrence window.
 """
 
 ENV_DISABLE = "BERNSTEIN_DECISION_LOG"
@@ -253,7 +266,7 @@ def _clamp_alternatives(alts: Iterable[Alternative]) -> tuple[Alternative, ...]:
     """Truncate alternatives to :data:`MAX_ALTERNATIVES`.
 
     The cap exists to defend the writer against pathological policies
-    that might produce thousands of candidates. We keep the first N —
+    that might produce thousands of candidates. We keep the first N -
     well-behaved callers always pass small lists ordered by descending
     score so the truncation is harmless when it does fire.
     """

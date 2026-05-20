@@ -62,9 +62,20 @@ def test_schema_version_is_one() -> None:
 
 
 def test_valid_kinds_closed_set() -> None:
-    """v1+autoheal vocabulary is exactly these five kinds."""
+    """v1+autoheal+tier3 vocabulary is exactly these eight kinds."""
     assert (
-        frozenset({"model_route", "mode_profile", "criterion_profile", "gate_fire", "autoheal_strategy"})
+        frozenset(
+            {
+                "model_route",
+                "mode_profile",
+                "criterion_profile",
+                "gate_fire",
+                "autoheal_strategy",
+                "tier3_shadow",
+                "cordon_violation",
+                "recurrence_escalation",
+            }
+        )
         == dl.VALID_KINDS
     )
 

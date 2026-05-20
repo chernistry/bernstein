@@ -16,7 +16,7 @@ name: "Bernstein CI Fix"
 #   - Recursion guard: skips when the failing run was itself an `auto-heal:` PR.
 #   - Feature flag `BERNSTEIN_CI_FIX_ENABLED` (repo variable) gates the whole
 #     workflow so it stays off until explicitly enabled per environment.
-#   - No `actions: write` permission — auto-heal cannot trigger more
+#   - No `actions: write` permission - auto-heal cannot trigger more
 #     workflows recursively.
 on:
   workflow_call:
@@ -47,6 +47,13 @@ on:
           Gemini API key used by the bernstein-ci-fix triage agent.
           Optional - jobs that need it gate on a non-empty value at
           step level.
+        required: false
+      OPENROUTER_API_KEY_FREE:
+        description: >-
+          OpenRouter free-tier API key used by the Tier-3 shadow-mode
+          escalation (issue #1711). Optional - the Tier-3 job gates
+          on the BERNSTEIN_CI_SELF_DRIVE feature flag, so this secret
+          is only consulted when the flag is set to "tier3".
         required: false
 
 # Workflow-level permissions are minimal; each job below declares
@@ -118,7 +125,7 @@ jobs:
             --jq '.[0].number // ""' 2>/dev/null || echo "")
           if [ -n "$EXISTING" ]; then
             echo "existing_pr=$EXISTING" >> "$GITHUB_OUTPUT"
-            echo "::notice::Auto-heal PR #$EXISTING already exists for $BRANCH_NAME — skipping."
+            echo "::notice::Auto-heal PR #$EXISTING already exists for $BRANCH_NAME - skipping."
           else
             echo "existing_pr=" >> "$GITHUB_OUTPUT"
           fi
@@ -143,7 +150,7 @@ jobs:
           #   - Dead code (Vulture)            (unused vars/imports)
           #   - Test (...)                     (contract-drift fixtures only,
           #                                     guarded by a strict max-LOC cap
-          #                                     downstream — see #1273.)
+          #                                     downstream - see #1273.)
           #
           # `Test (...)` matrix legs were added so trivial contract drift
           # (e.g. "expected gui in DOCUMENTED_COMMANDS",
@@ -163,11 +170,11 @@ jobs:
           if [ -z "$FAILED" ]; then
             echo "safe_for_gemini=false" >> "$GITHUB_OUTPUT"
             echo "failed_jobs=" >> "$GITHUB_OUTPUT"
-            echo "::notice::No failed jobs detected via gh run view — falling back to issue."
+            echo "::notice::No failed jobs detected via gh run view - falling back to issue."
             exit 0
           fi
 
-          # Multi-line output via heredoc — preserve newlines for downstream readers.
+          # Multi-line output via heredoc - preserve newlines for downstream readers.
           {
             echo "failed_jobs<<EOF"
             echo "$FAILED"
@@ -178,9 +185,9 @@ jobs:
           while IFS= read -r job; do
             [ -z "$job" ] && continue
             if echo "$job" | grep -qE "$ALLOWED"; then
-              echo "::notice::'$job' — allowlisted for Gemini auto-heal."
+              echo "::notice::'$job' - allowlisted for Gemini auto-heal."
             else
-              echo "::notice::'$job' — not in allowlist, escalating to human triage."
+              echo "::notice::'$job' - not in allowlist, escalating to human triage."
               UNSAFE=1
             fi
           done <<< "$FAILED"
@@ -296,15 +303,15 @@ jobs:
           # both columns; treat those as oversized to force human review.
           if git diff HEAD --numstat | awk '{ if ($1 == "-" || $2 == "-") { exit 2 } added+=$1; removed+=$2 } END { exit (added+removed > '"$MAX_LOC"') ? 1 : 0 }'; then
             TOTAL=$(git diff HEAD --numstat | awk '{ added+=$1; removed+=$2 } END { print added+removed }')
-            echo "::notice::Auto-heal diff is ${TOTAL} LOC (cap ${MAX_LOC}) — within cap."
+            echo "::notice::Auto-heal diff is ${TOTAL} LOC (cap ${MAX_LOC}) - within cap."
             echo "within_cap=true" >> "$GITHUB_OUTPUT"
           else
             STATUS=$?
             if [ "$STATUS" = "2" ]; then
-              echo "::warning::Auto-heal diff contains binary changes — refusing to auto-PR."
+              echo "::warning::Auto-heal diff contains binary changes - refusing to auto-PR."
             else
               TOTAL=$(git diff HEAD --numstat | awk '{ added+=$1; removed+=$2 } END { print added+removed }')
-              echo "::warning::Auto-heal diff is ${TOTAL} LOC, exceeds cap ${MAX_LOC} — escalating to fallback issue."
+              echo "::warning::Auto-heal diff is ${TOTAL} LOC, exceeds cap ${MAX_LOC} - escalating to fallback issue."
             fi
             echo "within_cap=false" >> "$GITHUB_OUTPUT"
           fi
@@ -335,7 +342,7 @@ jobs:
           - Failing CI run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${RUN_ID}
           - Auto-heal branch: \`${AUTO_HEAL_BRANCH}\`
 
-          A human reviewer must verify the proposed diff before merge — the
+          A human reviewer must verify the proposed diff before merge - the
           standard required CI checks must still pass on this PR.
 
           <details>
@@ -369,6 +376,99 @@ jobs:
         id: oversized-result
         if: steps.diff.outputs.has_changes == 'true' && steps.size-check.outputs.within_cap != 'true'
         run: echo "result=oversized_diff" >> "$GITHUB_OUTPUT"
+
+  # Tier-3 OpenRouter free-tier shadow-mode escalation (issue #1711).
+  #
+  # Fires only when ALL of the following hold:
+  #   - vars.BERNSTEIN_CI_SELF_DRIVE == 'tier3'  (env-driven feature flag,
+  #     default off so the variable is unset on shared infrastructure).
+  #   - The Gemini auto-heal step (job ``fix``) produced no_changes.
+  #   - The Gemini-safe allowlist gate (job ``triage``) classified the
+  #     failure as safe (otherwise the failure class is out of scope).
+  #
+  # Shadow mode by default: this job captures the patch + lineage +
+  # decision-log row + envelope row, then exits without pushing.
+  # Setting vars.BERNSTEIN_CI_SELF_DRIVE_PROMOTE_FROM_SHADOW == '1'
+  # would flip the captured patch into an actual push; that toggle is
+  # documented as off until the shadow-week metrics review (see
+  # docs/operations/autofix-tier3.md).
+  #
+  # The cordon zones inherit the bernstein-ci-fix.yml allowlist:
+  # the Python runner enforces both the failure-class allowlist
+  # (Lint / Spelling / Workflow lint / Repo hygiene / Dead code /
+  # Test (...)) and the file-path cordon (core.autoheal.cordon plus
+  # tests/contract/contracts/*.yaml). Anything outside is a hard refusal
+  # logged as a ``cordon_violation`` decision-log row.
+  tier3-shadow:
+    name: Tier-3 OpenRouter shadow-mode escalation
+    needs: [triage, fix]
+    if: |
+      always() &&
+      vars.BERNSTEIN_CI_SELF_DRIVE == 'tier3' &&
+      needs.triage.outputs.existing_pr == '' &&
+      needs.triage.outputs.safe_for_gemini == 'true' &&
+      needs.fix.outputs.result == 'no_changes'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    env:
+      BERNSTEIN_CI_SELF_DRIVE: ${{ vars.BERNSTEIN_CI_SELF_DRIVE }}
+      BERNSTEIN_CI_SELF_DRIVE_PROMOTE_FROM_SHADOW: ${{ vars.BERNSTEIN_CI_SELF_DRIVE_PROMOTE_FROM_SHADOW }}
+      BERNSTEIN_OPENROUTER_BASE_URL: ${{ vars.BERNSTEIN_OPENROUTER_BASE_URL }}
+      BERNSTEIN_CI_AUTOHEAL_HARD_CAP_USD: ${{ vars.BERNSTEIN_CI_AUTOHEAL_HARD_CAP_USD }}
+      OPENROUTER_API_KEY_FREE: ${{ secrets.OPENROUTER_API_KEY_FREE }}
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.triage.outputs.head_sha }}
+          persist-credentials: false
+      - name: Set up Python via uv
+        uses: astral-sh/setup-uv@7edac99f961f18b581bbd960d59d049f04c0002f # v6.4.3
+        with:
+          version: latest
+      - name: Capture failing log tail
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ needs.triage.outputs.run_id }}
+        run: |
+          mkdir -p /tmp/tier3
+          gh run view "$RUN_ID" --log-failed > /tmp/tier3/logs.txt 2>&1 || true
+          tail -n 200 /tmp/tier3/logs.txt > /tmp/tier3/logs-tail.txt
+      - name: Invoke Tier-3 shadow runner
+        env:
+          FAILED_RUN_ID: ${{ needs.triage.outputs.run_id }}
+          HEAD_SHA: ${{ needs.triage.outputs.head_sha }}
+          FAILED_JOBS: ${{ needs.triage.outputs.failed_jobs }}
+        run: |
+          # The runner script wraps src.bernstein.core.autofix.tier3
+          # with the OpenRouter provider call + cordon check. Shadow
+          # outputs land under .sdd/autoheal/ in the runner workspace;
+          # they are uploaded as an artefact below for operator review.
+          uv sync --no-progress
+          uv run python scripts/run_tier3_shadow.py \
+            --failed-run-id "$FAILED_RUN_ID" \
+            --head-sha "$HEAD_SHA" \
+            --failure-class "$(echo "$FAILED_JOBS" | head -n1)" \
+            --log-tail /tmp/tier3/logs-tail.txt \
+            --sdd-dir .sdd
+      - name: Upload Tier-3 shadow artefacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: tier3-shadow-${{ needs.triage.outputs.short_sha }}
+          path: |
+            .sdd/autoheal/tier3-shadow/
+            .sdd/autoheal/ci-autoheal-envelope.jsonl
+            .sdd/autoheal/recurrence.jsonl
+            .sdd/runtime/decisions.jsonl
+          if-no-files-found: ignore
+          retention-days: 14
 
   fallback-issue:
     name: Open ci-fix issue (fallback)

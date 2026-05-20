@@ -39,6 +39,7 @@ import queue
 import threading
 import time
 import uuid
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -83,6 +84,48 @@ SENTRY_CLIENT: Final[str] = "bernstein-sidechannel/1"
 #: Sentry store-protocol version. ``7`` is the long-standing default that
 #: GlitchTip and Sentry both accept.
 SENTRY_PROTOCOL_VERSION: Final[str] = "7"
+
+#: Maximum number of events kept in the offline preview ring buffer.
+#: This buffer powers ``bernstein telemetry tail`` so operators can audit
+#: the stream offline before any network send. It is intentionally small.
+PREVIEW_BUFFER_MAXSIZE: Final[int] = 128
+
+
+_preview_buffer: deque[dict[str, Any]] = deque(maxlen=PREVIEW_BUFFER_MAXSIZE)
+_preview_lock = threading.Lock()
+
+
+def record_preview(payload: Mapping[str, Any]) -> None:
+    """Append a rendered event payload to the offline preview ring buffer.
+
+    The buffer is bounded; oldest entries are evicted automatically. It is
+    intentionally a shallow record of what ``emit`` produced before any
+    network attempt, so operators can audit the stream offline regardless
+    of whether the backend is reachable.
+    """
+    with _preview_lock:
+        _preview_buffer.append(dict(payload))
+
+
+def read_preview(n: int = 10) -> list[dict[str, Any]]:
+    """Return the most recent ``n`` rendered events from the preview buffer.
+
+    The returned list is ordered oldest-first. ``n`` is clamped to the
+    buffer's configured capacity.
+    """
+    if n <= 0:
+        return []
+    with _preview_lock:
+        snapshot = list(_preview_buffer)
+    if n >= len(snapshot):
+        return snapshot
+    return snapshot[-n:]
+
+
+def clear_preview() -> None:
+    """Drop the preview buffer. Used by tests."""
+    with _preview_lock:
+        _preview_buffer.clear()
 
 
 class Backpressure(StrEnum):
@@ -497,6 +540,11 @@ def emit(
             tags=dict(tags or {}),
             extra=dict(extra or {}),
         )
+        # Record the rendered payload in the offline preview buffer so
+        # ``bernstein telemetry tail`` can show what was queued for send,
+        # whether or not the backend was reachable.
+        with contextlib.suppress(Exception):
+            record_preview(event.to_payload())
         return target.emit(event)
     except Exception as exc:
         _LOG.debug("sidechannel: emit helper failed (suppressed): %s", exc)
@@ -508,6 +556,7 @@ __all__ = [
     "DEFAULT_QUEUE_MAXSIZE",
     "DSN_ENV",
     "FLUSH_DEADLINE_SECONDS",
+    "PREVIEW_BUFFER_MAXSIZE",
     "QUEUE_MAXSIZE_ENV",
     "Backpressure",
     "Dsn",
@@ -518,8 +567,11 @@ __all__ = [
     "SideChannelEvent",
     "SideChannelSink",
     "build_sidechannel",
+    "clear_preview",
     "emit",
     "get_sidechannel",
     "parse_dsn",
+    "read_preview",
+    "record_preview",
     "reset_sidechannel",
 ]

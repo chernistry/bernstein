@@ -163,3 +163,11 @@ and review every agent's activity in a single stream.
   follow-up.
 - The lineage chain itself stays in `core/lineage/`. Tamper detections are
   mirrored onto the side channel, but the chain is not re-implemented here.
+
+## Related: maintainer-share consent
+
+The side channel above is operator-controlled. A separate, additive consent
+flag (`share_with_maintainer`) is documented in
+[telemetry-share.md](./telemetry-share.md). That flag gates an opt-in path
+to a community-shared maintainer endpoint and is off by default. The two
+surfaces are independent.

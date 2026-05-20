@@ -61,6 +61,19 @@ drops the patch, and exits without writing a diff. The cordon-zone
 question itself stays governance, not engineering - widening it
 requires an operator-approved RFC.
 
+The cordon walks every file-pair header in the unified diff, not only
+the new-side `+++ b/<path>` line:
+
+- **Deletions.** A pure deletion has `+++ /dev/null`; the old-side
+  `--- a/<path>` is the file the patch would delete and must pass the
+  cordon. Without this the patch could delete an arbitrary
+  out-of-cordon file silently.
+- **Renames.** Both the old-side `--- a/<old>` and new-side
+  `+++ b/<new>` paths must pass the cordon. A rename that moves a
+  cordoned file outside the cordon (or pulls an out-of-cordon file
+  in) is refused. The decision-log entry records both sides under
+  `touched_paths` and the offending side(s) under `rejected_paths`.
+
 ## How to read shadow captures
 
 Every Tier-3 capture writes four artefacts under `.sdd/`:

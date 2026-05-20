@@ -26,7 +26,7 @@ covered, the gap is recorded as a follow-up rather than left undefined.
 | Transport: WebSocket | Uncommon | Not implemented | Planned |
 | Auth: anonymous | Loopback-only convenience | Allowed on loopback only; refused on non-loopback binds | Yes |
 | Auth: static bearer | Common | Constant-time bearer check; token from env or config | Yes |
-| Auth: OAuth-2 PKCE | Emerging | Discovery metadata served at `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource` when `BERNSTEIN_MCP_OAUTH_ISSUER` is set; token issuance is delegated to the configured IdP. See `src/bernstein/mcp/oauth.py` | Partial |
+| Auth: OAuth-2 PKCE | Emerging | Protected-resource metadata (RFC 9728) served at `/.well-known/oauth-protected-resource` when `BERNSTEIN_MCP_OAUTH_ISSUER` is set; the client follows `authorization_servers[0]` to the IdP's own RFC 8414 metadata. Token issuance is delegated to the configured IdP. See `src/bernstein/mcp/oauth.py` | Partial |
 | Auth: OIDC federation | Emerging | Not implemented; advertised under `auth.planned` | Planned |
 | Capability negotiation: static manifest | Standard `initialize` capabilities | Static `capabilities` object on `initialize` | Yes |
 | Capability negotiation: runtime capability cards | Less common | `bernstein://capability` resource and `capabilityCard` on `initialize`, built from live process state | Yes |
@@ -57,12 +57,14 @@ covered, the gap is recorded as a follow-up rather than left undefined.
    the FastMCP server and the streamable HTTP transport. Three orchestration
    prompts (`orchestrate_goal`, `triage_failed_tasks`, `cost_recap`) are
    rendered server-side from arguments; see `src/bernstein/mcp/prompts.py`.
-2. OAuth-2 PKCE authorization-server metadata published at the
-   `.well-known/oauth-authorization-server` discovery path on the streamable
+2. OAuth-2 PKCE protected-resource metadata (RFC 9728) published at the
+   `.well-known/oauth-protected-resource` discovery path on the streamable
    HTTP transport. The metadata is opt-in (configured via
-   `BERNSTEIN_MCP_OAUTH_ISSUER`) so a client that auto-discovers protected
-   resource metadata can locate the IdP without the server itself issuing
-   tokens; see `src/bernstein/mcp/oauth.py`.
+   `BERNSTEIN_MCP_OAUTH_ISSUER`) so a client can locate the IdP by
+   following `authorization_servers[0]` and then fetching the IdP's own
+   RFC 8414 metadata from the IdP. Bernstein does not fabricate
+   authorization-server metadata; only the IdP can publish that
+   document. See `src/bernstein/mcp/oauth.py`.
 
 ## Follow-ups (tracked, not in this pass)
 

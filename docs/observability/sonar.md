@@ -20,7 +20,7 @@ The doctor reads two env vars (identical to the CI contract):
 
 | Env var | Purpose | Example |
 |---|---|---|
-| `SONAR_HOST_URL` | Sonar server base URL | `https://sonar.bernstein.run` |
+| `SONAR_HOST_URL` | Sonar server base URL | `https://sonar.example.com` |
 | `SONAR_TOKEN` | User token with `Browse` permission on the project | (45 chars) |
 | `SONAR_PROJECT_KEY` | Optional. Defaults to `bernstein`. | `bernstein` |
 

@@ -86,20 +86,18 @@ jobs:
           VULNS: ${{ steps.query.outputs.vulnerabilities }}
           HOTSPOTS: ${{ steps.query.outputs.security_hotspots }}
           COVERAGE: ${{ steps.query.outputs.coverage }}
-          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
         with:
           script: |
             const marker = '<!-- sonar-pr-comment:smells -->';
             const prNumber = Number(process.env.PR_NUMBER);
             const status = process.env.SONAR_STATUS || '';
-            const host = (process.env.SONAR_HOST_URL || '').replace(/\/$/, '');
 
             const lines = [
               marker,
               '## Sonar insights (advisory, no merge-block)',
               '',
               status === '200'
-                ? `Snapshot of \`bernstein\` on ${host}/dashboard?id=bernstein:`
+                ? 'Snapshot of `bernstein` on the configured Sonar instance:'
                 : `Sonar query returned status ${status || 'unknown'}; this is advisory only.`,
               '',
               '| Metric | Value |',

@@ -32,7 +32,7 @@ The `.github/workflows/sbom-upload.yml` workflow:
 * triggers on `push` to `main` and on `release: published`,
 * generates a CycloneDX SBOM via `cyclonedx-bom`,
 * uploads the SBOM to a Dependency-Track instance addressed by
-  `DT_API_URL` (default `https://dt.bernstein.run`) using the
+  `DT_API_URL` (required, no default; e.g. `https://dt.example.com`) using the
   `DT_API_KEY` secret.
 
 The upload step is gated on both `DT_API_URL` and `DT_API_KEY` being

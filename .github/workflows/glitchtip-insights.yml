@@ -20,9 +20,9 @@ on:
         required: false
         default: "bernstein"
       base_url:
-        description: "GlitchTip base URL (default: https://errors.bernstein.run)"
+        description: "GlitchTip base URL (e.g. https://errors.example.com). Defaults to vars.GLITCHTIP_BASE_URL."
         required: false
-        default: "https://errors.bernstein.run"
+        default: ""
 
 permissions:
   contents: read
@@ -34,7 +34,7 @@ concurrency:
 
 env:
   GLITCHTIP_API_TOKEN: ${{ secrets.GLITCHTIP_API_TOKEN }}
-  GLITCHTIP_BASE_URL: ${{ github.event.inputs.base_url || 'https://errors.bernstein.run' }}
+  GLITCHTIP_BASE_URL: ${{ github.event.inputs.base_url || vars.GLITCHTIP_BASE_URL }}
   GLITCHTIP_ORG: ${{ github.event.inputs.org_slug || 'bernstein' }}
   GLITCHTIP_LABEL: glitchtip-alert
 

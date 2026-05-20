@@ -128,10 +128,7 @@ class Classification:
 
 def _matches(text: str, patterns: tuple[str, ...]) -> tuple[str, ...]:
     """Return the subset of ``patterns`` that fire against ``text``."""
-    found: list[str] = []
-    for pattern in patterns:
-        if re.search(pattern, text, re.IGNORECASE):
-            found.append(pattern)
+    found = [pattern for pattern in patterns if re.search(pattern, text, re.IGNORECASE)]
     return tuple(found)
 
 

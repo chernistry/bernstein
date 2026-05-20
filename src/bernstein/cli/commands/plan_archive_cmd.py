@@ -87,8 +87,7 @@ def plan_show(plan_id: str) -> None:
     The id is the filename stem (e.g. ``2026-04-23-strategic-300``).
     Active plans are looked up by their original filename stem.
     """
-    lifecycle = _resolve_lifecycle()
-    found = lifecycle.find(plan_id)
+    found = _resolve_lifecycle().find(plan_id)
     if found is None:
         console.print(f"[red]No plan with id {plan_id!r} found.[/red]")
         raise SystemExit(1)

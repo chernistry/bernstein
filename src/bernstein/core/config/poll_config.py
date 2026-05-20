@@ -166,7 +166,7 @@ def validate_poll_config(raw: dict[str, object]) -> PollConfig:
         errors.extend(_validate_interval(watchdog_interval_ms, "watchdog_interval_ms"))
 
     # --- Liveness invariant -------------------------------------------------
-    if heartbeat_interval_ms is None and watchdog_interval_ms is None:
+    if heartbeat_interval_ms is watchdog_interval_ms is None:
         errors.append(
             "at least one liveness mechanism must be enabled: set heartbeat_interval_ms or watchdog_interval_ms"
         )

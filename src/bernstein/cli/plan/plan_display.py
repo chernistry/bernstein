@@ -355,8 +355,7 @@ class _PlanRenderer:
         )
 
         # Created timestamp
-        created = datetime.datetime.fromtimestamp(plan.created_at, tz=datetime.UTC)
-        created_str = created.strftime("%Y-%m-%d %H:%M UTC")
+        created_str = datetime.datetime.fromtimestamp(plan.created_at, tz=datetime.UTC).strftime("%Y-%m-%d %H:%M UTC")
         self._add(
             _box_row(
                 f"[{C_WHITE}]Created:[/{C_WHITE}] [{C_DIM}]{created_str}[/{C_DIM}]",
@@ -403,8 +402,7 @@ class _PlanRenderer:
 
     def _task_table(self) -> None:
         """Task list inner box with table layout."""
-        plan = self.plan
-        estimates = plan.task_estimates
+        estimates = self.plan.task_estimates
         if not estimates:
             return
 
@@ -527,8 +525,7 @@ def render_plan(
         console = Console()
 
     width = min(console.size.width, 100)
-    renderer = _PlanRenderer(plan, tasks, width)
-    lines = renderer.build()
+    lines = _PlanRenderer(plan, tasks, width).build()
     markup = "\n".join(lines)
 
     console.print(Text.from_markup(markup))

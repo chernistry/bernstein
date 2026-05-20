@@ -323,12 +323,10 @@ class CoverageGate:
             raise RuntimeError(f"Failed to read coverage report: {exc}") from exc
         if not isinstance(raw, dict):
             raise RuntimeError("Coverage report has invalid structure")
-        data = cast("dict[str, object]", raw)
-        totals = data.get("totals")
+        totals = cast("dict[str, object]", raw).get("totals")
         if not isinstance(totals, dict):
             raise RuntimeError("Coverage report missing totals")
-        totals_map = cast("dict[str, object]", totals)
-        percent_covered = totals_map.get("percent_covered")
+        percent_covered = cast("dict[str, object]", totals).get("percent_covered")
         if isinstance(percent_covered, (int, float, str)):
             try:
                 return float(percent_covered)

@@ -286,8 +286,7 @@ class RunReconciler:
         run: dict[str, Any],
         plan_spec: dict[str, Any],
     ) -> None:
-        status = run.get("status", {})
-        stages_status = status.get("stages", [])
+        stages_status = run.get("status", {}).get("stages", [])
         plan_stages = plan_spec.get("stages", [])
         spec = run.get("spec", {})
         max_retries = spec.get("maxRetries", 2)

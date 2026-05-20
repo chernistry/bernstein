@@ -152,8 +152,7 @@ def _ensure_managed_block(config: dict[str, Any]) -> dict[str, Any]:
 
 def list_installed(path: Path) -> list[InstalledEntry]:
     """List catalog-installed entries from the user config."""
-    config = _load_raw(path)
-    block = config.get(BERNSTEIN_MANAGED_KEY)
+    block = _load_raw(path).get(BERNSTEIN_MANAGED_KEY)
     if not isinstance(block, dict):
         return []
     servers = block.get(SERVERS_KEY)

@@ -66,8 +66,7 @@ def _sync_local_definitions(definitions_path: Path, registry_cls: type) -> None:
         console.print(f"  [yellow]Directory does not exist:[/yellow] {definitions_path}")
         console.print(f"  [dim]Create it with: mkdir -p {definitions_path}[/dim]")
         return
-    registry = registry_cls(definitions_dir=definitions_path)
-    loaded = registry.load_definitions()
+    loaded = registry_cls(definitions_dir=definitions_path).load_definitions()
     console.print(f"  [green]✓[/green] Loaded {len(loaded)} agent definition(s)")
     for defn in loaded:
         console.print(f"    [dim]{defn.name}[/dim] v{defn.version} ({defn.role})")
@@ -520,8 +519,7 @@ def agents_match(role: str, task_description: str) -> None:
     t.append("  Priority  ", style="dim")
     t.append(f"{match.priority}\n")
     t.append("  Tools     ", style="dim")
-    t.append(", ".join(match.tools) if match.tools else "—")
-    t.append("\n\n")
+    t.extend((", ".join(match.tools) if match.tools else "—", "\n\n"))
     t.append("  Description\n", style="dim")
     t.append(f"    {match.description[:120]}\n")
 

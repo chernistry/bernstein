@@ -144,8 +144,7 @@ class SessionPlayer:
 
 def summarize_recording(recording_path: Path) -> RecordingSummary | None:
     """Build a compact summary for a recording JSONL file."""
-    player = SessionPlayer(recording_path)
-    frames = player.load_frames()
+    frames = SessionPlayer(recording_path).load_frames()
     if not frames:
         return None
     try:

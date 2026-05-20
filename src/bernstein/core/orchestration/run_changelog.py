@@ -452,7 +452,7 @@ def generate_run_changelog(
     Returns:
         A :class:`RunChangelog` with all changes grouped by component.
     """
-    if since_hours is None and since_ref is None:
+    if since_hours is since_ref is None:
         since_hours = 24.0
 
     since_ts = time.time() - (since_hours * 3600) if since_hours else 0.0

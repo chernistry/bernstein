@@ -36,8 +36,7 @@ def _get_tracker(request: Request) -> SLOTracker:
 @router.get("/slo")
 def get_slo_status(request: Request) -> JSONResponse:
     """Return current SLO dashboard data."""
-    tracker = _get_tracker(request)
-    dashboard = tracker.get_dashboard()
+    dashboard = _get_tracker(request).get_dashboard()
     return JSONResponse(dashboard)
 
 

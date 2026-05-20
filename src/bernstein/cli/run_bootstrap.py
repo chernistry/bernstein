@@ -748,7 +748,7 @@ def _wait_for_run_completion(
             open_count = int(status_payload.get("open", 0) or 0)
             claimed_count = int(status_payload.get("claimed", 0) or 0)
             agent_count = int(health_payload.get("agent_count", 0) or 0)
-            if total > 0 and open_count == 0 and claimed_count == 0 and agent_count == 0:
+            if total > 0 and open_count == claimed_count == 0 and (agent_count == 0):
                 return status_payload
         time.sleep(poll_interval_s)
     return last_status

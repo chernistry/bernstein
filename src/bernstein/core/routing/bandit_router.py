@@ -505,7 +505,7 @@ def _validate_raw_matrices(
     raw_mat = raw_data.get("A")
     raw_vec = raw_data.get("b", {})
 
-    if raw_inv is None and raw_mat is None:
+    if raw_inv is raw_mat is None:
         logger.info("BanditPolicy: resetting %s because policy matrices are missing", path)
         return None
     if raw_inv is not None and not isinstance(raw_inv, dict):

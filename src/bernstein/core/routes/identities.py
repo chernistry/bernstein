@@ -72,8 +72,7 @@ def list_identities(
 @router.get("/identities/{identity_id}", responses={404: {"description": "Identity not found"}})
 def get_identity(request: Request, identity_id: str) -> JSONResponse:
     """Get details for a single agent identity."""
-    store = _identity_store(request)
-    identity = store.get(identity_id)
+    identity = _identity_store(request).get(identity_id)
     if identity is None:
         raise HTTPException(status_code=404, detail=f"Identity {identity_id!r} not found")
 
@@ -111,8 +110,7 @@ async def revoke_identity(request: Request, identity_id: str) -> JSONResponse:
 @router.get("/identities/{identity_id}/audit")
 def identity_audit(request: Request, identity_id: str, limit: int = 100) -> JSONResponse:
     """Return the audit trail for an agent identity."""
-    store = _identity_store(request)
-    events = store.get_audit_trail(identity_id, limit=limit)
+    events = _identity_store(request).get_audit_trail(identity_id, limit=limit)
     return JSONResponse(
         {
             "identity_id": identity_id,

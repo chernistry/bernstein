@@ -798,8 +798,7 @@ class BernsteinApp(App[None]):
         from bernstein.core.traces import TraceStore, group_trace_steps_into_batches
 
         traces_dir = Path(".sdd/traces")
-        store = TraceStore(traces_dir)
-        traces = store.list_traces(limit=1)
+        traces = TraceStore(traces_dir).list_traces(limit=1)
         if not traces:
             return
         latest = traces[0]
@@ -1085,8 +1084,9 @@ class BernsteinApp(App[None]):
 
     def _refresh_notification_center(self) -> None:
         """Render the latest notification history into the side panel."""
-        panel = self.query_one("#notification-center", NotificationCenterPanel)
-        panel.set_history(self._notifications.get_history(limit=5), self._notifications.get_unread_count())
+        self.query_one("#notification-center", NotificationCenterPanel).set_history(
+            self._notifications.get_history(limit=5), self._notifications.get_unread_count()
+        )
 
     @staticmethod
     def _count_active_agents() -> int:

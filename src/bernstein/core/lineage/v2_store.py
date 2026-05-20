@@ -658,8 +658,7 @@ def _ns_to_iso(ts_ns: int) -> str:
 
     if ts_ns <= 0:
         return "1970-01-01T00:00:00Z"
-    dt = _dt.datetime.fromtimestamp(ts_ns / 1_000_000_000, tz=_dt.UTC)
-    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return _dt.datetime.fromtimestamp(ts_ns / 1_000_000_000, tz=_dt.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _parent_ref_from_dict(payload: dict[str, Any]) -> ParentRef:

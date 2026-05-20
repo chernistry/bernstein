@@ -137,8 +137,7 @@ def _start_tunnel(port: int, provider: str) -> TunnelHandle:
     The caller is responsible for tearing the tunnel down (SIGTERM on the
     handle's PID + registry destroy).
     """
-    reg = _build_tunnel_registry()
-    return reg.create(port=port, provider=provider)
+    return _build_tunnel_registry().create(port=port, provider=provider)
 
 
 def _stop_tunnel(name: str) -> None:

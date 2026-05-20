@@ -233,8 +233,7 @@ def task_trace(
     valid task with no trace returns 200 + an empty events list (the FE
     renders an empty-state card in that case).
     """
-    store = _get_store(request)
-    task = store.get_task(task_id)
+    task = _get_store(request).get_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
 

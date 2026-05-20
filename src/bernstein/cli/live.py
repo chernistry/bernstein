@@ -190,11 +190,9 @@ class LiveView:
         tasks_table = _build_tasks_table(tasks)
 
         # Progress + cost
-        progress = TaskProgressBar()
-        progress_text = progress.render(summary)
+        progress_text = TaskProgressBar().render(summary)
 
-        cost_panel = CostBurnPanel()
-        cost_renderable = cost_panel.render(
+        cost_renderable = CostBurnPanel().render(
             total_cost, elapsed, budget_usd=budget_usd, per_model=per_model, per_agent=per_agent
         )
 

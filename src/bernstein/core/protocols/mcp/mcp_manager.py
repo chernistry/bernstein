@@ -597,7 +597,7 @@ class MCPManager:
         """
         task_config = self.build_mcp_config(server_names=task_mcp_servers)
 
-        if base_config is None and task_config is None:
+        if base_config is task_config is None:
             return None
         if base_config is None:
             return task_config

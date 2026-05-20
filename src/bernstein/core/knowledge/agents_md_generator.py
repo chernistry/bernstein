@@ -248,10 +248,7 @@ def generate(repo_path: Path, options: GenerateOptions | None = None) -> list[Ag
         ("documentation-duty", _build_documentation_duty()),
     ]
 
-    sections: list[AgentsMdSection] = []
-    for _key, sec in builders:
-        if sec is not None:
-            sections.append(sec)  # type: ignore[arg-type]
+    sections = [sec for _key, sec in builders if sec is not None]
 
     sections.extend(_build_overlay_sections(repo_path, opts))
     return sections
@@ -892,8 +889,7 @@ def _parse_pyproject_scripts(pyproj: Path) -> dict[str, str]:
         data = tomllib.loads(pyproj.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         return {}
-    project = data.get("project", {})
-    scripts = project.get("scripts", {})
+    scripts = data.get("project", {}).get("scripts", {})
     return {str(k): str(v) for k, v in scripts.items()} if isinstance(scripts, dict) else {}
 
 

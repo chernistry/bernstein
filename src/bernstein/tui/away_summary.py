@@ -108,10 +108,7 @@ def _fetch_task_completion_events(workdir: Path, since_ts: float) -> list[dict[s
     tasks_jsonl = workdir / ".sdd" / "runtime" / "tasks.jsonl"
     if not tasks_jsonl.exists():
         return []
-    records: list[dict[str, Any]] = []
-    for rec in _read_jsonl(tasks_jsonl, since_ts):
-        if rec.get("status") in {"done", "failed"}:
-            records.append(rec)
+    records = [rec for rec in _read_jsonl(tasks_jsonl, since_ts) if rec.get("status") in {"done", "failed"}]
     return records
 
 

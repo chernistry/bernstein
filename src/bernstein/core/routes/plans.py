@@ -69,8 +69,7 @@ def list_plans(request: Request, status: str | None = None) -> list[dict[str, An
 )
 def get_plan(request: Request, plan_id: str) -> dict[str, Any]:
     """Get a single plan by ID."""
-    store = _get_plan_store(request)
-    plan = store.get_plan(plan_id)
+    plan = _get_plan_store(request).get_plan(plan_id)
     if plan is None:
         raise HTTPException(status_code=404, detail=f"Plan {plan_id} not found")
     return plan.to_dict()

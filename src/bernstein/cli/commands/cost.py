@@ -86,7 +86,7 @@ def _count_task_status(task_records: list[dict[str, Any]]) -> tuple[int, int]:
     done = sum(1 for r in seen.values() if r.get("status") == "done")
     failed = sum(1 for r in seen.values() if r.get("status") == "failed")
     # If status not recorded, fall back to presence of cost as "done"
-    if done == 0 and failed == 0 and seen:
+    if done == failed == 0 and seen:
         done = sum(1 for r in seen.values() if float(r.get("cost_usd", 0) or 0) > 0)
     return done, failed
 

@@ -162,8 +162,7 @@ def _extract_documented_params_google(docstring: str) -> set[str]:
         return set()
     args_block = args_match.group(1)
     params: set[str] = set()
-    for m in _GOOGLE_PARAM_RE.finditer(args_block):
-        params.add(m.group(1))
+    params.update(m.group(1) for m in _GOOGLE_PARAM_RE.finditer(args_block))
     return params
 
 

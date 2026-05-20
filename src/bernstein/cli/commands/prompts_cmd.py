@@ -108,8 +108,7 @@ def prompts_show(name: str) -> None:
     """
     from bernstein.core.prompt_versioning import PromptRegistry, VersionMetrics
 
-    registry = PromptRegistry(_sdd_dir())
-    meta = registry.get_meta(name)
+    meta = PromptRegistry(_sdd_dir()).get_meta(name)
 
     if meta is None:
         console.print(f"[red]Prompt [bold]{name}[/bold] not found.[/red]")
@@ -175,8 +174,7 @@ def prompts_compare(name: str, v1: int, v2: int, as_json: bool) -> None:
 
     from bernstein.core.prompt_versioning import PromptRegistry
 
-    registry = PromptRegistry(_sdd_dir())
-    result = registry.compare_versions(name, v1, v2)
+    result = PromptRegistry(_sdd_dir()).compare_versions(name, v1, v2)
 
     if result is None:
         console.print(f"[red]Cannot compare: prompt [bold]{name}[/bold] v{v1}/v{v2} not found.[/red]")

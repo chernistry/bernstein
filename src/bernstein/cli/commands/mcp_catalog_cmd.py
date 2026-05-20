@@ -238,8 +238,7 @@ def search_cmd(query: str, refresh: bool) -> None:
 @click.option("--refresh", is_flag=True, help="Skip the freshness window.")
 def info_cmd(entry_id: str, refresh: bool) -> None:
     """Show full info for a single catalog entry."""
-    service = _build_service()
-    entry = service.info(entry_id, force_refresh=refresh)
+    entry = _build_service().info(entry_id, force_refresh=refresh)
     if entry is None:
         raise click.ClickException(f"Catalog entry {entry_id!r} not found")
     console.print(f"[bold]{entry.id}[/bold] - {entry.name} ({entry.version_pin})")
@@ -375,8 +374,7 @@ def uninstall_cmd(entry_id: str) -> None:
 @catalog_group.command("status")
 def status_cmd() -> None:
     """Show cache + cadence + installed-count for ``mcp catalog``."""
-    service = _build_service()
-    status = service.status()
+    status = _build_service().status()
     console.print("[bold cyan]MCP Catalog Status[/bold cyan]")
     console.print(f"Cache:                {status.cache_path}")
     console.print(f"Last fetch:           {status.last_fetch_at or 'never'}")

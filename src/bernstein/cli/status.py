@@ -163,7 +163,7 @@ def _format_quota(snapshot: dict[str, Any]) -> str:
     tpm_obj = snapshot.get("tokens_per_minute")
     rpm = int(rpm_obj) if isinstance(rpm_obj, int) else None
     tpm = int(tpm_obj) if isinstance(tpm_obj, int) else None
-    if rpm is None and tpm is None:
+    if rpm is tpm is None:
         return "unknown"
     parts: list[str] = []
     if rpm is not None:

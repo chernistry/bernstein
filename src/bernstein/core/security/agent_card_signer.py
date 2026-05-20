@@ -142,8 +142,7 @@ def ed25519_public_jwk(public_key_pem: bytes, *, kid: str) -> dict[str, str]:
     """
     from cryptography.hazmat.primitives import serialization
 
-    public_key = serialization.load_pem_public_key(public_key_pem)
-    raw = public_key.public_bytes(
+    raw = serialization.load_pem_public_key(public_key_pem).public_bytes(
         serialization.Encoding.Raw,
         serialization.PublicFormat.Raw,
     )

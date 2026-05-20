@@ -127,8 +127,7 @@ def walk_cmd(target: str, workdir: str, run_id: str | None, limit: int) -> None:
 
     path, line = _parse_target(target)
 
-    reader = LineageReader(sdd_dir)
-    records = reader.lookup(path, line, run_id=run_id)
+    records = LineageReader(sdd_dir).lookup(path, line, run_id=run_id)
 
     if not records:
         console.print(f"[yellow]No lineage records for[/yellow] {target}")
@@ -681,8 +680,7 @@ def v2_show_cmd(task_id: str, root: Path | None, output_json: bool) -> None:
     """Reconstruct + print the full timeline for ``TASK_ID``."""
     import json as _json
 
-    store = _load_v2_store(root or _default_v2_root())
-    timeline = store.replay(task_id)
+    timeline = _load_v2_store(root or _default_v2_root()).replay(task_id)
     if output_json:
         from dataclasses import asdict
 
@@ -727,8 +725,7 @@ def v2_verify_cmd(root: Path | None, output_json: bool) -> None:
     import json as _json
     import sys
 
-    store = _load_v2_store(root or _default_v2_root())
-    result = store.verify()
+    result = _load_v2_store(root or _default_v2_root()).verify()
     if output_json:
         click.echo(
             _json.dumps(

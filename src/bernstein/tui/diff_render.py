@@ -76,8 +76,7 @@ def word_diff(
     old_tokens = _tokenize(old_line)
     new_tokens = _tokenize(new_line)
 
-    matcher = SequenceMatcher(None, old_tokens, new_tokens)
-    opcodes = matcher.get_opcodes()
+    opcodes = SequenceMatcher(None, old_tokens, new_tokens).get_opcodes()
 
     old_result: list[tuple[str, bool]] = []
     new_result: list[tuple[str, bool]] = []

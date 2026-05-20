@@ -43,9 +43,10 @@ def trace_cmd(issue_id: str, repo: str) -> None:
         issue_number = int(issue_id.lstrip("#"))
     except ValueError as exc:
         raise click.BadParameter(f"issue_id must be numeric, got {issue_id!r}") from exc
-    pipeline = IssueToPRPipeline(
-        config=IssueToPRConfig(),
-        client=IssuePRClient(),
-    )
-    trace = pipeline.trace(repo, issue_number)
+    trace = (
+        IssueToPRPipeline(
+            config=IssueToPRConfig(),
+            client=IssuePRClient(),
+        )
+    ).trace(repo, issue_number)
     console.print(trace.render())

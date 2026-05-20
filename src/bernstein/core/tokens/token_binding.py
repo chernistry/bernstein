@@ -211,10 +211,11 @@ class TokenBindingValidator:
             Number of entries removed.
         """
         now = time.time()
-        stale_jtis: list[str] = []
-        for jti, entry in self._rate_entries.items():
-            if not entry.request_timestamps or now - entry.request_timestamps[-1] > max_age_s:
-                stale_jtis.append(jti)
+        stale_jtis = [
+            jti
+            for jti, entry in self._rate_entries.items()
+            if not entry.request_timestamps or now - entry.request_timestamps[-1] > max_age_s
+        ]
 
         for jti in stale_jtis:
             del self._rate_entries[jti]

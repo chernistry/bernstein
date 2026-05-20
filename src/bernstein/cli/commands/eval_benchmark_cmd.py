@@ -559,8 +559,7 @@ def benchmark_simulate(
         baseline_path=bline,
         output_dir=output_dir,
     )
-    bench = ReproducibleBenchmark(tasks=tasks, config=config)
-    run, report = bench.run_and_compare()
+    run, report = ReproducibleBenchmark(tasks=tasks, config=config).run_and_compare()
 
     # --- Summary table ---
     table = Table(title=f"Benchmark simulation (seed={seed})", header_style=_STYLE_BOLD_CYAN, show_lines=False)
@@ -972,8 +971,7 @@ def eval_failures() -> None:
         console.print(_NO_EVAL_RUNS_MSG)
         raise SystemExit(1)
 
-    data = json_mod.loads(run_files[0].read_text(encoding="utf-8"))
-    failures = data.get("failures", [])
+    failures = json_mod.loads(run_files[0].read_text(encoding="utf-8")).get("failures", [])
 
     if not failures:
         console.print("[green]No failures in the most recent run.[/green]")
@@ -1017,8 +1015,7 @@ def eval_sync_incidents(workdir: str, dry_run: bool) -> None:
     from bernstein.eval.incident_synthesizer import IncidentSynthesizer
 
     root = Path(workdir).resolve()
-    synth = IncidentSynthesizer(root)
-    result = synth.sync(dry_run=dry_run)
+    result = IncidentSynthesizer(root).sync(dry_run=dry_run)
 
     if dry_run:
         console.print(f"[bold]Dry run[/bold]: {len(result.created)} case(s) would be created:")

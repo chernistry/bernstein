@@ -136,8 +136,7 @@ def handoff_status() -> None:
     from bernstein.core.handoff import HandoffTokenStore
 
     workdir = _DEFAULT_WORKDIR()
-    store = HandoffTokenStore(workdir)
-    tokens = store.all()
+    tokens = HandoffTokenStore(workdir).all()
     if not tokens:
         click.echo("handoff: no live tokens.")
         return
@@ -163,8 +162,7 @@ def _render_attach_banner(record: HandoffToken) -> None:
 def _replay_tail(workdir: Path, session_id: str, tail_lines: int) -> None:
     if tail_lines <= 0:
         return
-    buffer = StreamTailBuffer(workdir, session_id)
-    entries = buffer.read(limit=tail_lines)
+    entries = StreamTailBuffer(workdir, session_id).read(limit=tail_lines)
     if not entries:
         click.echo("handoff: no buffered tail to replay.")
         return

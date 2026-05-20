@@ -388,7 +388,7 @@ class MCPRegistry:
         auto_config = self.build_mcp_config(available)
 
         # Merge: base_config wins on conflicts (user explicitly configured those)
-        if base_config is None and auto_config is None:
+        if base_config is auto_config is None:
             return None
         if base_config is None:
             return auto_config

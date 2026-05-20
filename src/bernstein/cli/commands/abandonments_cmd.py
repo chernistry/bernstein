@@ -54,8 +54,7 @@ def abandonments_group() -> None:
 @click.option("--json", "json_out", is_flag=True, default=False, help="Emit machine-readable JSON.")
 def list_cmd(workdir: Path, limit: int, json_out: bool) -> None:
     """List the most recent abandonment rows (newest first)."""
-    ledger = _ledger(workdir)
-    rows = ledger.list_recent(limit=limit)
+    rows = _ledger(workdir).list_recent(limit=limit)
     if json_out or is_json():
         print_json([row.to_dict() for row in rows])
         return
@@ -97,8 +96,7 @@ def list_cmd(workdir: Path, limit: int, json_out: bool) -> None:
 @click.option("--json", "json_out", is_flag=True, default=False, help="Emit machine-readable JSON.")
 def stats_cmd(workdir: Path, json_out: bool) -> None:
     """Show abandonment roll-ups by reason / role / adapter."""
-    ledger = _ledger(workdir)
-    stats = ledger.stats()
+    stats = _ledger(workdir).stats()
     if json_out or is_json():
         print_json(stats)
         return

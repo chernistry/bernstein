@@ -131,11 +131,7 @@ class AssertionReport:
         return [r for r in self.results if not r.passed]
 
     def failed_feature_ids(self) -> list[str]:
-        seen: list[str] = []
-        for r in self.results:
-            if not r.passed and r.feature_id not in seen:
-                seen.append(r.feature_id)
-        return seen
+        return list(dict.fromkeys(r.feature_id for r in self.results if not r.passed))
 
 
 def load_contract(path: Path = DEFAULT_CONTRACT_PATH) -> FeatureContract | None:

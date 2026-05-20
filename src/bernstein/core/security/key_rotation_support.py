@@ -262,10 +262,11 @@ class AgentKeyUpdater:
         Returns:
             List of update results for each agent.
         """
-        results: list[AgentUpdateResult] = []
-        for agent_id in self._agent_env:
-            if env_var in self._agent_env[agent_id]:
-                results.append(self.update_agent(agent_id, env_var, new_value))
+        results = [
+            self.update_agent(agent_id, env_var, new_value)
+            for agent_id in self._agent_env
+            if env_var in self._agent_env[agent_id]
+        ]
         return results
 
     def get_agent_env(self, agent_id: str) -> dict[str, str] | None:

@@ -910,7 +910,7 @@ async def block_task(task_id: str, body: TaskBlockRequest, request: Request) -> 
 
 def _store_progress_snapshot(store: Any, task_id: str, body: Any) -> None:
     """Store structured snapshot for stall detection when snapshot fields are present."""
-    if body.files_changed is None and body.tests_passing is None:
+    if body.files_changed is body.tests_passing is None:
         return
     store.add_snapshot(
         task_id,
@@ -1215,8 +1215,7 @@ def task_counts(
 @router.get("/tasks/archive", responses=_TENANT_RESPONSES)
 def get_archive(request: Request, limit: int = 50, tenant: str | None = None) -> list[ArchiveRecord]:
     """Return the last N archived (done/failed) task records."""
-    store = _get_store(request)
-    return store.read_archive(limit=limit, tenant_id=_resolve_request_tenant_scope(request, tenant))
+    return _get_store(request).read_archive(limit=limit, tenant_id=_resolve_request_tenant_scope(request, tenant))
 
 
 @router.get("/tasks/graph", responses=_TENANT_RESPONSES)
@@ -1233,10 +1232,8 @@ def get_task_graph(request: Request) -> JSONResponse:
     """
     from bernstein.core.knowledge.task_graph import TaskGraph
 
-    store = _get_store(request)
-    tasks = store.list_tasks(tenant_id=_resolve_request_tenant_scope(request))
-    graph = TaskGraph(tasks)
-    data = graph.to_dict()
+    tasks = _get_store(request).list_tasks(tenant_id=_resolve_request_tenant_scope(request))
+    data = TaskGraph(tasks).to_dict()
     # Enrich nodes with title for CLI rendering
     task_map = {t.id: t for t in tasks}
     for node in data["nodes"]:
@@ -1247,8 +1244,7 @@ def get_task_graph(request: Request) -> JSONResponse:
 @router.get("/tasks/{task_id}", responses={404: {"description": "Task not found"}})
 def get_task(task_id: str, request: Request) -> TaskResponse:
     """Get a single task by ID."""
-    store = _get_store(request)
-    task = store.get_task(task_id)
+    task = _get_store(request).get_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
     _require_task_access(task, request)
@@ -1321,8 +1317,7 @@ def get_task_graph_neighbors(task_id: str, request: Request) -> dict[str, Any]:
 )
 def get_task_gates(task_id: str, request: Request) -> JSONResponse:
     """Return the persisted quality-gate report for a task."""
-    store = _get_store(request)
-    task = store.get_task(task_id)
+    task = _get_store(request).get_task(task_id)
     if task is None:
         raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found")
     _require_task_access(task, request)
@@ -1464,8 +1459,7 @@ def agent_kill(session_id: str, request: Request) -> AgentKillResponse:
     runtime_dir = _get_runtime_dir(request)
     sse_bus = _get_sse_bus(request)
     runtime_dir.mkdir(parents=True, exist_ok=True)
-    kill_path = runtime_dir / f"{session_id}.kill"
-    kill_path.write_text(str(time.time()))
+    (runtime_dir / f"{session_id}.kill").write_text(str(time.time()))
     sse_bus.publish(
         "session_kill",
         json.dumps({"session_id": session_id}),
@@ -1545,8 +1539,7 @@ def post_bulletin(body: BulletinPostRequest, request: Request) -> BulletinMessag
     stored = bulletin.post(msg)
 
     # Broadcast to SSE bus
-    sse_bus = _get_sse_bus(request)
-    sse_bus.publish(
+    _get_sse_bus(request).publish(
         "bulletin",
         json.dumps(
             {
@@ -1571,8 +1564,7 @@ def post_bulletin(body: BulletinPostRequest, request: Request) -> BulletinMessag
 @router.get("/bulletin")
 def get_bulletin(request: Request, since: float = 0.0) -> list[BulletinMessageResponse]:
     """Get bulletin messages since a given timestamp."""
-    bulletin = _get_bulletin(request)
-    messages = bulletin.read_since(since)
+    messages = _get_bulletin(request).read_since(since)
     return [
         BulletinMessageResponse(
             agent_id=m.agent_id,
@@ -1593,8 +1585,7 @@ def get_bulletin(request: Request, since: float = 0.0) -> list[BulletinMessageRe
 @router.post("/channel/query", status_code=201)
 def post_channel_query(body: ChannelQueryRequest, request: Request) -> ChannelQueryResponse:
     """Post a coordination query targeted at an agent or role."""
-    channel = _get_direct_channel(request)
-    q = channel.post_query(
+    q = _get_direct_channel(request).post_query(
         sender_agent=body.sender_agent,
         topic=body.topic,
         content=body.content,
@@ -1622,8 +1613,7 @@ def post_channel_query(body: ChannelQueryRequest, request: Request) -> ChannelQu
 )
 def post_channel_response(query_id: str, body: ChannelResponseRequest, request: Request) -> ChannelResponseResponse:
     """Respond to a channel query."""
-    channel = _get_direct_channel(request)
-    r = channel.post_response(
+    r = _get_direct_channel(request).post_response(
         query_id=query_id,
         responder_agent=body.responder_agent,
         content=body.content,
@@ -1644,8 +1634,7 @@ def get_channel_queries(
     request: Request, agent_id: str | None = None, role: str | None = None
 ) -> list[ChannelQueryResponse]:
     """Get pending queries, optionally filtered by agent_id or role."""
-    channel = _get_direct_channel(request)
-    queries = channel.get_pending_queries(agent_id=agent_id, role=role)
+    queries = _get_direct_channel(request).get_pending_queries(agent_id=agent_id, role=role)
     return [
         ChannelQueryResponse(
             id=q.id,
@@ -1667,8 +1656,7 @@ def get_channel_queries(
 )
 def get_channel_responses(query_id: str, request: Request) -> list[ChannelResponseResponse]:
     """Get all responses for a channel query."""
-    channel = _get_direct_channel(request)
-    responses = channel.get_responses(query_id)
+    responses = _get_direct_channel(request).get_responses(query_id)
     return [
         ChannelResponseResponse(
             id=r.id,

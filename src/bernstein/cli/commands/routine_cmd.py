@@ -221,8 +221,7 @@ def routine_bindings(scenarios_dir: Path | None) -> None:
     from rich.table import Table
 
     console = Console()
-    bridge = _make_bridge(scenarios_dir, Path.cwd())
-    bindings = bridge.list_bindings()
+    bindings = _make_bridge(scenarios_dir, Path.cwd()).list_bindings()
     if not bindings:
         console.print("[yellow]No bindings registered.[/yellow]")
         return

@@ -275,8 +275,7 @@ def _load_yaml_file(path: Path) -> list[ToolCapabilities]:
     if not isinstance(raw, dict):
         return []
 
-    mapping = cast("dict[str, object]", raw)
-    items = mapping.get("tools", [])
+    items = cast("dict[str, object]", raw).get("tools", [])
     if not isinstance(items, list):
         return []
 
@@ -363,8 +362,9 @@ def record_spawn_capabilities(
     import json
     from datetime import UTC, datetime
 
-    reg = registry if registry is not None else CapabilityRegistry.load_default(workdir=workdir)
-    decision = reg.evaluate_chain(tools)
+    decision = (registry if registry is not None else CapabilityRegistry.load_default(workdir=workdir)).evaluate_chain(
+        tools
+    )
 
     runtime_dir = workdir / ".sdd" / "runtime" / "spawn_capabilities"
     try:

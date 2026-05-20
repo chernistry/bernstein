@@ -58,8 +58,7 @@ def _build_snapshot_indexes(
     """Build resolved IDs, open-per-role, and active-per-role indexes from snapshot."""
     resolved_ids: set[str] = set()
     for status in ("done", "failed", "blocked"):
-        for t in tasks_snapshot.get(status, []):
-            resolved_ids.add(t.id)
+        resolved_ids.update(t.id for t in tasks_snapshot.get(status, []))
 
     open_per_role: dict[str, int] = {}
     for t in tasks_snapshot.get("open", []):

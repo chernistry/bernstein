@@ -118,8 +118,7 @@ def _perturb(value: Any, sensitivity: float, config: DPConfig) -> Any:
     """Apply DP noise to *value* if it is a non-None number, else return as-is."""
     if value is None or not isinstance(value, (int, float)):
         return value
-    mech = GaussianMechanism(sensitivity=sensitivity, config=config)
-    return mech.add_noise(float(value))
+    return GaussianMechanism(sensitivity=sensitivity, config=config).add_noise(float(value))
 
 
 def _perturb_fields(

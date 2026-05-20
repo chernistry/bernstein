@@ -271,8 +271,7 @@ def evolve_review(workdir: str) -> None:
 
     root = Path(workdir).resolve()
     decisions_dir = root / ".sdd" / "evolution"
-    gate = ApprovalGate(decisions_dir=decisions_dir)
-    pending = gate.get_pending_decisions()
+    pending = ApprovalGate(decisions_dir=decisions_dir).get_pending_decisions()
 
     if not pending:
         console.print("[dim]No proposals pending review.[/dim]")
@@ -322,8 +321,7 @@ def evolve_approve(proposal_id: str, reviewer: str, workdir: str) -> None:
 
     root = Path(workdir).resolve()
     decisions_dir = root / ".sdd" / "evolution"
-    gate = ApprovalGate(decisions_dir=decisions_dir)
-    decision = gate.approve(proposal_id, reviewer=reviewer)
+    decision = ApprovalGate(decisions_dir=decisions_dir).approve(proposal_id, reviewer=reviewer)
 
     if decision is None:
         console.print(

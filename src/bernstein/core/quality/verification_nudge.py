@@ -301,5 +301,4 @@ def load_nudge_summary(metrics_dir: Path, *, threshold: float = DEFAULT_NUDGE_TH
     Returns:
         NudgeSummary computed from the on-disk ledger.
     """
-    tracker = VerificationNudgeTracker(metrics_dir=metrics_dir, nudge_threshold=threshold)
-    return tracker.summary()
+    return VerificationNudgeTracker(metrics_dir=metrics_dir, nudge_threshold=threshold).summary()

@@ -174,7 +174,7 @@ def _write_token_breakdown(lines: list[str], task_metrics: dict[str, TaskMetrics
     """Write the token usage sub-section if token data is available."""
     total_prompt = sum(tm.tokens_prompt for tm in task_metrics.values())
     total_completion = sum(tm.tokens_completion for tm in task_metrics.values())
-    if total_prompt == 0 and total_completion == 0:
+    if total_prompt == total_completion == 0:
         return
 
     model_token_data: dict[str, dict[str, int]] = defaultdict(lambda: {"prompt": 0, "completion": 0})
@@ -222,7 +222,7 @@ def _write_agent_summary(lines: list[str], collector: MetricsCollector) -> None:
         lines.append(
             f"| {am.agent_id[:8]} | {am.role} | {am.tasks_completed} | {am.tasks_failed} | ${am.total_cost_usd:.4f} |"
         )
-        if am.tasks_completed == 0 and am.tasks_failed == 0 and am.end_time is not None:
+        if am.tasks_completed == am.tasks_failed == 0 and am.end_time is not None:
             timed_out_or_killed.append(f"{am.agent_id[:8]} ({am.role})")
         tot = am.tasks_completed + am.tasks_failed
         if tot >= 2 and am.tasks_failed / tot > 0.5:

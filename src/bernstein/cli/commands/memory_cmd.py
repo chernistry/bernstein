@@ -60,8 +60,7 @@ def list_memory(memory_type: str | None, tag: list[str], limit: int) -> None:
         console.print("[dim]No memory database found.[/dim]")
         return
 
-    store = SQLiteMemoryStore(db_path)
-    entries = store.list(type=_coerce_memory_type(memory_type), tags=tag or None, limit=limit)
+    entries = SQLiteMemoryStore(db_path).list(type=_coerce_memory_type(memory_type), tags=tag or None, limit=limit)
 
     if not entries:
         console.print("[dim]No matching memories found.[/dim]")
@@ -103,8 +102,7 @@ def list_memory(memory_type: str | None, tag: list[str], limit: int) -> None:
 def add_memory(content: str, memory_type: str, tag: list[str]) -> None:
     """Add a new persistent memory entry."""
     db_path = Path(_MEMORY_DB_PATH)
-    store = SQLiteMemoryStore(db_path)
-    entry_id = store.add(type=cast("MemoryType", memory_type), content=content, tags=tag.copy())
+    entry_id = SQLiteMemoryStore(db_path).add(type=cast("MemoryType", memory_type), content=content, tags=tag.copy())
     console.print(f"[green]✓[/green] Added memory entry [bold]#{entry_id}[/bold]")
 
 
@@ -145,12 +143,13 @@ def share_fact(key: str, value: str, tag: str, scope: str) -> None:
     db_path = _resolve_db_path()
     db_path.parent.mkdir(parents=True, exist_ok=True)
     store = SQLiteMemoryStore(db_path)
-    facade = CrossTaskKB(
-        store,
-        run_id=_resolve_run_id(),
-        producer_task_id=_resolve_task_id(),
-    )
-    fact = facade.publish(
+    fact = (
+        CrossTaskKB(
+            store,
+            run_id=_resolve_run_id(),
+            producer_task_id=_resolve_task_id(),
+        )
+    ).publish(
         tag=tag,
         key=key,
         value=value,

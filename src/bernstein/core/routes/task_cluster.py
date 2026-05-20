@@ -128,8 +128,7 @@ def cordon_node(node_id: str, request: Request) -> dict[str, str]:
     from bernstein.core.cluster_auth import SCOPE_NODE_ADMIN
 
     _verify_cluster_auth(request, SCOPE_NODE_ADMIN)
-    registry = _get_node_registry(request)
-    node = registry.cordon(node_id)
+    node = _get_node_registry(request).cordon(node_id)
     if node is None:
         raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
     return {"status": "cordoned", "node_id": node_id}
@@ -141,8 +140,7 @@ def uncordon_node(node_id: str, request: Request) -> dict[str, str]:
     from bernstein.core.cluster_auth import SCOPE_NODE_ADMIN
 
     _verify_cluster_auth(request, SCOPE_NODE_ADMIN)
-    registry = _get_node_registry(request)
-    node = registry.uncordon(node_id)
+    node = _get_node_registry(request).uncordon(node_id)
     if node is None:
         raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
     return {"status": "uncordoned", "node_id": node_id}
@@ -154,8 +152,7 @@ def drain_node(node_id: str, request: Request) -> dict[str, str]:
     from bernstein.core.cluster_auth import SCOPE_NODE_ADMIN
 
     _verify_cluster_auth(request, SCOPE_NODE_ADMIN)
-    registry = _get_node_registry(request)
-    node = registry.start_drain(node_id)
+    node = _get_node_registry(request).start_drain(node_id)
     if node is None:
         raise HTTPException(status_code=404, detail=f"Node {node_id} not found")
     return {"status": "draining", "node_id": node_id}
@@ -180,8 +177,7 @@ def list_nodes(request: Request, status: str | None = None) -> list[NodeResponse
 @router.get("/cluster/status")
 def cluster_status(request: Request) -> ClusterStatusResponse:
     """Get cluster status summary."""
-    node_registry = _get_node_registry(request)
-    summary = node_registry.cluster_summary()
+    summary = _get_node_registry(request).cluster_summary()
     return ClusterStatusResponse(
         topology=summary["topology"],
         total_nodes=summary["total_nodes"],
@@ -207,8 +203,7 @@ async def steal_tasks(body: TaskStealRequest, request: Request) -> TaskStealResp
     node_registry = _get_node_registry(request)
     store = _get_store(request)
 
-    policy = TaskStealPolicy()
-    pairs = policy.find_steal_pairs(node_registry, body.queue_depths)
+    pairs = TaskStealPolicy().find_steal_pairs(node_registry, body.queue_depths)
 
     actions: list[TaskStealAction] = []
     total_stolen = 0

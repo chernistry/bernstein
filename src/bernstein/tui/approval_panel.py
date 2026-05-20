@@ -192,11 +192,7 @@ def _waterfall_type_color(step_type: str) -> str:
 
 def _unique_step_types(batch: Any) -> list[str]:
     """Return deduplicated step types in order of first appearance."""
-    seen: list[str] = []
-    for step in batch.steps:
-        if step.type not in seen:
-            seen.append(step.type)
-    return seen
+    return list(dict.fromkeys(step.type for step in batch.steps))
 
 
 def _waterfall_batch_label(batch: Any) -> tuple[str, str]:

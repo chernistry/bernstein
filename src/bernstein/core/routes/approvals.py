@@ -347,8 +347,7 @@ def approvals_live_fragment(session_id: str | None = None) -> HTMLResponse:
     intentionally minimal so it can be inlined into the existing live
     dashboard without pulling a new framework.
     """
-    queue = get_default_queue()
-    pending = queue.list_pending(session_id=session_id)
+    pending = get_default_queue().list_pending(session_id=session_id)
     if not pending:
         return HTMLResponse(
             '<div class="approvals-empty">No pending approvals</div>',

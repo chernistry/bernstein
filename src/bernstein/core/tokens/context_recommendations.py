@@ -243,8 +243,7 @@ class RecommendationEngine:
         raw_data: object = yaml.safe_load(path.read_text(encoding="utf-8"))
         if not isinstance(raw_data, dict):
             return
-        raw_mapping = cast("dict[str, Any]", raw_data)
-        raw_items = raw_mapping.get("recommendations", [])
+        raw_items = cast("dict[str, Any]", raw_data).get("recommendations", [])
         if not isinstance(raw_items, list):
             return
         raw_items_list = cast("list[object]", raw_items)
@@ -314,14 +313,16 @@ class RecommendationEngine:
 
     def _failure_history_text(self, gate: str) -> str:
         """Return a canned recommendation for repeated gate failures."""
-        mapping = {
-            "lint": "Recent lint failures suggest running `uv run ruff check` before completing the task.",
-            "type_check": "Recent type-check failures suggest running `uv run pyright` before completing the task.",
-            "tests": (
-                "Recent test failures suggest running targeted `uv run pytest ... -x -q` before completing the task."
-            ),
-            "coverage_delta": (
-                "Recent coverage regressions suggest running the coverage command locally before completion."
-            ),
-        }
-        return mapping.get(gate, "")
+        return (
+            {
+                "lint": "Recent lint failures suggest running `uv run ruff check` before completing the task.",
+                "type_check": "Recent type-check failures suggest running `uv run pyright` before completing the task.",
+                "tests": (
+                    "Recent test failures suggest running targeted `uv run pytest ... -x -q` "
+                    "before completing the task."
+                ),
+                "coverage_delta": (
+                    "Recent coverage regressions suggest running the coverage command locally before completion."
+                ),
+            }
+        ).get(gate, "")

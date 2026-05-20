@@ -64,8 +64,7 @@ def agent_card(request: Request) -> A2AAgentCardResponse:
     historically pulled the orchestrator's own A2A card.
     """
     a2a_handler = _get_a2a_handler(request)
-    card = a2a_handler.orchestrator_card()
-    d = card.to_dict()
+    d = a2a_handler.orchestrator_card().to_dict()
     return A2AAgentCardResponse(**d)
 
 

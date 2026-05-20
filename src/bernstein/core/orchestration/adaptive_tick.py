@@ -101,7 +101,7 @@ class AdaptiveTicker:
             self._history = self._history[-self.activity_window :]
 
         # Track consecutive idle ticks
-        if spawned == 0 and completed == 0 and errors == 0:
+        if spawned == completed == 0 and errors == 0:
             self._consecutive_idle += 1
         else:
             self._consecutive_idle = 0

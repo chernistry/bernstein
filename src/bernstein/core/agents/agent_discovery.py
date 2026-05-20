@@ -962,8 +962,7 @@ def recommend_routing_by_capabilities(
 
     from bernstein.core.capability_router import CapabilityRouter
 
-    router = CapabilityRouter(discovery=discovery)
-    match = router.best_match(required, preferred_agent=preferred_agent)
+    match = CapabilityRouter(discovery=discovery).best_match(required, preferred_agent=preferred_agent)
     if match is None:
         return None
 

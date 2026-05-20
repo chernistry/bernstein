@@ -159,8 +159,7 @@ class CatalogService:
     # ------------------------------------------------------------------
     def browse(self, *, force_refresh: bool = False) -> Catalog:
         """Fetch the catalog (using cache when fresh) and return it."""
-        result = self._fetch(force=force_refresh)
-        return result.catalog
+        return self._fetch(force=force_refresh).catalog
 
     def search(self, query: str, *, force_refresh: bool = False) -> list[CatalogEntry]:
         """Substring search over id / name / description."""
@@ -168,10 +167,11 @@ class CatalogService:
         needle = query.strip().lower()
         if not needle:
             return list(catalog.entries)
-        out: list[CatalogEntry] = []
-        for entry in catalog.entries:
-            if needle in entry.id.lower() or needle in entry.name.lower() or needle in entry.description.lower():
-                out.append(entry)
+        out = [
+            entry
+            for entry in catalog.entries
+            if needle in entry.id.lower() or needle in entry.name.lower() or needle in entry.description.lower()
+        ]
         return out
 
     def info(self, entry_id: str, *, force_refresh: bool = False) -> CatalogEntry | None:
@@ -199,8 +199,7 @@ class CatalogService:
         On any of those paths the cache and the user config are left
         untouched (acceptance criterion).
         """
-        catalog = self.browse(force_refresh=force_refresh)
-        entry = catalog.find(entry_id)
+        entry = self.browse(force_refresh=force_refresh).find(entry_id)
         if entry is None:
             raise KeyError(f"Catalog entry {entry_id!r} not found")
 
@@ -291,13 +290,11 @@ class CatalogService:
         force_refresh: bool = False,
     ) -> UpgradeOutcome:
         """Upgrade a single installed entry to the catalog's pin."""
-        installed_lookup = {e.id: e for e in self.list_installed()}
-        installed = installed_lookup.get(entry_id)
+        installed = ({e.id: e for e in self.list_installed()}).get(entry_id)
         if installed is None:
             raise KeyError(f"Entry {entry_id!r} is not installed")
 
-        catalog = self.browse(force_refresh=force_refresh)
-        catalog_entry = catalog.find(entry_id)
+        catalog_entry = self.browse(force_refresh=force_refresh).find(entry_id)
         if catalog_entry is None:
             return UpgradeOutcome(
                 entry_id=entry_id,

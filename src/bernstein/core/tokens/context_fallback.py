@@ -330,5 +330,4 @@ def should_compact(log_path: Path) -> bool:
         True if context overflow indicators were found, False otherwise
         (including when the file does not exist or cannot be read).
     """
-    tracker = RateLimitTracker()
-    return tracker.scan_log_for_context_overflow(log_path)
+    return RateLimitTracker().scan_log_for_context_overflow(log_path)

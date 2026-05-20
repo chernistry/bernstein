@@ -532,8 +532,7 @@ def build_default_registry() -> ScenarioRegistry:
 
 def is_disabled(env: Mapping[str, str] | None = None) -> bool:
     """Return True when ``BERNSTEIN_SYNTHETIC_EVAL_OFF=1`` is set."""
-    src = env if env is not None else os.environ
-    value = src.get(DISABLE_ENV, "")
+    value = (env if env is not None else os.environ).get(DISABLE_ENV, "")
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
@@ -587,8 +586,7 @@ def materialise(
         raise ValueError("count must be non-negative")
     if is_disabled():
         return []
-    reg = registry or build_default_registry()
-    gen = reg.get(scenario_id)
+    gen = (registry or build_default_registry()).get(scenario_id)
     base_params = dict(params or {})
 
     out: list[SyntheticCase] = []
@@ -742,8 +740,7 @@ def generate_from_traces(
             if not records:
                 result.skipped_invalid_traces += 1
                 continue
-            for sid in _detect_scenarios(records):
-                detected.add(sid)
+            detected.update(_detect_scenarios(records))
 
     # Always emit at least the P0 prompt-injection scenario when nothing
     # is detected — operators want a non-empty corpus to attach to the

@@ -436,8 +436,7 @@ def decrypt_file_aes256gcm(enc_path: Path, key: bytes) -> Path:
     nonce = blob[:12]
     ciphertext = blob[12:]
 
-    aesgcm = AESGCM(key)
-    plaintext = aesgcm.decrypt(nonce, ciphertext, None)
+    plaintext = AESGCM(key).decrypt(nonce, ciphertext, None)
 
     out_path = enc_path.with_suffix("")  # strip .enc
     out_path.write_bytes(plaintext)
@@ -555,8 +554,7 @@ def generate_hipaa_report(
             audit_chain_valid = valid
 
     # Check encryption at rest
-    key_path = sdd_dir / "config" / "hipaa-enc-key"
-    enc_at_rest = key_path.exists()
+    enc_at_rest = (sdd_dir / "config" / "hipaa-enc-key").exists()
 
     controls: dict[str, bool] = {
         "phi_detection": True,

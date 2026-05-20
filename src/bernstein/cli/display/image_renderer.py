@@ -311,12 +311,11 @@ class BrailleRenderer(BaseRenderer):
     def render(self, img: Image.Image, width: int, height: int) -> str:
         pixel_w = width * 2
         pixel_h = height * 4
-        mono = (
+        pixels = (
             img.convert("L")
             .resize((pixel_w, pixel_h), Image.Resampling.LANCZOS)
             .point(lambda p: 255 if p >= self._THRESHOLD else 0)
-        )
-        pixels = mono.load()
+        ).load()
         if pixels is None:  # pragma: no cover
             return ""
 
@@ -381,8 +380,7 @@ def render_image(
         caps = TerminalCaps.detect()
 
     out: TextIO = file if file is not None else sys.stdout
-    renderer = _make_renderer(caps)
-    output = renderer.render(img, width, height)
+    output = _make_renderer(caps).render(img, width, height)
 
     if synchronized and caps.is_tty:
         out.write("\033[?2026h")  # begin synchronized update

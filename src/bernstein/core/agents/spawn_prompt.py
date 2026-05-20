@@ -153,8 +153,7 @@ def section_is_relevant(
     Returns:
         True if the section should be included.
     """
-    rule_table = rules if rules is not None else SECTION_RULES
-    rule = rule_table.get(section_name)
+    rule = (rules if rules is not None else SECTION_RULES).get(section_name)
     if rule is None:
         # No rule means always include (critical section).
         return True
@@ -865,10 +864,7 @@ def _render_prompt(
     if rich_context:
         named_sections.append(("context", f"\n{rich_context}\n"))
     # Parent context inheritance: inject parent's context summary
-    parent_ctx_parts: list[str] = []
-    for t in tasks:
-        if t.parent_context:
-            parent_ctx_parts.append(t.parent_context)
+    parent_ctx_parts = [t.parent_context for t in tasks if t.parent_context]
     if parent_ctx_parts:
         named_sections.append(
             (

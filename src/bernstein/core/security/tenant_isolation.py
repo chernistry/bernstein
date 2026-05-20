@@ -202,10 +202,8 @@ class TenantIsolationManager:
             Sorted list of tenant identifiers.
         """
         tenants: set[str] = set()
-        for cfg in self._registry.tenants:
-            tenants.add(cfg.id)
-        for tid in self._contexts:
-            tenants.add(tid)
+        tenants.update(cfg.id for cfg in self._registry.tenants)
+        tenants.update(self._contexts)
         return sorted(tenants)
 
     def persist_state(self) -> None:
@@ -225,8 +223,7 @@ class TenantIsolationManager:
                 for tid, ctx in self._contexts.items()
             },
         }
-        path = state_dir / "tenant_isolation.json"
-        path.write_text(json.dumps(state, indent=2))
+        (state_dir / "tenant_isolation.json").write_text(json.dumps(state, indent=2))
 
     def load_state(self) -> None:
         """Load persisted tenant isolation state from disk."""

@@ -122,8 +122,7 @@ def _parallel_executor_factory(max_workers: int) -> tuple[Executor, ThreadPoolEx
     pool = ThreadPoolExecutor(max_workers=max(1, max_workers), thread_name_prefix="compare")
 
     def _exec(adapter_name: str, task: CompareTaskSpec, worktree: Path) -> AdapterRun:
-        future = pool.submit(_real_adapter_executor, adapter_name, task, worktree)
-        return future.result()
+        return pool.submit(_real_adapter_executor, adapter_name, task, worktree).result()
 
     return _exec, pool
 

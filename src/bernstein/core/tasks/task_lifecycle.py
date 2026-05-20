@@ -1310,8 +1310,7 @@ def claim_and_spawn_batches(
     _claimed_titles: set[str] = set()
     for agent in orch._agents.values():
         if agent.status != "dead":
-            for tid in agent.task_ids:
-                _claimed_titles.add(tid)
+            _claimed_titles.update(agent.task_ids)
 
     for batch in batches:
         if getattr(orch, "is_shutting_down", bool)():
@@ -2279,13 +2278,14 @@ def _resolve_approval_workflow(orch: Any, task: Task) -> tuple[Any, float | None
         return None, None
 
     risk = getattr(task, "risk_level", "low")
-    mapping = {
-        "low": wf.low_risk,
-        "medium": wf.medium_risk,
-        "high": wf.high_risk,
-        "critical": getattr(wf, "critical_risk", wf.high_risk),
-    }
-    mode_str = mapping.get(risk, "auto")
+    mode_str = (
+        {
+            "low": wf.low_risk,
+            "medium": wf.medium_risk,
+            "high": wf.high_risk,
+            "critical": getattr(wf, "critical_risk", wf.high_risk),
+        }
+    ).get(risk, "auto")
 
     from bernstein.core.approval import ApprovalMode
 
@@ -2315,11 +2315,11 @@ def _create_approval_pr(
         logger.warning("Approval gate PR mode: no worktree for agent %s -- cannot create PR", session.id)
         return
 
-    collector = get_collector(orch._workdir / ".sdd" / "metrics")
-    task_m = collector.task_metrics.get(task.id)
+    task_m = get_collector(orch._workdir / ".sdd" / "metrics").task_metrics.get(task.id)
     cost_usd = task_m.cost_usd if task_m else 0.0
-    completion = completion_data or {"files_modified": [], "test_results": {}}
-    test_summary = completion.get("test_results", {}).get("summary", "")
+    test_summary = (
+        (completion_data or {"files_modified": [], "test_results": {}}).get("test_results", {}).get("summary", "")
+    )
     pr_url = orch._approval_gate.create_pr(
         task,
         worktree_path=worktree_path,

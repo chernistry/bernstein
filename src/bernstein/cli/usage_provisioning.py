@@ -148,8 +148,7 @@ def _next_midnight_ts() -> float:
     Returns:
         Seconds since epoch for the next UTC midnight.
     """
-    now = datetime.now(UTC)
-    tomorrow = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     # Add one day via timedelta to avoid DST issues
 
     tomorrow += timedelta(days=1)

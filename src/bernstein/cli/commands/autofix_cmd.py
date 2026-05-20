@@ -533,8 +533,7 @@ def review_cmd(
     # Surface the spawning agent's worktree (if registered) so an
     # operator running ``review --once`` from any directory still
     # sees which workspace the eventual dispatcher will resume.
-    registry = WorktreeRegistry(default_registry_path(workdir))
-    record = registry.lookup(resolved_pr)
+    record = WorktreeRegistry(default_registry_path(workdir)).lookup(resolved_pr)
     if record is not None:
         click.echo(
             f"review_router: PR #{resolved_pr} maps to worktree {record.worktree_path}"
@@ -639,8 +638,7 @@ def review_register_cmd(
 def review_resolve_cmd(pr_number: int, as_json: bool) -> None:
     """Print the registered worktree path for a PR (exit non-zero if missing)."""
     workdir = _resolve_workdir()
-    registry = WorktreeRegistry(default_registry_path(workdir))
-    record = registry.lookup(pr_number)
+    record = WorktreeRegistry(default_registry_path(workdir)).lookup(pr_number)
     if record is None:
         if as_json:
             click.echo(json.dumps({"pr_number": pr_number, "found": False}, sort_keys=True))

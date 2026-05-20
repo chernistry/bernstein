@@ -104,8 +104,7 @@ def chat_serve(platform: str, token: str | None, allow: str | None) -> None:
 def chat_status() -> None:
     """Print active chat<->session bindings."""
     workdir = _DEFAULT_WORKDIR()
-    store = BindingStore(workdir)
-    entries = store.all()
+    entries = BindingStore(workdir).all()
     if not entries:
         click.echo("chat: no active bindings.")
         return

@@ -76,8 +76,7 @@ def graduation_status(request: Request) -> JSONResponse:
     Returns:
         JSON with ``sessions`` list and ``total`` count.
     """
-    store = _store(request)
-    records = store.list_all()
+    records = _store(request).list_all()
     evaluator = GraduationEvaluator()
     return JSONResponse(
         {
@@ -129,15 +128,13 @@ def session_graduation(request: Request, session_id: str) -> JSONResponse:
     Raises:
         HTTPException: 404 when no record exists for *session_id*.
     """
-    store = _store(request)
-    record = store.load(session_id)
+    record = _store(request).load(session_id)
     if record is None:
         raise HTTPException(
             status_code=404,
             detail=f"No graduation record for {session_id!r}",
         )
-    evaluator = GraduationEvaluator()
-    can_grad, grad_reason = evaluator.can_graduate(record)
+    can_grad, grad_reason = GraduationEvaluator().can_graduate(record)
     return JSONResponse(
         record.to_dict()
         | {
@@ -232,8 +229,7 @@ def record_task_event(
             detail=f"Invalid stage {body.initial_stage!r}. Valid values: {valid}",
         )
 
-    store = _store(request)
-    record = store.record_task_event(
+    record = _store(request).record_task_event(
         session_id,
         success=body.success,
         task_id=body.task_id,
@@ -241,8 +237,7 @@ def record_task_event(
         cost_usd=body.cost_usd,
         initial_stage=initial_stage,
     )
-    evaluator = GraduationEvaluator()
-    can_grad, grad_reason = evaluator.can_graduate(record)
+    can_grad, grad_reason = GraduationEvaluator().can_graduate(record)
     return JSONResponse(
         {
             "session_id": session_id,

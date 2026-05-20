@@ -396,8 +396,5 @@ def check_fingerprint(
 
 def extract_code_from_diff(diff: str) -> str:
     """Extract added lines from a unified diff for fingerprinting."""
-    added_lines: list[str] = []
-    for line in diff.splitlines():
-        if line.startswith("+") and not line.startswith("+++"):
-            added_lines.append(line[1:])
+    added_lines = [line[1:] for line in diff.splitlines() if line.startswith("+") and not line.startswith("+++")]
     return "\n".join(added_lines)

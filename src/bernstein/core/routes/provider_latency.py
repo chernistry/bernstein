@@ -33,8 +33,7 @@ def provider_latency_current(request: Request) -> JSONResponse:
     entry carries ``"degraded": true``.
     """
     metrics_dir = _get_metrics_dir(request)
-    tracker = get_tracker(metrics_dir)
-    entries = tracker.all_percentiles()
+    entries = get_tracker(metrics_dir).all_percentiles()
 
     data = []
     for p in entries:
@@ -66,8 +65,7 @@ def provider_latency_history(
     window (default 24h, max 7 days).
     """
     metrics_dir = _get_metrics_dir(request)
-    tracker = get_tracker(metrics_dir)
-    samples = tracker.get_history(provider=provider, model=model, hours=hours)
+    samples = get_tracker(metrics_dir).get_history(provider=provider, model=model, hours=hours)
 
     return JSONResponse(
         {

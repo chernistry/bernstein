@@ -622,8 +622,7 @@ class SSHSandboxBackend:
 
         - ``session_id``: Pinned session identifier. Random when absent.
         """
-        opts = dict(options or {})
-        hint = opts.get("session_id")
+        hint = dict(options or {}).get("session_id")
         session_id = hint if isinstance(hint, str) and hint else f"sbx-{secrets.token_hex(6)}"
         workdir = await self.create_remote_worktree(manifest, session_id)
 

@@ -374,8 +374,7 @@ def _execute(
 
     from bernstein.core.workflows import NodeStatus, WorkflowRunner
 
-    runner = WorkflowRunner(workdir=Path.cwd())
-    execution = runner.run(workflow, goal=goal)
+    execution = WorkflowRunner(workdir=Path.cwd()).run(workflow, goal=goal)
 
     table = Table(title=f"Run {execution.run_id}")
     table.add_column("Node")

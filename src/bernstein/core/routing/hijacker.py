@@ -98,14 +98,15 @@ class EnvVarTierDetector:
 
     def _estimate_tokens(self, tier: ApiTier) -> int:
         """Estimate free token allocation based on tier."""
-        estimates = {
-            ApiTier.FREE: 100_000,
-            ApiTier.PLUS: 500_000,
-            ApiTier.PRO: 1_000_000,
-            ApiTier.ENTERPRISE: 10_000_000,
-            ApiTier.UNLIMITED: 100_000_000,
-        }
-        return estimates.get(tier, 100_000)
+        return (
+            {
+                ApiTier.FREE: 100_000,
+                ApiTier.PLUS: 500_000,
+                ApiTier.PRO: 1_000_000,
+                ApiTier.ENTERPRISE: 10_000_000,
+                ApiTier.UNLIMITED: 100_000_000,
+            }
+        ).get(tier, 100_000)
 
 
 class QuotaTracker:
@@ -399,15 +400,16 @@ class TierHijacker:
 
     def _opportunity_to_tier(self, opportunity: HijackOpportunity) -> Tier:
         """Convert HijackOpportunity source to Tier."""
-        mapping = {
-            FreeTierSource.NEW_PROVIDER_TRIAL: Tier.FREE,
-            FreeTierSource.UNUSED_QUOTA: Tier.FREE,
-            FreeTierSource.PROMOTIONAL_CREDITS: Tier.FREE,
-            FreeTierSource.OPEN_SOURCE_ALTERNATIVE: Tier.FREE,
-            FreeTierSource.COMMUNITY_TIER: Tier.FREE,
-            FreeTierSource.EDUCATIONAL_ACCESS: Tier.FREE,
-        }
-        return mapping.get(opportunity.source, Tier.FREE)
+        return (
+            {
+                FreeTierSource.NEW_PROVIDER_TRIAL: Tier.FREE,
+                FreeTierSource.UNUSED_QUOTA: Tier.FREE,
+                FreeTierSource.PROMOTIONAL_CREDITS: Tier.FREE,
+                FreeTierSource.OPEN_SOURCE_ALTERNATIVE: Tier.FREE,
+                FreeTierSource.COMMUNITY_TIER: Tier.FREE,
+                FreeTierSource.EDUCATIONAL_ACCESS: Tier.FREE,
+            }
+        ).get(opportunity.source, Tier.FREE)
 
     def _get_models_for_opportunity(
         self,

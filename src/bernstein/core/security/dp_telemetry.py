@@ -234,8 +234,7 @@ class DPTelemetryExporter:
             return value
 
         sensitivity = self._sensitivities.get(field_name, 1.0)
-        mechanism = GaussianMechanism(sensitivity=sensitivity, config=self._dp_config)
-        return mechanism.add_noise(float(value))
+        return GaussianMechanism(sensitivity=sensitivity, config=self._dp_config).add_noise(float(value))
 
     def _perturb_dict(self, data: dict[str, Any]) -> tuple[dict[str, Any], int]:
         """Apply DP noise to all numeric fields in a dict.

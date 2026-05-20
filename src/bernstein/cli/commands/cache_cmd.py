@@ -63,8 +63,7 @@ def cache_group() -> None:
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
 def list_cache_entries(workdir: Path, limit: int, as_json: bool) -> None:
     """List cached task-result entries."""
-    mgr = ResponseCacheManager(workdir.resolve())
-    entries = mgr.list_entries()
+    entries = ResponseCacheManager(workdir.resolve()).list_entries()
     if limit > 0:
         entries = entries[:limit]
 
@@ -108,8 +107,7 @@ def list_cache_entries(workdir: Path, limit: int, as_json: bool) -> None:
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
 def inspect_cache_entry(task_id: str, workdir: Path, as_json: bool) -> None:
     """Inspect the cached result produced by a specific task."""
-    mgr = ResponseCacheManager(workdir.resolve())
-    entry = mgr.inspect_task(task_id)
+    entry = ResponseCacheManager(workdir.resolve()).inspect_task(task_id)
     if entry is None:
         if as_json:
             click.echo(json.dumps({"error": f"No cache entry found for task {task_id}"}, indent=2))
@@ -154,8 +152,7 @@ def clear_cache_entries(workdir: Path, unverified_only: bool, yes: bool) -> None
     if not yes and not click.confirm(f"Delete {target} from the response cache?"):
         raise SystemExit(1)
 
-    mgr = ResponseCacheManager(workdir.resolve())
-    removed = mgr.clear(unverified_only=unverified_only)
+    removed = ResponseCacheManager(workdir.resolve()).clear(unverified_only=unverified_only)
     console.print(f"[green]Removed {removed} response-cache entr{'y' if removed == 1 else 'ies'}.[/green]")
 
 

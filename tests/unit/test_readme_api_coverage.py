@@ -231,6 +231,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "trend-scan",
         # Bot-added: drift autofix (regen_contract_drift.py)
         "spec",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "run-lookup",
     }
 )
 

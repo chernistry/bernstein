@@ -324,6 +324,8 @@ alwaysApply: false
 | `capability.py`       | Runtime capability cards for the Bernstein MCP server |
 | `cost_meter.py`       | Per-call cost-meter and observability envelope for MCP tool responses |
 | `input_validation.py` | Schema-validated MCP tool-call inputs with deny-by-default |
+| `oauth.py`            | OAuth-2 / OIDC discovery metadata for the Bernstein MCP server |
+| `prompts.py`          | Built-in MCP prompts for the Bernstein server |
 | `remote_transport.py` | Streamable HTTP transport for Bernstein MCP server |
 | `routine_tools.py`    | MCP tools for the rt-003 Routine <-> Scenario bridge |
 | `server.py`           | Bernstein MCP server |

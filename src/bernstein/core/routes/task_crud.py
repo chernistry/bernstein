@@ -239,6 +239,8 @@ def _try_check_realtime_anomaly(
                 signal.task_id,
                 signal.message,
             )
+    # intentional-broad-except: best-effort anomaly probe must never break the
+    # progress route; surface modes include AttributeError on partial wiring.
     except Exception:
         from bernstein.core.sanitize import sanitize_log
 
@@ -289,8 +291,12 @@ def _try_attest_task_completion(
             method,
             record.bundle_path,
         )
+    # intentional-broad-except: attestation is opt-in telemetry (Sigstore HTTP,
+    # Ed25519 key IO, Rekor rate limits); must never break the task route.
     except Exception:
-        logger.warning("Attestation failed for task %s (non-fatal)", task_id, exc_info=True)
+        from bernstein.core.sanitize import sanitize_log
+
+        logger.warning("Attestation failed for task %s (non-fatal)", sanitize_log(task_id), exc_info=True)
 
 
 def _try_generate_sbom(request: Request) -> None:
@@ -326,6 +332,8 @@ def _try_generate_sbom(request: Request) -> None:
             artifact_path,
             len(sbom.components),
         )
+    # intentional-broad-except: SBOM generation shells out to pip/syft and must
+    # never block task completion.
     except Exception:
         logger.warning("SBOM generation failed (non-fatal)", exc_info=True)
 
@@ -357,6 +365,8 @@ def _update_file_health(
 
         tracker = FileHealthTracker(sdd_dir=sdd_dir)
         tracker.record_task_outcome(task_id, owned_files, outcome)
+    # intentional-broad-except: per-file health is optional analytics and must
+    # not propagate to the route.
     except Exception:
         logger.warning("file_health: update failed (non-fatal)", exc_info=True)
 

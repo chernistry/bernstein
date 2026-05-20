@@ -113,10 +113,14 @@ async def discord_interactions(request: Request) -> JSONResponse:
     try:
         import json as _json
 
-        payload: dict[str, Any] = _json.loads(body)
-    except Exception:
+        raw_payload = _json.loads(body)
+        if not isinstance(raw_payload, dict):
+            raise ValueError("Discord interaction payload must be a JSON object")
+    except (ValueError, UnicodeDecodeError):
         logger.debug("Bad Discord interaction payload", exc_info=True)
         return JSONResponse(status_code=400, content={"detail": "Bad interaction payload"})
+
+    payload: dict[str, Any] = raw_payload
 
     interaction_type = payload.get("type", 0)
     if interaction_type == _PING or interaction_type != _APPLICATION_COMMAND:
@@ -231,7 +235,8 @@ def _handle_stop(_request: Request, _payload: dict[str, Any]) -> JSONResponse:
         import httpx
 
         httpx.post("http://127.0.0.1:8052/shutdown", timeout=3.0)
-    except Exception:
+    except (httpx.HTTPError, OSError):
+        # Shutdown is best-effort: orchestrator may already be stopped or unreachable.
         logger.debug("Discord stop: failed to reach shutdown endpoint", exc_info=True)
 
     return _ephemeral("Graceful shutdown requested. Bernstein will finish in-flight tasks and exit.")

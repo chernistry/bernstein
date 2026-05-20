@@ -39,7 +39,9 @@ def _read_task_counts(request: Request) -> tuple[int, int]:
         done = counts.get("done", 0)
         remaining = counts.get("open", 0) + counts.get("in_progress", 0)
         return done, remaining
-    except Exception:
+    except (AttributeError, OSError, ValueError):
+        # Store backend may raise OSError on backing-file IO or AttributeError
+        # if state.store is a sentinel; either way, fall through to zero counts.
         return 0, 0
 
 

@@ -26,13 +26,14 @@ Decorate any deterministic function whose result is expensive to
 recompute and depends only on its arguments:
 
 ```python
+from pathlib import Path
 from bernstein.core.persistence.fingerprint import (
-    MemoStore, memoize_persistent,
+    default_store, memoize_persistent,
 )
 
-store = MemoStore.default()
+store = default_store(Path("."))  # rooted at .sdd/runtime/memo
 
-@memoize_persistent(store)
+@memoize_persistent(store, site="embed")
 def embed_chunk(chunk_text: str, embedder_id: str) -> list[float]:
     # expensive embedding call
     ...

@@ -34,8 +34,8 @@ Default behaviour:
 | Condition | Effect |
 |---|---|
 | Error rate > 20% over the recent window | Effective max drops by 1 (floor 1). |
-| Error rate < 5% for 10 minutes | Effective max raises by 1 (up to configured max). |
-| CPU > 80% | Spawning paused (`effective_max = 0`) until load drops. |
+| Error rate < 5% sustained ~2 min (within the 10 min window) | Effective max raises by 1 (up to configured max). |
+| Load average per CPU above the pause threshold | Spawning paused (`effective_max = 0`) until load drops. |
 
 Surface: `bernstein status` and the
 `bernstein_parallelism_level` Prometheus gauge expose the
@@ -88,7 +88,7 @@ silently disables the guard.
 | `BERNSTEIN_MAX_COST_USD` | unset | Hard cap on cumulative routed spend per run. |
 | `seed.budget_usd` | unset | Per-run budget read from `bernstein.yaml`. |
 | `defaults.PARALLELISM.error_rate_high` | `0.20` | Error rate above which adaptive parallelism shrinks. |
-| `defaults.PARALLELISM.cpu_pause_threshold` | `0.80` | CPU load above which spawning pauses. |
+| `defaults.PARALLELISM.cpu_pause_threshold` | `300.0` | Load-average percent-per-CPU above which spawning pauses (default ~3 pinned cores). |
 
 ## Metrics
 

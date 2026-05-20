@@ -37,16 +37,15 @@ bernstein run plan.yaml --cache replay
 bernstein run plan.yaml --cache hybrid
 
 # Re-execute a past run against its cache; emit a diff report on drift
-bernstein replay <run_id>
+bernstein cache action replay <run_id>
 
-# Inspect / prune the cache
-bernstein cache action ls
-bernstein cache action prune --older-than 30d
+# Inspect on-disk size and entry count
+bernstein cache action stats
 ```
 
-The `replay` subcommand walks the run's recorded actions, executes
-each against the cache, and reports any divergence between recorded
-and live output. Useful for catching model-version drift.
+The `cache action replay` subcommand walks the run's recorded actions,
+executes each against the cache, and reports any divergence between
+recorded and live output. Useful for catching model-version drift.
 
 ## Configuration
 
@@ -58,9 +57,9 @@ and live output. Useful for catching model-version drift.
 
 Metrics:
 
-- `bernstein_action_cache_hits_total{site}`
-- `bernstein_action_cache_savings_usd` — estimated token-cost saved by
-  replay hits.
+- `action_cache_hits_total{model}`
+- `action_cache_savings_usd_total{model}` - estimated token-cost saved
+  by replay hits.
 
 ## Limitations
 

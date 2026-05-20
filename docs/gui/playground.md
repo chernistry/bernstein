@@ -51,9 +51,9 @@ npm install        # first time
 npm run dev
 ```
 
-Vite serves the SPA on `http://127.0.0.1:5173` and proxies `/api/*` to FastAPI on `:8000`.
+Vite serves the SPA on `http://127.0.0.1:5173` and proxies `/api/*` to FastAPI on `:8052`.
 
-If you'd rather hit the built bundle (no HMR), run `bernstein gui serve --dev` in this terminal instead and open `http://127.0.0.1:8000/ui/`.
+If you'd rather hit the built bundle (no HMR), run `bernstein gui serve --dev` in this terminal instead and open `http://127.0.0.1:8052/ui/`.
 
 ## Tuning the idle interval
 

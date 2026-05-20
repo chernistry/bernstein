@@ -21,55 +21,57 @@ across sessions.
 
 ## How to use it
 
-Add a `features:` block to a step in your plan YAML:
+The contract is a JSON document at `.sdd/contract/features.json`. Each
+entry is a `Feature` with `id`, `category`, `description`,
+`acceptance_steps`, `acceptance_check`, and a `passes` flag:
 
-```yaml
-# plans/jwt-auth.yaml
-stages:
-  - name: backend
-    steps:
-      - role: backend
-        goal: "Add JWT auth with refresh tokens"
-        features:
-          - id: jwt-issue
-            description: "POST /auth/login returns a JWT"
-            acceptance_steps:
-              - "Login with valid creds"
-            acceptance_check: "pytest tests/auth/test_login.py::test_jwt_issued"
-          - id: jwt-refresh
-            description: "POST /auth/refresh exchanges a refresh token for a new JWT"
-            acceptance_steps:
-              - "Refresh with a valid refresh token"
-            acceptance_check: "pytest tests/auth/test_refresh.py"
-          - id: revocation
-            description: "Revoked refresh tokens cannot be reused"
-            acceptance_check: "pytest tests/auth/test_revocation.py"
+```json
+{
+  "schema_version": 1,
+  "anchor": "<sha256 of the canonical features list>",
+  "features": [
+    {
+      "id": "jwt-issue",
+      "category": "auth",
+      "description": "POST /auth/login returns a JWT",
+      "acceptance_steps": ["Login with valid creds"],
+      "acceptance_check": "pytest tests/auth/test_login.py::test_jwt_issued"
+    },
+    {
+      "id": "revocation",
+      "category": "auth",
+      "description": "Revoked refresh tokens cannot be reused",
+      "acceptance_check": "pytest tests/auth/test_revocation.py"
+    }
+  ]
+}
 ```
 
-Run the plan as usual. Inspect feature state at any time:
+Load and verify the contract programmatically:
 
-```bash
-# Per-feature pass/fail board (exits non-zero if any feature is pending or failed)
-bernstein contract status
+```python
+from bernstein.core.planning.feature_contract import FeatureContract
+from bernstein.core.planning.spec_assertions import verify_contract
 
-# Force-run every acceptance check now
-bernstein contract verify
+contract = FeatureContract.load()              # raises on tampering
+extraction, results = verify_contract(apply=True)  # run checks, flip passes
 ```
 
-When an agent calls `POST /tasks/{id}/complete` while a feature is
-still `passes: false`, the server replies `400` and lists the failing
-ids. Pass `--allow-partial` (operator-only flag) to override.
+The contract feeds the [spec-as-test loop](spec-as-test.md): each
+feature's `acceptance_steps` and `acceptance_check` are compiled into
+executable assertions and run after each stage drain.
 
 ## How tamper-detection works
 
 The contract is persisted at `.sdd/contract/features.json`. Its
-canonical sha256 is stored in the HMAC-chained audit log. Any
-in-place edit by an agent is detected on the next chain validation.
+canonical sha256 is stored as the `anchor` field (`compute_anchor`);
+loading via `FeatureContract.load` raises `TamperingDetectedError` when
+the stored anchor no longer matches the features list, so an in-place
+edit by an agent is detected on the next load.
 
-The janitor re-runs each `acceptance_check` post-merge. If a
-previously-passing check becomes a no-op (test file deleted, assertion
-weakened to `assert True`), the janitor flags it as
-`acceptance_check_decay`.
+`verify_contract` re-runs each `acceptance_check` and writes the
+`passes` flag per feature, so a check that has been weakened or deleted
+flips back to failing.
 
 ## Configuration
 

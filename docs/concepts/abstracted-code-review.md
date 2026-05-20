@@ -42,10 +42,13 @@ from bernstein.core.quality.review_pipeline.abstract_diff import (
     summarize_diff, pseudo_for_function,
 )
 
-summary = summarize_diff(diff_text, task_context)
-print(summary.bullet_points)
-print(summary.pseudocode_blocks)
-print(summary.raw_diff_link)
+# summarize_diff is async and returns one IntentSummary per file
+summaries = await summarize_diff(diff_text, task_context)
+for summary in summaries:
+    print(summary.path)
+    print(summary.bullet_points)
+    print(summary.pseudocode_blocks)
+    print(summary.raw_diff_link)
 ```
 
 The summariser uses the cheap-tier model via the cascade router; cost

@@ -49,16 +49,20 @@ bernstein lineage verify r-2026-05-05
 
 The chain walks output → producing prompt → input artefact → upstream
 producer recursively. CLI text output prints the most recent producer
-first; `--full` walks to the leaves.
+first; `--limit` caps how many records are shown.
 
 ## Programmatic access
 
 ```python
+from pathlib import Path
 from bernstein.core.persistence.lineage import LineageReader
 
-reader = LineageReader(sdd_dir=".sdd")
-for record in reader.iter_records(path="src/foo.py", line=42):
-    print(record.producer.agent_id, record.prompt_sha, record.cost_usd)
+reader = LineageReader(sdd_dir=Path(".sdd"))
+# iter_records optionally filters by run_id; filter on the artefact
+# path yourself when you only want one file's chain.
+for record in reader.iter_records(run_id="r-2026-05-05"):
+    if record.output_artifact.path == "src/foo.py":
+        print(record.producer.agent_id, record.prompt_sha, record.cost_usd)
 ```
 
 Each `LineageRecord` carries:

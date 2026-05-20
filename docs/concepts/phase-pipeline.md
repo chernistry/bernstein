@@ -49,16 +49,19 @@ Existing single-phase plans (no `phases:` field) run unchanged.
 
 ## Routing per phase
 
-`core/routing/router.py` consults the phase to pick a model:
+`phase_pipeline.route_for_phase(phase)` returns a `(model, effort)`
+pair from the per-phase defaults (`_DEFAULT_MODEL_BY_PHASE` /
+`_DEFAULT_EFFORT_BY_PHASE`):
 
-| Phase | Default model class | Why |
-|---|---|---|
-| `research` | high-reasoning (sonnet / opus tier) | broad codebase reading, gap analysis |
-| `plan` | high-reasoning | cross-cutting design |
-| `implement` | cheap-tier | bounded, high-throughput edits |
-| `verify` | cheap-tier | structured assertion runner |
+| Phase | Default model | Effort | Why |
+|---|---|---|---|
+| `research` | `opus` | high | broad codebase reading, gap analysis |
+| `plan` | `opus` | high | cross-cutting design |
+| `implement` | `sonnet` | normal | bounded, high-throughput edits |
+| `verify` | `sonnet` | normal | structured assertion runner |
 
-Override per task via the existing `model:` field on the step.
+Manager-supplied `task_model` / `task_effort` overrides win over the
+phase default when present.
 
 ## Configuration
 
@@ -81,6 +84,7 @@ Override per task via the existing `model:` field on the step.
 ## Related
 
 - Source: `src/bernstein/core/orchestration/phase_pipeline.py`
+  (`route_for_phase`, `PhasedRunner`, `ArtifactStore`)
 - Plan loader: `src/bernstein/core/planning/plan_loader.py`
-- Routing: `src/bernstein/core/routing/router.py`
+- Model router: `src/bernstein/core/routing/router.py`
 - PR #1000

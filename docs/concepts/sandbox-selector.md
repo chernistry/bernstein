@@ -43,16 +43,18 @@ sorted-name order so plug-in backends still get a stable position.
 
 ## How to use it
 
-Most callers compose `select_backend` with `get_backend` to
-materialise the chosen backend instance:
+Most callers materialise the registered backends with `list_backends`
+and hand them to `select_sandbox`, which returns the chosen backend
+instance directly:
 
 ```python
 from bernstein.core.sandbox.selector import (
     SandboxEnvironment,
     SandboxPolicy,
-    select_backend,
+    SandboxSelectionError,
+    select_sandbox,
 )
-from bernstein.core.sandbox.registry import get_backend
+from bernstein.core.sandbox.registry import list_backends
 
 policy = SandboxPolicy(allow_paid=False)  # cheap backends only
 env = SandboxEnvironment(
@@ -60,8 +62,7 @@ env = SandboxEnvironment(
     budget_remaining_usd=2.50,
 )
 
-choice = select_backend(manifest=manifest, policy=policy, env=env)
-backend = get_backend(choice.name)
+backend = select_sandbox(list_backends(), policy=policy, environment=env)
 ```
 
 Force a specific backend with an override:
@@ -70,11 +71,15 @@ Force a specific backend with an override:
 policy = SandboxPolicy(override="docker")
 ```
 
-Inspect why a candidate was filtered out:
+When no backend satisfies the policy, `select_sandbox` raises
+`SandboxSelectionError`; its `attempted` attribute lists the backends
+that were considered:
 
 ```python
-for skipped in choice.skipped:
-    print(skipped.name, skipped.reason)
+try:
+    backend = select_sandbox(list_backends(), policy=policy, environment=env)
+except SandboxSelectionError as exc:
+    print("no eligible backend; attempted:", exc.attempted)
 ```
 
 ## Configuration

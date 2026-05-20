@@ -401,6 +401,11 @@ jobs:
       - run: uv run ruff format --check src/
       - name: Architecture contracts (import-linter)
         run: uv run lint-imports
+      - name: Route broad-except policy (#1723)
+        # Fails if a bare `except Exception:` appears in
+        # src/bernstein/core/routes/**.py without a `bot-ack:` or
+        # `intentional-broad-except` marker within 3 lines.
+        run: uv run python scripts/check_routes_broad_except.py
 
   spelling:
     name: Spelling (typos)

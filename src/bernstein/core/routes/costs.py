@@ -1137,6 +1137,7 @@ def get_costs_top_tasks(request: Request, limit: int = 10, hours: int = 24) -> J
         try:
             for task in store.list_tasks():
                 titles[task.id] = task.title
+        # bot-ack: pre-existing-1723 (best-effort title enrichment for costs view)
         except Exception:
             titles = {}
 

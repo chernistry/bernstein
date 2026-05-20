@@ -267,6 +267,7 @@ def _handle_cost(_request: Request, _payload: dict[str, Any]) -> JSONResponse:
             if budget > 0:
                 lines.append(f"Budget: ${budget:.2f} ({pct:.1f}% used)")
             return _ephemeral("\n".join(lines))
+    # bot-ack: pre-existing-1723 (status endpoint may be down; best-effort fetch)
     except Exception:
         logger.debug("Discord cost: failed to reach status endpoint", exc_info=True)
 

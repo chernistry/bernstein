@@ -97,6 +97,34 @@ the `BERNSTEIN_CI_FIX_ENABLED` repo variable, refuses to recurse on
 - Async only for IO-bound code; sync for CPU-bound/pure logic
 - Thin orchestration facade, isolated core logic, separate adapters
 
+### Broad-except policy (route handlers)
+
+`src/bernstein/core/routes/**.py` is policed by a CI lint
+(`scripts/check_routes_broad_except.py`) that fails the build when a
+bare `except Exception:` clause appears without a justification marker on
+the line itself or in one of the three preceding comment lines.
+
+Two markers are recognised:
+
+- `intentional-broad-except`: legitimate best-effort path (telemetry,
+  optional analytics, lineage append, etc.). The body should route any
+  sensitive message through `bernstein.core.sanitize.sanitize_log`.
+- `bot-ack: <short-tag>`: previously reviewed broad clause; the tag
+  identifies the rationale (e.g. `bot-ack: pre-existing-1723`,
+  `bot-ack: legacy-shim`).
+
+If the clause is not actually best-effort, narrow it to the realistic
+exceptions the helper can raise (typically `OSError`, `json.JSONDecodeError`,
+`KeyError`, `ValueError`, or a domain-specific class). Never convert a
+broad `except Exception:` into `except BaseException:` -- `KeyboardInterrupt`
+and `SystemExit` must propagate.
+
+Run locally before committing:
+
+```bash
+uv run python scripts/check_routes_broad_except.py
+```
+
 See [AGENTS.md](AGENTS.md) for the full doctrine, including doctrine, change classification, conflict protocol, and zero-tolerance failures.
 
 ## CLI Structure

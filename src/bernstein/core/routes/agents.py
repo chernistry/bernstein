@@ -88,6 +88,7 @@ def _cost_for_role(store: Any, role: str) -> float:
             value = costs.get(role)
             if isinstance(value, (int, float)):
                 return float(value)
+    # bot-ack: pre-existing-1723 (best-effort cost lookup; never raise on GUI)
     except Exception:
         return 0.0
     return 0.0
@@ -103,6 +104,7 @@ def _serialize_agent(store: Any, sid: str, s: Any, now: float) -> dict[str, Any]
             t = store.get_task(task_ids[0])
             if t is not None:
                 current_task_title = getattr(t, "title", None)
+        # bot-ack: pre-existing-1723 (task lookup is best-effort enrichment)
         except Exception:
             current_task_title = None
     role = getattr(s, "role", "")
@@ -149,6 +151,7 @@ def _synthesize_agents_from_tasks(store: Any, now: float) -> list[dict[str, Any]
     for status_value in ("claimed", "in_progress"):
         try:
             tasks = store.list_tasks(status=status_value)
+        # bot-ack: pre-existing-1723 (best-effort task synthesis for GUI fallback)
         except Exception:
             tasks = []
         for t in tasks:

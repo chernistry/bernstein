@@ -72,6 +72,7 @@ async def slack_slash_command(request: Request) -> JSONResponse:
             "trigger_id": _first("trigger_id"),
             "thread_ts": _first("thread_ts"),
         }
+    # bot-ack: pre-existing-1723 (multipart form parse may raise diverse errors)
     except Exception:
         logger.debug("Bad slash command payload", exc_info=True)
         return JSONResponse(
@@ -146,6 +147,7 @@ def _parse_slack_body(body: bytes) -> dict[str, Any] | None:
         import json as _json
 
         return _json.loads(body)  # type: ignore[no-any-return]
+    # bot-ack: pre-existing-1723 (best-effort Slack event parse)
     except Exception:
         return None
 

@@ -18,7 +18,7 @@ Design notes
   deltas without paging through Sonar history.
 
 Env vars (matching the CI contract):
-  - ``SONAR_HOST_URL``: e.g. ``https://sonar.bernstein.run``
+  - ``SONAR_HOST_URL``: e.g. ``https://sonar.example.com``
   - ``SONAR_TOKEN``: a user token with ``Browse`` permission on the project
   - ``SONAR_PROJECT_KEY``: optional, defaults to ``bernstein``
 """

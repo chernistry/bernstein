@@ -42,7 +42,13 @@ from bernstein.core.telemetry.events import (
 
 _LOG = logging.getLogger(__name__)
 
-DEFAULT_ENDPOINT: Final[str] = "https://telemetry.bernstein.run/v1/events"
+# Illustrative placeholder only. The shipped package hardcodes no real
+# telemetry host: an operator who opts into telemetry must point it at
+# their own receiver via ``BERNSTEIN_TELEMETRY_ENDPOINT``. The placeholder
+# host does not resolve, so an opted-in install with no endpoint set sends
+# events nowhere (the POST failure is swallowed) rather than to any
+# specific server.
+DEFAULT_ENDPOINT: Final[str] = "https://telemetry.example.com/v1/events"
 ENDPOINT_ENV: Final[str] = "BERNSTEIN_TELEMETRY_ENDPOINT"
 TIMEOUT_SECONDS: Final[float] = 3.0
 FLUSH_DEADLINE_SECONDS: Final[float] = 5.0

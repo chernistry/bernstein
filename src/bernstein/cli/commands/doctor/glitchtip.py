@@ -363,7 +363,8 @@ def glitchtip_cmd(as_json: bool, top_n: int, skip_baseline: bool) -> None:
     Reads:
       - BERNSTEIN_GLITCHTIP_TOKEN  (API token, required for non-trivial output)
       - BERNSTEIN_GLITCHTIP_DSN    (runtime DSN, informational only here)
-      - BERNSTEIN_GLITCHTIP_BASE_URL (optional override, default: errors.bernstein.run)
+      - BERNSTEIN_GLITCHTIP_BASE_URL (API base URL; e.g. https://glitchtip.example.com.
+        No default host: derived from the DSN host when unset, else soft-fails)
       - BERNSTEIN_GLITCHTIP_ORG    (optional override, default: bernstein)
 
     \b

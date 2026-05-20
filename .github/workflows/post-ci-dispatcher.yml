@@ -182,12 +182,19 @@ jobs:
     # on a non-empty value rather than failing the whole reusable call.
     secrets:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      # OPENROUTER_API_KEY_FREE is optional on the called workflow; the
-      # Tier-3 shadow-mode escalation gates on the
-      # BERNSTEIN_CI_SELF_DRIVE feature flag (default off). When the
-      # repo secret is unset the called job degrades gracefully and
-      # records a flag_off / skipped outcome.
-      OPENROUTER_API_KEY_FREE: ${{ secrets.OPENROUTER_API_KEY_FREE }}
+      # NOTE: OPENROUTER_API_KEY_FREE was previously passed here for the
+      # Tier-3 shadow-mode escalation (#1715). When the operator has NOT
+      # defined that repo secret, the `secrets.OPENROUTER_API_KEY_FREE`
+      # reference fails the reusable-workflow startup with
+      # `startup_failure` (GitHub Actions resolves the secrets block at
+      # workflow_call start, before the called workflow's own
+      # `required: false` declaration applies). That broke the entire
+      # post-CI dispatcher chain (auto-release, auto-heal, bisect)
+      # silently from cbc95847 onward.
+      #
+      # Restore the pass once OPENROUTER_API_KEY_FREE is defined on the
+      # repo. Until then, the Tier-3 job inside bernstein-ci-fix degrades
+      # to flag_off / skipped, which is the documented default behaviour.
     with:
       head_sha: ${{ needs.meta.outputs.head_sha }}
       head_branch: ${{ needs.meta.outputs.head_branch }}

@@ -13,6 +13,7 @@ import logging
 import os
 import time
 import uuid
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -475,21 +476,36 @@ class StreamableHTTPTransport:
         session: MCPSession,
         params: dict[str, Any],
     ) -> dict[str, Any]:
-        """Handle 'tools/call' — execute a tool and return result."""
+        """Handle 'tools/call' — execute a tool and return result.
+
+        The tool's JSON payload is wrapped in the per-call cost-meter
+        envelope (latency, cost, trace id, status) so the remote transport
+        emits the same observable shape as the stdio/SSE server. The envelope
+        is a no-op when the meter is disabled via ``BERNSTEIN_MCP_COST_METER``.
+        """
+        from bernstein.mcp.cost_meter import measure_call, wrap_envelope
+
         tool_name = params.get("name", "")
         arguments = params.get("arguments", {})
 
+        meter_ctx = measure_call(tool_name)
+        meter = meter_ctx.__enter__()
         try:
             text = await self._execute_tool(tool_name, arguments)
         except Exception as exc:
+            # Finalise the meter for the failed call, then emit it alongside
+            # the error so observability covers failures too.
+            with suppress(Exception):
+                meter_ctx.__exit__(type(exc), exc, exc.__traceback__)
             logger.warning("Tool %s failed: %s", tool_name, exc)
+            error_payload = wrap_envelope(json.dumps({"error": str(exc)}), meter)
             return {
-                "content": [{"type": "text", "text": json.dumps({"error": str(exc)})}],
+                "content": [{"type": "text", "text": error_payload}],
                 "isError": True,
             }
-
+        meter_ctx.__exit__(None, None, None)
         return {
-            "content": [{"type": "text", "text": text}],
+            "content": [{"type": "text", "text": wrap_envelope(text, meter)}],
         }
 
     async def _method_ping(

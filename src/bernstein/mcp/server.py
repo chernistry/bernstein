@@ -35,6 +35,7 @@ from bernstein.core.protocols.mcp.tool_tiers import (
     resolve_active_tier,
     tool_in_tier,
 )
+from bernstein.mcp.cost_meter import measure_call, wrap_envelope
 from bernstein.mcp.input_validation import (
     ValidatedPayload,
     ValidationError,
@@ -473,6 +474,37 @@ def _lineage_mcp_default(*, default: bool) -> bool:
     return raw.strip().lower() not in {"0", "false", "no", "off", ""}
 
 
+def _apply_cost_meter(mcp: FastMCP[None]) -> None:
+    """Wrap every registered tool so its response carries a meter envelope.
+
+    Each Bernstein tool returns a JSON string. This rewraps each tool's
+    callable so the string is passed through :func:`wrap_envelope`, which
+    attaches a per-call ``_meter`` record (latency, cost, trace id, status)
+    when the meter is enabled and is a no-op otherwise. Wrapping centrally
+    here keeps every tool handler free of envelope plumbing and guarantees a
+    uniform shape across the stdio, SSE, and skill/scenario tools.
+
+    Args:
+        mcp: The FastMCP server whose tools should be metered.
+    """
+    import functools
+
+    # FastMCP exposes no public per-tool rewrap hook, so wrap each tool's
+    # callable directly via the tool manager's registry (same access pattern
+    # as _apply_tool_tier above).
+    for tool in mcp._tool_manager._tools.values():  # pyright: ignore[reportPrivateUsage]
+        original = tool.fn
+        tool_name = tool.name
+
+        @functools.wraps(original)
+        async def metered(*args: Any, __orig: Any = original, __name: str = tool_name, **kwargs: Any) -> str:
+            with measure_call(__name) as meter:
+                payload = await __orig(*args, **kwargs)
+            return wrap_envelope(payload, meter)
+
+        tool.fn = metered
+
+
 def _apply_tool_tier(mcp: FastMCP[None], active_tier: ToolTier) -> None:
     """Drop every registered tool that is outside ``active_tier``.
 
@@ -537,6 +569,7 @@ def create_mcp_server(
         register_lineage_resources(mcp, lineage_root=root, enabled=True)
 
     _apply_tool_tier(mcp, active_tier)
+    _apply_cost_meter(mcp)
     return mcp
 
 

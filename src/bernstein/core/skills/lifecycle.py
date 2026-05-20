@@ -1,0 +1,733 @@
+"""Skill lifecycle: install, remove, sync, lock (issue #1720, track 1).
+
+This module turns the abstract :class:`~bernstein.core.skills.source.SkillSource`
+interface into operator-facing verbs. It does NOT replace the existing
+discovery cascade (:mod:`bernstein.core.plugins_core.skill_discovery`) or
+the eager loader (:mod:`bernstein.core.skills.loader`); it only writes
+into and reads from the well-known directories those subsystems already
+scan:
+
+- Project scope: ``<workdir>/.bernstein/skills/<name>/``
+- User scope:    ``~/.bernstein/skills/<name>/``
+
+Layout of an installed skill matches the conventional
+:class:`~bernstein.core.skills.sources.local_dir.LocalDirSkillSource`
+shape::
+
+    <scope-root>/.bernstein/skills/<name>/
+        SKILL.md
+        references/  (optional)
+        scripts/     (optional)
+        assets/      (optional)
+
+The lifecycle manifest ``bernstein-skills.toml`` lives at the repo root
+and lists every skill the project expects to have installed. ``sync``
+makes the filesystem match the manifest. ``skills.lock`` records the
+content-addressed digest of every installed skill so a subsequent sync
+detects drift.
+
+Out of scope for this module (deferred to follow-up tracks):
+
+- Source types beyond ``local`` (Git, OCI, index).
+- Signature verification and trust roots.
+- Sensitive-pattern-scan-on-install (the existing sanitiser already
+  scrubs invisible Unicode codepoints at load time; refusing installs on
+  sensitive patterns is track 4).
+"""
+
+from __future__ import annotations
+
+import hashlib
+import shutil
+import tomllib
+from dataclasses import dataclass
+from enum import StrEnum
+from pathlib import Path
+from typing import Any, cast
+
+import yaml
+
+# ---------------------------------------------------------------------------
+# Public constants
+# ---------------------------------------------------------------------------
+
+#: Filename of the lifecycle manifest at repo root.
+SKILLS_TOML_FILENAME: str = "bernstein-skills.toml"
+
+#: Filename of the lock file next to the manifest.
+SKILLS_LOCK_FILENAME: str = "skills.lock"
+
+#: Directory under each scope root that holds installed skills.
+_INSTALL_SUBDIR: tuple[str, str] = (".bernstein", "skills")
+
+#: BLAKE2b digest size in bytes (32 bytes = 64 hex chars). Matches what the
+#: RFC reserves room for in ``skills.lock``.
+_DIGEST_SIZE: int = 32
+
+#: Source types the foundation PR supports. Track 3 adds ``git``, ``oci``,
+#: ``index``; we keep them out of scope here.
+_SUPPORTED_SOURCES: frozenset[str] = frozenset({"local"})
+
+
+# ---------------------------------------------------------------------------
+# Exceptions
+# ---------------------------------------------------------------------------
+
+
+class SkillLifecycleError(RuntimeError):
+    """Raised when an install / remove / sync operation fails."""
+
+
+class SkillsTomlError(SkillLifecycleError):
+    """Raised when ``bernstein-skills.toml`` cannot be parsed or validated."""
+
+
+# ---------------------------------------------------------------------------
+# Scope
+# ---------------------------------------------------------------------------
+
+
+class InstallScope(StrEnum):
+    """Where an install lands.
+
+    - :attr:`PROJECT` writes to ``<workdir>/.bernstein/skills/``.
+    - :attr:`USER`    writes to ``~/.bernstein/skills/``.
+    """
+
+    PROJECT = "project"
+    USER = "user"
+
+
+def scope_root(scope: InstallScope, *, workdir: Path, home: Path | None = None) -> Path:
+    """Return the ``.bernstein/skills/`` directory for ``scope``.
+
+    Args:
+        scope: Project or user scope.
+        workdir: Current project root. Used only when scope is PROJECT.
+        home: Override for the user's home directory. Defaults to
+            :func:`pathlib.Path.home` so tests can redirect to ``tmp_path``.
+
+    Returns:
+        Absolute path to the installation root.
+    """
+    home_dir = home if home is not None else Path.home()
+    base = workdir if scope is InstallScope.PROJECT else home_dir
+    return base.joinpath(*_INSTALL_SUBDIR)
+
+
+# ---------------------------------------------------------------------------
+# Manifest schema (bernstein-skills.toml)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SkillsTomlEntry:
+    """One ``[[skills]]`` entry from ``bernstein-skills.toml``.
+
+    Attributes:
+        name: Lowercase slug identifying the skill.
+        source: Source type; only ``"local"`` is in scope for this PR.
+        path: Path string as written in the TOML (relative paths are
+            resolved against the TOML file's directory).
+    """
+
+    name: str
+    source: str
+    path: str
+
+
+@dataclass(frozen=True)
+class SkillsToml:
+    """Parsed contents of ``bernstein-skills.toml``."""
+
+    entries: tuple[SkillsTomlEntry, ...]
+    source_path: Path
+
+
+def load_skills_toml(path: Path) -> SkillsToml:
+    """Parse ``bernstein-skills.toml`` from disk.
+
+    Args:
+        path: Absolute path to the TOML file.
+
+    Returns:
+        Parsed manifest.
+
+    Raises:
+        SkillsTomlError: When the file is missing, unreadable, malformed,
+            or declares an entry with an unsupported source type.
+    """
+    if not path.is_file():
+        raise SkillsTomlError(f"{path}: file does not exist")
+    try:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise SkillsTomlError(f"{path}: cannot read file: {exc}") from exc
+    try:
+        data = tomllib.loads(raw.decode("utf-8"))
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
+        raise SkillsTomlError(f"{path}: invalid TOML: {exc}") from exc
+
+    raw_entries = data.get("skills", [])
+    if not isinstance(raw_entries, list):
+        raise SkillsTomlError(f"{path}: 'skills' must be an array of tables")
+
+    entries: list[SkillsTomlEntry] = []
+    seen: set[str] = set()
+    for idx, item in enumerate(cast("list[object]", raw_entries)):
+        if not isinstance(item, dict):
+            raise SkillsTomlError(f"{path}: entry #{idx} must be a table")
+        item_dict = cast("dict[str, object]", item)
+        name = item_dict.get("name")
+        source = item_dict.get("source")
+        skill_path = item_dict.get("path")
+        if not isinstance(name, str) or not name:
+            raise SkillsTomlError(f"{path}: entry #{idx} missing 'name'")
+        if not isinstance(source, str) or not source:
+            raise SkillsTomlError(f"{path}: entry {name!r} missing 'source'")
+        if source not in _SUPPORTED_SOURCES:
+            raise SkillsTomlError(
+                f"{path}: entry {name!r} declares source={source!r}; only "
+                f"{sorted(_SUPPORTED_SOURCES)} are supported in this release",
+            )
+        if not isinstance(skill_path, str) or not skill_path:
+            raise SkillsTomlError(f"{path}: entry {name!r} missing 'path'")
+        if name in seen:
+            raise SkillsTomlError(f"{path}: duplicate entry for skill {name!r}")
+        seen.add(name)
+        entries.append(SkillsTomlEntry(name=name, source=source, path=skill_path))
+
+    return SkillsToml(entries=tuple(entries), source_path=path)
+
+
+def resolve_local_source(entry: SkillsTomlEntry, toml_dir: Path) -> Path:
+    """Resolve an entry's ``path`` against the TOML directory.
+
+    Args:
+        entry: A ``local`` source entry.
+        toml_dir: Directory containing the TOML file.
+
+    Returns:
+        Absolute path to the source (file or directory).
+    """
+    raw = Path(entry.path)
+    return raw if raw.is_absolute() else (toml_dir / raw).resolve()
+
+
+# ---------------------------------------------------------------------------
+# Content digest
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SkillDigest:
+    """Content-addressed digest of an installed skill.
+
+    The digest is BLAKE2b over a canonicalised stream that mixes:
+
+    1. The YAML frontmatter, re-emitted with sorted keys.
+    2. The markdown body with normalised line endings.
+    3. Every file declared under ``references`` / ``scripts`` / ``assets``,
+       in lexical order, each prefixed by its relative path.
+
+    Files not declared in the manifest are deliberately ignored so adding
+    a scratch note next to a skill does not invalidate the lock.
+    """
+
+    digest: str
+
+    def __str__(self) -> str:
+        return self.digest
+
+
+def _canonical_frontmatter(front_raw: str) -> bytes:
+    """Re-emit YAML frontmatter with sorted keys for a stable digest input.
+
+    Unknown or extra keys are preserved verbatim so installs and lints
+    converge on the same digest even when the manifest carries non-strict
+    fields (the Claude Code ``whenToUse`` key is the canonical example).
+
+    Args:
+        front_raw: The YAML text between the ``---`` fences.
+
+    Returns:
+        Canonicalised YAML, UTF-8 encoded, terminated by exactly one
+        newline.
+    """
+    try:
+        loaded = yaml.safe_load(front_raw)
+    except yaml.YAMLError:
+        # If the YAML cannot be parsed, fall back to the raw bytes so the
+        # digest still reflects the on-disk content. Lint will flag it
+        # separately.
+        return front_raw.encode("utf-8")
+    if loaded is None:
+        return b"{}\n"
+    canonical = yaml.safe_dump(
+        loaded,
+        sort_keys=True,
+        allow_unicode=True,
+        default_flow_style=False,
+    )
+    return canonical.encode("utf-8")
+
+
+def _split_skill_md(text: str) -> tuple[str, str]:
+    """Split a SKILL.md text into frontmatter and body.
+
+    Falls back to ``("", text)`` when no frontmatter is present so the
+    digest still includes the whole file.
+    """
+    lines = text.splitlines()
+    if not lines or lines[0].rstrip() != "---":
+        return ("", text)
+    front: list[str] = []
+    for idx in range(1, len(lines)):
+        if lines[idx].rstrip() == "---":
+            front_text = "\n".join(front)
+            body = "\n".join(lines[idx + 1 :]).strip("\n")
+            return (front_text, body)
+        front.append(lines[idx])
+    # Unterminated frontmatter: treat the whole thing as body.
+    return ("", text)
+
+
+def _frontmatter_dict(front_raw: str) -> dict[str, Any]:
+    """Best-effort frontmatter parse for digest helpers (no strict checks)."""
+    try:
+        loaded = yaml.safe_load(front_raw)
+    except yaml.YAMLError:
+        return {}
+    if isinstance(loaded, dict):
+        return cast("dict[str, Any]", loaded)
+    return {}
+
+
+def _referenced_files(skill_dir: Path, frontmatter: dict[str, Any]) -> list[Path]:
+    """Return the manifest-referenced files in deterministic order.
+
+    Files listed under ``references`` / ``scripts`` / ``assets`` are
+    looked up under the matching subdirectory of ``skill_dir``. Missing
+    files are silently skipped here; lint surfaces them as errors.
+    """
+    out: list[Path] = []
+    for bucket in ("references", "scripts", "assets"):
+        values = frontmatter.get(bucket, [])
+        if not isinstance(values, list):
+            continue
+        for entry in cast("list[object]", values):
+            if not isinstance(entry, str):
+                continue
+            candidate = skill_dir / bucket / entry
+            if candidate.is_file():
+                out.append(candidate)
+    out.sort(key=lambda p: str(p.relative_to(skill_dir)))
+    return out
+
+
+def compute_skill_digest(skill_dir: Path) -> SkillDigest:
+    """Compute the content digest for an installed skill directory.
+
+    The digest covers the canonicalised manifest, the body, and every
+    manifest-declared reference / script / asset. Files present on disk
+    but not declared in the manifest are ignored on purpose: the digest
+    must be reproducible from the manifest alone.
+
+    Args:
+        skill_dir: Directory containing ``SKILL.md``.
+
+    Returns:
+        :class:`SkillDigest` with a 64-character hex BLAKE2b digest.
+
+    Raises:
+        SkillLifecycleError: When ``SKILL.md`` is missing.
+    """
+    skill_md = skill_dir / "SKILL.md"
+    if not skill_md.is_file():
+        raise SkillLifecycleError(f"{skill_md}: SKILL.md not found")
+
+    text = skill_md.read_text(encoding="utf-8")
+    front_raw, body = _split_skill_md(text)
+    frontmatter = _frontmatter_dict(front_raw)
+
+    hasher = hashlib.blake2b(digest_size=_DIGEST_SIZE)
+    hasher.update(b"manifest:\n")
+    hasher.update(_canonical_frontmatter(front_raw))
+    hasher.update(b"body:\n")
+    hasher.update(body.replace("\r\n", "\n").encode("utf-8"))
+
+    for path in _referenced_files(skill_dir, frontmatter):
+        rel = path.relative_to(skill_dir).as_posix()
+        hasher.update(f"file:{rel}\n".encode())
+        try:
+            hasher.update(path.read_bytes())
+        except OSError as exc:  # pragma: no cover - defensive
+            raise SkillLifecycleError(f"{path}: cannot read referenced file: {exc}") from exc
+        hasher.update(b"\n")
+
+    return SkillDigest(digest=hasher.hexdigest())
+
+
+# ---------------------------------------------------------------------------
+# Install / remove
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class InstallResult:
+    """Outcome of installing or syncing a single skill."""
+
+    name: str
+    install_dir: Path
+    digest: SkillDigest
+    changed: bool
+
+
+def _detect_skill_name(source: Path) -> str:
+    """Derive the canonical name for a local source.
+
+    A directory source uses the directory name. A single ``.md`` source
+    uses the file stem.
+    """
+    if source.is_dir():
+        return source.name
+    return source.stem
+
+
+def install_local(
+    source: Path,
+    *,
+    scope: InstallScope,
+    workdir: Path,
+    home: Path | None = None,
+    override_name: str | None = None,
+) -> InstallResult:
+    """Install a skill from a local path into the chosen scope.
+
+    The source may be:
+
+    - A directory containing ``SKILL.md`` (full layout with optional
+      ``references/``, ``scripts/``, ``assets/`` siblings).
+    - A standalone ``.md`` file (only ``SKILL.md`` is written; no
+      referenced files are copied).
+
+    Args:
+        source: Absolute or relative path to the source.
+        scope: Project or user scope.
+        workdir: Current project root.
+        home: Override for the user's home (tests).
+        override_name: Override the auto-detected skill name. The TOML
+            ``name`` field wins over filesystem layout when supplied.
+
+    Returns:
+        :class:`InstallResult` with the target directory and digest.
+
+    Raises:
+        SkillLifecycleError: When the source does not exist, when the
+            single-file source is not a ``.md`` file, or when the
+            destination cannot be written.
+    """
+    if not source.exists():
+        raise SkillLifecycleError(f"{source}: source path does not exist")
+
+    name = override_name or _detect_skill_name(source)
+    dest_root = scope_root(scope, workdir=workdir, home=home)
+    install_dir = dest_root / name
+    # Clear any prior install so we never leak files from an older version.
+    if install_dir.exists():
+        shutil.rmtree(install_dir)
+    install_dir.mkdir(parents=True, exist_ok=True)
+
+    if source.is_dir():
+        skill_md = source / "SKILL.md"
+        if not skill_md.is_file():
+            raise SkillLifecycleError(f"{source}: directory does not contain SKILL.md")
+        _copy_skill_tree(source, install_dir)
+    else:
+        if source.suffix != ".md":
+            raise SkillLifecycleError(f"{source}: local file source must have a .md extension")
+        try:
+            content = source.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise SkillLifecycleError(f"{source}: cannot read source: {exc}") from exc
+        (install_dir / "SKILL.md").write_text(content, encoding="utf-8")
+
+    digest = compute_skill_digest(install_dir)
+    return InstallResult(name=name, install_dir=install_dir, digest=digest, changed=True)
+
+
+def _copy_skill_tree(source: Path, dest: Path) -> None:
+    """Copy a skill directory tree, preserving SKILL.md + sibling buckets.
+
+    Only ``SKILL.md`` and the three known buckets (``references``,
+    ``scripts``, ``assets``) are mirrored; anything else under the source
+    directory is ignored so a dotfile from the author's editor cannot leak
+    into the installed copy.
+    """
+    skill_md = source / "SKILL.md"
+    shutil.copy2(skill_md, dest / "SKILL.md")
+    for bucket in ("references", "scripts", "assets"):
+        src_bucket = source / bucket
+        if not src_bucket.is_dir():
+            continue
+        dst_bucket = dest / bucket
+        dst_bucket.mkdir(exist_ok=True)
+        for child in sorted(src_bucket.iterdir()):
+            if child.is_file():
+                shutil.copy2(child, dst_bucket / child.name)
+
+
+def remove_skill(
+    name: str,
+    *,
+    scope: InstallScope,
+    workdir: Path,
+    home: Path | None = None,
+) -> bool:
+    """Remove an installed skill from the given scope.
+
+    Args:
+        name: Skill name (directory name under the scope root).
+        scope: Project or user scope.
+        workdir: Current project root.
+        home: Override for the user's home (tests).
+
+    Returns:
+        ``True`` if the skill was removed; ``False`` if nothing was there.
+    """
+    install_dir = scope_root(scope, workdir=workdir, home=home) / name
+    if not install_dir.exists():
+        return False
+    shutil.rmtree(install_dir)
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Sync + lock
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SyncOutcome:
+    """One row in the result of :func:`sync_skills`."""
+
+    name: str
+    action: str  # "installed" | "updated" | "unchanged"
+    digest: SkillDigest
+    install_dir: Path
+
+
+@dataclass(frozen=True)
+class LockEntry:
+    """One ``[[skills]]`` row in ``skills.lock``."""
+
+    name: str
+    source: str
+    path: str
+    digest: str
+
+
+def _read_lock(path: Path) -> dict[str, LockEntry]:
+    """Read ``skills.lock`` from disk, keyed by skill name."""
+    if not path.is_file():
+        return {}
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (tomllib.TOMLDecodeError, OSError):
+        return {}
+    raw = data.get("skills", [])
+    if not isinstance(raw, list):
+        return {}
+    out: dict[str, LockEntry] = {}
+    for item in cast("list[object]", raw):
+        if not isinstance(item, dict):
+            continue
+        item_dict = cast("dict[str, object]", item)
+        name = item_dict.get("name")
+        source = item_dict.get("source")
+        path_value = item_dict.get("path")
+        digest = item_dict.get("digest")
+        if (
+            isinstance(name, str)
+            and isinstance(source, str)
+            and isinstance(path_value, str)
+            and isinstance(digest, str)
+        ):
+            out[name] = LockEntry(name=name, source=source, path=path_value, digest=digest)
+    return out
+
+
+def _write_lock(path: Path, entries: list[LockEntry]) -> None:
+    """Write a deterministic TOML lock file.
+
+    We hand-roll the TOML rather than pulling in ``tomli_w`` so the output
+    is bit-identical across runs (sorted keys, fixed quoting, single
+    blank line between tables).
+    """
+    sorted_entries = sorted(entries, key=lambda entry: entry.name)
+    lines: list[str] = [
+        "# bernstein skills lock file - regenerated by `bernstein skills sync`.",
+        "# Do not edit by hand.",
+        "",
+    ]
+    for entry in sorted_entries:
+        lines.append("[[skills]]")
+        lines.append(f"name = {_toml_quote(entry.name)}")
+        lines.append(f"source = {_toml_quote(entry.source)}")
+        lines.append(f"path = {_toml_quote(entry.path)}")
+        lines.append(f"digest = {_toml_quote(entry.digest)}")
+        lines.append("")
+    path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+
+def _toml_quote(value: str) -> str:
+    """Quote a value as a TOML basic string.
+
+    The escape table covers control characters and the two characters TOML
+    treats as syntactically significant inside basic strings (``"`` and
+    ``\\``). Skill names are slugs and paths are POSIX-like so the slow
+    path almost never triggers.
+    """
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    escaped = escaped.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+    return f'"{escaped}"'
+
+
+def sync_skills(
+    toml_path: Path,
+    *,
+    scope: InstallScope = InstallScope.PROJECT,
+    workdir: Path | None = None,
+    home: Path | None = None,
+) -> list[SyncOutcome]:
+    """Reconcile ``bernstein-skills.toml`` with the chosen scope.
+
+    Re-runs are idempotent: when the installed digest matches the source
+    digest, the install is skipped and the lock file is left untouched.
+    Drift (a manual edit, a re-published source) reinstalls and rewrites
+    the lock row.
+
+    Args:
+        toml_path: Path to ``bernstein-skills.toml``.
+        scope: Where to install. Defaults to PROJECT.
+        workdir: Project root. Defaults to ``toml_path.parent``.
+        home: Override for the user's home (tests).
+
+    Returns:
+        One :class:`SyncOutcome` per skill, in declaration order.
+
+    Raises:
+        SkillsTomlError: When the manifest cannot be parsed.
+        SkillLifecycleError: When an install step fails.
+    """
+    if workdir is None:
+        workdir = toml_path.parent
+
+    manifest = load_skills_toml(toml_path)
+    toml_dir = toml_path.parent
+    lock_path = toml_dir / SKILLS_LOCK_FILENAME
+    previous_lock = _read_lock(lock_path)
+
+    outcomes: list[SyncOutcome] = []
+    new_lock: list[LockEntry] = []
+
+    for entry in manifest.entries:
+        source_path = resolve_local_source(entry, toml_dir)
+        # Pre-compute the digest of the *source* so we can short-circuit
+        # before touching the install directory at all. For a single-file
+        # source we have to land it in a temp dir first because the digest
+        # algorithm operates on installed-shape directories; for a real
+        # directory source we can read it in place.
+        existing_install = scope_root(scope, workdir=workdir, home=home) / entry.name
+        prior_digest = compute_skill_digest(existing_install).digest if existing_install.is_dir() else None
+
+        if source_path.is_dir():
+            source_digest = compute_skill_digest(source_path).digest
+        else:
+            # For a single-file source, the digest depends only on the
+            # SKILL.md content; we synthesise an empty-bucket directory
+            # view by hashing the canonicalised frontmatter + body.
+            text = source_path.read_text(encoding="utf-8")
+            front_raw, body = _split_skill_md(text)
+            hasher = hashlib.blake2b(digest_size=_DIGEST_SIZE)
+            hasher.update(b"manifest:\n")
+            hasher.update(_canonical_frontmatter(front_raw))
+            hasher.update(b"body:\n")
+            hasher.update(body.replace("\r\n", "\n").encode("utf-8"))
+            source_digest = hasher.hexdigest()
+
+        if prior_digest == source_digest and existing_install.is_dir():
+            outcomes.append(
+                SyncOutcome(
+                    name=entry.name,
+                    action="unchanged",
+                    digest=SkillDigest(digest=source_digest),
+                    install_dir=existing_install,
+                )
+            )
+            new_lock.append(
+                LockEntry(
+                    name=entry.name,
+                    source=entry.source,
+                    path=entry.path,
+                    digest=source_digest,
+                )
+            )
+            continue
+
+        result = install_local(
+            source_path,
+            scope=scope,
+            workdir=workdir,
+            home=home,
+            override_name=entry.name,
+        )
+        action = "updated" if entry.name in previous_lock else "installed"
+        outcomes.append(
+            SyncOutcome(
+                name=entry.name,
+                action=action,
+                digest=result.digest,
+                install_dir=result.install_dir,
+            )
+        )
+        new_lock.append(
+            LockEntry(
+                name=entry.name,
+                source=entry.source,
+                path=entry.path,
+                digest=result.digest.digest,
+            )
+        )
+
+    _write_lock(lock_path, new_lock)
+    return outcomes
+
+
+def read_lock_entries(toml_dir: Path) -> list[LockEntry]:
+    """Public helper for tests: read the lock file as a sorted list."""
+    entries = _read_lock(toml_dir / SKILLS_LOCK_FILENAME)
+    return sorted(entries.values(), key=lambda entry: entry.name)
+
+
+__all__ = [
+    "SKILLS_LOCK_FILENAME",
+    "SKILLS_TOML_FILENAME",
+    "InstallResult",
+    "InstallScope",
+    "LockEntry",
+    "SkillDigest",
+    "SkillLifecycleError",
+    "SkillsToml",
+    "SkillsTomlEntry",
+    "SkillsTomlError",
+    "SyncOutcome",
+    "compute_skill_digest",
+    "install_local",
+    "load_skills_toml",
+    "read_lock_entries",
+    "remove_skill",
+    "resolve_local_source",
+    "scope_root",
+    "sync_skills",
+]

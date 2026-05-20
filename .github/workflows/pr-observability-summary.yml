@@ -42,7 +42,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
         with:
-          python-version: '3.14'
+          python-version: '3.12'
 
       - name: Install bernstein
         run: |
@@ -88,7 +88,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Post sticky comment
-        uses: marocchino/sticky-pull-request-comment@d2ad0de260ae8b0235ce059e63f2949ba9e05943  # v2.9.0
+        uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31  # v2.9.0
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           number: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}

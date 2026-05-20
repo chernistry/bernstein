@@ -175,6 +175,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    if args.days < 1:
+        parser.error("--days must be a positive integer")
+
     snapshots = _load_snapshots(args.snapshots_dir, days=args.days)
     md = render_markdown(snapshots, days=args.days)
     args.out.parent.mkdir(parents=True, exist_ok=True)

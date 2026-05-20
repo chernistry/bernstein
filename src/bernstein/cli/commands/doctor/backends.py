@@ -339,7 +339,7 @@ def probe_glitchtip(env: dict[str, str] | None = None) -> BackendReport:
     severity = dict(getattr(result, "severity_24h", {}) or {})
 
     overall = ProbeStatus.OK if total == 0 else ProbeStatus.WARN
-    if severity.get("fatal", 0) or severity.get("error", 0) > 5:
+    if severity.get("fatal", 0) > 0 or severity.get("error", 0) > 5:
         overall = ProbeStatus.WARN
 
     rows: list[MetricRow] = [

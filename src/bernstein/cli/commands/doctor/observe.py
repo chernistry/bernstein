@@ -144,7 +144,6 @@ def observe_cmd(as_json: bool, watch: bool, interval: int, no_persist: bool) -> 
                 time.sleep(interval)
         except KeyboardInterrupt:
             raise SystemExit(0) from None
-        return
 
     try:
         while True:

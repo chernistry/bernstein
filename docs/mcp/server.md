@@ -26,25 +26,39 @@ at startup.
 | Anonymous | default on loopback | Allowed only on `127.0.0.1` / `localhost` / `::1`. |
 | Static bearer | `BERNSTEIN_MCP_TOKEN` (or `BERNSTEIN_MCP_AUTH_TOKEN`) | Constant-time check; required on non-loopback binds. |
 
-OAuth-2 PKCE token issuance is delegated to an external IdP. When the operator
+OAuth-2 PKCE token issuance is delegated to an external IdP. Bernstein is
+the **resource server**: it does not host an authorization server and so
+does not publish RFC 8414 authorization-server metadata. When the operator
 sets `BERNSTEIN_MCP_OAUTH_ISSUER=https://idp.example.com`, the streamable
-HTTP transport serves the standard discovery documents so a host can
-auto-locate the IdP:
+HTTP transport serves a single discovery document so a host can locate
+the IdP:
 
 | Path | Document |
 |------|----------|
-| `/.well-known/oauth-authorization-server` | RFC 8414 authorization-server metadata for the configured issuer (PKCE S256, code grant, public client allowed). |
 | `/.well-known/oauth-protected-resource` | RFC 9728 / MCP-draft protected-resource metadata pointing at the issuer; the `resource` field is built from the request `Host` and `X-Forwarded-Proto` headers. |
 
-Both well-known paths are served without authentication, since a client
-probing discovery has no token yet. When the env var is unset, the paths
-return 404 and only anonymous (loopback) / static bearer are advertised.
+The discovery handshake is:
+
+1. Client fetches `/.well-known/oauth-protected-resource` from Bernstein.
+2. Client reads `authorization_servers[0]` (the configured issuer URL).
+3. Client fetches the IdP's own RFC 8414 metadata from the IdP, for
+   example `https://idp.example.com/.well-known/oauth-authorization-server`
+   or whatever path the IdP uses (Keycloak, Auth0, Okta all differ).
+4. Client completes the PKCE S256 authorization-code flow against the
+   IdP and presents the resulting bearer token to the streamable HTTP
+   transport.
+
+The protected-resource path is served without authentication, since a
+client probing discovery has no token yet. When the env var is unset,
+the path returns 404 and only anonymous (loopback) / static bearer are
+advertised. Bernstein never serves `/.well-known/oauth-authorization-server`;
+that document belongs to the IdP, not the resource server.
 
 `BERNSTEIN_MCP_OAUTH_SCOPES` (comma-separated) overrides the default
-`bernstein.read,bernstein.write` scope list in both documents.
+`bernstein.read,bernstein.write` scope list in the document.
 
 The capability card reports the discovery state under `auth.oauth` so a
-client that has already fetched the card can locate the well-known paths
+client that has already fetched the card can locate the well-known path
 without probing. OIDC federation is still a follow-up.
 
 ## Capability cards
@@ -178,12 +192,14 @@ Cancelling an unknown or already-settled id is a no-op.
    ```bash
    export BERNSTEIN_MCP_OAUTH_ISSUER=https://idp.example.com
    # restart the server to pick up the env var, then:
-   curl -s http://127.0.0.1:8053/.well-known/oauth-authorization-server
    curl -s http://127.0.0.1:8053/.well-known/oauth-protected-resource
    ```
 
-   The client redirects the user to the IdP from these documents and presents
-   the resulting bearer token to the streamable HTTP transport.
+   The protected-resource document points at the IdP via
+   `authorization_servers[0]`. The client then fetches the IdP's own RFC
+   8414 metadata from the IdP (its path is IdP-specific) and completes
+   the PKCE flow there, presenting the resulting bearer token to the
+   streamable HTTP transport.
 
 6. Cancel a long-running call by its id (in a second request, while the call
    is in flight):

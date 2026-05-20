@@ -827,31 +827,31 @@ class StreamableHTTPTransport:
 
     @staticmethod
     def _is_well_known(path: str) -> bool:
-        """Return True for the OAuth-2 / protected-resource discovery paths."""
-        from bernstein.mcp.oauth import AS_METADATA_PATH, PR_METADATA_PATH
+        """Return True for the protected-resource discovery path.
 
-        return path in {AS_METADATA_PATH, PR_METADATA_PATH}
+        Bernstein only publishes RFC 9728 protected-resource metadata; the
+        RFC 8414 authorization-server metadata is owned by the IdP itself.
+        """
+        from bernstein.mcp.oauth import PR_METADATA_PATH
+
+        return path == PR_METADATA_PATH
 
     def _handle_well_known(
         self,
         path: str,
         headers: dict[str, str],
     ) -> tuple[int, dict[str, str], bytes]:
-        """Serve OAuth-2 authorization-server / protected-resource metadata.
+        """Serve protected-resource metadata (RFC 9728 / MCP draft).
 
         Returns:
             (200, headers, json-body) when discovery is enabled; 404 otherwise.
         """
         from bernstein.mcp.oauth import (
-            AS_METADATA_PATH,
             PR_METADATA_PATH,
-            authorization_server_metadata,
             protected_resource_metadata,
         )
 
-        if path == AS_METADATA_PATH:
-            meta = authorization_server_metadata()
-        elif path == PR_METADATA_PATH:
+        if path == PR_METADATA_PATH:
             # Build the absolute resource URL from the Host header so the
             # advertised resource matches what the client called.
             host = headers.get("host", f"{self._config.host}:{self._config.port}")

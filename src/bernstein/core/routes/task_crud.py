@@ -1115,7 +1115,14 @@ def get_task_snapshots(task_id: str, request: Request) -> list[SnapshotEntry]:
     ]
 
 
-@router.get("/tasks", responses=_TENANT_RESPONSES)
+# Maximum number of tasks returned in a single GET /tasks response.
+# Applies to both the paginated envelope and the legacy flat-list shape:
+# the legacy path silently truncates to this cap and emits a deprecation
+# header so callers can migrate to explicit pagination without an outage.
+_LIST_TASKS_HARD_CAP = 500
+
+
+@router.get("/tasks", response_model=None, responses=_TENANT_RESPONSES)
 def list_tasks(
     request: Request,
     status: str | None = None,
@@ -1125,12 +1132,14 @@ def list_tasks(
     parent_session_id: str | None = None,
     limit: int | None = None,
     offset: int | None = None,
-) -> PaginatedTasksResponse | list[TaskResponse]:
+) -> PaginatedTasksResponse | JSONResponse:
     """List tasks, optionally filtered by status, cell_id, and/or claim owner.
 
     When ``limit`` or ``offset`` query params are provided the response is a
     paginated envelope (``{tasks, total, limit, offset}``).  Without them,
-    the legacy flat list is returned for backward compatibility.
+    the legacy flat list is returned for backward compatibility, capped at
+    ``_LIST_TASKS_HARD_CAP`` items and accompanied by a ``Deprecation``
+    header asking callers to pass explicit pagination.
 
     Args:
         request: FastAPI request.
@@ -1145,7 +1154,8 @@ def list_tasks(
             when present.
 
     Returns:
-        Paginated response **or** plain list of TaskResponse dicts.
+        Paginated response **or** plain list of TaskResponse dicts (capped
+        at ``_LIST_TASKS_HARD_CAP``).
     """
     store = _get_store(request)
     effective_tenant = _resolve_request_tenant_scope(request, tenant)
@@ -1159,7 +1169,7 @@ def list_tasks(
 
     paginate = limit is not None or offset is not None
     if paginate:
-        effective_limit = max(1, min(limit or 100, 500))
+        effective_limit = max(1, min(limit or 100, _LIST_TASKS_HARD_CAP))
         effective_offset = max(0, offset or 0)
         total = len(all_tasks)
         page = all_tasks[effective_offset : effective_offset + effective_limit]
@@ -1170,8 +1180,25 @@ def list_tasks(
             offset=effective_offset,
         )
 
-    # Legacy: return a flat list for callers that don't pass pagination params.
-    return [task_to_response(t) for t in all_tasks]
+    # Legacy: return a flat list capped at _LIST_TASKS_HARD_CAP for callers
+    # that have not yet migrated to explicit pagination.  We always emit a
+    # Deprecation header; when truncation occurs we also expose the true
+    # total via X-Total-Count so clients can detect the cap and page.
+    total = len(all_tasks)
+    page = all_tasks[:_LIST_TASKS_HARD_CAP]
+    body = [task_to_response(t).model_dump(mode="json") for t in page]
+    headers = {
+        "Deprecation": "true",
+        "Link": '</tasks?limit=500&offset=0>; rel="successor-version"',
+        "X-Total-Count": str(total),
+    }
+    if total > _LIST_TASKS_HARD_CAP:
+        headers["Warning"] = (
+            f'299 - "GET /tasks without limit/offset is capped at '
+            f"{_LIST_TASKS_HARD_CAP}; pass limit/offset to page through "
+            f'{total} tasks"'
+        )
+    return JSONResponse(content=body, headers=headers)
 
 
 @router.get("/tasks/counts", responses=_TENANT_RESPONSES)

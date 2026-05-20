@@ -197,6 +197,7 @@ nav:
       - Troubleshooting: gui/troubleshooting.md
   - Adapters & integrations:
       - Adapter guide: adapters/ADAPTER_GUIDE.md
+      - Strict output schemas: adapters/schemas.md
       - OpenAI Agents SDK: adapters/openai-agents.md
       - CLM (Cyber Language Model): adapters/clm.md
       - DeepSeek V4 (self-hosted): adapters/deepseek.md

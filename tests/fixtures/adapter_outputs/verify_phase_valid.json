@@ -1,0 +1,10 @@
+{
+  "schema": "verify",
+  "payload": {
+    "summary": "all boundary gates passed and the verifier accepted the artefact",
+    "decisions": ["accept"],
+    "constraints": [],
+    "open_questions": [],
+    "verdict": "pass"
+  }
+}

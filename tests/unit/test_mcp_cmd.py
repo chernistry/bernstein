@@ -56,7 +56,7 @@ def test_mcp_command_http_mode_runs_sse_server() -> None:
         result = runner.invoke(mcp_server, ["--transport", "http", "--host", "0.0.0.0", "--port", "9999"])
 
     assert result.exit_code == 0
-    mock_sse.assert_called_once_with(server_url="http://localhost:8052", host="0.0.0.0", port=9999)
+    mock_sse.assert_called_once_with(server_url="http://localhost:8052", host="0.0.0.0", port=9999, tier=None)
 
 
 def test_mcp_list_shows_bundled_marketplace_entries() -> None:

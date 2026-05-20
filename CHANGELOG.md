@@ -2,6 +2,14 @@
 
 All notable project changes are tracked here (code + docs).
 
+## [Unreleased]
+
+### Added
+
+- `bernstein desktop-register --host <name>` covers the remaining priority hosts: Cursor, Continue, Cline, Zed, and Aider, alongside the existing Claude Desktop and Claude Code adapters. JSON hosts merge into their canonical `mcpServers` map (or `context_servers` for Zed); Aider records the entry in its YAML config under `mcp-servers` for community-wrapper consumption (#1676).
+- `bernstein doctor --substrate` reports which detected hosts have Bernstein registered, which do not, and which are stale (canonical command/args differ from the recorded entry) (#1676).
+- Operator docs at `docs/substrate/{cursor,continue,cline,zed,aider}.md` cover install, verification, and uninstall per host (#1676).
+
 ## [2.5.0] - Interoperability surfaces, host portability, deterministic replay
 
 22 commits since v2.4.0. Full notes: [`docs/release-notes/v2.5.0.md`](docs/release-notes/v2.5.0.md).

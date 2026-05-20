@@ -282,11 +282,86 @@ def run_all_checks() -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Substrate health-check (``bernstein doctor --substrate``)
+# ---------------------------------------------------------------------------
+
+
+def _substrate_status_for(host: Any) -> dict[str, Any]:
+    """Return a doctor-style row describing one host's substrate state.
+
+    States:
+      - ``unsupported``: host is stubbed (we cannot register it yet)
+      - ``no_config_path``: host is supported but path is unavailable
+      - ``not_registered``: host config exists / could exist; no entry
+      - ``registered``: entry present and matches canonical command
+      - ``stale``: entry present but command/args differ from canonical
+    """
+    from bernstein.core.substrate import is_registered, is_stale
+
+    if not host.supported:
+        return {"host": host.name, "state": "unsupported", "config_path": None}
+    path = host.config_path()
+    if path is None:
+        return {"host": host.name, "state": "no_config_path", "config_path": None}
+    if not is_registered(host, path=path):
+        return {"host": host.name, "state": "not_registered", "config_path": str(path)}
+    if is_stale(host, path=path):
+        return {"host": host.name, "state": "stale", "config_path": str(path)}
+    return {"host": host.name, "state": "registered", "config_path": str(path)}
+
+
+def _run_substrate_checks() -> list[dict[str, Any]]:
+    """Build the substrate report for every host in the registry."""
+    from bernstein.core.substrate import HOST_REGISTRY, known_host_names
+
+    return [_substrate_status_for(HOST_REGISTRY[name]) for name in known_host_names()]
+
+
+def _render_substrate_report(rows: list[dict[str, Any]], *, as_json: bool) -> int:
+    """Render the substrate report and return the desired exit code."""
+    import json as _json
+
+    from rich.table import Table
+
+    from bernstein.cli.helpers import console
+
+    if as_json:
+        console.print_json(_json.dumps({"substrate": rows}))
+        return 0
+
+    table = Table(title="Bernstein substrate state", show_lines=False)
+    table.add_column("Host", style="cyan", no_wrap=True)
+    table.add_column("State")
+    table.add_column("Config path", overflow="fold")
+
+    palette = {
+        "registered": "[green]registered[/green]",
+        "not_registered": "[yellow]not_registered[/yellow]",
+        "stale": "[red]stale[/red]",
+        "unsupported": "[dim]unsupported[/dim]",
+        "no_config_path": "[dim]no_config_path[/dim]",
+    }
+    for row in rows:
+        path = row["config_path"] or "[dim](n/a)[/dim]"
+        table.add_row(row["host"], palette.get(row["state"], row["state"]), str(path))
+
+    console.print(table)
+    return 0
+
+
 @click.command("doctor")
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
 @click.option("--fix", "auto_fix", is_flag=True, default=False, help="Attempt to auto-fix issues.")
+@click.option(
+    "--substrate",
+    "substrate_only",
+    is_flag=True,
+    default=False,
+    help="Report which host applications have Bernstein registered.",
+)
 @click.pass_context
-def doctor_cmd(ctx: click.Context, as_json: bool, auto_fix: bool) -> None:
+def doctor_cmd(ctx: click.Context, as_json: bool, auto_fix: bool, substrate_only: bool) -> None:
     """Run health checks on the Bernstein installation.
 
     \b
@@ -303,10 +378,18 @@ def doctor_cmd(ctx: click.Context, as_json: bool, auto_fix: bool) -> None:
 
     \b
     Examples:
-      bernstein doctor            # print diagnostic report
-      bernstein doctor --json     # machine-readable output
-      bernstein doctor --fix      # attempt to auto-fix issues
+      bernstein doctor             # print diagnostic report
+      bernstein doctor --json      # machine-readable output
+      bernstein doctor --fix       # attempt to auto-fix issues
+      bernstein doctor --substrate # report host registration state only
     """
+    if substrate_only:
+        rows = _run_substrate_checks()
+        exit_code = _render_substrate_report(rows, as_json=as_json)
+        if exit_code:
+            raise SystemExit(exit_code)
+        return
+
     # Delegate to the existing full doctor implementation which has more checks
     from bernstein.cli.status_cmd import doctor as _doctor_impl
 

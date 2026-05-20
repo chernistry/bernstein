@@ -2,6 +2,39 @@
 
 All notable project changes are tracked here (code + docs).
 
+## [2.5.0] - Interoperability surfaces, host portability, deterministic replay
+
+22 commits since v2.4.0. Full notes: [`docs/release-notes/v2.5.0.md`](docs/release-notes/v2.5.0.md).
+
+### Added
+
+- A2A capability cards as a first-class interop primitive: `bernstein interop a2a card` / `verify`, signature plus expiry plus trusted-issuer verification on consume, and the signed lineage chain carried through the A2A envelope with a cross-organisation boundary marker (#1698).
+- Hardened MCP client: capability-card validation before each tool call, retry-with-continuation on dropped streams, streamed-output cancellation, per-server cost metering, and schema-violation containment that degrades a misbehaving server instead of failing the run (#1692).
+- MCP server protocol-surface gaps closed to match the hardened client (#1696).
+- Tiered MCP tool exposure behind a context-budget knob (#1685).
+- `bernstein desktop-register --host <name>` installs Bernstein into Claude Desktop and Claude Code via a per-host adapter (#1697).
+- Portable side-channel telemetry behind one Sentry-compatible `BERNSTEIN_TELEMETRY_DSN`, plus `bernstein telemetry probe` for backend verification (#1691).
+- Deterministic session-id binding for replay isolation (#1684).
+- Supervisor respawn budget with park-on-exhaustion (#1683).
+- Versioned migrations module for on-disk state (#1689).
+- Memorable deterministic run names in user-facing surfaces (#1682, #1626).
+- Per-adapter strategy enums for resume, dangerous-mode, and event channel (#1690).
+- Permission-rule prefilter on lifecycle hooks before spawn (#1680).
+- Strict structured-output schemas with a user-field blacklist (#1681).
+- Consensus scoring with detected-by provenance on review findings (#1686).
+- Tiered, cost-tuned memory compaction (#1687).
+
+### Changed
+
+- Runtime `python:3.13-slim` Docker digest bumped to `e544a7f`, staying on the pinned 3.13 line (#1699).
+
+### Fixed
+
+- `TaskCreate` / `TaskSelfCreate` validate `scope` and `complexity` at the request boundary and return `422` for empty or out-of-range values, instead of raising `ValueError` in the task store and surfacing an unhandled `500` on `POST /tasks` and `POST /tasks/batch` (#1700).
+- Shipped package no longer hardcodes operator-private infrastructure hosts as defaults; observability and telemetry backends soft-fail or no-op when unset, with a regression test asserting zero operator-private host, IP, or DSN matches in `src/` (#1694).
+- Dependency audit ignores the disputed, fix-less pyjwt advisory PYSEC-2025-183 (CVE-2025-45768), pulled in transitively via `mcp`, with the rationale recorded inline (#1695).
+- Agent-context files (`AGENTS.md`, `CLAUDE.md`, `CONVENTIONS.md`, `.goosehints`, cursor module map) re-synced for the `interop` and `substrate` modules; duplicate spell-check allow-list key removed; MCP client test fixture no longer relies on a spell-check allow-list entry (#1701, #1702, #1693).
+
 ## [2.4.0] - Observability surfaces, single-writer run state, declarative planning gates
 
 33 commits since v2.3.1. Full notes: [`docs/release-notes/v2.4.0.md`](docs/release-notes/v2.4.0.md).

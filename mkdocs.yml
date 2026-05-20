@@ -269,6 +269,7 @@ nav:
       - Task lifecycle CLI: reference/cli/task-lifecycle.md
       - Replay CLI: reference/cli/replay.md
       - MCP catalog: reference/mcp-catalog.md
+      - MCP tool tiers: mcp/tool_tiers.md
       - API reference: reference/openapi-reference.md
       - ACP bridge: reference/acp-bridge.md
       - Feature matrix: reference/FEATURE_MATRIX.md

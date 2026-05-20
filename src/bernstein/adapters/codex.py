@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 class CodexAdapter(CLIAdapter):
     """Spawn and monitor OpenAI Codex CLI sessions."""
 
+    registry_name = "codex"
     external_endpoints = (("api.openai.com", 443),)
     # OpenAI returns HTTP 429 with ``rate_limit_exceeded`` /
     # ``insufficient_quota`` error codes; the meter records both under
@@ -65,8 +66,15 @@ class CodexAdapter(CLIAdapter):
             "--json",
             "-o",
             str(output_path),
-            prompt,
         ]
+        # Bind a deterministic session id so a replay of this run reaches
+        # the same conversation slot and parallel codex sessions in the
+        # same worktree do not collide. The orchestrator session_id is the
+        # stable conversation key available at spawn time. When the codex
+        # contract declares no session-id flag this is an empty list and
+        # the argv is unchanged.
+        cmd.extend(self.session_id_args(session_id))
+        cmd.append(prompt)
 
         # Wrap with bernstein-worker for process visibility
         pid_dir = workdir / ".sdd" / "runtime" / "pids"

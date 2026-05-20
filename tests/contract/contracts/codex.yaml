@@ -20,6 +20,10 @@ required_subcommands:
   - "exec"
 # Codex sub-flags live under ``codex exec --help``, not ``codex --help``.
 help_command: ["codex", "exec", "--help"]
+# Deterministic session-id binding: codex exec accepts a caller-supplied
+# session id, so the adapter pins the derived id for replay isolation.
+# See docs/adapters/session_isolation.md.
+session_id_flag: "--session-id"
 expected_models:
   command: []
   required_present: []

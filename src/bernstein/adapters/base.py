@@ -818,6 +818,53 @@ class CLIAdapter(ABC):
         """
         return []
 
+    #: Registry name of this adapter (for example ``"codex"``). Used to
+    #: namespace the deterministic session id and to load the adapter's
+    #: capability contract. Subclasses may override; when left blank the
+    #: lower-cased :meth:`name` is used as a fallback.
+    registry_name: str = ""
+
+    def _derive_session_namespace(self) -> str:
+        """Return the namespace label used for deterministic session ids."""
+        if self.registry_name:
+            return self.registry_name
+        return self.name().strip().lower() or type(self).__name__
+
+    def session_id_args(self, conversation_id: str) -> list[str]:
+        """Return spawn-time argv for binding a deterministic session id.
+
+        Derives a deterministic id from ``conversation_id`` (namespaced by
+        this adapter) and pairs it with the CLI flag declared in the
+        adapter's contract (``session_id_flag``). When the CLI exposes no
+        such flag, the list is empty: callers should still record the
+        derived id in orchestrator state for cross-reference, but pass no
+        flag (see AC #3 of the deterministic-session-id binding).
+
+        The derived id is stable across processes and runs, so a replay
+        reaches the same conversation slot, and distinct adapters never
+        collide because the adapter name is mixed into the namespace.
+
+        Args:
+            conversation_id: The orchestrator's conversation id.
+
+        Returns:
+            ``[flag, derived_id]`` when the contract declares a
+            ``session_id_flag``, otherwise an empty list. Returns an empty
+            list when no contract is on disk for this adapter.
+        """
+        from bernstein.adapters._contract import ContractSpec
+        from bernstein.adapters.session_id import derive_session_id
+
+        namespace = self._derive_session_namespace()
+        try:
+            spec = ContractSpec.load(namespace)
+        except FileNotFoundError:
+            return []
+        if not spec.session_id_flag:
+            return []
+        derived = derive_session_id(conversation_id, namespace)
+        return [spec.session_id_flag, str(derived)]
+
 
 # ---------------------------------------------------------------------------
 # Lineage v1 post-write hook (ADR-009 §11.2)

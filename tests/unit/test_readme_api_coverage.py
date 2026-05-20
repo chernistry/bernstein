@@ -229,6 +229,8 @@ DOCUMENTED_COMMANDS: frozenset[str] = frozenset(
         "secrets",
         "trackers",
         "trend-scan",
+        # Bot-added: drift autofix (regen_contract_drift.py)
+        "spec",
     }
 )
 

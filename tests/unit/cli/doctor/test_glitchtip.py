@@ -68,7 +68,7 @@ def _issue_row(
         "userCount": "0",
         "firstSeen": first_seen,
         "lastSeen": first_seen,
-        "permalink": f"https://glitchtip.example.com/bernstein/issues/{short_id}",
+        "permalink": f"{_TEST_BASE_URL}/bernstein/issues/{short_id}",
     }
 
 

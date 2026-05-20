@@ -1259,6 +1259,7 @@ class TaskStore:
         agent_id: str,
         agent_role: str | None = None,
         claimed_by_session: str | None = None,
+        tenant_id: str | None = None,
     ) -> tuple[list[str], list[str]]:
         """Atomically claim multiple tasks by ID with optional role matching.
 
@@ -1271,16 +1272,29 @@ class TaskStore:
             agent_id: The agent claiming the tasks.
             agent_role: If set, only tasks with matching role can be claimed.
             claimed_by_session: Parent orchestrator session ID to record as claim owner.
+            tenant_id: If set, tasks must belong to this tenant scope.
+                Tasks outside the scope (including tasks that no longer
+                exist or whose tenant has changed) are reported as failed.
+                The check runs inside the lock so the authorization decision
+                is atomic with the claim, eliminating a TOCTOU race against
+                concurrent deletes or tenant rewrites.
 
         Returns:
             A tuple of (claimed_ids, failed_ids).
         """
         claimed: list[str] = []
         failed: list[str] = []
+        normalized_tenant = normalize_tenant_id(tenant_id) if tenant_id is not None else None
         async with self._lock:
             for task_id in task_ids:
                 task = self._tasks.get(task_id)
                 if task is None or task.status != TaskStatus.OPEN or not self._dependencies_satisfied(task):
+                    failed.append(task_id)
+                    continue
+                # Tenant authorization happens inside the lock so it cannot
+                # be invalidated between check and claim by a concurrent
+                # request mutating the task.
+                if normalized_tenant is not None and task.tenant_id != normalized_tenant:
                     failed.append(task_id)
                     continue
                 if agent_role is not None and task.role != agent_role:
@@ -2039,26 +2053,33 @@ class TaskStore:
         Returns:
             List of matching tasks.
         """
+        # Choose the smallest seed collection: when status is supplied, the
+        # by-status index is already partitioned, otherwise walk all tasks.
         if status is not None:
             try:
                 ts = TaskStatus(status)
-                tasks: list[Task] = list(self._by_status[ts].values())
+                seed: list[Task] = list(self._by_status[ts].values())
             except ValueError:
-                tasks = []
+                return []
         else:
-            tasks = list(self._tasks.values())
-        if cell_id is not None:
-            tasks = [t for t in tasks if t.cell_id == cell_id]
-        if tenant_id is not None:
-            normalized_tenant = normalize_tenant_id(tenant_id)
-            tasks = [t for t in tasks if t.tenant_id == normalized_tenant]
-        if claimed_by_session is not None:
-            tasks = [t for t in tasks if t.claimed_by_session == claimed_by_session]
-        if parent_session_id is not None:
-            tasks = [t for t in tasks if t.parent_session_id == parent_session_id]
-        if status == "open":
-            tasks = [t for t in tasks if self._dependencies_satisfied(t)]
-        return tasks
+            seed = list(self._tasks.values())
+
+        # Resolve filter constants once; previously each pass recomputed them
+        # (or normalized strings) on every iteration.
+        normalized_tenant = normalize_tenant_id(tenant_id) if tenant_id is not None else None
+        check_open_deps = status == "open"
+
+        # Single-pass filter: evaluate every predicate together so we walk
+        # the task list once instead of rebuilding it N times.
+        return [
+            t
+            for t in seed
+            if (cell_id is None or t.cell_id == cell_id)
+            and (normalized_tenant is None or t.tenant_id == normalized_tenant)
+            and (claimed_by_session is None or t.claimed_by_session == claimed_by_session)
+            and (parent_session_id is None or t.parent_session_id == parent_session_id)
+            and (not check_open_deps or self._dependencies_satisfied(t))
+        ]
 
     def count_by_status(self, tenant_id: str | None = None) -> dict[str, int]:
         """Return task counts per status without materialising task lists.

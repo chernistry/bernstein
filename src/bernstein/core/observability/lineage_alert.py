@@ -143,6 +143,57 @@ class NullAlertSink:
         return True
 
 
+class SideChannelAlertSink:
+    """Mirror tamper events onto the portable side channel.
+
+    A tamper detection is a security event that the operator wants in the
+    same single stream as the rest of Bernstein's observability output,
+    regardless of which host launched the run. This sink routes the event
+    through :mod:`bernstein.core.observability.sidechannel`; it is a no-op
+    when ``BERNSTEIN_TELEMETRY_DSN`` is unset, and never raises.
+    """
+
+    def emit(self, event: LineageTamperEvent) -> bool:
+        from bernstein.core.observability import sidechannel
+
+        return sidechannel.emit(
+            "lineage",
+            "lineage chain tamper detected",
+            level=sidechannel.EventLevel.ERROR,
+            tags={"run_id": event.run_id, "source": event.source},
+            extra={
+                "errors": event.errors,
+                "record_count": event.record_count,
+                "detected_at": event.detected_at,
+            },
+        )
+
+
+class FanoutAlertSink:
+    """Deliver each event to every configured sink, best-effort.
+
+    Returns ``True`` only when every sink reported success; a single
+    failing sink does not stop delivery to the others.
+    """
+
+    __slots__ = ("_sinks",)
+
+    def __init__(self, sinks: list[LineageAlertSink]) -> None:
+        self._sinks = sinks
+
+    def emit(self, event: LineageTamperEvent) -> bool:
+        results = [self._safe_emit(sink, event) for sink in self._sinks]
+        return all(results) if results else True
+
+    @staticmethod
+    def _safe_emit(sink: LineageAlertSink, event: LineageTamperEvent) -> bool:
+        try:
+            return sink.emit(event)
+        except Exception as exc:
+            logger.warning("lineage alert: sink %r raised: %s", type(sink).__name__, exc)
+            return False
+
+
 def _event_to_dict(event: LineageTamperEvent) -> dict[str, Any]:
     return {
         "type": "lineage_tamper_detected",
@@ -162,28 +213,47 @@ def sink_from_config(
     headers: dict[str, str] | None = None,
     timeout_secs: float = DEFAULT_WEBHOOK_TIMEOUT_SECS,
     max_retries: int = DEFAULT_WEBHOOK_MAX_RETRIES,
+    mirror_side_channel: bool = True,
 ) -> LineageAlertSink:
     """Build a sink from bernstein.yaml-shaped config.
 
-    Returns ``NullAlertSink`` when alerting is disabled or the
-    webhook URL is missing. The orchestrator never raises here -- a
-    misconfigured SIEM is loud-by-counter-and-audit, not a crash.
+    Tamper events are always mirrored onto the portable side channel
+    (when a ``BERNSTEIN_TELEMETRY_DSN`` is configured) so the operator sees
+    them in the same single stream as the rest of Bernstein's observability
+    output. The optional SIEM webhook is delivered alongside it.
+
+    Returns ``NullAlertSink`` only when alerting is disabled. When the
+    webhook URL is missing or invalid the side-channel mirror still applies.
+    The orchestrator never raises here -- a misconfigured SIEM is
+    loud-by-counter-and-audit, not a crash.
     """
-    if not enabled or not webhook_url:
+    if not enabled:
         return NullAlertSink()
-    try:
-        return WebhookAlertSink(
-            webhook_url,
-            headers=headers,
-            timeout_secs=timeout_secs,
-            max_retries=max_retries,
-        )
-    except UrlSchemeError as exc:
-        # Maintain the "orchestrator never raises here" contract: log the
-        # invalid scheme and fall back to the no-op sink so a misconfigured
-        # webhook URL does not crash the run.
-        logger.warning(
-            "lineage alert: webhook URL rejected (%s); falling back to NullAlertSink",
-            exc,
-        )
+
+    sinks: list[LineageAlertSink] = []
+    if webhook_url:
+        try:
+            sinks.append(
+                WebhookAlertSink(
+                    webhook_url,
+                    headers=headers,
+                    timeout_secs=timeout_secs,
+                    max_retries=max_retries,
+                )
+            )
+        except UrlSchemeError as exc:
+            # Maintain the "orchestrator never raises here" contract: log the
+            # invalid scheme and skip the webhook so a misconfigured URL does
+            # not crash the run.
+            logger.warning(
+                "lineage alert: webhook URL rejected (%s); skipping webhook sink",
+                exc,
+            )
+    if mirror_side_channel:
+        sinks.append(SideChannelAlertSink())
+
+    if not sinks:
         return NullAlertSink()
+    if len(sinks) == 1:
+        return sinks[0]
+    return FanoutAlertSink(sinks)

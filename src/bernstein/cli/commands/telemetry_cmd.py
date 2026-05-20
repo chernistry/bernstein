@@ -118,6 +118,58 @@ def telemetry_export(days: int, home: Path | None) -> None:
         click.echo(line)
 
 
+@telemetry_group.command("probe")
+@click.option(
+    "--message",
+    default="bernstein telemetry probe",
+    show_default=True,
+    help="Message body of the synthetic event.",
+)
+def telemetry_probe(message: str) -> None:
+    """Emit a synthetic side-channel event so operators can verify the backend.
+
+    Reads the portable ``BERNSTEIN_TELEMETRY_DSN`` and ships one synthetic
+    ``probe`` event over the Sentry-compatible side channel. Use this after
+    pointing a host-embedded Bernstein at your telemetry DSN to confirm the
+    backend received the stream. No-op (with a clear message) when no DSN is
+    configured.
+    """
+    import os
+
+    from bernstein.core.observability import sidechannel
+
+    if not os.environ.get(sidechannel.DSN_ENV):
+        click.echo(
+            f"telemetry probe: {sidechannel.DSN_ENV} is not set; nothing emitted.\n"
+            "Set it to a Sentry-compatible DSN and re-run to verify the backend."
+        )
+        return
+
+    sink = sidechannel.build_sidechannel()
+    if isinstance(sink, sidechannel.NullSideChannel):
+        click.echo(
+            f"telemetry probe: {sidechannel.DSN_ENV} is set but could not be parsed; "
+            "nothing emitted. See the log line above for the reason."
+        )
+        return
+
+    event = sidechannel.SideChannelEvent(
+        category="probe",
+        message=message,
+        level=sidechannel.EventLevel.INFO,
+        tags={"synthetic": "true"},
+        extra={"probe": True},
+    )
+    accepted = sink.emit(event)
+    sink.flush()
+    sink.close()
+    if accepted:
+        click.echo(f"telemetry probe: event {event.event_id} queued for delivery.")
+        click.echo("Check your GlitchTip project; the event carries logger=bernstein.probe.")
+    else:
+        click.echo("telemetry probe: event was dropped under backpressure.")
+
+
 def explain_source(source: OptInSource) -> str:
     """Return a one-line operator-facing description of ``source``."""
     if source is OptInSource.DO_NOT_TRACK:
@@ -142,5 +194,6 @@ __all__ = [
     "telemetry_group",
     "telemetry_off",
     "telemetry_on",
+    "telemetry_probe",
     "telemetry_status",
 ]

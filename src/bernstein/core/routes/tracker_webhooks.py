@@ -120,7 +120,7 @@ async def tracker_webhook(adapter: str, request: Request) -> JSONResponse:
                 "Tracker webhook accepted adapter=%s id=%s ticket=%s",
                 sanitize_log(adapter),
                 sanitize_log(str(result.delivery_id)),
-                result.event.ticket.id,
+                sanitize_log(str(result.event.ticket.id)),
             )
 
     return _status_to_response(result)

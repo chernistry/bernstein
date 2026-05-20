@@ -321,7 +321,14 @@ class WebhookReceiver:
         try:
             event = handler.parse_event(lower_headers, payload)
         except Exception as exc:  # boundary
-            logger.debug("Parser raised for adapter=%s: %s", sanitize_log(adapter), exc)
+            # The exception text can echo payload fragments; sanitize so
+            # an attacker-controlled body cannot inject CR/LF into log
+            # lines via the parser-failure path.
+            logger.debug(
+                "Parser raised for adapter=%s: %s",
+                sanitize_log(adapter),
+                sanitize_log(str(exc)),
+            )
             return ReceiveResult(status="bad_payload", delivery_id=delivery_id)
 
         # Record only after successful parse so a flaky parser does not

@@ -151,3 +151,28 @@ def test_bench_status_summary(benchmark: Any, store: TaskStore) -> None:
         store.status_summary()
 
     benchmark(_summary)
+
+
+def test_bench_list_tasks_filtered(benchmark: Any, store: TaskStore) -> None:
+    """Benchmark: filtered list_tasks scan with combined predicates.
+
+    The single-pass filter implementation must stay competitive with the
+    old per-predicate chain on a moderately sized store.  This benchmark
+    exists so a future regression that re-introduces N passes is caught
+    by the perf gate rather than only in production.
+    """
+    # Pre-populate with 1000 tasks spread across roles, cells and tenants.
+    for i in range(1000):
+        req = _FakeCreateRequest(title=f"flt-{i}", role=["backend", "qa", "frontend"][i % 3])
+        req.cell_id = f"cell-{i % 5}"
+        req.tenant_id = "team-a" if i % 2 == 0 else "team-b"
+        _run(store.create(req))
+
+    def _filter() -> None:
+        store.list_tasks(
+            status="open",
+            cell_id="cell-1",
+            tenant_id="team-a",
+        )
+
+    benchmark(_filter)

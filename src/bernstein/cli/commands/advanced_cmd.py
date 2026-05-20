@@ -16,6 +16,7 @@ from __future__ import annotations
 import contextlib
 import datetime as dt
 import json
+import logging
 import sys
 import time
 from pathlib import Path
@@ -36,6 +37,8 @@ from bernstein.cli.mcp_cmd import mcp_server as mcp_server  # re-exported for ma
 from bernstein.core.runtime_state import read_session_replay_metadata
 from bernstein.core.traces import TraceStore, build_replay_task_request, render_replay_diff
 from bernstein.core.visual_config import VisualConfig, resolve_visual_config
+
+_LOGGER = logging.getLogger(__name__)
 
 _STYLE_BOLD_CYAN = "bold cyan"
 
@@ -528,7 +531,7 @@ def plugins_cmd(workdir: str) -> None:
 @click.group(
     name="doctor",
     invoke_without_command=True,
-    subcommand_metavar="[airgap|sonar|...]",
+    subcommand_metavar="[airgap|sonar|glitchtip|...]",
 )
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output raw JSON.")
 @click.option("--fix", "auto_fix", is_flag=True, default=False, help="Attempt to auto-fix issues.")
@@ -550,6 +553,7 @@ def doctor(ctx: click.Context, as_json: bool, auto_fix: bool, suggest_docs: bool
       bernstein doctor --suggest-docs # surface top curated documentation gaps
       bernstein doctor airgap         # battery of checks for an air-gapped run
       bernstein doctor sonar          # surface SonarQube insights for the project
+      bernstein doctor glitchtip      # surface GlitchTip issue counts and top unresolved
     """
     if ctx.invoked_subcommand is not None:
         ctx.obj = {"as_json": as_json, "auto_fix": auto_fix}
@@ -565,6 +569,7 @@ def doctor(ctx: click.Context, as_json: bool, auto_fix: bool, suggest_docs: bool
         topics = load_unanswered_topics()
         render_suggestions(console, topics, limit=DEFAULT_TOP_N)
         _maybe_print_sonar_nudge(as_json=as_json)
+        _maybe_print_glitchtip_nudge(as_json=as_json)
         return
 
     from bernstein.cli.doctor.suggest_docs import hint_line
@@ -582,6 +587,7 @@ def doctor(ctx: click.Context, as_json: bool, auto_fix: bool, suggest_docs: bool
     if not as_json:
         console.print(f"[dim]{hint_line()}[/dim]")
         _maybe_print_sonar_nudge(as_json=as_json)
+        _maybe_print_glitchtip_nudge(as_json=as_json)
 
     if exit_code:
         raise SystemExit(exit_code)
@@ -623,6 +629,32 @@ def _maybe_print_sonar_nudge(*, as_json: bool) -> None:
     console.print(
         f"[dim yellow]Sonar nudge: {summary}. Run `bernstein doctor sonar` for the full surface.[/dim yellow]"
     )
+
+
+def _maybe_print_glitchtip_nudge(*, as_json: bool) -> None:
+    """Print a single-line GlitchTip nudge when new unresolved issues exist.
+
+    No-op when ``--json`` was requested (advisory output must not leak
+    into machine-readable streams), when ``BERNSTEIN_GLITCHTIP_TOKEN``
+    is not set, or when there is no delta against the cached baseline.
+    All exceptions are swallowed so the doctor command never crashes
+    because of a side integration.
+    """
+    if as_json:
+        return
+    try:
+        from bernstein.cli.commands.doctor.glitchtip import suggest_nudge_line
+    except ImportError:  # pragma: no cover - defensive
+        return
+    try:
+        line = suggest_nudge_line()
+    except Exception:  # pragma: no cover - defensive
+        # Log unexpected failures so we can diagnose regressions, but never
+        # raise: the nudge is advisory and must not crash `bernstein doctor`.
+        _LOGGER.warning("GlitchTip nudge failed", exc_info=True)
+        return
+    if line:
+        console.print(f"[dim yellow]{line}[/dim yellow]")
 
 
 @doctor.command("airgap")
@@ -915,6 +947,17 @@ def doctor_sonar_cmd(
             update_baseline=not no_update_baseline,
         )
     )
+
+
+# Attach the GlitchTip insights subcommand to the existing ``doctor`` group.
+# Registration runs at import time so ``bernstein doctor glitchtip`` is
+# wired without circular imports between the per-backend module and the
+# group definition above.
+from bernstein.cli.commands.doctor.glitchtip import (  # noqa: E402
+    register as _register_doctor_glitchtip,
+)
+
+_register_doctor_glitchtip(doctor)
 
 
 # ---------------------------------------------------------------------------

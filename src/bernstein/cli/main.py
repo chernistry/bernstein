@@ -902,6 +902,25 @@ cli.add_command(ideate)
 cli.add_command(install_hooks, "install-hooks")
 cli.add_command(plugins_cmd, "plugins")
 cli.add_command(doctor)
+
+# Attach observability doctor subcommands (dt, code-scanning, observe)
+# to the doctor group. Sonar and glitchtip are wired up by their own
+# modules when present (sibling agents own those). See
+# docs/observability/unified-doctor.md.
+from bernstein.cli.commands.doctor.code_scanning import (  # noqa: E402
+    register as _register_doctor_code_scanning,
+)
+from bernstein.cli.commands.doctor.dt import (  # noqa: E402
+    register as _register_doctor_dt,
+)
+from bernstein.cli.commands.doctor.observe import (  # noqa: E402
+    register as _register_doctor_observe,
+)
+
+_register_doctor_dt(doctor)
+_register_doctor_code_scanning(doctor)
+_register_doctor_observe(doctor)
+
 cli.add_command(recap)
 cli.add_command(retro)
 cli.add_command(help_all, "help-all")

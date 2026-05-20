@@ -269,12 +269,20 @@ def ps_cmd(as_json: bool, pid_dir: str) -> None:
 
     _decorate_agent_rows(agents)
 
+    from bernstein.core.agents.spawn_supervisor import get_supervisor
+
+    parked = get_supervisor().parked_sessions()
+
     if as_json or is_json():
-        print_json(agents)
+        print_json({"agents": agents, "parked": parked} if parked else agents)
+        return
+
+    if not agents and not parked:
+        console.print("[dim]No running agents.[/dim]")
         return
 
     if not agents:
-        console.print("[dim]No running agents.[/dim]")
+        _print_parked(parked)
         return
 
     table = Table(title="Bernstein Agents", show_lines=False, header_style="bold cyan")
@@ -303,6 +311,17 @@ def ps_cmd(as_json: bool, pid_dir: str) -> None:
 
     console.print(table)
     console.print(f"\n[dim]{len(agents)} agent(s) running[/dim]")
+    _print_parked(parked)
+
+
+def _print_parked(parked: list[str]) -> None:
+    """Render parked sessions and the resume hint, when any exist."""
+    if not parked:
+        return
+    console.print(f"\n[bold yellow]{len(parked)} parked session(s):[/bold yellow]")
+    for session_id in parked:
+        console.print(f"  [yellow]parked[/yellow]  [cyan]{session_id}[/cyan]")
+    console.print("[dim]Resume with: bernstein agents resume <id>[/dim]")
 
 
 # ---------------------------------------------------------------------------

@@ -30,6 +30,8 @@ outside the doctor group.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from bernstein.cli.commands.doctor.backends import (
     BackendReport,
     MetricRow,
@@ -67,6 +69,9 @@ from bernstein.cli.commands.doctor.observe import (
     register as register_observe,
 )
 
+if TYPE_CHECKING:
+    import click
+
 __all__ = [
     "BackendReport",
     "MetricRow",
@@ -89,7 +94,7 @@ __all__ = [
 ]
 
 
-def register_all(parent_group: object) -> None:
+def register_all(parent_group: click.Group) -> None:
     """Attach every per-backend subcommand to a Click group."""
 
     register_glitchtip(parent_group)

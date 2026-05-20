@@ -12,6 +12,7 @@ backends are wired at a glance.
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import TYPE_CHECKING
 
@@ -30,6 +31,8 @@ from bernstein.cli.commands.doctor.backends import (
     probe_sonar,
 )
 from bernstein.cli.helpers import console
+
+_LOGGER = logging.getLogger(__name__)
 
 #: Backend order matters: it controls table grouping and the JSON
 #: serialisation order. Sonar first (quality gate is the headline),
@@ -66,11 +69,15 @@ def collect_reports(
         try:
             reports.append(probe())
         except Exception as exc:
+            # Log the full error for debugging, but only persist the
+            # exception type in the report so raw messages (which may
+            # carry tokens or URLs) never reach snapshots or stdout.
+            _LOGGER.debug("probe %r crashed", name, exc_info=True)
             reports.append(
                 BackendReport(
                     backend=name,
                     status=ProbeStatus.ERROR,
-                    error=f"unhandled probe error: {exc}",
+                    error=f"unhandled probe error: {type(exc).__name__}",
                 )
             )
     return reports

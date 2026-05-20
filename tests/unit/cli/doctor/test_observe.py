@@ -137,14 +137,17 @@ def test_collect_reports_preserves_order_and_isolates_failures() -> None:
         return _probe
 
     def boom() -> BackendReport:
-        raise RuntimeError("synthetic")
+        # The raw message must never reach the stored report; only the
+        # exception type name is persisted so tokens/URLs cannot leak.
+        raise RuntimeError("synthetic secret token=abc123")
 
     reports = observe_module.collect_reports(
         probes=(("good", good("good")), ("boom", boom), ("good2", good("good2"))),
     )
     assert [r.backend for r in reports] == ["good", "boom", "good2"]
     assert reports[1].status == ProbeStatus.ERROR
-    assert "synthetic" in (reports[1].error or "")
+    assert "RuntimeError" in (reports[1].error or "")
+    assert "secret" not in (reports[1].error or "")
 
 
 def test_observe_command_registered_under_doctor() -> None:

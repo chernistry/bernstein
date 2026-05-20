@@ -1,6 +1,6 @@
 # Unified observability doctor
 
-`bernstein doctor observe` aggregates the four observability backends
+`bernstein doctor observe` aggregates the four observability backends that
 Bernstein integrates with into a single operator-facing table: Sonar,
 GlitchTip, Dependency-Track, and GitHub Code Scanning.
 

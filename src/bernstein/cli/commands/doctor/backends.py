@@ -25,11 +25,14 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class ProbeStatus(StrEnum):
@@ -248,8 +251,10 @@ def probe_sonar(env: dict[str, str] | None = None) -> BackendReport:
                 detail=f"project {cfg.project_key}",
                 metrics=rows,
             )
-    except Exception:
-        pass
+    except Exception as exc:
+        # Fall back to the direct API call below. Log at debug so the
+        # failure is discoverable without crashing the umbrella probe.
+        _LOGGER.debug("sonar insights module failed, falling back: %s", exc)
 
     try:
         import httpx

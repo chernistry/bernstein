@@ -124,7 +124,7 @@ def _build_markdown(payload: dict[str, Any], pr: str, branch: str) -> str:
         lines.append("")
     lines.append(
         "_See [docs/observability/unified-doctor.md]"
-        "(../blob/main/docs/observability/unified-doctor.md) "
+        "(/sipyourdrink-ltd/bernstein/blob/main/docs/observability/unified-doctor.md) "
         "for backend setup notes._"
     )
     return "\n".join(lines) + "\n"

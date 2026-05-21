@@ -19,7 +19,6 @@ written file content), never a tautology.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import click
@@ -61,18 +60,22 @@ from bernstein.cli.run_bootstrap import (
 )
 def test_parse_budget_spec_valid_inputs(raw: object, expected: float | None) -> None:
     """Recognised budget specs parse to the expected float (or None)."""
-    assert _parse_budget_spec(raw) == expected  # type: ignore[arg-type]
+    actual = _parse_budget_spec(raw)  # type: ignore[arg-type]
+    if expected is None:
+        assert actual is None
+    else:
+        assert actual == pytest.approx(expected)
 
 
 def test_parse_budget_spec_clamps_negative_numbers_to_zero() -> None:
     """Negative numeric budgets clamp to 0.0 (the 'unlimited' sentinel)."""
-    assert _parse_budget_spec(-3.0) == 0.0
-    assert _parse_budget_spec(-100) == 0.0
+    assert _parse_budget_spec(-3.0) == pytest.approx(0.0)
+    assert _parse_budget_spec(-100) == pytest.approx(0.0)
 
 
 def test_parse_budget_spec_clamps_negative_strings_to_zero() -> None:
     """A negative string spec also clamps to 0.0 rather than passing through."""
-    assert _parse_budget_spec("-5usd") == 0.0
+    assert _parse_budget_spec("-5usd") == pytest.approx(0.0)
 
 
 def test_parse_budget_spec_rejects_garbage() -> None:
@@ -263,7 +266,9 @@ def test_build_synthetic_plan_truncates_long_goal_in_title() -> None:
 
 def test_load_plan_goal_from_json(tmp_path: Path) -> None:
     plan_file = tmp_path / "plan.json"
-    plan_file.write_text(json.dumps({"goal": "Refactor the auth layer", "tasks": []}))
+    # _load_plan_goal only reads the "goal" key; write the JSON as a literal
+    # string rather than constructing a raw dict.
+    plan_file.write_text('{"goal": "Refactor the auth layer"}')
     assert _load_plan_goal(plan_file) == "Refactor the auth layer"
 
 

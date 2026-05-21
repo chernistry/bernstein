@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TypedDict
 
 import pytest
 from click.testing import CliRunner
@@ -26,7 +27,15 @@ from click.testing import CliRunner
 from bernstein.cli.commands.eval_benchmark_cmd import eval_group
 
 
-def _seed_yaml_run(state_dir: Path, name: str, per_adapter: list[dict]) -> Path:
+class EvalAdapterEntry(TypedDict):
+    """One per-adapter row in a seeded YAML-eval run fixture."""
+
+    adapter: str
+    overall_score: float
+    golden_pass_rate: float
+
+
+def _seed_yaml_run(state_dir: Path, name: str, per_adapter: list[EvalAdapterEntry]) -> Path:
     """Write a minimal persisted YAML-eval run JSON under the runs dir."""
     runs_dir = state_dir / "eval" / "yaml_runs"
     runs_dir.mkdir(parents=True, exist_ok=True)
@@ -230,7 +239,10 @@ def test_eval_synth_generate_unknown_scenario_exits_two(monkeypatch: pytest.Monk
     assert "Generation failed" in result.output
 
 
-def test_eval_synth_generate_requires_scenario() -> None:
+def test_eval_synth_generate_requires_scenario(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The missing-required-arg check fires before the disabled-toggle branch,
+    # but pin the env var off so the assertion holds under random ordering.
+    monkeypatch.delenv("BERNSTEIN_SYNTHETIC_EVAL_OFF", raising=False)
     runner = CliRunner()
     result = runner.invoke(eval_group, ["synth-generate"])
     assert result.exit_code == 2, result.output

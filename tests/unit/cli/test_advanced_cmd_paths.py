@@ -223,7 +223,10 @@ def test_quarantine_clear_with_confirm_flag() -> None:
 def test_quarantine_clear_declined_at_prompt() -> None:
     runner = CliRunner()
     # Answer "n" to the confirmation prompt -> no server call, cancelled.
-    result = runner.invoke(quarantine_group, ["clear"], input="n\n")
+    with patch(_SERVER_POST) as mock_post:
+        result = runner.invoke(quarantine_group, ["clear"], input="n\n")
+    # Declining must short-circuit before any server call is made.
+    mock_post.assert_not_called()
     assert result.exit_code == 0, result.output
     assert "Cancelled" in result.output
 

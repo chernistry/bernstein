@@ -41,7 +41,7 @@ from bernstein.core.security.audit import AUDIT_KEY_ENV
 
 
 @pytest.fixture
-def isolated_audit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def isolated_audit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Run inside an isolated cwd with a pinned tmp HMAC key.
 
     ``AUDIT_DIR`` in the command module is the relative ``Path(".sdd/audit")``;

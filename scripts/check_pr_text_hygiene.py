@@ -10,11 +10,20 @@ The script reads four surfaces of a pull request:
     subject + body in the PR, concatenated; the ``git log %B`` output
     with ``---`` separators is the expected format)
 
-The deny-list lives in ``.github/pr-text-hygiene-deny.json`` so it can
-evolve without code changes. Matching is plain case-insensitive
-substring matching against each surface. Any match is reported via a
-GitHub Actions ``::error::`` annotation on stdout and the script exits
-with status 1; a clean run exits 0.
+The deny-list source is configurable:
+
+  - ``--denylist-env-var NAME`` reads phrases from the named environment
+    variable. Value is either a JSON object ``{"denylist": [...]}`` or
+    a plain newline-separated list. This is the recommended source so
+    the phrase list never lands in the repo.
+  - ``--denylist PATH`` reads phrases from a JSON file (same schema as
+    the env-var variant). Useful for local runs.
+
+When neither source resolves to a non-empty phrase list the script logs
+a notice and exits 0 (the workflow becomes a no-op). Matching is plain
+case-insensitive substring matching against each surface. Any match is
+reported via a GitHub Actions ``::error::`` annotation on stdout and
+the script exits with status 1; a clean run exits 0.
 
 The script never reads PR labels. Label-based opt-out lives in the
 workflow that calls this script (see
@@ -22,17 +31,20 @@ workflow that calls this script (see
 
 Run locally::
 
-    python scripts/check_pr_text_hygiene.py \\
+    PR_TEXT_HYGIENE_DENYLIST='{"denylist":["foo","bar"]}' \\
+      python scripts/check_pr_text_hygiene.py \\
       --title "ci: add foo" \\
       --body "" \\
       --branch "feat/foo" \\
-      --commit-messages-file commit-msgs.txt
+      --commit-messages-file commit-msgs.txt \\
+      --denylist-env-var PR_TEXT_HYGIENE_DENYLIST
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -40,31 +52,53 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-_DEFAULT_DENYLIST = _REPO_ROOT / ".github" / "pr-text-hygiene-deny.json"
+
+def _parse_denylist_payload(raw: str, source: str) -> list[str]:
+    """Parse a deny-list payload that may be JSON or newline-separated.
+
+    JSON form: ``{"denylist": ["phrase-1", "phrase-2", ...]}``.
+    Plain form: one phrase per line, blanks ignored.
+    Returns the cleaned list of non-empty stripped phrases.
+    """
+    stripped = raw.strip()
+    if not stripped:
+        return []
+    phrases: list[str]
+    if stripped.startswith("{"):
+        data = json.loads(stripped)
+        if not isinstance(data, dict) or "denylist" not in data:
+            raise ValueError(f"deny-list source {source} missing top-level 'denylist' key")
+        raw_phrases = data["denylist"]
+        if not isinstance(raw_phrases, list):
+            raise ValueError(f"deny-list source {source} 'denylist' must be a list")
+        phrases = []
+        for entry in raw_phrases:
+            if not isinstance(entry, str):
+                raise ValueError(f"deny-list source {source} contains non-string entry: {entry!r}")
+            phrases.append(entry)
+    else:
+        phrases = stripped.splitlines()
+    cleaned: list[str] = []
+    for entry in phrases:
+        normalised = entry.strip()
+        if normalised:
+            cleaned.append(normalised)
+    return cleaned
 
 
 def load_denylist(path: Path) -> list[str]:
-    """Load the deny-list JSON file and return the list of phrases.
+    """Load a deny-list JSON file. Kept for tests and local invocations."""
+    return _parse_denylist_payload(path.read_text(encoding="utf-8"), str(path))
 
-    The file must contain a top-level object with a ``denylist`` key
-    whose value is a list of non-empty strings.
+
+def load_denylist_from_env(env_var: str) -> list[str]:
+    """Load a deny-list from the named environment variable.
+
+    Empty or missing env var resolves to an empty list (the caller can
+    decide whether that is a no-op or an error).
     """
-    raw = path.read_text(encoding="utf-8")
-    data = json.loads(raw)
-    if not isinstance(data, dict) or "denylist" not in data:
-        raise ValueError(f"deny-list file {path} missing top-level 'denylist' key")
-    phrases = data["denylist"]
-    if not isinstance(phrases, list):
-        raise ValueError(f"deny-list file {path} 'denylist' must be a list")
-    cleaned: list[str] = []
-    for entry in phrases:
-        if not isinstance(entry, str):
-            raise ValueError(f"deny-list file {path} contains non-string entry: {entry!r}")
-        stripped = entry.strip()
-        if stripped:
-            cleaned.append(stripped)
-    return cleaned
+    raw = os.environ.get(env_var, "")
+    return _parse_denylist_payload(raw, f"env:{env_var}")
 
 
 def scan_surface(surface: str, text: str, phrases: Iterable[str]) -> list[tuple[str, str]]:
@@ -140,12 +174,31 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--denylist",
         type=Path,
-        default=_DEFAULT_DENYLIST,
-        help=f"Path to deny-list JSON (default: {_DEFAULT_DENYLIST}).",
+        default=None,
+        help="Optional path to a deny-list JSON file. Prefer --denylist-env-var.",
+    )
+    parser.add_argument(
+        "--denylist-env-var",
+        default=None,
+        help=(
+            "Name of an environment variable whose value is the deny-list "
+            "payload (JSON object with 'denylist' key, or newline-separated phrases)."
+        ),
     )
     args = parser.parse_args(argv)
 
-    phrases = load_denylist(args.denylist)
+    phrases: list[str] = []
+    if args.denylist_env_var:
+        phrases = load_denylist_from_env(args.denylist_env_var)
+    if not phrases and args.denylist is not None:
+        phrases = load_denylist(args.denylist)
+    if not phrases:
+        print(
+            "check_pr_text_hygiene: no deny-list configured; nothing to scan. "
+            "Set --denylist-env-var or --denylist to enable the gate.",
+        )
+        return 0
+
     commit_messages: list[str] = []
     if args.commit_messages_file is not None:
         commit_messages = _read_commit_messages(args.commit_messages_file)

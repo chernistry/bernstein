@@ -1,10 +1,14 @@
 name: PR text hygiene
 
 # Preventive lint for pull-request text. Scans the PR title, body,
-# head branch name, and every commit subject + body against a
-# deny-list of phrases stored in `.github/pr-text-hygiene-deny.json`.
-# Any match fails the workflow with a `::error::` annotation so the
-# `text-hygiene` job can be made a required check.
+# head branch name, and every commit subject + body against the
+# deny-list configured in the `PR_TEXT_HYGIENE_DENYLIST` repository
+# variable. Any match fails the workflow with a `::error::` annotation
+# so the `text-hygiene` job can be made a required check.
+#
+# When the variable is unset (the default in a fresh fork) the script
+# logs a notice and the job exits 0; the gate becomes effectively
+# opt-in via repository settings.
 #
 # Operator opt-out: apply the `skip-text-hygiene` PR label.
 # Bot-authored PRs (renovate, dependabot, github-actions,
@@ -69,10 +73,12 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_TEXT_HYGIENE_DENYLIST: ${{ vars.PR_TEXT_HYGIENE_DENYLIST }}
         run: |
           set -euo pipefail
           python scripts/check_pr_text_hygiene.py \
             --title "${PR_TITLE}" \
             --body "${PR_BODY:-}" \
             --branch "${PR_BRANCH}" \
-            --commit-messages-file .ci/text-hygiene/commits.txt
+            --commit-messages-file .ci/text-hygiene/commits.txt \
+            --denylist-env-var PR_TEXT_HYGIENE_DENYLIST

@@ -1,0 +1,112 @@
+name: Nightly drift sweep
+
+# Runs `bernstein agents-md sync` + `ruff format` against main once a day
+# and opens a sync PR when drift accumulated overnight. Complements the
+# per-PR `pre-merge-autosync` workflow:
+#
+#   * Per-PR autosync covers drift introduced by the active PR.
+#   * Nightly sweep covers drift that accumulated from PRs that bypassed
+#     the autosync gate (fork PRs, skip-autosync label, or autosync
+#     failures the operator did not action).
+#
+# The sweep is idempotent: when a prior open PR with the same title
+# already exists, the workflow exits without opening a duplicate.
+
+on:
+  schedule:
+    - cron: "13 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nightly-drift-sweep
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    name: Open drift-sweep PR if mirrors drifted
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout main
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6  # zizmor: ignore[artipacked]
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.BERNSTEIN_AUTOSYNC_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - uses: ./.github/actions/bootstrap
+
+      - name: Install project (for the bernstein CLI)
+        run: uv sync --no-dev --frozen
+        continue-on-error: true
+
+      - name: Regenerate AGENTS.md mirrors
+        run: uv run bernstein agents-md sync --workdir .
+
+      - name: Run ruff fix and format
+        run: |
+          uv run ruff check . --fix --unsafe-fixes || true
+          uv run ruff format .
+
+      - name: Detect drift
+        id: drift
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No drift detected on main; nothing to sweep."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git status --short
+          fi
+
+      - name: Check for an existing open sweep PR
+        if: steps.drift.outputs.changed == 'true'
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.BERNSTEIN_AUTOSYNC_TOKEN || secrets.GITHUB_TOKEN }}
+          PR_TITLE: "chore(auto): nightly mirror + format drift sweep"
+        run: |
+          set -euo pipefail
+          FOUND="$(gh pr list --state open --search "${PR_TITLE} in:title" --json number,title --jq '.[] | select(.title == env.PR_TITLE) | .number' | head -n1)"
+          if [ -n "${FOUND}" ]; then
+            echo "::notice::Existing nightly drift-sweep PR #${FOUND} already open; skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open sweep PR
+        if: steps.drift.outputs.changed == 'true' && steps.existing.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BERNSTEIN_AUTOSYNC_TOKEN || secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          BRANCH="auto/drift-sweep-$(date -u +%Y%m%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # If a stale branch with today's name already exists from a
+          # previous re-run, delete it locally and recreate from main HEAD.
+          git checkout -B "${BRANCH}"
+          git add -A
+          git commit -m "chore(auto): nightly mirror + format drift sweep"
+          git push --force-with-lease origin "${BRANCH}"
+          gh pr create \
+            --base main \
+            --head "${BRANCH}" \
+            --title "chore(auto): nightly mirror + format drift sweep" \
+            --label automated \
+            --body "Nightly sweep regenerated AGENTS.md mirrors and ran ruff format on main. Diff is mechanical and may be merged after CI passes.
+
+          Source run: ${RUN_URL}"

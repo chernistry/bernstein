@@ -218,7 +218,6 @@ Hand-curated release notes: [`docs/release-notes/v2.0.0.md`](docs/release-notes/
 - **Enterprise evaluation guide** — deployment shapes Bernstein already supports (laptop tool, on-prem cluster, air-gap-clean wheelhouse, MCP server mode behind a corporate egress proxy) and the audit, lineage, and operator surfaces to interrogate before bringing it inside a regulated perimeter.
 - **Use-case workflows page** (`docs/use-cases.md`) — four most-asked patterns: continuous codebase audit, stale-PR triage, parallel adapter benchmarking, post-mortem evidence pack. Contributed by @zerone0x via #1048.
 - Internal scheduler-LLM example bumped from `gemini-2.5-pro` to `gemini-3.1-pro`.
-- Author identity surfaces (sameAs / rel=me / twitter:creator) reconciled across bernstein.run, alexchernysh.com, and the SoftwareApplication JSON-LD on the docs site.
 
 ### Tooling
 

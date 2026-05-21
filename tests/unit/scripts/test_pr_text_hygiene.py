@@ -195,14 +195,56 @@ def test_script_never_reads_labels(hygiene_module: ModuleType) -> None:
         assert "label" not in name.lower(), f"check_pr_text grew a label-aware parameter: {name}"
 
 
-def test_default_denylist_loads(hygiene_module: ModuleType) -> None:
-    """The shipped deny-list JSON parses and yields a non-trivial list."""
-    default_path = REPO_ROOT / ".github" / "pr-text-hygiene-deny.json"
-    phrases = hygiene_module.load_denylist(default_path)
-    assert isinstance(phrases, list)
-    assert len(phrases) >= 30  # spec sketch plus extras
-    for entry in phrases:
-        assert isinstance(entry, str) and entry.strip()
+def test_load_denylist_from_env_json(hygiene_module: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+    """JSON payload in the env var resolves to the phrase list."""
+    monkeypatch.setenv(
+        "PR_HYGIENE_TEST_DENYLIST",
+        json.dumps({"denylist": ["foo", "bar baz"]}),
+    )
+    phrases = hygiene_module.load_denylist_from_env("PR_HYGIENE_TEST_DENYLIST")
+    assert phrases == ["foo", "bar baz"]
+
+
+def test_load_denylist_from_env_newline_form(hygiene_module: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Newline-separated payload also works."""
+    monkeypatch.setenv("PR_HYGIENE_TEST_DENYLIST", "foo\nbar baz\n\n")
+    phrases = hygiene_module.load_denylist_from_env("PR_HYGIENE_TEST_DENYLIST")
+    assert phrases == ["foo", "bar baz"]
+
+
+def test_load_denylist_from_env_missing_returns_empty(
+    hygiene_module: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Missing or empty env var resolves to an empty list."""
+    monkeypatch.delenv("PR_HYGIENE_TEST_DENYLIST", raising=False)
+    assert hygiene_module.load_denylist_from_env("PR_HYGIENE_TEST_DENYLIST") == []
+    monkeypatch.setenv("PR_HYGIENE_TEST_DENYLIST", "")
+    assert hygiene_module.load_denylist_from_env("PR_HYGIENE_TEST_DENYLIST") == []
+
+
+def test_cli_no_denylist_configured_exits_zero_with_notice(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """CLI invoked without any deny-list source exits 0 with a notice."""
+    monkeypatch.delenv("PR_HYGIENE_TEST_DENYLIST", raising=False)
+    commits = _commit_dump(tmp_path, ["chore: rename docs"])
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--title",
+            "chore: rename docs",
+            "--branch",
+            "feat/clean",
+            "--commit-messages-file",
+            str(commits),
+            "--denylist-env-var",
+            "PR_HYGIENE_TEST_DENYLIST",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "no deny-list configured" in result.stdout
 
 
 def test_cli_clean_run_exits_zero(tmp_path: Path, deny_file: Path) -> None:

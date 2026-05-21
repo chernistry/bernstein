@@ -33,9 +33,16 @@ class TestBernsteinRun:
 
     @pytest.mark.asyncio
     async def test_run_returns_task_id(self, lab: McpFakeLab) -> None:
-        """bernstein_run returns a JSON string containing a task_id."""
+        """bernstein_run returns a JSON string containing a task_id.
+
+        The MCP cost-meter envelope (#1696) wraps the raw payload under
+        a ``result`` key when the meter is enabled (the default).
+        Unwrap before asserting the inner shape.
+        """
         text = await lab.call_tool("bernstein_run", {"goal": "Build auth"})
         data = json.loads(text)
+        if isinstance(data, dict) and "_meter" in data:
+            data = data["result"]
         assert "task_id" in data
         assert data["task_id"].startswith("fake-")
 

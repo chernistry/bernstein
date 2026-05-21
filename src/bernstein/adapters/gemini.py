@@ -7,13 +7,24 @@ the same model set and the same ``--output-format`` semantics.
 Enterprise customers retain the legacy binary via paid API keys.
 
 The adapter is dual-binary aware. At spawn time it discovers which
-binary is on ``PATH`` using a deterministic cascade:
+binary is on ``PATH`` using a deterministic cascade defined by
+``_DISCOVERY_CASCADE``:
 
-1. The operator override ``BERNSTEIN_GEMINI_BINARY`` wins when set.
+1. The operator override ``BERNSTEIN_GEMINI_BINARY`` wins when set
+   (and must resolve on ``PATH``, regardless of ``strict`` mode).
 2. Otherwise ``antigravity`` is preferred.
 3. The legacy ``gemini`` binary is used as a fallback.
-4. If neither resolves, the adapter raises
-   :class:`BinaryNotInstalledError`.
+4. If neither resolves, behavior depends on the ``strict`` flag
+   passed to :func:`resolve_google_cli_binary`:
+
+   - ``strict=True`` (used by ``bernstein adapters check`` / doctor):
+     the adapter raises :class:`BinaryNotInstalledError`.
+   - ``strict=False`` (default, used by :meth:`GeminiAdapter.spawn`):
+     the resolver returns the first cascade entry as a fallback,
+     letting downstream :func:`subprocess.Popen` raise the natural
+     ``FileNotFoundError`` on actual invocation. This matches the
+     codex / aider adapter posture and keeps tests that mock
+     ``subprocess`` from tripping on eager discovery.
 
 The adapter contract (flags, env-isolation allow-list, sandbox
 profile, rate-limit meter, network policy) is unchanged: only the
@@ -78,6 +89,7 @@ def resolve_google_cli_binary(
     *,
     which: Any = None,
     env: dict[str, str] | None = None,
+    strict: bool = False,
 ) -> str:
     """Resolve the Google CLI binary to invoke for this adapter.
 
@@ -87,15 +99,27 @@ def resolve_google_cli_binary(
             real filesystem.
         env: Environment mapping to consult for
             :data:`BINARY_ENV_VAR`. Defaults to :data:`os.environ`.
+        strict: When ``True`` (e.g. from ``bernstein adapters check``)
+            raise :class:`BinaryNotInstalledError` if no cascade entry
+            resolves. When ``False`` (default, used by :meth:`spawn`)
+            return the first cascade entry as a fallback so the
+            downstream :func:`subprocess.Popen` raises the natural
+            ``FileNotFoundError`` if the binary is genuinely missing.
+            This matches the behaviour of the other adapters
+            (codex, aider) and keeps tests that mock subprocess from
+            tripping on eager discovery.
 
     Returns:
         The binary name to invoke. Operator override (when set and
         non-empty) wins. Otherwise the first cascade entry that
-        resolves on ``PATH`` is returned.
+        resolves on ``PATH`` is returned, or the first cascade entry
+        as a fallback when ``strict=False``.
 
     Raises:
-        BinaryNotInstalledError: When neither the override nor any
-            cascade entry resolves.
+        BinaryNotInstalledError: When ``strict=True`` and neither the
+            override nor any cascade entry resolves, OR when the
+            override is set but missing on ``PATH`` (regardless of
+            ``strict``, since this is operator error).
     """
     source_env = env if env is not None else os.environ
     # Resolve ``shutil.which`` at call time so tests that patch
@@ -114,12 +138,17 @@ def resolve_google_cli_binary(
         if resolver(candidate) is not None:
             return candidate
 
-    raise BinaryNotInstalledError(
-        "Neither 'antigravity' nor 'gemini' was found on PATH. "
-        "Install the Antigravity CLI (per docs/adapters/antigravity.md), "
-        "or set "
-        f"{BINARY_ENV_VAR}=<path-or-name> to override discovery."
-    )
+    if strict:
+        raise BinaryNotInstalledError(
+            "Neither 'antigravity' nor 'gemini' was found on PATH. "
+            "Install the Antigravity CLI (per docs/adapters/antigravity.md), "
+            "or set "
+            f"{BINARY_ENV_VAR}=<path-or-name> to override discovery."
+        )
+    # Non-strict mode: return the first cascade entry as a fallback so
+    # the call site (typically subprocess.Popen) surfaces the missing
+    # binary as a natural FileNotFoundError it can already handle.
+    return _DISCOVERY_CASCADE[0]
 
 
 class GeminiAdapter(CLIAdapter):

@@ -319,13 +319,20 @@ async def test_bernstein_approve_completes_task() -> None:
 
 @pytest.mark.asyncio
 async def test_bernstein_health_always_succeeds() -> None:
-    """bernstein_health always returns {"status": "ok"} without contacting server."""
+    """bernstein_health always returns {"status": "ok"} without contacting server.
+
+    The MCP cost-meter envelope (#1696) wraps the raw tool payload under
+    a ``result`` key when the meter is enabled (the default). Unwrap
+    before asserting the inner shape.
+    """
     from bernstein.mcp.server import create_mcp_server
 
     mcp = create_mcp_server(server_url="http://localhost:8052")
     result = await mcp.call_tool("bernstein_health", {})
     text = result[0][0].text  # type: ignore[index]
     parsed = json.loads(text)
+    if isinstance(parsed, dict) and "_meter" in parsed:
+        parsed = parsed["result"]
     assert parsed == {"status": "ok"}
 
 
@@ -375,6 +382,8 @@ async def test_crash_protection_bernstein_run() -> None:
 
     text = result[0][0].text  # type: ignore[index]
     parsed = json.loads(text)
+    if isinstance(parsed, dict) and "_meter" in parsed:
+        parsed = parsed["result"]
     assert "error" in parsed
     assert "hint" in parsed
 
@@ -396,7 +405,10 @@ async def test_crash_protection_bernstein_status() -> None:
 
     text = result[0][0].text  # type: ignore[index]
     parsed = json.loads(text)
+    if isinstance(parsed, dict) and "_meter" in parsed:
+        parsed = parsed["result"]
     assert "error" in parsed
+    assert "hint" in parsed
 
 
 @pytest.mark.asyncio
@@ -416,7 +428,10 @@ async def test_crash_protection_bernstein_tasks() -> None:
 
     text = result[0][0].text  # type: ignore[index]
     parsed = json.loads(text)
+    if isinstance(parsed, dict) and "_meter" in parsed:
+        parsed = parsed["result"]
     assert "error" in parsed
+    assert "hint" in parsed
 
 
 @pytest.mark.asyncio
@@ -436,7 +451,10 @@ async def test_crash_protection_bernstein_cost() -> None:
 
     text = result[0][0].text  # type: ignore[index]
     parsed = json.loads(text)
+    if isinstance(parsed, dict) and "_meter" in parsed:
+        parsed = parsed["result"]
     assert "error" in parsed
+    assert "hint" in parsed
 
 
 @pytest.mark.asyncio
@@ -456,7 +474,10 @@ async def test_crash_protection_bernstein_approve() -> None:
 
     text = result[0][0].text  # type: ignore[index]
     parsed = json.loads(text)
+    if isinstance(parsed, dict) and "_meter" in parsed:
+        parsed = parsed["result"]
     assert "error" in parsed
+    assert "hint" in parsed
 
 
 @pytest.mark.asyncio
@@ -476,6 +497,8 @@ async def test_crash_protection_bernstein_stop() -> None:
 
     text = result[0][0].text  # type: ignore[index]
     parsed = json.loads(text)
+    if isinstance(parsed, dict) and "_meter" in parsed:
+        parsed = parsed["result"]
     assert "error" in parsed
     assert parsed["hint"] == "Could not write shutdown signal"
 

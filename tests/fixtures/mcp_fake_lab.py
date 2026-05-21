@@ -282,7 +282,22 @@ class McpFakeLab:
             result = await mcp.call_tool(tool_name, args)
 
         # FastMCP returns a list of lists of content objects
-        return result[0][0].text  # type: ignore[index]
+        text: str = result[0][0].text  # type: ignore[index]
+        # Strip the MCP cost-meter envelope (#1696) so tests assert
+        # the tool's inner contract, not the cross-cutting meter. The
+        # envelope shape is {"result": <payload>, "_meter": {...}}.
+        # Tests that want to inspect the envelope itself can opt out
+        # via the dedicated MCP cost-meter test suite.
+        try:
+            parsed = json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            return text
+        if isinstance(parsed, dict) and "_meter" in parsed and "result" in parsed:
+            inner = parsed["result"]
+            if isinstance(inner, str):
+                return inner
+            return json.dumps(inner)
+        return text
 
     # ------------------------------------------------------------------
     # Inspection helpers

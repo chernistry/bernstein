@@ -1,0 +1,1106 @@
+#!/usr/bin/env python3
+"""Static-analysis sweeper: turn open Sonar findings into backlog tickets.
+
+Walks the project's Sonar findings via ``/api/issues/search`` and emits
+one backlog ticket per new finding into ``.sdd/backlog/open/``. De-dup is
+keyed on the Sonar stable issue ``key`` field (stored in the ticket
+frontmatter as ``sonar_issue_key``), so re-runs are idempotent.
+
+This script intentionally **never** consumes the raw Sonar ``message``
+or ``htmlDesc`` text in the ticket body. Every public-facing string is
+synthesised from a pre-vetted rule-family blurb table so the emitted
+ticket reads as ordinary engineering hygiene regardless of what the
+upstream vendor prose contains.
+
+Usage
+-----
+
+    python scripts/sweep_sonar_findings.py \\
+        --severity-min BLOCKER \\
+        --max-per-day 10 \\
+        --out-dir .sdd/backlog/open \\
+        [--dry-run] [--create-gh-issues] [--fixture path/to/issues.json]
+
+Exit codes
+----------
+
+- 0: clean run (may have emitted zero or more tickets).
+- 1: Sonar API failed after retries; no partial tickets emitted.
+- 2: misconfiguration (missing env vars, bad CLI args).
+"""
+
+from __future__ import annotations
+
+import argparse
+import dataclasses
+import datetime as _dt
+import json
+import random
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+import httpx
+import yaml
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Iterator, Sequence
+
+    SleepFn = Callable[[float], None]
+    RunnerFn = Callable[..., Any]
+else:
+    SleepFn = Any
+    RunnerFn = Any
+
+# Make the bernstein package importable when running from the source tree.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_SRC = _REPO_ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+
+from bernstein.core.observability.sonar import (  # noqa: E402
+    SonarConfig,
+    load_config,
+)
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+DEFAULT_OUT_DIR = Path(".sdd/backlog/open")
+DEFAULT_BACKLOG_ROOTS: tuple[Path, ...] = (
+    Path(".sdd/backlog/open"),
+    Path(".sdd/backlog/claimed"),
+    Path(".sdd/backlog/closed"),
+    Path(".sdd/backlog/done"),
+    Path(".sdd/backlog/deferred"),
+)
+
+SEVERITY_ORDER: tuple[str, ...] = ("BLOCKER", "CRITICAL", "MAJOR", "MINOR", "INFO")
+SEVERITY_RANK: dict[str, int] = {sev: idx for idx, sev in enumerate(SEVERITY_ORDER)}
+
+# Priority is the project's P0/P1/P2 enum (see docs/sdd/ticket_schema.md).
+SEVERITY_TO_PRIORITY: dict[str, str] = {
+    "BLOCKER": "P0",
+    "CRITICAL": "P1",
+    "MAJOR": "P2",
+    "MINOR": "P2",
+    "INFO": "P2",
+}
+
+# Effort defaults: most static-analysis findings are small, one or two
+# files worth of refactor. Override via the rule-family table when a
+# given rule family is known to span more.
+DEFAULT_EFFORT = "S"
+
+# Ticket "type" tag mapping (informational; the validator only checks
+# top-level required keys).
+SONAR_TYPE_TO_TICKET_TYPE: dict[str, str] = {
+    "BUG": "fix",
+    "VULNERABILITY": "fix",
+    "CODE_SMELL": "refactor",
+    "SECURITY_HOTSPOT": "fix",
+}
+
+DEFAULT_PAGE_SIZE = 500
+MAX_PAGES = 20
+
+DEFAULT_TIMEOUT_SECONDS = 15.0
+RETRY_ATTEMPTS = 3
+_BACKOFF_BASE_SECONDS = 2.0
+_BACKOFF_JITTER_FRACTION = 0.25
+
+
+# ---------------------------------------------------------------------------
+# Rule-family blurb table (public-safe ## Why bodies)
+#
+# Every blurb is reviewed at code-review time. New rule keys land as PRs
+# that add a row here. The raw Sonar message/htmlDesc is NEVER substituted
+# in: vendor prose can carry phrasing the project's public-artefact
+# discipline disallows.
+# ---------------------------------------------------------------------------
+
+
+# (rule-prefix, category-slug, blurb)
+RULE_FAMILY_BLURBS: tuple[tuple[str, str, str], ...] = (
+    (
+        "python:S3776",
+        "cognitive-complexity",
+        (
+            "Cognitive complexity exceeds the per-function cap configured in "
+            "the static-analysis rules. Split the function into smaller helpers "
+            "so each one stays readable and unit-testable in isolation."
+        ),
+    ),
+    (
+        "python:S1192",
+        "duplicated-strings",
+        (
+            "Repeated string literal should be extracted to a module-level "
+            "constant so it has a single source of truth and is searchable."
+        ),
+    ),
+    (
+        "python:S5754",
+        "broad-except",
+        (
+            "Broad exception clause hides specific failure modes. Narrow the "
+            "except clause to the exact exception types the caller is meant to "
+            "handle."
+        ),
+    ),
+    (
+        "python:S1481",
+        "unused-local",
+        (
+            "Local variable is declared but never read. Remove it so the "
+            "function reads cleanly and any future maintainer is not misled."
+        ),
+    ),
+    (
+        "python:S107",
+        "long-parameter-list",
+        (
+            "Function parameter count exceeds the per-function cap. Group "
+            "related parameters into a dataclass or keyword-only block."
+        ),
+    ),
+    (
+        "python:S1186",
+        "empty-function",
+        (
+            "Function body is empty. Either implement the function or remove "
+            "it so the callable surface matches the project's documented API."
+        ),
+    ),
+    (
+        "python:S125",
+        "commented-out-code",
+        (
+            "Commented-out code block should be removed; version control "
+            "preserves history and stale comments mislead future readers."
+        ),
+    ),
+    (
+        "python:S1066",
+        "collapsible-if",
+        ("Nested if statement can be merged with its parent so the branching reads as a single condition."),
+    ),
+    (
+        "python:S1854",
+        "useless-assignment",
+        (
+            "Value assigned to a local is overwritten before it is read. "
+            "Remove the dead assignment so the data flow reads cleanly."
+        ),
+    ),
+    (
+        "python:S5806",
+        "redefined-builtin",
+        (
+            "Local name shadows a Python builtin. Rename the local so the "
+            "builtin remains accessible inside the function."
+        ),
+    ),
+    (
+        "python:S1226",
+        "reassigned-parameter",
+        (
+            "Function parameter is reassigned inside the body. Introduce a "
+            "local variable so the original argument value stays visible."
+        ),
+    ),
+    (
+        "python:S1172",
+        "unused-parameter",
+        (
+            "Function parameter is declared but never used. Remove it or "
+            "rename it with a leading underscore to mark it intentional."
+        ),
+    ),
+    (
+        "python:S5547",
+        "weak-cryptography",
+        (
+            "Cryptographic primitive is below the project's configured "
+            "strength baseline. Replace with a primitive that meets the "
+            "documented baseline."
+        ),
+    ),
+    (
+        "python:S2068",
+        "hardcoded-credential",
+        (
+            "Hard-coded credential literal must not ship in source. Move the "
+            "value to an env-var or the project's secrets store."
+        ),
+    ),
+    (
+        "python:S5443",
+        "tempfile-permissions",
+        (
+            "Temporary file or directory is created with permissive default "
+            "permissions. Restrict the mode so the file is not readable by "
+            "other local users."
+        ),
+    ),
+    (
+        "python:S4423",
+        "weak-tls",
+        (
+            "TLS configuration accepts a protocol version below the project's "
+            "configured baseline. Restrict the configured protocol set."
+        ),
+    ),
+    (
+        "python:S5659",
+        "jwt-without-strong-validation",
+        (
+            "JWT verification path accepts a weak signature algorithm. Pin "
+            "the accepted algorithm set to the documented baseline."
+        ),
+    ),
+    (
+        "python:S3457",
+        "format-string-mismatch",
+        (
+            "Format string and its arguments do not line up. Align the "
+            "placeholders with the actual values so the formatted output is "
+            "correct at runtime."
+        ),
+    ),
+    (
+        "python:S1117",
+        "shadowed-name",
+        ("Local name shadows an outer-scope name. Rename the inner local so both scopes stay readable."),
+    ),
+    (
+        "python:S1542",
+        "function-naming",
+        (
+            "Function name does not match the project's naming convention. "
+            "Rename so the symbol matches the configured lint rule."
+        ),
+    ),
+    # Bug families
+    (
+        "python:S2589",
+        "always-true-condition",
+        (
+            "Condition always evaluates the same way and the dependent branch "
+            "is dead code. Remove or fix the condition so the branch reflects "
+            "actual runtime behaviour."
+        ),
+    ),
+    (
+        "python:S5806",
+        "unreachable-code",
+        ("Block of code is unreachable. Delete it so future readers do not spend time on dead branches."),
+    ),
+    (
+        "python:S930",
+        "wrong-argument-count",
+        (
+            "Function call passes the wrong number of arguments. Update the "
+            "call site so it matches the callee's signature."
+        ),
+    ),
+)
+
+
+DEFAULT_BLURB = (
+    "Static-analysis finding flagged under rule key {rule_key}. Resolve so "
+    "the file conforms to the project's configured maintainability rules."
+)
+
+
+# Strings that must never appear in any emitted ## Why. Belt-and-braces.
+FORBIDDEN_SUBSTRINGS: tuple[str, ...] = (
+    "audience",
+    "funnel",
+    "adoption",
+    "conversion",
+    "retention",
+    "buyer",
+    "monetisation",
+    "monetization",
+    "roi",
+    "brand",
+    "moat",
+    "competitor",
+    "competitive",
+    "flywheel",
+    "marketing",
+    "scenario prognos",
+    "premortem",
+    "ai search",
+    "aio probe",
+    "umami",
+    "—",  # em-dash forbidden by Bernstein hard constraints
+)
+
+
+# ---------------------------------------------------------------------------
+# Data classes
+# ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass(frozen=True)
+class Finding:
+    """One Sonar finding, normalised."""
+
+    key: str
+    rule: str
+    severity: str
+    type: str
+    component: str
+    line: int | None
+    creation_date: str  # ISO-8601 timestamp string, used only for sorting.
+
+    @property
+    def severity_rank(self) -> int:
+        return SEVERITY_RANK.get(self.severity, len(SEVERITY_ORDER))
+
+
+# ---------------------------------------------------------------------------
+# Sanitisation
+# ---------------------------------------------------------------------------
+
+
+def safe_why(rule_key: str, severity: str, component: str, line: int | None) -> str:
+    """Return a public-safe ``## Why`` body for a Sonar finding.
+
+    Uses only the rule key to look up a pre-vetted blurb from
+    ``RULE_FAMILY_BLURBS`` or the ``DEFAULT_BLURB`` fallback. Never
+    consumes the raw Sonar ``message`` or ``htmlDesc``.
+    """
+    del severity, component, line  # accepted for signature stability
+    blurb = DEFAULT_BLURB.format(rule_key=rule_key)
+    for prefix, _category, text in RULE_FAMILY_BLURBS:
+        if rule_key == prefix or rule_key.startswith(prefix + ":"):
+            blurb = text
+            break
+    return blurb
+
+
+def _assert_no_forbidden(text: str, context: str = "") -> None:
+    """Raise AssertionError if ``text`` contains any forbidden substring."""
+    lower = text.lower()
+    for forbidden in FORBIDDEN_SUBSTRINGS:
+        if forbidden.lower() in lower:
+            raise AssertionError(
+                f"emitted text in {context!r} contains forbidden substring {forbidden!r}: {text[:120]!r}"
+            )
+
+
+# ---------------------------------------------------------------------------
+# Backlog walker and de-dup index
+# ---------------------------------------------------------------------------
+
+
+_FRONTMATTER_DELIM = "---"
+
+
+def _parse_frontmatter(path: Path) -> dict[str, Any] | None:
+    """Parse YAML frontmatter from a Markdown ticket. Returns ``None`` on error."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    if not text.startswith(_FRONTMATTER_DELIM):
+        return None
+    parts = text.split(_FRONTMATTER_DELIM, 2)
+    if len(parts) < 3:
+        return None
+    raw = parts[1]
+    try:
+        parsed = yaml.safe_load(raw)
+    except yaml.YAMLError:
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    return parsed
+
+
+def _walk_yaml_tickets(roots: Iterable[Path]) -> Iterator[tuple[Path, dict[str, Any]]]:
+    """Yield ``(path, frontmatter)`` for every parseable ticket under ``roots``."""
+    for root in roots:
+        if not root.exists() or not root.is_dir():
+            continue
+        for path in sorted(root.glob("*.md")):
+            fm = _parse_frontmatter(path)
+            if fm is None:
+                continue
+            yield path, fm
+        for path in sorted(root.glob("*.yaml")):
+            fm = None
+            try:
+                fm = yaml.safe_load(path.read_text(encoding="utf-8"))
+            except (OSError, yaml.YAMLError):
+                fm = None
+            if isinstance(fm, dict):
+                yield path, fm
+
+
+@dataclasses.dataclass(frozen=True)
+class DedupIndex:
+    """Pre-computed lookups so the sweeper can decide skip-or-emit fast."""
+
+    keys: frozenset[str]
+    open_rule_component_line: frozenset[tuple[str, str, int | None]]
+
+
+_OPEN_STATES: frozenset[str] = frozenset({"open", "claimed", "in_progress", "blocked"})
+
+
+def build_dedup_index(roots: Iterable[Path]) -> DedupIndex:
+    """Walk backlog folders and build the key + rule/component/line indices."""
+    keys: set[str] = set()
+    rcl: set[tuple[str, str, int | None]] = set()
+    for _path, fm in _walk_yaml_tickets(roots):
+        key = fm.get("sonar_issue_key")
+        if isinstance(key, str) and key:
+            keys.add(key)
+        status = fm.get("status")
+        rule = fm.get("sonar_rule")
+        comp = fm.get("sonar_component")
+        line = fm.get("sonar_line")
+        if (
+            isinstance(status, str)
+            and status in _OPEN_STATES
+            and isinstance(rule, str)
+            and isinstance(comp, str)
+            and (line is None or isinstance(line, int))
+        ):
+            rcl.add((rule, comp, line))
+    return DedupIndex(keys=frozenset(keys), open_rule_component_line=frozenset(rcl))
+
+
+# ---------------------------------------------------------------------------
+# Sonar API client
+# ---------------------------------------------------------------------------
+
+
+def _auth(token: str) -> tuple[str, str]:
+    """Sonar HTTP basic auth: token as username, empty password."""
+    return token, ""
+
+
+def _jitter_sleep(base: float) -> None:
+    """Sleep ``base`` seconds with +/- 25 percent jitter."""
+    if base <= 0:
+        return
+    delta = base * _BACKOFF_JITTER_FRACTION
+    time.sleep(base + random.uniform(-delta, delta))
+
+
+class SonarAPIError(RuntimeError):
+    """Raised when the Sonar API fails after the configured retries."""
+
+
+def _request_with_retries(
+    client: httpx.Client,
+    url: str,
+    params: dict[str, Any],
+    *,
+    sleep_fn: SleepFn = _jitter_sleep,
+) -> httpx.Response:
+    """GET with exponential backoff on 5xx and Retry-After-aware 429 retry."""
+    last_exc: Exception | None = None
+    for attempt in range(1, RETRY_ATTEMPTS + 1):
+        try:
+            resp = client.get(url, params=params)
+        except httpx.HTTPError as exc:
+            last_exc = exc
+            if attempt == RETRY_ATTEMPTS:
+                raise SonarAPIError(f"Sonar request failed: {exc}") from exc
+            sleep_fn(_BACKOFF_BASE_SECONDS * (2 ** (attempt - 1)))
+            continue
+        if 200 <= resp.status_code < 300:
+            return resp
+        if resp.status_code == 429:
+            retry_after = resp.headers.get("Retry-After")
+            wait = 1.0
+            if retry_after is not None:
+                try:
+                    wait = float(retry_after)
+                except ValueError:
+                    wait = 1.0
+            sleep_fn(wait)
+            # 429 gets exactly one retry (per design); fall through on next loop.
+            continue
+        if 500 <= resp.status_code < 600:
+            if attempt == RETRY_ATTEMPTS:
+                raise SonarAPIError(f"Sonar returned {resp.status_code} after {attempt} attempts")
+            sleep_fn(_BACKOFF_BASE_SECONDS * (2 ** (attempt - 1)))
+            continue
+        raise SonarAPIError(f"Sonar returned {resp.status_code}: {resp.text[:200]}")
+    if last_exc is not None:
+        raise SonarAPIError(f"Sonar request failed: {last_exc}") from last_exc
+    raise SonarAPIError("Sonar request failed after retries")
+
+
+def fetch_findings(
+    config: SonarConfig,
+    *,
+    severities: Sequence[str],
+    page_size: int = DEFAULT_PAGE_SIZE,
+    client: httpx.Client | None = None,
+    sleep_fn: SleepFn = _jitter_sleep,
+) -> list[Finding]:
+    """Page through ``/api/issues/search`` and return all open findings."""
+    url = f"{config.host}/api/issues/search"
+    findings: list[Finding] = []
+    owns_client = client is None
+    if owns_client:
+        client = httpx.Client(timeout=DEFAULT_TIMEOUT_SECONDS, auth=_auth(config.token))
+    assert client is not None
+    try:
+        page = 1
+        while page <= MAX_PAGES:
+            params: dict[str, Any] = {
+                "componentKeys": config.project_key,
+                "resolved": "false",
+                "severities": ",".join(severities),
+                "types": "CODE_SMELL,BUG,VULNERABILITY",
+                "s": "CREATION_DATE",
+                "asc": "false",
+                "ps": str(page_size),
+                "p": str(page),
+            }
+            resp = _request_with_retries(client, url, params, sleep_fn=sleep_fn)
+            payload = resp.json()
+            if not isinstance(payload, dict):
+                break
+            issues = payload.get("issues") or []
+            for raw in issues:
+                if not isinstance(raw, dict):
+                    continue
+                finding = _normalise_issue(raw)
+                if finding is not None:
+                    findings.append(finding)
+            paging = payload.get("paging") or {}
+            try:
+                total = int(paging.get("total", 0))
+                page_idx = int(paging.get("pageIndex", page))
+                size = int(paging.get("pageSize", page_size))
+            except (TypeError, ValueError):
+                break
+            if size <= 0 or page_idx * size >= total:
+                break
+            page += 1
+    finally:
+        if owns_client:
+            client.close()
+    return findings
+
+
+def _normalise_issue(raw: dict[str, Any]) -> Finding | None:
+    """Coerce one raw Sonar issue dict into a :class:`Finding`."""
+    key = raw.get("key")
+    rule = raw.get("rule")
+    severity = raw.get("severity")
+    issue_type = raw.get("type")
+    component = raw.get("component")
+    line = raw.get("line")
+    creation = raw.get("creationDate") or ""
+    if not (
+        isinstance(key, str)
+        and key
+        and isinstance(rule, str)
+        and isinstance(severity, str)
+        and isinstance(issue_type, str)
+        and isinstance(component, str)
+    ):
+        return None
+    if line is not None and not isinstance(line, int):
+        try:
+            line = int(line)
+        except (TypeError, ValueError):
+            line = None
+    if not isinstance(creation, str):
+        creation = ""
+    return Finding(
+        key=key,
+        rule=rule,
+        severity=severity,
+        type=issue_type,
+        component=component,
+        line=line,
+        creation_date=creation,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Ticket emission
+# ---------------------------------------------------------------------------
+
+
+_SLUG_INVALID = re.compile(r"[^a-z0-9-]+")
+
+
+def _slugify(text: str, *, max_len: int = 60) -> str:
+    """Reduce ``text`` to a kebab slug fit for filenames and ticket ids."""
+    lower = text.lower().replace("_", "-").replace("/", "-").replace(":", "-")
+    cleaned = _SLUG_INVALID.sub("-", lower)
+    collapsed = re.sub(r"-+", "-", cleaned).strip("-")
+    return collapsed[:max_len].strip("-")
+
+
+def _component_tail(component: str) -> str:
+    """Return the file-name portion of a Sonar component key."""
+    # component looks like "bernstein:src/bernstein/core/agents/spawn_supervisor.py"
+    if ":" in component:
+        _, _, tail = component.partition(":")
+    else:
+        tail = component
+    return Path(tail).name or component
+
+
+def _ticket_filename(finding: Finding, day: str) -> str:
+    ticket_type = SONAR_TYPE_TO_TICKET_TYPE.get(finding.type, "refactor")
+    tail = _component_tail(finding.component)
+    line_suffix = f"-{finding.line}" if finding.line else ""
+    slug_input = f"{finding.rule}-{tail}{line_suffix}"
+    slug = _slugify(slug_input, max_len=60)
+    return f"{day}-{ticket_type}-{slug}.md"
+
+
+def _ticket_id(finding: Finding, day: str) -> str:
+    ticket_type = SONAR_TYPE_TO_TICKET_TYPE.get(finding.type, "refactor")
+    tail = _component_tail(finding.component)
+    line_suffix = f"-{finding.line}" if finding.line else ""
+    slug_input = f"{ticket_type}-{day}-{finding.rule}-{tail}{line_suffix}"
+    slug = _slugify(slug_input, max_len=80)
+    # Ensure starts with [a-z0-9] per schema pattern.
+    if not slug or not slug[0].isalnum():
+        slug = f"sonar-{slug}".strip("-")
+    return slug
+
+
+def _ticket_title(finding: Finding) -> str:
+    ticket_type = SONAR_TYPE_TO_TICKET_TYPE.get(finding.type, "refactor")
+    tail = _component_tail(finding.component)
+    location = tail
+    if finding.line:
+        location = f"{tail}:{finding.line}"
+    return f"{ticket_type}(static-analysis): address {finding.rule} in {location}"
+
+
+def _component_path(component: str) -> str:
+    """Strip the project prefix from a Sonar component key."""
+    if ":" in component:
+        _, _, tail = component.partition(":")
+        return tail
+    return component
+
+
+def _format_frontmatter(data: dict[str, Any]) -> str:
+    """YAML-dump frontmatter with stable key order."""
+    # PyYAML's default flow style is fine, but we want plain ASCII output
+    # and a stable order (insertion order preserved by dict in 3.12+).
+    text = yaml.safe_dump(
+        data,
+        sort_keys=False,
+        default_flow_style=False,
+        allow_unicode=False,
+        width=1000,
+    )
+    return text
+
+
+def render_ticket(finding: Finding, *, day: str) -> str:
+    """Build the full Markdown body for one ticket."""
+    ticket_type = SONAR_TYPE_TO_TICKET_TYPE.get(finding.type, "refactor")
+    priority = SEVERITY_TO_PRIORITY.get(finding.severity, "P2")
+    title = _ticket_title(finding)
+    component_path = _component_path(finding.component)
+
+    why = safe_why(finding.rule, finding.severity, finding.component, finding.line)
+    _assert_no_forbidden(why, context=f"safe_why({finding.rule})")
+    _assert_no_forbidden(title, context="ticket title")
+
+    location_text = component_path
+    if finding.line:
+        location_text = f"{component_path}:{finding.line}"
+
+    tldr = (
+        f"Static-analysis rule `{finding.rule}` is open in `{location_text}`. "
+        f"Resolve so the file matches the project's configured rule set on "
+        f"the next scan."
+    )
+    _assert_no_forbidden(tldr, context="TL;DR")
+
+    ac_lines = [
+        (f"The finding at `{location_text}` is resolved on the next static-analysis scan."),
+        (
+            "Behaviour is preserved: existing unit tests covering the touched "
+            "code path continue to pass without modification."
+        ),
+        (
+            "Any new helpers or constants introduced carry docstrings and "
+            "explicit type hints matching the surrounding module."
+        ),
+        (
+            f"The static-analysis issue with key `{finding.key}` is absent "
+            f"from the next scan output for this rule and component."
+        ),
+    ]
+    for ac in ac_lines:
+        _assert_no_forbidden(ac, context="acceptance criterion")
+
+    fm: dict[str, Any] = {
+        "id": _ticket_id(finding, day),
+        "created": day,
+        "status": "open",
+        "priority": priority,
+        "effort": DEFAULT_EFFORT,
+        "title": title,
+        "type": ticket_type,
+        "tags": ["static-analysis", "quality", finding.severity.lower()],
+        "acceptance_criteria": ac_lines,
+        "sonar_issue_key": finding.key,
+        "sonar_rule": finding.rule,
+        "sonar_component": component_path,
+        "sonar_line": finding.line if finding.line is not None else None,
+        "sonar_severity": finding.severity,
+        "sonar_type": finding.type,
+    }
+
+    fm_text = _format_frontmatter(fm)
+    body_lines = [
+        f"# {title}",
+        "",
+        "## TL;DR",
+        "",
+        tldr,
+        "",
+        "## Why",
+        "",
+        why,
+        "",
+        "## Acceptance criteria",
+        "",
+    ]
+    for idx, ac in enumerate(ac_lines, start=1):
+        body_lines.append(f"{idx}. {ac}")
+    body_lines.extend(
+        [
+            "",
+            "## Out of scope",
+            "",
+            (f"- Other rule findings in the same file that are not flagged by `{finding.rule}`."),
+            "- Changing the configured rule itself.",
+            "",
+            (
+                f"<!-- sonar-finding-imported: {finding.key} "
+                f"{_dt.datetime.now(tz=_dt.UTC).isoformat(timespec='seconds')} -->"
+            ),
+            "",
+        ]
+    )
+
+    body = "\n".join(body_lines)
+    _assert_no_forbidden(body, context="ticket body")
+    return f"---\n{fm_text}---\n\n{body}"
+
+
+def emit_ticket(
+    finding: Finding,
+    out_dir: Path,
+    *,
+    day: str,
+    dry_run: bool = False,
+) -> tuple[Path, str, bool]:
+    """Write the ticket file, returning ``(path, body, wrote)``.
+
+    Uses exclusive-create open so two concurrent runs cannot clobber each
+    other; the loser logs a skip and continues.
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    filename = _ticket_filename(finding, day)
+    path = out_dir / filename
+    body = render_ticket(finding, day=day)
+    if dry_run:
+        return path, body, False
+    try:
+        with path.open("x", encoding="utf-8") as fh:
+            fh.write(body)
+    except FileExistsError:
+        return path, body, False
+    return path, body, True
+
+
+# ---------------------------------------------------------------------------
+# Severity filter and per-day cap
+# ---------------------------------------------------------------------------
+
+
+def filter_by_severity(findings: Iterable[Finding], severity_min: str) -> list[Finding]:
+    """Keep only findings at ``severity_min`` or higher."""
+    min_rank = SEVERITY_RANK.get(severity_min.upper(), 0)
+    return [f for f in findings if f.severity_rank <= min_rank]
+
+
+def cap_per_day(findings: Sequence[Finding], cap: int) -> list[Finding]:
+    """Sort by ``(severity_rank, creation_date desc)`` and apply the cap."""
+    ordered = sorted(
+        findings,
+        key=lambda f: (f.severity_rank, -_creation_sort_key(f.creation_date)),
+    )
+    if cap <= 0:
+        return list(ordered)
+    return list(ordered[:cap])
+
+
+def _creation_sort_key(text: str) -> float:
+    """Return an epoch-ish float for the timestamp (newest first when negated)."""
+    if not text:
+        return 0.0
+    # Sonar timestamps look like '2026-05-20T08:14:02+0000'. Trim the colon-less
+    # offset format so fromisoformat accepts it on 3.12+ (3.11 needs the fix).
+    norm = text
+    if len(norm) >= 5 and (norm[-5] == "+" or norm[-5] == "-") and norm[-3] != ":":
+        norm = f"{norm[:-2]}:{norm[-2:]}"
+    try:
+        return _dt.datetime.fromisoformat(norm).timestamp()
+    except ValueError:
+        return 0.0
+
+
+# ---------------------------------------------------------------------------
+# GH-issue creation (opt-in)
+# ---------------------------------------------------------------------------
+
+
+def maybe_create_gh_issue(
+    ticket_path: Path,
+    title: str,
+    *,
+    enable: bool,
+    priority: str,
+    runner: RunnerFn = subprocess.run,
+) -> str | None:
+    """Optionally create a GH issue and return its URL or ``None``."""
+    if not enable:
+        return None
+    if priority != "P0":
+        # Only the highest-priority bucket auto-promotes; everything else
+        # stays file-only until an operator picks it up by hand.
+        return None
+    if not ticket_path.exists():
+        return None
+    cmd = [
+        "gh",
+        "issue",
+        "create",
+        "--title",
+        title,
+        "--body-file",
+        str(ticket_path),
+    ]
+    try:
+        result = runner(cmd, capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        return None
+    if result.returncode != 0:
+        return None
+    url = (result.stdout or "").strip().splitlines()
+    if not url:
+        return None
+    return url[-1]
+
+
+# ---------------------------------------------------------------------------
+# Entrypoint
+# ---------------------------------------------------------------------------
+
+
+def _today_utc() -> str:
+    return _dt.datetime.now(tz=_dt.UTC).strftime("%Y-%m-%d")
+
+
+def _load_fixture(path: Path) -> list[Finding]:
+    """Load Sonar findings from a saved JSON fixture (for tests and dry-run)."""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    issues = payload.get("issues") if isinstance(payload, dict) else None
+    if not isinstance(issues, list):
+        return []
+    out: list[Finding] = []
+    for raw in issues:
+        if isinstance(raw, dict):
+            f = _normalise_issue(raw)
+            if f is not None:
+                out.append(f)
+    return out
+
+
+def run_sweep(args: argparse.Namespace) -> int:
+    """End-to-end sweep: fetch, filter, cap, dedup, emit."""
+    out_dir = Path(args.out_dir)
+    backlog_roots: tuple[Path, ...]
+    if args.backlog_root:
+        # When a single root is given (used in tests), still walk all sub-states
+        # if they exist next to it.
+        root = Path(args.backlog_root)
+        backlog_roots = (
+            root / "open",
+            root / "claimed",
+            root / "closed",
+            root / "done",
+            root / "deferred",
+        )
+    else:
+        backlog_roots = DEFAULT_BACKLOG_ROOTS
+
+    day = args.day or _today_utc()
+
+    # Load findings: fixture path bypasses network entirely.
+    if args.fixture:
+        try:
+            findings = _load_fixture(Path(args.fixture))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"error: failed to load fixture: {exc}", file=sys.stderr)
+            return 2
+    else:
+        config = load_config()
+        if config is None:
+            print(
+                "error: SONAR_HOST_URL and SONAR_TOKEN must be set",
+                file=sys.stderr,
+            )
+            return 2
+        severities = _selected_severities(args.severity_min)
+        try:
+            findings = fetch_findings(config, severities=severities)
+        except SonarAPIError as exc:
+            print(f"error: sonar fetch failed: {exc}", file=sys.stderr)
+            return 1
+
+    filtered = filter_by_severity(findings, args.severity_min)
+
+    # Build the dedup index after we have the candidate set so we can also
+    # report on the (rule, component, line) fallback.
+    index = build_dedup_index(backlog_roots)
+
+    deduped: list[Finding] = []
+    for f in filtered:
+        if f.key in index.keys:
+            continue
+        if (f.rule, _component_path(f.component), f.line) in index.open_rule_component_line:
+            continue
+        deduped.append(f)
+
+    capped = cap_per_day(deduped, args.max_per_day)
+
+    emitted: list[tuple[Path, Finding]] = []
+    skipped_existing = 0
+    for f in capped:
+        path, body, wrote = emit_ticket(f, out_dir, day=day, dry_run=args.dry_run)
+        if args.dry_run:
+            print(f"would-emit {path}")
+            emitted.append((path, f))
+            continue
+        if not wrote:
+            print(f"skipped (file already exists) {path}")
+            skipped_existing += 1
+            continue
+        emitted.append((path, f))
+        if args.create_gh_issues:
+            priority = SEVERITY_TO_PRIORITY.get(f.severity, "P2")
+            url = maybe_create_gh_issue(
+                path,
+                _ticket_title(f),
+                enable=True,
+                priority=priority,
+            )
+            if url:
+                _append_gh_trailer(path, url)
+        del body  # already written
+
+    print(
+        f"sonar-sweep: fetched={len(findings)} filtered={len(filtered)} "
+        f"deduped={len(deduped)} capped={len(capped)} emitted={len(emitted)} "
+        f"skipped_existing={skipped_existing} dry_run={args.dry_run}"
+    )
+    return 0
+
+
+def _selected_severities(severity_min: str) -> list[str]:
+    """Translate ``--severity-min`` to the Sonar API ``severities`` list."""
+    rank = SEVERITY_RANK.get(severity_min.upper(), 0)
+    return [sev for sev in SEVERITY_ORDER if SEVERITY_RANK[sev] <= rank]
+
+
+def _append_gh_trailer(path: Path, url: str) -> None:
+    """Append a ``gh-issue-created`` HTML comment trailer to the ticket file."""
+    now = _dt.datetime.now(tz=_dt.UTC).isoformat(timespec="seconds")
+    trailer = f"<!-- gh-issue-created: {url} {now} -->\n"
+    try:
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(trailer)
+    except OSError:
+        return
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--severity-min",
+        default="BLOCKER",
+        choices=list(SEVERITY_ORDER),
+        help="Minimum severity to include (default: BLOCKER).",
+    )
+    p.add_argument(
+        "--max-per-day",
+        type=int,
+        default=10,
+        help="Maximum tickets to emit in this run (default: 10).",
+    )
+    p.add_argument(
+        "--out-dir",
+        default=str(DEFAULT_OUT_DIR),
+        help="Output directory for ticket files.",
+    )
+    p.add_argument(
+        "--backlog-root",
+        default=None,
+        help=(
+            "Root that contains open/, claimed/, closed/, done/, deferred/ "
+            "subfolders. When set, overrides the default .sdd/backlog/* roots. "
+            "Used by tests to isolate against tmp dirs."
+        ),
+    )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print would-be ticket paths without writing files.",
+    )
+    p.add_argument(
+        "--create-gh-issues",
+        action="store_true",
+        help="For P0 tickets, also call `gh issue create` and trailer the file.",
+    )
+    p.add_argument(
+        "--fixture",
+        default=None,
+        help=("Read findings from a saved JSON fixture instead of calling Sonar. Useful for local dry-runs and tests."),
+    )
+    p.add_argument(
+        "--day",
+        default=None,
+        help="Override the UTC day used in filenames and ticket ids (YYYY-MM-DD).",
+    )
+    return p.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    return run_sweep(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

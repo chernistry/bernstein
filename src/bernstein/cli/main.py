@@ -961,6 +961,10 @@ cli.add_command(issue_to_pr_group, "issue-to-pr")
 # Already registered elsewhere
 cli.add_command(agents_group)
 cli.add_command(skills_group)
+# Wire the issue #1796 skill catalog as a subgroup of `bernstein skills`.
+from bernstein.cli.commands.skills_catalog_cmd import catalog_group as _skills_catalog_group  # noqa: E402
+
+skills_group.add_command(_skills_catalog_group, "catalog")
 cli.add_command(test_cmd, "test")
 cli.add_command(auth_group, "auth")
 cli.add_command(auth_login, "login")

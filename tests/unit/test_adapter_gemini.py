@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 # can be hit, surfacing as "RuntimeError: can't start new thread" on an
 # otherwise-trivial test. Disable the watchdog suite-wide, matching the
 # other adapter test modules (rovo, auggie, clm, ralphex).
-pytestmark = pytest.mark.usefixtures("no_watchdog_threads")
+pytestmark = pytest.mark.usefixtures("no_watchdog_threads")  # suite-wide guard, see module docstring
 
 # Parametrisation surface: both supported binary names. Every spawn-side
 # test runs against both so a regression in either path is caught.

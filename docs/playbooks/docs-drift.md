@@ -108,13 +108,6 @@ Source of truth for this group is `src/bernstein/gui/` (FastAPI + SPA), `web/`
 | `troubleshooting.md` | `src/bernstein/gui/cli.py` (`_check_gui_extras`), static-assets gating | Error-message change in the extras check | `manual-prose` |
 | `mobile.md` | `web/` responsive breakpoints | Layout breakpoint change | `manual-prose` |
 
-### `docs/architecture/orchestration-approaches.md` and `docs/adapters/openai-agents-comparison.md`
-
-| Doc | Source of truth | Drift signal | Remediation |
-|-----|-----------------|--------------|-------------|
-| `architecture/orchestration-approaches.md` | None | Manual refresh by operator | `static` |
-| `adapters/openai-agents-comparison.md` | None | Manual refresh by operator | `static` |
-
 ### `docs/sdd/`
 
 | Doc | Source of truth | Drift signal | Remediation |

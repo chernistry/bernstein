@@ -95,7 +95,7 @@ data_residency:
   enforce_strict: true                # any region drift = abort
 lineage:
   customer_signing_enabled: true
-  kms_adapter: env                    # or 'file' / 'hsm'
+  kms_adapter: env                    # or 'file' / 'hsm' (see note below)
   kms_adapter_env_var: LINEAGE_SIGNING_KEY
   regulatory_class_default: production_detection_rule
 network_policy:
@@ -110,6 +110,13 @@ The combination matters:
   rather than warning.
 - `network_policy.profile: airgap` -- the runtime socket guard
   blocks any unintended outbound dial.
+- `kms_adapter: hsm` is only viable when a customer-provided
+  `HSMKMSAdapter` subclass (PKCS#11 / Cloud-KMS) is on the classpath.
+  Without one, the orchestrator aborts at config-load time. For
+  non-production smoke tests, set `BERNSTEIN_ALLOW_HSM_STUB=1` to opt
+  in to the documentation stub explicitly. See
+  [regulatory-lineage.md](regulatory-lineage.md) for the integration
+  shape.
 
 ### 3. Verify the deployment with `bernstein doctor airgap`
 

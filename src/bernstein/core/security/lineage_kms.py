@@ -397,8 +397,14 @@ def kms_adapter_from_config(
 
     * ``"file"`` -- :class:`FileBasedKMSAdapter` (requires ``key_path``).
     * ``"env"``  -- :class:`EnvBasedKMSAdapter` (requires ``env_var``).
-    * ``"hsm"``  -- :class:`HSMKMSAdapter` (requires ``token_uri``;
-      raises ``NotImplementedError`` on every operation in this build).
+    * ``"hsm"``  -- HSM-backed adapter (requires ``token_uri``). The
+      dispatcher prefers a concrete :class:`HSMKMSAdapter` subclass on
+      the classpath that overrides both ``sign`` and ``public_key_jwk``.
+      Falling back to the bare stub is gated behind
+      ``BERNSTEIN_ALLOW_HSM_STUB=1`` -- a misconfigured ``hsm`` adapter
+      without either a subclass or the opt-in flag raises
+      :class:`LineageSignerError` at config-load time rather than
+      crashing on the first ``sign()`` call inside the orchestrator.
 
     Returns ``None`` when ``enabled=False`` or no kind is configured,
     so callers can disable signing without removing the config block.
@@ -417,10 +423,70 @@ def kms_adapter_from_config(
     if resolved == "hsm":
         if not token_uri:
             raise LineageSignerError("lineage.kms_adapter=hsm requires lineage.kms_adapter_token_uri")
+        # Fail-fast at construction so a misconfigured `kms_adapter: hsm`
+        # surfaces at config-load time -- not at the first audit-emit /
+        # lineage-sign call deep inside the orchestrator loop. The base
+        # ``HSMKMSAdapter`` is a documentation stub; a real integration
+        # is delivered as a subclass that overrides ``sign`` and
+        # ``public_key_jwk``.
+        subclass = _resolve_hsm_subclass()
+        if subclass is not None:
+            return subclass(token_uri, kid=kid)
+        if not _hsm_stub_opt_in():
+            raise LineageSignerError(
+                "lineage.kms_adapter=hsm resolves to HSMKMSAdapter, which is a "
+                "documentation stub that raises NotImplementedError on sign(). "
+                "Either (a) import a subclass that overrides sign() and "
+                "public_key_jwk() before config load (see "
+                "bernstein.core.security.lineage_kms module docstring for the "
+                "PKCS#11 / Cloud-KMS integration shape), or (b) set "
+                "BERNSTEIN_ALLOW_HSM_STUB=1 to opt in to the stub for "
+                "non-production smoke tests.",
+            )
         return HSMKMSAdapter(token_uri, kid=kid)
     raise LineageSignerError(
         f"unsupported lineage.kms_adapter={kind!r} (expected 'file', 'env', or 'hsm')",
     )
+
+
+def _hsm_stub_opt_in() -> bool:
+    """Return ``True`` when the operator explicitly opted into the stub.
+
+    The opt-in flag exists so a non-production smoke test can still
+    boot with ``kms_adapter: hsm`` (and crash at the first sign call,
+    matching pre-fix behaviour) without a real HSM subclass on the
+    classpath. Any truthy value (``1``, ``true``, ``yes``, ``on``,
+    case-insensitive) counts as opted in.
+    """
+    raw = os.environ.get("BERNSTEIN_ALLOW_HSM_STUB", "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def _resolve_hsm_subclass() -> type[HSMKMSAdapter] | None:
+    """Return the concrete ``HSMKMSAdapter`` subclass to use, if any.
+
+    A customer integration ships as a subclass of :class:`HSMKMSAdapter`
+    that overrides :meth:`sign` and :meth:`public_key_jwk`. If exactly
+    one such subclass has been imported by the time config dispatch
+    runs, return it -- the dispatcher will instantiate it instead of
+    the stub. Multiple subclasses are an ambiguity the operator must
+    resolve (we raise to avoid silently picking the wrong vendor).
+    """
+    subclasses = [
+        sc
+        for sc in HSMKMSAdapter.__subclasses__()
+        if sc.sign is not HSMKMSAdapter.sign and sc.public_key_jwk is not HSMKMSAdapter.public_key_jwk
+    ]
+    if not subclasses:
+        return None
+    if len(subclasses) > 1:
+        names = ", ".join(sorted(sc.__qualname__ for sc in subclasses))
+        raise LineageSignerError(
+            f"lineage.kms_adapter=hsm resolved to multiple HSMKMSAdapter "
+            f"subclasses ({names}); only one HSM integration may be imported "
+            f"at a time.",
+        )
+    return subclasses[0]
 
 
 __all__ = [

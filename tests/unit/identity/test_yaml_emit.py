@@ -75,7 +75,7 @@ def _enable_emission(
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(nonce)
     ir._reset_cache_for_tests()
-    return _compute_token(bytes.fromhex(TEST_SEED_HEX), nonce or TEST_NONCE, 1)
+    return _compute_token(bytes.fromhex(TEST_SEED_HEX), nonce or TEST_NONCE, ir._version_byte())
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +165,7 @@ class TestGenerateYamlEmit:
             pytest.fail("yaml output is missing the bernstein-rev comment")
 
         assert emitted == expected
-        assert ir.verify_with_nonce(emitted, TEST_NONCE, version_major=1) is True
+        assert ir.verify_with_nonce(emitted, TEST_NONCE, version_major=ir._version_byte()) is True
 
 
 # ---------------------------------------------------------------------------

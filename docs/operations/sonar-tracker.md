@@ -91,10 +91,10 @@ Through the workflow (uses the repo `SONAR_TOKEN` secret):
 gh workflow run sonar-tracker.yml --repo sipyourdrink-ltd/bernstein
 ```
 
-Locally, render only (no GitHub write), against the live server:
+Locally, render only (no GitHub write), against your Sonar server:
 
 ```bash
-SONAR_HOST_URL=https://sonar.bernstein.run \
+SONAR_HOST_URL=https://sonar.example.com \
 SONAR_TOKEN=<your-browse-token> \
 uv run python scripts/render_sonar_tracker.py --dry-run --output-body /tmp/body.md
 ```
@@ -154,7 +154,7 @@ sonar-tracker: updated issue #1234
 Reproduce a fetch failure locally without writing to GitHub:
 
 ```bash
-SONAR_HOST_URL=https://sonar.bernstein.run \
+SONAR_HOST_URL=https://sonar.example.com \
 SONAR_TOKEN=<your-browse-token> \
 uv run python scripts/render_sonar_tracker.py --dry-run --output-body /tmp/body.md
 ```

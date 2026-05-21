@@ -1303,7 +1303,7 @@ jobs:
 
           os.environ['COVERAGE_FILE'] = '.coverage'
           test_dir = Path('tests/unit')
-          files = sorted(test_dir.glob('test_*.py'))
+          files = sorted(test_dir.rglob('test_*.py'))
           failed = 0
           junit_parts = []
           for i, f in enumerate(files):

@@ -332,7 +332,7 @@ def _count_recent_failures(audit_entries: tuple[dict[str, Any], ...] | list[dict
     failures = 0
     for entry in audit_entries:
         event_type = str(entry.get("event_type", "")).lower()
-        if event_type.endswith(".failed") or event_type.endswith(".error") or event_type.endswith(".errored"):
+        if event_type.endswith((".failed", ".error", ".errored")):
             failures += 1
     return failures
 

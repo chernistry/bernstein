@@ -132,8 +132,7 @@ def load_agents_snapshot(workdir: Path) -> list[dict[str, Any]]:
         return []
     if not isinstance(payload_any, dict):
         return []
-    payload = cast(dict[str, Any], payload_any)
-    raw = payload.get("agents")
+    raw = cast(dict[str, Any], payload_any).get("agents")
     if not isinstance(raw, list):
         return []
     raw_list = cast(list[Any], raw)
@@ -353,15 +352,14 @@ def aggregator_snapshot(
 
         # Audit slice for the deterministic recommended action: failures
         # already classified for this session.
-        slice_entries: list[dict[str, Any]] = []
-        for record in load_recent_failures(workdir, session_id):
-            slice_entries.append(
-                {
-                    "event_type": str(record.get("kind", "")),
-                    "session_id": session_id,
-                    "details": record,
-                }
-            )
+        slice_entries: list[dict[str, Any]] = [
+            {
+                "event_type": str(record.get("kind", "")),
+                "session_id": session_id,
+                "details": record,
+            }
+            for record in load_recent_failures(workdir, session_id)
+        ]
 
         action = recommend_action(
             stall_reason if is_stuck else StallReason.UNKNOWN,

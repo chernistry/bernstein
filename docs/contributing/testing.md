@@ -25,7 +25,8 @@ locally without waiting for the cloud runner.
 | **syrupy** (snapshot)       | JSONL/audit/lineage wire-format drift                             | PR                  |
 | **Pyright strict zone**     | Untyped/implicit-Any leakage in `core/security/`, `core/protocols/cluster/` | PR                  |
 | **Vulture**                 | Dead code (unused functions/classes/vars at confidence ≥80)       | PR                  |
-| **diff-cover**              | <80% coverage on lines this PR changed                            | PR (advisory)       |
+| **diff-cover** (LEVEL 1)    | Changed lines below the committed diff-coverage floor             | PR (advisory)       |
+| **coverage ratchet** (LEVEL 2) | Total coverage dropped below the committed high-water mark      | push to main (advisory) |
 | **import-linter**           | Architecture-contract violations (cross-package imports)          | PR                  |
 | **ruff** + **typos**        | Lint, format drift, common typos                                  | PR                  |
 
@@ -74,9 +75,18 @@ uv run pyright --typecheckingmode strict \
 # Vulture
 vulture src/ vulture_whitelist.py --min-confidence 80 --exclude tests,docs
 
-# Diff-cover (after a coverage run)
+# Diff-cover (after a coverage run). The floor is the committed
+# diff_coverage_floor_percent in .coverage-baseline.json (LEVEL 1 of the
+# coverage ratchet); the weekly bump nudges it up. See
+# docs/operations/coverage-ratchet.md.
 uv run pytest tests/unit/ --cov=src/bernstein --cov-report=xml
-uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=80
+FLOOR=$(uv run python scripts/coverage_ratchet.py show-floor --baseline .coverage-baseline.json)
+uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under="$FLOOR"
+
+# Total-coverage ratchet (LEVEL 2): compare a coverage.xml total to the
+# committed high-water mark without writing unless it rose.
+uv run python scripts/coverage_ratchet.py check \
+  --coverage-xml coverage.xml --baseline .coverage-baseline.json --no-bump
 ```
 
 ## When a tool fires on you

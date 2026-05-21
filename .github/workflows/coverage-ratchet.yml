@@ -1,0 +1,153 @@
+name: Coverage ratchet (total)
+
+# LEVEL 2 of the coverage ratchet - total-coverage monotonic gate.
+#
+# The CI coverage shard already produces a Cobertura coverage.xml on every
+# push to main and uploads it as the `coverage-report` artifact. This
+# workflow consumes that *same* artifact (no parallel coverage system) and
+# runs scripts/coverage_ratchet.py check:
+#
+#   - measured < committed baseline (beyond float tolerance): report a
+#     drop. ADVISORY - the compare step is continue-on-error and this
+#     workflow is NOT in the CI-gate required-check set, so a drop never
+#     wedges the merge queue. Promote to blocking later (see the ops
+#     runbook).
+#   - measured > baseline: the ratchet clicks - bump .coverage-baseline.json
+#     to the new high-water mark and open a PR with that one-line change.
+#   - flat: no change.
+#
+# Why a PR (not a direct push): main is protected by required status
+# checks, so a bot commit pushed straight to main would be rejected (it
+# has not passed `CI gate`). Opening a PR is the protection-safe path and
+# matches the repo convention (sonar sweeper, weekly floor bump). It also
+# makes every baseline movement a reviewable, auditable artifact - the
+# ratchet click is a PR, not a silent rewrite.
+#
+# Trigger: push to main, then resolve the freshest CI run that actually
+# uploaded a coverage-report artifact. This mirrors sonar-scan.yml: under
+# the rapid-merge cadence ci.yml's cancel-in-progress concurrency cancels
+# most main CI runs, so a `workflow_run`/`conclusion == success` trigger
+# almost never fires. Searching recent runs for the artifact (cancelled
+# runs may still have uploaded it) is the robust pattern. Keeping the
+# baseline-write here (not in ci.yml) means ci.yml's gate jobs never need
+# `contents: write`.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  # Serialise baseline writes so two back-to-back main pushes cannot race
+  # on the commit. Never cancel an in-flight bump.
+  group: coverage-ratchet
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  ratchet:
+    name: Total coverage ratchet
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Skip the merge of a baseline-bump PR this workflow opened (avoids a
+    # self-retrigger loop on its own change).
+    if: "!contains(github.event.head_commit.message, 'ratchet coverage baseline')"
+    permissions:
+      contents: write  # create the bump branch
+      pull-requests: write  # open the baseline-bump PR
+      actions: read  # list CI runs and download their coverage artifact
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: ./.github/actions/bootstrap
+
+      - name: Resolve latest CI run with a coverage artifact
+        id: ci_run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Search the last 20 main CI runs for one that uploaded the
+          # coverage-report artifact. Cancelled runs can still have
+          # uploaded it if the coverage step ran before cancellation, so
+          # we do not filter by status (mirrors sonar-scan.yml).
+          found=""
+          for run_id in $(gh run list \
+              --repo "${{ github.repository }}" \
+              --workflow ci.yml \
+              --branch main \
+              --limit 20 \
+              --json databaseId \
+              --jq '.[].databaseId'); do
+            artifacts=$(gh api "repos/${{ github.repository }}/actions/runs/$run_id/artifacts" \
+                --jq '.artifacts[].name' 2>/dev/null || true)
+            if printf '%s\n' "$artifacts" | grep -qx coverage-report; then
+              found="$run_id"
+              break
+            fi
+          done
+          if [ -n "$found" ]; then
+            echo "Found coverage-report artifact in CI run: $found"
+            echo "run_id=$found" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No recent CI run with a coverage-report artifact; skipping ratchet."
+          fi
+
+      - name: Download coverage report from the CI run
+        if: steps.ci_run.outputs.run_id != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: coverage-report
+          run-id: ${{ steps.ci_run.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true  # docs-only pushes skip the coverage shard
+
+      - name: Run total-coverage ratchet
+        id: ratchet
+        continue-on-error: true  # ADVISORY: a drop reports red but never blocks
+        run: |
+          if [ ! -f coverage.xml ] || [ ! -s coverage.xml ]; then
+            echo "::warning::No usable coverage.xml available; skipping coverage ratchet for this push."
+            exit 0
+          fi
+          uv run python scripts/coverage_ratchet.py check \
+            --coverage-xml coverage.xml \
+            --baseline .coverage-baseline.json
+
+      - name: Open PR with the bumped baseline
+        # Only when the ratchet actually clicked (coverage rose). The check
+        # step rewrote .coverage-baseline.json in place; open a PR with that
+        # change (main is protected, so a direct push would be rejected).
+        if: steps.ratchet.outputs.baseline_bumped == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: coverage-ratchet/baseline-${{ github.run_id }}
+          delete-branch: true
+          add-paths: |
+            .coverage-baseline.json
+          commit-message: |
+            chore(ci): ratchet coverage baseline up to ${{ steps.ratchet.outputs.measured }}%
+          title: "chore(ci): ratchet coverage baseline up to ${{ steps.ratchet.outputs.measured }}%"
+          body: |
+            Total line coverage rose on `main`, so the monotonic ratchet
+            bumped the committed high-water mark in `.coverage-baseline.json`
+            to **${{ steps.ratchet.outputs.measured }}%**.
+
+            From here, any later push whose total coverage falls below this
+            mark is flagged by the LEVEL 2 ratchet. The gate stays advisory
+            until promoted; see `docs/operations/coverage-ratchet.md`.
+
+            Generated by `.github/workflows/coverage-ratchet.yml`.
+          labels: |
+            ci
+            chore

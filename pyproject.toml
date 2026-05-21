@@ -192,6 +192,13 @@ r2 = ["boto3>=1.43.6"]
 # Standard Telegram bot integration via long-poll: configure the bot
 # token (from @BotFather) and the chat id, no external services.
 telegram = ["python-telegram-bot>=22.7"]
+# Slack bidirectional driver over Socket Mode. Enable with:
+#   pip install 'bernstein[slack]'
+# Configure a Slack app with bot scopes (``chat:write``, ``commands``),
+# enable Socket Mode, and set ``BERNSTEIN_SLACK_TOKEN`` (xoxb-...) plus
+# ``BERNSTEIN_SLACK_APP_TOKEN`` (xapp-...) before invoking ``bernstein
+# chat serve --platform=slack``.
+slack = ["slack-sdk>=3.27", "aiohttp>=3.9"]
 # Contamination-resistant eval harness (SWE-bench Pro / Terminal-Bench 2.0 /
 # SWE-rebench). Kept optional so production installs don't pull HuggingFace
 # datasets unless the operator opts into the nightly leaderboard path.

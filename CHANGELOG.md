@@ -9,11 +9,13 @@ All notable project changes are tracked here (code + docs).
 - `bernstein desktop-register --host <name>` covers the remaining priority hosts: Cursor, Continue, Cline, Zed, and Aider, alongside the existing Claude Desktop and Claude Code adapters. JSON hosts merge into their canonical `mcpServers` map (or `context_servers` for Zed); Aider records the entry in its YAML config under `mcp-servers` for community-wrapper consumption (#1676).
 - `bernstein doctor --substrate` reports which detected hosts have Bernstein registered, which do not, and which are stale (canonical command/args differ from the recorded entry) (#1676).
 - Operator docs at `docs/substrate/{cursor,continue,cline,zed,aider}.md` cover install, verification, and uninstall per host (#1676).
+- Slack bidirectional driver with attested approvals: `bernstein chat serve --platform=slack` connects via Socket Mode, dispatches `/bernstein` slash subcommands, decodes Approve/Reject block actions, debounces `chat.update` per channel, signs every outbound message with an Ed25519 detached signature over `(install_id, session_id, content_hash)`, and appends each approval resolution to the HMAC-chained audit log as a `chat.slack.approval` event covering `(approver, message_ts, decision, tool_call_hash, worktree_id)`. Approvals are worktree-pinned: cross-worktree resolutions raise `CrossWorktreeApprovalError` and emit a `chat.slack.approval_rejected` audit entry. Optional `bernstein[slack]` extra pulls in `slack-sdk` (#1794).
+- `docs/operations/chat-bridges.md` documents the Telegram and Slack drivers, the env-var contract, the signed metadata envelope, and how to verify an outbound Slack message offline (#1794).
 
 ### Changed
 
 - `bernstein audit export --standard` no longer accepts `dora` or `finos-aigf`; the click choice list is `ai-act` only. The previous control maps for those two standards contained only placeholder rows (`status: "todo"`, `selector: "TODO"`) and have been removed from `SUPPORTED_STANDARDS` until their clause mappings are reviewed by subject-matter experts. Operators who pass either value now receive a clean usage error rather than a TODO-only zip (#1316).
-- `DiscordBridge.on_command` / `on_button` and `SlackBridge.on_command` / `on_button` now raise `NotImplementedError` at registration time instead of silently dropping the handler. Callers that wire handlers up front against the unimplemented drivers will see the failure immediately rather than at the first network call.
+- `DiscordBridge.on_command` / `on_button` now raise `NotImplementedError` at registration time instead of silently dropping the handler. Callers that wire handlers up front against the unimplemented drivers will see the failure immediately rather than at the first network call.
 
 ## [2.5.0] - Interoperability surfaces, host portability, deterministic replay
 

@@ -50,6 +50,11 @@ _ENV_TOKEN_MAP = {
     "slack": "BERNSTEIN_SLACK_TOKEN",
 }
 
+#: Slack Socket Mode app-level token env var. Bot token (``xoxb-...``) goes
+#: in ``BERNSTEIN_SLACK_TOKEN``; the Socket Mode app token (``xapp-...``)
+#: lives separately so operators can rotate the two independently.
+_SLACK_APP_TOKEN_ENV = "BERNSTEIN_SLACK_APP_TOKEN"
+
 
 @click.group("chat")
 def chat_group() -> None:
@@ -86,7 +91,7 @@ def chat_serve(platform: str, token: str | None, allow: str | None) -> None:
     allow_list = load_allow_list(workdir / "bernstein.yaml", cli_override=overrides)
     bindings = BindingStore(workdir)
     driver_cls: Any = load_driver(platform)
-    bridge: BridgeProtocol = driver_cls(resolved_token)
+    bridge: BridgeProtocol = _instantiate_bridge(driver_cls, platform, resolved_token)
     session = ChatSession(bridge, bindings, allow_list, workdir)
     session.install_handlers()
 
@@ -606,6 +611,25 @@ def _resolve_chat_token(platform: str) -> str:
         if resolution.found:
             return resolution.secret
     return os.environ.get(_ENV_TOKEN_MAP[platform], "")
+
+
+def _instantiate_bridge(driver_cls: Any, platform: str, token: str) -> BridgeProtocol:
+    """Construct the driver with platform-appropriate kwargs.
+
+    Telegram and Discord take a single ``token`` positional; Slack
+    additionally needs the Socket Mode app token from
+    ``BERNSTEIN_SLACK_APP_TOKEN``. Surface a clear error rather than
+    instantiating with an empty app token (the driver itself rejects it,
+    but the CLI's message is more actionable).
+    """
+    if platform == "slack":
+        app_token = os.environ.get(_SLACK_APP_TOKEN_ENV, "")
+        if not app_token:
+            raise click.UsageError(
+                f"Slack requires the Socket Mode app token in ${_SLACK_APP_TOKEN_ENV} (in addition to the bot token).",
+            )
+        return driver_cls(token=token, app_token=app_token)
+    return driver_cls(token)
 
 
 def _extract_quoted_goal(msg: ChatMessage) -> str:

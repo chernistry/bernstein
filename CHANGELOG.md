@@ -12,6 +12,7 @@ All notable project changes are tracked here (code + docs).
 
 ### Changed
 
+- `bernstein audit export --standard` no longer accepts `dora` or `finos-aigf`; the click choice list is `ai-act` only. The previous control maps for those two standards contained only placeholder rows (`status: "todo"`, `selector: "TODO"`) and have been removed from `SUPPORTED_STANDARDS` until their clause mappings are reviewed by subject-matter experts. Operators who pass either value now receive a clean usage error rather than a TODO-only zip (#1316).
 - `DiscordBridge.on_command` / `on_button` and `SlackBridge.on_command` / `on_button` now raise `NotImplementedError` at registration time instead of silently dropping the handler. Callers that wire handlers up front against the unimplemented drivers will see the failure immediately rather than at the first network call.
 
 ## [2.5.0] - Interoperability surfaces, host portability, deterministic replay

@@ -269,11 +269,12 @@ def verify_hmac_cmd() -> None:
     "--standard",
     "standard",
     default=None,
-    type=click.Choice(["ai-act", "dora", "finos-aigf"]),
+    type=click.Choice(["ai-act"]),
     help=(
         "Emit a one-command compliance evidence pack mapped to the chosen "
-        "regulatory standard (issue #1316). 'ai-act' has a fleshed-out "
-        "control map; 'dora' and 'finos-aigf' ship as TODO stubs at MVP."
+        "regulatory standard (issue #1316). 'ai-act' is the only standard "
+        "with a reviewed control map at MVP; DORA and FINOS AIGF are tracked "
+        "under #1316 and will be added once their clause maps are validated."
     ),
 )
 @click.option(

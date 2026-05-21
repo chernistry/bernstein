@@ -137,18 +137,13 @@ _LIFECYCLE_NOTE = (
     "next sync."
 )
 
-# Public-artefact guard for the rendered body. We reuse the sweeper's
-# disallowed-phrase word list but drop its bare-hyphen entry (a hyphen is
+# Public-artefact guard for the rendered body. The sweeper's
+# disallowed-phrase word list is the single source of truth; it forbids the
+# two long-dash code points (0x2014 / 0x2013) while leaving the plain hyphen
 # legitimate in markdown tables, list bullets, and rule ids like
-# ``python:S3776``). The real typographic risk is the two long-dash code
-# points (0x2014 and 0x2013), which we add back explicitly as escapes.
-# The set mirrors the project text-hygiene phrase list for the terms a
-# Sonar rule label could plausibly contain.
-_TRACKER_FORBIDDEN: tuple[str, ...] = (
-    *(s for s in _SWEEPER_FORBIDDEN if s != "-"),
-    chr(0x2014),  # long dash, code point 0x2014
-    chr(0x2013),  # short dash, code point 0x2013
-)
+# ``python:S3776``. The set mirrors the project text-hygiene phrase list for
+# the terms a Sonar rule label could plausibly contain.
+_TRACKER_FORBIDDEN: tuple[str, ...] = _SWEEPER_FORBIDDEN
 
 
 # ---------------------------------------------------------------------------

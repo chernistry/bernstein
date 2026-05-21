@@ -339,7 +339,8 @@ FORBIDDEN_SUBSTRINGS: tuple[str, ...] = (
     "ai search",
     "aio probe",
     "umami",
-    "-",  # em-dash forbidden by Bernstein hard constraints
+    "\u2014",  # U+2014; generated prose stays ASCII-punctuation only
+    "\u2013",  # U+2013; generated prose stays ASCII-punctuation only
 )
 
 

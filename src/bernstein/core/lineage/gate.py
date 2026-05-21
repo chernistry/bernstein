@@ -237,13 +237,14 @@ def check_skill_lockfile(
         return GateResult(ok=False, failures=["skill catalog lockfile module is missing"])
 
     state = read_state(lockfile_path)
-    failures: list[str] = []
-    for row in state.catalog:
-        if row.manifest_sha256 not in known_good_manifest_shas:
-            failures.append(
-                f"{row.id}: lockfile manifest_sha256 {row.manifest_sha256[:12]}... "
-                "is not present in the audit chain's known-good set",
-            )
+    failures: list[str] = [
+        (
+            f"{row.id}: lockfile manifest_sha256 {row.manifest_sha256[:12]}... "
+            "is not present in the audit chain's known-good set"
+        )
+        for row in state.catalog
+        if row.manifest_sha256 not in known_good_manifest_shas
+    ]
     return GateResult(ok=not failures, failures=failures)
 
 

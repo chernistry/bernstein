@@ -94,8 +94,7 @@ def compute_manifest_sha256(manifest_url: str, payload: dict[str, Any]) -> str:
     swaps the upstream while keeping the URL is caught.
     """
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    hasher = hashlib.sha256()
-    hasher.update(manifest_url.encode("utf-8"))
+    hasher = hashlib.sha256(manifest_url.encode("utf-8"))
     hasher.update(b"\n")
     hasher.update(canonical)
     return hasher.hexdigest()

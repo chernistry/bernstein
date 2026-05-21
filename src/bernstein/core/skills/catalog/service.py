@@ -155,7 +155,7 @@ class SkillCatalogService:
         plugin_installer: InstallerCallable | None = None,
         preloaded_catalog: SkillCatalog | None = None,
     ) -> None:
-        if fetcher is None and preloaded_catalog is None:
+        if fetcher is preloaded_catalog is None:
             raise ValueError("either fetcher or preloaded_catalog must be supplied")
         self._fetcher = fetcher
         self._auditor = auditor or SkillCatalogAuditor()
@@ -368,13 +368,11 @@ class SkillCatalogService:
         force_refresh: bool = False,
     ) -> UpgradeOutcome:
         """Upgrade a single installed catalog entry."""
-        state = read_state(self.lockfile_path)
-        prior = state.find_catalog(entry_id)
+        prior = read_state(self.lockfile_path).find_catalog(entry_id)
         if prior is None:
             raise SkillCatalogError(f"{entry_id!r} is not installed")
 
-        catalog = self.browse(force_refresh=force_refresh)
-        upstream = catalog.find(entry_id)
+        upstream = self.browse(force_refresh=force_refresh).find(entry_id)
         if upstream is None:
             return UpgradeOutcome(
                 entry_id=entry_id,

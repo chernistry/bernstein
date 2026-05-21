@@ -133,7 +133,7 @@ def _redact_value(value: Any) -> Any:
 
 def _redact_row(row: dict[str, Any], policy: RedactionPolicy) -> dict[str, Any]:
     """Return a copy of *row* with redaction policy applied."""
-    redacted = dict(row)
+    redacted = row.copy()
     for field_name in policy.redact_fields:
         if field_name in redacted:
             redacted[field_name] = _redact_value(redacted[field_name])

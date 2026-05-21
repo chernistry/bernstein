@@ -220,7 +220,7 @@ def register_attachment_parents(
         A new list with attachment parents appended.
     """
     seen: set[str] = set(parents)
-    out: list[str] = list(parents)
+    out: list[str] = parents.copy()
     for digest in attachment_sha256s:
         uri = build_attachment_parent_uri(digest)
         if uri not in seen:

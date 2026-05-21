@@ -248,6 +248,7 @@ nav:
       - Cost optimization: operations/cost-optimization.md
       - Performance tuning: operations/performance-tuning.md
       - Autofix daemon: operations/autofix.md
+      - Merge queue: operations/merge-queue.md
       - Review responder: operations/review-responder.md
       - Review-bot acknowledgement: operations/review-bot-ack.md
       - Preview server: operations/preview.md

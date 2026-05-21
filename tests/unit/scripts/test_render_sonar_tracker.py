@@ -211,6 +211,36 @@ def test_body_respects_github_limit_with_5000_findings(tracker: ModuleType) -> N
     assert sum(parsed["by_severity"].values()) == 5000
 
 
+def test_json_summary_caps_key_lists_and_records_truncation(tracker: ModuleType) -> None:
+    # More BLOCKER + CRITICAL findings than the JSON key cap forces the key
+    # lists to be truncated, with a sibling count of how many were dropped.
+    cap = tracker._JSON_KEYS_CAP
+    findings = [_issue(f"B-{i:05d}", severity="BLOCKER", component=f"bernstein:b{i}.py") for i in range(cap + 25)]
+    findings += [_issue(f"C-{i:05d}", severity="CRITICAL", component=f"bernstein:c{i}.py") for i in range(cap + 10)]
+    snapshot = _snapshot(tracker, findings)
+    body = tracker.render_body(snapshot)
+    start = body.index("```json") + len("```json")
+    end = body.index("```", start)
+    parsed = json.loads(body[start:end])
+    assert len(parsed["blocker_keys"]) == cap
+    assert len(parsed["critical_keys"]) == cap
+    assert parsed["blocker_keys_truncated"] == 25
+    assert parsed["critical_keys_truncated"] == 10
+    # Counts stay honest even though the key lists are capped.
+    assert parsed["by_severity"]["BLOCKER"] == cap + 25
+    assert parsed["by_severity"]["CRITICAL"] == cap + 10
+
+
+def test_json_summary_omits_truncation_field_when_under_cap(tracker: ModuleType) -> None:
+    snapshot = _snapshot(tracker, [_issue("b1", severity="BLOCKER"), _issue("c1", severity="CRITICAL")])
+    body = tracker.render_body(snapshot)
+    start = body.index("```json") + len("```json")
+    end = body.index("```", start)
+    parsed = json.loads(body[start:end])
+    assert "blocker_keys_truncated" not in parsed
+    assert "critical_keys_truncated" not in parsed
+
+
 def test_body_no_partial_list_item_when_collapsed(tracker: ModuleType) -> None:
     # 5000 findings forces collapse; assert no line is a dangling fragment
     # (every list bullet line ends with the closing of a markdown link or
@@ -222,6 +252,31 @@ def test_body_no_partial_list_item_when_collapsed(tracker: ModuleType) -> None:
             # A rendered finding line always ends with the closing paren of
             # its ([view](...)) permalink.
             assert line.rstrip().endswith(")"), line
+
+
+def test_item_cap_shrinks_before_sections_collapse_to_counts(tracker: ModuleType) -> None:
+    # Three large <details> severities with very long component paths push the
+    # body over budget. The renderer must first shrink the per-section item
+    # cap (keeping the sections as <details>) before it drops a whole section
+    # to a counts-only line. Assert the sections survive with fewer items.
+    pad = "z" * 1000
+    findings: list[dict[str, Any]] = []
+    for sev in ("MAJOR", "MINOR", "INFO"):
+        for i in range(200):
+            comp = f"bernstein:src/{pad}/m_{i:05d}/file_{i:05d}.py"
+            findings.append(_issue(f"{sev[0]}-{i:05d}", severity=sev, component=comp, line=i % 900 + 1))
+    snapshot = _snapshot(tracker, findings)
+    body = tracker.render_body(snapshot)
+    assert len(body) <= tracker.GITHUB_BODY_LIMIT
+    # All three sections are still rendered as <details>, not collapsed to a
+    # counts-only line. (The item cap was halved instead.)
+    assert body.count("<details>") == 3
+    for sev in ("MAJOR", "MINOR", "INFO"):
+        assert f"<summary>{sev} (200)</summary>" in body
+        assert f"- **{sev}**:" not in body
+    # Fewer than the default cap of items are shown per section.
+    rendered = sum(1 for line in body.splitlines() if line.startswith("- rule "))
+    assert 0 < rendered < 3 * tracker._DETAILS_ITEM_CAP
 
 
 def test_small_input_lists_everything_in_full(tracker: ModuleType) -> None:
@@ -359,6 +414,25 @@ def test_collect_snapshot_paginates_and_fetches_gate_coverage(tracker: ModuleTyp
     assert len(snapshot.findings) == 750
     assert snapshot.quality_gate == "ERROR"
     assert snapshot.coverage == pytest.approx(19.3)
+
+
+def test_fetch_all_findings_raises_on_non_object_payload(tracker: ModuleType) -> None:
+    # A malformed page (a JSON array instead of an object) must fail closed so
+    # an incomplete finding set is never published as a successful run.
+    config = tracker.SonarConfig(host=HOST, token="t", project_key=PROJECT)
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(f"{HOST}/api/issues/search").mock(return_value=httpx.Response(200, json=[1, 2, 3]))
+        with pytest.raises(tracker.SonarAPIError):
+            tracker.fetch_all_findings(config)
+
+
+def test_fetch_all_findings_raises_on_bad_paging(tracker: ModuleType) -> None:
+    config = tracker.SonarConfig(host=HOST, token="t", project_key=PROJECT)
+    bad = {"issues": [_issue("b1", severity="BLOCKER")], "paging": {"total": "not-a-number"}}
+    with respx.mock(assert_all_called=False) as mock:
+        mock.get(f"{HOST}/api/issues/search").mock(return_value=httpx.Response(200, json=bad))
+        with pytest.raises(tracker.SonarAPIError):
+            tracker.fetch_all_findings(config)
 
 
 def test_fetch_quality_gate_unknown_on_bad_payload(tracker: ModuleType) -> None:

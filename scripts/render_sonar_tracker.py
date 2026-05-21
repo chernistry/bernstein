@@ -123,6 +123,13 @@ _FULL_LIST_SEVERITIES = ("BLOCKER", "CRITICAL")
 # the first N and append an "and N more" pointer to Sonar.
 _DETAILS_ITEM_CAP = 80
 
+# Cap on the number of issue keys serialised into each list in the trailing
+# JSON summary. A fixer loop consumes the highest-leverage keys first, so an
+# unbounded list only risks pushing the body past the GitHub size cap on a
+# pathological project. When a list is truncated a ``*_keys_truncated`` count
+# is emitted alongside it so a consumer can tell the list is partial.
+_JSON_KEYS_CAP = 200
+
 _LIFECYCLE_NOTE = (
     "This thread is auto-rendered from Sonar on each scan. Resolve an item "
     "by fixing the code (the next scan drops it) or by marking it Won't Fix "
@@ -178,9 +185,12 @@ def fetch_all_findings(
                 "p": str(page),
             }
             resp = _request_with_retries(client, url, params)
-            payload = resp.json()
+            try:
+                payload = resp.json()
+            except ValueError as exc:
+                raise SonarAPIError("issues search returned invalid JSON") from exc
             if not isinstance(payload, dict):
-                break
+                raise SonarAPIError("issues search returned a non-object payload")
             issues = payload.get("issues") or []
             for raw in issues:
                 if isinstance(raw, dict):
@@ -192,8 +202,8 @@ def fetch_all_findings(
                 total = int(paging.get("total", 0))
                 page_idx = int(paging.get("pageIndex", page))
                 size = int(paging.get("pageSize", page_size))
-            except (TypeError, ValueError):
-                break
+            except (TypeError, ValueError) as exc:
+                raise SonarAPIError("issues search returned invalid paging metadata") from exc
             if size <= 0 or page_idx * size >= total:
                 break
             page += 1
@@ -455,16 +465,26 @@ def _counts_only_section(severity: str, items: list[Finding], host: str, project
 
 
 def _json_summary_block(snapshot: SonarSnapshot, buckets: dict[str, list[Finding]], generated_at: str) -> list[str]:
-    """Build the trailing machine-readable JSON summary."""
+    """Build the trailing machine-readable JSON summary.
+
+    The per-severity key lists are capped at ``_JSON_KEYS_CAP`` so the JSON
+    blob stays bounded even on a project with thousands of high-severity
+    findings. When a list is truncated, a sibling ``*_keys_truncated`` count
+    records how many keys were dropped so a consumer can tell it is partial.
+    """
     by_severity = {sev: len(buckets[sev]) for sev in sorted(buckets, key=_severity_sort_key) if buckets.get(sev)}
-    summary = {
+    summary: dict[str, Any] = {
         "generated_at": generated_at,
         "quality_gate": snapshot.quality_gate,
         "coverage": snapshot.coverage,
         "by_severity": by_severity,
-        "blocker_keys": [f.key for f in buckets.get("BLOCKER", [])],
-        "critical_keys": [f.key for f in buckets.get("CRITICAL", [])],
     }
+    for name, severity in (("blocker", "BLOCKER"), ("critical", "CRITICAL")):
+        all_keys = [f.key for f in buckets.get(severity, [])]
+        summary[f"{name}_keys"] = all_keys[:_JSON_KEYS_CAP]
+        truncated = len(all_keys) - len(all_keys[:_JSON_KEYS_CAP])
+        if truncated > 0:
+            summary[f"{name}_keys_truncated"] = truncated
     blob = json.dumps(summary, indent=2, sort_keys=True)
     return ["## Machine-readable summary", "", "```json", blob, "```", ""]
 
@@ -483,14 +503,18 @@ def render_body(snapshot: SonarSnapshot, *, generated_at: str | None = None) -> 
     Strategy, applied in order until the body fits under the limit:
 
     1. BLOCKER + CRITICAL listed in full (checkboxes); MAJOR/MINOR/INFO in
-       <details> capped at ``_DETAILS_ITEM_CAP`` items each.
-    2. Collapse the lowest-severity <details> sections to a counts-only
+       <details> capped at ``_DETAILS_ITEM_CAP`` items each. The trailing
+       JSON key lists are capped at ``_JSON_KEYS_CAP`` regardless of size.
+    2. Shrink the per-section item cap on the <details> sections (preferred
+       over dropping a whole section).
+    3. Collapse the lowest-severity <details> sections to a counts-only
        line, one at a time from INFO upward.
-    3. Shrink the per-section item cap on the remaining <details> sections.
     4. As a final guard, collapse CRITICAL (then BLOCKER) to counts-only.
 
     The body is never truncated mid-line: every collapse step drops whole
-    list items or whole sections.
+    list items or whole sections. If the body still exceeds the limit after
+    every step, a ``ValueError`` is raised so the failure is explicit rather
+    than surfacing later as a rejected ``gh`` call.
     """
     generated_at = generated_at or _dt.datetime.now(tz=_dt.UTC).isoformat(timespec="seconds")
     buckets = group_by_severity(snapshot.findings)
@@ -547,17 +571,19 @@ def render_body(snapshot: SonarSnapshot, *, generated_at: str | None = None) -> 
     body = _build()
     budget = GITHUB_BODY_LIMIT - _BODY_SAFETY_MARGIN
 
-    # Step 2: collapse <details> sections to counts-only, lowest severity first.
+    # Step 2: shrink the per-section item cap while <details> sections still
+    # exist. Reducing items inside a section is preferred over dropping the
+    # whole section, so this runs before the counts-only collapse below.
+    while len(body) > budget and item_cap > 1:
+        item_cap = max(1, item_cap // 2)
+        body = _build()
+
+    # Step 3: collapse <details> sections to counts-only, lowest severity first.
     collapse_queue = list(reversed(details_order))
     qi = 0
     while len(body) > budget and qi < len(collapse_queue):
         mode[collapse_queue[qi]] = "counts"
         qi += 1
-        body = _build()
-
-    # Step 3: shrink the item cap on any remaining <details> sections.
-    while len(body) > budget and item_cap > 1:
-        item_cap = max(1, item_cap // 2)
         body = _build()
 
     # Step 4: collapse CRITICAL then BLOCKER to counts-only as a last resort.
@@ -566,6 +592,12 @@ def render_body(snapshot: SonarSnapshot, *, generated_at: str | None = None) -> 
             break
         mode[sev] = "counts"
         body = _build()
+
+    # Final guard: every section is now counts-only and the JSON key lists are
+    # capped, so the body should fit. If it still does not, fail loudly here
+    # rather than letting `gh issue create/edit` reject an oversized body.
+    if len(body) > budget:
+        raise ValueError("rendered tracker body still exceeds GitHub's issue body limit")
 
     _assert_no_forbidden(body)
     return body

@@ -155,8 +155,7 @@ class JWTManager:
             raise ValueError("Invalid token header") from exc
         if not isinstance(header_obj, dict):
             raise ValueError("Invalid token header")
-        header_dict = cast("dict[str, Any]", header_obj)
-        alg_obj: object = header_dict.get("alg")
+        alg_obj: object = cast("dict[str, Any]", header_obj).get("alg")
         # Reject unsigned tokens explicitly - even if the configured
         # algorithm somehow matched, "none" means no signature was applied.
         if not isinstance(alg_obj, str) or alg_obj.lower() == "none":

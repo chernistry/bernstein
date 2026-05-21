@@ -565,7 +565,7 @@ def _capture_dead_letter(entry: Any, *, original_error: str) -> None:
             extra={
                 "title": entry.title,
                 "retry_count": entry.retry_count,
-                "original_error": (original_error or "")[:800],
+                "original_error": original_error[:800],
             },
         )
     except Exception as exc:  # pragma: no cover - defensive

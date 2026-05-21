@@ -119,7 +119,7 @@ class AuditChainStore:
         (bot-ack: 3284182792 -- CodeRabbit major.)
         """
         with self._append_lock:
-            merged: dict[str, Any] = dict(details)
+            merged: dict[str, Any] = details.copy()
             merged["prev_chain_digest"] = self.prev_chain_digest
             return self._log.log(
                 event_type=event_type,

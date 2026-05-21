@@ -350,3 +350,91 @@ def test_queue_full_exception_path_counts_drop() -> None:
         assert sink.dropped == 1
     finally:
         sink.close()
+
+
+# ---------------------------------------------------------------------------
+# End-to-end against a real localhost HTTP backend (Sentry store protocol)
+# ---------------------------------------------------------------------------
+
+
+def test_end_to_end_real_http_backend_receives_event() -> None:
+    """Drive the live HTTP transport against a localhost stand-in for the
+    Sentry store endpoint.
+
+    GlitchTip and any Sentry-compatible backend ingest the same store
+    payload over HTTP. By spinning up a tiny ``http.server`` on a random
+    local port and pointing a DSN at it, we exercise the entire pipeline
+    (build sink, render payload, POST via httpx, parse store URL and auth
+    header) without depending on a hosted backend in CI. The assertion
+    below confirms what the backend would have received.
+    """
+    import http.server
+    import socketserver
+    import threading as _th
+
+    received: list[dict[str, Any]] = []
+    received_headers: list[dict[str, str]] = []
+
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+            body = self.rfile.read(length) if length else b""
+            try:
+                import json as _json
+
+                received.append(_json.loads(body.decode("utf-8")))
+            except Exception:  # pragma: no cover - defensive
+                received.append({"_raw": body.decode("utf-8", "replace")})
+            received_headers.append({k: v for k, v in self.headers.items()})
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        def log_message(self, *_args: object) -> None:
+            # Silence the test server; it would otherwise spam stderr.
+            return
+
+    with socketserver.TCPServer(("127.0.0.1", 0), _Handler) as server:
+        host = str(server.server_address[0])
+        port = int(server.server_address[1])
+        thread = _th.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            dsn = f"http://localkey@{host}:{port}/9"
+            sink = build_sidechannel(env={sidechannel.DSN_ENV: dsn})
+            assert isinstance(sink, SideChannel)
+            try:
+                accepted = sidechannel.emit(
+                    "probe",
+                    "live-http synthetic event",
+                    level=EventLevel.INFO,
+                    tags={"synthetic": "true"},
+                    extra={"probe": True},
+                    sink=sink,
+                )
+                assert accepted is True
+                # Wait for the worker to drain (bounded).
+                deadline = time.monotonic() + 5.0
+                while not received and time.monotonic() < deadline:
+                    time.sleep(0.02)
+                sink.flush()
+            finally:
+                sink.close()
+        finally:
+            server.shutdown()
+            thread.join(timeout=2.0)
+
+    assert received, "live HTTP backend did not receive any event"
+    payload = received[0]
+    assert payload["message"] == "live-http synthetic event"
+    assert payload["logger"] == "bernstein.probe"
+    assert payload["platform"] == "python"
+    assert payload["level"] == EventLevel.INFO.value
+    assert payload["tags"]["bernstein.category"] == "probe"
+    assert payload["tags"]["synthetic"] == "true"
+    assert payload["extra"]["probe"] is True
+    auth = received_headers[0].get("X-Sentry-Auth", "")
+    assert auth.startswith("Sentry "), auth
+    assert "sentry_key=localkey" in auth
+    assert "sentry_version=7" in auth

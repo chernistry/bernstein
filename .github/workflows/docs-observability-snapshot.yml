@@ -46,6 +46,7 @@ jobs:
 
       - name: Capture observe snapshot
         id: capture
+        continue-on-error: true  # `doctor observe` returns 1 on Sonar WARN; snapshot still valid.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}

@@ -9,6 +9,13 @@ name: glitchtip-insights
 # configured so a fresh fork stays green until the operator wires the
 # token. The token is minted by the operator in GlitchTip and stored as
 # a repo secret named GLITCHTIP_API_TOKEN.
+#
+# Required repository configuration:
+#   * secret  GLITCHTIP_API_TOKEN  -- Bearer token for the GlitchTip API.
+#   * var     GLITCHTIP_BASE_URL   -- Base URL of the GlitchTip instance
+#                                     (e.g. https://errors.example.com).
+# Both are optional; the workflow short-circuits with a notice when
+# either is empty so forks stay green until the operator wires them.
 
 on:
   schedule:
@@ -44,13 +51,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check token presence
+      - name: Check token + base URL presence
         id: check_token
         env:
           TOKEN_PRESENT: ${{ secrets.GLITCHTIP_API_TOKEN != '' }}
+          BASE_URL_PRESENT: ${{ env.GLITCHTIP_BASE_URL != '' }}
         run: |
           if [ "${TOKEN_PRESENT}" != "true" ]; then
-            echo "GLITCHTIP_API_TOKEN is not configured; skipping sweep."
+            echo "::notice::GLITCHTIP_API_TOKEN is not configured; skipping sweep."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          elif [ "${BASE_URL_PRESENT}" != "true" ]; then
+            echo "::notice::GLITCHTIP_BASE_URL is not configured; skipping sweep."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"

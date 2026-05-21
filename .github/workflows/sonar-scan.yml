@@ -1,20 +1,17 @@
 name: SonarQube scan
 
-# Runs after a push to main, after the main CI workflow completes
-# successfully, or on manual dispatch.
+# Runs after a push to main or on manual dispatch.
 #
-# Why three triggers? Under the normal rapid-merge cadence on main,
-# ci.yml's branch-scoped `cancel-in-progress: true` (see ci.yml lines
-# 112-135) almost never lets a main CI run reach a `success`
-# conclusion: each new merge cancels the prior in-flight run. As a
-# result the historical `workflow_run` listener fired but the job-level
-# `if: workflow_run.conclusion == 'success'` short-circuited to
-# `skipped` on every recent run. The fix is to also trigger directly
-# on `push: branches: [main]` so the Sonar surface stays fresh
-# regardless of which upstream CI run was the last to actually finish.
-# The `workflow_run` arm is kept because it provides a free coverage
-# artifact when the upstream did finish; the `push` arm runs a thin
-# fallback coverage pass when there is no usable upstream artifact.
+# Historically a third `workflow_run` arm chained off the main `CI`
+# workflow's `completed` event, but ci.yml's branch-scoped
+# `cancel-in-progress: true` (ci.yml lines 112-135) almost never lets a
+# main CI run reach a `success` conclusion under the normal rapid-merge
+# cadence: each new merge cancels the prior in-flight run, so the
+# job-level `if: workflow_run.conclusion == 'success'` short-circuited
+# to `skipped` on every recent run (0/19 successful in the last 50
+# observed). The `push: branches: [main]` trigger keeps the Sonar
+# surface fresh on its own; the `push` arm runs a thin fallback
+# coverage pass when there is no usable upstream coverage artifact.
 on:
   push:
     branches: [main]
@@ -23,10 +20,6 @@ on:
       - '**/*.md'
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/pull_request_template.md'
-  workflow_run:
-    workflows: ['CI']
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -42,16 +35,12 @@ jobs:
     name: SonarQube scan
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Run when:
-    # - Triggered manually, or
-    # - Direct push to main (independent of upstream CI conclusion), or
-    # - The upstream CI run succeeded on main.
-    # SONAR_HOST_URL must be configured as a repo variable in every case.
+    # Run on direct push to main or manual dispatch.
+    # SONAR_HOST_URL must be configured as a repo variable.
     if: >-
       ${{ vars.SONAR_HOST_URL != '' &&
           (github.event_name == 'workflow_dispatch' ||
-           github.event_name == 'push' ||
-           github.event.workflow_run.conclusion == 'success') }}
+           github.event_name == 'push') }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
@@ -62,20 +51,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
-          # Sonar needs full git history for accurate blame. When
-          # triggered by workflow_run, check out the SHA that CI ran
-          # against so the scan reflects that exact commit.
+          # Sonar needs full git history for accurate blame.
           fetch-depth: 0
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
-
-      - name: Download coverage artifact (workflow_run)
-        if: github.event_name == 'workflow_run'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
-        with:
-          name: coverage-report
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # When triggered manually we have no upstream run-id, so resolve the
       # most recent successful CI run on main and pull its coverage-report
@@ -212,13 +191,16 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
         with:
+          # `sonar.projectKey` and `sonar.projectName` come from
+          # `sonar-project.properties`. The overrides below cover values
+          # the workflow needs to differ from the file (e.g. broader
+          # python.version matrix, top-level `src/` for full-tree scans,
+          # workflow-run SHA pinning).
           args: >
-            -Dsonar.projectKey=bernstein
-            -Dsonar.projectName=Bernstein
             -Dsonar.python.version=3.12,3.13
             -Dsonar.sources=src
             -Dsonar.tests=tests
             -Dsonar.python.coverage.reportPaths=coverage.xml
             -Dsonar.exclusions=src/bernstein/_default_templates/**,src/bernstein/grpc_gen/**
-            -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha || github.sha }}
+            -Dsonar.scm.revision=${{ github.sha }}
             -Dsonar.ws.timeout=600

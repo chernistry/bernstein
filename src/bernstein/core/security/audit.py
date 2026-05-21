@@ -57,6 +57,27 @@ _REQUIRED_KEY_MODE = 0o600
 #: ``agent_restart_between_retries``.
 AGENT_FRESH_RESTART_ON_RETRY = "agent_fresh_restart_on_retry"
 
+#: Issue #1799 - emitted once per step appended to an agent's hash-chained
+#: replay journal. Carries the step ``seq`` and ``step_hash`` in details so
+#: the audit-slice extractor can correlate audit events to journal entries
+#: without rehashing the chain.
+REPLAY_STEP = "replay.step"
+
+#: Issue #1799 - emitted when ``session fork --from-step`` materialises a
+#: sibling worktree branched at a per-step parent hash. The chain becomes
+#: a tree at this event-type; details carry parent + child step hashes.
+REPLAY_FORK = "replay.fork"
+
+#: Issue #1799 - emitted when ``replay export`` writes a portable receipt
+#: to disk. Details carry the receipt head hash and step count.
+REPLAY_EXPORT = "replay.export"
+
+#: Issue #1799 - emitted when ``replay publish`` writes a redacted receipt
+#: outside ``.sdd/runtime/``. Details carry both the original and the
+#: re-anchored (redacted) head hashes so the audit trail records the
+#: privacy transform.
+REPLAY_PUBLISH = "replay.publish"
+
 
 class AuditKeyPermissionError(RuntimeError):
     """Raised when the audit key file has permissions looser than 0600."""

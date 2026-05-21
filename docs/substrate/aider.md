@@ -42,6 +42,26 @@ mcp-servers:
 `command` is the Python interpreter that runs Bernstein (resolved at
 registration time). Unrelated keys are preserved verbatim.
 
+## Telemetry DSN
+
+To route Bernstein's side-channel telemetry (lineage, cost, run lifecycle,
+tracker events) into your own GlitchTip project when a wrapper launches
+Bernstein from Aider, export `BERNSTEIN_TELEMETRY_DSN` in the wrapper's
+environment before invoking Bernstein:
+
+```bash
+export BERNSTEIN_TELEMETRY_DSN="https://<public_key>@<host>/<project_id>"
+python -m bernstein.mcp
+```
+
+Or add an equivalent `env` block in your custom launch script. Aider's own
+YAML config does not carry env vars for sub-processes, so the DSN must be
+set wherever the wrapper actually launches Bernstein. The same env-var
+name and wire format are honoured by every host (see
+[docs/observability/side-channel.md](../observability/side-channel.md)),
+so operators running several hosts in parallel can point them all at one
+project. Verify with `bernstein telemetry probe` after relaunching.
+
 ## Verify
 
 ```bash

@@ -41,7 +41,7 @@ from __future__ import annotations
 import html
 import re
 from pathlib import Path
-from typing import Final
+from typing import Annotated, Final
 
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -145,7 +145,7 @@ def peek_session(session_id: str, request: Request) -> JSONResponse:
 def send_to_session(
     session_id: str,
     request: Request,
-    payload: dict[str, str] = Body(default_factory=dict),  # noqa: B008
+    payload: Annotated[dict[str, str], Body(default_factory=dict)],
 ) -> JSONResponse:
     """Pipe one line of operator input into ``session_id``'s stdin.
 

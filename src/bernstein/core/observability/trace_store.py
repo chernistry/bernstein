@@ -672,18 +672,24 @@ def build_viewer_app(store: ContentAddressedTraceStore) -> Any:
 
     @app.get("/", response_class=HTMLResponse)
     def _index(
-        task: str = Query(default=""),
-        model: str = Query(default=""),
-        q: str = Query(default=""),
+        # NOSONAR python:S8410 - Annotated[..., Query()] cannot be used here:
+        # ``Query`` is imported lazily inside this function (optional viewer
+        # extra), so FastAPI's get_type_hints cannot resolve the stringized
+        # annotation under ``from __future__ import annotations``.
+        task: str = Query(default=""),  # NOSONAR python:S8410
+        model: str = Query(default=""),  # NOSONAR python:S8410
+        q: str = Query(default=""),  # NOSONAR python:S8410
     ) -> HTMLResponse:
         entries = store.search(task_id=task, model=model, text=q)
         return HTMLResponse(_render_index_html(store, entries, task=task, model=model, q=q))
 
     @app.get("/api/traces")
     def _api_index(
-        task: str = Query(default=""),
-        model: str = Query(default=""),
-        q: str = Query(default=""),
+        # NOSONAR python:S8410 - see _index above; lazy local ``Query`` import
+        # prevents the Annotated form from resolving at route registration.
+        task: str = Query(default=""),  # NOSONAR python:S8410
+        model: str = Query(default=""),  # NOSONAR python:S8410
+        q: str = Query(default=""),  # NOSONAR python:S8410
     ) -> JSONResponse:
         entries = store.search(task_id=task, model=model, text=q)
         return JSONResponse({"traces": [e.to_dict() for e in entries]})

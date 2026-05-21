@@ -76,7 +76,14 @@ def mount(app: FastAPI) -> None:
         )
 
     app.include_router(router)
-    app.include_router(router, prefix="/api/v1")
+    # Mirror the same routes under /api/v1 via a dedicated aggregator router
+    # rather than re-including the ``router`` instance a second time. Including
+    # one ``APIRouter`` object into two parents shares mutable per-route state;
+    # nesting it inside a fresh ``api_v1_router`` keeps the versioned surface in
+    # parity (test_gui_meta_versioned_alias) without that shared-instance reuse.
+    api_v1_router = APIRouter()
+    api_v1_router.include_router(router)
+    app.include_router(api_v1_router, prefix="/api/v1")
 
     assets_dir = STATIC_DIR / "assets"
     if assets_dir.exists():

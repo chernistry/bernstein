@@ -173,14 +173,16 @@ def build_httpx_client_kwargs(cfg: TLSConfig | None) -> dict[str, Any]:
         return {}
     cfg.validate_paths()
     if cfg.verify_mode == "disabled":
-        ctx = ssl.create_default_context()
+        # Opt-in plaintext-verify path: only when operator sets verify_mode="disabled" (default is "required").
+        ctx = ssl.create_default_context()  # NOSONAR python:S5527 - opt-in verify_mode="disabled" only.
         ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         ctx.set_ciphers(_CIPHER_ALLOWLIST)
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
+        ctx.check_hostname = False  # NOSONAR python:S5527 - hostname check off only on opt-in disabled mode.
+        ctx.verify_mode = ssl.CERT_NONE  # NOSONAR python:S4830 - peer-cert check skipped only on opt-in disabled mode.
         ctx.load_cert_chain(certfile=str(_resolve(cfg.cert_file)), keyfile=str(_resolve(cfg.key_file)))
         return {"verify": ctx}
-    ctx = ssl.create_default_context(cafile=str(_resolve(cfg.ca_file)))
+    # Secure path (default/optional): create_default_context keeps check_hostname=True and verifies cfg.ca_file.
+    ctx = ssl.create_default_context(cafile=str(_resolve(cfg.ca_file)))  # NOSONAR python:S5527
     ctx.minimum_version = ssl.TLSVersion.TLSv1_2
     ctx.set_ciphers(_CIPHER_ALLOWLIST)
     ctx.load_cert_chain(certfile=str(_resolve(cfg.cert_file)), keyfile=str(_resolve(cfg.key_file)))

@@ -10,7 +10,7 @@ This directory contains two different things, and they should not be confused:
 - Public benchmark claims must come from `benchmarks/swe_bench/run.py eval`.
 - Public v1 publication scope is Bernstein vs real single-agent baselines on SWE-Bench Lite.
 - Simulation and modeling outputs in this directory are useful for previewing methodology, capacity planning, and CI smoke tests, but they are not public leaderboard evidence.
-- CrewAI and LangGraph remain qualitative comparison targets until Bernstein can reproduce them under a Bernstein-owned live harness.
+- Cross-framework comparisons remain qualitative until Bernstein can reproduce other frameworks under a Bernstein-owned live harness.
 
 ## Available harnesses
 

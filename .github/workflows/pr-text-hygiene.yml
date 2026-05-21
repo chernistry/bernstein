@@ -1,0 +1,78 @@
+name: PR text hygiene
+
+# Preventive lint for pull-request text. Scans the PR title, body,
+# head branch name, and every commit subject + body against a
+# deny-list of phrases stored in `.github/pr-text-hygiene-deny.json`.
+# Any match fails the workflow with a `::error::` annotation so the
+# `text-hygiene` job can be made a required check.
+#
+# Operator opt-out: apply the `skip-text-hygiene` PR label.
+# Bot-authored PRs (renovate, dependabot, github-actions,
+# bernstein-orchestrator) are skipped to avoid feedback loops.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-text-hygiene-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  text-hygiene:
+    name: text-hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >-
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      github.event.pull_request.user.login != 'renovate[bot]' &&
+      github.event.pull_request.user.login != 'github-actions[bot]' &&
+      github.event.pull_request.user.login != 'bernstein[bot]' &&
+      github.event.pull_request.user.login != 'bernstein-orchestrator[bot]' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-text-hygiene')
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        with:
+          egress-policy: audit
+
+      - name: Checkout PR head
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+
+      - name: Collect commit messages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p .ci/text-hygiene
+          # Format every commit as subject + body separated by `---`.
+          # `git log` is safe to run against a shallow-cloned PR head.
+          git log --format='%B%n---' "${BASE_SHA}..${HEAD_SHA}" \
+            > .ci/text-hygiene/commits.txt
+
+      - name: Run text hygiene scan
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          python scripts/check_pr_text_hygiene.py \
+            --title "${PR_TITLE}" \
+            --body "${PR_BODY:-}" \
+            --branch "${PR_BRANCH}" \
+            --commit-messages-file .ci/text-hygiene/commits.txt

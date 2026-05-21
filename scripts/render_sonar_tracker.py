@@ -1,0 +1,862 @@
+#!/usr/bin/env python3
+"""Render a single consolidated GitHub issue from live SonarQube findings.
+
+This is the consolidated counterpart to ``scripts/sweep_sonar_findings.py``.
+Where the sweeper emits one backlog ticket per finding, this script renders
+ONE GitHub issue thread that mirrors the current open-finding set and is
+re-rendered idempotently on every run. An agent (or an operator) works the
+thread top-down; the next scan drops items that have been fixed.
+
+The issue body carries a hidden marker ``<!-- sonar-tracker:bernstein -->``
+so re-runs find and edit the existing issue instead of opening duplicates.
+
+Public-artefact discipline
+--------------------------
+A GitHub issue in this repository is a public artefact. Like the sweeper,
+this renderer NEVER copies the raw Sonar ``message``/``htmlDesc`` text into
+the issue. Every human-readable description is synthesised from the shared
+pre-vetted rule-family blurb table in ``scripts/sweep_sonar_findings.py``
+(falling back to a neutral default keyed only on the rule id). The fully
+rendered body is then scanned against a forbidden-substring guard before it
+is written, so a new rule family that lands without a blurb still cannot
+leak disallowed phrasing.
+
+Env vars (matching the CI contract used by the scan + sweeper):
+  - ``SONAR_HOST_URL``  e.g. ``https://sonar.bernstein.run``
+  - ``SONAR_TOKEN``     user token with Browse permission on the project
+  - ``SONAR_PROJECT_KEY`` optional, defaults to ``bernstein``
+  - ``GITHUB_TOKEN``    token used for ``gh issue`` operations
+  - ``GITHUB_REPOSITORY`` optional ``owner/name``; falls back to the
+    ``gh`` default repo resolved from the checkout.
+
+Usage
+-----
+
+    python scripts/render_sonar_tracker.py [--dry-run] \\
+        [--fixture path/to/issues.json] [--output-body path.md] \\
+        [--repo owner/name]
+
+Exit codes
+----------
+
+- 0: clean run (rendered + synced, or no-op when SONAR_TOKEN is empty).
+- 1: Sonar API failed after retries, or the GitHub sync failed.
+- 2: misconfiguration (missing env vars, bad CLI args).
+"""
+
+from __future__ import annotations
+
+import argparse
+import dataclasses
+import datetime as _dt
+import json
+import subprocess
+import sys
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+import httpx
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
+    RunnerFn = Callable[..., Any]
+else:
+    RunnerFn = Any
+
+# Make the bernstein package importable when running from the source tree,
+# and let us reuse the sweeper's vetted blurb table + Sonar helpers.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_SRC = _REPO_ROOT / "src"
+if str(_SRC) not in sys.path:
+    sys.path.insert(0, str(_SRC))
+if str(_REPO_ROOT / "scripts") not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT / "scripts"))
+
+from sweep_sonar_findings import (  # noqa: E402
+    FORBIDDEN_SUBSTRINGS as _SWEEPER_FORBIDDEN,
+)
+from sweep_sonar_findings import (  # noqa: E402
+    SEVERITY_ORDER,
+    SEVERITY_RANK,
+    Finding,
+    SonarAPIError,
+    _auth,
+    _component_path,
+    _normalise_issue,
+    _request_with_retries,
+    safe_why,
+)
+
+from bernstein.core.observability.sonar import (  # noqa: E402
+    SonarConfig,
+    load_config,
+)
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+# Hidden marker that uniquely identifies the tracker issue. Searched for in
+# the body of open issues so re-runs edit instead of duplicating.
+TRACKER_MARKER = "<!-- sonar-tracker:bernstein -->"
+
+TRACKER_TITLE = "SonarQube findings tracker"
+TRACKER_LABELS = ("sonar-tracker", "automated")
+PRIMARY_LABEL = "sonar-tracker"
+
+# GitHub rejects issue bodies above 65536 characters. Keep a small safety
+# margin so trailing newlines / CRLF normalisation never tip us over.
+GITHUB_BODY_LIMIT = 65536
+_BODY_SAFETY_MARGIN = 256
+
+DEFAULT_PAGE_SIZE = 500
+MAX_PAGES = 40  # 40 * 500 = 20k findings ceiling; well above current volume.
+
+DEFAULT_TIMEOUT_SECONDS = 20.0
+
+# Severities listed in full (every item as a checkbox) before any collapse.
+_FULL_LIST_SEVERITIES = ("BLOCKER", "CRITICAL")
+
+# Per-severity cap for the collapsed <details> sections. Above this we list
+# the first N and append an "and N more" pointer to Sonar.
+_DETAILS_ITEM_CAP = 80
+
+_LIFECYCLE_NOTE = (
+    "This thread is auto-rendered from Sonar on each scan. Resolve an item "
+    "by fixing the code (the next scan drops it) or by marking it Won't Fix "
+    "or resolved in Sonar. Do not hand-edit; edits are overwritten on the "
+    "next sync."
+)
+
+# Public-artefact guard for the rendered body. We reuse the sweeper's
+# disallowed-phrase word list but drop its bare-hyphen entry (a hyphen is
+# legitimate in markdown tables, list bullets, and rule ids like
+# ``python:S3776``). The real typographic risk is the two long-dash code
+# points (0x2014 and 0x2013), which we add back explicitly as escapes.
+# The set mirrors the project text-hygiene phrase list for the terms a
+# Sonar rule label could plausibly contain.
+_TRACKER_FORBIDDEN: tuple[str, ...] = (
+    *(s for s in _SWEEPER_FORBIDDEN if s != "-"),
+    chr(0x2014),  # long dash, code point 0x2014
+    chr(0x2013),  # short dash, code point 0x2013
+)
+
+
+# ---------------------------------------------------------------------------
+# Sonar fetch: issues, quality gate, coverage
+# ---------------------------------------------------------------------------
+
+
+def fetch_all_findings(
+    config: SonarConfig,
+    *,
+    page_size: int = DEFAULT_PAGE_SIZE,
+    client: httpx.Client | None = None,
+) -> list[Finding]:
+    """Page through ``/api/issues/search`` for every open finding.
+
+    Unlike the sweeper we do not pre-filter by severity: the tracker shows
+    the whole open set grouped by severity, so we request all severities.
+    """
+    url = f"{config.host}/api/issues/search"
+    findings: list[Finding] = []
+    owns_client = client is None
+    if owns_client:
+        client = httpx.Client(timeout=DEFAULT_TIMEOUT_SECONDS, auth=_auth(config.token))
+    assert client is not None
+    try:
+        page = 1
+        while page <= MAX_PAGES:
+            params: dict[str, Any] = {
+                "componentKeys": config.project_key,
+                "resolved": "false",
+                "s": "SEVERITY",
+                "asc": "false",
+                "ps": str(page_size),
+                "p": str(page),
+            }
+            resp = _request_with_retries(client, url, params)
+            payload = resp.json()
+            if not isinstance(payload, dict):
+                break
+            issues = payload.get("issues") or []
+            for raw in issues:
+                if isinstance(raw, dict):
+                    finding = _normalise_issue(raw)
+                    if finding is not None:
+                        findings.append(finding)
+            paging = payload.get("paging") or {}
+            try:
+                total = int(paging.get("total", 0))
+                page_idx = int(paging.get("pageIndex", page))
+                size = int(paging.get("pageSize", page_size))
+            except (TypeError, ValueError):
+                break
+            if size <= 0 or page_idx * size >= total:
+                break
+            page += 1
+    finally:
+        if owns_client:
+            client.close()
+    return findings
+
+
+def fetch_quality_gate(
+    config: SonarConfig,
+    *,
+    client: httpx.Client | None = None,
+) -> str:
+    """Return the quality-gate status string (e.g. ``OK``/``ERROR``).
+
+    Returns ``"UNKNOWN"`` when the server omits the field or the call
+    fails; the tracker still renders with the issue counts.
+    """
+    url = f"{config.host}/api/qualitygates/project_status"
+    params = {"projectKey": config.project_key}
+    owns_client = client is None
+    if owns_client:
+        client = httpx.Client(timeout=DEFAULT_TIMEOUT_SECONDS, auth=_auth(config.token))
+    assert client is not None
+    try:
+        try:
+            resp = _request_with_retries(client, url, params)
+        except SonarAPIError:
+            return "UNKNOWN"
+        try:
+            payload = resp.json()
+        except ValueError:
+            return "UNKNOWN"
+    finally:
+        if owns_client:
+            client.close()
+    if not isinstance(payload, dict):
+        return "UNKNOWN"
+    status = payload.get("projectStatus")
+    if isinstance(status, dict):
+        value = status.get("status")
+        if isinstance(value, str) and value:
+            return value
+    return "UNKNOWN"
+
+
+def fetch_coverage(
+    config: SonarConfig,
+    *,
+    client: httpx.Client | None = None,
+) -> float | None:
+    """Return the project coverage percentage, or ``None`` when unavailable."""
+    url = f"{config.host}/api/measures/component"
+    params = {"component": config.project_key, "metricKeys": "coverage"}
+    owns_client = client is None
+    if owns_client:
+        client = httpx.Client(timeout=DEFAULT_TIMEOUT_SECONDS, auth=_auth(config.token))
+    assert client is not None
+    try:
+        try:
+            resp = _request_with_retries(client, url, params)
+        except SonarAPIError:
+            return None
+        try:
+            payload = resp.json()
+        except ValueError:
+            return None
+    finally:
+        if owns_client:
+            client.close()
+    if not isinstance(payload, dict):
+        return None
+    component = payload.get("component")
+    if not isinstance(component, dict):
+        return None
+    measures = component.get("measures")
+    if not isinstance(measures, list):
+        return None
+    for item in measures:
+        if isinstance(item, dict) and item.get("metric") == "coverage":
+            return _opt_float(item.get("value"))
+    return None
+
+
+@dataclasses.dataclass(frozen=True)
+class SonarSnapshot:
+    """Everything the renderer needs from one Sonar poll."""
+
+    findings: list[Finding]
+    quality_gate: str
+    coverage: float | None
+    host: str
+    project_key: str
+
+
+def collect_snapshot(
+    config: SonarConfig,
+    *,
+    client: httpx.Client | None = None,
+) -> SonarSnapshot:
+    """Fetch findings + quality gate + coverage in one pass."""
+    owns_client = client is None
+    if owns_client:
+        client = httpx.Client(timeout=DEFAULT_TIMEOUT_SECONDS, auth=_auth(config.token))
+    assert client is not None
+    try:
+        findings = fetch_all_findings(config, client=client)
+        quality_gate = fetch_quality_gate(config, client=client)
+        coverage = fetch_coverage(config, client=client)
+    finally:
+        if owns_client:
+            client.close()
+    return SonarSnapshot(
+        findings=findings,
+        quality_gate=quality_gate,
+        coverage=coverage,
+        host=config.host,
+        project_key=config.project_key,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Grouping
+# ---------------------------------------------------------------------------
+
+
+def group_by_severity(findings: Sequence[Finding]) -> dict[str, list[Finding]]:
+    """Bucket findings into the canonical severity order.
+
+    Within a severity, findings are sorted by component then line so the
+    rendered list is stable across runs (idempotent body for a fixed input).
+    """
+    buckets: dict[str, list[Finding]] = {sev: [] for sev in SEVERITY_ORDER}
+    extra: dict[str, list[Finding]] = {}
+    for finding in findings:
+        target = buckets.get(finding.severity)
+        if target is None:
+            target = extra.setdefault(finding.severity, [])
+        target.append(finding)
+    # Fold any unexpected severity label into the table under its own key so
+    # counts stay honest, then sort each bucket deterministically.
+    buckets.update(extra)
+    for sev in buckets:
+        buckets[sev].sort(key=lambda f: (_component_path(f.component), f.line or 0, f.key))
+    return buckets
+
+
+def _severity_sort_key(severity: str) -> int:
+    return SEVERITY_RANK.get(severity, len(SEVERITY_ORDER))
+
+
+# ---------------------------------------------------------------------------
+# Markdown rendering
+# ---------------------------------------------------------------------------
+
+
+def _issue_permalink(host: str, project_key: str, issue_key: str) -> str:
+    """Build the deep link to a single issue in the Sonar UI."""
+    return f"{host}/project/issues?issueStatuses=OPEN,CONFIRMED&id={project_key}&open={issue_key}"
+
+
+def _finding_line(finding: Finding, host: str, project_key: str, *, checkbox: bool) -> str:
+    """Render one finding as a markdown list item (public-safe)."""
+    desc = safe_why(finding.rule, finding.severity, finding.component, finding.line)
+    location = _component_path(finding.component)
+    if finding.line:
+        location = f"{location}:{finding.line}"
+    link = _issue_permalink(host, project_key, finding.key)
+    box = "- [ ] " if checkbox else "- "
+    return f"{box}rule `{finding.rule}`: {desc} `{location}` ([view]({link}))"
+
+
+def _coverage_text(coverage: float | None) -> str:
+    if coverage is None:
+        return "n/a"
+    return f"{coverage:.1f}%"
+
+
+def _tldr_table(
+    buckets: dict[str, list[Finding]],
+    *,
+    quality_gate: str,
+    coverage: float | None,
+) -> list[str]:
+    """Build the header summary table lines."""
+    total = sum(len(v) for v in buckets.values())
+    lines = [
+        f"# {TRACKER_TITLE}",
+        "",
+        TRACKER_MARKER,
+        "",
+        "## TL;DR",
+        "",
+        f"- Quality gate: **{quality_gate}**",
+        f"- Coverage: **{_coverage_text(coverage)}**",
+        f"- Open findings: **{total}**",
+        "",
+        "| Severity | Open |",
+        "| --- | ---: |",
+    ]
+    for sev in sorted(buckets, key=_severity_sort_key):
+        count = len(buckets[sev])
+        if count:
+            lines.append(f"| {sev} | {count} |")
+    lines.append(f"| **Total** | **{total}** |")
+    lines.append("")
+    lines.append(f"_{_LIFECYCLE_NOTE}_")
+    lines.append("")
+    return lines
+
+
+def _full_section(
+    severity: str,
+    items: list[Finding],
+    host: str,
+    project_key: str,
+) -> list[str]:
+    """Render a BLOCKER/CRITICAL section: every item as a checkbox."""
+    if not items:
+        return []
+    lines = [f"## {severity} ({len(items)})", ""]
+    lines.extend(_finding_line(f, host, project_key, checkbox=True) for f in items)
+    lines.append("")
+    return lines
+
+
+def _details_section(
+    severity: str,
+    items: list[Finding],
+    host: str,
+    project_key: str,
+    *,
+    item_cap: int,
+) -> list[str]:
+    """Render a MAJOR/MINOR/INFO section collapsed inside <details>."""
+    if not items:
+        return []
+    shown = items[:item_cap]
+    remainder = len(items) - len(shown)
+    lines = [
+        "<details>",
+        f"<summary>{severity} ({len(items)})</summary>",
+        "",
+    ]
+    lines.extend(_finding_line(f, host, project_key, checkbox=False) for f in shown)
+    if remainder > 0:
+        lines.append(f"- and {remainder} more, see Sonar")
+    lines.extend(["", "</details>", ""])
+    return lines
+
+
+def _counts_only_section(severity: str, items: list[Finding], host: str, project_key: str) -> list[str]:
+    """Most compact section form: a one-line count + a link to Sonar."""
+    if not items:
+        return []
+    link = f"{host}/project/issues?issueStatuses=OPEN,CONFIRMED&id={project_key}&severities={severity}"
+    return [f"- **{severity}**: {len(items)} open ([view]({link}))", ""]
+
+
+def _json_summary_block(snapshot: SonarSnapshot, buckets: dict[str, list[Finding]], generated_at: str) -> list[str]:
+    """Build the trailing machine-readable JSON summary."""
+    by_severity = {sev: len(buckets[sev]) for sev in sorted(buckets, key=_severity_sort_key) if buckets.get(sev)}
+    summary = {
+        "generated_at": generated_at,
+        "quality_gate": snapshot.quality_gate,
+        "coverage": snapshot.coverage,
+        "by_severity": by_severity,
+        "blocker_keys": [f.key for f in buckets.get("BLOCKER", [])],
+        "critical_keys": [f.key for f in buckets.get("CRITICAL", [])],
+    }
+    blob = json.dumps(summary, indent=2, sort_keys=True)
+    return ["## Machine-readable summary", "", "```json", blob, "```", ""]
+
+
+def _assert_no_forbidden(body: str) -> None:
+    """Raise if the rendered body carries any disallowed substring."""
+    lower = body.lower()
+    for forbidden in _TRACKER_FORBIDDEN:
+        if forbidden.lower() in lower:
+            raise AssertionError(f"rendered tracker body contains forbidden substring {forbidden!r}")
+
+
+def render_body(snapshot: SonarSnapshot, *, generated_at: str | None = None) -> str:
+    """Render the full issue body, collapsing to fit the GitHub size cap.
+
+    Strategy, applied in order until the body fits under the limit:
+
+    1. BLOCKER + CRITICAL listed in full (checkboxes); MAJOR/MINOR/INFO in
+       <details> capped at ``_DETAILS_ITEM_CAP`` items each.
+    2. Collapse the lowest-severity <details> sections to a counts-only
+       line, one at a time from INFO upward.
+    3. Shrink the per-section item cap on the remaining <details> sections.
+    4. As a final guard, collapse CRITICAL (then BLOCKER) to counts-only.
+
+    The body is never truncated mid-line: every collapse step drops whole
+    list items or whole sections.
+    """
+    generated_at = generated_at or _dt.datetime.now(tz=_dt.UTC).isoformat(timespec="seconds")
+    buckets = group_by_severity(snapshot.findings)
+    host = snapshot.host
+    project_key = snapshot.project_key
+
+    # Severities that get a collapsible section, lowest-priority last.
+    details_order = [s for s in SEVERITY_ORDER if s not in _FULL_LIST_SEVERITIES]
+    # Any unexpected severity labels render as counts-only at the very end.
+    extra_severities = [s for s in buckets if s not in SEVERITY_ORDER]
+
+    # Render mode per severity: "full", "details", or "counts".
+    mode: dict[str, str] = {}
+    for sev in _FULL_LIST_SEVERITIES:
+        mode[sev] = "full"
+    for sev in details_order:
+        mode[sev] = "details"
+    for sev in extra_severities:
+        mode[sev] = "counts"
+
+    item_cap = _DETAILS_ITEM_CAP
+
+    def _build() -> str:
+        parts: list[str] = []
+        parts.extend(
+            _tldr_table(
+                buckets,
+                quality_gate=snapshot.quality_gate,
+                coverage=snapshot.coverage,
+            )
+        )
+        for sev in SEVERITY_ORDER + tuple(extra_severities):
+            items = buckets.get(sev, [])
+            if not items:
+                continue
+            current = mode.get(sev, "details")
+            if current == "full":
+                parts.extend(_full_section(sev, items, host, project_key))
+            elif current == "details":
+                parts.extend(
+                    _details_section(
+                        sev,
+                        items,
+                        host,
+                        project_key,
+                        item_cap=item_cap,
+                    )
+                )
+            else:
+                parts.extend(_counts_only_section(sev, items, host, project_key))
+        parts.extend(_json_summary_block(snapshot, buckets, generated_at))
+        return "\n".join(parts).rstrip() + "\n"
+
+    body = _build()
+    budget = GITHUB_BODY_LIMIT - _BODY_SAFETY_MARGIN
+
+    # Step 2: collapse <details> sections to counts-only, lowest severity first.
+    collapse_queue = list(reversed(details_order))
+    qi = 0
+    while len(body) > budget and qi < len(collapse_queue):
+        mode[collapse_queue[qi]] = "counts"
+        qi += 1
+        body = _build()
+
+    # Step 3: shrink the item cap on any remaining <details> sections.
+    while len(body) > budget and item_cap > 1:
+        item_cap = max(1, item_cap // 2)
+        body = _build()
+
+    # Step 4: collapse CRITICAL then BLOCKER to counts-only as a last resort.
+    for sev in ("CRITICAL", "BLOCKER"):
+        if len(body) <= budget:
+            break
+        mode[sev] = "counts"
+        body = _build()
+
+    _assert_no_forbidden(body)
+    return body
+
+
+# ---------------------------------------------------------------------------
+# GitHub issue sync (via gh CLI)
+# ---------------------------------------------------------------------------
+
+
+class GitHubSyncError(RuntimeError):
+    """Raised when a ``gh`` operation fails."""
+
+
+def _run_gh(
+    args: Sequence[str],
+    *,
+    runner: RunnerFn = subprocess.run,
+    input_text: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run a ``gh`` command, returning the completed process."""
+    return runner(
+        ["gh", *args],
+        capture_output=True,
+        text=True,
+        check=False,
+        input=input_text,
+    )
+
+
+def _repo_args(repo: str | None) -> list[str]:
+    return ["--repo", repo] if repo else []
+
+
+def find_tracker_issue(repo: str | None, *, runner: RunnerFn = subprocess.run) -> int | None:
+    """Return the number of the existing tracker issue, or ``None``.
+
+    Searches open issues carrying the ``sonar-tracker`` label and confirms
+    the hidden marker is present in the body before claiming a match.
+    """
+    args = [
+        "issue",
+        "list",
+        *_repo_args(repo),
+        "--label",
+        PRIMARY_LABEL,
+        "--state",
+        "open",
+        "--json",
+        "number,body",
+        "--limit",
+        "50",
+    ]
+    result = _run_gh(args, runner=runner)
+    if result.returncode != 0:
+        raise GitHubSyncError(f"gh issue list failed: {result.stderr.strip()[:200]}")
+    try:
+        payload = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError as exc:
+        raise GitHubSyncError(f"gh issue list returned invalid JSON: {exc}") from exc
+    if not isinstance(payload, list):
+        return None
+    for entry in payload:
+        if not isinstance(entry, dict):
+            continue
+        body = entry.get("body")
+        number = entry.get("number")
+        if isinstance(body, str) and TRACKER_MARKER in body and isinstance(number, int):
+            return number
+    return None
+
+
+def _ensure_labels_exist(repo: str | None, *, runner: RunnerFn = subprocess.run) -> None:
+    """Best-effort create the tracker labels; ignore 'already exists'."""
+    colours = {"sonar-tracker": "1d76db", "automated": "ededed"}
+    for label in TRACKER_LABELS:
+        _run_gh(
+            [
+                "label",
+                "create",
+                label,
+                *_repo_args(repo),
+                "--color",
+                colours.get(label, "ededed"),
+                "--force",
+            ],
+            runner=runner,
+        )
+
+
+def create_tracker_issue(
+    body: str,
+    repo: str | None,
+    *,
+    runner: RunnerFn = subprocess.run,
+) -> int:
+    """Create the tracker issue and return its number."""
+    _ensure_labels_exist(repo, runner=runner)
+    args = [
+        "issue",
+        "create",
+        *_repo_args(repo),
+        "--title",
+        TRACKER_TITLE,
+        "--body-file",
+        "-",
+        "--label",
+        ",".join(TRACKER_LABELS),
+    ]
+    result = _run_gh(args, runner=runner, input_text=body)
+    if result.returncode != 0:
+        raise GitHubSyncError(f"gh issue create failed: {result.stderr.strip()[:300]}")
+    url = (result.stdout or "").strip().splitlines()
+    if not url:
+        raise GitHubSyncError("gh issue create returned no URL")
+    return _issue_number_from_url(url[-1])
+
+
+def update_tracker_issue(
+    number: int,
+    body: str,
+    repo: str | None,
+    *,
+    runner: RunnerFn = subprocess.run,
+) -> None:
+    """Edit the existing tracker issue body and ensure the label is set."""
+    _ensure_labels_exist(repo, runner=runner)
+    args = [
+        "issue",
+        "edit",
+        str(number),
+        *_repo_args(repo),
+        "--body-file",
+        "-",
+        "--add-label",
+        PRIMARY_LABEL,
+    ]
+    result = _run_gh(args, runner=runner, input_text=body)
+    if result.returncode != 0:
+        raise GitHubSyncError(f"gh issue edit failed: {result.stderr.strip()[:300]}")
+
+
+def _issue_number_from_url(url: str) -> int:
+    """Extract the trailing issue number from a GitHub issue URL."""
+    tail = url.rstrip("/").rsplit("/", 1)[-1]
+    try:
+        return int(tail)
+    except ValueError as exc:
+        raise GitHubSyncError(f"could not parse issue number from {url!r}") from exc
+
+
+def sync_issue(
+    body: str,
+    repo: str | None,
+    *,
+    runner: RunnerFn = subprocess.run,
+) -> tuple[int, str]:
+    """Create or update the tracker issue. Returns ``(number, action)``."""
+    existing = find_tracker_issue(repo, runner=runner)
+    if existing is not None:
+        update_tracker_issue(existing, body, repo, runner=runner)
+        return existing, "updated"
+    number = create_tracker_issue(body, repo, runner=runner)
+    return number, "created"
+
+
+# ---------------------------------------------------------------------------
+# Entrypoint
+# ---------------------------------------------------------------------------
+
+
+def _load_fixture(path: Path) -> SonarSnapshot:
+    """Build a snapshot from a saved JSON fixture (tests + offline dry-run).
+
+    The fixture may be a bare ``/api/issues/search`` payload (an object with
+    an ``issues`` list) or an extended object that also carries
+    ``quality_gate``, ``coverage``, ``host`` and ``project_key`` keys.
+    """
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        return SonarSnapshot([], "UNKNOWN", None, "https://sonar.bernstein.run", "bernstein")
+    issues = payload.get("issues")
+    findings: list[Finding] = []
+    if isinstance(issues, list):
+        for raw in issues:
+            if isinstance(raw, dict):
+                finding = _normalise_issue(raw)
+                if finding is not None:
+                    findings.append(finding)
+    return SonarSnapshot(
+        findings=findings,
+        quality_gate=str(payload.get("quality_gate", "UNKNOWN")),
+        coverage=_opt_float(payload.get("coverage")),
+        host=str(payload.get("host", "https://sonar.bernstein.run")),
+        project_key=str(payload.get("project_key", "bernstein")),
+    )
+
+
+def _opt_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def run(args: argparse.Namespace) -> int:
+    """Fetch the snapshot, render the body, and sync the GitHub issue."""
+    # 1) Build the snapshot.
+    if args.fixture:
+        try:
+            snapshot = _load_fixture(Path(args.fixture))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"error: failed to load fixture: {exc}", file=sys.stderr)
+            return 2
+    else:
+        config = load_config()
+        if config is None:
+            print("error: SONAR_HOST_URL and SONAR_TOKEN must be set", file=sys.stderr)
+            return 2
+        try:
+            snapshot = collect_snapshot(config)
+        except SonarAPIError as exc:
+            print(f"error: sonar fetch failed: {exc}", file=sys.stderr)
+            return 1
+
+    # 2) Render the body.
+    body = render_body(snapshot)
+    print(
+        f"sonar-tracker: findings={len(snapshot.findings)} "
+        f"quality_gate={snapshot.quality_gate} "
+        f"coverage={_coverage_text(snapshot.coverage)} "
+        f"body_chars={len(body)}/{GITHUB_BODY_LIMIT}",
+    )
+
+    if args.output_body:
+        Path(args.output_body).write_text(body, encoding="utf-8")
+        print(f"sonar-tracker: wrote rendered body to {args.output_body}")
+
+    if args.dry_run:
+        print("sonar-tracker: dry-run; not syncing GitHub issue")
+        return 0
+
+    # 3) Sync the GitHub issue.
+    repo = args.repo or _default_repo()
+    try:
+        number, action = sync_issue(body, repo)
+    except GitHubSyncError as exc:
+        print(f"error: github sync failed: {exc}", file=sys.stderr)
+        return 1
+    print(f"sonar-tracker: {action} issue #{number}")
+    return 0
+
+
+def _default_repo() -> str | None:
+    """Resolve ``owner/name`` from env; let gh fall back to the checkout."""
+    import os
+
+    repo = (os.environ.get("GITHUB_REPOSITORY") or "").strip()
+    return repo or None
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Render the body but do not create or edit any GitHub issue.",
+    )
+    p.add_argument(
+        "--fixture",
+        default=None,
+        help="Read the snapshot from a saved JSON fixture instead of Sonar.",
+    )
+    p.add_argument(
+        "--output-body",
+        default=None,
+        help="Also write the rendered body to this path (debugging aid).",
+    )
+    p.add_argument(
+        "--repo",
+        default=None,
+        help="Target GitHub repo as owner/name. Defaults to $GITHUB_REPOSITORY.",
+    )
+    return p.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    return run(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

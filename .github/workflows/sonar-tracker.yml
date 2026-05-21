@@ -1,0 +1,78 @@
+name: SonarQube findings tracker
+
+# Renders a single consolidated GitHub issue ("SonarQube findings tracker")
+# from the live Sonar API and keeps it in sync. The issue is found by a
+# hidden marker in its body, so every run edits the same issue instead of
+# opening duplicates. This is the consolidated counterpart to the per-finding
+# sweeper in sweep-sonar-findings.yml.
+#
+# Triggers:
+#   * workflow_dispatch  - manual run.
+#   * workflow_run       - after the "SonarQube scan" workflow completes on
+#                          main, so the tracker refreshes right after a scan.
+#   * schedule           - a daily backstop so the thread never goes stale.
+#
+# When SONAR_TOKEN is empty (the default on a fork) the job logs a notice
+# and exits 0; nothing is created.
+
+on:  # zizmor: ignore[dangerous-triggers]
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["SonarQube scan"]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '37 7 * * *'  # 07:37 UTC daily; off-peak.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sonar-tracker
+  cancel-in-progress: false
+
+jobs:
+  render:
+    name: Render Sonar tracker issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Only run when the Sonar host is configured. For workflow_run, also
+    # require that the upstream scan concluded successfully.
+    if: >-
+      ${{ vars.SONAR_HOST_URL != '' &&
+          (github.event_name != 'workflow_run' ||
+           github.event.workflow_run.conclusion == 'success') }}
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden runner (audit mode)
+        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5  # v2.19.3
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          persist-credentials: false
+
+      - name: Bootstrap (uv + python)
+        uses: ./.github/actions/bootstrap
+        with:
+          python-version: '3.13'
+
+      - name: Render and sync tracker
+        env:
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SONAR_TOKEN}" ]; then
+            echo "::notice::SONAR_TOKEN is empty; skipping tracker render (no-op on forks)."
+            exit 0
+          fi
+          uv run python scripts/render_sonar_tracker.py

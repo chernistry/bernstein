@@ -266,7 +266,7 @@ class SlackBridge(BridgeProtocol):
 
     def approved_tool_call_hashes(self) -> set[str]:
         """Return a snapshot of every tool-call hash that has been approved."""
-        return set(self._approved_tool_call_hashes)
+        return self._approved_tool_call_hashes.copy()
 
     def public_key_pem(self) -> bytes:
         """Return the install's Ed25519 public key (PEM, SubjectPublicKeyInfo)."""

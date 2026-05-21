@@ -125,7 +125,7 @@ def _render_status_table(console: Console, snapshot: SupervisorSnapshot) -> None
             hb = f"{int(row.last_heartbeat_age_s)}s"
         stuck_label = "STUCK" if row.is_stuck else "ok"
         table.add_row(
-            f"{row.worker_id}",
+            str(row.worker_id),
             row.role or "-",
             row.task_id or "-",
             hb,

@@ -582,7 +582,7 @@ def doctor(ctx: click.Context, as_json: bool, auto_fix: bool, suggest_docs: bool
     exit_code = 0
     try:
         ctx.invoke(_doctor_impl, as_json=as_json, auto_fix=auto_fix)
-    except SystemExit as exc:
+    except SystemExit as exc:  # NOSONAR python:S5754 - captured to add a hint, re-raised below
         exit_code = int(exc.code or 0)
 
     if not as_json:

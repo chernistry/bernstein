@@ -116,7 +116,10 @@ def _run_aider(argv: list[str]) -> int:
     sys.argv = [target, *rest]
     try:
         runpy.run_module("aider", run_name="__main__", alter_sys=True)
-    except SystemExit as exc:
+    # SystemExit is the expected control signal from runpy: aider calls
+    # sys.exit(), and we translate its code into our own return value
+    # rather than letting the process die mid-launcher.
+    except SystemExit as exc:  # NOSONAR python:S5754 - runpy propagates aider's sys.exit; mapped to a return code
         code = exc.code
         if isinstance(code, int):
             return code

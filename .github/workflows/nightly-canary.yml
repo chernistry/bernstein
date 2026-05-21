@@ -1,0 +1,86 @@
+name: Nightly real-run canary
+
+# Executes a real end-to-end Bernstein orchestration against the
+# deterministic stub adapter so integration-level runtime breaks become
+# visible on a schedule instead of waiting for a user to hit them. PR CI
+# only runs unit / property / contract tests plus an install-smoke that
+# checks `--version` / `--help`; nothing there actually spawns a worker,
+# creates a git worktree, appends to the audit chain, or emits a lineage
+# receipt. `scripts/canary_real_run.py` drives those genuinely-runtime
+# paths with no LLM API key and no network egress.
+#
+# ADVISORY, NOT REQUIRED. This workflow reports red on a schedule; it is
+# deliberately NOT in the `CI gate` required-check list and NOT in branch
+# protection, so a canary failure never blocks a PR merge. A future
+# operator decision can promote it to a required check (see
+# docs/operations/nightly-canary.md).
+#
+# On any flow failure the script emits a structured event tagged
+# `environment=canary` to the operator's error sink via the existing
+# observability client. The DSN comes only from `secrets.GLITCHTIP_DSN`
+# (no hostname is hardcoded here); with the secret unset the client is a
+# no-op, mirroring the rest of the observability boundary. The
+# GlitchTip-to-eval ingester then turns the captured event into a P1
+# regression eval case automatically.
+
+on:
+  schedule:
+    # 05:41 UTC daily. Off-peak and off-pattern from the 06:17 Sonar
+    # sweeper and the 06:23 GlitchTip ingester so the three jobs do not
+    # contend for runners or interleave their PRs.
+    - cron: '41 5 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-canary
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    name: Real-run canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411  # v2.19.4
+        with:
+          egress-policy: audit
+          disable-sudo: true
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: '3.13'
+
+      - name: Install uv and project deps
+        run: |
+          pip install --quiet uv
+          uv sync --group dev
+
+      - name: Configure git identity for worktree flow
+        run: |
+          # The worktree flow runs `git worktree add` / `commit` inside a
+          # throwaway repo it creates; CI runners ship no global identity.
+          git config --global user.email "canary@users.noreply.github.com"
+          git config --global user.name "Bernstein Canary"
+
+      - name: Run real-run canary
+        env:
+          # Indirection only: the DSN never appears in this file. With the
+          # secret unset the observability client is a no-op, so a missing
+          # DSN keeps the canary green on its own merits rather than failing
+          # on telemetry wiring.
+          BERNSTEIN_TELEMETRY_DSN: ${{ secrets.GLITCHTIP_DSN }}
+          # Block-on-full so a slow sink does not silently drop the one
+          # failure event the ingester needs; bounded internally to ~1s.
+          BERNSTEIN_TELEMETRY_BACKPRESSURE: queue
+        run: |
+          uv run python scripts/canary_real_run.py --verbose

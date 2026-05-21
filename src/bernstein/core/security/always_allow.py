@@ -291,7 +291,12 @@ def _verify_manifest(workdir: Path, rules_path: Path) -> None:
             "load agent-supplied always-allow rules."
         )
         _record_tamper_event(workdir, rules_path, reason)
-        logger.error(reason)  # lgtm[py/clear-text-logging-sensitive-data] - file paths only, no credential material
+        # Log a generic safety message; the full path-bearing reason is in
+        # .sdd/metrics/guardrails.jsonl for operator forensic review.
+        logger.error(
+            "Always-allow rules rejected: agent-writable rules file has no "
+            "orchestrator manifest. See .sdd/metrics/guardrails.jsonl for details."
+        )
         raise AlwaysAllowTamperError(reason)
 
     try:
@@ -299,7 +304,12 @@ def _verify_manifest(workdir: Path, rules_path: Path) -> None:
     except (OSError, json.JSONDecodeError) as exc:
         reason = f"Always-allow manifest at {manifest_path} is unreadable: {type(exc).__name__}"
         _record_tamper_event(workdir, rules_path, reason)
-        logger.error(reason)  # lgtm[py/clear-text-logging-sensitive-data] - file path + exception type only
+        # Log a generic safety message; the full path-bearing reason is in
+        # .sdd/metrics/guardrails.jsonl for operator forensic review.
+        logger.error(
+            "Always-allow manifest unreadable (%s). See .sdd/metrics/guardrails.jsonl for details.",
+            type(exc).__name__,
+        )
         raise AlwaysAllowTamperError(f"Always-allow manifest at {manifest_path} is unreadable: {exc}") from exc
 
     expected_digest = str(manifest.get("sha256", "")).lower()

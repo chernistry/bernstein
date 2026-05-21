@@ -143,6 +143,46 @@ Adding a module to the gate: extend `MODULES` in
 `.github/workflows/mutation-fixed.yml`, and add the source/test
 paths to the `paths:` filter on the same workflow.
 
+## Multi-adapter pentest fan-out
+
+The `security-pentest` eval scenario supports a fan-out entry point
+that runs the same fixture through N adapters in parallel and reports
+the per-adapter and aggregate consensus precision/recall split:
+
+```python
+from bernstein.eval.pentest_runner import (
+    load_scenario_config,
+    mock_adapter,
+    run_multi_adapter,
+)
+from bernstein.eval.pentest_scorer import PentestScorer
+
+config = load_scenario_config(Path("eval/scenarios/security_pentest.yaml"))
+report = run_multi_adapter(
+    adapters={"alpha": mock_adapter, "beta": mock_adapter},
+    config=config,
+)
+split = PentestScorer().score_multi(report)
+print(split.per_adapter["alpha"].precision, split.per_adapter["alpha"].recall)
+print(split.consensus.precision, split.consensus.recall)
+```
+
+The CLI exposes the same surface:
+
+```bash
+bernstein eval scenario security-pentest --adapters mock,mock
+```
+
+Determinism contract: the per-adapter call order is recorded on the
+report (`call_order`) and the consensus list is sorted on the dedup
+key `(canonical_vuln_type, normalized_path)`, never on adapter
+completion order. Two runs over the same input therefore produce
+byte-identical output.
+
+Degenerate case: passing a single adapter to `run_multi_adapter`
+produces a per-adapter result that matches the legacy `run_scenario`
+output exactly — existing scripts keep working unchanged.
+
 ## CI cost budget
 
 PR-time CI must stay under 2× the pre-2026 baseline. Heavy work

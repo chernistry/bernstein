@@ -10,6 +10,10 @@ All notable project changes are tracked here (code + docs).
 - `bernstein doctor --substrate` reports which detected hosts have Bernstein registered, which do not, and which are stale (canonical command/args differ from the recorded entry) (#1676).
 - Operator docs at `docs/substrate/{cursor,continue,cline,zed,aider}.md` cover install, verification, and uninstall per host (#1676).
 
+### Changed
+
+- `DiscordBridge.on_command` / `on_button` and `SlackBridge.on_command` / `on_button` now raise `NotImplementedError` at registration time instead of silently dropping the handler. Callers that wire handlers up front against the unimplemented drivers will see the failure immediately rather than at the first network call.
+
 ## [2.5.0] - Interoperability surfaces, host portability, deterministic replay
 
 22 commits since v2.4.0. Full notes: [`docs/release-notes/v2.5.0.md`](docs/release-notes/v2.5.0.md).

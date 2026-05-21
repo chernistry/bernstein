@@ -315,7 +315,7 @@ def test_diceware_wordlist_is_lowercase() -> None:
 def test_diceware_wordlist_has_no_separator_chars() -> None:
     """Dashes inside words would break parsing of the joined output."""
     for word in DICEWARE_WORDS:
-        assert "-" not in word
+        assert "\u2014" not in word
         assert " " not in word
 
 

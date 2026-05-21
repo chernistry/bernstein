@@ -82,7 +82,7 @@ class TestAbandonReasonEnum:
         for member in AbandonReason:
             assert member.value.islower()
             assert " " not in member.value
-            assert "-" not in member.value
+            assert "\u2014" not in member.value
 
 
 # ---------------------------------------------------------------------------

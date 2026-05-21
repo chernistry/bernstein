@@ -341,7 +341,6 @@ Bernstein is named after Leonard Bernstein, the American conductor and composer.
 |-------------------|---------|
 | `comparative.py`  | Comparative Benchmark Suite for Bernstein |
 | `golden.py`       | Golden test suite for the Bernstein orchestrator |
-| `head_to_head.py` | Framework context report: Bernstein vs. CrewAI and LangGraph |
 | `programbench.py` | ProgramBench evaluation harness for Bernstein |
 | `reproducible.py` | Reproducible benchmark suite for Bernstein |
 | `swe_bench.py`    | SWE-Bench evaluation harness for Bernstein |

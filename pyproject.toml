@@ -199,6 +199,12 @@ telegram = ["python-telegram-bot>=22.7"]
 # ``BERNSTEIN_SLACK_APP_TOKEN`` (xapp-...) before invoking ``bernstein
 # chat serve --platform=slack``.
 slack = ["slack-sdk>=3.27", "aiohttp>=3.9"]
+# Discord bidirectional driver over the gateway. Enable with:
+#   pip install 'bernstein[discord]'
+# Configure a Discord bot application in the developer portal, copy the
+# bot token, and set ``BERNSTEIN_DISCORD_TOKEN`` before invoking
+# ``bernstein chat serve --platform=discord``.
+discord = ["discord.py>=2.4"]
 # Contamination-resistant eval harness (SWE-bench Pro / Terminal-Bench 2.0 /
 # SWE-rebench). Kept optional so production installs don't pull HuggingFace
 # datasets unless the operator opts into the nightly leaderboard path.

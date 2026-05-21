@@ -11,7 +11,7 @@ without keeping a terminal open. Bridges are configured per-platform via
 |----------|--------|---------------|--------|
 | Telegram | Production | `pip install 'bernstein[telegram]'` | `BERNSTEIN_TELEGRAM_TOKEN` |
 | Slack    | Production | `pip install 'bernstein[slack]'`    | `BERNSTEIN_SLACK_TOKEN` (bot) + `BERNSTEIN_SLACK_APP_TOKEN` (Socket Mode app) |
-| Discord  | Stub only  | n/a                                 | n/a |
+| Discord  | Production | `pip install 'bernstein[discord]'`  | `BERNSTEIN_DISCORD_TOKEN` |
 
 ## Slack setup
 
@@ -78,9 +78,77 @@ ok = verify_chat_signature(
 Returns `True` on cryptographic match, `False` on tampered content or a
 foreign install public key.
 
+## Discord setup
+
+1. Create a Discord application in the developer portal and add a bot
+   to it. Enable the `applications.commands` scope on the bot invite
+   URL plus any read/write scopes your slash commands need.
+2. Copy the bot token and install the application to the target guild.
+3. Register `/bernstein` (or your preferred name) as an application
+   command in the Discord developer portal. The driver routes
+   subcommand names (`run`, `approve`, `reject`, `status`, `switch`,
+   `stop`, `handoff`) registered through `on_command`.
+4. Set the env var:
+
+   ```sh
+   export BERNSTEIN_DISCORD_TOKEN=<bot token>
+   ```
+
+5. Start the bridge:
+
+   ```sh
+   bernstein chat serve --platform=discord
+   ```
+
+## Channel-scoped scheduling fence
+
+The Discord driver maps each channel id to a *scheduler partition*
+(canonical form: `discord:<channel_id>`). A pending approval is
+registered against the partition of the channel the approval card
+was posted to; a click that arrives in a different channel partition
+is refused. Operators see two consequences:
+
+- The bridge raises `ChannelPartitionMismatchError` on the calling
+  goroutine so the orchestrator can fail closed.
+- The HMAC-chained audit log gets a `chat.discord.approval_rejected`
+  entry whose `details.reason` is `channel_partition_mismatch` and
+  whose `pending_partition_id` / `request_partition_id` cover both
+  sides of the mismatch.
+
+The partition helper (`bernstein.core.orchestration.scheduler_partitions`)
+is shared with the Slack driver so the on-disk partition labels stay
+consistent across chat platforms.
+
+## Verifying a Discord message
+
+Discord does not surface custom message metadata to clients, so the
+driver exposes the signed envelope via `bridge.last_signed_envelope()`
+for downstream consumers (audit pipelines, fleet dashboards) that ship
+the install's public key alongside the message body. The verification
+shape is identical to Slack's:
+
+```python
+from bernstein.core.chat.drivers.discord import verify_chat_signature
+
+envelope = bridge.last_signed_envelope()
+ok = verify_chat_signature(
+    install_id=envelope["install_id"],
+    session_id=envelope["session_id"],
+    content="<text content of the message>",
+    signature=envelope["signature"],
+    public_key_pem=open(".bernstein/keys/discord/discord-bridge.ed25519.pub", "rb").read(),
+)
+```
+
+Returns `True` on cryptographic match, `False` on tampered content or
+a foreign install public key.
+
 ## Missing SDK behaviour
 
 `bernstein chat serve --platform=slack` raises a structured
 `SlackDependencyError` when `slack-sdk` is not installed, with a
-pointer to `pip install 'bernstein[slack]'`. Install the extra, or
-switch to a platform whose SDK is already on the host.
+pointer to `pip install 'bernstein[slack]'`. `bernstein chat serve
+--platform=discord` raises `DiscordDependencyError` with a pointer to
+`pip install 'bernstein[discord]'` when `discord.py` is missing.
+Install the extra, or switch to a platform whose SDK is already on
+the host.

@@ -86,6 +86,10 @@ def chat_serve(platform: str, token: str | None, allow: str | None) -> None:
         raise click.UsageError(
             "Telegram requires `bernstein connect telegram`, --token, or $BERNSTEIN_TELEGRAM_TOKEN.",
         )
+    if platform == "discord" and not resolved_token:
+        raise click.UsageError(
+            "Discord requires `--token` or $BERNSTEIN_DISCORD_TOKEN.",
+        )
 
     overrides = _split_allow(allow)
     allow_list = load_allow_list(workdir / "bernstein.yaml", cli_override=overrides)
@@ -100,9 +104,6 @@ def chat_serve(platform: str, token: str | None, allow: str | None) -> None:
         asyncio.run(session.run_forever())
     except KeyboardInterrupt:
         click.echo("chat: interrupted, shutting down.")
-    except NotImplementedError as exc:
-        click.echo(f"chat: {exc}", err=True)
-        raise SystemExit(2) from exc
 
 
 @chat_group.command("status")

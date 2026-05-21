@@ -1,9 +1,10 @@
-"""Unit tests for chat drivers: Telegram long-poll + Discord stub.
+"""Unit tests for the Telegram long-poll chat driver.
 
 The Telegram cases exercise the standard ``python-telegram-bot``
 long-poll driver at :mod:`bernstein.core.chat.drivers.telegram`. The
 Slack driver lives in its own test module under
-``tests/unit/core/chat/test_slack_driver.py``.
+``tests/unit/core/chat/test_slack_driver.py`` and the Discord driver
+under ``tests/unit/core/chat/test_discord_driver.py``.
 """
 
 from __future__ import annotations
@@ -17,7 +18,6 @@ from typing import Any
 import pytest
 
 from bernstein.core.chat.bridge import ChatMessage, PendingApproval
-from bernstein.core.chat.drivers.discord import DISCORD_STUB_MESSAGE, DiscordBridge
 
 # ---------------------------------------------------------------------------
 # Fake python-telegram-bot package
@@ -138,39 +138,6 @@ def fake_telegram(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setitem(sys.modules, "telegram", tg)
     monkeypatch.setitem(sys.modules, "telegram.ext", ext)
-
-
-# ---------------------------------------------------------------------------
-# Discord stub
-# ---------------------------------------------------------------------------
-
-
-def test_discord_start_raises_stub_message() -> None:
-    bridge = DiscordBridge(token="x")
-    with pytest.raises(NotImplementedError) as excinfo:
-        asyncio.run(bridge.start())
-    assert DISCORD_STUB_MESSAGE in str(excinfo.value)
-    assert "op-001b" in str(excinfo.value)
-
-
-def test_discord_on_command_raises_stub_message() -> None:
-    """Wiring a Discord handler must fail fast, not silently drop."""
-    bridge = DiscordBridge()
-    with pytest.raises(NotImplementedError) as excinfo:
-        bridge.on_command("run", lambda _m: _async_noop())  # type: ignore[misc,arg-type]
-    assert DISCORD_STUB_MESSAGE in str(excinfo.value)
-
-
-def test_discord_on_button_raises_stub_message() -> None:
-    """Wiring a Discord button handler must fail fast, not silently drop."""
-    bridge = DiscordBridge()
-    with pytest.raises(NotImplementedError) as excinfo:
-        bridge.on_button(lambda _t, _a, _d: _async_noop())  # type: ignore[misc,arg-type]
-    assert DISCORD_STUB_MESSAGE in str(excinfo.value)
-
-
-async def _async_noop() -> None:  # NOSONAR - async-signature required by protocol / fixture
-    return None
 
 
 # ---------------------------------------------------------------------------

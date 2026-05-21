@@ -36,13 +36,13 @@ with a fresh trace stays `active` to avoid racing a restart.
 
 ```text
 bernstein worktrees list   [--workdir DIR] [--json]
-bernstein worktrees gc     [--workdir DIR] [--yes] [--dry-run]
+bernstein worktrees gc     [--workdir DIR] [--yes] [--dry]
 ```
 
 - `list` - tabular dump with path, task id, state, age, size, PID. Use
   `--json` for scripting.
 - `gc` - reap non-`active` worktrees. `--yes` skips the confirmation
-  prompt; `--dry-run` prints what would be reaped without touching
+  prompt; `--dry` prints what would be reaped without touching
   disk.
 
 ## GC lock
@@ -126,7 +126,7 @@ bernstein worktrees list
 Preview reap plan without touching disk:
 
 ```bash
-bernstein worktrees gc --dry-run
+bernstein worktrees gc --dry
 ```
 
 Reap non-interactively (CI / cron):

@@ -27,7 +27,11 @@ Invariants exercised here:
 
 from __future__ import annotations
 
+import json
 import re
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -286,3 +290,158 @@ def test_stub_paths_mirror_ci_paths_ignore(ci_doc: dict[str, object], stub_doc: 
         f"  stub paths          : {stub_paths}\n"
         "When you add or remove an entry in one file, update the other in the same PR."
     )
+
+
+# ---------------------------------------------------------------------------
+# merge_group wedge guard: the CI gate roll-up must resolve to SUCCESS on a
+# merge_group event, otherwise enabling a GitHub merge queue wedges every
+# merge (the queue runs CI on a synthetic merge_group ref and refuses to
+# merge anything until `CI gate` reports success on it).
+# ---------------------------------------------------------------------------
+
+
+def _ci_gate_rollup_script(ci_doc: dict[str, object]) -> str:
+    """Extract the Python heredoc body from the ci-gate roll-up step.
+
+    The ``ci-gate`` job runs an inline ``python3 - <<'PY' ... PY`` block
+    that reads ``results.json`` / ``plan.json`` / ``EVENT_NAME`` and decides
+    whether the rolled-up result is a pass. We lift that exact body so the
+    test exercises the shipped logic rather than a copy.
+    """
+    jobs = ci_doc["jobs"]
+    assert isinstance(jobs, dict)
+    gate = jobs[REQUIRED_JOB_KEY]
+    assert isinstance(gate, dict)
+    steps = gate["steps"]
+    assert isinstance(steps, list)
+    run_bodies = [s["run"] for s in steps if isinstance(s, dict) and "run" in s]
+    rollup = next((r for r in run_bodies if "results.json" in r and "plan.json" in r), None)
+    assert rollup is not None, "could not locate the ci-gate roll-up step `run:` body"
+    match = re.search(r"<<'PY'\n(.*?)\n\s*PY\b", rollup, re.DOTALL)
+    assert match is not None, "ci-gate roll-up no longer uses a `python3 - <<'PY'` heredoc"
+    return textwrap.dedent(match.group(1))
+
+
+def _run_rollup(
+    tmp_path: Path,
+    script: str,
+    *,
+    event: str,
+    needs: dict[str, dict[str, str]],
+    plan: dict[str, str],
+    event_payload: dict[str, object] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    (tmp_path / "results.json").write_text(json.dumps(needs))
+    (tmp_path / "plan.json").write_text(json.dumps(plan))
+    payload_path = tmp_path / "event.json"
+    payload_path.write_text(json.dumps(event_payload or {}))
+    return subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=tmp_path,
+        env={
+            "EVENT_NAME": event,
+            "GITHUB_EVENT_PATH": str(payload_path),
+            "PATH": __import__("os").environ.get("PATH", ""),
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+# A typical (non-macOS-sensitive) merge_group entry: every required job
+# succeeds except the ones whose `if:` excludes merge_group. Under
+# merge_group: macOS-gated jobs skip (if: only fires on push / sensitive /
+# label), PR-only jobs skip (if: pull_request), and the push-only job skips.
+_MERGE_GROUP_NEEDS = {
+    "determine-changes": {"result": "success"},
+    "repo-hygiene": {"result": "success"},
+    "lint": {"result": "success"},
+    "spelling": {"result": "success"},
+    "actionlint": {"result": "success"},
+    "lineage-gate": {"result": "success"},
+    "typecheck": {"result": "success"},
+    "dead-code": {"result": "success"},
+    "dist-size": {"result": "success"},
+    "install-smoke-pipx": {"result": "success"},
+    "install-smoke-uv": {"result": "success"},
+    "property-tests": {"result": "success"},
+    "snapshot-tests": {"result": "success"},
+    "schemathesis-smoke": {"result": "success"},
+    "semgrep": {"result": "success"},
+    "bandit": {"result": "success"},
+    "pip-audit": {"result": "success"},
+    "beartype": {"result": "success"},
+    "mutmut-diff": {"result": "skipped"},  # if: pull_request
+    "diff-coverage": {"result": "skipped"},  # if: pull_request
+    "pyright-strict-zone": {"result": "success"},
+    "adapter-integration": {"result": "success"},
+    "adapter-integration-macos": {"result": "skipped"},  # if: push/sensitive/label
+    "test": {"result": "success"},
+    "test-macos": {"result": "skipped"},  # if: push/sensitive/label
+    "close-ci-issues": {"result": "skipped"},  # if: push to main
+}
+
+
+def test_ci_gate_rollup_passes_on_merge_group(ci_doc: dict[str, object], tmp_path: Path) -> None:
+    """The shipped roll-up must PASS on a merge_group event whose only
+    non-success jobs are the ones legitimately skipped under merge_group.
+
+    If this fails, a GitHub merge queue would wedge: the first queued entry
+    with a non-macOS-sensitive diff makes test-macos / adapter-integration-macos
+    skip, and an intolerant gate reads that as a failure -> nothing merges.
+    """
+    script = _ci_gate_rollup_script(ci_doc)
+    proc = _run_rollup(
+        tmp_path,
+        script,
+        event="merge_group",
+        needs=_MERGE_GROUP_NEEDS,
+        plan={"docs_only": "false", "macos_sensitive": "false"},
+    )
+    assert proc.returncode == 0, (
+        "CI gate roll-up FAILED on a merge_group event -- enabling a merge "
+        "queue would wedge all merges.\n"
+        f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+    )
+
+
+def test_ci_gate_rollup_still_fails_on_real_failure_under_merge_group(
+    ci_doc: dict[str, object], tmp_path: Path
+) -> None:
+    """Tolerance must not become a rubber stamp: a genuine failure (e.g.
+    the ubuntu test job) must still fail the gate under merge_group.
+    """
+    script = _ci_gate_rollup_script(ci_doc)
+    needs = dict(_MERGE_GROUP_NEEDS)
+    needs["test"] = {"result": "failure"}
+    proc = _run_rollup(
+        tmp_path,
+        script,
+        event="merge_group",
+        needs=needs,
+        plan={"docs_only": "false", "macos_sensitive": "false"},
+    )
+    assert proc.returncode == 1, (
+        "CI gate roll-up must FAIL when a real required job fails under "
+        f"merge_group.\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+    )
+
+
+def test_ci_gate_rollup_passes_on_push(ci_doc: dict[str, object], tmp_path: Path) -> None:
+    """Sanity: on a push to main the macOS jobs run (success here) and the
+    PR-only jobs skip; the gate passes. Guards against a fix that breaks the
+    existing push path.
+    """
+    script = _ci_gate_rollup_script(ci_doc)
+    needs = dict(_MERGE_GROUP_NEEDS)
+    needs["test-macos"] = {"result": "success"}
+    needs["adapter-integration-macos"] = {"result": "success"}
+    proc = _run_rollup(
+        tmp_path,
+        script,
+        event="push",
+        needs=needs,
+        plan={"docs_only": "false", "macos_sensitive": "false"},
+    )
+    assert proc.returncode == 0, f"CI gate roll-up must pass on push.\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"

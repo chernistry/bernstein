@@ -21,7 +21,7 @@ import logging
 import operator
 import time
 from contextlib import suppress
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
@@ -152,13 +152,13 @@ def build_fleet_app(
 
     @app.get("/api/audit")
     async def api_audit(  # pyright: ignore[reportUnusedFunction]
-        project: str | None = Query(default=None),
-        role: str | None = Query(default=None),
-        adapter: str | None = Query(default=None),
-        outcome: str | None = Query(default=None),
-        since: float | None = Query(default=None),
-        until: float | None = Query(default=None),
-        limit: int = Query(default=200, ge=1, le=2000),
+        project: Annotated[str | None, Query()] = None,
+        role: Annotated[str | None, Query()] = None,
+        adapter: Annotated[str | None, Query()] = None,
+        outcome: Annotated[str | None, Query()] = None,
+        since: Annotated[float | None, Query()] = None,
+        until: Annotated[float | None, Query()] = None,
+        limit: Annotated[int, Query(ge=1, le=2000)] = 200,
     ) -> JSONResponse:
         rows: list[dict[str, Any]] = []
         for proj in aggregator.projects():

@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, cast
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
@@ -224,8 +224,8 @@ def _flatten_trace_events(traces: list[dict[str, Any]]) -> list[TraceTimelineEve
 def task_trace(
     request: Request,
     task_id: str,
-    limit: int = Query(default=500, ge=1, le=2000),
-    cursor: int = Query(default=0, ge=0),
+    limit: Annotated[int, Query(ge=1, le=2000)] = 500,
+    cursor: Annotated[int, Query(ge=0)] = 0,
 ) -> TraceTimelineResponse:
     """Return the timeline of trace events for *task_id*.
 

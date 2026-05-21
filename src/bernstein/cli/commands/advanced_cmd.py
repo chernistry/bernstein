@@ -1730,11 +1730,7 @@ def _replay_journal_dispatch(
             raise SystemExit(2)
         agent_id = args[1]
         # Output path can be passed as the third positional or default beside .sdd.
-        output: Path = (
-            Path(args[2])
-            if len(args) >= 3
-            else sdd_path / "runtime" / "receipts" / f"{agent_id}.tar"
-        )
+        output: Path = Path(args[2]) if len(args) >= 3 else sdd_path / "runtime" / "receipts" / f"{agent_id}.tar"
 
         from bernstein.cli.commands.replay_cmd import replay_export
 

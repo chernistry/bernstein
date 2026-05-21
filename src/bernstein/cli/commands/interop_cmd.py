@@ -217,7 +217,7 @@ def verify(
         if is_json():
             print_json({"ok": False, "fingerprint": fingerprint, "failures": failures})
         else:
-            print_error(f"Capability card {card_path} is NOT valid:")
+            print_error(f"Capability card {card_path} is NOT valid:", soft_wrap=True)
             for reason in failures:
                 console.print(f"  - {reason}")
         sys.exit(1)
@@ -233,7 +233,7 @@ def verify(
             }
         )
         return
-    print_success(f"Capability card {card_path} is valid")
+    print_success(f"Capability card {card_path} is valid", soft_wrap=True)
     console.print(f"  issuer: [bold]{signed.card.issuer}[/bold]  kid: {signed.card.kid}")
     console.print(f"  fingerprint: {fingerprint}")
 

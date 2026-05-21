@@ -417,3 +417,48 @@ def test_archive_refuses_proc_path(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     )
     assert result.exit_code == 1, result.output
     assert "Refusing to operate" in result.output or "Refusing to archive" in result.output
+
+
+# ---------------------------------------------------------------------------
+# _is_safe_audit_dir boundary (platform-independent)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "unsafe",
+    [
+        # Exact mount roots: a symlink to /proc resolves to "/proc" with NO
+        # trailing slash, so a startswith("/proc/") check silently lets it
+        # through. These exact-root cases are the regression that landed red.
+        "/proc",
+        "/dev",
+        "/sys",
+        # Children must also be refused.
+        "/proc/self",
+        "/dev/null",
+        "/sys/kernel",
+    ],
+)
+def test_is_safe_audit_dir_refuses_pseudo_filesystems(unsafe: str) -> None:
+    from bernstein.cli.commands.audit_cmd import _is_safe_audit_dir
+
+    safe, reason = _is_safe_audit_dir(Path(unsafe))
+    assert safe is False, f"expected {unsafe} to be refused, got safe=True"
+    assert "refusing to operate" in reason.lower()
+
+
+@pytest.mark.parametrize(
+    "ok",
+    [
+        # Lookalike prefixes that merely *start* with the pseudo-fs token must
+        # NOT be refused (e.g. /procurement, /devel, /system).
+        "/procurement/audit",
+        "/devel/audit",
+        "/system/audit",
+    ],
+)
+def test_is_safe_audit_dir_allows_lookalike_prefixes(ok: str) -> None:
+    from bernstein.cli.commands.audit_cmd import _is_safe_audit_dir
+
+    safe, _reason = _is_safe_audit_dir(Path(ok))
+    assert safe is True, f"expected {ok} to be allowed, got safe=False"

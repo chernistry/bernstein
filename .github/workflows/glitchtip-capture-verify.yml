@@ -6,6 +6,9 @@ name: glitchtip-capture-verify
 
 on:
   workflow_dispatch: {}
+  push:
+    branches:
+      - feat/glitchtip-real-signal-capture
 
 permissions:
   contents: read

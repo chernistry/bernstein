@@ -43,6 +43,32 @@ in `settings.json` are preserved verbatim.
 
 Restart Zed after registering so it reloads its settings.
 
+## Telemetry DSN
+
+To route Bernstein's side-channel telemetry (lineage, cost, run lifecycle,
+tracker events) from Zed into your own GlitchTip project, add an `env`
+block to the `bernstein` entry with `BERNSTEIN_TELEMETRY_DSN` set to a
+Sentry-compatible DSN:
+
+```json
+{
+  "context_servers": {
+    "bernstein": {
+      "command": "/path/to/python",
+      "args": ["-m", "bernstein.mcp"],
+      "env": {
+        "BERNSTEIN_TELEMETRY_DSN": "https://<public_key>@<host>/<project_id>"
+      }
+    }
+  }
+}
+```
+
+The same env-var name and wire format are honoured by every host
+(see [docs/observability/side-channel.md](../observability/side-channel.md)),
+so operators running several hosts in parallel can point them all at one
+project. Verify with `bernstein telemetry probe` after restarting Zed.
+
 ## Verify
 
 ```bash

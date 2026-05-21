@@ -158,15 +158,16 @@ class SQLiteMemoryStore:
         now = time.time()
         rows: list[tuple[Any, ...]] = []
         for raw in entries:
-            entry_type = raw["type"]
-            content = raw["content"]
-            tags = raw.get("tags") or []
-            tags_str = ",".join(tags) if tags else ""
+            entry_type: str = raw["type"]
+            content: str = raw["content"]
+            raw_tags = raw.get("tags") or []
+            tag_list: list[str] = list(raw_tags) if raw_tags else []
+            tags_str = ",".join(tag_list) if tag_list else ""
             importance = float(raw.get("importance", 1.0))
             task_id = raw.get("task_id")
-            source_agent = raw.get("source_agent", "")
-            source_model = raw.get("source_model", "")
-            source_adapter = raw.get("source_adapter")
+            source_agent: str = raw.get("source_agent", "")
+            source_model: str = raw.get("source_model", "")
+            source_adapter: str | None = raw.get("source_adapter")
             rows.append(
                 (
                     entry_type,

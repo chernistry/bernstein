@@ -192,6 +192,14 @@ For a complete loss of the orchestrator host:
 6. **Verify**:
    - `bernstein status` - task counts match pre-incident.
    - `bernstein audit verify` - hash chain intact.
+   - `bernstein verify --determinism <recovered-run> --baseline <pre-incident-run>`
+     - asserts the recovered run reproduced the pre-incident **decision
+     trace** byte-for-byte. Exits non-zero on any divergence and names the
+     first diverging WAL entry (`seq` + decision type) from the hash chain.
+     Pin a known-good digest instead with
+     `--expect <fingerprint>` (compared constant-time). A green gate proves
+     the WAL decision trace matched, **not** that on-disk artefacts are
+     identical.
    - `bernstein dr backup --to /tmp/drill.tar.gz --dry-run` (sanity).
 7. **Resume external triggers**: if any cron/CI/webhook was paused
    during failover, re-enable now.

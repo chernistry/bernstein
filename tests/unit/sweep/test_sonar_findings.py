@@ -20,6 +20,7 @@ from sweep_sonar_findings import (  # type: ignore[import-not-found]
     SEVERITY_TO_PRIORITY,
     Finding,
     SonarAPIError,
+    _assert_no_forbidden,
     _component_path,
     _request_with_retries,
     build_dedup_index,
@@ -593,10 +594,38 @@ def test_maybe_create_gh_issue_skips_when_disabled(tmp_path: Path) -> None:
     assert maybe_create_gh_issue(path, "title", enable=False, priority="P0") is None
 
 
-def test_maybe_create_gh_issue_skips_non_p0(tmp_path: Path) -> None:
+def test_maybe_create_gh_issue_p1_now_fires(tmp_path: Path) -> None:
+    """MAJOR -> P1 promotes to a GH issue after the widening change."""
     path = tmp_path / "t.md"
     path.write_text("body")
-    assert maybe_create_gh_issue(path, "title", enable=True, priority="P1") is None
+    captured: dict[str, Any] = {}
+
+    class _R:
+        def __init__(self, rc: int, out: str) -> None:
+            self.returncode = rc
+            self.stdout = out
+            self.stderr = ""
+
+    def fake_runner(cmd: list[str], **kwargs: Any) -> _R:
+        captured["cmd"] = cmd
+        return _R(0, "https://github.com/org/repo/issues/77\n")
+
+    url = maybe_create_gh_issue(
+        path,
+        "title",
+        enable=True,
+        priority="P1",
+        runner=fake_runner,
+    )
+    assert url == "https://github.com/org/repo/issues/77"
+    assert captured["cmd"][:3] == ["gh", "issue", "create"]
+
+
+def test_maybe_create_gh_issue_skips_p2(tmp_path: Path) -> None:
+    """P2 tickets stay file-only and never auto-promote to a GH issue."""
+    path = tmp_path / "t.md"
+    path.write_text("body")
+    assert maybe_create_gh_issue(path, "title", enable=True, priority="P2") is None
 
 
 def test_maybe_create_gh_issue_calls_runner(tmp_path: Path) -> None:
@@ -635,6 +664,297 @@ def test_component_path_strips_project_prefix() -> None:
 
 
 def test_severity_to_priority_mapping() -> None:
+    """MAJOR moves from P2 to P1 so the queue actually drains.
+
+    MAJOR findings accumulate faster than operators can hand-triage them,
+    so they now auto-promote to GH issues alongside BLOCKER (P0) and
+    CRITICAL (P1). MINOR and INFO stay at P2 (file-only).
+    """
     assert SEVERITY_TO_PRIORITY["BLOCKER"] == "P0"
     assert SEVERITY_TO_PRIORITY["CRITICAL"] == "P1"
-    assert SEVERITY_TO_PRIORITY["MAJOR"] == "P2"
+    assert SEVERITY_TO_PRIORITY["MAJOR"] == "P1"
+    assert SEVERITY_TO_PRIORITY["MINOR"] == "P2"
+    assert SEVERITY_TO_PRIORITY["INFO"] == "P2"
+
+
+# ---------------------------------------------------------------------------
+# Top-10 MAJOR rule families have vetted blurb coverage
+# ---------------------------------------------------------------------------
+
+
+def test_top_major_rules_have_blurb_coverage() -> None:
+    """The top MAJOR rule families seen in production must have a blurb.
+
+    Lifted from the open MAJOR cohort on the Sonar tracker so the next
+    sweep run does not emit `DEFAULT_BLURB` placeholders.
+    """
+    top_major_rules = [
+        "python:S5886",  # return-type mismatch
+        "python:S5864",  # isinstance with non-type-like arg
+        "python:S3358",  # nested ternary
+        "python:S5869",  # regex character-class duplicates
+        "python:S1244",  # float equality compare
+        "python:S5843",  # regex super-linear backtracking
+        "python:S1764",  # identical sub-expressions
+        "python:S8495",  # generic typing misuse
+        "python:S3923",  # all branches identical
+    ]
+    covered_prefixes = {prefix for prefix, _slug, _blurb in RULE_FAMILY_BLURBS}
+    for rule in top_major_rules:
+        assert rule in covered_prefixes, f"missing RULE_FAMILY_BLURBS entry for {rule}"
+
+
+# ---------------------------------------------------------------------------
+# Widened sweeper: MAJOR-severity scenarios
+# ---------------------------------------------------------------------------
+
+
+def test_major_finding_emits_p1_ticket(tmp_path: Path) -> None:
+    """A MAJOR-severity finding emits a ticket whose priority is P1."""
+    finding = Finding(
+        key="MAJOR-K1",
+        rule="python:S1481",
+        severity="MAJOR",
+        type="CODE_SMELL",
+        component="bernstein:src/a.py",
+        line=5,
+        creation_date="2026-05-21T08:00:00+0000",
+    )
+    out_dir = tmp_path / "open"
+    out_dir.mkdir()
+    path, _body, wrote = emit_ticket(finding, out_dir, day="2026-05-21")
+    assert wrote is True
+    fm = yaml.safe_load(path.read_text(encoding="utf-8").split("---")[1])
+    assert fm["priority"] == "P1"
+    assert fm["sonar_severity"] == "MAJOR"
+
+
+def test_capping_picks_blocker_first_then_major_in_receipt_order(
+    sweep_workspace: Path,
+    tmp_path: Path,
+) -> None:
+    """5 BLOCKER + 25 MAJOR + 5 MINOR with cap=25 keeps 5 BLOCKER + 20 MAJOR.
+
+    The cap applies after severity sort (BLOCKER first), so all five
+    BLOCKERs land and the remainder of the cap (20 slots) goes to the
+    MAJOR cohort in receipt order (newest creation_date first).
+    """
+    issues = []
+    for idx in range(5):
+        issues.append(
+            {
+                "key": f"BLOCKER-K{idx:02d}",
+                "rule": "python:S2068",
+                "severity": "BLOCKER",
+                "type": "VULNERABILITY",
+                "component": f"bernstein:src/b{idx}.py",
+                "line": idx + 1,
+                "creationDate": f"2026-05-20T10:{idx:02d}:00+0000",
+            }
+        )
+    for idx in range(25):
+        issues.append(
+            {
+                "key": f"MAJOR-K{idx:02d}",
+                "rule": "python:S1481",
+                "severity": "MAJOR",
+                "type": "CODE_SMELL",
+                "component": f"bernstein:src/m{idx}.py",
+                "line": idx + 100,
+                "creationDate": f"2026-05-19T08:{idx:02d}:00+0000",
+            }
+        )
+    for idx in range(5):
+        issues.append(
+            {
+                "key": f"MINOR-K{idx:02d}",
+                "rule": "python:S125",
+                "severity": "MINOR",
+                "type": "CODE_SMELL",
+                "component": f"bernstein:src/n{idx}.py",
+                "line": idx + 200,
+                "creationDate": f"2026-05-18T08:{idx:02d}:00+0000",
+            }
+        )
+    payload = {
+        "paging": {"pageIndex": 1, "pageSize": 500, "total": len(issues)},
+        "issues": issues,
+    }
+    fixture = tmp_path / "issues.json"
+    fixture.write_text(__import__("json").dumps(payload), encoding="utf-8")
+
+    out_dir = sweep_workspace / "open"
+    rc = main(
+        argv=[
+            "--fixture",
+            str(fixture),
+            "--out-dir",
+            str(out_dir),
+            "--backlog-root",
+            str(sweep_workspace),
+            "--severity-min",
+            "MAJOR",
+            "--max-per-day",
+            "25",
+            "--day",
+            "2026-05-21",
+        ]
+    )
+    assert rc == 0
+    files = sorted(out_dir.glob("2026-05-21-*.md"))
+    assert len(files) == 25
+    parsed = [yaml.safe_load(p.read_text(encoding="utf-8").split("---")[1]) for p in files]
+    severities = [p["sonar_severity"] for p in parsed]
+    keys = {p["sonar_issue_key"] for p in parsed}
+    # All 5 BLOCKERs must be present (highest priority bucket).
+    assert severities.count("BLOCKER") == 5
+    assert {f"BLOCKER-K{idx:02d}" for idx in range(5)} <= keys
+    # Remaining 20 slots filled with MAJORs in newest-first receipt order:
+    # the 5 oldest MAJORs (K00-K04) are dropped by the cap, K05-K24 survive.
+    assert severities.count("MAJOR") == 20
+    assert {f"MAJOR-K{idx:02d}" for idx in range(5, 25)} <= keys
+    assert not any(f"MAJOR-K{idx:02d}" in keys for idx in range(5))
+    # Severity-min=MAJOR excludes MINOR entirely.
+    assert "MINOR" not in severities
+
+
+def test_widen_fixture_caps_at_25_and_bodies_pass_guard(
+    sweep_workspace: Path,
+    issues_search_widen_fixture_path: Path,
+) -> None:
+    """On-disk widen fixture: severity-min=MAJOR, cap=25 -> 25 clean tickets.
+
+    The fixture carries 5 BLOCKER + 25 MAJOR + 5 MINOR = 35 findings. With
+    severity-min=MAJOR the MINORs drop, leaving 30 candidates; cap=25
+    trims to 25 (5 BLOCKER + 20 MAJOR). Every emitted body must pass the
+    public-artefact guard.
+    """
+    out_dir = sweep_workspace / "open"
+    rc = main(
+        argv=[
+            "--fixture",
+            str(issues_search_widen_fixture_path),
+            "--out-dir",
+            str(out_dir),
+            "--backlog-root",
+            str(sweep_workspace),
+            "--severity-min",
+            "MAJOR",
+            "--max-per-day",
+            "25",
+            "--day",
+            "2026-05-21",
+        ]
+    )
+    assert rc == 0
+    files = sorted(out_dir.glob("2026-05-21-*.md"))
+    assert len(files) == 25
+    parsed = [yaml.safe_load(p.read_text(encoding="utf-8").split("---")[1]) for p in files]
+    assert sum(1 for p in parsed if p["sonar_severity"] == "BLOCKER") == 5
+    assert sum(1 for p in parsed if p["sonar_severity"] == "MAJOR") == 20
+    assert not any(p["sonar_severity"] == "MINOR" for p in parsed)
+    # Every emitted ticket body passes the forbidden-substring guard.
+    for path in files:
+        _assert_no_forbidden(path.read_text(encoding="utf-8"), context=str(path))
+
+
+def test_widen_fixture_major_rules_use_vetted_blurbs(
+    sweep_workspace: Path,
+    issues_search_widen_fixture_path: Path,
+) -> None:
+    """No emitted MAJOR ticket falls back to DEFAULT_BLURB for the top rules."""
+    out_dir = sweep_workspace / "open"
+    rc = main(
+        argv=[
+            "--fixture",
+            str(issues_search_widen_fixture_path),
+            "--out-dir",
+            str(out_dir),
+            "--backlog-root",
+            str(sweep_workspace),
+            "--severity-min",
+            "MAJOR",
+            "--max-per-day",
+            "100",
+            "--day",
+            "2026-05-21",
+        ]
+    )
+    assert rc == 0
+    files = sorted(out_dir.glob("2026-05-21-*.md"))
+    fallback_marker = "Static-analysis finding flagged under rule key"
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        assert fallback_marker not in text, f"{path} used DEFAULT_BLURB fallback"
+
+
+def test_major_with_create_gh_issues_invokes_runner(
+    sweep_workspace: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """MAJOR finding + --create-gh-issues -> gh CLI is invoked once.
+
+    The widening means MAJOR (P1) now opts in to GH-issue creation.
+    """
+    issues = [
+        {
+            "key": "MAJOR-K-GH",
+            "rule": "python:S1481",
+            "severity": "MAJOR",
+            "type": "CODE_SMELL",
+            "component": "bernstein:src/foo.py",
+            "line": 12,
+            "creationDate": "2026-05-20T08:00:00+0000",
+        }
+    ]
+    payload = {
+        "paging": {"pageIndex": 1, "pageSize": 500, "total": 1},
+        "issues": issues,
+    }
+    fixture = tmp_path / "issues_gh.json"
+    fixture.write_text(__import__("json").dumps(payload), encoding="utf-8")
+
+    captured: dict[str, Any] = {"calls": 0, "cmds": []}
+
+    class _R:
+        def __init__(self, rc: int, out: str) -> None:
+            self.returncode = rc
+            self.stdout = out
+            self.stderr = ""
+
+    def fake_runner(cmd: list[str], **kwargs: Any) -> _R:
+        captured["calls"] = captured["calls"] + 1
+        captured["cmds"].append(cmd)
+        return _R(0, "https://github.com/org/repo/issues/123\n")
+
+    import sweep_sonar_findings as sweeper  # type: ignore[import-not-found]
+
+    monkeypatch.setattr(sweeper.subprocess, "run", fake_runner)
+
+    out_dir = sweep_workspace / "open"
+    rc = main(
+        argv=[
+            "--fixture",
+            str(fixture),
+            "--out-dir",
+            str(out_dir),
+            "--backlog-root",
+            str(sweep_workspace),
+            "--severity-min",
+            "MAJOR",
+            "--max-per-day",
+            "25",
+            "--create-gh-issues",
+            "--day",
+            "2026-05-21",
+        ]
+    )
+    assert rc == 0
+    assert captured["calls"] == 1
+    assert captured["cmds"][0][:3] == ["gh", "issue", "create"]
+    # The ticket file should have the GH trailer appended.
+    files = list(out_dir.glob("2026-05-21-*.md"))
+    assert len(files) == 1
+    text = files[0].read_text(encoding="utf-8")
+    assert "gh-issue-created:" in text

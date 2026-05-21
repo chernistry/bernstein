@@ -26,6 +26,12 @@ def issues_search_fixture_path() -> Path:
 
 
 @pytest.fixture
+def issues_search_widen_fixture_path() -> Path:
+    """Path to the widen fixture: 5 BLOCKER + 25 MAJOR + 5 MINOR."""
+    return _FIXTURE_DIR / "issues_search_widen.json"
+
+
+@pytest.fixture
 def issues_search_payload(issues_search_fixture_path: Path) -> dict:
     """Parsed payload of the canonical issues_search.json fixture."""
     return json.loads(issues_search_fixture_path.read_text(encoding="utf-8"))

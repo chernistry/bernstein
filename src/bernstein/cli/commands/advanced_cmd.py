@@ -971,7 +971,7 @@ _register_doctor_glitchtip(doctor)
 @click.option(
     "--severity-min",
     "severity_min",
-    default="BLOCKER",
+    default="MAJOR",
     show_default=True,
     type=click.Choice(["BLOCKER", "CRITICAL", "MAJOR", "MINOR", "INFO"]),
     help="Minimum severity to include.",
@@ -980,7 +980,7 @@ _register_doctor_glitchtip(doctor)
     "--max-per-day",
     "max_per_day",
     type=int,
-    default=10,
+    default=25,
     show_default=True,
     help="Cap on the number of tickets emitted in this run.",
 )
@@ -992,6 +992,13 @@ _register_doctor_glitchtip(doctor)
     help="Directory to write emitted ticket files into.",
 )
 @click.option(
+    "--create-gh-issues",
+    "create_gh_issues",
+    is_flag=True,
+    default=False,
+    help="For P0+P1 tickets (BLOCKER, CRITICAL, MAJOR), also open a GH issue.",
+)
+@click.option(
     "--fixture",
     default=None,
     help="Use a saved JSON fixture instead of calling Sonar (for local dry-runs).",
@@ -1001,6 +1008,7 @@ def doctor_sonar_sweep_cmd(
     severity_min: str,
     max_per_day: int,
     out_dir: str,
+    create_gh_issues: bool,
     fixture: str | None,
 ) -> None:
     """Turn open static-analysis findings into backlog tickets.
@@ -1045,6 +1053,8 @@ def doctor_sonar_sweep_cmd(
     ]
     if dry_run:
         argv.append("--dry-run")
+    if create_gh_issues:
+        argv.append("--create-gh-issues")
     if fixture:
         argv.extend(["--fixture", fixture])
 

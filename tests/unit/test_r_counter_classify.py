@@ -1,6 +1,6 @@
 """Unit tests for scripts/r_counter_classify.py and the allow-list file.
 
-Refs: edge-hardening EDGE-4 (premortem p=0.35).
+Regression guard for the hotfix R-counter classifier.
 """
 
 from __future__ import annotations

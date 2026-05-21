@@ -1,6 +1,7 @@
 """Unit tests for scripts/gh_rate_limit_guard.sh.
 
-Refs: edge-hardening EDGE-7 (premortem p=0.15).
+Regression guard for the GitHub API rate-limit preflight used by
+long-running agent loops.
 
 Tests use a shim PATH that injects a fake `gh` binary returning known
 JSON. This isolates the test from the real GitHub API and lets us

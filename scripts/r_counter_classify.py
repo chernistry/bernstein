@@ -1,12 +1,10 @@
 """Classify a hotfix chain against the R-counter benign-drift allow-list.
 
-Used by ``.github/workflows/hotfix-r-tracker.yml`` (META-engineering wave,
-landing separately) to decide whether a detected R>1 chain represents a
-genuine regression worth surfacing on the parent feature PR, or whether
-it is the standard "agents-md sync drift -> ruff format drift" cleanup
-sequence that happens after every feature merge touching Python modules.
-
-Refs: edge-hardening EDGE-4 (premortem p=0.35).
+Used by ``.github/workflows/hotfix-r-tracker.yml`` to decide whether a
+detected R>1 chain represents a genuine regression worth surfacing on
+the parent feature PR, or whether it is the standard "agents-md sync
+drift -> ruff format drift" cleanup sequence that happens after every
+feature merge touching Python modules.
 
 Contract
 --------

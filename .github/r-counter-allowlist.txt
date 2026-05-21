@@ -1,12 +1,9 @@
 # R-counter benign-recursive-drift allow-list
 #
-# Refs: edge-hardening EDGE-4 (premortem p=0.35).
-#
-# The Hotfix R-counter workflow (`.github/workflows/hotfix-r-tracker.yml`,
-# landed via the META-engineering wave) walks back parent commits looking
-# for `fix(ci):*` patterns and counts hotfix chains. R > 1 is supposed to
-# mean "a hotfix begot another hotfix; the root cause was not actually
-# fixed".
+# The Hotfix R-counter workflow (`.github/workflows/hotfix-r-tracker.yml`)
+# walks back parent commits looking for `fix(ci):*` patterns and counts
+# hotfix chains. R > 1 is supposed to mean "a hotfix begot another
+# hotfix; the root cause was not actually fixed".
 #
 # False-positive failure mode this allow-list addresses
 # -----------------------------------------------------

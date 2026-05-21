@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 # GitHub API rate-limit guard for long-running loops.
 #
-# Refs: edge-hardening EDGE-7 (premortem p=0.15).
-#
 # Wraps `gh api rate_limit` and emits a verdict suitable for use in a
 # loop's per-iteration preflight. The watchdog and other long-running
 # agent scripts source/call this guard to back off when burn rate is

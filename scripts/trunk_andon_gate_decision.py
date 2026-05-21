@@ -1,11 +1,9 @@
 """Decide whether a PR may merge while ``TRUNK_UNSTABLE`` is set.
 
-Refs: edge-hardening EDGE-5 (premortem p=0.25).
-
-Companion to ``.github/workflows/trunk-andon-gate.yml`` (META wave,
-landed via PR #1456). The Andon gate's default behaviour holds every PR
-on a red trunk except those labeled ``hotfix-cleared``. Two additional
-escapes are needed for real-world operation:
+Companion to ``.github/workflows/trunk-andon-gate.yml`` (landed via PR
+#1456). The Andon gate's default behaviour holds every PR on a red
+trunk except those labeled ``hotfix-cleared``. Two additional escapes
+are needed for real-world operation:
 
 1. ``force-merge`` label - escalation level above ``hotfix-cleared``.
    Used when the operator decides the hold itself is causing more harm

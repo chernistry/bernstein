@@ -146,8 +146,7 @@ def schedule_add(
 def schedule_list(as_json: bool) -> None:
     """List all registered schedules."""
     sdd = _sdd_dir()
-    store = ScheduleStore(sdd)
-    schedules = store.list()
+    schedules = ScheduleStore(sdd).list()
 
     if as_json:
         click.echo(
@@ -339,9 +338,7 @@ def schedule_doctor(as_json: bool) -> None:
     """
     sdd = _sdd_dir()
     store = ScheduleStore(sdd)
-    supervisor = ScheduleSupervisor(store, lambda _evt: None, None)
-
-    status = supervisor.status()
+    status = ScheduleSupervisor(store, lambda _evt: None, None).status()
     payload = {
         "alive": status.alive,
         "last_tick_at": status.last_tick_at,

@@ -71,7 +71,7 @@ class Schedule:
     misfire_policy: MisfirePolicy = "skip"
     created_at: float = 0.0
     last_fire_at: float = 0.0
-    extra: dict[str, Any] = field(default_factory=lambda: {})
+    extra: dict[str, Any] = field(default_factory=dict[str, Any])
 
 
 class CronParseError(ValueError):
@@ -170,8 +170,7 @@ def _expand_field(spec: str, lo: int, hi: int, names: dict[str, int] | None = No
                 continue
             start, end = value, hi
 
-        for v in range(start, end + 1, step):
-            result.add(v)
+        result.update(range(start, end + 1, step))
 
     if not result:
         raise CronParseError(f"empty cron field expansion: {spec!r}")
@@ -407,7 +406,7 @@ class ScheduleStore:
             scenario_id=schedule.scenario_id,
             misfire_policy=schedule.misfire_policy,
             created_at=schedule.created_at,
-            last_fire_at=float(fire_time),
+            last_fire_at=fire_time,
             extra=dict(schedule.extra),
         )
         self._write(updated)
